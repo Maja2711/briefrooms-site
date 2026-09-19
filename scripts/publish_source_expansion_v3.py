@@ -316,6 +316,7 @@ def homepage_ranked_select(
     labels: dict[str, str],
     limit: int = HOMEPAGE_LIMIT,
     now: datetime | None = None,
+    blocked_stories: list[dict[str, Any]] | None = None,
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Choose homepage stories by editorial priority, quality and diversity."""
     current = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
@@ -343,6 +344,11 @@ def homepage_ranked_select(
             ))
     ranked.sort(key=lambda row: (row[0], -row[1], -row[2], row[3]))
 
+    blocked = list(blocked_stories or [])
+    blocked_sport_count = sum(
+        1 for story in blocked
+        if str(story.get("homepage_lane") or story.get("_homepage_lane") or "") == "sport"
+    )
     selected: list[dict[str, Any]] = []
     selected_ids: set[str] = set()
     source_counts: dict[str, int] = {}
@@ -364,7 +370,11 @@ def homepage_ranked_select(
         source = str(story.get("source") or "unknown")
         section_id = str(story.get("_homepage_section_id") or "")
         lane = str(story.get("_homepage_lane") or "nauka")
-        effective_lane_cap = HOMEPAGE_SPORT_HARD_CAP if lane == "sport" else lane_cap
+        effective_lane_cap = (
+            max(0, HOMEPAGE_SPORT_HARD_CAP - blocked_sport_count)
+            if lane == "sport"
+            else lane_cap
+        )
         if (
             source_counts.get(source, 0) >= source_cap
             or section_counts.get(section_id, 0) >= section_cap
@@ -372,7 +382,7 @@ def homepage_ranked_select(
         ):
             cap_rejected += 1
             return False
-        if any(homepage_same_topic(story, previous) for previous in selected):
+        if any(homepage_same_topic(story, previous) for previous in blocked + selected):
             topic_rejected += 1
             return False
         selected.append(story)
@@ -469,14 +479,19 @@ def homepage_round_robin(
     now: datetime | None = None,
 ) -> list[dict[str, Any]]:
     global _LAST_HOMEPAGE_DIAGNOSTICS, _LAST_HOMEPAGE_RESERVE
-    planned, diagnostics = homepage_ranked_select(
+    selected, diagnostics = homepage_ranked_select(
         sections,
         labels,
-        limit + HOMEPAGE_RESERVE_LIMIT,
+        limit,
         now=now,
     )
-    selected = planned[:limit]
-    reserve = planned[limit : limit + HOMEPAGE_RESERVE_LIMIT]
+    reserve, reserve_diagnostics = homepage_ranked_select(
+        sections,
+        labels,
+        HOMEPAGE_RESERVE_LIMIT,
+        now=now,
+        blocked_stories=selected,
+    )
     _LAST_HOMEPAGE_RESERVE = [dict(story) for story in reserve]
 
     diagnostics.update(
@@ -489,6 +504,8 @@ def homepage_round_robin(
             "section_mix": _mix(selected, "category"),
             "reserve_source_mix": _mix(reserve, "source"),
             "reserve_section_mix": _mix(reserve, "category"),
+            "reserve_lane_mix": _mix(reserve, "homepage_lane"),
+            "reserve_topic_duplicates_suppressed": reserve_diagnostics.get("topic_duplicates_suppressed", 0),
             "runtime_backfill_policy": "approved_home_reserve_only",
         }
     )
