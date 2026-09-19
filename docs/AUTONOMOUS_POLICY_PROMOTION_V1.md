@@ -1,5 +1,15 @@
 # PR35 — Policy Candidate + Autonomous Promotion Gate + Rollback v1
 
+## Current authority after Architecture Reconciliation 1.5
+
+**Production materialization from this legacy PR35/PR36 loop is retired for Stock Trading.**
+
+The prospective research methodology, fixed-N gates, artifacts and observatory remain useful as historical/research infrastructure, but `data/investments/autonomous_policy_closed_loop_config.json` now sets `automatic_materialization_enabled=false`.
+
+For the active Stock Trading v2 product, the sole component production-promotion authority is the main-branch `Stock Trading Component Promotion` path. This avoids two independent systems writing the same stock policy parameter.
+
+The remainder of this document records the original PR35 methodology and historical actuator design; statements below describing automatic production materialization are no longer current runtime authority.
+
 ## Purpose
 
 PR35 closes the first bounded self-improvement loop in BriefRooms.
