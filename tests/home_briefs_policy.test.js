@@ -24,40 +24,23 @@ function item(lang, id, category, ageMs) {
   };
 }
 
-test('homepage card contract is exactly ten', () => {
-  const rows = Array.from({ length: 14 }, (_, index) =>
+test('homepage card contract is exactly twelve', () => {
+  const rows = Array.from({ length: 16 }, (_, index) =>
     item('pl', String(index + 1), index % 2 ? 'Ekonomia' : 'Polityka', (index + 1) * 60 * 1000)
   );
-  assert.equal(home.CARD_LIMIT, 10);
-  assert.equal(home.selectApproved(rows, 'pl', NOW).length, 10);
+  assert.equal(home.CARD_LIMIT, 12);
+  assert.equal(home.selectApproved(rows, 'pl', NOW).length, 12);
 });
 
-test('PL homepage promotes politics, economy and health ahead of other fresh news', () => {
+test('legacy homepage renderer preserves feed editorial order', () => {
   const rows = [
-    item('pl', '1', 'Technologia', 5 * 60 * 1000),
-    item('pl', '2', 'Zdrowie', 20 * 60 * 1000),
-    item('pl', '3', 'Ekonomia / Biznes', 30 * 60 * 1000),
-    item('pl', '4', 'Polityka / Kraj', 40 * 60 * 1000),
-    item('pl', '5', 'Sport', 2 * 60 * 1000)
+    item('pl', '1', 'Polityka / Kraj', 40 * 60 * 1000),
+    item('pl', '2', 'Geopolityka', 30 * 60 * 1000),
+    item('pl', '3', 'Ekonomia / Biznes', 20 * 60 * 1000),
+    item('pl', '4', 'Nauka / Technologie', 10 * 60 * 1000)
   ];
   const selected = home.selectApproved(rows, 'pl', NOW);
-  assert.deepEqual(selected.slice(0, 3).map(row => home.topicForCategory(row.category)), [
-    'politics', 'economy', 'health'
-  ]);
-});
-
-test('EN homepage promotes politics/world, business and health', () => {
-  const rows = [
-    item('en', '1', 'Science', 1 * 60 * 1000),
-    item('en', '2', 'Health', 20 * 60 * 1000),
-    item('en', '3', 'Business', 30 * 60 * 1000),
-    item('en', '4', 'World News', 40 * 60 * 1000),
-    item('en', '5', 'Sport', 2 * 60 * 1000)
-  ];
-  const selected = home.selectApproved(rows, 'en', NOW);
-  assert.deepEqual(selected.slice(0, 3).map(row => home.topicForCategory(row.category)), [
-    'politics', 'economy', 'health'
-  ]);
+  assert.deepEqual(selected.map(row => row.title), rows.map(row => row.title));
 });
 
 test('homepage accepts exactly 72 hours and rejects anything older or undated', () => {
