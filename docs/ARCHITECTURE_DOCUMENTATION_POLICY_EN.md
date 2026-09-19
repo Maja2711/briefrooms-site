@@ -22,6 +22,12 @@ A new subsystem must receive a stable `module_id`. A replaced or retired subsyst
 
 If an architecture change does not require a top-level dependency change, the map must still be reviewed and its affected module/status/reference entry updated when needed. Architecture drift between runtime code and the map is treated as a defect.
 
+## Mandatory AI / agent bootstrap
+
+The repository-root `AGENTS.md` file is the mandatory entry point for AI and coding agents. Before designing or implementing a change that touches architecture, trading, learning, Belief/Epistemic, decision logic, risk, workflows, persistence, promotion/rollback, or execution, the agent must first open the canonical Architecture Map, identify the affected `module_id` set, read the referenced detailed documentation, and only then inspect the implementation.
+
+An agent must not reconstruct BriefRooms architecture from conversational memory or start a new subsystem before checking whether equivalent or overlapping capability already exists. `README.md` keeps a visible pointer to this bootstrap, while `scripts/validate_architecture_bootstrap.py` and the `Architecture Bootstrap Guard` workflow protect its presence and PL/EN map-version synchronization.
+
 ## Pull-request requirement
 
 An architecture PR is incomplete until both language versions exist and both canonical Architecture Maps accurately describe the resulting system. Runtime code is the implementation source of truth; the paired architecture documents and Architecture Map are the human-readable design record.
