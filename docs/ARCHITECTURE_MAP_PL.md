@@ -390,7 +390,7 @@ Każda nowa sesja lub agent pracujący nad architekturą BriefRooms zaczyna od r
 
 ## 15. Dokumenty źródłowe mapy
 
-Najważniejsze dokumenty szczegółowe użyte do utworzenia v1.0:
+Najważniejsze dokumenty szczegółowe użyte do budowy i utrzymania aktualnej mapy:
 
 - `AGENTS.md`
 - `scripts/validate_architecture_bootstrap.py`
