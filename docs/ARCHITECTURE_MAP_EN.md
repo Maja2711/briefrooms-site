@@ -291,7 +291,9 @@ Examples of private durable state include the Learning Outcome Loop and GSE/Beli
 9. **No hindsight learning.** An outcome can bind to a decision/forecast only if the upstream event existed before the outcome under the activation boundary.
 10. **Selected AND rejected matter.** Where supported, rejected candidates are frozen and analyzed for MISS/opportunity regret.
 11. **Production vs shadow is explicit.** Shadow output cannot be presented as a historically executed production trade.
-12. **PL/EN architecture sync.** Every architecture change updates both map versions and required detailed documentation.\n13. **Stock Trading fixed notional + normalized history.** Every new `TR-04` position uses a fixed nominal size of PLN 5,000 (GPW) or USD 5,000 (US) through `FIXED_NOTIONAL_V1`. Closed history, including legacy history, is compared through explicit `FIXED_NOTIONAL_HISTORY_V1` derived analytics with `history_normalized_quantity = 5000 / entry`; prices, timestamps and execution facts remain immutable.\n14. **Architecture bootstrap before architecture work.** An AI/agent starts an architecture change from `AGENTS.md` and the canonical map, not from conversational memory or an isolated code search.
+12. **PL/EN architecture sync.** Every architecture change updates both map versions and required detailed documentation.
+13. **Stock Trading fixed notional + normalized history.** Every new `TR-04` position uses a fixed nominal size of PLN 5,000 (GPW) or USD 5,000 (US) through `FIXED_NOTIONAL_V1`. Closed history, including legacy history, is compared through explicit `FIXED_NOTIONAL_HISTORY_V1` derived analytics with `history_normalized_quantity = 5000 / entry`; prices, timestamps and execution facts remain immutable.
+14. **Architecture bootstrap before architecture work.** An AI/agent starts an architecture change from `AGENTS.md` and the canonical map, not from conversational memory or an isolated code search.
 
 ## 11. Authority map — what each layer may NOT do
 
@@ -357,7 +359,9 @@ Every new session or agent working on BriefRooms architecture starts from reposi
 
 Primary detailed documents used to build this map:
 
-- `AGENTS.md`\n- `scripts/validate_architecture_bootstrap.py`\n- `ARCHITECTURE_DOCUMENTATION_POLICY_EN.md` / `_PL.md`
+- `AGENTS.md`
+- `scripts/validate_architecture_bootstrap.py`
+- `ARCHITECTURE_DOCUMENTATION_POLICY_EN.md` / `_PL.md`
 - `BELIEF_CORE.md`
 - `BELIEF_EVIDENCE_ADAPTERS.md`
 - `BELIEF_EPISTEMIC_STATE.md`
