@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable
@@ -24,7 +25,22 @@ HOME_LIMIT = 12
 HOME_RESERVE_LIMIT = 12
 POLICY_VERSION = "max-72h-first-display-v1"
 IMAGE_POLICY_VERSION = "https-image-required-v1"
-POST_FRESHNESS_SELECTION_VERSION = "post-freshness-editorial-v1"
+POST_FRESHNESS_SELECTION_VERSION = "post-freshness-editorial-v2"
+PRIMARY_BULLETIN_POLICY_VERSION = "en-primary-bulletin-same-day-v1"
+PRIMARY_BULLETIN_SOURCES = {
+    "federal reserve",
+    "federal reserve board",
+    "ecb",
+    "european central bank",
+    "bank of england",
+    "bank of japan",
+}
+PRIMARY_BULLETIN_TITLE = re.compile(
+    r"\b(fomc statement|monetary policy statement|monetary policy decision|interest rate decision|"
+    r"rate decision|meeting minutes|minutes of .*meeting|consumer expectations survey results|"
+    r"survey results)\b",
+    re.I,
+)
 HOMEPAGE_PRIORITY_ORDER = (
     "polityka",
     "geopolityka",
@@ -64,6 +80,23 @@ def _source_is_fresh(story: dict[str, Any], now: datetime) -> bool:
         return False
     age = now - published
     return -FUTURE_TOLERANCE <= age <= HOME_MAX_AGE
+
+
+def _is_primary_bulletin(story: dict[str, Any]) -> bool:
+    source = str(story.get("source") or "").strip().casefold()
+    title = str(story.get("title") or "").strip()
+    return source in PRIMARY_BULLETIN_SOURCES and bool(PRIMARY_BULLETIN_TITLE.search(title))
+
+
+def _primary_bulletin_is_current(story: dict[str, Any], now: datetime, lang: str | None) -> bool:
+    """EN homepage: raw central-bank bulletins are day-of-release content only."""
+    if lang != "en" or not _is_primary_bulletin(story):
+        return True
+    published = _parse_time(story.get("published_at"))
+    if published is None:
+        return False
+    current = now.astimezone(timezone.utc)
+    return published.date() == current.date()
 
 
 def _homepage_image_url(story: dict[str, Any]) -> str:
@@ -246,6 +279,7 @@ def enforce_payload(
     payload: dict[str, Any],
     state_lang: dict[str, Any],
     now: datetime,
+    lang: str | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     current = now.astimezone(timezone.utc)
     candidates = list(_candidate_sequence(payload))
@@ -253,12 +287,15 @@ def enforce_payload(
     expired_count = 0
     source_stale_count = 0
     image_rejected_count = 0
+    primary_bulletin_stale_count = 0
 
     def qualify(story: dict[str, Any]) -> tuple[dict[str, Any] | None, str]:
         if not _homepage_image_url(story):
             return None, "image"
         if not _source_is_fresh(story, current):
             return None, "source_stale"
+        if not _primary_bulletin_is_current(story, current, lang):
+            return None, "primary_bulletin_stale"
 
         identity = base.normalized_identity(story)
         if not identity:
@@ -295,6 +332,8 @@ def enforce_payload(
             image_rejected_count += 1
         elif reason == "source_stale":
             source_stale_count += 1
+        elif reason == "primary_bulletin_stale":
+            primary_bulletin_stale_count += 1
         elif reason == "expired":
             expired_count += 1
 
@@ -317,6 +356,7 @@ def enforce_payload(
         "reserve_story_limit": HOME_RESERVE_LIMIT,
         "runtime_backfill_policy": "approved_home_reserve_only",
         "post_freshness_selection_version": POST_FRESHNESS_SELECTION_VERSION,
+        "primary_bulletin_policy_version": PRIMARY_BULLETIN_POLICY_VERSION,
         "priority_order": list(HOMEPAGE_PRIORITY_ORDER),
         "sport_hard_cap": SPORT_HARD_CAP,
         "requires_https_image": True,
@@ -327,6 +367,7 @@ def enforce_payload(
         "version": POLICY_VERSION,
         "image_policy_version": IMAGE_POLICY_VERSION,
         "post_freshness_selection_version": POST_FRESHNESS_SELECTION_VERSION,
+        "primary_bulletin_policy_version": PRIMARY_BULLETIN_POLICY_VERSION,
         "published_count": len(selected),
         "target_story_count": HOME_LIMIT,
         "minimum_story_count": HOME_LIMIT,
@@ -341,6 +382,7 @@ def enforce_payload(
         "reserve_lane_mix": _mix(reserve, "homepage_lane"),
         "expired_exposure_rejected": expired_count,
         "source_stale_rejected": source_stale_count,
+        "primary_bulletin_same_day_rejected": primary_bulletin_stale_count,
         "image_rejected": image_rejected_count,
         "topic_duplicate_rejected": selection_diag["topic_duplicates_suppressed"],
         "diversity_cap_rejected": selection_diag["diversity_cap_rejections"],
@@ -377,7 +419,7 @@ def enforce_files() -> None:
         if not isinstance(state_lang, dict):
             state_lang = {}
             languages[lang] = state_lang
-        payload, _ = enforce_payload(payload, state_lang, now)
+        payload, _ = enforce_payload(payload, state_lang, now, lang=lang)
         path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
     STATE_PATH.write_text(json.dumps(state, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -401,6 +443,8 @@ def validate_files() -> None:
             raise RuntimeError(f"{lang} homepage reserve limit missing")
         if policy.get("post_freshness_selection_version") != POST_FRESHNESS_SELECTION_VERSION:
             raise RuntimeError(f"{lang} post-freshness editorial selection missing")
+        if policy.get("primary_bulletin_policy_version") != PRIMARY_BULLETIN_POLICY_VERSION:
+            raise RuntimeError(f"{lang} primary bulletin freshness policy missing")
         if policy.get("priority_order") != list(HOMEPAGE_PRIORITY_ORDER):
             raise RuntimeError(f"{lang} homepage priority order missing")
         if policy.get("sport_hard_cap") != SPORT_HARD_CAP:
@@ -423,6 +467,10 @@ def validate_files() -> None:
         approved: list[dict[str, Any]] = []
         for scope, rows in (("homepage", home), ("homepage reserve", reserve)):
             for story in rows:
+                if not _primary_bulletin_is_current(story, now, lang):
+                    raise RuntimeError(
+                        f"{lang} {scope} contains stale same-day primary bulletin: {story.get('title')}"
+                    )
                 identity = base.normalized_identity(story)
                 if not identity or identity in identities:
                     raise RuntimeError(f"{lang} {scope} contains a duplicate or invalid story")
