@@ -1,8 +1,8 @@
 # BriefRooms Canonical Architecture Map — EN
 
-**Map version:** 1.4  
+**Map version:** 1.5  
 **Snapshot date:** 2026-09-19  
-**Base `main` commit:** `4541344d60a3e6a6076b98d86a033c203a4d3b08`  
+**Base `main` commit:** `331314840c1f1ddeccd814b46df688ccf9971d2b`  
 **Repository:** `Maja2711/briefrooms-site`
 
 ## 0. Purpose of this document
@@ -149,6 +149,7 @@ An adapter is not a decision engine. Its primary job is to translate a source in
 | `EP-06` | Frozen Forecast + Verification | Freezes probability/evidence before outcome and verifies later | `belief_core_shadow.py`, `belief_core_verify.py` |
 | `EP-07` | Calibration | Brier, log loss, ECE/MCE, slices, drift and source diagnostics | `belief_calibration.py`, `belief_calibration_foundation.py`; recommendations without silent auto-tuning |
 | `EP-08` | Read-only Belief Bridges | Deliver epistemic/belief state to selected engines in governed modes | WES/BRACE/SPX bridge files; decision influence depends on the explicit gate |
+| `EP-09` | Belief ARIS Shadow Diagnostics | Read-only research over alternative Evidence representations: model+residual, competing representations, ROI/pruning | `scripts/belief_aris_shadow.py`, `scripts/belief_aris_shadow_live.py`, `docs/BELIEF_ARIS_SHADOW.md`; `research_shadow`, no Belief writeback, consumer export, decision influence or auto-promotion |
 
 ### Belief Core is not a “constitution”
 
@@ -160,11 +161,12 @@ An adapter is not a decision engine. Its primary job is to translate a source in
 |---|---|---|---|
 | `IN-01` | News Claim / Event Intelligence | Claim/event extraction and structuring, source quality and dedupe | `news_claim_intelligence.py`, `news_event_intelligence_v4.py`, source architecture |
 | `IN-02` | Investment Event Intelligence | Corporate/market events and bridges into stock/weekly engines | `investment_event_intelligence.py`, `investment_corporate_event_intelligence.py`, `investment_event_stock_bridge.py`, `investment_event_weekly_bridge.py` |
-| `IN-03` | Geopolitical Scenario Engine (GSE) | `Evidence -> Scenario -> Transmission Graph -> Multi-Asset Forecast -> Verification -> Calibration` | `geopolitical_scenario_engine.py`; GSE v1 shadow-only, no execution authority |
+| `IN-03` | Geopolitical Scenario Engine (GSE) | `Evidence -> Scenario -> Transmission Graph -> Multi-Asset Forecast -> Verification -> Calibration` plus prospective learning | `geopolitical_scenario_engine.py` remains the v1 foundation; active hourly research/learning runtime is `gse_v2_fast_cycle.py`, `gse_v2_learning_loop.py`, `.github/workflows/gse-hourly-cycle-v2.yml`; shadow/research, no execution authority |
 | `IN-04` | BRACE Entity Intelligence | Company entity framework, primary-source evidence, disagreement, interpretation, belief-state forecast, calibration | `brace_entity_*` family |
 | `IN-05` | Broad/Sector Market Beliefs | Broad-market and sector/factor beliefs for BRACE | `brace_broad_market_belief.py`, `brace_sector_factor_belief.py` |
 | `IN-06` | Investment Semantics / World State | Semantic representation of investment state | `INVESTMENT_SEMANTICS_WORLD_STATE.md` and related modules |
 | `IN-07` | TimesFM Shadow Forecaster | Independent research/shadow forecaster and benchmark | `timesfm_shadow_forecaster.py`, `timesfm3_internal_benchmark.py`; not standalone production authority |
+| `IN-08` | Market Relationship / Trigger Engine | `EVENT × ENTITY × PEERS × MARKET REACTION × TIME -> ATTENTION`; scarce research routing for Stock Trading v2 | Research branch `stock-trading-v2`: `scripts/briefrooms_market_relationship_trigger.py`, `briefrooms_market_relationship_outcomes.py`, `briefrooms_trigger_deep_belief.py`, `briefrooms_trigger_deep_belief_learning.py`; max 6 attention (4 trigger + 2 exploration), max 2 Deep BELIEF proxy, zero production decision authority |
 
 ## 6. Decision / trading engines
 
@@ -173,10 +175,10 @@ An adapter is not a decision engine. Its primary job is to translate a source in
 | `TR-01` | Legacy GPW Daily pipeline | Historical GPW Daily candidate research, settlement, lineage and MISS/rejected-candidate memory | **DEPRECATED AS PRODUCT / REPLACED_BY `TR-04`**. Code/workflows may remain for legacy research/settlement compatibility, but are not the production Champion and may not admit positions into the v2 portfolio |
 | `TR-02` | Legacy US Daily pipeline | Historical US Daily lifecycle/risk/memory | **DEPRECATED AS PRODUCT / REPLACED_BY `TR-04`**. Retained for migration/history compatibility; active stock authority belongs to v2 |
 | `TR-03` | Daily EUR/USD Spot | Intraday–24h; shared Daily contract | Historically shadow rollout; independent lifecycle/event overlay/ABC learning |
-| `TR-04` | Stock Trading v2 | Unified active stock engine for GPW and US: Dynamic Universe, Opportunity Frontier, Deep Evidence, Fixed Notional Sizing, Portfolio Opportunity Engine | **PRODUCTION CHAMPION**. Every new position uses `FIXED_NOTIONAL_V1`: PLN 5,000 on GPW or USD 5,000 in US; `champion_engine=v2`, `challenger_engine=v1`, `legacy_candidate_admission_enabled=false` |
-| `TR-05` | Weekly Positions / WES family | EUR/USD, S&P 500 futures, BTC/USD; weekly paper/research plus WES memory/counterfactual/belief bridges | Weekly v4 = experimental paper research; WES owns separate memory/counterfactual layers |
+| `TR-04` | Stock Trading v2 | Unified active stock engine for GPW and US: Dynamic Universe, Opportunity Frontier, Trigger research, Deep Evidence, Fixed Notional Sizing, Portfolio Opportunity Engine | **PRODUCTION CHAMPION — FULL**. Every new position uses `FIXED_NOTIONAL_V1`: PLN 5,000 on GPW or USD 5,000 in US; `champion_engine=v2`, `challenger_engine=v1`, `legacy_candidate_admission_enabled=false`; `main` is production authority, `stock-trading-v2` is research/evidence runtime |
+| `TR-05` | Weekly Positions / WES family | EUR/USD, S&P 500 futures, BTC/USD; governed paper/research plus WES memory/counterfactual/belief bridges | Current runtime policy v5.6.x / WES: experimental governed paper only; `NO_TRADE` is first-class, `mandatory_monday_position=false`, `continuous_position_required=false` |
 | `TR-06` | Portfolio 10K baseline | Long-horizon portfolio, historical champion/baseline | Preserved production baseline and BRACE fallback |
-| `TR-07` | BRACE Portfolio Engine | Portfolio research/control, optimizer, governance, paper control | `ACTIVE_BASELINE + BRACE_SHADOW`; deterministic promotion controller; LLM cannot promote |
+| `TR-07` | BRACE Portfolio Engine | Portfolio research/control with optimizer, governance and separate model paper portfolio | **PROBATIONARY_CONTROL**; paper-only, deterministic controller, immutable Portfolio10K baseline as fallback; LLM cannot promote |
 | `TR-08` | BRACE-SPX / Long View | Read-only/forecast-oriented SPX long-view family | Uses its point-in-time state plus epistemic state; canonical DecisionEnvelope rollout incomplete |
 
 ### Stock Trading v2 internal decomposition
@@ -185,7 +187,10 @@ An adapter is not a decision engine. Its primary job is to translate a source in
 Dynamic Universe
  -> Broad Discovery / Fast Scan
  -> Opportunity Frontier / Ranking
- -> Deep Evidence
+ -> Market Relationship / Trigger research (US)
+      max 6 attention = max 4 trigger + 2 exploration
+      max 2 targeted Deep BELIEF proxy
+ -> Broad Deep Evidence Champion
  -> Research Risk Plan
  -> Fixed Notional Sizing
       GPW = PLN 5,000 / company
@@ -201,6 +206,26 @@ Dynamic Universe
 
 Main implementation families: `stock_trading_v2_*`, `stock_trading_component_*`, `stock_trading_portfolio.py`. Sizing and history-normalization contract: `docs/STOCK_TRADING_FIXED_NOTIONAL_EN.md` / `_PL.md`. Public history displays 5K notional, fractional analytical quantity and P&L calculated from that common base.
 
+### Stock Trading v2 branch/runtime authority
+
+```text
+main
+  = production + governance + default-branch orchestration
+        |
+        | frozen production snapshots
+        v
+stock-trading-v2
+  = research/evidence runtime
+  = discovery / Trigger / Deep BELIEF proxy / outcomes / regret / Challengers
+        |
+        | exact bounded evaluated candidate
+        v
+main: Stock Trading Component Promotion
+  = sole component production-promotion authority
+```
+
+Scheduled workflow definitions are maintained on `main`, while research jobs explicitly check out `stock-trading-v2`. The research branch may not directly push a production mutation to `main`.
+
 ## 7. Shared Learning / Evolution Fabric
 
 **Current state:** a distributed, actually implemented learning layer exists. There is not yet one monolithic runtime module named `AXIOM Evolution Kernel`.
@@ -211,11 +236,12 @@ Main implementation families: `stock_trading_v2_*`, `stock_trading_component_*`,
 | `LE-02` | Learning Ledger / Outcome Loop | Immutable decision/forecast before outcome, later outcome binding | `learning_ledger.py`, `learning_outcome_loop.py`, `LEARNING_OUTCOME_LOOP_INTEGRATION.md` |
 | `LE-03` | MISS / Regret | Error analysis including candidates that were NOT selected | `daily_stock_miss_engine.py`, `stock_trading_v2_regret_engine.py`, rejected-candidate outcome/attribution modules |
 | `LE-04` | Hypothesis / Experiment Registry | Hypothesis -> experiment -> lesson | `lesson_hypothesis_registry.py`, `hypothesis_experiment_compiler.py`, `experiment_registry.py`, `experiment_result_lesson_loop.py` |
-| `LE-05` | Replay / Counterfactual Labs | Evaluate alternatives without rewriting true history | `stock_trading_v2_outcome_replay.py`, `gpw_loco_counterfactual_replay.py`, `investments_wes_counterfactual.py`, `brace_portfolio_counterfactual_lab.py` |
-| `LE-06` | Champion / Challenger + Statistical Gate | Prospective challenger comparison, sample gates, OOS/holdout, promotion conditions | `daily_stock_champion_challenger.py`, `stock_trading_component_champion.py`, `statistical_promotion_gate.py`, `statistical_promotion_gate_v2.py` |
-| `LE-07` | Autonomous Policy Loop | Observatory -> validation -> bounded promotion/materialization | `autonomous_policy_observatory.py`, `autonomous_policy_promotion.py`, `autonomous_policy_closed_loop.py`, policy materializers/overlays |
+| `LE-05` | Replay / Counterfactual Labs | Evaluate alternatives without rewriting true history | `stock_trading_v2_outcome_replay.py`, `gpw_loco_counterfactual_replay.py`, `investments_wes_counterfactual.py`, `brace_portfolio_counterfactual_lab.py`, `counterfactual_decision_gate_diagnostics.py` |
+| `LE-06` | Champion / Challenger + Statistical Gate | Prospective challenger comparison, sample gates, OOS/holdout and controlled promotion | `stock_trading_component_champion.py`, `stock_trading_component_candidate_intake.py`, `stock_trading_component_bound_promotion.py`, `statistical_promotion_gate.py`, `statistical_promotion_gate_v2.py`; Stock Trading production promotion is main-owned |
+| `LE-07` | Autonomous Policy Loop (legacy/research) | PR35/PR36 observatory, prospective calibration research and preserved historical actuator lineage | `autonomous_policy_observatory.py`, `autonomous_policy_promotion.py`, `autonomous_policy_closed_loop.py`; after Reconciliation 1.5 `automatic_materialization_enabled=false` for Stock Trading — no production write authority |
 | `LE-08` | Engine-specific self-learning | Local loops for BRACE, Daily Stock, EURUSD, WES, etc. | `brace_portfolio_self_learning.py`, `daily_stock_self_improvement.py`, `daily_eurusd_abc_learning.py`, `gse_v2_learning_loop.py` |
 | `LE-09` | Integrity / anti-hindsight | No retroactive live history, timestamp integrity, activation boundaries, workflow airlocks | `no_retroactive_execution.py`, `daily_stock_timestamp_integrity.py`, `promotion_learning_integrity.py`, verification scripts |
+| `LE-10` | Shared Learning Loop v2 Diagnostics | Shared read-only primitives: ex-ante decision quality, ex-post outcome quality, near-miss/shadow, calibration/model-ablation/evidence-delta diagnostics | `scripts/learning_loop_v2.py`, `scripts/learning_loop_v2_observer.py`; challenger/observer has zero production authority and does not rewrite decisions or thresholds |
 
 ### Canonical evolution loop
 
@@ -294,6 +320,9 @@ Examples of private durable state include the Learning Outcome Loop and GSE/Beli
 12. **PL/EN architecture sync.** Every architecture change updates both map versions and required detailed documentation.
 13. **Stock Trading fixed notional + normalized history.** Every new `TR-04` position uses a fixed nominal size of PLN 5,000 (GPW) or USD 5,000 (US) through `FIXED_NOTIONAL_V1`. Closed history, including legacy history, is compared through explicit `FIXED_NOTIONAL_HISTORY_V1` derived analytics with `history_normalized_quantity = 5000 / entry`; prices, timestamps and execution facts remain immutable.
 14. **Architecture bootstrap before architecture work.** An AI/agent starts an architecture change from `AGENTS.md` and the canonical map, not from conversational memory or an isolated code search.
+15. **Main owns Stock Trading production; the research branch owns research only.** `stock-trading-v2` may generate Evidence, Trigger state and Challengers, but may not directly mutate production `main`.
+16. **Single Stock Trading promotion writer.** Stock Trading component production promotion flows only through the main-owned `Stock Trading Component Promotion`; the legacy Autonomous Policy Loop has `automatic_materialization_enabled=false`.
+17. **Trigger attention is research authority, not trade authority.** `IN-08` may allocate at most 6 attention slots and at most 2 targeted Deep BELIEF proxy slots, but cannot open positions, write policy or promote itself into production.
 
 ## 11. Authority map — what each layer may NOT do
 
@@ -307,20 +336,21 @@ Learning Ledger       -> observes/freezes/binds outcomes; does NOT rewrite sourc
 Replay/Counterfactual -> simulates alternatives; does NOT create historical live trades
 LLM                   -> may interpret/propose; does NOT self-promote where governance requires
                          deterministic/statistical approval
+Research branch       -> may generate evidence/challengers; does NOT directly mutate production main
 Public UI             -> renders state; is NOT a decision source
 ```
 
-## 12. Important subsystem status at map snapshot 1.4
+## 12. Important subsystem status at map snapshot 1.5
 
 - **Belief Core v2:** engineering-complete for shadow data collection; decision-independent.
 - **Evidence adapters:** real modular layer; core market/technical/liquidity/regime adapters are deterministic.
-- **GSE v1:** shadow-only forecasting; no execution or auto-tuning authority.
+- **GSE:** v1 remains the forecasting foundation; active hourly research/learning runtime is **GSE v2**, still without execution authority.
 - **Legacy Daily GPW / US:** no longer active stock-trading products; retained as deprecated migration/research/settlement paths.
 - **Daily EUR/USD:** independent Daily engine with own lifecycle/learning; canonical rollout partial.
-- **Stock Trading v2:** **active production Champion in CANARY** for GPW and US. V1 is Challenger/rollback lineage and legacy candidate admission is disabled.
-- **Weekly v4:** experimental paper-trading research layer.
+- **Stock Trading v2:** **active production Champion in FULL** for GPW and US. `main` is production/governance authority, `stock-trading-v2` is research/evidence runtime; v1 remains Challenger/rollback lineage.
+- **Weekly/WES:** experimental governed paper layer; current policy v5.6.x, `NO_TRADE` active, exposure is not mandatory.
 - **Portfolio 10K:** preserved baseline/champion.
-- **BRACE Portfolio:** `ACTIVE_BASELINE + BRACE_SHADOW`, deterministic controller and fallback.
+- **BRACE Portfolio:** **PROBATIONARY_CONTROL**, paper-only; deterministic controller and immutable Portfolio10K fallback baseline.
 - **Shared learning fabric:** exists and is actively developed; not yet one unified Evolution Kernel.
 
 ## 13. Planned layer above the current architecture
@@ -357,12 +387,15 @@ Every new session or agent working on BriefRooms architecture starts from reposi
 
 ## 15. Source documents for map v1.0
 
-Primary detailed documents used to build this map:
+Primary detailed documents used to build and maintain the current map:
 
 - `AGENTS.md`
 - `scripts/validate_architecture_bootstrap.py`
 - `ARCHITECTURE_DOCUMENTATION_POLICY_EN.md` / `_PL.md`
+- `ARCHITECTURE_RECONCILIATION_1_5_EN.md` / `_PL.md`
+- `scripts/validate_architecture_reconciliation.py`
 - `BELIEF_CORE.md`
+- `BELIEF_ARIS_SHADOW.md`
 - `BELIEF_EVIDENCE_ADAPTERS.md`
 - `BELIEF_EPISTEMIC_STATE.md`
 - `BELIEF_EPISTEMIC_CAUSAL_GRAPH.md`
@@ -387,6 +420,17 @@ Primary detailed documents used to build this map:
 - `ai-outlook-engine-v1.md`
 - `ai-tournament-methodology-v1.md`
 - `BRIEFROOMS_CHANGE_RULES.md`
+
+## 16. Migration record — Stock Trading consolidation
+
+- 2026-09-18: active stock-trading architecture was consolidated under `TR-04 Stock Trading v2`.
+- `TR-01 Daily GPW` and `TR-02 Daily US` retain stable IDs only for traceability and are marked `DEPRECATED AS PRODUCT / REPLACED_BY TR-04`.
+- Their code and historical ledgers are retained where they still serve research, settlement, compatibility or rollback lineage. Their output cannot be treated as v2 production admission.
+- Production authority is defined by `data/investments/stock_trading_policy.json`: `champion_engine=v2`, `challenger_engine=v1`, `legacy_candidate_admission_enabled=false`.
+- 2026-09-19: Architecture Reconciliation 1.5 separated authority: `main` = production/governance/orchestration, `stock-trading-v2` = research/evidence runtime.
+- Trigger/Relationship plus targeted Deep BELIEF proxy were wired into default-branch schedulers without granting production decision authority.
+- The direct research-branch auto-promoter was removed; Stock Trading Component Promotion on `main` is the sole production-promotion authority.
+- The legacy Autonomous Policy Closed Loop retains research lineage but stock `automatic_materialization_enabled=false`.
 
 ---
 
