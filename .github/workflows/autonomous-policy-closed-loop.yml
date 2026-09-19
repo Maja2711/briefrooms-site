@@ -26,7 +26,7 @@ on:
       - ".github/workflows/autonomous-policy-closed-loop.yml"
 
 permissions:
-  contents: write
+  contents: read
   actions: read
 
 concurrency:
@@ -179,7 +179,7 @@ jobs:
             --state-dir "$POLICY_STATE_DIR" \
             --repo-root .
 
-      - name: Promote proven challenger or roll back degraded production policy
+      - name: Evaluate retired actuator in research-only mode
         run: |
           set -euo pipefail
           python scripts/autonomous_policy_closed_loop.py apply \
@@ -201,6 +201,8 @@ jobs:
           research=Path(os.environ['POLICY_STATE_DIR'])
           cfg=load_config(Path('.'))
           assert cfg['closed_loop_enabled'] is True
+          assert cfg['automatic_materialization_enabled'] is False
+          assert cfg['production_authority'] == 'RETIRED_TO_STOCK_TRADING_COMPONENT_PROMOTION'
           assert cfg['manual_approval_required'] is False
           assert cfg['code_mutation_allowed'] is False
           assert cfg['arbitrary_parameter_mutation_allowed'] is False
@@ -212,44 +214,17 @@ jobs:
           state=load_state(Path('.'), create=False, now=__import__('datetime').datetime.now(__import__('datetime').timezone.utc))
           assert state is not None
           verify_state(Path('.'), state)
-          print('AUTONOMOUS_CLOSED_LOOP_AUTHORITY_PASS')
+          print('AUTONOMOUS_CLOSED_LOOP_RESEARCH_ONLY_PASS')
           PY
 
-      - name: Commit only autonomous production policy state and allowlisted configs
-        shell: bash
+      - name: Prove legacy loop made no production mutation
         run: |
           set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
+          git diff --exit-code -- \
             data/investments/autonomous_policy_production_state.json \
             data/investments/gpw_daily_pick_config.json \
             data/investments/us_daily_stock_config.json
-          unexpected="$(git diff --cached --name-only | grep -Ev '^(data/investments/autonomous_policy_production_state.json|data/investments/gpw_daily_pick_config.json|data/investments/us_daily_stock_config.json)$' || true)"
-          if [[ -n "$unexpected" ]]; then
-            echo "Unexpected staged production path(s):" >&2
-            echo "$unexpected" >&2
-            exit 1
-          fi
-          if git diff --cached --quiet; then
-            echo "No production policy/state change to commit."
-            exit 0
-          fi
-          git commit -m "Apply statistically proven autonomous policy calibration"
-          for attempt in 1 2 3 4 5; do
-            if ! git pull --rebase origin main; then
-              git rebase --abort || true
-              echo "FAIL_CLOSED: main changed incompatibly during production materialization." >&2
-              exit 1
-            fi
-            if git push origin HEAD:main; then
-              echo "Autonomous production calibration committed to main."
-              exit 0
-            fi
-            sleep $((attempt * 3))
-          done
-          echo "FAIL_CLOSED: could not atomically publish autonomous calibration." >&2
-          exit 1
+          echo "LEGACY_STOCK_POLICY_PRODUCTION_WRITE_DISABLED"
 
       - name: Publish production-aware observatory into private artifact
         run: |

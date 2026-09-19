@@ -2,17 +2,23 @@
 
 ## Status
 
-Version 4 is an experimental paper-trading research layer. It does not place broker orders and it does not replace the historical validation report for model v2.
+The filename is retained for historical continuity, but the current governed runtime is newer than the original v4 exposure rule. Runtime authority lives in `data/investments/multi_instrument_exposure_policy.json` (currently policy v5.6.x) together with `data/investments/wes_methodology.json`.
 
-## Mandatory exposure
+The system remains experimental governed paper trading only. It places no broker orders.
 
-From Monday 08:00 Europe/Warsaw until the scheduled Friday 22:00 close, the system attempts to maintain one paper position in each enabled instrument:
+## NO_TRADE and exposure
 
-- EUR/USD
-- S&P 500 futures
-- BTC/USD
+A weekly position is **not mandatory**.
 
-After SL, TP, daily thesis invalidation, strategy-direction change or a material-event close, the completed leg is archived. Re-entry is attempted after at least five minutes on the first completed 5-minute bar available to the workflow.
+Current policy explicitly sets:
+
+- `mandatory_monday_position = false`;
+- `continuous_position_required = false`;
+- `NO_TRADE` is a first-class active state.
+
+The tournament may rank a directional candidate, but ranking alone does not authorize a position. EUR/USD, S&P 500 futures or BTC/USD is opened only when the current admission gates qualify the candidate. Otherwise WES remains in `NO_TRADE` and continues monitoring for a later qualified trigger.
+
+After a governed close, re-entry is not automatic merely because a position slot is empty. Re-entry requires the applicable WES trigger, validation and lifecycle rules. Monday/Tuesday early-close replacement may use the separately governed rolling seven-calendar-day path; material-event exits remain fail-closed and are not automatically replaced.
 
 ## Why an inverse signal is tested separately
 
@@ -27,8 +33,9 @@ The strategy tournament evaluates:
 3. `weekly_trend` — direction from weekly EMA, momentum, breakout and candle structure.
 4. `daily_weekly_blend` — weighted combination of daily and weekly scores.
 5. `ema_mean_reversion` — controlled counter-trend response to distance from daily EMA20 measured in ATR.
+6. `macro_weekly_blend` — bounded blend that incorporates approved macro context where configured.
 
-A position is always directional. A neutral base signal is resolved by the tournament rather than published as no-trade.
+The tournament always produces a ranked research candidate, but the admission layer may still return `NO_TRADE`. A default/tie direction never overrides the NO_TRADE gate.
 
 ## Learning
 
@@ -42,7 +49,7 @@ Learning uses only closed earlier paper legs. For each instrument and market reg
 - weekly regime;
 - frozen risk plan.
 
-Historical method performance is shrunk toward zero, capped and combined with a small exploration bonus. The system does not increase notional after losses, rewrite closed history or optimise weights on the current bar.
+Historical method performance is shrunk toward zero, capped and combined with a small exploration bonus. Contextual learning can also use frozen counterfactual candidate outcomes to reduce exploration uncertainty, while realized selected-strategy legs remain the source for the legacy global performance adjustment. The system does not increase notional after losses, rewrite closed history or optimise weights on the current bar.
 
 ## Daily analysis
 

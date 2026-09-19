@@ -2,6 +2,22 @@ name: Stock Trading v2 Validation
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches:
+      - stock-trading-v2
+    paths:
+      - ".github/workflows/stock-trading-v2-validation.yml"
+      - ".github/workflows/stock-trading-v2-learning-loop.yml"
+      - "scripts/briefrooms_market_relationship_trigger.py"
+      - "scripts/briefrooms_market_relationship_outcomes.py"
+      - "scripts/briefrooms_trigger_deep_belief.py"
+      - "scripts/briefrooms_trigger_deep_belief_learning.py"
+      - "scripts/stock_trading_v2_discovery.py"
+      - "tests/test_briefrooms_market_relationship_trigger.py"
+      - "tests/test_briefrooms_market_relationship_outcomes.py"
+      - "tests/test_briefrooms_trigger_deep_belief.py"
+      - "tests/test_briefrooms_trigger_deep_belief_learning.py"
+      - "data/investments/market_relationship_trigger_config.json"
   push:
     branches:
       - stock-trading-v2
@@ -24,6 +40,10 @@ on:
       - "scripts/stock_trading_v2_live_scan.py"
       - "scripts/stock_trading_v2_us_screener_provider.py"
       - "scripts/stock_trading_v2_discovery.py"
+      - "scripts/briefrooms_market_relationship_trigger.py"
+      - "scripts/briefrooms_market_relationship_outcomes.py"
+      - "scripts/briefrooms_trigger_deep_belief.py"
+      - "scripts/briefrooms_trigger_deep_belief_learning.py"
       - "scripts/stock_trading_v2_deep_evidence.py"
       - "scripts/stock_trading_v2_opportunity_engine.py"
       - "scripts/stock_trading_v2_opportunity_experience.py"
@@ -39,6 +59,10 @@ on:
       - "tests/test_stock_trading_v2_live_scan.py"
       - "tests/test_stock_trading_v2_us_screener_provider.py"
       - "tests/test_stock_trading_v2_discovery.py"
+      - "tests/test_briefrooms_market_relationship_trigger.py"
+      - "tests/test_briefrooms_market_relationship_outcomes.py"
+      - "tests/test_briefrooms_trigger_deep_belief.py"
+      - "tests/test_briefrooms_trigger_deep_belief_learning.py"
       - "tests/test_stock_trading_v2_deep_evidence.py"
       - "tests/test_stock_trading_v2_opportunity_engine.py"
       - "tests/test_stock_trading_v2_opportunity_experience.py"
@@ -46,6 +70,7 @@ on:
       - "data/investments/stock_trading_v2_universe_config.json"
       - "data/investments/stock_trading_v2_fast_scan_config.json"
       - "data/investments/stock_trading_v2_discovery_config.json"
+      - "data/investments/market_relationship_trigger_config.json"
       - "data/investments/stock_trading_v2_evidence_config.json"
       - "data/investments/stock_trading_v2_opportunity_config.json"
       - "data/investments/stock_trading_v2_learning_config.json"
@@ -60,6 +85,7 @@ on:
       - "data/investments/stock_trading_v2_frontier/**"
       - "data/investments/stock_trading_v2_evidence/**"
       - "data/investments/stock_trading_v2_opportunity/**"
+      - "data/investments/market_relationship_deep_belief_learning.json"
 
 permissions:
   contents: read
@@ -74,7 +100,7 @@ jobs:
       - name: Check out Stock Trading v2
         uses: actions/checkout@v4
         with:
-          ref: stock-trading-v2
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || 'stock-trading-v2' }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -99,6 +125,10 @@ jobs:
             scripts/stock_trading_v2_live_scan.py \
             scripts/stock_trading_v2_us_screener_provider.py \
             scripts/stock_trading_v2_discovery.py \
+            scripts/briefrooms_market_relationship_trigger.py \
+            scripts/briefrooms_market_relationship_outcomes.py \
+            scripts/briefrooms_trigger_deep_belief.py \
+            scripts/briefrooms_trigger_deep_belief_learning.py \
             scripts/stock_trading_v2_deep_evidence.py \
             scripts/stock_trading_v2_opportunity_engine.py \
             scripts/stock_trading_v2_opportunity_experience.py \
@@ -114,6 +144,10 @@ jobs:
             tests/test_stock_trading_v2_live_scan.py \
             tests/test_stock_trading_v2_us_screener_provider.py \
             tests/test_stock_trading_v2_discovery.py \
+            tests/test_briefrooms_market_relationship_trigger.py \
+            tests/test_briefrooms_market_relationship_outcomes.py \
+            tests/test_briefrooms_trigger_deep_belief.py \
+            tests/test_briefrooms_trigger_deep_belief_learning.py \
             tests/test_stock_trading_v2_deep_evidence.py \
             tests/test_stock_trading_v2_opportunity_engine.py \
             tests/test_stock_trading_v2_opportunity_experience.py
@@ -124,6 +158,7 @@ jobs:
           python -m json.tool data/investments/stock_trading_v2_universe_config.json >/dev/null
           python -m json.tool data/investments/stock_trading_v2_fast_scan_config.json >/dev/null
           python -m json.tool data/investments/stock_trading_v2_discovery_config.json >/dev/null
+          python -m json.tool data/investments/market_relationship_trigger_config.json >/dev/null
           python -m json.tool data/investments/stock_trading_v2_evidence_config.json >/dev/null
           python -m json.tool data/investments/stock_trading_v2_opportunity_config.json >/dev/null
           python -m json.tool data/investments/stock_trading_v2_learning_config.json >/dev/null
@@ -143,6 +178,10 @@ jobs:
             tests.test_stock_trading_v2_live_scan \
             tests.test_stock_trading_v2_us_screener_provider \
             tests.test_stock_trading_v2_discovery \
+            tests.test_briefrooms_market_relationship_trigger \
+            tests.test_briefrooms_market_relationship_outcomes \
+            tests.test_briefrooms_trigger_deep_belief \
+            tests.test_briefrooms_trigger_deep_belief_learning \
             tests.test_stock_trading_v2_deep_evidence \
             tests.test_stock_trading_v2_opportunity_engine \
             tests.test_stock_trading_v2_opportunity_experience -v
@@ -154,6 +193,18 @@ jobs:
           python scripts/stock_trading_v2_position_experience.py --verify
           python scripts/stock_trading_v2_outcome_replay.py --verify
           python scripts/stock_trading_v2_policy_learner.py --verify
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from scripts.briefrooms_trigger_deep_belief_learning import validate_report
+          path=Path('data/investments/market_relationship_deep_belief_learning.json')
+          if path.exists():
+              payload=json.loads(path.read_text(encoding='utf-8'))
+              validate_report(payload)
+              print('DEEP_RESEARCH_LEARNING_OPTIONAL_OK', payload.get('linked_outcome_rows'))
+          else:
+              print('DEEP_RESEARCH_LEARNING_OPTIONAL_OK', 'not-yet-materialized')
+          PY
 
       - name: Smoke-test live dynamic universes and resilient US broad prefilter
         continue-on-error: true

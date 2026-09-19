@@ -1,7 +1,7 @@
 {
   "schema_version": "briefrooms-autonomous-policy-closed-loop-config-v1",
   "closed_loop_enabled": true,
-  "automatic_materialization_enabled": true,
+  "automatic_materialization_enabled": false,
   "automatic_rollback_enabled": true,
   "manual_approval_required": false,
   "require_pr35_pass": true,
@@ -15,9 +15,10 @@
   "hard_safety_gate_mutation_allowed": false,
   "trade_execution_allowed": false,
   "notes": {
-    "authority_boundary": "PR35 and PR36 remain research-only and frozen. This separate actuator may materialize only a candidate that has already passed both formal prospective gates.",
-    "scope": "Only the explicitly allowlisted GPW/US Daily score threshold may be changed autonomously. Hard safety gates, code, sizing and arbitrary config keys are outside authority.",
-    "rollback": "The promoted policy is monitored on subsequent resolved production outcomes. Existing conservative rollback thresholds restore the immutable parent policy automatically and block the failed transition.",
-    "durability": "Production state is committed atomically with allowlisted config changes so the next run can reconcile research state even if a private Actions artifact is lost."
-  }
+    "authority_boundary": "PR35/PR36 remain prospective research and may produce evidence, but this actuator no longer owns any Stock Trading production write. Production promotion is owned exclusively by the main-branch Stock Trading Component Promotion path.",
+    "scope": "GPW/US Daily calibration research remains observable. No autonomous config materialization from this loop is permitted after Architecture Reconciliation 1.5.",
+    "rollback": "No new production transition can originate here. Historical production state is retained for lineage; any future Stock Trading component rollback belongs to the main-owned component Champion path.",
+    "durability": "Research state remains durable in Actions artifacts. Canonical Stock Trading production state/config ownership is outside this loop."
+  },
+  "production_authority": "RETIRED_TO_STOCK_TRADING_COMPONENT_PROMOTION"
 }

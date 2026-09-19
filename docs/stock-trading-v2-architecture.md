@@ -1,6 +1,6 @@
 # Stock Trading v2 — production architecture
 
-Status: **PRODUCTION CHAMPION — CANARY** for the GPW and US stock product.
+Status: **PRODUCTION CHAMPION — FULL** for the GPW and US stock product. The production rollout started from CANARY, but the current production state has already promoted to FULL.
 
 The production policy is authoritative:
 
@@ -31,25 +31,38 @@ STOCK TRADING v2
    - Wide candidate discovery with explicit degraded-mode handling when a preferred live source is unavailable.
 3. **Opportunity Frontier**
    - Multi-horizon momentum, trend, turnover, volume impulse, volatility quality and risk-adjusted momentum.
-4. **Deep Evidence**
+   - The US frontier also retains a wider relationship pool for read-through research without granting portfolio authority.
+4. **Market Relationship / Trigger attention (US research branch)**
+   - Central object: `EVENT × ENTITY × PEERS × MARKET REACTION × TIME`.
+   - Detects direct-event reaction, peer read-through, cluster momentum, lead-lag watch and price/volume anomaly hypotheses.
+   - Maximum six attention slots: normally up to four trigger-selected plus two exploration controls.
+   - Prospective trigger observations are immutable and later settled at 1/3/5/20 sessions.
+   - This layer has zero production decision authority.
+5. **Trigger-directed lazy Deep BELIEF proxy (US research branch)**
+   - At most two names from the trigger attention arm may receive targeted authority-weighted deep research.
+   - The implementation deliberately uses Stock Trading v2 Deep Evidence as a proxy backend, not a full Belief Core invocation.
+   - Exact `trigger_observation_id` lineage joins later research to prospective outcomes; ticker/time heuristic joins are forbidden.
+   - Exploration controls cannot enter the Deep BELIEF queue.
+   - No trade, policy writeback or promotion authority.
+6. **Deep Evidence**
    - US: SEC/primary corporate evidence plus secondary news.
    - GPW: ESPI/EBI/PAP plus secondary news.
-5. **Research risk plan**
+7. **Research risk plan**
    - Deterministic SL/TP geometry from available completed-session information.
    - Research output is non-executable until the production bridge revalidates it.
-6. **Fixed notional sizing**
+8. **Fixed notional sizing**
    - Every new GPW position uses PLN 5,000 target notional.
    - Every new US position uses USD 5,000 target notional.
    - Paper-trading quantity may be fractional: `quantity = 5000 / entry_price`.
    - This standardizes exposure; SL/TP and risk gates remain independent.
-7. **Portfolio Opportunity Engine**
+9. **Portfolio Opportunity Engine**
    - Compares new candidates, current positions and cash.
    - Candidate ranking is not a single hard admission cutoff.
    - Production search continues through ranked candidates until capacity is filled or the eligible frontier is exhausted.
-8. **Production revalidation**
+10. **Production revalidation**
    - `scripts/stock_trading_v2_production_bridge.py` revalidates opportunity age, live session state, quote freshness and risk geometry.
    - Only a fresh prospective opportunity may become a canonical portfolio admission.
-9. **Immutable learning loop**
+11. **Immutable learning loop**
    - Selected and rejected candidates are frozen prospectively.
    - Counterfactual replay settles later outcomes.
    - Opportunity Regret attributes false positives and false negatives to decision gates.
@@ -57,9 +70,9 @@ STOCK TRADING v2
 
 ## Production phase
 
-Current configured phase starts at `CANARY`.
+The rollout contract starts at `CANARY`, but runtime state is currently `FULL`. `data/investments/stock_trading_v2_production_state.json` is the phase source of truth; `data/investments/stock_trading_v2_production_config.json` still defines the canary-to-full transition rules.
 
-The production config currently defines:
+The production config defines:
 
 - canary maximum: 1 open position per market;
 - full maximum: 3 open positions per market;
@@ -73,6 +86,16 @@ Runtime truth lives in:
 - `data/investments/stock_trading_policy.json` — includes `FIXED_NOTIONAL_V1` sizing authority
 - `data/investments/stock_trading_v2_production_config.json`
 - `data/investments/stock_trading_v2_production_state.json`
+
+## Main / research-branch runtime authority
+
+Stock Trading v2 intentionally uses two branches with different authority:
+
+- `main` is the sole production/governance authority. It owns canonical portfolio state, production policy, Champion manifests, production promotion and execution/paper-control paths.
+- `stock-trading-v2` is a research/evidence runtime branch. It owns dynamic discovery research state, Market Relationship / Trigger observations, targeted Deep BELIEF proxy research, prospective outcomes, regret, Challenger generation and holdout evaluation.
+- Scheduled workflow definitions live on the default branch `main`, but research jobs explicitly check out `stock-trading-v2`. This makes the default branch the orchestration authority while preserving research-state isolation.
+- Research workflows may read frozen production snapshots from `main`; they may not directly push production mutations to `main`.
+- A formal Challenger PASS is evidence only. Production admission is owned by the main-branch `Stock Trading Component Promotion` workflow, which performs production-owned candidate intake, exact binding, current-Champion checks, health checks and rollback.
 
 ## Operational workflows
 

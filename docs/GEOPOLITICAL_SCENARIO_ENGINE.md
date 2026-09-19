@@ -1,4 +1,4 @@
-# Geopolitical Scenario Engine (GSE) v1
+# Geopolitical Scenario Engine (GSE) — v1 foundation + v2 learning runtime
 
 ## Purpose
 
@@ -17,6 +17,32 @@ Geopolitical Evidence
 ```
 
 The engine is intentionally conservative. It does not forecast exact prices. It forecasts directional impact, probability, confidence and impact magnitude for fixed horizons.
+
+## Active v2 runtime
+
+The deterministic v1 scenario/forecast contract remains the forecasting foundation, but the active scheduled research runtime is **GSE v2**.
+
+Current orchestration:
+
+```text
+GSE v1 evidence/scenario/forecast state
+    -> GSE v2 fast prospective cycle
+    -> historical walk-forward / enriched library
+    -> policy proposal diagnostics
+    -> learning ledger
+    -> public learning-review status / lab projection
+```
+
+Primary implementation and workflow:
+
+- `scripts/gse_v2_fast_cycle.py`
+- `scripts/gse_v2_learning_loop.py`
+- `scripts/gse_publish_learning_review_status.py`
+- `scripts/gse_v2_public_lab_projection.py`
+- `.github/workflows/gse-hourly-cycle-v2.yml`
+- `docs/GSE_V2_ADVANCED_LEARNING_LOOP.md`
+
+The v2 state is persisted in the private cumulative `gse-shadow-state-v2` artifact. GSE v2 remains research/shadow: it has no trade execution, sizing or autonomous production-policy authority.
 
 ## Geopolitical Evidence
 
@@ -129,7 +155,7 @@ The runtime state is not committed back into the public repository.
 
 ## Cadence
 
-Workflow: `.github/workflows/gse-shadow-live.yml`
+Legacy v1 workflow: `.github/workflows/gse-shadow-live.yml`. Active v2 hourly orchestration: `.github/workflows/gse-hourly-cycle-v2.yml`.
 
 - Geopolitical evidence scan: every hour, 24/7, at minute 17 UTC.
 - Scenario generation: every hourly run.

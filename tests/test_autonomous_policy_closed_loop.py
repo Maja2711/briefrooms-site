@@ -158,6 +158,27 @@ class AutonomousPolicyClosedLoopTests(unittest.TestCase):
         gpw = json.loads((self.root / "data/investments/gpw_daily_pick_config.json").read_text())
         self.assertEqual(gpw["minimum_composite_score"], 72)
 
+    def test_retired_stock_production_authority_never_materializes(self) -> None:
+        config_path = self.root / loop.CONFIG_PATH
+        cfg = json.loads(config_path.read_text())
+        cfg["automatic_materialization_enabled"] = False
+        cfg["production_authority"] = "RETIRED_TO_STOCK_TRADING_COMPONENT_PROMOTION"
+        config_path.write_text(json.dumps(cfg), encoding="utf-8")
+
+        before_gpw = (self.root / "data/investments/gpw_daily_pick_config.json").read_text()
+        before_us = (self.root / "data/investments/us_daily_stock_config.json").read_text()
+        report = self._apply()
+
+        self.assertEqual(report["status"], "RESEARCH_ONLY_PRODUCTION_AUTHORITY_RETIRED")
+        self.assertEqual(report["promotions"], [])
+        self.assertEqual(report["materialized_config_paths"], [])
+        self.assertFalse(report["safety"]["production_materialization"])
+        self.assertEqual(before_gpw, (self.root / "data/investments/gpw_daily_pick_config.json").read_text())
+        self.assertEqual(before_us, (self.root / "data/investments/us_daily_stock_config.json").read_text())
+
+        registry = json.loads((self.research / ap.REGISTRY_FILENAME).read_text())
+        self.assertEqual(registry["candidates"]["policycand-test"]["status"], "PROMOTION_ELIGIBLE_BUT_FROZEN")
+
     def test_bad_live_evidence_rolls_back_parent_and_blocks_transition(self) -> None:
         self._apply()
         history = self.root / "data/investments/gpw_daily_pick_history"

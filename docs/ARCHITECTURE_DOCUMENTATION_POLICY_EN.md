@@ -28,6 +28,10 @@ The repository-root `AGENTS.md` file is the mandatory entry point for AI and cod
 
 An agent must not reconstruct BriefRooms architecture from conversational memory or start a new subsystem before checking whether equivalent or overlapping capability already exists. `README.md` keeps a visible pointer to this bootstrap, while `scripts/validate_architecture_bootstrap.py` and the `Architecture Bootstrap Guard` workflow protect its presence and PL/EN map-version synchronization.
 
+## Semantic runtime conformance
+
+From Architecture Reconciliation 1.5 onward, PL/EN version equality alone is insufficient. `scripts/validate_architecture_reconciliation.py` checks selected critical runtime facts, authority boundaries and wiring against the map. `Architecture Bootstrap Guard` also runs this check on a schedule to detect drift between `main` and the active research branch.
+
 ## Pull-request requirement
 
 An architecture PR is incomplete until both language versions exist and both canonical Architecture Maps accurately describe the resulting system. Runtime code is the implementation source of truth; the paired architecture documents and Architecture Map are the human-readable design record.
