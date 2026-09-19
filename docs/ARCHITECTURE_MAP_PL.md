@@ -292,7 +292,8 @@ Przykłady prywatnego durable state: Learning Outcome Loop oraz GSE/Belief shado
 10. **Selected AND rejected matter.** Tam, gdzie wspiera to engine, odrzucone kandydaty są zamrażane i analizowane pod kątem MISS/opportunity regret.
 11. **Production vs shadow is explicit.** Shadow output nie może być prezentowany jako historycznie wykonana transakcja produkcyjna.
 12. **PL/EN architecture sync.** Zmiana architektury aktualizuje obie wersje mapy i wymaganą dokumentację.
-13. **Stock Trading fixed notional + normalized history.** Każda nowa pozycja `TR-04` ma stały nominalny rozmiar 5 000 PLN (GPW) albo 5 000 USD (US), zapisany przez `FIXED_NOTIONAL_V1`. Zamknięta historia — także legacy — jest porównywana przez jawne derived analytics `FIXED_NOTIONAL_HISTORY_V1`, gdzie `history_normalized_quantity = 5000 / entry`. Ceny, timestampy i execution facts pozostają immutable.\n14. **Architecture bootstrap before architecture work.** AI/agent rozpoczyna zmianę od `AGENTS.md` i kanonicznej mapy, a nie od pamięci rozmowy ani izolowanego wyszukiwania kodu.
+13. **Stock Trading fixed notional + normalized history.** Każda nowa pozycja `TR-04` ma stały nominalny rozmiar 5 000 PLN (GPW) albo 5 000 USD (US), zapisany przez `FIXED_NOTIONAL_V1`. Zamknięta historia — także legacy — jest porównywana przez jawne derived analytics `FIXED_NOTIONAL_HISTORY_V1`, gdzie `history_normalized_quantity = 5000 / entry`. Ceny, timestampy i execution facts pozostają immutable.
+14. **Architecture bootstrap before architecture work.** AI/agent rozpoczyna zmianę od `AGENTS.md` i kanonicznej mapy, a nie od pamięci rozmowy ani izolowanego wyszukiwania kodu.
 
 ## 11. Authority map — kto czego NIE może robić
 
@@ -358,7 +359,9 @@ Każda nowa sesja lub agent pracujący nad architekturą BriefRooms zaczyna od r
 
 Najważniejsze dokumenty szczegółowe użyte do utworzenia v1.0:
 
-- `AGENTS.md`\n- `scripts/validate_architecture_bootstrap.py`\n- `ARCHITECTURE_DOCUMENTATION_POLICY_EN.md` / `_PL.md`
+- `AGENTS.md`
+- `scripts/validate_architecture_bootstrap.py`
+- `ARCHITECTURE_DOCUMENTATION_POLICY_EN.md` / `_PL.md`
 - `BELIEF_CORE.md`
 - `BELIEF_EVIDENCE_ADAPTERS.md`
 - `BELIEF_EPISTEMIC_STATE.md`
