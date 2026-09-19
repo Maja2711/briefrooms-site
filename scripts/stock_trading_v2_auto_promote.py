@@ -189,6 +189,10 @@ def eligible_pairs(
         challenger = by_id.get(str(evaluation.get("challenger_id") or ""))
         if challenger is None:
             raise contracts.ContractError("formal PASS has no matching Challenger")
+        if not isinstance(challenger.get("production_candidate"), Mapping):
+            continue
+        if not isinstance(challenger.get("exact_replay"), Mapping):
+            continue
         production = _validate_exact_binding(challenger, evaluation)
         component = str(production.get("component") or "")
         if component not in allowed_components:
