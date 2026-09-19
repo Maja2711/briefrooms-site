@@ -70,7 +70,7 @@ except ImportError:
 
 ROOT = Path(__file__).resolve().parents[1]
 
-HOMEPAGE_EDITORIAL_SELECTION_VERSION = "homepage-editorial-v4"
+HOMEPAGE_EDITORIAL_SELECTION_VERSION = "homepage-editorial-v5"
 HOMEPAGE_LIMIT = 12
 HOMEPAGE_TARGET_SOURCE_CAP = 2
 HOMEPAGE_EMERGENCY_SOURCE_CAP = 3
@@ -245,29 +245,50 @@ _GEO_ACTION_PATTERN = re.compile(
     r"konflikt\w*|obron\w*|szczyt\w*|traktat\w*|porozumien\w*|ultimatum\w*)\b",
     re.I,
 )
+_HEALTH_PATTERN = re.compile(
+    r"\b(zdrow\w*|medyc\w*|chorob\w*|serc\w*|kardiolog\w*|lek\w*|terapi\w*|pacjent\w*|"
+    r"nowotwor\w*|rak\w*|cukrzyc\w*|szczep\w*|stres\w*|depres\w*|sen\w*|dieta\w*|otył\w*|"
+    r"otyl\w*|infekcj\w*|wirus\w*|bakter\w*|klinicz\w*|hospital\w*|health\w*|medical\w*|"
+    r"disease\w*|heart\w*|cancer\w*|diabetes\w*|vaccine\w*|therapy\w*|patient\w*|stress\w*)\b",
+    re.I,
+)
 
 
 def homepage_lane(story: dict[str, Any], section_id: str) -> str:
+    """Classify homepage meaning, not merely the publisher's source section."""
     text = " ".join(
         str(story.get(key) or "")
         for key in ("title", "summary", "ai_summary")
     )
     section = str(section_id or "").casefold()
 
+    # Hard domain boundaries first.
+    if section == "sport":
+        return "sport"
+    if section in {"zdrowie", "health"}:
+        return "zdrowie"
     if section in {"world-news", "asia-pacific", "europe", "middle-east"}:
         return "geopolityka"
+
+    # Strong cross-border/security semantics override a broad source desk.
+    # This catches e.g. a geopolitical agreement published in a business feed.
+    if (
+        section in {"polityka", "ekonomia", "business", "nauka", "science"}
+        and _GEO_ACTION_PATTERN.search(text)
+        and _GEO_ENTITY_PATTERN.search(text)
+    ):
+        return "geopolityka"
+
     if section == "polityka":
-        if _GEO_ACTION_PATTERN.search(text) and _GEO_ENTITY_PATTERN.search(text):
-            return "geopolityka"
         return "polityka"
     if section in {"ekonomia", "business"}:
         return "ekonomia"
     if section in {"nauka", "science"}:
-        return "ai_technologia" if _AI_PATTERN.search(text) else "nauka"
-    if section in {"zdrowie", "health"}:
-        return "zdrowie"
-    if section == "sport":
-        return "sport"
+        if _AI_PATTERN.search(text):
+            return "ai_technologia"
+        if _HEALTH_PATTERN.search(text):
+            return "zdrowie"
+        return "nauka"
     return "nauka"
 
 
