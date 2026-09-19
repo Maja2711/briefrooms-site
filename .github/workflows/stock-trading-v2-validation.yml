@@ -13,10 +13,13 @@ on:
       - "scripts/briefrooms_trigger_deep_belief.py"
       - "scripts/briefrooms_trigger_deep_belief_learning.py"
       - "scripts/stock_trading_v2_discovery.py"
+      - "scripts/stock_trading_v2_auto_promote.py"
       - "tests/test_briefrooms_market_relationship_trigger.py"
       - "tests/test_briefrooms_market_relationship_outcomes.py"
       - "tests/test_briefrooms_trigger_deep_belief.py"
       - "tests/test_briefrooms_trigger_deep_belief_learning.py"
+      - "tests/test_stock_trading_v2_auto_promote.py"
+      - "data/investments/stock_trading_v2_auto_promotion_config.json"
       - "data/investments/market_relationship_trigger_config.json"
   push:
     branches:
@@ -33,6 +36,7 @@ on:
       - "scripts/stock_trading_v2_regret_engine.py"
       - "scripts/stock_trading_v2_policy_learner.py"
       - "scripts/stock_trading_v2_challenger_eval.py"
+      - "scripts/stock_trading_v2_auto_promote.py"
       - "scripts/stock_trading_v2_universe.py"
       - "scripts/stock_trading_v2_gpw_universe.py"
       - "scripts/stock_trading_v2_gpw_universe_provider.py"
@@ -53,6 +57,7 @@ on:
       - "tests/test_stock_trading_v2_outcome_replay.py"
       - "tests/test_stock_trading_v2_regret_engine.py"
       - "tests/test_stock_trading_v2_policy_learning.py"
+      - "tests/test_stock_trading_v2_auto_promote.py"
       - "tests/test_stock_trading_v2_universe.py"
       - "tests/test_stock_trading_v2_gpw_universe.py"
       - "tests/test_stock_trading_v2_fast_scan.py"
@@ -74,6 +79,7 @@ on:
       - "data/investments/stock_trading_v2_evidence_config.json"
       - "data/investments/stock_trading_v2_opportunity_config.json"
       - "data/investments/stock_trading_v2_learning_config.json"
+      - "data/investments/stock_trading_v2_auto_promotion_config.json"
       - "data/investments/stock_trading_v2_experience/**"
       - "data/investments/stock_trading_v2_admission/**"
       - "data/investments/stock_trading_v2_position_experience/**"
@@ -118,6 +124,7 @@ jobs:
             scripts/stock_trading_v2_regret_engine.py \
             scripts/stock_trading_v2_policy_learner.py \
             scripts/stock_trading_v2_challenger_eval.py \
+            scripts/stock_trading_v2_auto_promote.py \
             scripts/stock_trading_v2_universe.py \
             scripts/stock_trading_v2_gpw_universe.py \
             scripts/stock_trading_v2_gpw_universe_provider.py \
@@ -138,6 +145,7 @@ jobs:
             tests/test_stock_trading_v2_outcome_replay.py \
             tests/test_stock_trading_v2_regret_engine.py \
             tests/test_stock_trading_v2_policy_learning.py \
+            tests/test_stock_trading_v2_auto_promote.py \
             tests/test_stock_trading_v2_universe.py \
             tests/test_stock_trading_v2_gpw_universe.py \
             tests/test_stock_trading_v2_fast_scan.py \
@@ -162,6 +170,7 @@ jobs:
           python -m json.tool data/investments/stock_trading_v2_evidence_config.json >/dev/null
           python -m json.tool data/investments/stock_trading_v2_opportunity_config.json >/dev/null
           python -m json.tool data/investments/stock_trading_v2_learning_config.json >/dev/null
+          python -m json.tool data/investments/stock_trading_v2_auto_promotion_config.json >/dev/null
 
       - name: Run v2 unit tests
         run: |
@@ -172,6 +181,7 @@ jobs:
             tests.test_stock_trading_v2_outcome_replay \
             tests.test_stock_trading_v2_regret_engine \
             tests.test_stock_trading_v2_policy_learning \
+            tests.test_stock_trading_v2_auto_promote \
             tests.test_stock_trading_v2_universe \
             tests.test_stock_trading_v2_gpw_universe \
             tests.test_stock_trading_v2_fast_scan \
