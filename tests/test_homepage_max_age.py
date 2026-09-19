@@ -190,8 +190,56 @@ class HomepageExposureCapTests(unittest.TestCase):
         self.assertEqual(lanes, sorted(lanes, key=lambda lane: order[lane]))
         self.assertLessEqual(lanes.count("sport"), 3)
         freshness = result["health"]["homepage_freshness"]
-        self.assertEqual(freshness["post_freshness_selection_version"], "post-freshness-editorial-v1")
+        self.assertEqual(freshness["post_freshness_selection_version"], "post-freshness-editorial-v2")
         self.assertEqual(freshness["lane_mix"].get("zdrowie"), 1)
+
+    def test_post_freshness_fill_prefers_economy_over_lower_priority_sport(self) -> None:
+        now = datetime(2026, 9, 19, 13, 0, tzinfo=timezone.utc)
+
+        def row(name: str, lane: str, rank: int, minute: int, source: str) -> dict:
+            story = self._story(name, now - timedelta(minutes=minute), lane)
+            story["homepage_lane"] = lane
+            story["homepage_priority_rank"] = rank
+            story["source"] = source
+            return story
+
+        home = [
+            row("Polityka 1", "polityka", 1, 1, "P1"),
+            row("Polityka 2", "polityka", 1, 2, "P2"),
+            row("Polityka 3", "polityka", 1, 3, "P3"),
+            row("Geo 1", "geopolityka", 2, 4, "G1"),
+            row("Geo 2", "geopolityka", 2, 5, "G2"),
+            row("Geo 3", "geopolityka", 2, 6, "G3"),
+            row("Ekonomia 1", "ekonomia", 3, 7, "E1"),
+            row("Nauka 1", "nauka", 5, 8, "N1"),
+            row("Nauka 2", "nauka", 5, 9, "N2"),
+            row("Zdrowie 1", "zdrowie", 6, 10, "H1"),
+            row("Sport 1", "sport", 7, 11, "S1"),
+            row("Sport 2", "sport", 7, 12, "S2"),
+        ]
+        reserve = [
+            row("Ekonomia 2", "ekonomia", 3, 20, "E2"),
+            row("Ekonomia 3", "ekonomia", 3, 21, "E3"),
+            row("Sport 3", "sport", 7, 22, "S3"),
+        ]
+        payload = {"home": home, "home_reserve": reserve, "health": {}}
+
+        result, _ = enforce_payload(payload, {}, now)
+        lanes = [item["homepage_lane"] for item in result["home"]]
+
+        self.assertEqual(len(result["home"]), HOME_LIMIT)
+        self.assertEqual(lanes.count("polityka"), 3)
+        self.assertEqual(lanes.count("geopolityka"), 3)
+        self.assertEqual(lanes.count("ekonomia"), 3)
+        self.assertEqual(lanes.count("nauka"), 1)
+        self.assertEqual(lanes.count("zdrowie"), 1)
+        self.assertEqual(lanes.count("sport"), 1)
+        self.assertIn("Ekonomia 2", [item["title"] for item in result["home"]])
+        self.assertIn("Ekonomia 3", [item["title"] for item in result["home"]])
+        self.assertEqual(
+            result["health"]["homepage_freshness"]["fill_order"],
+            "priority_lane_then_candidate_quality",
+        )
 
     def test_runtime_reserve_cannot_reintroduce_homepage_topic_duplicate(self) -> None:
         now = datetime(2026, 9, 19, 12, 0, tzinfo=timezone.utc)
