@@ -15,6 +15,7 @@ on:
       - "scripts/news_source_expansion_v3.py"
       - "scripts/news_event_intelligence_v4.py"
       - "scripts/news_claim_intelligence.py"
+      - "scripts/dedupe_home_brief_stories.py"
       - "data/news/polish_sport_watchlist.json"
       - "scripts/enforce_homepage_max_age.py"
       - "scripts/news_quality.py"
@@ -76,6 +77,7 @@ jobs:
             scripts/news_source_expansion_v3.py \
             scripts/news_event_intelligence_v4.py \
             scripts/news_claim_intelligence.py \
+            scripts/dedupe_home_brief_stories.py \
             scripts/enforce_homepage_max_age.py \
             scripts/news_quality.py \
             scripts/render_live_news_static.py \
@@ -188,6 +190,9 @@ jobs:
                           last.append(f'{path}: schema mismatch')
                       if payload.get('editorial_policy', {}).get('version') != 'news-value-filter-v4':
                           last.append(f'{path}: editorial policy v4 missing')
+                      homepage_selection = payload.get('health', {}).get('homepage_editorial_selection', {})
+                      if homepage_selection.get('version') != 'homepage-editorial-v2':
+                          last.append(f'{path}: homepage editorial selector v2 missing')
                       selection_policy = payload.get('health', {}).get('editorial_selection', {})
                       if selection_policy.get('version') != 'curated-source-tiers-v2':
                           last.append(f'{path}: curated source policy v2 missing')
