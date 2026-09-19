@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import unittest
 from datetime import datetime, timedelta, timezone
 
@@ -190,7 +191,7 @@ class HomepageExposureCapTests(unittest.TestCase):
         self.assertEqual(lanes, sorted(lanes, key=lambda lane: order[lane]))
         self.assertLessEqual(lanes.count("sport"), 3)
         freshness = result["health"]["homepage_freshness"]
-        self.assertEqual(freshness["post_freshness_selection_version"], "post-freshness-editorial-v1")
+        self.assertEqual(freshness["post_freshness_selection_version"], "post-freshness-editorial-v2")
         self.assertEqual(freshness["lane_mix"].get("zdrowie"), 1)
 
     def test_runtime_reserve_cannot_reintroduce_homepage_topic_duplicate(self) -> None:
@@ -247,6 +248,58 @@ class HomepageExposureCapTests(unittest.TestCase):
             result["homepage_policy"]["runtime_backfill_policy"],
             "approved_home_reserve_only",
         )
+
+    def test_en_primary_central_bank_bulletin_is_homepage_day_of_release_only(self) -> None:
+        release = datetime(2026, 9, 16, 18, 0, tzinfo=timezone.utc)
+        fomc = self._story("Federal Reserve issues FOMC statement", release, "Business")
+        fomc["source"] = "Federal Reserve"
+        fresh = [
+            self._story(f"Fresh business story {index}", datetime(2026, 9, 17, 8, 0, tzinfo=timezone.utc) - timedelta(minutes=index), "Business")
+            for index in range(14)
+        ]
+        payload = {
+            "home": [fomc] + fresh[:11],
+            "home_reserve": fresh[11:],
+            "health": {},
+        }
+
+        same_day, _ = enforce_payload(
+            json.loads(json.dumps(payload)),
+            {},
+            datetime(2026, 9, 16, 22, 0, tzinfo=timezone.utc),
+            lang="en",
+        )
+        self.assertIn(fomc["title"], [item["title"] for item in same_day["home"]])
+
+        next_day, _ = enforce_payload(
+            json.loads(json.dumps(payload)),
+            {},
+            datetime(2026, 9, 17, 8, 0, tzinfo=timezone.utc),
+            lang="en",
+        )
+        titles = [item["title"] for item in next_day["home"] + next_day["home_reserve"]]
+        self.assertNotIn(fomc["title"], titles)
+        self.assertGreaterEqual(
+            next_day["health"]["homepage_freshness"]["primary_bulletin_same_day_rejected"],
+            1,
+        )
+
+    def test_pl_homepage_does_not_apply_en_primary_bulletin_rule(self) -> None:
+        release = datetime(2026, 9, 16, 18, 0, tzinfo=timezone.utc)
+        fomc = self._story("Federal Reserve issues FOMC statement", release, "Ekonomia")
+        fomc["source"] = "Federal Reserve"
+        payload = {
+            "home": [fomc],
+            "home_reserve": [],
+            "health": {},
+        }
+        result, _ = enforce_payload(
+            payload,
+            {},
+            datetime(2026, 9, 17, 8, 0, tzinfo=timezone.utc),
+            lang="pl",
+        )
+        self.assertIn(fomc["title"], [item["title"] for item in result["home"]])
 
     def test_raw_sections_cannot_bypass_homepage_selection(self) -> None:
         now = datetime(2026, 9, 1, 19, 0, tzinfo=timezone.utc)
