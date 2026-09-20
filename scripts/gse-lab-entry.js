@@ -42,6 +42,7 @@
       item.innerHTML=`
         <a class="tile-link" href="${article.href}">
           <time class="tile-date" datetime="${article.date}">${article.dateLabel}</time>
+          <span class="tile-art" aria-hidden="true"></span>
           <span class="tile-body">
             <span class="tile-title">${article.title}</span>
             <span class="tile-desc">${article.desc}</span>
