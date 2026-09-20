@@ -153,11 +153,11 @@
       z-index:1;
       display:flex;
       flex-direction:column;
-      justify-content:space-between;
+      justify-content:flex-start;
       width:100%;
       max-width:230px;
-      height:330px;
-      padding:16px 16px 18px 24px;
+      height:350px;
+      padding:14px 16px 16px 24px;
       overflow:hidden;
       color:#fff;
       text-decoration:none;
@@ -226,20 +226,47 @@
       letter-spacing:.02em;
     }
 
+    .tile-art{
+      position:relative;
+      z-index:1;
+      display:block;
+      width:calc(100% - 4px);
+      height:112px;
+      flex:0 0 112px;
+      margin:10px 0 13px;
+      overflow:hidden;
+      border:1px solid rgba(255,255,255,.28);
+      border-radius:8px;
+      background-position:center;
+      background-repeat:no-repeat;
+      background-size:cover;
+      box-shadow:0 8px 16px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.16);
+    }
+
+    .tile-link[href="/pl/geo/arktyczny-skrot.html"] .tile-art{background-image:url("/assets/geopolitics/covers/arctic-shortcut.svg")}
+    .tile-link[href="/pl/geo/jak-rosja-testuje-prog-reakcji-nato-wobec-polski.html"] .tile-art{background-image:url("/assets/geopolitics/covers/nato-threshold-poland.svg")}
+    .tile-link[href="/pl/geo/niewidzialny-front-baltyku.html"] .tile-art{background-image:url("/assets/geopolitics/covers/baltic-invisible-front.svg")}
+    .tile-link[href="/pl/geo/rosja-drony-paliwa-zboze.html"] .tile-art{background-image:url("/assets/geopolitics/covers/russia-drones-fuel-grain.svg")}
+    .tile-link[href="/pl/geo/polska-panstwo-frontowe.html"] .tile-art{background-image:url("/assets/geopolitics/covers/poland-frontline.svg")}
+    .tile-link[href="/pl/geo/ziemie-rzadkie.html"] .tile-art{background-image:url("/assets/geopolitics/covers/rare-earths.svg")}
+    .tile-link[href="/pl/geo/usa-chiny-2025.html"] .tile-art{background-image:url("/assets/geopolitics/covers/usa-china.svg")}
+    .tile-link[href="/pl/geo/upadek-hegemona.html"] .tile-art{background-image:url("/assets/geopolitics/covers/falling-hegemon.svg")}
+
     .tile-body{
       position:relative;
       z-index:1;
       display:flex;
       min-height:0;
+      flex:1;
       flex-direction:column;
-      gap:12px;
+      gap:8px;
     }
 
     .tile-title{
       display:-webkit-box;
       overflow:hidden;
       -webkit-box-orient:vertical;
-      -webkit-line-clamp:4;
+      -webkit-line-clamp:3;
       margin:0;
       color:#fff9ef;
       font-family:Georgia,"Times New Roman",serif;
@@ -253,7 +280,7 @@
       display:-webkit-box;
       overflow:hidden;
       -webkit-box-orient:vertical;
-      -webkit-line-clamp:5;
+      -webkit-line-clamp:4;
       margin:0;
       padding-top:10px;
       border-top:1px solid rgba(255,231,184,.35);
@@ -399,8 +426,9 @@
       header{padding-top:30px}
       .library{padding:26px 14px 30px}
       .tiles{grid-template-columns:1fr}
-      .tile{min-height:340px}
-      .tile-link{max-width:260px;height:320px}
+      .tile{min-height:365px}
+      .tile-link{max-width:260px;height:345px}
+      .tile-art{height:120px;flex-basis:120px}
       .youtube-picks{padding:22px 16px}
       .youtube-picks__head{align-items:flex-start}
     }
@@ -451,6 +479,7 @@
         <li class="tile">
           <a class="tile-link" href="/pl/geo/arktyczny-skrot.html">
             <time class="tile-date" datetime="2026-09-20">20.09.2026</time>
+            <span class="tile-art" aria-hidden="true"></span>
             <span class="tile-body">
               <span class="tile-title">Arktyczny skrót</span>
               <span class="tile-desc">Czy Północna Droga Morska zmieni handel Europa–Azja, czy tylko zamieni jedno wąskie gardło na nową zależność?</span>
@@ -461,6 +490,7 @@
         <li class="tile">
           <a class="tile-link" href="/pl/geo/niewidzialny-front-baltyku.html">
             <time class="tile-date" datetime="2026-08-11">11.08.2026</time>
+            <span class="tile-art" aria-hidden="true"></span>
             <span class="tile-body">
               <span class="tile-title">Niewidzialny front Bałtyku</span>
               <span class="tile-desc">Kable, flota cieni i presja poniżej progu wojny. Jak oddzielić wypadek, sabotaż i atrybucję państwową?</span>
@@ -471,6 +501,7 @@
         <li class="tile">
           <a class="tile-link" href="/pl/geo/rosja-drony-paliwa-zboze.html">
             <time class="tile-date" datetime="2026-07-14">14.07.2026</time>
+            <span class="tile-art" aria-hidden="true"></span>
             <span class="tile-body">
               <span class="tile-title">Rosja pod presją dronów: paliwa, żniwa i eksport zbóż</span>
               <span class="tile-desc">Rafinerie, kryzys paliwowy, Morze Azowskie i możliwy wpływ na światowe ceny pszenicy.</span>
@@ -481,6 +512,7 @@
         <li class="tile">
           <a class="tile-link" href="/pl/geo/polska-panstwo-frontowe.html">
             <time class="tile-date" datetime="2026-06-13">13.06.2026</time>
+            <span class="tile-art" aria-hidden="true"></span>
             <span class="tile-body">
               <span class="tile-title">Polska jako państwo frontowe</span>
               <span class="tile-desc">Obecna pozycja Polski w Europie, jej rola strategiczna oraz znaczenie dla bezpieczeństwa regionu.</span>
@@ -491,6 +523,7 @@
         <li class="tile">
           <a class="tile-link" href="/pl/geo/ziemie-rzadkie.html">
             <time class="tile-date" datetime="2025">2025</time>
+            <span class="tile-art" aria-hidden="true"></span>
             <span class="tile-body">
               <span class="tile-title">Ziemie rzadkie: surowce i geopolityka</span>
               <span class="tile-desc">Magnesy, przetwórstwo, łańcuchy dostaw i geopolityczny wyścig o surowce krytyczne.</span>
@@ -501,6 +534,7 @@
         <li class="tile">
           <a class="tile-link" href="/pl/geo/usa-chiny-2025.html">
             <time class="tile-date" datetime="2025-10-25">25.10.2025</time>
+            <span class="tile-art" aria-hidden="true"></span>
             <span class="tile-body">
               <span class="tile-title">USA–Chiny po 2025: scenariusze i Europa</span>
               <span class="tile-desc">Technologia, surowce, łańcuchy dostaw i cztery realistyczne scenariusze na lata 2025–2030.</span>
@@ -511,6 +545,7 @@
         <li class="tile">
           <a class="tile-link" href="/pl/geo/upadek-hegemona.html">
             <time class="tile-date" datetime="2025-11-24">24.11.2025</time>
+            <span class="tile-art" aria-hidden="true"></span>
             <span class="tile-body">
               <span class="tile-title">Zmiana architektury porządku świata – upadek Hegemona?</span>
               <span class="tile-desc">Czy erozja powojennego ładu liberalnego i wzrost Chin oznaczają koniec hegemonii USA?</span>
@@ -558,6 +593,6 @@
   <footer></footer>
   <script src="/scripts/youtube-thumbnail-runtime.js?v=1" defer></script>
   <!-- Cloudflare Web Analytics --><script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token":"9adde99e330a4b0d991627986ac34246"}'></script><!-- End Cloudflare Web Analytics -->
-<script src="/scripts/gse-lab-entry.js?v=2" defer></script>
+<script src="/scripts/gse-lab-entry.js?v=3" defer></script>
 </body>
 </html>
