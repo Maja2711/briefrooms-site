@@ -1,27 +1,62 @@
 (()=>{
   'use strict';
 
-  const injectLatestArticle=()=>{
+  const ensureFeaturedArticles=()=>{
     const path=window.location.pathname.replace(/\/$/,'');
     if(path!=='/pl/geopolityka'&&path!=='/pl/geopolityka.html')return;
     const list=document.querySelector('.library .tiles');
-    if(!list||list.querySelector('[data-briefrooms-article="nato-threshold-poland"]'))return;
+    if(!list)return;
 
-    const item=document.createElement('li');
-    item.className='tile';
-    item.dataset.briefroomsArticle='nato-threshold-poland';
-    item.innerHTML=`
-      <a class="tile-link" href="/pl/geo/jak-rosja-testuje-prog-reakcji-nato-wobec-polski.html">
-        <time class="tile-date" datetime="2026-09-13">13.09.2026</time>
-        <span class="tile-body">
-          <span class="tile-title">Jak Rosja testuje próg reakcji NATO wobec Polski</span>
-          <span class="tile-desc">Szara strefa, drony, sabotaż i granica między art. 4 a art. 5. Analiza z eksperymentalnym GSE Lab — 30 Day Outlook.</span>
-        </span>
-      </a>`;
-    list.prepend(item);
+    const featured=[
+      {
+        id:'arctic-shortcut',
+        href:'/pl/geo/arktyczny-skrot.html',
+        date:'2026-09-20',
+        dateLabel:'20.09.2026',
+        title:'Arktyczny skrót',
+        desc:'Czy Północna Droga Morska zmieni handel Europa–Azja, czy tylko zamieni jedno wąskie gardło na nową zależność?'
+      },
+      {
+        id:'nato-threshold-poland',
+        href:'/pl/geo/jak-rosja-testuje-prog-reakcji-nato-wobec-polski.html',
+        date:'2026-09-13',
+        dateLabel:'13.09.2026',
+        title:'Jak Rosja testuje próg reakcji NATO wobec Polski',
+        desc:'Szara strefa, drony, sabotaż i granica między art. 4 a art. 5. Analiza z eksperymentalnym GSE Lab — 30 Day Outlook.'
+      }
+    ];
+
+    const nodeFor=(article)=>{
+      const existing=[...list.querySelectorAll('.tile')].find(tile=>{
+        const link=tile.querySelector('.tile-link');
+        return link&&link.getAttribute('href')===article.href;
+      });
+      if(existing){
+        existing.dataset.briefroomsArticle=article.id;
+        return existing;
+      }
+
+      const item=document.createElement('li');
+      item.className='tile';
+      item.dataset.briefroomsArticle=article.id;
+      item.innerHTML=`
+        <a class="tile-link" href="${article.href}">
+          <time class="tile-date" datetime="${article.date}">${article.dateLabel}</time>
+          <span class="tile-body">
+            <span class="tile-title">${article.title}</span>
+            <span class="tile-desc">${article.desc}</span>
+          </span>
+        </a>`;
+      return item;
+    };
+
+    // Prepend in reverse so the final visible order is newest first.
+    featured.slice().reverse().forEach(article=>{
+      list.prepend(nodeFor(article));
+    });
   };
 
-  injectLatestArticle();
+  ensureFeaturedArticles();
 
   const box=document.querySelector('[data-gse-lab-entry]');
   if(!box)return;
