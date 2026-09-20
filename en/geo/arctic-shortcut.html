@@ -62,8 +62,8 @@
     .route-map-launch{position:relative;display:block;width:100%;padding:0;border:1px solid rgba(14,116,144,.2);border-radius:16px;overflow:hidden;background:#dbeafe;cursor:zoom-in;box-shadow:0 10px 24px rgba(15,23,42,.12);text-align:left;}
     .route-map-launch:hover{box-shadow:0 14px 30px rgba(15,23,42,.18);transform:translateY(-1px);}
     .route-map-launch:focus-visible{outline:3px solid rgba(14,116,144,.38);outline-offset:3px;}
-    .route-map-preview{height:250px;width:100%;background:#bfd7e3;}
-    .route-map-preview .leaflet-tile-pane,.route-map-full .leaflet-tile-pane{filter:saturate(1.08) brightness(.92) contrast(1.04);}
+    .route-map-preview{height:250px;width:100%;background:#c8dce8;}
+    .route-map-preview .leaflet-tile-pane,.route-map-full .leaflet-tile-pane{filter:saturate(.92) brightness(.96) contrast(1.03);}
     .route-map-summary{position:absolute;left:10px;right:10px;bottom:10px;z-index:500;display:grid;grid-template-columns:1fr 1fr;gap:7px;pointer-events:none;}
     .route-km{padding:8px 9px;border-radius:10px;background:rgba(255,255,255,.94);box-shadow:0 4px 14px rgba(15,23,42,.14);font:700 11px/1.28 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#0f172a;}
     .route-km strong{display:block;font-size:16px;line-height:1.05;}
@@ -348,10 +348,10 @@
   const rotterdam = [51.95, 4.14];
 
   // Geographic waypoints are illustrative maritime routing points, not a vessel AIS track.
-  // Segments are deliberately split at the International Date Line so Leaflet never
-  // draws a false shortcut across Siberia.
+  // For this Europe-Asia-Bering view, longitudes immediately east of the Date Line
+  // are represented as >180° so the map stays continuous and does not jump to North America.
   const nsrSegments = [
-    // Busan -> Tsugaru Strait -> North Pacific
+    // Busan -> Tsugaru Strait -> North Pacific -> Bering Strait
     [
       [35.10,129.04],
       [34.60,130.10],
@@ -360,7 +360,7 @@
       [39.00,136.00],
       [40.60,138.50],
       [41.30,139.70],
-      [41.50,140.45], // Tsugaru Strait
+      [41.50,140.45],
       [41.70,141.20],
       [43.00,145.50],
       [46.50,151.50],
@@ -368,27 +368,21 @@
       [55.50,163.00],
       [60.50,168.50],
       [64.00,174.00],
-      [65.50,179.50]
+      [65.50,179.50],
+      [65.65,180.50],
+      [65.75,183.00],
+      [65.84,186.00],
+      [65.90,189.00],
+      [65.94,191.12]
     ],
 
-    // Cross the Date Line toward the Bering Strait (eastern hemisphere -> western hemisphere)
+    // Bering Strait -> Chukchi Sea -> Russian Arctic
     [
-      [65.50,-179.50],
-      [65.65,-176.50],
-      [65.78,-173.50],
-      [65.88,-171.00],
-      [65.94,-168.88] // Bering Strait
-    ],
-
-    // Through Bering Strait, then back across the Date Line into the Russian Arctic
-    [
-      [65.94,-168.88],
-      [66.40,-170.50],
-      [67.20,-173.50],
-      [68.30,-176.50],
-      [69.30,-179.50]
-    ],
-    [
+      [65.94,191.12],
+      [66.40,189.50],
+      [67.20,186.50],
+      [68.30,183.50],
+      [69.30,180.50],
       [69.30,179.50],
       [70.20,176.00],
       [71.00,172.00],
@@ -415,7 +409,7 @@
       [76.30,120.00],
       [76.80,115.00],
       [77.20,110.00],
-      [77.97,105.00] // Vilkitsky Strait
+      [77.97,105.00]
     ],
 
     // Kara Sea -> Kara Gate
@@ -431,10 +425,10 @@
       [73.70,66.00],
       [72.50,62.00],
       [71.20,59.50],
-      [70.43,57.92] // Kara Gate
+      [70.43,57.92]
     ],
 
-    // Barents Sea -> north of Norway -> Norwegian Sea
+    // Barents Sea -> Norwegian Sea -> North Sea -> Rotterdam
     [
       [70.43,57.92],
       [70.20,52.00],
@@ -450,11 +444,6 @@
       [67.00,0.00],
       [65.00,-1.50],
       [63.00,-2.50],
-      [61.00,-2.50]
-    ],
-
-    // Norwegian Sea -> North Sea -> Rotterdam
-    [
       [61.00,-2.50],
       [59.00,-1.50],
       [57.00,0.00],
@@ -535,16 +524,15 @@
   ];
 
   const routeMarkers = [
-    {name:'Bering Strait', point:[65.94,-168.88], color:'#0e7490'},
+    {name:'Bering Strait', point:[65.94,191.12], color:'#0e7490'},
     {name:'Barents Sea', point:[71.00,34.00], color:'#0e7490'},
     {name:'North Sea', point:[55.00,1.50], color:'#0e7490'}
   ];
 
-  const tileUrl = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+  const tileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
   const tileOpts = {
     maxZoom: 8,
-    subdomains: 'abcd',
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
   };
 
   function drawRoutes(map, interactive) {
@@ -593,7 +581,7 @@
     L.circleMarker([29.97,32.55],{radius:5,color:'#d97706',weight:2,fillColor:'#fff',fillOpacity:1})
       .addTo(map).bindTooltip('Suez Canal', {permanent:interactive,direction:'right',className:'route-label'});
 
-    map.fitBounds([[-2,-179.9],[79,179.9]], {padding:[10,10]});
+    map.fitBounds([[-2,-12],[80,195]], {padding:[18,18]});
   }
 
   const preview = L.map(previewEl, {
@@ -612,7 +600,13 @@
   launch.addEventListener('click', () => {
     dialog.showModal();
     if (!fullMap) {
-      fullMap = L.map(fullEl, {worldCopyJump:false, minZoom:1, maxZoom:8});
+      fullMap = L.map(fullEl, {
+        worldCopyJump:false,
+        minZoom:1,
+        maxZoom:8,
+        maxBounds:[[-10,-20],[84,200]],
+        maxBoundsViscosity:.75
+      });
       drawRoutes(fullMap, true);
       L.control.scale({imperial:false}).addTo(fullMap);
     }
