@@ -62,7 +62,8 @@
     .route-map-launch{position:relative;display:block;width:100%;padding:0;border:1px solid rgba(14,116,144,.2);border-radius:16px;overflow:hidden;background:#dbeafe;cursor:zoom-in;box-shadow:0 10px 24px rgba(15,23,42,.12);text-align:left;}
     .route-map-launch:hover{box-shadow:0 14px 30px rgba(15,23,42,.18);transform:translateY(-1px);}
     .route-map-launch:focus-visible{outline:3px solid rgba(14,116,144,.38);outline-offset:3px;}
-    .route-map-preview{height:250px;width:100%;background:#dbeafe;}
+    .route-map-preview{height:250px;width:100%;background:#bfd7e3;}
+    .route-map-preview .leaflet-tile-pane,.route-map-full .leaflet-tile-pane{filter:saturate(1.08) brightness(.92) contrast(1.04);}
     .route-map-summary{position:absolute;left:10px;right:10px;bottom:10px;z-index:500;display:grid;grid-template-columns:1fr 1fr;gap:7px;pointer-events:none;}
     .route-km{padding:8px 9px;border-radius:10px;background:rgba(255,255,255,.94);box-shadow:0 4px 14px rgba(15,23,42,.14);font:700 11px/1.28 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#0f172a;}
     .route-km strong{display:block;font-size:16px;line-height:1.05;}
@@ -346,103 +347,204 @@
   const busan = [35.10, 129.04];
   const rotterdam = [51.95, 4.14];
 
-  // Geographic waypoints are illustrative maritime routing points, not a vessel track.
+  // Geographic waypoints are illustrative maritime routing points, not a vessel AIS track.
+  // Segments are deliberately split at the International Date Line so Leaflet never
+  // draws a false shortcut across Siberia.
   const nsrSegments = [
-    // Busan -> Sea of Japan / North Pacific
+    // Busan -> Tsugaru Strait -> North Pacific
     [
       [35.10,129.04],
-      [37.2,131.2],
-      [39.5,134.0],
-      [42.5,138.0],
-      [46.0,143.5],
-      [50.0,149.5],
-      [54.5,157.5],
-      [59.5,164.5],
-      [63.5,167.8],
-      [66.0,169.0]
+      [34.60,130.10],
+      [35.50,131.80],
+      [37.00,133.80],
+      [39.00,136.00],
+      [40.60,138.50],
+      [41.30,139.70],
+      [41.50,140.45], // Tsugaru Strait
+      [41.70,141.20],
+      [43.00,145.50],
+      [46.50,151.50],
+      [50.50,157.00],
+      [55.50,163.00],
+      [60.50,168.50],
+      [64.00,174.00],
+      [65.50,179.50]
     ],
 
-    // Bering Strait -> Chukchi Sea
+    // Cross the Date Line toward the Bering Strait (eastern hemisphere -> western hemisphere)
     [
-      [66.0,169.0],
-      [66.8,169.7],
-      [67.6,170.0],
-      [68.4,169.6],
-      [69.2,168.5],
-      [70.1,166.5],
-      [71.0,163.8],
-      [71.8,160.5],
-      [72.4,157.0]
+      [65.50,-179.50],
+      [65.65,-176.50],
+      [65.78,-173.50],
+      [65.88,-171.00],
+      [65.94,-168.88] // Bering Strait
     ],
 
-    // East Siberian Sea -> Laptev Sea
+    // Through Bering Strait, then back across the Date Line into the Russian Arctic
     [
-      [72.4,157.0],
-      [73.0,152.0],
-      [73.6,147.0],
-      [74.2,142.0],
-      [74.8,137.0],
-      [75.3,132.0],
-      [75.7,127.0],
-      [76.0,122.0],
-      [76.1,117.0],
-      [76.0,112.0],
-      [75.8,107.0],
-      [75.5,102.0],
-      [75.2,97.0],
-      [74.9,92.0],
-      [74.6,87.0]
+      [65.94,-168.88],
+      [66.40,-170.50],
+      [67.20,-173.50],
+      [68.30,-176.50],
+      [69.30,-179.50]
+    ],
+    [
+      [69.30,179.50],
+      [70.20,176.00],
+      [71.00,172.00],
+      [71.60,168.00],
+      [72.00,164.00],
+      [72.40,160.00]
     ],
 
-    // Kara Sea -> Barents Sea
+    // Chukchi Sea -> East Siberian Sea
     [
-      [74.6,87.0],
-      [74.2,82.0],
-      [73.8,77.0],
-      [73.4,72.0],
-      [73.0,67.0],
-      [72.7,62.0],
-      [72.5,57.0],
-      [72.3,52.0],
-      [72.1,47.0],
-      [71.9,42.0],
-      [71.7,37.0],
-      [71.5,32.0],
-      [71.3,27.0],
-      [71.1,22.0]
+      [72.40,160.00],
+      [72.80,155.00],
+      [73.20,150.00],
+      [73.70,145.00],
+      [74.20,140.00],
+      [74.70,135.00],
+      [75.20,130.00],
+      [75.80,125.00]
+    ],
+
+    // Laptev Sea -> Vilkitsky Strait
+    [
+      [75.80,125.00],
+      [76.30,120.00],
+      [76.80,115.00],
+      [77.20,110.00],
+      [77.97,105.00] // Vilkitsky Strait
+    ],
+
+    // Kara Sea -> Kara Gate
+    [
+      [77.97,105.00],
+      [77.70,100.00],
+      [77.40,95.00],
+      [77.10,90.00],
+      [76.70,85.00],
+      [76.10,80.00],
+      [75.50,75.00],
+      [74.70,70.00],
+      [73.70,66.00],
+      [72.50,62.00],
+      [71.20,59.50],
+      [70.43,57.92] // Kara Gate
+    ],
+
+    // Barents Sea -> north of Norway -> Norwegian Sea
+    [
+      [70.43,57.92],
+      [70.20,52.00],
+      [70.40,46.00],
+      [70.70,40.00],
+      [71.00,34.00],
+      [71.30,29.00],
+      [71.55,24.00],
+      [71.70,18.00],
+      [71.40,12.00],
+      [70.40,7.00],
+      [69.00,3.00],
+      [67.00,0.00],
+      [65.00,-1.50],
+      [63.00,-2.50],
+      [61.00,-2.50]
     ],
 
     // Norwegian Sea -> North Sea -> Rotterdam
     [
-      [71.1,22.0],
-      [71.0,18.0],
-      [70.7,14.0],
-      [70.2,10.0],
-      [69.5,7.0],
-      [68.5,4.5],
-      [67.0,2.0],
-      [65.0,0.5],
-      [63.0,-0.5],
-      [61.0,-0.5],
-      [59.0,0.0],
-      [57.0,0.8],
-      [55.0,1.8],
-      [53.5,2.8],
-      [52.7,3.4],
+      [61.00,-2.50],
+      [59.00,-1.50],
+      [57.00,0.00],
+      [55.00,1.50],
+      [53.70,2.80],
+      [52.70,3.50],
       [51.95,4.14]
     ]
   ];
-  const suez = [
-    [35.10,129.04],[28.0,124.0],[18.0,113.0],[7.0,106.0],[1.3,103.8],
-    [4.0,86.0],[8.0,70.0],[12.0,56.0],[12.6,43.3],[20.0,39.0],
-    [29.9,32.55],[34.0,27.0],[36.0,14.0],[36.0,-5.5],[43.0,-9.0],
-    [48.0,-6.0],[51.95,4.14]
+
+  const suezSegments = [
+    // Busan -> East China Sea -> South China Sea
+    [
+      [35.10,129.04],
+      [33.50,127.50],
+      [31.00,124.00],
+      [28.00,122.00],
+      [24.50,120.20],
+      [21.50,116.00],
+      [18.00,113.00],
+      [14.00,111.00],
+      [10.00,108.00],
+      [6.00,106.00],
+      [2.00,104.50],
+      [1.20,103.80] // Singapore Strait
+    ],
+
+    // Malacca Strait -> Indian Ocean -> Arabian Sea
+    [
+      [1.20,103.80],
+      [2.50,101.50],
+      [4.50,99.00],
+      [6.00,95.00],
+      [6.00,90.00],
+      [6.00,85.00],
+      [5.50,80.00],
+      [7.00,74.00],
+      [9.00,68.00],
+      [11.00,62.00],
+      [12.00,56.00],
+      [12.40,50.00],
+      [12.60,45.00],
+      [12.60,43.40] // Bab-el-Mandeb
+    ],
+
+    // Red Sea -> Suez Canal
+    [
+      [12.60,43.40],
+      [15.00,42.00],
+      [18.00,40.50],
+      [21.00,38.50],
+      [24.00,36.50],
+      [27.00,34.50],
+      [29.85,32.55], // Port of Suez
+      [30.50,32.32],
+      [31.25,32.30]  // Port Said
+    ],
+
+    // Mediterranean -> Gibraltar -> Atlantic -> English Channel -> Rotterdam
+    [
+      [31.25,32.30],
+      [32.50,29.00],
+      [34.00,25.00],
+      [35.50,20.00],
+      [36.00,14.00],
+      [36.00,8.00],
+      [35.95,2.00],
+      [35.90,-5.50], // Gibraltar
+      [38.00,-9.00],
+      [42.00,-10.00],
+      [46.00,-9.00],
+      [49.00,-6.00],
+      [50.20,-2.00],
+      [51.00,1.00],
+      [52.00,3.00],
+      [51.95,4.14]
+    ]
   ];
 
-  const tileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+  const routeMarkers = [
+    {name:'Bering Strait', point:[65.94,-168.88], color:'#0e7490'},
+    {name:'Barents Sea', point:[71.00,34.00], color:'#0e7490'},
+    {name:'North Sea', point:[55.00,1.50], color:'#0e7490'}
+  ];
+
+  const tileUrl = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
   const tileOpts = {
     maxZoom: 8,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    subdomains: 'abcd',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
   };
 
   function drawRoutes(map, interactive) {
@@ -459,10 +561,29 @@
       permanent: interactive, direction:'top', className:'route-label'
     });
 
-    L.polyline(suez, {
-      color:'#d97706', weight: interactive ? 5 : 4, opacity:.95, lineJoin:'round'
+    L.polyline(suezSegments, {
+      color:'#d97706',
+      weight: interactive ? 5 : 4,
+      opacity:.95,
+      lineJoin:'round',
+      lineCap:'round',
+      smoothFactor:1.05
     }).addTo(map).bindTooltip('Suez route · ≈20,000 km', {
       permanent: interactive, direction:'bottom', className:'route-label'
+    });
+
+    routeMarkers.forEach(({name,point,color}) => {
+      L.circleMarker(point,{
+        radius:interactive ? 5 : 4,
+        color,
+        weight:2,
+        fillColor:'#fff',
+        fillOpacity:1
+      }).addTo(map).bindTooltip(name,{
+        permanent:interactive,
+        direction:'top',
+        className:'route-label'
+      });
     });
 
     L.circleMarker(busan,{radius:6,color:'#0f172a',weight:2,fillColor:'#fff',fillOpacity:1})
@@ -472,7 +593,7 @@
     L.circleMarker([29.97,32.55],{radius:5,color:'#d97706',weight:2,fillColor:'#fff',fillOpacity:1})
       .addTo(map).bindTooltip('Suez Canal', {permanent:interactive,direction:'right',className:'route-label'});
 
-    map.fitBounds([[0,-15],[78,195]], {padding:[10,10]});
+    map.fitBounds([[-2,-179.9],[79,179.9]], {padding:[10,10]});
   }
 
   const preview = L.map(previewEl, {
