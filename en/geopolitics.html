@@ -124,7 +124,7 @@
       display:flex;
       align-items:flex-end;
       justify-content:center;
-      min-height:355px;
+      min-height:455px;
       padding:0 0 23px;
       border:0;
       background:transparent;
@@ -153,11 +153,12 @@
       z-index:1;
       display:flex;
       flex-direction:column;
-      justify-content:space-between;
+      justify-content:flex-start;
       width:100%;
       max-width:230px;
-      height:330px;
-      padding:16px 16px 18px 24px;
+      min-height:430px;
+      height:auto;
+      padding:14px 16px 16px 24px;
       overflow:hidden;
       color:#fff;
       text-decoration:none;
@@ -225,20 +226,72 @@
       letter-spacing:.02em;
     }
 
+    .tile-art{
+      position:relative;
+      z-index:1;
+      display:block;
+      width:calc(100% - 4px);
+      height:126px;
+      flex:0 0 126px;
+      margin:10px 0 13px;
+      overflow:hidden;
+      border:1px solid rgba(255,255,255,.28);
+      border-radius:8px;
+      background-position:center;
+      background-repeat:no-repeat;
+      background-size:cover;
+      box-shadow:0 8px 16px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.16);
+    }
+    .tile-art::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      background:linear-gradient(180deg,rgba(7,14,22,.04),rgba(7,14,22,.22));
+      pointer-events:none;
+    }
+
+    .tile-link[href="/en/geo/arctic-shortcut.html"] .tile-art{
+      background-image:url("https://upload.wikimedia.org/wikipedia/commons/e/e1/Royal_Arctic_Line_-_Naja_Arctica_container_ship.jpg");
+      background-position:center 52%;
+    }
+    .tile-link[href="/en/geo/baltic-invisible-front.html"] .tile-art{
+      background-image:url("https://upload.wikimedia.org/wikipedia/commons/3/33/Cable_laying_vessel_Willem_de_Vlamingh.jpg");
+      background-position:center 57%;
+    }
+    .tile-link[href="/en/geo/russia-drones-fuel-grain.html"] .tile-art{
+      background-image:url("https://upload.wikimedia.org/wikipedia/commons/9/9b/Moscow_oil_refinery_%2852205614839%29.jpg");
+      background-position:center 50%;
+    }
+    .tile-link[href="/en/geo/black-sea.html"] .tile-art{
+      background-image:url("https://thumb.wikimedia.org/wikipedia/commons/thumb/7/73/Grain_shipments_at_KSK_terminal.jpg/960px-Grain_shipments_at_KSK_terminal.jpg");
+      background-position:center 48%;
+    }
+    .tile-link[href="/en/geo/rare-earths.html"] .tile-art{
+      background-image:url("https://upload.wikimedia.org/wikipedia/commons/8/8b/Bayan_Obo.jpg");
+      background-position:center;
+    }
+    .tile-link[href="/en/geo/falling-hegemon.html"] .tile-art{
+      background-image:url("https://upload.wikimedia.org/wikipedia/commons/5/52/US_capitol_dome.jpg");
+      background-position:center 38%;
+    }
+    .tile-link[href="/en/geo/usa-china-2025.html"] .tile-art{
+      background-image:url("https://upload.wikimedia.org/wikipedia/commons/4/41/Semiconductor_Wafer_of_Microelectronics.jpg");
+      background-position:center;
+    }
+
     .tile-body{
       position:relative;
       z-index:1;
       display:flex;
       min-height:0;
+      flex:1;
       flex-direction:column;
-      gap:12px;
+      gap:8px;
     }
 
     .tile-title{
-      display:-webkit-box;
-      overflow:hidden;
-      -webkit-box-orient:vertical;
-      -webkit-line-clamp:4;
+      display:block;
+      overflow:visible;
       margin:0;
       color:#fff9ef;
       font-family:Georgia,"Times New Roman",serif;
@@ -249,10 +302,8 @@
     }
 
     .tile-desc{
-      display:-webkit-box;
-      overflow:hidden;
-      -webkit-box-orient:vertical;
-      -webkit-line-clamp:5;
+      display:block;
+      overflow:visible;
       margin:0;
       padding-top:10px;
       border-top:1px solid rgba(255,231,184,.35);
@@ -260,6 +311,18 @@
       font-size:.9rem;
       line-height:1.5;
     }
+
+    .cover-credits{
+      margin:18px 4px 0;
+      padding:10px 12px;
+      border-radius:10px;
+      color:#d6c3ad;
+      background:rgba(25,14,9,.58);
+      font-size:.72rem;
+      line-height:1.55;
+    }
+    .cover-credits summary{cursor:pointer;color:#ead6bd;font-weight:800;}
+    .cover-credits a{color:#f2d6ae;text-underline-offset:2px;}
 
     .back{
       position:relative;
@@ -284,8 +347,9 @@
       header{padding-top:30px}
       .library{padding:26px 14px 30px}
       .tiles{grid-template-columns:1fr}
-      .tile{min-height:340px}
-      .tile-link{max-width:260px;height:320px}
+      .tile{min-height:470px}
+      .tile-link{max-width:260px;min-height:445px;height:auto}
+      .tile-art{height:132px;flex-basis:132px}
     }
 
     @media (prefers-reduced-motion:reduce){
@@ -334,6 +398,7 @@
         <li class="tile">
           <a class="tile-link" href="/en/geo/arctic-shortcut.html">
             <time class="tile-date" datetime="2026-09-20">20 Sep 2026</time>
+            <span class="tile-art" aria-hidden="true"></span>
             <span class="tile-body">
               <span class="tile-title">The Arctic Shortcut</span>
               <span class="tile-desc">Can the Northern Sea Route rewire Europe–Asia trade — or does it replace one chokepoint with a new dependency?</span>
@@ -344,6 +409,7 @@
         <li class="tile">
           <a class="tile-link" href="/en/geo/baltic-invisible-front.html">
             <time class="tile-date" datetime="2026-08-11">11 Aug 2026</time>
+            <span class="tile-art" aria-hidden="true"></span>
             <span class="tile-body">
               <span class="tile-title">The Baltic's invisible front</span>
               <span class="tile-desc">Cables, the shadow fleet and coercion below the threshold of war. Where accident ends and attribution begins.</span>
@@ -354,6 +420,7 @@
         <li class="tile">
           <a class="tile-link" href="/en/geo/russia-drones-fuel-grain.html">
             <time class="tile-date" datetime="2026-07-14">14 Jul 2026</time>
+            <span class="tile-art" aria-hidden="true"></span>
             <span class="tile-body">
               <span class="tile-title">Russia under drone pressure: fuel, harvests and grain exports</span>
               <span class="tile-desc">Refineries, fuel shortages, the Sea of Azov and the likely impact on global wheat prices.</span>
@@ -364,6 +431,7 @@
         <li class="tile">
           <a class="tile-link" href="/en/geo/black-sea.html">
             <time class="tile-date" datetime="2025">2025</time>
+            <span class="tile-art" aria-hidden="true"></span>
             <span class="tile-body">
               <span class="tile-title">Black Sea — a nexus of interests</span>
               <span class="tile-desc">Grain, energy and strategic chokepoints: why this basin moves prices and geopolitical risk.</span>
@@ -374,6 +442,7 @@
         <li class="tile">
           <a class="tile-link" href="/en/geo/rare-earths.html">
             <time class="tile-date" datetime="2025">2025</time>
+            <span class="tile-art" aria-hidden="true"></span>
             <span class="tile-body">
               <span class="tile-title">Rare earths — cycles &amp; geopolitics</span>
               <span class="tile-desc">Processing bottlenecks, magnets, industrial policy and competition over critical supply chains.</span>
@@ -384,6 +453,7 @@
         <li class="tile">
           <a class="tile-link" href="/en/geo/falling-hegemon.html">
             <time class="tile-date" datetime="2025-11-24">24 Nov 2025</time>
+            <span class="tile-art" aria-hidden="true"></span>
             <span class="tile-body">
               <span class="tile-title">Shifting world order – decline of the Hegemon?</span>
               <span class="tile-desc">From the US-led liberal order to a more multipolar system: what changes, what stays and why it matters.</span>
@@ -394,6 +464,7 @@
         <li class="tile">
           <a class="tile-link" href="/en/geo/usa-china-2025.html">
             <time class="tile-date" datetime="2025-10-25">25 Oct 2025</time>
+            <span class="tile-art" aria-hidden="true"></span>
             <span class="tile-body">
               <span class="tile-title">US–China after 2025</span>
               <span class="tile-desc">Managed separation, 2025–2030 scenarios, supply chains and Europe's strategic position.</span>
@@ -402,6 +473,19 @@
         </li>
       </ul>
     </section>
+
+    <details class="cover-credits">
+      <summary>Book-cover photo credits</summary>
+      <p>
+        Arctic: Quintin Soloviev / Wikimedia Commons;
+        Baltic cable ship: LukaszKatlewa / Wikimedia Commons, CC BY-SA 3.0;
+        Moscow refinery: Wikimedia Commons, CC BY 2.0;
+        Black Sea grain terminal: IvanStudenov / Wikimedia Commons, CC BY-SA 4.0;
+        Bayan Obo: Squishyhippie / Wikimedia Commons, CC BY-SA 4.0;
+        US Capitol: Wikimedia Commons / public domain;
+        semiconductor wafer: DrHughManning / Wikimedia Commons, CC BY-SA 4.0.
+      </p>
+    </details>
 
   
 
