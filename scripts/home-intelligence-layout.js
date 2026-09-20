@@ -46,7 +46,7 @@
       '.main-head{position:relative}',
       '.axiom-thought{position:absolute;top:28px;right:0;width:min(440px,46%);text-align:right;pointer-events:none;z-index:2}',
       '.axiom-thought blockquote{margin:0}',
-      '.axiom-thought__quote{margin:0;color:#dcebf6;font-size:14px;font-weight:650;line-height:1.48;font-style:italic;text-wrap:balance;text-shadow:0 1px 12px rgba(0,0,0,.18)}',
+      '.axiom-thought__quote{margin:0;color:#8EC5FF;font-size:14px;font-weight:650;line-height:1.48;font-style:italic;text-wrap:balance;text-shadow:0 1px 12px rgba(0,0,0,.18)}',
       '.axiom-thought__signature{display:flex;justify-content:flex-end;align-items:baseline;gap:7px;margin-top:7px;font-style:normal}',
       '.axiom-thought__signature strong{color:#8ffff6;font-size:10px;font-weight:950;letter-spacing:.08em}',
       '.axiom-thought__signature small{color:#7f93a8;font-size:9px;letter-spacing:.02em}',
