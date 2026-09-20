@@ -25,6 +25,10 @@ PARITY_PATHS = (
     "en/index.html",
     "pl/inwestycje.html",
     "en/investing.html",
+    "pl/geopolityka.html",
+    "en/geopolitics.html",
+    "pl/geo/arktyczny-skrot.html",
+    "en/geo/arctic-shortcut.html",
     "scripts/home-briefs.js",
     "scripts/hot-x-render.js",
 )
