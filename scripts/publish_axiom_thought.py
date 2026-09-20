@@ -1,136 +1,99 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-
-import json, os, re, subprocess, sys, time
+import argparse, json, os, re, subprocess, sys, time
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 import requests
 
 ROOT=Path(__file__).resolve().parents[1]
-CURRENT=ROOT/"data/home/axiom-thought.json"
-HISTORY=ROOT/"data/home/axiom-thoughts-history.jsonl"
-RESERVE=ROOT/"data/home/axiom-thought-reserve.json"
-PRINCIPLES=ROOT/"docs/axiom-thought-principles.md"
-GUARD=ROOT/"scripts/axiom_thought_guard.py"
-WARSAW=ZoneInfo("Europe/Warsaw")
+CURRENT=ROOT/"data/home/axiom-thought.json"; HISTORY=ROOT/"data/home/axiom-thoughts-history.jsonl"
+RESERVE=ROOT/"data/home/axiom-thought-reserve.json"; PRINCIPLES=ROOT/"docs/axiom-thought-principles.md"
+GUARD=ROOT/"scripts/axiom_thought_guard.py"; WARSAW=ZoneInfo("Europe/Warsaw")
 MODEL=os.getenv("AXIOM_THOUGHT_MODEL","gemini-3.5-flash")
-FALLBACK_MODEL=os.getenv("AXIOM_THOUGHT_FALLBACK_MODEL","gemini-3.5-flash-lite")
-MAX_ATTEMPTS=int(os.getenv("AXIOM_THOUGHT_MAX_ATTEMPTS","10"))
+FALLBACK=os.getenv("AXIOM_THOUGHT_FALLBACK_MODEL","gemini-3.5-flash-lite")
+MAX_ATTEMPTS=int(os.getenv("AXIOM_THOUGHT_MAX_ATTEMPTS","12"))
 RESERVE_TARGET=int(os.getenv("AXIOM_THOUGHT_RESERVE_TARGET","10"))
 
 def today(): return datetime.now(WARSAW).date().isoformat()
-def history_rows(): return [json.loads(x) for x in HISTORY.read_text(encoding="utf-8").splitlines() if x.strip()]
-def reserve_rows():
+def load_history(): return [json.loads(x) for x in HISTORY.read_text(encoding="utf-8").splitlines() if x.strip()]
+def load_reserve():
     if not RESERVE.exists(): return []
-    data=json.loads(RESERVE.read_text(encoding="utf-8"))
-    return data if isinstance(data,list) else []
-
-def save_reserve(rows): RESERVE.write_text(json.dumps(rows,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
-
-def extract_json(text):
-    text=re.sub(r"^\x60\x60\x60(?:json)?\s*","",text.strip())
-    text=re.sub(r"\s*\x60\x60\x60$","",text)
-    a,b=text.find("{"),text.rfind("}")
-    if a<0 or b<a: raise ValueError("model returned no JSON object")
-    return json.loads(text[a:b+1])
-
-def call_gemini(prompt,model):
-    key=os.environ.get("GEMINI_API_KEY","").strip()
-    if not key: raise RuntimeError("GEMINI_API_KEY is missing")
-    url=f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
-    payload={"contents":[{"parts":[{"text":prompt}]}],"generationConfig":{"temperature":1.2,"responseMimeType":"application/json"}}
-    r=requests.post(url,json=payload,timeout=90); r.raise_for_status()
-    return extract_json(r.json()["candidates"][0]["content"]["parts"][0]["text"])
-
-def build_prompt(rows,reserve,mode):
-    archive="\n".join(json.dumps(r,ensure_ascii=False) for r in rows)
-    reserved="\n".join(json.dumps(r,ensure_ascii=False) for r in reserve)
-    return f"""You are AXIOM, co-author of BriefRooms. Create a Morning AXIOM thought.
-This is NOT motivational quote generation. Intellectual depth and originality are mandatory.
-MODE: {mode}. DATE: {today()}
-EDITORIAL CONSTITUTION:
+    x=json.loads(RESERVE.read_text(encoding="utf-8")); return x if isinstance(x,list) else []
+def save_reserve(x): RESERVE.write_text(json.dumps(x,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+def extract_json(s):
+    s=re.sub(r"^\x60\x60\x60(?:json)?\s*","",s.strip()); s=re.sub(r"\s*\x60\x60\x60$","",s)
+    a,b=s.find("{"),s.rfind("}")
+    if a<0 or b<a: raise ValueError("no JSON object")
+    return json.loads(s[a:b+1])
+def call(prompt,model):
+    key=os.getenv("GEMINI_API_KEY","").strip()
+    if not key: raise RuntimeError("GEMINI_API_KEY missing")
+    r=requests.post(f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}",
+      json={"contents":[{"parts":[{"text":prompt}]}],"generationConfig":{"temperature":1.15,"responseMimeType":"application/json"}},timeout=90)
+    r.raise_for_status(); return extract_json(r.json()["candidates"][0]["content"]["parts"][0]["text"])
+def prompt(rows,reserve,mode):
+    return f"""You are AXIOM, co-author of BriefRooms. Produce one original Morning AXIOM thought.
+MODE={mode}; DATE={today()}
+CONSTITUTION:
 {PRINCIPLES.read_text(encoding="utf-8")}
-PUBLISHED ARCHIVE:
-{archive}
-ALREADY VALIDATED RESERVE (do not repeat these ideas):
-{reserved}
-Internally generate and compare AT LEAST 10 conceptually different candidates from different domains.
-Reject slogans, corporate wisdom, self-help, obvious truths, famous-quote paraphrases, and anything semantically close to archive or reserve.
-Return ONLY one JSON object with exactly:
-{{"theme":"short-kebab-case-theme","pl":"„Polish thought”","en":"“faithful English translation”","candidates_considered":10,"scores":{{"depth":8,"novelty":8,"banality_risk":0}},"silence_test":true,"editor_note":"minimum 80 characters explaining the non-obvious insight and originality"}}
-Use honest scores. Rethink weak candidates before returning."""
-
-def validate_candidate(c,rows,extra=None):
+PUBLISHED:
+{chr(10).join(json.dumps(x,ensure_ascii=False) for x in rows)}
+RESERVE - DO NOT REPEAT:
+{chr(10).join(json.dumps(x,ensure_ascii=False) for x in reserve)}
+Internally compare at least 10 genuinely different ideas. Reject slogans, self-help, obvious truths, quote paraphrases and semantic repeats.
+Return ONLY JSON with exactly:
+{{"theme":"kebab-case","pl":"„Polish thought”","en":"“English translation”","candidates_considered":10,"scores":{{"depth":9,"novelty":9,"banality_risk":1}},"silence_test":true,"editor_note":"at least 80 characters explaining the non-obvious insight and originality"}}"""
+def validate_candidate(c,rows,reserve=()):
     required={"theme","pl","en","candidates_considered","scores","silence_test","editor_note"}
-    if set(c)!=required: raise ValueError("candidate keys mismatch")
-    stamp=today()
-    record={"date":stamp,**c}
-    current={"date":stamp,"author":"AXIOM","brand":"BriefRooms","pl":c["pl"],"en":c["en"]}
-    sys.path.insert(0,str(ROOT/"scripts"))
-    from axiom_thought_guard import validate, similarity
-    errors=validate(current,rows+[record])
+    if set(c)!=required: raise ValueError("schema mismatch")
+    stamp=today(); cur={"date":stamp,"author":"AXIOM","brand":"BriefRooms","pl":c["pl"],"en":c["en"]}
+    sys.path.insert(0,str(ROOT/"scripts")); from axiom_thought_guard import validate, similarity
+    errors=validate(cur,rows+[{"date":stamp,**c}])
     if errors: raise ValueError("; ".join(errors))
-    for other in extra or []:
-        sim=similarity(c["pl"],other.get("pl",""))
-        if sim.violates or c["theme"]==other.get("theme"):
-            raise ValueError("candidate too similar to reserve")
-
-def generate_one(rows,reserve,mode):
-    prompt=build_prompt(rows,reserve,mode)
-    errors=[]
-    for attempt in range(1,MAX_ATTEMPTS+1):
-        model=MODEL if attempt <= max(1,MAX_ATTEMPTS-2) else FALLBACK_MODEL
+    for x in reserve:
+        if c["theme"]==x.get("theme") or similarity(c["pl"],x.get("pl","")).violates: raise ValueError("too similar to reserve")
+def generate(rows,reserve,mode):
+    errs=[]
+    for n in range(1,MAX_ATTEMPTS+1):
+        model=MODEL if n<=MAX_ATTEMPTS-3 else FALLBACK
         try:
-            c=call_gemini(prompt+f"\nAttempt {attempt}/{MAX_ATTEMPTS}: choose a genuinely different, deeper idea.",model)
-            validate_candidate(c,rows,reserve)
-            return c
-        except Exception as exc:
-            errors.append(f"{attempt}/{model}: {exc}"); time.sleep(2)
-    raise RuntimeError("no candidate passed after "+str(MAX_ATTEMPTS)+" attempts: "+" | ".join(errors[-3:]))
-
-def publish(candidate,rows,source):
-    stamp=today()
-    record={"date":stamp,**candidate,"source":source}
-    # Guard schema intentionally excludes source; validate before adding audit metadata.
-    validate_candidate(candidate,rows)
-    history_record={"date":stamp,**candidate}
-    HISTORY.write_text(HISTORY.read_text(encoding="utf-8").rstrip()+"\n"+json.dumps(history_record,ensure_ascii=False,separators=(",",":"))+"\n",encoding="utf-8")
-    CURRENT.write_text(json.dumps({"date":stamp,"author":"AXIOM","brand":"BriefRooms","pl":candidate["pl"],"en":candidate["en"]},ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
-    if subprocess.run([sys.executable,str(GUARD)],cwd=ROOT).returncode: raise RuntimeError("post-write guard failed")
-    print(f"AXIOM Thought: published {stamp} source={source} theme={candidate['theme']}")
-
+            c=call(prompt(rows,reserve,mode)+f"\nAttempt {n}/{MAX_ATTEMPTS}; force a different conceptual domain.",model)
+            validate_candidate(c,rows,reserve); return c
+        except Exception as e: errs.append(str(e)); time.sleep(2)
+    raise RuntimeError("all generation attempts failed; last="+(errs[-1] if errs else "unknown"))
+def publish(c,rows,source):
+    validate_candidate(c,rows)
+    stamp=today(); rec={"date":stamp,**c}
+    old=HISTORY.read_text(encoding="utf-8").rstrip()
+    HISTORY.write_text(old+"\n"+json.dumps(rec,ensure_ascii=False,separators=(",",":"))+"\n",encoding="utf-8")
+    CURRENT.write_text(json.dumps({"date":stamp,"author":"AXIOM","brand":"BriefRooms","pl":c["pl"],"en":c["en"]},ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+    if subprocess.run([sys.executable,str(GUARD)],cwd=ROOT).returncode: raise RuntimeError("post-publication guard failed")
+    print(f"PUBLISHED {stamp} source={source} theme={c['theme']}")
+def refill(rows,reserve):
+    failures=0
+    while len(reserve)<RESERVE_TARGET and failures<3:
+        try:
+            c=generate(rows,reserve,"reserve"); reserve.append(c); save_reserve(reserve); failures=0
+            print(f"RESERVE {len(reserve)}/{RESERVE_TARGET}")
+        except Exception as e:
+            failures+=1; print(f"reserve generation failure {failures}/3: {e}",file=sys.stderr)
+    return len(reserve)>=RESERVE_TARGET
 def main():
-    rows=history_rows(); reserve=reserve_rows(); stamp=today()
+    ap=argparse.ArgumentParser(); ap.add_argument("--mode",choices=["publish","refill","verify"],default="publish"); a=ap.parse_args()
+    rows=load_history(); reserve=load_reserve(); stamp=today()
+    if a.mode=="verify":
+        cur=json.loads(CURRENT.read_text(encoding="utf-8"))
+        ok=cur.get("date")==stamp and rows and rows[-1].get("date")==stamp
+        print(f"fresh={ok} current={cur.get('date')} expected={stamp} reserve={len(reserve)}"); return 0 if ok else 1
+    if a.mode=="refill": return 0 if refill(rows,reserve) else 2
     if rows and rows[-1].get("date")==stamp:
-        print(f"AXIOM Thought: already published for {stamp}")
-    else:
-        try:
-            publish(generate_one(rows,reserve,"daily"),rows,"generated")
-        except Exception as exc:
-            print(f"AXIOM Thought: live generation failed: {exc}",file=sys.stderr)
-            published=False
-            while reserve:
-                candidate=reserve.pop(0); save_reserve(reserve)
-                try:
-                    validate_candidate(candidate,rows,reserve)
-                    publish(candidate,rows,"reserve")
-                    published=True; break
-                except Exception as reserve_exc:
-                    print(f"AXIOM Thought: rejected stale reserve item: {reserve_exc}",file=sys.stderr)
-            if not published: raise RuntimeError("live generation failed and validated reserve is empty")
-    # Refill reserve after publication. Failure here must not undo today's successful publication.
-    rows=history_rows(); reserve=reserve_rows()
-    refill_errors=0
-    while len(reserve)<RESERVE_TARGET:
-        try:
-            c=generate_one(rows,reserve,"reserve-refill")
-            reserve.append(c); save_reserve(reserve)
-            print(f"AXIOM Thought: reserve {len(reserve)}/{RESERVE_TARGET}")
-        except Exception as exc:
-            refill_errors+=1
-            print(f"AXIOM Thought: reserve refill stopped: {exc}",file=sys.stderr)
-            break
-    return 0
-
+        print("already published"); return 0
+    # Fail-safe order is deliberate: prevalidated reserve first, live AI second.
+    while reserve:
+        c=reserve.pop(0); save_reserve(reserve)
+        try: publish(c,rows,"reserve"); return 0
+        except Exception as e: print(f"reserve candidate rejected: {e}",file=sys.stderr)
+    try: c=generate(rows,[],"live"); publish(c,rows,"live"); return 0
+    except Exception as e: print(f"publication failed: {e}",file=sys.stderr); return 2
 if __name__=="__main__": raise SystemExit(main())
