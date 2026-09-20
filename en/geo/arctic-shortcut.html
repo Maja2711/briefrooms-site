@@ -348,9 +348,24 @@
 
   // Geographic waypoints are illustrative maritime routing points, not a vessel track.
   const nsr = [
-    [35.10,129.04],[42.5,137.5],[50.0,155.0],[60.0,174.0],[66.0,179.0],
-    [69.0,190.0],[71.5,166.0],[73.5,145.0],[75.0,122.0],[75.5,100.0],
-    [74.0,78.0],[72.5,58.0],[70.5,40.0],[64.0,20.0],[56.0,8.0],[51.95,4.14]
+    [35.10,129.04],  // Busan
+    [40.5,138.0],    // Sea of Japan
+    [46.0,148.0],    // north of Japan
+    [54.0,164.0],    // North Pacific approach
+    [66.0,169.0],    // Bering Strait
+    [72.0,160.0],    // Chukchi Sea
+    [74.5,140.0],    // East Siberian Sea
+    [76.0,118.0],    // Laptev Sea
+    [75.0,90.0],     // Kara Sea
+    [73.0,68.0],     // west Kara / Yamal offshore
+    [72.0,48.0],     // Barents Sea
+    [71.5,32.0],     // offshore north of Murmansk
+    [71.0,22.0],     // north of Norway, offshore
+    [69.0,12.0],     // Norwegian Sea
+    [63.0,4.0],      // Norwegian Sea / North Sea approach
+    [57.0,2.0],      // North Sea
+    [53.5,3.5],      // southern North Sea
+    [51.95,4.14]     // Rotterdam
   ];
   const suez = [
     [35.10,129.04],[28.0,124.0],[18.0,113.0],[7.0,106.0],[1.3,103.8],
@@ -370,7 +385,7 @@
 
     L.polyline(nsr, {
       color:'#0e7490', weight: interactive ? 5 : 4, opacity:.95, lineJoin:'round'
-    }).addTo(map).bindTooltip('Northern Sea Route · ≈13,000 km', {
+    }).addTo(map).bindTooltip('Approximate NSR sea corridor · ≈13,000 km', {
       permanent: interactive, direction:'top', className:'route-label'
     });
 
