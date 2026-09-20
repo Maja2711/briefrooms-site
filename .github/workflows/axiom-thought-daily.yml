@@ -8,12 +8,11 @@ on:
       - ".github/workflows/axiom-thought-daily.yml"
       - "scripts/publish_axiom_thought.py"
       - "scripts/axiom_thought_guard.py"
-      - "docs/axiom-thought-principles.md"
   schedule:
-    # GitHub cron uses UTC. Two runs make publication robust across CET/CEST;
-    # the publisher is idempotent and exits if Warsaw's date is already present.
+    # Multiple independent recovery windows. Publisher is idempotent by Warsaw date.
     - cron: "10 4 * * *"
     - cron: "10 5 * * *"
+    - cron: "30 6 * * *"
 
 permissions:
   contents: write
@@ -25,43 +24,70 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 20
     env:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       AXIOM_THOUGHT_MODEL: gemini-3.5-flash
       AXIOM_THOUGHT_FALLBACK_MODEL: gemini-3.5-flash-lite
-      AXIOM_THOUGHT_MAX_ATTEMPTS: "10"
+      AXIOM_THOUGHT_MAX_ATTEMPTS: "12"
       AXIOM_THOUGHT_RESERVE_TARGET: "10"
     steps:
-      - name: Checkout main
-        uses: actions/checkout@v4
-        with:
-          ref: main
-          fetch-depth: 0
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install dependency
-        run: pip install requests
-
-      - name: Generate and quality-gate Morning AXIOM
-        run: python scripts/publish_axiom_thought.py
-
-      - name: Commit publication when changed
+      - uses: actions/checkout@v4
+        with: {ref: main, fetch-depth: 0}
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      - run: pip install requests
+      - name: Publish from reserve or generate live
+        run: python scripts/publish_axiom_thought.py --mode publish
+      - name: Verify today's publication
+        run: python scripts/publish_axiom_thought.py --mode verify
+      - name: Commit publication atomically
         shell: bash
         run: |
           set -euo pipefail
-          if git diff --quiet -- data/home/axiom-thought.json data/home/axiom-thoughts-history.jsonl data/home/axiom-thought-reserve.json; then
-            echo "No publication change required."
-            exit 0
-          fi
-          python scripts/axiom_thought_guard.py
+          if git diff --quiet -- data/home/axiom-thought.json data/home/axiom-thoughts-history.jsonl data/home/axiom-thought-reserve.json; then exit 0; fi
           git config user.name "briefrooms-bot"
           git config user.email "briefrooms-bot@users.noreply.github.com"
           git add data/home/axiom-thought.json data/home/axiom-thoughts-history.jsonl data/home/axiom-thought-reserve.json
           git commit -m "content: publish Morning AXIOM $(TZ=Europe/Warsaw date +%F)"
-          git pull --rebase origin main
-          git push origin HEAD:main
+          for n in 1 2 3; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            git rebase --abort || true
+            sleep $((n*5))
+          done
+          exit 1
+
+  reserve:
+    needs: publish
+    if: always() && needs.publish.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      AXIOM_THOUGHT_MODEL: gemini-3.5-flash
+      AXIOM_THOUGHT_FALLBACK_MODEL: gemini-3.5-flash-lite
+      AXIOM_THOUGHT_MAX_ATTEMPTS: "12"
+      AXIOM_THOUGHT_RESERVE_TARGET: "10"
+    steps:
+      - uses: actions/checkout@v4
+        with: {ref: main, fetch-depth: 0}
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      - run: pip install requests
+      - name: Build independent validated reserve
+        run: python scripts/publish_axiom_thought.py --mode refill
+      - name: Commit reserve independently
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- data/home/axiom-thought-reserve.json; then exit 0; fi
+          git config user.name "briefrooms-bot"
+          git config user.email "briefrooms-bot@users.noreply.github.com"
+          git add data/home/axiom-thought-reserve.json
+          git commit -m "content: refill Morning AXIOM reserve"
+          for n in 1 2 3; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            git rebase --abort || true
+            sleep $((n*5))
+          done
+          exit 1
