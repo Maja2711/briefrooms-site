@@ -124,7 +124,7 @@
       display:flex;
       align-items:flex-end;
       justify-content:center;
-      min-height:355px;
+      min-height:455px;
       padding:0 0 23px;
       border:0;
       background:transparent;
@@ -156,7 +156,8 @@
       justify-content:flex-start;
       width:100%;
       max-width:230px;
-      height:350px;
+      min-height:430px;
+      height:auto;
       padding:14px 16px 16px 24px;
       overflow:hidden;
       color:#fff;
@@ -231,8 +232,8 @@
       z-index:1;
       display:block;
       width:calc(100% - 4px);
-      height:112px;
-      flex:0 0 112px;
+      height:126px;
+      flex:0 0 126px;
       margin:10px 0 13px;
       overflow:hidden;
       border:1px solid rgba(255,255,255,.28);
@@ -242,15 +243,46 @@
       background-size:cover;
       box-shadow:0 8px 16px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.16);
     }
+    .tile-art::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      background:linear-gradient(180deg,rgba(7,14,22,.04),rgba(7,14,22,.22));
+      pointer-events:none;
+    }
 
-    .tile-link[href="/pl/geo/arktyczny-skrot.html"] .tile-art{background-image:url("/assets/geopolitics/covers/arctic-shortcut.svg")}
-    .tile-link[href="/pl/geo/jak-rosja-testuje-prog-reakcji-nato-wobec-polski.html"] .tile-art{background-image:url("/assets/geopolitics/covers/nato-threshold-poland.svg")}
-    .tile-link[href="/pl/geo/niewidzialny-front-baltyku.html"] .tile-art{background-image:url("/assets/geopolitics/covers/baltic-invisible-front.svg")}
-    .tile-link[href="/pl/geo/rosja-drony-paliwa-zboze.html"] .tile-art{background-image:url("/assets/geopolitics/covers/russia-drones-fuel-grain.svg")}
-    .tile-link[href="/pl/geo/polska-panstwo-frontowe.html"] .tile-art{background-image:url("/assets/geopolitics/covers/poland-frontline.svg")}
-    .tile-link[href="/pl/geo/ziemie-rzadkie.html"] .tile-art{background-image:url("/assets/geopolitics/covers/rare-earths.svg")}
-    .tile-link[href="/pl/geo/usa-chiny-2025.html"] .tile-art{background-image:url("/assets/geopolitics/covers/usa-china.svg")}
-    .tile-link[href="/pl/geo/upadek-hegemona.html"] .tile-art{background-image:url("/assets/geopolitics/covers/falling-hegemon.svg")}
+    .tile-link[href="/pl/geo/arktyczny-skrot.html"] .tile-art{
+      background-image:url("https://upload.wikimedia.org/wikipedia/commons/e/e1/Royal_Arctic_Line_-_Naja_Arctica_container_ship.jpg");
+      background-position:center 52%;
+    }
+    .tile-link[href="/pl/geo/jak-rosja-testuje-prog-reakcji-nato-wobec-polski.html"] .tile-art{
+      background-image:url("https://upload.wikimedia.org/wikipedia/commons/6/69/Soldiers_with_the_NATO_FLF_Battle_Group-Poland_conduct_joint_weapons_familiarization_training_in_Poland_%289919236%29.jpg");
+      background-position:center 45%;
+    }
+    .tile-link[href="/pl/geo/niewidzialny-front-baltyku.html"] .tile-art{
+      background-image:url("https://upload.wikimedia.org/wikipedia/commons/3/33/Cable_laying_vessel_Willem_de_Vlamingh.jpg");
+      background-position:center 57%;
+    }
+    .tile-link[href="/pl/geo/rosja-drony-paliwa-zboze.html"] .tile-art{
+      background-image:url("https://upload.wikimedia.org/wikipedia/commons/9/9b/Moscow_oil_refinery_%2852205614839%29.jpg");
+      background-position:center 50%;
+    }
+    .tile-link[href="/pl/geo/polska-panstwo-frontowe.html"] .tile-art{
+      background-image:url("https://upload.wikimedia.org/wikipedia/commons/e/e3/U_S_Army_Soldiers_with_the_NATO_FLF_Battle_Group_conduct_live_fire_exercise_in_Poland_%289859009%29.jpg");
+      background-position:center 40%;
+    }
+    .tile-link[href="/pl/geo/ziemie-rzadkie.html"] .tile-art{
+      background-image:url("https://upload.wikimedia.org/wikipedia/commons/8/8b/Bayan_Obo.jpg");
+      background-position:center;
+    }
+    .tile-link[href="/pl/geo/usa-chiny-2025.html"] .tile-art{
+      background-image:url("https://upload.wikimedia.org/wikipedia/commons/4/41/Semiconductor_Wafer_of_Microelectronics.jpg");
+      background-position:center;
+    }
+    .tile-link[href="/pl/geo/upadek-hegemona.html"] .tile-art{
+      background-image:url("https://upload.wikimedia.org/wikipedia/commons/5/52/US_capitol_dome.jpg");
+      background-position:center 38%;
+    }
 
     .tile-body{
       position:relative;
@@ -263,10 +295,8 @@
     }
 
     .tile-title{
-      display:-webkit-box;
-      overflow:hidden;
-      -webkit-box-orient:vertical;
-      -webkit-line-clamp:3;
+      display:block;
+      overflow:visible;
       margin:0;
       color:#fff9ef;
       font-family:Georgia,"Times New Roman",serif;
@@ -277,10 +307,8 @@
     }
 
     .tile-desc{
-      display:-webkit-box;
-      overflow:hidden;
-      -webkit-box-orient:vertical;
-      -webkit-line-clamp:4;
+      display:block;
+      overflow:visible;
       margin:0;
       padding-top:10px;
       border-top:1px solid rgba(255,231,184,.35);
@@ -402,6 +430,18 @@
       font-size:.74rem;
     }
 
+    .cover-credits{
+      margin:18px 4px 0;
+      padding:10px 12px;
+      border-radius:10px;
+      color:#d6c3ad;
+      background:rgba(25,14,9,.58);
+      font-size:.72rem;
+      line-height:1.55;
+    }
+    .cover-credits summary{cursor:pointer;color:#ead6bd;font-weight:800;}
+    .cover-credits a{color:#f2d6ae;text-underline-offset:2px;}
+
     .back{
       position:relative;
       z-index:2;
@@ -426,9 +466,9 @@
       header{padding-top:30px}
       .library{padding:26px 14px 30px}
       .tiles{grid-template-columns:1fr}
-      .tile{min-height:365px}
-      .tile-link{max-width:260px;height:345px}
-      .tile-art{height:120px;flex-basis:120px}
+      .tile{min-height:470px}
+      .tile-link{max-width:260px;min-height:445px;height:auto}
+      .tile-art{height:132px;flex-basis:132px}
       .youtube-picks{padding:22px 16px}
       .youtube-picks__head{align-items:flex-start}
     }
@@ -555,6 +595,20 @@
       </ul>
     </section>
 
+    <details class="cover-credits">
+      <summary>Źródła zdjęć okładek</summary>
+      <p>
+        Arktyka: Quintin Soloviev / Wikimedia Commons;
+        NATO–Polska: U.S. Army Reserve, Sgt. Ronald D. Bell / domena publiczna;
+        Bałtyk: LukaszKatlewa / Wikimedia Commons, CC BY-SA 3.0;
+        rafineria: kishjar? / Wikimedia Commons, CC BY 2.0;
+        Polska frontowa: U.S. Army Reserve, Sgt. Ronald D. Bell / domena publiczna;
+        Bayan Obo: Squishyhippie / Wikimedia Commons, CC BY-SA 4.0;
+        półprzewodniki: DrHughManning / Wikimedia Commons, CC BY-SA 4.0;
+        Kapitol USA: Wikimedia Commons / domena publiczna.
+      </p>
+    </details>
+
     <section class="youtube-picks" aria-labelledby="youtube-picks-title">
       <div class="youtube-picks__head">
         <span class="youtube-picks__icon" aria-hidden="true">▶</span>
@@ -593,7 +647,7 @@
   <footer></footer>
   <script src="/scripts/youtube-thumbnail-runtime.js?v=1" defer></script>
   <!-- Cloudflare Web Analytics --><script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token":"9adde99e330a4b0d991627986ac34246"}'></script><!-- End Cloudflare Web Analytics -->
-<script src="/scripts/gse-lab-entry.js?v=3" defer></script>
+<script src="/scripts/gse-lab-entry.js?v=4" defer></script>
 <script src="/scripts/gse-lab-entry.js?v=1" defer></script>
 </body>
 </html>
