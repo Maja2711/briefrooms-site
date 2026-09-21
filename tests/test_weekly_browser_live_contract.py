@@ -16,7 +16,7 @@ PAGES = [
     ROOT / "en" / "investing" / "open-weekly-positions.html",
     ROOT / "en" / "investing" / "weekly-forecasts.html",
 ]
-SCRIPT_REF = "/scripts/investments-weekly-browser-live.js?v=20260921-1"
+SCRIPT_REF = "/scripts/investments-weekly-browser-live.js?v=20260921-2"
 COMPACT_REF = "/scripts/investments-weekly-price-compact.js?v=20260916-4"
 
 
@@ -38,7 +38,7 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
     def test_browser_runtime_keeps_last_quote_without_visible_delay_minutes(self) -> None:
         source = LIVE_SCRIPT.read_text(encoding="utf-8")
         self.assertIn("/data/investments/live_prices.json", source)
-        self.assertIn("CACHE_PREFIX = 'briefrooms:weekly-market-feed:v4:'", source)
+        self.assertIn("CACHE_PREFIX = 'briefrooms:weekly-market-feed:v5:'", source)
         self.assertIn("mode: 'delayed'", source)
         self.assertIn("saveCache(instrumentId, finalQuote)", source)
         self.assertIn("timeNode.textContent = fmtTime(quote.updatedAt)", source)
@@ -51,11 +51,10 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
         self.assertIn("Coinbase BTC-USD", source)
         self.assertIn("CoinGecko BTC/USD", source)
         self.assertIn("Promise.allSettled(cfg.sources.map", source)
-        self.assertIn("const newestFreshDirect = freshDirect.sort", source)
+        self.assertIn("const preferredFreshDirect =", source)
         self.assertIn("pollMs: 15_000", source)
         self.assertIn("REQUEST_TIMEOUT_MS = 6_000", source)
         self.assertIn("backendMaxAgeMs: 7 * 60_000", source)
-        self.assertNotIn("for (let index = 0; index < cfg.sources.length", source)
 
     def test_backend_refresh_does_not_block_direct_market_round(self) -> None:
         source = LIVE_SCRIPT.read_text(encoding="utf-8")
@@ -85,6 +84,11 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
         self.assertIn("Currency Exchange Tool", source)
         self.assertNotIn("Yahoo EURUSD=X", source)
         self.assertLess(source.index("{ name: 'fxapi.app'"), source.index("{ name: 'Currency Exchange Tool'"))
+        self.assertIn("directPriority: 'first-fresh'", source)
+        self.assertIn("directAuthoritativeWhenFresh: true", source)
+        self.assertIn("for (let index = 0; index < cfg.sources.length; index += 1)", source)
+        self.assertIn("if (quoteFresh(quote, cfg.maxAgeMs)) return attempts;", source)
+        self.assertIn("['live', 'fallback'].includes(state?.mode)", source)
         self.assertIn("Yahoo ES=F", source)
         self.assertIn("Coinbase BTC-USD", source)
         self.assertIn("CoinGecko BTC/USD", source)
@@ -94,6 +98,18 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
         self.assertIn("maxAgeMs: 5 * 60_000", source)
         self.assertIn("backendQuotes", source)
         self.assertIn("backendFresh", source)
+
+    def test_server_snapshot_uses_same_eurusd_provider_chain_as_daily(self) -> None:
+        source = FAST_UPDATER.read_text(encoding="utf-8")
+        self.assertIn("def fxapi_eurusd_quote()", source)
+        self.assertIn("https://fxapi.app/api/EUR/USD.json", source)
+        self.assertIn("def currency_exchange_tool_eurusd_quote()", source)
+        self.assertIn("https://www.currencyexchangetool.com/api/v1/convert?amount=1&from=EUR&to=USD", source)
+        self.assertIn('if instrument_id == "eurusd":', source)
+        self.assertIn("fxapi_eurusd_quote", source)
+        self.assertIn("currency_exchange_tool_eurusd_quote", source)
+        self.assertIn('if instrument_id == "eurusd":\n                    age = quote_age(quote)', source)
+        self.assertIn('if instrument_id == "eurusd" and candidate_fresh:', source)
 
     def test_server_snapshot_chooses_newest_es_provider_by_timestamp(self) -> None:
         source = FAST_UPDATER.read_text(encoding="utf-8")

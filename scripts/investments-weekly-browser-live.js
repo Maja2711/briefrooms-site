@@ -5,7 +5,7 @@
   const LOOP_MS = 15_000;
   const BACKEND_POLL_MS = 60_000;
   const REQUEST_TIMEOUT_MS = 6_000;
-  const CACHE_PREFIX = 'briefrooms:weekly-market-feed:v4:';
+  const CACHE_PREFIX = 'briefrooms:weekly-market-feed:v5:';
   const BACKEND_URL = '/data/investments/live_prices.json';
 
   const T = isEn ? {
@@ -24,6 +24,8 @@
       maxAgeMs: 10 * 60_000,
       minPrice: 0.8,
       maxPrice: 1.5,
+      directPriority: 'first-fresh',
+      directAuthoritativeWhenFresh: true,
       sources: [
         { name: 'fxapi.app', fetch: fetchEurUsdFxApi },
         { name: 'Currency Exchange Tool', fetch: fetchEurUsdCurrencyExchangeTool },
@@ -284,6 +286,21 @@
 
   async function fetchAllSources(instrumentId) {
     const cfg = FEEDS[instrumentId];
+    if (cfg.directPriority === 'first-fresh') {
+      const attempts = [];
+      for (let index = 0; index < cfg.sources.length; index += 1) {
+        const source = cfg.sources[index];
+        try {
+          const quote = validateQuote(instrumentId, await source.fetch(), source.name);
+          attempts.push({ index, quote });
+          if (quoteFresh(quote, cfg.maxAgeMs)) return attempts;
+        } catch (error) {
+          console.warn(`BriefRooms Weekly ${instrumentId} source failed (${source.name}):`, error?.message || error);
+        }
+      }
+      return attempts;
+    }
+
     const attempts = await Promise.allSettled(cfg.sources.map(async (source, index) => ({
       index,
       quote: validateQuote(instrumentId, await source.fetch(), source.name),
@@ -302,15 +319,19 @@
     const previous = states.get(instrumentId) || null;
     const direct = await fetchAllSources(instrumentId);
     const freshDirect = direct.filter((row) => quoteFresh(row.quote, cfg.maxAgeMs));
-    const newestFreshDirect = freshDirect.sort((a, b) =>
-      (validTimestamp(b.quote.updatedAt)?.valueOf() || 0) - (validTimestamp(a.quote.updatedAt)?.valueOf() || 0))[0] || null;
+    const preferredFreshDirect = cfg.directPriority === 'first-fresh'
+      ? (freshDirect[0] || null)
+      : (freshDirect.sort((a, b) =>
+          (validTimestamp(b.quote.updatedAt)?.valueOf() || 0) - (validTimestamp(a.quote.updatedAt)?.valueOf() || 0))[0] || null);
     const newestDirect = newestQuote(...direct.map((row) => row.quote));
 
-    if (newestFreshDirect) {
-      const current = newestQuote(newestFreshDirect.quote, previous?.quote);
-      const sameAsNew = current === newestFreshDirect.quote;
+    if (preferredFreshDirect) {
+      const current = cfg.directAuthoritativeWhenFresh
+        ? preferredFreshDirect.quote
+        : newestQuote(preferredFreshDirect.quote, previous?.quote);
+      const sameAsNew = current === preferredFreshDirect.quote;
       states.set(instrumentId, {
-        mode: sameAsNew ? (newestFreshDirect.index === 0 ? 'live' : 'fallback') : (previous?.mode || 'live'),
+        mode: sameAsNew ? (preferredFreshDirect.index === 0 ? 'live' : 'fallback') : (previous?.mode || 'live'),
         quote: current,
       });
     } else {
@@ -330,6 +351,10 @@
     const backendAgeLimit = cfg.backendMaxAgeMs || cfg.maxAgeMs;
     const backendUsable = backend && backend.backendFresh && quoteFresh(backend, backendAgeLimit);
     const stateFresh = state?.quote && quoteFresh(state.quote, cfg.maxAgeMs);
+
+    if (cfg.directAuthoritativeWhenFresh && stateFresh && ['live', 'fallback'].includes(state?.mode)) {
+      return;
+    }
 
     if (backendUsable) {
       const freshest = newestQuote(state?.quote, backend);

@@ -243,6 +243,38 @@ def stooq_quote(instrument_id: str) -> Dict[str, Any]:
     }
 
 
+def fxapi_eurusd_quote() -> Dict[str, Any]:
+    url = "https://fxapi.app/api/EUR/USD.json"
+    data = json.loads(request_bytes(url).decode("utf-8"))
+    price = safe_float(data.get("rate"))
+    stamp = parse_iso(data.get("timestamp"))
+    if price is None or stamp is None:
+        raise RuntimeError("fxapi.app EUR/USD quote incomplete")
+    return {
+        "price": price,
+        "timestamp": stamp.isoformat(timespec="seconds"),
+        "source": "fxapi.app:EUR/USD",
+        "note": "same primary EUR/USD feed as Daily",
+    }
+
+
+def currency_exchange_tool_eurusd_quote() -> Dict[str, Any]:
+    url = "https://www.currencyexchangetool.com/api/v1/convert?amount=1&from=EUR&to=USD"
+    data = json.loads(request_bytes(url).decode("utf-8"))
+    if not data or data.get("success") is False:
+        raise RuntimeError("Currency Exchange Tool EUR/USD API error")
+    price = safe_float(data.get("rate") if data.get("rate") is not None else data.get("result"))
+    stamp = parse_iso(data.get("updatedAt") or data.get("updated_at") or data.get("timestamp") or data.get("time"))
+    if price is None or stamp is None:
+        raise RuntimeError("Currency Exchange Tool EUR/USD quote incomplete")
+    return {
+        "price": price,
+        "timestamp": stamp.isoformat(timespec="seconds"),
+        "source": "Currency Exchange Tool:EUR/USD",
+        "note": "same fallback EUR/USD feed as Daily",
+    }
+
+
 def coinbase_quote() -> Dict[str, Any]:
     url = "https://api.exchange.coinbase.com/products/BTC-USD/ticker"
     data = json.loads(request_bytes(url).decode("utf-8"))
@@ -259,6 +291,12 @@ def coinbase_quote() -> Dict[str, Any]:
 
 
 def providers(instrument_id: str) -> list[Callable[[], Dict[str, Any]]]:
+    if instrument_id == "eurusd":
+        return [
+            fxapi_eurusd_quote,
+            currency_exchange_tool_eurusd_quote,
+        ]
+
     if instrument_id == "sp500_futures":
         return [
             esignal_quote,
@@ -278,11 +316,16 @@ def providers(instrument_id: str) -> list[Callable[[], Dict[str, Any]]]:
 def newest_valid(instrument_id: str) -> tuple[Optional[Dict[str, Any]], list[str]]:
     candidates: list[Dict[str, Any]] = []
     errors: list[str] = []
+    cfg = INSTRUMENTS[instrument_id]
     for provider in providers(instrument_id):
         try:
             quote = provider()
             if valid_quote(instrument_id, quote):
                 candidates.append(quote)
+                if instrument_id == "eurusd":
+                    age = quote_age(quote)
+                    if timedelta(seconds=-60) <= age <= cfg.max_age:
+                        return quote, errors
             else:
                 errors.append(f"{getattr(provider, '__name__', 'provider')}: invalid quote")
         except Exception as exc:
@@ -304,10 +347,19 @@ def refresh_one(instrument_id: str, previous: Dict[str, Any]) -> Dict[str, Any]:
     old = dict(old) if isinstance(old, dict) else None
 
     chosen = candidate
-    if old and valid_quote(instrument_id, old):
+    old_source = str((old or {}).get("source") or "")
+    old_aligned_for_eurusd = (
+        old_source.startswith("fxapi.app:")
+        or old_source.startswith("Currency Exchange Tool:")
+    )
+    old_eligible = instrument_id != "eurusd" or old_aligned_for_eurusd
+    if old and old_eligible and valid_quote(instrument_id, old):
         old_stamp = parse_iso(old.get("current_price_updated_at") or old.get("timestamp"))
         new_stamp = parse_iso(candidate.get("timestamp")) if candidate else None
-        if new_stamp is None or (old_stamp is not None and old_stamp > new_stamp):
+        candidate_fresh = candidate is not None and timedelta(seconds=-60) <= quote_age(candidate) <= cfg.max_age
+        if instrument_id == "eurusd" and candidate_fresh:
+            chosen = candidate
+        elif new_stamp is None or (old_stamp is not None and old_stamp > new_stamp):
             chosen = old
 
     attempt_at = now_local().isoformat(timespec="seconds")
