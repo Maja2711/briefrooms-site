@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[1]
 HEADER_VERSION = "20260719-1"
-ASSET_VERSION = "weekly-22"
+ASSET_VERSION = "weekly-23"
 PUBLIC_STYLE_VERSION = "20260916-2"
 POSITION_STATE_VERSION = "20260916-3"
 BROWSER_LIVE_VERSION = "20260921-2"
