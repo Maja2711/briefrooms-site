@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Semantic Architecture Reconciliation 1.5 guard.
+"""Semantic Architecture Reconciliation 1.6 guard.
 
 Checks runtime facts that a version-only documentation check cannot protect:
 active phase/status, branch authority, Trigger wiring, WES NO_TRADE, and
@@ -123,9 +123,9 @@ require(legacy_closed_loop, "contents: read", "legacy closed loop")
 forbid(legacy_closed_loop, "Apply statistically proven autonomous policy calibration", "legacy closed loop")
 forbid(legacy_closed_loop, "git push origin HEAD:main", "legacy closed loop")
 
-for token in ("**Wersja mapy:** 1.5", "IN-08", "EP-09", "LE-10", "PROBATIONARY_CONTROL", "NO_TRADE", "FULL"):
+for token in ("**Wersja mapy:** 1.6", "IN-08", "EP-09", "LE-10", "PROBATIONARY_CONTROL", "NO_TRADE", "FULL"):
     require(pl_map, token, "PL Architecture Map")
-for token in ("**Map version:** 1.5", "IN-08", "EP-09", "LE-10", "PROBATIONARY_CONTROL", "NO_TRADE", "FULL"):
+for token in ("**Map version:** 1.6", "IN-08", "EP-09", "LE-10", "PROBATIONARY_CONTROL", "NO_TRADE", "FULL"):
     require(en_map, token, "EN Architecture Map")
 require(stock_doc, "PRODUCTION CHAMPION — FULL", "Stock Trading architecture")
 require(stock_doc, "Market Relationship / Trigger", "Stock Trading architecture")
@@ -156,9 +156,9 @@ for label, main_text, research_text in (
         errors.append(f"default-branch {label} drifted from research-branch runtime definition")
 
 if errors:
-    print("Architecture Reconciliation 1.5 FAILED:", file=sys.stderr)
+    print("Architecture Reconciliation 1.6 FAILED:", file=sys.stderr)
     for error in errors:
         print(f"- {error}", file=sys.stderr)
     raise SystemExit(1)
 
-print("Architecture Reconciliation 1.5 passed.")
+print("Architecture Reconciliation 1.6 passed.")
