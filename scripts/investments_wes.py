@@ -232,6 +232,18 @@ def adaptive_distances(base_sl: float, base_tp: float, remaining_hours: float, c
     return sl, tp, meta
 
 
+def has_frozen_wes_risk_plan(plan: Any) -> bool:
+    """A WES risk plan is immutable once frozen for an open position."""
+    if not isinstance(plan, dict):
+        return False
+    return (
+        str(plan.get("model_version") or "").startswith("WES-")
+        and sf(plan.get("stop_loss_price")) is not None
+        and sf(plan.get("take_profit_price")) is not None
+        and str(plan.get("direction") or "") in {"long", "short"}
+    )
+
+
 def build_wes_plan(item: Dict[str, Any], week: Dict[str, Any], now: datetime, stats: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     entry = sf(item.get("entry_price")); base = base_distances(item)
     if entry is None or not base or str(item.get("direction")) not in {"long", "short"}:
@@ -255,13 +267,20 @@ def postflight() -> Dict[str, Any]:
     for item in week.get("instruments") or []:
         if sf(item.get("entry_price")) is not None and sf(item.get("exit_price")) is None and str(item.get("direction")) in {"long", "short"}:
             existing = item.get("risk_plan") if isinstance(item.get("risk_plan"), dict) else {}
-            if existing.get("model_version") != VERSION:
+            if not has_frozen_wes_risk_plan(existing):
                 plan = build_wes_plan(item, week, now, stats)
                 if plan:
-                    item["risk_plan"] = plan; item["wes_status"] = "open_wes_governed_position"; item["wes_methodology"] = VERSION
+                    item["risk_plan"] = plan
                     item["entry_quality_status"] = f"wes_{plan['wes_entry_class']}"
                     report["actions"].append({"instrument_id": item.get("instrument_id"), "action": "freeze_adaptive_risk_plan", "entry_class": plan["wes_entry_class"], "rr": plan["reward_to_risk"], "tp_distance": plan["take_profit_distance"], "sl_distance": plan["stop_loss_distance"]})
                     changed = True
+            desired_status = "open_wes_governed_position"
+            if item.get("wes_status") != desired_status:
+                item["wes_status"] = desired_status
+                changed = True
+            if item.get("wes_methodology") != VERSION:
+                item["wes_methodology"] = VERSION
+                changed = True
         else:
             pending = item.get("pending_entry_decision") if isinstance(item.get("pending_entry_decision"), dict) else {}
             pending_decision = pending.get("decision") if isinstance(pending.get("decision"), dict) else {}
