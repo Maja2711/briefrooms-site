@@ -147,6 +147,21 @@ def pending_entry_contract_violations(item: Dict[str, Any]) -> list[Dict[str, An
     decided_at = parse(pending.get("decided_at"))
     entry_not_before = parse(pending.get("entry_not_before"))
     issues: list[Dict[str, Any]] = []
+    wes_version = str(item.get("wes_methodology") or "")
+    plan = pending.get("entry_price_plan") if isinstance(pending.get("entry_price_plan"), dict) else {}
+    if status == "pending" and wes_version == "WES-1.2.0":
+        target = numeric(plan.get("target_price"))
+        reference = numeric(plan.get("reference_price"))
+        plan_direction = str(plan.get("direction") or "").lower()
+        expires_at = parse(plan.get("expires_at"))
+        if target is None or reference is None or expires_at is None:
+            issues.append(violation("missing_frozen_entry_price_plan"))
+        elif plan_direction != direction:
+            issues.append(violation("entry_price_plan_direction_mismatch"))
+        elif direction == "long" and not target < reference:
+            issues.append(violation("long_entry_target_not_price_improving", target=target, reference=reference))
+        elif direction == "short" and not target > reference:
+            issues.append(violation("short_entry_target_not_price_improving", target=target, reference=reference))
     if direction not in DIRECTIONAL:
         issues.append(violation("pending_missing_direction"))
     if decided_at is None or entry_not_before is None:
@@ -211,6 +226,12 @@ def item_violations(item: Dict[str, Any], method_version: Optional[str] = None) 
             issues.append(violation("invalid_long_risk_order", entry=entry, stop_loss=sl, take_profit=tp))
         if side == "short" and not (tp < entry < sl):
             issues.append(violation("invalid_short_risk_order", entry=entry, stop_loss=sl, take_profit=tp))
+
+    if str(item.get("entry_execution_rule") or "") == "frozen_wes_1_2_limit_target_touch":
+        frozen = item.get("entry_price_plan_frozen") if isinstance(item.get("entry_price_plan_frozen"), dict) else {}
+        target = numeric(frozen.get("target_price"))
+        if entry is None or target is None or abs(entry - target) > max(1e-8, abs(target) * 1e-9):
+            issues.append(violation("entry_price_not_frozen_target", entry=entry, target=target))
 
     metrics = expected_metrics(item, method_version)
     if metrics is not None:
