@@ -122,6 +122,19 @@ def normalized_trade_status(item: Dict[str, Any]) -> str:
     return str(item.get("trade_status") or "").strip().lower().replace(" ", "_")
 
 
+def effective_direction(item: Dict[str, Any]) -> str:
+    """Execution direction while pending, otherwise the stored forecast/position direction."""
+    status = normalized_trade_status(item)
+    pending = item.get("pending_entry_decision")
+    if status in {"planned", "pending"} and isinstance(pending, dict):
+        decision = pending.get("decision")
+        if isinstance(decision, dict):
+            pending_direction = str(decision.get("direction") or "").lower()
+            if pending_direction in DIRECTIONAL:
+                return pending_direction
+    return str(item.get("direction") or "neutral").lower()
+
+
 def pending_entry_contract_violations(item: Dict[str, Any]) -> list[Dict[str, Any]]:
     """Validate a frozen execution decision without pretending it is already a fill."""
     pending = item.get("pending_entry_decision")
@@ -149,7 +162,7 @@ def pending_entry_contract_violations(item: Dict[str, Any]) -> list[Dict[str, An
 
 def directional_entry_required(item: Dict[str, Any], entry: Optional[float], exit_price: Optional[float]) -> bool:
     """True only when the lifecycle claims execution, not merely a directional forecast."""
-    side = str(item.get("direction") or "neutral").lower()
+    side = effective_direction(item)
     if side not in DIRECTIONAL or entry is not None:
         return False
     # An exit without an entry is never a valid execution-free state.
