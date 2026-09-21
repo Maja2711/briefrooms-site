@@ -1,6 +1,6 @@
 # Kanoniczna mapa architektury BriefRooms — PL
 
-**Wersja mapy:** 1.6  
+**Wersja mapy:** 1.7  
 **Stan na:** 2026-09-21  
 **Bazowy commit `main`:** `331314840c1f1ddeccd814b46df688ccf9971d2b`  
 **Repozytorium:** `Maja2711/briefrooms-site`
@@ -176,7 +176,7 @@ Adapter nie jest silnikiem decyzji. Jego podstawowym zadaniem jest tłumaczenie 
 | `TR-02` | Legacy US Daily pipeline | Historyczny US Daily lifecycle/risk/memory | **DEPRECATED AS PRODUCT / REPLACED_BY `TR-04`**. Zachowany jako migration/history compatibility; aktywny stock authority należy do v2 |
 | `TR-03` | Daily EUR/USD Spot | Intraday–24h; wspólny Daily contract | Historycznie rollout shadow; własne lifecycle/event overlay/ABC learning |
 | `TR-04` | Stock Trading v2 | Wspólny aktywny stock engine dla GPW i US: Dynamic Universe, Opportunity Frontier, Trigger research, Deep Evidence, Fixed Notional Sizing, Portfolio Opportunity Engine | **PRODUCTION CHAMPION — FULL**. Każda nowa pozycja ma `FIXED_NOTIONAL_V1`: 5 000 PLN na GPW lub 5 000 USD na US; `champion_engine=v2`, `challenger_engine=v1`, `legacy_candidate_admission_enabled=false`; `main` jest production authority, `stock-trading-v2` research/evidence runtime |
-| `TR-05` | Weekly Positions / WES family | EUR/USD, S&P 500 futures, BTC/USD; governed paper/research + WES memory/counterfactual/belief bridges | Aktualny runtime policy v5.6.x / WES: experimental governed paper only; `NO_TRADE` jest pełnoprawnym stanem, `mandatory_monday_position=false`, `continuous_position_required=false` |
+| `TR-05` | Weekly Positions / WES family | EUR/USD, S&P 500 futures, BTC/USD; governed paper/research + WES memory/counterfactual/belief bridges | Runtime policy v5.6.2 / WES: experimental governed paper only; `NO_TRADE` jest pełnoprawnym stanem. Kanoniczny SL/TP safety path to `audit_intraday_risk_exits.py`, uruchamiany co 5 minut 24/7 przez `investments-exposure-watch.yml`; BTC używa Coinbase 5m+ticker jako primary i Yahoo wyłącznie jako fallback, a każdy przebieg odtwarza cały okres od aktywacji zamrożonego risk planu |
 | `TR-06` | Portfolio 10K baseline | Długoterminowy portfel, historyczny champion/baseline | Zachowywany jako production baseline i fallback dla BRACE |
 | `TR-07` | BRACE Portfolio Engine | Portfolio research/control z optimizerem, governance i oddzielnym modelowym paper portfolio | **PROBATIONARY_CONTROL**; paper-only, deterministic controller, immutable Portfolio10K baseline jako fallback; LLM nie może promować |
 | `TR-08` | BRACE-SPX / Long View | Read-only/forecasting oriented SPX long-view family | Konsumuje własny point-in-time state + epistemic state; canonical DecisionEnvelope rollout nieukończony |
@@ -326,7 +326,7 @@ Przykłady prywatnego durable state: Learning Outcome Loop oraz GSE/Belief shado
 14. **Architecture bootstrap before architecture work.** AI/agent rozpoczyna zmianę od `AGENTS.md` i kanonicznej mapy, a nie od pamięci rozmowy ani izolowanego wyszukiwania kodu.
 15. **Main owns Stock Trading production; research branch owns research only.** `stock-trading-v2` może tworzyć evidence, Trigger state i Challengerów, ale nie może bezpośrednio mutować produkcyjnego `main`.
 16. **Single Stock Trading promotion writer.** Produkcyjna promocja komponentu Stock Trading przechodzi wyłącznie przez main-owned `Stock Trading Component Promotion`; legacy Autonomous Policy Loop ma `automatic_materialization_enabled=false`.
-17. **Trigger attention is research authority, not trade authority.** `IN-08` może alokować max 6 miejsc uwagi i max 2 targeted Deep BELIEF proxy, ale nie może otwierać pozycji, pisać policy ani promować się do produkcji.
+17. **Trigger attention is research authority, not trade authority.** `IN-08` może alokować max 6 miejsc uwagi i max 2 targeted Deep BELIEF proxy, ale nie może otwierać pozycji, pisać policy ani promować się do produkcji.\n18. **Frozen Weekly risk must be recoverable.** Dla `TR-05` SL/TP są zamrożone przed outcome, monitorowane co 5 minut 24/7 i ponownie skanowane od momentu aktywacji risk planu. Opóźnienie schedulera nie może zgubić przejściowego dotknięcia progu; brak danych oznacza retry/fail-closed, nigdy domniemanie `no hit`.
 
 ## 11. Authority map — kto czego NIE może robić
 
@@ -437,7 +437,7 @@ Najważniejsze dokumenty szczegółowe użyte do budowy i utrzymania aktualnej m
 - 2026-09-19: Architecture Reconciliation 1.5 rozdzieliło authority: `main` = production/governance/orchestration, `stock-trading-v2` = research/evidence runtime.
 - Trigger/Relationship + targeted Deep BELIEF proxy zostały podłączone do default-branch schedulerów bez nadania im production decision authority.
 - Bezpośredni research-branch auto-promoter został usunięty; Stock Trading Component Promotion na `main` jest jedynym production-promotion authority.
-- Legacy Autonomous Policy Closed Loop zachowuje research lineage, ale stockowe `automatic_materialization_enabled=false`.
+- Legacy Autonomous Policy Closed Loop zachowuje research lineage, ale stockowe `automatic_materialization_enabled=false`.\n- 2026-09-21: `TR-05` otrzymał kanoniczny 5-minutowy, 24/7 risk safety path. Stary lifecycle deleguje do tego samego monitora; dla BTC primary execution evidence to Coinbase, a opóźniony run odzyskuje historyczne dotknięcie zamrożonego SL/TP z 5-minutowych danych zamiast polegać na bieżącym ticku.
 
 ---
 
