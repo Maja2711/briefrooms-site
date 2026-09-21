@@ -234,7 +234,7 @@ test('authorized pending entry remains publishable while waiting for its first e
     symbol: 'ES=F',
     label_pl: 'S&P 500 FUTURES',
     label_en: 'S&P 500 FUTURES',
-    direction: 'long',
+    direction: 'neutral',
     trade_status: 'pending',
     entry_price: null,
     pending_entry_decision: {
@@ -246,6 +246,7 @@ test('authorized pending entry remains publishable while waiting for its first e
   const { elements, window } = await renderWithLive({ updatedAt: new Date().toISOString(), week });
   assert.doesNotMatch(elements.app.innerHTML, /DANE W AUDYCIE/);
   assert.match(elements.app.innerHTML, /oczekuje na otwarcie/);
+  assert.match(elements.app.innerHTML, /<h3>LONG<\/h3>/);
   assert.deepEqual(Array.from(window.BR_WEEKLY_INTEGRITY.integrityIssues(week.instruments[0], week.method_version, week)), []);
 });
 
