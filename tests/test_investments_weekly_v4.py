@@ -33,6 +33,32 @@ class MultiInstrumentExposureTests(unittest.TestCase):
         self.assertIn(decision["strategy_id"], {"base_v2", "inverse_v2"})
         self.assertIn("candidates", decision)
 
+    def test_governed_opposing_tie_never_uses_method_name(self):
+        candidates = {
+            "base_v2": {"direction": "long", "raw_score": 65, "conviction": 9.75},
+            "inverse_v2": {"direction": "short", "raw_score": -65, "conviction": 9.75},
+        }
+        learning = {"methods": {
+            "base_v2": {"count": 9, "adjustment": 0},
+            "inverse_v2": {"count": 9, "adjustment": 0},
+        }}
+        policy = {
+            "strategy_tournament": {
+                "candidate_methods": ["base_v2", "inverse_v2"],
+                "selection_priority": ["base_v2", "inverse_v2"],
+                "exploration_bonus": 2.5,
+                "champion_challenger": {
+                    "execution_methods": ["base_v2", "inverse_v2"],
+                    "challenger_shadow_methods": [],
+                    "challenger_execution_enabled": False,
+                    "opposing_direction_utility_margin_no_trade": 0.5,
+                },
+            }
+        }
+        decision = v4.choose_governed(candidates, learning, policy, "btcusd")
+        self.assertEqual("no_trade", decision["strategy_id"])
+        self.assertIn("opposing_execution_candidates_within_utility_margin", decision["reason_codes"])
+
     def test_cost_models(self):
         self.assertGreater(v4.cost_percent("eurusd", 1.10, {"round_trip_cost": 1.5, "cost_unit": "pips"}), 0)
         self.assertGreater(v4.cost_percent("sp500_futures", 5000, {"round_trip_cost": 1, "cost_unit": "points"}), 0)
