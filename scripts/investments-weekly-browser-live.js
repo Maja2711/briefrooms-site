@@ -44,8 +44,8 @@
     },
     sp500_futures: {
       pollMs: 15_000,
-      maxAgeMs: 5 * 60_000,
-      backendMaxAgeMs: 7 * 60_000,
+      maxAgeMs: 15 * 60_000,
+      backendMaxAgeMs: 15 * 60_000,
       minPrice: 500,
       maxPrice: 100_000,
       sources: [
@@ -557,12 +557,16 @@
       if (quoteAt >= currentAt) {
         priceNode.textContent = fmtPrice(quote.price, item.instrument_id);
         setResult(item, card, quote.price);
-        timeNode.textContent = fmtTime(quote.updatedAt);
+        timeNode.textContent = item.instrument_id === 'sp500_futures'
+          ? `${fmtTime(quote.updatedAt)} · ${isEn ? 'delayed ~10 min' : 'opóźniony ~10 min'}`
+          : fmtTime(quote.updatedAt);
         nowBox.dataset.liveAt = quote.updatedAt;
         nowBox.dataset.liveSource = quote.source;
         nowBox.dataset.feedStatus = state.mode;
       }
-      timeNode.style.color = state.mode === 'fallback' ? '#9fe8ff' : '#72f0c1';
+      timeNode.style.color = item.instrument_id === 'sp500_futures'
+        ? '#ffb86b'
+        : (state.mode === 'fallback' ? '#9fe8ff' : '#72f0c1');
       return;
     }
 
