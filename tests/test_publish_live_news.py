@@ -6,11 +6,113 @@ from types import SimpleNamespace
 
 from scripts.publish_live_news import MIN_SECTION, TARGET, normalized_identity, parse_entry_time, select_sections
 from scripts.dedupe_home_brief_stories import same_topic
+from scripts import publish_live_news_filtered as filtered_news
 from scripts import publish_source_expansion_v3 as source_v3
 from scripts.publish_source_expansion_v3 import homepage_ranked_select
 
 
 class LiveNewsPublisherTests(unittest.TestCase):
+    def test_pl_politics_pool_includes_dedicated_rmf_world_feed(self) -> None:
+        by_section = {
+            section_id: feeds
+            for section_id, _, feeds in source_v3.base.PL
+        }
+        self.assertIn(
+            ("RMF24", "https://www.rmf24.pl/fakty/swiat/feed"),
+            by_section["polityka"],
+        )
+
+    def test_pl_politics_selector_reserves_ukraine_war_story(self) -> None:
+        now = datetime(2026, 9, 21, 8, 0, tzinfo=timezone.utc)
+
+        def row(source: str, title: str, index: int) -> dict:
+            return {
+                "source": source,
+                "title": title,
+                "summary": title + " — potwierdzone wydarzenie z opisem i kontekstem.",
+                "link": f"https://example.com/polityka/{index}",
+                "image": f"https://example.com/{index}.jpg",
+                "published_at": (now - timedelta(minutes=index)).isoformat(),
+                "published_at_basis": "source",
+            }
+
+        candidates = [
+            row(f"Source {index % 4}", f"Rząd przedstawił ważną ustawę numer {index}", index)
+            for index in range(1, 13)
+        ]
+        candidates.append(
+            row(
+                "RMF24",
+                "Rosja przeprowadziła kolejny atak rakietowy na Ukrainę",
+                240,
+            )
+        )
+        selected, _ = filtered_news.select_sections(
+            [("polityka", "Polityka / Kraj", [])],
+            {"polityka": candidates},
+            {"sections": {}},
+            now,
+        )
+        self.assertEqual(len(selected["polityka"]), 9)
+        self.assertTrue(
+            any(
+                filtered_news.is_pl_ukraine_russia_war_story(story)
+                for story in selected["polityka"]
+            )
+        )
+
+    def test_pl_homepage_quota_beats_normal_lane_priority(self) -> None:
+        now = datetime(2026, 9, 21, 8, 0, tzinfo=timezone.utc)
+        domestic = {
+            "source": "Source P",
+            "publisher_source": "Source P",
+            "title": "Rząd przedstawił nową ustawę podatkową",
+            "summary": "Projekt ustawy zmienia zasady podatkowe i administracyjne.",
+            "link": "https://example.com/domestic",
+            "image": "https://example.com/domestic.jpg",
+            "published_at": now.isoformat(),
+            "published_at_basis": "source",
+            "canonical_event_id": "evt_domestic",
+            "corroboration_score": 60.0,
+            "claim_adjusted_corroboration_score": 60.0,
+            "independent_evidence_paths": 2,
+            "claim_consistency_status": "consistent",
+            "contradiction_score": 0.0,
+            "provenance_role": "original",
+            "origin_source": "Source P",
+        }
+        war = {
+            "source": "RMF24",
+            "publisher_source": "RMF24",
+            "title": "Rosja przeprowadziła atak dronów na Ukrainę",
+            "summary": "Wiadomość dotyczy działań wojennych Rosji przeciw Ukrainie.",
+            "link": "https://example.com/ukraine-war",
+            "image": "https://example.com/ukraine-war.jpg",
+            "published_at": (now - timedelta(hours=2)).isoformat(),
+            "published_at_basis": "source",
+            "canonical_event_id": "evt_ukraine_war",
+            "corroboration_score": 40.0,
+            "claim_adjusted_corroboration_score": 40.0,
+            "independent_evidence_paths": 1,
+            "claim_consistency_status": "consistent",
+            "contradiction_score": 0.0,
+            "provenance_role": "original",
+            "origin_source": "RMF24",
+        }
+        selected, diagnostics = homepage_ranked_select(
+            {"polityka": [domestic, war]},
+            {"polityka": "Polityka / Kraj"},
+            limit=1,
+            now=now,
+        )
+        self.assertEqual(len(selected), 1)
+        self.assertTrue(filtered_news.is_pl_ukraine_russia_war_story(selected[0]))
+        self.assertEqual(diagnostics["pl_ukraine_russia_war_selected"], 1)
+        self.assertEqual(
+            diagnostics["pl_ukraine_russia_war_policy_version"],
+            filtered_news.PL_UKRAINE_RUSSIA_WAR_POLICY_VERSION,
+        )
+
     def test_every_section_targets_nine_cards(self) -> None:
         self.assertEqual(TARGET, 9)
         self.assertEqual(MIN_SECTION, TARGET)
