@@ -15,8 +15,9 @@ from typing import Any, Dict, Optional
 
 import investments_weekly as legacy
 import investments_weekly_v2 as v2
+import investments_weekly_v5 as v5
 
-VERSION = "5.0.0-experimental"
+VERSION = v5.VERSION
 
 
 def read(path: Path) -> Dict[str, Any]:
