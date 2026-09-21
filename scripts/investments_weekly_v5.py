@@ -272,6 +272,24 @@ def entry_point(symbol: str, pending: Dict[str, Any]) -> Optional[Dict[str, Any]
     return point if point and captured and captured >= decided else None
 
 
+def pending_matches_wes_authorization(item: Dict[str, Any], pending: Any) -> bool:
+    """A pending entry may be reused only if it was created under the current WES authorization."""
+    if not isinstance(pending, dict):
+        return False
+    decision = pending.get("decision") if isinstance(pending.get("decision"), dict) else {}
+    auth = item.get("wes_entry_authorization") if isinstance(item.get("wes_entry_authorization"), dict) else {}
+    candidate = auth.get("candidate") if isinstance(auth.get("candidate"), dict) else {}
+    authorized_at = parse_dt(auth.get("authorized_at"))
+    pending_at = parse_dt(pending.get("decided_at") or pending.get("entry_not_before"))
+    if authorized_at is None or pending_at is None or pending_at < authorized_at:
+        return False
+    if str(decision.get("direction") or "") != str(candidate.get("direction") or ""):
+        return False
+    if str(decision.get("strategy_id") or "") != str(candidate.get("strategy_id") or ""):
+        return False
+    return True
+
+
 def _store_macro_review(item: Dict[str, Any], context: Dict[str, Any]) -> bool:
     if context.get("data_quality") not in {"passed", "failed"}:
         return False
@@ -575,7 +593,7 @@ def ensure_all() -> Dict[str, Any]:
             report["actions"].append({"instrument_id": iid, "action": "no_trade", "reason_codes": [authorization_reason]})
             continue
         saved_pending = item.get("pending_entry_decision")
-        pending = saved_pending if isinstance(saved_pending, dict) and isinstance(saved_pending.get("decision"), dict) and saved_pending.get("entry_not_before") else freeze_decision(item, decision, fresh, weekly, now)
+        pending = saved_pending if pending_matches_wes_authorization(item, saved_pending) else freeze_decision(item, decision, fresh, weekly, now)
         changed = True
         point = entry_point(str(cfg.get("symbol") or ""), pending)
         if not point:
