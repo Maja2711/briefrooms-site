@@ -50,6 +50,27 @@ def verify_item(item: Dict[str, Any]) -> None:
     if no_trade and item.get("trade_status") == "open":
         raise RuntimeError(f"NO_TRADE opened a position for {item.get('instrument_id')}")
 
+    status = str(item.get("trade_status") or "").strip().lower().replace(" ", "_")
+    pending = item.get("pending_entry_decision") if isinstance(item.get("pending_entry_decision"), dict) else {}
+    entry_plan = pending.get("entry_price_plan") if isinstance(pending.get("entry_price_plan"), dict) else {}
+    if status == "pending" and str(item.get("wes_methodology") or "") == "WES-1.2.0":
+        target = v2.sf(entry_plan.get("target_price"))
+        reference = v2.sf(entry_plan.get("reference_price"))
+        direction = str(entry_plan.get("direction") or "")
+        if target is None or reference is None or direction not in {"long", "short"}:
+            raise RuntimeError(f"WES 1.2 pending entry missing frozen price plan for {item.get('instrument_id')}")
+        if direction == "long" and not target < reference:
+            raise RuntimeError(f"WES 1.2 LONG target does not improve price for {item.get('instrument_id')}")
+        if direction == "short" and not target > reference:
+            raise RuntimeError(f"WES 1.2 SHORT target does not improve price for {item.get('instrument_id')}")
+
+    frozen_entry_plan = item.get("entry_price_plan_frozen") if isinstance(item.get("entry_price_plan_frozen"), dict) else {}
+    if str(item.get("entry_execution_rule") or "") == "frozen_wes_1_2_limit_target_touch":
+        target = v2.sf(frozen_entry_plan.get("target_price"))
+        actual = v2.sf(item.get("entry_price"))
+        if target is None or actual is None or abs(actual - target) > max(1e-8, abs(target) * 1e-9):
+            raise RuntimeError(f"WES 1.2 entry price differs from frozen target for {item.get('instrument_id')}")
+
     lock = item.get("reentry_lock") if isinstance(item.get("reentry_lock"), dict) else {}
     lock_created = parsed(lock.get("created_at"))
     lock_until = parsed(lock.get("until"))
