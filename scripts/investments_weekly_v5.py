@@ -18,7 +18,7 @@ METHOD = ROOT / "data/investments/methodology.json"
 POLICY = ROOT / "data/investments/multi_instrument_exposure_policy.json"
 STATE = ROOT / "data/investments/multi_instrument_exposure_state_v5.json"
 REPORT = ROOT / "data/investments/multi_instrument_exposure_report_v5.json"
-VERSION = "5.6.2-experimental"
+VERSION = "5.7.0-experimental"
 
 read, write, sf, parse_dt = v4.read, v4.write, v2.sf, v2.parse_dt
 
@@ -83,29 +83,156 @@ def lock_reentry(item: Dict[str, Any], week: Dict[str, Any], now: datetime) -> T
     return False, bool(lock.get("active"))
 
 
-def no_trade(decision: Dict[str, Any], fresh: Dict[str, Any], weekly: Dict[str, Any], policy: Dict[str, Any]) -> Dict[str, Any]:
-    cfg = policy.get("no_trade") or {}
+def _direction_from_score(score: float) -> str:
+    return "long" if score > 0 else "short" if score < 0 else "neutral"
+
+
+def directional_confirmation_sources(
+    direction: str,
+    fresh: Dict[str, Any],
+    weekly: Dict[str, Any],
+    macro_context: Optional[Dict[str, Any]],
+    policy: Dict[str, Any],
+) -> list[str]:
+    cfg = policy.get("directional_admission") or {}
+    macro_context = macro_context if isinstance(macro_context, dict) else {}
+    names: list[str] = []
+    daily_score = float(fresh.get("score") or 0.0)
+    weekly_score = float(weekly.get("score") or 0.0)
+    if fresh.get("data_quality") == "passed" and _direction_from_score(daily_score) == direction and abs(daily_score) >= float(cfg.get("daily_min_abs_score") or 25):
+        names.append("daily")
+    if weekly.get("data_quality") == "passed" and _direction_from_score(weekly_score) == direction and abs(weekly_score) >= float(cfg.get("weekly_min_abs_score") or 15):
+        names.append("weekly")
+    if macro_context.get("data_quality") == "passed" and str(macro_context.get("direction") or "") == direction:
+        names.append("macro")
+    ma = macro_context.get("ma_structure") if isinstance(macro_context.get("ma_structure"), dict) else {}
+    ma_score = float(ma.get("score") or 0.0)
+    if ma.get("data_quality") == "passed" and _direction_from_score(ma_score) == direction and abs(ma_score) >= float(cfg.get("ma_min_abs_score") or 1):
+        names.append("ma_structure")
+    return sorted(set(names))
+
+
+def directional_admission(
+    decision: Dict[str, Any],
+    fresh: Dict[str, Any],
+    weekly: Dict[str, Any],
+    macro_context: Optional[Dict[str, Any]],
+    policy: Dict[str, Any],
+) -> Tuple[bool, list[str], Dict[str, Any]]:
+    cfg = policy.get("directional_admission") or {}
+    direction = str(decision.get("direction") or "neutral")
+    sources = directional_confirmation_sources(direction, fresh, weekly, macro_context, policy)
+    diagnostics = {
+        "version": str(cfg.get("version") or "WES-1.1.0"),
+        "direction": direction,
+        "confirmations": len(sources),
+        "confirmation_sources": sources,
+        "execution_authority": decision.get("execution_authority"),
+    }
     if not cfg.get("enabled", True):
+        return True, [], diagnostics
+    reasons: list[str] = []
+    if direction not in {"long", "short"}:
+        reasons.append("non_directional_candidate")
+        return False, reasons, diagnostics
+    if decision.get("execution_eligible") is False or str(decision.get("execution_authority") or "") == "challenger_shadow":
+        reasons.append("candidate_has_no_execution_authority")
+    minimum = int(cfg.get("minimum_confirmations") or 2)
+    if len(sources) < minimum:
+        reasons.append("insufficient_directional_confirmations")
+
+    if cfg.get("block_against_aligned_daily_weekly", True):
+        daily_score = float(fresh.get("score") or 0.0)
+        weekly_score = float(weekly.get("score") or 0.0)
+        daily_dir = _direction_from_score(daily_score)
+        weekly_dir = _direction_from_score(weekly_score)
+        daily_valid = fresh.get("data_quality") == "passed" and abs(daily_score) >= float(cfg.get("daily_min_abs_score") or 25)
+        weekly_valid = weekly.get("data_quality") == "passed" and abs(weekly_score) >= float(cfg.get("weekly_min_abs_score") or 15)
+        if daily_valid and weekly_valid and daily_dir == weekly_dir and daily_dir in {"long", "short"} and daily_dir != direction:
+            reasons.append("candidate_opposes_aligned_daily_weekly")
+
+    return not reasons, reasons, diagnostics
+
+
+def no_trade(
+    decision: Dict[str, Any],
+    fresh: Dict[str, Any],
+    weekly: Dict[str, Any],
+    policy: Dict[str, Any],
+    macro_context: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    if str(decision.get("direction") or "neutral") not in {"long", "short"}:
         return decision
+    cfg = policy.get("no_trade") or {}
     base = float(fresh.get("score") or 0)
     week = float(weekly.get("score") or 0) if weekly.get("data_quality") == "passed" else 0.0
     raw = abs(float(decision.get("raw_score") or 0))
     utility = float(decision.get("utility") or 0)
     floor = float(cfg.get("minimum_directional_raw_score") or 35)
     utility_floor = float(cfg.get("minimum_directional_utility") or 6)
-    reasons = []
-    if fresh.get("data_quality") != "passed" and weekly.get("data_quality") != "passed":
-        reasons.append("insufficient_data_quality")
-    if max(raw, abs(base), abs(week)) < floor:
-        reasons.append("directional_edge_below_threshold")
-    if utility < utility_floor:
-        reasons.append("selected_utility_below_threshold")
-    if base * week < 0 and max(abs(base), abs(week)) < float(cfg.get("conflict_no_trade_below_raw_score") or 45):
-        reasons.append("daily_weekly_conflict_without_dominant_edge")
-    if not reasons:
-        return decision
-    return {"strategy_id": "no_trade", "direction": "neutral", "raw_score": 0.0,
-            "utility": utility, "reason_codes": reasons, "candidates": decision.get("candidates", {})}
+    reasons = list(decision.get("reason_codes") or [])
+    if cfg.get("enabled", True):
+        if fresh.get("data_quality") != "passed" and weekly.get("data_quality") != "passed":
+            reasons.append("insufficient_data_quality")
+        if max(raw, abs(base), abs(week)) < floor:
+            reasons.append("directional_edge_below_threshold")
+        if utility < utility_floor:
+            reasons.append("selected_utility_below_threshold")
+        if base * week < 0 and max(abs(base), abs(week)) < float(cfg.get("conflict_no_trade_below_raw_score") or 45):
+            reasons.append("daily_weekly_conflict_without_dominant_edge")
+
+    admitted, admission_reasons, diagnostics = directional_admission(
+        decision, fresh, weekly, macro_context, policy
+    )
+    reasons.extend(admission_reasons)
+    reasons = list(dict.fromkeys(reasons))
+    if not reasons and admitted:
+        out = dict(decision)
+        out["directional_admission"] = {**diagnostics, "passed": True}
+        return out
+    return {
+        "strategy_id": "no_trade",
+        "direction": "neutral",
+        "raw_score": 0.0,
+        "utility": utility,
+        "reason_codes": reasons,
+        "blocked_candidate": {
+            "strategy_id": decision.get("strategy_id"),
+            "direction": decision.get("direction"),
+            "raw_score": decision.get("raw_score"),
+            "utility": decision.get("utility"),
+            "execution_authority": decision.get("execution_authority"),
+        },
+        "directional_admission": {**diagnostics, "passed": False},
+        "candidates": decision.get("candidates", {}),
+    }
+
+
+def wes_authorization_matches(
+    item: Dict[str, Any],
+    decision: Dict[str, Any],
+    now: datetime,
+    policy: Dict[str, Any],
+) -> Tuple[bool, str]:
+    cfg = policy.get("directional_admission") or {}
+    if not cfg.get("require_for_all_new_entries", True):
+        return True, "authorization_not_required"
+    auth = item.get("wes_entry_authorization") if isinstance(item.get("wes_entry_authorization"), dict) else {}
+    if not auth:
+        return False, "wes_entry_authorization_missing"
+    expires = parse_dt(auth.get("expires_at"))
+    if expires is None or now >= expires:
+        return False, "wes_entry_authorization_expired"
+    candidate = auth.get("candidate") if isinstance(auth.get("candidate"), dict) else {}
+    if auth.get("directional_admission_passed") is not True:
+        return False, "wes_directional_admission_not_passed"
+    if str(candidate.get("execution_authority") or "") != "champion_execution":
+        return False, "wes_candidate_not_execution_authorized"
+    if str(candidate.get("direction") or "") != str(decision.get("direction") or ""):
+        return False, "wes_authorized_direction_mismatch"
+    if str(candidate.get("strategy_id") or "") != str(decision.get("strategy_id") or ""):
+        return False, "wes_authorized_strategy_mismatch"
+    return True, "authorized"
 
 
 def abstain(item: Dict[str, Any], decision: Dict[str, Any]) -> None:
@@ -401,7 +528,13 @@ def ensure_all() -> Dict[str, Any]:
         candidates = macro.apply_to_candidates(iid, base_candidates, fresh, weekly, macro_context, policy)
         candidates, contextual_learning = apply_contextual_learning(iid, candidates, fresh, policy, weekly=weekly, macro_context=macro_context)
         choice_learning = learning_with_candidate_observations(learning, contextual_learning)
-        decision = no_trade(v4.choose(candidates, choice_learning, policy), fresh, weekly, policy)
+        decision = no_trade(
+            v4.choose_governed(candidates, choice_learning, policy, iid),
+            fresh,
+            weekly,
+            policy,
+            macro_context,
+        )
         decision["macro_context"] = macro_context
         decision["contextual_learning"] = contextual_learning
         state["instruments"][iid] = {"regime": regime, "learning": choice_learning, "selected_leg_learning": learning,
@@ -418,6 +551,29 @@ def ensure_all() -> Dict[str, Any]:
         if decision.get("direction") not in {"long", "short"}:
             abstain(item, decision); changed = True
             report["actions"].append({"instrument_id": iid, "action": "no_trade", "reason_codes": decision.get("reason_codes")}); continue
+        authorized, authorization_reason = wes_authorization_matches(item, decision, now, policy)
+        if not authorized:
+            blocked = {
+                "strategy_id": "no_trade",
+                "direction": "neutral",
+                "raw_score": 0.0,
+                "utility": decision.get("utility", 0.0),
+                "reason_codes": [authorization_reason],
+                "blocked_candidate": {
+                    "strategy_id": decision.get("strategy_id"),
+                    "direction": decision.get("direction"),
+                    "raw_score": decision.get("raw_score"),
+                    "utility": decision.get("utility"),
+                },
+                "candidates": decision.get("candidates", {}),
+            }
+            if not closed_position(item):
+                abstain(item, blocked)
+            else:
+                item.update(pending_entry_decision=None, next_entry_status="no_trade")
+            changed = True
+            report["actions"].append({"instrument_id": iid, "action": "no_trade", "reason_codes": [authorization_reason]})
+            continue
         saved_pending = item.get("pending_entry_decision")
         pending = saved_pending if isinstance(saved_pending, dict) and isinstance(saved_pending.get("decision"), dict) and saved_pending.get("entry_not_before") else freeze_decision(item, decision, fresh, weekly, now)
         changed = True
@@ -432,6 +588,8 @@ def ensure_all() -> Dict[str, Any]:
                                   "macro_score": (pending.get("macro_context") or {}).get("score")})
     week["multi_instrument_exposure_layer"] = {
         "enabled": True, "version": VERSION, "common_validation_gate": True,
+        "wes_1_1_directional_admission": True,
+        "champion_challenger_execution_authority": True,
         "retroactive_entries_forbidden": True, "same_week_reentry_block_after_invalidation": True,
         "no_trade_first_class": True, "weekly_candles_used": True,
         "eurusd_oil_us10y_context_used": True,
