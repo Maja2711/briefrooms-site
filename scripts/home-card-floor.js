@@ -112,6 +112,8 @@
     card.dataset.homePublishedAt = published;
     var firstSeen = story.news_first_seen_at || story.homepage_first_seen_at;
     if (firstSeen) card.dataset.homeFirstSeenAt = String(firstSeen);
+    var expiresAt = story.news_expires_at || story.homepage_expires_at;
+    if (expiresAt) card.dataset.homeExpiresAt = String(expiresAt);
     card.dataset.homeCardFloor = 'approved-home-reserve';
 
     var thumb = element(document, 'div', 'thumb has-image');
