@@ -110,6 +110,12 @@ After a valid promotion, paper orders use a fresh completed five-minute candle
 observed after the signal. Signal and execution timestamps are separate.
 Transaction costs, FX and slippage are recorded. Closed markets cause waiting,
 stale signals expire, and anti-oscillation blocks rapid sell-and-buy reversals.
+For supported US, Xetra and Copenhagen symbols, venue session state is determined
+from the venue clock rather than quote age, so delayed public feeds cannot turn an
+open market into a false `MARKET_CLOSED`. A completed candle may be up to 35
+minutes old for paper execution, but it still must be observed after the signal.
+Public `PENDING` decisions have an independent 24-hour display TTL; terminal or
+older decisions are not rendered even if an execution scheduler fails.
 
 ## Ten-percent target
 

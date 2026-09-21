@@ -8,12 +8,16 @@ proposed decisions with the paper order/transaction ledger before publication.
 from __future__ import annotations
 
 from copy import deepcopy
+from datetime import datetime, timedelta, timezone
 from typing import Any, Iterable, Mapping
+
+from brace_portfolio_data import parse_timestamp
 
 CONTROLLED_STATES = {"PROBATIONARY_CONTROL", "ACTIVE_PAPER_CONTROL", "ACTIVE_CONTROL"}
 EXECUTED_ORDER_STATES = {"PAPER_EXECUTED", "EXECUTED", "FILLED"}
 PENDING_ORDER_STATES = {"WAITING_FOR_MARKET", "READY", "QUEUED", "PENDING", "PROPOSED"}
 TERMINAL_ORDER_STATES = {"FAILED", "EXPIRED", "CANCELLED", "CANCELED", "REJECTED"}
+PUBLIC_PENDING_MAX_AGE = timedelta(hours=24)
 
 
 def _id(value: Any) -> str:
@@ -113,6 +117,7 @@ def reconcile_public_decisions(
     order_payload: Mapping[str, Any] | None,
     *,
     limit: int = 10,
+    now: datetime | None = None,
 ) -> list[dict[str, Any]]:
     """Return only actionable or already-completed decisions for the frontend.
 
@@ -170,6 +175,13 @@ def reconcile_public_decisions(
             reason = "awaiting_execution"
         else:
             continue
+
+        if execution_status == "PENDING" and now is not None:
+            current = now if now.tzinfo is not None else now.replace(tzinfo=timezone.utc)
+            current = current.astimezone(timezone.utc)
+            signal_at = parse_timestamp(row.get("generated_at") or order.get("signal_at"))
+            if signal_at is None or current - signal_at > PUBLIC_PENDING_MAX_AGE:
+                continue
 
         row["execution_status"] = execution_status
         row["execution_reason"] = reason

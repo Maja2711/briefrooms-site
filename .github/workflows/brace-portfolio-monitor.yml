@@ -38,6 +38,7 @@ jobs:
       - name: Validate BRACE integrity controls and execution invariant
         run: |
           python -m pytest -q tests/test_brace_portfolio_engine.py -k "baseline or fallback or execution"
+          python -m pytest -q tests/test_brace_portfolio_pending_lifecycle.py
           python -m unittest tests.test_no_retroactive_execution -v
 
       - name: Check freshness, limits and fallback before execution
@@ -52,6 +53,9 @@ jobs:
         env:
           BRACE_TESTS_PASSED: "1"
         run: python scripts/brace_portfolio_engine.py --mode monitor
+
+      - name: Republish reconciled BRACE control projection
+        run: python scripts/brace_portfolio_user_control.py --republish
 
       - name: Commit validated monitoring state through NO RETROACTIVE airlock
         run: |

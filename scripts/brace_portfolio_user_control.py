@@ -166,7 +166,7 @@ def public_snapshot(registry: Mapping[str, Any], auth: Mapping[str, Any], now: d
         pending.get("recommendations") or [], paper
     )[:20]
     snapshot["pending_decisions"] = reconcile_public_decisions(
-        pending.get("decisions") or [], paper, orders, limit=10
+        pending.get("decisions") or [], paper, orders, limit=10, now=now
     )
     snapshot["learning_loop"] = learning_public_state(now)
     snapshot["display_status"] = "BRACE_PROBATIONARY_PAPER_CONTROL"

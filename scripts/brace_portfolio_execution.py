@@ -7,6 +7,7 @@ import copy
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, Mapping, Optional, Protocol, Sequence
+from zoneinfo import ZoneInfo
 
 from brace_portfolio_config import EngineConfig
 from brace_portfolio_data import (
@@ -33,6 +34,39 @@ ORDER_STATUSES = {
     "FAILED",
 }
 CONTROLLING_STATUSES = {"PROBATIONARY_CONTROL", "ACTIVE_PAPER_CONTROL"}
+MAX_EXECUTION_CANDLE_AGE = timedelta(minutes=35)
+MAX_SIGNAL_AGE = timedelta(hours=24)
+
+
+def _minutes(local: datetime) -> int:
+    return local.hour * 60 + local.minute
+
+
+def _expected_market_open(symbol: str, now: datetime) -> Optional[bool]:
+    """Venue-clock session state for instruments used by the BRACE paper universe.
+
+    This deliberately does not infer market state from quote age: public market
+    feeds can be delayed while the venue is open. Unknown venues return None so
+    quote validation, rather than a false MARKET_CLOSED state, decides the order.
+    """
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    now = now.astimezone(timezone.utc)
+    raw = str(symbol or "").upper()
+    if now.weekday() >= 5:
+        return False
+    if raw.endswith(".DE"):
+        local = now.astimezone(ZoneInfo("Europe/Berlin"))
+        return 9 * 60 <= _minutes(local) < 17 * 60 + 30
+    if raw.endswith(".CO"):
+        local = now.astimezone(ZoneInfo("Europe/Copenhagen"))
+        return 9 * 60 <= _minutes(local) < 17 * 60
+    if raw.endswith("=X"):
+        return True
+    if "." not in raw:
+        local = now.astimezone(ZoneInfo("America/New_York"))
+        return 9 * 60 + 30 <= _minutes(local) < 16 * 60
+    return None
 
 
 class QuoteProvider(Protocol):
@@ -78,7 +112,7 @@ class YFinancePaperQuoteProvider:
         return {
             "price": price,
             "completed_at": observed.isoformat(timespec="seconds"),
-            "market_open": now - observed <= timedelta(minutes=15),
+            "market_open": _expected_market_open(symbol, now),
         }
 
     def quote(self, market_symbol: str, currency: str) -> Mapping[str, Any]:
@@ -237,7 +271,7 @@ def _validate_quote(
         return "INVALID_QUOTE"
     if completed_at > now:
         return "FUTURE_QUOTE"
-    if now - completed_at > timedelta(minutes=15):
+    if now - completed_at > MAX_EXECUTION_CANDLE_AGE:
         return "STALE_QUOTE"
     return None
 
@@ -353,7 +387,7 @@ def _execute_cash_adjustment(
     quote = dict(
         quote_provider.quote(str(market_symbol), str(source.get("currency")))
     )
-    if not quote.get("market_open"):
+    if quote.get("market_open") is False:
         result["status"] = "WAITING_FOR_MARKET"
         result["failure_reason"] = "MARKET_CLOSED"
         return portfolio, result
@@ -525,7 +559,7 @@ def execute_order(
         result["failure_reason"] = "METHODOLOGY_DOES_NOT_CONTROL_PAPER_PORTFOLIO"
         return portfolio, result
     signal_at = parse_timestamp(result.get("signal_at"))
-    if signal_at is None or now - signal_at > timedelta(hours=24):
+    if signal_at is None or now - signal_at > MAX_SIGNAL_AGE:
         result["status"] = "EXPIRED"
         result["failure_reason"] = "SIGNAL_EXPIRED"
         return portfolio, result
@@ -580,7 +614,7 @@ def execute_order(
             str(buy_meta.get("currency")),
         )
     )
-    if not sell_quote.get("market_open") or not buy_quote.get("market_open"):
+    if sell_quote.get("market_open") is False or buy_quote.get("market_open") is False:
         result["status"] = "WAITING_FOR_MARKET"
         result["failure_reason"] = "MARKET_CLOSED"
         return portfolio, result
