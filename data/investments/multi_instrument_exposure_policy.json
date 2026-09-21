@@ -1,5 +1,5 @@
 {
-  "policy_version": "5.6.2",
+  "policy_version": "5.7.0",
   "name": "BriefRooms governed multi-instrument weekly paper exposure",
   "status": "experimental_paper_trading_only",
   "enabled": true,
@@ -49,7 +49,32 @@
     "performance_weight": 18,
     "exploration_bonus": 2.5,
     "maximum_learning_adjustment": 18,
-    "rule": "Select the highest-utility directional candidate using only earlier closed paper legs. The selected candidate is a proposal, not a forced trade: the NO_TRADE admission gate may abstain. Counterfactual observations of all candidates may reduce exploration uncertainty, but only realized selected-strategy legs drive the legacy global performance adjustment."
+    "rule": "Select the highest-utility directional candidate using only earlier closed paper legs. The selected candidate is a proposal, not a forced trade: the NO_TRADE admission gate may abstain. Counterfactual observations of all candidates may reduce exploration uncertainty, but only realized selected-strategy legs drive the legacy global performance adjustment.",
+    "selection_priority": [
+      "base_v2",
+      "daily_weekly_blend",
+      "weekly_trend",
+      "ema_mean_reversion",
+      "macro_weekly_blend",
+      "inverse_v2"
+    ],
+    "champion_challenger": {
+      "enabled": true,
+      "execution_methods": [
+        "base_v2",
+        "daily_weekly_blend",
+        "weekly_trend",
+        "ema_mean_reversion",
+        "macro_weekly_blend"
+      ],
+      "challenger_shadow_methods": [
+        "inverse_v2"
+      ],
+      "challenger_execution_enabled": false,
+      "promotion_required_before_execution": true,
+      "opposing_direction_utility_margin_no_trade": 0.5,
+      "rule": "Research ranks every candidate, but only execution-authorized Champion-pool methods may open a paper position. A Challenger remains shadow/counterfactual until an explicit governed promotion. Opposing execution candidates inside the utility margin resolve to NO_TRADE, never by method name."
+    }
   },
   "contextual_learning": {
     "enabled": true,
@@ -231,5 +256,23 @@
     "scheduler_delay_policy": "replay_frozen_risk_interval_so_transient_threshold_touches_remain_detectable",
     "entry_authority": false,
     "threshold_mutation_allowed": false
+  },
+  "directional_admission": {
+    "version": "WES-1.1.0",
+    "enabled": true,
+    "require_for_all_new_entries": true,
+    "authorization_ttl_minutes": 20,
+    "minimum_confirmations": 2,
+    "daily_min_abs_score": 25,
+    "weekly_min_abs_score": 15,
+    "ma_min_abs_score": 1,
+    "block_against_aligned_daily_weekly": true,
+    "initial_weekly_profile": {
+      "raw": 35,
+      "utility": 6,
+      "confirmations": 2,
+      "delta": 0
+    },
+    "rule": "Every new entry, including the initial Monday entry, requires a current WES authorization for the exact execution-authorized method and direction. If Daily and Weekly are both valid, aligned and opposite to the proposed trade, admission is blocked. Missing or mismatched authorization resolves to NO_TRADE."
   }
 }
