@@ -8,6 +8,7 @@
   const HOME_LIMIT = 12;
   const HOME_POLICY = 'max-24h-public-news-display-v1';
   const HOME_IMAGE_POLICY = 'https-image-required-v1';
+  let expiryTimer = null;
   const text = lang === 'pl' ? {
     source: 'Źródło',
     read: 'Czytaj źródło →',
@@ -126,10 +127,14 @@
     const link = safeHttp(story.link);
     const image = safeImage(story.image);
     const publishedAt = timestamp(story.published_at) ? String(story.published_at) : '';
-    const firstSeenAt = timestamp(story.homepage_first_seen_at) ? String(story.homepage_first_seen_at) : '';
+    const rawFirstSeen = story.news_first_seen_at || story.homepage_first_seen_at;
+    const firstSeenAt = timestamp(rawFirstSeen) ? String(rawFirstSeen) : '';
+    const rawExpires = story.news_expires_at || story.homepage_expires_at;
+    const expiresAt = timestamp(rawExpires) ? String(rawExpires) : '';
     if (!link || !image || !story.title || !publishedAt) return '';
     const firstSeenAttr = firstSeenAt ? ` data-home-first-seen-at="${esc(firstSeenAt)}"` : '';
-    return `<a class="brief-card" href="${esc(link)}" target="_blank" rel="noopener noreferrer external" data-home-published-at="${esc(publishedAt)}"${firstSeenAttr}><div class="thumb has-image"><img src="${esc(image)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-br-external-media="source-linked" data-br-source-url="${esc(link)}"><span class="media-source-badge">${text.source}: ${esc(story.source || '')}</span></div><div class="brief-body"><h3 class="brief-title">${esc(story.title)}</h3><p class="brief-desc">${esc(story.summary || story.title)}</p><span class="brief-source"><b>${esc(story.source || text.source)}</b><span class="brief-link">${text.read}</span></span></div></a>`;
+    const expiresAttr = expiresAt ? ` data-home-expires-at="${esc(expiresAt)}"` : '';
+    return `<a class="brief-card" href="${esc(link)}" target="_blank" rel="noopener noreferrer external" data-home-published-at="${esc(publishedAt)}"${firstSeenAttr}${expiresAttr}><div class="thumb has-image"><img src="${esc(image)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-br-external-media="source-linked" data-br-source-url="${esc(link)}"><span class="media-source-badge">${text.source}: ${esc(story.source || '')}</span></div><div class="brief-body"><h3 class="brief-title">${esc(story.title)}</h3><p class="brief-desc">${esc(story.summary || story.title)}</p><span class="brief-source"><b>${esc(story.source || text.source)}</b><span class="brief-link">${text.read}</span></span></div></a>`;
   }
 
   function formatTime(value) {
@@ -239,6 +244,51 @@
     return true;
   }
 
+  function cardExpiryTimestamp(node, publishedKey, firstSeenKey, expiresKey) {
+    if (!node || !node.dataset) return 0;
+    const explicit = timestamp(node.dataset[expiresKey]);
+    if (explicit) return explicit;
+    const firstSeen = timestamp(node.dataset[firstSeenKey]);
+    if (firstSeen) return firstSeen + HOME_MAX_AGE_MS;
+    const published = timestamp(node.dataset[publishedKey]);
+    return published ? published + HOME_MAX_AGE_MS : 0;
+  }
+
+  function scheduleNextExpiry() {
+    if (expiryTimer) {
+      clearTimeout(expiryTimer);
+      expiryTimer = null;
+    }
+    const now = Date.now();
+    const expiries = [];
+    document.querySelectorAll('a.news-main-link').forEach(link => {
+      const expiry = cardExpiryTimestamp(
+        link,
+        'newsPublishedAt',
+        'newsFirstSeenAt',
+        'newsExpiresAt'
+      );
+      if (expiry > now) expiries.push(expiry);
+    });
+    document.querySelectorAll('#latest-briefs .brief-card').forEach(card => {
+      const expiry = cardExpiryTimestamp(
+        card,
+        'homePublishedAt',
+        'homeFirstSeenAt',
+        'homeExpiresAt'
+      );
+      if (expiry > now) expiries.push(expiry);
+    });
+    if (!expiries.length) return;
+    const nextExpiry = Math.min(...expiries);
+    const delay = Math.max(0, Math.min(2147483647, nextExpiry - now + 25));
+    expiryTimer = setTimeout(() => {
+      pruneStaticNewsPage();
+      pruneStaticHomepage();
+      refresh();
+    }, delay);
+  }
+
   function removeLegacyHealthBanner() {
     document.getElementById('news-live-health')?.remove();
   }
@@ -259,12 +309,14 @@
       updateTimestamp(data);
       removeLegacyHealthBanner();
       document.documentElement.dataset.newsLiveMarker = String(data.marker || '');
+      scheduleNextExpiry();
       return true;
     } catch (error) {
       pruneStaticNewsPage();
       pruneStaticHomepage();
       removeLegacyHealthBanner();
       console.warn('BriefRooms live news refresh failed; public news keeps only <=24h stories with HTTPS images.', error);
+      scheduleNextExpiry();
       return false;
     }
   }
@@ -273,8 +325,16 @@
     removeLegacyHealthBanner();
     pruneStaticNewsPage();
     pruneStaticHomepage();
+    scheduleNextExpiry();
     refresh();
     setInterval(refresh, 15 * 60 * 1000);
+
+    const observer = new MutationObserver(() => scheduleNextExpiry());
+    const home = document.getElementById('latest-briefs');
+    if (home) observer.observe(home, {childList: true});
+    document.querySelectorAll('section.card ul.news').forEach(list => {
+      observer.observe(list, {childList: true});
+    });
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) refresh();
     });
