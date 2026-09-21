@@ -353,6 +353,8 @@ def homepage_ranked_select(
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Choose homepage stories by editorial priority, quality and diversity."""
     current = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    pl_mode = "polityka" in sections
+    enforce_pl_ukraine_war_quota = pl_mode and blocked_stories is None
     ranked: list[tuple[int, float, float, str, dict[str, Any]]] = []
     try:
         sport_support = filtered._sport_entity_support(sections.get("sport") or [])
@@ -425,11 +427,31 @@ def homepage_ranked_select(
         lane_counts[lane] = lane_counts.get(lane, 0) + 1
         return True
 
+    # PL publication contract: before the general lane pass can consume all
+    # homepage slots, reserve one slot for a material Russia-Ukraine-war update.
+    # Section selection already prefers a fresh item and may carry a qualifying
+    # prior item for at most 72 hours, so this step only promotes an approved row.
+    if enforce_pl_ukraine_war_quota:
+        for _, _, _, _, story in ranked:
+            if not filtered.is_pl_ukraine_russia_war_story(story):
+                continue
+            if try_add(
+                story,
+                HOMEPAGE_TARGET_SOURCE_CAP,
+                HOMEPAGE_TARGET_SECTION_CAP,
+                HOMEPAGE_TARGET_LANE_CAP,
+            ):
+                break
+
     # First secure broad editorial coverage: the best available story from each
-    # priority lane, in the exact order requested by the homepage policy.
+    # priority lane, in the exact order requested by the homepage policy. A lane
+    # already satisfied by the mandatory PL war story does not need a second
+    # automatic coverage slot.
     for lane in HOMEPAGE_PRIORITY_ORDER:
         if len(selected) >= limit:
             break
+        if lane_counts.get(lane, 0) > 0:
+            continue
         for _, _, _, _, story in ranked:
             if story.get("_homepage_lane") != lane:
                 continue
@@ -493,6 +515,16 @@ def homepage_ranked_select(
         "source_mix": source_counts,
         "section_mix": section_counts,
         "lane_mix": lane_counts,
+        "pl_ukraine_russia_war_policy_version": (
+            filtered.PL_UKRAINE_RUSSIA_WAR_POLICY_VERSION if pl_mode else None
+        ),
+        "pl_ukraine_russia_war_minimum": (
+            filtered.PL_UKRAINE_RUSSIA_WAR_MINIMUM if pl_mode else 0
+        ),
+        "pl_ukraine_russia_war_selected": (
+            sum(1 for story in public if filtered.is_pl_ukraine_russia_war_story(story))
+            if pl_mode else 0
+        ),
     }
     return public, diagnostics
 
@@ -598,6 +630,36 @@ def build_language(lang: str, config: Any, marker: str, now: Any) -> dict[str, A
         **public_claim_policy(),
     }
     health["homepage_editorial_selection"] = dict(_LAST_HOMEPAGE_DIAGNOSTICS)
+    if lang == "pl":
+        home = payload.get("home") if isinstance(payload.get("home"), list) else []
+        war_rows = [
+            story
+            for story in home
+            if isinstance(story, dict) and filtered.is_pl_ukraine_russia_war_story(story)
+        ]
+        war_count = len(war_rows)
+        health["pl_ukraine_russia_war"] = {
+            "status": (
+                "ok"
+                if war_count >= filtered.PL_UKRAINE_RUSSIA_WAR_MINIMUM
+                else "missing"
+            ),
+            "version": filtered.PL_UKRAINE_RUSSIA_WAR_POLICY_VERSION,
+            "minimum_story_count": filtered.PL_UKRAINE_RUSSIA_WAR_MINIMUM,
+            "selected_story_count": war_count,
+            "carried_story_count": sum(
+                1 for story in war_rows if story.get("carried_forward") is True
+            ),
+            "max_carry_hours": int(
+                filtered.PL_UKRAINE_RUSSIA_WAR_MAX_CARRY_AGE.total_seconds() // 3600
+            ),
+            "dedicated_source_status": "rmf24_world_feed_enabled",
+        }
+        if war_count < filtered.PL_UKRAINE_RUSSIA_WAR_MINIMUM:
+            raise RuntimeError(
+                "pl homepage is missing required Russia-Ukraine-war coverage"
+            )
+
     selection = health.setdefault("editorial_selection", {})
     selection["mode"] = (
         "canonical_event_then_claim_consistency_adjusted_corroboration_origin_authority_public_impact_recency_and_publisher_diversity"
@@ -649,6 +711,24 @@ def validate(max_age_minutes: int = 30) -> None:
             raise RuntimeError(f"{lang} homepage priority lanes are out of order")
         if home_lanes.count("sport") > HOMEPAGE_SPORT_HARD_CAP:
             raise RuntimeError(f"{lang} homepage exceeds sport hard cap")
+        if lang == "pl":
+            war_policy = (payload.get("health") or {}).get("pl_ukraine_russia_war") or {}
+            if war_policy.get("version") != filtered.PL_UKRAINE_RUSSIA_WAR_POLICY_VERSION:
+                raise RuntimeError("pl Russia-Ukraine-war policy missing or outdated")
+            if int(war_policy.get("minimum_story_count") or 0) != filtered.PL_UKRAINE_RUSSIA_WAR_MINIMUM:
+                raise RuntimeError("pl Russia-Ukraine-war minimum is inconsistent")
+            war_count = sum(
+                1
+                for story in home
+                if isinstance(story, dict)
+                and filtered.is_pl_ukraine_russia_war_story(story)
+            )
+            if war_count < filtered.PL_UKRAINE_RUSSIA_WAR_MINIMUM:
+                raise RuntimeError(
+                    "pl homepage is missing required Russia-Ukraine-war coverage"
+                )
+            if int(war_policy.get("selected_story_count") or 0) != war_count:
+                raise RuntimeError("pl Russia-Ukraine-war diagnostics mismatch")
         approved = list(home)
         for story in reserve:
             duplicate = next(
