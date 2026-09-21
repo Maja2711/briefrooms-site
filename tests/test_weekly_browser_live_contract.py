@@ -108,6 +108,8 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
         self.assertIn('if instrument_id == "eurusd":', source)
         self.assertIn("fxapi_eurusd_quote", source)
         self.assertIn("currency_exchange_tool_eurusd_quote", source)
+        self.assertIn('if instrument_id == "eurusd":\n                    age = quote_age(quote)', source)
+        self.assertIn('if instrument_id == "eurusd" and candidate_fresh:', source)
 
     def test_server_snapshot_chooses_newest_es_provider_by_timestamp(self) -> None:
         source = FAST_UPDATER.read_text(encoding="utf-8")
