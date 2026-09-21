@@ -18,7 +18,7 @@ METHOD = ROOT / "data/investments/methodology.json"
 POLICY = ROOT / "data/investments/multi_instrument_exposure_policy.json"
 STATE = ROOT / "data/investments/multi_instrument_exposure_state_v5.json"
 REPORT = ROOT / "data/investments/multi_instrument_exposure_report_v5.json"
-VERSION = "5.6.0-experimental"
+VERSION = "5.6.1-experimental"
 
 read, write, sf, parse_dt = v4.read, v4.write, v2.sf, v2.parse_dt
 
@@ -127,8 +127,12 @@ def freeze_decision(item: Dict[str, Any], decision: Dict[str, Any], fresh: Dict[
         "macro_context": frozen.get("macro_context"),
         "rule": "entry_timestamp_must_be_on_or_after_decision_timestamp",
     }
-    item.update(pending_entry_decision=pending, trade_status="planned",
-                entry_quality_status="waiting_for_first_completed_5m_bar_after_decision")
+    item.update(
+        pending_entry_decision=pending,
+        trade_status="pending",
+        next_entry_status="pending",
+        entry_quality_status="waiting_for_first_completed_5m_bar_after_decision",
+    )
     return pending
 
 

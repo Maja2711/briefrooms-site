@@ -10,12 +10,16 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import investments_weekly_v5 as v5
+import investments_weekly_v5_finalize as finalize
 
 
 class GovernedWeeklyModelTests(unittest.TestCase):
     def method(self, enabled=True):
         return {"instruments": [{"id": "x", "enabled_for_new_positions": enabled,
                                   "validation_gate_reason": "failed_validation"}]}
+
+    def test_finalizer_preserves_active_runtime_version(self):
+        self.assertEqual(finalize.VERSION, v5.VERSION)
 
     def test_common_gate_blocks_new_entry_for_every_layer(self):
         item = {"instrument_id": "x", "direction": "long", "trade_status": "planned"}
@@ -33,6 +37,16 @@ class GovernedWeeklyModelTests(unittest.TestCase):
         self.assertEqual(item["direction"], "long")
         self.assertEqual(item["entry_price"], 100.0)
         self.assertEqual(item["validation_gate"], "grandfathered_existing_position_no_new_entries")
+
+    def test_freeze_decision_promotes_forecast_to_pending_execution_state(self):
+        now = datetime(2026, 9, 21, 8, 5, tzinfo=v5.legacy.TZ)
+        item = {"instrument_id": "btcusd", "direction": "long", "trade_status": "planned", "validation_gate": "enabled_for_paper_trading"}
+        decision = {"strategy_id": "base_v2", "direction": "long", "raw_score": 50.0}
+        pending = v5.freeze_decision(item, decision, {"score": 50.0}, {"score": 40.0}, now)
+        self.assertEqual("pending", item["trade_status"])
+        self.assertEqual("pending", item["next_entry_status"])
+        self.assertEqual(now.isoformat(timespec="seconds"), pending["decided_at"])
+        self.assertEqual("long", pending["decision"]["direction"])
 
     def test_entry_must_not_precede_decision(self):
         decided = datetime(2026, 7, 20, 8, 34, tzinfo=v5.legacy.TZ)

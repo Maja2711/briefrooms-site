@@ -1,5 +1,5 @@
 {
-  "policy_version": "5.6.0",
+  "policy_version": "5.6.1",
   "name": "BriefRooms governed multi-instrument weekly paper exposure",
   "status": "experimental_paper_trading_only",
   "enabled": true,
@@ -95,7 +95,15 @@
     "entry_decision_must_precede_entry": true,
     "first_completed_5m_bar_after_decision": true,
     "no_historical_backfill": true,
-    "rule": "Every entry timestamp must be on or after the immutable decision timestamp."
+    "trade_status_contract": {
+      "planned": "frozen directional forecast only; no execution claim and no entry price required",
+      "pending": "qualified immutable execution decision exists; waiting for the first eligible bar",
+      "open": "entry executed; positive entry_price and entry timestamp required",
+      "no_trade": "admission abstained; no entry is expected",
+      "expired_no_entry": "authorized/pending execution expired without a valid fill; no entry or P/L may be fabricated",
+      "closed": "executed position settled; entry and exit facts required"
+    },
+    "rule": "A directional forecast is not an executed position. Entry is required only after execution is claimed; every executed entry timestamp must be on or after the immutable decision timestamp."
   },
   "reentry_policy": {
     "after_stop_loss": true,

@@ -2,10 +2,12 @@
 # -*- coding: utf-8 -*-
 """Runtime-aware wrapper for the weekly model integrity audit.
 
-A governed directional record may legitimately be `planned` with no entry price
-while the live entry window is still open. The base fail-closed audit is kept
-unchanged for every other case and becomes strict again immediately after
-`entry_latest_local`.
+The weekly ledger separates a frozen directional forecast from execution:
+`planned` is a valid forecast-only state, `pending` is a frozen execution
+decision waiting for the first eligible bar, and only executed states require
+an entry price. Unresolved planned/pending states become invalid after the
+governed position deadline. The wrapper adds that time-aware invariant while
+the base audit validates the lifecycle contract itself.
 """
 from __future__ import annotations
 
@@ -20,43 +22,47 @@ _REAL_READ = base.read
 _REAL_ITEM_VIOLATIONS = base.item_violations
 
 
-def planned_entry_is_valid(item: Dict[str, Any], latest: Optional[datetime], now: datetime) -> bool:
-    """True only for a genuine governed pending entry before its hard deadline."""
-    if str(item.get("direction") or "") not in {"long", "short"}:
+def planned_entry_is_valid(item: Dict[str, Any], deadline: Optional[datetime], now: datetime) -> bool:
+    """Return True for a forecast/pending state that has not claimed a fill."""
+    if base.effective_direction(item) not in base.DIRECTIONAL:
         return False
     if base.numeric(item.get("entry_price")) is not None:
         return False
-    if str(item.get("trade_status") or "") != "planned":
+    status = base.normalized_trade_status(item)
+    if status not in {"planned", "pending"}:
         return False
-    pending = item.get("pending_entry_decision")
-    if not isinstance(pending, dict) or not isinstance(pending.get("decision"), dict):
+    if deadline is not None and now >= deadline:
         return False
-    decided_at = base.parse(pending.get("decided_at"))
-    entry_not_before = base.parse(pending.get("entry_not_before"))
-    if decided_at is None or entry_not_before is None or latest is None:
-        return False
-    if entry_not_before < decided_at:
-        return False
-    return now <= latest
+    return not base.pending_entry_contract_violations(item)
 
 
 def _read_with_entry_deadline(path: Path, default: Any) -> Any:
     data = _REAL_READ(path, default)
     if not isinstance(data, dict) or path.parent != base.WEEKLY:
         return data
-    latest = (data.get("market_window") or {}).get("entry_latest_local")
+    deadline = (data.get("market_window") or {}).get("exit_target_local")
     for item in data.get("instruments", []) if isinstance(data.get("instruments"), list) else []:
         if isinstance(item, dict):
-            item["_audit_entry_latest_local"] = latest
+            item["_audit_position_deadline_local"] = deadline
     return data
 
 
 def _runtime_item_violations(item: Dict[str, Any], method_version: Optional[str] = None) -> list[Dict[str, Any]]:
     issues = _REAL_ITEM_VIOLATIONS(item, method_version)
-    latest = base.parse(item.get("_audit_entry_latest_local"))
+    deadline = base.parse(item.get("_audit_position_deadline_local"))
     now = datetime.now(base.TZ)
-    if planned_entry_is_valid(item, latest, now):
-        issues = [row for row in issues if row.get("error") != "directional_missing_entry"]
+    status = base.normalized_trade_status(item)
+    if (
+        status in {"planned", "pending"}
+        and base.numeric(item.get("entry_price")) is None
+        and deadline is not None
+        and now >= deadline
+        and not any(row.get("error") == "unresolved_entry_after_week_close" for row in issues)
+    ):
+        issues.append(base.violation(
+            "unresolved_entry_after_week_close",
+            deadline=deadline.isoformat(),
+        ))
     return issues
 
 

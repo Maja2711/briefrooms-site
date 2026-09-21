@@ -16,6 +16,7 @@ on:
       - "scripts/no_retroactive_execution.py"
       - "scripts/verify_no_retroactive_execution.py"
       - "tests/test_audit_weekly_integrity.py"
+      - "tests/test_audit_weekly_model_runtime.py"
       - "tests/test_no_retroactive_execution.py"
       - ".github/workflows/investments-weekly-validation.yml"
 
@@ -46,7 +47,7 @@ jobs:
         env:
           FORCE_BACKTEST: "1"
         run: |
-          python -m unittest tests/test_audit_weekly_integrity.py tests.test_no_retroactive_execution
+          python -m unittest tests/test_audit_weekly_integrity.py tests.test_audit_weekly_model_runtime tests.test_no_retroactive_execution
           python scripts/audit_weekly_model_runtime.py
           python scripts/backtest_weekly_model_v2.py
           python scripts/backtest_multi_strategy_v4.py

@@ -57,8 +57,15 @@
   };
   const closeEnough = (a, b, tolerance) => a !== null && b !== null && Math.abs(a - b) <= tolerance;
   const label = (item) => item[L === 'pl' ? 'label_pl' : 'label_en'] || item.symbol || item.instrument_id;
-  const dir = (item) => item.direction === 'short' ? 'short' : item.direction === 'long' ? 'long' : 'neutral';
+  const tradeStatus = (item) => String(item?.trade_status || '').trim().toLowerCase().replace(/\s+/g, '_');
+  const dir = (item) => {
+    const state = tradeStatus(item);
+    const pendingDirection = String(item?.pending_entry_decision?.decision?.direction || '').toLowerCase();
+    if (['planned', 'pending'].includes(state) && ['long', 'short'].includes(pendingDirection)) return pendingDirection;
+    return item.direction === 'short' ? 'short' : item.direction === 'long' ? 'long' : 'neutral';
+  };
   const dirText = (item) => dir(item) === 'neutral' ? (L === 'pl' ? 'NEUTRALNIE' : 'NEUTRAL') : dir(item).toUpperCase();
+  const noEntryLifecycleStates = new Set(['planned', 'pending', 'no_trade', 'not_opened', 'expired_no_entry']);
 
   function fmt(value, instrumentId) {
     const result = good(value);
@@ -148,9 +155,12 @@
     return dir(item) !== 'neutral' && good(item.entry_price) !== null && good(item.exit_price) !== null;
   }
   function status(item) {
-    if (item.trade_status === 'planned' || item.forecast_status === 'scheduled') return T.planned;
+    const state = tradeStatus(item);
+    if (state === 'planned' || state === 'pending' || item.forecast_status === 'scheduled') return T.planned;
+    if (state === 'no_trade' || state === 'not_opened' || state === 'expired_no_entry') return T.neutral;
     if (dir(item) === 'neutral') return T.neutral;
-    return hasClose(item) ? T.closed : T.active;
+    if (state === 'closed' || hasClose(item)) return T.closed;
+    return T.active;
   }
   function isoWeek(date) {
     const x = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -194,15 +204,27 @@
     }
     return map;
   }
-  function plannedEntryIsValid(week, item, now = new Date()) {
-    if (!week || dir(item) === 'neutral' || good(item.entry_price) !== null || item.trade_status !== 'planned') return false;
-    const pending = item.pending_entry_decision;
-    if (!pending || typeof pending !== 'object' || !pending.decision || typeof pending.decision !== 'object') return false;
+  function pendingEntryContractIssues(item) {
+    const pending = item?.pending_entry_decision;
+    const state = tradeStatus(item);
+    if (pending == null) return state === 'pending' ? ['pending_missing_decision'] : [];
+    if (typeof pending !== 'object' || !pending.decision || typeof pending.decision !== 'object') return ['invalid_pending_entry_contract'];
+    const pendingDirection = String(pending.decision.direction || '').toLowerCase();
     const decidedAt = parseTime(pending.decided_at);
     const entryNotBefore = parseTime(pending.entry_not_before);
-    const latest = parseTime(week?.market_window?.entry_latest_local);
-    if (!decidedAt || !entryNotBefore || !latest || entryNotBefore < decidedAt) return false;
-    return now <= latest;
+    const issues = [];
+    if (!['long', 'short'].includes(pendingDirection)) issues.push('pending_missing_direction');
+    if (!decidedAt || !entryNotBefore) issues.push('pending_missing_timestamp');
+    else if (entryNotBefore < decidedAt) issues.push('pending_entry_before_decision');
+    return issues;
+  }
+  function plannedEntryIsValid(week, item, now = new Date()) {
+    if (!week || dir(item) === 'neutral' || good(item.entry_price) !== null) return false;
+    const state = tradeStatus(item);
+    if (!['planned', 'pending'].includes(state)) return false;
+    const deadline = parseTime(week?.market_window?.exit_target_local);
+    if (!deadline || now >= deadline) return false;
+    return pendingEntryContractIssues(item).length === 0;
   }
   function integrityIssues(item, methodVersion = null, week = null) {
     const issues = [];
@@ -212,13 +234,21 @@
     const entryAt = parseTime(item.entry_captured_at);
     const exitAt = parseTime(item.exit_captured_at);
     const plan = riskPlan(item);
+    const state = tradeStatus(item);
+    const pendingIssues = pendingEntryContractIssues(item);
 
-    if (side !== 'neutral' && entry === null && !plannedEntryIsValid(week, item)) issues.push('directional_missing_entry');
+    if (side !== 'neutral' && entry === null) {
+      const executionFree = exit === null && noEntryLifecycleStates.has(state);
+      if (!executionFree || (['planned', 'pending'].includes(state) && !plannedEntryIsValid(week, item))) {
+        issues.push('directional_missing_entry');
+      }
+    }
+    issues.push(...pendingIssues);
     if (entry !== null && !entryAt) issues.push('missing_entry_timestamp');
     if (exit !== null && !exitAt) issues.push('missing_exit_timestamp');
     if (entryAt && exitAt && exitAt < entryAt) issues.push('exit_before_entry');
-    if (item.trade_status === 'open' && exit !== null) issues.push('open_has_exit');
-    if (item.trade_status === 'closed' && exit === null) issues.push('closed_missing_exit');
+    if (state === 'open' && exit !== null) issues.push('open_has_exit');
+    if (state === 'closed' && exit === null) issues.push('closed_missing_exit');
 
     if (entry !== null && plan.sl !== null && plan.tp !== null) {
       if (side === 'long' && !(plan.sl < entry && entry < plan.tp)) issues.push('invalid_long_risk_order');
@@ -353,7 +383,7 @@
       render();
     }
   };
-  window.BR_WEEKLY_INTEGRITY = { integrityIssues, auditState, plannedEntryIsValid };
+  window.BR_WEEKLY_INTEGRITY = { integrityIssues, auditState, plannedEntryIsValid, pendingEntryContractIssues };
 
   async function refreshLive() {
     if (liveRefreshInFlight || document.hidden) return;
