@@ -379,14 +379,12 @@ def postflight() -> Dict[str, Any]:
         if not isinstance(item, dict):
             continue
         if sf(item.get("entry_price")) is not None and sf(item.get("exit_price")) is None and str(item.get("direction")) in {"long", "short"}:
-            plan = build_wes_plan(item, week, now, stats)
-            if not plan:
-                continue
             existing = item.get("risk_plan") if isinstance(item.get("risk_plan"), dict) else {}
-            if existing != plan:
+            if not wes.has_frozen_wes_risk_plan(existing):
+                plan = build_wes_plan(item, week, now, stats)
+                if not plan:
+                    continue
                 item["risk_plan"] = plan
-                item["wes_status"] = "open_wes_early_reentry_position" if valid_rolling_deadline(item) else "open_wes_governed_position"
-                item["wes_methodology"] = wes.VERSION
                 item["entry_quality_status"] = f"wes_{plan['wes_entry_class']}"
                 report["actions"].append({
                     "instrument_id": item.get("instrument_id"),
@@ -396,6 +394,13 @@ def postflight() -> Dict[str, Any]:
                     "scheduled_exit": plan["scheduled_exit"],
                     "weekend_carry_allowed": plan["weekend_carry_allowed"],
                 })
+                changed = True
+            desired_status = "open_wes_early_reentry_position" if valid_rolling_deadline(item) else "open_wes_governed_position"
+            if item.get("wes_status") != desired_status:
+                item["wes_status"] = desired_status
+                changed = True
+            if item.get("wes_methodology") != wes.VERSION:
+                item["wes_methodology"] = wes.VERSION
                 changed = True
         elif str(item.get("direction") or "neutral") == "neutral":
             if item.get("wes_status") != "no_trade_monitoring_trigger":
