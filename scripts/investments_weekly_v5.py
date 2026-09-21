@@ -123,7 +123,7 @@ def directional_admission(
     direction = str(decision.get("direction") or "neutral")
     sources = directional_confirmation_sources(direction, fresh, weekly, macro_context, policy)
     diagnostics = {
-        "version": str(cfg.get("version") or "WES-1.1.0"),
+        "version": str(cfg.get("version") or "WES-1.2.0"),
         "direction": direction,
         "confirmations": len(sources),
         "confirmation_sources": sources,
