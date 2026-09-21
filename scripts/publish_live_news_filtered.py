@@ -345,7 +345,7 @@ def sport_hot_score(
 
 PL_UKRAINE_RUSSIA_WAR_POLICY_VERSION = "pl-ukraine-russia-war-v2"
 PL_UKRAINE_RUSSIA_WAR_MINIMUM = 1
-PL_UKRAINE_RUSSIA_WAR_MAX_CARRY_AGE = timedelta(hours=72)
+PL_UKRAINE_RUSSIA_WAR_MAX_CARRY_AGE = timedelta(hours=24)
 PL_UKRAINE_RE = re.compile(
     r"\b(?:ukrain\w*|kijow\w*|kijów\w*|kyiv\w*|zelensk\w*)\b",
     re.IGNORECASE,
@@ -634,12 +634,8 @@ def select_sections(
                 if len(items) >= base.TARGET:
                     break
 
-        if len(items) < base.TARGET:
-            raise RuntimeError(
-                f"section {section_id} has only {len(items)} publishable stories; "
-                f"target is {base.TARGET}"
-            )
-
+        # Freshness has authority over visual fullness. The downstream public
+        # 24h guard may shrink this further, so an underfilled section is valid.
         selected[section_id] = items[:base.TARGET]
         times = [base.story_time(item) for item in items if base.story_time(item) > 0]
         section_health: dict[str, Any] = {
@@ -848,9 +844,9 @@ def validate(max_age_minutes: int = 30) -> None:
             if image_quality.get("scope") != "en_only" or image_quality.get("mode") != "article_og_image_preferred":
                 raise RuntimeError("en high-resolution image policy missing or outdated")
         for section_id, stories in payload.get("sections", {}).items():
-            if len(stories) != base.TARGET:
+            if len(stories) > base.TARGET:
                 raise RuntimeError(
-                    f"{lang}/{section_id} has {len(stories)} stories; expected {base.TARGET}"
+                    f"{lang}/{section_id} has {len(stories)} stories; maximum is {base.TARGET}"
                 )
             if lang == "pl" and section_id == "sport":
                 athlete_counts: dict[str, int] = {}
