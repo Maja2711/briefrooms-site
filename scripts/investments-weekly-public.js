@@ -57,9 +57,14 @@
   };
   const closeEnough = (a, b, tolerance) => a !== null && b !== null && Math.abs(a - b) <= tolerance;
   const label = (item) => item[L === 'pl' ? 'label_pl' : 'label_en'] || item.symbol || item.instrument_id;
-  const dir = (item) => item.direction === 'short' ? 'short' : item.direction === 'long' ? 'long' : 'neutral';
-  const dirText = (item) => dir(item) === 'neutral' ? (L === 'pl' ? 'NEUTRALNIE' : 'NEUTRAL') : dir(item).toUpperCase();
   const tradeStatus = (item) => String(item?.trade_status || '').trim().toLowerCase().replace(/\s+/g, '_');
+  const dir = (item) => {
+    const state = tradeStatus(item);
+    const pendingDirection = String(item?.pending_entry_decision?.decision?.direction || '').toLowerCase();
+    if (['planned', 'pending'].includes(state) && ['long', 'short'].includes(pendingDirection)) return pendingDirection;
+    return item.direction === 'short' ? 'short' : item.direction === 'long' ? 'long' : 'neutral';
+  };
+  const dirText = (item) => dir(item) === 'neutral' ? (L === 'pl' ? 'NEUTRALNIE' : 'NEUTRAL') : dir(item).toUpperCase();
   const noEntryLifecycleStates = new Set(['planned', 'pending', 'no_trade', 'not_opened', 'expired_no_entry']);
 
   function fmt(value, instrumentId) {
