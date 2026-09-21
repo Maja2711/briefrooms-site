@@ -7,8 +7,8 @@
   const T = lang === 'pl' ? {
     status:'Stan kontroli', champion:'Metoda sterująca', challenger:'Silnik BRACE',
     risk:'Ryzyko', target:'Cel 10% rocznie', remaining:'Bramki nadal monitorowane', candidates:'Najwyżej ocenieni kandydaci',
-    pending:'Decyzje BRACE (paper)', recommendations:'Ocena każdej pozycji', history:'Historia kontroli',
-    noCandidates:'Lista kandydatów pojawi się po pełnym cyklu analizy.', noDecisions:'Brak zmiany spełniającej wszystkie limity wykonania.',
+    pending:'Wykonane decyzje BRACE (paper)', recommendations:'Ocena każdej pozycji', history:'Historia kontroli',
+    noCandidates:'Lista kandydatów pojawi się po pełnym cyklu analizy.', noDecisions:'Brak nowej wykonanej zmiany w portfelu.',
     noRecommendations:'Brak ocen pozycji.', noHistory:'Brak wcześniejszych zmian kontrolera.', loadError:'Nie udało się pobrać publicznego statusu BRACE.',
     fallback:'Powód trybu bezpiecznego', safe:'Tryb bezpieczny', monitored:'Limity monitorowane',
     confidence:'Pewność', paperOnly:'Wyłącznie oddzielny portfel modelowy. Brak połączenia z rachunkiem brokerskim.',
@@ -16,8 +16,8 @@
   } : {
     status:'Control state', champion:'Controlling methodology', challenger:'BRACE engine',
     risk:'Risk', target:'10% annual target', remaining:'Gates still monitored', candidates:'Top-ranked candidates',
-    pending:'BRACE decisions (paper)', recommendations:'Position-by-position assessment',
-    history:'Control history', noCandidates:'Candidates will appear after the full analysis cycle.', noDecisions:'No change currently passes all execution limits.',
+    pending:'Executed BRACE decisions (paper)', recommendations:'Position-by-position assessment',
+    history:'Control history', noCandidates:'Candidates will appear after the full analysis cycle.', noDecisions:'No newly executed portfolio change.',
     noRecommendations:'No position assessments are available.', noHistory:'No previous controller changes.', loadError:'The public BRACE status could not be loaded.',
     fallback:'Safe-mode reason', safe:'Safe mode', monitored:'Limits monitored', confidence:'Confidence',
     paperOnly:'Separate model portfolio only. No brokerage-account connection.', learning:'Learning loop', lastLearning:'Last learning review', nextAnalysis:'Next scheduled review',
@@ -52,14 +52,13 @@
     return `<div class="control-list">${[...items].sort((a,b)=>(num(b.final_score)??-Infinity)-(num(a.final_score)??-Infinity)).slice(0,5).map(item=>`<article><div><b>${esc(item.broker_symbol||item.instrument_id)}</b><span>${esc(item.label||'')}</span></div><strong>${num(item.final_score)===null?'—':num(item.final_score).toFixed(1)+'/100'}</strong></article>`).join('')}</div>`;
   }
   function decisions(items){
-    const visible=(items||[]).filter(item=>['PENDING','EXECUTED','ALREADY_APPLIED'].includes(String(item.execution_status||'')));
+    const visible=(items||[]).filter(item=>['EXECUTED','ALREADY_APPLIED'].includes(String(item.execution_status||'')));
     if(!visible.length)return `<p class="brace-empty">${esc(T.noDecisions)}</p>`;
     return `<div class="control-list">${visible.slice(0,6).map(item=>{
       const source=item.instrument||item.instrument_id||'';
       const replacement=item.replacement_instrument||item.replacement_instrument_id||'';
       const route=String(item.action||'')==='REPLACE'&&replacement?`${source} → ${replacement}`:source;
-      const done=['EXECUTED','ALREADY_APPLIED'].includes(String(item.execution_status||''));
-      const state=done?(lang==='pl'?'WYKONANE':'EXECUTED'):(lang==='pl'?'OCZEKUJE':'PENDING');
+      const state=lang==='pl'?'WYKONANE':'EXECUTED';
       const note=String(item.execution_status||'')==='ALREADY_APPLIED'?(lang==='pl'?'Stan portfela już odzwierciedla tę zmianę.':'The current portfolio state already reflects this change.'):'';
       return `<article data-execution-status="${esc(item.execution_status||'')}"><div><b>${esc(actionLabel(item.action))}${route?' · '+esc(route):''}</b><span>${esc(lang==='pl'?item.rationale_pl:item.rationale_en)}${note?' '+esc(note):''}</span></div><strong>${esc(state)} · ${esc(T.confidence)} ${pct(item.confidence)}</strong></article>`;
     }).join('')}</div>`;
