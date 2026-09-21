@@ -331,7 +331,8 @@
     const pendingEntry = tradeStatus(item) === 'pending'
       && ['long', 'short'].includes(pendingDirection)
       && pendingTarget !== null;
-    const pendingReentry = pendingEntry
+    const pendingReentry = tradeStatus(item) === 'pending'
+      && ['long', 'short'].includes(pendingDirection)
       && good(item.entry_price) !== null
       && good(item.exit_price) !== null;
     const mark = hasClose(item) ? item.exit_price : current;
