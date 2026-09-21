@@ -45,6 +45,7 @@ def preflight():
             and str(item.get("forecast_direction") or item.get("direction") or "neutral") in {"long", "short"}
         )
 
+        item["wes_methodology"] = wes.VERSION
         data = wes.governed_candidate(iid, cfg, p_cfg, week, policy, method, now)
         decision = data["decision"]; direction = str(decision.get("direction") or "neutral")
         admission_meta = decision.get("directional_admission") if isinstance(decision.get("directional_admission"), dict) else {}
