@@ -16,7 +16,7 @@ PAGES = [
     ROOT / "en" / "investing" / "open-weekly-positions.html",
     ROOT / "en" / "investing" / "weekly-forecasts.html",
 ]
-SCRIPT_REF = "/scripts/investments-weekly-browser-live.js?v=20260921-6"
+SCRIPT_REF = "/scripts/investments-weekly-browser-live.js?v=20260921-7"
 COMPACT_REF = "/scripts/investments-weekly-price-compact.js?v=20260916-4"
 
 
@@ -92,6 +92,9 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
         self.assertIn("for (let index = 0; index < cfg.sources.length; index += 1)", source)
         self.assertIn("if (quoteFresh(quote, cfg.maxAgeMs)) return attempts;", source)
         self.assertIn("['live', 'fallback'].includes(state?.mode)", source)
+        self.assertIn("eSignal ES active", source)
+        self.assertIn("https://quotes.esignal.com/esignalprod/quote.action", source)
+        self.assertIn("fetchEsignalEs", source)
         self.assertIn("Stooq ES.F", source)
         self.assertIn("Yahoo ES=F", source)
         self.assertIn("fetchStooqEs", source)
