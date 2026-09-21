@@ -343,28 +343,42 @@ def sport_hot_score(
     return score
 
 
-PL_UKRAINE_RUSSIA_WAR_POLICY_VERSION = "pl-ukraine-russia-war-v1"
+PL_UKRAINE_RUSSIA_WAR_POLICY_VERSION = "pl-ukraine-russia-war-v2"
 PL_UKRAINE_RUSSIA_WAR_MINIMUM = 1
 PL_UKRAINE_RUSSIA_WAR_MAX_CARRY_AGE = timedelta(hours=72)
 PL_UKRAINE_RE = re.compile(
     r"\b(?:ukrain\w*|kijow\w*|kijów\w*|kyiv\w*|zelensk\w*)\b",
     re.IGNORECASE,
 )
-PL_RUSSIA_WAR_CONTEXT_RE = re.compile(
-    r"\b(?:rosj\w*|russia\w*|kreml\w*|putin\w*|moskw\w*|"
-    r"wojn\w*|war\b|front\w*|atak\w*|attack\w*|inwaz\w*|invasion\w*|"
+PL_RUSSIA_RE = re.compile(
+    r"\b(?:rosj\w*|russia\w*|rosyjsk\w*|kreml\w*|putin\w*|moskw\w*|"
+    r"federacj\w*\s+rosyjsk\w*)\b",
+    re.IGNORECASE,
+)
+PL_WAR_CONTEXT_RE = re.compile(
+    r"\b(?:wojn\w*|war\b|front\w*|atak\w*|attack\w*|inwaz\w*|invasion\w*|"
     r"rakiet\w*|missile\w*|dron\w*|drone\w*|ostrza\w*|shelling\w*|"
     r"ofensyw\w*|offensiv\w*|obron\w*|defen[cs]\w*|wojsk\w*|military\w*|"
     r"rozejm\w*|ceasefire\w*|pokoj\w*|pokój\w*|peace\w*|negocjac\w*|negotiat\w*|"
     r"okup\w*|occupat\w*|sankcj\w*|sanction\w*)\b",
     re.IGNORECASE,
 )
+PL_DIRECT_HOSTILITIES_RE = re.compile(
+    r"\b(?:front\w*|atak\w*|attack\w*|inwaz\w*|invasion\w*|rakiet\w*|missile\w*|"
+    r"dron\w*|drone\w*|ostrza\w*|shelling\w*|ofensyw\w*|offensiv\w*|"
+    r"okup\w*|occupat\w*)\b",
+    re.IGNORECASE,
+)
 
 
 def is_pl_ukraine_russia_war_story(story: dict[str, Any]) -> bool:
-    """Return True for a PL-news item materially tied to the Russia-Ukraine war."""
+    """Detect material Russia-Ukraine-war coverage, not incidental war mentions."""
     text = _story_text(story)
-    return bool(PL_UKRAINE_RE.search(text) and PL_RUSSIA_WAR_CONTEXT_RE.search(text))
+    if not PL_UKRAINE_RE.search(text):
+        return False
+    if PL_RUSSIA_RE.search(text) and PL_WAR_CONTEXT_RE.search(text):
+        return True
+    return bool(PL_DIRECT_HOSTILITIES_RE.search(text))
 
 
 def _is_pl_config(config: Any) -> bool:
