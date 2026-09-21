@@ -92,18 +92,6 @@ jobs:
             scripts/daily_eurusd_experiment_v12.py \
             scripts/no_retroactive_execution.py \
             scripts/verify_no_retroactive_execution.py
-          node --check scripts/daily-eurusd-spot-public.js
-          node --check scripts/daily-eurusd-live-price.js
-          python - <<'PY'
-          from pathlib import Path
-          required = '/scripts/daily-eurusd-live-price.js?v=2'
-          for page in ('en/investing/daily-trading.html', 'pl/inwestycje/daily-trading.html'):
-              text = Path(page).read_text(encoding='utf-8')
-              if required not in text:
-                  raise SystemExit(f'{page} missing EUR/USD live price runtime: {required}')
-          print('EURUSD_FRONTEND_LIVE_RUNTIME_OK')
-          PY
-
       - name: Reconcile open position with ECB-aware v1.7 policy
         run: |
           set -euo pipefail
@@ -192,3 +180,18 @@ jobs:
           done
           echo "Unable to persist EURUSD state after retries" >&2
           exit 1
+
+      - name: Validate public frontend runtime after lifecycle persistence
+        run: |
+          set -euo pipefail
+          node --check scripts/daily-eurusd-spot-public.js
+          node --check scripts/daily-eurusd-live-price.js
+          python - <<'PY'
+          from pathlib import Path
+          required_prefix = '/scripts/daily-eurusd-live-price.js?v='
+          for page in ('en/investing/daily-trading.html', 'pl/inwestycje/daily-trading.html'):
+              text = Path(page).read_text(encoding='utf-8')
+              if required_prefix not in text:
+                  raise SystemExit(f'{page} missing EUR/USD live price runtime')
+          print('EURUSD_FRONTEND_LIVE_RUNTIME_OK')
+          PY

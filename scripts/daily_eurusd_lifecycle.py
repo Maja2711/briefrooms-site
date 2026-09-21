@@ -219,7 +219,11 @@ def evaluate_position(
     stop = float(position["stop"])
     target = float(position["target"])
 
-    relevant = sorted((bar for bar in bars if bar.timestamp >= opened), key=lambda bar: bar.timestamp)
+    terminal_cutoff = min(observed_at, expires)
+    relevant = sorted(
+        (bar for bar in bars if opened <= bar.timestamp <= terminal_cutoff),
+        key=lambda bar: bar.timestamp,
+    )
     for bar in relevant:
         high = float(bar.high if bar.high is not None else bar.close)
         low = float(bar.low if bar.low is not None else bar.close)
@@ -257,16 +261,22 @@ def evaluate_position(
             )
 
     if observed_at >= expires:
-        eligible = [bar for bar in relevant if bar.timestamp <= observed_at]
-        if not eligible:
+        post_expiry = sorted(
+            (bar for bar in bars if expires <= bar.timestamp <= observed_at),
+            key=lambda bar: bar.timestamp,
+        )
+        if post_expiry:
+            exit_bar = post_expiry[0]
+        elif relevant:
+            exit_bar = relevant[-1]
+        else:
             return None
-        last = eligible[-1]
         return _close_record(
             position,
             exit_reason="TIME_EXIT",
-            exit_price=float(last.close),
-            exited_at=last.timestamp,
-            exit_bar=last,
+            exit_price=float(exit_bar.close),
+            exited_at=exit_bar.timestamp,
+            exit_bar=exit_bar,
         )
     return None
 

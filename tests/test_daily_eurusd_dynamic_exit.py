@@ -123,6 +123,19 @@ class DailyEURUSDDynamicExitTests(unittest.TestCase):
         self.assertIsNotNone(trade)
         self.assertEqual(trade["exit_reason"], "TIME_EXIT_27H")
 
+    def test_monitor_gap_settles_at_first_hard_horizon_bar_not_later_market_move(self):
+        bars = [
+            bar(0, 1.1000),
+            bar(26.9, 1.1010),
+            bar(27.0, 1.1020),
+            bar(72.0, 1.1200),
+        ]
+        trade = v14.evaluate_position(position("LONG"), bars, bars[-1].timestamp)
+        self.assertIsNotNone(trade)
+        self.assertEqual(trade["exit_reason"], "TIME_EXIT_27H")
+        self.assertEqual(trade["closed_at"], "2026-08-25T12:00:00Z")
+        self.assertEqual(trade["exit_price"], 1.102)
+
 
 if __name__ == "__main__":
     unittest.main()
