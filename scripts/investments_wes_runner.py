@@ -35,62 +35,135 @@ def preflight():
             item["wes_early_reentry_source_risk_status"] = item.get("risk_status")
             item["next_entry_status"] = "wes_early_reentry_monitoring"
 
-        # A normal directional Monday plan is not a late trigger. A Monday/Tuesday
-        # close is the explicit exception: it may return to trigger monitoring.
-        explicit_no_trade = early_reentry or str(item.get("direction") or "neutral") == "neutral" or str(item.get("trade_status") or "") == "no_trade" or str(item.get("wes_status") or "") in {"no_trade_monitoring_trigger", "trigger_qualified_waiting_governed_v5_entry"}
-        if not explicit_no_trade:
-            report["actions"].append({"instrument_id": iid, "action": "leave_normal_directional_plan_untouched"})
-            continue
+        # WES 1.1: every new entry, including the first Monday entry, must
+        # pass the same directional-admission authority. A directional forecast
+        # is evidence, not an execution authorization.
+        initial_plan = (
+            not early_reentry
+            and wes.sf(item.get("entry_price")) is None
+            and item.get("wes_initial_admission_evaluated") is not True
+            and str(item.get("forecast_direction") or item.get("direction") or "neutral") in {"long", "short"}
+        )
 
         data = wes.governed_candidate(iid, cfg, p_cfg, week, policy, method, now)
         decision = data["decision"]; direction = str(decision.get("direction") or "neutral")
+        admission_meta = decision.get("directional_admission") if isinstance(decision.get("directional_admission"), dict) else {}
+
         if early_reentry:
             cls = lifecycle.AUTHORIZATION_TYPE
             profile = lifecycle.early_reentry_trigger_profile(now)
             learning_class = "midweek_trigger"
+            authorization_type = lifecycle.AUTHORIZATION_TYPE
+        elif initial_plan:
+            cls = "monday_weekly"
+            base_profile = (policy.get("directional_admission") or {}).get("initial_weekly_profile") or {}
+            profile = {
+                "allowed": now.weekday() <= 4,
+                "raw": float(base_profile.get("raw") or 35.0),
+                "utility": float(base_profile.get("utility") or 6.0),
+                "confirmations": int(base_profile.get("confirmations") or 2),
+                "delta": float(base_profile.get("delta") or 0.0),
+                "profile": "initial_weekly_entry",
+            }
+            learning_class = "monday_weekly"
+            authorization_type = "initial_weekly_entry"
         else:
             cls = wes.entry_class(now)
             profile = wes.trigger_profile(now, remaining)
             learning_class = cls
+            authorization_type = "no_trade_trigger"
+
         penalty = wes.learning_threshold_penalty(stats, learning_class)
         profile = {**profile, "raw": float(profile["raw"]) + penalty, "learning_threshold_adjustment": penalty}
         raw = abs(float(decision.get("raw_score") or 0.0)); utility = float(decision.get("utility") or 0.0)
 
-        # An early replacement is a genuinely new decision. It must pass the
-        # absolute WES thresholds but is not penalized by the score of the leg
-        # that was already closed under a different thesis.
-        if early_reentry:
+        if early_reentry or initial_plan:
             baseline = 0.0
         else:
             baseline = item.get("wes_initial_no_trade_score")
             if baseline is None:
-                baseline = abs(float(item.get("score") or 0.0)); item["wes_initial_no_trade_score"] = baseline
+                baseline = abs(float(item.get("score") or 0.0))
+                item["wes_initial_no_trade_score"] = baseline
         delta = max(0.0, raw - abs(float(baseline or 0.0)))
-        approved = bool(profile.get("allowed")) and direction in {"long","short"} and raw >= float(profile["raw"]) and utility >= float(profile["utility"]) and int(data["confirmations"]) >= int(profile["confirmations"]) and delta >= float(profile["delta"])
-        candidate = {"direction": direction, "strategy_id": decision.get("strategy_id"), "raw_score": round(raw,4), "utility": round(utility,4), "signal_delta_from_initial": round(delta,4), "confirmations": data["confirmations"], "confirmation_sources": data["confirmation_sources"], "entry_class": cls}
+
+        approved = (
+            bool(profile.get("allowed"))
+            and direction in {"long", "short"}
+            and str(decision.get("execution_authority") or "") == "champion_execution"
+            and admission_meta.get("passed") is True
+            and raw >= float(profile["raw"])
+            and utility >= float(profile["utility"])
+            and int(data["confirmations"]) >= int(profile["confirmations"])
+            and delta >= float(profile["delta"])
+        )
+        candidate = {
+            "direction": direction,
+            "strategy_id": decision.get("strategy_id"),
+            "raw_score": round(raw, 4),
+            "utility": round(utility, 4),
+            "signal_delta_from_initial": round(delta, 4),
+            "confirmations": data["confirmations"],
+            "confirmation_sources": data["confirmation_sources"],
+            "entry_class": cls,
+            "execution_authority": decision.get("execution_authority"),
+            "directional_admission": admission_meta,
+        }
+
+        if initial_plan:
+            item["wes_initial_admission_evaluated"] = True
+            item["wes_initial_admission_at"] = now.isoformat(timespec="seconds")
+
         if approved:
-            item["reentry_lock"] = {"active":False,"scope":"wes_no_trade_monitoring","released_at":now.isoformat(timespec="seconds"),"reason":"wes_trigger_qualified"}
-            item["wes_status"] = "trigger_qualified_waiting_governed_v5_entry"
+            item["reentry_lock"] = {
+                "active": False,
+                "scope": "wes_directional_admission",
+                "released_at": now.isoformat(timespec="seconds"),
+                "reason": "wes_1_1_directional_admission_qualified",
+            }
+            item["wes_status"] = (
+                "initial_directional_admission_authorized"
+                if initial_plan
+                else "trigger_qualified_waiting_governed_v5_entry"
+            )
             item["wes_entry_authorization"] = {
-                "authorized_at":now.isoformat(timespec="seconds"),
-                "expires_at":(now+timedelta(minutes=20)).isoformat(timespec="seconds"),
-                "authorization_type": lifecycle.AUTHORIZATION_TYPE if early_reentry else "no_trade_trigger",
-                "candidate":candidate,
-                "required":profile,
+                "authorized_at": now.isoformat(timespec="seconds"),
+                "expires_at": (now + timedelta(minutes=int((policy.get("directional_admission") or {}).get("authorization_ttl_minutes") or 20))).isoformat(timespec="seconds"),
+                "authorization_type": authorization_type,
+                "directional_admission_passed": True,
+                "candidate": candidate,
+                "required": profile,
                 "source_exit_at": item.get("wes_early_reentry_source_exit_at") if early_reentry else None,
                 "source_exit_reason": item.get("wes_early_reentry_source_exit_reason") if early_reentry else None,
             }
-            report["actions"].append({"instrument_id":iid,"action":"authorize_early_reentry" if early_reentry else "authorize_trigger",**candidate})
+            report["actions"].append({
+                "instrument_id": iid,
+                "action": "authorize_initial_entry" if initial_plan else "authorize_early_reentry" if early_reentry else "authorize_trigger",
+                **candidate,
+            })
         else:
             wes.set_monitoring(item, now, end, candidate, profile)
-            if early_reentry:
+            item["wes_entry_authorization"] = None
+            if initial_plan:
+                item["direction"] = "neutral"
+                item["trade_status"] = "no_trade"
+                item["next_entry_status"] = "no_trade"
+                item["wes_status"] = "initial_directional_admission_rejected_monitoring"
+            elif early_reentry:
                 item["wes_status"] = "early_close_reentry_monitoring_trigger"
                 item["next_entry_status"] = "wes_early_reentry_waiting_for_signal"
-            report["actions"].append({"instrument_id":iid,"action":"monitor_early_reentry" if early_reentry else "monitor_no_trade",**candidate,"required":profile})
+            report["actions"].append({
+                "instrument_id": iid,
+                "action": "reject_initial_entry" if initial_plan else "monitor_early_reentry" if early_reentry else "monitor_no_trade",
+                **candidate,
+                "decision_reason_codes": decision.get("reason_codes"),
+                "required": profile,
+            })
         changed = True
     week["wes"] = {
         "version":wes.VERSION,
         "objective":"maximize_total_net_profit_with_no_forced_trades",
+        "directional_admission_for_all_entries":True,
+        "champion_challenger_hardening":True,
         "no_trade_is_active_monitoring":True,
         "early_close_reentry":True,
         "early_close_days":["monday","tuesday"],
