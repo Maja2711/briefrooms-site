@@ -14,7 +14,6 @@ on:
       - "scripts/audit_intraday_risk_exits.py"
       - "scripts/investments_weekly_v2.py"
       - "scripts/enforce_weekly_risk_exit_lock.py"
-      - "scripts/investments_weekly_v5_finalize.py"
       - "scripts/verify_weekly_close_deadline.py"
       - "scripts/audit_weekly_model_runtime.py"
       - "scripts/render_weekly_public_pages.py"
@@ -64,7 +63,6 @@ jobs:
             scripts/audit_intraday_risk_exits.py \
             scripts/investments_weekly_v2.py \
             scripts/enforce_weekly_risk_exit_lock.py \
-            scripts/investments_weekly_v5_finalize.py \
             scripts/verify_weekly_close_deadline.py \
             scripts/no_retroactive_execution.py \
             scripts/verify_no_retroactive_execution.py
@@ -87,10 +85,9 @@ jobs:
         if: steps.risk.outputs.risk_exit == 'true'
         run: python scripts/enforce_weekly_risk_exit_lock.py
 
-      - name: Finalize and verify closed risk state
+      - name: Verify and render closed risk state
         if: steps.risk.outputs.risk_exit == 'true'
         run: |
-          python scripts/investments_weekly_v5_finalize.py
           python scripts/verify_weekly_close_deadline.py
           python scripts/audit_weekly_model_runtime.py
           python scripts/render_simple_investments.py
