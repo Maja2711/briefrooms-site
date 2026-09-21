@@ -24,7 +24,7 @@ _REAL_ITEM_VIOLATIONS = base.item_violations
 
 def planned_entry_is_valid(item: Dict[str, Any], deadline: Optional[datetime], now: datetime) -> bool:
     """Return True for a forecast/pending state that has not claimed a fill."""
-    if str(item.get("direction") or "").lower() not in base.DIRECTIONAL:
+    if base.effective_direction(item) not in base.DIRECTIONAL:
         return False
     if base.numeric(item.get("entry_price")) is not None:
         return False
