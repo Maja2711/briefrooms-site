@@ -316,11 +316,16 @@ def providers(instrument_id: str) -> list[Callable[[], Dict[str, Any]]]:
 def newest_valid(instrument_id: str) -> tuple[Optional[Dict[str, Any]], list[str]]:
     candidates: list[Dict[str, Any]] = []
     errors: list[str] = []
+    cfg = INSTRUMENTS[instrument_id]
     for provider in providers(instrument_id):
         try:
             quote = provider()
             if valid_quote(instrument_id, quote):
                 candidates.append(quote)
+                if instrument_id == "eurusd":
+                    age = quote_age(quote)
+                    if timedelta(seconds=-60) <= age <= cfg.max_age:
+                        return quote, errors
             else:
                 errors.append(f"{getattr(provider, '__name__', 'provider')}: invalid quote")
         except Exception as exc:
@@ -345,7 +350,10 @@ def refresh_one(instrument_id: str, previous: Dict[str, Any]) -> Dict[str, Any]:
     if old and valid_quote(instrument_id, old):
         old_stamp = parse_iso(old.get("current_price_updated_at") or old.get("timestamp"))
         new_stamp = parse_iso(candidate.get("timestamp")) if candidate else None
-        if new_stamp is None or (old_stamp is not None and old_stamp > new_stamp):
+        candidate_fresh = candidate is not None and timedelta(seconds=-60) <= quote_age(candidate) <= cfg.max_age
+        if instrument_id == "eurusd" and candidate_fresh:
+            chosen = candidate
+        elif new_stamp is None or (old_stamp is not None and old_stamp > new_stamp):
             chosen = old
 
     attempt_at = now_local().isoformat(timespec="seconds")
