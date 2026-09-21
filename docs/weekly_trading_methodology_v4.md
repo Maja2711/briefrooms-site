@@ -35,6 +35,25 @@ Integrity checks, the public Weekly Trading UI and WES execution must interpret 
 
 The legacy Monday `entry_latest_local` field is not a universal WES execution deadline. WES may remain in `NO_TRADE` and admit a later qualified trigger under the active lifecycle policy. The effective position/weekly deadline is enforced separately by the governed close-deadline verifier.
 
+## Risk execution reliability
+
+SL/TP execution is a separate safety authority inside TR-05 and does not depend on the hourly strategy lifecycle.
+
+The canonical monitor is `scripts/audit_intraday_risk_exits.py`, scheduled by `.github/workflows/investments-exposure-watch.yml` every five minutes, 24 hours a day and seven days a week. This matters because BTC/USD trades through weekends.
+
+The contract is:
+
+- SL and TP must already be frozen in `risk_plan`; the monitor cannot move or create thresholds.
+- Every run replays market evidence from the time the risk plan became active, rather than only checking the current quote. A delayed scheduler therefore cannot silently lose a transient threshold touch.
+- BTC/USD uses Coinbase Exchange 5-minute candles plus the live ticker as the primary execution evidence. Yahoo Finance 5-minute BTC data is used only when Coinbase evidence is unavailable.
+- EUR/USD and S&P 500 futures use 5-minute Yahoo market bars.
+- If SL and TP are both present in the same bar, the existing conservative rule executes SL first.
+- The paper exit price is the already-frozen SL or TP level, not a later observed quote.
+- Missing or unusable market data never means that the threshold was not touched. The position remains unresolved/open and a later run retries the full frozen-risk interval.
+- This safety path has no entry authority and does not run the strategy tournament. Re-entry remains governed by WES admission and re-entry rules after the risk exit is persisted.
+
+The hourly/full WES lifecycle calls the same monitor. There is therefore one SL/TP interpretation, not a fast implementation and a different slow implementation.
+
 ## Why an inverse signal is tested separately
 
 A negative result for a short method does not prove that the corresponding long method is profitable. Transaction costs, timing, stop-losses, take-profits and asymmetric price behaviour can make both directions unprofitable. Therefore `base_v2` and `inverse_v2` are independent candidate methods and receive separate walk-forward results.
