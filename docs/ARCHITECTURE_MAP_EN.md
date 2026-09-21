@@ -1,6 +1,6 @@
 # BriefRooms Canonical Architecture Map — EN
 
-**Map version:** 1.5  
+**Map version:** 1.6  
 **Snapshot date:** 2026-09-19  
 **Base `main` commit:** `331314840c1f1ddeccd814b46df688ccf9971d2b`  
 **Repository:** `Maja2711/briefrooms-site`
@@ -267,7 +267,7 @@ Not every engine currently implements every step identically. The Architecture M
 
 | ID | Module | Role | Main elements |
 |---|---|---|---|
-| `CT-01` | News pipeline | Bilingual news ingestion, quality, dedupe, summaries/publication | `fetch_news_pl.py`, `fetch_news_en.py`, news source/quality/intelligence modules |
+| `CT-01` | News pipeline | Bilingual news ingestion, quality, dedupe, summaries/publication plus a global hard 24h public-exposure cap | `publish_source_expansion_v3.py`, `enforce_homepage_max_age.py`, `render_live_news_static.py`, `news-live.js`, news source/quality/intelligence modules |
 | `CT-02` | AI Outlook | Governed daily outlook, provider/freshness/status/metrics | `ai_outlook_engine.py` plus `ai-outlook-*` workflows/data |
 | `CT-03` | AI Tournament | Independent comparison/submission/round/public-UI layer | `ai_tournament_engine.py`, intake/bootstrap/UI modules |
 | `CT-04` | AXIOM Thought | Thought/motto publication with quality guard | `axiom_thought_guard.py`, `publish_axiom_thought.py` |
@@ -275,6 +275,10 @@ Not every engine currently implements every step identically. The Architecture M
 | `CT-06` | Home / editorial | Home brief, market signal, Hot X, editorial rules | home build pipelines, `briefrooms_editorial_rules.md`, content contracts |
 
 The publication layer **must not become a hidden authority source for a decision engine**. A public renderer displays state; it must not originate or retroactively alter an economic decision.
+
+### CT-01 — hard public-news freshness invariant
+
+Every publicly visible news card — section pages `/pl/aktualnosci` / `/en/news`, homepage, and homepage reserve — shares one exposure clock. Maximum public display time is **24 hours**. The source `published_at` must also be no older than 24 hours. Canonical fields are `news_first_seen_at` and `news_expires_at`; legacy homepage fields remain compatibility aliases only. After expiry a story is removed rather than retained to preserve card counts. **Freshness > fullness**: section/homepage underfill is allowed, stale backfill is forbidden. The guard runs server-side before static rendering and again in `news-live.js` so a failed subsequent refresh cannot keep an expired story visible in the browser.
 
 ## 9. Runtime / automation layer
 
