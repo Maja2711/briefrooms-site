@@ -21,12 +21,12 @@
   const FEEDS = {
     eurusd: {
       pollMs: 60_000,
-      maxAgeMs: 5 * 60_000,
+      maxAgeMs: 10 * 60_000,
       minPrice: 0.8,
       maxPrice: 1.5,
       sources: [
-        { name: 'FX mid-market', fetch: fetchEurUsdMidMarket },
-        { name: 'Yahoo EURUSD=X', fetch: () => fetchYahooQuote('EURUSD=X', 'codetabs') },
+        { name: 'fxapi.app', fetch: fetchEurUsdFxApi },
+        { name: 'Currency Exchange Tool', fetch: fetchEurUsdCurrencyExchangeTool },
       ],
     },
     btcusd: {
@@ -161,12 +161,18 @@
     }
   }
 
-  async function fetchEurUsdMidMarket() {
+  async function fetchEurUsdFxApi() {
+    const data = await fetchJson('https://fxapi.app/api/EUR/USD.json');
+    if (!data?.timestamp) throw new Error('fxapi_eurusd_source_timestamp_missing');
+    return { price: data.rate, updatedAt: data.timestamp, source: 'fxapi.app' };
+  }
+
+  async function fetchEurUsdCurrencyExchangeTool() {
     const data = await fetchJson('https://www.currencyexchangetool.com/api/v1/convert?amount=1&from=EUR&to=USD');
-    if (!data || data.success === false) throw new Error('eurusd_api_error');
+    if (!data || data.success === false) throw new Error('currencyexchangetool_eurusd_api_error');
     const updatedAt = data.updatedAt || data.updated_at || data.timestamp || data.time;
-    if (!updatedAt) throw new Error('eurusd_source_timestamp_missing');
-    return { price: data.rate ?? data.result, updatedAt, source: 'FX mid-market' };
+    if (!updatedAt) throw new Error('currencyexchangetool_eurusd_source_timestamp_missing');
+    return { price: data.rate ?? data.result, updatedAt, source: 'Currency Exchange Tool' };
   }
 
   async function fetchCoinbaseBtc() {
