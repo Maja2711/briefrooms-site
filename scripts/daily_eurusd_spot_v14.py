@@ -227,7 +227,9 @@ def evaluate_position(
     if terminal is not None:
         if str(terminal.get("exit_reason")) == "TIME_EXIT":
             terminal["exit_reason"] = "TIME_EXIT_27H"
-            diagnostics = dynamic_exit_diagnostics(position, bars, observed_at)
+            closed_at = _parse(str(terminal.get("closed_at") or "")) or observed_at
+            bounded_bars = [bar for bar in bars if bar.timestamp <= closed_at]
+            diagnostics = dynamic_exit_diagnostics(position, bounded_bars, closed_at)
             if diagnostics is not None:
                 terminal["monitor"]["dynamic_exit"] = diagnostics
         return terminal

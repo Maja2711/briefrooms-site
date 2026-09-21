@@ -135,6 +135,10 @@ class DailyEURUSDDynamicExitTests(unittest.TestCase):
         self.assertEqual(trade["exit_reason"], "TIME_EXIT_27H")
         self.assertEqual(trade["closed_at"], "2026-08-25T12:00:00Z")
         self.assertEqual(trade["exit_price"], 1.102)
+        diagnostics = trade["monitor"]["dynamic_exit"]
+        self.assertEqual(diagnostics["age_hours"], 27.0)
+        self.assertEqual(diagnostics["bar_timestamp"], "2026-08-25T12:00:00Z")
+        self.assertEqual(diagnostics["mark_price"], 1.102)
 
 
 if __name__ == "__main__":
