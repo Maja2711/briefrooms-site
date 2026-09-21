@@ -151,8 +151,14 @@ def _preflight_candidate(
     symbol = str(candidate.get("market_data_symbol") or candidate.get("symbol") or "").upper()
     if not symbol:
         return None, "symbol_missing", None
+    max_age_seconds = max(1, int(round(float(config["maximum_execution_quote_age_minutes"]) * 60.0)))
     try:
-        quote = quote_fetcher(symbol, market, now_utc=now_utc)
+        quote = quote_fetcher(
+            symbol,
+            market,
+            now_utc=now_utc,
+            maximum_age_seconds=max_age_seconds,
+        )
     except quotes.ExecutionQuoteUnavailable as exc:
         return None, "execution_quote_waiting_fresh", {
             "provider_candidates": list(exc.diagnostics),
@@ -163,7 +169,7 @@ def _preflight_candidate(
     if config.get("require_regular_session_for_new_entry") is True and quote.get("market_state") != "REGULAR":
         return None, f"market_not_regular:{quote.get('market_state')}", quote
     capture_age = _float(quote.get("capture_age_seconds"))
-    max_age = float(config["maximum_execution_quote_age_minutes"]) * 60.0
+    max_age = float(max_age_seconds)
     if capture_age is not None and capture_age > max_age:
         return None, "execution_quote_stale", quote
     entry = _float(quote.get("price"))
@@ -315,11 +321,19 @@ def process_market(
         )
         if selection is None:
             if reason == "execution_quote_waiting_fresh":
+                plan = candidate.get("research_risk_plan") or {}
                 audits.append({
                     "market": market,
                     "symbol": symbol,
+                    "ticker": candidate.get("symbol") or symbol,
+                    "name": candidate.get("name") or candidate.get("symbol") or symbol,
                     "action": "ready_waiting_fresh_quote",
                     "reason": reason,
+                    "deep_rank": candidate.get("deep_rank"),
+                    "utility": candidate_utility,
+                    "risk_percent": _float(plan.get("risk_percent")),
+                    "reward_risk": _float(plan.get("reward_risk")),
+                    "opportunity_generated_at": opportunity.get("generated_at"),
                     "quote_diagnostics": (quote or {}).get("provider_candidates") or [],
                 })
             else:
