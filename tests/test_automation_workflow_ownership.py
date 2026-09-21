@@ -184,6 +184,23 @@ class AutomationWorkflowOwnershipTests(unittest.TestCase):
         self.assertLess(persist, broad_validation)
         self.assertLess(persist, broad_audit)
 
+    def test_wes_1_1_directional_admission_is_mandatory_and_single_path(self) -> None:
+        sources = workflow_sources()
+        wes = sources["investments-wes.yml"]
+        self.assertLess(
+            wes.index("WES preflight trigger gate"),
+            wes.index("Execute governed v5 decision after WES admission gate"),
+        )
+        v5 = (ROOT / "scripts" / "investments_weekly_v5.py").read_text(encoding="utf-8")
+        runner = (ROOT / "scripts" / "investments_wes_runner.py").read_text(encoding="utf-8")
+        policy = (ROOT / "data" / "investments" / "multi_instrument_exposure_policy.json").read_text(encoding="utf-8")
+        self.assertIn("choose_governed", v5)
+        self.assertIn("wes_authorization_matches", v5)
+        self.assertIn("directional_admission_passed", runner)
+        self.assertIn('"version": "WES-1.1.0"', policy)
+        self.assertIn('"challenger_shadow_methods"', policy)
+        self.assertIn('"inverse_v2"', policy)
+
     def test_weekly_publisher_stages_every_page_it_renders(self) -> None:
         weekly = workflow_sources()["investments-weekly.yml"]
         for path in (
