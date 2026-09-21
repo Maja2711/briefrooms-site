@@ -5,7 +5,7 @@ import json
 import math
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -29,6 +29,9 @@ _original_round_robin = base.round_robin
 PL_EDITORIAL_EXTRA_FEEDS = {
     "polityka": (
         ("Rzeczpospolita", "https://www.rp.pl/rss_main"),
+        # Dedicated international desk: keeps the PL candidate pool supplied with
+        # current Russia-Ukraine coverage instead of relying on generic front pages.
+        ("RMF24", "https://www.rmf24.pl/fakty/swiat/feed"),
     ),
 }
 
@@ -340,8 +343,57 @@ def sport_hot_score(
     return score
 
 
+PL_UKRAINE_RUSSIA_WAR_POLICY_VERSION = "pl-ukraine-russia-war-v1"
+PL_UKRAINE_RUSSIA_WAR_MINIMUM = 1
+PL_UKRAINE_RUSSIA_WAR_MAX_CARRY_AGE = timedelta(hours=72)
+PL_UKRAINE_RE = re.compile(
+    r"\b(?:ukrain\w*|kijow\w*|kijów\w*|kyiv\w*|zelensk\w*)\b",
+    re.IGNORECASE,
+)
+PL_RUSSIA_WAR_CONTEXT_RE = re.compile(
+    r"\b(?:rosj\w*|russia\w*|kreml\w*|putin\w*|moskw\w*|"
+    r"wojn\w*|war\b|front\w*|atak\w*|attack\w*|inwaz\w*|invasion\w*|"
+    r"rakiet\w*|missile\w*|dron\w*|drone\w*|ostrza\w*|shelling\w*|"
+    r"ofensyw\w*|offensiv\w*|obron\w*|defen[cs]\w*|wojsk\w*|military\w*|"
+    r"rozejm\w*|ceasefire\w*|pokoj\w*|pokój\w*|peace\w*|negocjac\w*|negotiat\w*|"
+    r"okup\w*|occupat\w*|sankcj\w*|sanction\w*)\b",
+    re.IGNORECASE,
+)
+
+
+def is_pl_ukraine_russia_war_story(story: dict[str, Any]) -> bool:
+    """Return True for a PL-news item materially tied to the Russia-Ukraine war."""
+    text = _story_text(story)
+    return bool(PL_UKRAINE_RE.search(text) and PL_RUSSIA_WAR_CONTEXT_RE.search(text))
+
+
 def _is_pl_config(config: Any) -> bool:
     return any(section_id == "polityka" for section_id, _, _ in config)
+
+
+def _recent_carried_ukraine_war_story(
+    previous_sections: dict[str, Any],
+    section_id: str,
+    now: datetime,
+) -> dict[str, Any] | None:
+    if section_id != "polityka":
+        return None
+    old_items = (
+        previous_sections.get(section_id, [])
+        if isinstance(previous_sections.get(section_id), list)
+        else []
+    )
+    eligible: list[dict[str, Any]] = []
+    for old in old_items:
+        if not isinstance(old, dict) or not old.get("image") or not is_pl_ukraine_russia_war_story(old):
+            continue
+        published = _published_at(old)
+        if published is None or now - published > PL_UKRAINE_RUSSIA_WAR_MAX_CARRY_AGE:
+            continue
+        eligible.append(old)
+    if not eligible:
+        return None
+    return max(eligible, key=base.story_time)
 
 
 def select_sections(
@@ -397,6 +449,7 @@ def select_sections(
         live_entities_seen: set[str] = set()
         deferred_discipline: list[dict[str, Any]] = []
         deferred_source: list[dict[str, Any]] = []
+        forced_topic_carried = 0
 
         def try_add(
             story: dict[str, Any],
@@ -464,6 +517,43 @@ def select_sections(
                     live_entities_seen.update(entities)
             return "added"
 
+        # PL contract: reserve one politics-section slot for a material
+        # Russia-Ukraine-war update before general ranking can consume all nine.
+        # If no fresh qualifying item is available, carry the latest qualifying
+        # previously-published item for at most the homepage's 72h freshness horizon.
+        if pl_mode and section_id == "polityka":
+            topic_candidate = next(
+                (
+                    story
+                    for story in candidates
+                    if story.get("image") and is_pl_ukraine_russia_war_story(story)
+                ),
+                None,
+            )
+            if topic_candidate is not None:
+                try_add(
+                    topic_candidate,
+                    discipline_cap=False,
+                    source_cap=preferred_source_cap,
+                )
+            else:
+                carried_topic = _recent_carried_ukraine_war_story(
+                    previous_sections,
+                    section_id,
+                    now,
+                )
+                if carried_topic is not None:
+                    copy = dict(carried_topic)
+                    copy["carried_forward"] = True
+                    if try_add(
+                        copy,
+                        discipline_cap=False,
+                        source_cap=(
+                            MAX_SOURCE_SHARE if len(active_sources) >= 2 else base.TARGET
+                        ),
+                    ) == "added":
+                        forced_topic_carried = 1
+
         for story in candidates:
             result = try_add(
                 story,
@@ -504,7 +594,7 @@ def select_sections(
                 if len(items) >= base.TARGET:
                     break
 
-        carried = 0
+        carried = forced_topic_carried
         if len(items) < base.TARGET:
             old_items = previous_sections.get(section_id, []) if isinstance(previous_sections.get(section_id), list) else []
             for old in old_items:
@@ -661,6 +751,13 @@ def fetch_feed(source: str, feed_url: str, section_id: str, now: Any) -> tuple[l
             text = _story_text(story)
             if _is_live_sport(story) or _matched_tracked_athletes(story):
                 story["image"] = base.page_image(str(story.get("link") or ""))
+    elif section_id == "polityka":
+        # A qualifying Russia-Ukraine item must not disappear from the PL candidate
+        # pool solely because its RSS entry omitted a thumbnail.
+        for story in accepted:
+            if story.get("image") or not is_pl_ukraine_russia_war_story(story):
+                continue
+            story["image"] = base.page_image(str(story.get("link") or ""))
     return accepted, error
 
 
