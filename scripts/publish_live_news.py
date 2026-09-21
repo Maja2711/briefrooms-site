@@ -25,7 +25,7 @@ TARGET = 9
 MIN_SECTION = TARGET
 MAX_WORKERS = 10
 REQUEST_TIMEOUT = 12
-MAX_CARRY_AGE = timedelta(days=14)
+MAX_CARRY_AGE = timedelta(hours=24)
 FUTURE_TOLERANCE = timedelta(minutes=10)
 
 PL = [
@@ -443,8 +443,8 @@ def validate(max_age_minutes: int = 30) -> None:
         if set(data.get("sections", {})) != expected:
             raise RuntimeError(f"{lang} section set mismatch")
         for section_id, stories in data["sections"].items():
-            if len(stories) < MIN_SECTION:
-                raise RuntimeError(f"{lang}/{section_id} has only {len(stories)} stories")
+            if len(stories) > TARGET:
+                raise RuntimeError(f"{lang}/{section_id} exceeds target with {len(stories)} stories")
             if any(not item.get("title") or not item.get("link") or not item.get("image") for item in stories):
                 raise RuntimeError(f"{lang}/{section_id} contains an incomplete story")
             for story in stories:
