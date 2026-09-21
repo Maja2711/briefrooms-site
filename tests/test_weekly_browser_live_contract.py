@@ -35,16 +35,16 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
             self.assertLess(html.index("investments-weekly-public.js"), html.index("investments-weekly-browser-live.js"))
             self.assertLess(html.index("investments-weekly-browser-live.js"), html.index("investments-weekly-price-compact.js"))
 
-    def test_browser_runtime_keeps_last_quote_without_visible_delay_minutes(self) -> None:
+    def test_browser_runtime_keeps_s_and_p_delayed_quote_visible_and_labeled(self) -> None:
         source = LIVE_SCRIPT.read_text(encoding="utf-8")
         self.assertIn("/data/investments/live_prices.json", source)
         self.assertIn("CACHE_PREFIX = 'briefrooms:weekly-market-feed:v6:'", source)
         self.assertIn("mode: 'delayed'", source)
         self.assertIn("saveCache(instrumentId, finalQuote)", source)
-        self.assertIn("timeNode.textContent = fmtTime(quote.updatedAt)", source)
-        self.assertNotIn("opóźniony", source.lower())
-        self.assertNotIn("delayed ${", source)
-        self.assertNotIn(" min`", source)
+        self.assertIn("opóźniony ~10 min", source)
+        self.assertIn("delayed ~10 min", source)
+        self.assertIn("maxAgeMs: 15 * 60_000", source)
+        self.assertIn("backendMaxAgeMs: 15 * 60_000", source)
 
     def test_btc_sources_are_requested_in_parallel_and_freshest_quote_wins(self) -> None:
         source = LIVE_SCRIPT.read_text(encoding="utf-8")
@@ -130,7 +130,7 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
         self.assertIn("active_es_yahoo_symbol", source)
         self.assertIn("esignal_quote", source)
         self.assertIn("eSignal delayed", source)
-        self.assertIn("lambda: yahoo_quote(instrument_id, active_es_yahoo_symbol())", source)
+        self.assertNotIn("lambda: yahoo_quote(instrument_id, active_es_yahoo_symbol())", source)
         self.assertIn("lambda: yahoo_quote(instrument_id)", source)
         self.assertIn("lambda: stooq_quote(instrument_id)", source)
         self.assertIn("candidates.sort", source)
