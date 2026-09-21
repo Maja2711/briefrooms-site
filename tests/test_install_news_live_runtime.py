@@ -91,7 +91,7 @@ class HomepageStaticFreshnessGuardTests(unittest.TestCase):
 
         lab_url = '/scripts/home-lab.js?v=1'
         intelligence_url = '/scripts/home-intelligence-layout.js?v=1'
-        live_url = '/scripts/news-live.js?v=7&rev=priority12'
+        live_url = '/scripts/news-live.js?v=8&rev=global24h'
         floor_url = '/scripts/home-card-floor.js?v=4'
         self.assertEqual(rendered.count(lab_url), 1)
         self.assertEqual(rendered.count(intelligence_url), 1)
