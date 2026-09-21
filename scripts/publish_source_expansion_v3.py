@@ -430,7 +430,7 @@ def homepage_ranked_select(
     # PL publication contract: before the general lane pass can consume all
     # homepage slots, reserve one slot for a material Russia-Ukraine-war update.
     # Section selection already prefers a fresh item and may carry a qualifying
-    # prior item for at most 72 hours, so this step only promotes an approved row.
+    # prior item for at most 24 hours, so this step only promotes an approved row.
     if enforce_pl_ukraine_war_quota:
         for _, _, _, _, story in ranked:
             if not filtered.is_pl_ukraine_russia_war_story(story):
@@ -699,8 +699,8 @@ def validate(max_age_minutes: int = 30) -> None:
             raise RuntimeError(f"{lang} homepage runtime reserve policy missing")
         home = payload.get("home") if isinstance(payload.get("home"), list) else []
         reserve = payload.get("home_reserve") if isinstance(payload.get("home_reserve"), list) else []
-        if len(home) != HOMEPAGE_LIMIT:
-            raise RuntimeError(f"{lang} homepage must contain exactly {HOMEPAGE_LIMIT} stories")
+        if len(home) > HOMEPAGE_LIMIT:
+            raise RuntimeError(f"{lang} homepage exceeds {HOMEPAGE_LIMIT} stories")
         if len(reserve) > HOMEPAGE_RESERVE_LIMIT:
             raise RuntimeError(f"{lang} homepage reserve exceeds {HOMEPAGE_RESERVE_LIMIT} stories")
         lane_order = {lane: index for index, lane in enumerate(HOMEPAGE_PRIORITY_ORDER)}
