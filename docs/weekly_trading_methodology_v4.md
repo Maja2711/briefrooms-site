@@ -20,6 +20,21 @@ The tournament may rank a directional candidate, but ranking alone does not auth
 
 After a governed close, re-entry is not automatic merely because a position slot is empty. Re-entry requires the applicable WES trigger, validation and lifecycle rules. Monday/Tuesday early-close replacement may use the separately governed rolling seven-calendar-day path; material-event exits remain fail-closed and are not automatically replaced.
 
+## Execution lifecycle contract
+
+A directional weekly forecast is not the same fact as an executed paper position. The canonical `trade_status` lifecycle is:
+
+- `planned` — the frozen forecast exists, but there is no execution claim; `entry_price` is not required.
+- `pending` — WES has frozen a qualified immutable execution decision and is waiting for the first eligible bar at or after that decision; `pending_entry_decision` is required, but `entry_price` is not yet required.
+- `open` — execution occurred; a positive entry price and entry timestamp are mandatory.
+- `no_trade` — admission abstained; no entry is expected.
+- `expired_no_entry` — an authorized execution did not obtain a valid fill before its governed deadline; no entry, exit or P/L may be fabricated.
+- `closed` — an executed position has been settled; both entry and exit execution facts are mandatory.
+
+Integrity checks, the public Weekly Trading UI and WES execution must interpret these states identically. A directional `planned` forecast must never be quarantined merely because it has no entry price. Conversely, `open` or `closed` without the required execution facts remains fail-closed.
+
+The legacy Monday `entry_latest_local` field is not a universal WES execution deadline. WES may remain in `NO_TRADE` and admit a later qualified trigger under the active lifecycle policy. The effective position/weekly deadline is enforced separately by the governed close-deadline verifier.
+
 ## Why an inverse signal is tested separately
 
 A negative result for a short method does not prove that the corresponding long method is profitable. Transaction costs, timing, stop-losses, take-profits and asymmetric price behaviour can make both directions unprofitable. Therefore `base_v2` and `inverse_v2` are independent candidate methods and receive separate walk-forward results.
