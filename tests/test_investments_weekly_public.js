@@ -188,15 +188,49 @@ test('pending BTC re-entry keeps the closed SHORT result publishable and separat
   const html = elements.app.innerHTML;
 
   assert.doesNotMatch(html, /DANE W AUDYCIE/);
-  assert.match(html, /<h3>LONG</h3>/);
+  assert.ok(html.includes('<h3>LONG</h3>'));
   assert.match(html, /Poprzedni wynik/);
   assert.match(html, /-297,86 USD · -2,98%/);
-  assert.match(html, /<td>SHORT</td>/);
+  assert.ok(html.includes('<td>SHORT</td>'));
   assert.equal(window.BR_WEEKLY_INTEGRITY.executedDir(week.instruments[0]), 'short');
   assert.deepEqual(
     Array.from(window.BR_WEEKLY_INTEGRITY.integrityIssues(week.instruments[0], week.method_version, week)),
     [],
   );
+});
+
+test('WES 1.2 pending entry publishes the frozen target instead of a fake open price', async () => {
+  const week = validWeek();
+  week.method_version = '5.8.0-experimental';
+  week.market_window = { exit_target_local: '2099-09-25T22:00:00+02:00' };
+  week.instruments = [{
+    instrument_id: 'btcusd',
+    symbol: 'BTC-USD',
+    label_pl: 'BTC/USD',
+    label_en: 'BTC/USD',
+    direction: 'neutral',
+    trade_status: 'pending',
+    entry_price: null,
+    wes_methodology: 'WES-1.2.0',
+    pending_entry_decision: {
+      decided_at: '2026-09-21T13:10:00+02:00',
+      entry_not_before: '2026-09-21T13:10:00+02:00',
+      decision: { direction: 'long', strategy_id: 'base_v2' },
+      entry_price_plan: {
+        version: 'WES-1.2.0',
+        direction: 'long',
+        target_price: 82460.25,
+        reference_price: 84151.90,
+        expires_at: '2099-09-21T14:10:00+02:00',
+      },
+    },
+  }];
+  const { elements } = await renderWithLive({ updatedAt: new Date().toISOString(), week });
+  const html = elements.app.innerHTML;
+  assert.doesNotMatch(html, /DANE W AUDYCIE/);
+  assert.match(html, /Cena docelowa wejścia/);
+  assert.match(html, /82(?:\s|&nbsp;|\u00a0)460,25/);
+  assert.doesNotMatch(html, /<dt>Cena otwarcia<\/dt><dd>84/);
 });
 
 test('marks stored current prices as delayed when live data is stale', async () => {
