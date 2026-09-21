@@ -77,7 +77,7 @@ The production config defines:
 - canary maximum: 1 open position per market;
 - full maximum: 3 open positions per market;
 - automatic canary progression is enabled under the configured healthy-session requirements;
-- maximum opportunity age and execution-quote freshness are enforced;
+- maximum opportunity age and market-specific execution-quote freshness are enforced (US 2 minutes; GPW paper execution 20 minutes);
 - minimum reward/risk and maximum risk percentage are enforced;
 - new entries require the regular session.
 
@@ -114,7 +114,7 @@ While `champion_engine=v2` and `legacy_candidate_admission_enabled=false`, there
 
 ```text
 stock_trading_v2_production_bridge.py
-  -> fresh execution quote
+  -> prospective execution quote under the market-specific paper policy
   -> portfolio.admit_candidate(..., authority="v2_production_bridge")
   -> canonical portfolio
 ```
@@ -146,7 +146,7 @@ trigger_window_start >= max(opened_at, risk_last_changed_at)
 
 This prevents two classes of false execution: a pre-entry candle closing a position that did not yet exist, and an earlier same-day low/high being reused after a later SL/TP ratchet. If no post-effective intraday bar exists yet, the engine must hold with a data error rather than synthesize an SL/TP fill.
 
-For new v2 admissions the production bridge also requires a prospectively observed execution quote no older than 2 minutes. Stale research prices and delayed quotes remain non-executable.
+For new v2 admissions the production bridge requires a prospectively observed execution quote under a market-specific paper-execution policy. US keeps the strict maximum age of 2 minutes. GPW explicitly allows a current-session Yahoo/eligible-provider observation up to 20 minutes old and records the fill as `DELAYED_PAPER`. The quote must still belong to the REGULAR session and be observed prospectively after the production run starts; quotes older than the market-specific limit, closed-session observations and research reference prices remain non-executable. This policy is for paper trading only and does not represent broker-quality real-time execution.
 
 ## Learning / challenger boundary
 
