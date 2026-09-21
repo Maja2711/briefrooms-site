@@ -16,7 +16,7 @@ PAGES = [
     ROOT / "en" / "investing" / "open-weekly-positions.html",
     ROOT / "en" / "investing" / "weekly-forecasts.html",
 ]
-SCRIPT_REF = "/scripts/investments-weekly-browser-live.js?v=20260921-8"
+SCRIPT_REF = "/scripts/investments-weekly-browser-live.js?v=20260921-9"
 COMPACT_REF = "/scripts/investments-weekly-price-compact.js?v=20260916-4"
 
 
@@ -111,6 +111,18 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
         self.assertNotIn("backendMaxAgeMs: 45 * 60_000", source)
         self.assertIn("backendQuotes", source)
         self.assertIn("backendFresh", source)
+
+    def test_eurusd_stale_quote_never_blanks_an_existing_price(self) -> None:
+        source = LIVE_SCRIPT.read_text(encoding="utf-8")
+        stale_start = source.index("if (!quoteUsable)")
+        eurusd_start = source.index("if (item.instrument_id === 'eurusd')", stale_start)
+        sp500_start = source.index("if (item.instrument_id === 'sp500_futures')", eurusd_start)
+        eurusd_stale_branch = source[eurusd_start:sp500_start]
+        self.assertIn("Ostatni dostępny kurs", eurusd_stale_branch)
+        self.assertIn("const displayedPrice =", eurusd_stale_branch)
+        self.assertIn("if (!displayedPrice || displayedPrice === '—')", eurusd_stale_branch)
+        self.assertNotIn("priceNode.textContent = '—'", eurusd_stale_branch)
+        self.assertIn("item.instrument_id === 'sp500_futures' || item.instrument_id === 'eurusd'", source)
 
     def test_sp500_browser_feed_busts_upstream_cache_and_rejects_stale_quotes(self) -> None:
         source = LIVE_SCRIPT.read_text(encoding="utf-8")
