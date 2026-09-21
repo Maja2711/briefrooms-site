@@ -112,8 +112,15 @@ def governed_lock_reentry(item: Dict[str, Any], week: Dict[str, Any], now: datet
                 "release_reason": "fresh_wes_early_close_reentry_authorization",
             }
             changed = True
-        if item.get("next_entry_status") != "wes_early_reentry_authorized":
-            item["next_entry_status"] = "wes_early_reentry_authorized"
+        pending = item.get("pending_entry_decision") if isinstance(item.get("pending_entry_decision"), dict) else {}
+        plan = pending.get("entry_price_plan") if isinstance(pending.get("entry_price_plan"), dict) else {}
+        desired_next = (
+            "waiting_for_entry_target"
+            if plan and not v5.entry_plan_expired(pending, now)
+            else "wes_early_reentry_authorized"
+        )
+        if item.get("next_entry_status") != desired_next:
+            item["next_entry_status"] = desired_next
             changed = True
         return False, changed
     return _BASE_LOCK_REENTRY(item, week, now)
