@@ -150,6 +150,55 @@ test('preserves reconstructed BTC price-move result units', async () => {
   assert.match(elements.app.innerHTML, /\+500,00 USD · \+5,00%/);
 });
 
+test('pending BTC re-entry keeps the closed SHORT result publishable and separate from new LONG', async () => {
+  const week = validWeek();
+  week.method_version = '5.7.0-experimental';
+  week.market_window = { exit_target_local: '2099-09-25T22:00:00+02:00' };
+  week.instruments = [{
+    instrument_id: 'btcusd',
+    symbol: 'BTC-USD',
+    label_pl: 'BTC/USD',
+    label_en: 'BTC/USD',
+    direction: 'short',
+    trade_status: 'pending',
+    entry_price: 81593.9765625,
+    entry_captured_at: '2026-09-21T09:25:00+02:00',
+    exit_price: 84024.33708186,
+    exit_captured_at: '2026-09-21T10:35:00+02:00',
+    exit_reason: 'stop_loss',
+    notional_usd: 10000,
+    result_value: -297.86028599,
+    result_units: -2.9786,
+    result_percent: -2.9786,
+    risk_plan: {
+      model_version: 'WES-1.0.0',
+      direction: 'short',
+      stop_loss_price: 84024.33708186,
+      take_profit_price: 76707.42716313,
+      reward_to_risk: 2.0106,
+    },
+    pending_entry_decision: {
+      decided_at: '2026-09-21T12:52:50+02:00',
+      entry_not_before: '2026-09-21T12:52:50+02:00',
+      decision: { direction: 'long', strategy_id: 'base_v2' },
+    },
+  }];
+
+  const { elements, window } = await renderWithLive({ updatedAt: new Date().toISOString(), week });
+  const html = elements.app.innerHTML;
+
+  assert.doesNotMatch(html, /DANE W AUDYCIE/);
+  assert.match(html, /<h3>LONG</h3>/);
+  assert.match(html, /Poprzedni wynik/);
+  assert.match(html, /-297,86 USD · -2,98%/);
+  assert.match(html, /<td>SHORT</td>/);
+  assert.equal(window.BR_WEEKLY_INTEGRITY.executedDir(week.instruments[0]), 'short');
+  assert.deepEqual(
+    Array.from(window.BR_WEEKLY_INTEGRITY.integrityIssues(week.instruments[0], week.method_version, week)),
+    [],
+  );
+});
+
 test('marks stored current prices as delayed when live data is stale', async () => {
   const { elements, classes } = await renderWithLive({ updatedAt: '2000-01-01T00:00:00Z' });
   assert.match(elements.updated.textContent, /Dane rynkowe są opóźnione/);
