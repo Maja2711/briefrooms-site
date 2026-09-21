@@ -60,10 +60,16 @@ jobs:
           git add data/investments/model_audit.json \
                   data/investments/closed_week_manifest.json \
                   data/investments/model_validation_v2.json \
+                  data/investments/multi_instrument_validation_v4.json \
                   data/investments/weekly_execution_parity_v5.json
           if git diff --cached --quiet; then exit 0; fi
           python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
           git commit -m "Validate weekly investment models"
+          if ! git diff --quiet; then
+            echo "::error::Weekly validation produced an untracked generated artifact; refusing rebase."
+            git status --short
+            exit 1
+          fi
           for attempt in 1 2 3 4 5; do
             if git pull --rebase origin main; then
               python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
