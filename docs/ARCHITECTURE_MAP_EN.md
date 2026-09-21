@@ -1,8 +1,8 @@
 # BriefRooms Canonical Architecture Map — EN
 
-**Map version:** 1.9  
+**Map version:** 1.10  
 **Snapshot date:** 2026-09-21  
-**Base `main` commit:** `c7a5d3f860b3695cba39c6c3e32f4b88721e9ced`  
+**Base `main` commit:** `b76bd3a98d2b601a646845d6c3867da4d64240c6`  
 **Repository:** `Maja2711/briefrooms-site`
 
 ## 0. Purpose of this document
@@ -331,6 +331,7 @@ Examples of private durable state include the Learning Outcome Loop and GSE/Beli
 19. **WES 1.1 Directional Admission is mandatory for every new entry.** A forecast, research ranking or Challenger result is not execution authorization. Entry requires an execution-authorized Champion-pool method, a valid authorization for the exact method/direction and at least two independent directional confirmations; a candidate opposing aligned Daily+Weekly evidence is blocked.
 20. **Method names never decide market direction.** Within `TR-05`, opposing execution candidates in a tie/near-tie resolve to `NO_TRADE`; `inverse_v2` remains Challenger/Shadow until explicit governed promotion.
 21. **WES 1.2 Entry Price Plan is mandatory.** Directional Admission authorizes a LONG/SHORT thesis, not an immediate fill. Before every new entry WES freezes a price target from the decision-time reference price, ATR14, EMA20, ret5/ret20, 55-day range position and post-stop state. The executor may fill only the frozen price-improving BUY LIMIT / SELL LIMIT after a 5m bar touches it. An active target may not chase the market; no touch means WAIT/expiry without a trade.
+22. **An instrument-scoped change must not mutate other instruments.** For `TR-05`, code/UI/test/documentation pushes are validation-only. Paper position state may change only from scheduled runtime, explicit manual dispatch, or a governed workflow-run execution path. An S&P quote/feed change must not recalculate BTC or EUR/USD as a side effect.
 
 ## 11. Authority map — what each layer may NOT do
 
@@ -446,3 +447,5 @@ Primary detailed documents used to build and maintain the current map:
 
 **Maintenance invariant:** this file and `ARCHITECTURE_MAP_PL.md` are one logical artifact. Updating only one version is not allowed.
 - 2026-09-21: WES 1.2 separated direction from entry price. Every new trade requires a frozen price-aware Entry Price Plan, and the executor may no longer take the first available market price.
+
+- 2026-09-21: Weekly/WES/Risk pushes are validation-only; position execution is isolated from UI, quote-feed, test and documentation changes. Instrument-scoped change isolation is now a runtime invariant.
