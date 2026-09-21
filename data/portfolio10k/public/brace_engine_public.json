@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-09-21T12:40:39+00:00",
+  "generated_at": "2026-09-21T13:14:34+00:00",
   "methodology_version": "3.1.0",
   "data_freshness": "current",
   "source_metadata": {
@@ -11,7 +11,7 @@
     "real_broker_connected": false
   },
   "controller_status": "PROBATIONARY_CONTROL",
-  "display_status": "BRACE_PROBATIONARY_PAPER_CONTROL",
+  "display_status": "PROBATIONARY_CONTROL",
   "portfolio_data_path": "/data/portfolio10k/paper_portfolio.json",
   "analysis_summary": {
     "portfolio_score": 56.5012,
@@ -29,7 +29,7 @@
     "status": "CURRENT",
     "overdue": false,
     "analysis_generated_at": "2026-09-20T13:12:52+00:00",
-    "analysis_age_hours": 0.0,
+    "analysis_age_hours": 24.029,
     "latest_required_slot": "2026-09-18T22:30:00+00:00"
   },
   "position_recommendations": [
@@ -102,6 +102,63 @@
       ],
       "rationale_pl": "Rekomendacja HOLD wynika z wieloczynnikowej oceny GOOGL.US, jakości danych i bieżących limitów ryzyka.",
       "rationale_en": "The HOLD recommendation follows from the multi-factor assessment of GOOGL.US, data quality and current risk limits.",
+      "conditions_for_change": [
+        "material thesis change",
+        "risk-limit breach",
+        "persistent score change",
+        "new candidate advantage after costs",
+        "confirmed material report"
+      ]
+    },
+    {
+      "instrument": "novo",
+      "broker_symbol": "NOVOB.DK",
+      "action": "WATCH",
+      "final_score": 52.09,
+      "confidence": 1.0,
+      "current_weight": 0.046182,
+      "proposed_weight": 0.046182,
+      "signal_price": 281.54998779296875,
+      "signal_fx_to_pln": 0.57559,
+      "positive_factors": [
+        "diversification_score",
+        "quality_score",
+        "valuation_score"
+      ],
+      "negative_factors": [
+        "momentum_score"
+      ],
+      "rationale_pl": "Rekomendacja WATCH wynika z wieloczynnikowej oceny NOVOB.DK, jakości danych i bieżących limitów ryzyka.",
+      "rationale_en": "The WATCH recommendation follows from the multi-factor assessment of NOVOB.DK, data quality and current risk limits.",
+      "conditions_for_change": [
+        "material thesis change",
+        "risk-limit breach",
+        "persistent score change",
+        "new candidate advantage after costs",
+        "confirmed material report"
+      ]
+    },
+    {
+      "instrument": "spgi",
+      "broker_symbol": "SPGI.US",
+      "action": "WATCH",
+      "final_score": 49.92,
+      "confidence": 1.0,
+      "current_weight": 0.07218,
+      "proposed_weight": 0.07218,
+      "signal_price": 405.32000732421875,
+      "signal_fx_to_pln": 3.7371,
+      "positive_factors": [
+        "quality_score",
+        "risk_score"
+      ],
+      "negative_factors": [
+        "diversification_score",
+        "momentum_score",
+        "thesis_score"
+      ],
+      "rationale_pl": "Rekomendacja WATCH wynika z wieloczynnikowej oceny SPGI.US, jakości danych i bieżących limitów ryzyka.",
+      "rationale_en": "The WATCH recommendation follows from the multi-factor assessment of SPGI.US, data quality and current risk limits.",
       "conditions_for_change": [
         "material thesis change",
         "risk-limit breach",
@@ -557,37 +614,30 @@
   ],
   "pending_decisions": [
     {
+      "decision_id": "decision-5a7651f945c37531",
+      "generated_at": "2026-09-20T13:13:10+00:00",
+      "action": "NO_ACTION",
+      "instrument": null,
+      "replacement_instrument": null,
+      "expected_benefit": 0.0,
+      "expected_risk": null,
+      "confidence": 1.0,
+      "rationale_pl": "Żaden kandydat nie zapewnia obecnie materialnej przewagi po kosztach i przy obowiązujących limitach ryzyka.",
+      "rationale_en": "No candidate currently offers a material post-cost advantage within the applicable risk limits.",
+      "status": "PROPOSED"
+    },
+    {
       "decision_id": "cash-add-448840a685edda7a",
       "generated_at": "2026-09-21T12:40:38+00:00",
       "action": "ADD",
       "instrument": "sxr8",
       "replacement_instrument": null,
-      "current_weight": 0.0,
-      "proposed_weight": 0.1,
       "expected_benefit": 0.108994,
       "expected_risk": 0.233203,
       "confidence": 1.0,
       "rationale_pl": "Wolna gotówka osiągnęła 14.2% portfela. SXR8.DE jest najwyżej ocenionym świeżym kandydatem BRACE spełniającym bramki pewności, oczekiwanej stopy zwrotu, drawdown i limit nowej pozycji. Zlecenie pozostaje paper-only.",
       "rationale_en": "Free cash reached 14.2% of the portfolio. SXR8.DE is the highest-ranked fresh BRACE candidate passing confidence, expected-return, drawdown and new-position-size gates. Execution remains paper-only.",
-      "data_timestamp": "2026-09-20T13:12:52+00:00",
-      "methodology_version": "brace-portfolio-v3.1.0",
-      "status": "PROPOSED",
-      "checks": {
-        "cash_funds_minimum_position": true,
-        "fresh_brace_analysis": true,
-        "candidate_eligible": true,
-        "confidence": true,
-        "expected_return": true,
-        "expected_drawdown": true,
-        "optimization_rules": true,
-        "paper_only": true
-      },
-      "transaction_cost_buffer": 0.01,
-      "source": "portfolio_10k_guardian_cash_deployment",
-      "execution_status": "PENDING",
-      "execution_reason": "market_closed",
-      "order_status": "WAITING_FOR_MARKET",
-      "executed_at": null
+      "status": "PROPOSED"
     }
   ],
   "policy": {
@@ -619,52 +669,5 @@
   },
   "disclaimer_pl": "To autonomiczny eksperyment analityczny i portfel modelowy. Nie jest to rachunek maklerski ani rekomendacja inwestycyjna.",
   "disclaimer_en": "This is an autonomous analytical experiment and a model portfolio. It is not a brokerage account or investment advice.",
-  "content_sha256": "1e16c3bcab3abb7273cb5952f0fe10f57e99b0312c01373a568aaab13105b701",
-  "control_authorization": {
-    "schema_version": "brace-control-authorization-v1",
-    "enabled": true,
-    "controller_status": "PROBATIONARY_CONTROL",
-    "authorized_at": "2026-08-02T22:37:00+02:00",
-    "authorized_by": "site_owner",
-    "paper_only": true,
-    "real_broker_connected": false,
-    "baseline_fallback_required": true,
-    "reason_pl": "Właściciel projektu autoryzuje BRACE do sterowania oddzielnym portfelem modelowym w trybie próbnym, z limitami ryzyka i automatycznym fallbackiem do baseline.",
-    "reason_en": "The project owner authorises BRACE to control a separate model portfolio in probationary mode, with risk limits and automatic baseline fallback."
-  },
-  "active_portfolio_ids": [
-    "amzn",
-    "fwia",
-    "googl",
-    "jpm",
-    "tsm",
-    "visa",
-    "zprv"
-  ],
-  "portfolio_state_source": "data/portfolio10k/paper_portfolio.json",
-  "learning_loop": {
-    "status": "WARMUP",
-    "active_parameters": false,
-    "effective_samples": 0.473684,
-    "minimum_effective_samples": 12.0,
-    "outcome_events": 49,
-    "eligible_events": 2,
-    "active_overrides": {},
-    "candidate_overrides": {},
-    "reason": "WARMUP_INSUFFICIENT_MATURE_ACTIONABLE_OUTCOMES",
-    "last_review_at": "2026-09-20T13:13:10+00:00",
-    "cadence": "weekly",
-    "cron_utc": "40 8 * * 0",
-    "timezone": "UTC",
-    "previous_scheduled_review_at": "2026-09-20T08:40:00+00:00",
-    "next_scheduled_review_at": "2026-09-27T08:40:00+00:00",
-    "overdue": false,
-    "missed_scheduled_reviews": 0,
-    "next_changes_apply_weekly": true,
-    "real_broker_prohibited": true,
-    "explanation_pl": "Pętla uczenia jest zaplanowana cotygodniowo w niedzielę o 08:40 UTC. Stan WARMUP, dojrzałe próbki 0.473684/12. Ostatni planowy przegląd został zarejestrowany. Zmiany parametrów mogą zostać aktywowane dopiero po zebraniu wymaganych wyników, dwukrotnym potwierdzeniu i przejściu bramki badawczej.",
-    "explanation_en": "The learning loop is scheduled weekly on Sunday at 08:40 UTC. Status WARMUP, mature effective samples 0.473684/12. The latest scheduled review is recorded. Parameter changes may activate only after the sample requirement, two consecutive confirmations and the research gate are satisfied."
-  },
-  "control_summary_pl": "BRACE steruje oddzielnym portfelem modelowym w trybie próbnym. Co tydzień aktualizuje dane, uwzględnia zweryfikowane raporty istotne, ocenia pozycje i może wykonywać wyłącznie transakcje paper. Limity ryzyka oraz automatyczny powrót do baseline pozostają aktywne.",
-  "control_summary_en": "BRACE controls a separate model portfolio in probationary mode. Each week it refreshes data, incorporates verified material reports, assesses every position and may execute paper trades only. Risk limits and automatic baseline fallback remain active."
+  "content_sha256": "d6a3cdfad2b90bded2c64088531317d1b603e79d7e965580abcfba1a89be1fe9"
 }
