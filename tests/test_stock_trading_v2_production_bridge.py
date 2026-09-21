@@ -23,7 +23,7 @@ class V2ProductionBridgeTests(unittest.TestCase):
         }
         self.now = datetime(2026, 9, 17, 15, 0, tzinfo=timezone.utc)
 
-    def quote(self, symbol, market, *, now_utc=None):
+    def quote(self, symbol, market, *, now_utc=None, maximum_age_seconds=None):
         return {
             "price": 100.0,
             "market_state": "REGULAR",
@@ -164,12 +164,43 @@ class V2ProductionBridgeTests(unittest.TestCase):
         self.assertEqual(["AAA"], [row["symbol"] for row in portfolio.open_positions(state, "US")])
         self.assertTrue(any(row.get("reason") == "candidate_does_not_beat_cash_edge" for row in audits))
 
+    def test_bridge_passes_exact_execution_quote_freshness_limit(self):
+        policy = portfolio.load_policy()
+        state = portfolio.empty_state(now=self.now, policy=policy)
+        candidate = self.candidate("ASB.WA", 1, 95)
+        seen = {}
+
+        def quote(symbol, market, *, now_utc=None, maximum_age_seconds=None):
+            seen["maximum_age_seconds"] = maximum_age_seconds
+            return self.quote(symbol, market, now_utc=now_utc, maximum_age_seconds=maximum_age_seconds)
+
+        cfg = {**self.cfg, "maximum_execution_quote_age_minutes": 2}
+        opportunity = {
+            "generated_at": self.now.isoformat(),
+            "cash": {"utility": 50.0, "minimum_new_position_edge_points": 5.0},
+            "decision": {"action": "BUY", "candidate": candidate},
+            "evaluated_candidates": [candidate],
+        }
+        state, audits, healthy = bridge.process_market(
+            state,
+            "GPW",
+            opportunity,
+            config=cfg,
+            runtime={"phase": "FULL"},
+            now_utc=self.now,
+            quote_fetcher=quote,
+        )
+        self.assertTrue(healthy)
+        self.assertEqual(120, seen["maximum_age_seconds"])
+        self.assertEqual("ASB.WA", portfolio.open_positions(state, "GPW")[0]["symbol"])
+        self.assertEqual("open", audits[0]["action"])
+
     def test_stale_execution_quote_is_ready_not_filled(self):
         policy = portfolio.load_policy()
         state = portfolio.empty_state(now=self.now, policy=policy)
         candidate = self.candidate("AAA", 1, 90)
 
-        def stale_quote(symbol, market, *, now_utc=None):
+        def stale_quote(symbol, market, *, now_utc=None, maximum_age_seconds=None):
             raise bridge.quotes.ExecutionQuoteUnavailable(
                 "stale",
                 diagnostics=[{"provider": "test", "capture_age_seconds": 900}],
