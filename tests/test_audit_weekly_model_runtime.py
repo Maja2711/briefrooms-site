@@ -37,7 +37,7 @@ class WeeklyRuntimeIntegrityTests(unittest.TestCase):
     def test_valid_pending_state_is_not_a_missing_entry(self):
         item = {
             "instrument_id": "btcusd",
-            "direction": "long",
+            "direction": "neutral",
             "trade_status": "pending",
             "entry_price": None,
             "pending_entry_decision": {
