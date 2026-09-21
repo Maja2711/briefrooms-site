@@ -10,6 +10,8 @@ sys.path.insert(0, str(ROOT / 'scripts'))
 
 import investments_wes as wes
 import investments_wes_lifecycle as lifecycle
+import investments_weekly_v4 as v4
+import investments_weekly_v5 as v5
 
 TZ = ZoneInfo('Europe/Warsaw')
 
@@ -133,16 +135,157 @@ class WesTests(unittest.TestCase):
              patch.object(wes.macro, 'apply_to_candidates', return_value=macro_candidates), \
              patch.object(wes.v5, 'apply_contextual_learning', return_value=(adjusted_candidates, contextual)) as contextual_mock, \
              patch.object(wes.v5, 'learning_with_candidate_observations', return_value=choice_learning) as learning_mock, \
-             patch.object(wes.v4, 'choose', return_value=decision) as choose_mock:
+             patch.object(wes.v4, 'choose_governed', return_value=decision) as choose_mock:
             result = wes.governed_candidate('eurusd', cfg, p_cfg, week, policy, method, now)
 
         contextual_mock.assert_called_once_with(
             'eurusd', macro_candidates, fresh, policy, weekly=weekly, macro_context=macro_context
         )
         learning_mock.assert_called_once_with(selected_learning, contextual)
-        choose_mock.assert_called_once_with(adjusted_candidates, choice_learning, policy)
+        choose_mock.assert_called_once_with(adjusted_candidates, choice_learning, policy, 'eurusd')
         self.assertEqual(choice_learning, result['learning'])
         self.assertEqual(selected_learning, result['selected_leg_learning'])
+
+    def test_wes_1_1_inverse_is_shadow_and_cannot_win_exact_btc_tie(self):
+        policy = {
+            'strategy_tournament': {
+                'candidate_methods': ['base_v2', 'inverse_v2'],
+                'selection_priority': ['base_v2', 'inverse_v2'],
+                'exploration_bonus': 2.5,
+                'champion_challenger': {
+                    'execution_methods': ['base_v2'],
+                    'challenger_shadow_methods': ['inverse_v2'],
+                    'challenger_execution_enabled': False,
+                    'opposing_direction_utility_margin_no_trade': 0.5,
+                },
+            }
+        }
+        candidates = {
+            'base_v2': {'direction': 'long', 'raw_score': 65.0, 'conviction': 9.75},
+            'inverse_v2': {'direction': 'short', 'raw_score': -65.0, 'conviction': 9.75},
+        }
+        learning = {'methods': {
+            'base_v2': {'count': 9, 'adjustment': 0.0},
+            'inverse_v2': {'count': 9, 'adjustment': 0.0},
+        }}
+        decision = v4.choose_governed(candidates, learning, policy, 'btcusd')
+        self.assertEqual('base_v2', decision['strategy_id'])
+        self.assertEqual('long', decision['direction'])
+        self.assertTrue(decision['candidates']['base_v2']['execution_eligible'])
+        self.assertFalse(decision['candidates']['inverse_v2']['execution_eligible'])
+        self.assertEqual('challenger_shadow', decision['candidates']['inverse_v2']['execution_authority'])
+
+    def test_wes_1_1_opposing_champions_inside_margin_resolve_to_no_trade(self):
+        policy = {
+            'strategy_tournament': {
+                'candidate_methods': ['base_v2', 'weekly_trend'],
+                'selection_priority': ['base_v2', 'weekly_trend'],
+                'exploration_bonus': 2.5,
+                'champion_challenger': {
+                    'execution_methods': ['base_v2', 'weekly_trend'],
+                    'challenger_shadow_methods': [],
+                    'challenger_execution_enabled': False,
+                    'opposing_direction_utility_margin_no_trade': 0.5,
+                },
+            }
+        }
+        candidates = {
+            'base_v2': {'direction': 'long', 'raw_score': 60.0, 'conviction': 9.0},
+            'weekly_trend': {'direction': 'short', 'raw_score': -60.0, 'conviction': 9.0},
+        }
+        learning = {'methods': {
+            'base_v2': {'count': 4, 'adjustment': 0.0},
+            'weekly_trend': {'count': 4, 'adjustment': 0.0},
+        }}
+        decision = v4.choose_governed(candidates, learning, policy, 'btcusd')
+        self.assertEqual('no_trade', decision['strategy_id'])
+        self.assertEqual('neutral', decision['direction'])
+        self.assertIn('opposing_execution_candidates_within_utility_margin', decision['reason_codes'])
+
+    def test_wes_1_1_blocks_exact_btc_incident_short_against_daily_and_weekly_long(self):
+        policy = {
+            'directional_admission': {
+                'enabled': True,
+                'minimum_confirmations': 2,
+                'daily_min_abs_score': 25,
+                'weekly_min_abs_score': 15,
+                'ma_min_abs_score': 1,
+                'block_against_aligned_daily_weekly': True,
+            }
+        }
+        decision = {
+            'strategy_id': 'test_short',
+            'direction': 'short',
+            'raw_score': -65.0,
+            'utility': 10.54,
+            'execution_authority': 'champion_execution',
+            'execution_eligible': True,
+        }
+        fresh = {'data_quality': 'passed', 'score': 65.0}
+        weekly = {'data_quality': 'passed', 'score': 49.0}
+        admitted, reasons, diagnostics = v5.directional_admission(decision, fresh, weekly, {}, policy)
+        self.assertFalse(admitted)
+        self.assertEqual(0, diagnostics['confirmations'])
+        self.assertIn('insufficient_directional_confirmations', reasons)
+        self.assertIn('candidate_opposes_aligned_daily_weekly', reasons)
+
+    def test_wes_1_1_allows_direction_with_two_independent_confirmations(self):
+        policy = {
+            'directional_admission': {
+                'enabled': True,
+                'minimum_confirmations': 2,
+                'daily_min_abs_score': 25,
+                'weekly_min_abs_score': 15,
+                'ma_min_abs_score': 1,
+                'block_against_aligned_daily_weekly': True,
+            }
+        }
+        decision = {
+            'strategy_id': 'base_v2',
+            'direction': 'long',
+            'raw_score': 65.0,
+            'utility': 10.54,
+            'execution_authority': 'champion_execution',
+            'execution_eligible': True,
+        }
+        fresh = {'data_quality': 'passed', 'score': 65.0}
+        weekly = {'data_quality': 'passed', 'score': 49.0}
+        admitted, reasons, diagnostics = v5.directional_admission(decision, fresh, weekly, {}, policy)
+        self.assertTrue(admitted)
+        self.assertEqual([], reasons)
+        self.assertEqual(['daily', 'weekly'], diagnostics['confirmation_sources'])
+
+    def test_wes_1_1_every_new_entry_requires_matching_non_shadow_authorization(self):
+        now = datetime(2026, 9, 21, 9, 24, tzinfo=TZ)
+        policy = {'directional_admission': {'require_for_all_new_entries': True}}
+        decision = {'strategy_id': 'base_v2', 'direction': 'long'}
+        ok, reason = v5.wes_authorization_matches({}, decision, now, policy)
+        self.assertFalse(ok)
+        self.assertEqual('wes_entry_authorization_missing', reason)
+
+        item = {
+            'wes_entry_authorization': {
+                'expires_at': '2026-09-21T09:40:00+02:00',
+                'directional_admission_passed': True,
+                'candidate': {
+                    'strategy_id': 'inverse_v2',
+                    'direction': 'short',
+                    'execution_authority': 'challenger_shadow',
+                },
+            }
+        }
+        ok, reason = v5.wes_authorization_matches(item, {'strategy_id': 'inverse_v2', 'direction': 'short'}, now, policy)
+        self.assertFalse(ok)
+        self.assertEqual('wes_candidate_not_execution_authorized', reason)
+
+    def test_repository_policy_marks_inverse_v2_shadow_only(self):
+        import json
+        policy = json.loads((ROOT / 'data' / 'investments' / 'multi_instrument_exposure_policy.json').read_text(encoding='utf-8'))
+        cc = policy['strategy_tournament']['champion_challenger']
+        self.assertIn('inverse_v2', cc['challenger_shadow_methods'])
+        self.assertNotIn('inverse_v2', cc['execution_methods'])
+        self.assertFalse(cc['challenger_execution_enabled'])
+        self.assertTrue(policy['directional_admission']['require_for_all_new_entries'])
 
     def test_wes_workflow_persists_v5_context_state_and_fails_on_unstaged_changes(self):
         workflow = (ROOT / '.github' / 'workflows' / 'investments-wes.yml').read_text(encoding='utf-8')
