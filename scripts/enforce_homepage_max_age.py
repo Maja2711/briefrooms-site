@@ -306,7 +306,12 @@ def enforce_payload(
         identity = base.normalized_identity(story)
         if identity and identity in qualification_cache:
             cached, reason = qualification_cache[identity]
-            return (dict(cached) if isinstance(cached, dict) else None), reason
+            if not isinstance(cached, dict):
+                return None, reason
+            merged = dict(story)
+            merged["news_first_seen_at"] = cached.get("news_first_seen_at")
+            merged["news_expires_at"] = cached.get("news_expires_at")
+            return merged, reason
 
         if not _homepage_image_url(story):
             result = (None, "image")
