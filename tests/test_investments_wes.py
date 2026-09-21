@@ -278,6 +278,38 @@ class WesTests(unittest.TestCase):
         self.assertFalse(ok)
         self.assertEqual('wes_candidate_not_execution_authorized', reason)
 
+    def test_wes_version_upgrade_never_rewrites_existing_frozen_risk_plan(self):
+        frozen = {
+            'model_version': 'WES-1.0.0',
+            'generated_at': '2026-09-21T09:26:26+02:00',
+            'direction': 'short',
+            'stop_loss_price': 1.15285363,
+            'take_profit_price': 1.13786575,
+            'wes_entry_class': 'monday_weekly',
+        }
+        week = {
+            'week_id': '2026-W39',
+            'instruments': [{
+                'instrument_id': 'eurusd',
+                'direction': 'short',
+                'entry_price': 1.1478420496,
+                'exit_price': None,
+                'risk_plan': dict(frozen),
+                'wes_status': 'open_wes_governed_position',
+                'wes_methodology': 'WES-1.0.0',
+            }],
+        }
+        existing_path = ROOT / 'data' / 'investments' / 'multi_instrument_exposure_policy.json'
+        with patch.object(wes, 'current_week_path', return_value=existing_path), \
+             patch.object(wes, 'read', return_value=week), \
+             patch.object(wes, 'write'), \
+             patch.object(wes, 'learning_stats', return_value={'classes': {}}), \
+             patch.object(wes, 'build_wes_plan') as build:
+            wes.postflight()
+        build.assert_not_called()
+        self.assertEqual(frozen, week['instruments'][0]['risk_plan'])
+        self.assertEqual('WES-1.1.0', week['instruments'][0]['wes_methodology'])
+
     def test_wes_1_1_stale_pending_before_authorization_is_never_reused(self):
         item = {
             'wes_entry_authorization': {
