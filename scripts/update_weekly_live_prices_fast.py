@@ -34,7 +34,7 @@ class Instrument:
 
 INSTRUMENTS: Dict[str, Instrument] = {
     "eurusd": Instrument("EURUSD=X", "eurusd", 0.8, 1.5, timedelta(minutes=10)),
-    "sp500_futures": Instrument("ES=F", "es.f", 500.0, 100_000.0, timedelta(minutes=45)),
+    "sp500_futures": Instrument("ES=F", "es.f", 500.0, 100_000.0, timedelta(minutes=7)),
     "btcusd": Instrument("BTC-USD", None, 1_000.0, 2_000_000.0, timedelta(minutes=5)),
 }
 
@@ -148,7 +148,7 @@ def yahoo_quote(instrument_id: str, yahoo_symbol: Optional[str] = None) -> Dict[
     cfg = INSTRUMENTS[instrument_id]
     raw_symbol = yahoo_symbol or cfg.yahoo
     symbol = urllib.parse.quote(raw_symbol, safe="")
-    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?range=1d&interval=1m"
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?range=1d&interval=1m&_={int(now_local().timestamp())}"
     payload = json.loads(request_bytes(url).decode("utf-8"))
     chart = (payload.get("chart", {}).get("result") or [None])[0]
     if not chart:
