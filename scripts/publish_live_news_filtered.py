@@ -534,7 +534,7 @@ def select_sections(
         # PL contract: reserve one politics-section slot for a material
         # Russia-Ukraine-war update before general ranking can consume all nine.
         # If no fresh qualifying item is available, carry the latest qualifying
-        # previously-published item for at most the homepage's 72h freshness horizon.
+        # previously-published item for at most the global 24h freshness horizon.
         if pl_mode and section_id == "polityka":
             topic_candidate = next(
                 (
