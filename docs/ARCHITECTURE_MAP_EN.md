@@ -1,6 +1,6 @@
 # BriefRooms Canonical Architecture Map — EN
 
-**Map version:** 1.6  
+**Map version:** 1.7  
 **Snapshot date:** 2026-09-19  
 **Base `main` commit:** `331314840c1f1ddeccd814b46df688ccf9971d2b`  
 **Repository:** `Maja2711/briefrooms-site`
@@ -176,7 +176,7 @@ An adapter is not a decision engine. Its primary job is to translate a source in
 | `TR-02` | Legacy US Daily pipeline | Historical US Daily lifecycle/risk/memory | **DEPRECATED AS PRODUCT / REPLACED_BY `TR-04`**. Retained for migration/history compatibility; active stock authority belongs to v2 |
 | `TR-03` | Daily EUR/USD Spot | Intraday–24h; shared Daily contract | Historically shadow rollout; independent lifecycle/event overlay/ABC learning |
 | `TR-04` | Stock Trading v2 | Unified active stock engine for GPW and US: Dynamic Universe, Opportunity Frontier, Trigger research, Deep Evidence, Fixed Notional Sizing, Portfolio Opportunity Engine | **PRODUCTION CHAMPION — FULL**. Every new position uses `FIXED_NOTIONAL_V1`: PLN 5,000 on GPW or USD 5,000 in US; `champion_engine=v2`, `challenger_engine=v1`, `legacy_candidate_admission_enabled=false`; `main` is production authority, `stock-trading-v2` is research/evidence runtime |
-| `TR-05` | Weekly Positions / WES family | EUR/USD, S&P 500 futures, BTC/USD; governed paper/research plus WES memory/counterfactual/belief bridges | Current runtime policy v5.6.x / WES: experimental governed paper only; `NO_TRADE` is first-class, `mandatory_monday_position=false`, `continuous_position_required=false` |
+| `TR-05` | Weekly Positions / WES family | EUR/USD, S&P 500 futures, BTC/USD; governed paper/research plus WES memory/counterfactual/belief bridges | Runtime policy v5.6.2 / WES: experimental governed paper only; `NO_TRADE` is first-class. The canonical SL/TP safety path is `audit_intraday_risk_exits.py`, scheduled every 5 minutes 24/7 by `investments-exposure-watch.yml`; BTC uses Coinbase 5m+ticker as primary and Yahoo only as fallback, while every run replays the full interval since the frozen risk plan became active |
 | `TR-06` | Portfolio 10K baseline | Long-horizon portfolio, historical champion/baseline | Preserved production baseline and BRACE fallback |
 | `TR-07` | BRACE Portfolio Engine | Portfolio research/control with optimizer, governance and separate model paper portfolio | **PROBATIONARY_CONTROL**; paper-only, deterministic controller, immutable Portfolio10K baseline as fallback; LLM cannot promote |
 | `TR-08` | BRACE-SPX / Long View | Read-only/forecast-oriented SPX long-view family | Uses its point-in-time state plus epistemic state; canonical DecisionEnvelope rollout incomplete |
@@ -434,7 +434,7 @@ Primary detailed documents used to build and maintain the current map:
 - 2026-09-19: Architecture Reconciliation 1.5 separated authority: `main` = production/governance/orchestration, `stock-trading-v2` = research/evidence runtime.
 - Trigger/Relationship plus targeted Deep BELIEF proxy were wired into default-branch schedulers without granting production decision authority.
 - The direct research-branch auto-promoter was removed; Stock Trading Component Promotion on `main` is the sole production-promotion authority.
-- The legacy Autonomous Policy Closed Loop retains research lineage but stock `automatic_materialization_enabled=false`.
+- The legacy Autonomous Policy Closed Loop retains research lineage but stock `automatic_materialization_enabled=false`.\n- 2026-09-21: `TR-05` gained a canonical five-minute 24/7 risk safety path. The legacy lifecycle delegates to the same monitor; BTC execution evidence is Coinbase-primary, and delayed runs recover historical frozen SL/TP touches from 5-minute data instead of relying on the current tick.
 
 ---
 
