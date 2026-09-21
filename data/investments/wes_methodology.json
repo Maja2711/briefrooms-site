@@ -1,8 +1,8 @@
 {
   "methodology": "Weekly Engine Star",
   "short_name": "WES",
-  "version": "1.1.0",
-  "lifecycle_revision": "directional-admission-champion-challenger-1",
+  "version": "1.2.0",
+  "lifecycle_revision": "price-aware-entry-1",
   "status": "experimental_governed_paper_only",
   "objective": "maximize_total_net_profit_after_costs_without_forcing_exposure",
   "principles": [
@@ -19,7 +19,11 @@
     "Friday tactical entries use a deliberately reduced TP and tighter SL only when they still belong to the original short Friday horizon; an early-close replacement uses its full rolling seven-day horizon instead.",
     "TP and SL are adaptive to effective remaining holding time, signal strength and learned results by entry class.",
     "Learning must improve expected net profit, not maximize trade count or win rate in isolation.",
-    "No rule may force a directional position when admission gates are not met."
+    "No rule may force a directional position when admission gates are not met.",
+    "Directional admission authorizes a thesis, not an immediate market-price fill.",
+    "Every new entry requires a frozen price-aware Entry Price Plan before execution.",
+    "A pending entry is executed only when a post-decision 5-minute bar touches the frozen target; otherwise it remains WAIT and may expire without a trade.",
+    "The entry target may not chase the market during its validity window. It can change only after expiry or a governed thesis/method/direction change."
   ],
   "entry_classes": {
     "monday_weekly": "normal weekly horizon",
@@ -77,5 +81,27 @@
     "challenger_execution_requires_governed_promotion": true,
     "opposing_direction_near_tie": "NO_TRADE",
     "method_name_tie_break_forbidden": true
+  },
+  "entry_price_engine": {
+    "version": "WES-1.2.0",
+    "mode": "frozen_price_improving_limit",
+    "applies_to": [
+      "initial_weekly_entry",
+      "no_trade_trigger",
+      "early_close_reentry",
+      "friday_tactical"
+    ],
+    "inputs": [
+      "decision_time_reference_price",
+      "ATR14",
+      "EMA20_distance",
+      "ret5_pct",
+      "ret20_pct",
+      "range55_position",
+      "post_stop_reversal_state"
+    ],
+    "execution": "first post-decision 5m OHLC range touch of frozen target",
+    "no_touch": "WAIT_then_expire_without_trade",
+    "target_mutation": "forbidden_while_plan_active"
   }
 }
