@@ -347,16 +347,16 @@ PL_UKRAINE_RUSSIA_WAR_POLICY_VERSION = "pl-ukraine-russia-war-v1"
 PL_UKRAINE_RUSSIA_WAR_MINIMUM = 1
 PL_UKRAINE_RUSSIA_WAR_MAX_CARRY_AGE = timedelta(hours=72)
 PL_UKRAINE_RE = re.compile(
-    r"\\b(?:ukrain\\w*|kijow\\w*|kijów\\w*|kyiv\\w*|zelensk\\w*)\\b",
+    r"\b(?:ukrain\w*|kijow\w*|kijów\w*|kyiv\w*|zelensk\w*)\b",
     re.IGNORECASE,
 )
 PL_RUSSIA_WAR_CONTEXT_RE = re.compile(
-    r"\\b(?:rosj\\w*|russia\\w*|kreml\\w*|putin\\w*|moskw\\w*|"
-    r"wojn\\w*|war\\b|front\\w*|atak\\w*|attack\\w*|inwaz\\w*|invasion\\w*|"
-    r"rakiet\\w*|missile\\w*|dron\\w*|drone\\w*|ostrza\\w*|shelling\\w*|"
-    r"ofensyw\\w*|offensiv\\w*|obron\\w*|defen[cs]\\w*|wojsk\\w*|military\\w*|"
-    r"rozejm\\w*|ceasefire\\w*|pokoj\\w*|pokój\\w*|peace\\w*|negocjac\\w*|negotiat\\w*|"
-    r"okup\\w*|occupat\\w*|sankcj\\w*|sanction\\w*)\\b",
+    r"\b(?:rosj\w*|russia\w*|kreml\w*|putin\w*|moskw\w*|"
+    r"wojn\w*|war\b|front\w*|atak\w*|attack\w*|inwaz\w*|invasion\w*|"
+    r"rakiet\w*|missile\w*|dron\w*|drone\w*|ostrza\w*|shelling\w*|"
+    r"ofensyw\w*|offensiv\w*|obron\w*|defen[cs]\w*|wojsk\w*|military\w*|"
+    r"rozejm\w*|ceasefire\w*|pokoj\w*|pokój\w*|peace\w*|negocjac\w*|negotiat\w*|"
+    r"okup\w*|occupat\w*|sankcj\w*|sanction\w*)\b",
     re.IGNORECASE,
 )
 
