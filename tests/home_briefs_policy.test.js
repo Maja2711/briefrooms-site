@@ -43,7 +43,7 @@ test('legacy homepage renderer preserves feed editorial order', () => {
   assert.deepEqual(selected.map(row => row.title), rows.map(row => row.title));
 });
 
-test('homepage accepts exactly 72 hours and rejects anything older or undated', () => {
+test('homepage accepts exactly 24 hours and rejects anything older or undated', () => {
   const exact = item('pl', '1', 'Polityka', home.HOME_MAX_AGE_MS);
   const stale = item('pl', '2', 'Ekonomia', home.HOME_MAX_AGE_MS + 1);
   const missing = item('pl', '3', 'Zdrowie', 1000);
