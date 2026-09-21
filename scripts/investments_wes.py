@@ -262,8 +262,15 @@ def postflight() -> Dict[str, Any]:
                     item["entry_quality_status"] = f"wes_{plan['wes_entry_class']}"
                     report["actions"].append({"instrument_id": item.get("instrument_id"), "action": "freeze_adaptive_risk_plan", "entry_class": plan["wes_entry_class"], "rr": plan["reward_to_risk"], "tp_distance": plan["take_profit_distance"], "sl_distance": plan["stop_loss_distance"]})
                     changed = True
-        elif str(item.get("direction") or "neutral") == "neutral":
-            item["wes_status"] = "no_trade_monitoring_trigger"
+        else:
+            pending = item.get("pending_entry_decision") if isinstance(item.get("pending_entry_decision"), dict) else {}
+            pending_decision = pending.get("decision") if isinstance(pending.get("decision"), dict) else {}
+            if str(item.get("trade_status") or "") == "pending" and str(pending_decision.get("direction") or "") in {"long", "short"}:
+                item["wes_status"] = "directional_entry_pending_execution"
+                item["wes_methodology"] = VERSION
+            elif str(item.get("direction") or "neutral") == "neutral":
+                item["wes_status"] = "no_trade_monitoring_trigger"
+                item["wes_methodology"] = VERSION
     week.setdefault("wes", {}).update({"version": VERSION, "last_postflight_at": now.isoformat(timespec="seconds"), "dynamic_risk": True, "learning_by_entry_class": True})
     if changed: write(path, week)
     report["status"] = "completed"; report["week_id"] = week.get("week_id"); write(REPORT, report); return report
