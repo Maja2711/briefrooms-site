@@ -50,6 +50,9 @@
       minPrice: 500,
       maxPrice: 100_000,
       sources: [
+        { name: 'eSignal ES active', fetch: () => fetchEsignalEs('direct') },
+        { name: 'eSignal ES active · proxy 1', fetch: () => fetchEsignalEs('codetabs') },
+        { name: 'eSignal ES active · proxy 2', fetch: () => fetchEsignalEs('allorigins') },
         { name: 'Stooq ES.F', fetch: () => fetchStooqEs('direct') },
         { name: 'Stooq ES.F · proxy 1', fetch: () => fetchStooqEs('codetabs') },
         { name: 'Stooq ES.F · proxy 2', fetch: () => fetchStooqEs('allorigins') },
@@ -232,6 +235,91 @@
     const correctedOffset = timeZoneOffsetMs(instant, 'Europe/Warsaw');
     if (correctedOffset !== firstOffset) instant = new Date(wallUtcMs - correctedOffset);
     return instant;
+  }
+
+  function warsawYmd(date = new Date()) {
+    const parts = Object.fromEntries(
+      new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Europe/Warsaw',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).formatToParts(date)
+        .filter((part) => part.type !== 'literal')
+        .map((part) => [part.type, part.value]),
+    );
+    return { year: Number(parts.year), month: Number(parts.month), day: Number(parts.day) };
+  }
+
+  function activeEsignalSymbol() {
+    const current = warsawYmd();
+    const quarters = [3, 6, 9, 12];
+    let year = current.year;
+    let month = quarters.find((candidate) => current.month <= candidate) || 3;
+    if (month === 3 && current.month > 12) year += 1;
+    if (current.month > 12) month = 3;
+
+    if (current.month > 12 || !quarters.includes(month)) {
+      year += 1;
+      month = 3;
+    }
+
+    if (current.month === 12 && month === 3) year += 1;
+
+    if (current.month === month) {
+      const firstWeekday = new Date(Date.UTC(year, month - 1, 1)).getUTCDay();
+      const firstFriday = 1 + ((5 - firstWeekday + 7) % 7);
+      const thirdFriday = firstFriday + 14;
+      const rollStart = thirdFriday - 8;
+      if (current.day >= rollStart) {
+        const next = { 3: 6, 6: 9, 9: 12, 12: 3 }[month];
+        if (month === 12) year += 1;
+        month = next;
+      }
+    }
+
+    const code = { 3: 'H', 6: 'M', 9: 'U', 12: 'Z' }[month];
+    return `ES ${code}${String(year).slice(-2)}`;
+  }
+
+  function parseEsignalEs(markup, symbol) {
+    const doc = new DOMParser().parseFromString(String(markup || ''), 'text/html');
+    const text = String(doc.body?.textContent || '').replace(/\s+/g, ' ').trim();
+    const priceMatch = text.match(/Last:\s*([0-9,]+(?:\.[0-9]+)?)/i);
+    const timeMatch = text.match(/Time of last trade:\s*([A-Za-z]{3})\s+(\d{1,2})\s+(\d{4})\s+(\d{2}):(\d{2}):(\d{2})\s+(EST|EDT)/i);
+    if (!priceMatch || !timeMatch) throw new Error('esignal_es_incomplete_quote');
+
+    const price = positive(priceMatch[1].replace(/,/g, ''));
+    const months = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 };
+    const month = months[timeMatch[1]];
+    if (price === null || month === undefined) throw new Error('esignal_es_invalid_quote');
+
+    const easternToUtcHours = timeMatch[7].toUpperCase() === 'EDT' ? 4 : 5;
+    const utcMs = Date.UTC(
+      Number(timeMatch[3]),
+      month,
+      Number(timeMatch[2]),
+      Number(timeMatch[4]) + easternToUtcHours,
+      Number(timeMatch[5]),
+      Number(timeMatch[6]),
+    );
+
+    return {
+      price,
+      updatedAt: new Date(utcMs).toISOString(),
+      source: `eSignal delayed:${symbol}`,
+    };
+  }
+
+  async function fetchEsignalEs(route) {
+    const symbol = activeEsignalSymbol();
+    const upstream = `https://quotes.esignal.com/esignalprod/quote.action?symbol=${encodeURIComponent(symbol)}&types=future&_=${Date.now()}`;
+    const url = route === 'allorigins'
+      ? `https://api.allorigins.win/raw?url=${encodeURIComponent(upstream)}`
+      : route === 'codetabs'
+        ? `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(upstream)}`
+        : upstream;
+    return parseEsignalEs(await fetchText(url), symbol);
   }
 
   function parseStooqEsCsv(text) {
