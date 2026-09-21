@@ -15,7 +15,7 @@
       stale: 'Dane rynkowe są opóźnione. Pokazujemy ostatnią zapisaną cenę wraz z godziną jej aktualizacji.',
       loadError: 'Nie udało się pobrać aktualnych danych. Ostatnio zapisany widok pozostaje dostępny.',
       no: '—', audit: 'DANE W AUDYCIE', withheld: 'Wynik wstrzymany',
-      auditText: 'Rekord nie przeszedł kontroli spójności.',
+      auditText: 'Rekord nie przeszedł kontroli spójności.', previousResult: 'Poprzedni wynik',
       total: 'Łączny wynik zamkniętych pozycji', wins: 'Zyskowne / stratne',
       next: 'następny tydzień', settled: 'wynik historyczny',
       legal: 'Treści mają charakter edukacyjny i analityczny. To nie jest rekomendacja inwestycyjna ani porada finansowa.'
@@ -31,7 +31,7 @@
       stale: 'Market data is delayed. The last stored price is shown together with its update time.',
       loadError: 'Current data could not be loaded. The last stored view remains available.',
       no: '—', audit: 'DATA UNDER AUDIT', withheld: 'Result withheld',
-      auditText: 'The record failed the consistency check.',
+      auditText: 'The record failed the consistency check.', previousResult: 'Previous result',
       total: 'Total closed result', wins: 'Profitable / losing',
       next: 'next week', settled: 'historical result',
       legal: 'Content is educational and analytical. It is not investment advice or financial advice.'
@@ -65,6 +65,18 @@
     return item.direction === 'short' ? 'short' : item.direction === 'long' ? 'long' : 'neutral';
   };
   const dirText = (item) => dir(item) === 'neutral' ? (L === 'pl' ? 'NEUTRALNIE' : 'NEUTRAL') : dir(item).toUpperCase();
+  const executedDir = (item) => {
+    const entry = Number(item?.entry_price);
+    const planDirection = String(item?.risk_plan?.direction || '').toLowerCase();
+    if (Number.isFinite(entry) && entry > 0 && ['long', 'short'].includes(planDirection)) return planDirection;
+    if (Number.isFinite(entry) && entry > 0 && ['long', 'short'].includes(String(item?.direction || '').toLowerCase())) {
+      return String(item.direction).toLowerCase();
+    }
+    return dir(item);
+  };
+  const executedDirText = (item) => executedDir(item) === 'neutral'
+    ? (L === 'pl' ? 'NEUTRALNIE' : 'NEUTRAL')
+    : executedDir(item).toUpperCase();
   const noEntryLifecycleStates = new Set(['planned', 'pending', 'no_trade', 'not_opened', 'expired_no_entry']);
 
   function fmt(value, instrumentId) {
@@ -115,8 +127,9 @@
   function calculatedMetrics(item, mark, methodVersion = null) {
     const entry = good(item.entry_price);
     const market = good(mark);
-    if (dir(item) === 'neutral' || entry === null || market === null) return null;
-    const move = dir(item) === 'long' ? market - entry : entry - market;
+    const side = executedDir(item);
+    if (side === 'neutral' || entry === null || market === null) return null;
+    const move = side === 'long' ? market - entry : entry - market;
     const percent = move / entry * 100;
     const value = item.instrument_id === 'eurusd' ? move * notional(item) : move / entry * notional(item);
     const legacyBtcPriceUnits = item.instrument_id === 'btcusd'
@@ -152,7 +165,7 @@
     return result === null || Math.abs(result) < 0.000001 ? 'neutral' : result > 0 ? 'positive' : 'negative';
   }
   function hasClose(item) {
-    return dir(item) !== 'neutral' && good(item.entry_price) !== null && good(item.exit_price) !== null;
+    return executedDir(item) !== 'neutral' && good(item.entry_price) !== null && good(item.exit_price) !== null;
   }
   function status(item) {
     const state = tradeStatus(item);
@@ -228,9 +241,9 @@
   }
   function integrityIssues(item, methodVersion = null, week = null) {
     const issues = [];
-    const side = dir(item);
     const entry = good(item.entry_price);
     const exit = good(item.exit_price);
+    const side = entry !== null ? executedDir(item) : dir(item);
     const entryAt = parseTime(item.entry_captured_at);
     const exitAt = parseTime(item.exit_captured_at);
     const plan = riskPlan(item);
@@ -312,13 +325,21 @@
     }
     item = state.item;
     const neutral = dir(item) === 'neutral';
+    const pendingDirection = String(item?.pending_entry_decision?.decision?.direction || '').toLowerCase();
+    const pendingReentry = tradeStatus(item) === 'pending'
+      && ['long', 'short'].includes(pendingDirection)
+      && good(item.entry_price) !== null
+      && good(item.exit_price) !== null;
     const mark = hasClose(item) ? item.exit_price : current;
     const result = metrics(item, mark);
     const value = result?.value ?? null;
-    const risk = riskPlan(item);
+    const risk = pendingReentry ? { sl: null, tp: null, rr: null } : riskPlan(item);
     const description = item[L === 'pl' ? 'rationale_pl' : 'rationale_en'];
     const text = Array.isArray(description) ? description.join(' ') : (description || T.analysisMissing);
-    return `<article class="card ${esc(dir(item))}"><div class="head"><div><p>${esc(label(item))}</p><h3>${esc(dirText(item))}</h3></div></div><div class="now"><span>${T.price}</span><strong>${esc(fmt(current, item.instrument_id))}</strong><small>${currentTime ? esc(`${T.priceTime}: ${currentTime}`) : T.no}</small></div><dl class="grid"><div class="cell"><dt>${T.open}</dt><dd>${neutral ? T.no : esc(fmt(item.entry_price, item.instrument_id))}</dd></div><div class="cell"><dt>${T.close}</dt><dd>${hasClose(item) ? esc(fmt(item.exit_price, item.instrument_id)) : T.no}</dd></div><div class="cell"><dt>${T.notional}</dt><dd>${neutral ? T.no : esc(notionalText(item))}</dd></div><div class="cell"><dt>${T.status}</dt><dd>${esc(status(item))}</dd></div><div class="cell"><dt>${T.sl}</dt><dd>${neutral ? T.no : esc(fmt(risk.sl, item.instrument_id))}</dd></div><div class="cell"><dt>${T.tp}</dt><dd>${neutral ? T.no : esc(fmt(risk.tp, item.instrument_id))}</dd></div><div class="cell big"><dt>${T.rr}</dt><dd>${neutral ? T.no : esc(rrText(risk.rr))}</dd></div><div class="cell big"><dt>${T.pnl}</dt><dd class="${tone(value)}">${neutral ? T.no : esc(resultText(item, mark))}</dd></div><div class="cell big analysis"><dt>${T.analysis}</dt><dd>${esc(text)}</dd></div></dl></article>`;
+    const openValue = pendingReentry ? T.no : (neutral ? T.no : esc(fmt(item.entry_price, item.instrument_id)));
+    const closeValue = pendingReentry ? T.no : (hasClose(item) ? esc(fmt(item.exit_price, item.instrument_id)) : T.no);
+    const resultLabel = pendingReentry ? T.previousResult : T.pnl;
+    return `<article class="card ${esc(dir(item))}"><div class="head"><div><p>${esc(label(item))}</p><h3>${esc(dirText(item))}</h3></div></div><div class="now"><span>${T.price}</span><strong>${esc(fmt(current, item.instrument_id))}</strong><small>${currentTime ? esc(`${T.priceTime}: ${currentTime}`) : T.no}</small></div><dl class="grid"><div class="cell"><dt>${T.open}</dt><dd>${openValue}</dd></div><div class="cell"><dt>${T.close}</dt><dd>${closeValue}</dd></div><div class="cell"><dt>${T.notional}</dt><dd>${neutral ? T.no : esc(notionalText(item))}</dd></div><div class="cell"><dt>${T.status}</dt><dd>${esc(status(item))}</dd></div><div class="cell"><dt>${T.sl}</dt><dd>${neutral ? T.no : esc(fmt(risk.sl, item.instrument_id))}</dd></div><div class="cell"><dt>${T.tp}</dt><dd>${neutral ? T.no : esc(fmt(risk.tp, item.instrument_id))}</dd></div><div class="cell big"><dt>${T.rr}</dt><dd>${neutral ? T.no : esc(rrText(risk.rr))}</dd></div><div class="cell big"><dt>${resultLabel}</dt><dd class="${tone(value)}">${neutral ? T.no : esc(resultText(item, mark))}</dd></div><div class="cell big analysis"><dt>${T.analysis}</dt><dd>${esc(text)}</dd></div></dl></article>`;
   }
 
   let weeksCache = [];
@@ -360,7 +381,7 @@
         total += value; closed += 1;
         if (value > 0) wins += 1;
         if (value < 0) losses += 1;
-        rows.push(`<tr><td>${esc(week.week_id)}</td><td>${esc(label(item))}</td><td>${esc(dirText(item))}</td><td>${esc(fmt(item.entry_price, item.instrument_id))}</td><td>${esc(fmt(item.exit_price, item.instrument_id))}</td><td class="${tone(value)}">${esc(resultText(item, item.exit_price))}</td></tr>`);
+        rows.push(`<tr><td>${esc(week.week_id)}</td><td>${esc(label(item))}</td><td>${esc(executedDirText(item))}</td><td>${esc(fmt(item.entry_price, item.instrument_id))}</td><td>${esc(fmt(item.exit_price, item.instrument_id))}</td><td class="${tone(value)}">${esc(resultText(item, item.exit_price))}</td></tr>`);
       }
     }
 
@@ -383,7 +404,7 @@
       render();
     }
   };
-  window.BR_WEEKLY_INTEGRITY = { integrityIssues, auditState, plannedEntryIsValid, pendingEntryContractIssues };
+  window.BR_WEEKLY_INTEGRITY = { integrityIssues, auditState, plannedEntryIsValid, pendingEntryContractIssues, executedDir };
 
   async function refreshLive() {
     if (liveRefreshInFlight || document.hidden) return;
