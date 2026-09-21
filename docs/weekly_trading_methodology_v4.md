@@ -2,7 +2,7 @@
 
 ## Status
 
-The filename is retained for historical continuity, but the current governed runtime is newer than the original v4 exposure rule. Runtime authority lives in `data/investments/multi_instrument_exposure_policy.json` (currently policy v5.7.0) together with `data/investments/wes_methodology.json` (WES 1.1.0).
+The filename is retained for historical continuity, but the current governed runtime is newer than the original v4 exposure rule. Runtime authority lives in `data/investments/multi_instrument_exposure_policy.json` (currently policy v5.8.0) together with `data/investments/wes_methodology.json` (WES 1.2.0).
 
 The system remains experimental governed paper trading only. It places no broker orders.
 
@@ -35,9 +35,9 @@ Integrity checks, the public Weekly Trading UI and WES execution must interpret 
 
 The legacy Monday `entry_latest_local` field is not a universal WES execution deadline. WES may remain in `NO_TRADE` and admit a later qualified trigger under the active lifecycle policy. The effective position/weekly deadline is enforced separately by the governed close-deadline verifier.
 
-## WES 1.1 — Directional Admission & Champion/Challenger Hardening
+## WES 1.2 — Directional Admission, Champion/Challenger & Price-Aware Entry
 
-WES 1.1 separates research ranking from execution authority. A candidate can be useful for learning without being allowed to open a paper position.
+WES 1.2 keeps WES 1.1 directional/Champion-Challenger hardening and additionally separates direction selection from entry-price execution. A candidate can be useful for learning without being allowed to open a paper position.
 
 Every new entry, including the initial Monday entry, must pass all of the following:
 
@@ -53,6 +53,28 @@ Method names are never used to resolve a directional tie. Determinism for same-d
 `inverse_v2` remains fully calculated for research, counterfactual outcomes, contextual learning and Challenger evaluation, but it is `challenger_shadow` and has no execution authority. It can obtain execution authority only through an explicit governed promotion that changes policy.
 
 The WES preflight is the sole admission authority. The v5 runtime independently verifies the WES authorization before creating any new entry, so a workflow that bypasses preflight cannot silently open a position.
+
+### Entry Price Plan
+
+A valid LONG or SHORT decision is not itself an instruction to enter at the current market price.
+
+Before every new entry WES freezes an `entry_price_plan` containing:
+
+- the decision-time reference price;
+- ATR14 and EMA20 distance;
+- 5-day and 20-day momentum;
+- the 55-day range position;
+- a deterministic overextension score;
+- a pullback distance expressed in ATR;
+- a fixed BUY LIMIT or SELL LIMIT target;
+- `entry_not_before` and `expires_at` timestamps;
+- whether the setup is a post-stop reversal.
+
+The executor is deliberately narrow: it may only inspect post-decision 5-minute OHLC bars and fill the frozen target when the bar range touches that price. For LONG this means `Low <= target`; for SHORT it means `High >= target`. The fill is recorded at the frozen target, not at a later quote.
+
+While the plan is active the target is immutable. Repeated WES cycles may refresh the same thesis authorization, but they may not move the active target closer to price. If the target is not touched before expiry, the plan expires without a trade and a later WES cycle may create a new plan from fresh evidence.
+
+A stop-loss reversal receives an additional pullback requirement and a minimum completed-bar delay before the target can become executable.
 
 ## Risk execution reliability
 
@@ -75,14 +97,14 @@ The hourly/full WES lifecycle calls the same monitor. There is therefore one SL/
 
 ## Why an inverse signal is tested separately
 
-A negative result for a short method does not prove that the corresponding long method is profitable. Transaction costs, timing, stop-losses, take-profits and asymmetric price behaviour can make both directions unprofitable. Therefore `base_v2` and `inverse_v2` remain independent research candidates and receive separate walk-forward results. Under WES 1.1, `inverse_v2` is a Challenger/Shadow method and cannot execute unless explicitly promoted.
+A negative result for a short method does not prove that the corresponding long method is profitable. Transaction costs, timing, stop-losses, take-profits and asymmetric price behaviour can make both directions unprofitable. Therefore `base_v2` and `inverse_v2` remain independent research candidates and receive separate walk-forward results. Under WES 1.2, `inverse_v2` is a Challenger/Shadow method and cannot execute unless explicitly promoted.
 
 ## Candidate methods
 
 The strategy tournament evaluates:
 
 1. `base_v2` — direction from the saved daily trend, momentum and breakout model.
-2. `inverse_v2` — the opposite direction, tested as a separate Challenger/Shadow hypothesis; research-only under WES 1.1 until governed promotion.
+2. `inverse_v2` — the opposite direction, tested as a separate Challenger/Shadow hypothesis; research-only under WES 1.2 until governed promotion.
 3. `weekly_trend` — direction from weekly EMA, momentum, breakout and candle structure.
 4. `daily_weekly_blend` — weighted combination of daily and weekly scores.
 5. `ema_mean_reversion` — controlled counter-trend response to distance from daily EMA20 measured in ATR.
