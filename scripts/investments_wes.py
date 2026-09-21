@@ -29,7 +29,7 @@ POLICY = ROOT / "data/investments/multi_instrument_exposure_policy.json"
 WEEKLY = ROOT / "data/investments/weekly"
 REPORT = ROOT / "data/investments/wes_report.json"
 LEARNING = ROOT / "data/investments/wes_learning.json"
-VERSION = "WES-1.1.0"
+VERSION = "WES-1.2.0"
 
 read, write, sf, parse_dt = v4.read, v4.write, v2.sf, v2.parse_dt
 
