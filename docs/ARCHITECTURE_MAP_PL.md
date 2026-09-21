@@ -1,8 +1,8 @@
 # Kanoniczna mapa architektury BriefRooms — PL
 
-**Wersja mapy:** 1.9  
+**Wersja mapy:** 1.10  
 **Stan na:** 2026-09-21  
-**Bazowy commit `main`:** `c7a5d3f860b3695cba39c6c3e32f4b88721e9ced`  
+**Bazowy commit `main`:** `b76bd3a98d2b601a646845d6c3867da4d64240c6`  
 **Repozytorium:** `Maja2711/briefrooms-site`
 
 ## 0. Rola tego dokumentu
@@ -331,6 +331,7 @@ Przykłady prywatnego durable state: Learning Outcome Loop oraz GSE/Belief shado
 19. **WES 1.1 Directional Admission jest obowiązkowy dla każdego nowego wejścia.** Forecast, ranking badawczy ani wynik Challengera nie są autoryzacją wykonania. Wejście wymaga execution-authorized metody Champion-pool, ważnej autoryzacji dokładnego kierunku/metody i minimum dwóch niezależnych kierunkowych potwierdzeń; kandydat przeciwny do zgodnych Daily+Weekly jest blokowany.
 20. **Nazwa metody nigdy nie rozstrzyga kierunku rynku.** W `TR-05` remis lub near-tie przeciwnych execution candidates przechodzi do `NO_TRADE`; `inverse_v2` pozostaje Challenger/Shadow do jawnej, kontrolowanej promocji.
 21. **WES 1.2 Entry Price Plan jest obowiązkowy.** Directional Admission autoryzuje tezę LONG/SHORT, ale nie natychmiastowy fill. Przed każdym nowym wejściem WES zamraża target ceny z wykorzystaniem ceny referencyjnej z chwili decyzji, ATR14, EMA20, ret5/ret20, pozycji w 55-dniowym zakresie oraz stanu po stop-lossie. Executor może wykonać tylko zamrożony price-improving BUY LIMIT / SELL LIMIT po dotknięciu przez świecę 5m. Aktywny target nie może być przesuwany za rynkiem; brak dotknięcia oznacza WAIT/expiry bez transakcji.
+22. **Zmiana scoped do instrumentu nie może mutować innych instrumentów.** Dla `TR-05` push kodu/UI/testu/dokumentacji jest validation-only. Produkcyjny/paper state pozycji może być zmieniany wyłącznie przez harmonogram, jawny manual dispatch lub kontrolowany workflow-run execution path. Zmiana feedu/ceny S&P nie może jako side effect przeliczać BTC ani EUR/USD.
 
 ## 11. Authority map — kto czego NIE może robić
 
@@ -449,3 +450,5 @@ Najważniejsze dokumenty szczegółowe użyte do budowy i utrzymania aktualnej m
 
 **Maintenance invariant:** ten plik i `ARCHITECTURE_MAP_EN.md` są jednym logicznym artefaktem. Nie wolno aktualizować tylko jednej wersji.
 - 2026-09-21: WES 1.2 rozdzielił kierunek od ceny wejścia. Każdy nowy trade wymaga zamrożonego price-aware Entry Price Plan, a executor nie ma prawa brać pierwszej dostępnej ceny rynkowej.
+
+- 2026-09-21: Push zmian Weekly/WES/Risk jest validation-only; wykonanie pozycji zostało odseparowane od zmian UI, feedów, testów i dokumentacji. Wprowadzono instrument-scoped change isolation.
