@@ -16,7 +16,7 @@ PAGES = [
     ROOT / "en" / "investing" / "open-weekly-positions.html",
     ROOT / "en" / "investing" / "weekly-forecasts.html",
 ]
-SCRIPT_REF = "/scripts/investments-weekly-browser-live.js?v=20260921-2"
+SCRIPT_REF = "/scripts/investments-weekly-browser-live.js?v=20260921-3"
 COMPACT_REF = "/scripts/investments-weekly-price-compact.js?v=20260916-4"
 
 
@@ -38,7 +38,7 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
     def test_browser_runtime_keeps_last_quote_without_visible_delay_minutes(self) -> None:
         source = LIVE_SCRIPT.read_text(encoding="utf-8")
         self.assertIn("/data/investments/live_prices.json", source)
-        self.assertIn("CACHE_PREFIX = 'briefrooms:weekly-market-feed:v5:'", source)
+        self.assertIn("CACHE_PREFIX = 'briefrooms:weekly-market-feed:v6:'", source)
         self.assertIn("mode: 'delayed'", source)
         self.assertIn("saveCache(instrumentId, finalQuote)", source)
         self.assertIn("timeNode.textContent = fmtTime(quote.updatedAt)", source)
@@ -89,15 +89,27 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
         self.assertIn("for (let index = 0; index < cfg.sources.length; index += 1)", source)
         self.assertIn("if (quoteFresh(quote, cfg.maxAgeMs)) return attempts;", source)
         self.assertIn("['live', 'fallback'].includes(state?.mode)", source)
+        self.assertIn("Stooq ES.F", source)
         self.assertIn("Yahoo ES=F", source)
+        self.assertIn("fetchStooqEs", source)
         self.assertIn("Coinbase BTC-USD", source)
         self.assertIn("CoinGecko BTC/USD", source)
         self.assertIn("pollMs: 60_000", source)
         self.assertIn("maxAgeMs: 10 * 60_000", source)
         self.assertIn("maxAgeMs: 2 * 60_000", source)
         self.assertIn("maxAgeMs: 5 * 60_000", source)
+        self.assertIn("backendMaxAgeMs: 7 * 60_000", source)
+        self.assertNotIn("backendMaxAgeMs: 45 * 60_000", source)
         self.assertIn("backendQuotes", source)
         self.assertIn("backendFresh", source)
+
+    def test_sp500_browser_feed_busts_upstream_cache_and_rejects_stale_quotes(self) -> None:
+        source = LIVE_SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("https://stooq.com/q/l/?s=es.f", source)
+        self.assertIn("range=1d&_=${Date.now()}", source)
+        self.assertIn("No fresh market quote", source)
+        self.assertIn("Brak świeżej ceny rynkowej", source)
+        self.assertIn("priceNode.textContent", source)
 
     def test_server_snapshot_uses_same_eurusd_provider_chain_as_daily(self) -> None:
         source = FAST_UPDATER.read_text(encoding="utf-8")
@@ -122,6 +134,8 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
         self.assertIn("lambda: stooq_quote(instrument_id)", source)
         self.assertIn("candidates.sort", source)
         self.assertIn("reverse=True", source)
+        self.assertIn("timedelta(minutes=7)", source)
+        self.assertNotIn("timedelta(minutes=45)", source)
 
 
 if __name__ == "__main__":
