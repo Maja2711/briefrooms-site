@@ -171,6 +171,11 @@ jobs:
           import urllib.request
           from datetime import datetime, timedelta, timezone
           from scripts.dedupe_home_brief_stories import same_topic
+          from scripts.publish_live_news_filtered import (
+              PL_UKRAINE_RUSSIA_WAR_MINIMUM,
+              PL_UKRAINE_RUSSIA_WAR_POLICY_VERSION,
+              is_pl_ukraine_russia_war_story,
+          )
 
           marker = os.environ['MARKER']
           base = 'https://briefrooms.com'
@@ -342,6 +347,18 @@ jobs:
                               last.append(f'{path}: Polish sport diversity policy missing')
                           if sport_policy.get('watchlist_version') != 'pl-sport-watchlist-v1':
                               last.append(f'{path}: Polish sport watchlist missing')
+                          war_policy = payload.get('health', {}).get('pl_ukraine_russia_war', {})
+                          if war_policy.get('version') != PL_UKRAINE_RUSSIA_WAR_POLICY_VERSION:
+                              last.append(f'{path}: Russia-Ukraine-war policy missing')
+                          if int(war_policy.get('minimum_story_count') or 0) != PL_UKRAINE_RUSSIA_WAR_MINIMUM:
+                              last.append(f'{path}: Russia-Ukraine-war minimum mismatch')
+                          actual_war_count = sum(
+                              1 for story in home if is_pl_ukraine_russia_war_story(story)
+                          )
+                          if actual_war_count < PL_UKRAINE_RUSSIA_WAR_MINIMUM:
+                              last.append(f'{path}: required Russia-Ukraine-war story missing from PL homepage')
+                          if int(war_policy.get('selected_story_count') or 0) != actual_war_count:
+                              last.append(f'{path}: Russia-Ukraine-war diagnostics mismatch')
                       now = datetime.now(timezone.utc)
                       for story in home + reserve:
                           first_seen_raw = story.get('homepage_first_seen_at')
