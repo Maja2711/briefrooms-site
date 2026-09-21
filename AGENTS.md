@@ -26,6 +26,12 @@ Before creating a new subsystem, first demonstrate that equivalent or overlappin
 
 If the Architecture Map cannot be read, do not make an architecture-affecting change until it is available.
 
+## Instrument-scoped change isolation
+
+When a task is explicitly scoped to one instrument or to presentation/quote freshness for one instrument, do not mutate decision state, pending entries, risk plans, results, or lifecycle state for any other instrument.
+
+Repository pushes are validation events only for Weekly/WES/Risk execution workflows. Position mutation is allowed only from scheduled runtime, explicit manual execution, or an explicitly governed workflow-to-workflow execution path. UI, renderer, test, documentation, and live-quote changes must never obtain trade-state write authority as a side effect.
+
 ## Branch authority
 
 For Stock Trading v2, branch authority is explicit:
