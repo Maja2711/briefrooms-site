@@ -134,6 +134,58 @@ class StockTradingQuoteEnricherTests(unittest.TestCase):
                 quotes.execution_quote_for_symbol('LPP.WA', 'GPW', now_utc=now, maximum_age_seconds=300)
 
 
+    def test_execution_quote_accepts_gpw_yahoo_delayed_paper_within_20_minutes(self):
+        now = datetime(2026, 9, 21, 14, 19, 14, tzinfo=UTC)
+        delayed_yahoo = {
+            'price': 173.0,
+            'market_state': 'REGULAR',
+            'observed_at': '2026-09-21T16:03:57+02:00',
+            'received_at': '2026-09-21T14:19:14+00:00',
+            'provider': 'Yahoo Finance chart',
+            'delay_status': 'delayed',
+            'delay_minutes': 15,
+            'is_realtime': False,
+            'capture_age_seconds': 917,
+        }
+        with patch.object(quotes, 'quote_for_symbol', return_value=delayed_yahoo), patch.object(
+            quotes, '_stooq_quote', side_effect=RuntimeError('Stooq unavailable')
+        ):
+            result = quotes.execution_quote_for_symbol(
+                'ASB.WA',
+                'GPW',
+                now_utc=now,
+                maximum_age_seconds=1200,
+            )
+        self.assertEqual('Yahoo Finance chart', result['provider'])
+        self.assertEqual(173.0, result['price'])
+        self.assertEqual('DELAYED_PAPER', result['execution_mode'])
+        self.assertEqual(1200, result['execution_quote_policy']['maximum_age_seconds'])
+
+    def test_execution_quote_still_rejects_gpw_quote_older_than_20_minutes(self):
+        now = datetime(2026, 9, 21, 14, 30, 0, tzinfo=UTC)
+        stale_yahoo = {
+            'price': 173.0,
+            'market_state': 'REGULAR',
+            'observed_at': '2026-09-21T16:00:00+02:00',
+            'received_at': '2026-09-21T14:30:00+00:00',
+            'provider': 'Yahoo Finance chart',
+            'delay_status': 'delayed',
+            'delay_minutes': 30,
+            'is_realtime': False,
+            'capture_age_seconds': 1800,
+        }
+        with patch.object(quotes, 'quote_for_symbol', return_value=stale_yahoo), patch.object(
+            quotes, '_stooq_quote', side_effect=RuntimeError('Stooq unavailable')
+        ):
+            with self.assertRaises(quotes.ExecutionQuoteUnavailable):
+                quotes.execution_quote_for_symbol(
+                    'ASB.WA',
+                    'GPW',
+                    now_utc=now,
+                    maximum_age_seconds=1200,
+                )
+
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -80,12 +80,31 @@ def load_config(path: Path = CONFIG_PATH) -> dict[str, Any]:
     if int(cfg.get("full_max_open_positions_per_market") or 0) != 3:
         raise RuntimeError("full v2 production cap must be three positions per market")
     if float(cfg.get("maximum_execution_quote_age_minutes") or 0) <= 0:
-        raise RuntimeError("execution quote freshness limit must be positive")
+        raise RuntimeError("default execution quote freshness limit must be positive")
+    per_market_age = cfg.get("maximum_execution_quote_age_minutes_by_market") or {}
+    if not isinstance(per_market_age, Mapping):
+        raise RuntimeError("per-market execution quote freshness config must be an object")
+    for market in ("GPW", "US"):
+        raw_limit = per_market_age.get(market, cfg.get("maximum_execution_quote_age_minutes"))
+        if float(raw_limit or 0) <= 0:
+            raise RuntimeError(f"execution quote freshness limit must be positive for {market}")
     if int(cfg.get("full_cycle_max_new_positions_per_market") or 0) != 3:
         raise RuntimeError("FULL cycle must be able to fill all three market slots")
     if int(cfg.get("healthy_sessions_per_market_required") or 0) != 1:
         raise RuntimeError("technical canary must promote after one healthy cycle per market")
     return cfg
+
+
+def _execution_quote_max_age_seconds(market: str, config: Mapping[str, Any]) -> int:
+    """Resolve the prospective execution-quote age gate without weakening other markets."""
+    market = market.upper()
+    per_market = config.get("maximum_execution_quote_age_minutes_by_market") or {}
+    raw_minutes = (
+        per_market.get(market, config.get("maximum_execution_quote_age_minutes"))
+        if isinstance(per_market, Mapping)
+        else config.get("maximum_execution_quote_age_minutes")
+    )
+    return max(1, int(round(float(raw_minutes) * 60.0)))
 
 
 def load_runtime(config: Mapping[str, Any], path: Path = STATE_PATH) -> dict[str, Any]:
@@ -151,7 +170,7 @@ def _preflight_candidate(
     symbol = str(candidate.get("market_data_symbol") or candidate.get("symbol") or "").upper()
     if not symbol:
         return None, "symbol_missing", None
-    max_age_seconds = max(1, int(round(float(config["maximum_execution_quote_age_minutes"]) * 60.0)))
+    max_age_seconds = _execution_quote_max_age_seconds(market, config)
     try:
         quote = quote_fetcher(
             symbol,
@@ -211,6 +230,7 @@ def _preflight_candidate(
             "delay_status": quote.get("delay_status"),
             "is_realtime": quote.get("is_realtime"),
             "execution_quote_policy": quote.get("execution_quote_policy"),
+            "execution_mode": quote.get("execution_mode"),
         },
         "execution_quote": {
             "provider": quote.get("provider"),
@@ -219,6 +239,7 @@ def _preflight_candidate(
             "capture_age_seconds": quote.get("capture_age_seconds"),
             "delay_status": quote.get("delay_status"),
             "delay_minutes": quote.get("delay_minutes"),
+            "execution_mode": quote.get("execution_mode"),
         },
     }
     return selection, "execution_revalidated", quote
@@ -231,9 +252,9 @@ def _candidate_payload(market: str, selection: Mapping[str, Any], opportunity: M
         "date": now_utc.astimezone(portfolio.MARKET_TZ[market]).date().isoformat(),
         "generated_at": opportunity.get("generated_at") or now_utc.isoformat(),
         "decision": "TRANSAKCJA" if market == "GPW" else "TRADE",
-        "reason": "Freshly revalidated Stock Trading v2 Champion opportunity.",
+        "reason": "Prospectively revalidated Stock Trading v2 Champion paper opportunity.",
         "selection": dict(selection),
-        "data_quality": {"status": "healthy", "source": "v2_opportunity_plus_fresh_execution_quote"},
+        "data_quality": {"status": "healthy", "source": "v2_opportunity_plus_execution_quote"},
     }
 
 

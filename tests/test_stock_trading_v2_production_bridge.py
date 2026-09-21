@@ -10,7 +10,8 @@ class V2ProductionBridgeTests(unittest.TestCase):
         self.cfg = {
             "maximum_risk_percent": 0.07,
             "minimum_reward_risk": 1.5,
-            "maximum_execution_quote_age_minutes": 5,
+            "maximum_execution_quote_age_minutes": 2,
+            "maximum_execution_quote_age_minutes_by_market": {"GPW": 20, "US": 2},
             "maximum_opportunity_age_minutes": 90,
             "require_regular_session_for_new_entry": True,
             "canary_max_open_positions_per_market": 1,
@@ -46,6 +47,11 @@ class V2ProductionBridgeTests(unittest.TestCase):
             "evidence_status": "COMPLETE",
             "research_risk_plan": {"risk_percent": risk, "reward_risk": 2.0},
         }
+
+
+    def test_execution_quote_age_is_market_specific(self):
+        self.assertEqual(1200, bridge._execution_quote_max_age_seconds("GPW", self.cfg))
+        self.assertEqual(120, bridge._execution_quote_max_age_seconds("US", self.cfg))
 
     def test_frontier_deduplicates_and_sorts(self):
         a = self.candidate("AAA", 1, 80)
@@ -164,7 +170,7 @@ class V2ProductionBridgeTests(unittest.TestCase):
         self.assertEqual(["AAA"], [row["symbol"] for row in portfolio.open_positions(state, "US")])
         self.assertTrue(any(row.get("reason") == "candidate_does_not_beat_cash_edge" for row in audits))
 
-    def test_bridge_passes_exact_execution_quote_freshness_limit(self):
+    def test_bridge_passes_exact_gpw_delayed_paper_quote_limit(self):
         policy = portfolio.load_policy()
         state = portfolio.empty_state(now=self.now, policy=policy)
         candidate = self.candidate("ASB.WA", 1, 95)
@@ -191,7 +197,7 @@ class V2ProductionBridgeTests(unittest.TestCase):
             quote_fetcher=quote,
         )
         self.assertTrue(healthy)
-        self.assertEqual(120, seen["maximum_age_seconds"])
+        self.assertEqual(1200, seen["maximum_age_seconds"])
         self.assertEqual("ASB.WA", portfolio.open_positions(state, "GPW")[0]["symbol"])
         self.assertEqual("open", audits[0]["action"])
 
