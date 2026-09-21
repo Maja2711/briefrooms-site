@@ -2,7 +2,7 @@
 
 ## Status
 
-The filename is retained for historical continuity, but the current governed runtime is newer than the original v4 exposure rule. Runtime authority lives in `data/investments/multi_instrument_exposure_policy.json` (currently policy v5.6.x) together with `data/investments/wes_methodology.json`.
+The filename is retained for historical continuity, but the current governed runtime is newer than the original v4 exposure rule. Runtime authority lives in `data/investments/multi_instrument_exposure_policy.json` (currently policy v5.7.0) together with `data/investments/wes_methodology.json` (WES 1.1.0).
 
 The system remains experimental governed paper trading only. It places no broker orders.
 
@@ -35,6 +35,25 @@ Integrity checks, the public Weekly Trading UI and WES execution must interpret 
 
 The legacy Monday `entry_latest_local` field is not a universal WES execution deadline. WES may remain in `NO_TRADE` and admit a later qualified trigger under the active lifecycle policy. The effective position/weekly deadline is enforced separately by the governed close-deadline verifier.
 
+## WES 1.1 — Directional Admission & Champion/Challenger Hardening
+
+WES 1.1 separates research ranking from execution authority. A candidate can be useful for learning without being allowed to open a paper position.
+
+Every new entry, including the initial Monday entry, must pass all of the following:
+
+- the selected method belongs to the execution-authorized Champion pool;
+- the exact method and direction have a current WES authorization;
+- the authorization is not expired and is valid for that exact candidate;
+- the direction has at least two independent confirmations;
+- a candidate that opposes aligned, valid Daily and Weekly signals is rejected;
+- opposing execution-authorized candidates inside the configured utility margin resolve to `NO_TRADE`.
+
+Method names are never used to resolve a directional tie. Determinism for same-direction candidates comes from an explicit policy priority after utility and absolute signal strength; opposing near-ties fail closed.
+
+`inverse_v2` remains fully calculated for research, counterfactual outcomes, contextual learning and Challenger evaluation, but it is `challenger_shadow` and has no execution authority. It can obtain execution authority only through an explicit governed promotion that changes policy.
+
+The WES preflight is the sole admission authority. The v5 runtime independently verifies the WES authorization before creating any new entry, so a workflow that bypasses preflight cannot silently open a position.
+
 ## Risk execution reliability
 
 SL/TP execution is a separate safety authority inside TR-05 and does not depend on the hourly strategy lifecycle.
@@ -56,14 +75,14 @@ The hourly/full WES lifecycle calls the same monitor. There is therefore one SL/
 
 ## Why an inverse signal is tested separately
 
-A negative result for a short method does not prove that the corresponding long method is profitable. Transaction costs, timing, stop-losses, take-profits and asymmetric price behaviour can make both directions unprofitable. Therefore `base_v2` and `inverse_v2` are independent candidate methods and receive separate walk-forward results.
+A negative result for a short method does not prove that the corresponding long method is profitable. Transaction costs, timing, stop-losses, take-profits and asymmetric price behaviour can make both directions unprofitable. Therefore `base_v2` and `inverse_v2` remain independent research candidates and receive separate walk-forward results. Under WES 1.1, `inverse_v2` is a Challenger/Shadow method and cannot execute unless explicitly promoted.
 
 ## Candidate methods
 
 The strategy tournament evaluates:
 
 1. `base_v2` — direction from the saved daily trend, momentum and breakout model.
-2. `inverse_v2` — the opposite direction, tested as a separate hypothesis.
+2. `inverse_v2` — the opposite direction, tested as a separate Challenger/Shadow hypothesis; research-only under WES 1.1 until governed promotion.
 3. `weekly_trend` — direction from weekly EMA, momentum, breakout and candle structure.
 4. `daily_weekly_blend` — weighted combination of daily and weekly scores.
 5. `ema_mean_reversion` — controlled counter-trend response to distance from daily EMA20 measured in ATR.
