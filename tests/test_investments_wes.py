@@ -278,6 +278,41 @@ class WesTests(unittest.TestCase):
         self.assertFalse(ok)
         self.assertEqual('wes_candidate_not_execution_authorized', reason)
 
+    def test_wes_1_1_stale_pending_before_authorization_is_never_reused(self):
+        item = {
+            'wes_entry_authorization': {
+                'authorized_at': '2026-09-21T12:30:00+02:00',
+                'candidate': {'strategy_id': 'weekly_trend', 'direction': 'long'},
+            }
+        }
+        stale = {
+            'decided_at': '2026-09-21T09:24:34+02:00',
+            'entry_not_before': '2026-09-21T09:24:34+02:00',
+            'decision': {'strategy_id': 'weekly_trend', 'direction': 'long'},
+        }
+        self.assertFalse(v5.pending_matches_wes_authorization(item, stale))
+
+        fresh = {
+            'decided_at': '2026-09-21T12:31:00+02:00',
+            'entry_not_before': '2026-09-21T12:31:00+02:00',
+            'decision': {'strategy_id': 'weekly_trend', 'direction': 'long'},
+        }
+        self.assertTrue(v5.pending_matches_wes_authorization(item, fresh))
+
+    def test_wes_1_1_pending_must_match_authorized_method_and_direction(self):
+        item = {
+            'wes_entry_authorization': {
+                'authorized_at': '2026-09-21T12:30:00+02:00',
+                'candidate': {'strategy_id': 'base_v2', 'direction': 'long'},
+            }
+        }
+        wrong = {
+            'decided_at': '2026-09-21T12:31:00+02:00',
+            'entry_not_before': '2026-09-21T12:31:00+02:00',
+            'decision': {'strategy_id': 'inverse_v2', 'direction': 'short'},
+        }
+        self.assertFalse(v5.pending_matches_wes_authorization(item, wrong))
+
     def test_repository_policy_marks_inverse_v2_shadow_only(self):
         import json
         policy = json.loads((ROOT / 'data' / 'investments' / 'multi_instrument_exposure_policy.json').read_text(encoding='utf-8'))
