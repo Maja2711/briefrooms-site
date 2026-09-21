@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Semantic Architecture Reconciliation 1.9 guard.
+"""Semantic Architecture Reconciliation 1.10 guard.
 
 Checks runtime facts that a version-only documentation check cannot protect:
 active phase/status, branch authority, Trigger wiring, WES NO_TRADE, and
@@ -144,9 +144,9 @@ require(legacy_closed_loop, "contents: read", "legacy closed loop")
 forbid(legacy_closed_loop, "Apply statistically proven autonomous policy calibration", "legacy closed loop")
 forbid(legacy_closed_loop, "git push origin HEAD:main", "legacy closed loop")
 
-for token in ("**Wersja mapy:** 1.9", "IN-08", "EP-09", "LE-10", "PROBATIONARY_CONTROL", "NO_TRADE", "FULL", "WES 1.2.0"):
+for token in ("**Wersja mapy:** 1.10", "IN-08", "EP-09", "LE-10", "PROBATIONARY_CONTROL", "NO_TRADE", "FULL", "WES 1.2.0"):
     require(pl_map, token, "PL Architecture Map")
-for token in ("**Map version:** 1.9", "IN-08", "EP-09", "LE-10", "PROBATIONARY_CONTROL", "NO_TRADE", "FULL", "WES 1.2.0"):
+for token in ("**Map version:** 1.10", "IN-08", "EP-09", "LE-10", "PROBATIONARY_CONTROL", "NO_TRADE", "FULL", "WES 1.2.0"):
     require(en_map, token, "EN Architecture Map")
 require(stock_doc, "PRODUCTION CHAMPION — FULL", "Stock Trading architecture")
 require(stock_doc, "Market Relationship / Trigger", "Stock Trading architecture")
@@ -159,6 +159,7 @@ require(gse_doc, "Active v2 runtime", "GSE architecture")
 require(aris_doc, "research_shadow", "ARIS shadow architecture")
 require(auto_doc, "Production materialization from this legacy PR35/PR36 loop is retired", "Autonomous Policy docs")
 require(agents, "stock-trading-v2", "root AGENTS branch authority")
+require(agents, "Instrument-scoped change isolation", "root AGENTS scoped-change authority")
 
 research_agents = git_show(args.research_ref, "AGENTS.md")
 research_discovery = git_show(args.research_ref, ".github/workflows/stock-trading-v2-continuous-discovery.yml")
@@ -180,9 +181,9 @@ for label, main_text, research_text in (
         errors.append(f"default-branch {label} drifted from research-branch runtime definition")
 
 if errors:
-    print("Architecture Reconciliation 1.9 FAILED:", file=sys.stderr)
+    print("Architecture Reconciliation 1.10 FAILED:", file=sys.stderr)
     for error in errors:
         print(f"- {error}", file=sys.stderr)
     raise SystemExit(1)
 
-print("Architecture Reconciliation 1.9 passed.")
+print("Architecture Reconciliation 1.10 passed.")
