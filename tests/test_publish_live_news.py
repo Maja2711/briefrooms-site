@@ -22,6 +22,24 @@ class LiveNewsPublisherTests(unittest.TestCase):
             by_section["polityka"],
         )
 
+    def test_pl_war_detector_rejects_incidental_political_war_reference(self) -> None:
+        incidental = {
+            "title": "Polityk: Ukraina chciała wciągnięcia Polski do wojny",
+            "summary": "Wypowiedź dotyczy relacji polsko-ukraińskich i oceny działań władz w Kijowie.",
+            "link": "https://example.com/incidental-war-reference",
+        }
+        occupied_territory = {
+            "title": "Rosja przeprowadziła głosowanie na okupowanych terenach Ukrainy",
+            "summary": "Materiał dotyczy okupowanych przez Rosję terytoriów Ukrainy.",
+            "link": "https://example.com/occupied-ukraine",
+        }
+        self.assertFalse(
+            filtered_news.is_pl_ukraine_russia_war_story(incidental)
+        )
+        self.assertTrue(
+            filtered_news.is_pl_ukraine_russia_war_story(occupied_territory)
+        )
+
     def test_pl_politics_selector_reserves_ukraine_war_story(self) -> None:
         now = datetime(2026, 9, 21, 8, 0, tzinfo=timezone.utc)
 
