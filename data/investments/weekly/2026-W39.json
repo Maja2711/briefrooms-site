@@ -1296,7 +1296,7 @@
       "entry_captured_at": "2026-09-21T09:25:00+02:00",
       "entry_source": "Yahoo Finance:BTC-USD:5m:first_bar_at_or_after_target",
       "entry_quality_status": "wes_monday_weekly",
-      "trade_status": "open",
+      "trade_status": "closed",
       "risk_plan": {
         "model_version": "WES-1.0.0",
         "generated_at": "2026-09-21T09:26:26+02:00",
@@ -1322,13 +1322,13 @@
         },
         "friday_tactical_low_tp": false
       },
-      "exit_price": null,
-      "exit_captured_at": null,
-      "exit_source": null,
-      "exit_reason": null,
-      "result": null,
-      "result_value": null,
-      "result_percent": null,
+      "exit_price": 84024.33708186,
+      "exit_captured_at": "2026-09-21T10:35:00+02:00",
+      "exit_source": "Coinbase Exchange:BTC-USD:candles:5m",
+      "exit_reason": "stop_loss",
+      "result": "loss",
+      "result_value": -297.86028599,
+      "result_percent": -2.9786,
       "rationale_pl": [
         "Model v2.0.0: long / wzrost.",
         "Score 58; progi: long 45, short -45.",
@@ -1343,7 +1343,7 @@
       ],
       "validation_gate": "enabled_for_paper_trading",
       "pending_entry_decision": null,
-      "next_entry_status": "open",
+      "next_entry_status": "wes_early_reentry_waiting_for_signal",
       "forecast_direction": "long",
       "forecast_score": 58,
       "continuous_entry_decision": {
@@ -1649,9 +1649,9 @@
         }
       },
       "continuous_entry_regime": "trend_up:vol_normal",
-      "risk_status": "open_multi_instrument_continuous_exposure",
-      "continuous_exposure_active": true,
-      "continuous_exposure_status": "open",
+      "risk_status": "stop_loss_hit",
+      "continuous_exposure_active": false,
+      "continuous_exposure_status": "closed_by_risk_exit",
       "continuous_exposure_policy_version": "4.0.0",
       "continuous_reentry_count": 0,
       "last_risk_review_at": "2026-09-21T09:28:17+02:00",
@@ -1670,7 +1670,32 @@
         }
       },
       "wes_status": "open_wes_governed_position",
-      "wes_methodology": "WES-1.0.0"
+      "wes_methodology": "WES-1.0.0",
+      "exit_execution_model": "frozen_threshold_first_observed_stop_first_v2",
+      "risk_exit_detected_at": "2026-09-21T11:37:04+02:00",
+      "risk_exit_evidence": {
+        "schema_version": "2.0",
+        "kind": "5m_ohlc",
+        "observed_at": "2026-09-21T10:35:00+02:00",
+        "source": "Coinbase Exchange:BTC-USD:candles:5m",
+        "frozen_level": 84024.33708186,
+        "same_bar_rule": "stop_loss_first_conservative",
+        "risk_plan_preexisted_outcome": true
+      },
+      "result_units": -2.97860286,
+      "result_currency": "USD",
+      "reentry_lock": {
+        "active": true,
+        "scope": "wes_early_reentry_pending",
+        "until": "2026-09-25T22:00:00+02:00",
+        "reason": "stop_loss",
+        "policy": "early_week_risk_exit_requires_fresh_wes_signal",
+        "created_from_exit_at": "2026-09-21T10:35:00+02:00"
+      },
+      "wes_early_reentry_eligible": true,
+      "wes_early_reentry_source_exit_at": "2026-09-21T10:35:00+02:00",
+      "wes_early_reentry_source_exit_reason": "stop_loss",
+      "wes_early_reentry_source_risk_status": "stop_loss_hit"
     }
   ],
   "forecast_hash": "7f46e9e25830943767e5be62c50ef2ce736d1492aab5dcd5105112af38f297ec",
