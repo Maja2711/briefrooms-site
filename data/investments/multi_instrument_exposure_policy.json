@@ -1,5 +1,5 @@
 {
-  "policy_version": "5.6.1",
+  "policy_version": "5.6.2",
   "name": "BriefRooms governed multi-instrument weekly paper exposure",
   "status": "experimental_paper_trading_only",
   "enabled": true,
@@ -11,33 +11,77 @@
   "minimum_minutes_after_exit": 5,
   "max_simultaneous_positions_per_instrument": 1,
   "instruments": [
-    {"instrument_id": "eurusd", "enabled": true, "round_trip_cost": 1.5, "cost_unit": "pips", "default_tie_direction": "long"},
-    {"instrument_id": "sp500_futures", "enabled": true, "round_trip_cost": 1.0, "cost_unit": "points", "default_tie_direction": "long"},
-    {"instrument_id": "btcusd", "enabled": true, "round_trip_cost": 0.2, "cost_unit": "percent", "default_tie_direction": "long"}
+    {
+      "instrument_id": "eurusd",
+      "enabled": true,
+      "round_trip_cost": 1.5,
+      "cost_unit": "pips",
+      "default_tie_direction": "long"
+    },
+    {
+      "instrument_id": "sp500_futures",
+      "enabled": true,
+      "round_trip_cost": 1,
+      "cost_unit": "points",
+      "default_tie_direction": "long"
+    },
+    {
+      "instrument_id": "btcusd",
+      "enabled": true,
+      "round_trip_cost": 0.2,
+      "cost_unit": "percent",
+      "default_tie_direction": "long"
+    }
   ],
   "strategy_tournament": {
     "enabled": true,
-    "candidate_methods": ["base_v2", "inverse_v2", "weekly_trend", "daily_weekly_blend", "ema_mean_reversion", "macro_weekly_blend"],
+    "candidate_methods": [
+      "base_v2",
+      "inverse_v2",
+      "weekly_trend",
+      "daily_weekly_blend",
+      "ema_mean_reversion",
+      "macro_weekly_blend"
+    ],
     "rolling_closed_legs": 120,
     "minimum_observations_before_performance_weight": 6,
     "prior_observations": 5,
-    "performance_weight": 18.0,
+    "performance_weight": 18,
     "exploration_bonus": 2.5,
-    "maximum_learning_adjustment": 18.0,
+    "maximum_learning_adjustment": 18,
     "rule": "Select the highest-utility directional candidate using only earlier closed paper legs. The selected candidate is a proposal, not a forced trade: the NO_TRADE admission gate may abstain. Counterfactual observations of all candidates may reduce exploration uncertainty, but only realized selected-strategy legs drive the legacy global performance adjustment."
   },
   "contextual_learning": {
     "enabled": true,
     "schema_version": "2.0",
-    "scope": ["eurusd", "sp500_futures", "btcusd"],
-    "context_dimensions": ["momentum", "weekly_regime", "macro_alignment", "ma_structure_alignment"],
-    "momentum_inputs": ["ret5_pct", "ret20_pct"],
+    "scope": [
+      "eurusd",
+      "sp500_futures",
+      "btcusd"
+    ],
+    "context_dimensions": [
+      "momentum",
+      "weekly_regime",
+      "macro_alignment",
+      "ma_structure_alignment"
+    ],
+    "momentum_inputs": [
+      "ret5_pct",
+      "ret20_pct"
+    ],
     "minimum_absolute_momentum_pct": 0.15,
     "minimum_observations_before_adjustment": 6,
     "prior_observations": 5,
-    "performance_weight": 6.0,
-    "maximum_adjustment": 2.0,
-    "apply_to_methods": ["base_v2", "inverse_v2", "weekly_trend", "daily_weekly_blend", "ema_mean_reversion", "macro_weekly_blend"],
+    "performance_weight": 6,
+    "maximum_adjustment": 2,
+    "apply_to_methods": [
+      "base_v2",
+      "inverse_v2",
+      "weekly_trend",
+      "daily_weekly_blend",
+      "ema_mean_reversion",
+      "macro_weekly_blend"
+    ],
     "use_counterfactual_candidate_outcomes": true,
     "candidate_observations_reduce_exploration": true,
     "realized_selected_legs_only_for_global_performance_weight": true,
@@ -46,13 +90,29 @@
   "eurusd_ma_structure": {
     "enabled": true,
     "research_source": "data/investments/eurusd_ma_multitimeframe_research.json",
-    "windows": [30, 60, 100, 200],
-    "roles": {"W1": "structural_support_resistance", "D1": "price_location_confirmation", "H1": "execution_timing", "H4": "research_context_no_veto", "M1": "background_regime_no_veto"},
-    "weights": {"w1_support_long": 1.0, "w1_resistance_short": 2.5, "d1_price_location": 1.0, "h1_timing": 0.5},
-    "score_cap": 4.0,
-    "candidate_alignment_bonus_max": 3.0,
+    "windows": [
+      30,
+      60,
+      100,
+      200
+    ],
+    "roles": {
+      "W1": "structural_support_resistance",
+      "D1": "price_location_confirmation",
+      "H1": "execution_timing",
+      "H4": "research_context_no_veto",
+      "M1": "background_regime_no_veto"
+    },
+    "weights": {
+      "w1_support_long": 1,
+      "w1_resistance_short": 2.5,
+      "d1_price_location": 1,
+      "h1_timing": 0.5
+    },
+    "score_cap": 4,
+    "candidate_alignment_bonus_max": 3,
     "support_distance_atr": 0.35,
-    "touch_zone_atr": 0.10,
+    "touch_zone_atr": 0.1,
     "rule": "Use W1 MA support/resistance as the primary structure signal, D1 price-vs-all-MAs as confirmation and H1 price-vs-all-MAs only as timing. H4 and M1 never veto a trade. The MA layer is a bounded context adjustment and never a standalone trade trigger."
   },
   "weekly_candle_model": {
@@ -63,30 +123,56 @@
     "momentum_fast_weeks": 4,
     "momentum_slow_weeks": 13,
     "breakout_lookback_weeks": 26,
-    "weights": {"trend": 35, "momentum_fast": 25, "momentum_slow": 20, "breakout": 15, "last_candle": 5}
+    "weights": {
+      "trend": 35,
+      "momentum_fast": 25,
+      "momentum_slow": 20,
+      "breakout": 15,
+      "last_candle": 5
+    }
   },
   "macro_context": {
     "enabled": true,
-    "applies_to": ["eurusd"],
+    "applies_to": [
+      "eurusd"
+    ],
     "oil_symbol": "CL=F",
     "us10y_symbol": "^TNX",
     "require_both_sources": true,
-    "score_cap": 30.0,
-    "candidate_alignment_bonus_max": 6.0,
-    "weights": {"oil_1w": 10.0, "oil_4w": 5.0, "us10y_1w": 10.0, "us10y_4w": 5.0},
-    "normalization": {"oil_1w_percent": 8.0, "oil_4w_percent": 20.0, "us10y_1w_bps": 20.0, "us10y_4w_bps": 50.0},
-    "blend_weights": {"daily": 0.35, "weekly": 0.40, "macro": 0.25},
-    "daily_review_weights": {"daily": 0.50, "weekly": 0.35, "macro": 0.15},
-    "daily_exit_combined_threshold": 22.0,
-    "macro_confirmation_threshold": 18.0,
+    "score_cap": 30,
+    "candidate_alignment_bonus_max": 6,
+    "weights": {
+      "oil_1w": 10,
+      "oil_4w": 5,
+      "us10y_1w": 10,
+      "us10y_4w": 5
+    },
+    "normalization": {
+      "oil_1w_percent": 8,
+      "oil_4w_percent": 20,
+      "us10y_1w_bps": 20,
+      "us10y_4w_bps": 50
+    },
+    "blend_weights": {
+      "daily": 0.35,
+      "weekly": 0.4,
+      "macro": 0.25
+    },
+    "daily_review_weights": {
+      "daily": 0.5,
+      "weekly": 0.35,
+      "macro": 0.15
+    },
+    "daily_exit_combined_threshold": 22,
+    "macro_confirmation_threshold": 18,
     "interpretation": "Falling oil and falling US10Y support EUR/USD; rising oil and rising US10Y support the dollar. Inputs are normalized, capped and never used as standalone trade triggers.",
     "rule": "The open position is not rewritten retroactively. Macro context enters new decisions and the governed 23:00 daily review."
   },
   "no_trade": {
     "enabled": true,
-    "minimum_directional_raw_score": 35.0,
-    "minimum_directional_utility": 6.0,
-    "conflict_no_trade_below_raw_score": 45.0,
+    "minimum_directional_raw_score": 35,
+    "minimum_directional_utility": 6,
+    "conflict_no_trade_below_raw_score": 45,
     "block_on_data_quality_failure": false,
     "fallback_direction_rule": "A default tie direction may rank a directional candidate, but it never overrides the NO_TRADE admission gate.",
     "rule": "NO_TRADE is a first-class active state. A directional candidate is opened only when the admission thresholds are met; otherwise WES may keep monitoring for a later qualified trigger."
@@ -128,5 +214,22 @@
     "do_not_increase_notional_after_losses": true,
     "real_broker_orders": false,
     "paper_trading_only": true
+  },
+  "risk_execution": {
+    "enabled": true,
+    "monitor_interval_minutes": 5,
+    "schedule": "24x7",
+    "frozen_thresholds_required": true,
+    "replay_from_risk_activation_each_run": true,
+    "same_bar_rule": "stop_loss_first_conservative",
+    "execution_price": "frozen_sl_or_tp_level",
+    "btc_primary_source": "Coinbase Exchange BTC-USD 5m candles plus live ticker",
+    "btc_fallback_source": "Yahoo Finance BTC-USD 5m bars only when Coinbase evidence is unavailable",
+    "eurusd_source": "Yahoo Finance 5m bars",
+    "sp500_futures_source": "Yahoo Finance 5m bars",
+    "missing_data_policy": "fail_closed_keep_position_and_retry_never_assume_no_hit",
+    "scheduler_delay_policy": "replay_frozen_risk_interval_so_transient_threshold_touches_remain_detectable",
+    "entry_authority": false,
+    "threshold_mutation_allowed": false
   }
 }
