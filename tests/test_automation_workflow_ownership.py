@@ -173,16 +173,13 @@ class AutomationWorkflowOwnershipTests(unittest.TestCase):
                 self.assertIn("python scripts/verify_weekly_close_deadline.py", source)
 
         exposure = sources["investments-exposure-watch.yml"]
-        self.assertIn('cron: "7,37 0-6 * * 6"', exposure)
-        settle = exposure.index("Settle due weekly or rolling WES positions before downstream work")
-        verify = exposure.index("Verify no weekly exposure survives its effective deadline")
-        persist = exposure.index("Persist weekly exits before downstream audits")
-        broad_validation = exposure.index("Validate publication integrity code")
-        broad_audit = exposure.index("Audit ledger integrity before publication")
-        self.assertLess(settle, verify)
-        self.assertLess(verify, persist)
-        self.assertLess(persist, broad_validation)
-        self.assertLess(persist, broad_audit)
+        self.assertIn('cron: "*/5 * * * *"', exposure)
+        self.assertIn("Evaluate frozen SL/TP from canonical market evidence", exposure)
+        self.assertIn("python scripts/audit_intraday_risk_exits.py --persist-report on_close", exposure)
+        self.assertIn("Govern re-entry state after a risk exit", exposure)
+        self.assertIn("Persist risk exit atomically through NO RETROACTIVE airlock", exposure)
+        self.assertNotIn("pip install", exposure)
+        self.assertNotIn("ensure-exposure", exposure)
 
     def test_wes_1_1_directional_admission_is_mandatory_and_single_path(self) -> None:
         sources = workflow_sources()
