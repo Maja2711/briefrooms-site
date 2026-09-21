@@ -1,8 +1,8 @@
 # Kanoniczna mapa architektury BriefRooms — PL
 
-**Wersja mapy:** 1.8  
+**Wersja mapy:** 1.9  
 **Stan na:** 2026-09-21  
-**Bazowy commit `main`:** `1a80b72c61bcad0aff5ed5a149c9a9be0c12f554`  
+**Bazowy commit `main`:** `c7a5d3f860b3695cba39c6c3e32f4b88721e9ced`  
 **Repozytorium:** `Maja2711/briefrooms-site`
 
 ## 0. Rola tego dokumentu
@@ -176,7 +176,7 @@ Adapter nie jest silnikiem decyzji. Jego podstawowym zadaniem jest tłumaczenie 
 | `TR-02` | Legacy US Daily pipeline | Historyczny US Daily lifecycle/risk/memory | **DEPRECATED AS PRODUCT / REPLACED_BY `TR-04`**. Zachowany jako migration/history compatibility; aktywny stock authority należy do v2 |
 | `TR-03` | Daily EUR/USD Spot | Intraday–24h; wspólny Daily contract | Historycznie rollout shadow; własne lifecycle/event overlay/ABC learning |
 | `TR-04` | Stock Trading v2 | Wspólny aktywny stock engine dla GPW i US: Dynamic Universe, Opportunity Frontier, Trigger research, Deep Evidence, Fixed Notional Sizing, Portfolio Opportunity Engine | **PRODUCTION CHAMPION — FULL**. Każda nowa pozycja ma `FIXED_NOTIONAL_V1`: 5 000 PLN na GPW lub 5 000 USD na US; `champion_engine=v2`, `challenger_engine=v1`, `legacy_candidate_admission_enabled=false`; `main` jest production authority, `stock-trading-v2` research/evidence runtime |
-| `TR-05` | Weekly Positions / WES family | EUR/USD, S&P 500 futures, BTC/USD; governed paper/research + WES memory/counterfactual/belief bridges | Runtime policy v5.7.0 / **WES 1.1.0**: każde nowe wejście wymaga Directional Admission; research ranking jest oddzielony od execution authority; `inverse_v2` jest Challenger/Shadow bez prawa wejścia; przeciwne kandydaty w marginie kończą jako `NO_TRADE`; kanoniczny SL/TP safety path działa co 5 minut 24/7 |
+| `TR-05` | Weekly Positions / WES family | EUR/USD, S&P 500 futures, BTC/USD; governed paper/research + WES memory/counterfactual/belief bridges | Runtime policy v5.8.0 / **WES 1.2.0**: każde nowe wejście wymaga Directional Admission oraz zamrożonego Entry Price Plan; kierunek i cena wejścia są oddzielnymi decyzjami; `inverse_v2` pozostaje Challenger/Shadow; entry executor może wykonać wyłącznie zamrożony BUY/SELL LIMIT po dotknięciu targetu przez 5m OHLC; target nie może gonić rynku podczas aktywnego planu; SL/TP safety path działa co 5 minut 24/7 |
 | `TR-06` | Portfolio 10K baseline | Długoterminowy portfel, historyczny champion/baseline | Zachowywany jako production baseline i fallback dla BRACE |
 | `TR-07` | BRACE Portfolio Engine | Portfolio research/control z optimizerem, governance i oddzielnym modelowym paper portfolio | **PROBATIONARY_CONTROL**; paper-only, deterministic controller, immutable Portfolio10K baseline jako fallback; LLM nie może promować |
 | `TR-08` | BRACE-SPX / Long View | Read-only/forecasting oriented SPX long-view family | Konsumuje własny point-in-time state + epistemic state; canonical DecisionEnvelope rollout nieukończony |
@@ -330,6 +330,7 @@ Przykłady prywatnego durable state: Learning Outcome Loop oraz GSE/Belief shado
 18. **Frozen Weekly risk must be recoverable.** Dla `TR-05` SL/TP są zamrożone przed outcome, monitorowane co 5 minut 24/7 i ponownie skanowane od momentu aktywacji risk planu. Opóźnienie schedulera nie może zgubić przejściowego dotknięcia progu; brak danych oznacza retry/fail-closed, nigdy domniemanie `no hit`.
 19. **WES 1.1 Directional Admission jest obowiązkowy dla każdego nowego wejścia.** Forecast, ranking badawczy ani wynik Challengera nie są autoryzacją wykonania. Wejście wymaga execution-authorized metody Champion-pool, ważnej autoryzacji dokładnego kierunku/metody i minimum dwóch niezależnych kierunkowych potwierdzeń; kandydat przeciwny do zgodnych Daily+Weekly jest blokowany.
 20. **Nazwa metody nigdy nie rozstrzyga kierunku rynku.** W `TR-05` remis lub near-tie przeciwnych execution candidates przechodzi do `NO_TRADE`; `inverse_v2` pozostaje Challenger/Shadow do jawnej, kontrolowanej promocji.
+21. **WES 1.2 Entry Price Plan jest obowiązkowy.** Directional Admission autoryzuje tezę LONG/SHORT, ale nie natychmiastowy fill. Przed każdym nowym wejściem WES zamraża target ceny z wykorzystaniem ceny referencyjnej z chwili decyzji, ATR14, EMA20, ret5/ret20, pozycji w 55-dniowym zakresie oraz stanu po stop-lossie. Executor może wykonać tylko zamrożony price-improving BUY LIMIT / SELL LIMIT po dotknięciu przez świecę 5m. Aktywny target nie może być przesuwany za rynkiem; brak dotknięcia oznacza WAIT/expiry bez transakcji.
 
 ## 11. Authority map — kto czego NIE może robić
 
@@ -447,3 +448,4 @@ Najważniejsze dokumenty szczegółowe użyte do budowy i utrzymania aktualnej m
 ---
 
 **Maintenance invariant:** ten plik i `ARCHITECTURE_MAP_EN.md` są jednym logicznym artefaktem. Nie wolno aktualizować tylko jednej wersji.
+- 2026-09-21: WES 1.2 rozdzielił kierunek od ceny wejścia. Każdy nowy trade wymaga zamrożonego price-aware Entry Price Plan, a executor nie ma prawa brać pierwszej dostępnej ceny rynkowej.
