@@ -85,3 +85,29 @@ def test_fresh_public_pending_decision_remains_visible():
     rows = reconcile_public_decisions([decision], {"positions": []}, orders, now=now)
     assert len(rows) == 1
     assert rows[0]["execution_status"] == "PENDING"
+
+
+def test_public_panel_never_presents_queued_order_as_portfolio_decision():
+    source = (ROOT / "scripts" / "portfolio-10k-control-public.js").read_text(encoding="utf-8")
+    assert "['EXECUTED','ALREADY_APPLIED']" in source
+    assert "['PENDING','EXECUTED','ALREADY_APPLIED']" not in source
+    assert "Wykonane decyzje BRACE (paper)" in source
+    assert "OCZEKUJE" not in source
+
+
+def test_portfolio10k_state_writers_share_one_concurrency_lock():
+    workflows = [
+        "portfolio-10k-brace.yml",
+        "portfolio-10k-brace-bootstrap.yml",
+        "brace-portfolio-daily.yml",
+        "brace-portfolio-monitor.yml",
+        "portfolio-10k-hourly-prices.yml",
+        "portfolio-10k-guardian.yml",
+        "portfolio-10k-live-entry.yml",
+        "portfolio-10k-weekly.yml",
+        "portfolio-10k-analysis-news.yml",
+        "portfolio-10k-material-hotfix.yml",
+    ]
+    for name in workflows:
+        source = (ROOT / ".github" / "workflows" / name).read_text(encoding="utf-8")
+        assert "group: portfolio-10k-automation" in source, name
