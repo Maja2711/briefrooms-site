@@ -50,6 +50,7 @@
       minPrice: 500,
       maxPrice: 100_000,
       sources: [
+        { name: 'CNBC @SP.1', fetch: fetchCnbcEs },
         { name: 'eSignal ES active', fetch: () => fetchEsignalEs('direct') },
         { name: 'eSignal ES active · proxy 1', fetch: () => fetchEsignalEs('codetabs') },
         { name: 'eSignal ES active · proxy 2', fetch: () => fetchEsignalEs('allorigins') },
@@ -308,6 +309,26 @@
       price,
       updatedAt: new Date(utcMs).toISOString(),
       source: `eSignal delayed:${symbol}`,
+    };
+  }
+
+  async function fetchCnbcEs() {
+    const url = 'https://quote.cnbc.com/quote-html-webservice/restQuote/symbolType/symbol'
+      + '?symbols=%40SP.1&requestMethod=itv&noform=1&partnerId=2&fund=1&exthrs=1&output=json&events=1';
+    const data = await fetchJson(url);
+    const row = data?.FormattedQuoteResult?.FormattedQuote?.[0]
+      || data?.QuickQuoteResult?.QuickQuote?.[0]
+      || null;
+    if (!row) throw new Error('cnbc_es_missing_quote');
+
+    const price = positive(String(row.last || '').replace(/,/g, ''));
+    const stamp = validTimestamp(row.last_time);
+    if (price === null || !stamp) throw new Error('cnbc_es_incomplete_quote');
+
+    return {
+      price,
+      updatedAt: stamp.toISOString(),
+      source: 'CNBC delayed:@SP.1',
     };
   }
 
@@ -658,11 +679,31 @@
         ? quote.backendFresh && timestampFresh(quote.backendObservedAt, cfg.backendSnapshotMaxAgeMs)
         : quoteFresh(quote, allowedAge);
       if (!quoteUsable) {
+        if (item.instrument_id === 'sp500_futures') {
+          const labelNode = nowBox.querySelector('span');
+          if (labelNode) {
+            if (!nowBox.dataset.defaultPriceLabel) nowBox.dataset.defaultPriceLabel = labelNode.textContent || '';
+            labelNode.textContent = isEn ? 'Last available quote' : 'Ostatni dostępny kurs';
+          }
+          priceNode.textContent = fmtPrice(quote.price, item.instrument_id);
+          timeNode.textContent = `${fmtTime(quote.updatedAt)} · ${isEn ? 'delayed / stale source' : 'opóźnione / źródło nieświeże'}`;
+          timeNode.style.color = '#ffb86b';
+          nowBox.dataset.liveAt = quote.updatedAt;
+          nowBox.dataset.liveSource = quote.source;
+          nowBox.dataset.feedStatus = 'stale';
+          return;
+        }
         priceNode.textContent = '—';
         timeNode.textContent = isEn ? 'No fresh market quote' : 'Brak świeżej ceny rynkowej';
         timeNode.style.color = '#ffb86b';
         nowBox.dataset.feedStatus = 'stale';
         return;
+      }
+      if (item.instrument_id === 'sp500_futures') {
+        const labelNode = nowBox.querySelector('span');
+        if (labelNode && nowBox.dataset.defaultPriceLabel) {
+          labelNode.textContent = nowBox.dataset.defaultPriceLabel;
+        }
       }
       const currentAt = validTimestamp(nowBox.dataset.liveAt)?.valueOf() || 0;
       const quoteAt = validTimestamp(quote.updatedAt)?.valueOf() || 0;
