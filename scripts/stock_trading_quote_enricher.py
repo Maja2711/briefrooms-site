@@ -276,10 +276,10 @@ def quote_for_symbol(symbol: str, market: str, *, now_utc: datetime | None = Non
 def _stooq_symbol(symbol: str, market: str) -> str:
     raw = str(symbol or "").strip().upper()
     if market == "GPW":
-        # Stooq's quote endpoint uses the bare GPW ticker (e.g. lpp), not
-        # Yahoo's .WA suffix and not a synthetic .pl suffix.
+        # Keep this aligned with scripts/gpw_market_data.py: Stooq.pl expects
+        # the bare GPW ticker (without Yahoo's .WA suffix).
         base = raw[:-3] if raw.endswith(".WA") else raw
-        return base.lower()
+        return base.upper()
     if market == "US":
         return raw.lower() if raw.endswith(".us") else f"{raw.lower()}.us"
     raise ValueError(f"Unsupported market: {market}")
@@ -303,7 +303,19 @@ def _stooq_quote(symbol: str, market: str, *, now_utc: datetime | None = None) -
         "h": "",
         "e": "csv",
     })
-    raw = _request_text(f"https://stooq.com/q/l/?{params}")
+    url = f"https://stooq.pl/q/l/?{params}"
+    raw: str | None = None
+    failures: list[str] = []
+    for attempt in range(2):
+        try:
+            raw = _request_text(url)
+            break
+        except Exception as exc:
+            failures.append(f"{type(exc).__name__}:{str(exc)[:120]}")
+            if attempt == 0:
+                time.sleep(0.25)
+    if raw is None:
+        raise RuntimeError(f"Stooq.pl quote unavailable for {symbol}: {'|'.join(failures)}")
     rows = list(csv.DictReader(io.StringIO(raw)))
     if not rows:
         raise RuntimeError("Stooq quote returned no rows")
@@ -326,7 +338,8 @@ def _stooq_quote(symbol: str, market: str, *, now_utc: datetime | None = None) -
         "price_kind": "last",
         "observed_at": _iso(observed_local),
         "received_at": _iso(now_utc),
-        "provider": "Stooq current quote",
+        "provider": "Stooq.pl current quote",
+        "source_url": url,
         "delay_status": "measured_from_observation",
         "delay_minutes": round(age_seconds / 60.0, 2),
         "is_realtime": age_seconds <= 120,
@@ -344,7 +357,7 @@ def execution_quote_candidates(symbol: str, market: str, *, now_utc: datetime | 
 
     providers = [("Yahoo Finance chart", quote_for_symbol)]
     if market == "GPW":
-        providers.append(("Stooq current quote", _stooq_quote))
+        providers.append(("Stooq.pl current quote", _stooq_quote))
 
     for provider_name, provider in providers:
         try:
