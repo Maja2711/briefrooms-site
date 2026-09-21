@@ -414,10 +414,15 @@ def execution_quote_for_symbol(
         )
     eligible.sort(key=lambda q: float(q.get("capture_age_seconds") or 0.0))
     chosen = dict(eligible[0])
+    # Stock Trading is paper execution. GPW explicitly permits a delayed
+    # prospective observation (up to the market-specific gate supplied by the
+    # production bridge); US keeps the strict fresh-paper path.
+    chosen["execution_mode"] = "DELAYED_PAPER" if market == "GPW" else "PAPER"
     chosen["execution_quote_policy"] = {
         "maximum_age_seconds": int(maximum_age_seconds),
         "provider_candidates": diagnostics,
         "selected_provider": chosen.get("provider"),
+        "execution_mode": chosen["execution_mode"],
     }
     return chosen
 
