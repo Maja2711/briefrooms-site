@@ -183,11 +183,47 @@
     }
   }
 
+  function timeZoneOffsetMs(date, timeZone) {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      hour12: false,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+    const parts = Object.fromEntries(
+      formatter.formatToParts(date)
+        .filter((part) => part.type !== 'literal')
+        .map((part) => [part.type, part.value]),
+    );
+    const wallAsUtc = Date.UTC(
+      Number(parts.year),
+      Number(parts.month) - 1,
+      Number(parts.day),
+      Number(parts.hour) % 24,
+      Number(parts.minute),
+      Number(parts.second),
+    );
+    return wallAsUtc - date.getTime();
+  }
+
   function warsawLocalTimestamp(dateText, timeText) {
     const normalizedTime = String(timeText || '').length === 5 ? `${timeText}:00` : String(timeText || '');
-    const local = new Date(`${dateText}T${normalizedTime}`);
-    if (Number.isNaN(local.valueOf())) throw new Error('stooq_invalid_timestamp');
-    return local;
+    const [year, month, day] = String(dateText || '').split('-').map(Number);
+    const [hour, minute, second] = normalizedTime.split(':').map(Number);
+    if (![year, month, day, hour, minute, second].every(Number.isFinite)) {
+      throw new Error('stooq_invalid_timestamp');
+    }
+    const wallUtcMs = Date.UTC(year, month - 1, day, hour, minute, second);
+    const firstGuess = new Date(wallUtcMs);
+    const firstOffset = timeZoneOffsetMs(firstGuess, 'Europe/Warsaw');
+    let instant = new Date(wallUtcMs - firstOffset);
+    const correctedOffset = timeZoneOffsetMs(instant, 'Europe/Warsaw');
+    if (correctedOffset !== firstOffset) instant = new Date(wallUtcMs - correctedOffset);
+    return instant;
   }
 
   function parseStooqEsCsv(text) {
