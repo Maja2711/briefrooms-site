@@ -211,11 +211,23 @@ def learning_stats(instrument_id: str, regime: str, policy: Dict[str, Any]) -> D
     return {"instrument_id": instrument_id, "regime": regime, "closed_legs": len(legs), "methods": result}
 
 
-def choose(candidates: Dict[str, Dict[str, Any]], learning: Dict[str, Any], policy: Dict[str, Any]) -> Dict[str, Any]:
+def _candidate_ranking(
+    candidates: Dict[str, Dict[str, Any]],
+    learning: Dict[str, Any],
+    policy: Dict[str, Any],
+) -> List[Tuple[float, int, float, str, Dict[str, Any]]]:
+    """Rank candidates without ever using method-name ordering as a market decision."""
     cfg = policy.get("strategy_tournament") or {}
     explore = float(cfg.get("exploration_bonus") or 2.5)
     enabled = list(cfg.get("candidate_methods") or candidates.keys())
-    ranked: List[Tuple[float, str, Dict[str, Any]]] = []
+    priority = list(cfg.get("selection_priority") or enabled)
+    priority_index = {method_id: idx for idx, method_id in enumerate(priority)}
+    cc = cfg.get("champion_challenger") if isinstance(cfg.get("champion_challenger"), dict) else {}
+    execution_methods = set(cc.get("execution_methods") or enabled)
+    challenger_methods = set(cc.get("challenger_shadow_methods") or [])
+    challenger_execution = bool(cc.get("challenger_execution_enabled", False))
+
+    ranked: List[Tuple[float, int, float, str, Dict[str, Any]]] = []
     for method_id in enabled:
         row = dict(candidates.get(method_id) or {})
         if not row:
@@ -224,13 +236,95 @@ def choose(candidates: Dict[str, Dict[str, Any]], learning: Dict[str, Any], poli
         count = int(stat.get("count") or 0)
         bonus = explore / math.sqrt(count + 1.0)
         utility = float(row.get("conviction") or 0.0) + float(stat.get("adjustment") or 0.0) + bonus
-        row.update({"strategy_id": method_id, "learning_count": count, "learning_adjustment": stat.get("adjustment", 0.0), "exploration_bonus": round(bonus, 4), "utility": round(utility, 4)})
-        ranked.append((utility, method_id, row))
-    ranked.sort(key=lambda x: (x[0], x[1]), reverse=True)
+        authority = "challenger_shadow" if method_id in challenger_methods else "champion_execution"
+        execution_eligible = method_id in execution_methods and (method_id not in challenger_methods or challenger_execution)
+        row.update({
+            "strategy_id": method_id,
+            "learning_count": count,
+            "learning_adjustment": stat.get("adjustment", 0.0),
+            "exploration_bonus": round(bonus, 4),
+            "utility": round(utility, 4),
+            "execution_authority": authority,
+            "execution_eligible": bool(execution_eligible),
+        })
+        # Explicit policy priority is the final deterministic key. Method names
+        # never participate in tie resolution.
+        prio = priority_index.get(method_id, len(priority) + enabled.index(method_id))
+        ranked.append((utility, prio, abs(float(row.get("raw_score") or 0.0)), method_id, row))
+
+    ranked.sort(key=lambda x: (-x[0], -x[2], x[1]))
+    return ranked
+
+
+def choose(candidates: Dict[str, Dict[str, Any]], learning: Dict[str, Any], policy: Dict[str, Any]) -> Dict[str, Any]:
+    """Research ranking with deterministic explicit-policy tie handling."""
+    ranked = _candidate_ranking(candidates, learning, policy)
     if not ranked:
-        return {"strategy_id": "fallback_long", "direction": "long", "raw_score": 0, "utility": 0, "candidates": {}}
-    winner = dict(ranked[0][2])
-    winner["candidates"] = {method_id: row for _, method_id, row in ranked}
+        return {"strategy_id": "no_trade", "direction": "neutral", "raw_score": 0, "utility": 0, "candidates": {}}
+    winner = dict(ranked[0][4])
+    winner["candidates"] = {method_id: row for _, _, _, method_id, row in ranked}
+    return winner
+
+
+def choose_governed(
+    candidates: Dict[str, Dict[str, Any]],
+    learning: Dict[str, Any],
+    policy: Dict[str, Any],
+    instrument_id: str,
+) -> Dict[str, Any]:
+    """Select only execution-authorized methods and fail closed on directional ties."""
+    ranked = _candidate_ranking(candidates, learning, policy)
+    all_candidates = {method_id: row for _, _, _, method_id, row in ranked}
+    executable = [entry for entry in ranked if bool(entry[4].get("execution_eligible"))]
+    if not executable:
+        return {
+            "strategy_id": "no_trade",
+            "direction": "neutral",
+            "raw_score": 0.0,
+            "utility": 0.0,
+            "reason_codes": ["no_execution_authorized_candidate"],
+            "instrument_id": instrument_id,
+            "candidates": all_candidates,
+        }
+
+    top = executable[0]
+    winner = dict(top[4])
+    top_direction = str(winner.get("direction") or "neutral")
+    cc = (policy.get("strategy_tournament") or {}).get("champion_challenger") or {}
+    margin = max(0.0, float(cc.get("opposing_direction_utility_margin_no_trade") or 0.0))
+    opposite = next(
+        (
+            entry for entry in executable[1:]
+            if str(entry[4].get("direction") or "neutral") in {"long", "short"}
+            and str(entry[4].get("direction")) != top_direction
+        ),
+        None,
+    )
+    if opposite is not None and top_direction in {"long", "short"}:
+        utility_gap = float(top[0]) - float(opposite[0])
+        if utility_gap <= margin:
+            return {
+                "strategy_id": "no_trade",
+                "direction": "neutral",
+                "raw_score": 0.0,
+                "utility": round(float(top[0]), 4),
+                "reason_codes": ["opposing_execution_candidates_within_utility_margin"],
+                "instrument_id": instrument_id,
+                "selection_diagnostics": {
+                    "top_method": top[3],
+                    "top_direction": top_direction,
+                    "top_utility": round(float(top[0]), 4),
+                    "opposing_method": opposite[3],
+                    "opposing_direction": opposite[4].get("direction"),
+                    "opposing_utility": round(float(opposite[0]), 4),
+                    "utility_gap": round(utility_gap, 4),
+                    "required_margin": margin,
+                },
+                "candidates": all_candidates,
+            }
+
+    winner["instrument_id"] = instrument_id
+    winner["candidates"] = all_candidates
     return winner
 
 
