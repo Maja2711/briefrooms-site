@@ -116,8 +116,8 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
         source = LIVE_SCRIPT.read_text(encoding="utf-8")
         patch_start = source.index("function patchCard")
         stale_start = source.index("if (!quoteUsable)", patch_start)
-        stale_end = source.index("const currentAt =", source.index("const labelNode = nowBox.querySelector('span');", stale_start))
-        stale_branch = source[stale_start:stale_end]
+        stale_return = source.index("return;", stale_start)
+        stale_branch = source[stale_start:stale_return]
         patch_end = source.index("function applyStates", patch_start)
         patch_card = source[patch_start:patch_end]
         self.assertIn("Ostatni dostępny kurs", stale_branch)
