@@ -29,7 +29,7 @@ POLICY = ROOT / "data/investments/multi_instrument_exposure_policy.json"
 WEEKLY = ROOT / "data/investments/weekly"
 REPORT = ROOT / "data/investments/wes_report.json"
 LEARNING = ROOT / "data/investments/wes_learning.json"
-VERSION = "WES-1.0.0"
+VERSION = "WES-1.1.0"
 
 read, write, sf, parse_dt = v4.read, v4.write, v2.sf, v2.parse_dt
 
@@ -78,22 +78,17 @@ def decision_direction_from_score(score: float) -> str:
     return "long" if score > 0 else "short" if score < 0 else "neutral"
 
 
-def confirmations(direction: str, fresh: Dict[str, Any], weekly: Dict[str, Any], macro_context: Dict[str, Any]) -> Tuple[int, List[str]]:
-    names: List[str] = []
-    fscore = float(fresh.get("score") or 0.0)
-    if decision_direction_from_score(fscore) == direction and abs(fscore) >= 25:
-        names.append("daily")
-    if weekly.get("data_quality") == "passed":
-        wscore = float(weekly.get("score") or 0.0)
-        if decision_direction_from_score(wscore) == direction and abs(wscore) >= 15:
-            names.append("weekly")
-    if macro_context.get("data_quality") == "passed" and str(macro_context.get("direction")) == direction:
-        names.append("macro")
-    ma = macro_context.get("ma_structure") if isinstance(macro_context.get("ma_structure"), dict) else {}
-    mscore = float(ma.get("score") or 0.0)
-    if decision_direction_from_score(mscore) == direction and abs(mscore) >= 1:
-        names.append("ma_structure")
-    return len(set(names)), sorted(set(names))
+def confirmations(
+    direction: str,
+    fresh: Dict[str, Any],
+    weekly: Dict[str, Any],
+    macro_context: Dict[str, Any],
+    policy: Optional[Dict[str, Any]] = None,
+) -> Tuple[int, List[str]]:
+    """Use the same directional-confirmation contract as the execution runtime."""
+    policy = policy if isinstance(policy, dict) else read(POLICY, {})
+    names = v5.directional_confirmation_sources(direction, fresh, weekly, macro_context, policy)
+    return len(names), names
 
 
 def governed_candidate(iid: str, cfg: Dict[str, Any], p_cfg: Dict[str, Any], week: Dict[str, Any], policy: Dict[str, Any], method: Dict[str, Any], now: datetime) -> Dict[str, Any]:
@@ -108,8 +103,14 @@ def governed_candidate(iid: str, cfg: Dict[str, Any], p_cfg: Dict[str, Any], wee
         iid, candidates, fresh, policy, weekly=weekly, macro_context=macro_context
     )
     choice_learning = v5.learning_with_candidate_observations(selected_leg_learning, contextual)
-    decision = v4.choose(candidates, choice_learning, policy)
-    count, sources = confirmations(str(decision.get("direction") or "neutral"), fresh, weekly, macro_context)
+    decision = v5.no_trade(
+        v4.choose_governed(candidates, choice_learning, policy, iid),
+        fresh,
+        weekly,
+        policy,
+        macro_context,
+    )
+    count, sources = confirmations(str(decision.get("direction") or "neutral"), fresh, weekly, macro_context, policy)
     return {
         "decision": decision,
         "fresh": fresh,
