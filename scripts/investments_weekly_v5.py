@@ -18,7 +18,7 @@ METHOD = ROOT / "data/investments/methodology.json"
 POLICY = ROOT / "data/investments/multi_instrument_exposure_policy.json"
 STATE = ROOT / "data/investments/multi_instrument_exposure_state_v5.json"
 REPORT = ROOT / "data/investments/multi_instrument_exposure_report_v5.json"
-VERSION = "5.7.0-experimental"
+VERSION = "5.8.0-experimental"
 
 read, write, sf, parse_dt = v4.read, v4.write, v2.sf, v2.parse_dt
 
@@ -245,47 +245,290 @@ def abstain(item: Dict[str, Any], decision: Dict[str, Any]) -> None:
                     result_value=0.0, result_percent=0.0)
 
 
-def freeze_decision(item: Dict[str, Any], decision: Dict[str, Any], fresh: Dict[str, Any], weekly: Dict[str, Any], now: datetime) -> Dict[str, Any]:
+def _clip(value: float, low: float, high: float) -> float:
+    return max(low, min(high, value))
+
+
+def build_entry_price_plan(
+    item: Dict[str, Any],
+    decision: Dict[str, Any],
+    fresh: Dict[str, Any],
+    now: datetime,
+    policy: Dict[str, Any],
+) -> Optional[Dict[str, Any]]:
+    """Freeze the desired entry price before execution.
+
+    WES 1.2 deliberately separates directional admission from price execution.
+    A valid LONG/SHORT thesis may remain WAIT indefinitely until the frozen
+    price is touched or the plan expires.
+    """
+    cfg = policy.get("entry_price_engine") if isinstance(policy.get("entry_price_engine"), dict) else {}
+    if not cfg.get("enabled", True):
+        return None
+
+    direction = str(decision.get("direction") or "neutral")
+    signals = fresh.get("signals") if isinstance(fresh.get("signals"), dict) else {}
+    reference = sf(signals.get("last_close"))
+    atr = sf(signals.get("atr14"))
+    ema20 = sf(signals.get("ema20"))
+    ret5 = sf(signals.get("ret5_pct"))
+    ret20 = sf(signals.get("ret20_pct"))
+    range55 = sf(signals.get("range55_position"))
+    if direction not in {"long", "short"} or reference is None or reference <= 0:
+        return None
+    if atr is None or atr <= 0:
+        return None
+    if ema20 is None or ema20 <= 0:
+        ema20 = reference
+    ret5 = float(ret5 or 0.0)
+    ret20 = float(ret20 or 0.0)
+    range55 = _clip(float(range55 if range55 is not None else 0.5), 0.0, 1.0)
+
+    ret5_scale = max(0.01, float(cfg.get("ret5_full_scale_percent") or 8.0))
+    ema_scale = max(0.01, float(cfg.get("ema_distance_full_scale_atr") or 2.5))
+    weights = cfg.get("overextension_weights") if isinstance(cfg.get("overextension_weights"), dict) else {}
+    w_momentum = float(weights.get("momentum_5d") or 0.40)
+    w_range = float(weights.get("range_55d") or 0.35)
+    w_ema = float(weights.get("ema20_distance") or 0.25)
+    weight_total = max(0.0001, w_momentum + w_range + w_ema)
+
+    signed_momentum = ret5 if direction == "long" else -ret5
+    signed_ema_distance_atr = ((reference - ema20) / atr) if direction == "long" else ((ema20 - reference) / atr)
+    directional_range = range55 if direction == "long" else 1.0 - range55
+    momentum_score = _clip(max(0.0, signed_momentum) / ret5_scale, 0.0, 1.0)
+    range_score = _clip(directional_range, 0.0, 1.0)
+    ema_score = _clip(max(0.0, signed_ema_distance_atr) / ema_scale, 0.0, 1.0)
+    overextension = (
+        w_momentum * momentum_score
+        + w_range * range_score
+        + w_ema * ema_score
+    ) / weight_total
+
+    minimum_pullback = max(0.0, float(cfg.get("minimum_pullback_atr") or 0.10))
+    base_pullback = max(minimum_pullback, float(cfg.get("base_pullback_atr") or 0.12))
+    extra_pullback = max(0.0, float(cfg.get("overextension_extra_pullback_atr") or 0.48))
+    max_pullback = max(base_pullback, float(cfg.get("maximum_pullback_atr") or 0.75))
+    pullback_atr = base_pullback + overextension * extra_pullback
+
+    source_exit_at = parse_dt(item.get("wes_early_reentry_source_exit_at") or item.get("exit_captured_at"))
+    source_exit_reason = str(item.get("wes_early_reentry_source_exit_reason") or item.get("exit_reason") or "")
+    post_stop_reversal = (
+        source_exit_at is not None
+        and source_exit_reason == "stop_loss"
+        and closed_position(item)
+    )
+    if post_stop_reversal:
+        pullback_atr += max(0.0, float(cfg.get("post_stop_reversal_extra_pullback_atr") or 0.15))
+    pullback_atr = _clip(pullback_atr, minimum_pullback, max_pullback)
+
+    target = reference - pullback_atr * atr if direction == "long" else reference + pullback_atr * atr
+
+    structural_buffer = max(0.0, float(cfg.get("structural_ema20_buffer_atr") or 0.25))
+    if direction == "long":
+        structural_floor = ema20 + structural_buffer * atr
+        if target < structural_floor < reference:
+            target = structural_floor
+    else:
+        structural_ceiling = ema20 - structural_buffer * atr
+        if target > structural_ceiling > reference:
+            target = structural_ceiling
+
+    max_distance_cfg = cfg.get("max_target_distance_percent") if isinstance(cfg.get("max_target_distance_percent"), dict) else {}
+    iid = str(item.get("instrument_id") or decision.get("instrument_id") or "")
+    max_distance_pct = max(0.01, float(max_distance_cfg.get(iid) or 2.0))
+    if direction == "long":
+        target = max(target, reference * (1.0 - max_distance_pct / 100.0))
+        target = min(target, reference - minimum_pullback * atr)
+        order_type = "buy_limit"
+    else:
+        target = min(target, reference * (1.0 + max_distance_pct / 100.0))
+        target = max(target, reference + minimum_pullback * atr)
+        order_type = "sell_limit"
+
+    wait_minutes = max(5, int(cfg.get("max_wait_minutes") or 60))
+    entry_not_before = now
+    if post_stop_reversal and source_exit_at is not None:
+        bars = max(0, int(cfg.get("post_stop_reversal_min_completed_bars") or 3))
+        entry_not_before = max(entry_not_before, source_exit_at + timedelta(minutes=5 * bars))
+    expires_at = now + timedelta(minutes=wait_minutes)
+
+    return {
+        "version": str(cfg.get("version") or "WES-1.2.0"),
+        "frozen_at": now.isoformat(timespec="seconds"),
+        "instrument_id": iid,
+        "direction": direction,
+        "order_type": order_type,
+        "target_price": round(target, 8),
+        "reference_price": round(reference, 8),
+        "reference_source": "fresh_signal.signals.last_close",
+        "entry_not_before": entry_not_before.isoformat(timespec="seconds"),
+        "expires_at": expires_at.isoformat(timespec="seconds"),
+        "execution_bar_interval_minutes": int(cfg.get("execution_bar_interval_minutes") or 5),
+        "fill_rule": str(cfg.get("fill_rule") or "frozen_limit_target_touch"),
+        "inputs": {
+            "atr14": round(atr, 8),
+            "ema20": round(ema20, 8),
+            "ret5_pct": round(ret5, 6),
+            "ret20_pct": round(ret20, 6),
+            "range55_position": round(range55, 6),
+            "directional_ema20_distance_atr": round(signed_ema_distance_atr, 6),
+            "momentum_overextension_score": round(momentum_score, 6),
+            "range_overextension_score": round(range_score, 6),
+            "ema_overextension_score": round(ema_score, 6),
+            "overextension_score": round(overextension, 6),
+            "pullback_atr_fraction": round(pullback_atr, 6),
+            "post_stop_reversal": post_stop_reversal,
+        },
+        "status": "waiting_for_target_touch",
+    }
+
+
+def freeze_decision(
+    item: Dict[str, Any],
+    decision: Dict[str, Any],
+    fresh: Dict[str, Any],
+    weekly: Dict[str, Any],
+    now: datetime,
+    policy: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    policy = policy if isinstance(policy, dict) else read(POLICY, {})
     frozen = dict(decision)
     frozen.update(decided_at=now.isoformat(timespec="seconds"), validation_gate=item.get("validation_gate"))
+    entry_plan = build_entry_price_plan(item, frozen, fresh, now, policy)
+    if (policy.get("entry_price_engine") or {}).get("require_for_all_new_entries", True) and entry_plan is None:
+        raise RuntimeError("WES 1.2 entry price plan could not be frozen")
+    entry_not_before = (entry_plan or {}).get("entry_not_before") or frozen["decided_at"]
+    auth = item.get("wes_entry_authorization") if isinstance(item.get("wes_entry_authorization"), dict) else {}
     pending = {
-        "decided_at": frozen["decided_at"], "entry_not_before": frozen["decided_at"],
-        "decision": frozen, "fresh_signal": fresh, "weekly_signal": weekly,
+        "decided_at": frozen["decided_at"],
+        "entry_not_before": entry_not_before,
+        "decision": frozen,
+        "fresh_signal": fresh,
+        "weekly_signal": weekly,
         "macro_context": frozen.get("macro_context"),
-        "rule": "entry_timestamp_must_be_on_or_after_decision_timestamp",
+        "entry_price_plan": entry_plan,
+        "authorization_basis": {
+            "authorized_at": auth.get("authorized_at"),
+            "strategy_id": frozen.get("strategy_id"),
+            "direction": frozen.get("direction"),
+            "directional_admission_passed": auth.get("directional_admission_passed"),
+        },
+        "rule": "execute_only_when_frozen_entry_target_is_touched_after_decision",
     }
     item.update(
         pending_entry_decision=pending,
         trade_status="pending",
-        next_entry_status="pending",
-        entry_quality_status="waiting_for_first_completed_5m_bar_after_decision",
+        next_entry_status="waiting_for_entry_target",
+        entry_quality_status="wes_1_2_waiting_for_frozen_entry_target",
     )
     return pending
 
 
-def entry_point(symbol: str, pending: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    decided = parse_dt(pending.get("entry_not_before"))
-    if not decided:
+def _yahoo_entry_target_touch(
+    symbol: str,
+    direction: str,
+    target: float,
+    start: datetime,
+    end: datetime,
+) -> Optional[Dict[str, Any]]:
+    df = v2.intraday_bars(symbol, start, end)
+    if df is None:
         return None
-    point = v2.first_bar_at_or_after(symbol, decided, tolerance=timedelta(hours=3))
-    captured = parse_dt((point or {}).get("timestamp"))
-    return point if point and captured and captured >= decided else None
+    try:
+        df = df[(df.index >= start) & (df.index <= end)]
+        for ts, row in df.iterrows():
+            high = v2._row_value(row, "High")
+            low = v2._row_value(row, "Low")
+            if high is None or low is None:
+                continue
+            touched = low <= target if direction == "long" else high >= target
+            if touched:
+                return {
+                    "price": target,
+                    "timestamp": ts.to_pydatetime().astimezone(legacy.TZ).isoformat(timespec="seconds"),
+                    "source": f"Yahoo Finance:{symbol}:5m:frozen_entry_target_touch",
+                    "observed_high": high,
+                    "observed_low": low,
+                }
+    except Exception:
+        return None
+    return None
 
 
-def pending_matches_wes_authorization(item: Dict[str, Any], pending: Any) -> bool:
-    """A pending entry may be reused only if it was created under the current WES authorization."""
+def entry_point(
+    symbol: str,
+    pending: Dict[str, Any],
+    now: Optional[datetime] = None,
+) -> Optional[Dict[str, Any]]:
+    """Execute only a pre-frozen WES 1.2 price target; never choose a market price here."""
+    plan = pending.get("entry_price_plan") if isinstance(pending.get("entry_price_plan"), dict) else {}
+    direction = str(plan.get("direction") or (pending.get("decision") or {}).get("direction") or "neutral")
+    target = sf(plan.get("target_price"))
+    start = parse_dt(plan.get("entry_not_before") or pending.get("entry_not_before"))
+    expires = parse_dt(plan.get("expires_at"))
+    checked_at = now or legacy.now_local()
+    if direction not in {"long", "short"} or target is None or target <= 0 or start is None or expires is None:
+        return None
+    end = min(checked_at, expires)
+    if end < start:
+        return None
+
+    iid = str(plan.get("instrument_id") or "")
+    if iid == "btcusd":
+        try:
+            import audit_intraday_risk_exits as risk_market
+            bars = risk_market.fetch_coinbase_bars(start, end)
+            for bar in bars:
+                if bar.ts < start.astimezone(bar.ts.tzinfo) or bar.ts > end.astimezone(bar.ts.tzinfo):
+                    continue
+                touched = bar.low <= target if direction == "long" else bar.high >= target
+                if touched:
+                    return {
+                        "price": target,
+                        "timestamp": bar.ts.astimezone(legacy.TZ).isoformat(timespec="seconds"),
+                        "source": "Coinbase Exchange:BTC-USD:5m:frozen_entry_target_touch",
+                        "observed_high": bar.high,
+                        "observed_low": bar.low,
+                    }
+        except Exception:
+            pass
+    return _yahoo_entry_target_touch(symbol, direction, target, start, end)
+
+
+def entry_plan_expired(pending: Any, now: datetime) -> bool:
+    if not isinstance(pending, dict):
+        return False
+    plan = pending.get("entry_price_plan") if isinstance(pending.get("entry_price_plan"), dict) else {}
+    expires = parse_dt(plan.get("expires_at"))
+    return expires is not None and now >= expires
+
+
+def pending_matches_wes_authorization(
+    item: Dict[str, Any],
+    pending: Any,
+    now: Optional[datetime] = None,
+) -> bool:
+    """Keep a frozen price target stable while the same WES thesis remains authorized."""
     if not isinstance(pending, dict):
         return False
     decision = pending.get("decision") if isinstance(pending.get("decision"), dict) else {}
+    plan = pending.get("entry_price_plan") if isinstance(pending.get("entry_price_plan"), dict) else {}
+    basis = pending.get("authorization_basis") if isinstance(pending.get("authorization_basis"), dict) else {}
     auth = item.get("wes_entry_authorization") if isinstance(item.get("wes_entry_authorization"), dict) else {}
     candidate = auth.get("candidate") if isinstance(auth.get("candidate"), dict) else {}
-    authorized_at = parse_dt(auth.get("authorized_at"))
-    pending_at = parse_dt(pending.get("decided_at") or pending.get("entry_not_before"))
-    if authorized_at is None or pending_at is None or pending_at < authorized_at:
+    if not plan or not basis:
         return False
-    if str(decision.get("direction") or "") != str(candidate.get("direction") or ""):
+    if entry_plan_expired(pending, now or legacy.now_local()):
         return False
-    if str(decision.get("strategy_id") or "") != str(candidate.get("strategy_id") or ""):
+    if auth.get("directional_admission_passed") is not True:
+        return False
+    if basis.get("directional_admission_passed") is not True:
+        return False
+    for key in ("direction", "strategy_id"):
+        expected = str(decision.get(key) or "")
+        if expected != str(candidate.get(key) or "") or expected != str(basis.get(key) or ""):
+            return False
+    if str(candidate.get("execution_authority") or "") != "champion_execution":
         return False
     return True
 
