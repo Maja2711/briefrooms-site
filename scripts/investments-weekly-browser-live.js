@@ -691,7 +691,9 @@
         const displayedPrice = String(priceNode.textContent || '').trim();
         const currentAt = validTimestamp(nowBox.dataset.liveAt)?.valueOf() || 0;
         const quoteAt = validTimestamp(quote.updatedAt)?.valueOf() || 0;
-        if (!displayedPrice || displayedPrice === '—' || quoteAt >= currentAt) {
+        const cardIsEmpty = !displayedPrice || displayedPrice === '—';
+        const quoteAdvancesBrowserPrice = currentAt > 0 && quoteAt >= currentAt;
+        if (cardIsEmpty || quoteAdvancesBrowserPrice) {
           priceNode.textContent = fmtPrice(quote.price, item.instrument_id);
           setResult(item, card, quote.price);
           timeNode.textContent = fmtTime(quote.updatedAt);
