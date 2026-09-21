@@ -34,7 +34,7 @@ class Instrument:
 
 INSTRUMENTS: Dict[str, Instrument] = {
     "eurusd": Instrument("EURUSD=X", "eurusd", 0.8, 1.5, timedelta(minutes=10)),
-    "sp500_futures": Instrument("ES=F", "es.f", 500.0, 100_000.0, timedelta(minutes=7)),
+    "sp500_futures": Instrument("ES=F", "es.f", 500.0, 100_000.0, timedelta(minutes=15)),
     "btcusd": Instrument("BTC-USD", None, 1_000.0, 2_000_000.0, timedelta(minutes=5)),
 }
 
@@ -300,7 +300,6 @@ def providers(instrument_id: str) -> list[Callable[[], Dict[str, Any]]]:
     if instrument_id == "sp500_futures":
         return [
             esignal_quote,
-            lambda: yahoo_quote(instrument_id, active_es_yahoo_symbol()),
             lambda: yahoo_quote(instrument_id),
             lambda: stooq_quote(instrument_id),
         ]
