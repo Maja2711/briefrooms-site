@@ -1,7 +1,7 @@
 # Kanoniczna mapa architektury BriefRooms — PL
 
-**Wersja mapy:** 1.5  
-**Stan na:** 2026-09-19  
+**Wersja mapy:** 1.6  
+**Stan na:** 2026-09-21  
 **Bazowy commit `main`:** `331314840c1f1ddeccd814b46df688ccf9971d2b`  
 **Repozytorium:** `Maja2711/briefrooms-site`
 
@@ -267,7 +267,7 @@ Nie każdy silnik implementuje dziś każdy krok w identyczny sposób. Architect
 
 | ID | Moduł | Rola | Główne elementy |
 |---|---|---|---|
-| `CT-01` | News pipeline | Bilingual news ingestion, quality, dedupe, summaries/publication | `fetch_news_pl.py`, `fetch_news_en.py`, news source/quality/intelligence modules |
+| `CT-01` | News pipeline | Bilingual news ingestion, quality, dedupe, summaries/publication + globalny hard cap publicznej ekspozycji 24 h | `publish_source_expansion_v3.py`, `enforce_homepage_max_age.py`, `render_live_news_static.py`, `news-live.js`, news source/quality/intelligence modules |
 | `CT-02` | AI Outlook | Governed daily outlook, provider/freshness/status/metrics | `ai_outlook_engine.py` + `ai-outlook-*` workflows/data |
 | `CT-03` | AI Tournament | Niezależna warstwa porównania/submission/rounds/public UI | `ai_tournament_engine.py`, intake/bootstrap/UI modules |
 | `CT-04` | AXIOM Thought | Publikacja myśli/motta z guardem jakości | `axiom_thought_guard.py`, `publish_axiom_thought.py` |
@@ -275,6 +275,10 @@ Nie każdy silnik implementuje dziś każdy krok w identyczny sposób. Architect
 | `CT-06` | Home / editorial | Home brief, market signal, Hot X, editorial rules | home build pipelines, `briefrooms_editorial_rules.md`, content contracts |
 
 Warstwa publikacyjna **nie może stać się ukrytym źródłem authority dla silnika decyzyjnego**. Publiczny renderer pokazuje stan; nie powinien tworzyć lub retroaktywnie zmieniać decyzji ekonomicznej.
+
+### CT-01 — twardy invariant świeżości publicznych wiadomości
+
+Każda karta wiadomości widoczna publicznie — zarówno w sekcjach `/pl/aktualnosci` / `/en/news`, jak i na homepage oraz w rezerwie homepage — podlega jednemu współdzielonemu zegarowi ekspozycji. Maksymalny czas publicznego wyświetlania wynosi **24 godziny**. Dodatkowo źródłowy `published_at` nie może być starszy niż 24 godziny. Kanoniczne pola to `news_first_seen_at` oraz `news_expires_at`; starsze pola homepage pozostają wyłącznie kompatybilnością. Po przekroczeniu limitu materiał jest usuwany, a nie utrzymywany w celu zachowania liczby kart. **Freshness > fullness**: underfill sekcji/homepage jest dozwolony, stale backfill jest zabroniony. Guard działa serwerowo przed statycznym renderem oraz ponownie w `news-live.js`, aby awaria kolejnego odświeżenia nie utrzymywała przeterminowanej wiadomości w przeglądarce.
 
 ## 9. Runtime / automation layer
 

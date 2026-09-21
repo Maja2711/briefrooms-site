@@ -48,7 +48,7 @@ class HomepageExposureCapTests(unittest.TestCase):
         self.assertEqual(result["home"], [])
         self.assertEqual(result["health"]["homepage_freshness"]["expired_exposure_rejected"], 1)
 
-    def test_exactly_72_hours_is_allowed_and_one_second_more_is_rejected(self) -> None:
+    def test_exactly_24_hours_is_allowed_and_one_second_more_is_rejected(self) -> None:
         first_now = datetime(2026, 8, 23, 12, 0, tzinfo=timezone.utc)
         story = self._story("Boundary story", first_now)
         state: dict = {}
@@ -82,6 +82,37 @@ class HomepageExposureCapTests(unittest.TestCase):
         }
         late_result, _ = enforce_payload(late_payload, state, late)
         self.assertEqual(late_result["home"], [])
+
+    def test_expired_story_is_removed_from_section_as_well_as_homepage(self) -> None:
+        now = datetime(2026, 9, 21, 12, 0, tzinfo=timezone.utc)
+        expired = self._story("Expired everywhere", now - HOME_MAX_AGE - timedelta(seconds=1))
+        fresh = self._story("Fresh everywhere", now - timedelta(hours=1))
+        payload = {
+            "home": [expired, fresh],
+            "home_reserve": [],
+            "sections": {"health": [expired, fresh]},
+            "labels": {"health": "Health"},
+            "health": {},
+        }
+
+        result, _ = enforce_payload(payload, {}, now, lang="pl")
+
+        self.assertEqual(
+            [item["title"] for item in result["sections"]["health"]],
+            ["Fresh everywhere"],
+        )
+        self.assertEqual(
+            [item["title"] for item in result["home"]],
+            ["Fresh everywhere"],
+        )
+        fresh_story = result["sections"]["health"][0]
+        self.assertIn("news_first_seen_at", fresh_story)
+        self.assertIn("news_expires_at", fresh_story)
+        self.assertEqual(result["homepage_policy"]["max_display_hours"], 24)
+        self.assertEqual(
+            result["homepage_policy"]["scope"],
+            "all_public_news_surfaces",
+        )
 
     def test_expired_home_story_is_replaced_by_next_eligible_reserve_story(self) -> None:
         now = datetime(2026, 8, 26, 18, 0, tzinfo=timezone.utc)
@@ -129,6 +160,9 @@ class HomepageExposureCapTests(unittest.TestCase):
         self.assertTrue(all(item["image"].startswith("https://") for item in result["home"]))
         self.assertEqual(result["health"]["homepage_freshness"]["status"], "ok")
         self.assertEqual(result["homepage_policy"]["target_story_count"], 12)
+        self.assertEqual(result["homepage_policy"]["max_display_hours"], 24)
+        self.assertEqual(result["homepage_policy"]["minimum_story_count"], 0)
+        self.assertTrue(result["homepage_policy"]["underfill_allowed_when_needed_for_freshness"])
         self.assertTrue(result["homepage_policy"]["requires_https_image"])
         self.assertEqual(result["homepage_policy"]["image_policy_version"], IMAGE_POLICY_VERSION)
 

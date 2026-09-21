@@ -14,12 +14,15 @@ MARKER = "test-marker"
 
 
 def story(index: int) -> dict:
+    published = NOW - timedelta(minutes=index)
     return {
         "title": f"Story {index}",
         "link": f"https://example.com/{index}",
         "image": f"https://example.com/{index}.jpg",
         "source": "Example",
-        "published_at": (NOW - timedelta(minutes=index)).isoformat(),
+        "published_at": published.isoformat(),
+        "news_first_seen_at": published.isoformat(),
+        "news_expires_at": (published + timedelta(hours=24)).isoformat(),
     }
 
 
@@ -38,7 +41,7 @@ def write_fixture(root: Path, generated: datetime = NOW) -> None:
             "marker": MARKER,
             "generated_at": generated.isoformat(),
             "sections": {
-                section: [story(i) for i in range(health.MIN_SECTION)]
+                section: [story(i) for i in range(health.TARGET_SECTION)]
                 for section in config["sections"]
             },
             "health": {"status": "ok", "source_errors": []},
@@ -61,6 +64,41 @@ class LiveNewsHealthTests(unittest.TestCase):
             report = health.assess(root, now=NOW, max_age_minutes=120)
         self.assertEqual("healthy", report["status"])
         self.assertFalse(report["reasons"])
+
+    def test_underfilled_fresh_section_is_degraded_not_failed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_fixture(root)
+            feed_path = root / health.LANGUAGES["pl"]["feed"]
+            payload = json.loads(feed_path.read_text(encoding="utf-8"))
+            first_section = next(iter(payload["sections"]))
+            payload["sections"][first_section] = payload["sections"][first_section][:2]
+            feed_path.write_text(json.dumps(payload), encoding="utf-8")
+            report = health.assess(root, now=NOW, max_age_minutes=120)
+        self.assertEqual("degraded", report["status"])
+        self.assertFalse(report["reasons"])
+        self.assertTrue(
+            any("section_underfilled_freshness_first" in warning for warning in report["warnings"])
+        )
+
+    def test_over_24h_story_is_failed_even_when_feed_generation_is_fresh(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_fixture(root)
+            feed_path = root / health.LANGUAGES["pl"]["feed"]
+            payload = json.loads(feed_path.read_text(encoding="utf-8"))
+            first_section = next(iter(payload["sections"]))
+            old = payload["sections"][first_section][0]
+            old_time = NOW - timedelta(hours=24, seconds=1)
+            old["published_at"] = old_time.isoformat()
+            old["news_first_seen_at"] = old_time.isoformat()
+            old["news_expires_at"] = (old_time + timedelta(hours=24)).isoformat()
+            feed_path.write_text(json.dumps(payload), encoding="utf-8")
+            report = health.assess(root, now=NOW, max_age_minutes=120)
+        self.assertEqual("failed", report["status"])
+        self.assertTrue(
+            any("source_story_over_24h" in reason for reason in report["reasons"])
+        )
 
     def test_stale_publication_fails_at_two_hours(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

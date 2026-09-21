@@ -14,8 +14,8 @@ PAGES = [
     ROOT / "pl" / "index.html",
     ROOT / "en" / "index.html",
 ]
-VERSION = "7"
-RUNTIME_REVISION = "priority12"
+VERSION = "8"
+RUNTIME_REVISION = "global24h"
 FLOOR_VERSION = "4"
 LAB_VERSION = "1"
 INTELLIGENCE_VERSION = "1"
@@ -27,7 +27,7 @@ PATTERN = re.compile(r'\s*<script\s+src=["\']/scripts/news-live\.js(?:\?[^"\']*)
 FLOOR_PATTERN = re.compile(r'\s*<script\s+src=["\']/scripts/home-card-floor\.js(?:\?[^"\']*)?["\']\s+defer></script>', re.I)
 LAB_PATTERN = re.compile(r'\s*<script\s+src=["\']/scripts/home-lab\.js(?:\?[^"\']*)?["\']\s+defer></script>', re.I)
 INTELLIGENCE_PATTERN = re.compile(r'\s*<script\s+src=["\']/scripts/home-intelligence-layout\.js(?:\?[^"\']*)?["\']\s+defer></script>', re.I)
-HOME_MAX_AGE = timedelta(days=3)
+HOME_MAX_AGE = timedelta(hours=24)
 FUTURE_TOLERANCE = timedelta(minutes=10)
 HOME_BLOCK = re.compile(
     r'(<!--\s*HOME_BRIEFS_START\s*-->)(.*?)(<!--\s*HOME_BRIEFS_END\s*-->)',
@@ -119,7 +119,7 @@ def apply_homepage_freshness(source: str, lang: str, now: datetime | None = None
     def mark_container(match: re.Match[str]) -> str:
         opening = re.sub(r'\s+data-home-freshness-policy=["\'][^"\']*["\']', "", match.group(0), flags=re.I)
         opening = re.sub(r'\s+data-home-image-policy=["\'][^"\']*["\']', "", opening, flags=re.I)
-        return opening[:-1].rstrip() + ' data-home-freshness-policy="max-72h-v1" data-home-image-policy="https-image-required-v1">'
+        return opening[:-1].rstrip() + ' data-home-freshness-policy="max-24h-public-news-display-v1" data-home-image-policy="https-image-required-v1">'
 
     return container_pattern.sub(mark_container, source, count=1)
 

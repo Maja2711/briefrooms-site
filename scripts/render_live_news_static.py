@@ -20,8 +20,16 @@ def esc(value: Any, *, quote: bool = True) -> str:
 
 def card(story: dict[str, Any], lang: str) -> str:
     source_label = "Źródło" if lang == "pl" else "Source"
+    published = esc(story.get("published_at"))
+    first_seen = esc(story.get("news_first_seen_at"))
+    expires = esc(story.get("news_expires_at"))
+    freshness_attrs = (
+        f' data-news-published-at="{published}"'
+        f' data-news-first-seen-at="{first_seen}"'
+        f' data-news-expires-at="{expires}"'
+    )
     return (
-        f'<li><a class="news-main-link" href="{esc(story.get("link"))}" '
+        f'<li><a class="news-main-link" href="{esc(story.get("link"))}"{freshness_attrs} '
         'target="_blank" rel="noopener noreferrer external">'
         f'<span class="news-thumb has-image"><img src="{esc(story.get("image"))}" alt="" '
         'loading="lazy" decoding="async" referrerpolicy="no-referrer"></span>'

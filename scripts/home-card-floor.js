@@ -23,7 +23,7 @@
   'use strict';
 
   var MIN_CARDS = 12;
-  var HOME_MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
+  var HOME_MAX_AGE_MS = 24 * 60 * 60 * 1000;
   var FUTURE_TOLERANCE_MS = 10 * 60 * 1000;
   var RECHECK_DELAYS_MS = [250, 800, 1800, 3600];
 
@@ -110,7 +110,10 @@
     card.target = '_blank';
     card.rel = 'noopener noreferrer external';
     card.dataset.homePublishedAt = published;
-    if (story.homepage_first_seen_at) card.dataset.homeFirstSeenAt = String(story.homepage_first_seen_at);
+    var firstSeen = story.news_first_seen_at || story.homepage_first_seen_at;
+    if (firstSeen) card.dataset.homeFirstSeenAt = String(firstSeen);
+    var expiresAt = story.news_expires_at || story.homepage_expires_at;
+    if (expiresAt) card.dataset.homeExpiresAt = String(expiresAt);
     card.dataset.homeCardFloor = 'approved-home-reserve';
 
     var thumb = element(document, 'div', 'thumb has-image');
@@ -241,7 +244,8 @@
         var identity = storyIdentity(story);
         if (!identity || identities.has(identity) || context.failedStoryIds.has(identity)) continue;
         if (!isFresh(story.published_at, nowMs)) continue;
-        if (story.homepage_first_seen_at && !isFresh(story.homepage_first_seen_at, nowMs)) continue;
+        var firstSeen = story.news_first_seen_at || story.homepage_first_seen_at;
+        if (firstSeen && !isFresh(firstSeen, nowMs)) continue;
 
         var card = makeImageCard(context.document, story, context.lang, nowMs);
         if (!card) continue;

@@ -24,7 +24,7 @@
 
   var QUALITY_STATUS = 'passed_strict_v7';
   var CARD_LIMIT = 12;
-  var HOME_MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
+  var HOME_MAX_AGE_MS = 24 * 60 * 60 * 1000;
   var FUTURE_TOLERANCE_MS = 10 * 60 * 1000;
   var CONFIG = {
     pl: {
@@ -187,7 +187,7 @@
       fragment.appendChild(createCard(document, item, lang));
     });
     container.replaceChildren(fragment);
-    container.dataset.homeFreshnessPolicy = 'max-72h-v1';
+    container.dataset.homeFreshnessPolicy = 'max-24h-public-news-display-v1';
     container.dataset.homePriority = 'politics-geopolitics-economy-ai-science-health-sport';
     return true;
   }
@@ -230,7 +230,7 @@
       updateLabel(label, data.updated_at, lang);
       return true;
     } catch (error) {
-      logger.warn('BriefRooms homepage feed could not be refreshed; only static cards within the 72-hour policy may remain visible.', error);
+      logger.warn('BriefRooms homepage feed could not be refreshed; only static cards within the 24-hour policy may remain visible.', error);
       return false;
     }
   }
