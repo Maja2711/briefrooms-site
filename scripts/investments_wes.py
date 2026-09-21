@@ -190,45 +190,10 @@ def set_monitoring(item: Dict[str, Any], now: datetime, until: datetime, candida
 
 
 def preflight() -> Dict[str, Any]:
-    now = legacy.now_local(); policy = read(POLICY, {}); method = read(METHOD, {})
-    path = current_week_path(now); report: Dict[str, Any] = {"version": VERSION, "mode": "preflight", "checked_at": now.isoformat(timespec="seconds"), "actions": []}
-    if not path.exists() or now.weekday() > 4:
-        report["status"] = "skipped"; report["reason"] = "no_active_week"; write(REPORT, report); return report
-    week = read(path, {}); end = exit_time(week, now); remaining = max(0.0, (end - now).total_seconds() / 60.0)
-    stats = learning_stats(); write(LEARNING, stats)
-    items = {str(x.get("instrument_id")): x for x in week.get("instruments") or []}
-    changed = False
-    for p_cfg in v4.policy_instruments(policy):
-        iid = str(p_cfg.get("instrument_id")); item = items.get(iid); cfg = v4.instrument_cfg(method, iid)
-        if item is None or not cfg:
-            continue
-        if sf(item.get("entry_price")) is not None and sf(item.get("exit_price")) is None:
-            continue
-        # Closed positions stay governed by the existing same-week invalidation/re-entry policy.
-        if sf(item.get("exit_price")) is not None:
-            continue
-        data = governed_candidate(iid, cfg, p_cfg, week, policy, method, now)
-        decision = data["decision"]; direction = str(decision.get("direction") or "neutral")
-        cls = entry_class(now); profile = trigger_profile(now, remaining)
-        penalty = learning_threshold_penalty(stats, cls)
-        profile = {**profile, "raw": float(profile["raw"]) + penalty, "learning_threshold_adjustment": penalty}
-        raw = abs(float(decision.get("raw_score") or 0.0)); utility = float(decision.get("utility") or 0.0)
-        initial = abs(float(item.get("forecast_score") if item.get("forecast_score") is not None else item.get("score") or 0.0))
-        delta = max(0.0, raw - initial)
-        approved = bool(profile.get("allowed")) and direction in {"long", "short"} and raw >= float(profile["raw"]) and utility >= float(profile["utility"]) and int(data["confirmations"]) >= int(profile["confirmations"]) and delta >= float(profile["delta"])
-        candidate = {"direction": direction, "strategy_id": decision.get("strategy_id"), "raw_score": round(raw, 4), "utility": round(utility, 4), "signal_delta_from_initial": round(delta, 4), "confirmations": data["confirmations"], "confirmation_sources": data["confirmation_sources"], "entry_class": cls}
-        if approved:
-            item["reentry_lock"] = {"active": False, "scope": "wes_no_trade_monitoring", "released_at": now.isoformat(timespec="seconds"), "reason": "wes_trigger_qualified"}
-            item["wes_status"] = "trigger_qualified_waiting_governed_v5_entry"
-            item["wes_entry_authorization"] = {"authorized_at": now.isoformat(timespec="seconds"), "expires_at": (now + timedelta(minutes=20)).isoformat(timespec="seconds"), "candidate": candidate, "required": profile}
-            report["actions"].append({"instrument_id": iid, "action": "authorize_trigger", **candidate})
-        else:
-            set_monitoring(item, now, end, candidate, profile)
-            report["actions"].append({"instrument_id": iid, "action": "monitor_no_trade", **candidate, "required": profile})
-        changed = True
-    week["wes"] = {"version": VERSION, "objective": "maximize_total_net_profit_with_no_forced_trades", "no_trade_is_active_monitoring": True, "last_preflight_at": now.isoformat(timespec="seconds")}
-    if changed: write(path, week)
-    report["status"] = "completed"; report["week_id"] = week.get("week_id"); write(REPORT, report); return report
+    """Delegate to the single production WES 1.1 admission implementation."""
+    import investments_wes_runner as runner
+
+    return runner.preflight()
 
 
 def base_distances(item: Dict[str, Any]) -> Optional[Tuple[float, float]]:
