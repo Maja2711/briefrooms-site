@@ -170,7 +170,7 @@ class V2ProductionBridgeTests(unittest.TestCase):
         self.assertEqual(["AAA"], [row["symbol"] for row in portfolio.open_positions(state, "US")])
         self.assertTrue(any(row.get("reason") == "candidate_does_not_beat_cash_edge" for row in audits))
 
-    def test_bridge_passes_exact_execution_quote_freshness_limit(self):
+    def test_bridge_passes_exact_gpw_delayed_paper_quote_limit(self):
         policy = portfolio.load_policy()
         state = portfolio.empty_state(now=self.now, policy=policy)
         candidate = self.candidate("ASB.WA", 1, 95)
@@ -197,7 +197,7 @@ class V2ProductionBridgeTests(unittest.TestCase):
             quote_fetcher=quote,
         )
         self.assertTrue(healthy)
-        self.assertEqual(120, seen["maximum_age_seconds"])
+        self.assertEqual(1200, seen["maximum_age_seconds"])
         self.assertEqual("ASB.WA", portfolio.open_positions(state, "GPW")[0]["symbol"])
         self.assertEqual("open", audits[0]["action"])
 
