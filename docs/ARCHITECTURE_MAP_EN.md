@@ -1,8 +1,8 @@
 # BriefRooms Canonical Architecture Map — EN
 
-**Map version:** 1.10  
+**Map version:** 1.11  
 **Snapshot date:** 2026-09-21  
-**Base `main` commit:** `b76bd3a98d2b601a646845d6c3867da4d64240c6`  
+**Base `main` commit:** `b716beca850bc8514c0975f005c7a8d1d5dcd14d`  
 **Repository:** `Maja2711/briefrooms-site`
 
 ## 0. Purpose of this document
@@ -205,6 +205,8 @@ Dynamic Universe
 ```
 
 Main implementation families: `stock_trading_v2_*`, `stock_trading_component_*`, `stock_trading_portfolio.py`. Sizing and history-normalization contract: `docs/STOCK_TRADING_FIXED_NOTIONAL_EN.md` / `_PL.md`. Public history displays 5K notional, fractional analytical quantity and P&L calculated from that common base.
+
+**TR-04 execution/paper policy:** new admissions remain prospective and are allowed only during the `REGULAR` session. US keeps a 2-minute maximum execution-quote age. GPW, as paper trading, may use a current-session Yahoo or other eligible-provider observation up to 20 minutes old and records the fill as `DELAYED_PAPER`; older observations, closed-session prices and research reference prices cannot open a position. This change grants no execution authority to other markets or instruments.
 
 ### Stock Trading v2 branch/runtime authority
 
