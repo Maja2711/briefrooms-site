@@ -245,6 +245,27 @@ def abstain(item: Dict[str, Any], decision: Dict[str, Any]) -> None:
                     result_value=0.0, result_percent=0.0)
 
 
+def settle_unfilled_reentry(item: Dict[str, Any], decision: Dict[str, Any], reason: str) -> None:
+    """Return a closed historical leg to a coherent closed state after an unfilled re-entry expires.
+
+    Never rewrites the completed leg's direction, entry, exit, result or frozen risk plan.
+    """
+    risk_plan = item.get("risk_plan") if isinstance(item.get("risk_plan"), dict) else {}
+    historical_class = str(risk_plan.get("wes_entry_class") or "")
+    item.update(
+        pending_entry_decision=None,
+        wes_entry_authorization=None,
+        next_entry_status="no_trade",
+        trade_status="closed",
+        no_trade_decision=decision,
+        no_trade_reason=reason,
+        continuous_exposure_active=False,
+        wes_status="closed_waiting_new_trigger",
+    )
+    if historical_class:
+        item["entry_quality_status"] = f"wes_{historical_class}"
+
+
 def _clip(value: float, low: float, high: float) -> float:
     return max(low, min(high, value))
 
@@ -831,7 +852,7 @@ def ensure_all() -> Dict[str, Any]:
             if not closed_position(item):
                 abstain(item, blocked)
             else:
-                item.update(pending_entry_decision=None, next_entry_status="no_trade")
+                settle_unfilled_reentry(item, blocked, authorization_reason)
             changed = True
             report["actions"].append({"instrument_id": iid, "action": "no_trade", "reason_codes": [authorization_reason]})
             continue
