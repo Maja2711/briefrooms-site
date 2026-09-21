@@ -85,5 +85,64 @@ class WeeklyIntegrityTests(unittest.TestCase):
         self.assertIn("invalid_short_risk_order", codes)
 
 
+    def test_planned_directional_forecast_does_not_require_entry(self):
+        item = {
+            "instrument_id": "eurusd",
+            "direction": "short",
+            "trade_status": "planned",
+            "entry_price": None,
+            "exit_price": None,
+        }
+        self.assertEqual(audit.item_violations(item), [])
+
+    def test_valid_pending_entry_does_not_require_fill_yet(self):
+        item = {
+            "instrument_id": "btcusd",
+            "direction": "long",
+            "trade_status": "pending",
+            "entry_price": None,
+            "exit_price": None,
+            "pending_entry_decision": {
+                "decided_at": "2026-09-21T08:05:00+02:00",
+                "entry_not_before": "2026-09-21T08:05:00+02:00",
+                "decision": {"direction": "long"},
+            },
+        }
+        self.assertEqual(audit.item_violations(item), [])
+
+    def test_pending_entry_without_decision_is_rejected(self):
+        item = {
+            "instrument_id": "btcusd",
+            "direction": "long",
+            "trade_status": "pending",
+            "entry_price": None,
+            "exit_price": None,
+        }
+        codes = {row["error"] for row in audit.item_violations(item)}
+        self.assertIn("pending_missing_decision", codes)
+        self.assertNotIn("directional_missing_entry", codes)
+
+    def test_open_directional_state_still_requires_entry(self):
+        item = {
+            "instrument_id": "btcusd",
+            "direction": "long",
+            "trade_status": "open",
+            "entry_price": None,
+            "exit_price": None,
+        }
+        codes = {row["error"] for row in audit.item_violations(item)}
+        self.assertIn("directional_missing_entry", codes)
+
+    def test_legacy_directional_row_without_lifecycle_state_remains_strict(self):
+        item = {
+            "instrument_id": "btcusd",
+            "direction": "long",
+            "entry_price": None,
+            "exit_price": 100.0,
+        }
+        codes = {row["error"] for row in audit.item_violations(item)}
+        self.assertIn("directional_missing_entry", codes)
+
+
 if __name__ == "__main__":
     unittest.main()
