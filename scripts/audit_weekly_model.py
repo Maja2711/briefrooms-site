@@ -114,6 +114,54 @@ def violation(code: str, **details: Any) -> Dict[str, Any]:
     return row
 
 
+DIRECTIONAL = {"long", "short"}
+NO_ENTRY_LIFECYCLE_STATES = {"planned", "pending", "no_trade", "not_opened", "expired_no_entry"}
+
+
+def normalized_trade_status(item: Dict[str, Any]) -> str:
+    return str(item.get("trade_status") or "").strip().lower().replace(" ", "_")
+
+
+def pending_entry_contract_violations(item: Dict[str, Any]) -> list[Dict[str, Any]]:
+    """Validate a frozen execution decision without pretending it is already a fill."""
+    pending = item.get("pending_entry_decision")
+    status = normalized_trade_status(item)
+    if pending is None:
+        return [violation("pending_missing_decision")] if status == "pending" else []
+    if not isinstance(pending, dict) or not isinstance(pending.get("decision"), dict):
+        return [violation("invalid_pending_entry_contract")]
+    direction = str((pending.get("decision") or {}).get("direction") or "").lower()
+    decided_at = parse(pending.get("decided_at"))
+    entry_not_before = parse(pending.get("entry_not_before"))
+    issues: list[Dict[str, Any]] = []
+    if direction not in DIRECTIONAL:
+        issues.append(violation("pending_missing_direction"))
+    if decided_at is None or entry_not_before is None:
+        issues.append(violation("pending_missing_timestamp"))
+    elif entry_not_before < decided_at:
+        issues.append(violation(
+            "pending_entry_before_decision",
+            decided_at=pending.get("decided_at"),
+            entry_not_before=pending.get("entry_not_before"),
+        ))
+    return issues
+
+
+def directional_entry_required(item: Dict[str, Any], entry: Optional[float], exit_price: Optional[float]) -> bool:
+    """True only when the lifecycle claims execution, not merely a directional forecast."""
+    side = str(item.get("direction") or "neutral").lower()
+    if side not in DIRECTIONAL or entry is not None:
+        return False
+    # An exit without an entry is never a valid execution-free state.
+    if exit_price is not None:
+        return True
+    status = normalized_trade_status(item)
+    if status in NO_ENTRY_LIFECYCLE_STATES:
+        return False
+    # Preserve strictness for legacy/unknown schemas that never declared a lifecycle state.
+    return True
+
+
 def item_violations(item: Dict[str, Any], method_version: Optional[str] = None) -> list[Dict[str, Any]]:
     issues: list[Dict[str, Any]] = []
     instrument_id = str(item.get("instrument_id") or "")
@@ -127,8 +175,9 @@ def item_violations(item: Dict[str, Any], method_version: Optional[str] = None) 
     sl = numeric(plan.get("stop_loss_price"))
     tp = numeric(plan.get("take_profit_price"))
 
-    if side in {"long", "short"} and entry is None:
+    if directional_entry_required(item, entry, exit_price):
         issues.append(violation("directional_missing_entry"))
+    issues.extend(pending_entry_contract_violations(item))
     if entry is not None and entry_at is None:
         issues.append(violation("missing_entry_timestamp"))
     if exit_price is not None and exit_at is None:
