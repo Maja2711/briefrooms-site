@@ -679,49 +679,33 @@
         ? quote.backendFresh && timestampFresh(quote.backendObservedAt, cfg.backendSnapshotMaxAgeMs)
         : quoteFresh(quote, allowedAge);
       if (!quoteUsable) {
-        if (item.instrument_id === 'eurusd') {
-          const labelNode = nowBox.querySelector('span');
-          if (labelNode) {
-            if (!nowBox.dataset.defaultPriceLabel) nowBox.dataset.defaultPriceLabel = labelNode.textContent || '';
-            labelNode.textContent = isEn ? 'Last available quote' : 'Ostatni dostępny kurs';
-          }
-          const displayedPrice = String(priceNode.textContent || '').trim();
-          if (!displayedPrice || displayedPrice === '—') {
-            priceNode.textContent = fmtPrice(quote.price, item.instrument_id);
-            setResult(item, card, quote.price);
-            timeNode.textContent = fmtTime(quote.updatedAt);
-            nowBox.dataset.liveAt = quote.updatedAt;
-            nowBox.dataset.liveSource = quote.source;
-          }
-          timeNode.style.color = '#ffb86b';
-          nowBox.dataset.feedStatus = 'stale';
-          return;
+        const labelNode = nowBox.querySelector('span');
+        if (labelNode) {
+          if (!nowBox.dataset.defaultPriceLabel) nowBox.dataset.defaultPriceLabel = labelNode.textContent || '';
+          labelNode.textContent = isEn ? 'Last available quote' : 'Ostatni dostępny kurs';
         }
-        if (item.instrument_id === 'sp500_futures') {
-          const labelNode = nowBox.querySelector('span');
-          if (labelNode) {
-            if (!nowBox.dataset.defaultPriceLabel) nowBox.dataset.defaultPriceLabel = labelNode.textContent || '';
-            labelNode.textContent = isEn ? 'Last available quote' : 'Ostatni dostępny kurs';
-          }
+
+        // Quote continuity contract: a temporary freshness gap must never blank a
+        // previously known market price. Fill an empty card from the newest known
+        // quote, but never replace a newer price already displayed in the browser.
+        const displayedPrice = String(priceNode.textContent || '').trim();
+        const currentAt = validTimestamp(nowBox.dataset.liveAt)?.valueOf() || 0;
+        const quoteAt = validTimestamp(quote.updatedAt)?.valueOf() || 0;
+        if (!displayedPrice || displayedPrice === '—' || quoteAt >= currentAt) {
           priceNode.textContent = fmtPrice(quote.price, item.instrument_id);
-          timeNode.textContent = `${fmtTime(quote.updatedAt)} · ${isEn ? 'delayed / stale source' : 'opóźnione / źródło nieświeże'}`;
-          timeNode.style.color = '#ffb86b';
+          setResult(item, card, quote.price);
+          timeNode.textContent = fmtTime(quote.updatedAt);
           nowBox.dataset.liveAt = quote.updatedAt;
           nowBox.dataset.liveSource = quote.source;
-          nowBox.dataset.feedStatus = 'stale';
-          return;
         }
-        priceNode.textContent = '—';
-        timeNode.textContent = isEn ? 'No fresh market quote' : 'Brak świeżej ceny rynkowej';
         timeNode.style.color = '#ffb86b';
         nowBox.dataset.feedStatus = 'stale';
         return;
       }
-      if (item.instrument_id === 'sp500_futures' || item.instrument_id === 'eurusd') {
-        const labelNode = nowBox.querySelector('span');
-        if (labelNode && nowBox.dataset.defaultPriceLabel) {
-          labelNode.textContent = nowBox.dataset.defaultPriceLabel;
-        }
+
+      const labelNode = nowBox.querySelector('span');
+      if (labelNode && nowBox.dataset.defaultPriceLabel) {
+        labelNode.textContent = nowBox.dataset.defaultPriceLabel;
       }
       const currentAt = validTimestamp(nowBox.dataset.liveAt)?.valueOf() || 0;
       const quoteAt = validTimestamp(quote.updatedAt)?.valueOf() || 0;
