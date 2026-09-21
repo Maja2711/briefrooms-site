@@ -41,7 +41,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: portfolio-market-data
+  group: portfolio-10k-automation
   cancel-in-progress: false
 
 jobs:
@@ -208,7 +208,7 @@ jobs:
           import re
           for path in (Path('pl/inwestycje/portfel-10k.html'), Path('en/investing/portfolio-10k.html')):
               text = path.read_text(encoding='utf-8')
-              text = re.sub(r'/scripts/portfolio-10k-control-public\.js\?v=\d+', '/scripts/portfolio-10k-control-public.js?v=4', text)
+              text = re.sub(r'/scripts/portfolio-10k-control-public\.js\?v=\d+', '/scripts/portfolio-10k-control-public.js?v=5', text)
               path.write_text(text, encoding='utf-8')
           PY
 
@@ -233,8 +233,8 @@ jobs:
           assert 'data-tab="projections"' not in pl and 'data-tab="projections"' not in en
           for asset in ('portfolio-10k-control-public.js','portfolio-10k-execution-finalizer.js','portfolio-10k-navigation-guard.js'):
               assert asset in pl and asset in en
-          assert '/scripts/portfolio-10k-control-public.js?v=4' in pl
-          assert '/scripts/portfolio-10k-control-public.js?v=4' in en
+          assert '/scripts/portfolio-10k-control-public.js?v=5' in pl
+          assert '/scripts/portfolio-10k-control-public.js?v=5' in en
           PY
 
       - name: Publish static snapshots
