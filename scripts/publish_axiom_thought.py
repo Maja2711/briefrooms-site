@@ -10,7 +10,7 @@ ROOT=Path(__file__).resolve().parents[1]
 CURRENT=ROOT/"data/home/axiom-thought.json"; HISTORY=ROOT/"data/home/axiom-thoughts-history.jsonl"
 RESERVE=ROOT/"data/home/axiom-thought-reserve.json"; PRINCIPLES=ROOT/"docs/axiom-thought-principles.md"
 GUARD=ROOT/"scripts/axiom_thought_guard.py"; WARSAW=ZoneInfo("Europe/Warsaw")
-MODEL=os.getenv("AXIOM_THOUGHT_MODEL","gemini-3.5-flash")
+MODEL=os.getenv("AXIOM_THOUGHT_MODEL","gemini-3.6-flash")
 FALLBACK=os.getenv("AXIOM_THOUGHT_FALLBACK_MODEL","gemini-3.5-flash-lite")
 MAX_ATTEMPTS=int(os.getenv("AXIOM_THOUGHT_MAX_ATTEMPTS","12"))
 RESERVE_TARGET=int(os.getenv("AXIOM_THOUGHT_RESERVE_TARGET","10"))
@@ -30,7 +30,7 @@ def call(prompt,model):
     key=os.getenv("GEMINI_API_KEY","").strip()
     if not key: raise RuntimeError("GEMINI_API_KEY missing")
     r=requests.post(f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}",
-      json={"contents":[{"parts":[{"text":prompt}]}],"generationConfig":{"temperature":1.15,"responseMimeType":"application/json"}},timeout=90)
+      json={"contents":[{"parts":[{"text":prompt}]}],"generationConfig":{"responseMimeType":"application/json"}},timeout=90)
     r.raise_for_status(); return extract_json(r.json()["candidates"][0]["content"]["parts"][0]["text"])
 def prompt(rows,reserve,mode):
     return f"""You are AXIOM, co-author of BriefRooms. Produce one original Morning AXIOM thought.
