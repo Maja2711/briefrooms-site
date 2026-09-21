@@ -198,6 +198,30 @@ class AutomationWorkflowOwnershipTests(unittest.TestCase):
         self.assertIn('"challenger_shadow_methods"', policy)
         self.assertIn('"inverse_v2"', policy)
 
+    def test_presentation_and_live_price_changes_never_trigger_position_execution(self) -> None:
+        sources = workflow_sources()
+        execution_workflows = (
+            "investments-weekly.yml",
+            "investments-wes.yml",
+            "investments-exposure-watch.yml",
+        )
+        forbidden_push_paths = (
+            "scripts/render_weekly_public_pages.py",
+            "scripts/render_simple_investments.py",
+            "scripts/investments-weekly-public.js",
+            "scripts/investments-weekly-governance.js",
+            "scripts/investments-weekly-browser-live.js",
+            "scripts/update_weekly_live_prices_fast.py",
+            "tests/test_investments_weekly_public.js",
+            "tests/test_weekly_browser_live_contract.py",
+            "docs/weekly_trading_methodology_v4.md",
+        )
+        for workflow_name in execution_workflows:
+            trigger_block = sources[workflow_name].split("\npermissions:", 1)[0]
+            for path in forbidden_push_paths:
+                with self.subTest(workflow=workflow_name, path=path):
+                    self.assertNotIn(f'- "{path}"', trigger_block)
+
     def test_weekly_publisher_stages_every_page_it_renders(self) -> None:
         weekly = workflow_sources()["investments-weekly.yml"]
         for path in (
