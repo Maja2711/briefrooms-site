@@ -197,14 +197,12 @@ class AutomationWorkflowOwnershipTests(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertIn(path, weekly)
 
-    def test_risk_exit_publisher_stages_immediate_exposure_state(self) -> None:
+    def test_risk_exit_publisher_is_narrow_and_does_not_mutate_decision_state(self) -> None:
         exposure = workflow_sources()["investments-exposure-watch.yml"]
-        for path in (
-            "data/investments/multi_instrument_exposure_state_v5.json",
-            "data/investments/multi_instrument_exposure_report_v5.json",
-        ):
-            with self.subTest(path=path):
-                self.assertEqual(3, exposure.count(path))
+        self.assertIn("data/investments/weekly", exposure)
+        self.assertIn("data/investments/intraday_risk_audit.json", exposure)
+        self.assertNotIn("data/investments/multi_instrument_exposure_state_v5.json", exposure)
+        self.assertNotIn("data/investments/multi_instrument_exposure_report_v5.json", exposure)
 
     def test_portfolio_frontends_fail_open_with_validated_cache_and_retry(self) -> None:
         pl = (ROOT / "scripts" / "portfolio-10k-dashboard.js").read_text(
