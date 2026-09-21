@@ -25,7 +25,9 @@
     noActive: 'Brak aktywnej pozycji', noActiveText: 'Brak otwartej pozycji na tym rynku.', cash: 'CASH / wolny slot',
     pending: 'Kandydat wybrany', pendingShort: 'kandydat oczekuje',
     pendingText: 'Stock Trading v2 wybrał spółkę, ale airlock czeka na kurs wykonawczy nie starszy niż 2 min.',
+    pendingTextGpw: 'Stock Trading v2 wybrał spółkę; GPW czeka na kurs Yahoo z bieżącej sesji nie starszy niż 20 min (DELAYED PAPER).',
     pendingNotOpen: 'Pozycja nieotwarta — brak legalnego fillu',
+    delayedPaper: 'DELAYED PAPER · GPW ≤20 min',
     market: 'Rynek', sector: 'Sektor', status: 'Status', noPosition: 'Brak pozycji',
     entry: 'Cena wejścia', last: 'Ostatni kurs', closedMarket: 'rynek zamknięty',
     sl: 'SL', tp: 'TP', entered: 'Wejście', pnl: 'P&L (od wejścia)',
@@ -64,7 +66,9 @@
     noActive: 'No active position', noActiveText: 'No open position in this market.', cash: 'CASH / free slot',
     pending: 'Candidate selected', pendingShort: 'candidate waiting',
     pendingText: 'Stock Trading v2 selected a stock, but the airlock is waiting for an execution quote no older than 2 minutes.',
+    pendingTextGpw: 'Stock Trading v2 selected a stock; GPW is waiting for a current-session Yahoo quote no older than 20 minutes (DELAYED PAPER).',
     pendingNotOpen: 'Position not open — no legal fill yet',
+    delayedPaper: 'DELAYED PAPER · GPW ≤20 min',
     market: 'Market', sector: 'Sector', status: 'Status', noPosition: 'No position',
     entry: 'Entry price', last: 'Last price', closedMarket: 'market closed',
     sl: 'SL', tp: 'TP', entered: 'Entry', pnl: 'P&L (since entry)',
@@ -281,6 +285,7 @@
     const name = position.name || ticker;
     const score = firstNumber(position, ['entry_score','score']);
     const sector = sectorLabel(position.sector);
+    const executionMode = String(position?.entry_validation?.execution_mode || '').toUpperCase();
     return `<article class="str-position">
       <div class="str-position-head">
         <span class="str-market-badge">${marketFlag(market)}<b>${market === 'GPW' ? 'GPW' : 'USA'}</b></span>
@@ -304,6 +309,7 @@
               ${notional !== null ? `<span class="str-meta-pill"><b>${esc(T.positionValue)}: ${money(notional, market)}</b></span>` : `<span class="str-meta-pill">${esc(T.legacySizing)}</span>`}
               ${quantity !== null ? `<span class="str-meta-pill">${esc(T.shares)}: ${quantity.toLocaleString(locale,{maximumFractionDigits:8})}</span>` : ''}
               ${score !== null ? `<span class="str-meta-pill">${esc(T.score)}: ${score.toLocaleString(locale,{maximumFractionDigits:2})}</span>` : ''}
+              ${market === 'GPW' && executionMode === 'DELAYED_PAPER' ? `<span class="str-meta-pill"><b>${esc(T.delayedPaper)}</b></span>` : ''}
             </div>
             <div class="str-pnl ${p === null || p === 0 ? 'is-neutral' : p > 0 ? 'is-positive' : 'is-negative'}">
               <span>${esc(T.pnl)}</span>
@@ -348,7 +354,7 @@
       </div>
       <div class="str-empty-body str-pending-body">
         <div class="str-empty-visual">${icon('clock')}</div>
-        <div><h3>${esc(ticker)} · ${esc(name)}</h3><p>${esc(T.pendingText)}</p><strong>${esc(T.pendingNotOpen)}</strong></div>
+        <div><h3>${esc(ticker)} · ${esc(name)}</h3><p>${esc(market === 'GPW' ? T.pendingTextGpw : T.pendingText)}</p><strong>${esc(T.pendingNotOpen)}</strong></div>
       </div>
       <div class="str-empty-meta">
         <span class="str-meta-pill">${esc(T.market)}: ${market === 'GPW' ? 'GPW' : 'USA'}</span>
@@ -375,7 +381,7 @@
           <div class="str-company-name"><h3>${esc(ticker)}</h3><span>${esc(name)}</span></div>
           <div class="str-pending-summary-copy">
             <strong>${esc(T.pendingNotOpen)}</strong>
-            <small>${esc(T.pendingText)}</small>
+            <small>${esc(market === 'GPW' ? T.pendingTextGpw : T.pendingText)}</small>
             ${utility !== null ? `<b>${esc(T.score)}: ${utility.toLocaleString(locale,{maximumFractionDigits:2})}</b>` : ''}
           </div>
         </div>
