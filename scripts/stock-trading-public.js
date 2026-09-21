@@ -126,11 +126,12 @@
   }
 
   function pendingCandidate(market) {
-    if (openPositions(market).length) return null;
     const latest = latestMarketAudit(market);
     if (!latest) return null;
+    const openSymbols = new Set(openPositions(market).map(position => String(position?.symbol || position?.ticker || '').toUpperCase()));
     const rows = latest.actions
       .filter(action => action?.action === 'ready_waiting_fresh_quote')
+      .filter(action => !openSymbols.has(String(action?.symbol || action?.ticker || '').toUpperCase()))
       .sort((a, b) => {
         const ar = Number(a?.deep_rank ?? 999999);
         const br = Number(b?.deep_rank ?? 999999);
@@ -417,10 +418,13 @@
   function marketTicketPanel(market) {
     const positions = openPositions(market);
     const pending = pendingCandidate(market);
-    const multiClass = positions.length > 1 ? ' is-expanded-market' : '';
+    const visibleCount = positions.length + (pending ? 1 : 0);
+    const multiClass = visibleCount > 1 ? ' is-expanded-market' : '';
     const detailClass = state.selectedMarket === market ? ' is-detail-market' : '';
+    const cards = positions.map((p,i) => openPositionCard(p, market, i));
+    if (pending) cards.push(pendingMarketCard(pending, market));
     return `<div class="str-market-ticket-panel${multiClass}${detailClass}" id="str-market-${market.toLowerCase()}">
-      ${positions.length ? positions.map((p,i) => openPositionCard(p, market, i)).join('') : pending ? pendingMarketCard(pending, market) : emptyMarketCard(market)}
+      ${cards.length ? cards.join('') : emptyMarketCard(market)}
     </div>`;
   }
 
@@ -428,10 +432,10 @@
     const allOpen = ['GPW','US'].flatMap(market => openPositions(market).map(position => ({position, market})));
     if (state.view === 'overview') {
       const overviewCards = ['GPW','US'].flatMap(market => {
-        const positions = openPositions(market);
-        if (positions.length) return positions.map(position => openPositionSummaryCard(position, market));
+        const cards = openPositions(market).map(position => openPositionSummaryCard(position, market));
         const pending = pendingCandidate(market);
-        return pending ? [pendingSummaryCard(pending, market)] : [];
+        if (pending) cards.push(pendingSummaryCard(pending, market));
+        return cards;
       });
       if (!overviewCards.length) {
         return `<div class="str-position-overview-grid">${emptyMarketCard('GPW')}${emptyMarketCard('US')}</div>`;
