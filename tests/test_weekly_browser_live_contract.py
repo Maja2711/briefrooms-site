@@ -16,7 +16,7 @@ PAGES = [
     ROOT / "en" / "investing" / "open-weekly-positions.html",
     ROOT / "en" / "investing" / "weekly-forecasts.html",
 ]
-SCRIPT_REF = "/scripts/investments-weekly-browser-live.js?v=20260916-7"
+SCRIPT_REF = "/scripts/investments-weekly-browser-live.js?v=20260921-1"
 COMPACT_REF = "/scripts/investments-weekly-price-compact.js?v=20260916-4"
 
 
@@ -80,12 +80,16 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
 
     def test_all_three_instruments_keep_live_sources_and_same_origin_backend(self) -> None:
         source = LIVE_SCRIPT.read_text(encoding="utf-8")
-        self.assertIn("FX mid-market", source)
-        self.assertIn("Yahoo EURUSD=X", source)
+        self.assertIn("https://fxapi.app/api/EUR/USD.json", source)
+        self.assertIn("fxapi.app", source)
+        self.assertIn("Currency Exchange Tool", source)
+        self.assertNotIn("Yahoo EURUSD=X", source)
+        self.assertLess(source.index("{ name: 'fxapi.app'"), source.index("{ name: 'Currency Exchange Tool'"))
         self.assertIn("Yahoo ES=F", source)
         self.assertIn("Coinbase BTC-USD", source)
         self.assertIn("CoinGecko BTC/USD", source)
         self.assertIn("pollMs: 60_000", source)
+        self.assertIn("maxAgeMs: 10 * 60_000", source)
         self.assertIn("maxAgeMs: 2 * 60_000", source)
         self.assertIn("maxAgeMs: 5 * 60_000", source)
         self.assertIn("backendQuotes", source)
