@@ -16,7 +16,7 @@ PAGES = [
     ROOT / "en" / "investing" / "open-weekly-positions.html",
     ROOT / "en" / "investing" / "weekly-forecasts.html",
 ]
-SCRIPT_REF = "/scripts/investments-weekly-browser-live.js?v=20260921-9"
+SCRIPT_REF = "/scripts/investments-weekly-browser-live.js?v=20260921-10"
 COMPACT_REF = "/scripts/investments-weekly-price-compact.js?v=20260916-4"
 
 
@@ -112,24 +112,29 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
         self.assertIn("backendQuotes", source)
         self.assertIn("backendFresh", source)
 
-    def test_eurusd_stale_quote_never_blanks_an_existing_price(self) -> None:
+    def test_all_three_stale_quotes_never_blank_a_known_price(self) -> None:
         source = LIVE_SCRIPT.read_text(encoding="utf-8")
-        stale_start = source.index("if (!quoteUsable)")
-        eurusd_start = source.index("if (item.instrument_id === 'eurusd')", stale_start)
-        sp500_start = source.index("if (item.instrument_id === 'sp500_futures')", eurusd_start)
-        eurusd_stale_branch = source[eurusd_start:sp500_start]
-        self.assertIn("Ostatni dostępny kurs", eurusd_stale_branch)
-        self.assertIn("const displayedPrice =", eurusd_stale_branch)
-        self.assertIn("if (!displayedPrice || displayedPrice === '—')", eurusd_stale_branch)
-        self.assertNotIn("priceNode.textContent = '—'", eurusd_stale_branch)
-        self.assertIn("item.instrument_id === 'sp500_futures' || item.instrument_id === 'eurusd'", source)
+        patch_start = source.index("function patchCard")
+        stale_start = source.index("if (!quoteUsable)", patch_start)
+        stale_end = source.index("const currentAt =", source.index("const labelNode = nowBox.querySelector('span');", stale_start))
+        stale_branch = source[stale_start:stale_end]
+        patch_end = source.index("function applyStates", patch_start)
+        patch_card = source[patch_start:patch_end]
+        self.assertIn("Ostatni dostępny kurs", stale_branch)
+        self.assertIn("Quote continuity contract", stale_branch)
+        self.assertIn("const displayedPrice =", stale_branch)
+        self.assertIn("displayedPrice === '—'", stale_branch)
+        self.assertIn("priceNode.textContent = fmtPrice(quote.price, item.instrument_id)", stale_branch)
+        self.assertNotIn("priceNode.textContent = '—'", patch_card)
+        self.assertNotIn("Brak świeżej ceny rynkowej", patch_card)
+        self.assertNotIn("No fresh market quote", patch_card)
 
     def test_sp500_browser_feed_busts_upstream_cache_and_rejects_stale_quotes(self) -> None:
         source = LIVE_SCRIPT.read_text(encoding="utf-8")
         self.assertIn("https://stooq.com/q/l/?s=es.f", source)
         self.assertIn("range=1d&_=${Date.now()}", source)
-        self.assertIn("No fresh market quote", source)
-        self.assertIn("Brak świeżej ceny rynkowej", source)
+        self.assertIn("Last available quote", source)
+        self.assertIn("Ostatni dostępny kurs", source)
         self.assertIn("opóźniony ~10 min", source)
         self.assertIn("priceNode.textContent", source)
 
