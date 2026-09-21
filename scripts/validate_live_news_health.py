@@ -30,10 +30,11 @@ LANGUAGES = {
         },
     },
 }
-RUNTIME = "/scripts/news-live.js?v=5"
+RUNTIME = "/scripts/news-live.js?v=8"
 MARKER_META = 'name="briefrooms-live-news-marker" content="{}"'
 FUTURE_TOLERANCE = timedelta(minutes=10)
-MIN_SECTION = 9
+TARGET_SECTION = 9
+MAX_PUBLIC_DISPLAY_AGE = timedelta(hours=24)
 
 
 def parse_time(value: Any) -> datetime | None:
@@ -130,14 +131,30 @@ def validate_local(root: Path, now: datetime, max_age_minutes: int) -> dict[str,
         for section_id in config["sections"]:
             stories = sections.get(section_id) if isinstance(sections.get(section_id), list) else []
             counts[section_id] = len(stories)
-            if len(stories) < MIN_SECTION:
-                lang_reasons.append(f"section_too_small:{section_id}")
+            if len(stories) > TARGET_SECTION:
+                lang_reasons.append(f"section_too_large:{section_id}")
+            elif len(stories) < TARGET_SECTION:
+                lang_degraded.append(f"section_underfilled_freshness_first:{section_id}")
             if any(not story_complete(story) for story in stories):
                 lang_reasons.append(f"incomplete_story:{section_id}")
             for story in stories:
                 published = parse_time(story.get("published_at")) if isinstance(story, dict) else None
-                if published and published > now + FUTURE_TOLERANCE:
+                first_seen = parse_time(story.get("news_first_seen_at")) if isinstance(story, dict) else None
+                expires = parse_time(story.get("news_expires_at")) if isinstance(story, dict) else None
+                if published is None or first_seen is None or expires is None:
+                    lang_reasons.append(f"freshness_metadata_missing:{section_id}")
+                    break
+                if published > now + FUTURE_TOLERANCE:
                     lang_reasons.append(f"future_story_timestamp:{section_id}")
+                    break
+                if now - published > MAX_PUBLIC_DISPLAY_AGE:
+                    lang_reasons.append(f"source_story_over_24h:{section_id}")
+                    break
+                if now - first_seen > MAX_PUBLIC_DISPLAY_AGE:
+                    lang_reasons.append(f"display_story_over_24h:{section_id}")
+                    break
+                if expires != first_seen + MAX_PUBLIC_DISPLAY_AGE:
+                    lang_reasons.append(f"invalid_24h_expiry:{section_id}")
                     break
 
         feed_health = feed.get("health") if isinstance(feed.get("health"), dict) else {}
