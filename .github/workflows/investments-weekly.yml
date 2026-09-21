@@ -12,10 +12,6 @@ on:
         options: [auto, forecast, close, ensure-exposure, render]
   schedule:
     - cron: "17 * * * *"
-    # GitHub scheduled runs can be delayed. Add multiple Monday activation
-    # opportunities across a UTC range that safely covers 08:00-10:00 Warsaw
-    # in both CET and CEST without changing the execution decision timestamp.
-    - cron: "4,19,34,49 5-10 * * 1"
   push:
     branches: [main]
     paths:
