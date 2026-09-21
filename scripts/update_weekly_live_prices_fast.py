@@ -347,7 +347,13 @@ def refresh_one(instrument_id: str, previous: Dict[str, Any]) -> Dict[str, Any]:
     old = dict(old) if isinstance(old, dict) else None
 
     chosen = candidate
-    if old and valid_quote(instrument_id, old):
+    old_source = str((old or {}).get("source") or "")
+    old_aligned_for_eurusd = (
+        old_source.startswith("fxapi.app:")
+        or old_source.startswith("Currency Exchange Tool:")
+    )
+    old_eligible = instrument_id != "eurusd" or old_aligned_for_eurusd
+    if old and old_eligible and valid_quote(instrument_id, old):
         old_stamp = parse_iso(old.get("current_price_updated_at") or old.get("timestamp"))
         new_stamp = parse_iso(candidate.get("timestamp")) if candidate else None
         candidate_fresh = candidate is not None and timedelta(seconds=-60) <= quote_age(candidate) <= cfg.max_age
