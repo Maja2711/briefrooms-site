@@ -6,7 +6,7 @@
   const T = {
     pl: {
       updated: 'Aktualizacja', summary: 'Podsumowanie', current: 'Wybrany tydzień',
-      open: 'Cena otwarcia', close: 'Cena zamknięcia', price: 'Cena teraz', priceTime: 'Stan na',
+      open: 'Cena otwarcia', entryTarget: 'Cena docelowa wejścia', close: 'Cena zamknięcia', price: 'Cena teraz', priceTime: 'Stan na',
       status: 'Status', pnl: 'Wynik', notional: 'Nominał', sl: 'Stop Loss', tp: 'Take Profit',
       rr: 'Risk/Reward', closed: 'zamknięta', active: 'w trakcie', neutral: 'bez pozycji',
       planned: 'oczekuje na otwarcie', history: 'Historia pozycji', week: 'Tydzień',
@@ -22,7 +22,7 @@
     },
     en: {
       updated: 'Updated', summary: 'Summary', current: 'Selected week',
-      open: 'Open price', close: 'Close price', price: 'Price now', priceTime: 'As of',
+      open: 'Open price', entryTarget: 'Entry target', close: 'Close price', price: 'Price now', priceTime: 'As of',
       status: 'Status', pnl: 'Result', notional: 'Notional', sl: 'Stop Loss', tp: 'Take Profit',
       rr: 'Risk/Reward', closed: 'closed', active: 'in progress', neutral: 'no position',
       planned: 'waiting for entry', history: 'Position history', week: 'Week',
@@ -326,8 +326,12 @@
     item = state.item;
     const neutral = dir(item) === 'neutral';
     const pendingDirection = String(item?.pending_entry_decision?.decision?.direction || '').toLowerCase();
-    const pendingReentry = tradeStatus(item) === 'pending'
+    const pendingPlan = item?.pending_entry_decision?.entry_price_plan || {};
+    const pendingTarget = good(pendingPlan?.target_price);
+    const pendingEntry = tradeStatus(item) === 'pending'
       && ['long', 'short'].includes(pendingDirection)
+      && pendingTarget !== null;
+    const pendingReentry = pendingEntry
       && good(item.entry_price) !== null
       && good(item.exit_price) !== null;
     const mark = hasClose(item) ? item.exit_price : current;
@@ -336,10 +340,11 @@
     const risk = pendingReentry ? { sl: null, tp: null, rr: null } : riskPlan(item);
     const description = item[L === 'pl' ? 'rationale_pl' : 'rationale_en'];
     const text = Array.isArray(description) ? description.join(' ') : (description || T.analysisMissing);
-    const openValue = pendingReentry ? T.no : (neutral ? T.no : esc(fmt(item.entry_price, item.instrument_id)));
+    const openLabel = pendingEntry ? T.entryTarget : T.open;
+    const openValue = pendingEntry ? esc(fmt(pendingTarget, item.instrument_id)) : (neutral ? T.no : esc(fmt(item.entry_price, item.instrument_id)));
     const closeValue = pendingReentry ? T.no : (hasClose(item) ? esc(fmt(item.exit_price, item.instrument_id)) : T.no);
     const resultLabel = pendingReentry ? T.previousResult : T.pnl;
-    return `<article class="card ${esc(dir(item))}"><div class="head"><div><p>${esc(label(item))}</p><h3>${esc(dirText(item))}</h3></div></div><div class="now"><span>${T.price}</span><strong>${esc(fmt(current, item.instrument_id))}</strong><small>${currentTime ? esc(`${T.priceTime}: ${currentTime}`) : T.no}</small></div><dl class="grid"><div class="cell"><dt>${T.open}</dt><dd>${openValue}</dd></div><div class="cell"><dt>${T.close}</dt><dd>${closeValue}</dd></div><div class="cell"><dt>${T.notional}</dt><dd>${neutral ? T.no : esc(notionalText(item))}</dd></div><div class="cell"><dt>${T.status}</dt><dd>${esc(status(item))}</dd></div><div class="cell"><dt>${T.sl}</dt><dd>${neutral ? T.no : esc(fmt(risk.sl, item.instrument_id))}</dd></div><div class="cell"><dt>${T.tp}</dt><dd>${neutral ? T.no : esc(fmt(risk.tp, item.instrument_id))}</dd></div><div class="cell big"><dt>${T.rr}</dt><dd>${neutral ? T.no : esc(rrText(risk.rr))}</dd></div><div class="cell big"><dt>${resultLabel}</dt><dd class="${tone(value)}">${neutral ? T.no : esc(resultText(item, mark))}</dd></div><div class="cell big analysis"><dt>${T.analysis}</dt><dd>${esc(text)}</dd></div></dl></article>`;
+    return `<article class="card ${esc(dir(item))}"><div class="head"><div><p>${esc(label(item))}</p><h3>${esc(dirText(item))}</h3></div></div><div class="now"><span>${T.price}</span><strong>${esc(fmt(current, item.instrument_id))}</strong><small>${currentTime ? esc(`${T.priceTime}: ${currentTime}`) : T.no}</small></div><dl class="grid"><div class="cell"><dt>${openLabel}</dt><dd>${openValue}</dd></div><div class="cell"><dt>${T.close}</dt><dd>${closeValue}</dd></div><div class="cell"><dt>${T.notional}</dt><dd>${neutral ? T.no : esc(notionalText(item))}</dd></div><div class="cell"><dt>${T.status}</dt><dd>${esc(status(item))}</dd></div><div class="cell"><dt>${T.sl}</dt><dd>${neutral ? T.no : esc(fmt(risk.sl, item.instrument_id))}</dd></div><div class="cell"><dt>${T.tp}</dt><dd>${neutral ? T.no : esc(fmt(risk.tp, item.instrument_id))}</dd></div><div class="cell big"><dt>${T.rr}</dt><dd>${neutral ? T.no : esc(rrText(risk.rr))}</dd></div><div class="cell big"><dt>${resultLabel}</dt><dd class="${tone(value)}">${neutral ? T.no : esc(resultText(item, mark))}</dd></div><div class="cell big analysis"><dt>${T.analysis}</dt><dd>${esc(text)}</dd></div></dl></article>`;
   }
 
   let weeksCache = [];
