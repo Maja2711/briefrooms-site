@@ -34,6 +34,7 @@ on:
       - "tests/test_verify_weekly_close_deadline.py"
       - "tests/test_automation_workflow_ownership.py"
       - "tests/test_audit_weekly_integrity.py"
+      - "tests/test_audit_weekly_model_runtime.py"
       - "tests/test_no_retroactive_execution.py"
       - "data/investments/manual_risk_exit_overrides.json"
       - "data/investments/public_quarantine.json"
@@ -116,6 +117,7 @@ jobs:
           python -m py_compile scripts/investments_wes_lifecycle.py scripts/verify_weekly_close_deadline.py scripts/audit_weekly_model_runtime.py scripts/no_retroactive_execution.py scripts/verify_no_retroactive_execution.py
           python -m unittest \
             tests/test_audit_weekly_integrity.py \
+            tests.test_audit_weekly_model_runtime \
             tests/test_investments_weekly_v5.py \
             tests/test_verify_weekly_close_deadline.py \
             tests.test_wes_lifecycle_expired_no_entry \
