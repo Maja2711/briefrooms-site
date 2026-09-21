@@ -46,6 +46,7 @@
       pollMs: 15_000,
       maxAgeMs: 15 * 60_000,
       backendMaxAgeMs: 15 * 60_000,
+      backendSnapshotMaxAgeMs: 12 * 60_000,
       minPrice: 500,
       maxPrice: 100_000,
       sources: [
@@ -129,6 +130,13 @@
   function quoteFresh(quote, maxAgeMs) {
     if (!quote || positive(quote.price) === null) return false;
     const age = quoteAgeMs(quote);
+    return age >= -60_000 && age <= maxAgeMs;
+  }
+
+  function timestampFresh(value, maxAgeMs) {
+    const stamp = validTimestamp(value);
+    if (!stamp) return false;
+    const age = Date.now() - stamp.valueOf();
     return age >= -60_000 && age <= maxAgeMs;
   }
 
@@ -380,6 +388,10 @@
             source: `${T.backend} · ${row.source || 'live_prices.json'}`,
             backendFresh: row.fresh !== false,
           }, T.backend);
+          if (instrumentId === 'sp500_futures') {
+            const observedAt = validTimestamp(row.last_attempt_at || data?.updated_at);
+            if (observedAt) quote.backendObservedAt = observedAt.toISOString();
+          }
           backendQuotes.set(instrumentId, quote);
           saveCache(instrumentId, quote);
         } catch (error) {
@@ -460,7 +472,9 @@
     const state = states.get(instrumentId) || null;
     const backend = backendQuotes.get(instrumentId) || null;
     const backendAgeLimit = cfg.backendMaxAgeMs || cfg.maxAgeMs;
-    const backendUsable = backend && backend.backendFresh && quoteFresh(backend, backendAgeLimit);
+    const backendUsable = instrumentId === 'sp500_futures'
+      ? backend && backend.backendFresh && timestampFresh(backend.backendObservedAt, cfg.backendSnapshotMaxAgeMs)
+      : backend && backend.backendFresh && quoteFresh(backend, backendAgeLimit);
     const stateFresh = state?.quote && quoteFresh(state.quote, cfg.maxAgeMs);
 
     if (cfg.directAuthoritativeWhenFresh && stateFresh && ['live', 'fallback'].includes(state?.mode)) {
@@ -468,6 +482,13 @@
     }
 
     if (backendUsable) {
+      if (instrumentId === 'sp500_futures' && !stateFresh) {
+        // The backend has already validated the CME-delayed quote at fetch time.
+        // For S&P, judge backend freshness by the recent backend observation,
+        // not by re-applying the exchange-delay window in the browser.
+        states.set(instrumentId, { mode: 'backend-live', quote: backend });
+        return;
+      }
       const freshest = newestQuote(state?.quote, backend);
       if (freshest === backend && (!stateFresh || freshest !== state?.quote)) {
         states.set(instrumentId, { mode: 'backend-live', quote: backend });
@@ -545,7 +566,10 @@
       const allowedAge = state?.mode === 'backend-live'
         ? (cfg.backendMaxAgeMs || cfg.maxAgeMs)
         : cfg.maxAgeMs;
-      if (!quoteFresh(quote, allowedAge)) {
+      const quoteUsable = item.instrument_id === 'sp500_futures' && state?.mode === 'backend-live'
+        ? quote.backendFresh && timestampFresh(quote.backendObservedAt, cfg.backendSnapshotMaxAgeMs)
+        : quoteFresh(quote, allowedAge);
+      if (!quoteUsable) {
         priceNode.textContent = '—';
         timeNode.textContent = isEn ? 'No fresh market quote' : 'Brak świeżej ceny rynkowej';
         timeNode.style.color = '#ffb86b';
