@@ -308,7 +308,7 @@ class WesTests(unittest.TestCase):
             wes.postflight()
         build.assert_not_called()
         self.assertEqual(frozen, week['instruments'][0]['risk_plan'])
-        self.assertEqual('WES-1.1.0', week['instruments'][0]['wes_methodology'])
+        self.assertEqual('WES-1.2.0', week['instruments'][0]['wes_methodology'])
 
     def test_wes_1_1_stale_pending_before_authorization_is_never_reused(self):
         item = {
