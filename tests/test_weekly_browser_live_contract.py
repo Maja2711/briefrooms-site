@@ -16,7 +16,7 @@ PAGES = [
     ROOT / "en" / "investing" / "open-weekly-positions.html",
     ROOT / "en" / "investing" / "weekly-forecasts.html",
 ]
-SCRIPT_REF = "/scripts/investments-weekly-browser-live.js?v=20260921-4"
+SCRIPT_REF = "/scripts/investments-weekly-browser-live.js?v=20260921-5"
 COMPACT_REF = "/scripts/investments-weekly-price-compact.js?v=20260916-4"
 
 
@@ -54,7 +54,7 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
         self.assertIn("const preferredFreshDirect =", source)
         self.assertIn("pollMs: 15_000", source)
         self.assertIn("REQUEST_TIMEOUT_MS = 6_000", source)
-        self.assertIn("backendMaxAgeMs: 7 * 60_000", source)
+        self.assertIn("backendMaxAgeMs: 15 * 60_000", source)
 
     def test_backend_refresh_does_not_block_direct_market_round(self) -> None:
         source = LIVE_SCRIPT.read_text(encoding="utf-8")
@@ -97,8 +97,8 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
         self.assertIn("pollMs: 60_000", source)
         self.assertIn("maxAgeMs: 10 * 60_000", source)
         self.assertIn("maxAgeMs: 2 * 60_000", source)
-        self.assertIn("maxAgeMs: 5 * 60_000", source)
-        self.assertIn("backendMaxAgeMs: 7 * 60_000", source)
+        self.assertIn("maxAgeMs: 15 * 60_000", source)
+        self.assertIn("backendMaxAgeMs: 15 * 60_000", source)
         self.assertNotIn("backendMaxAgeMs: 45 * 60_000", source)
         self.assertIn("backendQuotes", source)
         self.assertIn("backendFresh", source)
@@ -109,6 +109,7 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
         self.assertIn("range=1d&_=${Date.now()}", source)
         self.assertIn("No fresh market quote", source)
         self.assertIn("Brak świeżej ceny rynkowej", source)
+        self.assertIn("opóźniony ~10 min", source)
         self.assertIn("priceNode.textContent", source)
 
     def test_server_snapshot_uses_same_eurusd_provider_chain_as_daily(self) -> None:
@@ -134,7 +135,7 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
         self.assertIn("lambda: stooq_quote(instrument_id)", source)
         self.assertIn("candidates.sort", source)
         self.assertIn("reverse=True", source)
-        self.assertIn("timedelta(minutes=7)", source)
+        self.assertIn("timedelta(minutes=15)", source)
         self.assertNotIn("timedelta(minutes=45)", source)
 
 
