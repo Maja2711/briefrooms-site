@@ -836,20 +836,52 @@ def ensure_all() -> Dict[str, Any]:
             report["actions"].append({"instrument_id": iid, "action": "no_trade", "reason_codes": [authorization_reason]})
             continue
         saved_pending = item.get("pending_entry_decision")
-        pending = saved_pending if pending_matches_wes_authorization(item, saved_pending) else freeze_decision(item, decision, fresh, weekly, now)
+        pending = (
+            saved_pending
+            if pending_matches_wes_authorization(item, saved_pending, now)
+            else freeze_decision(item, decision, fresh, weekly, now, policy)
+        )
         changed = True
-        point = entry_point(str(cfg.get("symbol") or ""), pending)
+        point = entry_point(str(cfg.get("symbol") or ""), pending, now)
+        entry_plan = pending.get("entry_price_plan") if isinstance(pending.get("entry_price_plan"), dict) else {}
         if not point:
-            report["actions"].append({"instrument_id": iid, "action": "defer_entry", "entry_not_before": pending.get("entry_not_before")}); continue
-        frozen = pending["decision"]; v4.open_leg(item, cfg, frozen, pending["fresh_signal"], pending["weekly_signal"], point, now)
-        item.update(entry_decision_at=pending["decided_at"], entry_execution_rule="first_completed_5m_bar_on_or_after_frozen_decision",
-                    entry_macro_context=pending.get("macro_context"), pending_entry_decision=None, next_entry_status="open")
-        report["actions"].append({"instrument_id": iid, "action": "open", "direction": frozen.get("direction"),
-                                  "decision_at": item["entry_decision_at"], "entry_at": item.get("entry_captured_at"),
-                                  "macro_score": (pending.get("macro_context") or {}).get("score")})
+            report["actions"].append({
+                "instrument_id": iid,
+                "action": "wait_for_entry_target",
+                "direction": (pending.get("decision") or {}).get("direction"),
+                "target_price": entry_plan.get("target_price"),
+                "reference_price": entry_plan.get("reference_price"),
+                "order_type": entry_plan.get("order_type"),
+                "expires_at": entry_plan.get("expires_at"),
+                "overextension_score": (entry_plan.get("inputs") or {}).get("overextension_score"),
+            })
+            continue
+        frozen = pending["decision"]
+        v4.open_leg(item, cfg, frozen, pending["fresh_signal"], pending["weekly_signal"], point, now)
+        item.update(
+            entry_decision_at=pending["decided_at"],
+            entry_execution_rule="frozen_wes_1_2_limit_target_touch",
+            entry_price_plan_frozen=entry_plan,
+            entry_quality_status="wes_1_2_frozen_entry_target_filled",
+            entry_macro_context=pending.get("macro_context"),
+            pending_entry_decision=None,
+            next_entry_status="open",
+        )
+        report["actions"].append({
+            "instrument_id": iid,
+            "action": "open_at_frozen_entry_target",
+            "direction": frozen.get("direction"),
+            "target_price": entry_plan.get("target_price"),
+            "decision_at": item["entry_decision_at"],
+            "entry_at": item.get("entry_captured_at"),
+            "entry_price": item.get("entry_price"),
+            "macro_score": (pending.get("macro_context") or {}).get("score"),
+        })
     week["multi_instrument_exposure_layer"] = {
         "enabled": True, "version": VERSION, "common_validation_gate": True,
-        "wes_1_1_directional_admission": True,
+        "wes_1_2_directional_admission": True,
+        "price_aware_entry_engine": True,
+        "frozen_entry_target_required": True,
         "champion_challenger_execution_authority": True,
         "retroactive_entries_forbidden": True, "same_week_reentry_block_after_invalidation": True,
         "no_trade_first_class": True, "weekly_candles_used": True,
