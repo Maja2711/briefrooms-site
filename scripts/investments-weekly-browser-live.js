@@ -5,7 +5,7 @@
   const LOOP_MS = 15_000;
   const BACKEND_POLL_MS = 60_000;
   const REQUEST_TIMEOUT_MS = 6_000;
-  const CACHE_PREFIX = 'briefrooms:weekly-market-feed:v5:';
+  const CACHE_PREFIX = 'briefrooms:weekly-market-feed:v6:';
   const BACKEND_URL = '/data/investments/live_prices.json';
 
   const T = isEn ? {
@@ -45,10 +45,13 @@
     sp500_futures: {
       pollMs: 15_000,
       maxAgeMs: 5 * 60_000,
-      backendMaxAgeMs: 45 * 60_000,
+      backendMaxAgeMs: 7 * 60_000,
       minPrice: 500,
       maxPrice: 100_000,
       sources: [
+        { name: 'Stooq ES.F', fetch: () => fetchStooqEs('direct') },
+        { name: 'Stooq ES.F · proxy 1', fetch: () => fetchStooqEs('codetabs') },
+        { name: 'Stooq ES.F · proxy 2', fetch: () => fetchStooqEs('allorigins') },
         { name: 'Yahoo ES=F', fetch: () => fetchYahooQuote('ES=F', 'codetabs') },
         { name: 'Yahoo ES=F · backup route', fetch: () => fetchYahooQuote('ES=F', 'allorigins') },
       ],
@@ -163,6 +166,64 @@
     }
   }
 
+  async function fetchText(url) {
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    try {
+      const separator = url.includes('?') ? '&' : '?';
+      const response = await fetch(`${url}${separator}_=${Date.now()}`, {
+        cache: 'no-store',
+        mode: 'cors',
+        signal: controller.signal,
+      });
+      if (!response.ok) throw new Error(`http_${response.status}`);
+      return response.text();
+    } finally {
+      window.clearTimeout(timer);
+    }
+  }
+
+  function warsawLocalTimestamp(dateText, timeText) {
+    const normalizedTime = String(timeText || '').length === 5 ? `${timeText}:00` : String(timeText || '');
+    const local = new Date(`${dateText}T${normalizedTime}`);
+    if (Number.isNaN(local.valueOf())) throw new Error('stooq_invalid_timestamp');
+    return local;
+  }
+
+  function parseStooqEsCsv(text) {
+    const lines = String(text || '').trim().split(/\r?\n/).filter(Boolean);
+    if (lines.length < 2) throw new Error('stooq_es_missing_row');
+    const header = lines[0].split(',').map((value) => value.trim().toLowerCase());
+    const row = lines[lines.length - 1].split(',').map((value) => value.trim());
+    const at = (name) => {
+      const index = header.indexOf(name);
+      return index >= 0 ? (row[index] || '') : '';
+    };
+    const price = positive(at('close'));
+    const dateText = at('date');
+    const timeText = at('time');
+    if (price === null) throw new Error('stooq_es_invalid_price');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateText) || !/^\d{2}:\d{2}(:\d{2})?$/.test(timeText)) {
+      throw new Error('stooq_es_invalid_timestamp');
+    }
+    const stamp = warsawLocalTimestamp(dateText, timeText);
+    return {
+      price,
+      updatedAt: stamp.toISOString(),
+      source: 'Stooq ES.F',
+    };
+  }
+
+  async function fetchStooqEs(route) {
+    const upstream = `https://stooq.com/q/l/?s=es.f&f=sd2t2ohlcv&h&e=csv&_=${Date.now()}`;
+    const url = route === 'allorigins'
+      ? `https://api.allorigins.win/raw?url=${encodeURIComponent(upstream)}`
+      : route === 'codetabs'
+        ? `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(upstream)}`
+        : upstream;
+    return parseStooqEsCsv(await fetchText(url));
+  }
+
   async function fetchEurUsdFxApi() {
     const data = await fetchJson('https://fxapi.app/api/EUR/USD.json');
     if (!data?.timestamp) throw new Error('fxapi_eurusd_source_timestamp_missing');
@@ -196,21 +257,35 @@
   }
 
   async function fetchYahooQuote(symbol, route) {
-    const upstream = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1m&range=1d`;
+    // The cache-buster must be part of the Yahoo upstream URL itself. Adding it
+    // only to the proxy URL allows a proxy/CDN to keep returning an old Yahoo snapshot.
+    const upstream = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1m&range=1d&_=${Date.now()}`;
     const url = route === 'allorigins'
       ? `https://api.allorigins.win/raw?url=${encodeURIComponent(upstream)}`
       : `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(upstream)}`;
     const data = await fetchJson(url);
     const chart = data?.chart?.result?.[0];
     if (!chart) throw new Error(`yahoo_${symbol}_missing_chart`);
-    const timestamps = Array.isArray(chart.timestamp) ? chart.timestamp.filter(Number.isFinite) : [];
-    const latestChartTime = timestamps.length ? timestamps[timestamps.length - 1] : null;
+
+    const timestamps = Array.isArray(chart.timestamp) ? chart.timestamp : [];
+    const closes = chart?.indicators?.quote?.[0]?.close || [];
+    for (let index = Math.min(timestamps.length, closes.length) - 1; index >= 0; index -= 1) {
+      const epochSeconds = number(timestamps[index]);
+      const price = positive(closes[index]);
+      if (epochSeconds === null || price === null) continue;
+      return {
+        price,
+        updatedAt: new Date(epochSeconds * 1000).toISOString(),
+        source: symbol === 'ES=F' ? 'Yahoo ES=F' : `Yahoo ${symbol}`,
+      };
+    }
+
+    const metaPrice = positive(chart?.meta?.regularMarketPrice);
     const metaTime = number(chart?.meta?.regularMarketTime);
-    const epochSeconds = latestChartTime !== null ? latestChartTime : metaTime;
-    if (epochSeconds === null) throw new Error(`yahoo_${symbol}_missing_timestamp`);
+    if (metaPrice === null || metaTime === null) throw new Error(`yahoo_${symbol}_missing_quote`);
     return {
-      price: chart?.meta?.regularMarketPrice,
-      updatedAt: new Date(epochSeconds * 1000).toISOString(),
+      price: metaPrice,
+      updatedAt: new Date(metaTime * 1000).toISOString(),
       source: symbol === 'ES=F' ? 'Yahoo ES=F' : `Yahoo ${symbol}`,
     };
   }
@@ -430,6 +505,17 @@
 
     const quote = state?.quote || null;
     if (quote && positive(quote.price) !== null) {
+      const cfg = FEEDS[item.instrument_id];
+      const allowedAge = state?.mode === 'backend-live'
+        ? (cfg.backendMaxAgeMs || cfg.maxAgeMs)
+        : cfg.maxAgeMs;
+      if (!quoteFresh(quote, allowedAge)) {
+        priceNode.textContent = '—';
+        timeNode.textContent = isEn ? 'No fresh market quote' : 'Brak świeżej ceny rynkowej';
+        timeNode.style.color = '#ffb86b';
+        nowBox.dataset.feedStatus = 'stale';
+        return;
+      }
       const currentAt = validTimestamp(nowBox.dataset.liveAt)?.valueOf() || 0;
       const quoteAt = validTimestamp(quote.updatedAt)?.valueOf() || 0;
       if (quoteAt >= currentAt) {
@@ -440,7 +526,7 @@
         nowBox.dataset.liveSource = quote.source;
         nowBox.dataset.feedStatus = state.mode;
       }
-      timeNode.style.color = state.mode === 'delayed' ? '#ffb86b' : state.mode === 'fallback' ? '#9fe8ff' : '#72f0c1';
+      timeNode.style.color = state.mode === 'fallback' ? '#9fe8ff' : '#72f0c1';
       return;
     }
 
