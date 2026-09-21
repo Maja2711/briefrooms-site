@@ -310,11 +310,16 @@ class WesTests(unittest.TestCase):
         self.assertEqual(frozen, week['instruments'][0]['risk_plan'])
         self.assertEqual('WES-1.2.0', week['instruments'][0]['wes_methodology'])
 
-    def test_wes_1_1_stale_pending_before_authorization_is_never_reused(self):
+    def test_wes_1_2_legacy_pending_without_price_plan_is_never_reused(self):
         item = {
             'wes_entry_authorization': {
                 'authorized_at': '2026-09-21T12:30:00+02:00',
-                'candidate': {'strategy_id': 'weekly_trend', 'direction': 'long'},
+                'directional_admission_passed': True,
+                'candidate': {
+                    'strategy_id': 'weekly_trend',
+                    'direction': 'long',
+                    'execution_authority': 'champion_execution',
+                },
             }
         }
         stale = {
@@ -324,12 +329,12 @@ class WesTests(unittest.TestCase):
         }
         self.assertFalse(v5.pending_matches_wes_authorization(item, stale))
 
-        fresh = {
+        fresh_but_legacy = {
             'decided_at': '2026-09-21T12:31:00+02:00',
             'entry_not_before': '2026-09-21T12:31:00+02:00',
             'decision': {'strategy_id': 'weekly_trend', 'direction': 'long'},
         }
-        self.assertTrue(v5.pending_matches_wes_authorization(item, fresh))
+        self.assertFalse(v5.pending_matches_wes_authorization(item, fresh_but_legacy))
 
     def test_wes_1_1_pending_must_match_authorized_method_and_direction(self):
         item = {
