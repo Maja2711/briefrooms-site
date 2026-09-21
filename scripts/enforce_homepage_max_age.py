@@ -19,11 +19,15 @@ except ImportError:
 ROOT = Path(__file__).resolve().parents[1]
 NEWS_DIR = ROOT / "data" / "news"
 STATE_PATH = NEWS_DIR / "homepage_exposure.json"
-HOME_MAX_AGE = timedelta(days=3)
+NEWS_MAX_AGE = timedelta(hours=24)
+# Compatibility alias for older tests/importers. The policy is now global, not homepage-only.
+HOME_MAX_AGE = NEWS_MAX_AGE
 FUTURE_TOLERANCE = timedelta(minutes=10)
 HOME_LIMIT = 12
 HOME_RESERVE_LIMIT = 12
-POLICY_VERSION = "max-72h-first-display-v1"
+POLICY_VERSION = "max-24h-public-news-display-v1"
+EXPOSURE_SCHEMA_VERSION = "public-news-exposure-v2"
+LEGACY_EXPOSURE_SCHEMA_VERSION = "homepage-exposure-v1"
 IMAGE_POLICY_VERSION = "https-image-required-v1"
 POST_FRESHNESS_SELECTION_VERSION = "post-freshness-editorial-v2"
 PRIMARY_BULLETIN_POLICY_VERSION = "en-primary-bulletin-same-day-v1"
@@ -79,7 +83,7 @@ def _source_is_fresh(story: dict[str, Any], now: datetime) -> bool:
     if published is None:
         return False
     age = now - published
-    return -FUTURE_TOLERANCE <= age <= HOME_MAX_AGE
+    return -FUTURE_TOLERANCE <= age <= NEWS_MAX_AGE
 
 
 def _is_primary_bulletin(story: dict[str, Any]) -> bool:
@@ -281,61 +285,100 @@ def enforce_payload(
     now: datetime,
     lang: str | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Apply the hard 24h public-display contract to every news surface.
+
+    The same identity clock is shared by section pages, homepage and homepage reserve.
+    Freshness wins over card-count targets: an expired story is removed rather than
+    retained to keep a section visually full.
+    """
     current = now.astimezone(timezone.utc)
-    candidates = list(_candidate_sequence(payload))
-    eligible: list[dict[str, Any]] = []
-    expired_count = 0
-    source_stale_count = 0
-    image_rejected_count = 0
-    primary_bulletin_stale_count = 0
+    raw_home_candidates = list(_candidate_sequence(payload))
+    qualification_cache: dict[str, tuple[dict[str, Any] | None, str]] = {}
+    counted_rejections: set[str] = set()
+    rejection_counts = {
+        "expired": 0,
+        "source_stale": 0,
+        "image": 0,
+        "primary_bulletin_stale": 0,
+    }
 
     def qualify(story: dict[str, Any]) -> tuple[dict[str, Any] | None, str]:
-        if not _homepage_image_url(story):
-            return None, "image"
-        if not _source_is_fresh(story, current):
-            return None, "source_stale"
-        if not _primary_bulletin_is_current(story, current, lang):
-            return None, "primary_bulletin_stale"
-
         identity = base.normalized_identity(story)
-        if not identity:
-            return None, "identity"
-        exposure = state_lang.get(identity)
-        first_seen = _first_seen(story, exposure if isinstance(exposure, dict) else None, current)
-        if first_seen is None:
-            return None, "timestamp"
+        if identity and identity in qualification_cache:
+            cached, reason = qualification_cache[identity]
+            return (dict(cached) if isinstance(cached, dict) else None), reason
 
-        age = current - first_seen
-        if age < -FUTURE_TOLERANCE or age > HOME_MAX_AGE:
-            return None, "expired"
+        if not _homepage_image_url(story):
+            result = (None, "image")
+        elif not _source_is_fresh(story, current):
+            result = (None, "source_stale")
+        elif not _primary_bulletin_is_current(story, current, lang):
+            result = (None, "primary_bulletin_stale")
+        elif not identity:
+            result = (None, "identity")
+        else:
+            exposure = state_lang.get(identity)
+            first_seen = _first_seen(
+                story,
+                exposure if isinstance(exposure, dict) else None,
+                current,
+            )
+            if first_seen is None:
+                result = (None, "timestamp")
+            else:
+                age = current - first_seen
+                if age < -FUTURE_TOLERANCE or age > NEWS_MAX_AGE:
+                    result = (None, "expired")
+                else:
+                    if not isinstance(exposure, dict):
+                        state_lang[identity] = {
+                            "first_seen_at": _iso(first_seen),
+                            "source": str(story.get("source") or ""),
+                            "title": str(story.get("title") or ""),
+                        }
+                    copy = dict(story)
+                    copy["news_first_seen_at"] = _iso(first_seen)
+                    copy["news_expires_at"] = _iso(first_seen + NEWS_MAX_AGE)
+                    result = (copy, "ok")
 
-        if not isinstance(exposure, dict):
-            state_lang[identity] = {
-                "first_seen_at": _iso(first_seen),
-                "source": str(story.get("source") or ""),
-                "title": str(story.get("title") or ""),
-            }
+        if identity:
+            cached_story = dict(result[0]) if isinstance(result[0], dict) else None
+            qualification_cache[identity] = (cached_story, result[1])
+        return result
 
-        copy = dict(story)
-        copy["homepage_lane"] = _homepage_lane(copy)
-        copy["homepage_priority_rank"] = _priority_rank(copy) + 1
-        copy["homepage_first_seen_at"] = _iso(first_seen)
-        copy["homepage_expires_at"] = _iso(first_seen + HOME_MAX_AGE)
-        return copy, "ok"
+    def record_rejection(story: dict[str, Any], reason: str) -> None:
+        if reason not in rejection_counts:
+            return
+        identity = base.normalized_identity(story) or f"anonymous:{id(story)}"
+        if identity in counted_rejections:
+            return
+        counted_rejections.add(identity)
+        rejection_counts[reason] += 1
 
-    for story in candidates:
+    # Section pages are public surfaces too. Filter them before static rendering.
+    raw_sections = payload.get("sections") if isinstance(payload.get("sections"), dict) else {}
+    filtered_sections: dict[str, list[dict[str, Any]]] = {}
+    for section_id, rows in raw_sections.items():
+        fresh_rows: list[dict[str, Any]] = []
+        if isinstance(rows, list):
+            for story in rows:
+                if not isinstance(story, dict):
+                    continue
+                copy, reason = qualify(story)
+                if copy is not None:
+                    fresh_rows.append(copy)
+                else:
+                    record_rejection(story, reason)
+        filtered_sections[str(section_id)] = fresh_rows
+    payload["sections"] = filtered_sections
+
+    eligible: list[dict[str, Any]] = []
+    for story in raw_home_candidates:
         copy, reason = qualify(story)
         if copy is not None:
             eligible.append(copy)
-            continue
-        if reason == "image":
-            image_rejected_count += 1
-        elif reason == "source_stale":
-            source_stale_count += 1
-        elif reason == "primary_bulletin_stale":
-            primary_bulletin_stale_count += 1
-        elif reason == "expired":
-            expired_count += 1
+        else:
+            record_rejection(story, reason)
 
     selected, selection_diag = _select_editorial_candidates(eligible, HOME_LIMIT)
     reserve, reserve_diag = _select_editorial_candidates(
@@ -344,15 +387,27 @@ def enforce_payload(
         blocked=selected,
     )
 
+    # Keep legacy homepage metadata for the existing browser consumers while the
+    # canonical clock is now news_first_seen_at/news_expires_at across all surfaces.
+    for story in selected + reserve:
+        first_seen = str(story.get("news_first_seen_at") or "")
+        expires = str(story.get("news_expires_at") or "")
+        if first_seen:
+            story["homepage_first_seen_at"] = first_seen
+        if expires:
+            story["homepage_expires_at"] = expires
+
     payload["home"] = selected
     payload["home_reserve"] = reserve
     payload["homepage_policy"] = {
         "version": POLICY_VERSION,
-        "max_display_hours": 72,
-        "clock": "first_display_on_briefrooms",
-        "also_requires_source_age_hours_lte": 72,
+        "scope": "all_public_news_surfaces",
+        "max_display_hours": 24,
+        "clock": "first_known_briefrooms_display_with_source_age_ceiling",
+        "also_requires_source_age_hours_lte": 24,
         "target_story_count": HOME_LIMIT,
-        "minimum_story_count": HOME_LIMIT,
+        "minimum_story_count": 0,
+        "underfill_allowed_when_needed_for_freshness": True,
         "reserve_story_limit": HOME_RESERVE_LIMIT,
         "runtime_backfill_policy": "approved_home_reserve_only",
         "post_freshness_selection_version": POST_FRESHNESS_SELECTION_VERSION,
@@ -362,15 +417,32 @@ def enforce_payload(
         "requires_https_image": True,
         "image_policy_version": IMAGE_POLICY_VERSION,
     }
-    payload.setdefault("health", {})["homepage_freshness"] = {
+    payload.setdefault("health", {})["public_news_freshness"] = {
+        "status": "ok",
+        "version": POLICY_VERSION,
+        "scope": "all_public_news_surfaces",
+        "max_display_hours": 24,
+        "section_published_counts": {
+            section_id: len(rows)
+            for section_id, rows in filtered_sections.items()
+        },
+        "expired_exposure_rejected": rejection_counts["expired"],
+        "source_stale_rejected": rejection_counts["source_stale"],
+        "primary_bulletin_same_day_rejected": rejection_counts["primary_bulletin_stale"],
+        "image_rejected": rejection_counts["image"],
+    }
+    payload["health"]["homepage_freshness"] = {
         "status": "ok" if len(selected) == HOME_LIMIT else "underfilled",
         "version": POLICY_VERSION,
+        "scope": "all_public_news_surfaces",
+        "max_display_hours": 24,
         "image_policy_version": IMAGE_POLICY_VERSION,
         "post_freshness_selection_version": POST_FRESHNESS_SELECTION_VERSION,
         "primary_bulletin_policy_version": PRIMARY_BULLETIN_POLICY_VERSION,
         "published_count": len(selected),
         "target_story_count": HOME_LIMIT,
-        "minimum_story_count": HOME_LIMIT,
+        "minimum_story_count": 0,
+        "underfill_allowed_when_needed_for_freshness": True,
         "reserve_count": len(reserve),
         "reserve_story_limit": HOME_RESERVE_LIMIT,
         "runtime_backfill_policy": "approved_home_reserve_only",
@@ -380,10 +452,10 @@ def enforce_payload(
         "source_mix": _mix(selected, "source"),
         "section_mix": _mix(selected, "category"),
         "reserve_lane_mix": _mix(reserve, "homepage_lane"),
-        "expired_exposure_rejected": expired_count,
-        "source_stale_rejected": source_stale_count,
-        "primary_bulletin_same_day_rejected": primary_bulletin_stale_count,
-        "image_rejected": image_rejected_count,
+        "expired_exposure_rejected": rejection_counts["expired"],
+        "source_stale_rejected": rejection_counts["source_stale"],
+        "primary_bulletin_same_day_rejected": rejection_counts["primary_bulletin_stale"],
+        "image_rejected": rejection_counts["image"],
         "topic_duplicate_rejected": selection_diag["topic_duplicates_suppressed"],
         "diversity_cap_rejected": selection_diag["diversity_cap_rejections"],
         "reserve_topic_duplicate_rejected": reserve_diag["topic_duplicates_suppressed"],
@@ -397,8 +469,16 @@ def _load_state() -> dict[str, Any]:
         value = {}
     if not isinstance(value, dict):
         value = {}
-    if value.get("schema_version") != "homepage-exposure-v1":
-        value = {"schema_version": "homepage-exposure-v1", "languages": {}}
+
+    schema = value.get("schema_version")
+    if schema == LEGACY_EXPOSURE_SCHEMA_VERSION:
+        # Preserve existing homepage first-seen clocks so the 24h policy cannot
+        # reset old stories simply because the scope is being widened to sections.
+        value["schema_version"] = EXPOSURE_SCHEMA_VERSION
+        value["migrated_from"] = LEGACY_EXPOSURE_SCHEMA_VERSION
+    elif schema != EXPOSURE_SCHEMA_VERSION:
+        value = {"schema_version": EXPOSURE_SCHEMA_VERSION, "languages": {}}
+
     languages = value.get("languages")
     if not isinstance(languages, dict):
         value["languages"] = {}
@@ -431,12 +511,19 @@ def validate_files() -> None:
         payload = json.loads((NEWS_DIR / f"{lang}.json").read_text(encoding="utf-8"))
         policy = payload.get("homepage_policy") or {}
         if policy.get("version") != POLICY_VERSION:
-            raise RuntimeError(f"{lang} homepage 72-hour exposure policy missing")
-        if policy.get("target_story_count") != HOME_LIMIT or policy.get("minimum_story_count") != HOME_LIMIT:
-            raise RuntimeError(f"{lang} homepage twelve-story contract missing")
+            raise RuntimeError(f"{lang} public-news 24-hour exposure policy missing")
+        if policy.get("scope") != "all_public_news_surfaces":
+            raise RuntimeError(f"{lang} public-news freshness scope is incomplete")
+        if int(policy.get("max_display_hours") or 0) != 24:
+            raise RuntimeError(f"{lang} public-news display cap is not 24 hours")
+        if int(policy.get("also_requires_source_age_hours_lte") or 0) != 24:
+            raise RuntimeError(f"{lang} public-news source-age cap is not 24 hours")
+        if policy.get("target_story_count") != HOME_LIMIT:
+            raise RuntimeError(f"{lang} homepage twelve-story target missing")
+        if policy.get("underfill_allowed_when_needed_for_freshness") is not True:
+            raise RuntimeError(f"{lang} freshness-over-card-count fallback missing")
         if policy.get("requires_https_image") is not True or policy.get("image_policy_version") != IMAGE_POLICY_VERSION:
             raise RuntimeError(f"{lang} homepage HTTPS-image policy missing")
-
         if policy.get("runtime_backfill_policy") != "approved_home_reserve_only":
             raise RuntimeError(f"{lang} homepage runtime reserve policy missing")
         if int(policy.get("reserve_story_limit") or 0) != HOME_RESERVE_LIMIT:
@@ -452,8 +539,8 @@ def validate_files() -> None:
 
         home = payload.get("home") if isinstance(payload.get("home"), list) else []
         reserve = payload.get("home_reserve") if isinstance(payload.get("home_reserve"), list) else []
-        if len(home) != HOME_LIMIT:
-            raise RuntimeError(f"{lang} homepage has {len(home)} stories; exactly {HOME_LIMIT} are required")
+        if len(home) > HOME_LIMIT:
+            raise RuntimeError(f"{lang} homepage exceeds {HOME_LIMIT} stories")
         if len(reserve) > HOME_RESERVE_LIMIT:
             raise RuntimeError(f"{lang} homepage reserve exceeds {HOME_RESERVE_LIMIT} stories")
 
@@ -465,15 +552,18 @@ def validate_files() -> None:
 
         identities: set[str] = set()
         approved: list[dict[str, Any]] = []
-        for scope, rows in (("homepage", home), ("homepage reserve", reserve)):
-            for story in rows:
-                if not _primary_bulletin_is_current(story, now, lang):
-                    raise RuntimeError(
-                        f"{lang} {scope} contains stale same-day primary bulletin: {story.get('title')}"
-                    )
-                identity = base.normalized_identity(story)
-                if not identity or identity in identities:
-                    raise RuntimeError(f"{lang} {scope} contains a duplicate or invalid story")
+
+        def validate_story(scope: str, story: dict[str, Any], *, dedupe: bool) -> None:
+            if not _primary_bulletin_is_current(story, now, lang):
+                raise RuntimeError(
+                    f"{lang} {scope} contains stale same-day primary bulletin: {story.get('title')}"
+                )
+            identity = base.normalized_identity(story)
+            if not identity:
+                raise RuntimeError(f"{lang} {scope} contains an invalid story")
+            if dedupe:
+                if identity in identities:
+                    raise RuntimeError(f"{lang} {scope} contains a duplicate story")
                 duplicate = next(
                     (previous for previous in approved if homepage_same_topic(story, previous)),
                     None,
@@ -485,13 +575,30 @@ def validate_files() -> None:
                     )
                 identities.add(identity)
                 approved.append(story)
-                if not _homepage_image_url(story):
-                    raise RuntimeError(f"{lang} {scope} contains story without HTTPS image: {story.get('title')}")
-                if not _source_is_fresh(story, now):
-                    raise RuntimeError(f"{lang} {scope} contains source-stale story: {story.get('title')}")
-                first_seen = _parse_time(story.get("homepage_first_seen_at"))
-                if first_seen is None or now - first_seen > HOME_MAX_AGE:
-                    raise RuntimeError(f"{lang} {scope} contains overexposed story: {story.get('title')}")
+            if not _homepage_image_url(story):
+                raise RuntimeError(f"{lang} {scope} contains story without HTTPS image: {story.get('title')}")
+            if not _source_is_fresh(story, now):
+                raise RuntimeError(f"{lang} {scope} contains source-stale story: {story.get('title')}")
+            first_seen = _parse_time(story.get("news_first_seen_at"))
+            expires = _parse_time(story.get("news_expires_at"))
+            if first_seen is None or expires is None:
+                raise RuntimeError(f"{lang} {scope} is missing 24h exposure metadata: {story.get('title')}")
+            if expires != first_seen + NEWS_MAX_AGE:
+                raise RuntimeError(f"{lang} {scope} has invalid 24h expiry: {story.get('title')}")
+            if now - first_seen > NEWS_MAX_AGE:
+                raise RuntimeError(f"{lang} {scope} contains overexposed story: {story.get('title')}")
+
+        for section_id, rows in (payload.get("sections") or {}).items():
+            if not isinstance(rows, list):
+                raise RuntimeError(f"{lang}/{section_id} section payload is invalid")
+            if len(rows) > base.TARGET:
+                raise RuntimeError(f"{lang}/{section_id} exceeds section target {base.TARGET}")
+            for story in rows:
+                validate_story(f"section {section_id}", story, dedupe=False)
+
+        for scope, rows in (("homepage", home), ("homepage reserve", reserve)):
+            for story in rows:
+                validate_story(scope, story, dedupe=True)
 
 
 def main() -> None:
