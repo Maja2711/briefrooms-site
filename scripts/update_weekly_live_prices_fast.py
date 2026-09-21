@@ -243,6 +243,38 @@ def stooq_quote(instrument_id: str) -> Dict[str, Any]:
     }
 
 
+def fxapi_eurusd_quote() -> Dict[str, Any]:
+    url = "https://fxapi.app/api/EUR/USD.json"
+    data = json.loads(request_bytes(url).decode("utf-8"))
+    price = safe_float(data.get("rate"))
+    stamp = parse_iso(data.get("timestamp"))
+    if price is None or stamp is None:
+        raise RuntimeError("fxapi.app EUR/USD quote incomplete")
+    return {
+        "price": price,
+        "timestamp": stamp.isoformat(timespec="seconds"),
+        "source": "fxapi.app:EUR/USD",
+        "note": "same primary EUR/USD feed as Daily",
+    }
+
+
+def currency_exchange_tool_eurusd_quote() -> Dict[str, Any]:
+    url = "https://www.currencyexchangetool.com/api/v1/convert?amount=1&from=EUR&to=USD"
+    data = json.loads(request_bytes(url).decode("utf-8"))
+    if not data or data.get("success") is False:
+        raise RuntimeError("Currency Exchange Tool EUR/USD API error")
+    price = safe_float(data.get("rate") if data.get("rate") is not None else data.get("result"))
+    stamp = parse_iso(data.get("updatedAt") or data.get("updated_at") or data.get("timestamp") or data.get("time"))
+    if price is None or stamp is None:
+        raise RuntimeError("Currency Exchange Tool EUR/USD quote incomplete")
+    return {
+        "price": price,
+        "timestamp": stamp.isoformat(timespec="seconds"),
+        "source": "Currency Exchange Tool:EUR/USD",
+        "note": "same fallback EUR/USD feed as Daily",
+    }
+
+
 def coinbase_quote() -> Dict[str, Any]:
     url = "https://api.exchange.coinbase.com/products/BTC-USD/ticker"
     data = json.loads(request_bytes(url).decode("utf-8"))
@@ -259,6 +291,12 @@ def coinbase_quote() -> Dict[str, Any]:
 
 
 def providers(instrument_id: str) -> list[Callable[[], Dict[str, Any]]]:
+    if instrument_id == "eurusd":
+        return [
+            fxapi_eurusd_quote,
+            currency_exchange_tool_eurusd_quote,
+        ]
+
     if instrument_id == "sp500_futures":
         return [
             esignal_quote,
