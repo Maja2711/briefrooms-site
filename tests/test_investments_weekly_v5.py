@@ -40,6 +40,51 @@ class GovernedWeeklyModelTests(unittest.TestCase):
         self.assertEqual(item["entry_price"], 100.0)
         self.assertEqual(item["validation_gate"], "grandfathered_existing_position_no_new_entries")
 
+    def test_expired_unfilled_reentry_restores_closed_historical_leg(self):
+        item = {
+            "instrument_id": "btcusd",
+            "direction": "short",
+            "trade_status": "pending",
+            "entry_price": 81593.9765625,
+            "entry_captured_at": "2026-09-21T09:25:00+02:00",
+            "exit_price": 84024.33708186,
+            "exit_captured_at": "2026-09-21T10:35:00+02:00",
+            "exit_reason": "stop_loss",
+            "result": "loss",
+            "result_value": -297.86028599,
+            "result_percent": -2.9786,
+            "risk_plan": {
+                "model_version": "WES-1.0.0",
+                "direction": "short",
+                "wes_entry_class": "monday_weekly",
+                "stop_loss_price": 84024.33708186,
+                "take_profit_price": 76707.42716313,
+            },
+            "pending_entry_decision": {
+                "decision": {"strategy_id": "base_v2", "direction": "long"},
+            },
+            "wes_entry_authorization": {"authorization_type": "early_close_reentry"},
+            "next_entry_status": "waiting_for_entry_target",
+            "entry_quality_status": "wes_1_2_waiting_for_frozen_entry_target",
+        }
+        blocked = {
+            "strategy_id": "no_trade",
+            "direction": "neutral",
+            "reason_codes": ["wes_entry_authorization_expired"],
+        }
+        v5.settle_unfilled_reentry(item, blocked, "wes_entry_authorization_expired")
+        self.assertEqual("closed", item["trade_status"])
+        self.assertEqual("short", item["direction"])
+        self.assertEqual(81593.9765625, item["entry_price"])
+        self.assertEqual(84024.33708186, item["exit_price"])
+        self.assertEqual(-297.86028599, item["result_value"])
+        self.assertEqual(-2.9786, item["result_percent"])
+        self.assertIsNone(item["pending_entry_decision"])
+        self.assertIsNone(item["wes_entry_authorization"])
+        self.assertEqual("no_trade", item["next_entry_status"])
+        self.assertEqual("closed_waiting_new_trigger", item["wes_status"])
+        self.assertEqual("wes_monday_weekly", item["entry_quality_status"])
+
     def test_freeze_decision_creates_frozen_price_target_not_market_entry(self):
         now = datetime(2026, 9, 21, 8, 5, tzinfo=v5.legacy.TZ)
         item = {
