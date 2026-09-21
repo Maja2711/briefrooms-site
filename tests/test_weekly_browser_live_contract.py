@@ -16,7 +16,7 @@ PAGES = [
     ROOT / "en" / "investing" / "open-weekly-positions.html",
     ROOT / "en" / "investing" / "weekly-forecasts.html",
 ]
-SCRIPT_REF = "/scripts/investments-weekly-browser-live.js?v=20260921-5"
+SCRIPT_REF = "/scripts/investments-weekly-browser-live.js?v=20260921-6"
 COMPACT_REF = "/scripts/investments-weekly-price-compact.js?v=20260916-4"
 
 
@@ -45,6 +45,9 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
         self.assertIn("delayed ~10 min", source)
         self.assertIn("maxAgeMs: 15 * 60_000", source)
         self.assertIn("backendMaxAgeMs: 15 * 60_000", source)
+        self.assertIn("backendSnapshotMaxAgeMs: 12 * 60_000", source)
+        self.assertIn("timestampFresh(backend.backendObservedAt, cfg.backendSnapshotMaxAgeMs)", source)
+        self.assertIn("instrumentId === 'sp500_futures' && !stateFresh", source)
 
     def test_btc_sources_are_requested_in_parallel_and_freshest_quote_wins(self) -> None:
         source = LIVE_SCRIPT.read_text(encoding="utf-8")
