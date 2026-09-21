@@ -6,6 +6,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
+import pandas as pd
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
@@ -38,27 +40,136 @@ class GovernedWeeklyModelTests(unittest.TestCase):
         self.assertEqual(item["entry_price"], 100.0)
         self.assertEqual(item["validation_gate"], "grandfathered_existing_position_no_new_entries")
 
-    def test_freeze_decision_promotes_forecast_to_pending_execution_state(self):
+    def test_freeze_decision_creates_frozen_price_target_not_market_entry(self):
         now = datetime(2026, 9, 21, 8, 5, tzinfo=v5.legacy.TZ)
-        item = {"instrument_id": "btcusd", "direction": "long", "trade_status": "planned", "validation_gate": "enabled_for_paper_trading"}
+        item = {
+            "instrument_id": "btcusd",
+            "direction": "long",
+            "trade_status": "planned",
+            "validation_gate": "enabled_for_paper_trading",
+            "wes_entry_authorization": {
+                "authorized_at": now.isoformat(timespec="seconds"),
+                "directional_admission_passed": True,
+                "candidate": {
+                    "strategy_id": "base_v2",
+                    "direction": "long",
+                    "execution_authority": "champion_execution",
+                },
+            },
+        }
         decision = {"strategy_id": "base_v2", "direction": "long", "raw_score": 50.0}
-        pending = v5.freeze_decision(item, decision, {"score": 50.0}, {"score": 40.0}, now)
+        fresh = {"score": 50.0, "signals": {
+            "last_close": 100.0, "atr14": 4.0, "ema20": 96.0,
+            "ret5_pct": 5.0, "ret20_pct": 8.0, "range55_position": 0.9,
+        }}
+        policy = {"entry_price_engine": {
+            "enabled": True, "require_for_all_new_entries": True, "version": "WES-1.2.0",
+            "max_wait_minutes": 60, "minimum_pullback_atr": 0.10, "base_pullback_atr": 0.12,
+            "overextension_extra_pullback_atr": 0.48, "maximum_pullback_atr": 0.75,
+            "ret5_full_scale_percent": 8.0, "ema_distance_full_scale_atr": 2.5,
+            "structural_ema20_buffer_atr": 0.25,
+            "max_target_distance_percent": {"btcusd": 3.5},
+        }}
+        pending = v5.freeze_decision(item, decision, fresh, {"score": 40.0}, now, policy)
         self.assertEqual("pending", item["trade_status"])
-        self.assertEqual("pending", item["next_entry_status"])
+        self.assertEqual("waiting_for_entry_target", item["next_entry_status"])
         self.assertEqual(now.isoformat(timespec="seconds"), pending["decided_at"])
         self.assertEqual("long", pending["decision"]["direction"])
+        self.assertEqual("buy_limit", pending["entry_price_plan"]["order_type"])
+        self.assertLess(pending["entry_price_plan"]["target_price"], 100.0)
 
-    def test_entry_must_not_precede_decision(self):
-        decided = datetime(2026, 7, 20, 8, 34, tzinfo=v5.legacy.TZ)
-        pending = {"entry_not_before": decided.isoformat()}
-        with patch.object(v5.v2, "first_bar_at_or_after", return_value={
-            "price": 1.0, "timestamp": (decided - timedelta(minutes=5)).isoformat(), "source": "test"
-        }):
-            self.assertIsNone(v5.entry_point("X", pending))
-        with patch.object(v5.v2, "first_bar_at_or_after", return_value={
-            "price": 1.0, "timestamp": (decided + timedelta(minutes=5)).isoformat(), "source": "test"
-        }):
-            self.assertIsNotNone(v5.entry_point("X", pending))
+    def test_entry_executes_only_when_frozen_limit_target_is_touched(self):
+        decided = datetime(2026, 7, 20, 8, 35, tzinfo=v5.legacy.TZ)
+        pending = {
+            "entry_not_before": decided.isoformat(),
+            "decision": {"direction": "long"},
+            "entry_price_plan": {
+                "instrument_id": "sp500_futures",
+                "direction": "long",
+                "target_price": 100.0,
+                "entry_not_before": decided.isoformat(),
+                "expires_at": (decided + timedelta(hours=1)).isoformat(),
+            },
+        }
+        index = pd.DatetimeIndex([decided + timedelta(minutes=5)])
+        missed = pd.DataFrame({"High": [102.0], "Low": [100.5]}, index=index)
+        touched = pd.DataFrame({"High": [102.0], "Low": [99.8]}, index=index)
+        with patch.object(v5.v2, "intraday_bars", return_value=missed):
+            self.assertIsNone(v5.entry_point("ES=F", pending, decided + timedelta(minutes=10)))
+        with patch.object(v5.v2, "intraday_bars", return_value=touched):
+            point = v5.entry_point("ES=F", pending, decided + timedelta(minutes=10))
+        self.assertIsNotNone(point)
+        self.assertEqual(100.0, point["price"])
+        self.assertIn("frozen_entry_target_touch", point["source"])
+
+    def test_strong_btc_rally_requires_material_pullback_before_long_entry(self):
+        now = datetime(2026, 9, 21, 12, 52, 50, tzinfo=v5.legacy.TZ)
+        item = {
+            "instrument_id": "btcusd",
+            "direction": "short",
+            "trade_status": "closed",
+            "entry_price": 81593.9765625,
+            "exit_price": 84024.33708186,
+            "exit_captured_at": "2026-09-21T10:35:00+02:00",
+            "exit_reason": "stop_loss",
+        }
+        decision = {"instrument_id": "btcusd", "strategy_id": "base_v2", "direction": "long"}
+        fresh = {"signals": {
+            "last_close": 84151.8984375,
+            "atr14": 2256.57756696,
+            "ema20": 78542.52929038,
+            "ret5_pct": 10.5076,
+            "ret20_pct": 8.7183,
+            "range55_position": 1.0,
+        }}
+        policy = {"entry_price_engine": {
+            "enabled": True, "version": "WES-1.2.0", "max_wait_minutes": 60,
+            "minimum_pullback_atr": 0.10, "base_pullback_atr": 0.12,
+            "overextension_extra_pullback_atr": 0.48, "maximum_pullback_atr": 0.75,
+            "post_stop_reversal_extra_pullback_atr": 0.15,
+            "post_stop_reversal_min_completed_bars": 3,
+            "ret5_full_scale_percent": 8.0, "ema_distance_full_scale_atr": 2.5,
+            "overextension_weights": {"momentum_5d": 0.40, "range_55d": 0.35, "ema20_distance": 0.25},
+            "structural_ema20_buffer_atr": 0.25,
+            "max_target_distance_percent": {"btcusd": 3.5},
+        }}
+        plan = v5.build_entry_price_plan(item, decision, fresh, now, policy)
+        self.assertIsNotNone(plan)
+        self.assertTrue(plan["inputs"]["post_stop_reversal"])
+        self.assertGreater(plan["inputs"]["overextension_score"], 0.95)
+        self.assertGreaterEqual(plan["inputs"]["pullback_atr_fraction"], 0.70)
+        self.assertLess(plan["target_price"], 83000.0)
+        self.assertGreater(plan["target_price"], 81000.0)
+        self.assertEqual("buy_limit", plan["order_type"])
+
+    def test_same_authorized_thesis_does_not_chase_market_by_moving_target(self):
+        now = datetime(2026, 9, 21, 12, 52, 50, tzinfo=v5.legacy.TZ)
+        item = {
+            "instrument_id": "btcusd",
+            "wes_entry_authorization": {
+                "authorized_at": now.isoformat(timespec="seconds"),
+                "directional_admission_passed": True,
+                "candidate": {"strategy_id": "base_v2", "direction": "long", "execution_authority": "champion_execution"},
+            },
+        }
+        decision = {"strategy_id": "base_v2", "direction": "long"}
+        fresh = {"signals": {"last_close": 84000, "atr14": 2000, "ema20": 79000, "ret5_pct": 9, "ret20_pct": 8, "range55_position": 1}}
+        policy = {"entry_price_engine": {
+            "enabled": True, "require_for_all_new_entries": True, "version": "WES-1.2.0",
+            "max_wait_minutes": 60, "minimum_pullback_atr": 0.10, "base_pullback_atr": 0.12,
+            "overextension_extra_pullback_atr": 0.48, "maximum_pullback_atr": 0.75,
+            "ret5_full_scale_percent": 8.0, "ema_distance_full_scale_atr": 2.5,
+            "structural_ema20_buffer_atr": 0.25, "max_target_distance_percent": {"btcusd": 3.5},
+        }}
+        pending = v5.freeze_decision(item, decision, fresh, {}, now, policy)
+        target = pending["entry_price_plan"]["target_price"]
+        item["wes_entry_authorization"] = {
+            "authorized_at": (now + timedelta(minutes=5)).isoformat(timespec="seconds"),
+            "directional_admission_passed": True,
+            "candidate": {"strategy_id": "base_v2", "direction": "long", "execution_authority": "champion_execution"},
+        }
+        self.assertTrue(v5.pending_matches_wes_authorization(item, pending, now + timedelta(minutes=6)))
+        self.assertEqual(target, pending["entry_price_plan"]["target_price"])
 
     def test_thesis_exit_blocks_same_week_reentry(self):
         now = datetime(2026, 7, 21, 10, 0, tzinfo=v5.legacy.TZ)
