@@ -186,6 +186,42 @@ def yahoo_quote(instrument_id: str, yahoo_symbol: Optional[str] = None) -> Dict[
     }
 
 
+def cnbc_sp500_quote() -> Dict[str, Any]:
+    query = urllib.parse.urlencode({
+        "symbols": "@SP.1",
+        "requestMethod": "itv",
+        "noform": "1",
+        "partnerId": "2",
+        "fund": "1",
+        "exthrs": "1",
+        "output": "json",
+        "events": "1",
+    })
+    url = (
+        "https://quote.cnbc.com/quote-html-webservice/restQuote/"
+        f"symbolType/symbol?{query}"
+    )
+    data = json.loads(request_bytes(url).decode("utf-8"))
+    rows = (
+        (data.get("FormattedQuoteResult") or {}).get("FormattedQuote")
+        or (data.get("QuickQuoteResult") or {}).get("QuickQuote")
+        or []
+    )
+    if not rows:
+        raise RuntimeError("CNBC @SP.1 quote missing")
+    row = rows[0]
+    price = safe_float(str(row.get("last") or "").replace(",", ""))
+    stamp = parse_iso(row.get("last_time"))
+    if price is None or stamp is None:
+        raise RuntimeError("CNBC @SP.1 quote incomplete")
+    return {
+        "price": price,
+        "timestamp": stamp.isoformat(timespec="seconds"),
+        "source": "CNBC delayed:@SP.1",
+        "note": "continuous E-mini S&P 500 futures quote",
+    }
+
+
 def esignal_quote() -> Dict[str, Any]:
     yahoo_symbol, esignal_symbol = active_es_contract()
     query = urllib.parse.urlencode({"symbol": esignal_symbol, "types": "future"})
@@ -299,6 +335,7 @@ def providers(instrument_id: str) -> list[Callable[[], Dict[str, Any]]]:
 
     if instrument_id == "sp500_futures":
         return [
+            cnbc_sp500_quote,
             esignal_quote,
             lambda: yahoo_quote(instrument_id),
             lambda: stooq_quote(instrument_id),
