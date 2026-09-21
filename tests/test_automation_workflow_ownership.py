@@ -194,7 +194,7 @@ class AutomationWorkflowOwnershipTests(unittest.TestCase):
         self.assertIn("choose_governed", v5)
         self.assertIn("wes_authorization_matches", v5)
         self.assertIn("directional_admission_passed", runner)
-        self.assertIn('"version": "WES-1.1.0"', policy)
+        self.assertIn('"version": "WES-1.2.0"', policy)
         self.assertIn('"challenger_shadow_methods"', policy)
         self.assertIn('"inverse_v2"', policy)
 
