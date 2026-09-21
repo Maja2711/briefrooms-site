@@ -29,7 +29,27 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  validate-risk-push:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Check out latest main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate risk path without mutating runtime state
+        run: |
+          python -m py_compile             scripts/audit_intraday_risk_exits.py scripts/investments_weekly_v2.py             scripts/enforce_weekly_risk_exit_lock.py scripts/verify_weekly_close_deadline.py             scripts/no_retroactive_execution.py scripts/verify_no_retroactive_execution.py
+          python -m unittest tests.test_audit_intraday_risk_exits tests.test_no_retroactive_execution
+
   monitor-governed-exposure:
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 6
 
