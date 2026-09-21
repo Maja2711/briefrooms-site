@@ -75,6 +75,7 @@ jobs:
           python -m json.tool data/investments/stock_trading_policy.json >/dev/null
           python -m unittest tests.test_stock_trading_v2_production_bridge tests.test_stock_trading_portfolio tests.test_stock_trading_quote_enricher tests.test_no_retroactive_execution -v
           node --check scripts/stock-trading-public.js
+          node --check scripts/stock-trading-live-refresh.js
           python - <<'PY'
           import json
           from pathlib import Path
