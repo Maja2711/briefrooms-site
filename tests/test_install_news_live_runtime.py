@@ -11,9 +11,9 @@ from scripts import install_news_live_runtime as runtime
 
 
 class HomepageStaticFreshnessGuardTests(unittest.TestCase):
-    def test_exact_72_hours_is_fresh_but_older_is_stale(self) -> None:
+    def test_exact_24_hours_is_fresh_but_older_is_stale(self) -> None:
         now = datetime(2026, 8, 26, 12, 0, tzinfo=timezone.utc)
-        exact = now - timedelta(days=3)
+        exact = now - timedelta(hours=24)
         older = exact - timedelta(microseconds=1)
         self.assertTrue(runtime._is_fresh(exact.isoformat(), now)[0])
         self.assertFalse(runtime._is_fresh(older.isoformat(), now)[0])
@@ -22,7 +22,7 @@ class HomepageStaticFreshnessGuardTests(unittest.TestCase):
     def test_static_homepage_hides_stale_and_unknown_cards(self) -> None:
         now = datetime(2026, 8, 26, 12, 0, tzinfo=timezone.utc)
         fresh = (now - timedelta(hours=2)).isoformat()
-        stale = (now - timedelta(days=3, seconds=1)).isoformat()
+        stale = (now - timedelta(hours=24, seconds=1)).isoformat()
         source = (
             '<div id="latest-briefs" class="brief-grid">'
             '<!-- HOME_BRIEFS_START -->'
@@ -39,7 +39,7 @@ class HomepageStaticFreshnessGuardTests(unittest.TestCase):
         with patch.object(runtime, '_homepage_publication_map', return_value=publications):
             rendered = runtime.apply_homepage_freshness(source, 'pl', now)
 
-        self.assertIn('data-home-freshness-policy="max-72h-v1"', rendered)
+        self.assertIn('data-home-freshness-policy="max-24h-public-news-display-v1"', rendered)
         self.assertIn('data-home-image-policy="https-image-required-v1"', rendered)
         self.assertRegex(
             rendered,
@@ -67,7 +67,7 @@ class HomepageStaticFreshnessGuardTests(unittest.TestCase):
             runtime.install(path)
             rendered = path.read_text(encoding='utf-8')
 
-        live_url = '/scripts/news-live.js?v=7&rev=priority12'
+        live_url = '/scripts/news-live.js?v=8&rev=global24h'
         floor_url = '/scripts/home-card-floor.js?v=4'
         self.assertEqual(rendered.count(live_url), 1)
         self.assertEqual(rendered.count(floor_url), 1)
