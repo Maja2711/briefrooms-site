@@ -230,7 +230,7 @@
       updateLabel(label, data.updated_at, lang);
       return true;
     } catch (error) {
-      logger.warn('BriefRooms homepage feed could not be refreshed; only static cards within the 72-hour policy may remain visible.', error);
+      logger.warn('BriefRooms homepage feed could not be refreshed; only static cards within the 24-hour policy may remain visible.', error);
       return false;
     }
   }
