@@ -10,12 +10,16 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import investments_weekly_v5 as v5
+import investments_weekly_v5_finalize as finalize
 
 
 class GovernedWeeklyModelTests(unittest.TestCase):
     def method(self, enabled=True):
         return {"instruments": [{"id": "x", "enabled_for_new_positions": enabled,
                                   "validation_gate_reason": "failed_validation"}]}
+
+    def test_finalizer_preserves_active_runtime_version(self):
+        self.assertEqual(finalize.VERSION, v5.VERSION)
 
     def test_common_gate_blocks_new_entry_for_every_layer(self):
         item = {"instrument_id": "x", "direction": "long", "trade_status": "planned"}
