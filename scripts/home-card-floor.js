@@ -23,7 +23,7 @@
   'use strict';
 
   var MIN_CARDS = 12;
-  var HOME_MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
+  var HOME_MAX_AGE_MS = 24 * 60 * 60 * 1000;
   var FUTURE_TOLERANCE_MS = 10 * 60 * 1000;
   var RECHECK_DELAYS_MS = [250, 800, 1800, 3600];
 
@@ -110,7 +110,8 @@
     card.target = '_blank';
     card.rel = 'noopener noreferrer external';
     card.dataset.homePublishedAt = published;
-    if (story.homepage_first_seen_at) card.dataset.homeFirstSeenAt = String(story.homepage_first_seen_at);
+    var firstSeen = story.news_first_seen_at || story.homepage_first_seen_at;
+    if (firstSeen) card.dataset.homeFirstSeenAt = String(firstSeen);
     card.dataset.homeCardFloor = 'approved-home-reserve';
 
     var thumb = element(document, 'div', 'thumb has-image');
