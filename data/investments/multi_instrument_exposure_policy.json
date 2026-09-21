@@ -1,5 +1,5 @@
 {
-  "policy_version": "5.7.0",
+  "policy_version": "5.8.0",
   "name": "BriefRooms governed multi-instrument weekly paper exposure",
   "status": "experimental_paper_trading_only",
   "enabled": true,
@@ -258,10 +258,10 @@
     "threshold_mutation_allowed": false
   },
   "directional_admission": {
-    "version": "WES-1.1.0",
+    "version": "WES-1.2.0",
     "enabled": true,
     "require_for_all_new_entries": true,
-    "authorization_ttl_minutes": 20,
+    "authorization_ttl_minutes": 60,
     "minimum_confirmations": 2,
     "daily_min_abs_score": 25,
     "weekly_min_abs_score": 15,
@@ -273,6 +273,37 @@
       "confirmations": 2,
       "delta": 0
     },
-    "rule": "Every new entry, including the initial Monday entry, requires a current WES authorization for the exact execution-authorized method and direction. If Daily and Weekly are both valid, aligned and opposite to the proposed trade, admission is blocked. Missing or mismatched authorization resolves to NO_TRADE."
+    "rule": "Every new entry requires WES directional admission for the exact execution-authorized method and direction. Admission authorizes a thesis, not a market-price fill. WES 1.2 must additionally freeze an Entry Price Plan before execution. If Daily and Weekly are both valid, aligned and opposite to the proposed trade, admission is blocked."
+  },
+  "entry_price_engine": {
+    "version": "WES-1.2.0",
+    "enabled": true,
+    "require_for_all_new_entries": true,
+    "order_style": "price_improving_limit_only",
+    "max_wait_minutes": 60,
+    "execution_bar_interval_minutes": 5,
+    "minimum_pullback_atr": 0.1,
+    "base_pullback_atr": 0.12,
+    "overextension_extra_pullback_atr": 0.48,
+    "maximum_pullback_atr": 0.75,
+    "post_stop_reversal_extra_pullback_atr": 0.15,
+    "post_stop_reversal_min_completed_bars": 3,
+    "ret5_full_scale_percent": 8,
+    "ema_distance_full_scale_atr": 2.5,
+    "overextension_weights": {
+      "momentum_5d": 0.4,
+      "range_55d": 0.35,
+      "ema20_distance": 0.25
+    },
+    "structural_ema20_buffer_atr": 0.25,
+    "max_target_distance_percent": {
+      "eurusd": 0.75,
+      "sp500_futures": 1.25,
+      "btcusd": 3.5
+    },
+    "missing_atr_policy": "NO_ENTRY",
+    "target_refresh_policy": "keep_frozen_until_filled_expired_or_thesis_changes",
+    "fill_rule": "BUY LIMIT fills only when a post-decision 5m bar Low touches the frozen target; SELL LIMIT fills only when High touches the frozen target. Fill price is the frozen target, never the later market quote.",
+    "rule": "Direction and price are separate decisions. WES may authorize LONG/SHORT while execution remains WAIT. A deterministic pullback target is frozen from the decision-time reference price, ATR14, EMA20 distance, 5-day momentum, 55-day range position and post-stop reversal state. No first-bar market entry is permitted."
   }
 }
