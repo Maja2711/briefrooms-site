@@ -214,7 +214,6 @@
     if (!hasPanels) return false;
     return ['GPW', 'US'].some(market => {
       if (!sameArray(expectedTickers(data, market), domTickers(market))) return true;
-      if (expectedTickers(data, market).length) return false;
       return pendingSymbol(runtime, market) !== domPendingSymbol(market);
     });
   }
