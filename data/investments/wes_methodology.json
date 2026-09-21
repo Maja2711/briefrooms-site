@@ -1,12 +1,16 @@
 {
   "methodology": "Weekly Engine Star",
   "short_name": "WES",
-  "version": "1.0.0",
-  "lifecycle_revision": "early-close-reentry-1",
+  "version": "1.1.0",
+  "lifecycle_revision": "directional-admission-champion-challenger-1",
   "status": "experimental_governed_paper_only",
   "objective": "maximize_total_net_profit_after_costs_without_forcing_exposure",
   "principles": [
     "NO TRADE is an active monitoring state, not a terminal weekly decision.",
+    "Every new entry, including the initial Monday entry, requires WES 1.1 directional admission for the exact method and direction.",
+    "Research ranking and execution authority are separate: Challengers remain shadow/counterfactual until governed promotion.",
+    "Opposing execution candidates inside the configured utility margin resolve to NO TRADE; method names never break market-direction ties.",
+    "A trade direction requires at least two independent directional confirmations, and a candidate opposing aligned Daily and Weekly signals is blocked.",
     "A normal late-week entry requires a new qualified trigger and increasingly strong confirmation as Friday close approaches.",
     "If a governed position closes on Monday or Tuesday, WES may admit one fresh replacement entry later in the same trading week when the full methodology, shared validation gate and WES trigger thresholds qualify it.",
     "A qualified Monday/Tuesday-close replacement uses a rolling seven-calendar-day deadline measured from its actual replacement entry and may remain open through the weekend.",
@@ -24,7 +28,10 @@
     "early_close_reentry": "fresh qualified replacement after a Monday/Tuesday close; seven-calendar-day rolling horizon"
   },
   "early_close_reentry_policy": {
-    "eligible_source_close_days": ["monday", "tuesday"],
+    "eligible_source_close_days": [
+      "monday",
+      "tuesday"
+    ],
     "fresh_wes_signal_required": true,
     "shared_validation_gate_required": true,
     "forced_entry_allowed": false,
@@ -49,5 +56,26 @@
     "strong_class_relief_points": 3,
     "paper_trading_only": true,
     "research_lab_linked": true
+  },
+  "directional_admission": {
+    "version": "WES-1.1.0",
+    "applies_to": [
+      "initial_weekly_entry",
+      "no_trade_trigger",
+      "early_close_reentry",
+      "friday_tactical"
+    ],
+    "minimum_independent_confirmations": 2,
+    "aligned_daily_weekly_opposition": "hard_block",
+    "missing_or_expired_authorization": "NO_TRADE",
+    "authorization_scope": "exact_method_and_direction",
+    "authorization_ttl_minutes": 20
+  },
+  "champion_challenger": {
+    "research_and_execution_separated": true,
+    "inverse_v2_role": "challenger_shadow_counterfactual",
+    "challenger_execution_requires_governed_promotion": true,
+    "opposing_direction_near_tie": "NO_TRADE",
+    "method_name_tie_break_forbidden": true
   }
 }
