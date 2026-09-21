@@ -1,8 +1,8 @@
 # Kanoniczna mapa architektury BriefRooms — PL
 
-**Wersja mapy:** 1.10  
+**Wersja mapy:** 1.11  
 **Stan na:** 2026-09-21  
-**Bazowy commit `main`:** `b76bd3a98d2b601a646845d6c3867da4d64240c6`  
+**Bazowy commit `main`:** `b716beca850bc8514c0975f005c7a8d1d5dcd14d`  
 **Repozytorium:** `Maja2711/briefrooms-site`
 
 ## 0. Rola tego dokumentu
@@ -205,6 +205,8 @@ Dynamic Universe
 ```
 
 Główne implementacje: `stock_trading_v2_*`, `stock_trading_component_*`, `stock_trading_portfolio.py`. Kontrakt sizingu i normalizacji historii: `docs/STOCK_TRADING_FIXED_NOTIONAL_PL.md` / `_EN.md`. Historia publiczna pokazuje nominał 5K, ułamkową quantity i P&L liczony od tej wspólnej bazy.
+
+**Polityka execution/paper TR-04:** nowe wejścia pozostają prospektywne i tylko w sesji `REGULAR`. US zachowuje maksymalny wiek kursu wykonawczego 2 minuty. GPW, jako paper trading, dopuszcza obserwację Yahoo lub innego kwalifikowanego providera z bieżącej sesji do 20 minut i zapisuje fill jako `DELAYED_PAPER`; starszy kurs, kurs po zamknięciu sesji lub research reference price nie może otworzyć pozycji. Zmiana nie daje authority innym rynkom ani instrumentom.
 
 ### Stock Trading v2 — branch/runtime authority
 
