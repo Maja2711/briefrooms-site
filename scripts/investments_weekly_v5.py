@@ -18,7 +18,7 @@ METHOD = ROOT / "data/investments/methodology.json"
 POLICY = ROOT / "data/investments/multi_instrument_exposure_policy.json"
 STATE = ROOT / "data/investments/multi_instrument_exposure_state_v5.json"
 REPORT = ROOT / "data/investments/multi_instrument_exposure_report_v5.json"
-VERSION = "5.6.0-experimental"
+VERSION = "5.6.1-experimental"
 
 read, write, sf, parse_dt = v4.read, v4.write, v2.sf, v2.parse_dt
 
