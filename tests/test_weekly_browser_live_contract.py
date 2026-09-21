@@ -16,7 +16,7 @@ PAGES = [
     ROOT / "en" / "investing" / "open-weekly-positions.html",
     ROOT / "en" / "investing" / "weekly-forecasts.html",
 ]
-SCRIPT_REF = "/scripts/investments-weekly-browser-live.js?v=20260921-7"
+SCRIPT_REF = "/scripts/investments-weekly-browser-live.js?v=20260921-8"
 COMPACT_REF = "/scripts/investments-weekly-price-compact.js?v=20260916-4"
 
 
@@ -92,6 +92,9 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
         self.assertIn("for (let index = 0; index < cfg.sources.length; index += 1)", source)
         self.assertIn("if (quoteFresh(quote, cfg.maxAgeMs)) return attempts;", source)
         self.assertIn("['live', 'fallback'].includes(state?.mode)", source)
+        self.assertIn("CNBC @SP.1", source)
+        self.assertIn("quote.cnbc.com/quote-html-webservice/restQuote", source)
+        self.assertIn("Ostatni dostępny kurs", source)
         self.assertIn("eSignal ES active", source)
         self.assertIn("https://quotes.esignal.com/esignalprod/quote.action", source)
         self.assertIn("fetchEsignalEs", source)
@@ -134,6 +137,8 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
         source = FAST_UPDATER.read_text(encoding="utf-8")
         self.assertIn("active_es_contract", source)
         self.assertIn("active_es_yahoo_symbol", source)
+        self.assertIn("cnbc_sp500_quote", source)
+        self.assertIn("CNBC delayed:@SP.1", source)
         self.assertIn("esignal_quote", source)
         self.assertIn("eSignal delayed", source)
         self.assertNotIn("lambda: yahoo_quote(instrument_id, active_es_yahoo_symbol())", source)
