@@ -15,6 +15,8 @@
   const SESSION_STATE_MAX_AGE_MS = 10 * 60_000;
   let inFlight = false;
   let latestData = null;
+  let latestRuntime = null;
+  const PENDING_MAX_AGE_MS = 30 * 60_000;
 
   const text = isPl ? {
     pre: 'pre-market',
@@ -71,6 +73,31 @@
     return Array.isArray(rows)
       ? rows.filter(p => p && typeof p === 'object' && String(p.status || 'OPEN').toUpperCase() === 'OPEN')
       : [];
+  }
+
+  function pendingSymbol(runtime, market) {
+    const audit = Array.isArray(runtime && runtime.audit) ? runtime.audit : [];
+    const now = Date.now();
+    for (let i = audit.length - 1; i >= 0; i -= 1) {
+      const row = audit[i];
+      const runAt = new Date(row && row.run_at || 0).getTime();
+      if (!Number.isFinite(runAt) || now - runAt < -60_000 || now - runAt > PENDING_MAX_AGE_MS) continue;
+      const actions = Array.isArray(row && row.actions)
+        ? row.actions.filter(action => String(action && action.market || '').toUpperCase() === market)
+        : [];
+      if (!actions.length) continue;
+      const pending = actions
+        .filter(action => action && action.action === 'ready_waiting_fresh_quote')
+        .sort((a, b) => Number(a.deep_rank ?? 999999) - Number(b.deep_rank ?? 999999));
+      return pending.length ? String(pending[0].symbol || pending[0].ticker || '').toUpperCase() : '';
+    }
+    return '';
+  }
+
+  function domPendingSymbol(market) {
+    const panel = document.getElementById(`str-market-${market.toLowerCase()}`);
+    const node = panel && panel.querySelector('[data-pending-symbol]');
+    return String(node && node.dataset.pendingSymbol || '').toUpperCase();
   }
 
   function money(value, market) {
@@ -182,14 +209,18 @@
     return a.length === b.length && a.every((value, index) => value === b[index]);
   }
 
-  function structureChanged(data) {
+  function structureChanged(data, runtime) {
     const hasPanels = document.getElementById('str-market-gpw') && document.getElementById('str-market-us');
     if (!hasPanels) return false;
-    return ['GPW', 'US'].some(market => !sameArray(expectedTickers(data, market), domTickers(market)));
+    return ['GPW', 'US'].some(market => {
+      if (!sameArray(expectedTickers(data, market), domTickers(market))) return true;
+      if (expectedTickers(data, market).length) return false;
+      return pendingSymbol(runtime, market) !== domPendingSymbol(market);
+    });
   }
 
-  function reloadForStructure(data) {
-    const version = String(data.updated_at || data.quote_enriched_at || 'unknown');
+  function reloadForStructure(data, runtime) {
+    const version = [data.updated_at || data.quote_enriched_at || 'unknown', runtime && runtime.last_run_at || 'no-runtime'].join(':');
     const key = `stock-trading-structure-reload:${version}`;
     if (sessionStorage.getItem(key) === '1') return false;
     sessionStorage.setItem(key, '1');
@@ -275,10 +306,10 @@
     }
   }
 
-  function apply(data) {
+  function apply(data, runtime) {
     if (!data || typeof data !== 'object') return false;
     if (!document.getElementById('str-market-gpw') || !document.getElementById('str-market-us')) return false;
-    if (structureChanged(data)) return reloadForStructure(data);
+    if (structureChanged(data, runtime)) return reloadForStructure(data, runtime);
 
     ['GPW', 'US'].forEach((market, index) => {
       const positions = openPositions(data, market);
@@ -297,12 +328,17 @@
     if (inFlight || document.hidden) return;
     inFlight = true;
     try {
-      const response = await fetch(`/data/investments/stock_trading_portfolio.json?v=${Date.now()}`, {cache: 'no-store'});
+      const stamp = Date.now();
+      const [response, runtimeResponse] = await Promise.all([
+        fetch(`/data/investments/stock_trading_portfolio.json?v=${stamp}`, {cache: 'no-store'}),
+        fetch(`/data/investments/stock_trading_v2_production_state.json?v=${stamp}`, {cache: 'no-store'})
+      ]);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       latestData = await response.json();
-      if (!apply(latestData)) {
-        setTimeout(() => latestData && apply(latestData), 700);
-        setTimeout(() => latestData && apply(latestData), 1800);
+      latestRuntime = runtimeResponse.ok ? await runtimeResponse.json() : null;
+      if (!apply(latestData, latestRuntime)) {
+        setTimeout(() => latestData && apply(latestData, latestRuntime), 700);
+        setTimeout(() => latestData && apply(latestData, latestRuntime), 1800);
       }
     } catch (error) {
       console.warn('Stock Trading quote refresh:', error);

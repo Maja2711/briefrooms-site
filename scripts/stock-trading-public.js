@@ -23,6 +23,9 @@
     ticketDetailsLead: 'Pełne tickety z poziomami SL/TP, ryzykiem i szczegółami pozycji.',
     active: 'Aktywna pozycja', availableSlots: 'Dostępne sloty',
     noActive: 'Brak aktywnej pozycji', noActiveText: 'Brak otwartej pozycji na tym rynku.', cash: 'CASH / wolny slot',
+    pending: 'Kandydat wybrany', pendingShort: 'kandydat oczekuje',
+    pendingText: 'Stock Trading v2 wybrał spółkę, ale airlock czeka na kurs wykonawczy nie starszy niż 2 min.',
+    pendingNotOpen: 'Pozycja nieotwarta — brak legalnego fillu',
     market: 'Rynek', sector: 'Sektor', status: 'Status', noPosition: 'Brak pozycji',
     entry: 'Cena wejścia', last: 'Ostatni kurs', closedMarket: 'rynek zamknięty',
     sl: 'SL', tp: 'TP', entered: 'Wejście', pnl: 'P&L (od wejścia)',
@@ -59,6 +62,9 @@
     ticketDetailsLead: 'Full tickets with SL/TP levels, risk and position details.',
     active: 'Active position', availableSlots: 'Available slots',
     noActive: 'No active position', noActiveText: 'No open position in this market.', cash: 'CASH / free slot',
+    pending: 'Candidate selected', pendingShort: 'candidate waiting',
+    pendingText: 'Stock Trading v2 selected a stock, but the airlock is waiting for an execution quote no older than 2 minutes.',
+    pendingNotOpen: 'Position not open — no legal fill yet',
     market: 'Market', sector: 'Sector', status: 'Status', noPosition: 'No position',
     entry: 'Entry price', last: 'Last price', closedMarket: 'market closed',
     sl: 'SL', tp: 'TP', entered: 'Entry', pnl: 'P&L (since entry)',
@@ -80,7 +86,7 @@
     empty: '—'
   };
 
-  const state = { data: null, period: '30', view: 'overview', selectedMarket: null };
+  const state = { data: null, runtime: null, period: '30', view: 'overview', selectedMarket: null };
   const asNumber = (v) => Number.isFinite(Number(v)) ? Number(v) : null;
   const esc = (v) => String(v ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
   const firstNumber = (obj, keys) => {
@@ -102,6 +108,37 @@
   const closedPositions = market => Array.isArray(marketData(market).closed_positions) ? marketData(market).closed_positions : [];
   const maxPositions = market => Number(marketData(market).max_open_positions || 3);
   const currency = market => market === 'GPW' ? 'PLN' : 'USD';
+  const PENDING_MAX_AGE_MS = 30 * 60_000;
+
+  function latestMarketAudit(market) {
+    const audit = Array.isArray(state.runtime?.audit) ? state.runtime.audit : [];
+    const now = Date.now();
+    for (let i = audit.length - 1; i >= 0; i -= 1) {
+      const row = audit[i];
+      const runAt = new Date(row?.run_at || 0).getTime();
+      if (!Number.isFinite(runAt) || now - runAt < -60_000 || now - runAt > PENDING_MAX_AGE_MS) continue;
+      const actions = Array.isArray(row?.actions)
+        ? row.actions.filter(action => String(action?.market || '').toUpperCase() === market)
+        : [];
+      if (actions.length) return {runAt: row.run_at, actions};
+    }
+    return null;
+  }
+
+  function pendingCandidate(market) {
+    if (openPositions(market).length) return null;
+    const latest = latestMarketAudit(market);
+    if (!latest) return null;
+    const rows = latest.actions
+      .filter(action => action?.action === 'ready_waiting_fresh_quote')
+      .sort((a, b) => {
+        const ar = Number(a?.deep_rank ?? 999999);
+        const br = Number(b?.deep_rank ?? 999999);
+        if (ar !== br) return ar - br;
+        return Number(b?.utility ?? -Infinity) - Number(a?.utility ?? -Infinity);
+      });
+    return rows.length ? {...rows[0], run_at: latest.runAt} : null;
+  }
 
   function money(value, market) {
     const n = asNumber(value);
@@ -211,9 +248,10 @@
     const max = maxPositions(market);
     const free = Math.max(0, max - open);
     const active = state.view === 'details' && state.selectedMarket === market;
+    const pending = pendingCandidate(market);
     return `<button class="str-market-tab ${active ? 'is-active' : ''}" type="button" data-market-jump="${market}" aria-pressed="${active ? 'true' : 'false'}">
       <span class="str-market-tab-title">${marketFlag(market)}<b>${esc(market === 'GPW' ? T.gpw : T.us)}</b></span>
-      <small>${open}/${max} ${esc(T.openPositions)} · ${free} ${esc(T.freeSlots)}</small>
+      <small>${open}/${max} ${esc(T.openPositions)} · ${free} ${esc(T.freeSlots)}${pending ? ` · ${esc(T.pendingShort)}` : ''}</small>
     </button>`;
   }
 
@@ -296,6 +334,54 @@
     </article>`;
   }
 
+  function pendingMarketCard(candidate, market) {
+    const symbol = String(candidate?.symbol || candidate?.ticker || '').toUpperCase();
+    const ticker = String(candidate?.ticker || symbol || '—').toUpperCase().replace(/\.WA$/, '');
+    const name = candidate?.name || ticker;
+    const utility = asNumber(candidate?.utility);
+    const rank = asNumber(candidate?.deep_rank);
+    return `<article class="str-position str-position-empty str-position-pending" data-pending-symbol="${esc(symbol)}">
+      <div class="str-position-head">
+        <span class="str-market-badge">${marketFlag(market)}<b>${market === 'GPW' ? 'GPW' : 'USA'}</b></span>
+        <span class="str-pending-badge"><i></i>${esc(T.pending)}</span>
+      </div>
+      <div class="str-empty-body str-pending-body">
+        <div class="str-empty-visual">${icon('clock')}</div>
+        <div><h3>${esc(ticker)} · ${esc(name)}</h3><p>${esc(T.pendingText)}</p><strong>${esc(T.pendingNotOpen)}</strong></div>
+      </div>
+      <div class="str-empty-meta">
+        <span class="str-meta-pill">${esc(T.market)}: ${market === 'GPW' ? 'GPW' : 'USA'}</span>
+        <span class="str-meta-pill">${esc(T.status)}: ${esc(T.pending)}</span>
+        ${rank !== null ? `<span class="str-meta-pill">Deep rank: ${rank}</span>` : ''}
+        ${utility !== null ? `<span class="str-meta-pill">${esc(T.score)}: ${utility.toLocaleString(locale,{maximumFractionDigits:2})}</span>` : ''}
+      </div>
+    </article>`;
+  }
+
+  function pendingSummaryCard(candidate, market) {
+    const symbol = String(candidate?.symbol || candidate?.ticker || '').toUpperCase();
+    const ticker = String(candidate?.ticker || symbol || '—').toUpperCase().replace(/\.WA$/, '');
+    const name = candidate?.name || ticker;
+    const utility = asNumber(candidate?.utility);
+    return `<article class="str-overview-position str-overview-pending" data-summary-market="${market}" data-pending-symbol="${esc(symbol)}">
+      <div class="str-overview-position-head">
+        <span class="str-market-badge">${marketFlag(market)}<b>${market === 'GPW' ? 'GPW' : 'USA'}</b></span>
+        <span class="str-pending-badge"><i></i>${esc(T.pending)}</span>
+      </div>
+      <div class="str-overview-position-body">
+        ${companyMark(ticker, market)}
+        <div class="str-overview-position-copy">
+          <div class="str-company-name"><h3>${esc(ticker)}</h3><span>${esc(name)}</span></div>
+          <div class="str-pending-summary-copy">
+            <strong>${esc(T.pendingNotOpen)}</strong>
+            <small>${esc(T.pendingText)}</small>
+            ${utility !== null ? `<b>${esc(T.score)}: ${utility.toLocaleString(locale,{maximumFractionDigits:2})}</b>` : ''}
+          </div>
+        </div>
+      </div>
+    </article>`;
+  }
+
   function openPositionSummaryCard(position, market) {
     const entry = firstNumber(position, ['entry','entry_price','open_price']);
     const mark = firstNumber(position, ['last_mark','mark','current_price','close_price']);
@@ -330,20 +416,27 @@
 
   function marketTicketPanel(market) {
     const positions = openPositions(market);
+    const pending = pendingCandidate(market);
     const multiClass = positions.length > 1 ? ' is-expanded-market' : '';
     const detailClass = state.selectedMarket === market ? ' is-detail-market' : '';
     return `<div class="str-market-ticket-panel${multiClass}${detailClass}" id="str-market-${market.toLowerCase()}">
-      ${positions.length ? positions.map((p,i) => openPositionCard(p, market, i)).join('') : emptyMarketCard(market)}
+      ${positions.length ? positions.map((p,i) => openPositionCard(p, market, i)).join('') : pending ? pendingMarketCard(pending, market) : emptyMarketCard(market)}
     </div>`;
   }
 
   function openSectionBody() {
     const allOpen = ['GPW','US'].flatMap(market => openPositions(market).map(position => ({position, market})));
     if (state.view === 'overview') {
-      if (!allOpen.length) {
+      const overviewCards = ['GPW','US'].flatMap(market => {
+        const positions = openPositions(market);
+        if (positions.length) return positions.map(position => openPositionSummaryCard(position, market));
+        const pending = pendingCandidate(market);
+        return pending ? [pendingSummaryCard(pending, market)] : [];
+      });
+      if (!overviewCards.length) {
         return `<div class="str-position-overview-grid">${emptyMarketCard('GPW')}${emptyMarketCard('US')}</div>`;
       }
-      return `<div class="str-position-overview-grid">${allOpen.map(({position,market}) => openPositionSummaryCard(position, market)).join('')}</div>`;
+      return `<div class="str-position-overview-grid">${overviewCards.join('')}</div>`;
     }
     const markets = state.selectedMarket ? [state.selectedMarket] : ['GPW','US'];
     return `<div class="str-open-grid str-open-grid-details">${markets.map(marketTicketPanel).join('')}</div>`;
@@ -576,9 +669,14 @@
   async function load() {
     root.innerHTML = `<div class="str-loading"><span></span><p>${esc(T.loading)}</p></div>`;
     try {
-      const res = await fetch(`/data/investments/stock_trading_portfolio.json?v=${Date.now()}`, {cache:'no-store'});
+      const stamp = Date.now();
+      const [res, runtimeRes] = await Promise.all([
+        fetch(`/data/investments/stock_trading_portfolio.json?v=${stamp}`, {cache:'no-store'}),
+        fetch(`/data/investments/stock_trading_v2_production_state.json?v=${stamp}`, {cache:'no-store'})
+      ]);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       state.data = await res.json();
+      state.runtime = runtimeRes.ok ? await runtimeRes.json() : null;
       render();
     } catch (err) {
       console.error('Stock Trading Room:', err);
