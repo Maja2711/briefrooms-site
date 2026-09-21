@@ -73,8 +73,25 @@ class StockTradingQuoteEnricherTests(unittest.TestCase):
         self.assertEqual('quote_enriched', audits[0]['action'])
 
     def test_stooq_gpw_symbol_is_bare_ticker(self):
-        self.assertEqual('lpp', quotes._stooq_symbol('LPP.WA', 'GPW'))
-        self.assertEqual('pge', quotes._stooq_symbol('PGE', 'GPW'))
+        self.assertEqual('LPP', quotes._stooq_symbol('LPP.WA', 'GPW'))
+        self.assertEqual('PGE', quotes._stooq_symbol('PGE', 'GPW'))
+
+    def test_stooq_gpw_uses_polish_endpoint_and_measured_timestamp(self):
+        now = datetime(2026, 9, 18, 10, 0, tzinfo=UTC)
+        csv_body = (
+            "Symbol,Date,Time,Open,High,Low,Close,Volume\n"
+            "ASB,2026-09-18,11:59:30,172,174,171,173,1000\n"
+        )
+        with patch.object(quotes, '_request_text', return_value=csv_body) as request_text:
+            result = quotes._stooq_quote('ASB.WA', 'GPW', now_utc=now)
+        requested_url = request_text.call_args.args[0]
+        self.assertTrue(requested_url.startswith('https://stooq.pl/q/l/?'))
+        self.assertIn('s=ASB', requested_url)
+        self.assertEqual('Stooq.pl current quote', result['provider'])
+        self.assertEqual(173.0, result['price'])
+        self.assertEqual(30, result['capture_age_seconds'])
+        self.assertTrue(result['is_realtime'])
+        self.assertEqual(requested_url, result['source_url'])
 
     def test_execution_quote_uses_fresh_independent_fallback(self):
         now = datetime(2026, 9, 18, 10, 0, tzinfo=UTC)
@@ -92,13 +109,13 @@ class StockTradingQuoteEnricherTests(unittest.TestCase):
             'market_state': 'REGULAR',
             'observed_at': '2026-09-18T11:59:30+02:00',
             'received_at': '2026-09-18T10:00:00+00:00',
-            'provider': 'Stooq current quote',
+            'provider': 'Stooq.pl current quote',
             'delay_minutes': 0.5,
             'capture_age_seconds': 30,
         }
         with patch.object(quotes, 'quote_for_symbol', return_value=stale_yahoo), patch.object(quotes, '_stooq_quote', return_value=fresh_stooq):
             result = quotes.execution_quote_for_symbol('LPP.WA', 'GPW', now_utc=now, maximum_age_seconds=300)
-        self.assertEqual('Stooq current quote', result['provider'])
+        self.assertEqual('Stooq.pl current quote', result['provider'])
         self.assertEqual(101.0, result['price'])
 
     def test_execution_quote_refuses_stale_fill(self):
