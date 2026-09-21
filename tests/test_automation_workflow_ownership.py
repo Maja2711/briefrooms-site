@@ -142,6 +142,25 @@ class AutomationWorkflowOwnershipTests(unittest.TestCase):
             with self.subTest(workflow_name=workflow_name):
                 self.assertIn(f'      - "{workflow_name}"', deploy)
 
+    def test_weekly_execution_workflows_are_validation_only_on_push(self) -> None:
+        sources = workflow_sources()
+        weekly = sources["investments-weekly.yml"]
+        wes = sources["investments-wes.yml"]
+        risk = sources["investments-exposure-watch.yml"]
+
+        self.assertIn("validate-weekly-push:", weekly)
+        self.assertIn("if: github.event_name == 'push'", weekly)
+        self.assertIn("maintain-weekly-positions:", weekly)
+        self.assertIn("if: github.event_name != 'push'", weekly)
+
+        self.assertIn("validate-wes-push:", wes)
+        self.assertIn("wes-cycle:", wes)
+        self.assertIn("github.event_name != 'push'", wes)
+
+        self.assertIn("validate-risk-push:", risk)
+        self.assertIn("monitor-governed-exposure:", risk)
+        self.assertIn("if: github.event_name != 'push'", risk)
+
     def test_weekly_schedule_runs_full_lifecycle_and_blocks_weekend_exposure(self) -> None:
         weekly = workflow_sources()["investments-weekly.yml"]
         self.assertIn('default: "auto"', weekly)
