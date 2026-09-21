@@ -242,7 +242,8 @@
         var identity = storyIdentity(story);
         if (!identity || identities.has(identity) || context.failedStoryIds.has(identity)) continue;
         if (!isFresh(story.published_at, nowMs)) continue;
-        if (story.homepage_first_seen_at && !isFresh(story.homepage_first_seen_at, nowMs)) continue;
+        var firstSeen = story.news_first_seen_at || story.homepage_first_seen_at;
+        if (firstSeen && !isFresh(firstSeen, nowMs)) continue;
 
         var card = makeImageCard(context.document, story, context.lang, nowMs);
         if (!card) continue;
