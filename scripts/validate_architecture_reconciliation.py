@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Semantic Architecture Reconciliation 1.8 guard.
+"""Semantic Architecture Reconciliation 1.9 guard.
 
 Checks runtime facts that a version-only documentation check cannot protect:
 active phase/status, branch authority, Trigger wiring, WES NO_TRADE, and
@@ -97,10 +97,10 @@ if weekly_policy.get("continuous_position_required") is not False:
 if ((weekly_policy.get("no_trade") or {}).get("enabled")) is not True:
     errors.append("WES NO_TRADE gate must remain enabled")
 directional = weekly_policy.get("directional_admission") or {}
-if directional.get("version") != "WES-1.1.0":
-    errors.append("WES directional admission version must be WES-1.1.0")
+if directional.get("version") != "WES-1.2.0":
+    errors.append("WES directional admission version must be WES-1.2.0")
 if directional.get("require_for_all_new_entries") is not True:
-    errors.append("WES 1.1 must require directional admission for all new entries")
+    errors.append("WES 1.2 must require directional admission for all new entries")
 cc = ((weekly_policy.get("strategy_tournament") or {}).get("champion_challenger") or {})
 if "inverse_v2" not in set(cc.get("challenger_shadow_methods") or []):
     errors.append("WES inverse_v2 must remain Challenger/Shadow")
@@ -108,6 +108,15 @@ if "inverse_v2" in set(cc.get("execution_methods") or []):
     errors.append("WES inverse_v2 regained execution authority without promotion")
 if cc.get("challenger_execution_enabled") is not False:
     errors.append("WES Challenger execution must remain disabled")
+entry_engine = weekly_policy.get("entry_price_engine") or {}
+if entry_engine.get("version") != "WES-1.2.0":
+    errors.append("WES entry price engine version must be WES-1.2.0")
+if entry_engine.get("require_for_all_new_entries") is not True:
+    errors.append("WES 1.2 must require a frozen entry price plan for all new entries")
+if entry_engine.get("order_style") != "price_improving_limit_only":
+    errors.append("WES 1.2 entry execution must remain price-improving limit only")
+if entry_engine.get("target_refresh_policy") != "keep_frozen_until_filled_expired_or_thesis_changes":
+    errors.append("WES 1.2 target must not chase the market")
 if auto_cfg.get("automatic_materialization_enabled") is not False:
     errors.append("legacy Autonomous Policy Loop regained Stock Trading materialization authority")
 if auto_cfg.get("production_authority") != "RETIRED_TO_STOCK_TRADING_COMPONENT_PROMOTION":
@@ -135,15 +144,16 @@ require(legacy_closed_loop, "contents: read", "legacy closed loop")
 forbid(legacy_closed_loop, "Apply statistically proven autonomous policy calibration", "legacy closed loop")
 forbid(legacy_closed_loop, "git push origin HEAD:main", "legacy closed loop")
 
-for token in ("**Wersja mapy:** 1.8", "IN-08", "EP-09", "LE-10", "PROBATIONARY_CONTROL", "NO_TRADE", "FULL", "WES 1.1.0"):
+for token in ("**Wersja mapy:** 1.9", "IN-08", "EP-09", "LE-10", "PROBATIONARY_CONTROL", "NO_TRADE", "FULL", "WES 1.2.0"):
     require(pl_map, token, "PL Architecture Map")
-for token in ("**Map version:** 1.8", "IN-08", "EP-09", "LE-10", "PROBATIONARY_CONTROL", "NO_TRADE", "FULL", "WES 1.1.0"):
+for token in ("**Map version:** 1.9", "IN-08", "EP-09", "LE-10", "PROBATIONARY_CONTROL", "NO_TRADE", "FULL", "WES 1.2.0"):
     require(en_map, token, "EN Architecture Map")
 require(stock_doc, "PRODUCTION CHAMPION — FULL", "Stock Trading architecture")
 require(stock_doc, "Market Relationship / Trigger", "Stock Trading architecture")
 require(stock_doc, "stock-trading-v2", "Stock Trading branch authority")
 require(weekly_doc, "NO_TRADE", "Weekly methodology")
-require(weekly_doc, "WES 1.1", "Weekly methodology")
+require(weekly_doc, "WES 1.2", "Weekly methodology")
+require(weekly_doc, "Entry Price", "Weekly methodology")
 require(weekly_doc, "inverse_v2", "Weekly methodology")
 require(gse_doc, "Active v2 runtime", "GSE architecture")
 require(aris_doc, "research_shadow", "ARIS shadow architecture")
@@ -170,9 +180,9 @@ for label, main_text, research_text in (
         errors.append(f"default-branch {label} drifted from research-branch runtime definition")
 
 if errors:
-    print("Architecture Reconciliation 1.8 FAILED:", file=sys.stderr)
+    print("Architecture Reconciliation 1.9 FAILED:", file=sys.stderr)
     for error in errors:
         print(f"- {error}", file=sys.stderr)
     raise SystemExit(1)
 
-print("Architecture Reconciliation 1.8 passed.")
+print("Architecture Reconciliation 1.9 passed.")
