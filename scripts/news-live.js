@@ -3,10 +3,10 @@
 
   const lang = document.documentElement.lang === 'en' ? 'en' : 'pl';
   const feedUrl = `/data/news/${lang}.json`;
-  const HOME_MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
+  const HOME_MAX_AGE_MS = 24 * 60 * 60 * 1000;
   const FUTURE_TOLERANCE_MS = 10 * 60 * 1000;
   const HOME_LIMIT = 12;
-  const HOME_POLICY = 'max-72h-first-display-v1';
+  const HOME_POLICY = 'max-24h-public-news-display-v1';
   const HOME_IMAGE_POLICY = 'https-image-required-v1';
   const text = lang === 'pl' ? {
     source: 'Źródło',
@@ -54,10 +54,15 @@
     return age >= -FUTURE_TOLERANCE_MS && age <= HOME_MAX_AGE_MS;
   }
 
-  function isFreshHomepageStory(story, now = Date.now()) {
+  function isFreshNewsStory(story, now = Date.now()) {
     if (!story || !isFreshTimestamp(story.published_at, now)) return false;
-    if (!story.homepage_first_seen_at) return true;
-    return isFreshTimestamp(story.homepage_first_seen_at, now);
+    const firstSeen = story.news_first_seen_at || story.homepage_first_seen_at;
+    if (!firstSeen) return true;
+    return isFreshTimestamp(firstSeen, now);
+  }
+
+  function isFreshHomepageStory(story, now = Date.now()) {
+    return isFreshNewsStory(story, now);
   }
 
   function normalizedCategory(value) {
@@ -105,9 +110,16 @@
 
   function newsCard(story) {
     const link = safeHttp(story.link);
-    const image = safeHttp(story.image);
-    if (!link || !image || !story.title) return '';
-    return `<li><a class="news-main-link" href="${esc(link)}" target="_blank" rel="noopener noreferrer external"><span class="news-thumb has-image"><img src="${esc(image)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"></span><span class="news-title-wrap"><span class="news-text">${esc(story.title)}</span><span class="source-line">${text.source}: ${esc(story.source || '')}</span></span></a></li>`;
+    const image = safeImage(story.image);
+    const publishedAt = timestamp(story.published_at) ? String(story.published_at) : '';
+    const firstSeenAt = timestamp(story.news_first_seen_at) ? String(story.news_first_seen_at) : '';
+    const expiresAt = timestamp(story.news_expires_at) ? String(story.news_expires_at) : '';
+    if (!link || !image || !story.title || !publishedAt) return '';
+    const freshnessAttrs =
+      ` data-news-published-at="${esc(publishedAt)}"` +
+      (firstSeenAt ? ` data-news-first-seen-at="${esc(firstSeenAt)}"` : '') +
+      (expiresAt ? ` data-news-expires-at="${esc(expiresAt)}"` : '');
+    return `<li><a class="news-main-link" href="${esc(link)}"${freshnessAttrs} target="_blank" rel="noopener noreferrer external"><span class="news-thumb has-image"><img src="${esc(image)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"></span><span class="news-title-wrap"><span class="news-text">${esc(story.title)}</span><span class="source-line">${text.source}: ${esc(story.source || '')}</span></span></a></li>`;
   }
 
   function homeCard(story) {
@@ -155,16 +167,40 @@
 
   function renderNewsPage(data) {
     if (!document.body.matches('[data-page="news"]')) return false;
+    const now = Date.now();
     let changed = false;
     Object.entries(data.sections || {}).forEach(([sectionId, stories]) => {
       const list = document.querySelector(`section#${CSS.escape(sectionId)} ul.news`);
       if (!list || !Array.isArray(stories)) return;
-      const cards = stories.map(newsCard).filter(Boolean).join('');
-      if (!cards) return;
+      const cards = stories
+        .filter(story => isFreshNewsStory(story, now))
+        .map(newsCard)
+        .filter(Boolean)
+        .join('');
       list.innerHTML = cards;
       changed = true;
     });
     return changed;
+  }
+
+  function pruneStaticNewsPage(now = Date.now()) {
+    if (!document.body.matches('[data-page="news"]')) return;
+    document.querySelectorAll('section.card ul.news li').forEach(item => {
+      const link = item.querySelector('a.news-main-link');
+      if (!link) {
+        item.remove();
+        return;
+      }
+      const sourceFresh = isFreshTimestamp(link.dataset.newsPublishedAt, now);
+      const firstSeen = link.dataset.newsFirstSeenAt;
+      const exposureFresh = !firstSeen || isFreshTimestamp(firstSeen, now);
+      const expiresAt = timestamp(link.dataset.newsExpiresAt);
+      const notExpired = !expiresAt || now <= expiresAt;
+      const image = link.querySelector('.news-thumb.has-image img');
+      const imageEligible = Boolean(image && safeImage(image.getAttribute('src')));
+      if (sourceFresh && exposureFresh && notExpired && imageEligible) return;
+      item.remove();
+    });
   }
 
   function pruneStaticHomepage(now = Date.now()) {
@@ -225,15 +261,17 @@
       document.documentElement.dataset.newsLiveMarker = String(data.marker || '');
       return true;
     } catch (error) {
+      pruneStaticNewsPage();
       pruneStaticHomepage();
       removeLegacyHealthBanner();
-      console.warn('BriefRooms live news refresh failed; homepage keeps only fresh stories with HTTPS images.', error);
+      console.warn('BriefRooms live news refresh failed; public news keeps only <=24h stories with HTTPS images.', error);
       return false;
     }
   }
 
   function start() {
     removeLegacyHealthBanner();
+    pruneStaticNewsPage();
     pruneStaticHomepage();
     refresh();
     setInterval(refresh, 15 * 60 * 1000);
