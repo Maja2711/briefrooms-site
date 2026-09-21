@@ -124,7 +124,7 @@ jobs:
           python -m unittest tests.test_homepage_static -v
 
           for path in pl/aktualnosci.html en/news.html pl/index.html en/index.html; do
-            grep -F '/scripts/news-live.js?v=7' "$path"
+            grep -F '/scripts/news-live.js?v=8' "$path"
             grep -F "briefrooms-live-news-marker\" content=\"${marker}" "$path"
           done
 
@@ -237,15 +237,25 @@ jobs:
                       if claim_policy.get('contradiction_detection_version') != 'contradiction-detection-v1':
                           last.append(f'{path}: contradiction detection missing')
                       homepage_policy = payload.get('homepage_policy', {})
-                      if homepage_policy.get('version') != 'max-72h-first-display-v1':
-                          last.append(f'{path}: homepage 72h first-display policy missing')
+                      if homepage_policy.get('version') != 'max-24h-public-news-display-v1':
+                          last.append(f'{path}: global 24h public-news policy missing')
+                      if homepage_policy.get('scope') != 'all_public_news_surfaces':
+                          last.append(f'{path}: 24h policy is not global')
+                      if homepage_policy.get('max_display_hours') != 24:
+                          last.append(f'{path}: public-news display cap is not 24h')
+                      if homepage_policy.get('also_requires_source_age_hours_lte') != 24:
+                          last.append(f'{path}: public-news source-age cap is not 24h')
                       freshness_policy = payload.get('health', {}).get('homepage_freshness', {})
                       if homepage_policy.get('post_freshness_selection_version') != 'post-freshness-editorial-v2':
                           last.append(f'{path}: post-freshness editorial selector missing')
                       if freshness_policy.get('post_freshness_selection_version') != 'post-freshness-editorial-v2':
                           last.append(f'{path}: post-freshness homepage diagnostics missing')
-                      if homepage_policy.get('target_story_count') != 12 or homepage_policy.get('minimum_story_count') != 12:
-                          last.append(f'{path}: homepage twelve-story contract missing')
+                      if homepage_policy.get('target_story_count') != 12:
+                          last.append(f'{path}: homepage twelve-story target missing')
+                      if homepage_policy.get('minimum_story_count') != 0:
+                          last.append(f'{path}: freshness-first underfill minimum mismatch')
+                      if homepage_policy.get('underfill_allowed_when_needed_for_freshness') is not True:
+                          last.append(f'{path}: freshness-first underfill policy missing')
                       if homepage_policy.get('runtime_backfill_policy') != 'approved_home_reserve_only':
                           last.append(f'{path}: homepage runtime backfill is not reserve-only')
                       if homepage_policy.get('reserve_story_limit') != 12:
@@ -254,8 +264,8 @@ jobs:
                           last.append(f'{path}: primary bulletin freshness policy missing')
                       home = payload.get('home') if isinstance(payload.get('home'), list) else []
                       reserve = payload.get('home_reserve') if isinstance(payload.get('home_reserve'), list) else []
-                      if len(home) != 12:
-                          last.append(f'{path}: homepage must contain exactly 12 stories, got {len(home)}')
+                      if len(home) > 12:
+                          last.append(f'{path}: homepage exceeds 12 stories, got {len(home)}')
                       home_lanes = [str(item.get('homepage_lane') or '') for item in home]
                       lane_rank = {lane: index for index, lane in enumerate(expected_priority)}
                       if any(lane not in lane_rank for lane in home_lanes):
@@ -295,14 +305,33 @@ jobs:
                               )
                               break
                           approved.append(story)
-                      if any(len(items) != 9 for items in payload.get('sections', {}).values()):
-                          last.append(f'{path}: section does not contain exactly 9 stories')
+                      if any(len(items) > 9 for items in payload.get('sections', {}).values()):
+                          last.append(f'{path}: section exceeds 9 stories')
                       for section_id, items in payload.get('sections', {}).items():
                           counts = {}
                           event_ids = set()
                           for story in items:
                               source = str(story.get('source') or 'unknown')
                               counts[source] = counts.get(source, 0) + 1
+                              published_raw = story.get('published_at')
+                              first_seen_raw = story.get('news_first_seen_at')
+                              expires_raw = story.get('news_expires_at')
+                              if not published_raw or not first_seen_raw or not expires_raw:
+                                  last.append(f'{path}/{section_id}: 24h freshness metadata missing')
+                                  break
+                              published = datetime.fromisoformat(str(published_raw).replace('Z', '+00:00'))
+                              first_seen = datetime.fromisoformat(str(first_seen_raw).replace('Z', '+00:00'))
+                              expires = datetime.fromisoformat(str(expires_raw).replace('Z', '+00:00'))
+                              check_now = datetime.now(timezone.utc)
+                              if check_now - published > timedelta(hours=24):
+                                  last.append(f'{path}/{section_id}: source story exceeds 24h')
+                                  break
+                              if check_now - first_seen > timedelta(hours=24):
+                                  last.append(f'{path}/{section_id}: displayed story exceeds 24h')
+                                  break
+                              if expires != first_seen + timedelta(hours=24):
+                                  last.append(f'{path}/{section_id}: invalid 24h expiry')
+                                  break
                               if story.get('publisher_source') != story.get('source'):
                                   last.append(f'{path}/{section_id}: publisher provenance mismatch')
                                   break
@@ -361,13 +390,23 @@ jobs:
                               last.append(f'{path}: Russia-Ukraine-war diagnostics mismatch')
                       now = datetime.now(timezone.utc)
                       for story in home + reserve:
-                          first_seen_raw = story.get('homepage_first_seen_at')
-                          if not first_seen_raw:
-                              last.append(f'{path}: homepage/reserve first-seen timestamp missing')
+                          published_raw = story.get('published_at')
+                          first_seen_raw = story.get('news_first_seen_at')
+                          expires_raw = story.get('news_expires_at')
+                          if not published_raw or not first_seen_raw or not expires_raw:
+                              last.append(f'{path}: homepage/reserve 24h freshness metadata missing')
                               break
-                          first_seen = datetime.fromisoformat(first_seen_raw.replace('Z', '+00:00'))
-                          if now - first_seen > timedelta(days=3):
-                              last.append(f'{path}: homepage/reserve story exceeds 72h exposure cap')
+                          published = datetime.fromisoformat(str(published_raw).replace('Z', '+00:00'))
+                          first_seen = datetime.fromisoformat(str(first_seen_raw).replace('Z', '+00:00'))
+                          expires = datetime.fromisoformat(str(expires_raw).replace('Z', '+00:00'))
+                          if now - published > timedelta(hours=24):
+                              last.append(f'{path}: homepage/reserve source story exceeds 24h')
+                              break
+                          if now - first_seen > timedelta(hours=24):
+                              last.append(f'{path}: homepage/reserve story exceeds 24h display cap')
+                              break
+                          if expires != first_seen + timedelta(hours=24):
+                              last.append(f'{path}: homepage/reserve invalid 24h expiry')
                               break
                   except Exception as exc:
                       last.append(f'{path}: {exc}')
@@ -376,7 +415,7 @@ jobs:
                       req = urllib.request.Request(f'{base}{path}?v={marker}-{attempt}', headers=headers)
                       with urllib.request.urlopen(req, timeout=15) as response:
                           body = response.read().decode('utf-8', 'replace')
-                      if '/scripts/news-live.js?v=7' not in body:
+                      if '/scripts/news-live.js?v=8' not in body:
                           last.append(f'{path}: runtime v7 missing')
                       if path.endswith('/pl/index.html') or path.endswith('/en/index.html'):
                           if '/scripts/home-card-floor.js?v=4' not in body:
