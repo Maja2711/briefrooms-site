@@ -494,51 +494,21 @@ def _row_value(row: Any, name: str) -> Optional[float]:
 
 
 def review_open_positions(path: Optional[Path] = None) -> bool:
-    path = path or current_week_path()
-    week = read_json(path, {})
-    if not week:
-        return False
-    now = legacy.now_local(); changed = False
-    for item in week.get("instruments", []):
-        if str(item.get("direction")) not in {"long", "short"} or sf(item.get("entry_price")) is None or sf(item.get("exit_price")) is not None:
-            continue
-        plan = item.get("risk_plan") if isinstance(item.get("risk_plan"), dict) else {}
-        sl, tp = sf(plan.get("stop_loss_price")), sf(plan.get("take_profit_price"))
-        if sl is None or tp is None:
-            continue
-        start = parse_dt(item.get("last_risk_review_at")) or parse_dt(item.get("entry_captured_at"))
-        if start is None or start >= now:
-            continue
-        symbol = _item_yahoo_symbol(item)
-        df = intraday_bars(symbol, start, now)
-        if df is None:
-            continue
-        try:
-            df = df[(df.index > start) & (df.index <= now)]
-        except Exception:
-            continue
-        side = str(item.get("direction")); hit: Optional[Tuple[str, float, datetime]] = None
-        for ts, row in df.iterrows():
-            high, low = _row_value(row, "High"), _row_value(row, "Low")
-            if high is None or low is None:
-                continue
-            sl_hit, tp_hit = ((low <= sl, high >= tp) if side == "long" else (high >= sl, low <= tp))
-            if sl_hit and tp_hit:
-                hit = ("stop_loss", sl, ts.to_pydatetime().astimezone(TZ)); break
-            if sl_hit:
-                hit = ("stop_loss", sl, ts.to_pydatetime().astimezone(TZ)); break
-            if tp_hit:
-                hit = ("take_profit", tp, ts.to_pydatetime().astimezone(TZ)); break
-        item["last_risk_review_at"] = now.isoformat(timespec="seconds"); changed = True
-        if hit:
-            reason, level, ts = hit
-            item["exit_price"] = level; item["exit_captured_at"] = ts.isoformat(timespec="seconds"); item["exit_source"] = f"Yahoo Finance:{symbol}:5m:OHLC_threshold"
-            item["exit_reason"] = reason; item["exit_execution_model"] = "planned_level_first_intraday_bar_conservative"; item["risk_status"] = "stop_loss_hit" if reason == "stop_loss" else "take_profit_hit"; item["trade_status"] = "closed"
-            mark_exposure_closed(item)
-            set_result(item, level)
-    if changed:
-        write_json(path, week)
-    return changed
+    """Run the single canonical Weekly/WES SL/TP monitor.
+
+    Risk thresholds are frozen before the outcome. The monitor may discover a
+    previously missed touch later from authoritative intraday evidence, but it
+    never invents a new threshold or rewrites the entry decision.
+    """
+    import audit_intraday_risk_exits as risk_monitor
+
+    target = path or current_week_path()
+    report = risk_monitor.audit(
+        path=target,
+        now=legacy.now_local(),
+        persist_report="never",
+    )
+    return bool(report.get("changed"))
 
 
 def close_due_weeks() -> bool:
