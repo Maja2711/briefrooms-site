@@ -12,6 +12,10 @@ on:
         options: [auto, forecast, close, ensure-exposure, render]
   schedule:
     - cron: "17 * * * *"
+    # GitHub scheduled runs can be delayed. Add multiple Monday activation
+    # opportunities across a UTC range that safely covers 08:00-10:00 Warsaw
+    # in both CET and CEST without changing the execution decision timestamp.
+    - cron: "4,19,34,49 5-10 * * 1"
   push:
     branches: [main]
     paths:
@@ -35,6 +39,7 @@ on:
       - "tests/test_verify_weekly_close_deadline.py"
       - "tests/test_investments_weekly_public.js"
       - "tests/test_audit_weekly_integrity.py"
+      - "tests/test_audit_weekly_model_runtime.py"
       - "tests/test_automation_workflow_ownership.py"
       - "tests/test_no_retroactive_execution.py"
       - "data/investments/public_quarantine.json"
@@ -85,7 +90,7 @@ jobs:
           python -m unittest \
             tests/test_investments_weekly_v4.py tests/test_investments_weekly_v5.py tests/test_investments_weekly_macro.py \
             tests/test_daily_review_completeness.py tests/test_audit_weekly_integrity.py tests/test_verify_weekly_close_deadline.py \
-            tests.test_wes_lifecycle_expired_no_entry tests.test_no_retroactive_execution \
+            tests.test_audit_weekly_model_runtime tests.test_wes_lifecycle_expired_no_entry tests.test_no_retroactive_execution \
             tests.test_automation_workflow_ownership.AutomationWorkflowOwnershipTests.test_weekly_schedule_runs_full_lifecycle_and_blocks_weekend_exposure \
             tests.test_automation_workflow_ownership.AutomationWorkflowOwnershipTests.test_weekly_settlement_paths_are_independent_queued_and_fail_closed
       - name: Replace current-week placeholder with frozen model output
