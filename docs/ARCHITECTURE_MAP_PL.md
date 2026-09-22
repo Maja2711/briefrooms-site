@@ -208,6 +208,8 @@ Główne implementacje: `stock_trading_v2_*`, `stock_trading_component_*`, `stoc
 
 **Polityka execution/paper TR-04:** nowe wejścia pozostają prospektywne i tylko w sesji `REGULAR`. US zachowuje maksymalny wiek kursu wykonawczego 2 minuty. GPW, jako paper trading, dopuszcza obserwację Yahoo lub innego kwalifikowanego providera z bieżącej sesji do 20 minut i zapisuje fill jako `DELAYED_PAPER`; starszy kurs, kurs po zamknięciu sesji lub research reference price nie może otworzyć pozycji. Zmiana nie daje authority innym rynkom ani instrumentom.
 
+**Polityka realizacji zysków TR-04:** produkcja używa `LET_WINNERS_RUN_THESIS_CONTROLLED`. `target` jest checkpointem zysku, a nie bezwarunkowym take-profit. Jeżeli checkpoint zostaje osiągnięty i thesis score nadal przekracza próg profit-runnera, pozycja pozostaje otwarta, SL/risk jest ratchetowany, a kolejny target przesuwany ponad bieżący high. Nie ma stałego limitu upside; pozycję nadal mogą zamknąć SL, invalidacja thesis albo istotny reversal momentum. Dzięki temu silny winner nie jest automatycznie ucinany przy kilku lub kilkunastu procentach zysku.
+
 ### Stock Trading v2 — branch/runtime authority
 
 ```text
