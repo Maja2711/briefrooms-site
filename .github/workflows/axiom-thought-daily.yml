@@ -2,6 +2,13 @@ name: Morning AXIOM Daily
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/axiom-thought-daily.yml"
+      - "scripts/publish_axiom_thought.py"
+      - "scripts/axiom_thought_guard.py"
+      - "data/home/axiom-thought-reserve.json"
   schedule:
     # Multiple independent recovery windows. Publisher is idempotent by Warsaw date.
     - cron: "0 4 * * *"
