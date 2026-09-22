@@ -1,7 +1,7 @@
 # Kanoniczna mapa architektury BriefRooms — PL
 
-**Wersja mapy:** 1.10  
-**Stan na:** 2026-09-21  
+**Wersja mapy:** 1.11  
+**Stan na:** 2026-09-22  
 **Bazowy commit `main`:** `b716beca850bc8514c0975f005c7a8d1d5dcd14d`  
 **Repozytorium:** `Maja2711/briefrooms-site`
 
@@ -276,10 +276,10 @@ Nie każdy silnik implementuje dziś każdy krok w identyczny sposób. Architect
 | `CT-02` | AI Outlook | Governed daily outlook, provider/freshness/status/metrics | `ai_outlook_engine.py` + `ai-outlook-*` workflows/data |
 | `CT-03` | AI Tournament | Niezależna warstwa porównania/submission/rounds/public UI | `ai_tournament_engine.py`, intake/bootstrap/UI modules |
 | `CT-04` | AXIOM Thought | Publikacja myśli/motta z guardem jakości | `axiom_thought_guard.py`, `publish_axiom_thought.py` |
-| `CT-05` | Public projections / UI | Sanitized JSON/JS -> PL/EN pages | liczne `*_public_projection.py`, JS renderers, `pl/`, `en/` |
+| `CT-05` | Public projections / UI | Sanitized JSON/JS -> PL/EN pages, w tym read-only BriefRooms Decision LAB | liczne `*_public_projection.py`, `scripts/decision_lab_public_projection.py`, JS renderers, `pl/`, `en/` |
 | `CT-06` | Home / editorial | Home brief, market signal, Hot X, editorial rules | home build pipelines, `briefrooms_editorial_rules.md`, content contracts |
 
-Warstwa publikacyjna **nie może stać się ukrytym źródłem authority dla silnika decyzyjnego**. Publiczny renderer pokazuje stan; nie powinien tworzyć lub retroaktywnie zmieniać decyzji ekonomicznej.
+Warstwa publikacyjna **nie może stać się ukrytym źródłem authority dla silnika decyzyjnego**. Publiczny renderer pokazuje stan; nie powinien tworzyć lub retroaktywnie zmieniać decyzji ekonomicznej.\n\n**BriefRooms Decision LAB** jest publiczną projekcją research/shadow istniejącego `EP-05/EP-06/EP-07` Belief Core, a nie nowym silnikiem decyzyjnym. Pokazuje prospektywnie zamrożone prawdopodobieństwa, confidence, outcomes i metryki kalibracji z prywatnego artifact state. Nie ma execution authority, production write authority ani automatic tuning. Rozwój modelu odbywa się jako challenger zgodnie z `LE-05/LE-06/LE-09`; wpływ na `TR-*` wymaga osobnej promocji.
 
 ### CT-01 — twardy invariant świeżości publicznych wiadomości
 
