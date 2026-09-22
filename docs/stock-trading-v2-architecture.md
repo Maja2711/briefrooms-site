@@ -94,6 +94,7 @@ Stock Trading v2 intentionally uses two branches with different authority:
 - `main` is the sole production/governance authority. It owns canonical portfolio state, production policy, Champion manifests, production promotion and execution/paper-control paths.
 - `stock-trading-v2` is a research/evidence runtime branch. It owns dynamic discovery research state, Market Relationship / Trigger observations, targeted Deep BELIEF proxy research, prospective outcomes, regret, Challenger generation and holdout evaluation.
 - Scheduled workflow definitions live on the default branch `main`, but research jobs explicitly check out `stock-trading-v2`. This makes the default branch the orchestration authority while preserving research-state isolation.
+- After a successful active-market Continuous Discovery run, the workflow explicitly dispatches `stock-trading-v2-production.yml` on `main`. The independent liveness watchdog and the production schedule remain recovery paths; only the production bridge can mutate the canonical portfolio. A separate `workflow_run` trigger is intentionally not used, avoiding duplicate production runs after the same discovery cycle.
 - Research workflows may read frozen production snapshots from `main`; they may not directly push production mutations to `main`.
 - A formal Challenger PASS is evidence only. Production admission is owned by the main-branch `Stock Trading Component Promotion` workflow, which performs production-owned candidate intake, exact binding, current-Champion checks, health checks and rollback.
 

@@ -16,6 +16,20 @@ PAGES = {
     "en": "/en/investing/stock-trading.html",
 }
 VIEWPORTS = [(1600, 900), (1366, 768)]
+PORTFOLIO_PATH = ROOT / "data" / "investments" / "stock_trading_portfolio.json"
+
+
+def canonical_open_symbols(market: str) -> list[str]:
+    payload = json.loads(PORTFOLIO_PATH.read_text(encoding="utf-8"))
+    positions = ((payload.get("markets") or {}).get(market) or {}).get("open_positions") or []
+    symbols: list[str] = []
+    for position in positions:
+        if not isinstance(position, dict) or str(position.get("status") or "OPEN").upper() != "OPEN":
+            continue
+        symbol = str(position.get("ticker") or position.get("symbol") or "").upper().removesuffix(".WA")
+        if symbol:
+            symbols.append(symbol)
+    return symbols
 
 
 def visible_count(page, selector: str) -> int:
@@ -56,6 +70,8 @@ def run() -> int:
     SHOT_DIR.mkdir(parents=True, exist_ok=True)
     rows: list[dict] = []
     failures: list[str] = []
+    expected_us_symbols = canonical_open_symbols("US")
+    expected_us_count = len(expected_us_symbols)
     with sync_playwright() as pw:
         browser = pw.chromium.launch()
         try:
@@ -93,16 +109,18 @@ def run() -> int:
                         us_overview = page.locator('.str-overview-position[data-summary-market="US"]').count()
                         if overview_total != overview_visible:
                             failures.append(f"{label}: overview hides {overview_total-overview_visible} open positions")
-                        if us_overview != 3:
-                            failures.append(f"{label}: expected 3 visible US overview positions, got {us_overview}")
-
-                        mpc = page.locator('.str-overview-position[data-summary-market="US"]').filter(has_text="MPC")
-                        if mpc.count() != 1:
-                            failures.append(f"{label}: MPC overview card missing")
-                        else:
-                            mpc_text = mpc.inner_text()
-                            if "5" not in mpc_text or "000" not in mpc_text:
-                                failures.append(f"{label}: MPC overview does not show 5K notional")
+                        if us_overview < expected_us_count:
+                            failures.append(
+                                f"{label}: expected at least {expected_us_count} visible canonical US positions, got {us_overview}"
+                            )
+                        for symbol in expected_us_symbols:
+                            card = page.locator('.str-overview-position[data-summary-market="US"]').filter(has_text=symbol)
+                            if card.count() != 1:
+                                failures.append(f"{label}: canonical US overview card missing for {symbol}")
+                            else:
+                                card_text = card.inner_text()
+                                if "5" not in card_text or "000" not in card_text:
+                                    failures.append(f"{label}: {symbol} overview does not show 5K notional")
 
                         summary_widths = card_widths(page, ".str-overview-position")
                         if summary_widths and min(summary_widths) < 300:
@@ -117,8 +135,10 @@ def run() -> int:
                         page.wait_for_timeout(200)
                         us_detail_visible = visible_count(page, "#str-market-us .str-position")
                         gpw_detail_count = page.locator("#str-market-gpw .str-position").count()
-                        if us_detail_visible != 3:
-                            failures.append(f"{label}: US market view shows {us_detail_visible}/3 tickets")
+                        if us_detail_visible < expected_us_count:
+                            failures.append(
+                                f"{label}: US market view shows {us_detail_visible}/{expected_us_count} canonical tickets"
+                            )
                         if gpw_detail_count != 0:
                             failures.append(f"{label}: US market view unexpectedly contains GPW ticket panel")
 
@@ -132,8 +152,10 @@ def run() -> int:
                         page.locator("[data-show-details]").click()
                         page.wait_for_selector("#str-market-us .str-position", timeout=5000)
                         all_us_visible = visible_count(page, "#str-market-us .str-position")
-                        if all_us_visible != 3:
-                            failures.append(f"{label}: all-ticket view shows {all_us_visible}/3 US tickets")
+                        if all_us_visible < expected_us_count:
+                            failures.append(
+                                f"{label}: all-ticket view shows {all_us_visible}/{expected_us_count} canonical US tickets"
+                            )
 
                         overflow = page.evaluate("document.documentElement.scrollWidth - window.innerWidth")
                         if overflow > 2:
