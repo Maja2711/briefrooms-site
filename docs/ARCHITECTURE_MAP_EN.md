@@ -1,6 +1,6 @@
 # BriefRooms Canonical Architecture Map — EN
 
-**Map version:** 1.11  
+**Map version:** 1.10  
 **Snapshot date:** 2026-09-21  
 **Base `main` commit:** `b716beca850bc8514c0975f005c7a8d1d5dcd14d`  
 **Repository:** `Maja2711/briefrooms-site`
@@ -276,10 +276,10 @@ Not every engine currently implements every step identically. The Architecture M
 | `CT-02` | AI Outlook | Governed daily outlook, provider/freshness/status/metrics | `ai_outlook_engine.py` plus `ai-outlook-*` workflows/data |
 | `CT-03` | AI Tournament | Independent comparison/submission/round/public-UI layer | `ai_tournament_engine.py`, intake/bootstrap/UI modules |
 | `CT-04` | AXIOM Thought | Thought/motto publication with quality guard | `axiom_thought_guard.py`, `publish_axiom_thought.py` |
-| `CT-05` | Public projections / UI | Sanitized JSON/JS -> PL/EN pages, including the read-only BriefRooms Decision LAB | multiple `*_public_projection.py`, `scripts/decision_lab_public_projection.py`, JS renderers, `pl/`, `en/` |
+| `CT-05` | Public projections / UI | Sanitized JSON/JS -> PL/EN pages | multiple `*_public_projection.py`, JS renderers, `pl/`, `en/` |
 | `CT-06` | Home / editorial | Home brief, market signal, Hot X, editorial rules | home build pipelines, `briefrooms_editorial_rules.md`, content contracts |
 
-The publication layer **must not become a hidden authority source for a decision engine**. A public renderer displays state; it must not originate or retroactively alter an economic decision.\n\n**BriefRooms Decision LAB** is a public research/shadow projection of the existing `EP-05/EP-06/EP-07` Belief Core, not a new decision engine. It displays prospectively frozen probabilities, confidence, outcomes and calibration metrics derived from private artifact state. It has no execution authority, production write authority or automatic tuning. Model development proceeds as a challenger under `LE-05/LE-06/LE-09`; any influence on `TR-*` requires a separate promotion.
+The publication layer **must not become a hidden authority source for a decision engine**. A public renderer displays state; it must not originate or retroactively alter an economic decision.
 
 ### CT-01 — hard public-news freshness invariant
 
