@@ -414,6 +414,9 @@ def position_from_candidate(market: str, payload: Mapping[str, Any], *, now: dat
         "risk_last_changed_at": _iso(now),
         "risk_review_date": now.astimezone(MARKET_TZ[market]).date().isoformat(),
         "holding_policy": "OPEN_ENDED_MODEL_CONTROLLED",
+        "take_profit_mode": "THESIS_RUNNER_CHECKPOINT" if cfg.get("profit_runner_enabled") is True else "HARD_TAKE_PROFIT",
+        "profit_runner_enabled": cfg.get("profit_runner_enabled") is True,
+        "profit_runner_upside_cap_percent": cfg.get("profit_runner_upside_cap_percent"),
         "scheduled_exit": None,
         "valid_until": None,
         "time_stop": None,
@@ -442,6 +445,9 @@ def upgrade_open_position_geometry(position: Mapping[str, Any], market_cfg: Mapp
     updated["target"] = round(max(float(updated["target"]), entry + initial_risk * strategic_rr), 8)
     updated["peak_mark"] = round(max(float(updated.get("peak_mark") or entry), float(updated.get("last_mark") or entry)), 8)
     updated["peak_thesis_score"] = max(float(updated.get("peak_thesis_score") or score), score)
+    updated["profit_runner_enabled"] = market_cfg.get("profit_runner_enabled") is True
+    updated["take_profit_mode"] = "THESIS_RUNNER_CHECKPOINT" if updated["profit_runner_enabled"] else "HARD_TAKE_PROFIT"
+    updated["profit_runner_upside_cap_percent"] = market_cfg.get("profit_runner_upside_cap_percent")
     return updated
 
 
@@ -605,6 +611,65 @@ def thesis_score(closes: Iterable[float]) -> float | None:
     return max(0.0, min(100.0, score))
 
 
+def _profit_runner_extension(
+    position: Mapping[str, Any],
+    *,
+    high: float,
+    last: float,
+    atr: float,
+    score: float,
+    now: datetime,
+    market_cfg: Mapping[str, Any],
+) -> tuple[dict[str, Any] | None, dict[str, Any]]:
+    """Ratchet risk and move the profit checkpoint above the current high."""
+    updated, review = recalculate_risk(
+        position,
+        mark=last,
+        atr=atr,
+        now=now,
+        market_cfg=market_cfg,
+        thesis_score_value=score,
+    )
+    if review.get("status") != "updated":
+        return None, review
+
+    risk_buffer = max(
+        float(atr) * float(market_cfg["atr_multiple"]),
+        float(last) * float(market_cfg["risk_floor_percent"]),
+    )
+    runner_rr = max(
+        float(updated.get("strategic_target_rr") or 3.0),
+        float(market_cfg.get("profit_runner_target_buffer_rr") or 3.0),
+    )
+    old_target = float(position["target"])
+    new_target = max(float(updated["target"]), max(float(high), float(last)) + risk_buffer * runner_rr)
+    updated["target"] = round(new_target, 8)
+    updated["risk_last_changed_at"] = _iso(now)
+    updated["last_mark"] = round(float(last), 8)
+    updated["last_reviewed_at"] = _iso(now)
+    updated["thesis_score"] = round(float(score), 4)
+    updated["thesis_status"] = "ACTIVE_RUNNER"
+    updated["profit_runner_active"] = True
+    updated["profit_runner_enabled"] = True
+    updated["take_profit_mode"] = "THESIS_RUNNER_CHECKPOINT"
+    updated["peak_mark"] = round(max(float(updated.get("peak_mark") or last), float(high), float(last)), 8)
+    updated["peak_thesis_score"] = round(max(float(updated.get("peak_thesis_score") or score), float(score)), 4)
+
+    checkpoints = [dict(item) for item in updated.get("profit_runner_checkpoints") or [] if isinstance(item, Mapping)]
+    checkpoints.append({
+        "reached_at": _iso(now),
+        "old_target": round(old_target, 8),
+        "session_high": round(float(high), 8),
+        "last": round(float(last), 8),
+        "thesis_score": round(float(score), 4),
+        "new_stop": updated.get("stop"),
+        "new_target": updated.get("target"),
+        "upside_cap_percent": market_cfg.get("profit_runner_upside_cap_percent"),
+    })
+    updated["profit_runner_checkpoints"] = checkpoints[-40:]
+    return updated, review
+
+
 def review_one_position(position: Mapping[str, Any], *, snapshot: Mapping[str, Any], closes: Iterable[float], atr: float, now: datetime, market_cfg: Mapping[str, Any]) -> tuple[dict[str, Any] | None, dict[str, Any] | None, dict[str, Any]]:
     """Review one open LONG position. Returns (position, closure, audit)."""
     market = str(position.get("market") or "").upper()
@@ -625,20 +690,20 @@ def review_one_position(position: Mapping[str, Any], *, snapshot: Mapping[str, A
     except (KeyError, TypeError, ValueError):
         audit = {"action": "hold_data_error", "reason": "snapshot_missing", "position_id": position.get("position_id")}
         return deepcopy(dict(position)), None, audit
+
     position = upgrade_open_position_geometry(position, market_cfg)
     stop, target = float(position["stop"]), float(position["target"])
     same_bar = low <= stop and high >= target
     if same_bar or low <= stop:
         closure = _closure(position, now=now, exit_price=stop, reason="stop_loss", conservative_same_bar=same_bar)
         return None, closure, {"action": "close", "reason": "stop_loss", "position_id": position.get("position_id")}
-    if high >= target:
-        closure = _closure(position, now=now, exit_price=target, reason="take_profit")
-        return None, closure, {"action": "close", "reason": "take_profit", "position_id": position.get("position_id")}
+
     score = thesis_score(closes)
     if score is not None and score <= float(market_cfg["model_exit_score"]):
         closure = _closure(position, now=now, exit_price=last, reason="model_thesis_invalidated")
         closure["exit_model_score"] = round(score, 4)
         return None, closure, {"action": "close", "reason": "model_thesis_invalidated", "score": round(score, 4), "position_id": position.get("position_id")}
+
     previous_peak_score = float(position.get("peak_thesis_score") or score or 0.0)
     reversal = float(market_cfg.get("model_reversal_from_peak") or 22.0)
     if score is not None and last > float(position["entry"]) and previous_peak_score >= 65.0 and score <= previous_peak_score - reversal:
@@ -646,12 +711,42 @@ def review_one_position(position: Mapping[str, Any], *, snapshot: Mapping[str, A
         closure["exit_model_score"] = round(score, 4)
         closure["peak_model_score"] = round(previous_peak_score, 4)
         return None, closure, {"action": "close", "reason": "model_momentum_reversal", "score": round(score, 4), "position_id": position.get("position_id")}
+
+    if high >= target:
+        runner_enabled = market_cfg.get("profit_runner_enabled") is True
+        runner_score = float(market_cfg.get("profit_runner_min_thesis_score") or 60.0)
+        if runner_enabled and score is not None and score >= runner_score:
+            updated, review = _profit_runner_extension(
+                position,
+                high=high,
+                last=last,
+                atr=atr,
+                score=score,
+                now=now,
+                market_cfg=market_cfg,
+            )
+            if updated is not None:
+                return updated, None, {
+                    "action": "hold_profit_runner",
+                    "reason": "target_reached_thesis_intact",
+                    "thesis_score": round(score, 4),
+                    "old_target": round(target, 8),
+                    "new_target": updated.get("target"),
+                    "new_stop": updated.get("stop"),
+                    "position_id": position.get("position_id"),
+                }
+        closure = _closure(position, now=now, exit_price=target, reason="take_profit")
+        if runner_enabled:
+            closure["profit_runner_fallback"] = "thesis_not_strong_enough_or_risk_recalculation_failed"
+        return None, closure, {"action": "close", "reason": "take_profit", "position_id": position.get("position_id")}
+
     local_date = now.date().isoformat()
     if str(position.get("risk_review_date") or "") != local_date:
         updated, review = recalculate_risk(position, mark=last, atr=atr, now=now, market_cfg=market_cfg, thesis_score_value=score)
         updated["thesis_score"] = round(score, 4) if score is not None else None
         updated["thesis_status"] = "ACTIVE"
         return updated, None, {"action": "hold_risk_reviewed", "risk_review": review, "thesis_score": score, "position_id": position.get("position_id")}
+
     updated = deepcopy(dict(position))
     updated["last_mark"] = round(last, 8)
     updated["last_reviewed_at"] = _iso(now)
