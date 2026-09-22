@@ -34,7 +34,11 @@
       "position_currency": "PLN",
       "fractional_quantity_allowed": true,
       "quantity_precision": 8,
-      "sizing_policy_version": "FIXED_NOTIONAL_V1"
+      "sizing_policy_version": "FIXED_NOTIONAL_V1",
+      "profit_runner_enabled": true,
+      "profit_runner_min_thesis_score": 60,
+      "profit_runner_upside_cap_percent": null,
+      "profit_runner_target_buffer_rr": 3
     },
     "US": {
       "max_open_positions": 3,
@@ -53,7 +57,14 @@
       "position_currency": "USD",
       "fractional_quantity_allowed": true,
       "quantity_precision": 8,
-      "sizing_policy_version": "FIXED_NOTIONAL_V1"
+      "sizing_policy_version": "FIXED_NOTIONAL_V1",
+      "profit_runner_enabled": true,
+      "profit_runner_min_thesis_score": 60,
+      "profit_runner_upside_cap_percent": null,
+      "profit_runner_target_buffer_rr": 3
     }
-  }
+  },
+  "profit_objective": "LET_WINNERS_RUN_THESIS_CONTROLLED",
+  "take_profit_mode": "THESIS_RUNNER_CHECKPOINT",
+  "hard_take_profit_when_thesis_strong": false
 }
