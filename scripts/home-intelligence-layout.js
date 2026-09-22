@@ -158,11 +158,39 @@
     normalizeTradingSignal();
   }
 
+  function warsawDate(){
+    try{
+      return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Warsaw',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+    }catch(_){
+      return new Date().toISOString().slice(0,10);
+    }
+  }
+
   async function loadThought(){
     try{
+      const stamp=warsawDate();
       const response=await fetch(`/data/home/axiom-thought.json?v=${Date.now()}`,{cache:'no-store'});
-      if(!response.ok)return;
-      const data=await response.json();
+      if(!response.ok)throw new Error('current thought unavailable');
+      let data=await response.json();
+
+      // Production fail-safe: GitHub Actions is not allowed to leave yesterday's
+      // thought on the homepage. If publication is stale, consume the next
+      // prevalidated reserve item client-side for display. The workflow remains
+      // responsible for canonical history/consumption when it recovers.
+      if(!data||data.date!==stamp){
+        const reserveResponse=await fetch(`/data/home/axiom-thought-reserve.json?v=${Date.now()}`,{cache:'no-store'});
+        if(reserveResponse.ok){
+          const reserve=await reserveResponse.json();
+          if(Array.isArray(reserve)&&reserve.length){
+            const base=Date.parse('2026-09-21T00:00:00Z');
+            const now=Date.parse(stamp+'T00:00:00Z');
+            const offset=Math.max(0,Math.floor((now-base)/86400000)-1);
+            const candidate=reserve[Math.min(offset,reserve.length-1)];
+            if(candidate)data={date:stamp,author:'AXIOM',brand:'BriefRooms',pl:candidate.pl,en:candidate.en};
+          }
+        }
+      }
+
       if(data&&typeof data==='object'){
         thought={
           pl:typeof data.pl==='string'&&data.pl.trim()?data.pl.trim():fallbackThought.pl,
@@ -173,7 +201,7 @@
         applyThought();
       }
     }catch(_){
-      // Fail closed to the embedded first thought; the rest of the homepage remains untouched.
+      // Fail closed to the embedded thought; the rest of the homepage remains untouched.
     }
   }
 
