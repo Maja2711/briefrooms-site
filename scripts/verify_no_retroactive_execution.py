@@ -55,6 +55,8 @@ NON_EXECUTABLE_EXACT_PATHS = {
     "data/portfolio10k/baseline_portfolio.json",
 }
 
+EURUSD_DAILY_SPOT_PATH = "data/investments/eurusd_daily_spot.json"
+
 CANONICAL_NAMES = {
     "stock_trading_portfolio.json",
     "stock_trading_v2_production_state.json",
@@ -261,6 +263,39 @@ def _events(payload: Any) -> dict[str, tuple[str, dict[str, Any]]]:
     return out
 
 
+def _is_eurusd_open_summary(path: str, pointer: str, row: dict[str, Any]) -> bool:
+    """Ignore only the EUR/USD root display snapshot when it mirrors metadata.position.
+
+    The root DailyEngineOutput is a presentation/state summary (status=OPEN plus
+    entry/stop/target), not a second execution. The canonical execution record is
+    metadata.position, which carries opened_at and remains fully validated by the
+    no-retroactive-execution airlock.
+    """
+    if path.replace("\\", "/").lower() != EURUSD_DAILY_SPOT_PATH or pointer != "$":
+        return False
+    metadata = row.get("metadata")
+    position = metadata.get("position") if isinstance(metadata, dict) else None
+    if not isinstance(position, dict):
+        return False
+    if str(row.get("status") or "").upper() != "OPEN":
+        return False
+    if str(position.get("status") or "").upper() != "OPEN":
+        return False
+    if str(row.get("direction") or "").upper() != str(position.get("direction") or "").upper():
+        return False
+    if not position.get("opened_at"):
+        return False
+    for key in ("entry", "stop", "target"):
+        if row.get(key) is None or position.get(key) is None:
+            return False
+        try:
+            if abs(float(row[key]) - float(position[key])) > 1e-9:
+                return False
+        except (TypeError, ValueError):
+            return False
+    return True
+
+
 def verify_file(path: str, baseline_ref: str, run_started_at: datetime) -> list[str]:
     current = _load_worktree(path)
     if not _path_is_canonical(path, current):
@@ -269,6 +304,8 @@ def verify_file(path: str, baseline_ref: str, run_started_at: datetime) -> list[
     previous = _events(before)
     violations: list[str] = []
     for identity, (pointer, row) in _events(current).items():
+        if _is_eurusd_open_summary(path, pointer, row):
+            continue
         if identity in previous:
             continue
         entry_at = _entry_ts(row)
