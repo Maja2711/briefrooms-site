@@ -227,7 +227,7 @@ main: Stock Trading Component Promotion
 ```
 
 Scheduled workflow definitions are maintained on `main`, while research jobs explicitly check out `stock-trading-v2`. The research branch may not directly push a production mutation to `main`.
-After a successful active `Stock Trading v2 Continuous Discovery` cycle, the workflow explicitly dispatches `stock-trading-v2-production.yml` on `main`; the `workflow_run` trigger and liveness watchdog remain redundant recovery paths. This dispatch gives the research branch no portfolio-write authority: canonical mutation still occurs only through the production bridge on `main`.
+After a successful active `Stock Trading v2 Continuous Discovery` cycle, the workflow explicitly dispatches `stock-trading-v2-production.yml` on `main`; the liveness watchdog and Production Champion schedule remain recovery paths. A separate `workflow_run` trigger is intentionally disabled so one discovery cycle cannot launch duplicate production runs. This dispatch gives the research branch no portfolio-write authority: canonical mutation still occurs only through the production bridge on `main`.
 
 ## 7. Shared Learning / Evolution Fabric
 
