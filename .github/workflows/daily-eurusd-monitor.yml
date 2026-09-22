@@ -165,17 +165,30 @@ jobs:
           python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
           git commit -m "Monitor Daily EURUSD position"
           for attempt in 1 2 3; do
-            if git pull --rebase origin main; then
-              python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
-              if git push; then
-                exit 0
-              fi
+            if git push; then
+              exit 0
             fi
-            echo "Push attempt ${attempt} failed; retrying after ref refresh"
-            git rebase --abort 2>/dev/null || true
+
+            echo "Push attempt ${attempt} failed; refreshing canonical EURUSD state and recomputing"
             git fetch origin main
-            git rebase origin/main
-            python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
+            git reset --hard origin/main
+
+            python scripts/daily_eurusd_spot_v17.py \
+              --output data/investments/eurusd_daily_spot.json \
+              --history data/investments/eurusd_daily_history.json
+            python scripts/daily_eurusd_spot_v17.py \
+              --output data/investments/eurusd_daily_spot.json \
+              --history data/investments/eurusd_daily_history.json \
+              --validate
+
+            git add -- data/investments/eurusd_daily_spot.json data/investments/eurusd_daily_history.json
+            if git diff --cached --quiet; then
+              echo "Remote main already contains an equivalent or fresher EURUSD state"
+              exit 0
+            fi
+
+            python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
+            git commit -m "Monitor Daily EURUSD position"
             sleep $((attempt * 3))
           done
           echo "Unable to persist EURUSD state after retries" >&2
