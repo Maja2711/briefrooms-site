@@ -2,23 +2,21 @@ name: Morning AXIOM Daily
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/axiom-thought-daily.yml"
-      - "scripts/publish_axiom_thought.py"
-      - "scripts/axiom_thought_guard.py"
   schedule:
     # Multiple independent recovery windows. Publisher is idempotent by Warsaw date.
-    - cron: "10 4 * * *"
-    - cron: "10 5 * * *"
+    - cron: "0 4 * * *"
+    - cron: "30 4 * * *"
+    - cron: "0 5 * * *"
+    - cron: "30 5 * * *"
+    - cron: "0 6 * * *"
     - cron: "30 6 * * *"
+    - cron: "0 7 * * *"
 
 permissions:
   contents: write
 
 concurrency:
-  group: morning-axiom-daily
+  group: morning-axiom-daily-${{ github.run_id }}
   cancel-in-progress: false
 
 jobs:
@@ -41,14 +39,18 @@ jobs:
         run: python scripts/publish_axiom_thought.py --mode publish
       - name: Verify today's publication
         run: python scripts/publish_axiom_thought.py --mode verify
+      - name: Persist scheduler heartbeat
+        shell: bash
+        run: |
+          printf '{"date":"%s","event":"%s","run_id":"%s","sha":"%s"}\\n' "$(TZ=Europe/Warsaw date +%F)" "$GITHUB_EVENT_NAME" "$GITHUB_RUN_ID" "$GITHUB_SHA" > data/home/axiom-thought-heartbeat.json
       - name: Commit publication atomically
         shell: bash
         run: |
           set -euo pipefail
-          if git diff --quiet -- data/home/axiom-thought.json data/home/axiom-thoughts-history.jsonl data/home/axiom-thought-reserve.json; then exit 0; fi
+          if git diff --quiet -- data/home/axiom-thought.json data/home/axiom-thoughts-history.jsonl data/home/axiom-thought-reserve.json data/home/axiom-thought-heartbeat.json; then exit 0; fi
           git config user.name "briefrooms-bot"
           git config user.email "briefrooms-bot@users.noreply.github.com"
-          git add data/home/axiom-thought.json data/home/axiom-thoughts-history.jsonl data/home/axiom-thought-reserve.json
+          git add data/home/axiom-thought.json data/home/axiom-thoughts-history.jsonl data/home/axiom-thought-reserve.json data/home/axiom-thought-heartbeat.json
           git commit -m "content: publish Morning AXIOM $(TZ=Europe/Warsaw date +%F)"
           for n in 1 2 3; do
             git pull --rebase origin main && git push origin HEAD:main && exit 0
