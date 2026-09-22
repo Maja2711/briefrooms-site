@@ -279,6 +279,12 @@ Example:
 }
 ```
 
+## BriefRooms Decision LAB public research projection
+
+Decision LAB reuses Belief Core v2 as the internal probabilistic research model; it does not create a second probabilistic engine. `scripts/decision_lab_public_projection.py` sanitizes private shadow state into `data/investments/decision_lab_public.json` after calibration runs. The public projection may expose frozen probability, evidence confidence, resolution status and aggregate calibration metrics, but never private evidence payloads or mutable authority state.
+
+Decision LAB remains `research_shadow`: no execution authority, no production writes and no automatic tuning. New probability formulations, priors, evidence weighting or calibration methods must be evaluated as challengers on prospective frozen forecasts before any engine-specific promotion.
+
 ## Acceptance before decision-engine integration
 
 Do **not** let BRACE/WES/BRACE-SPX consume Belief Core for decisions merely because v2 passes unit tests. First collect real shadow data and inspect:
