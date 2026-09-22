@@ -65,6 +65,7 @@ Stock Trading v2 optimizes net expectancy with explicit opportunity cost. Empty 
 
 - `.github/workflows/stock-trading-v2-universe-refresh.yml` — audited dynamic universe refresh.
 - `.github/workflows/stock-trading-v2-continuous-discovery.yml` — continuous session-time discovery → relationship/trigger attention → max-two targeted deep-research shadow arm → broad Champion evidence → portfolio comparison → experience/admission freeze.
+  After a successful active-market cycle it may dispatch the main-owned Production Champion workflow as a handoff signal; it still cannot write production state itself.
 - `.github/workflows/stock-trading-v2-learning-loop.yml` — post-session outcome settlement, exact Trigger deep-research/outcome joining, regret, Challenger learning/evaluation and immutable evidence commit. It does not write production.
 - `.github/workflows/stock-trading-v2-validation.yml` — compile/config/unit/integrity/live-smoke validation.
 
