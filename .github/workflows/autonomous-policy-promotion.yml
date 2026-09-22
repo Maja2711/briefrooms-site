@@ -2,54 +2,36 @@ name: Autonomous Policy Promotion
 
 on:
   workflow_dispatch:
-  workflow_run:
-    workflows:
-      - "Learning Outcome Loop"
-    types: [completed]
-  schedule:
-    - cron: "27 5 * * 1-5"
-    - cron: "27 17 * * 1-5"
   pull_request:
     paths:
-      - "scripts/autonomous_policy_promotion.py"
-      - "scripts/autonomous_policy_promotion_v2.py"
-      - "scripts/statistical_promotion_gate.py"
-      - "scripts/statistical_promotion_gate_v2.py"
-      - "scripts/validation_epoch.py"
-      - "scripts/anytime_valid_inference.py"
-      - "scripts/promotion_learning_integrity.py"
-      - "scripts/policy_runtime_overlay.py"
-      - "scripts/statistical_policy_materializer.py"
-      - "scripts/autonomous_policy_observatory.py"
-      - "data/investments/statistical_promotion_gate_v2_config.json"
-      - "tests/test_autonomous_policy_promotion.py"
-      - "tests/test_statistical_promotion_gate.py"
-      - "tests/test_autonomous_policy_observatory.py"
-      - "tests/test_promotion_safety_v2.py"
-      - "tests/test_learning_integrity_v1.py"
       - ".github/workflows/autonomous-policy-promotion.yml"
+      - ".github/workflows/stock-trading-component-promotion.yml"
+      - "scripts/stock_trading_component_candidate_intake.py"
+      - "scripts/stock_trading_component_bound_promotion.py"
+      - "scripts/stock_trading_component_promotion.py"
+      - "data/investments/stock_trading_component_promotion_config.json"
+      - "data/investments/stock_trading_champion_manifest.json"
+      - "data/investments/stock_trading_v2_production_config.json"
 
-# PR-A safety freeze remains authoritative. ValidationEpoch and anytime-valid
-# inference harden research integrity but cannot write production policy.
+# Legacy PR35/PR36 targets (gpw_daily/us_daily) are retired as production
+# destinations. Stock Trading v2 owns the production Champion/Challenger path.
+# This workflow is retained only as a compatibility router: a manual invocation
+# forwards to the authoritative Stock Trading Component Promotion workflow.
+# Automatic Stock Trading promotion remains owned by that workflow's own
+# workflow_run + schedule triggers, avoiding duplicate promotion loops.
+
 permissions:
   contents: read
   actions: write
 
 concurrency:
-  group: autonomous-policy-promotion
+  group: autonomous-policy-promotion-router
   cancel-in-progress: false
 
-env:
-  PRIMARY_ARTIFACT: autonomous-policy-state
-  CHECKPOINT_ARTIFACT: autonomous-policy-checkpoint
-  ARCHIVE_NAME: autonomous-policy-state.tgz
-
 jobs:
-  validate:
+  validate-routing:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
-    env:
-      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+    timeout-minutes: 10
     steps:
       - name: Checkout tested ref
         uses: actions/checkout@v4
@@ -61,257 +43,62 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Validate PR-A promotion safety and learning-integrity code
-        run: |
-          set -euo pipefail
-          python -m py_compile \
-            scripts/autonomous_policy_promotion.py \
-            scripts/autonomous_policy_promotion_v2.py \
-            scripts/statistical_promotion_gate.py \
-            scripts/statistical_promotion_gate_v2.py \
-            scripts/validation_epoch.py \
-            scripts/anytime_valid_inference.py \
-            scripts/promotion_learning_integrity.py \
-            scripts/policy_runtime_overlay.py \
-            scripts/policy_repo_materializer.py \
-            scripts/statistical_policy_materializer.py \
-            scripts/autonomous_policy_observatory.py
-          python -m json.tool data/investments/statistical_promotion_gate_v2_config.json >/dev/null
-          python -m unittest \
-            tests.test_autonomous_policy_promotion \
-            tests.test_statistical_promotion_gate \
-            tests.test_autonomous_policy_observatory \
-            tests.test_promotion_safety_v2 \
-            tests.test_learning_integrity_v1 -v
-
-  research:
-    if: >-
-      github.event_name != 'pull_request' &&
-      (github.event_name != 'workflow_run' ||
-       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'))
-    needs: validate
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    env:
-      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
-      GH_TOKEN: ${{ github.token }}
-
-    steps:
-      - name: Checkout production main
-        uses: actions/checkout@v4
-        with:
-          ref: main
-          fetch-depth: 1
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Prepare private runtime directories
-        run: |
-          set -euo pipefail
-          echo "POLICY_STATE_DIR=$RUNNER_TEMP/autonomous-policy" >> "$GITHUB_ENV"
-          echo "LEARNING_STATE_DIR=$RUNNER_TEMP/learning-outcome-loop-readonly" >> "$GITHUB_ENV"
-          mkdir -p "$RUNNER_TEMP/autonomous-policy" "$RUNNER_TEMP/learning-outcome-loop-readonly"
-
-      - name: Restore prior autonomous policy state or allow first activation
-        id: restore
-        shell: bash
-        run: |
-          set -euo pipefail
-          prior_success="$(gh run list \
-            --workflow autonomous-policy-promotion.yml \
-            --branch main \
-            --status success \
-            --limit 1 \
-            --json databaseId \
-            --jq '.[0].databaseId // empty')"
-
-          if [[ -z "$prior_success" ]]; then
-            echo "bootstrap=true" >> "$GITHUB_OUTPUT"
-            echo "No prior successful autonomous policy run; first prospective activation is allowed."
-            exit 0
-          fi
-
-          echo "bootstrap=false" >> "$GITHUB_OUTPUT"
-          restored=false
-          for artifact in "$PRIMARY_ARTIFACT" "$CHECKPOINT_ARTIFACT"; do
-            mapfile -t candidate_runs < <(
-              gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${artifact}&per_page=100" \
-                --jq '.artifacts[] | select(.expired == false and .workflow_run.head_branch == "main") | .workflow_run.id'
-            )
-            for run_id in "${candidate_runs[@]}"; do
-              [[ -n "$run_id" ]] || continue
-              run_meta="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}")"
-              run_name="$(printf '%s' "$run_meta" | python -c 'import json,sys; print(json.load(sys.stdin).get("name", ""))')"
-              run_result="$(printf '%s' "$run_meta" | python -c 'import json,sys; print(json.load(sys.stdin).get("conclusion", ""))')"
-              [[ "$run_name" == "Autonomous Policy Promotion" && "$run_result" == "success" ]] || continue
-              rm -rf "$RUNNER_TEMP/policy-artifact" "$POLICY_STATE_DIR"
-              mkdir -p "$RUNNER_TEMP/policy-artifact" "$POLICY_STATE_DIR"
-              if ! gh run download "$run_id" -n "$artifact" -D "$RUNNER_TEMP/policy-artifact"; then
-                continue
-              fi
-              archive="$RUNNER_TEMP/policy-artifact/$ARCHIVE_NAME"
-              [[ -s "$archive" ]] || continue
-              tar -xzf "$archive" -C "$POLICY_STATE_DIR"
-              if python scripts/autonomous_policy_promotion.py --state-dir "$POLICY_STATE_DIR" --verify; then
-                restored=true
-                break 2
-              fi
-            done
-          done
-
-          if [[ "$restored" != true ]]; then
-            echo "Previous autonomous policy history exists but no valid artifact can be restored." >&2
-            echo "FAIL_CLOSED: refusing a second activation boundary." >&2
-            exit 1
-          fi
-
-      - name: Restore latest Learning Outcome Loop state read-only
-        shell: bash
-        run: |
-          set -euo pipefail
-          run_id="$(gh run list \
-            --workflow learning-outcome-loop.yml \
-            --branch main \
-            --status success \
-            --limit 1 \
-            --json databaseId \
-            --jq '.[0].databaseId // empty')"
-          if [[ -z "$run_id" ]]; then
-            echo "No Learning Outcome Loop state yet; PR-A will run with zero new evidence."
-            exit 0
-          fi
-          rm -rf "$RUNNER_TEMP/learning-artifact"
-          mkdir -p "$RUNNER_TEMP/learning-artifact"
-          if ! gh run download "$run_id" -n learning-outcome-loop-state -D "$RUNNER_TEMP/learning-artifact"; then
-            echo "Latest learning run has no state artifact; continuing without new evidence."
-            exit 0
-          fi
-          archive="$RUNNER_TEMP/learning-artifact/learning-outcome-loop-state.tgz"
-          [[ -s "$archive" ]] || exit 0
-          tar -xzf "$archive" -C "$LEARNING_STATE_DIR"
-          if [[ -f "$LEARNING_STATE_DIR/learning_ledger.jsonl" ]]; then
-            python scripts/learning_outcome_loop.py --state-dir "$LEARNING_STATE_DIR" --verify
-          fi
-
-      - name: Run PR35 fixed-N validation with hash-committed ValidationEpoch and shadow anytime inference
-        run: |
-          set -euo pipefail
-          python scripts/promotion_learning_integrity.py pr35 \
-            --state-dir "$POLICY_STATE_DIR" \
-            --learning-state-dir "$LEARNING_STATE_DIR" \
-            --repo-root .
-          python scripts/promotion_learning_integrity.py verify \
-            --state-dir "$POLICY_STATE_DIR" \
-            --repo-root .
-
-      - name: Run PR36 fresh holdout with hash-committed ValidationEpoch and shadow anytime inference
-        run: |
-          set -euo pipefail
-          python scripts/promotion_learning_integrity.py pr36 \
-            --state-dir "$POLICY_STATE_DIR" \
-            --repo-root .
-          python scripts/promotion_learning_integrity.py verify \
-            --state-dir "$POLICY_STATE_DIR" \
-            --repo-root .
-
-      - name: Publish read-only observatory snapshot to private artifact only
-        run: |
-          set -euo pipefail
-          python scripts/autonomous_policy_observatory.py \
-            --state-dir "$POLICY_STATE_DIR" \
-            --repo-root .
-          python scripts/autonomous_policy_observatory.py \
-            --state-dir "$POLICY_STATE_DIR" \
-            --repo-root . \
-            --verify
-          test -s data/public/autonomous_policy_observatory.json
-          cp data/public/autonomous_policy_observatory.json \
-            "$POLICY_STATE_DIR/autonomous_policy_observatory_public.json"
-          git diff --exit-code -- \
-            data/investments/gpw_daily_pick_config.json \
-            data/investments/us_daily_stock_config.json
-
-      - name: Assert production promotion is frozen fail-closed
+      - name: Assert Stock Trading is the production promotion authority
         run: |
           set -euo pipefail
           python - <<'PY'
-          import json, os
+          import json
           from pathlib import Path
-          from policy_runtime_overlay import apply_active_policy, PROMOTION_FREEZE_STATUS
-          from statistical_policy_materializer import materialize
-          from promotion_learning_integrity import verify as verify_integrity
 
-          root=Path(os.environ['POLICY_STATE_DIR'])
-          registry_path=root/'policy_registry.json'
-          registry=json.loads(registry_path.read_text())
-          governance=registry['governance']
-          assert governance['production_promotion_enabled'] is False
-          assert governance['production_materialization_enabled'] is False
-          assert governance['promotion_mode']=='FROZEN_FOR_PROSPECTIVE_VALIDATION'
-          assert governance['promotion_methodology_version']==2
+          promotion = json.loads(
+              Path("data/investments/stock_trading_component_promotion_config.json").read_text()
+          )
+          manifest = json.loads(
+              Path("data/investments/stock_trading_champion_manifest.json").read_text()
+          )
+          production = json.loads(
+              Path("data/investments/stock_trading_v2_production_config.json").read_text()
+          )
 
-          baselines={
-              'gpw_daily': json.loads(Path('data/investments/gpw_daily_pick_config.json').read_text()),
-              'us_daily': json.loads(Path('data/investments/us_daily_stock_config.json').read_text()),
-          }
-          for engine_id, baseline in baselines.items():
-              effective=apply_active_policy(engine_id, baseline, registry_path=registry_path)
-              assert effective['policy_version']==baseline['policy_version']
-              assert effective['_autonomous_policy']['status']==PROMOTION_FREEZE_STATUS
+          assert promotion["schema_version"] == "stock-trading-component-promotion-config-v1"
+          assert promotion["enabled"] is True
+          assert promotion["require_formal_holdout_pass"] is True
+          assert promotion["require_exact_production_candidate"] is True
+          assert promotion["require_main_owned_deployment"] is True
+          assert promotion["post_promotion_health_check"] is True
+          assert promotion["automatic_health_rollback"] is True
+          assert promotion["arbitrary_code_deployment_forbidden"] is True
 
-          result=materialize(registry_path, root/'not-required-while-frozen.json', Path('.'))
-          assert result['changed'] is False
-          assert result['status']==PROMOTION_FREEZE_STATUS
-          integrity=verify_integrity(root, Path('.'))
-          assert integrity['fixed_n_primary_gate_unchanged'] is True
-          assert integrity['production_promotion_enabled'] is False
-          print('PR_A_PROMOTION_FREEZE_PASS')
-          print('VALIDATION_EPOCH_CHAIN', json.dumps(integrity['validation_epoch_chain'], sort_keys=True))
+          assert manifest["schema_version"] == "stock-trading-champion-manifest-v1"
+          assert manifest["status"] == "ACTIVE"
+
+          assert production["schema_version"] == "stock-trading-v2-production-config-v1"
+          assert production["enabled"] is True
+          assert production["champion_engine"] == "v2"
+          assert production["challenger_engine"] == "v1"
+
+          print("STOCK_TRADING_PROMOTION_AUTHORITY_OK")
+          print("LEGACY_GPW_DAILY_US_DAILY_PRODUCTION_TARGETS_RETIRED")
           PY
 
-      - name: Pack private autonomous policy research state
+      - name: Validate Stock Trading promotion machinery
         run: |
           set -euo pipefail
-          tar -czf "$RUNNER_TEMP/$ARCHIVE_NAME" -C "$POLICY_STATE_DIR" .
-          test -s "$RUNNER_TEMP/$ARCHIVE_NAME"
+          python -m py_compile             scripts/stock_trading_component_candidate_intake.py             scripts/stock_trading_component_bound_promotion.py             scripts/stock_trading_component_promotion.py
+          python scripts/test_stock_trading_component_promotion.py
+          python scripts/test_stock_trading_component_bound_promotion.py
+          python scripts/test_stock_trading_component_candidate_intake.py
 
-      - name: Store primary autonomous policy state
-        uses: actions/upload-artifact@v4
-        with:
-          name: autonomous-policy-state
-          path: ${{ runner.temp }}/autonomous-policy-state.tgz
-          if-no-files-found: error
-          retention-days: 90
-          compression-level: 0
-
-      - name: Store autonomous policy checkpoint
-        uses: actions/upload-artifact@v4
-        with:
-          name: autonomous-policy-checkpoint
-          path: ${{ runner.temp }}/autonomous-policy-state.tgz
-          if-no-files-found: error
-          retention-days: 90
-          compression-level: 0
-
-      - name: Prune old autonomous policy artifacts
-        if: success()
-        shell: bash
+  route-manual-request:
+    if: github.event_name == 'workflow_dispatch'
+    needs: validate-routing
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Route legacy manual invocation to Stock Trading promotion
         run: |
           set -euo pipefail
-          for artifact in "$PRIMARY_ARTIFACT" "$CHECKPOINT_ARTIFACT"; do
-            gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${artifact}&per_page=100" > "$RUNNER_TEMP/${artifact}.json"
-            python - "$RUNNER_TEMP/${artifact}.json" <<'PY' > "$RUNNER_TEMP/delete.txt"
-          import json,sys
-          from pathlib import Path
-          rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get('artifacts',[]) if not x.get('expired')]
-          rows.sort(key=lambda x:x.get('created_at',''), reverse=True)
-          for row in rows[72:]: print(row['id'])
-          PY
-            while read -r artifact_id; do
-              [[ -n "$artifact_id" ]] || continue
-              gh api -X DELETE "repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}"
-            done < "$RUNNER_TEMP/delete.txt"
-          done
+          gh workflow run stock-trading-component-promotion.yml             --repo "$GITHUB_REPOSITORY"             --ref main
+          echo "ROUTED_TO_STOCK_TRADING_COMPONENT_PROMOTION"
