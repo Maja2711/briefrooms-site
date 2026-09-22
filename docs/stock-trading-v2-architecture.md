@@ -48,7 +48,8 @@ STOCK TRADING v2
    - US: SEC/primary corporate evidence plus secondary news.
    - GPW: ESPI/EBI/PAP plus secondary news.
 7. **Research risk plan**
-   - Deterministic SL/TP geometry from available completed-session information.
+   - Deterministic SL/target geometry from available completed-session information.
+   - The target is a production profit checkpoint, not necessarily a mandatory exit: when the production thesis remains strong, Stock Trading may extend the target and ratchet risk instead of closing the winner.
    - Research output is non-executable until the production bridge revalidates it.
 8. **Fixed notional sizing**
    - Every new GPW position uses PLN 5,000 target notional.
@@ -79,7 +80,8 @@ The production config defines:
 - automatic canary progression is enabled under the configured healthy-session requirements;
 - maximum opportunity age and market-specific execution-quote freshness are enforced (US 2 minutes; GPW paper execution 20 minutes);
 - minimum reward/risk and maximum risk percentage are enforced;
-- new entries require the regular session.
+- new entries require the regular session;
+- the active profit policy is `LET_WINNERS_RUN_THESIS_CONTROLLED`: if a target is reached while the model thesis score remains at or above the configured runner threshold, the position stays open, the stop/risk geometry is ratcheted, and the next profit checkpoint is moved above the current high; there is no fixed upside cap. Stop loss, thesis invalidation and material momentum reversal remain valid exits.
 
 Runtime truth lives in:
 
