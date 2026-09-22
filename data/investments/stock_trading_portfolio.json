@@ -1,7 +1,7 @@
 {
   "schema_version": "stock-trading-portfolio-v1",
   "policy_version": "stock-trading-v2-fixed-notional-v1",
-  "updated_at": "2026-09-22T10:39:37+00:00",
+  "updated_at": "2026-09-22T10:40:04+00:00",
   "objective": "maximize_net_expectancy_not_trade_frequency",
   "fixed_holding_deadline": null,
   "markets": {
@@ -104,7 +104,99 @@
           "profit_runner_enabled": true,
           "take_profit_mode": "THESIS_RUNNER_CHECKPOINT",
           "profit_runner_upside_cap_percent": null,
-          "thesis_score": 100.0
+          "thesis_score": 100.0,
+          "event_intelligence": {
+            "reviewed_at": "2026-09-22T10:40:04Z",
+            "decision_overlay": "HOLD",
+            "normalized_impact": -0.0672,
+            "score_delta": -1.34,
+            "confidence": 0.508,
+            "top_events": [
+              {
+                "event_id": "evt-15a154e8e1fb48602fa6",
+                "event_domain": "geopolitical",
+                "event_kind": null,
+                "entity_key": null,
+                "entity_name": null,
+                "title": "“In another galaxy”: Spanish league president launches devastating attack on Real after Madrid derby - LiveScore",
+                "published_at": "2026-09-22T09:23:25Z",
+                "source": "LiveScore",
+                "source_ref": "https://news.google.com/rss/articles/CBMi5gFBVV95cUxQOWQzSTJPS1Zjd25rTzVhOHNpeXRSZzhSbVdLdnRJRDZ4aktDVE1sN1BBSzdaNVp6MHBJZlVJYTNJQWxOODVMT09nVU5XN3JCM0ZtUWpRT0ppUGNNcmhDdmhwUWJQWDlfcENVZlQtc1RPTmFwMlc5dWxybkNzQ1FQYWItNnJpRk8zWS05Y1ctSzViLXJ0UWRDWHFGSi1nbGc0bUxkSnFNM29wT1R1TnMxYjZOcXA3bmVPTWxTQS1Sa2dHQXc0RzBDVVkwem9LTDBXNVV5aE00WWNMd1pzOHRWNUVrWktWQQ?oc=5",
+                "confidence": 0.4267,
+                "action_type": "reported_event",
+                "event_type": "escalation",
+                "scenario_tags": [
+                  "general_geopolitics"
+                ],
+                "direct_impact": null,
+                "sector_impact": null,
+                "event_scope": "macro_geopolitical",
+                "engine_weight": 0.3,
+                "raw_signed_impact": -0.1375,
+                "signed_impact": -0.0413
+              },
+              {
+                "event_id": "evt-7f98f07f6458f450ecaa",
+                "event_domain": "geopolitical",
+                "event_kind": null,
+                "entity_key": null,
+                "entity_name": null,
+                "title": "President Lee Proposes Sanctions for North Korea's Nuclear, ICBM Freeze - 조선일보",
+                "published_at": "2026-09-22T06:56:36Z",
+                "source": "조선일보",
+                "source_ref": "https://news.google.com/rss/articles/CBMiiAFBVV95cUxQMVFTRXVQbzE4QmlmTW5ibklFbW9yeFRjcVZvNzFDdWtkeU1vWUJrUkIxYnZqbGV6bUgyUHNMc3VoTUdQNnU4SEFtUkVCS2dJcE5yRjVpNVJSdW1lLWw2Y1dKMHJnTHlZdlBNTVZySnJ1QTFxeDVfWFBfcGg1bUNyN0hZRWhMN0dM?oc=5",
+                "confidence": 0.508,
+                "action_type": "reported_event",
+                "event_type": "escalation",
+                "scenario_tags": [
+                  "trade_sanctions"
+                ],
+                "direct_impact": null,
+                "sector_impact": null,
+                "event_scope": "macro_geopolitical",
+                "engine_weight": 0.3,
+                "raw_signed_impact": -0.1242,
+                "signed_impact": -0.0372
+              },
+              {
+                "event_id": "evt-2e27d6ad5075a98fe4cc",
+                "event_domain": "geopolitical",
+                "event_kind": null,
+                "entity_key": null,
+                "entity_name": null,
+                "title": "US Sanctions Blocked Iranian LSAT Access for Law School Students - Military.com",
+                "published_at": "2026-09-22T10:00:13Z",
+                "source": "Military.com",
+                "source_ref": "https://news.google.com/rss/articles/CBMijgFBVV95cUxNMlNIeHYyZ2VJcU1yQ0c3cHlxZUg5UFJVd09qR0lMbFFTZ0FVbkhCYkRQS0dKRzN1T21LZnI5YXJZUkt3Zy1FcERJX0F3UXV3ZmgtQ3JuY0FhcmVXbEltZ3AtZHIwc2J3Q0RtaHZVR1JwU1hDRWhFN21GZXJoVkhHUGNacW1ZMUZnU3RpNkhn?oc=5",
+                "confidence": 0.4775,
+                "action_type": "executed_action",
+                "event_type": "escalation",
+                "scenario_tags": [
+                  "middle_east",
+                  "trade_sanctions"
+                ],
+                "direct_impact": null,
+                "sector_impact": null,
+                "event_scope": "macro_geopolitical",
+                "engine_weight": 0.3,
+                "raw_signed_impact": -0.1217,
+                "signed_impact": -0.0365
+              }
+            ],
+            "engine_profile": "STOCK_TRADING",
+            "engine_role": "FUNDAMENTALS_DOMINANT",
+            "profile_base_weight": 0.3,
+            "raw_normalized_impact": -0.2238,
+            "dominant_event_scope": "macro_geopolitical",
+            "dominant_engine_weight": 0.3,
+            "thresholds_applied": {
+              "entry_block": -0.58,
+              "reduce_risk": -0.4,
+              "close": -0.78,
+              "minimum_entry_confidence": 0.7,
+              "minimum_close_confidence": 0.8
+            }
+          }
         },
         {
           "position_id": "gpw:20260922T105220:PGE.WA",
@@ -202,7 +294,99 @@
           "profit_runner_enabled": true,
           "take_profit_mode": "THESIS_RUNNER_CHECKPOINT",
           "profit_runner_upside_cap_percent": null,
-          "thesis_score": 100.0
+          "thesis_score": 100.0,
+          "event_intelligence": {
+            "reviewed_at": "2026-09-22T10:40:04Z",
+            "decision_overlay": "HOLD",
+            "normalized_impact": -0.0672,
+            "score_delta": -1.34,
+            "confidence": 0.508,
+            "top_events": [
+              {
+                "event_id": "evt-15a154e8e1fb48602fa6",
+                "event_domain": "geopolitical",
+                "event_kind": null,
+                "entity_key": null,
+                "entity_name": null,
+                "title": "“In another galaxy”: Spanish league president launches devastating attack on Real after Madrid derby - LiveScore",
+                "published_at": "2026-09-22T09:23:25Z",
+                "source": "LiveScore",
+                "source_ref": "https://news.google.com/rss/articles/CBMi5gFBVV95cUxQOWQzSTJPS1Zjd25rTzVhOHNpeXRSZzhSbVdLdnRJRDZ4aktDVE1sN1BBSzdaNVp6MHBJZlVJYTNJQWxOODVMT09nVU5XN3JCM0ZtUWpRT0ppUGNNcmhDdmhwUWJQWDlfcENVZlQtc1RPTmFwMlc5dWxybkNzQ1FQYWItNnJpRk8zWS05Y1ctSzViLXJ0UWRDWHFGSi1nbGc0bUxkSnFNM29wT1R1TnMxYjZOcXA3bmVPTWxTQS1Sa2dHQXc0RzBDVVkwem9LTDBXNVV5aE00WWNMd1pzOHRWNUVrWktWQQ?oc=5",
+                "confidence": 0.4267,
+                "action_type": "reported_event",
+                "event_type": "escalation",
+                "scenario_tags": [
+                  "general_geopolitics"
+                ],
+                "direct_impact": null,
+                "sector_impact": null,
+                "event_scope": "macro_geopolitical",
+                "engine_weight": 0.3,
+                "raw_signed_impact": -0.1375,
+                "signed_impact": -0.0413
+              },
+              {
+                "event_id": "evt-7f98f07f6458f450ecaa",
+                "event_domain": "geopolitical",
+                "event_kind": null,
+                "entity_key": null,
+                "entity_name": null,
+                "title": "President Lee Proposes Sanctions for North Korea's Nuclear, ICBM Freeze - 조선일보",
+                "published_at": "2026-09-22T06:56:36Z",
+                "source": "조선일보",
+                "source_ref": "https://news.google.com/rss/articles/CBMiiAFBVV95cUxQMVFTRXVQbzE4QmlmTW5ibklFbW9yeFRjcVZvNzFDdWtkeU1vWUJrUkIxYnZqbGV6bUgyUHNMc3VoTUdQNnU4SEFtUkVCS2dJcE5yRjVpNVJSdW1lLWw2Y1dKMHJnTHlZdlBNTVZySnJ1QTFxeDVfWFBfcGg1bUNyN0hZRWhMN0dM?oc=5",
+                "confidence": 0.508,
+                "action_type": "reported_event",
+                "event_type": "escalation",
+                "scenario_tags": [
+                  "trade_sanctions"
+                ],
+                "direct_impact": null,
+                "sector_impact": null,
+                "event_scope": "macro_geopolitical",
+                "engine_weight": 0.3,
+                "raw_signed_impact": -0.1242,
+                "signed_impact": -0.0372
+              },
+              {
+                "event_id": "evt-2e27d6ad5075a98fe4cc",
+                "event_domain": "geopolitical",
+                "event_kind": null,
+                "entity_key": null,
+                "entity_name": null,
+                "title": "US Sanctions Blocked Iranian LSAT Access for Law School Students - Military.com",
+                "published_at": "2026-09-22T10:00:13Z",
+                "source": "Military.com",
+                "source_ref": "https://news.google.com/rss/articles/CBMijgFBVV95cUxNMlNIeHYyZ2VJcU1yQ0c3cHlxZUg5UFJVd09qR0lMbFFTZ0FVbkhCYkRQS0dKRzN1T21LZnI5YXJZUkt3Zy1FcERJX0F3UXV3ZmgtQ3JuY0FhcmVXbEltZ3AtZHIwc2J3Q0RtaHZVR1JwU1hDRWhFN21GZXJoVkhHUGNacW1ZMUZnU3RpNkhn?oc=5",
+                "confidence": 0.4775,
+                "action_type": "executed_action",
+                "event_type": "escalation",
+                "scenario_tags": [
+                  "middle_east",
+                  "trade_sanctions"
+                ],
+                "direct_impact": null,
+                "sector_impact": null,
+                "event_scope": "macro_geopolitical",
+                "engine_weight": 0.3,
+                "raw_signed_impact": -0.1217,
+                "signed_impact": -0.0365
+              }
+            ],
+            "engine_profile": "STOCK_TRADING",
+            "engine_role": "FUNDAMENTALS_DOMINANT",
+            "profile_base_weight": 0.3,
+            "raw_normalized_impact": -0.2238,
+            "dominant_event_scope": "macro_geopolitical",
+            "dominant_engine_weight": 0.3,
+            "thresholds_applied": {
+              "entry_block": -0.58,
+              "reduce_risk": -0.4,
+              "close": -0.78,
+              "minimum_entry_confidence": 0.7,
+              "minimum_close_confidence": 0.8
+            }
+          }
         },
         {
           "position_id": "gpw:20260922T105220:NWG.WA",
@@ -300,7 +484,99 @@
           "profit_runner_enabled": true,
           "take_profit_mode": "THESIS_RUNNER_CHECKPOINT",
           "profit_runner_upside_cap_percent": null,
-          "thesis_score": 100.0
+          "thesis_score": 100.0,
+          "event_intelligence": {
+            "reviewed_at": "2026-09-22T10:40:04Z",
+            "decision_overlay": "HOLD",
+            "normalized_impact": -0.0672,
+            "score_delta": -1.34,
+            "confidence": 0.508,
+            "top_events": [
+              {
+                "event_id": "evt-15a154e8e1fb48602fa6",
+                "event_domain": "geopolitical",
+                "event_kind": null,
+                "entity_key": null,
+                "entity_name": null,
+                "title": "“In another galaxy”: Spanish league president launches devastating attack on Real after Madrid derby - LiveScore",
+                "published_at": "2026-09-22T09:23:25Z",
+                "source": "LiveScore",
+                "source_ref": "https://news.google.com/rss/articles/CBMi5gFBVV95cUxQOWQzSTJPS1Zjd25rTzVhOHNpeXRSZzhSbVdLdnRJRDZ4aktDVE1sN1BBSzdaNVp6MHBJZlVJYTNJQWxOODVMT09nVU5XN3JCM0ZtUWpRT0ppUGNNcmhDdmhwUWJQWDlfcENVZlQtc1RPTmFwMlc5dWxybkNzQ1FQYWItNnJpRk8zWS05Y1ctSzViLXJ0UWRDWHFGSi1nbGc0bUxkSnFNM29wT1R1TnMxYjZOcXA3bmVPTWxTQS1Sa2dHQXc0RzBDVVkwem9LTDBXNVV5aE00WWNMd1pzOHRWNUVrWktWQQ?oc=5",
+                "confidence": 0.4267,
+                "action_type": "reported_event",
+                "event_type": "escalation",
+                "scenario_tags": [
+                  "general_geopolitics"
+                ],
+                "direct_impact": null,
+                "sector_impact": null,
+                "event_scope": "macro_geopolitical",
+                "engine_weight": 0.3,
+                "raw_signed_impact": -0.1375,
+                "signed_impact": -0.0413
+              },
+              {
+                "event_id": "evt-7f98f07f6458f450ecaa",
+                "event_domain": "geopolitical",
+                "event_kind": null,
+                "entity_key": null,
+                "entity_name": null,
+                "title": "President Lee Proposes Sanctions for North Korea's Nuclear, ICBM Freeze - 조선일보",
+                "published_at": "2026-09-22T06:56:36Z",
+                "source": "조선일보",
+                "source_ref": "https://news.google.com/rss/articles/CBMiiAFBVV95cUxQMVFTRXVQbzE4QmlmTW5ibklFbW9yeFRjcVZvNzFDdWtkeU1vWUJrUkIxYnZqbGV6bUgyUHNMc3VoTUdQNnU4SEFtUkVCS2dJcE5yRjVpNVJSdW1lLWw2Y1dKMHJnTHlZdlBNTVZySnJ1QTFxeDVfWFBfcGg1bUNyN0hZRWhMN0dM?oc=5",
+                "confidence": 0.508,
+                "action_type": "reported_event",
+                "event_type": "escalation",
+                "scenario_tags": [
+                  "trade_sanctions"
+                ],
+                "direct_impact": null,
+                "sector_impact": null,
+                "event_scope": "macro_geopolitical",
+                "engine_weight": 0.3,
+                "raw_signed_impact": -0.1242,
+                "signed_impact": -0.0372
+              },
+              {
+                "event_id": "evt-2e27d6ad5075a98fe4cc",
+                "event_domain": "geopolitical",
+                "event_kind": null,
+                "entity_key": null,
+                "entity_name": null,
+                "title": "US Sanctions Blocked Iranian LSAT Access for Law School Students - Military.com",
+                "published_at": "2026-09-22T10:00:13Z",
+                "source": "Military.com",
+                "source_ref": "https://news.google.com/rss/articles/CBMijgFBVV95cUxNMlNIeHYyZ2VJcU1yQ0c3cHlxZUg5UFJVd09qR0lMbFFTZ0FVbkhCYkRQS0dKRzN1T21LZnI5YXJZUkt3Zy1FcERJX0F3UXV3ZmgtQ3JuY0FhcmVXbEltZ3AtZHIwc2J3Q0RtaHZVR1JwU1hDRWhFN21GZXJoVkhHUGNacW1ZMUZnU3RpNkhn?oc=5",
+                "confidence": 0.4775,
+                "action_type": "executed_action",
+                "event_type": "escalation",
+                "scenario_tags": [
+                  "middle_east",
+                  "trade_sanctions"
+                ],
+                "direct_impact": null,
+                "sector_impact": null,
+                "event_scope": "macro_geopolitical",
+                "engine_weight": 0.3,
+                "raw_signed_impact": -0.1217,
+                "signed_impact": -0.0365
+              }
+            ],
+            "engine_profile": "STOCK_TRADING",
+            "engine_role": "FUNDAMENTALS_DOMINANT",
+            "profile_base_weight": 0.3,
+            "raw_normalized_impact": -0.2238,
+            "dominant_event_scope": "macro_geopolitical",
+            "dominant_engine_weight": 0.3,
+            "thresholds_applied": {
+              "entry_block": -0.58,
+              "reduce_risk": -0.4,
+              "close": -0.78,
+              "minimum_entry_confidence": 0.7,
+              "minimum_close_confidence": 0.8
+            }
+          }
         }
       ],
       "closed_positions": [
@@ -498,41 +774,87 @@
           "quote_refresh_error": null,
           "thesis_score": 100.0,
           "event_intelligence": {
-            "reviewed_at": "2026-09-22T06:47:21Z",
+            "reviewed_at": "2026-09-22T10:40:04Z",
             "decision_overlay": "HOLD",
-            "normalized_impact": -0.036,
-            "score_delta": -0.72,
-            "confidence": 0.5175,
+            "normalized_impact": -0.0672,
+            "score_delta": -1.34,
+            "confidence": 0.508,
             "top_events": [
               {
-                "event_id": "evt-16bfce1462a52ba7a0fd",
+                "event_id": "evt-15a154e8e1fb48602fa6",
                 "event_domain": "geopolitical",
                 "event_kind": null,
                 "entity_key": null,
                 "entity_name": null,
-                "title": "Ukraine war briefing: Sanctions must continue, EU’s top diplomat stresses, as Russian attacks kill five - The Guardian",
-                "published_at": "2026-09-22T01:42:00Z",
-                "source": "The Guardian",
-                "source_ref": "https://news.google.com/rss/articles/CBMi3gFBVV95cUxPekNaeVAxbVZ2OWpUXy1OZUZ6dnY1ZDRSaUg3TDNmRldKcEw3NVUxMVNrNkh4amZnWUNuSWhSWnZjME1BVUNsU1pDajdLTUxDTnpHT0VOaTUxdHl6NG1uMUQzVElRcE1aVC1ObkZIc1p2YkljMTRpdkk2ZW9BLVJzMXJYc0dweFNjX01MNnc4SDU4WWRvQjNHQl9fVnZHMXBsV0NNOHJKVENqWmw1MTFzVnFUMEtXWlprSXc0cFZPSVZMMkpNcGlZaDJaLVRtbnh0WU40Vml3eHRTZEVQblE?oc=5",
-                "confidence": 0.5175,
+                "title": "“In another galaxy”: Spanish league president launches devastating attack on Real after Madrid derby - LiveScore",
+                "published_at": "2026-09-22T09:23:25Z",
+                "source": "LiveScore",
+                "source_ref": "https://news.google.com/rss/articles/CBMi5gFBVV95cUxQOWQzSTJPS1Zjd25rTzVhOHNpeXRSZzhSbVdLdnRJRDZ4aktDVE1sN1BBSzdaNVp6MHBJZlVJYTNJQWxOODVMT09nVU5XN3JCM0ZtUWpRT0ppUGNNcmhDdmhwUWJQWDlfcENVZlQtc1RPTmFwMlc5dWxybkNzQ1FQYWItNnJpRk8zWS05Y1ctSzViLXJ0UWRDWHFGSi1nbGc0bUxkSnFNM29wT1R1TnMxYjZOcXA3bmVPTWxTQS1Sa2dHQXc0RzBDVVkwem9LTDBXNVV5aE00WWNMd1pzOHRWNUVrWktWQQ?oc=5",
+                "confidence": 0.4267,
                 "action_type": "reported_event",
                 "event_type": "escalation",
                 "scenario_tags": [
-                  "russia_ukraine",
+                  "general_geopolitics"
+                ],
+                "direct_impact": null,
+                "sector_impact": null,
+                "event_scope": "macro_geopolitical",
+                "engine_weight": 0.3,
+                "raw_signed_impact": -0.1375,
+                "signed_impact": -0.0413
+              },
+              {
+                "event_id": "evt-7f98f07f6458f450ecaa",
+                "event_domain": "geopolitical",
+                "event_kind": null,
+                "entity_key": null,
+                "entity_name": null,
+                "title": "President Lee Proposes Sanctions for North Korea's Nuclear, ICBM Freeze - 조선일보",
+                "published_at": "2026-09-22T06:56:36Z",
+                "source": "조선일보",
+                "source_ref": "https://news.google.com/rss/articles/CBMiiAFBVV95cUxQMVFTRXVQbzE4QmlmTW5ibklFbW9yeFRjcVZvNzFDdWtkeU1vWUJrUkIxYnZqbGV6bUgyUHNMc3VoTUdQNnU4SEFtUkVCS2dJcE5yRjVpNVJSdW1lLWw2Y1dKMHJnTHlZdlBNTVZySnJ1QTFxeDVfWFBfcGg1bUNyN0hZRWhMN0dM?oc=5",
+                "confidence": 0.508,
+                "action_type": "reported_event",
+                "event_type": "escalation",
+                "scenario_tags": [
                   "trade_sanctions"
                 ],
                 "direct_impact": null,
                 "sector_impact": null,
                 "event_scope": "macro_geopolitical",
                 "engine_weight": 0.3,
-                "raw_signed_impact": -0.1199,
-                "signed_impact": -0.036
+                "raw_signed_impact": -0.1242,
+                "signed_impact": -0.0372
+              },
+              {
+                "event_id": "evt-2e27d6ad5075a98fe4cc",
+                "event_domain": "geopolitical",
+                "event_kind": null,
+                "entity_key": null,
+                "entity_name": null,
+                "title": "US Sanctions Blocked Iranian LSAT Access for Law School Students - Military.com",
+                "published_at": "2026-09-22T10:00:13Z",
+                "source": "Military.com",
+                "source_ref": "https://news.google.com/rss/articles/CBMijgFBVV95cUxNMlNIeHYyZ2VJcU1yQ0c3cHlxZUg5UFJVd09qR0lMbFFTZ0FVbkhCYkRQS0dKRzN1T21LZnI5YXJZUkt3Zy1FcERJX0F3UXV3ZmgtQ3JuY0FhcmVXbEltZ3AtZHIwc2J3Q0RtaHZVR1JwU1hDRWhFN21GZXJoVkhHUGNacW1ZMUZnU3RpNkhn?oc=5",
+                "confidence": 0.4775,
+                "action_type": "executed_action",
+                "event_type": "escalation",
+                "scenario_tags": [
+                  "middle_east",
+                  "trade_sanctions"
+                ],
+                "direct_impact": null,
+                "sector_impact": null,
+                "event_scope": "macro_geopolitical",
+                "engine_weight": 0.3,
+                "raw_signed_impact": -0.1217,
+                "signed_impact": -0.0365
               }
             ],
             "engine_profile": "STOCK_TRADING",
             "engine_role": "FUNDAMENTALS_DOMINANT",
             "profile_base_weight": 0.3,
-            "raw_normalized_impact": -0.1199,
+            "raw_normalized_impact": -0.2238,
             "dominant_event_scope": "macro_geopolitical",
             "dominant_engine_weight": 0.3,
             "thresholds_applied": {
@@ -645,41 +967,87 @@
           },
           "quote_refresh_error": null,
           "event_intelligence": {
-            "reviewed_at": "2026-09-22T06:47:21Z",
+            "reviewed_at": "2026-09-22T10:40:04Z",
             "decision_overlay": "HOLD",
-            "normalized_impact": -0.036,
-            "score_delta": -0.72,
-            "confidence": 0.5175,
+            "normalized_impact": -0.0672,
+            "score_delta": -1.34,
+            "confidence": 0.508,
             "top_events": [
               {
-                "event_id": "evt-16bfce1462a52ba7a0fd",
+                "event_id": "evt-15a154e8e1fb48602fa6",
                 "event_domain": "geopolitical",
                 "event_kind": null,
                 "entity_key": null,
                 "entity_name": null,
-                "title": "Ukraine war briefing: Sanctions must continue, EU’s top diplomat stresses, as Russian attacks kill five - The Guardian",
-                "published_at": "2026-09-22T01:42:00Z",
-                "source": "The Guardian",
-                "source_ref": "https://news.google.com/rss/articles/CBMi3gFBVV95cUxPekNaeVAxbVZ2OWpUXy1OZUZ6dnY1ZDRSaUg3TDNmRldKcEw3NVUxMVNrNkh4amZnWUNuSWhSWnZjME1BVUNsU1pDajdLTUxDTnpHT0VOaTUxdHl6NG1uMUQzVElRcE1aVC1ObkZIc1p2YkljMTRpdkk2ZW9BLVJzMXJYc0dweFNjX01MNnc4SDU4WWRvQjNHQl9fVnZHMXBsV0NNOHJKVENqWmw1MTFzVnFUMEtXWlprSXc0cFZPSVZMMkpNcGlZaDJaLVRtbnh0WU40Vml3eHRTZEVQblE?oc=5",
-                "confidence": 0.5175,
+                "title": "“In another galaxy”: Spanish league president launches devastating attack on Real after Madrid derby - LiveScore",
+                "published_at": "2026-09-22T09:23:25Z",
+                "source": "LiveScore",
+                "source_ref": "https://news.google.com/rss/articles/CBMi5gFBVV95cUxQOWQzSTJPS1Zjd25rTzVhOHNpeXRSZzhSbVdLdnRJRDZ4aktDVE1sN1BBSzdaNVp6MHBJZlVJYTNJQWxOODVMT09nVU5XN3JCM0ZtUWpRT0ppUGNNcmhDdmhwUWJQWDlfcENVZlQtc1RPTmFwMlc5dWxybkNzQ1FQYWItNnJpRk8zWS05Y1ctSzViLXJ0UWRDWHFGSi1nbGc0bUxkSnFNM29wT1R1TnMxYjZOcXA3bmVPTWxTQS1Sa2dHQXc0RzBDVVkwem9LTDBXNVV5aE00WWNMd1pzOHRWNUVrWktWQQ?oc=5",
+                "confidence": 0.4267,
                 "action_type": "reported_event",
                 "event_type": "escalation",
                 "scenario_tags": [
-                  "russia_ukraine",
+                  "general_geopolitics"
+                ],
+                "direct_impact": null,
+                "sector_impact": null,
+                "event_scope": "macro_geopolitical",
+                "engine_weight": 0.3,
+                "raw_signed_impact": -0.1375,
+                "signed_impact": -0.0413
+              },
+              {
+                "event_id": "evt-7f98f07f6458f450ecaa",
+                "event_domain": "geopolitical",
+                "event_kind": null,
+                "entity_key": null,
+                "entity_name": null,
+                "title": "President Lee Proposes Sanctions for North Korea's Nuclear, ICBM Freeze - 조선일보",
+                "published_at": "2026-09-22T06:56:36Z",
+                "source": "조선일보",
+                "source_ref": "https://news.google.com/rss/articles/CBMiiAFBVV95cUxQMVFTRXVQbzE4QmlmTW5ibklFbW9yeFRjcVZvNzFDdWtkeU1vWUJrUkIxYnZqbGV6bUgyUHNMc3VoTUdQNnU4SEFtUkVCS2dJcE5yRjVpNVJSdW1lLWw2Y1dKMHJnTHlZdlBNTVZySnJ1QTFxeDVfWFBfcGg1bUNyN0hZRWhMN0dM?oc=5",
+                "confidence": 0.508,
+                "action_type": "reported_event",
+                "event_type": "escalation",
+                "scenario_tags": [
                   "trade_sanctions"
                 ],
                 "direct_impact": null,
                 "sector_impact": null,
                 "event_scope": "macro_geopolitical",
                 "engine_weight": 0.3,
-                "raw_signed_impact": -0.1199,
-                "signed_impact": -0.036
+                "raw_signed_impact": -0.1242,
+                "signed_impact": -0.0372
+              },
+              {
+                "event_id": "evt-2e27d6ad5075a98fe4cc",
+                "event_domain": "geopolitical",
+                "event_kind": null,
+                "entity_key": null,
+                "entity_name": null,
+                "title": "US Sanctions Blocked Iranian LSAT Access for Law School Students - Military.com",
+                "published_at": "2026-09-22T10:00:13Z",
+                "source": "Military.com",
+                "source_ref": "https://news.google.com/rss/articles/CBMijgFBVV95cUxNMlNIeHYyZ2VJcU1yQ0c3cHlxZUg5UFJVd09qR0lMbFFTZ0FVbkhCYkRQS0dKRzN1T21LZnI5YXJZUkt3Zy1FcERJX0F3UXV3ZmgtQ3JuY0FhcmVXbEltZ3AtZHIwc2J3Q0RtaHZVR1JwU1hDRWhFN21GZXJoVkhHUGNacW1ZMUZnU3RpNkhn?oc=5",
+                "confidence": 0.4775,
+                "action_type": "executed_action",
+                "event_type": "escalation",
+                "scenario_tags": [
+                  "middle_east",
+                  "trade_sanctions"
+                ],
+                "direct_impact": null,
+                "sector_impact": null,
+                "event_scope": "macro_geopolitical",
+                "engine_weight": 0.3,
+                "raw_signed_impact": -0.1217,
+                "signed_impact": -0.0365
               }
             ],
             "engine_profile": "STOCK_TRADING",
             "engine_role": "FUNDAMENTALS_DOMINANT",
             "profile_base_weight": 0.3,
-            "raw_normalized_impact": -0.1199,
+            "raw_normalized_impact": -0.2238,
             "dominant_event_scope": "macro_geopolitical",
             "dominant_engine_weight": 0.3,
             "thresholds_applied": {
