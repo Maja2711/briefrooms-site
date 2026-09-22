@@ -7,6 +7,14 @@ from pathlib import Path
 def load(path: Path, default):
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else default
 
+def records(value):
+    """Accept persisted Belief Core collections stored as either list or dict."""
+    if isinstance(value, dict):
+        return list(value.values())
+    if isinstance(value, list):
+        return value
+    return []
+
 def main() -> int:
     p=argparse.ArgumentParser()
     p.add_argument("--state-dir", required=True)
@@ -15,8 +23,8 @@ def main() -> int:
     root=Path(args.state_dir)
     state=load(root/"state.json", {})
     report=load(root/"BELIEF_CALIBRATION_REPORT.json", {})
-    forecasts=list((state.get("forecasts") or {}).values())
-    verifications=list((state.get("verifications") or {}).values())
+    forecasts=records(state.get("forecasts"))
+    verifications=records(state.get("verifications"))
     verified={str(v.get("forecast_id")):v for v in verifications if v.get("forecast_id")}
     rows=[]
     for f in sorted(forecasts,key=lambda x:str(x.get("forecast_at","")),reverse=True)[:40]:
