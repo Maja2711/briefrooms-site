@@ -432,6 +432,86 @@ class StockTradingPortfolioTests(unittest.TestCase):
         self.assertEqual([], stock.open_positions(updated, 'US'))
         self.assertEqual('stop_loss', audit[0]['reason'])
 
+    def test_hard_take_profit_remains_default_when_profit_runner_disabled(self):
+        state, _ = stock.admit_candidate(self.state, 'US', candidate(), now=self.now, policy=self.policy)
+        position = stock.open_positions(state, 'US')[0]
+        position['opened_at'] = '2026-09-08T12:00:00+00:00'
+        position['risk_last_changed_at'] = '2026-09-08T12:00:00+00:00'
+        target = float(position['target'])
+        state['markets']['US']['open_positions'] = [position]
+        observations = {
+            'AAA': {
+                'snapshot': {'high': target + 1.0, 'low': 100.0, 'last': target + 0.5},
+                'closes': [100.0] * 49 + [105.0],
+                'atr': 2.0,
+            }
+        }
+        updated, audit = stock.review_market(state, 'US', observations=observations, now=self.now, policy=self.policy)
+        self.assertEqual([], stock.open_positions(updated, 'US'))
+        self.assertEqual('take_profit', audit[0]['reason'])
+
+    def test_profit_runner_holds_strong_winner_beyond_target_and_raises_checkpoint(self):
+        self.policy['markets']['US'].update({
+            'profit_runner_enabled': True,
+            'profit_runner_min_thesis_score': 60.0,
+            'profit_runner_upside_cap_percent': None,
+            'profit_runner_target_buffer_rr': 3.0,
+        })
+        state, _ = stock.admit_candidate(self.state, 'US', candidate(), now=self.now, policy=self.policy)
+        position = stock.open_positions(state, 'US')[0]
+        position['opened_at'] = '2026-09-08T12:00:00+00:00'
+        position['risk_last_changed_at'] = '2026-09-08T12:00:00+00:00'
+        old_target = float(position['target'])
+        high = old_target + 1.0
+        state['markets']['US']['open_positions'] = [position]
+        observations = {
+            'AAA': {
+                'snapshot': {'high': high, 'low': 100.0, 'last': old_target + 0.5},
+                'closes': [100.0] * 49 + [105.0],
+                'atr': 2.0,
+            }
+        }
+        updated, audit = stock.review_market(state, 'US', observations=observations, now=self.now, policy=self.policy)
+        open_rows = stock.open_positions(updated, 'US')
+        self.assertEqual(1, len(open_rows))
+        held = open_rows[0]
+        self.assertEqual('hold_profit_runner', audit[0]['action'])
+        self.assertEqual('target_reached_thesis_intact', audit[0]['reason'])
+        self.assertEqual('ACTIVE_RUNNER', held['thesis_status'])
+        self.assertEqual('THESIS_RUNNER_CHECKPOINT', held['take_profit_mode'])
+        self.assertTrue(held['profit_runner_active'])
+        self.assertGreater(held['target'], high)
+        self.assertGreater(held['stop'], position['stop'])
+        self.assertIsNone(held['profit_runner_upside_cap_percent'])
+        self.assertEqual(1, len(held['profit_runner_checkpoints']))
+
+    def test_profit_runner_can_still_take_profit_when_thesis_is_not_strong_enough(self):
+        self.policy['markets']['US'].update({
+            'profit_runner_enabled': True,
+            'profit_runner_min_thesis_score': 60.0,
+            'profit_runner_upside_cap_percent': None,
+            'profit_runner_target_buffer_rr': 3.0,
+            'model_reversal_from_peak': 100.0,
+        })
+        state, _ = stock.admit_candidate(self.state, 'US', candidate(), now=self.now, policy=self.policy)
+        position = stock.open_positions(state, 'US')[0]
+        position['opened_at'] = '2026-09-08T12:00:00+00:00'
+        position['risk_last_changed_at'] = '2026-09-08T12:00:00+00:00'
+        target = float(position['target'])
+        state['markets']['US']['open_positions'] = [position]
+        observations = {
+            'AAA': {
+                'snapshot': {'high': target + 1.0, 'low': 100.0, 'last': target + 0.5},
+                'closes': [100.0] * 50,
+                'atr': 2.0,
+            }
+        }
+        updated, audit = stock.review_market(state, 'US', observations=observations, now=self.now, policy=self.policy)
+        self.assertEqual([], stock.open_positions(updated, 'US'))
+        self.assertEqual('take_profit', audit[0]['reason'])
+        closed = updated['markets']['US']['closed_positions'][-1]
+        self.assertEqual('thesis_not_strong_enough_or_risk_recalculation_failed', closed['profit_runner_fallback'])
+
     def test_model_thesis_invalidation_can_close_at_any_time(self):
         state, _ = stock.admit_candidate(self.state, 'US', candidate(), now=self.now, policy=self.policy)
         position = stock.open_positions(state, 'US')[0]

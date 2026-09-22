@@ -20,7 +20,7 @@
     allTickets: 'Pokaż tickety',
     backToOverview: 'Wróć do pozycji',
     openOverviewLead: 'Wszystkie otwarte pozycje w skrócie: spółka, cena wejścia, nominał i bieżący wynik.',
-    ticketDetailsLead: 'Pełne tickety z poziomami SL/TP, ryzykiem i szczegółami pozycji.',
+    ticketDetailsLead: 'Pełne tickety z poziomem SL, dynamicznym celem runnera, ryzykiem i szczegółami pozycji.',
     active: 'Aktywna pozycja', availableSlots: 'Dostępne sloty',
     noActive: 'Brak aktywnej pozycji', noActiveText: 'Brak otwartej pozycji na tym rynku.', cash: 'CASH / wolny slot',
     pending: 'Kandydat wybrany', pendingShort: 'kandydat oczekuje',
@@ -30,7 +30,7 @@
     delayedPaper: 'DELAYED PAPER · GPW ≤20 min',
     market: 'Rynek', sector: 'Sektor', status: 'Status', noPosition: 'Brak pozycji',
     entry: 'Cena wejścia', last: 'Ostatni kurs', closedMarket: 'rynek zamknięty',
-    sl: 'SL', tp: 'TP', entered: 'Wejście', pnl: 'P&L (od wejścia)',
+    sl: 'SL', tp: 'Cel runnera', runnerPolicy: 'LET WINNERS RUN', entered: 'Wejście', pnl: 'P&L (od wejścia)',
     positionValue: 'Nominał pozycji', shares: 'Liczba akcji', legacySizing: 'Nominał legacy: nieokreślony',
     summary: 'Podsumowanie wyników', summaryLead: 'Twoje wyniki w liczbach. Konsekwencja buduje przewagę.',
     totalReturn: 'Łączny zwrot', winRate: 'Win rate', avgRR: 'Średnie R:R', avgHold: 'Średni czas trzymania',
@@ -61,7 +61,7 @@
     allTickets: 'Show tickets',
     backToOverview: 'Back to positions',
     openOverviewLead: 'All open positions at a glance: company, entry price, notional and current P&L.',
-    ticketDetailsLead: 'Full tickets with SL/TP levels, risk and position details.',
+    ticketDetailsLead: 'Full tickets with SL, a dynamic runner target, risk and position details.',
     active: 'Active position', availableSlots: 'Available slots',
     noActive: 'No active position', noActiveText: 'No open position in this market.', cash: 'CASH / free slot',
     pending: 'Candidate selected', pendingShort: 'candidate waiting',
@@ -71,7 +71,7 @@
     delayedPaper: 'DELAYED PAPER · GPW ≤20 min',
     market: 'Market', sector: 'Sector', status: 'Status', noPosition: 'No position',
     entry: 'Entry price', last: 'Last price', closedMarket: 'market closed',
-    sl: 'SL', tp: 'TP', entered: 'Entry', pnl: 'P&L (since entry)',
+    sl: 'SL', tp: 'Runner target', runnerPolicy: 'LET WINNERS RUN', entered: 'Entry', pnl: 'P&L (since entry)',
     positionValue: 'Position notional', shares: 'Shares', legacySizing: 'Legacy notional: undefined',
     summary: 'Performance summary', summaryLead: 'Your results in numbers. Consistency builds an edge.',
     totalReturn: 'Total return', winRate: 'Win rate', avgRR: 'Average R:R', avgHold: 'Average holding time',
@@ -286,6 +286,7 @@
     const score = firstNumber(position, ['entry_score','score']);
     const sector = sectorLabel(position.sector);
     const executionMode = String(position?.entry_validation?.execution_mode || '').toUpperCase();
+    const runnerMode = position?.profit_runner_enabled === true || String(position?.take_profit_mode || '').toUpperCase() === 'THESIS_RUNNER_CHECKPOINT';
     return `<article class="str-position">
       <div class="str-position-head">
         <span class="str-market-badge">${marketFlag(market)}<b>${market === 'GPW' ? 'GPW' : 'USA'}</b></span>
@@ -310,6 +311,7 @@
               ${quantity !== null ? `<span class="str-meta-pill">${esc(T.shares)}: ${quantity.toLocaleString(locale,{maximumFractionDigits:8})}</span>` : ''}
               ${score !== null ? `<span class="str-meta-pill">${esc(T.score)}: ${score.toLocaleString(locale,{maximumFractionDigits:2})}</span>` : ''}
               ${market === 'GPW' && executionMode === 'DELAYED_PAPER' ? `<span class="str-meta-pill"><b>${esc(T.delayedPaper)}</b></span>` : ''}
+              ${runnerMode ? `<span class="str-meta-pill"><b>${esc(T.runnerPolicy)}</b></span>` : ''}
             </div>
             <div class="str-pnl ${p === null || p === 0 ? 'is-neutral' : p > 0 ? 'is-positive' : 'is-negative'}">
               <span>${esc(T.pnl)}</span>

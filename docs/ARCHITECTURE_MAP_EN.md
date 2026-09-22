@@ -208,6 +208,8 @@ Main implementation families: `stock_trading_v2_*`, `stock_trading_component_*`,
 
 **TR-04 execution/paper policy:** new admissions remain prospective and are allowed only during the `REGULAR` session. US keeps a 2-minute maximum execution-quote age. GPW, as paper trading, may use a current-session Yahoo or other eligible-provider observation up to 20 minutes old and records the fill as `DELAYED_PAPER`; older observations, closed-session prices and research reference prices cannot open a position. This change grants no execution authority to other markets or instruments.
 
+**TR-04 profit realization policy:** production uses `LET_WINNERS_RUN_THESIS_CONTROLLED`. `target` is a profit checkpoint rather than an unconditional take-profit. When the checkpoint is reached and the thesis score still clears the configured profit-runner threshold, the position remains open, SL/risk is ratcheted, and the next target is moved above the current high. There is no fixed upside cap; stop loss, thesis invalidation and material momentum reversal remain valid exits. This prevents a strong winner from being automatically cut merely because it has reached a modest preset gain.
+
 ### Stock Trading v2 branch/runtime authority
 
 ```text
