@@ -28,9 +28,8 @@ on:
   schedule:
     # Broad UTC envelope; the job decides from each exchange's local clock.
     # Three staggered attempts per hour reduce exposure to scheduled-event delay/drop.
-    # The independent liveness watchdog provides an event-driven recovery path.
-    # Successful active-market discovery explicitly dispatches production on main;
-    # workflow_run remains a redundant recovery trigger.
+    # The independent liveness watchdog and production schedule provide recovery paths.
+    # Successful active-market discovery explicitly dispatches production on main.
     - cron: "7,27,47 6-22 * * 1-5"
 
 permissions:
