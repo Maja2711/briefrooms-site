@@ -13,12 +13,13 @@ on:
       - "scripts/belief_calibration_foundation.py"
       - "scripts/belief_data_quality_adapter.py"
       - "scripts/belief_calibration.py"
+      - "scripts/decision_lab_public_projection.py"
       - "tests/test_belief_core_calibration_foundation.py"
       - "docs/BELIEF_CALIBRATION_FOUNDATION.md"
       - ".github/workflows/belief-calibration-live.yml"
 
 permissions:
-  contents: read
+  contents: write
   actions: write
 
 # The report is persisted inside the same cumulative Belief Core artifact, so it
@@ -147,6 +148,38 @@ jobs:
           print('Data-quality health:', report['data_quality']['health'])
           print('GSE available:', report['gse_forecast_source']['available'])
           PY
+
+      - name: Build sanitized Decision LAB public projection
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts
+        run: |
+          python scripts/decision_lab_public_projection.py \
+            --state-dir "$STATE_DIR" \
+            --output data/investments/decision_lab_public.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('data/investments/decision_lab_public.json').read_text())
+          assert p['mode'] == 'research_shadow'
+          assert p['execution_authority'] is False
+          assert p['production_write_authority'] is False
+          assert p['automatic_tuning'] is False
+          print('Decision LAB sanitized projection: PASS')
+          PY
+
+      - name: Publish Decision LAB projection
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- data/investments/decision_lab_public.json; then
+            echo "Decision LAB projection unchanged."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/investments/decision_lab_public.json
+          git commit -m "data(decision-lab): publish Belief Core shadow projection"
+          git pull --rebase origin main
+          git push origin HEAD:main
 
       - name: Pack cumulative Belief Core state with calibration report
         run: |
