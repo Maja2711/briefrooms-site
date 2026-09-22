@@ -1,6 +1,6 @@
 {
   "layer_version": "5.8.0-experimental",
-  "generated_at": "2026-09-22T03:43:41+02:00",
+  "generated_at": "2026-09-22T06:52:09+02:00",
   "instruments": {
     "eurusd": {
       "regime": "trend_down:vol_normal",
@@ -200,51 +200,35 @@
         }
       },
       "decision": {
-        "direction": "short",
-        "raw_score": -48.0,
-        "conviction": 7.1235,
-        "base_conviction": 7.1235,
-        "macro_alignment_adjustment": -1.2015,
-        "macro_context_score": 6.0075,
-        "ma_structure_base_conviction": 5.9985,
-        "ma_structure_adjustment": 1.125,
-        "ma_structure_score": -1.5,
-        "research_lab_bridge": {
-          "enabled": true,
-          "cap_points": 2.0,
-          "applied": []
-        },
-        "contextual_learning_context": "momentum=not_against_aligned_momentum|regime=trend_down:vol_normal|macro=macro_opposed|ma=ma_aligned",
-        "contextual_learning_components": {
-          "key": "momentum=not_against_aligned_momentum|regime=trend_down:vol_normal|macro=macro_opposed|ma=ma_aligned",
-          "momentum": "not_against_aligned_momentum",
-          "weekly_regime": "trend_down:vol_normal",
-          "macro_alignment": "macro_opposed",
-          "ma_alignment": "ma_aligned"
-        },
-        "contextual_learning_count": 1,
-        "contextual_candidate_observation_count": 5,
-        "contextual_learning_mean_net_percent": -0.151915,
-        "contextual_learning_adjustment": 0.0,
-        "strategy_id": "base_v2",
-        "learning_count": 5,
-        "learning_adjustment": 0.0,
-        "exploration_bonus": 1.0206,
-        "utility": 8.1441,
-        "execution_authority": "champion_execution",
-        "execution_eligible": true,
+        "strategy_id": "no_trade",
+        "direction": "neutral",
+        "raw_score": 0.0,
+        "utility": 7.4747,
+        "reason_codes": [
+          "opposing_execution_candidates_within_utility_margin"
+        ],
         "instrument_id": "eurusd",
+        "selection_diagnostics": {
+          "top_method": "base_v2",
+          "top_direction": "short",
+          "top_utility": 7.4747,
+          "opposing_method": "ema_mean_reversion",
+          "opposing_direction": "long",
+          "opposing_utility": 7.3165,
+          "utility_gap": 0.1582,
+          "required_margin": 0.5
+        },
         "candidates": {
           "inverse_v2": {
             "direction": "long",
-            "raw_score": 48.0,
-            "conviction": 7.2765,
-            "base_conviction": 7.2765,
-            "macro_alignment_adjustment": 1.2015,
-            "macro_context_score": 6.0075,
-            "ma_structure_base_conviction": 8.4015,
-            "ma_structure_adjustment": -1.125,
-            "ma_structure_score": -1.5,
+            "raw_score": 45.0,
+            "conviction": 7.0459,
+            "base_conviction": 7.0459,
+            "macro_alignment_adjustment": 1.0459,
+            "macro_context_score": 5.2297,
+            "ma_structure_base_conviction": 7.7959,
+            "ma_structure_adjustment": -0.75,
+            "ma_structure_score": -1.0,
             "research_lab_bridge": {
               "enabled": true,
               "cap_points": 2.0,
@@ -266,20 +250,20 @@
             "learning_count": 5,
             "learning_adjustment": 0.0,
             "exploration_bonus": 1.0206,
-            "utility": 8.2971,
+            "utility": 8.0665,
             "execution_authority": "challenger_shadow",
             "execution_eligible": false
           },
           "base_v2": {
             "direction": "short",
-            "raw_score": -48.0,
-            "conviction": 7.1235,
-            "base_conviction": 7.1235,
-            "macro_alignment_adjustment": -1.2015,
-            "macro_context_score": 6.0075,
-            "ma_structure_base_conviction": 5.9985,
-            "ma_structure_adjustment": 1.125,
-            "ma_structure_score": -1.5,
+            "raw_score": -45.0,
+            "conviction": 6.4541,
+            "base_conviction": 6.4541,
+            "macro_alignment_adjustment": -1.0459,
+            "macro_context_score": 5.2297,
+            "ma_structure_base_conviction": 5.7041,
+            "ma_structure_adjustment": 0.75,
+            "ma_structure_score": -1.0,
             "research_lab_bridge": {
               "enabled": true,
               "cap_points": 2.0,
@@ -301,20 +285,20 @@
             "learning_count": 5,
             "learning_adjustment": 0.0,
             "exploration_bonus": 1.0206,
-            "utility": 8.1441,
+            "utility": 7.4747,
             "execution_authority": "champion_execution",
             "execution_eligible": true
           },
           "ema_mean_reversion": {
             "direction": "long",
             "raw_score": 40.0,
-            "conviction": 6.0765,
-            "base_conviction": 6.0765,
-            "macro_alignment_adjustment": 1.2015,
-            "macro_context_score": 6.0075,
-            "ma_structure_base_conviction": 7.2015,
-            "ma_structure_adjustment": -1.125,
-            "ma_structure_score": -1.5,
+            "conviction": 6.2959,
+            "base_conviction": 6.2959,
+            "macro_alignment_adjustment": 1.0459,
+            "macro_context_score": 5.2297,
+            "ma_structure_base_conviction": 7.0459,
+            "ma_structure_adjustment": -0.75,
+            "ma_structure_score": -1.0,
             "research_lab_bridge": {
               "enabled": true,
               "cap_points": 2.0,
@@ -336,20 +320,20 @@
             "learning_count": 5,
             "learning_adjustment": 0.0,
             "exploration_bonus": 1.0206,
-            "utility": 7.0971,
+            "utility": 7.3165,
             "execution_authority": "champion_execution",
             "execution_eligible": true
           },
           "daily_weekly_blend": {
             "direction": "short",
-            "raw_score": -40.4,
-            "conviction": 5.9835,
-            "base_conviction": 5.9835,
-            "macro_alignment_adjustment": -1.2015,
-            "macro_context_score": 6.0075,
-            "ma_structure_base_conviction": 4.8585,
-            "ma_structure_adjustment": 1.125,
-            "ma_structure_score": -1.5,
+            "raw_score": -37.0,
+            "conviction": 5.2541,
+            "base_conviction": 5.2541,
+            "macro_alignment_adjustment": -1.0459,
+            "macro_context_score": 5.2297,
+            "ma_structure_base_conviction": 4.5041,
+            "ma_structure_adjustment": 0.75,
+            "ma_structure_score": -1.0,
             "research_lab_bridge": {
               "enabled": true,
               "cap_points": 2.0,
@@ -371,30 +355,30 @@
             "learning_count": 5,
             "learning_adjustment": 0.0,
             "exploration_bonus": 1.0206,
-            "utility": 7.0041,
+            "utility": 6.2747,
             "execution_authority": "champion_execution",
             "execution_eligible": true
           },
           "macro_weekly_blend": {
             "direction": "short",
-            "raw_score": -23.3937,
-            "conviction": 4.6341,
-            "base_conviction": 4.6341,
+            "raw_score": -21.3919,
+            "conviction": 3.9588,
+            "base_conviction": 3.9588,
             "macro_alignment_adjustment": 0.0,
-            "macro_context_score": 6.0075,
+            "macro_context_score": 5.2297,
             "inputs": {
-              "daily_score": -48.0,
-              "weekly_score": -29.0,
-              "macro_score_normalized": 20.025,
+              "daily_score": -45.0,
+              "weekly_score": -25.0,
+              "macro_score_normalized": 17.4323,
               "weights": {
                 "daily": 0.35,
                 "weekly": 0.4,
                 "macro": 0.25
               }
             },
-            "ma_structure_base_conviction": 3.5091,
-            "ma_structure_adjustment": 1.125,
-            "ma_structure_score": -1.5,
+            "ma_structure_base_conviction": 3.2088,
+            "ma_structure_adjustment": 0.75,
+            "ma_structure_score": -1.0,
             "research_lab_bridge": {
               "enabled": true,
               "cap_points": 2.0,
@@ -416,20 +400,20 @@
             "learning_count": 4,
             "learning_adjustment": 0.0,
             "exploration_bonus": 1.118,
-            "utility": 5.7521,
+            "utility": 5.0768,
             "execution_authority": "champion_execution",
             "execution_eligible": true
           },
           "weekly_trend": {
             "direction": "short",
-            "raw_score": -29.0,
-            "conviction": 4.2735,
-            "base_conviction": 4.2735,
-            "macro_alignment_adjustment": -1.2015,
-            "macro_context_score": 6.0075,
-            "ma_structure_base_conviction": 3.1485,
-            "ma_structure_adjustment": 1.125,
-            "ma_structure_score": -1.5,
+            "raw_score": -25.0,
+            "conviction": 3.4541,
+            "base_conviction": 3.4541,
+            "macro_alignment_adjustment": -1.0459,
+            "macro_context_score": 5.2297,
+            "ma_structure_base_conviction": 2.7041,
+            "ma_structure_adjustment": 0.75,
+            "ma_structure_score": -1.0,
             "research_lab_bridge": {
               "enabled": true,
               "cap_points": 2.0,
@@ -451,39 +435,27 @@
             "learning_count": 5,
             "learning_adjustment": 0.0,
             "exploration_bonus": 1.0206,
-            "utility": 5.2941,
+            "utility": 4.4747,
             "execution_authority": "champion_execution",
             "execution_eligible": true
           }
-        },
-        "directional_admission": {
-          "version": "WES-1.2.0",
-          "direction": "short",
-          "confirmations": 3,
-          "confirmation_sources": [
-            "daily",
-            "ma_structure",
-            "weekly"
-          ],
-          "execution_authority": "champion_execution",
-          "passed": true
         },
         "macro_context": {
           "enabled": true,
           "instrument_id": "eurusd",
           "data_quality": "passed",
           "direction": "long",
-          "score": 6.0075,
+          "score": 5.2297,
           "score_cap": 30.0,
           "components": {
             "oil_1w": 10.0,
-            "oil_4w": -1.6425,
+            "oil_4w": -2.4203,
             "us10y_1w": -0.1,
             "us10y_4w": -2.25
           },
           "observations": {
-            "oil_1w_percent": -8.492,
-            "oil_4w_percent": 6.5702,
+            "oil_1w_percent": -11.8964,
+            "oil_4w_percent": 9.6812,
             "us10y_1w_bps": 0.2,
             "us10y_4w_bps": 22.5
           },
@@ -491,7 +463,7 @@
             "oil": {
               "instrument_id": "wti_futures",
               "symbol": "CL=F",
-              "as_of": "2026-09-21T00:00:00",
+              "as_of": "2026-09-22T00:00:00",
               "error": null
             },
             "us10y": {
@@ -501,15 +473,15 @@
               "error": null
             }
           },
-          "as_of": "2026-09-21T00:00:00",
-          "evaluated_at": "2026-09-22T03:43:41+02:00",
+          "as_of": "2026-09-22T00:00:00",
+          "evaluated_at": "2026-09-22T06:52:09+02:00",
           "interpretation": "positive_supports_eurusd_long_negative_supports_eurusd_short",
           "rule": "Oil and US10Y are context inputs, not standalone trade triggers.",
           "ma_structure": {
             "enabled": true,
             "instrument_id": "eurusd",
             "data_quality": "passed",
-            "score": -1.5,
+            "score": -1.0,
             "score_cap": 4.0,
             "direction": "short",
             "components": {
@@ -529,38 +501,37 @@
               },
               "D1": {
                 "bar_at": "2026-09-22T02:00:00+02:00",
-                "close": 1.14692,
-                "ma30": 1.159155,
-                "ma60": 1.15196,
-                "ma100": 1.154736,
-                "ma200": 1.162797,
+                "close": 1.147974,
+                "ma30": 1.15919,
+                "ma60": 1.151978,
+                "ma100": 1.154747,
+                "ma200": 1.162802,
                 "slow_trend": -1,
                 "price_vs_all": -1,
                 "nearest_ma": "ma60",
-                "nearest_ma_distance_atr": 1.125,
+                "nearest_ma_distance_atr": 0.8919,
                 "support_hold_long": false,
                 "resistance_hold_short": false
               },
               "H1": {
-                "bar_at": "2026-09-22T03:00:00+02:00",
-                "close": 1.14692,
-                "ma30": 1.147869,
-                "ma60": 1.147985,
-                "ma100": 1.149214,
-                "ma200": 1.154094,
+                "bar_at": "2026-09-22T06:00:00+02:00",
+                "close": 1.147974,
+                "ma30": 1.147671,
+                "ma60": 1.14788,
+                "ma100": 1.148937,
+                "ma200": 1.15377,
                 "slow_trend": -1,
-                "price_vs_all": -1,
-                "nearest_ma": "ma30",
-                "nearest_ma_distance_atr": 1.44,
+                "price_vs_all": 0,
+                "nearest_ma": "ma60",
+                "nearest_ma_distance_atr": 0.1752,
                 "support_hold_long": false,
                 "resistance_hold_short": false
               }
             },
             "reasons": [
-              "d1_below_all_ma",
-              "h1_below_all_ma_timing"
+              "d1_below_all_ma"
             ],
-            "evaluated_at": "2026-09-22T03:43:41+02:00",
+            "evaluated_at": "2026-09-22T06:52:09+02:00",
             "governance": "bounded_context_only_no_veto_no_standalone_trade_trigger"
           }
         },
@@ -667,17 +638,17 @@
         "instrument_id": "eurusd",
         "data_quality": "passed",
         "direction": "long",
-        "score": 6.0075,
+        "score": 5.2297,
         "score_cap": 30.0,
         "components": {
           "oil_1w": 10.0,
-          "oil_4w": -1.6425,
+          "oil_4w": -2.4203,
           "us10y_1w": -0.1,
           "us10y_4w": -2.25
         },
         "observations": {
-          "oil_1w_percent": -8.492,
-          "oil_4w_percent": 6.5702,
+          "oil_1w_percent": -11.8964,
+          "oil_4w_percent": 9.6812,
           "us10y_1w_bps": 0.2,
           "us10y_4w_bps": 22.5
         },
@@ -685,7 +656,7 @@
           "oil": {
             "instrument_id": "wti_futures",
             "symbol": "CL=F",
-            "as_of": "2026-09-21T00:00:00",
+            "as_of": "2026-09-22T00:00:00",
             "error": null
           },
           "us10y": {
@@ -695,15 +666,15 @@
             "error": null
           }
         },
-        "as_of": "2026-09-21T00:00:00",
-        "evaluated_at": "2026-09-22T03:43:41+02:00",
+        "as_of": "2026-09-22T00:00:00",
+        "evaluated_at": "2026-09-22T06:52:09+02:00",
         "interpretation": "positive_supports_eurusd_long_negative_supports_eurusd_short",
         "rule": "Oil and US10Y are context inputs, not standalone trade triggers.",
         "ma_structure": {
           "enabled": true,
           "instrument_id": "eurusd",
           "data_quality": "passed",
-          "score": -1.5,
+          "score": -1.0,
           "score_cap": 4.0,
           "direction": "short",
           "components": {
@@ -723,38 +694,37 @@
             },
             "D1": {
               "bar_at": "2026-09-22T02:00:00+02:00",
-              "close": 1.14692,
-              "ma30": 1.159155,
-              "ma60": 1.15196,
-              "ma100": 1.154736,
-              "ma200": 1.162797,
+              "close": 1.147974,
+              "ma30": 1.15919,
+              "ma60": 1.151978,
+              "ma100": 1.154747,
+              "ma200": 1.162802,
               "slow_trend": -1,
               "price_vs_all": -1,
               "nearest_ma": "ma60",
-              "nearest_ma_distance_atr": 1.125,
+              "nearest_ma_distance_atr": 0.8919,
               "support_hold_long": false,
               "resistance_hold_short": false
             },
             "H1": {
-              "bar_at": "2026-09-22T03:00:00+02:00",
-              "close": 1.14692,
-              "ma30": 1.147869,
-              "ma60": 1.147985,
-              "ma100": 1.149214,
-              "ma200": 1.154094,
+              "bar_at": "2026-09-22T06:00:00+02:00",
+              "close": 1.147974,
+              "ma30": 1.147671,
+              "ma60": 1.14788,
+              "ma100": 1.148937,
+              "ma200": 1.15377,
               "slow_trend": -1,
-              "price_vs_all": -1,
-              "nearest_ma": "ma30",
-              "nearest_ma_distance_atr": 1.44,
+              "price_vs_all": 0,
+              "nearest_ma": "ma60",
+              "nearest_ma_distance_atr": 0.1752,
               "support_hold_long": false,
               "resistance_hold_short": false
             }
           },
           "reasons": [
-            "d1_below_all_ma",
-            "h1_below_all_ma_timing"
+            "d1_below_all_ma"
           ],
-          "evaluated_at": "2026-09-22T03:43:41+02:00",
+          "evaluated_at": "2026-09-22T06:52:09+02:00",
           "governance": "bounded_context_only_no_veto_no_standalone_trade_trigger"
         }
       },
@@ -941,9 +911,9 @@
       },
       "decision": {
         "direction": "long",
-        "raw_score": 75.0,
-        "conviction": 11.25,
-        "base_conviction": 11.25,
+        "raw_score": 77.0,
+        "conviction": 11.55,
+        "base_conviction": 11.55,
         "contextual_learning_context": "momentum=not_against_aligned_momentum|regime=trend_up:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
         "contextual_learning_components": {
           "key": "momentum=not_against_aligned_momentum|regime=trend_up:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
@@ -960,16 +930,16 @@
         "learning_count": 6,
         "learning_adjustment": 4.0322,
         "exploration_bonus": 0.9449,
-        "utility": 16.2271,
+        "utility": 16.5271,
         "execution_authority": "champion_execution",
         "execution_eligible": true,
         "instrument_id": "sp500_futures",
         "candidates": {
           "weekly_trend": {
             "direction": "long",
-            "raw_score": 75.0,
-            "conviction": 11.25,
-            "base_conviction": 11.25,
+            "raw_score": 77.0,
+            "conviction": 11.55,
+            "base_conviction": 11.55,
             "contextual_learning_context": "momentum=not_against_aligned_momentum|regime=trend_up:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
             "contextual_learning_components": {
               "key": "momentum=not_against_aligned_momentum|regime=trend_up:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
@@ -986,15 +956,15 @@
             "learning_count": 6,
             "learning_adjustment": 4.0322,
             "exploration_bonus": 0.9449,
-            "utility": 16.2271,
+            "utility": 16.5271,
             "execution_authority": "champion_execution",
             "execution_eligible": true
           },
           "daily_weekly_blend": {
             "direction": "long",
-            "raw_score": 62.4,
-            "conviction": 9.36,
-            "base_conviction": 9.36,
+            "raw_score": 65.0,
+            "conviction": 9.75,
+            "base_conviction": 9.75,
             "contextual_learning_context": "momentum=not_against_aligned_momentum|regime=trend_up:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
             "contextual_learning_components": {
               "key": "momentum=not_against_aligned_momentum|regime=trend_up:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
@@ -1011,15 +981,15 @@
             "learning_count": 6,
             "learning_adjustment": 0.0,
             "exploration_bonus": 0.9449,
-            "utility": 10.3049,
+            "utility": 10.6949,
             "execution_authority": "champion_execution",
             "execution_eligible": true
           },
           "base_v2": {
             "direction": "long",
-            "raw_score": 54.0,
-            "conviction": 8.1,
-            "base_conviction": 8.1,
+            "raw_score": 57.0,
+            "conviction": 8.55,
+            "base_conviction": 8.55,
             "contextual_learning_context": "momentum=not_against_aligned_momentum|regime=trend_up:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
             "contextual_learning_components": {
               "key": "momentum=not_against_aligned_momentum|regime=trend_up:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
@@ -1036,15 +1006,15 @@
             "learning_count": 6,
             "learning_adjustment": 0.0,
             "exploration_bonus": 0.9449,
-            "utility": 9.0449,
+            "utility": 9.4949,
             "execution_authority": "champion_execution",
             "execution_eligible": true
           },
           "inverse_v2": {
             "direction": "short",
-            "raw_score": -54.0,
-            "conviction": 8.1,
-            "base_conviction": 8.1,
+            "raw_score": -57.0,
+            "conviction": 8.55,
+            "base_conviction": 8.55,
             "contextual_learning_context": "momentum=against_aligned_up_momentum|regime=trend_up:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
             "contextual_learning_components": {
               "key": "momentum=against_aligned_up_momentum|regime=trend_up:vol_normal|macro=macro_not_applicable|ma=ma_not_applicable",
@@ -1061,7 +1031,7 @@
             "learning_count": 6,
             "learning_adjustment": 0.0,
             "exploration_bonus": 0.9449,
-            "utility": 9.0449,
+            "utility": 9.4949,
             "execution_authority": "challenger_shadow",
             "execution_eligible": false
           },
