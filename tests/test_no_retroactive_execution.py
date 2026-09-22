@@ -12,7 +12,11 @@ from scripts.no_retroactive_execution import (
     assert_shadow_cannot_publish_live,
 )
 
-from scripts.verify_no_retroactive_execution import _path_is_canonical, _path_is_non_live
+from scripts.verify_no_retroactive_execution import (
+    _is_eurusd_open_summary,
+    _path_is_canonical,
+    _path_is_non_live,
+)
 
 UTC = timezone.utc
 RUN = datetime(2026, 9, 17, 19, 19, tzinfo=UTC)
@@ -112,6 +116,56 @@ class NoRetroactiveExecutionTests(unittest.TestCase):
         path = "data/portfolio10k/paper_portfolio.json"
         self.assertFalse(_path_is_non_live(path))
         self.assertTrue(_path_is_canonical(path, {"positions": []}))
+
+    def test_eurusd_root_open_snapshot_is_not_a_second_execution(self):
+        summary = {
+            "status": "OPEN",
+            "direction": "SHORT",
+            "entry": 1.1801,
+            "stop": 1.1841,
+            "target": 1.1729,
+            "metadata": {
+                "position": {
+                    "status": "OPEN",
+                    "direction": "SHORT",
+                    "opened_at": "2026-09-22T10:14:50Z",
+                    "entry": 1.1801,
+                    "stop": 1.1841,
+                    "target": 1.1729,
+                }
+            },
+        }
+        self.assertTrue(
+            _is_eurusd_open_summary("data/investments/eurusd_daily_spot.json", "$", summary)
+        )
+        self.assertFalse(
+            _is_eurusd_open_summary("data/investments/eurusd_daily_spot.json", "$.metadata.position", summary["metadata"]["position"])
+        )
+        self.assertFalse(
+            _is_eurusd_open_summary("data/investments/wes_report.json", "$", summary)
+        )
+
+    def test_eurusd_summary_mismatch_still_fails_closed(self):
+        summary = {
+            "status": "OPEN",
+            "direction": "SHORT",
+            "entry": 1.1801,
+            "stop": 1.1841,
+            "target": 1.1729,
+            "metadata": {
+                "position": {
+                    "status": "OPEN",
+                    "direction": "SHORT",
+                    "opened_at": "2026-09-22T10:14:50Z",
+                    "entry": 1.1802,
+                    "stop": 1.1841,
+                    "target": 1.1729,
+                }
+            },
+        }
+        self.assertFalse(
+            _is_eurusd_open_summary("data/investments/eurusd_daily_spot.json", "$", summary)
+        )
 
     def test_entry_before_decision_is_blocked(self):
         with self.assertRaises(RetroactiveExecutionError):
