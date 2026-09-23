@@ -1,5 +1,5 @@
 {
-  "schema_version": "briefrooms_decision_lab_public_v1",
+  "schema_version": "briefrooms_decision_lab_public_v2",
   "model": "BriefRooms Belief Core v2",
   "mode": "research_shadow",
   "execution_authority": false,
@@ -576,5 +576,39 @@
     "ece": 0.092301,
     "log_loss": 0.670932,
     "calibration_status": "watch"
+  },
+  "aris_patterns": [],
+  "aris_pattern_meta": {
+    "schema_version": "belief-aris-pattern-v1",
+    "mode": "research_shadow",
+    "causal_status": "ASSOCIATION_ONLY",
+    "sample": {
+      "eligible_verified_forecasts": null,
+      "eligible_groups": null,
+      "groups_mined": null,
+      "patterns_published": 0,
+      "replicated": 0,
+      "oos_pass": 0,
+      "discovery": 0,
+      "unstable": 0
+    },
+    "methodology": {
+      "source": "prospective_frozen_forecast_verifications",
+      "candidate_pattern_size": "2-4 atoms",
+      "selection": "discovery_only_positive_mdl_gain",
+      "holdout": "later_time_slice_not_used_for_selection",
+      "mdl": "Jeffreys Bernoulli universal code + pattern vocabulary description cost",
+      "residual": "exceptions remain explicit and are mined only as diagnostics"
+    },
+    "authority": {
+      "decision_influence": false,
+      "production_decision_influence": false,
+      "belief_core_writeback_enabled": false,
+      "consumer_contract_export_enabled": false,
+      "trade_execution_enabled": false,
+      "automatic_promotion_enabled": false,
+      "automatic_tuning_enabled": false,
+      "causal_edge_writeback_enabled": false
+    }
   }
 }

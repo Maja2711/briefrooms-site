@@ -9,9 +9,17 @@ on:
     paths:
       - "scripts/belief_aris_shadow.py"
       - "scripts/belief_aris_shadow_live.py"
+      - "scripts/belief_aris_pattern.py"
+      - "scripts/decision_lab_public_projection.py"
       - "tests/test_belief_aris_shadow.py"
+      - "tests/test_belief_aris_pattern.py"
+      - "tests/test_decision_lab_public_projection.py"
+      - "pl/inwestycje/decision-lab.html"
+      - "scripts/decision-lab.js"
+      - "assets/decision-lab.css"
       - ".github/workflows/belief-aris-shadow.yml"
       - "docs/BELIEF_ARIS_SHADOW.md"
+      - "docs/BELIEF_ARIS_PATTERN.md"
 
 permissions:
   contents: read
@@ -40,8 +48,8 @@ jobs:
 
       - name: Validate ARIS shadow contract
         run: |
-          python -m py_compile scripts/belief_aris_shadow.py scripts/belief_aris_shadow_live.py
-          python -m unittest tests/test_belief_aris_shadow.py -v
+          python -m py_compile scripts/belief_aris_shadow.py scripts/belief_aris_shadow_live.py scripts/belief_aris_pattern.py scripts/decision_lab_public_projection.py
+          PYTHONPATH=scripts:tests python -m unittest tests/test_belief_aris_shadow.py tests/test_belief_aris_pattern.py tests/test_decision_lab_public_projection.py -v
 
       - name: Restore Belief Core state for replay
         env:
@@ -95,6 +103,18 @@ jobs:
           test ! -e "$STATE_DIR/aris_belief_shadow.json"
           test -f "$ARIS_OUTPUT_DIR/aris_belief_shadow.json"
 
+      - name: Build ARIS pattern discovery
+        run: |
+          set -euo pipefail
+          state_hash_before=$(sha256sum "$STATE_DIR/state.json" | awk '{print $1}')
+          python scripts/belief_aris_pattern.py \
+            --state-dir "$STATE_DIR" \
+            --output-dir "$ARIS_OUTPUT_DIR" \
+            --print-summary
+          state_hash_after=$(sha256sum "$STATE_DIR/state.json" | awk '{print $1}')
+          test "$state_hash_before" = "$state_hash_after"
+          test -f "$ARIS_OUTPUT_DIR/aris_pattern_report.json"
+
       - name: Assert PR31 zero-authority invariants
         run: |
           python - <<'PY'
@@ -132,11 +152,26 @@ jobs:
                   'automatic_tuning_enabled',
               ):
                   assert row[key] is False, (belief_id, key)
-          print('PR31 hard shadow containment invariants: PASS')
+          pattern=json.loads((Path(os.environ['ARIS_OUTPUT_DIR'])/'aris_pattern_report.json').read_text())
+          assert pattern['schema_version'] == 'belief-aris-pattern-v1'
+          assert pattern['mode'] == 'research_shadow'
+          assert pattern['causal_status'] == 'ASSOCIATION_ONLY'
+          for key in (
+              'decision_influence',
+              'production_decision_influence',
+              'belief_core_writeback_enabled',
+              'consumer_contract_export_enabled',
+              'trade_execution_enabled',
+              'automatic_promotion_enabled',
+              'automatic_tuning_enabled',
+              'causal_edge_writeback_enabled',
+          ):
+              assert pattern['authority'][key] is False, key
+          print('PR31 hard shadow containment + ARIS-PATTERN-1 invariants: PASS')
           PY
 
       - name: Pack diagnostics
-        run: tar -czf "$RUNNER_TEMP/belief-aris-shadow.tgz" -C "$ARIS_OUTPUT_DIR" aris_belief_shadow.json
+        run: tar -czf "$RUNNER_TEMP/belief-aris-shadow.tgz" -C "$ARIS_OUTPUT_DIR" aris_belief_shadow.json aris_pattern_report.json
 
       - name: Store private shadow diagnostics
         uses: actions/upload-artifact@v4

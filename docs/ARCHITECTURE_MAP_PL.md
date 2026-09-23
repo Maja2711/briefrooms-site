@@ -1,7 +1,7 @@
 # Kanoniczna mapa architektury BriefRooms — PL
 
 **Wersja mapy:** 1.10  
-**Stan na:** 2026-09-21  
+**Stan na:** 2026-09-23  
 **Bazowy commit `main`:** `b716beca850bc8514c0975f005c7a8d1d5dcd14d`  
 **Repozytorium:** `Maja2711/briefrooms-site`
 
@@ -149,7 +149,7 @@ Adapter nie jest silnikiem decyzji. Jego podstawowym zadaniem jest tłumaczenie 
 | `EP-06` | Frozen Forecast + Verification | Zamraża probability/evidence przed outcome i później weryfikuje | `belief_core_shadow.py`, `belief_core_verify.py` |
 | `EP-07` | Calibration | Brier, log loss, ECE/MCE, slices, drift, source diagnostics | `belief_calibration.py`, `belief_calibration_foundation.py`; rekomendacje bez silent auto-tuning |
 | `EP-08` | Read-only Belief Bridges | Dostarczają epistemic/belief state do wybranych silników w trybach kontrolowanych | WES/BRACE/SPX bridge files; wpływ decyzji zależy od konkretnego gate |
-| `EP-09` | Belief ARIS Shadow Diagnostics | Read-only badanie alternatywnych reprezentacji Evidence: model+residual, competing representations, ROI/pruning | `scripts/belief_aris_shadow.py`, `scripts/belief_aris_shadow_live.py`, `docs/BELIEF_ARIS_SHADOW.md`; `research_shadow`, bez Belief writeback, consumer export, decision influence i auto-promotion |
+| `EP-09` | Belief ARIS Research | Read-only badanie reprezentacji Evidence oraz prospektywne ARIS-PATTERN-1: kombinacje frozen Evidence -> późniejszy outcome, MDL gain, residual, chronological holdout/OOS | `scripts/belief_aris_shadow.py`, `scripts/belief_aris_pattern.py`, `docs/BELIEF_ARIS_SHADOW.md`, `docs/BELIEF_ARIS_PATTERN.md`; `research_shadow`, `ASSOCIATION_ONLY`, bez Belief/causal writeback, consumer export, decision influence i auto-promotion |
 
 ### Belief Core nie jest „konstytucją”
 
@@ -366,7 +366,7 @@ Public UI             -> renderuje stan; NIE jest źródłem decyzji
 - **Portfolio 10K:** zachowany baseline/champion.
 - **BRACE Portfolio:** **PROBATIONARY_CONTROL**, paper-only; deterministic controller i immutable Portfolio10K fallback baseline.
 - **Market Relationship / Trigger:** aktywny US research/shadow runtime w `stock-trading-v2`, prospective 1/3/5/20 learning, bez production authority.
-- **Belief ARIS Shadow:** aktywny read-only `research_shadow`, bez Belief/decision writeback.
+- **Belief ARIS Research:** aktywny read-only `research_shadow`; reprezentacje + ARIS-PATTERN-1 na frozen forecast/outcome, `ASSOCIATION_ONLY`, bez Belief/causal/decision writeback.
 - **Shared Learning Loop v2:** aktywne read-only diagnostics; zero production authority.
 - **Shared learning fabric:** istnieje i jest aktywnie rozwijany; nie jest jeszcze jednym zunifikowanym Evolution Kernel.
 
@@ -413,6 +413,7 @@ Najważniejsze dokumenty szczegółowe użyte do budowy i utrzymania aktualnej m
 - `scripts/validate_architecture_reconciliation.py`
 - `BELIEF_CORE.md`
 - `BELIEF_ARIS_SHADOW.md`
+- `BELIEF_ARIS_PATTERN.md`
 - `BELIEF_EVIDENCE_ADAPTERS.md`
 - `BELIEF_EPISTEMIC_STATE.md`
 - `BELIEF_EPISTEMIC_CAUSAL_GRAPH.md`
