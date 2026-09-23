@@ -83,6 +83,25 @@ def build_payload(state, report):
         vals = by_h.get(label, [])
         horizon_stats.append({"horizon":label, "n":len(vals), "mean_brier":None if not vals else round(sum(vals)/len(vals),6)})
 
+    hypothesis_stats = {}
+    for v in verifications:
+        if not v.get("calibration_eligible", True):
+            continue
+        bid = str(v.get("belief_id") or "")
+        score = v.get("brier_score")
+        if not bid or score is None:
+            continue
+        item = hypothesis_stats.setdefault(bid, {"belief_id": bid, "n": 0, "brier_sum": 0.0})
+        item["n"] += 1
+        item["brier_sum"] += float(score)
+    hypothesis_brier = {}
+    for bid, item in hypothesis_stats.items():
+        hypothesis_brier[bid] = {
+            "belief_id": bid,
+            "n": item["n"],
+            "mean_brier": round(item["brier_sum"] / item["n"], 6),
+        }
+
     cal = report.get("belief_calibration") or {}
     overall = cal.get("overall") or {}
     aris = build_pattern_report(state)
@@ -99,6 +118,7 @@ def build_payload(state, report):
         "multihorizon_paths": multihorizon_paths,
         "horizon_aggregate": horizon_stats,
         "horizon_aggregate_min_sample": 30,
+        "hypothesis_brier": hypothesis_brier,
         "metrics": {
             "forecast_count": len(forecasts),
             "resolved_count": len(verifications),
