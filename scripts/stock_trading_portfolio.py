@@ -91,6 +91,27 @@ def _market_datetime(value: Any, market: str) -> datetime | None:
     return parsed.astimezone(tz) if tz is not None else parsed
 
 
+def _regular_session_open(market: str, now: datetime) -> bool:
+    """Return True only during the exchange's regular cash session.
+
+    Portfolio execution is regular-session only.  Pre/post-market quotes may be
+    displayed publicly, but they must never trigger SL/TP or risk recalculation.
+    """
+    market = str(market or "").upper()
+    tz = MARKET_TZ.get(market)
+    if tz is None:
+        return False
+    local = now.astimezone(tz)
+    if local.weekday() >= 5:
+        return False
+    minute = local.hour * 60 + local.minute
+    if market == "US":
+        return 9 * 60 + 30 <= minute < 16 * 60
+    if market == "GPW":
+        return 9 * 60 <= minute < 17 * 60
+    return False
+
+
 def risk_geometry_effective_from(position: Mapping[str, Any]) -> datetime | None:
     """Earliest timestamp from which the *current* SL/TP geometry may trigger.
 
@@ -893,6 +914,8 @@ def _daily_observation(
     opened_at: str | None = None,
     risk_effective_at: str | None = None,
 ) -> dict[str, Any]:
+    if not _regular_session_open(market, now):
+        raise RuntimeError("market_not_in_regular_session")
     daily = _chart(symbol, interval="1d", range_value="6mo")
     stamps = daily.get("timestamp") or []
     quote = ((daily.get("indicators") or {}).get("quote") or [{}])[0]
@@ -932,7 +955,12 @@ def _daily_observation(
         except (TypeError, ValueError, IndexError):
             continue
         dt = datetime.fromtimestamp(int(stamp), tz)
-        if dt.date() != now.date():
+        if dt.date() != now.astimezone(tz).date():
+            continue
+        minute = dt.hour * 60 + dt.minute
+        if market == "US" and not (9 * 60 + 30 <= minute < 16 * 60):
+            continue
+        if market == "GPW" and not (9 * 60 <= minute < 17 * 60):
             continue
         # The current SL/TP geometry may only see candles that began after the
         # geometry became effective.  This blocks both pre-entry fills and the
@@ -953,17 +981,10 @@ def _daily_observation(
             "post_effective_only": True,
         }
     else:
-        if trigger_from is not None and trigger_from.date() == now.date():
-            raise RuntimeError("no_post_effective_intraday_bar_yet")
-        snapshot = {
-            "high": rows[-1][0],
-            "low": rows[-1][1],
-            "last": rows[-1][2],
-            "provider": "Yahoo:daily_fallback",
-            "trigger_window_start": _iso(now),
-            "trigger_effective_from": _iso(trigger_from) if trigger_from is not None else None,
-            "post_effective_only": True,
-        }
+        # Never use a previous daily candle as an executable intraday snapshot.
+        # That would allow yesterday's low/high to trigger today's SL/TP and is
+        # a retroactive execution violation.
+        raise RuntimeError("no_current_regular_session_intraday_bar")
     return {"snapshot": snapshot, "closes": closes, "atr": atr}
 
 
