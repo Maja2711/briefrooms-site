@@ -245,6 +245,8 @@
     const target = finiteNumber(position.target ?? position.tp ?? position.take_profit);
     const quote = quoteFor(position);
     const mark = quote.price;
+    const quantity = finiteNumber(position.quantity ?? position.shares ?? position.position_size);
+    const notional = finiteNumber(position.entry_notional ?? position.target_position_notional);
 
     const lastStrong = metrics[1].querySelector('strong');
     const stopStrong = metrics[2].querySelector('strong');
@@ -253,19 +255,23 @@
     if (stopStrong) stopStrong.textContent = money(stop, market);
     if (targetStrong) targetStrong.textContent = money(target, market);
 
-    const age = quote.observedAt ? Date.now() - new Date(quote.observedAt).getTime() : Infinity;
-    const trulyLive = quote.state === 'REGULAR' && quote.isRealtime && Number.isFinite(age) && age >= -60_000 && age <= LIVE_MAX_AGE_MS;
-    setSmall(metrics[1], quoteNote(quote, market), trulyLive);
+    metrics[1].querySelectorAll('small').forEach(node => node.remove());
     metrics[1].title = [quote.provider, quote.observedAt || quote.receivedAt].filter(Boolean).join(' · ');
 
     const pnl = card.querySelector('.str-pnl');
     if (pnl && entry !== null && entry !== 0 && mark !== null) {
       const pct = ((mark - entry) / entry) * 100;
-      const absolute = mark - entry;
+      const absolute = quantity !== null
+        ? (mark - entry) * quantity
+        : notional !== null
+          ? (pct / 100) * notional
+          : null;
       const strong = pnl.querySelector('strong');
       const amount = pnl.querySelector('b');
       if (strong) strong.textContent = percent(pct);
-      if (amount) amount.textContent = `${absolute > 0 ? '+' : ''}${money(absolute, market)}`;
+      if (amount) amount.textContent = absolute === null
+        ? '—'
+        : `${absolute > 0 ? '+' : ''}${money(absolute, market)}`;
       pnl.classList.remove('is-neutral', 'is-positive', 'is-negative');
       pnl.classList.add(pct === 0 ? 'is-neutral' : pct > 0 ? 'is-positive' : 'is-negative');
     }
