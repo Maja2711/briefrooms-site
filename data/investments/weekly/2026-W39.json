@@ -74,7 +74,7 @@
       "entry_captured_at": "2026-09-21T09:25:00+02:00",
       "entry_source": "Yahoo Finance:EURUSD=X:5m:first_bar_at_or_after_target",
       "entry_quality_status": "wes_monday_weekly",
-      "trade_status": "open",
+      "trade_status": "closed",
       "risk_plan": {
         "model_version": "WES-1.0.0",
         "generated_at": "2026-09-21T09:26:26+02:00",
@@ -100,13 +100,13 @@
         },
         "friday_tactical_low_tp": false
       },
-      "exit_price": null,
-      "exit_captured_at": null,
-      "exit_source": null,
-      "exit_reason": null,
-      "result": null,
-      "result_value": null,
-      "result_percent": null,
+      "exit_price": 1.13786575,
+      "exit_captured_at": "2026-09-23T19:00:00+02:00",
+      "exit_source": "Yahoo Finance:EURUSD=X:chart:5m",
+      "exit_reason": "take_profit",
+      "result": "profit",
+      "result_value": 99.76299599,
+      "result_percent": 0.8691,
       "rationale_pl": [
         "Model v2.0.0: short / spadek.",
         "Score -45; progi: long 35, short -35.",
@@ -194,7 +194,7 @@
         "rule": "Context is recorded immediately; an open weekly position is changed only by the governed review rules."
       },
       "pending_entry_decision": null,
-      "next_entry_status": "open",
+      "next_entry_status": "closed",
       "forecast_direction": "short",
       "forecast_score": -45,
       "continuous_entry_decision": {
@@ -702,9 +702,9 @@
         }
       },
       "continuous_entry_regime": "trend_down:vol_normal",
-      "risk_status": "open_multi_instrument_continuous_exposure",
-      "continuous_exposure_active": true,
-      "continuous_exposure_status": "open",
+      "risk_status": "take_profit_hit",
+      "continuous_exposure_active": false,
+      "continuous_exposure_status": "closed_by_risk_exit",
       "continuous_exposure_policy_version": "4.0.0",
       "continuous_reentry_count": 0,
       "last_risk_review_at": "2026-09-21T09:28:17+02:00",
@@ -929,7 +929,20 @@
       ],
       "last_daily_review_at": "2026-09-21T23:03:17+02:00",
       "last_daily_review_decision": "keep",
-      "last_daily_review_reason": "keep_original_thesis_not_invalidated"
+      "last_daily_review_reason": "keep_original_thesis_not_invalidated",
+      "exit_execution_model": "frozen_threshold_first_observed_stop_first_v2",
+      "risk_exit_detected_at": "2026-09-23T20:08:39+02:00",
+      "risk_exit_evidence": {
+        "schema_version": "2.0",
+        "kind": "5m_ohlc",
+        "observed_at": "2026-09-23T19:00:00+02:00",
+        "source": "Yahoo Finance:EURUSD=X:chart:5m",
+        "frozen_level": 1.13786575,
+        "same_bar_rule": "stop_loss_first_conservative",
+        "risk_plan_preexisted_outcome": true
+      },
+      "result_units": 99.76299599,
+      "result_currency": "USD"
     },
     {
       "instrument_id": "sp500_futures",
