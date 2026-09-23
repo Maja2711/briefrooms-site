@@ -380,51 +380,6 @@ def execution_quote_candidates(symbol: str, market: str, *, now_utc: datetime | 
     return candidates, diagnostics
 
 
-def display_quote_for_symbol(
-    symbol: str,
-    market: str,
-    *,
-    now_utc: datetime | None = None,
-) -> dict[str, Any]:
-    """Return the freshest verified observation for the public current-price display.
-
-    GPW can expose materially fresher observations through Stooq than through
-    Yahoo's delayed chart.  This selector is display-only: it never mutates the
-    portfolio risk mark and it does not relax execution/admission rules.
-    """
-    market = market.upper()
-    now_utc = (now_utc or datetime.now(UTC)).astimezone(UTC)
-    candidates, diagnostics = execution_quote_candidates(symbol, market, now_utc=now_utc)
-    usable: list[dict[str, Any]] = []
-    for quote in candidates:
-        price = _float(quote.get("price"))
-        age = _float(quote.get("capture_age_seconds"))
-        if price is None or price <= 0:
-            continue
-        if age is not None and age < 0:
-            continue
-        usable.append(quote)
-    if not usable:
-        details = "|".join(
-            f"{row.get('provider')}:{row.get('status')}"
-            for row in diagnostics
-        )
-        raise RuntimeError(f"No usable display quote for {symbol}: {details}")
-    usable.sort(
-        key=lambda q: (
-            _float(q.get("capture_age_seconds")) is None,
-            _float(q.get("capture_age_seconds")) if _float(q.get("capture_age_seconds")) is not None else float("inf"),
-        )
-    )
-    chosen = dict(usable[0])
-    chosen["display_quote_policy"] = {
-        "selection": "freshest_verified_observation",
-        "provider_candidates": diagnostics,
-        "selected_provider": chosen.get("provider"),
-    }
-    return chosen
-
-
 def execution_quote_for_symbol(
     symbol: str,
     market: str,
@@ -492,7 +447,7 @@ def enrich(state: Mapping[str, Any], *, markets: list[str] | None = None, now_ut
             if not symbol:
                 continue
             try:
-                current_mark = display_quote_for_symbol(symbol, market, now_utc=now_utc)
+                current_mark = quote_for_symbol(symbol, market, now_utc=now_utc)
                 position["current_mark"] = current_mark
                 position["quote_refresh_error"] = None
                 provider_session = {
