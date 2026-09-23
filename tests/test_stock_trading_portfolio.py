@@ -337,6 +337,44 @@ class StockTradingPortfolioTests(unittest.TestCase):
         self.assertEqual(old_target, after['target'])
         self.assertEqual('preserved_last_valid_risk', after['risk_reviews'][-1]['status'])
 
+    def test_us_premarket_cannot_create_executable_observation(self):
+        tz = ZoneInfo('America/New_York')
+        now = datetime(2026, 9, 23, 7, 21, 39, tzinfo=tz)
+        with self.assertRaisesRegex(RuntimeError, 'market_not_in_regular_session'):
+            stock._daily_observation(
+                'RNG',
+                'US',
+                now,
+                opened_at='2026-09-22T10:14:26-04:00',
+                risk_effective_at='2026-09-22T10:14:26-04:00',
+            )
+
+    def test_missing_current_intraday_bar_never_falls_back_to_prior_daily_low(self):
+        tz = ZoneInfo('America/New_York')
+        now = datetime(2026, 9, 23, 10, 0, tzinfo=tz)
+        daily_stamps = [int(datetime(2026, 7, 1, 16, 0, tzinfo=tz).timestamp()) + i * 86400 for i in range(60)]
+        daily = {
+            'timestamp': daily_stamps,
+            'indicators': {'quote': [{
+                'high': [80.0] * 60,
+                'low': [70.0] * 60,
+                'close': [79.0] * 60,
+            }]},
+        }
+        intraday = {
+            'timestamp': [],
+            'indicators': {'quote': [{'high': [], 'low': [], 'close': []}]},
+        }
+        with patch.object(stock, '_chart', side_effect=[daily, intraday]):
+            with self.assertRaisesRegex(RuntimeError, 'no_current_regular_session_intraday_bar'):
+                stock._daily_observation(
+                    'RNG',
+                    'US',
+                    now,
+                    opened_at='2026-09-22T10:14:26-04:00',
+                    risk_effective_at='2026-09-22T10:14:26-04:00',
+                )
+
     def test_intraday_observation_excludes_pre_entry_bars(self):
         tz = ZoneInfo('Europe/Warsaw')
         now = datetime(2026, 9, 18, 12, 30, tzinfo=tz)
