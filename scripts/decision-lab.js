@@ -75,6 +75,7 @@ tabs.forEach(btn=>btn.addEventListener("click",()=>{
   document.querySelectorAll(".tab-panel").forEach(p=>p.classList.toggle("active",p.id==="tab-"+btn.dataset.tab));
 }));
 
+let MULTI_PATHS=[]; let HORIZON_AGG=[]; const HORIZON_MIN_SAMPLE=30;
 function forecasts(items){
   const root=document.getElementById("forecast-list");
   if(!root)return;
@@ -88,7 +89,7 @@ function forecasts(items){
       '<span>Target</span><span>Wynik</span><span>Brier</span><span>Status</span>'+
     '</div>'+
     items.slice(0,20).map(x=>
-      '<div class="forecast">'+
+      '<button class="forecast forecast-click" type="button" data-forecast-id="'+esc(x.forecast_id||'')+'">'+
         '<b>'+esc(instrument(x))+'</b>'+
         '<span class="hypothesis" title="'+esc(x.belief_id||"")+'">'+esc(hypothesis(x))+'</span>'+
         '<span class="probability" title="'+esc(probabilityMeaning(x))+'">'+pct(x.probability)+'<small>'+esc(probabilityMeaning(x))+'</small></span>'+
@@ -97,8 +98,27 @@ function forecasts(items){
         outcome(x)+
         '<span class="brier">'+num(x.brier_score,3)+'</span>'+
         status(x.status)+
-      '</div>'
+      '</button>'
     ).join("");
+  root.querySelectorAll("[data-forecast-id]").forEach(btn=>btn.addEventListener("click",()=>{
+    const row=items.find(x=>String(x.forecast_id)===btn.dataset.forecastId);
+    if(row) showHorizonPath(row);
+  }));
+}
+
+function showHorizonPath(row){
+  let box=document.getElementById("horizon-path");
+  if(!box){ box=document.createElement("div"); box.id="horizon-path"; box.className="horizon-path"; document.getElementById("forecast-list").after(box); }
+  const path=MULTI_PATHS.find(x=>x.belief_id===row.belief_id && x.forecast_at===row.forecast_at);
+  if(!path){ box.innerHTML='<b>Analiza forecastu</b><span class="muted">Badanie 3H / 12H / 24H / 3D / 5D rozpoczyna się dla nowych forecastów.</span>'; return; }
+  box.innerHTML='<div class="horizon-title"><b>Analiza forecastu · '+esc(instrument(row))+'</b><span>P zamrożone: '+pct(row.probability)+' · '+esc(forecastTime(row.forecast_at))+'</span></div>'+
+    '<div class="horizon-grid">'+path.horizons.map(h=>'<div><b>'+esc(h.horizon_label)+'</b><span>'+esc(h.status==='RESOLVED'?(h.outcome?'TAK':'NIE'):'oczekuje')+'</span><small>Brier '+num(h.brier_score,3)+'</small></div>').join('')+'</div>'+
+    horizonAggregateHtml();
+}
+function horizonAggregateHtml(){
+  const ready=HORIZON_AGG.filter(x=>Number(x.n)>=HORIZON_MIN_SAMPLE && x.mean_brier!=null);
+  if(!ready.length) return '<p class="muted">Agregat horyzontów pojawi się po min. '+HORIZON_MIN_SAMPLE+' rozliczonych obserwacjach na horyzont.</p>';
+  return '<div class="horizon-aggregate"><b>Agregat Brier</b>'+ready.map(x=>'<span>'+esc(x.horizon)+' · n='+esc(x.n)+' · '+num(x.mean_brier,3)+'</span>').join('')+'</div>';
 }
 
 function metric(rootId,m){
@@ -180,7 +200,7 @@ async function load(){
     const r=await fetch("/data/investments/decision_lab_public.json?v="+Date.now(),{cache:"no-store"});
     if(!r.ok)throw 0;
     const d=await r.json();
-    forecasts(d.forecasts||[]);
+    MULTI_PATHS=d.multihorizon_paths||[]; HORIZON_AGG=d.horizon_aggregate||[]; forecasts(d.forecasts||[]);
     metric("metrics-summary",d.metrics||{});
     metric("metrics",d.metrics||{});
     patterns(d.aris_patterns||[],d.aris_pattern_meta||{});
