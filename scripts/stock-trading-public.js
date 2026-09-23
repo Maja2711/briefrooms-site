@@ -298,7 +298,7 @@
           <div class="str-company-name"><h3>${esc(ticker)}</h3><span>${esc(name)}</span></div>
           <div class="str-metrics">
             <div><span>${esc(T.entry)}</span><strong>${money(entry, market)}</strong></div>
-            <div class="str-metric-last"><span>${esc(T.last)}</span><strong>${money(mark, market)}</strong>${clock.isOpen ? '<small class="is-open-note">live</small>' : `<small>${esc(T.closedMarket)}</small>`}</div>
+            <div class="str-metric-last"><span>${esc(T.last)}</span><strong>${money(mark, market)}</strong></div>
             <div><span>${esc(T.sl)}</span><strong>${money(stop, market)}</strong></div>
             <div><span>${esc(T.tp)}</span><strong>${money(target, market)}</strong></div>
           </div>
