@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - "scripts/update_weekly_live_prices_fast.py"
+      - "scripts/audit_intraday_risk_exits.py"
       - ".github/workflows/weekly-live-prices.yml"
   schedule:
     # Dedicated fast path for Weekly Trading current-price marks.
@@ -39,6 +40,12 @@ jobs:
 
       - name: Refresh Weekly live prices
         run: python scripts/update_weekly_live_prices_fast.py
+
+      - name: Monitor frozen Weekly SL/TP from 5-minute OHLC
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/audit_intraday_risk_exits.py
+          python scripts/audit_intraday_risk_exits.py --persist-report on_close
 
       - name: Validate Weekly live-price snapshot
         run: |
@@ -92,12 +99,12 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/live_prices.json
+          git add data/investments/live_prices.json data/investments/weekly data/investments/intraday_risk_audit.json
           if git diff --cached --quiet; then
-            echo "No Weekly live-price changes"
+            echo "No Weekly live-price or SL/TP state changes"
             exit 0
           fi
-          git commit -m "Update Weekly live prices"
+          git commit -m "Update Weekly prices and 5m risk exits"
 
           for attempt in 1 2 3 4 5; do
             if git pull --rebase origin main && git push origin HEAD:main; then
