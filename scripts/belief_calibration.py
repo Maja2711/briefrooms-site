@@ -120,6 +120,53 @@ def metrics(records: Sequence[Mapping[str, Any]]) -> Dict[str, Any]:
     }
 
 
+def hypothesis_intelligence(records: Sequence[Mapping[str, Any]]) -> Dict[str, Any]:
+    """Machine-readable per-hypothesis calibration memory.
+
+    Keeps legacy mixed-horizon history visible but separate from controlled
+    multi-horizon research. Measurement only: never changes model weights.
+    """
+    grouped: Dict[str, List[Mapping[str, Any]]] = defaultdict(list)
+    for r in _eligible(records):
+        grouped[str(r.get("belief_id") or "unknown")].append(r)
+    out: Dict[str, Any] = {}
+    for belief_id, rows in sorted(grouped.items()):
+        rows = sorted(rows, key=lambda r: str(r.get("forecast_at") or ""))
+        m = metrics(rows)
+        ps = [float(r["predicted_probability"]) for r in rows]
+        ys = [1.0 if bool(r["outcome"]) else 0.0 for r in rows]
+        # 0.25 is the Brier of a fixed 50/50 forecast for every binary outcome.
+        benchmark_brier = 0.25
+        mean_brier = float(m["mean_brier"])
+        skill = 1.0 - mean_brier / benchmark_brier
+        by_horizon: Dict[str, Any] = {}
+        hgroups: Dict[str, List[Mapping[str, Any]]] = defaultdict(list)
+        for r in rows:
+            hgroups[str(r.get("horizon_bucket") or "unknown")].append(r)
+        for horizon, hrows in sorted(hgroups.items()):
+            hm = metrics(hrows)
+            hb = float(hm["mean_brier"])
+            by_horizon[horizon] = {
+                **hm,
+                "benchmark_brier_50_50": benchmark_brier,
+                "brier_skill_score_vs_50_50": round(1.0 - hb / benchmark_brier, 6),
+                "sample_sufficient": len(hrows) >= GLOBAL_MIN_N,
+            }
+        out[belief_id] = {
+            **m,
+            "belief_id": belief_id,
+            "period_start": rows[0].get("forecast_at"),
+            "period_end": rows[-1].get("forecast_at"),
+            "benchmark_brier_50_50": benchmark_brier,
+            "brier_skill_score_vs_50_50": round(skill, 6),
+            "direction_accuracy": round(mean(1.0 if ((p >= .5) == bool(y)) else 0.0 for p, y in zip(ps, ys)), 6),
+            "sample_sufficient": len(rows) >= GLOBAL_MIN_N,
+            "by_horizon": by_horizon,
+            "interpretation": "legacy history may mix target horizons; use controlled horizon slices for like-for-like conclusions",
+        }
+    return out
+
+
 def dimension_report(records: Sequence[Mapping[str, Any]], key: str) -> Dict[str, Any]:
     grouped: Dict[str, List[Mapping[str, Any]]] = defaultdict(list)
     for r in _eligible(records):
@@ -286,6 +333,7 @@ def build_calibration_report(records: Sequence[Mapping[str, Any]]) -> Dict[str, 
         "by_horizon": dimension_report(rows, "horizon_bucket"),
         "by_belief": dimension_report(rows, "belief_id"),
         "by_outcome_source": dimension_report(rows, "outcome_source"),
+        "hypothesis_intelligence": hypothesis_intelligence(rows),
         "alternative_groups": alternative_group_report(rows),
         "source_performance": source,
         "evidence_type_performance": evidence_type,
