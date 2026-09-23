@@ -1,4 +1,5 @@
 import unittest
+from datetime import datetime, timedelta, timezone
 
 from belief_aris_pattern import build_pattern_report, validate_pattern_report
 
@@ -16,7 +17,7 @@ def verification(i, outcome, evidence, regime="neutral"):
         "forecast_id": f"f-{i:03d}",
         "belief_id": "spx.trend.bullish",
         "entity": "SPX",
-        "forecast_at": f"2026-09-{i+1:02d}T12:00:00Z",
+        "forecast_at": (datetime(2026, 9, 1, tzinfo=timezone.utc) + timedelta(hours=i)).isoformat().replace("+00:00", "Z"),
         "horizon_hours": 24,
         "regime": regime,
         "outcome": outcome,
