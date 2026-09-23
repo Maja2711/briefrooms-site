@@ -6,7 +6,7 @@
 
   const isPl = (document.documentElement.lang || '').toLowerCase().startsWith('pl');
   const locale = isPl ? 'pl-PL' : 'en-US';
-  const POLL_MS = 60_000;
+  const POLL_MS = 15_000;
   const LIVE_MAX_AGE_MS = 150_000;
   // A persisted quote_session is useful only while it is fresh. Scheduled
   // publishers can be delayed, so an overnight CLOSED snapshot must never
