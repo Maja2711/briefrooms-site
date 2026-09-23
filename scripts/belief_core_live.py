@@ -41,6 +41,8 @@ MARKET_OPEN = time(9, 30)
 MARKET_CLOSE = time(16, 20)
 FORECAST_SLOTS = (time(10, 0), time(13, 0), time(16, 0))
 SLOT_GRACE_MINUTES = 45
+RESEARCH_HORIZONS_HOURS = (3, 12, 24, 72, 120)
+PRIMARY_RESEARCH_HORIZON_HOURS = 24
 
 SPX_BELIEFS: Tuple[BeliefDefinition, ...] = (
     BeliefDefinition(
@@ -340,6 +342,41 @@ def freeze_set(core: BeliefCore, snapshot: MarketSnapshot, when: datetime, targe
     return count
 
 
+def freeze_multihorizon_set(core: BeliefCore, snapshot: MarketSnapshot, when: datetime,
+                            consumer: str, slot_key: str, regime: str) -> int:
+    """Freeze one P/evidence snapshot into predeclared research horizons."""
+    count = 0
+    labels = {3:"3H", 12:"12H", 24:"24H", 72:"3D", 120:"5D"}
+    for belief_id in _belief_ids_for_consumer(core, consumer):
+        market_symbol = belief_market_symbol(belief_id)
+        if market_symbol not in snapshot.bars:
+            continue
+        try:
+            spec = outcome_spec(belief_id, snapshot)
+        except (KeyError, ValueError, ZeroDivisionError):
+            continue
+        if not all(symbol in snapshot.bars for symbol in required_symbols(spec)):
+            continue
+        for hours in RESEARCH_HORIZONS_HOURS:
+            target = when + timedelta(hours=hours)
+            forecast_id = stable_id("forecast", consumer, slot_key, belief_id, f"{hours}h")
+            if forecast_id in core.forecasts:
+                continue
+            metadata = {
+                "consumer": consumer, "slot_key": slot_key, "market_symbol": market_symbol,
+                "market_observed_at": iso_z(snapshot.observed_at(market_symbol)),
+                "outcome_spec": spec, "adapter_contract": "Observation->Evidence/v1",
+                "shadow_only": True, "trade_execution_enabled": False, "policy_output_enabled": False,
+                "research_horizon_hours": hours, "research_horizon_label": labels[hours],
+                "primary_research_horizon": hours == PRIMARY_RESEARCH_HORIZON_HOURS,
+                "multihorizon_contract": "decision-lab-multihorizon-v1",
+            }
+            core.capture_forecast(belief_id, as_of=when, target_at=target, regime=regime,
+                                  forecast_id=forecast_id, metadata=metadata)
+            count += 1
+    return count
+
+
 def verify_due(core: BeliefCore, client: YahooChartClient, now: datetime,
                live_snapshot: Optional[MarketSnapshot]) -> int:
     verified_ids = {value.forecast_id for value in core.verifications.values() if value.forecast_id}
@@ -407,7 +444,7 @@ def run_cycle(state_dir: Path, now: datetime, client: YahooChartClient) -> Dict[
                 asset_key = f"wes-assets:{local.date().isoformat()}:{planned.hour:02d}{planned.minute:02d}"
                 if due_planned_slot(local, planned, asset_key in completed):
                     core.recompute(now)
-                    wes_asset_count += freeze_set(core, snapshot, now, target, "WES-ASSET-SHADOW", asset_key, regime)
+                    wes_asset_count += freeze_multihorizon_set(core, snapshot, now, "WES-ASSET-SHADOW", asset_key, regime)
                     completed[asset_key] = iso_z(now)
 
             wes_key = f"wes:{local.date().isoformat()}:1600"
