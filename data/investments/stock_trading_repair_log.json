@@ -23,6 +23,30 @@
         "sl_tp_trigger_window_starts_at_max_opened_at_and_risk_last_changed_at",
         "same_day_unverified_trigger_windows_fail_closed"
       ]
+    },
+    {
+      "repair_id": "2026-09-23-rng-premarket-retroactive-stop",
+      "position_id": "us:20260922T101426:RNG",
+      "market": "US",
+      "symbol": "RNG",
+      "action": "reopened_after_invalid_off_session_closure",
+      "rationale": [
+        "position_was_marked_closed_at_2026-09-23T07:21:39-04:00_before_the_0930_regular_session_open",
+        "public_quote_state_at_the_time_was_PRE_with_price_79.50_above_the_74.84804126_stop",
+        "portfolio_observation_fallback_could_reuse_a_daily_candle_when_no_current_regular_session_5m_bar_existed",
+        "that_fallback_allowed_prior_session_high_low_to_trigger_a_new_execution_and_violated_no_retroactive_execution"
+      ],
+      "invalid_closed_at": "2026-09-23T07:21:39-04:00",
+      "invalid_exit_price": 74.84804126,
+      "invalid_exit_reason": "stop_loss",
+      "invalid_pnl_amount": -234.43,
+      "canonical_performance_effect": "excluded_and_position_restored_open",
+      "remediation": [
+        "portfolio_observations_are_blocked_outside_regular_cash_session",
+        "daily_fallback_removed_from_executable_sl_tp_observations",
+        "intraday_points_explicitly_filtered_to_regular_session_hours",
+        "missing_current_regular_session_bar_now_fails_closed_without_execution"
+      ]
     }
   ]
 }
