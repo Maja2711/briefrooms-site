@@ -76,6 +76,22 @@ tabs.forEach(btn=>btn.addEventListener("click",()=>{
 }));
 
 let MULTI_PATHS=[]; let HORIZON_AGG=[]; let HYPOTHESIS_BRIER={}; const HORIZON_MIN_SAMPLE=30;
+
+function marketView(items){
+  const root=document.getElementById("market-view"); if(!root)return;
+  if(!Array.isArray(items)||!items.length){root.innerHTML='<p class="muted">Brak aktualnego Market View.</p>';return;}
+  const arrow=x=>x==="up"?"↑":x==="down"?"↓":"→";
+  const move=x=>x==="rising"?"P rośnie ↑":x==="falling"?"P spada ↓":"P stabilne →";
+  root.innerHTML=items.map(x=>{
+    const q=x.quality||{};
+    const quality=q.sample_sufficient?(q.skill_vs_base_rate==null?"próba ≥30":"skill "+pct(q.skill_vs_base_rate)):"jakość badana";
+    return '<div class="market-card '+esc(x.direction)+'"><div class="market-card-head"><b>'+esc(x.instrument)+'</b><small>'+esc(x.horizon_label||"")+'</small></div>'+
+      '<div class="market-direction"><strong>'+arrow(x.direction)+' '+esc(x.direction_label)+'</strong><span>'+pct(x.trend_probability)+'</span></div>'+
+      '<div class="market-facts"><span>Sentyment <b>'+esc(x.sentiment_label)+'</b></span><span>'+esc(move(x.probability_movement))+'</span><span>'+esc(quality)+'</span></div>'+
+      '<small class="market-asof">stan '+esc(forecastTime(x.as_of))+' · '+esc(x.environment_components)+' sygnały otoczenia</small></div>';
+  }).join("");
+}
+
 function forecasts(items){
   const root=document.getElementById("forecast-list");
   if(!root)return;
@@ -217,7 +233,7 @@ async function load(){
     const r=await fetch("/data/investments/decision_lab_public.json?v="+Date.now(),{cache:"no-store"});
     if(!r.ok)throw 0;
     const d=await r.json();
-    MULTI_PATHS=d.multihorizon_paths||[]; HORIZON_AGG=d.horizon_aggregate||[]; HYPOTHESIS_BRIER=d.hypothesis_brier||{}; forecasts(d.forecasts||[]);
+    MULTI_PATHS=d.multihorizon_paths||[]; HORIZON_AGG=d.horizon_aggregate||[]; HYPOTHESIS_BRIER=d.hypothesis_brier||{}; marketView(d.market_view||[]); forecasts(d.forecasts||[]);
     metric("metrics-summary",d.metrics||{});
     metric("metrics",d.metrics||{});
     patterns(d.aris_patterns||[],d.aris_pattern_meta||{});
