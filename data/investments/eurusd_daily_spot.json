@@ -1,6 +1,6 @@
 {
   "instrument": "EUR/USD",
-  "timestamp": "2026-09-23T20:17:07Z",
+  "timestamp": "2026-09-23T22:58:11Z",
   "direction": "SHORT",
   "score": 38.66,
   "confidence": 0.227,
@@ -23,7 +23,7 @@
       "note": "Belief Core remains outside the v1.1 decision path; lifecycle and learning are EUR/USD-local."
     },
     "components": {
-      "trend": -0.1936,
+      "trend": -0.0709,
       "broad_usd_environment": -0.1983,
       "us_rates_pressure_proxy": -0.3547
     },
@@ -33,13 +33,16 @@
       "us_rates_pressure_proxy": 0.198201
     },
     "candidate": {
-      "direction": "SHORT",
-      "score": 38.66,
-      "confidence": 0.227,
-      "accepted": true,
-      "gate_reasons": [],
-      "previous_score": 37.94,
-      "stretch_atr": 0.7395,
+      "direction": "FLAT",
+      "score": 42.02,
+      "confidence": 0.0,
+      "accepted": false,
+      "gate_reasons": [
+        "raw_score_neutral",
+        "entry_disabled_this_cycle"
+      ],
+      "previous_score": 37.08,
+      "stretch_atr": 0.2588,
       "shock_ratio": 0.0
     },
     "learning": {
@@ -127,34 +130,15 @@
       "generic_loss_cooldown": false,
       "window_hours": 12.0,
       "min_loss_r": -0.15,
-      "evaluated": true,
+      "evaluated": false,
       "blocked": false,
-      "reason": "no_recent_meaningful_same_direction_loss",
-      "current_thesis": {
-        "schema_version": "eurusd-entry-thesis-v1",
-        "source": "NATIVE",
-        "source_family": "NATIVE_COMPONENTS",
-        "direction": "SHORT",
-        "score": 38.66,
-        "directional_strength": 11.34,
-        "confidence": 0.227,
-        "components": {
-          "trend": -0.1936,
-          "broad_usd_environment": -0.1983,
-          "us_rates_pressure_proxy": -0.3547
-        },
-        "weights": {
-          "trend": 0.547554,
-          "broad_usd_environment": 0.254244,
-          "us_rates_pressure_proxy": 0.198201
-        }
-      }
+      "reason": "entry_disabled_this_cycle"
     },
     "ecb_policy": {
       "schema_version": "eurusd-ecb-policy-context-v1",
       "enabled": true,
       "central_bank": "ECB",
-      "observed_at": "2026-09-23T20:17:07Z",
+      "observed_at": "2026-09-23T22:58:11Z",
       "event_active": false,
       "coverage": false,
       "must_block_entry": false,
@@ -181,9 +165,8 @@
         "note": "No direct EUR OIS feed is configured in v1.7."
       },
       "veto_threshold": 0.35,
-      "gate_evaluated": true,
-      "gate_blocked": false,
-      "gate_reason": "ecb_policy_aligned_or_neutral"
+      "gate_evaluated": false,
+      "gate_reason": "entry_disabled_this_cycle"
     },
     "central_bank_policy": {
       "mode": "ECB_OFFICIAL_DECISION_PLUS_MARKET_REACTION_V1",
@@ -205,16 +188,15 @@
         "minimum_close_confidence": 0.76
       },
       "snapshot_path": "/home/runner/work/briefrooms-site/briefrooms-site/data/investments/event_intelligence.json",
-      "snapshot_generated_at": "2026-09-23T17:20:13Z",
+      "snapshot_generated_at": "2026-09-23T20:34:50Z",
       "coverage": false,
       "decision_influence": false,
       "fail_neutral": true,
       "score": null,
       "status": "EVENT_SNAPSHOT_STALE",
-      "age_minutes": 176.9,
-      "gate_evaluated": true,
-      "gate_blocked": false,
-      "gate_reason": "event_intelligence_aligned_neutral_or_below_threshold"
+      "age_minutes": 143.35,
+      "gate_evaluated": false,
+      "gate_reason": "entry_disabled_or_no_directional_candidate"
     },
     "event_intelligence_policy": {
       "profile_version": "engine-weighting-v2",
@@ -278,13 +260,16 @@
       "unrealized_percent": -0.00021
     },
     "candidate_at_refresh": {
-      "direction": "SHORT",
-      "score": 38.66,
-      "confidence": 0.227,
-      "accepted": true,
-      "gate_reasons": [],
-      "previous_score": 37.94,
-      "stretch_atr": 0.7395,
+      "direction": "FLAT",
+      "score": 42.02,
+      "confidence": 0.0,
+      "accepted": false,
+      "gate_reasons": [
+        "raw_score_neutral",
+        "entry_disabled_this_cycle"
+      ],
+      "previous_score": 37.08,
+      "stretch_atr": 0.2588,
       "shock_ratio": 0.0
     },
     "open_position_policy_check": {
