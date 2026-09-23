@@ -115,9 +115,15 @@ function showHorizonPath(row){
   }
   const path=MULTI_PATHS.find(x=>x.belief_id===row.belief_id && x.forecast_at===row.forecast_at);
   const hb=HYPOTHESIS_BRIER[row.belief_id]||null;
-  const hypothesisBlock='<div class="hypothesis-brier"><b>Brier tej hipotezy</b><span>'+
-    (hb ? 'n='+esc(hb.n)+' · średni Brier '+num(hb.mean_brier,3) : 'brak rozliczonej próby')+
-    '</span><small>'+esc(row.belief_id||"—")+'</small></div>';
+  const hypothesisBlock='<div class="hypothesis-brier"><b>Jakość tej hipotezy</b><span>'+
+    (hb ? 'n='+esc(hb.count)+' · Brier '+num(hb.mean_brier,3) : 'brak rozliczonej próby')+
+    '</span><small>'+esc(row.belief_id||"—")+'</small>'+
+    (hb ? '<div class="hypothesis-details">Okres: '+esc(forecastTime(hb.period_start))+' → '+esc(forecastTime(hb.period_end))+
+      ' · trafność kierunku: '+pct(hb.direction_accuracy)+
+      ' · benchmark 50/50: '+num(hb.benchmark_brier_50_50,3)+
+      ' · Brier Skill: '+pct(hb.brier_skill_score_vs_50_50)+
+      (hb.sample_sufficient?' · próba ≥30':' · mała próba')+
+      '</div>' : '')+'</div>';
   const pathBlock=path
     ? '<div class="horizon-grid">'+path.horizons.map(h=>'<div><b>'+esc(h.horizon_label)+'</b><span>'+esc(h.status==='RESOLVED'?(h.outcome?'TAK':'NIE'):'oczekuje')+'</span><small>Brier '+num(h.brier_score,3)+'</small></div>').join('')+'</div>'+horizonAggregateHtml()
     : '<p class="muted">Ścieżka 3H / 12H / 24H / 3D / 5D dotyczy nowych forecastów utworzonych po uruchomieniu badania. Ten starszy rekord nie jest przepisywany wstecznie.</p>';
