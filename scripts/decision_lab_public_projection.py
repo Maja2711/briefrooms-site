@@ -24,6 +24,9 @@ def records(value):
 
 def build_payload(state, report):
     forecasts = records(state.get("forecasts"))
+    definitions = records(state.get("definitions"))
+    state = dict(state)
+    state["definitions_by_id"] = {str(x.get("belief_id")): x for x in definitions if x.get("belief_id")}
     verifications = records(state.get("verifications"))
     verified = {
         str(v.get("forecast_id")): v
@@ -43,6 +46,7 @@ def build_payload(state, report):
                 "forecast_id": fid,
                 "entity": f.get("entity"),
                 "belief_id": f.get("belief_id"),
+                "claim": (state.get("definitions_by_id") or {}).get(str(f.get("belief_id")), {}).get("claim"),
                 "probability": f.get("predicted_probability"),
                 "confidence": f.get("forecast_confidence"),
                 "forecast_at": f.get("forecast_at"),

@@ -7,15 +7,15 @@ const num=(v,d=3)=>v==null||!Number.isFinite(Number(v))?"—":Number(v).toFixed(
 const bits=v=>v==null?"—":(Number(v)>=0?"+":"")+Number(v).toFixed(1)+" bit";
 
 const HYPOTHESES={
-  "spx.trend.bullish":"Trend S&P 500 jest wzrostowy",
+  "spx.trend.bullish":"S&P 500 będzie wyżej w momencie Target niż w chwili prognozy",
   "spx.breadth.healthy":"Breadth rynku USA pozostaje zdrowy",
   "spx.volatility.benign":"Zmienność rynku pozostaje umiarkowana",
   "spx.liquidity.supportive":"Płynność / kredyt wspierają rynek",
   "spx.financial_conditions.supportive":"Warunki finansowe wspierają rynek",
-  "eurusd.trend.bullish":"Trend EUR/USD jest wzrostowy",
+  "eurusd.trend.bullish":"EUR/USD będzie wyżej w momencie Target niż w chwili prognozy",
   "eurusd.us_rates_pressure.supportive":"Presja stóp USA wspiera EUR/USD",
   "eurusd.usd_environment.supportive":"Otoczenie USD wspiera EUR/USD",
-  "btc.trend.bullish":"Trend BTC/USD jest wzrostowy",
+  "btc.trend.bullish":"BTC/USD będzie wyżej w momencie Target niż w chwili prognozy",
   "btc.volatility.benign":"Zmienność BTC pozostaje umiarkowana",
   "btc.liquidity.supportive":"Płynność wspiera BTC",
   "btc.usd_environment.supportive":"Otoczenie USD wspiera BTC"
@@ -31,6 +31,19 @@ function instrument(x){
 function hypothesis(x){
   const id=String(x?.belief_id||"");
   return HYPOTHESES[id]||id||"—";
+}
+function forecastTime(value){
+  if(!value) return "—";
+  const d=new Date(value);
+  if(Number.isNaN(d.getTime())) return String(value);
+  return d.toLocaleString("pl-PL",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+}
+function probabilityMeaning(x){
+  const p=Number(x?.probability);
+  if(!Number.isFinite(p)) return "";
+  const positive=p>=.5;
+  const label=positive?"bardziej TAK":"bardziej NIE";
+  return label+" · "+(Math.max(p,1-p)*100).toFixed(1)+"%";
 }
 function target(value){
   if(!value) return "—";
@@ -78,9 +91,9 @@ function forecasts(items){
       '<div class="forecast">'+
         '<b>'+esc(instrument(x))+'</b>'+
         '<span class="hypothesis" title="'+esc(x.belief_id||"")+'">'+esc(hypothesis(x))+'</span>'+
-        '<span class="probability">'+pct(x.probability)+'</span>'+
+        '<span class="probability" title="'+esc(probabilityMeaning(x))+'">'+pct(x.probability)+'<small>'+esc(probabilityMeaning(x))+'</small></span>'+
         '<span>'+pct(x.confidence)+'</span>'+
-        '<span class="target">'+esc(target(x.target_at))+'</span>'+
+        '<span class="target" title="Forecast: '+esc(forecastTime(x.forecast_at))+' · Target: '+esc(target(x.target_at))+'">'+esc(target(x.target_at))+'<small>od '+esc(forecastTime(x.forecast_at))+'</small></span>'+
         outcome(x)+
         '<span class="brier">'+num(x.brier_score,3)+'</span>'+
         status(x.status)+
