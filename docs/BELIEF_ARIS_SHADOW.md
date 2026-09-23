@@ -161,3 +161,19 @@ The report is stored only in the separate ARIS shadow output directory/artifact.
 ## Hard safety invariants
 
 PR31 has zero production authority. It cannot change Belief Core, EpistemicState, BRACE, WES, Daily engines, ranking, sizing, execution or production policy.
+
+## ARIS-PATTERN-1 relationship
+
+ARIS-PATTERN-1 extends the same read-only ARIS research branch longitudinally.
+PR31 asks whether a simpler representation can retain the information in one
+current Belief state. ARIS-PATTERN-1 asks whether small combinations of frozen
+Evidence repeatedly compress later verified outcomes better than the baseline.
+
+The modules share the ARIS principles of model+residual, competing
+representations and explicit model cost, but they remain separate diagnostics.
+ARIS-PATTERN-1 uses chronological discovery/holdout separation and publishes
+only positive discovery MDL gain. Every result is marked
+`ASSOCIATION_ONLY`; it cannot write to the causal graph, Belief Core or any
+decision engine.
+
+Detailed contract: `docs/BELIEF_ARIS_PATTERN.md`.
