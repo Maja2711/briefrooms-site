@@ -1,6 +1,6 @@
 # BriefRooms Canonical Architecture Map — EN
 
-**Map version:** 1.10  
+**Map version:** 1.11  
 **Snapshot date:** 2026-09-21  
 **Base `main` commit:** `b716beca850bc8514c0975f005c7a8d1d5dcd14d`  
 **Repository:** `Maja2711/briefrooms-site`
@@ -149,7 +149,7 @@ An adapter is not a decision engine. Its primary job is to translate a source in
 | `EP-06` | Frozen Forecast + Verification | Freezes probability/evidence before outcome and verifies later | `belief_core_shadow.py`, `belief_core_verify.py` |
 | `EP-07` | Calibration | Brier, log loss, ECE/MCE, slices, drift and source diagnostics | `belief_calibration.py`, `belief_calibration_foundation.py`; recommendations without silent auto-tuning |
 | `EP-08` | Read-only Belief Bridges | Deliver epistemic/belief state to selected engines in governed modes | WES/BRACE/SPX bridge files; decision influence depends on the explicit gate |
-| `EP-09` | Belief ARIS Shadow Diagnostics | Read-only research over alternative Evidence representations: model+residual, competing representations, ROI/pruning | `scripts/belief_aris_shadow.py`, `scripts/belief_aris_shadow_live.py`, `docs/BELIEF_ARIS_SHADOW.md`; `research_shadow`, no Belief writeback, consumer export, decision influence or auto-promotion |
+| `EP-09` | Belief ARIS Research | Read-only Evidence representation research plus prospective ARIS-PATTERN-1: frozen Evidence combinations -> later outcome, MDL gain, residual and chronological holdout/OOS | `scripts/belief_aris_shadow.py`, `scripts/belief_aris_pattern.py`, `docs/BELIEF_ARIS_SHADOW.md`, `docs/BELIEF_ARIS_PATTERN.md`; `research_shadow`, `ASSOCIATION_ONLY`, no Belief/causal writeback, consumer export, decision influence or auto-promotion |
 
 ### Belief Core is not a “constitution”
 
@@ -410,6 +410,7 @@ Primary detailed documents used to build and maintain the current map:
 - `scripts/validate_architecture_reconciliation.py`
 - `BELIEF_CORE.md`
 - `BELIEF_ARIS_SHADOW.md`
+- `BELIEF_ARIS_PATTERN.md`
 - `BELIEF_EVIDENCE_ADAPTERS.md`
 - `BELIEF_EPISTEMIC_STATE.md`
 - `BELIEF_EPISTEMIC_CAUSAL_GRAPH.md`
