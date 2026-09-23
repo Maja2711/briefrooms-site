@@ -84,6 +84,41 @@ def build_payload(state, report):
         horizon_stats.append({"horizon":label, "n":len(vals), "mean_brier":None if not vals else round(sum(vals)/len(vals),6)})
 
     cal = report.get("belief_calibration") or {}\n    hypothesis_brier = dict(cal.get("hypothesis_intelligence") or {})\n    overall = cal.get("overall") or {}
+    def build_market_view():
+        configs = {"BTC/USD": ("btc.", "btc.trend.bullish"), "EUR/USD": ("eurusd.", "eurusd.trend.bullish"), "S&P 500": ("spx.", "spx.trend.bullish")}
+        out = []
+        for instrument, (prefix, trend_id) in configs.items():
+            relevant = [f for f in forecasts if str(f.get("belief_id") or "").startswith(prefix)]
+            latest = {}
+            for f in sorted(relevant, key=lambda x: str(x.get("forecast_at") or "")):
+                bid = str(f.get("belief_id") or "")
+                current = latest.get(bid); meta = f.get("metadata") or {}
+                if current is None or meta.get("primary_research_horizon") or not (current.get("metadata") or {}).get("primary_research_horizon"):
+                    latest[bid] = f
+            trend = latest.get(trend_id)
+            if not trend: continue
+            p = float(trend.get("predicted_probability") or .5)
+            direction = "up" if p >= .55 else "down" if p <= .45 else "neutral"
+            env_rows = [f for bid, f in latest.items() if bid != trend_id]
+            env_ps = [float(f.get("predicted_probability") or .5) for f in env_rows]
+            env = sum(env_ps) / len(env_ps) if env_ps else .5
+            sentiment = "positive" if env >= .55 else "negative" if env <= .45 else "neutral"
+            prior = sorted([f for f in relevant if str(f.get("belief_id")) == trend_id and f is not trend], key=lambda x: str(x.get("forecast_at") or ""), reverse=True)
+            previous_p = float(prior[0].get("predicted_probability")) if prior else None
+            delta = None if previous_p is None else p - previous_p
+            hb = hypothesis_brier.get(trend_id) or {}
+            out.append({"instrument":instrument,"trend_belief_id":trend_id,"as_of":trend.get("forecast_at"),"target_at":trend.get("target_at"),
+                "horizon_label":horizon_label(trend),"direction":direction,"direction_label":{"up":"WZROSTOWY","down":"SPADKOWY","neutral":"NEUTRALNY"}[direction],
+                "trend_probability":round(p,6),"evidence_confidence":trend.get("forecast_confidence"),"sentiment":sentiment,
+                "sentiment_label":{"positive":"POZYTYWNE","negative":"NEGATYWNE","neutral":"NEUTRALNE"}[sentiment],"environment_score":round(env,6),
+                "environment_components":len(env_rows),"probability_change":None if delta is None else round(delta,6),
+                "probability_movement":"stable" if delta is None or abs(delta)<.015 else ("rising" if delta>0 else "falling"),
+                "quality":{"n":hb.get("count",hb.get("n")),"mean_brier":hb.get("mean_brier"),"skill_vs_base_rate":hb.get("brier_skill_score_vs_base_rate"),
+                           "sample_sufficient":bool(hb.get("sample_sufficient",False))},
+                "method":"deterministic_briefrooms_beliefs_v1","llm_authority":False})
+        return out
+
+    market_view = build_market_view()
     aris = build_pattern_report(state)
 
     return {
@@ -94,7 +129,7 @@ def build_payload(state, report):
         "production_write_authority": False,
         "automatic_tuning": False,
         "generated_at": report.get("generated_at"),
-        "forecasts": rows,
+        "market_view": market_view,\n        "market_view_contract": {"method":"deterministic_briefrooms_beliefs_v1","llm_authority":False,"trend_thresholds":{"up":0.55,"down":0.45},"sentiment_thresholds":{"positive":0.55,"negative":0.45}},\n        "forecasts": rows,
         "multihorizon_paths": multihorizon_paths,
         "horizon_aggregate": horizon_stats,
         "horizon_aggregate_min_sample": 30,
