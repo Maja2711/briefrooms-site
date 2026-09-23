@@ -93,6 +93,60 @@ class StockTradingQuoteEnricherTests(unittest.TestCase):
         self.assertTrue(result['is_realtime'])
         self.assertEqual(requested_url, result['source_url'])
 
+    def test_enrichment_prefers_fresher_gpw_display_quote(self):
+        now = datetime(2026, 9, 18, 10, 0, tzinfo=UTC)
+        state = {
+            'markets': {
+                'GPW': {'open_positions': [{
+                    'position_id': 'gpw:test:ASB',
+                    'market': 'GPW',
+                    'status': 'OPEN',
+                    'symbol': 'ASB.WA',
+                    'ticker': 'ASB',
+                    'entry': 172.0,
+                    'last_mark': 172.5,
+                }]},
+                'US': {'open_positions': []},
+            }
+        }
+        stale_yahoo = {
+            'price': 173.0,
+            'market_state': 'REGULAR',
+            'state_source': 'provider.currentTradingPeriod',
+            'price_kind': 'regular',
+            'observed_at': '2026-09-18T11:45:00+02:00',
+            'received_at': '2026-09-18T10:00:00+00:00',
+            'provider': 'Yahoo Finance chart',
+            'delay_status': 'delayed',
+            'delay_minutes': 15,
+            'is_realtime': False,
+            'source_verified': True,
+            'capture_age_seconds': 900,
+        }
+        fresh_stooq = {
+            'price': 174.0,
+            'market_state': 'REGULAR',
+            'state_source': 'clock_fallback_for_stooq',
+            'price_kind': 'last',
+            'observed_at': '2026-09-18T11:59:30+02:00',
+            'received_at': '2026-09-18T10:00:00+00:00',
+            'provider': 'Stooq.pl current quote',
+            'delay_status': 'measured_from_observation',
+            'delay_minutes': 0.5,
+            'is_realtime': True,
+            'source_verified': True,
+            'capture_age_seconds': 30,
+        }
+        with patch.object(quotes, 'quote_for_symbol', return_value=stale_yahoo), patch.object(
+            quotes, '_stooq_quote', return_value=fresh_stooq
+        ):
+            enriched, _ = quotes.enrich(state, markets=['GPW'], now_utc=now)
+        position = enriched['markets']['GPW']['open_positions'][0]
+        self.assertEqual(172.5, position['last_mark'])
+        self.assertEqual(174.0, position['current_mark']['price'])
+        self.assertEqual('Stooq.pl current quote', position['current_mark']['provider'])
+        self.assertEqual('freshest_verified_observation', position['current_mark']['display_quote_policy']['selection'])
+
     def test_execution_quote_uses_fresh_independent_fallback(self):
         now = datetime(2026, 9, 18, 10, 0, tzinfo=UTC)
         stale_yahoo = {
