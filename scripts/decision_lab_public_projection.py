@@ -83,7 +83,9 @@ def build_payload(state, report):
         vals = by_h.get(label, [])
         horizon_stats.append({"horizon":label, "n":len(vals), "mean_brier":None if not vals else round(sum(vals)/len(vals),6)})
 
-    cal = report.get("belief_calibration") or {}\n    hypothesis_brier = dict(cal.get("hypothesis_intelligence") or {})\n    overall = cal.get("overall") or {}
+    cal = report.get("belief_calibration") or {}
+    hypothesis_brier = dict(cal.get("hypothesis_intelligence") or {})
+    overall = cal.get("overall") or {}
     def build_market_view():
         configs = {"BTC/USD": ("btc.", "btc.trend.bullish"), "EUR/USD": ("eurusd.", "eurusd.trend.bullish"), "S&P 500": ("spx.", "spx.trend.bullish")}
         out = []
