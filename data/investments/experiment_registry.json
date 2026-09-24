@@ -84,7 +84,7 @@
       },
       "family": "Geopolitics",
       "id": "gse-v2-learning-lab",
-      "last_updated": "2026-09-24T10:04:55.890170Z",
+      "last_updated": "2026-09-24T15:10:38.819053Z",
       "max_drawdown": null,
       "minimum_sample": 60,
       "name": "GSE v2 Learning Lab",
@@ -115,14 +115,14 @@
         "value": 0.5
       },
       "category": "forecasting",
-      "delta_vs_benchmark": -0.07142857142857145,
+      "delta_vs_benchmark": -0.125,
       "details": {
         "decision_influence": false,
         "research_only": true
       },
       "family": "EURUSD",
       "id": "timesfm-shadow",
-      "last_updated": "2026-09-24T04:52:18.544252Z",
+      "last_updated": "2026-09-24T13:34:34.454806Z",
       "max_drawdown": null,
       "minimum_sample": 60,
       "name": "TimesFM Shadow Forecaster",
@@ -133,11 +133,11 @@
         "interpretation": "Miara forecast skill; nie formalna alpha.",
         "label": "Trafność kierunku 1h",
         "unit": "fraction",
-        "value": 0.42857142857142855
+        "value": 0.375
       },
       "production_impact": false,
       "purpose": "Sprawdzenie, czy TimesFM daje prospektywną przewagę prognostyczną względem prostych baseline'ów.",
-      "sample_count": 7,
+      "sample_count": 8,
       "sample_unit": "resolved_1h_forecasts",
       "source": "data/investments/timesfm_shadow_public_pl.json",
       "stage": "SHADOW",
@@ -157,7 +157,7 @@
       },
       "family": "Weekly Investments",
       "id": "strategy-research-lab",
-      "last_updated": "2026-09-24T08:10:15+02:00",
+      "last_updated": "2026-09-24T14:43:15+02:00",
       "max_drawdown": null,
       "minimum_sample": 30,
       "name": "Autonomous Strategy Research Lab",
@@ -173,7 +173,7 @@
       },
       "production_impact": false,
       "purpose": "Autonomiczne generowanie i filtrowanie kandydatów strategii bez prawa do produkcyjnej aktywacji.",
-      "sample_count": 176,
+      "sample_count": 177,
       "sample_unit": "research_cycles",
       "source": "data/investments/research_lab_report.json",
       "stage": "SHADOW",
@@ -268,29 +268,29 @@
       "details": {
         "arms": {
           "A": {
-            "directional_accuracy_1h": 0.5161290322580645,
-            "mean_signed_return_bps_1h": 0.6014897959183674,
+            "directional_accuracy_1h": 0.4838709677419355,
+            "mean_signed_return_bps_1h": 0.5318755102040816,
             "resolved_1h": 31
           },
           "B": {
-            "directional_accuracy_1h": 0.6923076923076923,
-            "mean_signed_return_bps_1h": 1.3577265306122448,
+            "directional_accuracy_1h": 0.6538461538461539,
+            "mean_signed_return_bps_1h": 1.2881122448979592,
             "resolved_1h": 26
           },
           "C": {
-            "directional_accuracy_1h": 0.5925925925925926,
-            "mean_signed_return_bps_1h": 0.6274877551020408,
+            "directional_accuracy_1h": 0.5555555555555556,
+            "mean_signed_return_bps_1h": 0.5578734693877552,
             "resolved_1h": 27
           }
         },
-        "captures": 137,
+        "captures": 138,
         "learning_loop": {
           "arms": {
             "A": {
               "dominant_error": "DIRECTION_OR_TIMING_FAILURE",
-              "episode_count": 31,
+              "episode_count": 32,
               "error_recurrence_rate": 0.461538,
-              "hit_rate": 0.580645,
+              "hit_rate": 0.59375,
               "lesson_candidate": {
                 "confidence": null,
                 "eligible": false,
@@ -299,15 +299,15 @@
                 "policy_change_proposed": false,
                 "proposed_action": null
               },
-              "mean_r": 0.281575,
+              "mean_r": 0.308433,
               "policy_stability": 1.0,
-              "recent_vs_prior_mean_r_delta": 1.470372
+              "recent_vs_prior_mean_r_delta": 1.515929
             },
             "B": {
               "dominant_error": "FOLLOW_THROUGH_FAILURE",
-              "episode_count": 26,
+              "episode_count": 27,
               "error_recurrence_rate": 0.454545,
-              "hit_rate": 0.576923,
+              "hit_rate": 0.592593,
               "lesson_candidate": {
                 "confidence": null,
                 "eligible": false,
@@ -316,15 +316,15 @@
                 "policy_change_proposed": false,
                 "proposed_action": null
               },
-              "mean_r": 0.339274,
+              "mean_r": 0.368968,
               "policy_stability": 1.0,
-              "recent_vs_prior_mean_r_delta": 0.968908
+              "recent_vs_prior_mean_r_delta": 1.48606
             },
             "C": {
               "dominant_error": "DIRECTION_OR_TIMING_FAILURE",
-              "episode_count": 26,
+              "episode_count": 27,
               "error_recurrence_rate": 0.454545,
-              "hit_rate": 0.576923,
+              "hit_rate": 0.592593,
               "lesson_candidate": {
                 "confidence": null,
                 "eligible": false,
@@ -333,16 +333,16 @@
                 "policy_change_proposed": false,
                 "proposed_action": null
               },
-              "mean_r": 0.289796,
+              "mean_r": 0.321323,
               "policy_stability": 1.0,
-              "recent_vs_prior_mean_r_delta": 1.503776
+              "recent_vs_prior_mean_r_delta": 1.541991
             }
           },
           "automatic_policy_mutation": false,
           "available": true,
           "cross_arm_writeback": false,
           "decision_influence": false,
-          "episode_count": 83,
+          "episode_count": 86,
           "historical_backfill": false,
           "mode": "PROSPECTIVE_SHARED_LEARNING_LOOP",
           "prospective_only": true,
@@ -352,7 +352,7 @@
       },
       "family": "EURUSD",
       "id": "eurusd-abc-live-shadow",
-      "last_updated": "2026-09-24T09:59:53.422144Z",
+      "last_updated": "2026-09-24T15:05:02.588624Z",
       "max_drawdown": null,
       "minimum_sample": 40,
       "name": "EURUSD A/B/C Live Shadow",
@@ -366,7 +366,7 @@
         "interpretation": "Forecast skill; nie jest automatycznie formalną alpha ani wynikiem transakcyjnym po kosztach.",
         "label": "Najlepsza trafność kierunku 1h",
         "unit": "fraction",
-        "value": 0.6923076923076923
+        "value": 0.6538461538461539
       },
       "production_impact": false,
       "purpose": "Prospektywne porównanie trzech wariantów: technicznego, Belief-only i hybrydowego.",
@@ -380,7 +380,7 @@
       "version": "eurusd-daily-abc-v1.3.0"
     }
   ],
-  "generated_at": "2026-09-24T10:04:55.890170Z",
+  "generated_at": "2026-09-24T15:10:38.819053Z",
   "schema_version": "briefrooms-experiment-registry-v1",
   "status_policy": {
     "allowed": [
