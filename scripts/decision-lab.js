@@ -77,6 +77,33 @@ tabs.forEach(btn=>btn.addEventListener("click",()=>{
 
 let MULTI_PATHS=[]; let HORIZON_AGG=[]; let HYPOTHESIS_BRIER={}; const HORIZON_MIN_SAMPLE=30;
 
+function deriveMarketView(forecasts){
+  const cfg=[["BTC/USD","btc.","btc.trend.bullish"],["EUR/USD","eurusd.","eurusd.trend.bullish"],["S&P 500","spx.","spx.trend.bullish"]];
+  const rows=Array.isArray(forecasts)?forecasts:[];
+  return cfg.map(([instrument,prefix,trendId])=>{
+    const rel=rows.filter(x=>String(x.belief_id||"").startsWith(prefix)).sort((a,b)=>String(b.forecast_at||"").localeCompare(String(a.forecast_at||"")));
+    const trendRows=rel.filter(x=>x.belief_id===trendId);
+    const trend=trendRows[0]; if(!trend)return null;
+    const p=Number(trend.probability);
+    const direction=p>=.55?"up":p<=.45?"down":"neutral";
+    const latestByBelief={};
+    rel.forEach(x=>{if(!latestByBelief[x.belief_id])latestByBelief[x.belief_id]=x;});
+    const envRows=Object.values(latestByBelief).filter(x=>x.belief_id!==trendId);
+    const env=envRows.length?envRows.reduce((s,x)=>s+Number(x.probability||.5),0)/envRows.length:.5;
+    const sentiment=env>=.55?"positive":env<=.45?"negative":"neutral";
+    const prev=trendRows[1]?Number(trendRows[1].probability):null;
+    const delta=prev==null?null:p-prev;
+    const hb=HYPOTHESIS_BRIER[trendId]||{};
+    return {instrument,trend_belief_id:trendId,as_of:trend.forecast_at,target_at:trend.target_at,horizon_label:trend.horizon_label,
+      direction,direction_label:{up:"WZROSTOWY",down:"SPADKOWY",neutral:"NEUTRALNY"}[direction],trend_probability:p,
+      evidence_confidence:trend.confidence,sentiment,sentiment_label:{positive:"POZYTYWNE",negative:"NEGATYWNE",neutral:"NEUTRALNE"}[sentiment],
+      environment_score:env,environment_components:envRows.length,probability_change:delta,
+      probability_movement:delta==null||Math.abs(delta)<.015?"stable":delta>0?"rising":"falling",
+      quality:{n:hb.count??hb.n,mean_brier:hb.mean_brier,skill_vs_base_rate:hb.brier_skill_score_vs_base_rate,sample_sufficient:!!hb.sample_sufficient},
+      method:"deterministic_briefrooms_beliefs_v1_client_fallback",llm_authority:false};
+  }).filter(Boolean);
+}
+
 function marketView(items){
   const root=document.getElementById("market-view"); if(!root)return;
   if(!Array.isArray(items)||!items.length){root.innerHTML='<p class="muted">Brak aktualnego Market View.</p>';return;}
@@ -233,7 +260,7 @@ async function load(){
     const r=await fetch("/data/investments/decision_lab_public.json?v="+Date.now(),{cache:"no-store"});
     if(!r.ok)throw 0;
     const d=await r.json();
-    MULTI_PATHS=d.multihorizon_paths||[]; HORIZON_AGG=d.horizon_aggregate||[]; HYPOTHESIS_BRIER=d.hypothesis_brier||{}; marketView(d.market_view||[]); forecasts(d.forecasts||[]);
+    MULTI_PATHS=d.multihorizon_paths||[]; HORIZON_AGG=d.horizon_aggregate||[]; HYPOTHESIS_BRIER=d.hypothesis_brier||{}; const forecastRows=d.forecasts||[]; const view=(Array.isArray(d.market_view)&&d.market_view.length)?d.market_view:deriveMarketView(forecastRows); marketView(view); forecasts(forecastRows);
     metric("metrics-summary",d.metrics||{});
     metric("metrics",d.metrics||{});
     patterns(d.aris_patterns||[],d.aris_pattern_meta||{});
