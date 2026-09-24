@@ -1,23 +1,23 @@
 {
   "schema_version": "gpw-daily-learning-v1",
-  "updated_at": "2026-09-23T22:39:44+02:00",
-  "resolved_trades": 16,
+  "updated_at": "2026-09-24T14:28:25+02:00",
+  "resolved_trades": 17,
   "adaptation_active": true,
   "minimum_sample": 8,
   "method": "bayesian_shrinkage_historical_overlay_v1",
   "automatic_weight_changes": false,
-  "global_average_r": 0.051,
-  "recent_average_r": 0.051,
+  "global_average_r": 0.084,
+  "recent_average_r": 0.084,
   "recent_window": 20,
-  "win_rate": 0.375,
-  "stop_rate": 0.4375,
-  "target_rate": 0.3125,
+  "win_rate": 0.4118,
+  "stop_rate": 0.4118,
+  "target_rate": 0.2941,
   "sector_expectancy": [
     {
       "sector": "banki",
-      "sample": 2,
-      "average_r": 0.847,
-      "shrunk_r": 0.141
+      "sample": 3,
+      "average_r": 0.771,
+      "shrunk_r": 0.178
     },
     {
       "sector": "chemia",
@@ -45,41 +45,18 @@
     }
   ],
   "last_lesson": {
-    "date": "2026-09-18",
-    "symbol": "DNP",
-    "sector": "handel",
-    "return_percent": -0.988,
-    "r_multiple": -0.169,
+    "date": "2026-09-21",
+    "symbol": "PEO",
+    "sector": "banki",
+    "return_percent": 1.137,
+    "r_multiple": 0.619,
     "exit_reason": "koniec_horyzontu",
-    "lesson": "DNP: horyzont zakończył się słabo (-0.17R). Wynik obniża ocenę podobnych układów dopiero w ramach zbiorczej próby."
+    "lesson": "PEO: horyzont zakończył się dodatnio (0.62R). Wynik zasila oczekiwaną skuteczność podobnych układów po shrinkage."
   },
   "guardrails": {
     "weights_frozen": true,
     "historical_component_weight_percent": 10.0,
     "max_historical_score_adjustment": 12.0,
     "single_trade_weight_mutation": false
-  },
-  "event_expectancy": [
-    {
-      "event_type": "earnings",
-      "label": "wyniki / raport okresowy",
-      "sample": 1,
-      "minimum_sample": 6,
-      "active": false,
-      "average_r": 1.792,
-      "shrunk_r": 0.0,
-      "catalyst_adjustment": 0.0
-    },
-    {
-      "event_type": "regulatory",
-      "label": "regulacja / spór prawny",
-      "sample": 1,
-      "minimum_sample": 6,
-      "active": false,
-      "average_r": 1.799,
-      "shrunk_r": 0.0,
-      "catalyst_adjustment": 0.0
-    }
-  ],
-  "event_learning_method": "event_family_bayesian_shrinkage_v1"
+  }
 }
