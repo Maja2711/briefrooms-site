@@ -4,6 +4,15 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "17 1,7,13,19 * * *"
+  pull_request:
+    paths:
+      - "scripts/investments_research_lab.py"
+      - "scripts/investments_research_bridge.py"
+      - "scripts/investments_weekly_eurusd_ma_multitimeframe_research.py"
+      - "data/investments/research_lab_policy.json"
+      - "tests/test_research_lab_bridge.py"
+      - "tests/test_research_lab_execution.py"
+      - ".github/workflows/research-lab.yml"
   push:
     branches: [main]
     paths:
@@ -42,8 +51,10 @@ jobs:
           python -m py_compile scripts/investments_research_lab.py scripts/investments_research_bridge.py scripts/investments_weekly_macro.py scripts/investments_weekly_eurusd_ma_multitimeframe_research.py
           PYTHONPATH=. python -m unittest tests/test_research_lab_bridge.py tests/test_research_lab_execution.py -v
       - name: Run autonomous evidence cycle
+        if: github.event_name != 'pull_request'
         run: python scripts/investments_research_lab.py
       - name: Persist lab state and promotion registry
+        if: github.event_name != 'pull_request'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
