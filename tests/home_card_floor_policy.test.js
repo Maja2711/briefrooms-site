@@ -1,6 +1,17 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const floor = require('../scripts/home-card-floor.js');
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { runInNewContext } from 'node:vm';
+
+function loadCommonJsBrowserModule(relativeUrl) {
+  const source = readFileSync(new URL(relativeUrl, import.meta.url), 'utf8');
+  const sandbox = { module: { exports: {} }, exports: {}, console, URL, setTimeout, clearTimeout };
+  runInNewContext(source, sandbox, { filename: relativeUrl });
+  return sandbox.module.exports;
+}
+
+const floor = loadCommonJsBrowserModule('../scripts/home-card-floor.js');
+
 
 function story(title, slug) {
   return {
