@@ -1,36 +1,67 @@
 {
-  "version": "1.0.0",
+  "version": "2.0.0",
   "enabled": true,
-  "scope": ["eurusd"],
+  "scope": [
+    "eurusd"
+  ],
   "target": {
-    "aspirational_win_rate": 0.70,
+    "aspirational_win_rate": 0.7,
     "minimum_promotable_win_rate": 0.58,
     "minimum_mean_week_percent": 0.02,
-    "minimum_profit_factor": 1.10,
-    "maximum_drawdown_percent": 8.0,
+    "minimum_profit_factor": 1.1,
+    "maximum_drawdown_percent": 8,
     "minimum_total_trades": 60,
     "minimum_holdout_trades": 20,
-    "minimum_walk_forward_folds": 3
+    "minimum_walk_forward_folds": 3,
+    "minimum_prospective_shadow_trades": 12,
+    "holdout_fraction": 0.2
   },
   "search": {
     "max_candidates_per_cycle": 120,
     "max_promotions_per_cycle": 3,
     "indicator_families": [
-      "sma", "ema", "rsi", "macd", "adx", "atr", "bollinger", "roc", "stochastic", "momentum", "price_location", "support_resistance", "volatility_regime"
+      "sma",
+      "ema",
+      "rsi",
+      "macd",
+      "adx",
+      "atr",
+      "bollinger",
+      "roc",
+      "stochastic",
+      "momentum",
+      "price_location",
+      "support_resistance",
+      "volatility_regime"
     ],
-    "timeframes": ["H1", "H4", "D1", "W1", "M1"],
+    "timeframes": [
+      "H1",
+      "H4",
+      "D1",
+      "W1",
+      "M1"
+    ],
     "allow_generated_composites": true,
     "allow_parameter_mutation": true,
     "allow_cross_timeframe_combinations": true
   },
   "governance": {
     "auto_modify_production": false,
-    "allowed_runtime_statuses": ["approved_for_shadow", "approved_for_paper"],
-    "max_runtime_adjustment_points": 2.0,
+    "allowed_runtime_statuses": [
+      "approved_for_shadow",
+      "approved_for_paper"
+    ],
+    "max_runtime_adjustment_points": 2,
     "reject_negative_expectancy_even_if_high_win_rate": true,
     "require_holdout": true,
     "require_walk_forward": true,
     "require_costs": true,
-    "require_regime_stability": true
+    "require_regime_stability": true,
+    "production_promotion_requires_separate_controller": true,
+    "fail_closed_on_missing_evidence": true
+  },
+  "costs": {
+    "round_trip_cost_bps": 2,
+    "note": "Explicit conservative research assumption, not a claim about realized broker spread/slippage."
   }
 }

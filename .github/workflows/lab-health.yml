@@ -1,0 +1,124 @@
+name: Research Lab Health Contract
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "11 * * * *"
+  workflow_run:
+    workflows:
+      - "Autonomous Weekly Strategy Research Lab"
+      - "Experiment Registry"
+      - "Experience Store Public Projection"
+    types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - "scripts/build_lab_health.py"
+      - "scripts/portfolio-10k-lab-health.js"
+      - "tests/test_lab_health_contract.py"
+      - "data/investments/research_lab_report.json"
+      - "data/investments/experiment_registry.json"
+      - "data/investments/experience_store_public.json"
+      - ".github/workflows/lab-health.yml"
+  pull_request:
+    paths:
+      - "scripts/build_lab_health.py"
+      - "scripts/portfolio-10k-lab-health.js"
+      - "tests/test_lab_health_contract.py"
+      - ".github/workflows/lab-health.yml"
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: research-lab-health-contract
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || 'main' }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate health builder and frontend
+        run: |
+          python -m py_compile scripts/build_lab_health.py
+          python -m unittest tests.test_lab_health_contract -v
+          node --check scripts/portfolio-10k-lab-health.js
+
+  publish:
+    if: github.event_name != 'pull_request'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Collect latest source workflow status
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, subprocess
+          workflows = [
+              "experiment-registry.yml",
+              "experience-store-public.yml",
+              "research-lab.yml",
+          ]
+          out = {}
+          for workflow in workflows:
+              cmd = [
+                  "gh", "run", "list",
+                  "--workflow", workflow,
+                  "--branch", "main",
+                  "--limit", "1",
+                  "--json", "databaseId,status,conclusion,createdAt,updatedAt",
+              ]
+              raw = subprocess.check_output(cmd, text=True)
+              rows = json.loads(raw)
+              out[workflow] = rows[0] if rows else {}
+          with open("/tmp/lab-workflows.json", "w", encoding="utf-8") as fh:
+              json.dump(out, fh)
+          print(json.dumps(out, indent=2))
+          PY
+      - name: Build canonical health contract
+        run: |
+          python scripts/build_lab_health.py \
+            --workflow-status /tmp/lab-workflows.json \
+            --output data/investments/lab_health.json
+          python -m json.tool data/investments/lab_health.json >/dev/null
+      - name: Publish health contract
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/investments/lab_health.json
+          if git diff --cached --quiet; then
+            echo "Lab health contract already current."
+            exit 0
+          fi
+          git commit -m "Refresh Research Lab health contract"
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            if ! git rebase origin/main; then
+              git rebase --abort || true
+              sleep $((attempt * 2))
+              continue
+            fi
+            if git push origin HEAD:main; then exit 0; fi
+            sleep $((attempt * 3))
+          done
+          exit 1

@@ -1,0 +1,93 @@
+name: Portfolio 10K HTML Integrity
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "pl/inwestycje/portfel-10k.html"
+      - "en/investing/portfolio-10k.html"
+      - "scripts/finalize_portfolio_10k_html.py"
+      - "scripts/render_portfolio_10k_static.py"
+      - "scripts/install_ai_tournament_ui.py"
+      - "scripts/install_experiment_registry_ui.py"
+      - "tests/test_portfolio_10k_html_finalizer.py"
+      - ".github/workflows/portfolio-10k-html-integrity.yml"
+  pull_request:
+    paths:
+      - "pl/inwestycje/portfel-10k.html"
+      - "en/investing/portfolio-10k.html"
+      - "scripts/finalize_portfolio_10k_html.py"
+      - "scripts/render_portfolio_10k_static.py"
+      - "scripts/install_ai_tournament_ui.py"
+      - "scripts/install_experiment_registry_ui.py"
+      - "tests/test_portfolio_10k_html_finalizer.py"
+      - ".github/workflows/portfolio-10k-html-integrity.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: portfolio-10k-html-integrity
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || 'main' }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate canonical finalizer
+        run: |
+          python -m py_compile scripts/finalize_portfolio_10k_html.py scripts/install_ai_tournament_ui.py scripts/install_experiment_registry_ui.py scripts/render_portfolio_10k_static.py
+          PYTHONPATH=. python -m unittest tests.test_portfolio_10k_html_finalizer -v
+      - name: Finalize pages in workspace
+        run: |
+          python scripts/finalize_portfolio_10k_html.py
+          python scripts/finalize_portfolio_10k_html.py --check
+
+  repair-main:
+    if: github.event_name != 'pull_request'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Apply canonical finalizer
+        run: |
+          python scripts/finalize_portfolio_10k_html.py
+          python scripts/finalize_portfolio_10k_html.py --check
+      - name: Publish repair only when needed
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pl/inwestycje/portfel-10k.html en/investing/portfolio-10k.html
+          if git diff --cached --quiet; then
+            echo "Portfolio 10K HTML already canonical."
+            exit 0
+          fi
+          git commit -m "Repair Portfolio 10K HTML integrity"
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            if ! git rebase origin/main; then
+              git rebase --abort || true
+              sleep $((attempt * 2))
+              continue
+            fi
+            if git push origin HEAD:main; then exit 0; fi
+            sleep $((attempt * 3))
+          done
+          exit 1
