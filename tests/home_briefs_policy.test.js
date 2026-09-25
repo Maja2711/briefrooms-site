@@ -1,8 +1,17 @@
-'use strict';
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { runInNewContext } from 'node:vm';
 
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const home = require('../scripts/home-briefs.js');
+function loadCommonJsBrowserModule(relativeUrl) {
+  const source = readFileSync(new URL(relativeUrl, import.meta.url), 'utf8');
+  const sandbox = { module: { exports: {} }, exports: {}, console, URL, setTimeout, clearTimeout };
+  runInNewContext(source, sandbox, { filename: relativeUrl });
+  return sandbox.module.exports;
+}
+
+const home = loadCommonJsBrowserModule('../scripts/home-briefs.js');
+
 
 const NOW = Date.parse('2026-08-26T12:00:00Z');
 
