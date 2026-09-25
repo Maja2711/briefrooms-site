@@ -17,7 +17,7 @@ TABS = ("overview", "portfolio", "benchmark", "agents", "analytics", "history", 
 NAV = ("news", "investing", "health", "science", "geopolitics", "about")
 BASE = os.environ.get("AUDIT_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
 OUTPUT = Path(os.environ.get("AUDIT_OUTPUT_PATH", "data/portfolio10k/investment_room_full_audit.json"))
-EXPECTED_CONTROLLER = os.environ.get("AUDIT_CONTROLLER", "resilient-v9")
+EXPECTED_CONTROLLER = os.environ.get("AUDIT_CONTROLLER", "resilient-v10")
 WORKER_TIMEOUT = int(os.environ.get("AUDIT_WORKER_TIMEOUT", "65"))
 MAX_WORKERS = int(os.environ.get("AUDIT_MAX_WORKERS", "2"))
 SETTLE_MS = int(os.environ.get("AUDIT_SETTLE_MS", "12000"))
@@ -76,7 +76,8 @@ def panel_state(page, tab: str) -> dict:
           const nodesReady=selectors.every(selector=>tab==='agents'&&selector.includes('aitx-agent-card')?counts[selector]===5:counts[selector]>0);
           const active=panel.classList.contains('active');
           const visible=!panel.hidden&&style.display!=='none'&&style.visibility!=='hidden'&&panel.getClientRects().length>0;
-          const noLoading=!/loading|ładowanie|checking|sprawdzanie/i.test(text);
+          const requiredNodes=selectors.flatMap(selector=>[...panel.querySelectorAll(selector)]);
+          const noLoading=requiredNodes.every(node=>!/loading|ładowanie|checking|sprawdzanie/i.test((node.innerText||node.textContent||'').trim()));
           const guard=document.body.dataset.investmentNavigationGuard||'';
           const bodyActive=document.body.dataset.investmentActiveTab||'';
           return {tab,exists:true,active,visible,content_length:text.length,node_counts:counts,nodes_ready:nodesReady,no_loading:noLoading,hash:location.hash,body_active:bodyActive,guard,passed:active&&visible&&text.length>=20&&nodesReady&&noLoading&&location.hash===`#${tab}`&&bodyActive===tab&&guard==='active-v2'};
