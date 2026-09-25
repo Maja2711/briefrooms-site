@@ -1,15 +1,73 @@
 {
-  "schema_version": "briefrooms-lab-health-v1",
-  "generated_at": null,
-  "status": "DEGRADED",
-  "read_only": true,
-  "production_authority": false,
-  "sources": {},
-  "reasons": [
-    "awaiting_first_health_workflow"
-  ],
   "contract": {
-    "healthy_means": "all canonical Lab sources valid and fresh, closed-loop invariants satisfied, and latest source workflows successful",
-    "frontend_load_success_is_not_health": true
-  }
+    "frontend_load_success_is_not_health": true,
+    "healthy_means": "all canonical Lab sources valid and fresh, closed-loop invariants satisfied, and latest source workflows successful"
+  },
+  "generated_at": "2026-09-25T21:40:43.880834Z",
+  "production_authority": false,
+  "read_only": true,
+  "reasons": [
+    "experiment_registry:workflow_status:in_progress",
+    "research_lab:unexpected_schema",
+    "research_lab:execution_loop_not_closed",
+    "research_lab:workflow_status:in_progress"
+  ],
+  "schema_version": "briefrooms-lab-health-v1",
+  "sources": {
+    "experience_store": {
+      "age_hours": 4.195,
+      "generated_at": "2026-09-25T17:29:02.672947Z",
+      "max_age_hours": 6,
+      "path": "data/investments/experience_store_public.json",
+      "reasons": [],
+      "state": "HEALTHY",
+      "workflow": "experience-store-public.yml",
+      "workflow_status": {
+        "conclusion": "success",
+        "createdAt": "2026-09-25T17:34:09Z",
+        "databaseId": 36167945672,
+        "status": "completed",
+        "updatedAt": "2026-09-25T17:34:48Z"
+      }
+    },
+    "experiment_registry": {
+      "age_hours": 6.369,
+      "generated_at": "2026-09-25T15:18:35.885760Z",
+      "max_age_hours": 12,
+      "path": "data/investments/experiment_registry.json",
+      "reasons": [
+        "workflow_status:in_progress"
+      ],
+      "state": "DEGRADED",
+      "workflow": "experiment-registry.yml",
+      "workflow_status": {
+        "conclusion": "",
+        "createdAt": "2026-09-25T21:40:18Z",
+        "databaseId": 36192798426,
+        "status": "in_progress",
+        "updatedAt": "2026-09-25T21:40:38Z"
+      }
+    },
+    "research_lab": {
+      "age_hours": 3.727,
+      "generated_at": "2026-09-25T19:57:08+02:00",
+      "max_age_hours": 192,
+      "path": "data/investments/research_lab_report.json",
+      "reasons": [
+        "unexpected_schema",
+        "execution_loop_not_closed",
+        "workflow_status:in_progress"
+      ],
+      "state": "ERROR",
+      "workflow": "research-lab.yml",
+      "workflow_status": {
+        "conclusion": "",
+        "createdAt": "2026-09-25T21:40:18Z",
+        "databaseId": 36192798625,
+        "status": "in_progress",
+        "updatedAt": "2026-09-25T21:40:21Z"
+      }
+    }
+  },
+  "status": "ERROR"
 }
