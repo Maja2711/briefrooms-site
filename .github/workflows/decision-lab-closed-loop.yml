@@ -1,0 +1,103 @@
+name: Decision LAB Closed Loop
+
+'on':
+  workflow_dispatch:
+  schedule:
+    - cron: "7 * * * *"
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: belief-core-live-shadow
+  cancel-in-progress: false
+
+env:
+  BELIEF_ARTIFACT_NAME: belief-core-shadow-state
+
+jobs:
+  closed-loop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Prepare state
+        run: |
+          echo "STATE_DIR=$RUNNER_TEMP/belief_core_state" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/belief_core_state"
+      - name: Restore latest cumulative state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${BELIEF_ARTIFACT_NAME}&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/a.json"
+          artifact_id=$(python - "$RUNNER_TEMP/a.json" <<'PY'
+          import json,sys
+          from pathlib import Path
+          rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get("artifacts",[]) if not x.get("expired")]
+          rows.sort(key=lambda x:x.get("created_at",""),reverse=True)
+          print(rows[0]["id"] if rows else "")
+          PY
+          )
+          if [ -n "$artifact_id" ]; then
+            curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/state.zip"
+            mkdir -p "$RUNNER_TEMP/state-artifact"
+            unzip -q "$RUNNER_TEMP/state.zip" -d "$RUNNER_TEMP/state-artifact"
+            if [ -f "$RUNNER_TEMP/state-artifact/belief-core-state.tgz" ]; then tar -xzf "$RUNNER_TEMP/state-artifact/belief-core-state.tgz" -C "$STATE_DIR"; fi
+          fi
+      - name: Validate closed-loop code
+        run: |
+          python -m py_compile scripts/belief_core_live.py scripts/belief_calibration.py scripts/belief_calibration_foundation.py scripts/decision_lab_learning.py scripts/decision_lab_public_projection.py
+      - name: Forecast freeze target outcome
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts
+        run: python scripts/belief_core_live.py --state-dir "$STATE_DIR"
+      - name: Calibration
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts
+        run: |
+          python scripts/belief_calibration_foundation.py --belief-state-dir "$STATE_DIR" --output "$STATE_DIR/BELIEF_CALIBRATION_REPORT.json"
+      - name: Learning memory
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts
+        run: |
+          python scripts/decision_lab_learning.py --report "$STATE_DIR/BELIEF_CALIBRATION_REPORT.json" --output "$STATE_DIR/DECISION_LAB_LEARNING.json"
+      - name: Public projection
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts
+        run: |
+          python scripts/decision_lab_public_projection.py --state-dir "$STATE_DIR" --output data/investments/decision_lab_public.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("data/investments/decision_lab_public.json").read_text())
+          assert p["execution_authority"] is False
+          assert p["automatic_tuning"] is False
+          print("forecasts",len(p.get("forecasts",[])),"market_view",len(p.get("market_view",[])))
+          PY
+      - name: Publish fresh Decision LAB projection
+        run: |
+          set -euo pipefail
+          if ! git diff --quiet -- data/investments/decision_lab_public.json; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add data/investments/decision_lab_public.json
+            git commit -m "data(decision-lab): closed-loop projection"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
+      - name: Persist cumulative state
+        run: tar -czf "$RUNNER_TEMP/belief-core-state.tgz" -C "$STATE_DIR" .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: belief-core-shadow-state
+          path: ${{ runner.temp }}/belief-core-state.tgz
+          retention-days: 30
+          compression-level: 0
