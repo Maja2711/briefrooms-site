@@ -2,6 +2,16 @@ name: Decision LAB Closed Loop
 
 'on':
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/decision-lab-closed-loop.yml"
+      - "scripts/belief_core_live.py"
+      - "scripts/belief_calibration.py"
+      - "scripts/belief_calibration_foundation.py"
+      - "scripts/decision_lab_learning.py"
+      - "scripts/decision_lab_public_projection.py"
   schedule:
     - cron: "7 * * * *"
 
