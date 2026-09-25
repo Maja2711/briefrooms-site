@@ -18,8 +18,8 @@ PAGES = (
 )
 
 CANONICAL_VERSIONS = {
-    "portfolio-10k-dashboard.js": "9",
-    "portfolio-10k-dashboard-en.js": "9",
+    "portfolio-10k-dashboard.js": "10",
+    "portfolio-10k-dashboard-en.js": "10",
     "portfolio-10k-experience-store.js": "1",
     "portfolio-10k-lab-health.js": "3",
     "ai-tournament-public.js": "6",
