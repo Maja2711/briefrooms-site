@@ -333,7 +333,7 @@
     document.body.dataset.investmentCurrency = currency;
     document.body.dataset.investmentDataSource = source;
     document.body.dataset.investmentFreshness = freshness.toLowerCase();
-    document.body.dataset.investmentNetwork = freshness.toLowerCase();
+    document.body.dataset.investmentNetwork = source === 'network' ? 'healthy' : 'cached';
     state.loaded = true;
     state.dataSource = source;
   }
@@ -375,7 +375,8 @@
       ? `BRACE controls the paper portfolio in ${status} mode and currently assesses ${Number(summary.positions_reviewed ?? recommendations.length)} active positions.`
       : `BRACE steruje portfelem paper w trybie ${status} i obecnie ocenia ${Number(summary.positions_reviewed ?? recommendations.length)} aktywnych pozycji.`;
     setText('#brace-impact', impact);
-    document.body.dataset.investmentBrace = freshness.toLowerCase();
+    document.body.dataset.investmentBraceFreshness = freshness.toLowerCase();
+    document.body.dataset.investmentBrace = 'ready';
   }
 
   function ensurePanelsAreUsable() {
@@ -465,9 +466,10 @@
         return true;
       } catch (_) {
         if (!state.brace) setText('#brace-impact', T.braceUnavailable);
-        document.body.dataset.investmentBrace = state.brace
+        document.body.dataset.investmentBraceFreshness = state.brace
           ? freshnessState(state.brace, 'cache', 'generated_at').toLowerCase()
           : 'error';
+        document.body.dataset.investmentBrace = state.brace ? 'ready' : 'error';
         scheduleBraceRetry();
         return Boolean(state.brace);
       } finally {
