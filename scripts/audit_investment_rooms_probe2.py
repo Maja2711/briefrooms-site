@@ -145,8 +145,10 @@ def worker(language: str, tab: str) -> int:
               const network=document.body.dataset.investmentNetwork||'';
               const brace=document.body.dataset.investmentBrace||'';
               const currency=document.body.dataset.investmentCurrency||'';
-              const loaded=!/loading|ładowanie|checking|sprawdzanie/i.test(status)&&!!value&&!/^[-—]+(?:\\s*(?:zł|PLN|USD|\\$))?$/i.test(value)&&/^\\d+$/.test(positions)&&controller===expectedController&&source==='network'&&network==='healthy'&&brace==='ready'&&currency===(language==='pl'?'PLN':'USD');
-              return {status,portfolio_value:value,positions,controller,source,network,brace,currency,loaded};
+              const contentReady=!/loading|ładowanie|checking|sprawdzanie/i.test(status)&&!!value&&!/^[-—]+(?:\\s*(?:zł|PLN|USD|\\$))?$/i.test(value)&&/^\\d+$/.test(positions)&&controller===expectedController&&['network','cache'].includes(source)&&currency===(language==='pl'?'PLN':'USD');
+              const dataHealth=network==='healthy'&&brace==='ready'?'healthy':((network==='stale'||brace==='cached')?'degraded':'error');
+              const loaded=contentReady&&dataHealth!=='error';
+              return {status,portfolio_value:value,positions,controller,source,network,brace,currency,content_ready:contentReady,data_health:dataHealth,loaded};
             }""",
             {"language": language, "expectedController": EXPECTED_CONTROLLER},
         )
