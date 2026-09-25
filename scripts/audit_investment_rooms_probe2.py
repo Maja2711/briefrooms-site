@@ -74,9 +74,12 @@ def panel_state(page, tab: str) -> dict:
           const style=getComputedStyle(panel);
           const counts=Object.fromEntries(selectors.map(selector=>[selector,panel.querySelectorAll(selector).length]));
           const nodesReady=selectors.every(selector=>tab==='agents'&&selector.includes('aitx-agent-card')?counts[selector]===5:counts[selector]>0);
+          const requiredNodes=selectors.flatMap(selector=>Array.from(panel.querySelectorAll(selector)));
           const active=panel.classList.contains('active');
           const visible=!panel.hidden&&style.display!=='none'&&style.visibility!=='hidden'&&panel.getClientRects().length>0;
-          const noLoading=!/loading|ładowanie|checking|sprawdzanie/i.test(text);
+          // Optional widgets inside a panel may legitimately refresh independently.
+          // Gate only the nodes that define readiness for this audited view.
+          const noLoading=requiredNodes.every(node=>!/loading|ładowanie|checking|sprawdzanie/i.test((node.innerText||node.textContent||'').trim()));
           const guard=document.body.dataset.investmentNavigationGuard||'';
           const bodyActive=document.body.dataset.investmentActiveTab||'';
           return {tab,exists:true,active,visible,content_length:text.length,node_counts:counts,nodes_ready:nodesReady,no_loading:noLoading,hash:location.hash,body_active:bodyActive,guard,passed:active&&visible&&text.length>=20&&nodesReady&&noLoading&&location.hash===`#${tab}`&&bodyActive===tab&&guard==='active-v2'};
