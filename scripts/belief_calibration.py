@@ -135,10 +135,15 @@ def hypothesis_intelligence(records: Sequence[Mapping[str, Any]]) -> Dict[str, A
         m = metrics(rows)
         ps = [float(r["predicted_probability"]) for r in rows]
         ys = [1.0 if bool(r["outcome"]) else 0.0 for r in rows]
-        # 0.25 is the Brier of a fixed 50/50 forecast for every binary outcome.
+        # Compare the model with both a neutral 50/50 forecast and the empirical
+        # base-rate forecast for this hypothesis. Base-rate skill prevents a
+        # persistent YES/NO imbalance from masquerading as predictive skill.
         benchmark_brier = 0.25
+        base_rate = mean(ys)
+        base_rate_brier = mean((base_rate - y) ** 2 for y in ys)
         mean_brier = float(m["mean_brier"])
         skill = 1.0 - mean_brier / benchmark_brier
+        skill_vs_base = None if base_rate_brier <= 1e-12 else 1.0 - mean_brier / base_rate_brier
         by_horizon: Dict[str, Any] = {}
         hgroups: Dict[str, List[Mapping[str, Any]]] = defaultdict(list)
         for r in rows:
@@ -159,6 +164,9 @@ def hypothesis_intelligence(records: Sequence[Mapping[str, Any]]) -> Dict[str, A
             "period_end": rows[-1].get("forecast_at"),
             "benchmark_brier_50_50": benchmark_brier,
             "brier_skill_score_vs_50_50": round(skill, 6),
+            "base_rate_yes": round(base_rate, 6),
+            "benchmark_brier_base_rate": round(base_rate_brier, 6),
+            "brier_skill_score_vs_base_rate": None if skill_vs_base is None else round(skill_vs_base, 6),
             "direction_accuracy": round(mean(1.0 if ((p >= .5) == bool(y)) else 0.0 for p, y in zip(ps, ys)), 6),
             "sample_sufficient": len(rows) >= GLOBAL_MIN_N,
             "by_horizon": by_horizon,

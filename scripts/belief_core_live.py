@@ -209,15 +209,30 @@ def target_values(client: YahooChartClient, spec: Mapping[str, Any], target_at: 
     ):
         return {symbol: live_snapshot.latest(symbol) for symbol in symbols}
     values: Dict[str, float] = {}
+    # Resolve the outcome at the declared target, not merely on the same calendar
+    # date. Intraday research horizons therefore use intraday bars; long horizons
+    # may use hourly bars. The first bar at/after target is the deterministic mark.
+    age_hours = max(0.0, (now - target_at).total_seconds() / 3600.0)
+    period, interval = ("5d", "5m") if age_hours <= 24 * 5 else ("3mo", "1h")
+    tolerance = timedelta(minutes=20) if interval == "5m" else timedelta(hours=2)
     for symbol in symbols:
         try:
-            rows = client.bars(symbol, "3mo", "1d")
+            rows = client.bars(symbol, period, interval)
         except Exception:
             return None
-        candidates = [bar for bar in rows if bar.timestamp.astimezone(NY).date() >= target_local.date()]
+        candidates = [bar for bar in rows if bar.timestamp >= target_at]
         if not candidates:
             return None
-        values[symbol] = candidates[0].close
+        chosen = min(candidates, key=lambda bar: bar.timestamp)
+        symbol_tolerance = tolerance
+        # FX/ETF markets can be closed at an absolute research target (weekend/
+        # holiday). In that case the contract is the first observable tradable
+        # bar after target; BTC remains strict because it trades continuously.
+        if symbol != "BTC-USD":
+            symbol_tolerance = max(symbol_tolerance, timedelta(hours=72))
+        if chosen.timestamp - target_at > symbol_tolerance:
+            return None
+        values[symbol] = chosen.close
     return values
 
 
