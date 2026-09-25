@@ -46,7 +46,7 @@ test('runtime floor uses only approved homepage and reserve candidates', () => {
     }
   });
 
-  assert.deepEqual(rows.map(item => item.title), [
+  assert.deepEqual(Array.from(rows, item => item.title), [
     chosenNoise.title,
     reserveWater.title
   ]);
@@ -63,5 +63,5 @@ test('runtime floor deduplicates identical stories across home and reserve', () 
     home_reserve: [duplicate, reserve]
   });
 
-  assert.deepEqual(rows.map(item => item.link), [selected.link, reserve.link]);
+  assert.deepEqual(Array.from(rows, item => item.link), [selected.link, reserve.link]);
 });
