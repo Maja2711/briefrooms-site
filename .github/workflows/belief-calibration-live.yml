@@ -16,6 +16,7 @@ name: Belief Calibration Foundation
       - "scripts/belief_data_quality_adapter.py"
       - "scripts/belief_calibration.py"
       - "scripts/decision_lab_public_projection.py"
+      - "scripts/decision_lab_learning.py"
       - "scripts/decision-lab.js"
       - "assets/decision-lab.css"
       - "pl/inwestycje/decision-lab.html"
@@ -121,7 +122,9 @@ jobs:
           python -m py_compile \
             scripts/belief_calibration.py \
             scripts/belief_data_quality_adapter.py \
-            scripts/belief_calibration_foundation.py
+            scripts/belief_calibration_foundation.py \
+            scripts/decision_lab_public_projection.py \
+            scripts/decision_lab_learning.py
           python -m unittest tests.test_belief_core_calibration_foundation -v
 
       - name: Build canonical BELIEF_CALIBRATION_REPORT
@@ -132,6 +135,22 @@ jobs:
             --belief-state-dir "$STATE_DIR" \
             --gse-state-dir "$GSE_STATE_DIR" \
             --output "$STATE_DIR/BELIEF_CALIBRATION_REPORT.json"
+
+      - name: Build governed Decision LAB learning memory
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts
+        run: |
+          python scripts/decision_lab_learning.py \
+            --report "$STATE_DIR/BELIEF_CALIBRATION_REPORT.json" \
+            --output "$STATE_DIR/DECISION_LAB_LEARNING.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=json.loads((Path(os.environ['STATE_DIR'])/'DECISION_LAB_LEARNING.json').read_text())
+          assert p['automatic_tuning'] is False
+          assert p['production_write_authority'] is False
+          print('Decision LAB learning memory: PASS; actions=', p['action_count'])
+          PY
 
       - name: Assert shadow-only safety and report contract
         run: |
