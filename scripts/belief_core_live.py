@@ -224,7 +224,13 @@ def target_values(client: YahooChartClient, spec: Mapping[str, Any], target_at: 
         if not candidates:
             return None
         chosen = min(candidates, key=lambda bar: bar.timestamp)
-        if chosen.timestamp - target_at > tolerance:
+        symbol_tolerance = tolerance
+        # FX/ETF markets can be closed at an absolute research target (weekend/
+        # holiday). In that case the contract is the first observable tradable
+        # bar after target; BTC remains strict because it trades continuously.
+        if symbol != "BTC-USD":
+            symbol_tolerance = max(symbol_tolerance, timedelta(hours=72))
+        if chosen.timestamp - target_at > symbol_tolerance:
             return None
         values[symbol] = chosen.close
     return values
