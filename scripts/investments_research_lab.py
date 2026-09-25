@@ -18,7 +18,7 @@ import json
 import math
 from datetime import datetime
 from pathlib import Path
-from statistics import fmean
+from statistics import fmean, median
 from typing import Any, Callable, Iterable
 from zoneinfo import ZoneInfo
 
@@ -50,6 +50,7 @@ TZ = ZoneInfo("Europe/Warsaw")
 STATE_SCHEMA = "briefrooms-research-lab-state-v2"
 REPORT_SCHEMA = "briefrooms-research-lab-report-v2"
 REGISTRY_SCHEMA = "briefrooms-research-lab-promotion-registry-v2"
+EVALUATOR_VERSION = "research-lab-evaluator-v2.0.0"
 
 STANDALONE_RULES = (
     "full_stack",
@@ -253,7 +254,7 @@ def _regime_stability(records: list[dict[str, Any]], spec: dict[str, Any], cost_
     if len(selected) < 10:
         return {"status": "INSUFFICIENT_DATA", "low": metrics([]), "high": metrics([])}
     abs_values = sorted(float(x["market_abs_percent"]) for x in selected)
-    pivot = abs_values[len(abs_values) // 2]
+    pivot = float(median(abs_values))
     low = metrics([x for x in selected if float(x["market_abs_percent"]) <= pivot])
     high = metrics([x for x in selected if float(x["market_abs_percent"]) > pivot])
     enough = low["count"] >= 5 and high["count"] >= 5
@@ -361,12 +362,17 @@ def evaluate_candidate(
     }
 
 
-def source_fingerprint(records: list[dict[str, Any]]) -> str:
+def source_fingerprint(records: list[dict[str, Any]], policy: dict[str, Any] | None = None) -> str:
     compact = [
         [r.get("week"), round(float(r.get("entry") or 0), 8), round(float(r.get("exit") or 0), 8)]
         for r in records
     ]
-    return hashlib.sha256(json.dumps(compact, separators=(",", ":")).encode()).hexdigest()
+    payload = {
+        "evaluator_version": EVALUATOR_VERSION,
+        "policy": policy or {},
+        "records": compact,
+    }
+    return hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
 def load_weekly_records() -> list[dict[str, Any]]:
@@ -394,7 +400,7 @@ def load_weekly_records() -> list[dict[str, Any]]:
 
 def run(policy: dict[str, Any], records: list[dict[str, Any]], old: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], bool]:
     catalog = candidate_catalog(policy)
-    fp = source_fingerprint(records)
+    fp = source_fingerprint(records, policy)
     old_candidates = old.get("known_candidates") if isinstance(old.get("known_candidates"), dict) else {}
     catalog_ids = [row["candidate_id"] for row in catalog]
     old_ids = sorted(old_candidates)
