@@ -5,7 +5,11 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-try:\n    from finalize_portfolio_10k_html import finalize_text\nexcept ImportError:  # package import in tests\n    from scripts.finalize_portfolio_10k_html import finalize_text\n
+try:
+    from finalize_portfolio_10k_html import finalize_text
+except ImportError:  # package import in tests
+    from scripts.finalize_portfolio_10k_html import finalize_text
+
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_VERSION = "6"
 PROFILE_VERSION = "2"
