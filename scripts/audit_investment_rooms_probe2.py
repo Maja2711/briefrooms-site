@@ -17,7 +17,7 @@ TABS = ("overview", "portfolio", "benchmark", "agents", "analytics", "history", 
 NAV = ("news", "investing", "health", "science", "geopolitics", "about")
 BASE = os.environ.get("AUDIT_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
 OUTPUT = Path(os.environ.get("AUDIT_OUTPUT_PATH", "data/portfolio10k/investment_room_full_audit.json"))
-EXPECTED_CONTROLLER = os.environ.get("AUDIT_CONTROLLER", "resilient-v9")
+EXPECTED_CONTROLLER = os.environ.get("AUDIT_CONTROLLER", "resilient-v10")
 WORKER_TIMEOUT = int(os.environ.get("AUDIT_WORKER_TIMEOUT", "65"))
 MAX_WORKERS = int(os.environ.get("AUDIT_MAX_WORKERS", "2"))
 SETTLE_MS = int(os.environ.get("AUDIT_SETTLE_MS", "12000"))
@@ -145,8 +145,10 @@ def worker(language: str, tab: str) -> int:
               const network=document.body.dataset.investmentNetwork||'';
               const brace=document.body.dataset.investmentBrace||'';
               const currency=document.body.dataset.investmentCurrency||'';
-              const loaded=!/loading|ładowanie|checking|sprawdzanie/i.test(status)&&!!value&&!/^[-—]+(?:\\s*(?:zł|PLN|USD|\\$))?$/i.test(value)&&/^\\d+$/.test(positions)&&controller===expectedController&&source==='network'&&network==='healthy'&&brace==='ready'&&currency===(language==='pl'?'PLN':'USD');
-              return {status,portfolio_value:value,positions,controller,source,network,brace,currency,loaded};
+              const contentReady=!/loading|ładowanie|checking|sprawdzanie/i.test(status)&&!!value&&!/^[-—]+(?:\\s*(?:zł|PLN|USD|\\$))?$/i.test(value)&&/^\\d+$/.test(positions)&&controller===expectedController&&['network','cache'].includes(source)&&currency===(language==='pl'?'PLN':'USD');
+              const dataHealth=network==='healthy'&&brace==='ready'?'healthy':((network==='stale'||brace==='cached')?'degraded':'error');
+              const loaded=contentReady&&dataHealth!=='error';
+              return {status,portfolio_value:value,positions,controller,source,network,brace,currency,content_ready:contentReady,data_health:dataHealth,loaded};
             }""",
             {"language": language, "expectedController": EXPECTED_CONTROLLER},
         )
