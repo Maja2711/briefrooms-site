@@ -12,7 +12,7 @@ from urllib.parse import urlparse
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import sync_playwright
 
-TABS = ("overview", "portfolio", "benchmark", "agents", "projections", "rules", "brace", "analytics", "history")
+TABS = ("overview", "portfolio", "benchmark", "agents", "analytics", "history", "rules", "lab")
 NAV = ("news", "investing", "health", "science", "geopolitics", "about")
 BASE = os.environ.get("AUDIT_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
 OUTPUT = Path(os.environ.get("AUDIT_OUTPUT_PATH", "data/portfolio10k/investment_room_full_audit.json"))

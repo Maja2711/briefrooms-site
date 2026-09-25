@@ -5,12 +5,17 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+try:
+    from finalize_portfolio_10k_html import finalize_text
+except ImportError:  # package import in tests
+    from scripts.finalize_portfolio_10k_html import finalize_text
+
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_VERSION = "6"
 PROFILE_VERSION = "2"
 SUMMARY_VERSION = "2"
-ROOM_CONTROLLER_VERSION = "8"
-NAV_GUARD_VERSION = "3"
+ROOM_CONTROLLER_VERSION = "10"
+NAV_GUARD_VERSION = "8"
 SCRIPT = f'<script src="/scripts/ai-tournament-public.js?v={SCRIPT_VERSION}" defer></script>'
 READINESS_SCRIPT = f'<script src="/scripts/ai-tournament-readiness.js?v={SCRIPT_VERSION}" defer></script>'
 PROFILE_SCRIPT = f'<script src="/scripts/ai-tournament-company-profiles.js?v={PROFILE_VERSION}" defer></script>'
@@ -53,7 +58,7 @@ def patch_text(source: str) -> str:
 def main() -> None:
     for path in PAGES:
         old = path.read_text(encoding="utf-8")
-        new = patch_text(old)
+        new = finalize_text(patch_text(old))
         if new != old:
             path.write_text(new, encoding="utf-8", newline="\n")
             print(f"updated {path.relative_to(ROOT)}")

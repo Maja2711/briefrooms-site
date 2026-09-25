@@ -17,11 +17,11 @@ PAGES = (
     Path("pl/inwestycje/portfel-10k.html"),
     Path("en/investing/portfolio-10k.html"),
 )
-TARGET = "portfolio-10k-navigation-guard.js?v=7"
+TARGET = "portfolio-10k-navigation-guard.js?v=8"
 PATTERN = re.compile(r"portfolio-10k-navigation-guard\.js\?v=\d+")
 EXPERIENCE_SRC = "/scripts/portfolio-10k-experience-store.js?v=1"
 EXPERIENCE_TAG = f'<script src="{EXPERIENCE_SRC}" defer></script>'
-HEALTH_SRC = "/scripts/portfolio-10k-lab-health.js?v=2"
+HEALTH_SRC = "/scripts/portfolio-10k-lab-health.js?v=3"
 HEALTH_TAG = f'<script src="{HEALTH_SRC}" defer></script>'
 NAV_TAG_PATTERN = re.compile(
     r'(<script\s+src="/scripts/portfolio-10k-navigation-guard\.js\?v=\d+"\s+defer></script>)'

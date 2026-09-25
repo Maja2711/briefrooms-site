@@ -653,6 +653,8 @@ def test_workflows_separate_monitor_learning_and_research():
     assert "--mode weekly --network" in research
     assert "--mode research" in research
     assert 'cron: "15 10 1 * *"' in research
-    assert "brace-portfolio-research" in monitor
-    assert "brace-portfolio-research" in daily
-    assert "brace-portfolio-research" in research
+    # Monitor, daily and deep research intentionally share one serialized
+    # portfolio automation lane so independent schedules cannot race writes.
+    assert "group: portfolio-10k-automation" in monitor
+    assert "group: portfolio-10k-automation" in daily
+    assert "group: portfolio-10k-automation" in research
