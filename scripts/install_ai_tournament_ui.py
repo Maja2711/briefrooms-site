@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_VERSION = "6"
 PROFILE_VERSION = "2"
 SUMMARY_VERSION = "2"
-ROOM_CONTROLLER_VERSION = "9"
+ROOM_CONTROLLER_VERSION = "10"
 NAV_GUARD_VERSION = "8"
 SCRIPT = f'<script src="/scripts/ai-tournament-public.js?v={SCRIPT_VERSION}" defer></script>'
 READINESS_SCRIPT = f'<script src="/scripts/ai-tournament-readiness.js?v={SCRIPT_VERSION}" defer></script>'
