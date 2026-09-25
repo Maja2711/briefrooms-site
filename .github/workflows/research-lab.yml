@@ -12,6 +12,8 @@ on:
       - "scripts/investments_weekly_macro.py"
       - "data/investments/research_lab_policy.json"
       - "tests/test_research_lab_bridge.py"
+      - "tests/test_research_lab_execution.py"
+      - "scripts/investments_weekly_eurusd_ma_multitimeframe_research.py"
       - ".github/workflows/research-lab.yml"
 
 permissions:
@@ -33,11 +35,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Validate bridge and research loop
+      - name: Install research dependencies
+        run: python -m pip install --upgrade pip yfinance pandas numpy
+      - name: Validate bridge and closed research loop
         run: |
-          python -m py_compile scripts/investments_research_lab.py scripts/investments_research_bridge.py scripts/investments_weekly_macro.py
-          PYTHONPATH=. python -m unittest tests/test_research_lab_bridge.py
-      - name: Run autonomous research cycle
+          python -m py_compile scripts/investments_research_lab.py scripts/investments_research_bridge.py scripts/investments_weekly_macro.py scripts/investments_weekly_eurusd_ma_multitimeframe_research.py
+          PYTHONPATH=. python -m unittest tests/test_research_lab_bridge.py tests/test_research_lab_execution.py -v
+      - name: Run autonomous evidence cycle
         run: python scripts/investments_research_lab.py
       - name: Persist lab state and promotion registry
         run: |
