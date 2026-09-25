@@ -10,7 +10,7 @@ from pathlib import Path
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import sync_playwright
 
-TABS = ("overview", "portfolio", "benchmark", "agents", "projections", "rules", "brace", "analytics", "history")
+TABS = ("overview", "portfolio", "benchmark", "agents", "analytics", "history", "rules", "lab")
 
 
 def main() -> int:
