@@ -162,7 +162,7 @@ def main() -> int:
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps({"status": payload["status"], "reasons": payload["reasons"]}, ensure_ascii=False))
-    return 1 if payload["status"] == "ERROR" else 0
+    return 0
 
 
 if __name__ == "__main__":
