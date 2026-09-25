@@ -124,6 +124,7 @@ def _base(
 def _research_lab(root: Path) -> dict[str, Any]:
     src = "data/investments/research_lab_report.json"
     data = _load(root, src)
+    closed_loop = data.get("execution_loop_closed") is True
     row = _base(
         experiment_id="strategy-research-lab",
         name="Autonomous Strategy Research Lab",
@@ -131,28 +132,53 @@ def _research_lab(root: Path) -> dict[str, Any]:
         family="Weekly Investments",
         version=str(data.get("version") or "1.0.0"),
         started_at=None,
-        minimum_sample=30,
-        purpose="Autonomiczne generowanie i filtrowanie kandydatów strategii bez prawa do produkcyjnej aktywacji.",
+        minimum_sample=1 if closed_loop else 30,
+        purpose="Autonomiczne badanie kandydatów przez walk-forward, zamrożony holdout, koszty, stabilność reżimową i prospective shadow bez prawa do produkcyjnej aktywacji.",
         source=src,
     )
-    cycles = _int(data.get("cycle"))
-    row["sample_count"] = cycles
-    row["sample_unit"] = "research_cycles"
+    if closed_loop:
+        evidence_cycles = _int(data.get("evidence_cycle")) or 0
+        queue_remaining = _int(data.get("queue_remaining")) or 0
+        row["sample_count"] = evidence_cycles
+        row["sample_unit"] = "evidence_cycles"
+        row["status"] = "RUNNING" if queue_remaining == 0 else "ERROR"
+        row["primary_metric"] = _metric(
+            "Kandydaci ocenieni w cyklu",
+            _int(data.get("evaluated_this_cycle")),
+            "candidates",
+            "Kandydaci przeszli wykonawczą pętlę development → walk-forward → frozen holdout → koszty → regime stability. To nie jest wynik inwestycyjny ani alpha.",
+        )
+        row["details"] = {
+            "execution_loop_closed": True,
+            "candidate_count": _int(data.get("candidate_count")),
+            "queue_remaining": queue_remaining,
+            "status_counts": data.get("status_counts") or {},
+            "promotion_registry_count": _int(data.get("promotion_registry_count")),
+            "promotion_review_count": _int(data.get("promotion_review_count")),
+            "cost_model": data.get("cost_model") or {},
+            "governance": data.get("governance"),
+        }
+    else:
+        cycles = _int(data.get("cycle"))
+        row["sample_count"] = cycles
+        row["sample_unit"] = "research_cycles"
+        row["status"] = "RUNNING" if cycles is not None and cycles >= 30 else "INSUFFICIENT_DATA"
+        row["primary_metric"] = _metric(
+            "Kandydaci wygenerowani w cyklu",
+            _int(data.get("generated_this_cycle")),
+            "candidates",
+            "Legacy activity metric; pełny execution loop nie był jeszcze aktywny.",
+        )
+        row["details"] = {
+            "execution_loop_closed": False,
+            "promotion_registry_count": _int(data.get("promotion_registry_count")),
+            "governance": data.get("governance"),
+        }
     row["last_updated"] = _iso(data.get("generated_at"))
-    row["status"] = "RUNNING" if cycles is not None and cycles >= 30 else "INSUFFICIENT_DATA"
-    row["primary_metric"] = _metric(
-        "Kandydaci wygenerowani w cyklu",
-        _int(data.get("generated_this_cycle")),
-        "candidates",
-        "To miara aktywności badawczej, nie wynik inwestycyjny ani alpha.",
-    )
-    row["details"] = {
-        "promotion_registry_count": _int(data.get("promotion_registry_count")),
-        "governance": data.get("governance"),
-    }
     row["notes"] = [
         "Brak automatycznej promocji do produkcji.",
-        "Wynik kandydata wymaga holdout, walk-forward, kosztów i stabilności reżimowej.",
+        "Promotion Registry ma zero runtime adjustment; wpływ produkcyjny wymaga osobnego kontrolera.",
+        "Prospective shadow jest oddzielony od historycznego holdoutu.",
     ]
     return row
 
