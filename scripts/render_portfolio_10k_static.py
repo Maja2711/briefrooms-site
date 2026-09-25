@@ -17,6 +17,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+from finalize_portfolio_10k_html import finalize_text
+
 
 ROOT = Path(__file__).resolve().parents[1]
 SNAPSHOT_START = "<!-- portfolio-static-snapshot:start -->"
@@ -318,7 +320,7 @@ def render_page(source: str, payload: dict, config: PageConfig) -> str:
         )
     else:
         source = source.replace("</head>", robots + "</head>", 1)
-    return source
+    return finalize_text(source)
 
 
 def render_all(root: Path = ROOT, check: bool = False) -> list[str]:
