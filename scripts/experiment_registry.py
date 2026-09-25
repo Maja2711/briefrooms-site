@@ -173,7 +173,7 @@ def _research_lab(root: Path) -> dict[str, Any]:
             "execution_loop_closed": False,
             "promotion_registry_count": _int(data.get("promotion_registry_count")),
             "governance": data.get("governance"),
-        )
+        }
     row["last_updated"] = _iso(data.get("generated_at"))
     row["notes"] = [
         "Brak automatycznej promocji do produkcji.",
