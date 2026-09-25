@@ -76,7 +76,8 @@ def panel_state(page, tab: str) -> dict:
           const nodesReady=selectors.every(selector=>tab==='agents'&&selector.includes('aitx-agent-card')?counts[selector]===5:counts[selector]>0);
           const active=panel.classList.contains('active');
           const visible=!panel.hidden&&style.display!=='none'&&style.visibility!=='hidden'&&panel.getClientRects().length>0;
-          const noLoading=!/loading|ładowanie|checking|sprawdzanie/i.test(text);
+          const requiredNodes=selectors.flatMap(selector=>[...panel.querySelectorAll(selector)]);
+          const noLoading=requiredNodes.every(node=>!/loading|ładowanie|checking|sprawdzanie/i.test((node.innerText||node.textContent||'').trim()));
           const guard=document.body.dataset.investmentNavigationGuard||'';
           const bodyActive=document.body.dataset.investmentActiveTab||'';
           return {tab,exists:true,active,visible,content_length:text.length,node_counts:counts,nodes_ready:nodesReady,no_loading:noLoading,hash:location.hash,body_active:bodyActive,guard,passed:active&&visible&&text.length>=20&&nodesReady&&noLoading&&location.hash===`#${tab}`&&bodyActive===tab&&guard==='active-v2'};
