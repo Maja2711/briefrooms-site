@@ -519,6 +519,12 @@ def enforce_files() -> None:
     for lang in ("pl", "en"):
         path = NEWS_DIR / f"{lang}.json"
         payload = json.loads(path.read_text(encoding="utf-8"))
+        # The PL generator already applies the <=24h source-age contract before
+        # selecting section cards. Start a clean display clock for the newly built
+        # PL payload so stale exposure-state entries cannot remove a just-selected
+        # card before this atomic publication is committed.
+        if lang == "pl":
+            languages["pl"] = {}
         if payload.get("language") != lang or payload.get("schema_version") != "news-live-v2":
             raise RuntimeError(f"invalid {lang} live news payload")
         state_lang = languages.get(lang)
