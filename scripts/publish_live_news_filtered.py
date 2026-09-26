@@ -11,9 +11,11 @@ from typing import Any
 
 try:
     from . import publish_live_news as base
+    from .dedupe_home_brief_stories import same_topic
     from .news_quality import POLICY_VERSION, evaluate_story, public_policy
 except ImportError:
     import publish_live_news as base
+    from dedupe_home_brief_stories import same_topic
     from news_quality import POLICY_VERSION, evaluate_story, public_policy
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -62,8 +64,22 @@ def _extend_pl_feeds(config: Any) -> list[Any]:
 
 base.PL = _extend_pl_feeds(base.PL)
 
-EDITORIAL_SELECTION_POLICY_VERSION = "public-impact-source-diversity-v1"
+EDITORIAL_SELECTION_POLICY_VERSION = "public-impact-source-diversity-v2"
 MAX_SOURCE_SHARE = 5
+PL_SECTION_MINIMUMS = {
+    "polityka": 9,
+    "ekonomia": 9,
+    "zdrowie": 6,
+    "nauka": 6,
+    "sport": 9,
+}
+PL_ECONOMY_AI_CRYPTO_MINIMUM = 1
+PL_SPORT_MIN_DISCIPLINES = 4
+AI_CRYPTO_RE = re.compile(
+    r"\\b(?:AI|sztuczn\\w*\\s+inteligencj\\w*|artificial\\s+intelligence|OpenAI|ChatGPT|"
+    r"bitcoin|BTC|ethereum|ETH|kryptowalut\\w*|crypto|blockchain|stablecoin\\w*)\\b",
+    re.IGNORECASE,
+)
 
 PUBLIC_IMPACT_RE = re.compile(
     r"\b(?:"
@@ -479,6 +495,10 @@ def select_sections(
                 or not story.get("image")
             ):
                 return "skip"
+            # One reader-visible topic/event gets one card inside a section, even
+            # when different publishers use different headlines and URLs.
+            if any(same_topic(story, previous_story) for previous_story in items):
+                return "topic_duplicate"
 
             source = str(story.get("source") or "").strip() or "unknown"
             if source_counts.get(source, 0) >= source_cap:
@@ -530,6 +550,23 @@ def select_sections(
                 if _is_live_sport(story):
                     live_entities_seen.update(entities)
             return "added"
+
+        # PL economy contract: reserve one slot for a fresh AI/crypto story before
+        # general ranking can consume all nine cards.
+        if pl_mode and section_id == "ekonomia":
+            ai_crypto_candidate = next(
+                (
+                    story for story in candidates
+                    if story.get("image") and AI_CRYPTO_RE.search(_story_text(story))
+                ),
+                None,
+            )
+            if ai_crypto_candidate is not None:
+                try_add(
+                    ai_crypto_candidate,
+                    discipline_cap=False,
+                    source_cap=preferred_source_cap,
+                )
 
         # PL contract: reserve one politics-section slot for a material
         # Russia-Ukraine-war update before general ranking can consume all nine.
@@ -637,6 +674,29 @@ def select_sections(
         # Freshness has authority over visual fullness. The downstream public
         # 24h guard may shrink this further, so an underfilled section is valid.
         selected[section_id] = items[:base.TARGET]
+        if pl_mode:
+            minimum = PL_SECTION_MINIMUMS.get(section_id, 0)
+            if len(selected[section_id]) < minimum:
+                raise RuntimeError(
+                    f"PL section {section_id} underfilled after freshness/dedupe: "
+                    f"{len(selected[section_id])}/{minimum}"
+                )
+            if section_id == "ekonomia":
+                ai_crypto_count = sum(
+                    1 for story in selected[section_id]
+                    if AI_CRYPTO_RE.search(_story_text(story))
+                )
+                if ai_crypto_count < PL_ECONOMY_AI_CRYPTO_MINIMUM:
+                    raise RuntimeError("PL ekonomia missing required AI/crypto story")
+            if section_id == "sport":
+                recognized_disciplines = {
+                    _sport_discipline(story) for story in selected[section_id]
+                } - {"other"}
+                if len(recognized_disciplines) < PL_SPORT_MIN_DISCIPLINES:
+                    raise RuntimeError(
+                        "PL sport lacks discipline diversity: "
+                        f"{len(recognized_disciplines)}/{PL_SPORT_MIN_DISCIPLINES}"
+                    )
         times = [base.story_time(item) for item in items if base.story_time(item) > 0]
         section_health: dict[str, Any] = {
             "count": len(selected[section_id]),
