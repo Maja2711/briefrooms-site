@@ -64,9 +64,9 @@ EMERGENCY_LANE_CAP = 4
 SPORT_HARD_CAP = 3
 PL_SECTION_MINIMUMS = {"polityka": 9, "ekonomia": 9, "zdrowie": 6, "nauka": 6, "sport": 9}
 PL_AI_CRYPTO_RE = re.compile(
-    r"\\b(?:AI|sztuczn\\w*\\s+inteligencj\\w*|artificial\\s+intelligence|OpenAI|ChatGPT|"
-    r"bitcoin|BTC|ethereum|ETH|kryptowalut\\w*|crypto|blockchain|stablecoin\\w*)\\b",
-    re.I,
+    r"\b(?:AI|sztuczn\w*\s+inteligencj\w*|artificial\s+intelligence|OpenAI|ChatGPT|"
+    r"bitcoin|BTC|ethereum|ETH|kryptowalut\w*|crypto|blockchain|stablecoin\w*)\b",
+    re.IGNORECASE,
 )
 
 
