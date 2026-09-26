@@ -242,8 +242,9 @@ def page_metadata(link: str, now: datetime) -> tuple[str, datetime | None]:
         # Some Polish medical desks expose the publication date only as visible
         # DD.MM.YYYY text on the canonical article. Midnight Europe/Warsaw is a
         # conservative lower bound for that article date, not an invented time.
-        match = VISIBLE_ARTICLE_DATE.search(base.clean(body, 20000) if False else re.sub(r"<[^>]+>", " ", body))
-        if match:
+        visible_text = re.sub(r"<[^>]+>", " ", body)
+        dated: list[datetime] = []
+        for match in VISIBLE_ARTICLE_DATE.finditer(visible_text):
             try:
                 local_midnight = datetime(
                     int(match.group(3)), int(match.group(2)), int(match.group(1)),
@@ -251,9 +252,11 @@ def page_metadata(link: str, now: datetime) -> tuple[str, datetime | None]:
                 )
                 value = local_midnight.astimezone(timezone.utc)
                 if value <= now + FUTURE_TOLERANCE:
-                    published = value
+                    dated.append(value)
             except (ValueError, OverflowError):
-                pass
+                continue
+        if dated:
+            published = max(dated)
     return image, published
 
 
