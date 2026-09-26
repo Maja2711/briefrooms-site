@@ -208,14 +208,14 @@ function patternDetail(x){
   const regimes=Object.entries(x.regimes||{});
   const modifier=x.possible_modifier;
   root.innerHTML=
-    '<div class="pattern-detail-head"><div><span class="eyebrow">ARIS-PATTERN-1</span><h3>'+esc(x.pattern_id||"—")+'</h3></div>'+patternStatus(x.status)+'</div>'+
+    '<div class="pattern-detail-head"><div><span class="eyebrow">BRIEFROOMS PATTERN DISCOVERY</span><h3>'+esc(x.pattern_id||"—")+'</h3></div>'+patternStatus(x.status)+'</div>'+
     '<div class="pattern-detail-grid">'+
       '<section><small>Pattern</small><div class="pattern-atoms">'+(x.atom_labels||[]).map(a=>'<span>'+esc(a)+'</span>').join('')+'</div></section>'+
       '<section><small>Outcome</small><b>'+esc(outcomeText)+'</b><span>horizon '+esc(x.horizon_bucket||"—")+' · mediana '+num(x.horizon_hours_median,1)+'h</span></section>'+
       '<section><small>Discovery</small><b>'+esc(d.successes??"—")+' / '+esc(d.n??"—")+'</b><span>P '+pct(d.success_rate)+' · baseline '+pct(d.baseline)+' · lift '+pp(d.lift)+'</span></section>'+
       '<section><small>Holdout / OOS</small><b>'+esc(h.successes??"—")+' / '+esc(h.n??"—")+'</b><span>P '+pct(h.success_rate)+' · lift '+pp(h.lift)+'</span></section>'+
       '<section><small>MDL gain</small><b>'+bits(d.mdl_gain_bits)+'</b><span>Model opłaca się dopiero po koszcie jego opisu.</span></section>'+
-      '<section><small>Residual / exceptions</small><b>'+esc(x.residual_exceptions??0)+' obserwacji</b><span>Wyjątki pozostają jawne; ARIS ich nie usuwa.</span></section>'+
+      '<section><small>Residual / exceptions</small><b>'+esc(x.residual_exceptions??0)+' obserwacji</b><span>Wyjątki pozostają jawne; system ich nie usuwa.</span></section>'+
     '</div>'+
     '<div class="pattern-subgrid">'+
       '<section><h4>Regimes</h4>'+(regimes.length?regimes.map(([name,r])=>'<div class="regime-row"><span>'+esc(name.replaceAll("_"," "))+'</span><b>'+pct(r.success_rate)+'</b><small>n='+esc(r.n)+'</small></div>').join(''):'<p class="muted">Brak wystarczającego rozbicia.</p>')+'</section>'+
@@ -229,7 +229,7 @@ function patterns(items,meta){
   const root=document.getElementById("pattern-list");if(!root)return;
   const rows=Array.isArray(items)?items:[];
   if(!rows.length){
-    root.innerHTML='<div class="pattern-empty"><b>Brak patternów spełniających obecne kryteria.</b><span>ARIS publikuje tylko wzorce z dodatnim MDL gain odkryte na danych frozen-before-outcome. Nie generujemy danych demonstracyjnych.</span></div>';
+    root.innerHTML='<div class="pattern-empty"><b>Brak patternów spełniających obecne kryteria.</b><span>Pattern Discovery publikuje tylko wzorce z dodatnim MDL gain odkryte na danych frozen-before-outcome. Nie generujemy danych demonstracyjnych.</span></div>';
     patternDetail(null);
     return;
   }
@@ -263,7 +263,7 @@ async function load(){
     MULTI_PATHS=d.multihorizon_paths||[]; HORIZON_AGG=d.horizon_aggregate||[]; HYPOTHESIS_BRIER=d.hypothesis_brier||{}; const forecastRows=d.forecasts||[]; const view=(Array.isArray(d.market_view)&&d.market_view.length)?d.market_view:deriveMarketView(forecastRows); marketView(view); forecasts(forecastRows);
     metric("metrics-summary",d.metrics||{});
     metric("metrics",d.metrics||{});
-    patterns(d.aris_patterns||[],d.aris_pattern_meta||{});
+    patterns(d.evidence_patterns||[],d.evidence_pattern_meta||{});
   }catch(_){
     forecasts([]);
     metric("metrics-summary",{});
