@@ -26,7 +26,7 @@ FUTURE_TOLERANCE = timedelta(minutes=10)
 HOME_LIMIT = 12
 HOME_RESERVE_LIMIT = 12
 POLICY_VERSION = "max-24h-public-news-display-v2"
-EXPOSURE_SCHEMA_VERSION = "public-news-exposure-v3"
+EXPOSURE_SCHEMA_VERSION = "public-news-exposure-v4"
 LEGACY_EXPOSURE_SCHEMA_VERSION = "homepage-exposure-v1"
 IMAGE_POLICY_VERSION = "https-image-required-v1"
 POST_FRESHNESS_SELECTION_VERSION = "post-freshness-editorial-v2"
@@ -491,16 +491,15 @@ def _load_state() -> dict[str, Any]:
     if schema == LEGACY_EXPOSURE_SCHEMA_VERSION:
         value["schema_version"] = EXPOSURE_SCHEMA_VERSION
         value["migrated_from"] = LEGACY_EXPOSURE_SCHEMA_VERSION
-    elif schema == "public-news-exposure-v2":
-        # v2 incorrectly seeded first_seen_at from the source publication time.
-        # That made newly selected cards expire before they had spent 24h on
-        # BriefRooms. Reset only those invalid legacy clocks once; v3 persists
-        # the actual first BriefRooms display time from this publication onward.
+    elif schema in {"public-news-exposure-v2", "public-news-exposure-v3"}:
+        # v2 seeded display clocks from source timestamps; v3 later reset PL
+        # exposure on every run. Both violate the intended display-age semantics.
+        # Reset once during migration to v4, then persist first_seen_at normally.
         value = {
             "schema_version": EXPOSURE_SCHEMA_VERSION,
             "languages": {},
-            "migrated_from": "public-news-exposure-v2",
-            "migration_reason": "reset_source_timestamp_seeded_display_clocks",
+            "migrated_from": schema,
+            "migration_reason": "repair_and_persist_true_briefrooms_first_seen_clocks",
         }
     elif schema != EXPOSURE_SCHEMA_VERSION:
         value = {"schema_version": EXPOSURE_SCHEMA_VERSION, "languages": {}}
@@ -519,12 +518,6 @@ def enforce_files() -> None:
     for lang in ("pl", "en"):
         path = NEWS_DIR / f"{lang}.json"
         payload = json.loads(path.read_text(encoding="utf-8"))
-        # The PL generator already applies the <=24h source-age contract before
-        # selecting section cards. Start a clean display clock for the newly built
-        # PL payload so stale exposure-state entries cannot remove a just-selected
-        # card before this atomic publication is committed.
-        if lang == "pl":
-            languages["pl"] = {}
         if payload.get("language") != lang or payload.get("schema_version") != "news-live-v2":
             raise RuntimeError(f"invalid {lang} live news payload")
         state_lang = languages.get(lang)
