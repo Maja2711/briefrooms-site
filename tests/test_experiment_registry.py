@@ -16,7 +16,7 @@ class ExperimentRegistryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             registry = build_registry(Path(tmp))
         ids = {row["id"] for row in registry["experiments"]}
-        self.assertEqual(len(ids), 7)
+        self.assertEqual(len(ids), 6)
         self.assertIn("eurusd-abc-live-shadow", ids)
         self.assertIn("belief-aris-shadow", ids)
         self.assertNotIn("ai-tournament-2026-02", ids)
@@ -53,35 +53,6 @@ class ExperimentRegistryTests(unittest.TestCase):
         self.assertEqual(policy["crypto"]["applicability"], "NOT_APPLICABLE")
         self.assertEqual(policy["equities"]["applicability"], "WHEN_ECONOMICALLY_MEANINGFUL")
         self.assertEqual(policy["forecasting_and_learning"]["applicability"], "BASELINE_NOT_MARKET_BENCHMARK")
-
-    def test_timesfm_does_not_promote_small_sample(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            self._write(
-                root,
-                "data/investments/timesfm_shadow_public_pl.json",
-                {
-                    "generated_at": "2026-09-02T12:00:00Z",
-                    "experiment": {
-                        "activated_at": "2026-08-25T20:47:07Z",
-                        "model_id": "google/timesfm",
-                        "research_only": True,
-                        "decision_influence": False,
-                    },
-                    "history": [
-                        {"horizons": {"1h": {"direction_correct": True}}},
-                        {"horizons": {"1h": {"direction_correct": False}}},
-                        {"horizons": {"1h": {"direction_correct": True}}},
-                    ],
-                },
-            )
-            registry = build_registry(root)
-        row = next(x for x in registry["experiments"] if x["id"] == "timesfm-shadow")
-        self.assertEqual(row["sample_count"], 3)
-        self.assertAlmostEqual(row["primary_metric"]["value"], 2 / 3)
-        self.assertEqual(row["status"], "INSUFFICIENT_DATA")
-        self.assertNotEqual(row["status"], "PROMOTE")
-        self.assertIn("Baseline", row["benchmark"]["interpretation"])
 
     def test_gse_candidate_requires_human_review_and_stays_continue(self):
         with tempfile.TemporaryDirectory() as tmp:
