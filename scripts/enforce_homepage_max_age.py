@@ -25,8 +25,8 @@ HOME_MAX_AGE = NEWS_MAX_AGE
 FUTURE_TOLERANCE = timedelta(minutes=10)
 HOME_LIMIT = 12
 HOME_RESERVE_LIMIT = 12
-POLICY_VERSION = "max-24h-public-news-display-v1"
-EXPOSURE_SCHEMA_VERSION = "public-news-exposure-v2"
+POLICY_VERSION = "max-24h-public-news-display-v2"
+EXPOSURE_SCHEMA_VERSION = "public-news-exposure-v3"
 LEGACY_EXPOSURE_SCHEMA_VERSION = "homepage-exposure-v1"
 IMAGE_POLICY_VERSION = "https-image-required-v1"
 POST_FRESHNESS_SELECTION_VERSION = "post-freshness-editorial-v2"
@@ -489,10 +489,19 @@ def _load_state() -> dict[str, Any]:
 
     schema = value.get("schema_version")
     if schema == LEGACY_EXPOSURE_SCHEMA_VERSION:
-        # Preserve existing homepage first-seen clocks so the 24h policy cannot
-        # reset old stories simply because the scope is being widened to sections.
         value["schema_version"] = EXPOSURE_SCHEMA_VERSION
         value["migrated_from"] = LEGACY_EXPOSURE_SCHEMA_VERSION
+    elif schema == "public-news-exposure-v2":
+        # v2 incorrectly seeded first_seen_at from the source publication time.
+        # That made newly selected cards expire before they had spent 24h on
+        # BriefRooms. Reset only those invalid legacy clocks once; v3 persists
+        # the actual first BriefRooms display time from this publication onward.
+        value = {
+            "schema_version": EXPOSURE_SCHEMA_VERSION,
+            "languages": {},
+            "migrated_from": "public-news-exposure-v2",
+            "migration_reason": "reset_source_timestamp_seeded_display_clocks",
+        }
     elif schema != EXPOSURE_SCHEMA_VERSION:
         value = {"schema_version": EXPOSURE_SCHEMA_VERSION, "languages": {}}
 
