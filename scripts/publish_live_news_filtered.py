@@ -872,15 +872,20 @@ def fetch_feed(source: str, feed_url: str, section_id: str, now: Any) -> tuple[l
                 continue
             story["image"] = base.page_image(str(story.get("link") or ""))
     elif section_id in {"zdrowie", "nauka"}:
-        # Specialist health/science feeds frequently omit RSS thumbnails even when
-        # the article has a valid og:image. Enrich every accepted fresh candidate
-        # before selection so image availability cannot collapse the section.
+        # Specialist feeds often omit RSS thumbnails and/or a machine-readable
+        # publication timestamp. Recover both from canonical article metadata.
+        # Publication time is never guessed: if neither RSS nor page metadata has
+        # a verifiable timestamp, the 24h selector will still reject the story.
         for story in accepted:
-            if story.get("image"):
+            if story.get("image") and story.get("published_at"):
                 continue
-            story["image"] = base.page_image(str(story.get("link") or ""))
-            if story.get("image"):
+            image, published = base.page_metadata(str(story.get("link") or ""), now)
+            if not story.get("image") and image:
+                story["image"] = image
                 story["image_basis"] = "article_metadata"
+            if not story.get("published_at") and published is not None:
+                story["published_at"] = published.isoformat(timespec="seconds")
+                story["published_at_basis"] = "article_metadata"
     return accepted, error
 
 
