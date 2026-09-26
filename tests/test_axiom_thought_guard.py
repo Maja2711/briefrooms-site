@@ -77,6 +77,26 @@ class AxiomThoughtGuardTests(unittest.TestCase):
         errors = validate(CURRENT, [SEED, repeated])
         self.assertTrue(any("repeats within" in e for e in errors))
 
+    def test_same_theme_is_rejected_for_full_365_day_window(self) -> None:
+        current = copy.deepcopy(CURRENT)
+        current["date"] = "2027-09-15"
+        latest = copy.deepcopy(LATEST)
+        latest.update({"date": current["date"], "theme": SEED["theme"], "pl": current["pl"], "en": current["en"]})
+        seed = copy.deepcopy(SEED)
+        seed["date"] = "2026-09-15"
+        errors = validate(current, [seed, latest])
+        self.assertTrue(any("protected 365-day history" in e for e in errors))
+
+    def test_theme_may_expire_only_after_365_days(self) -> None:
+        current = copy.deepcopy(CURRENT)
+        current["date"] = "2027-09-16"
+        latest = copy.deepcopy(LATEST)
+        latest.update({"date": current["date"], "theme": SEED["theme"], "pl": current["pl"], "en": current["en"]})
+        seed = copy.deepcopy(SEED)
+        seed["date"] = "2026-09-15"
+        errors = validate(current, [seed, latest])
+        self.assertFalse(any("protected 365-day history" in e for e in errors))
+
     def test_near_duplicate_is_rejected(self) -> None:
         current = copy.deepcopy(CURRENT)
         current["date"] = "2026-09-17"
@@ -90,7 +110,7 @@ class AxiomThoughtGuardTests(unittest.TestCase):
             "en": current["en"],
         })
         errors = validate(current, [SEED, latest])
-        self.assertTrue(any("too similar to history" in e for e in errors))
+        self.assertTrue(any("too similar to protected history" in e for e in errors))
 
     def test_reserve_validation_moves_past_already_published_date(self) -> None:
         rows = [
