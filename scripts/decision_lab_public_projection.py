@@ -6,7 +6,7 @@ import argparse
 import json
 from pathlib import Path
 
-from belief_aris_pattern import build_pattern_report
+from evidence_pattern_discovery import build_pattern_report
 
 
 def load(path: Path, default):
@@ -153,8 +153,8 @@ def build_payload(state, report):
             "log_loss": overall.get("mean_log_loss"),
             "calibration_status": overall.get("status", "awaiting_outcomes"),
         },
-        "aris_patterns": aris.get("patterns", []),
-        "aris_pattern_meta": {
+        "evidence_patterns": aris.get("patterns", []),
+        "evidence_pattern_meta": {
             "schema_version": aris.get("schema_version"),
             "mode": aris.get("mode"),
             "causal_status": aris.get("causal_status"),
