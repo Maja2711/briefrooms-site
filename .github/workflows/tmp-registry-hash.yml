@@ -1,0 +1,19 @@
+name: Temporary Registry Hash
+on:
+  push:
+    branches: ["retire/belief-aris-shadow"]
+permissions:
+  contents: read
+jobs:
+  hash:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          python - <<'PY'
+          import json,hashlib
+          from pathlib import Path
+          p=json.loads(Path("data/investments/learning_engine_registry_v1.json").read_text());p.pop("registry_sha256",None)
+          raw=json.dumps(p,ensure_ascii=False,sort_keys=True,separators=(",",":"),default=str)
+          print("EXPECTED_REGISTRY_SHA256="+hashlib.sha256(raw.encode()).hexdigest())
+          PY
