@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 import argparse, json, os, re, subprocess, sys, time
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 import requests
@@ -47,7 +47,14 @@ Return ONLY JSON with exactly:
 def validate_candidate(c,rows,reserve=()):
     required={"theme","pl","en","candidates_considered","scores","silence_test","editor_note"}
     if set(c)!=required: raise ValueError("schema mismatch")
-    stamp=today(); cur={"date":stamp,"author":"AXIOM","brand":"BriefRooms","pl":c["pl"],"en":c["en"]}
+    # Reserve generation may run after today's thought has already been published.
+    # Validate a reserve candidate against a synthetic next publication date so
+    # the guard does not see today's already-published date twice.
+    stamp=today()
+    published_dates={x.get("date") for x in rows}
+    while stamp in published_dates:
+        stamp=(datetime.fromisoformat(stamp)+timedelta(days=1)).date().isoformat()
+    cur={"date":stamp,"author":"AXIOM","brand":"BriefRooms","pl":c["pl"],"en":c["en"]}
     sys.path.insert(0,str(ROOT/"scripts")); from axiom_thought_guard import validate, similarity
     errors=validate(cur,rows+[{"date":stamp,**c}])
     if errors: raise ValueError("; ".join(errors))
