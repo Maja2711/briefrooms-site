@@ -428,13 +428,22 @@ def _recent_carried_ukraine_war_story(
     return max(eligible, key=base.story_time)
 
 
+def _fresh_for_pl_selection(story: dict[str, Any], now: datetime) -> bool:
+    """Only <=24h source stories may consume a PL section slot."""
+    published = _published_at(story)
+    if published is None:
+        return False
+    age = now.astimezone(timezone.utc) - published
+    return -base.FUTURE_TOLERANCE <= age <= base.MAX_CARRY_AGE
+
+
 def select_sections(
     config: list[tuple[str, str, list[tuple[str, str]]]],
     fetched: dict[str, list[dict[str, Any]]],
     previous: dict[str, Any],
     now: datetime,
 ) -> tuple[dict[str, list[dict[str, Any]]], dict[str, Any]]:
-    """Select nine high-impact stories with publisher and sports diversity."""
+    """Select section cards after freshness, then dedupe/rank/diversify."""
     selected: dict[str, list[dict[str, Any]]] = {}
     health: dict[str, Any] = {}
     previous_sections = previous.get("sections") if isinstance(previous.get("sections"), dict) else {}
@@ -443,6 +452,11 @@ def select_sections(
 
     for section_id, _, _ in config:
         source_candidates = list(fetched.get(section_id) or [])
+        if pl_mode:
+            source_candidates = [
+                story for story in source_candidates
+                if _fresh_for_pl_selection(story, now)
+            ]
         sport_mode = pl_mode and section_id == "sport"
         if sport_mode:
             support = _sport_entity_support(source_candidates)
