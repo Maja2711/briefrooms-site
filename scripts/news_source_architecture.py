@@ -147,6 +147,7 @@ EXTRA_FEEDS: dict[str, dict[str, tuple[tuple[str, str], ...]]] = {
     },
     "pl": {
         "zdrowie": (
+            ("Serwis Zdrowie PAP", "https://zdrowie.pap.pl/rss.xml"),
             ("PAP MediaRoom Zdrowie", "https://pap-mediaroom.pl/kategoria/zdrowie-i-styl-zycia/rss.xml"),
             ("Puls Medycyny", "https://pulsmedycyny.pl/rss/"),
             ("Rynek Zdrowia", "https://www.rynekzdrowia.pl/rss/"),
