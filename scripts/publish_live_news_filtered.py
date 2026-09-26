@@ -871,6 +871,16 @@ def fetch_feed(source: str, feed_url: str, section_id: str, now: Any) -> tuple[l
             if story.get("image") or not is_pl_ukraine_russia_war_story(story):
                 continue
             story["image"] = base.page_image(str(story.get("link") or ""))
+    elif section_id in {"zdrowie", "nauka"}:
+        # Specialist health/science feeds frequently omit RSS thumbnails even when
+        # the article has a valid og:image. Enrich every accepted fresh candidate
+        # before selection so image availability cannot collapse the section.
+        for story in accepted:
+            if story.get("image"):
+                continue
+            story["image"] = base.page_image(str(story.get("link") or ""))
+            if story.get("image"):
+                story["image_basis"] = "article_metadata"
     return accepted, error
 
 
