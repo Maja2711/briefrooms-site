@@ -12,6 +12,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
@@ -101,6 +102,7 @@ ARTICLE_TIME = (
     re.compile(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+(?:property|name)=["\'](?:article:published_time|datePublished|date|pubdate)["\']', re.I),
     re.compile(r'"datePublished"\s*:\s*"([^"]+)"', re.I),
 )
+VISIBLE_ARTICLE_DATE = re.compile(r'(?<!\d)([0-3]?\d)\.([01]?\d)\.(20\d{2})(?!\d)')
 WEATHER = re.compile(r"\b(pogoda|burza|burze|opady|deszcz|grad|upał|mróz|weather|storm|rain|forecast)\b", re.I)
 
 
@@ -236,6 +238,22 @@ def page_metadata(link: str, now: datetime) -> tuple[str, datetime | None]:
                 break
         except Exception:
             continue
+    if published is None:
+        # Some Polish medical desks expose the publication date only as visible
+        # DD.MM.YYYY text on the canonical article. Midnight Europe/Warsaw is a
+        # conservative lower bound for that article date, not an invented time.
+        match = VISIBLE_ARTICLE_DATE.search(base.clean(body, 20000) if False else re.sub(r"<[^>]+>", " ", body))
+        if match:
+            try:
+                local_midnight = datetime(
+                    int(match.group(3)), int(match.group(2)), int(match.group(1)),
+                    tzinfo=ZoneInfo("Europe/Warsaw"),
+                )
+                value = local_midnight.astimezone(timezone.utc)
+                if value <= now + FUTURE_TOLERANCE:
+                    published = value
+            except (ValueError, OverflowError):
+                pass
     return image, published
 
 
