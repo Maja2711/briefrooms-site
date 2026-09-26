@@ -1,86 +1,303 @@
 {
-  "version": "1.0.0",
-  "generated_at": "2026-09-25T19:57:08+02:00",
-  "cycle": 182,
-  "generated_this_cycle": 120,
-  "evidence_candidates": [
+  "candidate_count": 74,
+  "cost_model": {
+    "kind": "explicit_research_assumption",
+    "round_trip_cost_bps": 2.0
+  },
+  "cycle": 183,
+  "evaluated_this_cycle": 74,
+  "evidence_cycle": 1,
+  "execution_loop_closed": true,
+  "generated_at": "2026-09-26T13:45:18+02:00",
+  "generated_this_cycle": 74,
+  "governance": "candidate_to_walk_forward_to_frozen_holdout_to_regime_to_prospective_shadow; zero production authority",
+  "legacy_generation_cycles": 182,
+  "promotion_registry_count": 0,
+  "promotion_review_count": 0,
+  "queue_remaining": 0,
+  "schema_version": "briefrooms-research-lab-report-v2",
+  "source_fingerprint": "75e717aadea2b0057a1ad44f075a12e0e41983e4ed64330aa638f75ebe77648a",
+  "source_sample": {
+    "first_week": "2024-02-12",
+    "last_week": "2026-09-21",
+    "record_count": 137,
+    "timezone": "Europe/Warsaw"
+  },
+  "status_counts": {
+    "insufficient_data": 72,
+    "rejected_discovery": 2
+  },
+  "top_candidates": [
     {
-      "candidate_id": "afed9bd9970b7b17",
-      "spec": {
-        "instrument_id": "eurusd",
-        "timeframes": [
-          "H1"
-        ],
-        "families": [
-          "ema",
-          "price_vs_all"
-        ],
-        "side": "long",
-        "generation_type": "observed_edge"
+      "candidate_id": "a8b23d90c3fb1497",
+      "holdout_metrics": {
+        "count": 1,
+        "hit_rate": 1.0,
+        "max_drawdown_percent": 0.0,
+        "mean_net_percent": 0.554504,
+        "profit_factor": "inf"
       },
-      "discovery_metrics": {
-        "count": 57,
-        "mean_week_percent": 0.032729,
-        "median_week_percent": 0.046941,
-        "hit_rate": 0.526316
+      "shadow_metrics": {
+        "count": 0,
+        "hit_rate": null,
+        "max_drawdown_percent": null,
+        "mean_net_percent": null,
+        "profit_factor": null
       },
-      "discovery_pass": false,
-      "status": "rejected_discovery",
-      "runtime_activation": "not_implemented",
-      "runtime_adjustment_points": 0.0
-    },
-    {
-      "candidate_id": "ab989a4ba1525263",
       "spec": {
+        "execution_horizon": "monday_0800_to_friday_2200",
+        "feature_model": "ma30_60_100_200",
         "instrument_id": "eurusd",
-        "timeframes": [
-          "H1"
-        ],
-        "families": [
-          "ema",
-          "price_vs_all"
-        ],
+        "kind": "standalone",
+        "rule": "ma30_reclaim_trigger",
         "side": "short",
-        "generation_type": "observed_edge"
+        "timeframe": "D1"
       },
-      "discovery_metrics": {
-        "count": 37,
-        "mean_week_percent": 0.054571,
-        "median_week_percent": 0.172651,
-        "hit_rate": 0.540541
-      },
-      "discovery_pass": false,
-      "status": "rejected_discovery",
-      "runtime_activation": "not_implemented",
-      "runtime_adjustment_points": 0.0
+      "status": "insufficient_data"
     },
     {
-      "candidate_id": "29e3c03a82962c01",
+      "candidate_id": "5d7892282a3a57f7",
+      "holdout_metrics": {
+        "count": 3,
+        "hit_rate": 0.666667,
+        "max_drawdown_percent": 0.192651,
+        "mean_net_percent": 0.369938,
+        "profit_factor": 6.760746
+      },
+      "shadow_metrics": {
+        "count": 0,
+        "hit_rate": null,
+        "max_drawdown_percent": null,
+        "mean_net_percent": null,
+        "profit_factor": null
+      },
       "spec": {
+        "execution_horizon": "monday_0800_to_friday_2200",
+        "feature_model": "ma30_60_100_200",
         "instrument_id": "eurusd",
-        "timeframes": [
-          "W1"
-        ],
-        "families": [
-          "hybrid",
-          "fast_with_slow"
-        ],
+        "kind": "standalone",
+        "rule": "ma30_60_cross_trigger",
         "side": "long",
-        "generation_type": "observed_edge"
+        "timeframe": "M1"
       },
-      "discovery_metrics": {
-        "count": 65,
-        "mean_week_percent": 0.015551,
-        "median_week_percent": 0.046941,
-        "hit_rate": 0.507692
+      "status": "insufficient_data"
+    },
+    {
+      "candidate_id": "40ae514828b6d1da",
+      "holdout_metrics": {
+        "count": 2,
+        "hit_rate": 0.5,
+        "max_drawdown_percent": 0.147306,
+        "mean_net_percent": 0.203599,
+        "profit_factor": 3.764311
       },
-      "discovery_pass": false,
-      "status": "rejected_discovery",
-      "runtime_activation": "not_implemented",
-      "runtime_adjustment_points": 0.0
+      "shadow_metrics": {
+        "count": 0,
+        "hit_rate": null,
+        "max_drawdown_percent": null,
+        "mean_net_percent": null,
+        "profit_factor": null
+      },
+      "spec": {
+        "execution_horizon": "monday_0800_to_friday_2200",
+        "feature_model": "ma30_60_100_200",
+        "instrument_id": "eurusd",
+        "kind": "standalone",
+        "rule": "support_or_resistance_hold",
+        "side": "short",
+        "timeframe": "D1"
+      },
+      "status": "insufficient_data"
+    },
+    {
+      "candidate_id": "004dbf43c016738a",
+      "holdout_metrics": {
+        "count": 8,
+        "hit_rate": 0.625,
+        "max_drawdown_percent": 1.503226,
+        "mean_net_percent": 0.144247,
+        "profit_factor": 1.606535
+      },
+      "shadow_metrics": {
+        "count": 0,
+        "hit_rate": null,
+        "max_drawdown_percent": null,
+        "mean_net_percent": null,
+        "profit_factor": null
+      },
+      "spec": {
+        "execution_horizon": "monday_0800_to_friday_2200",
+        "feature_model": "ma30_60_100_200",
+        "instrument_id": "eurusd",
+        "kind": "standalone",
+        "rule": "support_or_resistance_hold",
+        "side": "long",
+        "timeframe": "W1"
+      },
+      "status": "insufficient_data"
+    },
+    {
+      "candidate_id": "212e81d987a852b8",
+      "holdout_metrics": {
+        "count": 1,
+        "hit_rate": 1.0,
+        "max_drawdown_percent": 0.0,
+        "mean_net_percent": 0.107306,
+        "profit_factor": "inf"
+      },
+      "shadow_metrics": {
+        "count": 0,
+        "hit_rate": null,
+        "max_drawdown_percent": null,
+        "mean_net_percent": null,
+        "profit_factor": null
+      },
+      "spec": {
+        "execution_horizon": "monday_0800_to_friday_2200",
+        "feature_model": "ma30_60_100_200",
+        "instrument_id": "eurusd",
+        "kind": "standalone",
+        "rule": "ma30_60_cross_trigger",
+        "side": "long",
+        "timeframe": "H1"
+      },
+      "status": "insufficient_data"
+    },
+    {
+      "candidate_id": "dc27669a5ecaa6db",
+      "holdout_metrics": {
+        "count": 8,
+        "hit_rate": 0.5,
+        "max_drawdown_percent": 1.323816,
+        "mean_net_percent": -0.017719,
+        "profit_factor": 0.948647
+      },
+      "shadow_metrics": {
+        "count": 0,
+        "hit_rate": null,
+        "max_drawdown_percent": null,
+        "mean_net_percent": null,
+        "profit_factor": null
+      },
+      "spec": {
+        "execution_horizon": "monday_0800_to_friday_2200",
+        "feature_model": "ma30_60_100_200",
+        "instrument_id": "eurusd",
+        "kind": "standalone",
+        "rule": "full_stack",
+        "side": "short",
+        "timeframe": "H4"
+      },
+      "status": "insufficient_data"
+    },
+    {
+      "candidate_id": "d937d2a9d939f0f5",
+      "holdout_metrics": {
+        "count": 5,
+        "hit_rate": 0.6,
+        "max_drawdown_percent": 0.831032,
+        "mean_net_percent": -0.031047,
+        "profit_factor": 0.860022
+      },
+      "shadow_metrics": {
+        "count": 0,
+        "hit_rate": null,
+        "max_drawdown_percent": null,
+        "mean_net_percent": null,
+        "profit_factor": null
+      },
+      "spec": {
+        "execution_horizon": "monday_0800_to_friday_2200",
+        "feature_model": "ma30_60_100_200",
+        "instrument_id": "eurusd",
+        "kind": "standalone",
+        "rule": "full_stack",
+        "side": "long",
+        "timeframe": "H4"
+      },
+      "status": "insufficient_data"
+    },
+    {
+      "candidate_id": "3987131e6ef761bb",
+      "holdout_metrics": {
+        "count": 19,
+        "hit_rate": 0.473684,
+        "max_drawdown_percent": 4.234835,
+        "mean_net_percent": -0.039251,
+        "profit_factor": 0.871901
+      },
+      "shadow_metrics": {
+        "count": 0,
+        "hit_rate": null,
+        "max_drawdown_percent": null,
+        "mean_net_percent": null,
+        "profit_factor": null
+      },
+      "spec": {
+        "execution_horizon": "monday_0800_to_friday_2200",
+        "feature_model": "ma30_60_100_200",
+        "instrument_id": "eurusd",
+        "kind": "standalone",
+        "rule": "full_stack",
+        "side": "long",
+        "timeframe": "W1"
+      },
+      "status": "insufficient_data"
+    },
+    {
+      "candidate_id": "b211f0d7923a87b1",
+      "holdout_metrics": {
+        "count": 19,
+        "hit_rate": 0.473684,
+        "max_drawdown_percent": 4.234835,
+        "mean_net_percent": -0.039251,
+        "profit_factor": 0.871901
+      },
+      "shadow_metrics": {
+        "count": 0,
+        "hit_rate": null,
+        "max_drawdown_percent": null,
+        "mean_net_percent": null,
+        "profit_factor": null
+      },
+      "spec": {
+        "execution_horizon": "monday_0800_to_friday_2200",
+        "feature_model": "ma30_60_100_200",
+        "instrument_id": "eurusd",
+        "kind": "standalone",
+        "rule": "fast_with_slow_filter",
+        "side": "long",
+        "timeframe": "W1"
+      },
+      "status": "insufficient_data"
+    },
+    {
+      "candidate_id": "0a0b0293a940d6fb",
+      "holdout_metrics": {
+        "count": 4,
+        "hit_rate": 0.75,
+        "max_drawdown_percent": 1.190261,
+        "mean_net_percent": -0.044932,
+        "profit_factor": 0.849001
+      },
+      "shadow_metrics": {
+        "count": 0,
+        "hit_rate": null,
+        "max_drawdown_percent": null,
+        "mean_net_percent": null,
+        "profit_factor": null
+      },
+      "spec": {
+        "execution_horizon": "monday_0800_to_friday_2200",
+        "feature_model": "ma30_60_100_200",
+        "instrument_id": "eurusd",
+        "kind": "standalone",
+        "rule": "price_vs_all",
+        "side": "long",
+        "timeframe": "H1"
+      },
+      "status": "insufficient_data"
     }
   ],
-  "promotion_registry_count": 0,
-  "aspirational_win_rate": 0.7,
-  "governance": "research_can_iterate_autonomously_but_production_promotion_requires_holdout_walk_forward_costs_regime_stability_and_live_activation"
+  "version": "2.0.0"
 }
