@@ -131,7 +131,13 @@ EXTRA_FEEDS: dict[str, dict[str, tuple[tuple[str, str], ...]]] = {
             ("FDA", "https://www.fda.gov/about-fda/contact-fda/stay-informed/rss-feeds/press-releases/rss.xml"),
         ),
     },
-    "pl": {},
+    "pl": {
+        "zdrowie": (
+            ("PAP MediaRoom Zdrowie", "https://pap-mediaroom.pl/kategoria/zdrowie-i-styl-zycia/rss.xml"),
+            ("Puls Medycyny", "https://pulsmedycyny.pl/rss/"),
+            ("Rynek Zdrowia", "https://www.rynekzdrowia.pl/rss/"),
+        ),
+    },
 }
 
 
