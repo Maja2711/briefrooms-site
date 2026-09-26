@@ -279,10 +279,10 @@ def _first_seen(
         if stored is not None:
             return stored
 
-    published = _parse_time(story.get("published_at"))
-    if published is None:
-        return None
-    return min(published, now)
+    # The 24h display clock starts when BriefRooms first publishes the card, not
+    # when the source article was written. Source age is enforced separately by
+    # _source_is_fresh(), so an article can never enter BriefRooms if already >24h old.
+    return now
 
 
 def enforce_payload(
