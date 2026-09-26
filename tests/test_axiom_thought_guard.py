@@ -4,6 +4,7 @@ import copy
 import unittest
 
 from scripts.axiom_thought_guard import similarity, validate
+from scripts.publish_axiom_thought import candidate_validation_stamp
 
 
 CURRENT = {
@@ -90,6 +91,17 @@ class AxiomThoughtGuardTests(unittest.TestCase):
         })
         errors = validate(current, [SEED, latest])
         self.assertTrue(any("too similar to history" in e for e in errors))
+
+    def test_reserve_validation_moves_past_already_published_date(self) -> None:
+        rows = [
+            {"date": "2026-09-25"},
+            {"date": "2026-09-26"},
+        ]
+        self.assertEqual(candidate_validation_stamp(rows, "2026-09-26"), "2026-09-27")
+
+    def test_reserve_validation_keeps_unused_publication_date(self) -> None:
+        rows = [{"date": "2026-09-25"}]
+        self.assertEqual(candidate_validation_stamp(rows, "2026-09-26"), "2026-09-26")
 
     def test_similarity_ranks_paraphrase_above_new_idea(self) -> None:
         paraphrase = "Przyszłość często zaczyna się od jednej niezrozumianej decyzji, a nie od wielkiego przełomu."
