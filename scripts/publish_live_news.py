@@ -96,6 +96,11 @@ OG = (
     re.compile(r'<meta[^>]+(?:property|name)=["\'](?:og:image|twitter:image)["\'][^>]+content=["\']([^"\']+)', re.I),
     re.compile(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+(?:property|name)=["\'](?:og:image|twitter:image)["\']', re.I),
 )
+ARTICLE_TIME = (
+    re.compile(r'<meta[^>]+(?:property|name)=["\'](?:article:published_time|datePublished|date|pubdate)["\'][^>]+content=["\']([^"\']+)', re.I),
+    re.compile(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+(?:property|name)=["\'](?:article:published_time|datePublished|date|pubdate)["\']', re.I),
+    re.compile(r'"datePublished"\s*:\s*"([^"]+)"', re.I),
+)
 WEATHER = re.compile(r"\b(pogoda|burza|burze|opady|deszcz|grad|upał|mróz|weather|storm|rain|forecast)\b", re.I)
 
 
@@ -201,6 +206,37 @@ def page_image(link: str) -> str:
     except Exception:
         pass
     return ""
+
+def page_metadata(link: str, now: datetime) -> tuple[str, datetime | None]:
+    """Recover article image and publication time from canonical page metadata."""
+    try:
+        body = request(link, timeout=8).text[:750000]
+    except Exception:
+        return "", None
+    image = ""
+    for pattern in OG:
+        match = pattern.search(body)
+        if match:
+            image = safe_url(html.unescape(match.group(1)))
+            if image:
+                break
+    published: datetime | None = None
+    for pattern in ARTICLE_TIME:
+        match = pattern.search(body)
+        if not match:
+            continue
+        raw = html.unescape(match.group(1)).strip()
+        try:
+            value = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+            if value.tzinfo is None:
+                value = value.replace(tzinfo=timezone.utc)
+            value = value.astimezone(timezone.utc)
+            if value <= now + FUTURE_TOLERANCE:
+                published = value
+                break
+        except Exception:
+            continue
+    return image, published
 
 
 def fetch_feed(source: str, feed_url: str, section_id: str, now: datetime) -> tuple[list[dict[str, Any]], str | None]:
