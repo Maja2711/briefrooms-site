@@ -348,36 +348,11 @@ def _wes(root: Path) -> dict[str, Any]:
     return row
 
 
-def _aris(_: Path) -> dict[str, Any]:
-    row = _base(
-        experiment_id="belief-aris-shadow",
-        name="Belief / ARIS Shadow",
-        category="belief",
-        family="Belief Core",
-        version="ARIS Shadow",
-        started_at=None,
-        minimum_sample=30,
-        purpose="Sprawdzenie wartości reprezentacji ARIS w Belief Core bez wpływu na decyzje i bez writebacku.",
-        source="workflow artifact: belief-aris-shadow-report",
-    )
-    row["sample_count"] = None
-    row["sample_unit"] = "shadow_reports"
-    row["status"] = "INSUFFICIENT_DATA"
-    row["primary_metric"] = _metric(
-        "Wartość inkrementalna",
-        None,
-        None,
-        "Raport jest przechowywany jako artefakt workflow; brak kanonicznej publicznej projekcji metryk w repo.",
-    )
-    row["notes"] = ["Zero decision influence.", "Zero Belief Core writeback.", "Zero automatic tuning/promotion."]
-    return row
-
-
 def build_registry(root: Path) -> dict[str, Any]:
     # AI Tournament is deliberately excluded. It is a public one-off/fun
     # comparison of frozen LLM picks, not a learning experiment and not an
     # input into Experience Store, promotion gates or future model training.
-    builders = (_research_lab, _eurusd_abc, _gse, _brace_spx, _wes, _aris)
+    builders = (_research_lab, _eurusd_abc, _gse, _brace_spx, _wes)
     experiments = [builder(root) for builder in builders]
     experiments.sort(key=lambda item: (str(item.get("category")), str(item.get("name"))))
 
