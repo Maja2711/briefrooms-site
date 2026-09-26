@@ -384,8 +384,8 @@ def enforce_payload(
                     for previous_story in fresh_rows:
                         if not homepage_same_topic(copy, previous_story):
                             continue
-                        current_numbers = set(re.findall(r"\\b\\d+\\b", str(copy.get("title") or "")))
-                        previous_numbers = set(re.findall(r"\\b\\d+\\b", str(previous_story.get("title") or "")))
+                        current_numbers = set(re.findall(r"\b\d+\b", str(copy.get("title") or "")))
+                        previous_numbers = set(re.findall(r"\b\d+\b", str(previous_story.get("title") or "")))
                         if current_numbers and previous_numbers and current_numbers.isdisjoint(previous_numbers):
                             continue
                         duplicate = True
