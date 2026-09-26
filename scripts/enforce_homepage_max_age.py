@@ -396,23 +396,6 @@ def enforce_payload(
                     record_rejection(story, reason)
         filtered_sections[str(section_id)] = fresh_rows
 
-    if lang == "pl":
-        for section_id, minimum in PL_SECTION_MINIMUMS.items():
-            rows = filtered_sections.get(section_id, [])
-            if len(rows) < minimum:
-                raise RuntimeError(
-                    f"PL section {section_id} below required fresh unique minimum after 24h gate: "
-                    f"{len(rows)}/{minimum}"
-                )
-        economy_rows = filtered_sections.get("ekonomia", [])
-        if not any(
-            PL_AI_CRYPTO_RE.search(
-                " ".join(str(story.get(key) or "") for key in ("title", "summary"))
-            )
-            for story in economy_rows
-        ):
-            raise RuntimeError("PL ekonomia missing required fresh AI/crypto story after 24h gate")
-
     payload["sections"] = filtered_sections
 
     eligible: list[dict[str, Any]] = []
@@ -543,6 +526,23 @@ def enforce_files() -> None:
             state_lang = {}
             languages[lang] = state_lang
         payload, _ = enforce_payload(payload, state_lang, now, lang=lang)
+        if lang == "pl":
+            sections = payload.get("sections") if isinstance(payload.get("sections"), dict) else {}
+            for section_id, minimum in PL_SECTION_MINIMUMS.items():
+                rows = sections.get(section_id, []) if isinstance(sections.get(section_id), list) else []
+                if len(rows) < minimum:
+                    raise RuntimeError(
+                        f"PL section {section_id} below required fresh unique minimum after 24h gate: "
+                        f"{len(rows)}/{minimum}"
+                    )
+            economy_rows = sections.get("ekonomia", [])
+            if not any(
+                PL_AI_CRYPTO_RE.search(
+                    " ".join(str(story.get(key) or "") for key in ("title", "summary"))
+                )
+                for story in economy_rows
+            ):
+                raise RuntimeError("PL ekonomia missing required fresh AI/crypto story after 24h gate")
         path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
     STATE_PATH.write_text(json.dumps(state, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
