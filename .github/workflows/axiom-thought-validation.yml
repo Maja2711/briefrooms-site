@@ -7,6 +7,7 @@ on:
       - 'data/home/axiom-thoughts-history.jsonl'
       - 'docs/axiom-thought-principles.md'
       - 'scripts/axiom_thought_guard.py'
+      - 'scripts/publish_axiom_thought.py'
       - 'tests/test_axiom_thought_guard.py'
       - '.github/workflows/axiom-thought-validation.yml'
   push:
@@ -16,6 +17,7 @@ on:
       - 'data/home/axiom-thoughts-history.jsonl'
       - 'docs/axiom-thought-principles.md'
       - 'scripts/axiom_thought_guard.py'
+      - 'scripts/publish_axiom_thought.py'
       - 'tests/test_axiom_thought_guard.py'
       - '.github/workflows/axiom-thought-validation.yml'
   workflow_dispatch:
@@ -38,7 +40,7 @@ jobs:
       - name: Validate Thought Engine code
         run: |
           set -euo pipefail
-          python -m py_compile scripts/axiom_thought_guard.py
+          python -m py_compile scripts/axiom_thought_guard.py scripts/publish_axiom_thought.py
           python -m unittest tests.test_axiom_thought_guard -v
           python scripts/axiom_thought_guard.py
           grep -F 'test ciszy' docs/axiom-thought-principles.md
