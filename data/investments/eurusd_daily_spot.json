@@ -1,9 +1,9 @@
 {
   "instrument": "EUR/USD",
-  "timestamp": "2026-09-25T21:29:08Z",
+  "timestamp": "2026-09-25T21:00:00Z",
   "direction": "FLAT",
-  "score": 39.99,
-  "confidence": 0.2,
+  "score": 43.86,
+  "confidence": 0.0,
   "entry": null,
   "stop": null,
   "target": null,
@@ -22,23 +22,27 @@
       "bridge_ready": true,
       "note": "Belief Core remains outside the v1.1 decision path; lifecycle and learning are EUR/USD-local."
     },
-    "components": {},
+    "components": {
+      "trend": -0.0625,
+      "broad_usd_environment": -0.1171,
+      "us_rates_pressure_proxy": -0.2945
+    },
     "weights": {
       "trend": 0.546456,
       "broad_usd_environment": 0.253782,
       "us_rates_pressure_proxy": 0.199762
     },
     "candidate": {
-      "direction": "SHORT",
-      "score": 39.99,
-      "confidence": 0.2,
+      "direction": "FLAT",
+      "score": 43.86,
+      "confidence": 0.0,
       "accepted": false,
       "gate_reasons": [
-        "same_thesis_reentry_blocked"
+        "raw_score_neutral"
       ],
-      "source": "A_TECHNICAL_FALLBACK",
-      "native_was_flat": true,
-      "market_age_minutes": 62.47
+      "previous_score": 46.8,
+      "stretch_atr": 1.0995,
+      "shock_ratio": 0.0
     },
     "learning": {
       "total_closed": 30,
@@ -104,30 +108,6 @@
       "ecb_policy_consensus_claimed": false,
       "ecb_ois_repricing_claimed": false
     },
-    "decision_source": "A_TECHNICAL_FALLBACK",
-    "learning_eligible": true,
-    "native_candidate": {
-      "direction": "FLAT",
-      "score": 43.9,
-      "confidence": 0.0,
-      "accepted": false,
-      "gate_reasons": [
-        "raw_score_neutral"
-      ],
-      "previous_score": 44.61,
-      "stretch_atr": 1.1119,
-      "shock_ratio": 0.0
-    },
-    "a_fallback": {
-      "method": "same_technical_model_as_research_arm_A_recomputed_live",
-      "research_state_consumed": false,
-      "direction": "SHORT",
-      "score": 39.99,
-      "confidence": 0.2,
-      "market_observed_at": "2026-09-25T21:29:08Z",
-      "max_market_age_minutes": 90.0,
-      "risk_source": "active_daily_eurusd_current_30m_atr"
-    },
     "dynamic_exit": {
       "enabled": true,
       "policy": "R_PACE_V1",
@@ -143,16 +123,17 @@
         "required_r_velocity_to_hard_horizon"
       ]
     },
-    "learning_namespace": "A_TECHNICAL_FALLBACK",
-    "guarded_candidate": {
-      "direction": "SHORT",
-      "score": 39.99,
-      "confidence": 0.2,
-      "accepted": true,
-      "gate_reasons": [],
-      "source": "A_TECHNICAL_FALLBACK",
-      "native_was_flat": true,
-      "market_age_minutes": 62.47
+    "exploration": {
+      "mode": "LOW_EDGE_LEARNING_EXPLORATION",
+      "eligible": false,
+      "min_edge_points": 1.0,
+      "min_supporting_components": 2,
+      "min_directional_dominance": 0.2,
+      "cooldown_hours": 2.0,
+      "max_per_utc_day": 1,
+      "risk_budget_multiplier": 0.35,
+      "reason": "stale_market_state",
+      "market_age_minutes": 228.72
     },
     "same_thesis_reentry_guard": {
       "enabled": true,
@@ -160,76 +141,15 @@
       "generic_loss_cooldown": false,
       "window_hours": 12.0,
       "min_loss_r": -0.15,
-      "evaluated": true,
-      "blocked": true,
-      "reason": "recent_same_thesis_loss_without_material_new_evidence",
-      "prior_trade_id": "eurusd:20260924T193606Z:SHORT",
-      "prior_closed_at": "2026-09-25T10:27:09Z",
-      "prior_r_multiple": -0.7592,
-      "source_family": "A_TECHNICAL_FALLBACK",
-      "current_thesis": {
-        "schema_version": "eurusd-entry-thesis-v1",
-        "source": "A_TECHNICAL_FALLBACK",
-        "source_family": "A_TECHNICAL_FALLBACK",
-        "direction": "SHORT",
-        "score": 39.99,
-        "directional_strength": 10.01,
-        "confidence": 0.2,
-        "components": {},
-        "weights": {
-          "trend": 0.546456,
-          "broad_usd_environment": 0.253782,
-          "us_rates_pressure_proxy": 0.199762
-        },
-        "a_fallback": {
-          "method": "same_technical_model_as_research_arm_A_recomputed_live",
-          "direction": "SHORT",
-          "score": 39.99,
-          "confidence": 0.2,
-          "market_observed_at": "2026-09-25T21:29:08Z"
-        }
-      },
-      "prior_thesis": {
-        "schema_version": "eurusd-entry-thesis-v1",
-        "source": "A_TECHNICAL_FALLBACK",
-        "source_family": "A_TECHNICAL_FALLBACK",
-        "direction": "SHORT",
-        "score": 27.34,
-        "directional_strength": 22.66,
-        "confidence": 0.453,
-        "components": {},
-        "weights": {
-          "trend": 0.547336,
-          "broad_usd_environment": 0.254144,
-          "us_rates_pressure_proxy": 0.198519
-        },
-        "a_fallback": {
-          "method": "same_technical_model_as_research_arm_A_recomputed_live",
-          "direction": "SHORT",
-          "score": 27.34,
-          "confidence": 0.453,
-          "market_observed_at": "2026-09-24T19:36:06Z"
-        }
-      },
-      "change": {
-        "material_change": false,
-        "material_change_triggers": [],
-        "directional_score_strength_improvement": -12.65,
-        "confidence_improvement": -0.253,
-        "component_l1_change": null,
-        "shared_components": [],
-        "thresholds": {
-          "score_strength_improvement": 3.0,
-          "confidence_improvement": 0.08,
-          "component_l1_change": 0.2
-        }
-      }
+      "evaluated": false,
+      "blocked": false,
+      "reason": "no_directional_candidate"
     },
     "ecb_policy": {
       "schema_version": "eurusd-ecb-policy-context-v1",
       "enabled": true,
       "central_bank": "ECB",
-      "observed_at": "2026-09-25T21:29:08Z",
+      "observed_at": "2026-09-25T21:00:00Z",
       "event_active": false,
       "coverage": false,
       "must_block_entry": false,
@@ -279,109 +199,13 @@
         "minimum_close_confidence": 0.76
       },
       "snapshot_path": "/home/runner/work/briefrooms-site/briefrooms-site/data/investments/event_intelligence.json",
-      "snapshot_generated_at": "2026-09-25T21:31:01Z",
-      "coverage": true,
-      "decision_influence": true,
+      "snapshot_generated_at": "2026-09-26T00:08:11Z",
+      "coverage": false,
+      "decision_influence": false,
       "fail_neutral": true,
-      "score": {
-        "target_id": "eurusd",
-        "symbol": "EURUSD=X",
-        "market": "DAILY_FX",
-        "sector": "fx",
-        "engine_profile": "DAILY",
-        "engine_role": "EVENT_SENSITIVE",
-        "profile_base_weight": 0.75,
-        "exposure_coefficient": -0.55,
-        "raw_normalized_impact": -0.1698,
-        "normalized_impact": -0.1273,
-        "score_delta": -2.55,
-        "confidence": 0.6492,
-        "dominant_event_scope": "macro_geopolitical",
-        "dominant_event_domain": "geopolitical",
-        "dominant_engine_weight": 0.75,
-        "thresholds_applied": {
-          "entry_block": -0.48,
-          "reduce_risk": -0.3,
-          "close": -0.64,
-          "minimum_entry_confidence": 0.66,
-          "minimum_close_confidence": 0.76
-        },
-        "decision_overlay": "HOLD",
-        "entry_blocked": false,
-        "top_events": [
-          {
-            "event_id": "evt-b33593760622417ee0cf",
-            "event_domain": "geopolitical",
-            "event_kind": null,
-            "entity_key": null,
-            "entity_name": null,
-            "title": "Ukraine’s president tours a maternity ward damaged in a Russian strike - Reuters",
-            "published_at": "2026-09-25T12:27:01Z",
-            "source": "Reuters",
-            "source_ref": "https://news.google.com/rss/articles/CBMieEFVX3lxTFBPS0c1X2dqSDNjM3hMT1ozem12WHYycUFmVl9pbEtuRUY3WG9veS1aOGRYNnc0VmY1NEZXQkRjLWxDMmtxUk9ESjVvYnZJMGdIYzFUaENLZm8tUE5ET3NqakJNNzVxX1lDamVjLTg1WmVvd1hBSDM5Sw?oc=5",
-            "confidence": 0.6492,
-            "action_type": "reported_event",
-            "event_type": "escalation",
-            "scenario_tags": [
-              "russia_ukraine"
-            ],
-            "direct_impact": null,
-            "sector_impact": null,
-            "event_scope": "macro_geopolitical",
-            "engine_weight": 0.75,
-            "raw_signed_impact": -0.1383,
-            "signed_impact": -0.1037
-          },
-          {
-            "event_id": "evt-8b065f47c0ca631e4972",
-            "event_domain": "geopolitical",
-            "event_kind": null,
-            "entity_key": null,
-            "entity_name": null,
-            "title": "Russia-Ukraine war: Moscow targeting 'ordinary life' with attacks on data centres, Zelensky says - BBC",
-            "published_at": "2026-09-25T20:47:49Z",
-            "source": "BBC",
-            "source_ref": "https://news.google.com/rss/articles/CBMiW0FVX3lxTE1ZWVRaRFJ0bE53RDI2YlNCRnRxMXZQNXVqMDZ0LU9IeVNlbUdGNVllTWhIZE9wZHJrZnFvVVBuZHAycFhlRHc5eWVnUFI0MmVNUW5RbHFiTHVQSmM?oc=5",
-            "confidence": 0.3308,
-            "action_type": "rhetoric_or_warning",
-            "event_type": "escalation",
-            "scenario_tags": [
-              "russia_ukraine"
-            ],
-            "direct_impact": null,
-            "sector_impact": null,
-            "event_scope": "macro_geopolitical",
-            "engine_weight": 0.75,
-            "raw_signed_impact": -0.1368,
-            "signed_impact": -0.1026
-          },
-          {
-            "event_id": "evt-31e3b92835416945baad",
-            "event_domain": "geopolitical",
-            "event_kind": null,
-            "entity_key": null,
-            "entity_name": null,
-            "title": "Iran pitches seven day roadmap for ceasefire, renewed nuclear talks - WBFF",
-            "published_at": "2026-09-25T19:51:19Z",
-            "source": "WBFF",
-            "source_ref": "https://news.google.com/rss/articles/CBMigAJBVV95cUxNQngtbVVJTmxFeng1M0piS293UzhzNHhRVGtZU1EzTkdRRTI1U2twb0pPR3lfZW1Ed2dnZDJ2N1FlTGNzbEZ1QU9SbV9pb3VNR2VZWHhQTTZEcmhSdFBpb0t6Zy1oR2VSNHByMEJ3c2lLcU4tNVQ4NHVxZTkxYXF3OTk1NTVpaUhoako1TmhaRlpvNUxibW1FbzZPV3ZzcFNnd21HbFZVV2U4d2lxM3BkNnhibkJMUjhHSjg2NzFfaWJlcHZyWXhtSUdtSVlFNGpfOGJLZkFlUU4zMUliN2poamVwZ2ItcXVXQkN3SWtTU1hwdDBnQmM1R2tnWXJfamd0?oc=5",
-            "confidence": 0.2526,
-            "action_type": "reported_event",
-            "event_type": "deescalation",
-            "scenario_tags": [
-              "middle_east"
-            ],
-            "direct_impact": null,
-            "sector_impact": null,
-            "event_scope": "macro_geopolitical",
-            "engine_weight": 0.75,
-            "raw_signed_impact": 0.1203,
-            "signed_impact": 0.0902
-          }
-        ]
-      },
-      "status": "ACTIVE",
-      "age_minutes": 0.0,
+      "score": null,
+      "status": "EVENT_SNAPSHOT_AHEAD_OF_MARKET_CLOCK",
+      "age_minutes": -188.18,
       "gate_evaluated": false,
       "gate_reason": "entry_disabled_or_no_directional_candidate"
     },
