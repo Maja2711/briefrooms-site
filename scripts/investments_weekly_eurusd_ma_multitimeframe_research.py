@@ -242,7 +242,7 @@ def rank_edges(tree: Dict[str, Any], prefix: str = "") -> List[Dict[str, Any]]:
 
 def main() -> None:
     raw_h1 = yf.download(SYMBOL, period="720d", interval="1h", progress=False, auto_adjust=False, prepost=True, threads=False)
-    raw_d1 = yf.download(SYMBOL, period="15y", interval="1d", progress=False, auto_adjust=False, threads=False)
+    raw_d1 = yf.download(SYMBOL, period="max", interval="1d", progress=False, auto_adjust=False, threads=False)
     h1 = clean(raw_h1); d1 = clean(raw_d1)
     if h1.empty or d1.empty:
         raise SystemExit("EURUSD H1 or D1 history unavailable")

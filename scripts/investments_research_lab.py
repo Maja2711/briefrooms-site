@@ -379,7 +379,7 @@ def load_weekly_records() -> list[dict[str, Any]]:
     import yfinance as yf
 
     raw_h1 = yf.download(SYMBOL, period="720d", interval="1h", progress=False, auto_adjust=False, prepost=True, threads=False)
-    raw_d1 = yf.download(SYMBOL, period="15y", interval="1d", progress=False, auto_adjust=False, threads=False)
+    raw_d1 = yf.download(SYMBOL, period="max", interval="1d", progress=False, auto_adjust=False, threads=False)
     h1 = clean(raw_h1)
     d1 = clean(raw_d1)
     if h1.empty or d1.empty:
@@ -392,6 +392,9 @@ def load_weekly_records() -> list[dict[str, Any]]:
         "W1": add_features(resample_ohlc(d1, "W-FRI")),
         "M1": add_features(resample_ohlc(d1, "ME")),
     }
+    empty_frames = [name for name, frame in frames.items() if frame.empty]
+    if empty_frames:
+        raise RuntimeError(f"canonical feature frames unavailable after MA200 warm-up: {','.join(empty_frames)}")
     records = weekly_records(frames["H1"], frames)
     if len(records) < 30:
         raise RuntimeError(f"insufficient canonical weekly records: {len(records)}")
