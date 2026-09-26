@@ -377,21 +377,12 @@ def enforce_payload(
                     continue
                 copy, reason = qualify(story)
                 if copy is not None:
-                    # Final post-freshness event/topic gate. Canonical event IDs are
-                    # available here, so this catches duplicate coverage even when
-                    # publishers use different URLs/headlines.
-                    duplicate = False
-                    for previous_story in fresh_rows:
-                        if not homepage_same_topic(copy, previous_story):
-                            continue
-                        current_numbers = set(re.findall(r"\b\d+\b", str(copy.get("title") or "")))
-                        previous_numbers = set(re.findall(r"\b\d+\b", str(previous_story.get("title") or "")))
-                        if current_numbers and previous_numbers and current_numbers.isdisjoint(previous_numbers):
-                            continue
-                        duplicate = True
-                        break
-                    if not duplicate:
-                        fresh_rows.append(copy)
+                    # Event/topic dedupe already runs in the canonical publisher
+                    # before section selection. Do not run a second, broader fuzzy
+                    # dedupe here: with only the selected nine cards available it can
+                    # remove one card but has no reserve candidate to backfill it.
+                    # This layer is strictly the public 24h/image exposure guard.
+                    fresh_rows.append(copy)
                 else:
                     record_rejection(story, reason)
         filtered_sections[str(section_id)] = fresh_rows
