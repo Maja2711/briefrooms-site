@@ -25,6 +25,7 @@ try:
         public_event_policy,
     )
     from .dedupe_home_brief_stories import same_topic as homepage_same_topic
+    from .news_source_architecture import extend_config as extend_curated_config
     from .news_source_expansion_v3 import (
         DISPATCH_DEDUPE_VERSION,
         ORIGIN_DETECTION_VERSION,
@@ -55,6 +56,7 @@ except ImportError:
         public_event_policy,
     )
     from dedupe_home_brief_stories import same_topic as homepage_same_topic
+    from news_source_architecture import extend_config as extend_curated_config
     from news_source_expansion_v3 import (
         DISPATCH_DEDUPE_VERSION,
         ORIGIN_DETECTION_VERSION,
@@ -100,8 +102,27 @@ _original_validate = base.validate
 _original_editorial_value_score = filtered.editorial_value_score
 
 WIRE_FEEDS, WIRE_ADAPTER_DIAGNOSTICS = configured_wire_feeds()
+
+# Final entry-point owns the canonical source configuration. Re-apply the curated
+# architecture here (idempotent by URL), then wire adapters. This prevents import
+# order / shared-module mutation from silently dropping reserve feeds.
+base.PL = extend_curated_config(base.PL, "pl")
+base.EN = extend_curated_config(base.EN, "en")
 base.PL = extend_config_with_wire_adapters(base.PL, "pl", WIRE_FEEDS)
 base.EN = extend_config_with_wire_adapters(base.EN, "en", WIRE_FEEDS)
+
+def _assert_pl_source_contract() -> None:
+    by_section = {section_id: feeds for section_id, _label, feeds in base.PL}
+    health_sources = {source for source, _url in by_section.get("zdrowie", [])}
+    science_sources = {source for source, _url in by_section.get("nauka", [])}
+    required_health = {"Nauka w Polsce", "RMF24", "PAP MediaRoom Zdrowie", "Puls Medycyny", "Rynek Zdrowia"}
+    missing_health = required_health - health_sources
+    if missing_health:
+        raise RuntimeError(f"canonical PL health source contract missing: {sorted(missing_health)}")
+    if "PAP MediaRoom Nauka i Technologie" not in science_sources:
+        raise RuntimeError("canonical PL science source contract missing PAP MediaRoom Nauka i Technologie")
+
+_assert_pl_source_contract()
 CONFIGURED_WIRE_SOURCES = {
     source
     for source, status in WIRE_ADAPTER_DIAGNOSTICS.items()
