@@ -97,12 +97,25 @@ def refill(rows,reserve):
             failures+=1; print(f"reserve generation failure {failures}/3: {e}",file=sys.stderr)
     return len(reserve)>=RESERVE_TARGET
 def main():
-    ap=argparse.ArgumentParser(); ap.add_argument("--mode",choices=["publish","refill","verify"],default="publish"); a=ap.parse_args()
+    ap=argparse.ArgumentParser(); ap.add_argument("--mode",choices=["publish","refill","verify","preflight"],default="publish"); a=ap.parse_args()
     rows=load_history(); reserve=load_reserve(); stamp=today()
     if a.mode=="verify":
         cur=json.loads(CURRENT.read_text(encoding="utf-8"))
         ok=cur.get("date")==stamp and rows and rows[-1].get("date")==stamp
         print(f"fresh={ok} current={cur.get('date')} expected={stamp} reserve={len(reserve)}"); return 0 if ok else 1
+    if a.mode=="preflight":
+        if not reserve:
+            print("preflight failed: reserve empty", file=sys.stderr); return 2
+        errors=[]
+        for i,candidate in enumerate(reserve):
+            try:
+                validate_candidate(candidate,rows,reserve[:i])
+            except Exception as e:
+                errors.append(f"reserve[{i}] {candidate.get('theme')}: {e}")
+        if errors:
+            print("preflight failed:\n" + "\n".join(errors), file=sys.stderr); return 2
+        print(f"preflight=ok next_date={candidate_validation_stamp(rows)} reserve={len(reserve)} first_theme={reserve[0].get('theme')}")
+        return 0
     if a.mode=="refill": return 0 if refill(rows,reserve) else 2
     if rows and rows[-1].get("date")==stamp:
         print("already published"); return 0
