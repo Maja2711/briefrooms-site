@@ -29,6 +29,10 @@ _original_round_robin = base.round_robin
 
 # Add dependable reserve desks so no section is driven by one publisher's ordering.
 PL_EDITORIAL_EXTRA_FEEDS = {
+    "ekonomia": (
+        ("Spider's Web", "https://spidersweb.pl/?feed=mcfeed"),
+        ("CoinDesk", "https://www.coindesk.com/arc/outboundfeeds/rss/"),
+    ),
     "polityka": (
         ("Rzeczpospolita", "https://www.rp.pl/rss_main"),
         # Dedicated international desk: keeps the PL candidate pool supplied with
