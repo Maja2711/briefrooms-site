@@ -108,56 +108,16 @@
     },
     {
       "automatic_promotion": false,
-      "benchmark": {
-        "interpretation": "Baseline prognostyczny, nie benchmark rynkowy/PnL.",
-        "label": "Losowy kierunek",
-        "unit": "fraction",
-        "value": 0.5
-      },
-      "category": "forecasting",
-      "delta_vs_benchmark": 0.045454545454545414,
-      "details": {
-        "decision_influence": false,
-        "research_only": true
-      },
-      "family": "EURUSD",
-      "id": "timesfm-shadow",
-      "last_updated": "2026-09-25T23:19:53.398418Z",
-      "max_drawdown": null,
-      "minimum_sample": 60,
-      "name": "TimesFM Shadow Forecaster",
-      "notes": [
-        "Dla EUR/USD nie przypisujemy sztucznego benchmarku rynkowego."
-      ],
-      "primary_metric": {
-        "interpretation": "Miara forecast skill; nie formalna alpha.",
-        "label": "Trafność kierunku 1h",
-        "unit": "fraction",
-        "value": 0.5454545454545454
-      },
-      "production_impact": false,
-      "purpose": "Sprawdzenie, czy TimesFM daje prospektywną przewagę prognostyczną względem prostych baseline'ów.",
-      "sample_count": 11,
-      "sample_unit": "resolved_1h_forecasts",
-      "source": "data/investments/timesfm_shadow_public_pl.json",
-      "stage": "SHADOW",
-      "started_at": "2026-08-25T20:47:07.875220Z",
-      "status": "INSUFFICIENT_DATA",
-      "system_class": "LAB",
-      "version": "google/timesfm-2.5-200m-pytorch"
-    },
-    {
-      "automatic_promotion": false,
       "benchmark": null,
       "category": "learning",
       "delta_vs_benchmark": null,
       "details": {
-        "governance": "research_can_iterate_autonomously_but_production_promotion_requires_holdout_walk_forward_costs_regime_stability_and_live_activation",
+        "governance": "candidate_to_walk_forward_to_frozen_holdout_to_regime_to_prospective_shadow; zero production authority",
         "promotion_registry_count": 0
       },
       "family": "Weekly Investments",
       "id": "strategy-research-lab",
-      "last_updated": "2026-09-25T19:57:08+02:00",
+      "last_updated": "2026-09-26T13:45:18+02:00",
       "max_drawdown": null,
       "minimum_sample": 30,
       "name": "Autonomous Strategy Research Lab",
@@ -169,18 +129,18 @@
         "interpretation": "To miara aktywności badawczej, nie wynik inwestycyjny ani alpha.",
         "label": "Kandydaci wygenerowani w cyklu",
         "unit": "candidates",
-        "value": 120
+        "value": 74
       },
       "production_impact": false,
       "purpose": "Autonomiczne generowanie i filtrowanie kandydatów strategii bez prawa do produkcyjnej aktywacji.",
-      "sample_count": 182,
+      "sample_count": 183,
       "sample_unit": "research_cycles",
       "source": "data/investments/research_lab_report.json",
       "stage": "SHADOW",
       "started_at": null,
       "status": "RUNNING",
       "system_class": "LAB",
-      "version": "1.0.0"
+      "version": "2.0.0"
     },
     {
       "automatic_promotion": false,
@@ -380,7 +340,7 @@
       "version": "eurusd-daily-abc-v1.3.0"
     }
   ],
-  "generated_at": "2026-09-26T07:46:19.074456Z",
+  "generated_at": "2026-09-26T11:45:18Z",
   "schema_version": "briefrooms-experiment-registry-v1",
   "status_policy": {
     "allowed": [
@@ -404,10 +364,10 @@
   },
   "summary": {
     "active": 2,
-    "awaiting_evidence": 5,
+    "awaiting_evidence": 4,
     "errors": 0,
     "parked_or_killed": 0,
     "promotion_candidates": 0,
-    "total": 7
+    "total": 6
   }
 }
