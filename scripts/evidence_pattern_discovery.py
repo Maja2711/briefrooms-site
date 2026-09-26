@@ -45,6 +45,9 @@ MAX_ATOMS_PER_GROUP = 18
 MAX_PATTERN_SIZE = 4
 MAX_PATTERNS_PUBLIC = 30
 DISCOVERY_FRACTION = 0.70
+MIN_DISCOVERY_LIFT = 0.05
+MIN_HOLDOUT_LIFT = 0.02
+MAX_DISCOVERY_FALSE_DISCOVERY_RATE = 0.10
 
 
 def _records(value: Any) -> list[Mapping[str, Any]]:
@@ -209,7 +212,7 @@ def _status(
 ) -> str:
     if holdout_n < MIN_HOLDOUT_SUPPORT or holdout_lift is None:
         return "DISCOVERY"
-    if holdout_lift <= 0:
+    if holdout_lift < MIN_HOLDOUT_LIFT:
         return "UNSTABLE"
     if holdout_n >= 5 and discovery_n >= 6 and holdout_lift >= 0.05:
         return "REPLICATED"
@@ -278,7 +281,7 @@ def _mine_group(
             d_success_rate = d_successes / len(matched_d)
             d_baseline_success = baseline_true if expected else 1.0 - baseline_true
             d_lift = d_success_rate - d_baseline_success
-            if d_lift <= 0:
+            if d_lift < MIN_DISCOVERY_LIFT:
                 continue
 
             matched_h = [x for x in holdout if atoms.issubset(x["atoms"])]
@@ -444,7 +447,10 @@ def build_pattern_report(state: Mapping[str, Any]) -> dict[str, Any]:
         "methodology": {
             "source": "prospective_frozen_forecast_verifications",
             "candidate_pattern_size": "2-4 atoms",
-            "selection": "discovery_only_positive_mdl_gain",
+            "selection": "discovery_only_positive_mdl_gain_plus_minimum_predictive_lift",
+            "minimum_discovery_lift": MIN_DISCOVERY_LIFT,
+            "minimum_holdout_lift": MIN_HOLDOUT_LIFT,
+            "multiple_testing_policy": "bounded vocabulary + MDL model-cost penalty; FDR gate reserved for promotion-stage inference",
             "holdout": "later_time_slice_not_used_for_selection",
             "mdl": "Jeffreys Bernoulli universal code + pattern vocabulary description cost",
             "residual": "exceptions remain explicit and are mined only as diagnostics",
