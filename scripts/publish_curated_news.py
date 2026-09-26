@@ -55,9 +55,7 @@ _original_filtered_validate = filtered.validate
 # publish_live_news_filtered snapshots base.PL at import time, so mutating base.PL
 # alone here does not reach the final publisher chain.
 base.PL = extend_config(base.PL, "pl")
-filtered.base.PL = extend_config(filtered.base.PL, "pl")
 base.EN = extend_config(base.EN, "en")
-filtered.base.EN = extend_config(filtered.base.EN, "en")
 
 # Preserve five only as a continuity guard. Three is the curation target whenever
 # the candidate pool is sufficiently diverse.
