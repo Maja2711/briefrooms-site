@@ -869,13 +869,20 @@ def _refresh_en_article_images(payload: dict[str, Any]) -> tuple[int, int]:
 PUBLIC_WEB_HEALTH_SOURCES = {
     "Termedia Menedżer Zdrowia": {
         "host": "www.termedia.pl",
-        "link_re": re.compile(r'href=["\\\'](?P<href>(?:https?://www\\.termedia\\.pl)?/mz/[^"\\\']+\\.html)["\\\'][^>]*>(?P<title>.*?)</a>', re.I | re.S),
+        "href_re": re.compile(r'''(?:https?://www\\.termedia\\.pl)?/mz/[^"'<>\\s]+,\\d+\\.html''', re.I),
     },
     "Rynek Zdrowia Aktualności": {
         "host": "www.rynekzdrowia.pl",
-        "link_re": re.compile(r'href=["\\\'](?P<href>(?:https?://www\\.rynekzdrowia\\.pl)?/[^"\\\']+,\\d+,\\d+\\.html)["\\\'][^>]*>(?P<title>.*?)</a>', re.I | re.S),
+        "href_re": re.compile(r'''(?:https?://www\\.rynekzdrowia\\.pl)?/[A-Za-z0-9_%./-]+/[^"'<>\\s]+%?2?C?\\d+%?2?C?\\d+\\.html''', re.I),
     },
 }
+
+
+def _title_from_article_url(link: str) -> str:
+    slug = link.rsplit("/", 1)[-1]
+    slug = re.sub(r",?%?2?C?\\d+(?:%?2?C?\\d+)?\\.html(?:\\?.*)?$", "", slug, flags=re.I)
+    slug = re.sub(r"[-_]+", " ", slug)
+    return base.clean(slug, 220)
 
 
 def _fetch_public_web_health(source: str, landing_url: str, now: datetime) -> tuple[list[dict[str, Any]], str | None]:
@@ -884,24 +891,26 @@ def _fetch_public_web_health(source: str, landing_url: str, now: datetime) -> tu
         body = base.request(landing_url).text[:1500000]
     except Exception as exc:
         return [], f"{source}: public-web landing request failed: {exc}"
-    candidates: list[tuple[str, str]] = []
+    links: list[str] = []
     seen: set[str] = set()
-    for match in spec["link_re"].finditer(body):
-        href = base.safe_url(match.group("href"))
-        if not href:
-            raw = match.group("href")
-            href = base.safe_url(f"https://{spec['host']}{raw}")
-        title = base.clean(match.group("title"), 220)
-        if not href or not title or href in seen:
+    for match in spec["href_re"].finditer(body):
+        raw = base.clean(match.group(0), 1000)
+        if raw.startswith("/"):
+            raw = f"https://{spec['host']}{raw}"
+        link = base.safe_url(raw)
+        if not link or link in seen:
             continue
-        seen.add(href)
-        candidates.append((title, href))
-        if len(candidates) >= 24:
+        seen.add(link)
+        links.append(link)
+        if len(links) >= 36:
             break
     stories: list[dict[str, Any]] = []
-    for title, link in candidates:
+    for link in links:
         image, published = base.page_metadata(link, now)
         if published is None:
+            continue
+        title = _title_from_article_url(link)
+        if not title:
             continue
         stories.append({
             "title": title,
@@ -910,7 +919,7 @@ def _fetch_public_web_health(source: str, landing_url: str, now: datetime) -> tu
             "source": source,
             "summary": title,
             "published_at": published.isoformat(timespec="seconds"),
-            "published_at_basis": "article_metadata",
+            "published_at_basis": "canonical_article_metadata_or_visible_date",
             "image_basis": "article_metadata" if image else "unavailable",
             "acquisition_basis": "public_web_listing",
         })
