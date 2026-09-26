@@ -29,6 +29,11 @@ _original_round_robin = base.round_robin
 
 # Add dependable reserve desks so no section is driven by one publisher's ordering.
 PL_EDITORIAL_EXTRA_FEEDS = {
+    "zdrowie": (
+        ("PAP MediaRoom Zdrowie", "https://pap-mediaroom.pl/kategoria/zdrowie-i-styl-zycia/rss.xml"),
+        ("Puls Medycyny", "https://pulsmedycyny.pl/rss/"),
+        ("Rynek Zdrowia", "https://www.rynekzdrowia.pl/rss/"),
+    ),
     "ekonomia": (
         ("Spider's Web", "https://spidersweb.pl/?feed=mcfeed"),
     ),
