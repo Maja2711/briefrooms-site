@@ -1,11 +1,11 @@
 import unittest
 
 from decision_lab_public_projection import build_payload
-from test_belief_aris_pattern import ev, verification
+from test_evidence_pattern_discovery import ev, verification
 
 
 class DecisionLabProjectionTests(unittest.TestCase):
-    def test_projection_exposes_sanitized_aris_contract(self):
+    def test_projection_exposes_sanitized_evidence_pattern_contract(self):
         rows = []
         pattern_rows = set(range(20)) | {45, 48, 52, 55, 58}
         for i in range(60):
@@ -30,17 +30,17 @@ class DecisionLabProjectionTests(unittest.TestCase):
             payload["schema_version"],
             "briefrooms_decision_lab_public_v2",
         )
-        self.assertTrue(payload["aris_patterns"])
+        self.assertTrue(payload["evidence_patterns"])
         self.assertEqual(
-            payload["aris_pattern_meta"]["causal_status"],
+            payload["evidence_pattern_meta"]["causal_status"],
             "ASSOCIATION_ONLY",
         )
         self.assertFalse(
-            payload["aris_pattern_meta"]["authority"]["decision_influence"]
+            payload["evidence_pattern_meta"]["authority"]["decision_influence"]
         )
         self.assertNotIn(
             "evidence_snapshot",
-            payload["aris_patterns"][0],
+            payload["evidence_patterns"][0],
         )
 
 
