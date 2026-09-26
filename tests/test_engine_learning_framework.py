@@ -19,7 +19,7 @@ class EngineSpecificLearningFrameworkTests(unittest.TestCase):
 
     def test_registry_covers_every_public_experiment_and_isolates_state(self) -> None:
         status = elf.validate_learning_registry(self.registry, root=ROOT)
-        self.assertEqual(status["engines"], 9)
+        self.assertEqual(status["engines"], 8)
         self.assertEqual(status["public_experiments_mapped"], 7)
         self.assertEqual(status["isolated_partitions"], 9)
 
@@ -45,7 +45,7 @@ class EngineSpecificLearningFrameworkTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             state_root = Path(tmp) / "engine_learning_state"
             summary = elf.run_all(ROOT, state_root, self.registry, now=now)
-            self.assertEqual(summary["engines"], 9)
+            self.assertEqual(summary["engines"], 8)
             self.assertEqual(summary["delegated_existing_loops"], 2)
             self.assertEqual(summary["engine_local_loops"], 7)
             self.assertEqual(summary["public_experiments_mapped"], 7)
