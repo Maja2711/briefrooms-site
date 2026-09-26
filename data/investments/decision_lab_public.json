@@ -5,7 +5,7 @@
   "execution_authority": false,
   "production_write_authority": false,
   "automatic_tuning": false,
-  "generated_at": "2026-09-26T13:11:40.271360Z",
+  "generated_at": "2026-09-26T15:30:36.960365Z",
   "market_view": [
     {
       "instrument": "BTC/USD",
@@ -2630,9 +2630,9 @@
     "log_loss": 0.667115,
     "calibration_status": "watch"
   },
-  "aris_patterns": [],
-  "aris_pattern_meta": {
-    "schema_version": "belief-aris-pattern-v1",
+  "evidence_patterns": [],
+  "evidence_pattern_meta": {
+    "schema_version": "briefrooms-evidence-pattern-v2",
     "mode": "research_shadow",
     "causal_status": "ASSOCIATION_ONLY",
     "sample": {
@@ -2648,7 +2648,10 @@
     "methodology": {
       "source": "prospective_frozen_forecast_verifications",
       "candidate_pattern_size": "2-4 atoms",
-      "selection": "discovery_only_positive_mdl_gain",
+      "selection": "discovery_only_positive_mdl_gain_plus_minimum_predictive_lift",
+      "minimum_discovery_lift": 0.05,
+      "minimum_holdout_lift": 0.02,
+      "multiple_testing_policy": "bounded vocabulary + MDL model-cost penalty; FDR gate reserved for promotion-stage inference",
       "holdout": "later_time_slice_not_used_for_selection",
       "mdl": "Jeffreys Bernoulli universal code + pattern vocabulary description cost",
       "residual": "exceptions remain explicit and are mined only as diagnostics"
