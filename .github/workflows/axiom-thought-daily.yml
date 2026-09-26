@@ -10,14 +10,16 @@ on:
       - "scripts/axiom_thought_guard.py"
       - "data/home/axiom-thought-reserve.json"
   schedule:
-    # Multiple independent recovery windows. Publisher is idempotent by Warsaw date.
-    - cron: "0 4 * * *"
-    - cron: "30 4 * * *"
-    - cron: "0 5 * * *"
-    - cron: "30 5 * * *"
-    - cron: "0 6 * * *"
-    - cron: "30 6 * * *"
-    - cron: "0 7 * * *"
+    # Stagger away from :00/:30, where GitHub scheduled workflows are most prone
+    # to queueing. Publisher is idempotent by Warsaw date, so recovery windows
+    # are safe. 03:07 UTC is 05:07 Warsaw in CEST and 04:07 in CET.
+    - cron: "7 3 * * *"
+    - cron: "23 3 * * *"
+    - cron: "41 3 * * *"
+    - cron: "7 4 * * *"
+    - cron: "29 4 * * *"
+    - cron: "53 4 * * *"
+    - cron: "17 5 * * *"
 
 permissions:
   contents: write
