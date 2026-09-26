@@ -31,7 +31,6 @@ _original_round_robin = base.round_robin
 PL_EDITORIAL_EXTRA_FEEDS = {
     "ekonomia": (
         ("Spider's Web", "https://spidersweb.pl/?feed=mcfeed"),
-        ("CoinDesk", "https://www.coindesk.com/arc/outboundfeeds/rss/"),
     ),
     "polityka": (
         ("Rzeczpospolita", "https://www.rp.pl/rss_main"),
