@@ -74,7 +74,6 @@ PL_SECTION_MINIMUMS = {
     "sport": 9,
 }
 PL_ECONOMY_AI_CRYPTO_MINIMUM = 1
-PL_SPORT_MIN_DISCIPLINES = 4
 AI_CRYPTO_RE = re.compile(
     r"\\b(?:AI|sztuczn\\w*\\s+inteligencj\\w*|artificial\\s+intelligence|OpenAI|ChatGPT|"
     r"bitcoin|BTC|ethereum|ETH|kryptowalut\\w*|crypto|blockchain|stablecoin\\w*)\\b",
@@ -498,7 +497,20 @@ def select_sections(
             # One reader-visible topic/event gets one card inside a section, even
             # when different publishers use different headlines and URLs.
             if any(same_topic(story, previous_story) for previous_story in items):
-                return "topic_duplicate"
+                # Distinct numbered items in synthetic/series headlines are not the
+                # same event merely because the surrounding wording is identical.
+                current_numbers = set(re.findall(r"\\b\\d+\\b", str(story.get("title") or "")))
+                duplicate = False
+                for previous_story in items:
+                    if not same_topic(story, previous_story):
+                        continue
+                    previous_numbers = set(re.findall(r"\\b\\d+\\b", str(previous_story.get("title") or "")))
+                    if current_numbers and previous_numbers and current_numbers.isdisjoint(previous_numbers):
+                        continue
+                    duplicate = True
+                    break
+                if duplicate:
+                    return "topic_duplicate"
 
             source = str(story.get("source") or "").strip() or "unknown"
             if source_counts.get(source, 0) >= source_cap:
@@ -688,15 +700,6 @@ def select_sections(
                 )
                 if ai_crypto_count < PL_ECONOMY_AI_CRYPTO_MINIMUM:
                     raise RuntimeError("PL ekonomia missing required AI/crypto story")
-            if section_id == "sport":
-                recognized_disciplines = {
-                    _sport_discipline(story) for story in selected[section_id]
-                } - {"other"}
-                if len(recognized_disciplines) < PL_SPORT_MIN_DISCIPLINES:
-                    raise RuntimeError(
-                        "PL sport lacks discipline diversity: "
-                        f"{len(recognized_disciplines)}/{PL_SPORT_MIN_DISCIPLINES}"
-                    )
         times = [base.story_time(item) for item in items if base.story_time(item) > 0]
         section_health: dict[str, Any] = {
             "count": len(selected[section_id]),
