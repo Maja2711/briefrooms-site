@@ -110,7 +110,7 @@ class AxiomThoughtGuardTests(unittest.TestCase):
             "en": current["en"],
         })
         errors = validate(current, [SEED, latest])
-        self.assertTrue(any("too similar to history" in e for e in errors))
+        self.assertTrue(any("too similar to protected history" in e for e in errors))
 
     def test_reserve_validation_moves_past_already_published_date(self) -> None:
         rows = [
