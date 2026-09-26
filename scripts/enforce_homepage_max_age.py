@@ -62,6 +62,12 @@ EMERGENCY_SECTION_CAP = 6
 TARGET_LANE_CAP = 3
 EMERGENCY_LANE_CAP = 4
 SPORT_HARD_CAP = 3
+PL_SECTION_MINIMUMS = {"polityka": 9, "ekonomia": 9, "zdrowie": 6, "nauka": 6, "sport": 9}
+PL_AI_CRYPTO_RE = re.compile(
+    r"\\b(?:AI|sztuczn\\w*\\s+inteligencj\\w*|artificial\\s+intelligence|OpenAI|ChatGPT|"
+    r"bitcoin|BTC|ethereum|ETH|kryptowalut\\w*|crypto|blockchain|stablecoin\\w*)\\b",
+    re.I,
+)
 
 
 def _parse_time(value: Any) -> datetime | None:
@@ -371,10 +377,42 @@ def enforce_payload(
                     continue
                 copy, reason = qualify(story)
                 if copy is not None:
-                    fresh_rows.append(copy)
+                    # Final post-freshness event/topic gate. Canonical event IDs are
+                    # available here, so this catches duplicate coverage even when
+                    # publishers use different URLs/headlines.
+                    duplicate = False
+                    for previous_story in fresh_rows:
+                        if not homepage_same_topic(copy, previous_story):
+                            continue
+                        current_numbers = set(re.findall(r"\\b\\d+\\b", str(copy.get("title") or "")))
+                        previous_numbers = set(re.findall(r"\\b\\d+\\b", str(previous_story.get("title") or "")))
+                        if current_numbers and previous_numbers and current_numbers.isdisjoint(previous_numbers):
+                            continue
+                        duplicate = True
+                        break
+                    if not duplicate:
+                        fresh_rows.append(copy)
                 else:
                     record_rejection(story, reason)
         filtered_sections[str(section_id)] = fresh_rows
+
+    if lang == "pl":
+        for section_id, minimum in PL_SECTION_MINIMUMS.items():
+            rows = filtered_sections.get(section_id, [])
+            if len(rows) < minimum:
+                raise RuntimeError(
+                    f"PL section {section_id} below required fresh unique minimum after 24h gate: "
+                    f"{len(rows)}/{minimum}"
+                )
+        economy_rows = filtered_sections.get("ekonomia", [])
+        if not any(
+            PL_AI_CRYPTO_RE.search(
+                " ".join(str(story.get(key) or "") for key in ("title", "summary"))
+            )
+            for story in economy_rows
+        ):
+            raise RuntimeError("PL ekonomia missing required fresh AI/crypto story after 24h gate")
+
     payload["sections"] = filtered_sections
 
     eligible: list[dict[str, Any]] = []
