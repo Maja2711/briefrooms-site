@@ -502,12 +502,12 @@ def select_sections(
             if any(same_topic(story, previous_story) for previous_story in items):
                 # Distinct numbered items in synthetic/series headlines are not the
                 # same event merely because the surrounding wording is identical.
-                current_numbers = set(re.findall(r"\\b\\d+\\b", str(story.get("title") or "")))
+                current_numbers = set(re.findall(r"\b\d+\b", str(story.get("title") or "")))
                 duplicate = False
                 for previous_story in items:
                     if not same_topic(story, previous_story):
                         continue
-                    previous_numbers = set(re.findall(r"\\b\\d+\\b", str(previous_story.get("title") or "")))
+                    previous_numbers = set(re.findall(r"\b\d+\b", str(previous_story.get("title") or "")))
                     if current_numbers and previous_numbers and current_numbers.isdisjoint(previous_numbers):
                         continue
                     duplicate = True
