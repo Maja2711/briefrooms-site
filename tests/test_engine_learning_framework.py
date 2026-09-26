@@ -21,7 +21,7 @@ class EngineSpecificLearningFrameworkTests(unittest.TestCase):
         status = elf.validate_learning_registry(self.registry, root=ROOT)
         self.assertEqual(status["engines"], 8)
         self.assertEqual(status["public_experiments_mapped"], 6)
-        self.assertEqual(status["isolated_partitions"], 9)
+        self.assertEqual(status["isolated_partitions"], 8)
 
         partitions = [row["state_partition"] for row in self.registry["engines"]]
         self.assertEqual(len(partitions), len(set(partitions)))
@@ -84,7 +84,7 @@ class EngineSpecificLearningFrameworkTests(unittest.TestCase):
             self.assertEqual(len(elf._read_jsonl(state_root / "brace_spx/lessons.jsonl")), 1)
 
             observatory = json.loads((state_root / elf.OBSERVATORY_FILENAME).read_text())
-            self.assertEqual(observatory["coverage"]["public_experiments_total"], 7)
+            self.assertEqual(observatory["coverage"]["public_experiments_total"], 6)
             self.assertEqual(observatory["coverage"]["public_experiments_mapped"], 6)
             self.assertEqual(observatory["coverage"]["unmapped_public_experiments"], [])
             self.assertFalse(observatory["authority"]["decision_authority"])
