@@ -729,9 +729,23 @@ def select_sections(
         if pl_mode:
             minimum = PL_SECTION_MINIMUMS.get(section_id, 0)
             if len(selected[section_id]) < minimum:
+                raw = list(fetched.get(section_id) or [])
+                fresh = [story for story in raw if _fresh_for_pl_selection(story, now)]
+                with_image = [story for story in fresh if story.get("image")]
+                by_source: dict[str, dict[str, int]] = {}
+                for story in raw:
+                    source = str(story.get("source") or "unknown")
+                    stats = by_source.setdefault(source, {"raw": 0, "fresh": 0, "image": 0})
+                    stats["raw"] += 1
+                    if _fresh_for_pl_selection(story, now):
+                        stats["fresh"] += 1
+                        if story.get("image"):
+                            stats["image"] += 1
                 raise RuntimeError(
                     f"PL section {section_id} underfilled after freshness/dedupe: "
-                    f"{len(selected[section_id])}/{minimum}"
+                    f"{len(selected[section_id])}/{minimum}; raw={len(raw)} "
+                    f"fresh={len(fresh)} fresh_with_image={len(with_image)} "
+                    f"sources={by_source}"
                 )
             if section_id == "ekonomia":
                 ai_crypto_count = sum(
