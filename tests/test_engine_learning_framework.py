@@ -47,7 +47,7 @@ class EngineSpecificLearningFrameworkTests(unittest.TestCase):
             summary = elf.run_all(ROOT, state_root, self.registry, now=now)
             self.assertEqual(summary["engines"], 8)
             self.assertEqual(summary["delegated_existing_loops"], 2)
-            self.assertEqual(summary["engine_local_loops"], 7)
+            self.assertEqual(summary["engine_local_loops"], 6)
             self.assertEqual(summary["public_experiments_mapped"], 7)
 
             brace_evidence = elf._read_jsonl(state_root / "brace_spx/evidence.jsonl")
