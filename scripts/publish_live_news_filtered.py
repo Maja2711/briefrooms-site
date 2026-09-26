@@ -82,6 +82,7 @@ PL_SECTION_MINIMUMS = {
     "sport": 9,
 }
 PL_ECONOMY_AI_CRYPTO_MINIMUM = 1
+PL_SCIENCE_AI_TARGET = 3
 AI_CRYPTO_RE = re.compile(
     r"\b(?:AI|sztuczn\w*\s+inteligencj\w*|artificial\s+intelligence|OpenAI|ChatGPT|"
     r"bitcoin|BTC|ethereum|ETH|kryptowalut\w*|crypto|blockchain|stablecoin\w*)\b",
@@ -584,6 +585,23 @@ def select_sections(
                 if _is_live_sport(story):
                     live_entities_seen.update(entities)
             return "added"
+
+        # PL science contract: AI is a major editorial lane. Reserve up to three
+        # distinct fresh AI stories before general science ranking; same-topic
+        # dedupe still prevents one model/event from occupying multiple cards.
+        if pl_mode and section_id == "nauka":
+            ai_added = 0
+            for ai_story in candidates:
+                if not AI_CRYPTO_RE.search(_story_text(ai_story)):
+                    continue
+                if try_add(
+                    ai_story,
+                    discipline_cap=False,
+                    source_cap=preferred_source_cap,
+                ) == "added":
+                    ai_added += 1
+                if ai_added >= PL_SCIENCE_AI_TARGET:
+                    break
 
         # PL economy contract: reserve one slot for a fresh AI/crypto story before
         # general ranking can consume all nine cards.
