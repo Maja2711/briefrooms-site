@@ -4,7 +4,6 @@ import argparse, json, os, re, subprocess, sys, time
 from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
-import requests
 
 ROOT=Path(__file__).resolve().parents[1]
 CURRENT=ROOT/"data/home/axiom-thought.json"; HISTORY=ROOT/"data/home/axiom-thoughts-history.jsonl"
@@ -27,6 +26,7 @@ def extract_json(s):
     if a<0 or b<a: raise ValueError("no JSON object")
     return json.loads(s[a:b+1])
 def call(prompt,model):
+    import requests
     key=os.getenv("GEMINI_API_KEY","").strip()
     if not key: raise RuntimeError("GEMINI_API_KEY missing")
     r=requests.post(f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}",
@@ -44,16 +44,20 @@ RESERVE - DO NOT REPEAT:
 Internally compare at least 10 genuinely different ideas. Reject slogans, self-help, obvious truths, quote paraphrases and semantic repeats.
 Return ONLY JSON with exactly:
 {{"theme":"kebab-case","pl":"„Polish thought”","en":"“English translation”","candidates_considered":10,"scores":{{"depth":9,"novelty":9,"banality_risk":1}},"silence_test":true,"editor_note":"at least 80 characters explaining the non-obvious insight and originality"}}"""
+def candidate_validation_stamp(rows, base_stamp=None):
+    stamp=base_stamp or today()
+    published_dates={x.get("date") for x in rows}
+    while stamp in published_dates:
+        stamp=(datetime.fromisoformat(stamp)+timedelta(days=1)).date().isoformat()
+    return stamp
+
 def validate_candidate(c,rows,reserve=()):
     required={"theme","pl","en","candidates_considered","scores","silence_test","editor_note"}
     if set(c)!=required: raise ValueError("schema mismatch")
     # Reserve generation may run after today's thought has already been published.
     # Validate a reserve candidate against a synthetic next publication date so
     # the guard does not see today's already-published date twice.
-    stamp=today()
-    published_dates={x.get("date") for x in rows}
-    while stamp in published_dates:
-        stamp=(datetime.fromisoformat(stamp)+timedelta(days=1)).date().isoformat()
+    stamp=candidate_validation_stamp(rows)
     cur={"date":stamp,"author":"AXIOM","brand":"BriefRooms","pl":c["pl"],"en":c["en"]}
     sys.path.insert(0,str(ROOT/"scripts")); from axiom_thought_guard import validate, similarity
     errors=validate(cur,rows+[{"date":stamp,**c}])
