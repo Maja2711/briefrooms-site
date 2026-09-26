@@ -8,12 +8,12 @@ import re
 import sys
 import unicodedata
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any, Iterable
 
 REQUIRED_CURRENT_KEYS = {"date", "author", "brand", "pl", "en"}
-THEME_WINDOW = 3
+HISTORY_RETENTION_DAYS = 365
 MAX_SEQUENCE_SIMILARITY = 0.72
 MAX_TOKEN_JACCARD = 0.55
 
@@ -223,26 +223,48 @@ def validate(current: dict[str, Any], history: list[dict[str, Any]]) -> list[str
 
     if len(history) > 1:
         latest_theme = latest.get("theme")
-        recent_previous = history[max(0, len(history) - 1 - THEME_WINDOW): -1]
-        repeated = [r.get("date") for r in recent_previous if r.get("theme") == latest_theme]
+        latest_date = date.fromisoformat(latest["date"])
+        cutoff = latest_date - timedelta(days=HISTORY_RETENTION_DAYS)
+        protected_history = [
+            r for r in history[:-1]
+            if _valid_iso_date(r.get("date")) and date.fromisoformat(r["date"]) >= cutoff
+        ]
+
+        # A conceptual theme is exclusive for the full 365-day memory window.
+        # This blocks a generator from rephrasing an old idea under the same theme.
+        repeated = [r.get("date") for r in protected_history if r.get("theme") == latest_theme]
         if repeated:
             errors.append(
-                f"theme {latest_theme!r} repeats within the last {THEME_WINDOW} publications"
+                f"theme {latest_theme!r} repeats within protected {HISTORY_RETENTION_DAYS}-day history"
             )
 
         latest_pl = latest.get("pl")
+        latest_en = latest.get("en")
         if isinstance(latest_pl, str):
-            for previous in history[:-1]:
+            for previous in protected_history:
                 previous_pl = previous.get("pl")
                 if not isinstance(previous_pl, str):
                     continue
                 sim = similarity(latest_pl, previous_pl)
-                if sim.violates:
+                if normalize_text(latest_pl) == normalize_text(previous_pl):
+                    errors.append(f"exact thought duplicate in protected history: {previous.get('date')}")
+                elif sim.violates:
                     errors.append(
-                        "thought is too similar to history entry "
+                        "thought is too similar to protected history entry "
                         f"{previous.get('date')}: sequence={sim.sequence:.2f}, "
                         f"jaccard={sim.jaccard:.2f}"
                     )
+                previous_en = previous.get("en")
+                if isinstance(latest_en, str) and isinstance(previous_en, str):
+                    en_sim = similarity(latest_en, previous_en)
+                    if normalize_text(latest_en) == normalize_text(previous_en):
+                        errors.append(f"exact English thought duplicate in protected history: {previous.get('date')}")
+                    elif en_sim.violates:
+                        errors.append(
+                            "English thought is too similar to protected history entry "
+                            f"{previous.get('date')}: sequence={en_sim.sequence:.2f}, "
+                            f"jaccard={en_sim.jaccard:.2f}"
+                        )
 
     return errors
 
