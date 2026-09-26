@@ -135,6 +135,17 @@ class LiveNewsPublisherTests(unittest.TestCase):
         self.assertEqual(TARGET, 9)
         self.assertEqual(MIN_SECTION, TARGET)
 
+    def test_pl_publication_minimums_match_editorial_contract(self) -> None:
+        self.assertEqual(
+            filtered_news.PL_SECTION_MINIMUMS,
+            {"polityka": 9, "ekonomia": 9, "zdrowie": 6, "nauka": 6, "sport": 9},
+        )
+
+    def test_pl_economy_ai_crypto_detector(self) -> None:
+        self.assertIsNotNone(filtered_news.AI_CRYPTO_RE.search("OpenAI rozwija nowy model AI"))
+        self.assertIsNotNone(filtered_news.AI_CRYPTO_RE.search("Bitcoin rośnie po decyzji rynku"))
+        self.assertIsNone(filtered_news.AI_CRYPTO_RE.search("Inflacja bazowa spadła w sierpniu"))
+
     def test_parse_entry_time_uses_feed_timestamp(self) -> None:
         entry = SimpleNamespace(published_parsed=(2026, 8, 3, 6, 30, 0, 0, 0, 0))
         value = parse_entry_time(entry)
