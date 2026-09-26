@@ -19,9 +19,9 @@ class EngineSpecificLearningFrameworkTests(unittest.TestCase):
 
     def test_registry_covers_every_public_experiment_and_isolates_state(self) -> None:
         status = elf.validate_learning_registry(self.registry, root=ROOT)
-        self.assertEqual(status["engines"], 9)
-        self.assertEqual(status["public_experiments_mapped"], 7)
-        self.assertEqual(status["isolated_partitions"], 9)
+        self.assertEqual(status["engines"], 8)
+        self.assertEqual(status["public_experiments_mapped"], 6)
+        self.assertEqual(status["isolated_partitions"], 8)
 
         partitions = [row["state_partition"] for row in self.registry["engines"]]
         self.assertEqual(len(partitions), len(set(partitions)))
@@ -45,10 +45,10 @@ class EngineSpecificLearningFrameworkTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             state_root = Path(tmp) / "engine_learning_state"
             summary = elf.run_all(ROOT, state_root, self.registry, now=now)
-            self.assertEqual(summary["engines"], 9)
+            self.assertEqual(summary["engines"], 8)
             self.assertEqual(summary["delegated_existing_loops"], 2)
-            self.assertEqual(summary["engine_local_loops"], 7)
-            self.assertEqual(summary["public_experiments_mapped"], 7)
+            self.assertEqual(summary["engine_local_loops"], 6)
+            self.assertEqual(summary["public_experiments_mapped"], 6)
 
             brace_evidence = elf._read_jsonl(state_root / "brace_spx/evidence.jsonl")
             wes_evidence = elf._read_jsonl(state_root / "wes/evidence.jsonl")
@@ -84,8 +84,8 @@ class EngineSpecificLearningFrameworkTests(unittest.TestCase):
             self.assertEqual(len(elf._read_jsonl(state_root / "brace_spx/lessons.jsonl")), 1)
 
             observatory = json.loads((state_root / elf.OBSERVATORY_FILENAME).read_text())
-            self.assertEqual(observatory["coverage"]["public_experiments_total"], 7)
-            self.assertEqual(observatory["coverage"]["public_experiments_mapped"], 7)
+            self.assertEqual(observatory["coverage"]["public_experiments_total"], 6)
+            self.assertEqual(observatory["coverage"]["public_experiments_mapped"], 6)
             self.assertEqual(observatory["coverage"]["unmapped_public_experiments"], [])
             self.assertFalse(observatory["authority"]["decision_authority"])
             self.assertFalse(observatory["authority"]["engine_state_writeback"])

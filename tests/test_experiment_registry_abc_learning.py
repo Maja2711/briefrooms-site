@@ -40,7 +40,7 @@ class ExperimentRegistryABCLearningTests(unittest.TestCase):
                 },
             }), encoding="utf-8")
             registry = build_registry(root)
-        self.assertEqual(len(registry["experiments"]), 7)
+        self.assertEqual(len(registry["experiments"]), 6)
         row = next(item for item in registry["experiments"] if item["id"] == "eurusd-abc-live-shadow")
         learning = row["details"]["learning_loop"]
         self.assertTrue(learning["available"])

@@ -223,45 +223,6 @@ def _eurusd_abc(root: Path) -> dict[str, Any]:
     return row
 
 
-def _timesfm(root: Path) -> dict[str, Any]:
-    src = "data/investments/timesfm_shadow_public_pl.json"
-    data = _load(root, src)
-    experiment = data.get("experiment") if isinstance(data.get("experiment"), Mapping) else {}
-    row = _base(
-        experiment_id="timesfm-shadow",
-        name="TimesFM Shadow Forecaster",
-        category="forecasting",
-        family="EURUSD",
-        version=str(experiment.get("model_id") or "TimesFM"),
-        started_at=_iso(experiment.get("activated_at")),
-        minimum_sample=60,
-        purpose="Sprawdzenie, czy TimesFM daje prospektywną przewagę prognostyczną względem prostych baseline'ów.",
-        source=src,
-    )
-    resolved = 0
-    correct = 0
-    for item in data.get("history", []) if isinstance(data.get("history"), list) else []:
-        if not isinstance(item, Mapping):
-            continue
-        horizons = item.get("horizons") if isinstance(item.get("horizons"), Mapping) else {}
-        one_h = horizons.get("1h") if isinstance(horizons.get("1h"), Mapping) else {}
-        flag = one_h.get("direction_correct")
-        if isinstance(flag, bool):
-            resolved += 1
-            correct += int(flag)
-    accuracy = correct / resolved if resolved else None
-    row["sample_count"] = resolved
-    row["sample_unit"] = "resolved_1h_forecasts"
-    row["last_updated"] = _iso(data.get("generated_at"))
-    row["status"] = "RUNNING" if resolved >= 60 else "INSUFFICIENT_DATA"
-    row["primary_metric"] = _metric("Trafność kierunku 1h", accuracy, "fraction", "Miara forecast skill; nie formalna alpha.")
-    row["benchmark"] = _metric("Losowy kierunek", 0.5, "fraction", "Baseline prognostyczny, nie benchmark rynkowy/PnL.")
-    row["delta_vs_benchmark"] = (accuracy - 0.5) if accuracy is not None else None
-    row["details"] = {"research_only": experiment.get("research_only"), "decision_influence": experiment.get("decision_influence")}
-    row["notes"] = ["Dla EUR/USD nie przypisujemy sztucznego benchmarku rynkowego."]
-    return row
-
-
 def _gse(root: Path) -> dict[str, Any]:
     src = "data/gse/gse_v2_lab_public.json"
     data = _load(root, src)
@@ -416,7 +377,7 @@ def build_registry(root: Path) -> dict[str, Any]:
     # AI Tournament is deliberately excluded. It is a public one-off/fun
     # comparison of frozen LLM picks, not a learning experiment and not an
     # input into Experience Store, promotion gates or future model training.
-    builders = (_research_lab, _eurusd_abc, _timesfm, _gse, _brace_spx, _wes, _aris)
+    builders = (_research_lab, _eurusd_abc, _gse, _brace_spx, _wes, _aris)
     experiments = [builder(root) for builder in builders]
     experiments.sort(key=lambda item: (str(item.get("category")), str(item.get("name"))))
 
