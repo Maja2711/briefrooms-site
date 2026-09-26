@@ -93,6 +93,20 @@ _register("Financial Times", tier="premium", source_type="global_media", acquisi
 _register("Bloomberg", tier="premium", source_type="global_media", acquisition="best_effort_public_rss", aliases=("Bloomberg Markets", "Bloomberg Politics"))
 
 for _name in (
+    "PAP MediaRoom Zdrowie",
+    "PAP MediaRoom Nauka i Technologie",
+):
+    _register(_name, tier="wire", source_type="specialist_wire_desk", acquisition="public_rss", parent="PAP")
+
+for _name in (
+    "Puls Medycyny",
+    "Rynek Zdrowia",
+    "Termedia",
+    "Medycyna Praktyczna",
+):
+    _register(_name, tier="quality", source_type="specialist_editorial_desk", acquisition="public_web")
+
+for _name in (
     "Rzeczpospolita",
     "The Guardian",
     "Bankier.pl",
@@ -136,6 +150,9 @@ EXTRA_FEEDS: dict[str, dict[str, tuple[tuple[str, str], ...]]] = {
             ("PAP MediaRoom Zdrowie", "https://pap-mediaroom.pl/kategoria/zdrowie-i-styl-zycia/rss.xml"),
             ("Puls Medycyny", "https://pulsmedycyny.pl/rss/"),
             ("Rynek Zdrowia", "https://www.rynekzdrowia.pl/rss/"),
+        ),
+        "nauka": (
+            ("PAP MediaRoom Nauka i Technologie", "https://pap-mediaroom.pl/kategoria/nauka-i-technologie/rss.xml"),
         ),
     },
 }
