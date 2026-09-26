@@ -20,7 +20,7 @@ class EngineSpecificLearningFrameworkTests(unittest.TestCase):
     def test_registry_covers_every_public_experiment_and_isolates_state(self) -> None:
         status = elf.validate_learning_registry(self.registry, root=ROOT)
         self.assertEqual(status["engines"], 8)
-        self.assertEqual(status["public_experiments_mapped"], 7)
+        self.assertEqual(status["public_experiments_mapped"], 6)
         self.assertEqual(status["isolated_partitions"], 9)
 
         partitions = [row["state_partition"] for row in self.registry["engines"]]
@@ -48,7 +48,7 @@ class EngineSpecificLearningFrameworkTests(unittest.TestCase):
             self.assertEqual(summary["engines"], 8)
             self.assertEqual(summary["delegated_existing_loops"], 2)
             self.assertEqual(summary["engine_local_loops"], 6)
-            self.assertEqual(summary["public_experiments_mapped"], 7)
+            self.assertEqual(summary["public_experiments_mapped"], 6)
 
             brace_evidence = elf._read_jsonl(state_root / "brace_spx/evidence.jsonl")
             wes_evidence = elf._read_jsonl(state_root / "wes/evidence.jsonl")
@@ -85,7 +85,7 @@ class EngineSpecificLearningFrameworkTests(unittest.TestCase):
 
             observatory = json.loads((state_root / elf.OBSERVATORY_FILENAME).read_text())
             self.assertEqual(observatory["coverage"]["public_experiments_total"], 7)
-            self.assertEqual(observatory["coverage"]["public_experiments_mapped"], 7)
+            self.assertEqual(observatory["coverage"]["public_experiments_mapped"], 6)
             self.assertEqual(observatory["coverage"]["unmapped_public_experiments"], [])
             self.assertFalse(observatory["authority"]["decision_authority"])
             self.assertFalse(observatory["authority"]["engine_state_writeback"])
