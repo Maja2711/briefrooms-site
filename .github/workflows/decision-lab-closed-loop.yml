@@ -12,6 +12,7 @@ on:
       - "scripts/belief_calibration_foundation.py"
       - "scripts/decision_lab_learning.py"
       - "scripts/decision_lab_public_projection.py"
+      - "scripts/evidence_pattern_discovery.py"
   schedule:
     - cron: "7 * * * *"
 
@@ -64,7 +65,8 @@ jobs:
           fi
       - name: Validate closed-loop code
         run: |
-          python -m py_compile scripts/belief_core_live.py scripts/belief_calibration.py scripts/belief_calibration_foundation.py scripts/decision_lab_learning.py scripts/decision_lab_public_projection.py
+          python -m py_compile scripts/belief_core_live.py scripts/belief_calibration.py scripts/belief_calibration_foundation.py scripts/decision_lab_learning.py scripts/decision_lab_public_projection.py scripts/evidence_pattern_discovery.py
+          PYTHONPATH=scripts:tests python -m unittest tests/test_evidence_pattern_discovery.py -v
       - name: Forecast freeze target outcome
         env:
           PYTHONPATH: ${{ github.workspace }}/scripts
