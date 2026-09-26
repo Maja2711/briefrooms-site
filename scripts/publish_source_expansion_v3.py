@@ -115,7 +115,7 @@ def _assert_pl_source_contract() -> None:
     by_section = {section_id: feeds for section_id, _label, feeds in base.PL}
     health_sources = {source for source, _url in by_section.get("zdrowie", [])}
     science_sources = {source for source, _url in by_section.get("nauka", [])}
-    required_health = {"Nauka w Polsce", "RMF24", "PAP MediaRoom Zdrowie", "Puls Medycyny", "Rynek Zdrowia"}
+    required_health = {"Nauka w Polsce", "RMF24", "Serwis Zdrowie PAP", "PAP MediaRoom Zdrowie", "Puls Medycyny", "Rynek Zdrowia"}
     missing_health = required_health - health_sources
     if missing_health:
         raise RuntimeError(f"canonical PL health source contract missing: {sorted(missing_health)}")
