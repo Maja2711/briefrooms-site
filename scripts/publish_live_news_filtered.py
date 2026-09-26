@@ -866,8 +866,62 @@ def _refresh_en_article_images(payload: dict[str, Any]) -> tuple[int, int]:
     return refreshed, len(stories_by_identity)
 
 
+PUBLIC_WEB_HEALTH_SOURCES = {
+    "Termedia Menedżer Zdrowia": {
+        "host": "www.termedia.pl",
+        "link_re": re.compile(r'href=["\\\'](?P<href>(?:https?://www\\.termedia\\.pl)?/mz/[^"\\\']+\\.html)["\\\'][^>]*>(?P<title>.*?)</a>', re.I | re.S),
+    },
+    "Rynek Zdrowia Aktualności": {
+        "host": "www.rynekzdrowia.pl",
+        "link_re": re.compile(r'href=["\\\'](?P<href>(?:https?://www\\.rynekzdrowia\\.pl)?/[^"\\\']+,\\d+,\\d+\\.html)["\\\'][^>]*>(?P<title>.*?)</a>', re.I | re.S),
+    },
+}
+
+
+def _fetch_public_web_health(source: str, landing_url: str, now: datetime) -> tuple[list[dict[str, Any]], str | None]:
+    spec = PUBLIC_WEB_HEALTH_SOURCES[source]
+    try:
+        body = base.request(landing_url).text[:1500000]
+    except Exception as exc:
+        return [], f"{source}: public-web landing request failed: {exc}"
+    candidates: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for match in spec["link_re"].finditer(body):
+        href = base.safe_url(match.group("href"))
+        if not href:
+            raw = match.group("href")
+            href = base.safe_url(f"https://{spec['host']}{raw}")
+        title = base.clean(match.group("title"), 220)
+        if not href or not title or href in seen:
+            continue
+        seen.add(href)
+        candidates.append((title, href))
+        if len(candidates) >= 24:
+            break
+    stories: list[dict[str, Any]] = []
+    for title, link in candidates:
+        image, published = base.page_metadata(link, now)
+        if published is None:
+            continue
+        stories.append({
+            "title": title,
+            "link": link,
+            "image": image,
+            "source": source,
+            "summary": title,
+            "published_at": published.isoformat(timespec="seconds"),
+            "published_at_basis": "article_metadata",
+            "image_basis": "article_metadata" if image else "unavailable",
+            "acquisition_basis": "public_web_listing",
+        })
+    return stories, None
+
+
 def fetch_feed(source: str, feed_url: str, section_id: str, now: Any) -> tuple[list[dict[str, Any]], str | None]:
-    stories, error = _original_fetch_feed(source, feed_url, section_id, now)
+    if section_id == "zdrowie" and source in PUBLIC_WEB_HEALTH_SOURCES:
+        stories, error = _fetch_public_web_health(source, feed_url, now)
+    else:
+        stories, error = _original_fetch_feed(source, feed_url, section_id, now)
     accepted = _filter_stories(stories, f"fresh/{section_id}/{source}")
     if section_id == "sport":
         # The base image pass is intentionally bounded. Make sure a live/high-profile
