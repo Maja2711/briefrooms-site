@@ -78,8 +78,8 @@ PL_SECTION_MINIMUMS = {
 }
 PL_ECONOMY_AI_CRYPTO_MINIMUM = 1
 AI_CRYPTO_RE = re.compile(
-    r"\\b(?:AI|sztuczn\\w*\\s+inteligencj\\w*|artificial\\s+intelligence|OpenAI|ChatGPT|"
-    r"bitcoin|BTC|ethereum|ETH|kryptowalut\\w*|crypto|blockchain|stablecoin\\w*)\\b",
+    r"\b(?:AI|sztuczn\w*\s+inteligencj\w*|artificial\s+intelligence|OpenAI|ChatGPT|"
+    r"bitcoin|BTC|ethereum|ETH|kryptowalut\w*|crypto|blockchain|stablecoin\w*)\b",
     re.IGNORECASE,
 )
 
