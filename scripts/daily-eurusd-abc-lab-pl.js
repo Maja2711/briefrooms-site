@@ -154,21 +154,33 @@
 
 
   function xPanel(x) {
-    if (!x || !x.fixed_core) return '<section class="abc-x-panel"><div class="abc-x-head"><div><span class="abc-x-kicker">X · SHADOW ONLY</span><h4>EURUSD X</h4></div><b>OCZEKUJE NA DANE</b></div><p>Silnik X został zainicjalizowany; pierwszy cykl badawczy nie został jeszcze opublikowany.</p></section>';
-    const core=x.fixed_core||{}, adapt=x.adaptive_layer||{}, champ=adapt.champion||{}, challenger=adapt.challenger||{}, perf=x.performance?.champion||{}, sample=x.sample||{};
-    const cal=x.last_calibration||null;
-    const calLabel=cal ? (cal.action === "PROMOTE_CHALLENGER" ? "PROMOCJA "+esc(cal.challenger) : "ROLLBACK · "+esc(cal.champion)) : "BRAK ROZSTRZYGNIĘTEJ KALIBRACJI";
+    if (!x || !x.fixed_core) return '<section class="abc-x-panel"><div class="abc-x-head"><div><span class="abc-x-kicker">X · SHADOW ONLY</span><h4>EURUSD X</h4></div><b>OCZEKUJE NA DANE</b></div><p>Silnik X jest odseparowany od A/B/C i produkcyjnego Daily EUR/USD. Czeka na pierwszy prospektywny capture.</p></section>';
+    const core=x.fixed_core||{}, policy=x.calibration_policy||{}, latest=x.latest_prediction||null;
+    const champion=x.champion_setup_id||"X-BASE", challenger=x.active_challenger_id||"—", rollback=x.last_best_setup_id||champion;
+    const setups=Array.isArray(x.setups)?x.setups:[], champMetric=setups.find(row=>row.setup_id===champion)||{};
+    const events=Array.isArray(x.recent_calibration_events)?x.recent_calibration_events:[], lastEvent=events.length?events[events.length-1]:null;
+    const discoveries=Array.isArray(x.recent_discoveries)?x.recent_discoveries:[];
+    const eventLabel=!lastEvent ? "BRAK ROZSTRZYGNIĘTEJ KALIBRACJI" :
+      lastEvent.action==="PROMOTE_X_SHADOW" ? "PROMOCJA → "+esc(lastEvent.champion_after||champion) :
+      lastEvent.action==="ROLLBACK" ? "ROLLBACK → "+esc(lastEvent.champion_after||rollback) :
+      "KEEP · "+esc(lastEvent.champion_after||champion);
+    const latestLine=latest
+      ? '<span>Sygnał <b class="'+directionClass(latest.direction)+'">'+esc(latest.direction||"FLAT")+'</b></span><span>P(Long) <b>'+pct(latest.probability_long)+'</b></span><span>Score <b>'+num(latest.score,1)+'</b></span><span>Reference <b>'+price(latest.reference_price)+'</b></span>'
+      : '<span>Status rynku <b>'+esc(x.market_status||"WAITING")+'</b></span><span>Brak pierwszego świeżego capture</span>';
+    const setupRows=setups.slice(0,8).map(row=>'<div class="abc-x-setup'+(row.setup_id===champion?' champion':'')+'"><b>'+esc(row.setup_id)+'</b><span>'+esc(row.label||"")+'</span><small>n '+Number(row.n||0)+' · Brier '+(hasNum(row.brier)?num(row.brier,3):"—")+' · hit '+(hasNum(row.hit_rate)?pct(row.hit_rate):"—")+' · edge '+(hasNum(row.mean_signed_return_bps)?bps(row.mean_signed_return_bps):"—")+'</small></div>').join("");
     return '<section class="abc-x-panel">'+
-      '<div class="abc-x-head"><div><span class="abc-x-kicker">X · FAST CALIBRATION · SHADOW ONLY</span><h4>EURUSD X</h4></div><b>'+esc(champ.version || "X-001")+'</b></div>'+
+      '<div class="abc-x-head"><div><span class="abc-x-kicker">X · HOURLY CALIBRATION · SHADOW ONLY</span><h4>EURUSD X</h4></div><b>'+esc(champion)+'</b></div>'+
       '<div class="abc-x-grid">'+
-        '<div><small>Stały core</small><strong>MA 30/60/100/200</strong><span>1H · 1D · 1W · 1M</span></div>'+
-        '<div><small>Pivot</small><strong>'+esc(core.pivot || "classic_daily")+'</strong><span>Daily</span></div>'+
-        '<div><small>Bollinger</small><strong>'+num(core.bollinger?.sigma,1)+'σ</strong><span>1H · 1D · window '+esc(core.bollinger?.window ?? "—")+'</span></div>'+
+        '<div><small>Stały core</small><strong>MA 30/60/100/200</strong><span>'+esc((core.ma_timeframes||["H1","D1","W1","M1"]).join(" · "))+'</span></div>'+
+        '<div><small>Pivot</small><strong>Classic P / R1-R3 / S1-S3</strong><span>Daily · parametr niezmienny</span></div>'+
+        '<div><small>Bollinger</small><strong>'+num(core.bollinger?.stddevs,1)+'σ</strong><span>'+esc((core.bollinger?.timeframes||["H1","D1"]).join(" · "))+' · window '+esc(core.bollinger?.window??20)+'</span></div>'+
         '<div><small>Belief</small><strong>BRs Belief Core</strong><span>read-only · bez writebacku</span></div>'+
       '</div>'+
-      '<div class="abc-x-state"><span>Champion <b>'+esc(champ.version || "—")+'</b> · TECH '+pct(champ.technical_weight)+' · BELIEF '+pct(champ.belief_weight)+'</span><span>Challenger <b>'+esc(challenger.version || "—")+'</b></span><span>Kalibracja co <b>'+esc(adapt.calibration_block_resolved ?? 5)+'</b> resolved</span><span>Rollback <b>AUTO</b></span></div>'+
-      '<div class="abc-x-state"><span>Capture <b>'+esc(sample.captures ?? 0)+'</b></span><span>Resolved <b>'+esc(sample.resolved ?? 0)+'</b></span><span>PF <b>'+(hasNum(perf.profit_factor)?num(perf.profit_factor,2):"—")+'</b></span><span>Expectancy <b>'+(hasNum(perf.expectancy_pips)?num(perf.expectancy_pips,2)+" pips":"—")+'</b></span><span>Hit <b>'+(hasNum(perf.hit_rate)?pct(perf.hit_rate):"—")+'</b></span></div>'+
-      '<p class="abc-x-calibration">'+calLabel+' · discovery nowych technicznych składników/strategii/anomalii: ON · stały core nie może być zmieniany przez kalibrację.</p>'+
+      '<div class="abc-x-state">'+latestLine+'</div>'+
+      '<div class="abc-x-state"><span>Champion <b>'+esc(champion)+'</b></span><span>Challenger <b>'+esc(challenger)+'</b></span><span>Rollback target <b>'+esc(rollback)+'</b></span><span>Capture <b>'+Number(x.capture_count||0)+'</b></span><span>Resolved 4h <b>'+Number(x.resolved_4h||0)+'</b></span></div>'+
+      '<div class="abc-x-state"><span>Brier Championa <b>'+(hasNum(champMetric.brier)?num(champMetric.brier,3):"—")+'</b></span><span>Hit <b>'+(hasNum(champMetric.hit_rate)?pct(champMetric.hit_rate):"—")+'</b></span><span>Edge <b>'+(hasNum(champMetric.mean_signed_return_bps)?bps(champMetric.mean_signed_return_bps):"—")+'</b></span><span>Gate <b>'+Number(policy.minimum_common_eval||8)+' common 4h</b></span></div>'+
+      '<div class="abc-x-setups">'+setupRows+'</div>'+
+      '<p class="abc-x-calibration">'+eventLabel+' · anomaly hunter: '+(discoveries.length?"AKTYWNY / "+discoveries.length+" ostatnich odkryć":"AKTYWNY · czeka na próbę")+' · nowe strategie dostają wynik dopiero od przyszłych capture · stały core nigdy nie jest kalibrowany.</p>'+
     '</section>';
   }
 
