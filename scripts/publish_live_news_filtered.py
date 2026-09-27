@@ -873,7 +873,7 @@ PUBLIC_WEB_HEALTH_SOURCES = {
     },
     "Rynek Zdrowia Aktualności": {
         "host": "www.rynekzdrowia.pl",
-        "href_re": re.compile(r'''(?:https?://www\.rynekzdrowia\.pl)?/[A-Za-z0-9_%./-]+/[^"'<>\s]+%?2?C?\d+%?2?C?\d+\.html''', re.I),
+        "href_re": re.compile(r'''(?:https?://www\.rynekzdrowia\.pl)?/[A-Za-z0-9_%./-]+/[^"'<>\s]+(?:,|%2C)\d+(?:,|%2C)\d+\.html''', re.I),
     },
 }
 
