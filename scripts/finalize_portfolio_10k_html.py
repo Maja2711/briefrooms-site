@@ -20,8 +20,6 @@ PAGES = (
 CANONICAL_VERSIONS = {
     "portfolio-10k-dashboard.js": "10",
     "portfolio-10k-dashboard-en.js": "10",
-    "portfolio-10k-experience-store.js": "1",
-    "portfolio-10k-lab-health.js": "3",
     "ai-tournament-public.js": "6",
     "ai-tournament-readiness.js": "6",
     "ai-tournament-company-profiles.js": "2",
@@ -29,8 +27,6 @@ CANONICAL_VERSIONS = {
     "portfolio-10k-navigation-guard.js": "8",
 }
 REQUIRED_SHARED = (
-    "portfolio-10k-experience-store.js",
-    "portfolio-10k-lab-health.js",
     "ai-tournament-public.js",
     "ai-tournament-readiness.js",
     "ai-tournament-company-profiles.js",
