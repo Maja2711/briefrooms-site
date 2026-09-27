@@ -51,6 +51,30 @@ function target(value){
   if(Number.isNaN(d.getTime())) return String(value);
   return d.toLocaleString("pl-PL",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
 }
+function marketCalendar(x){
+  const name=instrument(x), raw=x?.target_at;
+  if(!raw) return {state:"UNKNOWN",label:"brak targetu",detail:""};
+  const d=new Date(raw); if(Number.isNaN(d.getTime())) return {state:"UNKNOWN",label:"brak kalendarza",detail:""};
+  if(name==="BTC/USD") return {state:"OPEN",label:"24/7",detail:"Rynek działa 24/7."};
+  const day=d.getUTCDay(), mins=d.getUTCHours()*60+d.getUTCMinutes();
+  if(name==="EUR/USD"){
+    const closed=day===6 || (day===0 && mins<22*60) || (day===5 && mins>=22*60);
+    return closed
+      ? {state:"CLOSED",label:"FX zamknięty",detail:"Settlement: pierwsze dostępne notowanie po ponownym otwarciu rynku FX."}
+      : {state:"OPEN",label:"FX otwarty",detail:"Target przypada w czasie handlu FX."};
+  }
+  if(name==="S&P 500"){
+    const weekend=day===0||day===6;
+    return weekend
+      ? {state:"CLOSED",label:"rynek USA zamknięty",detail:"Settlement: pierwsze dostępne notowanie po ponownym otwarciu rynku USA."}
+      : {state:"SESSION",label:"kalendarz USA",detail:"Settlement wykorzystuje pierwsze dostępne notowanie po Target; święta i brak danych pozostają fail-closed."};
+  }
+  return {state:"UNKNOWN",label:"kalendarz n/d",detail:""};
+}
+function calendarBadge(x){
+  const m=marketCalendar(x), cls=m.state==="CLOSED"?"closed":m.state==="OPEN"?"open":"session";
+  return '<small class="market-calendar '+cls+'" title="'+esc(m.detail)+'">'+esc(m.label)+'</small>';
+}
 function outcome(x){
   if(String(x?.status||"").toUpperCase()!=="RESOLVED") return '<span class="outcome pending">—</span>';
   return x.outcome===true
@@ -137,7 +161,7 @@ function forecasts(items){
         '<span class="hypothesis" title="'+esc(x.belief_id||"")+'">'+esc(hypothesis(x))+'</span>'+
         '<span class="probability" title="'+esc(probabilityMeaning(x))+'">'+pct(x.probability)+'<small>'+esc(probabilityMeaning(x))+'</small></span>'+
         '<span>'+pct(x.confidence)+'</span>'+
-        '<span class="target" title="Forecast: '+esc(forecastTime(x.forecast_at))+' · Target: '+esc(target(x.target_at))+'">'+esc(target(x.target_at))+'<small>od '+esc(forecastTime(x.forecast_at))+'</small></span>'+
+        '<span class="target" title="Forecast: '+esc(forecastTime(x.forecast_at))+' · Target: '+esc(target(x.target_at))+' · '+esc(marketCalendar(x).detail)+'">'+esc(target(x.target_at))+'<small>od '+esc(forecastTime(x.forecast_at))+'</small>'+calendarBadge(x)+'</span>'+
         outcome(x)+
         '<span class="brier">'+num(x.brier_score,3)+'</span>'+
         status(x.status)+
