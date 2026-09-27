@@ -171,6 +171,7 @@ jobs:
           import urllib.request
           from datetime import datetime, timedelta, timezone
           from scripts.dedupe_home_brief_stories import same_topic
+          from scripts import publish_live_news as news_base
           from scripts.publish_live_news_filtered import (
               PL_UKRAINE_RUSSIA_WAR_MINIMUM,
               PL_UKRAINE_RUSSIA_WAR_POLICY_VERSION,
@@ -183,7 +184,7 @@ jobs:
           html_paths = ('/pl/aktualnosci.html', '/en/news.html', '/pl/index.html', '/en/index.html')
           headers = {'User-Agent': 'BriefRooms production verifier/9.0', 'Cache-Control': 'no-cache'}
           last = []
-          for attempt in range(48):
+          for attempt in range(24):
               last = []
               for path in json_paths:
                   try:
@@ -307,9 +308,10 @@ jobs:
                               )
                               break
                           approved.append(story)
-                      if any(len(items) > 9 for items in payload.get('sections', {}).values()):
-                          last.append(f'{path}: section exceeds 9 stories')
                       for section_id, items in payload.get('sections', {}).items():
+                          section_target = news_base.EN_SECTION_TARGETS.get(section_id, news_base.TARGET) if path.endswith('/en.json') else news_base.TARGET
+                          if len(items) > section_target:
+                              last.append(f'{path}/{section_id}: section exceeds target {section_target}, got {len(items)}')
                           counts = {}
                           event_ids = set()
                           for story in items:
