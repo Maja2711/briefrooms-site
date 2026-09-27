@@ -52,6 +52,18 @@ def build_payload(state, report):
             "regime": f.get("regime"), "status": "RESOLVED" if v else "OPEN",
             "outcome": None if not v else bool(v.get("outcome")),
             "brier_score": None if not v else v.get("brier_score"),
+            "forecast_contract_version": (f.get("metadata") or {}).get("forecast_contract_version"),
+            "model_freeze_version": (f.get("metadata") or {}).get("model_freeze_version"),
+            "t0_at": (f.get("metadata") or {}).get("t0_at"),
+            "t0_values": (f.get("metadata") or {}).get("t0_values"),
+            "nominal_target_at": (f.get("metadata") or {}).get("nominal_target_at"),
+            "settlement_rule": (f.get("metadata") or {}).get("settlement_rule"),
+            "settlement_max_delay_hours": (f.get("metadata") or {}).get("settlement_max_delay_hours"),
+            "market_calendar": (f.get("metadata") or {}).get("market_calendar"),
+            "t1_values": (f.get("metadata") or {}).get("t1_values"),
+            "settled_at": (f.get("metadata") or {}).get("settled_at"),
+            "production_write_authority": False,
+            "automatic_promotion": False,
         }
 
     multi = [f for f in forecasts if (f.get("metadata") or {}).get("multihorizon_contract") == "decision-lab-multihorizon-v1"]
@@ -130,6 +142,8 @@ def build_payload(state, report):
         "execution_authority": False,
         "production_write_authority": False,
         "automatic_tuning": False,
+        "automatic_promotion": False,
+        "promotion_policy": "candidate_only_manual_production_decision",
         "generated_at": report.get("generated_at"),
         "market_view": market_view,
         "market_view_contract": {
