@@ -83,36 +83,34 @@ class HomepageExposureCapTests(unittest.TestCase):
         late_result, _ = enforce_payload(late_payload, state, late)
         self.assertEqual(late_result["home"], [])
 
-    def test_expired_story_is_removed_from_section_as_well_as_homepage(self) -> None:
+    def test_source_age_does_not_block_first_briefrooms_display(self) -> None:
         now = datetime(2026, 9, 21, 12, 0, tzinfo=timezone.utc)
-        expired = self._story("Expired everywhere", now - HOME_MAX_AGE - timedelta(seconds=1))
-        fresh = self._story("Fresh everywhere", now - timedelta(hours=1))
+        older_source_story = self._story("Older source story", now - HOME_MAX_AGE - timedelta(days=3))
         payload = {
-            "home": [expired, fresh],
+            "home": [older_source_story],
             "home_reserve": [],
-            "sections": {"health": [expired, fresh]},
+            "sections": {"health": [older_source_story]},
             "labels": {"health": "Health"},
             "health": {},
         }
 
-        result, _ = enforce_payload(payload, {}, now, lang="pl")
+        result, state = enforce_payload(payload, {}, now, lang="pl")
 
+        self.assertEqual([item["title"] for item in result["sections"]["health"]], ["Older source story"])
+        self.assertEqual([item["title"] for item in result["home"]], ["Older source story"])
+        displayed = result["sections"]["health"][0]
+        self.assertEqual(displayed["news_first_seen_at"], now.isoformat(timespec="seconds"))
         self.assertEqual(
-            [item["title"] for item in result["sections"]["health"]],
-            ["Fresh everywhere"],
+            displayed["news_expires_at"],
+            (now + HOME_MAX_AGE).isoformat(timespec="seconds"),
         )
-        self.assertEqual(
-            [item["title"] for item in result["home"]],
-            ["Fresh everywhere"],
-        )
-        fresh_story = result["sections"]["health"][0]
-        self.assertIn("news_first_seen_at", fresh_story)
-        self.assertIn("news_expires_at", fresh_story)
+
+        late = now + HOME_MAX_AGE + timedelta(seconds=1)
+        late_result, _ = enforce_payload(payload, state, late, lang="pl")
+        self.assertEqual(late_result["sections"]["health"], [])
+        self.assertEqual(late_result["home"], [])
         self.assertEqual(result["homepage_policy"]["max_display_hours"], 24)
-        self.assertEqual(
-            result["homepage_policy"]["scope"],
-            "all_public_news_surfaces",
-        )
+        self.assertEqual(result["homepage_policy"]["scope"], "all_public_news_surfaces")
 
     def test_expired_home_story_is_replaced_by_next_eligible_reserve_story(self) -> None:
         now = datetime(2026, 8, 26, 18, 0, tzinfo=timezone.utc)
