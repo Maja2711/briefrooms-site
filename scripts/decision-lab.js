@@ -228,8 +228,46 @@ function horizonAggregateHtml(){
 
 function metric(rootId,m){
   const root=document.getElementById(rootId);if(!root)return;
-  const cells=[["Forecasty",m.forecast_count],["Resolved",m.resolved_count],["Eligible",m.calibration_eligible],["Brier",m.brier_score],["ECE",m.ece],["Log loss",m.log_loss]];
+  const cells=rootId==="metrics" ? [["Forecasty",m.forecast_count],["Resolved",m.resolved_count],["Brier",m.brier_score],["ECE",m.ece],["Log loss",m.log_loss],["Brier Skill",m.brier_skill==null?"—":pct(m.brier_skill)]] : [["Forecasty",m.forecast_count],["Resolved",m.resolved_count],["Eligible",m.calibration_eligible],["Brier",m.brier_score],["ECE",m.ece],["Log loss",m.log_loss]];
   root.innerHTML=cells.map(([k,v])=>'<div class="metric"><small>'+k+'</small><b>'+(v==null?"—":esc(v))+'</b></div>').join("");
+}
+
+function calibrationCurve(a){
+  const root=document.getElementById("calibration-curve"); if(!root)return;
+  const rows=a?.curve||[]; if(!rows.length){root.innerHTML='<p class="muted">Brak danych do krzywej kalibracji.</p>';return;}
+  const w=720,h=310,pad=42, sx=v=>pad+Number(v)*(w-pad*2), sy=v=>h-pad-Number(v)*(h-pad*2);
+  const points=rows.map(x=>sx(x.mean_predicted)+','+sy(x.observed_rate)).join(' ');
+  root.innerHTML='<svg viewBox="0 0 '+w+' '+h+'" role="img" aria-label="Calibration Curve">'+
+    '<line class="cal-axis" x1="'+pad+'" y1="'+(h-pad)+'" x2="'+(w-pad)+'" y2="'+(h-pad)+'"/><line class="cal-axis" x1="'+pad+'" y1="'+pad+'" x2="'+pad+'" y2="'+(h-pad)+'"/>'+
+    '<line class="cal-perfect" x1="'+pad+'" y1="'+(h-pad)+'" x2="'+(w-pad)+'" y2="'+pad+'"/>'+
+    '<polyline class="cal-line" points="'+points+'"/>'+
+    rows.map(x=>'<g><circle class="cal-dot" cx="'+sx(x.mean_predicted)+'" cy="'+sy(x.observed_rate)+'" r="'+Math.min(9,4+Math.sqrt(x.n))+'"/><title>'+esc(x.range)+' · n='+x.n+' · P '+pct(x.mean_predicted)+' · realizacja '+pct(x.observed_rate)+'</title></g>').join('')+
+    '<text x="'+pad+'" y="'+(h-10)+'">0%</text><text x="'+(w-pad-22)+'" y="'+(h-10)+'">100% P</text><text x="5" y="'+(pad+4)+'">100%</text><text x="8" y="'+(h-pad)+'">0%</text></svg>'+
+    '<div class="cal-bin-list">'+rows.map(x=>'<span><b>'+esc(x.range)+'</b> P '+pct(x.mean_predicted)+' → '+pct(x.observed_rate)+' <small>n='+x.n+'</small></span>').join('')+'</div>';
+}
+let CAL_ANALYTICS={};
+function calibrationBreakdown(kind){
+  const root=document.getElementById("calibration-breakdown");if(!root)return;
+  const rows=CAL_ANALYTICS?.breakdown?.[kind]||[];
+  root.innerHTML='<div class="cal-table"><div class="cal-row head"><span>Segment</span><span>n</span><span>Brier</span><span>ECE</span><span>Skill vs 50/50</span></div>'+
+    rows.map(x=>'<div class="cal-row"><b>'+esc(x.segment)+'</b><span>'+x.n+'</span><span>'+num(x.brier,3)+'</span><span>'+num(x.ece,3)+'</span><span class="'+(Number(x.brier_skill_vs_50_50)>=0?'skill-pos':'skill-neg')+'">'+pct(x.brier_skill_vs_50_50)+'</span></div>').join('')+'</div>';
+}
+function setupBreakdown(){
+  document.querySelectorAll("[data-breakdown]").forEach(btn=>btn.addEventListener("click",()=>{
+    document.querySelectorAll("[data-breakdown]").forEach(x=>x.classList.toggle("active",x===btn));
+    calibrationBreakdown(btn.dataset.breakdown);
+  }));
+}
+function rollingCalibration(a){
+  const root=document.getElementById("rolling-calibration");if(!root)return;
+  const rows=a?.rolling?.points||[];if(!rows.length){root.innerHTML='<p class="muted">Rolling metrics pojawią się po '+esc(a?.rolling?.window||50)+' rozliczonych forecastach.</p>';return;}
+  const w=720,h=270,pad=42, max=Math.max(.35,...rows.flatMap(x=>[Number(x.brier)||0,Number(x.ece)||0]));
+  const sx=i=>pad+(rows.length===1?0:i/(rows.length-1))*(w-pad*2), sy=v=>h-pad-(Number(v)/max)*(h-pad*2);
+  const line=k=>rows.map((x,i)=>sx(i)+','+sy(x[k])).join(' ');
+  root.innerHTML='<svg viewBox="0 0 '+w+' '+h+'" role="img" aria-label="Rolling Brier i ECE"><line class="cal-axis" x1="'+pad+'" y1="'+(h-pad)+'" x2="'+(w-pad)+'" y2="'+(h-pad)+'"/><polyline class="rolling-brier" points="'+line("brier")+'"/><polyline class="rolling-ece" points="'+line("ece")+'"/></svg><div class="rolling-legend"><span><i class="brier-key"></i>Brier</span><span><i class="ece-key"></i>ECE</span><small>okno '+esc(a.rolling.window)+' forecastów</small></div>';
+}
+function calibrationResults(a){
+  CAL_ANALYTICS=a||{}; calibrationCurve(CAL_ANALYTICS); calibrationBreakdown("instrument"); rollingCalibration(CAL_ANALYTICS); setupBreakdown();
 }
 
 function patternMetrics(meta){
@@ -308,11 +346,13 @@ async function load(){
     MULTI_PATHS=d.multihorizon_paths||[]; HORIZON_AGG=d.horizon_aggregate||[]; HYPOTHESIS_BRIER=d.hypothesis_brier||{}; const forecastRows=d.forecasts||[]; const view=(Array.isArray(d.market_view)&&d.market_view.length)?d.market_view:deriveMarketView(forecastRows); marketView(view); forecasts(forecastRows);
     metric("metrics-summary",d.metrics||{});
     metric("metrics",d.metrics||{});
+    calibrationResults(d.calibration_analytics||{});
     patterns(d.evidence_patterns||[],d.evidence_pattern_meta||{});
   }catch(_){
     forecasts([]);
     metric("metrics-summary",{});
     metric("metrics",{});
+    calibrationResults({});
     patterns([],{});
   }
 }
