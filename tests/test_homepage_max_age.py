@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import json
+import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from unittest.mock import patch
 
 from scripts.enforce_homepage_max_age import (
     HOME_LIMIT,
@@ -11,6 +14,7 @@ from scripts.enforce_homepage_max_age import (
     IMAGE_POLICY_VERSION,
     enforce_payload,
 )
+from scripts import enforce_homepage_max_age as freshness
 
 
 class HomepageExposureCapTests(unittest.TestCase):
@@ -113,6 +117,44 @@ class HomepageExposureCapTests(unittest.TestCase):
             result["homepage_policy"]["scope"],
             "all_public_news_surfaces",
         )
+
+    def test_post_freshness_shortage_is_diagnostic_and_war_story_is_optional(self) -> None:
+        now = datetime(2026, 9, 27, 8, 0, tzinfo=timezone.utc)
+        fresh = self._story("Nowe wyniki badań nad snem", now - timedelta(hours=1), "Zdrowie")
+        old = self._story("Dawna wiadomość", now - timedelta(days=2), "Zdrowie")
+        payload = {
+            "home": [fresh, old], "sections": {"zdrowie": [fresh, old], "ekonomia": []},
+            "labels": {"zdrowie": "Zdrowie", "ekonomia": "Ekonomia"},
+            "health": {"status": "ok", "sections": {"zdrowie": {"count": 2}},
+                       "pl_ukraine_russia_war": {"minimum_story_count": 1,
+                                                 "selected_story_count": 1, "status": "ok"}},
+        }
+        result, _ = enforce_payload(payload, {}, now, lang="pl")
+        self.assertEqual(len(result["sections"]["zdrowie"]), 1)
+        self.assertEqual(result["health"]["status"], "degraded")
+        self.assertEqual(result["health"]["public_news_freshness"]["status"], "underfilled")
+        self.assertEqual(result["health"]["public_news_freshness"]["section_admission"]["zdrowie"]["published"], 1)
+        self.assertEqual(result["health"]["pl_ukraine_russia_war"]["status"], "missing")
+        self.assertEqual(result["health"]["pl_ukraine_russia_war"]["selected_story_count"], 0)
+
+    def test_legacy_exposure_migration_keeps_history_and_earliest_clock(self) -> None:
+        now = datetime(2026, 9, 27, 8, 0, tzinfo=timezone.utc)
+        old_clock = (now - timedelta(hours=25)).isoformat()
+        recent_clock = (now - timedelta(hours=1)).isoformat()
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "exposure.json"
+            path.write_text(json.dumps({"schema_version": "public-news-exposure-v2",
+                                        "languages": {"pl": {"example.com/old": {"first_seen_at": old_clock}}}}))
+            with patch.object(freshness, "STATE_PATH", path):
+                state = freshness._load_state()
+        self.assertEqual(state["schema_version"], freshness.EXPOSURE_SCHEMA_VERSION)
+        self.assertEqual(state["languages"]["pl"]["example.com/old"]["first_seen_at"], old_clock)
+        story = self._story("Old", now - timedelta(hours=1))
+        story["news_first_seen_at"] = old_clock
+        result, _ = enforce_payload({"home": [story], "sections": {"zdrowie": [story]},
+                                     "labels": {"zdrowie": "Zdrowie"}, "health": {}},
+                                    {"example.com/old": {"first_seen_at": recent_clock}}, now, lang="pl")
+        self.assertEqual(result["sections"]["zdrowie"], [])
 
     def test_expired_home_story_is_replaced_by_next_eligible_reserve_story(self) -> None:
         now = datetime(2026, 8, 26, 18, 0, tzinfo=timezone.utc)

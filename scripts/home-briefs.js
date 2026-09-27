@@ -187,7 +187,7 @@
       fragment.appendChild(createCard(document, item, lang));
     });
     container.replaceChildren(fragment);
-    container.dataset.homeFreshnessPolicy = 'max-24h-public-news-display-v1';
+    container.dataset.homeFreshnessPolicy = 'max-24h-public-news-display-v2';
     container.dataset.homePriority = 'politics-geopolitics-economy-ai-science-health-sport';
     return true;
   }

@@ -39,7 +39,7 @@ class HomepageStaticFreshnessGuardTests(unittest.TestCase):
         with patch.object(runtime, '_homepage_publication_map', return_value=publications):
             rendered = runtime.apply_homepage_freshness(source, 'pl', now)
 
-        self.assertIn('data-home-freshness-policy="max-24h-public-news-display-v1"', rendered)
+        self.assertIn('data-home-freshness-policy="max-24h-public-news-display-v2"', rendered)
         self.assertIn('data-home-image-policy="https-image-required-v1"', rendered)
         self.assertRegex(
             rendered,

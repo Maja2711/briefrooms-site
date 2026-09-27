@@ -274,10 +274,16 @@ def _first_seen(
     exposure: dict[str, Any] | None,
     now: datetime,
 ) -> datetime | None:
+    candidates = []
     if isinstance(exposure, dict):
         stored = _parse_time(exposure.get("first_seen_at"))
         if stored is not None:
-            return stored
+            candidates.append(stored)
+    previous = _parse_time(story.get("news_first_seen_at"))
+    if previous is not None:
+        candidates.append(previous)
+    if candidates:
+        return min(candidates)
 
     # The 24h display clock starts when BriefRooms first publishes the card, not
     # when the source article was written. Source age is enforced separately by
@@ -435,13 +441,19 @@ def enforce_payload(
         "image_policy_version": IMAGE_POLICY_VERSION,
     }
     payload.setdefault("health", {})["public_news_freshness"] = {
-        "status": "ok",
+        "status": "ok" if all(len(rows) == base.TARGET for rows in filtered_sections.values()) else "underfilled",
         "version": POLICY_VERSION,
         "scope": "all_public_news_surfaces",
         "max_display_hours": 24,
         "section_published_counts": {
             section_id: len(rows)
             for section_id, rows in filtered_sections.items()
+        },
+        "section_target": base.TARGET,
+        "underfilled_sections": {
+            section_id: len(rows)
+            for section_id, rows in filtered_sections.items()
+            if len(rows) < base.TARGET
         },
         "expired_exposure_rejected": rejection_counts["expired"],
         "source_stale_rejected": rejection_counts["source_stale"],
@@ -477,6 +489,44 @@ def enforce_payload(
         "diversity_cap_rejected": selection_diag["diversity_cap_rejections"],
         "reserve_topic_duplicate_rejected": reserve_diag["topic_duplicates_suppressed"],
     }
+    if payload["health"]["public_news_freshness"]["underfilled_sections"]:
+        payload["health"]["status"] = "degraded"
+    if lang == "pl":
+        section_health = payload["health"].get("sections") or {}
+        admission = {}
+        for section_id, minimum in PL_SECTION_MINIMUMS.items():
+            count = len(filtered_sections.get(section_id, []))
+            admission[section_id] = {
+                "status": "ok" if count >= minimum else "underfilled",
+                "target": minimum,
+                "published": count,
+            }
+            if isinstance(section_health.get(section_id), dict):
+                section_health[section_id]["published_count"] = count
+                section_health[section_id]["post_freshness_admission"] = admission[section_id]
+        economy_rows = filtered_sections.get("ekonomia", [])
+        ai_crypto_count = sum(
+            bool(PL_AI_CRYPTO_RE.search(
+                " ".join(str(story.get(key) or "") for key in ("title", "summary"))
+            )) for story in economy_rows
+        )
+        admission["ekonomia"]["ai_crypto_count"] = ai_crypto_count
+        payload["health"]["public_news_freshness"]["section_admission"] = admission
+        if any(item["status"] == "underfilled" for item in admission.values()) or not ai_crypto_count:
+            payload["health"]["status"] = "degraded"
+
+        # The preferred homepage topic is observable after the 24h gate. A quiet
+        # news cycle cannot justify carrying an expired story or aborting PL/EN.
+        war_policy = payload["health"].get("pl_ukraine_russia_war")
+        if isinstance(war_policy, dict):
+            try:
+                from .publish_live_news_filtered import is_pl_ukraine_russia_war_story
+            except ImportError:
+                from publish_live_news_filtered import is_pl_ukraine_russia_war_story
+            war_rows = [story for story in selected if is_pl_ukraine_russia_war_story(story)]
+            war_policy["selected_story_count"] = len(war_rows)
+            war_policy["carried_story_count"] = sum(story.get("carried_forward") is True for story in war_rows)
+            war_policy["status"] = "ok" if len(war_rows) >= war_policy.get("minimum_story_count", 1) else "missing"
     return payload, state_lang
 
 def _load_state() -> dict[str, Any]:
@@ -492,15 +542,11 @@ def _load_state() -> dict[str, Any]:
         value["schema_version"] = EXPOSURE_SCHEMA_VERSION
         value["migrated_from"] = LEGACY_EXPOSURE_SCHEMA_VERSION
     elif schema in {"public-news-exposure-v2", "public-news-exposure-v3"}:
-        # v2 seeded display clocks from source timestamps; v3 later reset PL
-        # exposure on every run. Both violate the intended display-age semantics.
-        # Reset once during migration to v4, then persist first_seen_at normally.
-        value = {
-            "schema_version": EXPOSURE_SCHEMA_VERSION,
-            "languages": {},
-            "migrated_from": schema,
-            "migration_reason": "repair_and_persist_true_briefrooms_first_seen_clocks",
-        }
+        # Keep old clocks when migrating. v2 sometimes started them too early,
+        # which is conservative; discarding them would let expired cards return
+        # as new publications. v3 clocks are also never moved forward here.
+        value["schema_version"] = EXPOSURE_SCHEMA_VERSION
+        value["migrated_from"] = schema
     elif schema != EXPOSURE_SCHEMA_VERSION:
         value = {"schema_version": EXPOSURE_SCHEMA_VERSION, "languages": {}}
 
@@ -525,23 +571,6 @@ def enforce_files() -> None:
             state_lang = {}
             languages[lang] = state_lang
         payload, _ = enforce_payload(payload, state_lang, now, lang=lang)
-        if lang == "pl":
-            sections = payload.get("sections") if isinstance(payload.get("sections"), dict) else {}
-            for section_id, minimum in PL_SECTION_MINIMUMS.items():
-                rows = sections.get(section_id, []) if isinstance(sections.get(section_id), list) else []
-                if len(rows) < minimum:
-                    raise RuntimeError(
-                        f"PL section {section_id} below required fresh unique minimum after 24h gate: "
-                        f"{len(rows)}/{minimum}"
-                    )
-            economy_rows = sections.get("ekonomia", [])
-            if not any(
-                PL_AI_CRYPTO_RE.search(
-                    " ".join(str(story.get(key) or "") for key in ("title", "summary"))
-                )
-                for story in economy_rows
-            ):
-                raise RuntimeError("PL ekonomia missing required fresh AI/crypto story after 24h gate")
         path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
     STATE_PATH.write_text(json.dumps(state, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

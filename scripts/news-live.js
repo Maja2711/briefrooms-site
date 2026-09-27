@@ -6,7 +6,7 @@
   const HOME_MAX_AGE_MS = 24 * 60 * 60 * 1000;
   const FUTURE_TOLERANCE_MS = 10 * 60 * 1000;
   const HOME_LIMIT = 12;
-  const HOME_POLICY = 'max-24h-public-news-display-v1';
+  const HOME_POLICY = 'max-24h-public-news-display-v2';
   const HOME_IMAGE_POLICY = 'https-image-required-v1';
   let expiryTimer = null;
   const text = lang === 'pl' ? {

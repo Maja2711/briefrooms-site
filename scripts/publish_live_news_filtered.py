@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import json
+import html
 import math
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+from urllib.parse import unquote
 
 try:
     from . import publish_live_news as base
@@ -494,7 +496,7 @@ def select_sections(
         elif len(active_sources) == 2:
             preferred_source_cap = MAX_SOURCE_SHARE
         else:
-            preferred_source_cap = base.TARGET
+            preferred_source_cap = MAX_SOURCE_SHARE
         athlete_counts: dict[str, int] = {}
         entity_counts: dict[str, int] = {}
         discipline_counts: dict[str, int] = {}
@@ -652,7 +654,7 @@ def select_sections(
                         copy,
                         discipline_cap=False,
                         source_cap=(
-                            MAX_SOURCE_SHARE if len(active_sources) >= 2 else base.TARGET
+                            MAX_SOURCE_SHARE
                         ),
                     ) == "added":
                         forced_topic_carried = 1
@@ -712,7 +714,7 @@ def select_sections(
                 copy = dict(old)
                 copy["carried_forward"] = True
                 carry_source_cap = (
-                    MAX_SOURCE_SHARE if len(active_sources) >= 2 else base.TARGET
+                    MAX_SOURCE_SHARE
                 )
                 if try_add(
                     copy,
@@ -726,34 +728,6 @@ def select_sections(
         # Freshness has authority over visual fullness. The downstream public
         # 24h guard may shrink this further, so an underfilled section is valid.
         selected[section_id] = items[:base.TARGET]
-        if pl_mode:
-            minimum = PL_SECTION_MINIMUMS.get(section_id, 0)
-            if len(selected[section_id]) < minimum:
-                raw = list(fetched.get(section_id) or [])
-                fresh = [story for story in raw if _fresh_for_pl_selection(story, now)]
-                with_image = [story for story in fresh if story.get("image")]
-                by_source: dict[str, dict[str, int]] = {}
-                for story in raw:
-                    source = str(story.get("source") or "unknown")
-                    stats = by_source.setdefault(source, {"raw": 0, "fresh": 0, "image": 0})
-                    stats["raw"] += 1
-                    if _fresh_for_pl_selection(story, now):
-                        stats["fresh"] += 1
-                        if story.get("image"):
-                            stats["image"] += 1
-                raise RuntimeError(
-                    f"PL section {section_id} underfilled after freshness/dedupe: "
-                    f"{len(selected[section_id])}/{minimum}; raw={len(raw)} "
-                    f"fresh={len(fresh)} fresh_with_image={len(with_image)} "
-                    f"sources={by_source}"
-                )
-            if section_id == "ekonomia":
-                ai_crypto_count = sum(
-                    1 for story in selected[section_id]
-                    if AI_CRYPTO_RE.search(_story_text(story))
-                )
-                if ai_crypto_count < PL_ECONOMY_AI_CRYPTO_MINIMUM:
-                    raise RuntimeError("PL ekonomia missing required AI/crypto story")
         times = [base.story_time(item) for item in items if base.story_time(item) > 0]
         section_health: dict[str, Any] = {
             "count": len(selected[section_id]),
@@ -763,8 +737,40 @@ def select_sections(
             "source_mix": source_counts,
             "source_diversity_policy": EDITORIAL_SELECTION_POLICY_VERSION,
             "preferred_source_cap": preferred_source_cap,
-            "hard_source_cap": MAX_SOURCE_SHARE if len(active_sources) >= 2 else base.TARGET,
+            "hard_source_cap": MAX_SOURCE_SHARE,
         }
+        if pl_mode:
+            minimum = PL_SECTION_MINIMUMS.get(section_id, 0)
+            raw = list(fetched.get(section_id) or [])
+            fresh = [story for story in raw if _fresh_for_pl_selection(story, now)]
+            by_source: dict[str, dict[str, int]] = {}
+            for story in raw:
+                source = str(story.get("source") or "unknown")
+                stats = by_source.setdefault(source, {"raw": 0, "fresh": 0, "image": 0})
+                stats["raw"] += 1
+                if _fresh_for_pl_selection(story, now):
+                    stats["fresh"] += 1
+                    if story.get("image"):
+                        stats["image"] += 1
+            section_health["admission"] = {
+                "status": "ok" if len(items) >= minimum else "underfilled",
+                "target": minimum,
+                "selected": len(items),
+                "raw": len(raw),
+                "fresh": len(fresh),
+                "fresh_with_image": sum(bool(story.get("image")) for story in fresh),
+                "sources": by_source,
+            }
+            if section_id == "ekonomia":
+                ai_crypto_count = sum(
+                    bool(AI_CRYPTO_RE.search(_story_text(story)))
+                    for story in selected[section_id]
+                )
+                section_health["ai_crypto"] = {
+                    "status": "ok" if ai_crypto_count >= PL_ECONOMY_AI_CRYPTO_MINIMUM else "underfilled",
+                    "target": PL_ECONOMY_AI_CRYPTO_MINIMUM,
+                    "selected": ai_crypto_count,
+                }
         if sport_mode:
             section_health["tracked_athletes"] = athlete_counts
             section_health["discipline_mix"] = discipline_counts
@@ -869,18 +875,23 @@ def _refresh_en_article_images(payload: dict[str, Any]) -> tuple[int, int]:
 PUBLIC_WEB_HEALTH_SOURCES = {
     "Termedia Menedżer Zdrowia": {
         "host": "www.termedia.pl",
-        "href_re": re.compile(r'''(?:https?://www\\.termedia\\.pl)?/mz/[^"'<>\\s]+,\\d+\\.html''', re.I),
+        "href_re": re.compile(r'''(?:https?://www\.termedia\.pl)?/mz/[^"'<>\s]+,\d+\.html''', re.I),
     },
     "Rynek Zdrowia Aktualności": {
         "host": "www.rynekzdrowia.pl",
-        "href_re": re.compile(r'''(?:https?://www\\.rynekzdrowia\\.pl)?/[A-Za-z0-9_%./-]+/[^"'<>\\s]+%?2?C?\\d+%?2?C?\\d+\\.html''', re.I),
+        "href_re": re.compile(r'''(?:https?://www\.rynekzdrowia\.pl)?/[A-Za-z0-9_%./-]+/[^"'<>\s]+,\d+,\d+\.html''', re.I),
     },
 }
 
+PUBLIC_WEB_TITLE = (
+    re.compile(r'<meta[^>]+(?:property|name)=["\']og:title["\'][^>]+content=["\']([^"\']+)', re.I),
+    re.compile(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+(?:property|name)=["\']og:title["\']', re.I),
+)
+
 
 def _title_from_article_url(link: str) -> str:
-    slug = link.rsplit("/", 1)[-1]
-    slug = re.sub(r",?%?2?C?\\d+(?:%?2?C?\\d+)?\\.html(?:\\?.*)?$", "", slug, flags=re.I)
+    slug = unquote(link.rsplit("/", 1)[-1])
+    slug = re.sub(r",\d+(?:,\d+)?\.html(?:\?.*)?$", "", slug, flags=re.I)
     slug = re.sub(r"[-_]+", " ", slug)
     return base.clean(slug, 220)
 
@@ -902,17 +913,26 @@ def _fetch_public_web_health(source: str, landing_url: str, now: datetime) -> tu
             continue
         seen.add(link)
         links.append(link)
-        if len(links) >= 36:
+        if len(links) >= 24:
             break
     stories: list[dict[str, Any]] = []
-    for link in links:
-        image, published = base.page_metadata(link, now)
+    def inspect(link: str) -> dict[str, Any] | None:
+        try:
+            article = base.request(link, timeout=8).text[:750000]
+        except Exception:
+            return None
+        image, published = base.page_metadata(link, now, body=article)
         if published is None:
-            continue
-        title = _title_from_article_url(link)
+            return None
+        title = next(
+            (base.clean(html.unescape(match.group(1)), 220)
+             for pattern in PUBLIC_WEB_TITLE
+             if (match := pattern.search(article))),
+            _title_from_article_url(link),
+        )
         if not title:
-            continue
-        stories.append({
+            return None
+        return {
             "title": title,
             "link": link,
             "image": image,
@@ -922,7 +942,12 @@ def _fetch_public_web_health(source: str, landing_url: str, now: datetime) -> tu
             "published_at_basis": "canonical_article_metadata_or_visible_date",
             "image_basis": "article_metadata" if image else "unavailable",
             "acquisition_basis": "public_web_listing",
-        })
+        }
+
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        for story in pool.map(inspect, links):
+            if story is not None:
+                stories.append(story)
     return stories, None
 
 

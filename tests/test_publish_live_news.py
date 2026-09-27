@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from scripts.publish_live_news import MIN_SECTION, TARGET, normalized_identity, parse_entry_time, select_sections
 from scripts.dedupe_home_brief_stories import same_topic
@@ -140,6 +141,83 @@ class LiveNewsPublisherTests(unittest.TestCase):
             filtered_news.PL_SECTION_MINIMUMS,
             {"polityka": 9, "ekonomia": 9, "zdrowie": 6, "nauka": 6, "sport": 9},
         )
+
+    def test_pl_health_underfill_reports_shortage_without_stale_backfill(self) -> None:
+        now = datetime(2026, 9, 27, 8, 0, tzinfo=timezone.utc)
+        fresh = {
+            "source": "Nauka w Polsce", "title": "Nowe wyniki badań nad snem",
+            "summary": "Naukowcy opublikowali wyniki badań nad snem.",
+            "link": "https://example.com/sen", "image": "https://example.com/sen.jpg",
+            "published_at": (now - timedelta(hours=1)).isoformat(),
+        }
+        old = dict(fresh, title="Stara wiadomość", link="https://example.com/stara",
+                   published_at=(now - timedelta(days=2)).isoformat())
+        sections, health = filtered_news.select_sections(
+            [("polityka", "Polityka", []), ("zdrowie", "Zdrowie", [])],
+            {"polityka": [], "zdrowie": [fresh, old]},
+            {"sections": {}}, now,
+        )
+        self.assertEqual([row["title"] for row in sections["zdrowie"]], [fresh["title"]])
+        self.assertEqual(health["zdrowie"]["admission"]["status"], "underfilled")
+        self.assertEqual(health["zdrowie"]["admission"]["selected"], 1)
+        self.assertEqual(health["zdrowie"]["admission"]["target"], 6)
+
+    def test_public_web_health_adapter_reads_article_links_titles_and_dates(self) -> None:
+        now = datetime(2026, 9, 27, 8, 0, tzinfo=timezone.utc)
+        fixtures = (
+            ("Termedia Menedżer Zdrowia", "https://www.termedia.pl/mz",
+             "/mz/Tom-zdrowia,69177.html",
+             '<meta property="article:published_time" content="2026-09-27T07:11:00+02:00">'),
+            ("Rynek Zdrowia Aktualności", "https://www.rynekzdrowia.pl/",
+             "/Serwis-Onkologia/Karta-e-DiLO,289307,1013.html",
+             '<time itemprop="datePublished" datetime="2026-09-27T08:00:00+02:00">'),
+        )
+        for source, landing, article_path, published_tag in fixtures:
+            with self.subTest(source=source):
+                article = (
+                    '<meta property="og:title" content="Potwierdzony tytuł artykułu">'
+                    '<meta property="og:image" content="https://example.com/zdrowie.jpg">'
+                    + published_tag
+                )
+                def request(url, timeout=8):
+                    return SimpleNamespace(text=(f'<a href="{article_path}">Czytaj</a>'
+                                                 if url == landing else article))
+                with patch.object(filtered_news.base, "request", side_effect=request):
+                    rows, error = filtered_news._fetch_public_web_health(source, landing, now)
+                self.assertIsNone(error)
+                self.assertEqual(len(rows), 1)
+                self.assertEqual(rows[0]["title"], "Potwierdzony tytuł artykułu")
+                expected = "2026-09-27T05:11:00+00:00" if "Termedia" in source else "2026-09-27T06:00:00+00:00"
+                self.assertEqual(rows[0]["published_at"], expected)
+
+    def test_final_selector_excludes_articles_that_will_expire_during_publication(self) -> None:
+        now = datetime(2026, 9, 27, 8, 0, tzinfo=timezone.utc)
+        recent = {"title": "Nowe badanie", "link": "https://example.com/new",
+                  "published_at": (now - timedelta(hours=2)).isoformat()}
+        nearly_expired = dict(recent, link="https://example.com/old",
+                              published_at=(now - timedelta(hours=23, minutes=45)).isoformat())
+        previously_exposed = dict(recent, link="https://example.com/exposed")
+        clocks = {"example.com/exposed": now - timedelta(hours=23, minutes=45)}
+        self.assertIsNone(source_v3._preselection_reason(recent, now, clocks))
+        self.assertEqual(source_v3._preselection_reason(nearly_expired, now, clocks), "source_age")
+        self.assertEqual(source_v3._preselection_reason(previously_exposed, now, clocks), "display_age")
+        previous = {"sections": {"health": [recent, nearly_expired, previously_exposed]}}
+        prepared = source_v3._prepare_previous(previous, now, clocks)
+        self.assertEqual([row["link"] for row in prepared["sections"]["health"]], [recent["link"]])
+
+    def test_single_publisher_stays_within_curated_emergency_cap(self) -> None:
+        now = datetime(2026, 9, 27, 8, 0, tzinfo=timezone.utc)
+        rows = [
+            {"source": "BBC Science", "title": f"Research discovery {index} on disease {index}",
+             "summary": f"Research discovery {index} has a separate clinical outcome.",
+             "link": f"https://example.com/science/{index}", "image": f"https://example.com/{index}.jpg",
+             "published_at": (now - timedelta(minutes=index)).isoformat()}
+            for index in range(7)
+        ]
+        selected, _ = filtered_news.select_sections(
+            [("science", "Science", [])], {"science": rows}, {"sections": {}}, now,
+        )
+        self.assertEqual(len(selected["science"]), filtered_news.MAX_SOURCE_SHARE)
 
     def test_pl_economy_ai_crypto_detector(self) -> None:
         self.assertIsNotNone(filtered_news.AI_CRYPTO_RE.search("OpenAI rozwija nowy model AI"))
