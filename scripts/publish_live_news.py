@@ -24,7 +24,7 @@ OUT = ROOT / "data" / "news"
 UA = "BriefRooms canonical news publisher/2.0"
 TARGET = 9
 MIN_SECTION = TARGET
-EN_SECTION_TARGETS = {"asia-pacific": 12, "europe": 12}
+EN_SECTION_TARGETS = {"asia-pacific": 12, "europe": 15, "middle-east": 12}
 MAX_WORKERS = 10
 REQUEST_TIMEOUT = 12
 MAX_CARRY_AGE = timedelta(hours=24)
@@ -74,10 +74,16 @@ EN = [
         ("BBC News", "https://feeds.bbci.co.uk/news/world/europe/rss.xml"),
         ("The Guardian", "https://www.theguardian.com/world/europe-news/rss"),
         ("POLITICO Europe", "https://www.politico.eu/feed/"),
+        ("Kyiv Independent", "https://kyivindependent.com/feed/"),
+        ("Notes from Poland", "https://notesfrompoland.com/feed/"),
+        ("The Brussels Times", "https://www.brusselstimes.com/feed"),
     ]),
     ("middle-east", "Middle East", [
         ("BBC News", "https://feeds.bbci.co.uk/news/world/middle_east/rss.xml"),
         ("The Guardian", "https://www.theguardian.com/world/middleeast/rss"),
+        ("The Times of Israel", "https://www.timesofisrael.com/feed/"),
+        ("The Jerusalem Post", "https://www.jpost.com/rss/rssfeedsheadlines.aspx"),
+        ("Arab News", "https://www.arabnews.com/rss.xml"),
     ]),
     ("business", "Business", [
         ("BBC Business", "https://feeds.bbci.co.uk/news/business/rss.xml"),
