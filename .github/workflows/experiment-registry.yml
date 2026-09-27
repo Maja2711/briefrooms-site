@@ -95,8 +95,9 @@ jobs:
           assert p['authority']['read_only'] is True
           assert p['authority']['production_decision_influence'] is False
           assert p['authority']['automatic_promotion'] is False
-          assert len(p['experiments']) == 5
+          assert len(p['experiments']) == 6
           assert 'ai-tournament-2026-02' not in ids
+          assert 'eurusd-x-adaptive-shadow' in ids
           assert all(x['category'] != 'benchmark' for x in p['experiments'])
           assert p['benchmark_policy']['benchmark_is_experiment_category'] is False
           assert p['benchmark_policy']['fx']['applicability'] == 'NOT_APPLICABLE'
