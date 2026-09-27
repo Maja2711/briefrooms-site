@@ -79,6 +79,7 @@ EN = [
         ("The Brussels Times", "https://www.brusselstimes.com/feed"),
     ]),
     ("middle-east", "Middle East", [
+        ("Al Jazeera English", "https://www.aljazeera.com/xml/rss/all.xml"),
         ("BBC News", "https://feeds.bbci.co.uk/news/world/middle_east/rss.xml"),
         ("The Guardian", "https://www.theguardian.com/world/middleeast/rss"),
         ("The Times of Israel", "https://www.timesofisrael.com/feed/"),
