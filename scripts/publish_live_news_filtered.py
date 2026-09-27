@@ -648,6 +648,23 @@ def select_sections(
                     live_entities_seen.update(entities)
             return "added"
 
+        # EN Middle East contract: Al Jazeera English is a preferred regional
+        # source. Reserve up to three distinct cards before general ranking, while
+        # retaining the normal same-topic and per-source diversity caps.
+        if not pl_mode and section_id == "middle-east":
+            al_jazeera_added = 0
+            for regional_story in candidates:
+                if str(regional_story.get("source") or "").strip() != "Al Jazeera English":
+                    continue
+                if try_add(
+                    regional_story,
+                    discipline_cap=False,
+                    source_cap=3,
+                ) == "added":
+                    al_jazeera_added += 1
+                if al_jazeera_added >= 3:
+                    break
+
         # PL science contract: AI is a major editorial lane. Reserve up to three
         # distinct fresh AI stories before general science ranking; same-topic
         # dedupe still prevents one model/event from occupying multiple cards.
