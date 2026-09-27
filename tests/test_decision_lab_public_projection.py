@@ -66,5 +66,37 @@ class DecisionLabProjectionTests(unittest.TestCase):
         self.assertEqual(row["target_at"], "2026-09-26T17:02:00+00:00")
         self.assertEqual(row["horizon_label"], "24H")
 
+    def test_projection_exposes_shadow_forecast_contract_without_promotion_authority(self):
+        state = {
+            "forecasts": [{
+                "forecast_id": "contract-v2",
+                "entity": "EURUSD",
+                "belief_id": "eurusd.trend.bullish",
+                "predicted_probability": 0.61,
+                "forecast_confidence": 0.7,
+                "forecast_at": "2026-09-28T12:00:00+00:00",
+                "target_at": "2026-09-29T12:00:00+00:00",
+                "horizon_hours": 24,
+                "metadata": {
+                    "forecast_contract_version": "decision-lab-forecast-contract-v2",
+                    "model_freeze_version": "belief-core-v2-shadow-2026-09-27",
+                    "t0_at": "2026-09-28T12:00:00Z",
+                    "t0_values": {"EURUSD=X": 1.18},
+                    "nominal_target_at": "2026-09-29T12:00:00Z",
+                    "settlement_rule": "first_bar_at_or_after_nominal_target",
+                    "market_calendar": "tradable_session_first_available",
+                },
+            }],
+            "verifications": [], "definitions": [],
+        }
+        payload = build_payload(state, {"belief_calibration": {}})
+        row = payload["forecasts"][0]
+        self.assertEqual(row["t0_values"]["EURUSD=X"], 1.18)
+        self.assertEqual(row["settlement_rule"], "first_bar_at_or_after_nominal_target")
+        self.assertFalse(row["production_write_authority"])
+        self.assertFalse(row["automatic_promotion"])
+        self.assertFalse(payload["automatic_promotion"])
+        self.assertEqual(payload["promotion_policy"], "candidate_only_manual_production_decision")
+
 if __name__ == "__main__":
     unittest.main()

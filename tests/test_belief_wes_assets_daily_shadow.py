@@ -58,25 +58,25 @@ class DailyWESAssetShadowTests(unittest.TestCase):
             client = FullClient(now)
             status = run_cycle(state_dir, now, client)
             self.assertEqual(status["shared_forecasts_frozen"], 5)
-            self.assertEqual(status["wes_asset_forecasts_frozen"], 7)
+            self.assertEqual(status["wes_asset_forecasts_frozen"], 35)
             self.assertEqual(status["wes_forecasts_frozen"], 0)
             self.assertEqual(status["evidence_ingested"], 16)
             self.assertEqual(status["observations_collected"], 135)
 
             core = BeliefCore(state_dir)
-            self.assertEqual(len(core.forecasts), 12)
+            self.assertEqual(len(core.forecasts), 40)
             shared = [f for f in core.forecasts.values() if f.metadata.get("consumer") == "BRACE+BRACE-SPX"]
             assets = [f for f in core.forecasts.values() if f.metadata.get("consumer") == "WES-ASSET-SHADOW"]
             self.assertEqual(len(shared), 5)
             self.assertTrue(all(f.belief_id.startswith("spx.") for f in shared))
-            self.assertEqual(len(assets), 7)
+            self.assertEqual(len(assets), 35)
             self.assertEqual({f.belief_id for f in assets}, set(WES_ASSET_BELIEF_IDS))
-            self.assertTrue(all(f.horizon_hours < 24 for f in assets))
+            self.assertEqual(sorted({f.horizon_hours for f in assets}), [3.0, 12.0, 24.0, 72.0, 120.0])
 
             retry = run_cycle(state_dir, now, client)
             self.assertEqual(retry["shared_forecasts_frozen"], 0)
             self.assertEqual(retry["wes_asset_forecasts_frozen"], 0)
-            self.assertEqual(len(BeliefCore(state_dir).forecasts), 12)
+            self.assertEqual(len(BeliefCore(state_dir).forecasts), 40)
 
 
 if __name__ == "__main__":
