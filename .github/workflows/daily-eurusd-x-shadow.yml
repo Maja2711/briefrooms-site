@@ -8,6 +8,11 @@ on:
       - "scripts/daily_eurusd_x_shadow.py"
       - "tests/test_daily_eurusd_x_shadow.py"
       - ".github/workflows/daily-eurusd-x-shadow.yml"
+  pull_request:
+    paths:
+      - "scripts/daily_eurusd_x_shadow.py"
+      - "tests/test_daily_eurusd_x_shadow.py"
+      - ".github/workflows/daily-eurusd-x-shadow.yml"
   schedule:
     - cron: "17 * * * 1-5"
 
@@ -26,7 +31,26 @@ env:
   BELIEF_ARTIFACT_NAME: belief-core-shadow-state
 
 jobs:
+  validate:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate EURUSD X shadow implementation
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/daily_eurusd_x_shadow.py
+          python -m unittest tests.test_daily_eurusd_x_shadow -v
+
   run:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
