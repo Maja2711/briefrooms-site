@@ -59,6 +59,43 @@ def _arm(row: Mapping[str, Any] | None) -> dict[str, Any]:
     }
 
 
+def _challenger(row: Mapping[str, Any] | None) -> dict[str, Any]:
+    row = row or {}
+    lesson = row.get("source_lesson") if isinstance(row.get("source_lesson"), Mapping) else {}
+    baseline = row.get("frozen_baseline") if isinstance(row.get("frozen_baseline"), Mapping) else {}
+    contract = row.get("shadow_contract") if isinstance(row.get("shadow_contract"), Mapping) else {}
+    evidence = row.get("prospective_evidence") if isinstance(row.get("prospective_evidence"), Mapping) else {}
+    return {
+        "challenger_id": row.get("challenger_id"),
+        "arm_id": row.get("arm_id"),
+        "created_at": row.get("created_at"),
+        "status": row.get("status"),
+        "source_error_pattern": lesson.get("error_pattern"),
+        "lesson_confidence": _number(lesson.get("confidence"), 4),
+        "proposed_action": lesson.get("proposed_action"),
+        "frozen_baseline": {
+            "episode_count": int(baseline.get("episode_count") or 0),
+            "hit_rate": _number(baseline.get("hit_rate")),
+            "mean_r": _number(baseline.get("mean_r")),
+        },
+        "shadow_contract": {
+            "automatic_creation": bool(contract.get("automatic_creation")),
+            "executable_rule_status": contract.get("executable_rule_status"),
+            "prospective_only": bool(contract.get("prospective_only")),
+            "historical_backfill": False,
+            "decision_influence": False,
+            "production_execution": False,
+            "automatic_promotion": False,
+            "automatic_policy_mutation": False,
+        },
+        "prospective_evidence": {
+            "starts_after_episode_count": int(evidence.get("starts_after_episode_count") or 0),
+            "challenger_observations": int(evidence.get("challenger_observations") or 0),
+            "status": evidence.get("status"),
+        },
+    }
+
+
 def build_public_learning(report: Mapping[str, Any]) -> dict[str, Any]:
     authority = report.get("authority") if isinstance(report.get("authority"), Mapping) else {}
     governance = report.get("governance") if isinstance(report.get("governance"), Mapping) else {}
@@ -68,6 +105,7 @@ def build_public_learning(report: Mapping[str, Any]) -> dict[str, Any]:
         raise ValueError("single-trade mutation must remain disabled")
     arms = report.get("arms") if isinstance(report.get("arms"), Mapping) else {}
     episode_count = int((report.get("sample") or {}).get("episodes") or 0)
+    challengers = [_challenger(row) for row in (report.get("challengers") or []) if isinstance(row, Mapping)]
     payload = {
         "schema_version": PUBLIC_LEARNING_SCHEMA,
         "evidence_revision": episode_count,
@@ -78,13 +116,17 @@ def build_public_learning(report: Mapping[str, Any]) -> dict[str, Any]:
         "historical_backfill": False,
         "decision_influence": False,
         "automatic_policy_mutation": False,
+        "automatic_challenger_creation": bool(governance.get("automatic_challenger_creation")),
         "cross_arm_writeback": False,
         "episode_count": episode_count,
+        "challenger_count": len(challengers),
+        "challengers": challengers,
         "arms": {arm: _arm(arms.get(arm) if isinstance(arms, Mapping) else None) for arm in ARMS},
         "governance": {
             "minimum_episodes_for_lesson": int(governance.get("minimum_episodes_for_lesson") or 0),
             "minimum_losses_for_error_lesson": int(governance.get("minimum_losses_for_error_lesson") or 0),
             "minimum_dominant_error_recurrence": _number(governance.get("minimum_dominant_error_recurrence")),
+            "max_active_challengers_per_arm": int(governance.get("max_active_challengers_per_arm") or 0),
             "human_or_promotion_gate_required_before_policy_application": bool(
                 governance.get("human_or_promotion_gate_required_before_policy_application")
             ),
@@ -110,6 +152,15 @@ def validate(payload: Mapping[str, Any]) -> None:
         lesson = (payload["arms"][arm].get("lesson_candidate") or {})
         if lesson.get("policy_change_applied") is not False:
             raise ValueError("public learning summary cannot apply policy")
+    if payload.get("automatic_challenger_creation") is not True:
+        raise ValueError("public learning must expose automatic challenger creation")
+    for row in payload.get("challengers") or []:
+        contract = row.get("shadow_contract") if isinstance(row.get("shadow_contract"), Mapping) else {}
+        if contract.get("automatic_creation") is not True or contract.get("prospective_only") is not True:
+            raise ValueError("public challenger contract must remain prospective")
+        for key in ("historical_backfill", "decision_influence", "production_execution", "automatic_promotion", "automatic_policy_mutation"):
+            if contract.get(key) is not False:
+                raise ValueError(f"public challenger boundary violated: {key}")
 
 
 def main() -> int:
