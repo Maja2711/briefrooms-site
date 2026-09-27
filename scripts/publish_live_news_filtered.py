@@ -496,7 +496,7 @@ def select_sections(
         elif len(active_sources) == 2:
             preferred_source_cap = MAX_SOURCE_SHARE
         else:
-            preferred_source_cap = base.TARGET
+            preferred_source_cap = MAX_SOURCE_SHARE
         athlete_counts: dict[str, int] = {}
         entity_counts: dict[str, int] = {}
         discipline_counts: dict[str, int] = {}
@@ -654,7 +654,7 @@ def select_sections(
                         copy,
                         discipline_cap=False,
                         source_cap=(
-                            MAX_SOURCE_SHARE if len(active_sources) >= 2 else base.TARGET
+                            MAX_SOURCE_SHARE
                         ),
                     ) == "added":
                         forced_topic_carried = 1
@@ -714,7 +714,7 @@ def select_sections(
                 copy = dict(old)
                 copy["carried_forward"] = True
                 carry_source_cap = (
-                    MAX_SOURCE_SHARE if len(active_sources) >= 2 else base.TARGET
+                    MAX_SOURCE_SHARE
                 )
                 if try_add(
                     copy,
@@ -737,7 +737,7 @@ def select_sections(
             "source_mix": source_counts,
             "source_diversity_policy": EDITORIAL_SELECTION_POLICY_VERSION,
             "preferred_source_cap": preferred_source_cap,
-            "hard_source_cap": MAX_SOURCE_SHARE if len(active_sources) >= 2 else base.TARGET,
+            "hard_source_cap": MAX_SOURCE_SHARE,
         }
         if pl_mode:
             minimum = PL_SECTION_MINIMUMS.get(section_id, 0)

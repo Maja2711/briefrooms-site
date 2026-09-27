@@ -205,6 +205,20 @@ class LiveNewsPublisherTests(unittest.TestCase):
         prepared = source_v3._prepare_previous(previous, now, clocks)
         self.assertEqual([row["link"] for row in prepared["sections"]["health"]], [recent["link"]])
 
+    def test_single_publisher_stays_within_curated_emergency_cap(self) -> None:
+        now = datetime(2026, 9, 27, 8, 0, tzinfo=timezone.utc)
+        rows = [
+            {"source": "BBC Science", "title": f"Research discovery {index} on disease {index}",
+             "summary": f"Research discovery {index} has a separate clinical outcome.",
+             "link": f"https://example.com/science/{index}", "image": f"https://example.com/{index}.jpg",
+             "published_at": (now - timedelta(minutes=index)).isoformat()}
+            for index in range(7)
+        ]
+        selected, _ = filtered_news.select_sections(
+            [("science", "Science", [])], {"science": rows}, {"sections": {}}, now,
+        )
+        self.assertEqual(len(selected["science"]), filtered_news.MAX_SOURCE_SHARE)
+
     def test_pl_economy_ai_crypto_detector(self) -> None:
         self.assertIsNotNone(filtered_news.AI_CRYPTO_RE.search("OpenAI rozwija nowy model AI"))
         self.assertIsNotNone(filtered_news.AI_CRYPTO_RE.search("Bitcoin rośnie po decyzji rynku"))
