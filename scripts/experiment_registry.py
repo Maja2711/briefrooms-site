@@ -223,6 +223,59 @@ def _eurusd_abc(root: Path) -> dict[str, Any]:
     return row
 
 
+
+def _eurusd_x(root: Path) -> dict[str, Any]:
+    src = "data/investments/eurusd_x_public_pl.json"
+    data = _load(root, src)
+    adaptive = data.get("adaptive_layer") if isinstance(data.get("adaptive_layer"), Mapping) else {}
+    champion = adaptive.get("champion") if isinstance(adaptive.get("champion"), Mapping) else {}
+    challenger = adaptive.get("challenger") if isinstance(adaptive.get("challenger"), Mapping) else {}
+    performance = data.get("performance") if isinstance(data.get("performance"), Mapping) else {}
+    champion_perf = performance.get("champion") if isinstance(performance.get("champion"), Mapping) else {}
+    sample = data.get("sample") if isinstance(data.get("sample"), Mapping) else {}
+    n = _int(champion_perf.get("n")) or 0
+    minimum = 30
+    row = _base(
+        experiment_id="eurusd-x-adaptive-shadow",
+        name="EURUSD X Adaptive Shadow",
+        category="trading",
+        family="EURUSD",
+        version=str(champion.get("version") or "X-001"),
+        started_at=_iso(data.get("generated_at")),
+        minimum_sample=minimum,
+        purpose="Szybko kalibrowany EUR/USD shadow challenger ze stałym core technicznym, BRs Belief Core, wersjonowanymi eksperymentalnymi dodatkami i automatycznym rollbackiem do ostatniego Championa.",
+        source=src,
+    )
+    row["sample_count"] = n
+    row["sample_unit"] = "resolved_champion_trades"
+    row["last_updated"] = _iso(data.get("generated_at"))
+    row["status"] = "RUNNING" if n >= minimum else "INSUFFICIENT_DATA"
+    row["primary_metric"] = _metric(
+        "Profit factor netto Championa",
+        _float(champion_perf.get("profit_factor")),
+        "ratio",
+        "Wynik po stałym koszcie 2 pips round-trip; do oceny wymagane są również expectancy, hit rate i stabilność kalibracji.",
+    )
+    row["details"] = {
+        "captures": _int(sample.get("captures")),
+        "resolved": _int(sample.get("resolved")),
+        "champion": champion.get("version"),
+        "challenger": challenger.get("version"),
+        "expectancy_pips": _float(champion_perf.get("expectancy_pips")),
+        "hit_rate": _float(champion_perf.get("hit_rate")),
+        "calibration_block_resolved": _int(adaptive.get("calibration_block_resolved")),
+        "rollback": adaptive.get("rollback"),
+        "fixed_core": data.get("fixed_core"),
+        "discovery_layer": data.get("discovery_layer"),
+    }
+    row["notes"] = [
+        "Stały core: MA30/60/100/200 na 1H/1D/1W/1M, Daily Pivot, Bollinger 2.5σ na 1H/1D oraz BRs Belief Core.",
+        "Kalibracja nie może modyfikować stałego core; nowe składniki techniczne są wersjonowanymi challengerami.",
+        "Brak automatycznej promocji do produkcji; rollback dotyczy wyłącznie warstwy badawczej X.",
+    ]
+    return row
+
+
 def _gse(root: Path) -> dict[str, Any]:
     src = "data/gse/gse_v2_lab_public.json"
     data = _load(root, src)
@@ -352,7 +405,7 @@ def build_registry(root: Path) -> dict[str, Any]:
     # AI Tournament is deliberately excluded. It is a public one-off/fun
     # comparison of frozen LLM picks, not a learning experiment and not an
     # input into Experience Store, promotion gates or future model training.
-    builders = (_research_lab, _eurusd_abc, _gse, _brace_spx, _wes)
+    builders = (_research_lab, _eurusd_abc, _eurusd_x, _gse, _brace_spx, _wes)
     experiments = [builder(root) for builder in builders]
     experiments.sort(key=lambda item: (str(item.get("category")), str(item.get("name"))))
 
