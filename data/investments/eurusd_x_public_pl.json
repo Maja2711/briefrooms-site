@@ -1,108 +1,108 @@
 {
-  "schema_version": "eurusd-x-public-pl-v1",
-  "generated_at": "2026-09-27T19:30:00Z",
-  "engine_version": "eurusd-x-v1.0.0",
-  "mode": "LIVE_SHADOW",
-  "market_status": "WAITING_FIRST_CAPTURE",
-  "title": "EURUSD X",
-  "champion_setup_id": "X-BASE",
-  "last_best_setup_id": "X-BASE",
   "active_challenger_id": "X-TREND",
+  "calibration_policy": {
+    "automatic_x_shadow_promotion": true,
+    "automatic_x_shadow_rollback": true,
+    "minimum_common_eval": 8,
+    "primary_horizon_hours": 4,
+    "production_promotion": false,
+    "recalibrate_after_each_resolved_primary_outcome": true,
+    "rollback_window": 8,
+    "scheduler": "hourly_weekdays"
+  },
   "capture_count": 0,
-  "resolved_4h": 0,
-  "latest_prediction": null,
+  "champion_setup_id": "X-BASE",
+  "engine_version": "eurusd-x-v1.0.0",
   "fixed_core": {
-    "ma_windows": [
-      30,
-      60,
-      100,
-      200
-    ],
+    "bollinger": {
+      "stddevs": 2.5,
+      "timeframes": [
+        "H1",
+        "D1"
+      ],
+      "window": 20
+    },
+    "core_component_weights": {
+      "boll_d1": 0.1,
+      "boll_h1": 0.12,
+      "ma_d1": 0.18,
+      "ma_h1": 0.18,
+      "ma_m1": 0.1,
+      "ma_w1": 0.14,
+      "pivot": 0.18
+    },
     "ma_timeframes": [
       "H1",
       "D1",
       "W1",
       "M1"
     ],
-    "pivot": "classic_daily_floor_P_R1_R2_R3_S1_S2_S3",
-    "bollinger": {
-      "window": 20,
-      "stddevs": 2.5,
-      "timeframes": [
-        "H1",
-        "D1"
-      ]
-    },
-    "core_component_weights": {
-      "ma_h1": 0.18,
-      "ma_d1": 0.18,
-      "ma_w1": 0.14,
-      "ma_m1": 0.1,
-      "pivot": 0.18,
-      "boll_h1": 0.12,
-      "boll_d1": 0.1
-    }
+    "ma_windows": [
+      30,
+      60,
+      100,
+      200
+    ],
+    "pivot": "classic_daily_floor_P_R1_R2_R3_S1_S2_S3"
   },
-  "calibration_policy": {
-    "scheduler": "hourly_weekdays",
-    "recalibrate_after_each_resolved_primary_outcome": true,
-    "primary_horizon_hours": 4,
-    "minimum_common_eval": 8,
-    "rollback_window": 8,
-    "automatic_x_shadow_promotion": true,
-    "automatic_x_shadow_rollback": true,
-    "production_promotion": false
+  "generated_at": "2026-09-27T19:56:15.038763Z",
+  "last_best_setup_id": "X-BASE",
+  "latest_prediction": null,
+  "market_status": "WAITING_FRESH_MARKET",
+  "mode": "LIVE_SHADOW",
+  "public_boundary": {
+    "abc_writeback": false,
+    "active_daily_engine_writeback": false,
+    "belief_writeback": false,
+    "production_execution": false,
+    "raw_belief_evidence_exposed": false,
+    "shadow_only": true
   },
-  "setups": [
-    {
-      "setup_id": "X-BASE",
-      "label": "Balanced Core + Belief",
-      "origin": "frozen_baseline",
-      "n": 0,
-      "brier": null,
-      "signal_n": 0,
-      "hit_rate": null,
-      "mean_signed_return_bps": null
-    },
-    {
-      "setup_id": "X-TREND",
-      "label": "Trend Continuation",
-      "origin": "frozen_challenger",
-      "n": 0,
-      "brier": null,
-      "signal_n": 0,
-      "hit_rate": null,
-      "mean_signed_return_bps": null
-    },
-    {
-      "setup_id": "X-REV",
-      "label": "Stretch / Mean Reversion",
-      "origin": "frozen_challenger",
-      "n": 0,
-      "brier": null,
-      "signal_n": 0,
-      "hit_rate": null,
-      "mean_signed_return_bps": null
-    },
-    {
-      "setup_id": "X-BELIEF",
-      "label": "Belief-weighted",
-      "origin": "frozen_challenger",
-      "n": 0,
-      "brier": null,
-      "signal_n": 0,
-      "hit_rate": null,
-      "mean_signed_return_bps": null
-    }
-  ],
   "recent_calibration_events": [],
   "recent_discoveries": [],
-  "public_boundary": {
-    "shadow_only": true,
-    "production_execution": false,
-    "active_daily_engine_writeback": false,
-    "abc_writeback": false,
-    "belief_writeback": false,
-    "raw_belief_evidence_exposed": false
-  }
+  "resolved_4h": 0,
+  "schema_version": "eurusd-x-public-pl-v1",
+  "setups": [
+    {
+      "brier": null,
+      "hit_rate": null,
+      "label": "Balanced Core + Belief",
+      "mean_signed_return_bps": null,
+      "n": 0,
+      "origin": "frozen_baseline",
+      "setup_id": "X-BASE",
+      "signal_n": 0
+    },
+    {
+      "brier": null,
+      "hit_rate": null,
+      "label": "Trend Continuation",
+      "mean_signed_return_bps": null,
+      "n": 0,
+      "origin": "frozen_challenger",
+      "setup_id": "X-TREND",
+      "signal_n": 0
+    },
+    {
+      "brier": null,
+      "hit_rate": null,
+      "label": "Stretch / Mean Reversion",
+      "mean_signed_return_bps": null,
+      "n": 0,
+      "origin": "frozen_challenger",
+      "setup_id": "X-REV",
+      "signal_n": 0
+    },
+    {
+      "brier": null,
+      "hit_rate": null,
+      "label": "Belief-weighted",
+      "mean_signed_return_bps": null,
+      "n": 0,
+      "origin": "frozen_challenger",
+      "setup_id": "X-BELIEF",
+      "signal_n": 0
+    }
+  ],
+  "title": "EURUSD X"
 }
