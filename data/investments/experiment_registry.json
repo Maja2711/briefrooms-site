@@ -307,9 +307,80 @@
       "status": "INSUFFICIENT_DATA",
       "system_class": "LAB",
       "version": "eurusd-daily-abc-v1.3.0"
+    },
+    {
+      "automatic_promotion": false,
+      "benchmark": null,
+      "category": "trading",
+      "delta_vs_benchmark": null,
+      "details": {
+        "calibration_block_resolved": 5,
+        "captures": 0,
+        "challenger": null,
+        "champion": "X-001",
+        "discovery_layer": {
+          "enabled": true,
+          "policy": "new technical features/strategies/anomalies may be added as versioned challengers; fixed core is never mutated"
+        },
+        "expectancy_pips": null,
+        "fixed_core": {
+          "belief_core": "BriefRooms Belief Core",
+          "bollinger": {
+            "sigma": 2.5,
+            "timeframes": [
+              "1H",
+              "1D"
+            ],
+            "window": 20
+          },
+          "ma_periods": [
+            30,
+            60,
+            100,
+            200
+          ],
+          "ma_timeframes": [
+            "1H",
+            "1D",
+            "1W",
+            "1M"
+          ],
+          "pivot": "classic_daily"
+        },
+        "hit_rate": null,
+        "resolved": 0,
+        "rollback": "automatic_keep_last_champion"
+      },
+      "family": "EURUSD",
+      "id": "eurusd-x-adaptive-shadow",
+      "last_updated": "2026-09-27T19:11:00Z",
+      "max_drawdown": null,
+      "minimum_sample": 30,
+      "name": "EURUSD X Adaptive Shadow",
+      "notes": [
+        "Stały core: MA30/60/100/200 na 1H/1D/1W/1M, Daily Pivot, Bollinger 2.5σ na 1H/1D oraz BRs Belief Core.",
+        "Kalibracja nie może modyfikować stałego core; nowe składniki techniczne są wersjonowanymi challengerami.",
+        "Brak automatycznej promocji do produkcji; rollback dotyczy wyłącznie warstwy badawczej X."
+      ],
+      "primary_metric": {
+        "interpretation": "Wynik po stałym koszcie 2 pips round-trip; do oceny wymagane są również expectancy, hit rate i stabilność kalibracji.",
+        "label": "Profit factor netto Championa",
+        "unit": "ratio",
+        "value": null
+      },
+      "production_impact": false,
+      "purpose": "Szybko kalibrowany EUR/USD shadow challenger ze stałym core technicznym, BRs Belief Core, wersjonowanymi eksperymentalnymi dodatkami i automatycznym rollbackiem do ostatniego Championa.",
+      "sample_count": 0,
+      "sample_unit": "resolved_champion_trades",
+      "source": "data/investments/eurusd_x_public_pl.json",
+      "stage": "SHADOW",
+      "started_at": "2026-09-27T19:11:00Z",
+      "status": "INSUFFICIENT_DATA",
+      "system_class": "LAB",
+      "version": "X-001"
     }
   ],
-  "generated_at": "2026-09-27T18:28:17.908196Z",
+  "generated_at": "2026-09-27T19:11:00Z",
   "schema_version": "briefrooms-experiment-registry-v1",
   "status_policy": {
     "allowed": [
@@ -333,10 +404,10 @@
   },
   "summary": {
     "active": 2,
-    "awaiting_evidence": 3,
+    "awaiting_evidence": 4,
     "errors": 0,
     "parked_or_killed": 0,
     "promotion_candidates": 0,
-    "total": 5
+    "total": 6
   }
 }
