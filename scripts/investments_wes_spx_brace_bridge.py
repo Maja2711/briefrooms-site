@@ -515,6 +515,7 @@ def capture(
     brace_shadow: Mapping[str, Any],
     ledger: Mapping[str, Any],
     captured_at: Optional[datetime] = None,
+    evidence_cycle_id: Optional[str] = None,
 ) -> dict[str, Any]:
     if stage not in {"pre-wes", "post-wes"}:
         raise ValueError("stage must be pre-wes or post-wes")
@@ -529,6 +530,13 @@ def capture(
         return out
 
     decision = _decision_from_item_or_report(week, item, wes_report)
+    cycle_id = str(evidence_cycle_id or "").strip() or None
+    if cycle_id:
+        decision["decision_id"] = "wes-spx-" + canonical_sha256({
+            "week_id": week.get("week_id"),
+            "instrument_id": SPX_ID,
+            "evidence_cycle_id": cycle_id,
+        })[:20]
     decision_id = str(decision["decision_id"])
     existing = next((row for row in records if row.get("decision_id") == decision_id), None)
     now = captured_at or _now()
@@ -552,6 +560,7 @@ def capture(
             "first_captured_at": now.isoformat(timespec="seconds"),
             "last_updated_at": now.isoformat(timespec="seconds"),
             "active_decision_influence": False,
+            "evidence_cycle_id": cycle_id,
             "point_in_time": pit,
             "brace_spx": brace_state,
             "relationship": rel,
@@ -689,6 +698,7 @@ def main() -> None:
     parser.add_argument("--brace-shadow", type=Path, default=Path("/tmp/brace_spx_generation6_shadow.json"))
     parser.add_argument("--ledger", type=Path, default=LEDGER)
     parser.add_argument("--alpha-report", type=Path, default=ALPHA_REPORT)
+    parser.add_argument("--evidence-cycle-id", default=None)
     args = parser.parse_args()
 
     week_path = args.week_path or WEEKLY_DIR / f"{args.week_id or current_week_id()}.json"
@@ -706,6 +716,7 @@ def main() -> None:
         wes_report=report,
         brace_shadow=brace,
         ledger=ledger,
+        evidence_cycle_id=args.evidence_cycle_id,
     )
     _write(args.ledger, updated)
     _write(args.alpha_report, build_alpha_report(updated))
