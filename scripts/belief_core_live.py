@@ -324,6 +324,33 @@ def _belief_ids_for_consumer(core: BeliefCore, consumer: str) -> List[str]:
     return []
 
 
+FORECAST_CONTRACT_VERSION = "decision-lab-forecast-contract-v2"
+MODEL_FREEZE_VERSION = "belief-core-v2-shadow-2026-09-27"
+
+
+def forecast_contract_metadata(snapshot: MarketSnapshot, market_symbol: str, spec: Mapping[str, Any],
+                               when: datetime, target: datetime, horizon_hours: float) -> Dict[str, Any]:
+    """Immutable T0/target settlement contract for prospective LAB research."""
+    symbols = required_symbols(spec)
+    t0_values = {symbol: snapshot.latest(symbol) for symbol in symbols}
+    continuous = market_symbol == "BTC-USD"
+    return {
+        "forecast_contract_version": FORECAST_CONTRACT_VERSION,
+        "model_freeze_version": MODEL_FREEZE_VERSION,
+        "t0_at": iso_z(when),
+        "t0_values": t0_values,
+        "nominal_target_at": iso_z(target),
+        "horizon_hours": horizon_hours,
+        "settlement_rule": "first_bar_at_or_after_nominal_target",
+        "settlement_max_delay_hours": 0.333333 if continuous else 72,
+        "market_calendar": "24/7" if continuous else "tradable_session_first_available",
+        "t1_values_recorded_on_verification": True,
+        "shadow_only": True,
+        "production_write_authority": False,
+        "automatic_promotion": False,
+    }
+
+
 def freeze_set(core: BeliefCore, snapshot: MarketSnapshot, when: datetime, target: datetime,
                consumer: str, slot_key: str, regime: str) -> int:
     count = 0
@@ -350,6 +377,7 @@ def freeze_set(core: BeliefCore, snapshot: MarketSnapshot, when: datetime, targe
             "shadow_only": True,
             "trade_execution_enabled": False,
             "policy_output_enabled": False,
+            **forecast_contract_metadata(snapshot, market_symbol, spec, when, target, (target - when).total_seconds() / 3600.0),
         }
         core.capture_forecast(belief_id, as_of=when, target_at=target, regime=regime,
                               forecast_id=forecast_id, metadata=metadata)
@@ -385,6 +413,7 @@ def freeze_multihorizon_set(core: BeliefCore, snapshot: MarketSnapshot, when: da
                 "research_horizon_hours": hours, "research_horizon_label": labels[hours],
                 "primary_research_horizon": hours == PRIMARY_RESEARCH_HORIZON_HOURS,
                 "multihorizon_contract": "decision-lab-multihorizon-v1",
+                **forecast_contract_metadata(snapshot, market_symbol, spec, when, target, hours),
             }
             core.capture_forecast(belief_id, as_of=when, target_at=target, regime=regime,
                                   forecast_id=forecast_id, metadata=metadata)
@@ -407,9 +436,14 @@ def verify_due(core: BeliefCore, client: YahooChartClient, now: datetime,
             continue
         outcome = evaluate_spec(spec, values)
         outcome_ref = "yahoo:" + ",".join(required_symbols(spec)) + ":target=" + forecast.target_at
+        # Preserve the exact T1 marks used by deterministic settlement. This is
+        # research audit metadata only; it cannot alter P or production systems.
+        forecast.metadata["t1_values"] = dict(values)
+        forecast.metadata["settled_at"] = iso_z(now)
+        forecast.metadata["settlement_status"] = "RESOLVED"
         core.verify_forecast(forecast.forecast_id, outcome, verified_at=now,
                              outcome_source="Yahoo Finance chart", outcome_ref=outcome_ref,
-                             note="Automatic deterministic shadow verification")
+                             note="Automatic deterministic shadow verification; forecast contract remains immutable")
         count += 1
     return count
 
