@@ -76,7 +76,7 @@ class DailyWESAssetShadowTests(unittest.TestCase):
             retry = run_cycle(state_dir, now, client)
             self.assertEqual(retry["shared_forecasts_frozen"], 0)
             self.assertEqual(retry["wes_asset_forecasts_frozen"], 0)
-            self.assertEqual(len(BeliefCore(state_dir).forecasts), 12)
+            self.assertEqual(len(BeliefCore(state_dir).forecasts), 40)
 
 
 if __name__ == "__main__":
