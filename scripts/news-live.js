@@ -56,10 +56,13 @@
   }
 
   function isFreshNewsStory(story, now = Date.now()) {
-    if (!story || !isFreshTimestamp(story.published_at, now)) return false;
-    const firstSeen = story.news_first_seen_at || story.homepage_first_seen_at;
-    if (!firstSeen) return true;
-    return isFreshTimestamp(firstSeen, now);
+    if (!story) return false;
+    const firstSeen = timestamp(story.news_first_seen_at || story.homepage_first_seen_at);
+    const expiresAt = timestamp(story.news_expires_at || story.homepage_expires_at);
+    if (!firstSeen) return false;
+    if (firstSeen > now + FUTURE_TOLERANCE_MS) return false;
+    if (now - firstSeen > HOME_MAX_AGE_MS) return false;
+    return !expiresAt || now <= expiresAt;
   }
 
   function isFreshHomepageStory(story, now = Date.now()) {
@@ -196,14 +199,17 @@
         item.remove();
         return;
       }
-      const sourceFresh = isFreshTimestamp(link.dataset.newsPublishedAt, now);
-      const firstSeen = link.dataset.newsFirstSeenAt;
-      const exposureFresh = !firstSeen || isFreshTimestamp(firstSeen, now);
+      const firstSeen = timestamp(link.dataset.newsFirstSeenAt);
       const expiresAt = timestamp(link.dataset.newsExpiresAt);
+      const exposureFresh = Boolean(
+        firstSeen &&
+        firstSeen <= now + FUTURE_TOLERANCE_MS &&
+        now - firstSeen <= HOME_MAX_AGE_MS
+      );
       const notExpired = !expiresAt || now <= expiresAt;
       const image = link.querySelector('.news-thumb.has-image img');
       const imageEligible = Boolean(image && safeImage(image.getAttribute('src')));
-      if (sourceFresh && exposureFresh && notExpired && imageEligible) return;
+      if (exposureFresh && notExpired && imageEligible) return;
       item.remove();
     });
   }
@@ -315,7 +321,7 @@
       pruneStaticNewsPage();
       pruneStaticHomepage();
       removeLegacyHealthBanner();
-      console.warn('BriefRooms live news refresh failed; public news keeps only <=24h stories with HTTPS images.', error);
+      console.warn('BriefRooms live news refresh failed; public news keeps only stories within their <=24h BriefRooms exposure window and with HTTPS images.', error);
       scheduleNextExpiry();
       return false;
     }
