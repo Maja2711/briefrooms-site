@@ -246,5 +246,60 @@ class WesSpxBraceBridgeTests(unittest.TestCase):
         self.assertEqual(row["relationship"]["reason"], "non_actionable_monitoring_observation")
 
 
+    def test_evidence_cycle_id_pairs_pre_and_post_even_when_report_identity_changes(self):
+        pre_week = week("v5-plan")
+        pre_week["instruments"][0]["entry_price"] = None
+        pre_week["instruments"][0]["entry_captured_at"] = None
+        pre_week["instruments"][0]["risk_plan"] = None
+        pre_report = {
+            "checked_at": "2026-08-19T10:00:00+00:00",
+            "actions": [{
+                "instrument_id": "sp500_futures",
+                "action": "authorize_trigger",
+                "direction": "long",
+                "strategy_id": "weekly_trend",
+                "raw_score": 55.0,
+                "entry_class": "midweek_trigger",
+            }],
+        }
+        ledger = bridge.capture(
+            stage="pre-wes",
+            week=pre_week,
+            wes_report=pre_report,
+            brace_shadow=active_shadow(0.9),
+            ledger=bridge._new_ledger(),
+            captured_at=datetime(2026, 8, 19, 10, 1, tzinfo=timezone.utc),
+            evidence_cycle_id="gha-123-1",
+        )
+        self.assertEqual(len(ledger["records"]), 1)
+        pre_id = ledger["records"][0]["decision_id"]
+
+        post_week = week("WES-1.0.0")
+        post_report = {
+            "checked_at": "2026-08-19T10:02:00+00:00",
+            "actions": [{
+                "instrument_id": "sp500_futures",
+                "action": "freeze_adaptive_risk_plan",
+                "entry_class": "midweek_trigger",
+            }],
+        }
+        ledger = bridge.capture(
+            stage="post-wes",
+            week=post_week,
+            wes_report=post_report,
+            brace_shadow=active_shadow(0.1),
+            ledger=ledger,
+            captured_at=datetime(2026, 8, 19, 10, 2, tzinfo=timezone.utc),
+            evidence_cycle_id="gha-123-1",
+        )
+        self.assertEqual(len(ledger["records"]), 1)
+        row = ledger["records"][0]
+        self.assertEqual(row["decision_id"], pre_id)
+        self.assertEqual(row["evidence_cycle_id"], "gha-123-1")
+        self.assertIsNotNone(row["v5_counterfactual"])
+        self.assertIsNotNone(row["wes_actual"])
+
+
+
 if __name__ == "__main__":
     unittest.main()
