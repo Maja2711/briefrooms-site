@@ -8,6 +8,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 try:
     from . import publish_live_news as base
@@ -443,6 +444,63 @@ def _fresh_for_pl_selection(story: dict[str, Any], now: datetime) -> bool:
     return age >= -base.FUTURE_TOLERANCE
 
 
+def _public_image_ready(story: dict[str, Any]) -> bool:
+    """Match the final public-surface image contract before a card consumes a slot."""
+    raw = str(story.get("image") or "").strip()
+    if not raw:
+        return False
+    try:
+        parsed = urlsplit(raw)
+    except ValueError:
+        return False
+    return parsed.scheme.lower() == "https" and bool(parsed.netloc) and not parsed.username and not parsed.password
+
+
+def _previous_exposure_by_identity(previous: dict[str, Any]) -> dict[str, datetime]:
+    """Recover persisted BriefRooms first-display clocks from the previous public payload."""
+    result: dict[str, datetime] = {}
+    collections: list[Any] = []
+    sections = previous.get("sections")
+    if isinstance(sections, dict):
+        collections.extend(sections.values())
+    collections.extend((previous.get("home"), previous.get("home_reserve")))
+    for rows in collections:
+        if not isinstance(rows, list):
+            continue
+        for story in rows:
+            if not isinstance(story, dict):
+                continue
+            identity = base.normalized_identity(story)
+            if not identity:
+                continue
+            try:
+                first_seen = datetime.fromisoformat(
+                    str(story.get("news_first_seen_at") or "").replace("Z", "+00:00")
+                )
+            except (TypeError, ValueError):
+                continue
+            if first_seen.tzinfo is None:
+                first_seen = first_seen.replace(tzinfo=timezone.utc)
+            result[identity] = first_seen.astimezone(timezone.utc)
+    return result
+
+
+def _eligible_before_selection(
+    story: dict[str, Any],
+    now: datetime,
+    prior_exposure: dict[str, datetime],
+) -> bool:
+    """Reject cards that the final public gate would immediately discard."""
+    if not _public_image_ready(story):
+        return False
+    identity = base.normalized_identity(story)
+    first_seen = prior_exposure.get(identity) if identity else None
+    if first_seen is None:
+        return True
+    age = now.astimezone(timezone.utc) - first_seen
+    return -base.FUTURE_TOLERANCE <= age <= timedelta(hours=24)
+
+
 def select_sections(
     config: list[tuple[str, str, list[tuple[str, str]]]],
     fetched: dict[str, list[dict[str, Any]]],
@@ -455,6 +513,7 @@ def select_sections(
     previous_sections = previous.get("sections") if isinstance(previous.get("sections"), dict) else {}
     global_seen: set[str] = set()
     pl_mode = _is_pl_config(config)
+    prior_exposure = _previous_exposure_by_identity(previous)
 
     for section_id, _, _ in config:
         source_candidates = list(fetched.get(section_id) or [])
@@ -462,6 +521,7 @@ def select_sections(
             source_candidates = [
                 story for story in source_candidates
                 if _fresh_for_pl_selection(story, now)
+                and _eligible_before_selection(story, now, prior_exposure)
             ]
         sport_mode = pl_mode and section_id == "sport"
         if sport_mode:
