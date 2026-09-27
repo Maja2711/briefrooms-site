@@ -16,8 +16,9 @@ class ExperimentRegistryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             registry = build_registry(Path(tmp))
         ids = {row["id"] for row in registry["experiments"]}
-        self.assertEqual(len(ids), 5)
+        self.assertEqual(len(ids), 6)
         self.assertIn("eurusd-abc-live-shadow", ids)
+        self.assertIn("eurusd-x-adaptive-shadow", ids)
         self.assertNotIn("ai-tournament-2026-02", ids)
         self.assertFalse(any("validation" in item.lower() for item in ids))
         self.assertTrue(all(row["system_class"] == "LAB" for row in registry["experiments"]))
