@@ -84,6 +84,7 @@ PL_SECTION_MINIMUMS = {
 }
 PL_ECONOMY_AI_CRYPTO_MINIMUM = 1
 PL_SCIENCE_AI_TARGET = 3
+EN_SECTION_TARGETS = {"asia-pacific": 12, "europe": 12}
 AI_CRYPTO_RE = re.compile(
     r"\b(?:AI|sztuczn\w*\s+inteligencj\w*|artificial\s+intelligence|OpenAI|ChatGPT|"
     r"bitcoin|BTC|ethereum|ETH|kryptowalut\w*|crypto|blockchain|stablecoin\w*)\b",
@@ -516,6 +517,7 @@ def select_sections(
     prior_exposure = _previous_exposure_by_identity(previous)
 
     for section_id, _, _ in config:
+        target = target if pl_mode else EN_SECTION_TARGETS.get(section_id, target)
         source_candidates = list(fetched.get(section_id) or [])
         if pl_mode:
             source_candidates = [
@@ -550,11 +552,11 @@ def select_sections(
             if story.get("image") and str(story.get("source") or "").strip()
         }
         if len(active_sources) >= 3:
-            preferred_source_cap = max(3, math.ceil(base.TARGET / len(active_sources)))
+            preferred_source_cap = max(3, math.ceil(target / len(active_sources)))
         elif len(active_sources) == 2:
             preferred_source_cap = MAX_SOURCE_SHARE
         else:
-            preferred_source_cap = base.TARGET
+            preferred_source_cap = target
         athlete_counts: dict[str, int] = {}
         entity_counts: dict[str, int] = {}
         discipline_counts: dict[str, int] = {}
@@ -712,7 +714,7 @@ def select_sections(
                         copy,
                         discipline_cap=False,
                         source_cap=(
-                            MAX_SOURCE_SHARE if len(active_sources) >= 2 else base.TARGET
+                            MAX_SOURCE_SHARE if len(active_sources) >= 2 else target
                         ),
                     ) == "added":
                         forced_topic_carried = 1
@@ -727,12 +729,12 @@ def select_sections(
                 deferred_discipline.append(story)
             elif result == "source_cap":
                 deferred_source.append(story)
-            if len(items) >= base.TARGET:
+            if len(items) >= target:
                 break
 
         # Discipline diversity is a soft constraint. It may be relaxed to avoid an
         # underfilled section, while the per-athlete cap remains hard.
-        if sport_mode and len(items) < base.TARGET:
+        if sport_mode and len(items) < target:
             for story in deferred_discipline:
                 result = try_add(
                     story,
@@ -741,24 +743,24 @@ def select_sections(
                 )
                 if result == "source_cap":
                     deferred_source.append(story)
-                if len(items) >= base.TARGET:
+                if len(items) >= target:
                     break
 
         # A publisher can exceed the preferred share only to prevent an otherwise
         # incomplete section, and never occupy more than five of nine cards when at
         # least two publishers supplied usable material.
-        if len(items) < base.TARGET and preferred_source_cap < MAX_SOURCE_SHARE:
+        if len(items) < target and preferred_source_cap < MAX_SOURCE_SHARE:
             for story in deferred_source:
                 try_add(
                     story,
                     discipline_cap=False,
                     source_cap=MAX_SOURCE_SHARE,
                 )
-                if len(items) >= base.TARGET:
+                if len(items) >= target:
                     break
 
         carried = forced_topic_carried
-        if len(items) < base.TARGET:
+        if len(items) < target:
             old_items = previous_sections.get(section_id, []) if isinstance(previous_sections.get(section_id), list) else []
             for old in old_items:
                 try:
@@ -772,7 +774,7 @@ def select_sections(
                 copy = dict(old)
                 copy["carried_forward"] = True
                 carry_source_cap = (
-                    MAX_SOURCE_SHARE if len(active_sources) >= 2 else base.TARGET
+                    MAX_SOURCE_SHARE if len(active_sources) >= 2 else target
                 )
                 if try_add(
                     copy,
@@ -780,12 +782,12 @@ def select_sections(
                     source_cap=carry_source_cap,
                 ) == "added":
                     carried += 1
-                if len(items) >= base.TARGET:
+                if len(items) >= target:
                     break
 
         # Freshness has authority over visual fullness. The downstream public
         # 24h guard may shrink this further, so an underfilled section is valid.
-        selected[section_id] = items[:base.TARGET]
+        selected[section_id] = items[:target]
         if pl_mode:
             minimum = PL_SECTION_MINIMUMS.get(section_id, 0)
             if len(selected[section_id]) < minimum:
@@ -823,7 +825,7 @@ def select_sections(
             "source_mix": source_counts,
             "source_diversity_policy": EDITORIAL_SELECTION_POLICY_VERSION,
             "preferred_source_cap": preferred_source_cap,
-            "hard_source_cap": MAX_SOURCE_SHARE if len(active_sources) >= 2 else base.TARGET,
+            "hard_source_cap": MAX_SOURCE_SHARE if len(active_sources) >= 2 else target,
         }
         if sport_mode:
             section_health["tracked_athletes"] = athlete_counts
@@ -1099,9 +1101,10 @@ def validate(max_age_minutes: int = 30) -> None:
             if image_quality.get("scope") != "en_only" or image_quality.get("mode") != "article_og_image_preferred":
                 raise RuntimeError("en high-resolution image policy missing or outdated")
         for section_id, stories in payload.get("sections", {}).items():
-            if len(stories) > base.TARGET:
+            section_max = EN_SECTION_TARGETS.get(section_id, base.TARGET) if lang == "en" else base.TARGET
+            if len(stories) > section_max:
                 raise RuntimeError(
-                    f"{lang}/{section_id} has {len(stories)} stories; maximum is {base.TARGET}"
+                    f"{lang}/{section_id} has {len(stories)} stories; maximum is {section_max}"
                 )
             if lang == "pl" and section_id == "sport":
                 athlete_counts: dict[str, int] = {}
