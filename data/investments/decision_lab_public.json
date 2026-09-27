@@ -7,7 +7,7 @@
   "automatic_tuning": false,
   "automatic_promotion": false,
   "promotion_policy": "candidate_only_manual_production_decision",
-  "generated_at": "2026-09-27T16:30:14.225593Z",
+  "generated_at": "2026-09-27T16:59:45.463603Z",
   "market_view": [
     {
       "instrument": "BTC/USD",
@@ -4995,6 +4995,279 @@
         }
       ]
     }
+  },
+  "belief_core_v3_candidates": {
+    "governance": {
+      "library_version": "belief-core-v3-candidate-library-v1",
+      "stage": "SHADOW",
+      "production_decision_influence": false,
+      "production_write_authority": false,
+      "automatic_tuning": false,
+      "automatic_promotion": false,
+      "historical_backfill": false,
+      "minimum_sample_for_review": 50,
+      "incremental_information_required_after_minimum_sample": true,
+      "forecast_contract": {
+        "required": true,
+        "t0_required": true,
+        "probability_required": true,
+        "t1_required_for_resolution": true,
+        "scores": [
+          "brier",
+          "ece",
+          "log_loss"
+        ],
+        "calibration_curve": true,
+        "lab_breakdown": true
+      },
+      "promotion_rule": "candidate_only_manual_production_decision"
+    },
+    "candidates": [
+      {
+        "belief_id": "spx.rates.supportive",
+        "entity": "SPX",
+        "domain": "rates",
+        "claim": "US rates conditions are supportive for SPX into the target horizon",
+        "source_status": "READY_EXISTING_MARKET_PROXY",
+        "required_evidence": [
+          "US duration/rates market evidence"
+        ],
+        "outcome_rule": "rates_supportive_at_target",
+        "stage": "SHADOW",
+        "sample_n": 0,
+        "brier": null,
+        "ece": null,
+        "log_loss": null,
+        "incremental_information": null,
+        "review_status": "READY_TO_WIRE",
+        "production_recommendation": "NIE OCENIAĆ",
+        "production_write_authority": false,
+        "automatic_promotion": false
+      },
+      {
+        "belief_id": "spx.cross_asset_risk.supportive",
+        "entity": "SPX",
+        "domain": "cross_asset",
+        "claim": "Cross-asset risk conditions confirm a supportive SPX environment into the target horizon",
+        "source_status": "READY_EXISTING_MARKET_PROXY",
+        "required_evidence": [
+          "credit",
+          "duration",
+          "USD",
+          "equity risk"
+        ],
+        "outcome_rule": "cross_asset_risk_supportive_at_target",
+        "stage": "SHADOW",
+        "sample_n": 0,
+        "brier": null,
+        "ece": null,
+        "log_loss": null,
+        "incremental_information": null,
+        "review_status": "READY_TO_WIRE",
+        "production_recommendation": "NIE OCENIAĆ",
+        "production_write_authority": false,
+        "automatic_promotion": false
+      },
+      {
+        "belief_id": "eurusd.rate_differential.supportive",
+        "entity": "EURUSD",
+        "domain": "rate_differential",
+        "claim": "EUR-vs-USD rate differential is supportive for EUR/USD into the target horizon",
+        "source_status": "WAITING_REAL_SOURCE",
+        "required_evidence": [
+          "EUR rate curve",
+          "USD rate curve"
+        ],
+        "outcome_rule": "eur_us_rate_differential_supportive_at_target",
+        "stage": "SHADOW",
+        "sample_n": 0,
+        "brier": null,
+        "ece": null,
+        "log_loss": null,
+        "incremental_information": null,
+        "review_status": "WAITING_FOR_EVIDENCE",
+        "production_recommendation": "NIE OCENIAĆ",
+        "production_write_authority": false,
+        "automatic_promotion": false
+      },
+      {
+        "belief_id": "eurusd.ecb_policy.supportive",
+        "entity": "EURUSD",
+        "domain": "ecb_policy",
+        "claim": "ECB policy expectations are supportive for EUR/USD into the target horizon",
+        "source_status": "WAITING_REAL_SOURCE",
+        "required_evidence": [
+          "ECB policy expectations"
+        ],
+        "outcome_rule": "ecb_policy_supportive_at_target",
+        "stage": "SHADOW",
+        "sample_n": 0,
+        "brier": null,
+        "ece": null,
+        "log_loss": null,
+        "incremental_information": null,
+        "review_status": "WAITING_FOR_EVIDENCE",
+        "production_recommendation": "NIE OCENIAĆ",
+        "production_write_authority": false,
+        "automatic_promotion": false
+      },
+      {
+        "belief_id": "eurusd.euro_macro.supportive",
+        "entity": "EURUSD",
+        "domain": "euro_macro",
+        "claim": "Euro-area macro conditions are supportive for EUR/USD into the target horizon",
+        "source_status": "WAITING_REAL_SOURCE",
+        "required_evidence": [
+          "euro-area macro surprise"
+        ],
+        "outcome_rule": "euro_macro_supportive_at_target",
+        "stage": "SHADOW",
+        "sample_n": 0,
+        "brier": null,
+        "ece": null,
+        "log_loss": null,
+        "incremental_information": null,
+        "review_status": "WAITING_FOR_EVIDENCE",
+        "production_recommendation": "NIE OCENIAĆ",
+        "production_write_authority": false,
+        "automatic_promotion": false
+      },
+      {
+        "belief_id": "eurusd.risk_regime.supportive",
+        "entity": "EURUSD",
+        "domain": "risk_regime",
+        "claim": "Global risk regime is supportive for EUR/USD into the target horizon",
+        "source_status": "READY_EXISTING_MARKET_PROXY",
+        "required_evidence": [
+          "equity risk",
+          "credit",
+          "volatility",
+          "USD"
+        ],
+        "outcome_rule": "risk_regime_supportive_at_target",
+        "stage": "SHADOW",
+        "sample_n": 0,
+        "brier": null,
+        "ece": null,
+        "log_loss": null,
+        "incremental_information": null,
+        "review_status": "READY_TO_WIRE",
+        "production_recommendation": "NIE OCENIAĆ",
+        "production_write_authority": false,
+        "automatic_promotion": false
+      },
+      {
+        "belief_id": "btc.derivatives_positioning.supportive",
+        "entity": "BTC",
+        "domain": "crypto_derivatives",
+        "claim": "Crypto derivatives positioning is supportive and not excessively crowded into the target horizon",
+        "source_status": "WAITING_REAL_SOURCE",
+        "required_evidence": [
+          "funding",
+          "open interest",
+          "basis",
+          "liquidations"
+        ],
+        "outcome_rule": "crypto_derivatives_supportive_at_target",
+        "stage": "SHADOW",
+        "sample_n": 0,
+        "brier": null,
+        "ece": null,
+        "log_loss": null,
+        "incremental_information": null,
+        "review_status": "WAITING_FOR_EVIDENCE",
+        "production_recommendation": "NIE OCENIAĆ",
+        "production_write_authority": false,
+        "automatic_promotion": false
+      },
+      {
+        "belief_id": "btc.exchange_flows.supportive",
+        "entity": "BTC",
+        "domain": "exchange_flows",
+        "claim": "Bitcoin exchange flows are supportive into the target horizon",
+        "source_status": "WAITING_REAL_SOURCE",
+        "required_evidence": [
+          "BTC exchange inflows/outflows"
+        ],
+        "outcome_rule": "exchange_flows_supportive_at_target",
+        "stage": "SHADOW",
+        "sample_n": 0,
+        "brier": null,
+        "ece": null,
+        "log_loss": null,
+        "incremental_information": null,
+        "review_status": "WAITING_FOR_EVIDENCE",
+        "production_recommendation": "NIE OCENIAĆ",
+        "production_write_authority": false,
+        "automatic_promotion": false
+      },
+      {
+        "belief_id": "btc.stablecoin_liquidity.supportive",
+        "entity": "BTC",
+        "domain": "stablecoin_liquidity",
+        "claim": "Stablecoin liquidity is supportive for BTC into the target horizon",
+        "source_status": "WAITING_REAL_SOURCE",
+        "required_evidence": [
+          "stablecoin supply/flows"
+        ],
+        "outcome_rule": "stablecoin_liquidity_supportive_at_target",
+        "stage": "SHADOW",
+        "sample_n": 0,
+        "brier": null,
+        "ece": null,
+        "log_loss": null,
+        "incremental_information": null,
+        "review_status": "WAITING_FOR_EVIDENCE",
+        "production_recommendation": "NIE OCENIAĆ",
+        "production_write_authority": false,
+        "automatic_promotion": false
+      },
+      {
+        "belief_id": "btc.onchain_flows.supportive",
+        "entity": "BTC",
+        "domain": "onchain",
+        "claim": "Bitcoin on-chain flows are supportive into the target horizon",
+        "source_status": "WAITING_REAL_SOURCE",
+        "required_evidence": [
+          "on-chain flow metrics"
+        ],
+        "outcome_rule": "onchain_flows_supportive_at_target",
+        "stage": "SHADOW",
+        "sample_n": 0,
+        "brier": null,
+        "ece": null,
+        "log_loss": null,
+        "incremental_information": null,
+        "review_status": "WAITING_FOR_EVIDENCE",
+        "production_recommendation": "NIE OCENIAĆ",
+        "production_write_authority": false,
+        "automatic_promotion": false
+      },
+      {
+        "belief_id": "btc.cross_asset_risk.supportive",
+        "entity": "BTC",
+        "domain": "cross_asset",
+        "claim": "Cross-asset risk appetite is supportive for BTC into the target horizon",
+        "source_status": "READY_EXISTING_MARKET_PROXY",
+        "required_evidence": [
+          "equity risk",
+          "credit",
+          "duration",
+          "USD"
+        ],
+        "outcome_rule": "cross_asset_risk_supportive_at_target",
+        "stage": "SHADOW",
+        "sample_n": 0,
+        "brier": null,
+        "ece": null,
+        "log_loss": null,
+        "incremental_information": null,
+        "review_status": "READY_TO_WIRE",
+        "production_recommendation": "NIE OCENIAĆ",
+        "production_write_authority": false,
+        "automatic_promotion": false
+      }
+    ]
   },
   "evidence_patterns": [],
   "evidence_pattern_meta": {
