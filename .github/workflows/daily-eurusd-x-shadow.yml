@@ -1,0 +1,153 @@
+name: Daily EURUSD X Shadow
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/daily_eurusd_x_shadow.py"
+      - "tests/test_daily_eurusd_x_shadow.py"
+      - ".github/workflows/daily-eurusd-x-shadow.yml"
+  schedule:
+    - cron: "17 * * * 1-5"
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: daily-eurusd-x-shadow
+  cancel-in-progress: false
+
+env:
+  PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+  X_ARTIFACT_NAME: daily-eurusd-x-shadow-state
+  X_ARCHIVE: daily-eurusd-x-shadow-state.tgz
+  BELIEF_ARTIFACT_NAME: belief-core-shadow-state
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Prepare state paths
+        run: |
+          set -euo pipefail
+          echo "X_STATE_DIR=$RUNNER_TEMP/eurusd-x" >> "$GITHUB_ENV"
+          echo "BELIEF_STATE_DIR=$RUNNER_TEMP/belief-core" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/eurusd-x" "$RUNNER_TEMP/belief-core"
+
+      - name: Restore latest verified X shadow state when available
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          restored=false
+          mapfile -t ids < <(
+            gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${X_ARTIFACT_NAME}&per_page=100" \
+              --jq '.artifacts[] | select(.expired == false and .workflow_run.head_branch == "main") | .id'
+          )
+          for artifact_id in "${ids[@]}"; do
+            [[ -n "$artifact_id" ]] || continue
+            rm -rf "$RUNNER_TEMP/x-restore" && mkdir -p "$RUNNER_TEMP/x-restore"
+            if ! gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > "$RUNNER_TEMP/x-state.zip"; then
+              continue
+            fi
+            unzip -q -o "$RUNNER_TEMP/x-state.zip" -d "$RUNNER_TEMP/x-restore" || continue
+            archive="$RUNNER_TEMP/x-restore/$X_ARCHIVE"
+            [[ -s "$archive" ]] || continue
+            tar -xzf "$archive" -C "$X_STATE_DIR" || continue
+            if python scripts/daily_eurusd_x_shadow.py --state-dir "$X_STATE_DIR" --validate; then
+              restored=true
+              break
+            fi
+          done
+          echo "X state restored=$restored"
+
+      - name: Restore latest Belief Core state read-only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          artifact_id=$(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${BELIEF_ARTIFACT_NAME}&per_page=100" \
+            --jq '[.artifacts[] | select(.expired == false and .workflow_run.head_branch == "main")] | sort_by(.created_at) | reverse | .[0].id // empty')
+          if [[ -z "$artifact_id" ]]; then
+            echo "Belief Core artifact unavailable. X will fail closed for Belief input but may preserve technical state."
+            exit 0
+          fi
+          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > "$RUNNER_TEMP/belief.zip"
+          mkdir -p "$RUNNER_TEMP/belief-restore"
+          unzip -q -o "$RUNNER_TEMP/belief.zip" -d "$RUNNER_TEMP/belief-restore"
+          test -s "$RUNNER_TEMP/belief-restore/belief-core-state.tgz"
+          tar -xzf "$RUNNER_TEMP/belief-restore/belief-core-state.tgz" -C "$BELIEF_STATE_DIR"
+          test -s "$BELIEF_STATE_DIR/state.json"
+
+      - name: Validate X implementation
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/daily_eurusd_x_shadow.py
+          python -m unittest tests.test_daily_eurusd_x_shadow -v
+
+      - name: Run hourly X shadow cycle
+        run: |
+          set -euo pipefail
+          belief_arg=()
+          if [[ -s "$BELIEF_STATE_DIR/state.json" ]]; then
+            belief_arg=(--belief-state "$BELIEF_STATE_DIR/state.json")
+          fi
+          python scripts/daily_eurusd_x_shadow.py \
+            --state-dir "$X_STATE_DIR" \
+            "${belief_arg[@]}" \
+            --public-output data/investments/eurusd_x_public_pl.json
+          python scripts/daily_eurusd_x_shadow.py --state-dir "$X_STATE_DIR" --validate
+          python -m json.tool data/investments/eurusd_x_public_pl.json >/dev/null
+
+      - name: Pack durable X shadow memory
+        run: |
+          set -euo pipefail
+          tar -czf "$RUNNER_TEMP/$X_ARCHIVE" -C "$X_STATE_DIR" \
+            EURUSD_X_SHADOW_STATE.json EURUSD_X_SHADOW_REPORT.json
+          test -s "$RUNNER_TEMP/$X_ARCHIVE"
+
+      - name: Store durable X shadow memory
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-eurusd-x-shadow-state
+          path: ${{ runner.temp }}/daily-eurusd-x-shadow-state.tgz
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
+
+      - name: Publish sanitized EURUSD X public state
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- data/investments/eurusd_x_public_pl.json
+          if git diff --cached --quiet; then
+            echo "EURUSD X public state already current."
+            exit 0
+          fi
+          git commit -m "Publish EURUSD X shadow state"
+          for attempt in 1 2 3 4; do
+            if git pull --rebase origin main && git push origin HEAD:main; then
+              exit 0
+            fi
+            git rebase --abort 2>/dev/null || true
+            git fetch origin main
+            git rebase origin/main
+            sleep $((attempt * 3))
+          done
+          echo "Unable to publish EURUSD X public state" >&2
+          exit 1
