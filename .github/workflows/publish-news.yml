@@ -237,14 +237,16 @@ jobs:
                       if claim_policy.get('contradiction_detection_version') != 'contradiction-detection-v1':
                           last.append(f'{path}: contradiction detection missing')
                       homepage_policy = payload.get('homepage_policy', {})
-                      if homepage_policy.get('version') != 'max-24h-public-news-display-v1':
+                      if homepage_policy.get('version') != 'max-24h-public-news-display-v2':
                           last.append(f'{path}: global 24h public-news policy missing')
                       if homepage_policy.get('scope') != 'all_public_news_surfaces':
                           last.append(f'{path}: 24h policy is not global')
                       if homepage_policy.get('max_display_hours') != 24:
                           last.append(f'{path}: public-news display cap is not 24h')
-                      if homepage_policy.get('also_requires_source_age_hours_lte') != 24:
-                          last.append(f'{path}: public-news source-age cap is not 24h')
+                      if homepage_policy.get('source_age_limit_hours') is not None:
+                          last.append(f'{path}: source age must be unlimited')
+                      if homepage_policy.get('clock') != 'first_known_briefrooms_display':
+                          last.append(f'{path}: 24h clock is not based on first BriefRooms display')
                       freshness_policy = payload.get('health', {}).get('homepage_freshness', {})
                       if homepage_policy.get('post_freshness_selection_version') != 'post-freshness-editorial-v2':
                           last.append(f'{path}: post-freshness editorial selector missing')
@@ -313,19 +315,14 @@ jobs:
                           for story in items:
                               source = str(story.get('source') or 'unknown')
                               counts[source] = counts.get(source, 0) + 1
-                              published_raw = story.get('published_at')
                               first_seen_raw = story.get('news_first_seen_at')
                               expires_raw = story.get('news_expires_at')
-                              if not published_raw or not first_seen_raw or not expires_raw:
+                              if not first_seen_raw or not expires_raw:
                                   last.append(f'{path}/{section_id}: 24h freshness metadata missing')
                                   break
-                              published = datetime.fromisoformat(str(published_raw).replace('Z', '+00:00'))
                               first_seen = datetime.fromisoformat(str(first_seen_raw).replace('Z', '+00:00'))
                               expires = datetime.fromisoformat(str(expires_raw).replace('Z', '+00:00'))
                               check_now = datetime.now(timezone.utc)
-                              if check_now - published > timedelta(hours=24):
-                                  last.append(f'{path}/{section_id}: source story exceeds 24h')
-                                  break
                               if check_now - first_seen > timedelta(hours=24):
                                   last.append(f'{path}/{section_id}: displayed story exceeds 24h')
                                   break
@@ -390,18 +387,13 @@ jobs:
                               last.append(f'{path}: Russia-Ukraine-war diagnostics mismatch')
                       now = datetime.now(timezone.utc)
                       for story in home + reserve:
-                          published_raw = story.get('published_at')
                           first_seen_raw = story.get('news_first_seen_at')
                           expires_raw = story.get('news_expires_at')
-                          if not published_raw or not first_seen_raw or not expires_raw:
+                          if not first_seen_raw or not expires_raw:
                               last.append(f'{path}: homepage/reserve 24h freshness metadata missing')
                               break
-                          published = datetime.fromisoformat(str(published_raw).replace('Z', '+00:00'))
                           first_seen = datetime.fromisoformat(str(first_seen_raw).replace('Z', '+00:00'))
                           expires = datetime.fromisoformat(str(expires_raw).replace('Z', '+00:00'))
-                          if now - published > timedelta(hours=24):
-                              last.append(f'{path}: homepage/reserve source story exceeds 24h')
-                              break
                           if now - first_seen > timedelta(hours=24):
                               last.append(f'{path}: homepage/reserve story exceeds 24h display cap')
                               break
