@@ -119,7 +119,7 @@ def apply_homepage_freshness(source: str, lang: str, now: datetime | None = None
     def mark_container(match: re.Match[str]) -> str:
         opening = re.sub(r'\s+data-home-freshness-policy=["\'][^"\']*["\']', "", match.group(0), flags=re.I)
         opening = re.sub(r'\s+data-home-image-policy=["\'][^"\']*["\']', "", opening, flags=re.I)
-        return opening[:-1].rstrip() + ' data-home-freshness-policy="max-24h-public-news-display-v1" data-home-image-policy="https-image-required-v1">'
+        return opening[:-1].rstrip() + ' data-home-freshness-policy="max-24h-public-news-display-v2" data-home-image-policy="https-image-required-v1">'
 
     return container_pattern.sub(mark_container, source, count=1)
 

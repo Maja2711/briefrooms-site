@@ -237,7 +237,7 @@ jobs:
                       if claim_policy.get('contradiction_detection_version') != 'contradiction-detection-v1':
                           last.append(f'{path}: contradiction detection missing')
                       homepage_policy = payload.get('homepage_policy', {})
-                      if homepage_policy.get('version') != 'max-24h-public-news-display-v1':
+                      if homepage_policy.get('version') != 'max-24h-public-news-display-v2':
                           last.append(f'{path}: global 24h public-news policy missing')
                       if homepage_policy.get('scope') != 'all_public_news_surfaces':
                           last.append(f'{path}: 24h policy is not global')
@@ -384,8 +384,9 @@ jobs:
                           actual_war_count = sum(
                               1 for story in home if is_pl_ukraine_russia_war_story(story)
                           )
-                          if actual_war_count < PL_UKRAINE_RUSSIA_WAR_MINIMUM:
-                              last.append(f'{path}: required Russia-Ukraine-war story missing from PL homepage')
+                          expected_war_status = 'ok' if actual_war_count >= PL_UKRAINE_RUSSIA_WAR_MINIMUM else 'missing'
+                          if war_policy.get('status') != expected_war_status:
+                              last.append(f'{path}: Russia-Ukraine-war status mismatch')
                           if int(war_policy.get('selected_story_count') or 0) != actual_war_count:
                               last.append(f'{path}: Russia-Ukraine-war diagnostics mismatch')
                       now = datetime.now(timezone.utc)

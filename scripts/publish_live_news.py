@@ -101,6 +101,7 @@ ARTICLE_TIME = (
     re.compile(r'<meta[^>]+(?:property|name)=["\'](?:article:published_time|datePublished|date|pubdate)["\'][^>]+content=["\']([^"\']+)', re.I),
     re.compile(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+(?:property|name)=["\'](?:article:published_time|datePublished|date|pubdate)["\']', re.I),
     re.compile(r'"datePublished"\s*:\s*"([^"]+)"', re.I),
+    re.compile(r'<time\b(?=[^>]*\bitemprop=["\']datePublished["\'])[^>]*\bdatetime=["\']([^"\']+)', re.I),
 )
 VISIBLE_ARTICLE_DATE = re.compile(r'(?<!\d)([0-3]?\d)\.([01]?\d)\.(20\d{2})(?!\d)')
 WEATHER = re.compile(r"\b(pogoda|burza|burze|opady|deszcz|grad|upał|mróz|weather|storm|rain|forecast)\b", re.I)
@@ -209,12 +210,13 @@ def page_image(link: str) -> str:
         pass
     return ""
 
-def page_metadata(link: str, now: datetime) -> tuple[str, datetime | None]:
+def page_metadata(link: str, now: datetime, *, body: str | None = None) -> tuple[str, datetime | None]:
     """Recover article image and publication time from canonical page metadata."""
-    try:
-        body = request(link, timeout=8).text[:750000]
-    except Exception:
-        return "", None
+    if body is None:
+        try:
+            body = request(link, timeout=8).text[:750000]
+        except Exception:
+            return "", None
     image = ""
     for pattern in OG:
         match = pattern.search(body)

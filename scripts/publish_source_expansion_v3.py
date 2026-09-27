@@ -677,9 +677,7 @@ def build_language(lang: str, config: Any, marker: str, now: Any) -> dict[str, A
             "dedicated_source_status": "rmf24_world_feed_enabled",
         }
         if war_count < filtered.PL_UKRAINE_RUSSIA_WAR_MINIMUM:
-            raise RuntimeError(
-                "pl homepage is missing required Russia-Ukraine-war coverage"
-            )
+            health["status"] = "degraded"
 
     selection = health.setdefault("editorial_selection", {})
     selection["mode"] = (
@@ -744,10 +742,9 @@ def validate(max_age_minutes: int = 30) -> None:
                 if isinstance(story, dict)
                 and filtered.is_pl_ukraine_russia_war_story(story)
             )
-            if war_count < filtered.PL_UKRAINE_RUSSIA_WAR_MINIMUM:
-                raise RuntimeError(
-                    "pl homepage is missing required Russia-Ukraine-war coverage"
-                )
+            expected_status = "ok" if war_count >= filtered.PL_UKRAINE_RUSSIA_WAR_MINIMUM else "missing"
+            if war_policy.get("status") != expected_status:
+                raise RuntimeError("pl Russia-Ukraine-war diagnostics status mismatch")
             if int(war_policy.get("selected_story_count") or 0) != war_count:
                 raise RuntimeError("pl Russia-Ukraine-war diagnostics mismatch")
         approved = list(home)

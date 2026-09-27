@@ -477,6 +477,42 @@ def enforce_payload(
         "diversity_cap_rejected": selection_diag["diversity_cap_rejections"],
         "reserve_topic_duplicate_rejected": reserve_diag["topic_duplicates_suppressed"],
     }
+    if lang == "pl":
+        section_health = payload["health"].get("sections") or {}
+        admission = {}
+        for section_id, minimum in PL_SECTION_MINIMUMS.items():
+            count = len(filtered_sections.get(section_id, []))
+            admission[section_id] = {
+                "status": "ok" if count >= minimum else "underfilled",
+                "target": minimum,
+                "published": count,
+            }
+            if isinstance(section_health.get(section_id), dict):
+                section_health[section_id]["published_count"] = count
+                section_health[section_id]["post_freshness_admission"] = admission[section_id]
+        economy_rows = filtered_sections.get("ekonomia", [])
+        ai_crypto_count = sum(
+            bool(PL_AI_CRYPTO_RE.search(
+                " ".join(str(story.get(key) or "") for key in ("title", "summary"))
+            )) for story in economy_rows
+        )
+        admission["ekonomia"]["ai_crypto_count"] = ai_crypto_count
+        payload["health"]["public_news_freshness"]["section_admission"] = admission
+        if any(item["status"] == "underfilled" for item in admission.values()) or not ai_crypto_count:
+            payload["health"]["status"] = "degraded"
+
+        # The preferred homepage topic is observable after the 24h gate. A quiet
+        # news cycle cannot justify carrying an expired story or aborting PL/EN.
+        war_policy = payload["health"].get("pl_ukraine_russia_war")
+        if isinstance(war_policy, dict):
+            try:
+                from .publish_live_news_filtered import is_pl_ukraine_russia_war_story
+            except ImportError:
+                from publish_live_news_filtered import is_pl_ukraine_russia_war_story
+            war_rows = [story for story in selected if is_pl_ukraine_russia_war_story(story)]
+            war_policy["selected_story_count"] = len(war_rows)
+            war_policy["carried_story_count"] = sum(story.get("carried_forward") is True for story in war_rows)
+            war_policy["status"] = "ok" if len(war_rows) >= war_policy.get("minimum_story_count", 1) else "missing"
     return payload, state_lang
 
 def _load_state() -> dict[str, Any]:
@@ -525,23 +561,6 @@ def enforce_files() -> None:
             state_lang = {}
             languages[lang] = state_lang
         payload, _ = enforce_payload(payload, state_lang, now, lang=lang)
-        if lang == "pl":
-            sections = payload.get("sections") if isinstance(payload.get("sections"), dict) else {}
-            for section_id, minimum in PL_SECTION_MINIMUMS.items():
-                rows = sections.get(section_id, []) if isinstance(sections.get(section_id), list) else []
-                if len(rows) < minimum:
-                    raise RuntimeError(
-                        f"PL section {section_id} below required fresh unique minimum after 24h gate: "
-                        f"{len(rows)}/{minimum}"
-                    )
-            economy_rows = sections.get("ekonomia", [])
-            if not any(
-                PL_AI_CRYPTO_RE.search(
-                    " ".join(str(story.get(key) or "") for key in ("title", "summary"))
-                )
-                for story in economy_rows
-            ):
-                raise RuntimeError("PL ekonomia missing required fresh AI/crypto story after 24h gate")
         path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
     STATE_PATH.write_text(json.dumps(state, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

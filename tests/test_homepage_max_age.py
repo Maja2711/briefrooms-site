@@ -114,6 +114,24 @@ class HomepageExposureCapTests(unittest.TestCase):
             "all_public_news_surfaces",
         )
 
+    def test_post_freshness_shortage_is_diagnostic_and_war_story_is_optional(self) -> None:
+        now = datetime(2026, 9, 27, 8, 0, tzinfo=timezone.utc)
+        fresh = self._story("Nowe wyniki badań nad snem", now - timedelta(hours=1), "Zdrowie")
+        old = self._story("Dawna wiadomość", now - timedelta(days=2), "Zdrowie")
+        payload = {
+            "home": [fresh, old], "sections": {"zdrowie": [fresh, old], "ekonomia": []},
+            "labels": {"zdrowie": "Zdrowie", "ekonomia": "Ekonomia"},
+            "health": {"status": "ok", "sections": {"zdrowie": {"count": 2}},
+                       "pl_ukraine_russia_war": {"minimum_story_count": 1,
+                                                 "selected_story_count": 1, "status": "ok"}},
+        }
+        result, _ = enforce_payload(payload, {}, now, lang="pl")
+        self.assertEqual(len(result["sections"]["zdrowie"]), 1)
+        self.assertEqual(result["health"]["status"], "degraded")
+        self.assertEqual(result["health"]["public_news_freshness"]["section_admission"]["zdrowie"]["published"], 1)
+        self.assertEqual(result["health"]["pl_ukraine_russia_war"]["status"], "missing")
+        self.assertEqual(result["health"]["pl_ukraine_russia_war"]["selected_story_count"], 0)
+
     def test_expired_home_story_is_replaced_by_next_eligible_reserve_story(self) -> None:
         now = datetime(2026, 8, 26, 18, 0, tzinfo=timezone.utc)
         expired = self._story("Expired", now)

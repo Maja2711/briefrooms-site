@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from scripts.publish_live_news import MIN_SECTION, TARGET, normalized_identity, parse_entry_time, select_sections
 from scripts.dedupe_home_brief_stories import same_topic
@@ -140,6 +141,54 @@ class LiveNewsPublisherTests(unittest.TestCase):
             filtered_news.PL_SECTION_MINIMUMS,
             {"polityka": 9, "ekonomia": 9, "zdrowie": 6, "nauka": 6, "sport": 9},
         )
+
+    def test_pl_health_underfill_reports_shortage_without_stale_backfill(self) -> None:
+        now = datetime(2026, 9, 27, 8, 0, tzinfo=timezone.utc)
+        fresh = {
+            "source": "Nauka w Polsce", "title": "Nowe wyniki badań nad snem",
+            "summary": "Naukowcy opublikowali wyniki badań nad snem.",
+            "link": "https://example.com/sen", "image": "https://example.com/sen.jpg",
+            "published_at": (now - timedelta(hours=1)).isoformat(),
+        }
+        old = dict(fresh, title="Stara wiadomość", link="https://example.com/stara",
+                   published_at=(now - timedelta(days=2)).isoformat())
+        sections, health = filtered_news.select_sections(
+            [("polityka", "Polityka", []), ("zdrowie", "Zdrowie", [])],
+            {"polityka": [], "zdrowie": [fresh, old]},
+            {"sections": {}}, now,
+        )
+        self.assertEqual([row["title"] for row in sections["zdrowie"]], [fresh["title"]])
+        self.assertEqual(health["zdrowie"]["admission"]["status"], "underfilled")
+        self.assertEqual(health["zdrowie"]["admission"]["selected"], 1)
+        self.assertEqual(health["zdrowie"]["admission"]["target"], 6)
+
+    def test_public_web_health_adapter_reads_article_links_titles_and_dates(self) -> None:
+        now = datetime(2026, 9, 27, 8, 0, tzinfo=timezone.utc)
+        fixtures = (
+            ("Termedia Menedżer Zdrowia", "https://www.termedia.pl/mz",
+             "/mz/Tom-zdrowia,69177.html",
+             '<meta property="article:published_time" content="2026-09-27T07:11:00+02:00">'),
+            ("Rynek Zdrowia Aktualności", "https://www.rynekzdrowia.pl/",
+             "/Serwis-Onkologia/Karta-e-DiLO,289307,1013.html",
+             '<time itemprop="datePublished" datetime="2026-09-27T08:00:00+02:00">'),
+        )
+        for source, landing, article_path, published_tag in fixtures:
+            with self.subTest(source=source):
+                article = (
+                    '<meta property="og:title" content="Potwierdzony tytuł artykułu">'
+                    '<meta property="og:image" content="https://example.com/zdrowie.jpg">'
+                    + published_tag
+                )
+                def request(url, timeout=8):
+                    return SimpleNamespace(text=(f'<a href="{article_path}">Czytaj</a>'
+                                                 if url == landing else article))
+                with patch.object(filtered_news.base, "request", side_effect=request):
+                    rows, error = filtered_news._fetch_public_web_health(source, landing, now)
+                self.assertIsNone(error)
+                self.assertEqual(len(rows), 1)
+                self.assertEqual(rows[0]["title"], "Potwierdzony tytuł artykułu")
+                expected = "2026-09-27T05:11:00+00:00" if "Termedia" in source else "2026-09-27T06:00:00+00:00"
+                self.assertEqual(rows[0]["published_at"], expected)
 
     def test_pl_economy_ai_crypto_detector(self) -> None:
         self.assertIsNotNone(filtered_news.AI_CRYPTO_RE.search("OpenAI rozwija nowy model AI"))
