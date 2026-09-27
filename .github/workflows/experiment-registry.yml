@@ -73,10 +73,10 @@ jobs:
           python scripts/install_experiment_registry_ui.py
           grep -q 'portfolio-10k-navigation-guard.js?v=8' pl/inwestycje/portfel-10k.html
           grep -q 'portfolio-10k-navigation-guard.js?v=8' en/investing/portfolio-10k.html
-          grep -q 'portfolio-10k-experience-store.js?v=1' pl/inwestycje/portfel-10k.html
-          grep -q 'portfolio-10k-experience-store.js?v=1' en/investing/portfolio-10k.html
-          grep -q 'portfolio-10k-lab-health.js?v=3' pl/inwestycje/portfel-10k.html
-          grep -q 'portfolio-10k-lab-health.js?v=3' en/investing/portfolio-10k.html
+          ! grep -q 'portfolio-10k-experience-store.js' pl/inwestycje/portfel-10k.html
+          ! grep -q 'portfolio-10k-experience-store.js' en/investing/portfolio-10k.html
+          ! grep -q 'portfolio-10k-lab-health.js' pl/inwestycje/portfel-10k.html
+          ! grep -q 'portfolio-10k-lab-health.js' en/investing/portfolio-10k.html
       - name: Validate frontend JavaScript
         run: |
           node --check scripts/portfolio-10k-experiment-registry.js
