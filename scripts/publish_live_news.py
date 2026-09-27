@@ -65,10 +65,14 @@ EN = [
     ("asia-pacific", "Asia-Pacific", [
         ("BBC News", "https://feeds.bbci.co.uk/news/world/asia/rss.xml"),
         ("The Guardian", "https://www.theguardian.com/world/asia-pacific/rss"),
+        ("South China Morning Post", "https://www.scmp.com/rss/3/feed"),
+        ("Sydney Morning Herald", "https://www.smh.com.au/rss/national.xml"),
+        ("Guardian Australia", "https://www.theguardian.com/australia-news/rss"),
     ]),
     ("europe", "Europe", [
         ("BBC News", "https://feeds.bbci.co.uk/news/world/europe/rss.xml"),
         ("The Guardian", "https://www.theguardian.com/world/europe-news/rss"),
+        ("POLITICO Europe", "https://www.politico.eu/feed/"),
     ]),
     ("middle-east", "Middle East", [
         ("BBC News", "https://feeds.bbci.co.uk/news/world/middle_east/rss.xml"),
