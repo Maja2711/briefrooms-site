@@ -64,6 +64,23 @@ def tf_state(rows:Sequence[Bar])->dict[str,Any]:
     pos={str(n):(1 if px>mas[str(n)] else -1 if px<mas[str(n)] else 0) for n in MA_PERIODS}
     signed=clamp(0.75*avg(list(pos.values()))+0.25*avg([1 if x>0 else -1 if x<0 else 0 for x in slopes.values()]))
     return {"price":px,"ma":mas,"slope":slopes,"position":pos,"signed":round(signed,6)}
+def experimental_signals(h1:Sequence[Bar], states:Mapping[str,Any], b1:Mapping[str,float], bd:Mapping[str,float])->dict[str,float]:
+    # Additive research features. They never mutate the fixed core.
+    consensus=clamp(avg([float(x["signed"]) for x in states.values()]))
+    disagreement=clamp((float(states["1H"]["signed"])-float(states["1D"]["signed"]))/2.0)
+    reentry=clamp(-float(b1["z"])/BOLL_SIGMA) if abs(float(b1["z"]))>=2.0 else 0.0
+    closes=[x.close for x in h1[-12:]]
+    accel=0.0
+    if len(closes)>=12 and closes[-7] and closes[-12]:
+        recent=closes[-1]/closes[-6]-1.0
+        prior=closes[-7]/closes[-12]-1.0
+        accel=clamp((recent-prior)/0.004)
+    ma30=float(states["1H"]["ma"]["30"]); ma200=float(states["1H"]["ma"]["200"]); px=float(states["1H"]["price"])
+    spread=0.0 if px==0 else clamp(((ma30-ma200)/px)/0.01)
+    return {"tf_consensus":round(consensus,6),"h1_d1_disagreement":round(disagreement,6),
+            "bb_1h_extreme_reentry":round(reentry,6),"h1_momentum_acceleration":round(accel,6),
+            "h1_ma30_ma200_spread":round(spread,6)}
+
 def technical_state(h1,d1,w1,m1)->dict[str,Any]:
     states={"1H":tf_state(h1),"1D":tf_state(d1),"1W":tf_state(w1),"1M":tf_state(m1)}
     # Equal contribution keeps the core transparent; adaptation happens only above this layer.
@@ -75,10 +92,13 @@ def technical_state(h1,d1,w1,m1)->dict[str,Any]:
         return clamp(z/BOLL_SIGMA) if abs(z)<=BOLL_SIGMA else clamp((2*BOLL_SIGMA-abs(z))/BOLL_SIGMA)*(1 if z>0 else -1)
     pivot_sig=1.0 if px>pv["p"] else -1.0 if px<pv["p"] else 0.0
     signed=clamp(0.70*ma_signed+0.20*avg([bb_sig(b1),bb_sig(bd)])+0.10*pivot_sig)
-    return {"timeframes":states,"bollinger":{"1H":b1,"1D":bd},"pivot":pv,"signed":round(signed,6)}
+    return {"timeframes":states,"bollinger":{"1H":b1,"1D":bd},"pivot":pv,"signed":round(signed,6),
+            "experimental":experimental_signals(h1,states,b1,bd)}
 def decision(comp:Mapping[str,float],setup:Mapping[str,Any])->dict[str,Any]:
     tw=float(setup["technical_weight"]); bw=float(setup["belief_weight"]); th=float(setup["threshold"])
-    score=clamp(tw*float(comp["technical"])+bw*float(comp["belief"]))
+    ew=float(setup.get("experimental_weight",0.0) or 0.0); feature=setup.get("experimental_feature")
+    extra=float((comp.get("experimental") or {}).get(feature,0.0)) if feature else 0.0
+    score=clamp(tw*float(comp["technical"])+bw*float(comp["belief"])+ew*extra)
     side="LONG" if score>=th else "SHORT" if score<=-th else "NO_TRADE"
     return {"side":side,"score":round(score,6),"confidence":round(abs(score),6),"setup_version":setup["version"]}
 def setup_metrics(captures:list[dict],key:str,version:str)->dict[str,Any]:
@@ -102,10 +122,28 @@ def propose(state:dict)->dict[str,Any]:
         comp=c.get("components") or {}
         tech.append(y*float(comp.get("technical",0)))
         belief.append(y*float(comp.get("belief",0)))
+    feature_scores={}
+    for name in ("tf_consensus","h1_d1_disagreement","bb_1h_extreme_reentry","h1_momentum_acceleration","h1_ma30_ma200_spread"):
+        vals=[]
+        for row in recent:
+            raw=row.get("raw_return_pips")
+            val=((row.get("components") or {}).get("experimental") or {}).get(name)
+            if raw is None or raw==0 or val is None: continue
+            vals.append((1 if raw>0 else -1)*float(val))
+        feature_scores[name]=avg(vals)
+    best_feature=max(feature_scores,key=feature_scores.get) if feature_scores else None
+    best_score=feature_scores.get(best_feature,0.0) if best_feature else 0.0
     delta=0.05 if avg(tech)>avg(belief)+0.03 else -0.05 if avg(belief)>avg(tech)+0.03 else 0.0
     tw=max(0.35,min(0.80,float(champ["technical_weight"])+delta)); bw=1.0-tw
+    ew=0.0
+    if best_feature and best_score>0.05:
+        ew=0.10; tw=round(tw*0.90,4); bw=round(bw*0.90,4)
     seq=int(state.get("setup_sequence",1))+1; state["setup_sequence"]=seq
-    return {"version":f"X-{seq:03d}","technical_weight":round(tw,2),"belief_weight":round(bw,2),"threshold":champ["threshold"],"created_at":state["updated_at"],"reason":"recent_component_reliability_shift"}
+    return {"version":f"X-{seq:03d}","technical_weight":round(tw,4),"belief_weight":round(bw,4),
+            "experimental_feature":best_feature if ew else None,"experimental_weight":ew,
+            "threshold":champ["threshold"],"created_at":state["updated_at"],
+            "reason":"experimental_feature_challenger" if ew else "recent_component_reliability_shift",
+            "research_scores":feature_scores}
 def calibrate(state:dict)->None:
     ch=state.get("challenger")
     if ch:
@@ -150,7 +188,7 @@ def public(state:dict,tech:dict,belief:dict)->dict:
     return {"schema_version":SCHEMA,"engine":"EURUSD X","mode":"SHADOW ONLY","generated_at":state["updated_at"],
       "fixed_core":{"ma_periods":list(MA_PERIODS),"ma_timeframes":["1H","1D","1W","1M"],"pivot":"classic_daily","bollinger":{"window":BOLL_WINDOW,"sigma":BOLL_SIGMA,"timeframes":["1H","1D"]},"belief_core":"BriefRooms Belief Core"},
       "adaptive_layer":{"calibration_block_resolved":CALIBRATION_BLOCK,"champion":champ,"challenger":ch,"rollback":"automatic_keep_last_champion","transaction_cost_pips_roundtrip":ROUNDTRIP_PIPS},
-      "discovery_layer":{"enabled":True,"policy":"new technical features/strategies/anomalies may be added as versioned challengers; fixed core is never mutated"},
+      "discovery_layer":{"enabled":True,"candidate_features":["tf_consensus","h1_d1_disagreement","bb_1h_extreme_reentry","h1_momentum_acceleration","h1_ma30_ma200_spread"],"policy":"new technical features/strategies/anomalies are versioned challengers; fixed core is never mutated"},
       "current":{"technical_signed":tech.get("signed"),"belief_signed":belief.get("signed_score"),"reference_price":tech.get("timeframes",{}).get("1H",{}).get("price")},
       "performance":{"champion":setup_metrics(state["captures"],"champion",champ["version"]),"challenger":setup_metrics(state["captures"],"challenger",ch["version"]) if ch else None},
       "sample":{"captures":len(state["captures"]),"resolved":sum(c.get("status")=="RESOLVED" for c in state["captures"])},
@@ -167,7 +205,7 @@ def run(state_path:Path,public_path:Path,belief_path:Path|None)->dict:
     # one capture per new H1 market observation
     observed=h1[-1].timestamp
     if not state["captures"] or state["captures"][-1].get("observed_at")!=iso(observed):
-        comp={"technical":float(tech["signed"]),"belief":float(belief.get("signed_score") or 0.0)}
+        comp={"technical":float(tech["signed"]),"belief":float(belief.get("signed_score") or 0.0),"experimental":dict(tech.get("experimental") or {})}
         decisions={"champion":decision(comp,state["champion"])}
         if state.get("challenger"): decisions["challenger"]=decision(comp,state["challenger"])
         state["captures"].append({"capture_id":f"x-{int(observed.timestamp())}","observed_at":iso(observed),"reference_price":h1[-1].close,"components":comp,"decisions":decisions,"status":"OPEN"})
