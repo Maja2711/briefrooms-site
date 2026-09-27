@@ -1,0 +1,67 @@
+{
+  "schema_version": "eurusd-x-shadow-v1",
+  "engine": "EURUSD X",
+  "mode": "SHADOW ONLY",
+  "generated_at": "2026-09-27T19:11:00Z",
+  "fixed_core": {
+    "ma_periods": [
+      30,
+      60,
+      100,
+      200
+    ],
+    "ma_timeframes": [
+      "1H",
+      "1D",
+      "1W",
+      "1M"
+    ],
+    "pivot": "classic_daily",
+    "bollinger": {
+      "window": 20,
+      "sigma": 2.5,
+      "timeframes": [
+        "1H",
+        "1D"
+      ]
+    },
+    "belief_core": "BriefRooms Belief Core"
+  },
+  "adaptive_layer": {
+    "calibration_block_resolved": 5,
+    "champion": {
+      "version": "X-001",
+      "technical_weight": 0.65,
+      "belief_weight": 0.35,
+      "threshold": 0.15,
+      "created_at": "2026-09-27T19:11:00Z"
+    },
+    "challenger": null,
+    "rollback": "automatic_keep_last_champion",
+    "transaction_cost_pips_roundtrip": 2
+  },
+  "discovery_layer": {
+    "enabled": true,
+    "policy": "new technical features/strategies/anomalies may be added as versioned challengers; fixed core is never mutated"
+  },
+  "current": {
+    "technical_signed": null,
+    "belief_signed": null,
+    "reference_price": null
+  },
+  "performance": {
+    "champion": {
+      "n": 0,
+      "expectancy_pips": null,
+      "profit_factor": null,
+      "hit_rate": null
+    },
+    "challenger": null
+  },
+  "sample": {
+    "captures": 0,
+    "resolved": 0
+  },
+  "last_calibration": null,
+  "status": "INITIALIZED_AWAITING_FIRST_CYCLE"
+}
