@@ -54,8 +54,8 @@ jobs:
           python -m unittest tests.test_experience_store_public_projection -v
           node --check scripts/portfolio-10k-experience-store.js
           python scripts/install_experiment_registry_ui.py
-          grep -q 'portfolio-10k-experience-store.js?v=1' pl/inwestycje/portfel-10k.html
-          grep -q 'portfolio-10k-experience-store.js?v=1' en/investing/portfolio-10k.html
+          ! grep -q 'portfolio-10k-experience-store.js' pl/inwestycje/portfel-10k.html
+          ! grep -q 'portfolio-10k-experience-store.js' en/investing/portfolio-10k.html
 
   publish:
     if: github.event_name != 'pull_request'

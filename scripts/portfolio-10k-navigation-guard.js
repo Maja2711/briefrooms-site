@@ -5,7 +5,7 @@
   const DATA_TAB_SELECTOR = `${APP_SELECTOR} [data-tab]`;
   const PROJECT_HASH_SELECTOR = `${APP_SELECTOR} .i10k-projects a[href^="#"]`;
   const PANEL_SELECTOR = `${APP_SELECTOR} .i10k-panel[data-panel]`;
-  const VALID_TABS = new Set(['overview','portfolio','benchmark','agents','analytics','history','rules','lab']);
+  const VALID_TABS = new Set(['overview','portfolio','benchmark','agents','analytics','history','rules']);
   const TAB_ALIASES = Object.freeze({ brace: 'analytics' });
   const isEn = document.documentElement.lang.toLowerCase().startsWith('en');
   const currency = isEn ? 'USD' : 'PLN';
@@ -222,15 +222,6 @@
     }
   }
 
-  function loadExperimentRegistryUI() {
-    if (document.querySelector('script[data-experiment-registry-ui]')) return;
-    const script = document.createElement('script');
-    script.src = '/scripts/portfolio-10k-experiment-registry.js?v=2';
-    script.async = false;
-    script.dataset.experimentRegistryUi = 'v2';
-    document.head.appendChild(script);
-  }
-
   function installInteractionLayer() {
     if (!document.getElementById('investment-navigation-v2-style')) {
       const style = document.createElement('style');
@@ -268,7 +259,6 @@
   });
 
   const start = () => {
-    loadExperimentRegistryUI();
     installInteractionLayer();
     const app = document.querySelector(APP_SELECTOR);
     if (app && typeof MutationObserver !== 'undefined') {
