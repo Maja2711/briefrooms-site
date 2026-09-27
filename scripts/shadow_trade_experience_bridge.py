@@ -26,6 +26,10 @@ ACTIVATION_FILENAME = "shadow_trade_activation.json"
 LEDGER_FILENAME = "shadow_trade_ledger.jsonl"
 STATUS_FILENAME = "shadow_trade_bridge_status.json"
 TERMINAL_TRADE_STATUSES = {"CLOSED", "AMBIGUOUS"}
+EURUSD_PIP_SIZE = 0.0001
+EURUSD_MAX_SPREAD_PIPS_ROUND_TRIP = 2.0
+EURUSD_COMMISSION_FRACTION = 0.0
+COST_MODEL_VERSION = "eurusd-fixed-max-spread-2pip-zero-commission-v1"
 
 
 def parse_time(value: str | datetime) -> datetime:
@@ -146,6 +150,17 @@ def _fraction_from_bps(value: Any) -> float | None:
         return None
 
 
+def _eurusd_cost_fraction(entry_price: Any) -> float | None:
+    try:
+        entry = float(entry_price)
+    except (TypeError, ValueError):
+        return None
+    if entry <= 0:
+        return None
+    spread_price = EURUSD_MAX_SPREAD_PIPS_ROUND_TRIP * EURUSD_PIP_SIZE
+    return spread_price / entry + EURUSD_COMMISSION_FRACTION
+
+
 def _r_multiple(path_arm: Mapping[str, Any], plan: Mapping[str, Any], plan_arm: Mapping[str, Any]) -> float | None:
     realized_bps = path_arm.get("realized_bps")
     try:
@@ -192,7 +207,10 @@ def _decision_payload(capture: Mapping[str, Any], arm_id: str) -> dict[str, Any]
         "signal_snapshot": dict(arm),
         "execution_mode": "research_shadow_virtual",
         "executable_bid_ask_available": False,
-        "cost_model_status": "UNAVAILABLE_YAHOO_OHLC",
+        "cost_model_status": "FIXED_CONSERVATIVE_ASSUMPTION",
+        "cost_model_version": COST_MODEL_VERSION,
+        "assumed_round_trip_spread_pips": EURUSD_MAX_SPREAD_PIPS_ROUND_TRIP,
+        "commission_fraction": EURUSD_COMMISSION_FRACTION,
         "research_boundary": dict(capture.get("research_boundary") or {}),
     }
 
@@ -210,6 +228,8 @@ def _trade_outcome_payload(capture: Mapping[str, Any], arm_id: str) -> tuple[str
         return None
     market_24h = _market_24h_outcome(capture) or {}
     gross = _fraction_from_bps(path_arm.get("realized_bps"))
+    cost = _eurusd_cost_fraction(plan_arm.get("entry_price"))
+    net = gross - cost if gross is not None and cost is not None else None
     payload = {
         "engine": f"eurusd-abc-{arm_id.lower()}",
         "engine_version": capture.get("engine_version"),
@@ -218,10 +238,14 @@ def _trade_outcome_payload(capture: Mapping[str, Any], arm_id: str) -> tuple[str
         "entry_price": plan_arm.get("entry_price"),
         "exit_price": path_arm.get("exit_price"),
         "exit_reason": path_arm.get("exit_reason"),
+        "return_fraction": net,
         "gross_return_fraction": gross,
-        "cost_adjusted": False,
-        "cost_fraction": None,
-        "cost_model_status": "UNAVAILABLE_YAHOO_OHLC",
+        "cost_adjusted": net is not None,
+        "cost_fraction": cost,
+        "cost_model_status": "FIXED_CONSERVATIVE_ASSUMPTION" if net is not None else "ENTRY_PRICE_UNAVAILABLE",
+        "cost_model_version": COST_MODEL_VERSION,
+        "assumed_round_trip_spread_pips": EURUSD_MAX_SPREAD_PIPS_ROUND_TRIP,
+        "commission_fraction": EURUSD_COMMISSION_FRACTION,
         "r_multiple": _r_multiple(path_arm, plan, plan_arm),
         "mae_fraction": _fraction_from_bps(path_arm.get("mae_bps")),
         "mfe_fraction": _fraction_from_bps(path_arm.get("mfe_bps")),
