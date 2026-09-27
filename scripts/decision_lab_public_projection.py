@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 
 from evidence_pattern_discovery import build_pattern_report
+from belief_v3_candidate_library import V3_CANDIDATE_IDS, V3_GOVERNANCE, public_candidate_registry
 
 
 def load(path: Path, default):
@@ -175,6 +176,33 @@ def build_payload(state, report):
         "rolling": {"window": window, "points": rolling},
     }
 
+    # v3 candidate qualification is deliberately isolated from the frozen v2 library.
+    # No candidate can be recommended before n>=50; incremental information is a
+    # mandatory later gate and never causes automatic production mutation.
+    candidate_registry = public_candidate_registry()
+    candidate_by_id = {x["belief_id"]: x for x in candidate_registry}
+    candidate_rows = [r for r in eligible if str(r["f"].get("belief_id") or "") in V3_CANDIDATE_IDS]
+    for bid, candidate in candidate_by_id.items():
+        rows_for_belief = [r for r in candidate_rows if str(r["f"].get("belief_id")) == bid]
+        stats = segment_stats(rows_for_belief)
+        candidate.update({"sample_n": stats["n"], "brier": stats["brier"], "ece": stats["ece"]})
+        if rows_for_belief:
+            import math
+            losses=[]
+            for r in rows_for_belief:
+                p=max(1e-9,min(1-1e-9,r["p"])); y=r["y"]
+                losses.append(-(y*math.log(p)+(1-y)*math.log(1-p)))
+            candidate["log_loss"] = round(sum(losses)/len(losses),6)
+        if stats["n"] < V3_GOVERNANCE["minimum_sample_for_review"]:
+            candidate["review_status"] = "COLLECTING" if stats["n"] else candidate["review_status"]
+            candidate["production_recommendation"] = "NIE OCENIAĆ"
+        elif candidate.get("incremental_information") is None:
+            candidate["review_status"] = "NEEDS_INCREMENTAL_INFORMATION"
+            candidate["production_recommendation"] = "OBSERWOWAĆ"
+        else:
+            candidate["review_status"] = "HUMAN_REVIEW_REQUIRED"
+            candidate["production_recommendation"] = "KANDYDAT DO RĘCZNEJ DECYZJI"
+
     cal = report.get("belief_calibration") or {}
     hypothesis_brier = dict(cal.get("hypothesis_intelligence") or {})
     overall = cal.get("overall") or {}
@@ -250,6 +278,7 @@ def build_payload(state, report):
             "max_calibration_gap_pp": (calibration_analytics["max_calibration_gap"]["gap_pp"] if calibration_analytics["max_calibration_gap"] else None),
         },
         "calibration_analytics": calibration_analytics,
+        "belief_core_v3_candidates": {"governance": V3_GOVERNANCE, "candidates": candidate_registry},
         "evidence_patterns": aris.get("patterns", []),
         "evidence_pattern_meta": {
             "schema_version": aris.get("schema_version"),
