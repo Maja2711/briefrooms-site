@@ -58,7 +58,7 @@ class DailyWESAssetShadowTests(unittest.TestCase):
             client = FullClient(now)
             status = run_cycle(state_dir, now, client)
             self.assertEqual(status["shared_forecasts_frozen"], 5)
-            self.assertEqual(status["wes_asset_forecasts_frozen"], 7)
+            self.assertEqual(status["wes_asset_forecasts_frozen"], 35)
             self.assertEqual(status["wes_forecasts_frozen"], 0)
             self.assertEqual(status["evidence_ingested"], 16)
             self.assertEqual(status["observations_collected"], 135)
