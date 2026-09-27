@@ -119,8 +119,10 @@ def _assert_pl_source_contract() -> None:
     missing_health = required_health - health_sources
     if missing_health:
         raise RuntimeError(f"canonical PL health source contract missing: {sorted(missing_health)}")
-    if "PAP MediaRoom Nauka i Technologie" not in science_sources:
-        raise RuntimeError("canonical PL science source contract missing PAP MediaRoom Nauka i Technologie")
+    required_science = {"PAP MediaRoom Nauka i Technologie", "Polsat News Technologie", "Spider's Web"}
+    missing_science = required_science - science_sources
+    if missing_science:
+        raise RuntimeError(f"canonical PL science source contract missing: {sorted(missing_science)}")
 
 _assert_pl_source_contract()
 CONFIGURED_WIRE_SOURCES = {
