@@ -153,8 +153,18 @@ jobs:
           assert state['authority']['automatic_policy_mutation'] is False
           assert state['authority']['cross_arm_writeback'] is False
           assert report['governance']['single_trade_can_change_policy'] is False
+          assert report['governance']['automatic_challenger_creation'] is True
           assert all(report['arms'][arm]['lesson_candidate']['policy_change_applied'] is False for arm in ('A','B','C'))
-          print('ABC_SHARED_LEARNING_ZERO_AUTHORITY_PASS', report['sample'])
+          for challenger in report.get('challengers', []):
+              contract=challenger['shadow_contract']
+              assert contract['automatic_creation'] is True
+              assert contract['prospective_only'] is True
+              assert contract['historical_backfill'] is False
+              assert contract['decision_influence'] is False
+              assert contract['production_execution'] is False
+              assert contract['automatic_promotion'] is False
+              assert contract['automatic_policy_mutation'] is False
+          print('ABC_SHARED_LEARNING_ZERO_AUTHORITY_PASS', report['sample'], 'challengers', len(report.get('challengers', [])))
           PY
 
       - name: Pack changed private learning memory
