@@ -477,8 +477,9 @@ class LiveNewsPublisherTests(unittest.TestCase):
         rynek = filtered_news.PUBLIC_WEB_HEALTH_SOURCES["Rynek Zdrowia Aktualności"]["href_re"]
         self.assertIsNotNone(termedia.search('/mz/Nowe-zalecenia-dla-pacjentow,12345.html'))
         self.assertIsNotNone(termedia.search('https://www.termedia.pl/mz/Nowe-zalecenia-dla-pacjentow,12345.html'))
-        self.assertIsNotNone(rynek.search('/Serwis-Kardiologia/Nowe-zalecenia-dla-pacjentow,12345,1.html'))
-        self.assertIsNotNone(rynek.search('https://www.rynekzdrowia.pl/Serwis-Kardiologia/Nowe-zalecenia-dla-pacjentow,12345,1.html'))
+        self.assertIsNotNone(rynek.search('/Serwis-Kardiologia/Nowe-zalecenia-dla-pacjentow%2C289317%2C1014.html'))
+        self.assertIsNotNone(rynek.search('https://www.rynekzdrowia.pl/Serwis-Kardiologia/Nowe-zalecenia-dla-pacjentow%2C289317%2C1014.html'))
+        self.assertIsNotNone(rynek.search('/Serwis-Kardiologia/Nowe-zalecenia-dla-pacjentow,289317,1014.html'))
 
 if __name__ == "__main__":
     unittest.main()
