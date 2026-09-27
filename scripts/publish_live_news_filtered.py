@@ -435,12 +435,12 @@ def _recent_carried_ukraine_war_story(
 
 
 def _fresh_for_pl_selection(story: dict[str, Any], now: datetime) -> bool:
-    """Only <=24h source stories may consume a PL section slot."""
+    """Do not age-limit source stories here; BriefRooms exposure has its own 24h clock."""
     published = _published_at(story)
     if published is None:
-        return False
+        return True
     age = now.astimezone(timezone.utc) - published
-    return -base.FUTURE_TOLERANCE <= age <= base.MAX_CARRY_AGE
+    return age >= -base.FUTURE_TOLERANCE
 
 
 def select_sections(
