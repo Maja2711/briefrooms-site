@@ -529,7 +529,7 @@ def enforce_files() -> None:
                 rows = sections.get(section_id, []) if isinstance(sections.get(section_id), list) else []
                 if len(rows) < minimum:
                     raise RuntimeError(
-                        f"PL section {section_id} below required fresh unique minimum after 24h gate: "
+                        f"PL section {section_id} below required unique minimum after BriefRooms exposure gate: "
                         f"{len(rows)}/{minimum}"
                     )
             economy_rows = sections.get("ekonomia", [])
@@ -539,7 +539,7 @@ def enforce_files() -> None:
                 )
                 for story in economy_rows
             ):
-                raise RuntimeError("PL ekonomia missing required fresh AI/crypto story after 24h gate")
+                raise RuntimeError("PL ekonomia missing required AI/crypto story after BriefRooms exposure gate")
         path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
     STATE_PATH.write_text(json.dumps(state, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -616,8 +616,6 @@ def validate_files() -> None:
                 approved.append(story)
             if not _homepage_image_url(story):
                 raise RuntimeError(f"{lang} {scope} contains story without HTTPS image: {story.get('title')}")
-            if not _source_is_fresh(story, now):
-                raise RuntimeError(f"{lang} {scope} contains source-stale story: {story.get('title')}")
             first_seen = _parse_time(story.get("news_first_seen_at"))
             expires = _parse_time(story.get("news_expires_at"))
             if first_seen is None or expires is None:
