@@ -44,5 +44,27 @@ class DecisionLabProjectionTests(unittest.TestCase):
         )
 
 
+    def test_open_forecast_keeps_weekend_target_unchanged(self):
+        state = {
+            "forecasts": [{
+                "forecast_id": "eur-weekend",
+                "entity": "EURUSD",
+                "belief_id": "eurusd.trend.bullish",
+                "predicted_probability": 0.476,
+                "forecast_confidence": 0.474,
+                "forecast_at": "2026-09-25T17:02:00+00:00",
+                "target_at": "2026-09-26T17:02:00+00:00",
+                "horizon_hours": 24,
+                "metadata": {},
+            }],
+            "verifications": [],
+            "definitions": [],
+        }
+        payload = build_payload(state, {"belief_calibration": {}})
+        row = payload["forecasts"][0]
+        self.assertEqual(row["status"], "OPEN")
+        self.assertEqual(row["target_at"], "2026-09-26T17:02:00+00:00")
+        self.assertEqual(row["horizon_label"], "24H")
+
 if __name__ == "__main__":
     unittest.main()
