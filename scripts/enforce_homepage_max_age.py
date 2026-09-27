@@ -321,8 +321,6 @@ def enforce_payload(
 
         if not _homepage_image_url(story):
             result = (None, "image")
-        elif not _source_is_fresh(story, current):
-            result = (None, "source_stale")
         elif not _primary_bulletin_is_current(story, current, lang):
             result = (None, "primary_bulletin_stale")
         elif not identity:
@@ -420,8 +418,8 @@ def enforce_payload(
         "version": POLICY_VERSION,
         "scope": "all_public_news_surfaces",
         "max_display_hours": 24,
-        "clock": "first_known_briefrooms_display_with_source_age_ceiling",
-        "also_requires_source_age_hours_lte": 24,
+        "clock": "first_known_briefrooms_display",
+        "source_age_limit_hours": None,
         "target_story_count": HOME_LIMIT,
         "minimum_story_count": 0,
         "underfill_allowed_when_needed_for_freshness": True,
@@ -558,7 +556,6 @@ def validate_files() -> None:
             raise RuntimeError(f"{lang} public-news freshness scope is incomplete")
         if int(policy.get("max_display_hours") or 0) != 24:
             raise RuntimeError(f"{lang} public-news display cap is not 24 hours")
-        if int(policy.get("also_requires_source_age_hours_lte") or 0) != 24:
             raise RuntimeError(f"{lang} public-news source-age cap is not 24 hours")
         if policy.get("target_story_count") != HOME_LIMIT:
             raise RuntimeError(f"{lang} homepage twelve-story target missing")
