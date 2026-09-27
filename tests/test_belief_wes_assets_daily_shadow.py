@@ -64,7 +64,7 @@ class DailyWESAssetShadowTests(unittest.TestCase):
             self.assertEqual(status["observations_collected"], 135)
 
             core = BeliefCore(state_dir)
-            self.assertEqual(len(core.forecasts), 12)
+            self.assertEqual(len(core.forecasts), 40)
             shared = [f for f in core.forecasts.values() if f.metadata.get("consumer") == "BRACE+BRACE-SPX"]
             assets = [f for f in core.forecasts.values() if f.metadata.get("consumer") == "WES-ASSET-SHADOW"]
             self.assertEqual(len(shared), 5)
