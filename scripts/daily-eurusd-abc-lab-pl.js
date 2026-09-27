@@ -152,7 +152,27 @@
     return rows.join("") || `<tr><td colspan="10" class="abc-muted">Brak prospektywnych wirtualnych pozycji w historii.</td></tr>`;
   }
 
-  function render(payload) {
+
+  function xPanel(x) {
+    if (!x || !x.fixed_core) return '<section class="abc-x-panel"><div class="abc-x-head"><div><span class="abc-x-kicker">X · SHADOW ONLY</span><h4>EURUSD X</h4></div><b>OCZEKUJE NA DANE</b></div><p>Silnik X został zainicjalizowany; pierwszy cykl badawczy nie został jeszcze opublikowany.</p></section>';
+    const core=x.fixed_core||{}, adapt=x.adaptive_layer||{}, champ=adapt.champion||{}, challenger=adapt.challenger||{}, perf=x.performance?.champion||{}, sample=x.sample||{};
+    const cal=x.last_calibration||null;
+    const calLabel=cal ? (cal.action === "PROMOTE_CHALLENGER" ? "PROMOCJA "+esc(cal.challenger) : "ROLLBACK · "+esc(cal.champion)) : "BRAK ROZSTRZYGNIĘTEJ KALIBRACJI";
+    return '<section class="abc-x-panel">'+
+      '<div class="abc-x-head"><div><span class="abc-x-kicker">X · FAST CALIBRATION · SHADOW ONLY</span><h4>EURUSD X</h4></div><b>'+esc(champ.version || "X-001")+'</b></div>'+
+      '<div class="abc-x-grid">'+
+        '<div><small>Stały core</small><strong>MA 30/60/100/200</strong><span>1H · 1D · 1W · 1M</span></div>'+
+        '<div><small>Pivot</small><strong>'+esc(core.pivot || "classic_daily")+'</strong><span>Daily</span></div>'+
+        '<div><small>Bollinger</small><strong>'+num(core.bollinger?.sigma,1)+'σ</strong><span>1H · 1D · window '+esc(core.bollinger?.window ?? "—")+'</span></div>'+
+        '<div><small>Belief</small><strong>BRs Belief Core</strong><span>read-only · bez writebacku</span></div>'+
+      '</div>'+
+      '<div class="abc-x-state"><span>Champion <b>'+esc(champ.version || "—")+'</b> · TECH '+pct(champ.technical_weight)+' · BELIEF '+pct(champ.belief_weight)+'</span><span>Challenger <b>'+esc(challenger.version || "—")+'</b></span><span>Kalibracja co <b>'+esc(adapt.calibration_block_resolved ?? 5)+'</b> resolved</span><span>Rollback <b>AUTO</b></span></div>'+
+      '<div class="abc-x-state"><span>Capture <b>'+esc(sample.captures ?? 0)+'</b></span><span>Resolved <b>'+esc(sample.resolved ?? 0)+'</b></span><span>PF <b>'+(hasNum(perf.profit_factor)?num(perf.profit_factor,2):"—")+'</b></span><span>Expectancy <b>'+(hasNum(perf.expectancy_pips)?num(perf.expectancy_pips,2)+" pips":"—")+'</b></span><span>Hit <b>'+(hasNum(perf.hit_rate)?pct(perf.hit_rate):"—")+'</b></span></div>'+
+      '<p class="abc-x-calibration">'+calLabel+' · discovery nowych technicznych składników/strategii/anomalii: ON · stały core nie może być zmieniany przez kalibrację.</p>'+
+    '</section>';
+  }
+
+  function render(payload, xPayload) {
     const latest = payload.latest || {};
     const arms = latest.arms || {};
     const horizons = latest.horizons || {};
@@ -166,6 +186,7 @@
     root.innerHTML = `<article class="abc-lab">
       <div class="abc-title-row"><div><span class="abc-eyebrow">PR25 · EUR/USD</span><h3>A/B/C Research Lab</h3><p>Porównujemy jakość kierunku i realną ścieżkę wirtualnej pozycji. Najnowszy capture jest na górze, pełna historia niżej.</p></div><span class="abc-chip">LIVE SHADOW</span></div>
       <div class="abc-boundary">Research Lab nie wykonuje transakcji. Aktywny Daily EUR/USD ma od PR25 własny, niezależnie przeliczany techniczny fallback A.</div>
+      ${xPanel(xPayload)}
       <div id="abc-help-box" class="abc-help-box" hidden><button type="button" class="abc-help-close" aria-label="Zamknij">×</button><b></b><p></p></div>
       <div class="abc-capture-meta"><span>Sygnał wygenerowany: <b>${date(latest.signal_generated_at)}</b></span><span>Obserwacja rynku: <b>${date(latest.market_observed_at)}</b></span><span>${help("Reference", "reference")}: <b>${price(latest.reference_price)}</b></span></div>
       <div class="abc-arms">${["A","B","C"].map(key => currentArm(arms[key] || {arm_id:key,label_pl:key,direction:"UNAVAILABLE",available:false})).join("")}</div>
