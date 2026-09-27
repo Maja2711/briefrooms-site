@@ -119,10 +119,15 @@ def _assert_pl_source_contract() -> None:
     missing_health = required_health - health_sources
     if missing_health:
         raise RuntimeError(f"canonical PL health source contract missing: {sorted(missing_health)}")
-    required_science = {"PAP MediaRoom Nauka i Technologie", "Polsat News Technologie", "Spider's Web"}
-    missing_science = required_science - science_sources
-    if missing_science:
-        raise RuntimeError(f"canonical PL science source contract missing: {sorted(missing_science)}")
+    science_feed_urls = {url for _source, url in by_section.get("nauka", [])}
+    required_science_feeds = {
+        "https://pap-mediaroom.pl/kategoria/nauka-i-technologie/rss.xml",
+        "https://www.polsatnews.pl/rss/technologie.xml",
+        "https://spidersweb.pl/?feed=mcfeed",
+    }
+    missing_science_feeds = required_science_feeds - science_feed_urls
+    if missing_science_feeds:
+        raise RuntimeError(f"canonical PL science feed contract missing: {sorted(missing_science_feeds)}")
 
 _assert_pl_source_contract()
 CONFIGURED_WIRE_SOURCES = {
