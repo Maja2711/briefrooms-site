@@ -314,46 +314,51 @@
       "category": "trading",
       "delta_vs_benchmark": null,
       "details": {
-        "calibration_block_resolved": 5,
-        "captures": 0,
+        "calibration_block_resolved": null,
+        "captures": null,
         "challenger": null,
-        "champion": "X-001",
-        "discovery_layer": {
-          "enabled": true,
-          "policy": "new technical features/strategies/anomalies may be added as versioned challengers; fixed core is never mutated"
-        },
+        "champion": null,
+        "discovery_layer": null,
         "expectancy_pips": null,
         "fixed_core": {
-          "belief_core": "BriefRooms Belief Core",
           "bollinger": {
-            "sigma": 2.5,
+            "stddevs": 2.5,
             "timeframes": [
-              "1H",
-              "1D"
+              "H1",
+              "D1"
             ],
             "window": 20
           },
-          "ma_periods": [
+          "core_component_weights": {
+            "boll_d1": 0.1,
+            "boll_h1": 0.12,
+            "ma_d1": 0.18,
+            "ma_h1": 0.18,
+            "ma_m1": 0.1,
+            "ma_w1": 0.14,
+            "pivot": 0.18
+          },
+          "ma_timeframes": [
+            "H1",
+            "D1",
+            "W1",
+            "M1"
+          ],
+          "ma_windows": [
             30,
             60,
             100,
             200
           ],
-          "ma_timeframes": [
-            "1H",
-            "1D",
-            "1W",
-            "1M"
-          ],
-          "pivot": "classic_daily"
+          "pivot": "classic_daily_floor_P_R1_R2_R3_S1_S2_S3"
         },
         "hit_rate": null,
-        "resolved": 0,
-        "rollback": "automatic_keep_last_champion"
+        "resolved": null,
+        "rollback": null
       },
       "family": "EURUSD",
       "id": "eurusd-x-adaptive-shadow",
-      "last_updated": "2026-09-27T19:11:00Z",
+      "last_updated": "2026-09-27T19:56:15.038763Z",
       "max_drawdown": null,
       "minimum_sample": 30,
       "name": "EURUSD X Adaptive Shadow",
@@ -374,13 +379,13 @@
       "sample_unit": "resolved_champion_trades",
       "source": "data/investments/eurusd_x_public_pl.json",
       "stage": "SHADOW",
-      "started_at": "2026-09-27T19:11:00Z",
+      "started_at": "2026-09-27T19:56:15.038763Z",
       "status": "INSUFFICIENT_DATA",
       "system_class": "LAB",
       "version": "X-001"
     }
   ],
-  "generated_at": "2026-09-27T19:11:00Z",
+  "generated_at": "2026-09-27T19:56:15.038763Z",
   "schema_version": "briefrooms-experiment-registry-v1",
   "status_policy": {
     "allowed": [
