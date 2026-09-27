@@ -84,7 +84,7 @@ PL_SECTION_MINIMUMS = {
 }
 PL_ECONOMY_AI_CRYPTO_MINIMUM = 1
 PL_SCIENCE_AI_TARGET = 3
-EN_SECTION_TARGETS = {"asia-pacific": 12, "europe": 12}
+EN_SECTION_TARGETS = base.EN_SECTION_TARGETS
 AI_CRYPTO_RE = re.compile(
     r"\b(?:AI|sztuczn\w*\s+inteligencj\w*|artificial\s+intelligence|OpenAI|ChatGPT|"
     r"bitcoin|BTC|ethereum|ETH|kryptowalut\w*|crypto|blockchain|stablecoin\w*)\b",
