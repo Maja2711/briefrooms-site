@@ -869,18 +869,18 @@ def _refresh_en_article_images(payload: dict[str, Any]) -> tuple[int, int]:
 PUBLIC_WEB_HEALTH_SOURCES = {
     "Termedia Menedżer Zdrowia": {
         "host": "www.termedia.pl",
-        "href_re": re.compile(r'''(?:https?://www\\.termedia\\.pl)?/mz/[^"'<>\\s]+,\\d+\\.html''', re.I),
+        "href_re": re.compile(r'''(?:https?://www\.termedia\.pl)?/mz/[^"'<>\s]+,\d+\.html''', re.I),
     },
     "Rynek Zdrowia Aktualności": {
         "host": "www.rynekzdrowia.pl",
-        "href_re": re.compile(r'''(?:https?://www\\.rynekzdrowia\\.pl)?/[A-Za-z0-9_%./-]+/[^"'<>\\s]+%?2?C?\\d+%?2?C?\\d+\\.html''', re.I),
+        "href_re": re.compile(r'''(?:https?://www\.rynekzdrowia\.pl)?/[A-Za-z0-9_%./-]+/[^"'<>\s]+%?2?C?\d+%?2?C?\d+\.html''', re.I),
     },
 }
 
 
 def _title_from_article_url(link: str) -> str:
     slug = link.rsplit("/", 1)[-1]
-    slug = re.sub(r",?%?2?C?\\d+(?:%?2?C?\\d+)?\\.html(?:\\?.*)?$", "", slug, flags=re.I)
+    slug = re.sub(r",?%?2?C?\d+(?:%?2?C?\d+)?\.html(?:\?.*)?$", "", slug, flags=re.I)
     slug = re.sub(r"[-_]+", " ", slug)
     return base.clean(slug, 220)
 
