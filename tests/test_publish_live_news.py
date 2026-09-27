@@ -190,6 +190,21 @@ class LiveNewsPublisherTests(unittest.TestCase):
                 expected = "2026-09-27T05:11:00+00:00" if "Termedia" in source else "2026-09-27T06:00:00+00:00"
                 self.assertEqual(rows[0]["published_at"], expected)
 
+    def test_final_selector_excludes_articles_that_will_expire_during_publication(self) -> None:
+        now = datetime(2026, 9, 27, 8, 0, tzinfo=timezone.utc)
+        recent = {"title": "Nowe badanie", "link": "https://example.com/new",
+                  "published_at": (now - timedelta(hours=2)).isoformat()}
+        nearly_expired = dict(recent, link="https://example.com/old",
+                              published_at=(now - timedelta(hours=23, minutes=45)).isoformat())
+        previously_exposed = dict(recent, link="https://example.com/exposed")
+        clocks = {"example.com/exposed": now - timedelta(hours=23, minutes=45)}
+        self.assertIsNone(source_v3._preselection_reason(recent, now, clocks))
+        self.assertEqual(source_v3._preselection_reason(nearly_expired, now, clocks), "source_age")
+        self.assertEqual(source_v3._preselection_reason(previously_exposed, now, clocks), "display_age")
+        previous = {"sections": {"health": [recent, nearly_expired, previously_exposed]}}
+        prepared = source_v3._prepare_previous(previous, now, clocks)
+        self.assertEqual([row["link"] for row in prepared["sections"]["health"]], [recent["link"]])
+
     def test_pl_economy_ai_crypto_detector(self) -> None:
         self.assertIsNotNone(filtered_news.AI_CRYPTO_RE.search("OpenAI rozwija nowy model AI"))
         self.assertIsNotNone(filtered_news.AI_CRYPTO_RE.search("Bitcoin rośnie po decyzji rynku"))

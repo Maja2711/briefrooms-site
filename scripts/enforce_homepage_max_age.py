@@ -274,10 +274,16 @@ def _first_seen(
     exposure: dict[str, Any] | None,
     now: datetime,
 ) -> datetime | None:
+    candidates = []
     if isinstance(exposure, dict):
         stored = _parse_time(exposure.get("first_seen_at"))
         if stored is not None:
-            return stored
+            candidates.append(stored)
+    previous = _parse_time(story.get("news_first_seen_at"))
+    if previous is not None:
+        candidates.append(previous)
+    if candidates:
+        return min(candidates)
 
     # The 24h display clock starts when BriefRooms first publishes the card, not
     # when the source article was written. Source age is enforced separately by
@@ -435,13 +441,19 @@ def enforce_payload(
         "image_policy_version": IMAGE_POLICY_VERSION,
     }
     payload.setdefault("health", {})["public_news_freshness"] = {
-        "status": "ok",
+        "status": "ok" if all(len(rows) == base.TARGET for rows in filtered_sections.values()) else "underfilled",
         "version": POLICY_VERSION,
         "scope": "all_public_news_surfaces",
         "max_display_hours": 24,
         "section_published_counts": {
             section_id: len(rows)
             for section_id, rows in filtered_sections.items()
+        },
+        "section_target": base.TARGET,
+        "underfilled_sections": {
+            section_id: len(rows)
+            for section_id, rows in filtered_sections.items()
+            if len(rows) < base.TARGET
         },
         "expired_exposure_rejected": rejection_counts["expired"],
         "source_stale_rejected": rejection_counts["source_stale"],
@@ -477,6 +489,8 @@ def enforce_payload(
         "diversity_cap_rejected": selection_diag["diversity_cap_rejections"],
         "reserve_topic_duplicate_rejected": reserve_diag["topic_duplicates_suppressed"],
     }
+    if payload["health"]["public_news_freshness"]["underfilled_sections"]:
+        payload["health"]["status"] = "degraded"
     if lang == "pl":
         section_health = payload["health"].get("sections") or {}
         admission = {}
@@ -528,15 +542,11 @@ def _load_state() -> dict[str, Any]:
         value["schema_version"] = EXPOSURE_SCHEMA_VERSION
         value["migrated_from"] = LEGACY_EXPOSURE_SCHEMA_VERSION
     elif schema in {"public-news-exposure-v2", "public-news-exposure-v3"}:
-        # v2 seeded display clocks from source timestamps; v3 later reset PL
-        # exposure on every run. Both violate the intended display-age semantics.
-        # Reset once during migration to v4, then persist first_seen_at normally.
-        value = {
-            "schema_version": EXPOSURE_SCHEMA_VERSION,
-            "languages": {},
-            "migrated_from": schema,
-            "migration_reason": "repair_and_persist_true_briefrooms_first_seen_clocks",
-        }
+        # Keep old clocks when migrating. v2 sometimes started them too early,
+        # which is conservative; discarding them would let expired cards return
+        # as new publications. v3 clocks are also never moved forward here.
+        value["schema_version"] = EXPOSURE_SCHEMA_VERSION
+        value["migrated_from"] = schema
     elif schema != EXPOSURE_SCHEMA_VERSION:
         value = {"schema_version": EXPOSURE_SCHEMA_VERSION, "languages": {}}
 

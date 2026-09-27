@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -94,6 +94,9 @@ HOMEPAGE_PRIORITY_ORDER = (
 HOMEPAGE_PRIORITY_INDEX = {lane: index for index, lane in enumerate(HOMEPAGE_PRIORITY_ORDER)}
 _LAST_HOMEPAGE_DIAGNOSTICS: dict[str, Any] = {}
 _LAST_HOMEPAGE_RESERVE: list[dict[str, Any]] = []
+_PRESELECTION_DIAGNOSTICS: dict[str, dict[str, Any]] = {}
+PUBLICATION_FRESHNESS_MARGIN = timedelta(minutes=30)
+PUBLICATION_SELECTION_AGE = timedelta(hours=24) - PUBLICATION_FRESHNESS_MARGIN
 
 _original_fetch_all = base.fetch_all
 _original_select_sections = base.select_sections
@@ -147,18 +150,80 @@ def _annotate_grouped(grouped: dict[str, list[dict[str, Any]]]) -> dict[str, lis
     return grouped
 
 
+def _parse_clock(raw: Any) -> datetime | None:
+    try:
+        value = datetime.fromisoformat(str(raw or "").replace("Z", "+00:00"))
+        return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
+    except (ValueError, TypeError):
+        return None
+
+
+def _known_first_seen(lang: str) -> dict[str, datetime]:
+    clocks: dict[str, datetime] = {}
+    try:
+        state = json.loads((ROOT / "data/news/homepage_exposure.json").read_text(encoding="utf-8"))
+        exposures = state.get("languages", {}).get(lang, {})
+        for identity, entry in exposures.items():
+            value = _parse_clock(entry.get("first_seen_at")) if isinstance(entry, dict) else None
+            if value is not None:
+                clocks[identity] = value
+    except (OSError, ValueError, AttributeError):
+        pass
+    try:
+        previous = json.loads((ROOT / f"data/news/{lang}.json").read_text(encoding="utf-8"))
+        for rows in (previous.get("sections") or {}).values():
+            for story in rows:
+                identity = base.normalized_identity(story)
+                value = _parse_clock(story.get("news_first_seen_at"))
+                if identity and value is not None:
+                    clocks[identity] = min(clocks.get(identity, value), value)
+    except (OSError, ValueError, AttributeError, TypeError):
+        pass
+    return clocks
+
+
+def _preselection_reason(story: dict[str, Any], now: datetime, clocks: dict[str, datetime]) -> str | None:
+    published = _parse_clock(story.get("published_at"))
+    if published is None or not -base.FUTURE_TOLERANCE <= now - published <= PUBLICATION_SELECTION_AGE:
+        return "source_age"
+    identity = base.normalized_identity(story)
+    previous = _parse_clock(story.get("news_first_seen_at"))
+    first_seen = clocks.get(identity)
+    if previous is not None:
+        first_seen = min(first_seen, previous) if first_seen else previous
+    if first_seen is not None and now - first_seen > PUBLICATION_SELECTION_AGE:
+        return "display_age"
+    return None
+
+
 def fetch_all(config: Any, now: Any):
     grouped, labels, errors = _original_fetch_all(config, now)
+    lang = "pl" if any(section_id == "polityka" for section_id, _, _ in config) else "en"
+    clocks = _known_first_seen(lang)
+    diagnostics: dict[str, Any] = {}
+    for section_id, rows in grouped.items():
+        accepted = []
+        rejected = {"source_age": 0, "display_age": 0}
+        for story in rows:
+            reason = _preselection_reason(story, now, clocks)
+            if reason:
+                rejected[reason] += 1
+            else:
+                accepted.append(story)
+        grouped[section_id] = accepted
+        diagnostics[section_id] = {"accepted": len(accepted), **rejected}
+    _PRESELECTION_DIAGNOSTICS[lang] = diagnostics
     return _annotate_grouped(grouped), labels, errors
 
 
-def _prepare_previous(previous: dict[str, Any]) -> dict[str, Any]:
+def _prepare_previous(previous: dict[str, Any], now: datetime, clocks: dict[str, datetime]) -> dict[str, Any]:
     copy = dict(previous)
     sections = copy.get("sections") if isinstance(copy.get("sections"), dict) else {}
     new_sections: dict[str, Any] = {}
     for section_id, stories in sections.items():
         if isinstance(stories, list):
-            deduped, _ = deduplicate_dispatches(stories)
+            eligible = [story for story in stories if _preselection_reason(story, now, clocks) is None]
+            deduped, _ = deduplicate_dispatches(eligible)
             canonical, _ = cluster_events(deduped)
             new_sections[section_id] = canonical
         else:
@@ -187,7 +252,7 @@ def select_sections(
     selected, health = _original_select_sections(
         config,
         canonical,
-        _prepare_previous(previous),
+        _prepare_previous(previous, now, _known_first_seen("pl" if any(sid == "polityka" for sid, _, _ in config) else "en")),
         now,
     )
 
@@ -625,6 +690,10 @@ def build_language(lang: str, config: Any, marker: str, now: Any) -> dict[str, A
     health["required_source_errors"] = non_wire_required
     health["optional_source_errors"] = existing_optional
     health["wire_adapter_errors"] = wire_errors
+    health["preselection_freshness"] = {
+        "selection_margin_minutes": int(PUBLICATION_FRESHNESS_MARGIN.total_seconds() // 60),
+        "sections": _PRESELECTION_DIAGNOSTICS.get(lang, {}),
+    }
 
     sections_health = health.get("sections") if isinstance(health.get("sections"), dict) else {}
     no_carry = all(
