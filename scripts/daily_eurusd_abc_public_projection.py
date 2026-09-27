@@ -20,6 +20,10 @@ PUBLIC_HISTORY_LIMIT = 50
 HORIZONS = ("30m", "60m", "120m", "240m", "1440m")
 HORIZON_LABELS = {"30m":"30m","60m":"1h","120m":"2h","240m":"4h","1440m":"24h"}
 ARM_LABELS = {"A":"Tylko techniczny","B":"Tylko Belief","C":"Hybrydowy"}
+EURUSD_PIP_SIZE = 0.0001
+DERIVED_SPREAD_PIPS_ROUND_TRIP = 2.0
+DERIVED_COMMISSION_FRACTION = 0.0
+DERIVED_COST_MODEL_VERSION = "eurusd-fixed-max-spread-2pip-zero-commission-v1"
 DISALLOWED_PUBLIC_KEYS = {
     "beliefs", "decision_sha256", "research_boundary", "checkpoint_id",
     "parent_checkpoint_id", "durability_contract", "technical", "belief_context",
@@ -203,6 +207,67 @@ def _virtual_trade(capture: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+def _derived_net_metric(state: Mapping[str, Any], arm_id: str) -> dict[str, Any]:
+    """Retrospective cost overlay on already-prospective immutable virtual trades.
+
+    The underlying Entry/Exit/realized_bps facts are never changed. This only
+    derives an analytical net estimate using the user's fixed execution-cost
+    assumption: 2 pips round-trip spread, zero commission, zero extra slippage.
+    """
+    net_bps: list[float] = []
+    cost_bps_rows: list[float] = []
+    for capture in state.get("captures") or []:
+        if not isinstance(capture, Mapping):
+            continue
+        plan = capture.get("trade_plan") if isinstance(capture.get("trade_plan"), Mapping) else {}
+        path = capture.get("trade_path") if isinstance(capture.get("trade_path"), Mapping) else {}
+        plan_arm = ((plan.get("arms") or {}).get(arm_id) or {}) if isinstance(plan, Mapping) else {}
+        path_arm = ((path.get("arms") or {}).get(arm_id) or {}) if isinstance(path, Mapping) else {}
+        try:
+            entry = float(plan_arm.get("entry_price"))
+            realized = float(path_arm.get("realized_bps"))
+        except (TypeError, ValueError):
+            continue
+        if entry <= 0:
+            continue
+        status = str(path_arm.get("status") or "")
+        if status not in {"CLOSED", "AMBIGUOUS"}:
+            continue
+        cost_fraction = (DERIVED_SPREAD_PIPS_ROUND_TRIP * EURUSD_PIP_SIZE) / entry + DERIVED_COMMISSION_FRACTION
+        cost_bps = cost_fraction * 10000.0
+        net_bps.append(realized - cost_bps)
+        cost_bps_rows.append(cost_bps)
+
+    gains = sum(value for value in net_bps if value > 0)
+    losses = -sum(value for value in net_bps if value < 0)
+    if losses > 0:
+        profit_factor: float | str | None = gains / losses
+    elif gains > 0:
+        profit_factor = "inf"
+    else:
+        profit_factor = None
+
+    mean_net_bps = sum(net_bps) / len(net_bps) if net_bps else None
+    return {
+        "status": "DERIVED_ESTIMATE" if net_bps else "NOT_MEASURABLE",
+        "sample_size": len(net_bps),
+        "hit_rate": (sum(value > 0 for value in net_bps) / len(net_bps)) if net_bps else None,
+        "profit_factor": _number(profit_factor, 6) if not isinstance(profit_factor, str) else profit_factor,
+        "mean_net_bps": _number(mean_net_bps, 4),
+        "mean_net_return_fraction": _number(mean_net_bps / 10000.0, 8) if mean_net_bps is not None else None,
+        "mean_cost_bps": _number(sum(cost_bps_rows) / len(cost_bps_rows), 4) if cost_bps_rows else None,
+        "cost_model": {
+            "version": DERIVED_COST_MODEL_VERSION,
+            "round_trip_spread_pips": DERIVED_SPREAD_PIPS_ROUND_TRIP,
+            "commission_fraction": DERIVED_COMMISSION_FRACTION,
+            "extra_slippage_fraction": 0.0,
+        },
+        "source_outcomes_immutable": True,
+        "retrospective_cost_overlay": True,
+        "decision_influence": False,
+    }
+
+
 def _trade_metric(row: Mapping[str, Any] | None) -> dict[str, Any]:
     row = row or {}
     return {
@@ -221,14 +286,25 @@ def _trade_metric(row: Mapping[str, Any] | None) -> dict[str, Any]:
     }
 
 
-def _trade_comparison(report: Mapping[str, Any]) -> dict[str, Any]:
+def _trade_comparison(report: Mapping[str, Any], state: Mapping[str, Any]) -> dict[str, Any]:
     trade = report.get("trade_path") if isinstance(report.get("trade_path"), Mapping) else {}
     performance = (trade.get("performance") or {}) if isinstance(trade, Mapping) else {}
+    arms: dict[str, Any] = {}
+    for arm_id in ("A", "B", "C"):
+        metric = _trade_metric((performance.get(arm_id) or {}) if isinstance(performance, Mapping) else None)
+        metric["derived_net_2pip"] = _derived_net_metric(state, arm_id)
+        arms[arm_id] = metric
     return {
         "prospective_from_engine_version": trade.get("prospective_from_engine_version") or TRADE_ENGINE_VERSION,
-        "historical_backfill": False, "virtual_only": True,
-        "arms": {arm_id: _trade_metric((performance.get(arm_id) or {}) if isinstance(performance, Mapping) else None)
-                 for arm_id in ("A","B","C")},
+        "historical_backfill": False,
+        "virtual_only": True,
+        "derived_cost_overlay": {
+            "historical_trade_facts_rewritten": False,
+            "retrospective_cost_overlay": True,
+            "decision_influence": False,
+            "cost_model_version": DERIVED_COST_MODEL_VERSION,
+        },
+        "arms": arms,
     }
 
 
@@ -294,7 +370,7 @@ def build_public_projection(state: Mapping[str, Any], report: Mapping[str, Any],
             "virtual_trade": _virtual_trade(latest),
         },
         "comparison": _comparison(report),
-        "trade_comparison": _trade_comparison(report),
+        "trade_comparison": _trade_comparison(report, state),
         "history": history,
     }
     validate_public_projection(payload)

@@ -95,6 +95,21 @@ class DailyEURUSDABCPublicProjectionTests(unittest.TestCase):
         self.assertEqual(payload["latest"]["arms"]["B"]["raw_score"], 51.34)
         self.assertEqual(payload["latest"]["arms"]["B"]["calibration"]["method"], "support_scale_v1")
 
+        derived = payload["trade_comparison"]["arms"]["A"]["derived_net_2pip"]
+        expected_cost_bps = (0.0002 / 1.16765) * 10000.0
+        self.assertEqual(derived["status"], "DERIVED_ESTIMATE")
+        self.assertEqual(derived["sample_size"], 1)
+        self.assertAlmostEqual(derived["mean_cost_bps"], expected_cost_bps, places=4)
+        self.assertAlmostEqual(derived["mean_net_bps"], 48.55 - expected_cost_bps, places=4)
+        self.assertAlmostEqual(derived["mean_net_return_fraction"], (48.55 - expected_cost_bps) / 10000.0, places=8)
+        self.assertEqual(derived["hit_rate"], 1.0)
+        self.assertEqual(derived["profit_factor"], "inf")
+        self.assertTrue(derived["source_outcomes_immutable"])
+        self.assertTrue(derived["retrospective_cost_overlay"])
+        self.assertFalse(derived["decision_influence"])
+        self.assertEqual(payload["trade_comparison"]["arms"]["B"]["derived_net_2pip"]["sample_size"], 0)
+        self.assertEqual(payload["trade_comparison"]["arms"]["C"]["derived_net_2pip"]["sample_size"], 0)
+
         trade = payload["latest"]["virtual_trade"]
         self.assertTrue(trade["available"])
         self.assertEqual(trade["arms"]["A"]["exit_price"], 1.17332)
