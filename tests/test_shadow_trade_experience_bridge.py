@@ -156,9 +156,38 @@ class ShadowTradeBridgeTests(unittest.TestCase):
             self.assertEqual(1, second["outcomes_appended"])
             events = read_events(state / LEDGER_FILENAME)
             self.assertEqual(["decision", "outcome"], [row["event_type"] for row in events])
-            self.assertIsNone(events[-1]["payload"].get("return_fraction"))
-            self.assertAlmostEqual(0.0049, events[-1]["payload"]["gross_return_fraction"])
-            self.assertFalse(events[-1]["payload"]["cost_adjusted"])
+            payload = events[-1]["payload"]
+            expected_cost = 0.0002 / 1.1000
+            self.assertAlmostEqual(0.0049, payload["gross_return_fraction"])
+            self.assertAlmostEqual(expected_cost, payload["cost_fraction"])
+            self.assertAlmostEqual(0.0049 - expected_cost, payload["return_fraction"])
+            self.assertTrue(payload["cost_adjusted"])
+            self.assertEqual("FIXED_CONSERVATIVE_ASSUMPTION", payload["cost_model_status"])
+            self.assertEqual("eurusd-fixed-max-spread-2pip-zero-commission-v1", payload["cost_model_version"])
+            self.assertEqual(2.0, payload["assumed_round_trip_spread_pips"])
+            self.assertEqual(0.0, payload["commission_fraction"])
+
+
+    def test_short_trade_uses_same_two_pip_round_trip_cost(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state = root / "state"
+            source = root / "abc.json"
+            write_json(source, {"mode": "research_shadow", "engine_version": "eurusd-daily-abc-v1.3.0", "captures": []})
+            sync_eurusd_abc(state, source, now=datetime(2026, 9, 3, 8, 0, tzinfo=timezone.utc), bootstrap=True)
+
+            open_capture = capture("cap-short", "2026-09-03T08:05:00Z", "SHORT", "OPEN")
+            write_json(source, {"mode": "research_shadow", "engine_version": "eurusd-daily-abc-v1.3.0", "captures": [open_capture]})
+            sync_eurusd_abc(state, source, now=datetime(2026, 9, 3, 8, 10, tzinfo=timezone.utc))
+
+            closed_capture = capture("cap-short", "2026-09-03T08:05:00Z", "SHORT", "CLOSED")
+            write_json(source, {"mode": "research_shadow", "engine_version": "eurusd-daily-abc-v1.3.0", "captures": [closed_capture]})
+            sync_eurusd_abc(state, source, now=datetime(2026, 9, 3, 9, 5, tzinfo=timezone.utc))
+            payload = read_events(state / LEDGER_FILENAME)[-1]["payload"]
+            expected_cost = 0.0002 / 1.1000
+            self.assertAlmostEqual(expected_cost, payload["cost_fraction"])
+            self.assertAlmostEqual(payload["gross_return_fraction"] - expected_cost, payload["return_fraction"])
+
 
     def test_first_seen_resolved_trade_is_rejected_as_hindsight(self):
         with tempfile.TemporaryDirectory() as tmp:
