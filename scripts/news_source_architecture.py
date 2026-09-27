@@ -119,6 +119,7 @@ for _name in (
     "The Times of Israel",
     "The Jerusalem Post",
     "Arab News",
+    "Al Jazeera English",
     "Bankier.pl",
     "Business Insider Polska",
     "Spider's Web",
