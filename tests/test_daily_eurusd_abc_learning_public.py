@@ -18,7 +18,36 @@ class DailyEURUSDABCLearningPublicTests(unittest.TestCase):
                 "minimum_losses_for_error_lesson": 4,
                 "minimum_dominant_error_recurrence": 0.6,
                 "human_or_promotion_gate_required_before_policy_application": True,
+                "automatic_challenger_creation": True,
+                "max_active_challengers_per_arm": 1,
             },
+            "challengers": [{
+                "challenger_id": "abc-ch-test",
+                "arm_id": "B",
+                "created_at": "2026-09-03T09:00:00Z",
+                "status": "SHADOW_CANDIDATE",
+                "source_lesson": {
+                    "error_pattern": "FOLLOW_THROUGH_FAILURE",
+                    "confidence": 0.7,
+                    "proposed_action": "test follow-through confirmation before entry; do not change policy automatically",
+                },
+                "frozen_baseline": {"episode_count": 12, "hit_rate": 0.55, "mean_r": 0.2},
+                "shadow_contract": {
+                    "automatic_creation": True,
+                    "executable_rule_status": "AWAITING_EXPLICIT_RULE_COMPILATION",
+                    "prospective_only": True,
+                    "historical_backfill": False,
+                    "decision_influence": False,
+                    "production_execution": False,
+                    "automatic_promotion": False,
+                    "automatic_policy_mutation": False,
+                },
+                "prospective_evidence": {
+                    "starts_after_episode_count": 12,
+                    "challenger_observations": 0,
+                    "status": "AWAITING_EXECUTABLE_SHADOW",
+                },
+            }],
             "arms": {
                 arm: {
                     "episode_count": 4,
@@ -51,6 +80,10 @@ class DailyEURUSDABCLearningPublicTests(unittest.TestCase):
         self.assertNotIn("episodes", payload)
         self.assertFalse(payload["automatic_policy_mutation"])
         self.assertFalse(payload["decision_influence"])
+        self.assertTrue(payload["automatic_challenger_creation"])
+        self.assertEqual(payload["challenger_count"], 1)
+        self.assertEqual(payload["challengers"][0]["status"], "SHADOW_CANDIDATE")
+        self.assertFalse(payload["challengers"][0]["shadow_contract"]["decision_influence"])
 
 
 if __name__ == "__main__":
