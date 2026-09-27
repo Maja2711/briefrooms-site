@@ -95,6 +95,81 @@ def build_payload(state, report):
         vals = by_h.get(label, [])
         horizon_stats.append({"horizon":label, "n":len(vals), "mean_brier":None if not vals else round(sum(vals)/len(vals),6)})
 
+    # Calibration analytics are computed only from prospectively frozen forecasts
+    # that have a deterministic verification. They are descriptive SHADOW output.
+    eligible = []
+    for f in forecasts:
+        v = verified.get(str(f.get("forecast_id", "")))
+        if not v:
+            continue
+        try:
+            prob = float(f.get("predicted_probability"))
+            outcome = 1.0 if bool(v.get("outcome")) else 0.0
+        except (TypeError, ValueError):
+            continue
+        if not 0.0 <= prob <= 1.0:
+            continue
+        eligible.append({"f": f, "v": v, "p": prob, "y": outcome, "brier": (prob - outcome) ** 2})
+
+    def calibration_bins(rows, bins=10):
+        out = []
+        for idx in range(bins):
+            lo, hi = idx / bins, (idx + 1) / bins
+            bucket = [r for r in rows if lo <= r["p"] < hi or (idx == bins - 1 and r["p"] == 1.0)]
+            if not bucket:
+                continue
+            out.append({"range": f"{int(lo*100)}–{int(hi*100)}%", "n": len(bucket),
+                        "mean_predicted": round(sum(r["p"] for r in bucket) / len(bucket), 6),
+                        "observed_rate": round(sum(r["y"] for r in bucket) / len(bucket), 6)})
+        return out
+
+    def segment_stats(rows):
+        if not rows:
+            return {"n": 0, "brier": None, "ece": None, "brier_skill_vs_50_50": None}
+        n = len(rows)
+        brier = sum(r["brier"] for r in rows) / n
+        bins = calibration_bins(rows)
+        ece = sum((b["n"] / n) * abs(b["mean_predicted"] - b["observed_rate"]) for b in bins)
+        return {"n": n, "brier": round(brier, 6), "ece": round(ece, 6),
+                "brier_skill_vs_50_50": round(1.0 - brier / 0.25, 6)}
+
+    def instrument_name(f):
+        bid = str(f.get("belief_id") or "")
+        if bid.startswith("btc."):
+            return "BTC/USD"
+        if bid.startswith("eurusd."):
+            return "EUR/USD"
+        if bid.startswith("spx."):
+            return "S&P 500"
+        return str(f.get("entity") or "OTHER")
+
+    def breakdown(kind):
+        groups = {}
+        for row in eligible:
+            f = row["f"]
+            if kind == "instrument": key = instrument_name(f)
+            elif kind == "horizon": key = horizon_label(f)
+            else: key = str(f.get("belief_id") or "—")
+            groups.setdefault(key, []).append(row)
+        return [{"segment": key, **segment_stats(rows)} for key, rows in sorted(groups.items(), key=lambda kv: (-len(kv[1]), kv[0]))]
+
+    ordered = sorted(eligible, key=lambda r: str(r["f"].get("forecast_at") or ""))
+    rolling = []
+    window = 50
+    for end in range(window, len(ordered) + 1):
+        sample = ordered[end-window:end]
+        stats = segment_stats(sample)
+        rolling.append({"index": end, "as_of": sample[-1]["f"].get("forecast_at"), "n": window,
+                        "brier": stats["brier"], "ece": stats["ece"]})
+
+    calibration_analytics = {
+        "benchmark": {"name": "neutral_50_50", "probability": 0.5, "brier": 0.25},
+        "overall": segment_stats(eligible),
+        "curve": calibration_bins(eligible),
+        "breakdown": {"instrument": breakdown("instrument"), "horizon": breakdown("horizon"), "belief": breakdown("belief")},
+        "rolling": {"window": window, "points": rolling},
+    }
+
     cal = report.get("belief_calibration") or {}
     hypothesis_brier = dict(cal.get("hypothesis_intelligence") or {})
     overall = cal.get("overall") or {}
@@ -166,7 +241,9 @@ def build_payload(state, report):
             "ece": overall.get("ece"),
             "log_loss": overall.get("mean_log_loss"),
             "calibration_status": overall.get("status", "awaiting_outcomes"),
+            "brier_skill": calibration_analytics["overall"]["brier_skill_vs_50_50"],
         },
+        "calibration_analytics": calibration_analytics,
         "evidence_patterns": aris.get("patterns", []),
         "evidence_pattern_meta": {
             "schema_version": aris.get("schema_version"),
