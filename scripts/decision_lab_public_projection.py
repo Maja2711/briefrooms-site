@@ -120,7 +120,8 @@ def build_payload(state, report):
                 continue
             out.append({"range": f"{int(lo*100)}–{int(hi*100)}%", "n": len(bucket),
                         "mean_predicted": round(sum(r["p"] for r in bucket) / len(bucket), 6),
-                        "observed_rate": round(sum(r["y"] for r in bucket) / len(bucket), 6)})
+                        "observed_rate": round(sum(r["y"] for r in bucket) / len(bucket), 6),
+                        "calibration_gap_pp": round(100.0 * ((sum(r["y"] for r in bucket) / len(bucket)) - (sum(r["p"] for r in bucket) / len(bucket))), 3)})
         return out
 
     def segment_stats(rows):
@@ -162,10 +163,14 @@ def build_payload(state, report):
         rolling.append({"index": end, "as_of": sample[-1]["f"].get("forecast_at"), "n": window,
                         "brier": stats["brier"], "ece": stats["ece"]})
 
+    overall_bins = calibration_bins(eligible)
+    reliable_bins = [b for b in overall_bins if b["n"] >= 20]
+    max_gap_bin = max(reliable_bins, key=lambda b: abs(b["calibration_gap_pp"]), default=None)
     calibration_analytics = {
+        "max_calibration_gap": ({"min_n": 20, "gap_pp": max_gap_bin["calibration_gap_pp"], "range": max_gap_bin["range"], "n": max_gap_bin["n"]} if max_gap_bin else None),
         "benchmark": {"name": "neutral_50_50", "probability": 0.5, "brier": 0.25},
         "overall": segment_stats(eligible),
-        "curve": calibration_bins(eligible),
+        "curve": overall_bins,
         "breakdown": {"instrument": breakdown("instrument"), "horizon": breakdown("horizon"), "belief": breakdown("belief")},
         "rolling": {"window": window, "points": rolling},
     }
@@ -242,6 +247,7 @@ def build_payload(state, report):
             "log_loss": overall.get("mean_log_loss"),
             "calibration_status": overall.get("status", "awaiting_outcomes"),
             "brier_skill": calibration_analytics["overall"]["brier_skill_vs_50_50"],
+            "max_calibration_gap_pp": (calibration_analytics["max_calibration_gap"]["gap_pp"] if calibration_analytics["max_calibration_gap"] else None),
         },
         "calibration_analytics": calibration_analytics,
         "evidence_patterns": aris.get("patterns", []),
