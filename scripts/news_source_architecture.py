@@ -109,6 +109,10 @@ for _name in (
 for _name in (
     "Rzeczpospolita",
     "The Guardian",
+    "Guardian Australia",
+    "South China Morning Post",
+    "Sydney Morning Herald",
+    "POLITICO Europe",
     "Bankier.pl",
     "Business Insider Polska",
     "Spider's Web",
