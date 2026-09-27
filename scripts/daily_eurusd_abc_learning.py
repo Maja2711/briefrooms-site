@@ -24,6 +24,7 @@ from typing import Any, Mapping
 LEARNING_EPISODE_SCHEMA = "briefrooms-learning-episode-v1"
 LEARNING_STATE_SCHEMA = "eurusd-abc-learning-state-v1"
 LEARNING_REPORT_SCHEMA = "eurusd-abc-learning-report-v1"
+CHALLENGER_SCHEMA = "eurusd-abc-shadow-challenger-v1"
 STATE_FILENAME = "EURUSD_DAILY_ABC_LEARNING.json"
 REPORT_FILENAME = "EURUSD_DAILY_ABC_LEARNING_REPORT.json"
 ARMS = ("A", "B", "C")
@@ -32,6 +33,7 @@ MIN_EPISODES_FOR_LESSON = 8
 MIN_LOSSES_FOR_ERROR_LESSON = 4
 MIN_DOMINANT_ERROR_RECURRENCE = 0.60
 RECENT_WINDOW = 4
+MAX_ACTIVE_CHALLENGERS_PER_ARM = 1
 
 
 def _iso_z(value: datetime) -> str:
@@ -266,6 +268,7 @@ def initialize_learning_state(experiment_state: Mapping[str, Any], *, now: datet
         },
         "authority": safety_controls(),
         "episodes": [],
+        "challengers": [],
         "arm_memory": {arm: {"episode_ids": [], "policy_changes_applied": []} for arm in ARMS},
         "updated_at": _iso_z(activated),
     }
@@ -371,6 +374,92 @@ def arm_metrics(state: Mapping[str, Any], arm_id: str) -> dict[str, Any]:
     }
 
 
+def _active_challengers(state: Mapping[str, Any], arm_id: str | None = None) -> list[dict[str, Any]]:
+    rows = [
+        dict(row) for row in (state.get("challengers") or [])
+        if isinstance(row, Mapping) and str(row.get("status") or "") in {"SHADOW_CANDIDATE", "SHADOW_TEST"}
+    ]
+    if arm_id is not None:
+        rows = [row for row in rows if row.get("arm_id") == arm_id]
+    return rows
+
+
+def sync_challengers(
+    learning_state: Mapping[str, Any],
+    report: Mapping[str, Any],
+    *,
+    now: datetime | None = None,
+) -> tuple[dict[str, Any], int]:
+    """Create SHADOW-only challengers from eligible lessons.
+
+    Creation is automatic, deterministic and idempotent. It never edits the
+    active A/B/C policy. A challenger starts as a frozen research specification
+    and requires an explicit executable shadow rule before comparative scoring.
+    """
+    state = json.loads(json.dumps(learning_state))
+    state.setdefault("challengers", [])
+    created = 0
+    created_at = _iso_z(now or datetime.now(timezone.utc))
+
+    for arm in ARMS:
+        if len(_active_challengers(state, arm)) >= MAX_ACTIVE_CHALLENGERS_PER_ARM:
+            continue
+        metrics = (report.get("arms") or {}).get(arm) or {}
+        lesson = metrics.get("lesson_candidate") if isinstance(metrics.get("lesson_candidate"), Mapping) else {}
+        if not lesson.get("eligible"):
+            continue
+        pattern = str(lesson.get("error_pattern") or "").strip()
+        proposal = str(lesson.get("proposed_action") or "").strip()
+        if not pattern or not proposal:
+            continue
+        seed = f"{arm}|{pattern}|{proposal}|{metrics.get('episode_count')}"
+        challenger_id = "abc-ch-" + hashlib.sha256(seed.encode("utf-8")).hexdigest()[:20]
+        if any(str(row.get("challenger_id")) == challenger_id for row in state["challengers"]):
+            continue
+        state["challengers"].append({
+            "schema_version": CHALLENGER_SCHEMA,
+            "challenger_id": challenger_id,
+            "arm_id": arm,
+            "created_at": created_at,
+            "status": "SHADOW_CANDIDATE",
+            "source_lesson": {
+                "error_pattern": pattern,
+                "confidence": lesson.get("confidence"),
+                "proposed_action": proposal,
+                "episode_count": metrics.get("episode_count"),
+                "losses": metrics.get("losses"),
+                "error_recurrence_rate": metrics.get("error_recurrence_rate"),
+            },
+            "frozen_baseline": {
+                "episode_count": metrics.get("episode_count"),
+                "hit_rate": metrics.get("hit_rate"),
+                "mean_r": metrics.get("mean_r"),
+                "mean_mfe_r": metrics.get("mean_mfe_r"),
+                "mean_mae_r": metrics.get("mean_mae_r"),
+            },
+            "shadow_contract": {
+                "automatic_creation": True,
+                "executable_rule_status": "AWAITING_EXPLICIT_RULE_COMPILATION",
+                "prospective_only": True,
+                "historical_backfill": False,
+                "decision_influence": False,
+                "production_execution": False,
+                "automatic_promotion": False,
+                "automatic_policy_mutation": False,
+            },
+            "prospective_evidence": {
+                "starts_after_episode_count": metrics.get("episode_count"),
+                "challenger_observations": 0,
+                "status": "AWAITING_EXECUTABLE_SHADOW",
+            },
+        })
+        created += 1
+
+    if created:
+        state["updated_at"] = created_at
+    return state, created
+
+
 def build_report(state: Mapping[str, Any], *, now: datetime | None = None) -> dict[str, Any]:
     metrics = {arm: arm_metrics(state, arm) for arm in ARMS}
     return {
@@ -384,12 +473,15 @@ def build_report(state: Mapping[str, Any], *, now: datetime | None = None) -> di
             "per_arm": {arm: metrics[arm]["episode_count"] for arm in ARMS},
         },
         "arms": metrics,
+        "challengers": [dict(row) for row in (state.get("challengers") or []) if isinstance(row, Mapping)],
         "governance": {
             "minimum_episodes_for_lesson": MIN_EPISODES_FOR_LESSON,
             "minimum_losses_for_error_lesson": MIN_LOSSES_FOR_ERROR_LESSON,
             "minimum_dominant_error_recurrence": MIN_DOMINANT_ERROR_RECURRENCE,
             "single_trade_can_change_policy": False,
             "automatic_policy_mutation": False,
+            "automatic_challenger_creation": True,
+            "max_active_challengers_per_arm": MAX_ACTIVE_CHALLENGERS_PER_ARM,
             "cross_arm_learning": False,
             "human_or_promotion_gate_required_before_policy_application": True,
         },
@@ -424,6 +516,26 @@ def validate_learning(state: Mapping[str, Any], report: Mapping[str, Any]) -> No
             raise ValueError(f"cross-arm or incomplete memory detected for arm {arm}")
         if (report.get("arms") or {}).get(arm, {}).get("lesson_candidate", {}).get("policy_change_applied") is not False:
             raise ValueError("report cannot apply policy changes")
+    challenger_ids: set[str] = set()
+    active_per_arm = {arm: 0 for arm in ARMS}
+    for row in state.get("challengers") or []:
+        if not isinstance(row, Mapping) or row.get("schema_version") != CHALLENGER_SCHEMA:
+            raise ValueError("invalid A/B/C challenger schema")
+        challenger_id = str(row.get("challenger_id") or "")
+        arm = str(row.get("arm_id") or "")
+        if not challenger_id or challenger_id in challenger_ids or arm not in ARMS:
+            raise ValueError("invalid or duplicate A/B/C challenger")
+        challenger_ids.add(challenger_id)
+        contract = row.get("shadow_contract") if isinstance(row.get("shadow_contract"), Mapping) else {}
+        for key in ("historical_backfill", "decision_influence", "production_execution", "automatic_promotion", "automatic_policy_mutation"):
+            if contract.get(key) is not False:
+                raise ValueError(f"challenger authority boundary violated: {key}")
+        if contract.get("prospective_only") is not True or contract.get("automatic_creation") is not True:
+            raise ValueError("challenger must be prospective and automatically created")
+        if str(row.get("status") or "") in {"SHADOW_CANDIDATE", "SHADOW_TEST"}:
+            active_per_arm[arm] += 1
+    if any(value > MAX_ACTIVE_CHALLENGERS_PER_ARM for value in active_per_arm.values()):
+        raise ValueError("too many active challengers for one A/B/C arm")
 
 
 def run_cycle(state_dir: Path, *, now: datetime | None = None) -> tuple[dict[str, Any], dict[str, Any], int]:
@@ -439,11 +551,13 @@ def run_cycle(state_dir: Path, *, now: datetime | None = None) -> tuple[dict[str
         state = dict(existing)
         initialized = 0
     state, appended = sync_learning(experiment, state)
+    pre_challenger_report = build_report(state, now=now)
+    state, challengers_created = sync_challengers(state, pre_challenger_report, now=now)
     report = build_report(state, now=now)
     validate_learning(state, report)
     _atomic(path, state)
     _atomic(state_dir / REPORT_FILENAME, report)
-    return state, report, appended + initialized
+    return state, report, appended + challengers_created + initialized
 
 
 def main() -> int:
@@ -465,6 +579,7 @@ def main() -> int:
     print(f"ABC_LEARNING_STATE_CHANGED={'true' if changed else 'false'}")
     print(f"ABC_LEARNING_EPISODES={len(state.get('episodes') or [])}")
     print("ABC_LEARNING_PER_ARM=" + json.dumps(report["sample"]["per_arm"], sort_keys=True))
+    print(f"ABC_ACTIVE_CHALLENGERS={len(_active_challengers(state))}")
     return 0
 
 

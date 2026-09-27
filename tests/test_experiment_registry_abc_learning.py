@@ -32,6 +32,9 @@ class ExperimentRegistryABCLearningTests(unittest.TestCase):
                 "historical_backfill": False,
                 "decision_influence": False,
                 "automatic_policy_mutation": False,
+                "automatic_challenger_creation": True,
+                "challenger_count": 1,
+                "challengers": [{"challenger_id":"abc-ch-test","arm_id":"B","status":"SHADOW_CANDIDATE"}],
                 "cross_arm_writeback": False,
                 "arms": {
                     "A": {"episode_count": 3, "mean_r": -0.2, "hit_rate": 0.333, "dominant_error": "DIRECTION_OR_TIMING_FAILURE", "error_recurrence_rate": 1.0, "policy_stability": 1.0, "lesson_candidate": {"eligible": False}},
@@ -47,6 +50,9 @@ class ExperimentRegistryABCLearningTests(unittest.TestCase):
         self.assertEqual(learning["episode_count"], 9)
         self.assertEqual(set(learning["arms"]), {"A", "B", "C"})
         self.assertFalse(learning["automatic_policy_mutation"])
+        self.assertTrue(learning["automatic_challenger_creation"])
+        self.assertEqual(learning["challenger_count"], 1)
+        self.assertEqual(learning["challengers"][0]["status"], "SHADOW_CANDIDATE")
         self.assertFalse(learning["decision_influence"])
         self.assertFalse(row["production_impact"])
         self.assertFalse(row["automatic_promotion"])

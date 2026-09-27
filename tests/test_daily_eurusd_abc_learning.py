@@ -118,7 +118,32 @@ class DailyEURUSDABCLearningTests(unittest.TestCase):
             self.assertTrue(lesson["policy_change_proposed"])
             self.assertFalse(lesson["policy_change_applied"])
             self.assertEqual(report["arms"][arm]["policy_stability"], 1.0)
-        learning.validate_learning(synced, report)
+
+        challenged, created = learning.sync_challengers(
+            synced, report, now=T0 + timedelta(hours=10)
+        )
+        self.assertEqual(created, 3)
+        challenged_report = learning.build_report(challenged, now=T0 + timedelta(hours=10))
+        self.assertEqual(len(challenged_report["challengers"]), 3)
+        for row in challenged_report["challengers"]:
+            self.assertEqual(row["status"], "SHADOW_CANDIDATE")
+            self.assertTrue(row["shadow_contract"]["automatic_creation"])
+            self.assertEqual(
+                row["shadow_contract"]["executable_rule_status"],
+                "AWAITING_EXPLICIT_RULE_COMPILATION",
+            )
+            self.assertFalse(row["shadow_contract"]["decision_influence"])
+            self.assertFalse(row["shadow_contract"]["production_execution"])
+            self.assertFalse(row["shadow_contract"]["automatic_policy_mutation"])
+            self.assertFalse(row["shadow_contract"]["automatic_promotion"])
+            self.assertEqual(row["prospective_evidence"]["challenger_observations"], 0)
+
+        again, second_created = learning.sync_challengers(
+            challenged, challenged_report, now=T0 + timedelta(hours=11)
+        )
+        self.assertEqual(second_created, 0)
+        self.assertEqual(len(again["challengers"]), 3)
+        learning.validate_learning(challenged, challenged_report)
 
 
 if __name__ == "__main__":

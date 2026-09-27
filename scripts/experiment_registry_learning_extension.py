@@ -50,6 +50,9 @@ def _learning_details(learning: Mapping[str, Any]) -> dict[str, Any]:
         "automatic_policy_mutation": bool(learning.get("automatic_policy_mutation")),
         "decision_influence": bool(learning.get("decision_influence")),
         "cross_arm_writeback": bool(learning.get("cross_arm_writeback")),
+        "automatic_challenger_creation": bool(learning.get("automatic_challenger_creation")),
+        "challenger_count": int(learning.get("challenger_count") or 0),
+        "challengers": list(learning.get("challengers") or []),
         "arms": {
             arm: {
                 "episode_count": int((arms.get(arm) or {}).get("episode_count") or 0),
