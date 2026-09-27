@@ -253,8 +253,10 @@
   `;
   document.head.appendChild(style);
 
-  fetch("/data/investments/eurusd_abc_public_pl.json?v=" + Date.now(), {cache:"no-store"})
-    .then(response => { if (!response.ok) throw new Error(String(response.status)); return response.json(); })
-    .then(render)
-    .catch(() => { root.innerHTML = `<article class="abc-lab"><h3>A/B/C Research Lab</h3><p class="abc-foot">Nie udało się wczytać publicznej projekcji A/B/C.</p></article>`; });
+  Promise.all([
+    fetch("/data/investments/eurusd_abc_public_pl.json?v=" + Date.now(), {cache:"no-store"}).then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json(); }),
+    fetch("/data/investments/eurusd_x_public_pl.json?v=" + Date.now(), {cache:"no-store"}).then(r => r.ok ? r.json() : null).catch(() => null)
+  ])
+    .then(([abc,x]) => render(abc,x))
+    .catch(() => { root.innerHTML = `<article class="abc-lab"><h3>A/B/C + X Research Lab</h3><p class="abc-foot">Nie udało się wczytać publicznej projekcji laboratorium.</p></article>`; });
 })();
