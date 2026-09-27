@@ -156,6 +156,8 @@ EXTRA_FEEDS: dict[str, dict[str, tuple[tuple[str, str], ...]]] = {
         ),
         "nauka": (
             ("PAP MediaRoom Nauka i Technologie", "https://pap-mediaroom.pl/kategoria/nauka-i-technologie/rss.xml"),
+            ("Polsat News Technologie", "https://www.polsatnews.pl/rss/technologie.xml"),
+            ("Spider's Web", "https://spidersweb.pl/?feed=mcfeed"),
         ),
     },
 }
