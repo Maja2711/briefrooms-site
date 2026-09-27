@@ -345,6 +345,7 @@ Przykłady prywatnego durable state: Learning Outcome Loop oraz GSE/Belief shado
 20. **Nazwa metody nigdy nie rozstrzyga kierunku rynku.** W `TR-05` remis lub near-tie przeciwnych execution candidates przechodzi do `NO_TRADE`; `inverse_v2` pozostaje Challenger/Shadow do jawnej, kontrolowanej promocji.
 21. **WES 1.2 Entry Price Plan jest obowiązkowy.** Directional Admission autoryzuje tezę LONG/SHORT, ale nie natychmiastowy fill. Przed każdym nowym wejściem WES zamraża target ceny z wykorzystaniem ceny referencyjnej z chwili decyzji, ATR14, EMA20, ret5/ret20, pozycji w 55-dniowym zakresie oraz stanu po stop-lossie. Executor może wykonać tylko zamrożony price-improving BUY LIMIT / SELL LIMIT po dotknięciu przez świecę 5m. Aktywny target nie może być przesuwany za rynkiem; brak dotknięcia oznacza WAIT/expiry bez transakcji.
 22. **Zmiana scoped do instrumentu nie może mutować innych instrumentów.** Dla `TR-05` push kodu/UI/testu/dokumentacji jest validation-only. Produkcyjny/paper state pozycji może być zmieniany wyłącznie przez harmonogram, jawny manual dispatch lub kontrolowany workflow-run execution path. Zmiana feedu/ceny S&P nie może jako side effect przeliczać BTC ani EUR/USD.
+23. **Stały core EURUSD X jest niezmienny.** W `TR-03` kalibracja X nie może zmieniać MA30/60/100/200, H1/D1/W1/M1, classic daily Pivot ani Bollinger(20, 2.5σ) H1/D1. Champion/Challenger, anomaly discovery i rollback są wyłącznie X-local shadow i nie mają production/A-B-C/Belief writeback.
 
 ## 11. Authority map — kto czego NIE może robić
 
