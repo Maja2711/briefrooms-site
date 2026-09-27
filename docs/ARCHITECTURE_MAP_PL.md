@@ -1,8 +1,8 @@
 # Kanoniczna mapa architektury BriefRooms — PL
 
 **Wersja mapy:** 1.10  
-**Stan na:** 2026-09-23  
-**Bazowy commit `main`:** `b716beca850bc8514c0975f005c7a8d1d5dcd14d`  
+**Stan na:** 2026-09-27  
+**Bazowy commit `main`:** `53ea1aceafeb864ba604e746569cb53b544af51f`  
 **Repozytorium:** `Maja2711/briefrooms-site`
 
 ## 0. Rola tego dokumentu
@@ -174,12 +174,20 @@ Adapter nie jest silnikiem decyzji. Jego podstawowym zadaniem jest tłumaczenie 
 |---|---|---|---|
 | `TR-01` | Legacy GPW Daily pipeline | Historyczny GPW Daily: candidate research, settlement, lineage i MISS/rejected-candidate memory | **DEPRECATED AS PRODUCT / REPLACED_BY `TR-04`**. Kod i workflow mogą działać jako legacy research/settlement compatibility, ale nie są production Championem i nie mają prawa przyjmować pozycji do portfela v2 |
 | `TR-02` | Legacy US Daily pipeline | Historyczny US Daily lifecycle/risk/memory | **DEPRECATED AS PRODUCT / REPLACED_BY `TR-04`**. Zachowany jako migration/history compatibility; aktywny stock authority należy do v2 |
-| `TR-03` | Daily EUR/USD Spot | Intraday–24h; wspólny Daily contract | Historycznie rollout shadow; własne lifecycle/event overlay/ABC learning |
+| `TR-03` | Daily EUR/USD Spot | Intraday–24h; wspólny Daily contract + odseparowane laboratoria shadow | Własne lifecycle/event overlay/ABC learning. `EURUSD X` jest osobnym research-shadow trackiem w tej samej domenie: stały core MA30/60/100/200 H1/D1/W1/M1 + daily Pivot + Bollinger(20, 2.5σ) H1/D1 + read-only Belief Core; godzinne prospektywne capture, X-local Champion/Challenger i rollback bez production/A-B-C/Belief writeback |
 | `TR-04` | Stock Trading v2 | Wspólny aktywny stock engine dla GPW i US: Dynamic Universe, Opportunity Frontier, Trigger research, Deep Evidence, Fixed Notional Sizing, Portfolio Opportunity Engine | **PRODUCTION CHAMPION — FULL**. Każda nowa pozycja ma `FIXED_NOTIONAL_V1`: 5 000 PLN na GPW lub 5 000 USD na US; `champion_engine=v2`, `challenger_engine=v1`, `legacy_candidate_admission_enabled=false`; `main` jest production authority, `stock-trading-v2` research/evidence runtime |
 | `TR-05` | Weekly Positions / WES family | EUR/USD, S&P 500 futures, BTC/USD; governed paper/research + WES memory/counterfactual/belief bridges | Runtime policy v5.8.0 / **WES 1.2.0**: każde nowe wejście wymaga Directional Admission oraz zamrożonego Entry Price Plan; kierunek i cena wejścia są oddzielnymi decyzjami; `inverse_v2` pozostaje Challenger/Shadow; entry executor może wykonać wyłącznie zamrożony BUY/SELL LIMIT po dotknięciu targetu przez 5m OHLC; target nie może gonić rynku podczas aktywnego planu; SL/TP safety path działa co 5 minut 24/7 |
 | `TR-06` | Portfolio 10K baseline | Długoterminowy portfel, historyczny champion/baseline | Zachowywany jako production baseline i fallback dla BRACE |
 | `TR-07` | BRACE Portfolio Engine | Portfolio research/control z optimizerem, governance i oddzielnym modelowym paper portfolio | **PROBATIONARY_CONTROL**; paper-only, deterministic controller, immutable Portfolio10K baseline jako fallback; LLM nie może promować |
 | `TR-08` | BRACE-SPX / Long View | Read-only/forecasting oriented SPX long-view family | Konsumuje własny point-in-time state + epistemic state; canonical DecisionEnvelope rollout nieukończony |
+
+### EURUSD X — adaptive shadow track
+
+`EURUSD X` należy do `TR-03`, ale nie jest Arm D eksperymentu A/B/C i nie ma authority produkcyjnego. Pełny widok znajduje się w istniejącym EUR/USD A/B/C Research Lab, gdzie X jest oznaczony czerwoną typografią.
+
+Stały kontrakt X: MA30/60/100/200 na H1/D1/W1/M1, classic daily Pivot, Bollinger(20, 2.5σ) na H1/D1 oraz read-only BriefRooms Belief Core. Kalibracja nie może zmieniać tych parametrów. X może prospektywnie tworzyć dodatkowe techniczne challengery/anomaly setups, ale nowy setup dostaje credit dopiero od capture wykonanych po jego utworzeniu. Co godzinę w dni robocze X zbiera świeży stan, a po rozliczeniu primary 4h porównuje Championa i Challengera na wspólnej zamrożonej próbce. Pogorszenie może uruchomić rollback do ostatniego sprawdzonego setupu. Wszystkie promocje/rollbacki są wyłącznie X-local shadow.
+
+Implementacja: `scripts/daily_eurusd_x_shadow.py`, `.github/workflows/daily-eurusd-x-shadow.yml`, `data/investments/eurusd_x_public_pl.json`, `docs/DAILY_EURUSD_X_SHADOW.md`.
 
 ### Stock Trading v2 — wewnętrzny podział
 
@@ -337,6 +345,7 @@ Przykłady prywatnego durable state: Learning Outcome Loop oraz GSE/Belief shado
 20. **Nazwa metody nigdy nie rozstrzyga kierunku rynku.** W `TR-05` remis lub near-tie przeciwnych execution candidates przechodzi do `NO_TRADE`; `inverse_v2` pozostaje Challenger/Shadow do jawnej, kontrolowanej promocji.
 21. **WES 1.2 Entry Price Plan jest obowiązkowy.** Directional Admission autoryzuje tezę LONG/SHORT, ale nie natychmiastowy fill. Przed każdym nowym wejściem WES zamraża target ceny z wykorzystaniem ceny referencyjnej z chwili decyzji, ATR14, EMA20, ret5/ret20, pozycji w 55-dniowym zakresie oraz stanu po stop-lossie. Executor może wykonać tylko zamrożony price-improving BUY LIMIT / SELL LIMIT po dotknięciu przez świecę 5m. Aktywny target nie może być przesuwany za rynkiem; brak dotknięcia oznacza WAIT/expiry bez transakcji.
 22. **Zmiana scoped do instrumentu nie może mutować innych instrumentów.** Dla `TR-05` push kodu/UI/testu/dokumentacji jest validation-only. Produkcyjny/paper state pozycji może być zmieniany wyłącznie przez harmonogram, jawny manual dispatch lub kontrolowany workflow-run execution path. Zmiana feedu/ceny S&P nie może jako side effect przeliczać BTC ani EUR/USD.
+23. **Stały core EURUSD X jest niezmienny.** W `TR-03` kalibracja X nie może zmieniać MA30/60/100/200, H1/D1/W1/M1, classic daily Pivot ani Bollinger(20, 2.5σ) H1/D1. Champion/Challenger, anomaly discovery i rollback są wyłącznie X-local shadow i nie mają production/A-B-C/Belief writeback.
 
 ## 11. Authority map — kto czego NIE może robić
 
@@ -360,7 +369,7 @@ Public UI             -> renderuje stan; NIE jest źródłem decyzji
 - **Evidence adapters:** rzeczywista modularna warstwa; podstawowe market/technical/liquidity/regime adapters są deterministyczne.
 - **GSE:** v1 pozostaje fundamentem forecasting; aktywny hourly research/learning runtime to **GSE v2**, nadal bez execution authority.
 - **Legacy Daily GPW / US:** nie są już aktywnymi produktami stock-tradingowymi; pozostają śledzalne jako deprecated migration/research/settlement paths.
-- **Daily EUR/USD:** odrębny Daily engine, własny learning/lifecycle; canonical rollout partial.
+- **Daily EUR/USD:** odrębny Daily engine, własny learning/lifecycle; canonical rollout partial. W jego domenie działa także `EURUSD X` jako hourly adaptive research-shadow z niezmiennym core i X-local Champion/Challenger/rollback, bez wpływu na produkcję.
 - **Stock Trading v2:** **aktywny production Champion w fazie FULL** dla GPW i US. `main` jest production/governance authority, `stock-trading-v2` jest research/evidence runtime; v1 pozostaje Challenger/rollback lineage.
 - **Weekly/WES:** experimental governed paper layer; aktualny policy v5.6.x, `NO_TRADE` aktywne, pozycja nie jest obowiązkowa.
 - **Portfolio 10K:** zachowany baseline/champion.
@@ -420,7 +429,7 @@ Najważniejsze dokumenty szczegółowe użyte do budowy i utrzymania aktualnej m
 - `CANONICAL_INSTRUMENT_REGISTRY.md`
 - `CANONICAL_MARKET_SNAPSHOT.md`
 - `CANONICAL_DECISION_ENVELOPE.md`
-- `DAILY_TRADING_ARCHITECTURE.md`
+- `DAILY_TRADING_ARCHITECTURE.md`\n- `DAILY_EURUSD_X_SHADOW.md`
 - `stock-trading-v2-architecture.md`
 - `stock-trading-v2-production-promotion.md`
 - `STOCK_TRADING_FIXED_NOTIONAL_PL.md` / `_EN.md`

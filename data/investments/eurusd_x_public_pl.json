@@ -1,67 +1,108 @@
 {
-  "schema_version": "eurusd-x-shadow-v1",
-  "engine": "EURUSD X",
-  "mode": "SHADOW ONLY",
-  "generated_at": "2026-09-27T19:11:00Z",
+  "schema_version": "eurusd-x-public-pl-v1",
+  "generated_at": "2026-09-27T19:30:00Z",
+  "engine_version": "eurusd-x-v1.0.0",
+  "mode": "LIVE_SHADOW",
+  "market_status": "WAITING_FIRST_CAPTURE",
+  "title": "EURUSD X",
+  "champion_setup_id": "X-BASE",
+  "last_best_setup_id": "X-BASE",
+  "active_challenger_id": "X-TREND",
+  "capture_count": 0,
+  "resolved_4h": 0,
+  "latest_prediction": null,
   "fixed_core": {
-    "ma_periods": [
+    "ma_windows": [
       30,
       60,
       100,
       200
     ],
     "ma_timeframes": [
-      "1H",
-      "1D",
-      "1W",
-      "1M"
+      "H1",
+      "D1",
+      "W1",
+      "M1"
     ],
-    "pivot": "classic_daily",
+    "pivot": "classic_daily_floor_P_R1_R2_R3_S1_S2_S3",
     "bollinger": {
       "window": 20,
-      "sigma": 2.5,
+      "stddevs": 2.5,
       "timeframes": [
-        "1H",
-        "1D"
+        "H1",
+        "D1"
       ]
     },
-    "belief_core": "BriefRooms Belief Core"
+    "core_component_weights": {
+      "ma_h1": 0.18,
+      "ma_d1": 0.18,
+      "ma_w1": 0.14,
+      "ma_m1": 0.1,
+      "pivot": 0.18,
+      "boll_h1": 0.12,
+      "boll_d1": 0.1
+    }
   },
-  "adaptive_layer": {
-    "calibration_block_resolved": 5,
-    "champion": {
-      "version": "X-001",
-      "technical_weight": 0.65,
-      "belief_weight": 0.35,
-      "threshold": 0.15,
-      "created_at": "2026-09-27T19:11:00Z"
-    },
-    "challenger": null,
-    "rollback": "automatic_keep_last_champion",
-    "transaction_cost_pips_roundtrip": 2
+  "calibration_policy": {
+    "scheduler": "hourly_weekdays",
+    "recalibrate_after_each_resolved_primary_outcome": true,
+    "primary_horizon_hours": 4,
+    "minimum_common_eval": 8,
+    "rollback_window": 8,
+    "automatic_x_shadow_promotion": true,
+    "automatic_x_shadow_rollback": true,
+    "production_promotion": false
   },
-  "discovery_layer": {
-    "enabled": true,
-    "policy": "new technical features/strategies/anomalies may be added as versioned challengers; fixed core is never mutated"
-  },
-  "current": {
-    "technical_signed": null,
-    "belief_signed": null,
-    "reference_price": null
-  },
-  "performance": {
-    "champion": {
+  "setups": [
+    {
+      "setup_id": "X-BASE",
+      "label": "Balanced Core + Belief",
+      "origin": "frozen_baseline",
       "n": 0,
-      "expectancy_pips": null,
-      "profit_factor": null,
-      "hit_rate": null
+      "brier": null,
+      "signal_n": 0,
+      "hit_rate": null,
+      "mean_signed_return_bps": null
     },
-    "challenger": null
-  },
-  "sample": {
-    "captures": 0,
-    "resolved": 0
-  },
-  "last_calibration": null,
-  "status": "INITIALIZED_AWAITING_FIRST_CYCLE"
+    {
+      "setup_id": "X-TREND",
+      "label": "Trend Continuation",
+      "origin": "frozen_challenger",
+      "n": 0,
+      "brier": null,
+      "signal_n": 0,
+      "hit_rate": null,
+      "mean_signed_return_bps": null
+    },
+    {
+      "setup_id": "X-REV",
+      "label": "Stretch / Mean Reversion",
+      "origin": "frozen_challenger",
+      "n": 0,
+      "brier": null,
+      "signal_n": 0,
+      "hit_rate": null,
+      "mean_signed_return_bps": null
+    },
+    {
+      "setup_id": "X-BELIEF",
+      "label": "Belief-weighted",
+      "origin": "frozen_challenger",
+      "n": 0,
+      "brier": null,
+      "signal_n": 0,
+      "hit_rate": null,
+      "mean_signed_return_bps": null
+    }
+  ],
+  "recent_calibration_events": [],
+  "recent_discoveries": [],
+  "public_boundary": {
+    "shadow_only": true,
+    "production_execution": false,
+    "active_daily_engine_writeback": false,
+    "abc_writeback": false,
+    "belief_writeback": false,
+    "raw_belief_evidence_exposed": false
+  }
 }
