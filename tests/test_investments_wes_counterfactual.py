@@ -251,6 +251,43 @@ class WesCounterfactualTests(unittest.TestCase):
         )
         self.assertEqual(out2["records"][0]["outcome"]["incremental_wes_vs_v5_percent"], -14.0)
 
+
+    def test_apply_evaluation_settles_existing_prospective_wes_pair_from_closed_leg(self):
+        r = record()
+        r["wes_actual"]["entry_captured_at"] = "2026-08-24T08:00:00+00:00"
+        r["outcome"] = {
+            "status": "pending",
+            "wes_net_result_percent": None,
+            "v5_counterfactual_net_result_percent": None,
+            "incremental_wes_vs_v5_percent": None,
+        }
+        c = contract("long")
+        r["v5_counterfactual"]["replay_contract"] = c
+        r["v5_counterfactual"]["replay_contract_status"] = "frozen"
+
+        closed_week = week()
+        closed_week["instruments"][0]["position_legs"] = [{
+            "entry_captured_at": "2026-08-24T08:00:00+00:00",
+            "exit_captured_at": "2026-08-25T12:00:00+00:00",
+            "exit_reason": "take_profit",
+            "net_result_percent": 5.0,
+        }]
+        data = bars([
+            ("2026-08-24T08:05:00Z", 100, 121, 99, 120),
+        ])
+        out = cf.apply_evaluations(
+            ledger(r),
+            evaluated_at=datetime(2026, 8, 25, 13, 0, tzinfo=timezone.utc),
+            bars_by_decision={"d1": data},
+            weeks={"2026-W35": closed_week},
+        )
+        row = out["records"][0]
+        self.assertEqual(row["outcome"]["wes_net_result_percent"], 5.0)
+        self.assertEqual(row["outcome"]["v5_counterfactual_net_result_percent"], 19.0)
+        self.assertEqual(row["outcome"]["incremental_wes_vs_v5_percent"], -14.0)
+        self.assertEqual(row["outcome"]["status"], "resolved_incremental_alpha")
+
+
     def test_incremental_report_separates_overall_and_agreement_conflict(self):
         r1 = record()
         r1["outcome"]["incremental_wes_vs_v5_percent"] = 1.5

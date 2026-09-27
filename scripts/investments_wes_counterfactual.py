@@ -362,16 +362,57 @@ def _download_contract_bars(contract: Mapping[str, Any], now: datetime) -> Any:
     return v2.intraday_bars(symbol, entry_at.astimezone(TZ), end.astimezone(TZ))
 
 
+def _refresh_wes_actual_outcome(
+    row: dict[str, Any],
+    *,
+    weeks: Optional[Mapping[str, Mapping[str, Any]]] = None,
+) -> None:
+    """Settle only an already prospectively frozen WES actual plan.
+
+    This reads the canonical closed leg for the same frozen entry timestamp.
+    It never creates a missing baseline, never reconstructs an old decision,
+    and never changes trading policy.
+    """
+    actual = row.get("wes_actual")
+    if not isinstance(actual, Mapping):
+        return
+    entry_at = actual.get("entry_captured_at")
+    if not entry_at:
+        return
+    week_id = str(row.get("week_id") or "")
+    week = (weeks or {}).get(week_id) if weeks is not None else _read(_week_path(week_id), {})
+    item = _find_spx(week or {})
+    if not isinstance(item, Mapping):
+        return
+    leg = bridge._find_closed_leg(item, entry_at)
+    if not isinstance(leg, Mapping):
+        return
+    net = _finite(leg.get("net_result_percent"))
+    if net is None:
+        net = _finite(leg.get("result_percent"))
+    if net is None:
+        return
+    outcome = row.setdefault("outcome", {})
+    outcome["status"] = "wes_observed_v5_counterfactual_pending"
+    outcome["closed_at"] = leg.get("exit_captured_at")
+    outcome["exit_reason"] = leg.get("exit_reason")
+    outcome["wes_net_result_percent"] = round(net, 8)
+    outcome.setdefault("v5_counterfactual_net_result_percent", None)
+    outcome.setdefault("incremental_wes_vs_v5_percent", None)
+
+
 def apply_evaluations(
     ledger: Mapping[str, Any],
     *,
     evaluated_at: Optional[datetime] = None,
     bars_by_decision: Optional[Mapping[str, Any]] = None,
+    weeks: Optional[Mapping[str, Mapping[str, Any]]] = None,
 ) -> dict[str, Any]:
     out = deepcopy(dict(ledger))
     rows = [deepcopy(x) for x in (out.get("records") or []) if isinstance(x, Mapping)]
     now = (evaluated_at or _now()).astimezone(timezone.utc)
     for row in rows:
+        _refresh_wes_actual_outcome(row, weeks=weeks)
         baseline = row.get("v5_counterfactual")
         if not isinstance(baseline, dict):
             continue
