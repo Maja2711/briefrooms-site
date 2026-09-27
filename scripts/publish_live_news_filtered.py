@@ -517,7 +517,7 @@ def select_sections(
     prior_exposure = _previous_exposure_by_identity(previous)
 
     for section_id, _, _ in config:
-        target = target if pl_mode else EN_SECTION_TARGETS.get(section_id, target)
+        target = base.TARGET if pl_mode else EN_SECTION_TARGETS.get(section_id, base.TARGET)
         source_candidates = list(fetched.get(section_id) or [])
         if pl_mode:
             source_candidates = [
