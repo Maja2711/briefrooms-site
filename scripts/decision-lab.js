@@ -143,6 +143,22 @@ function marketView(items){
   }).join("");
 }
 
+function contractValue(values){
+  if(!values||typeof values!=="object") return null;
+  const entries=Object.entries(values).filter(([,v])=>Number.isFinite(Number(v)));
+  if(!entries.length) return null;
+  return entries.map(([k,v])=>entries.length>1?k+" "+num(v,5):num(v,5)).join(" · ");
+}
+function t0Line(x){
+  const v=contractValue(x?.t0_values);
+  return '<small class="contract-mark t0">T0: '+esc(v||"—")+'</small>';
+}
+function t1Line(x){
+  const v=contractValue(x?.t1_values);
+  const waiting=x?.forecast_contract_version && String(x?.status||"").toUpperCase()!=="RESOLVED";
+  return '<small class="contract-mark t1">T1: '+esc(v||(waiting?"oczekuje":"—"))+'</small>';
+}
+
 function forecasts(items){
   const root=document.getElementById("forecast-list");
   if(!root)return;
@@ -161,7 +177,8 @@ function forecasts(items){
         '<span class="hypothesis" title="'+esc(x.belief_id||"")+'">'+esc(hypothesis(x))+'</span>'+
         '<span class="probability" title="'+esc(probabilityMeaning(x))+'">'+pct(x.probability)+'<small>'+esc(probabilityMeaning(x))+'</small></span>'+
         '<span>'+pct(x.confidence)+'</span>'+
-        '<span class="target" title="Forecast: '+esc(forecastTime(x.forecast_at))+' · Target: '+esc(target(x.target_at))+' · '+esc(marketCalendar(x).detail)+'">'+esc(target(x.target_at))+'<small>od '+esc(forecastTime(x.forecast_at))+'</small>'+calendarBadge(x)+'</span>'+
+        '<span class="target forecast-origin" title="Forecast: '+esc(forecastTime(x.forecast_at))+'">'+esc(forecastTime(x.forecast_at))+t0Line(x)+'</span>'+
+        '<span class="target" title="Target: '+esc(target(x.target_at))+' · '+esc(marketCalendar(x).detail)+'">'+esc(target(x.target_at))+t1Line(x)+calendarBadge(x)+'</span>'+
         outcome(x)+
         '<span class="brier">'+num(x.brier_score,3)+'</span>'+
         status(x.status)+
