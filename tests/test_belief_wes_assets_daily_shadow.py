@@ -69,7 +69,7 @@ class DailyWESAssetShadowTests(unittest.TestCase):
             assets = [f for f in core.forecasts.values() if f.metadata.get("consumer") == "WES-ASSET-SHADOW"]
             self.assertEqual(len(shared), 5)
             self.assertTrue(all(f.belief_id.startswith("spx.") for f in shared))
-            self.assertEqual(len(assets), 7)
+            self.assertEqual(len(assets), 35)
             self.assertEqual({f.belief_id for f in assets}, set(WES_ASSET_BELIEF_IDS))
             self.assertTrue(all(f.horizon_hours < 24 for f in assets))
 
