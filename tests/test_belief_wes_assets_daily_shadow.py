@@ -71,7 +71,7 @@ class DailyWESAssetShadowTests(unittest.TestCase):
             self.assertTrue(all(f.belief_id.startswith("spx.") for f in shared))
             self.assertEqual(len(assets), 35)
             self.assertEqual({f.belief_id for f in assets}, set(WES_ASSET_BELIEF_IDS))
-            self.assertTrue(all(f.horizon_hours < 24 for f in assets))
+            self.assertEqual(sorted({f.horizon_hours for f in assets}), [3.0, 12.0, 24.0, 72.0, 120.0])
 
             retry = run_cycle(state_dir, now, client)
             self.assertEqual(retry["shared_forecasts_frozen"], 0)
