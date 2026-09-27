@@ -269,6 +269,14 @@ function rollingCalibration(a){
 function calibrationResults(a){
   CAL_ANALYTICS=a||{}; calibrationCurve(CAL_ANALYTICS); calibrationBreakdown("instrument"); rollingCalibration(CAL_ANALYTICS); setupBreakdown();
 }
+function v3Candidates(payload){
+  const root=document.getElementById("v3-candidate-table"); if(!root)return;
+  const rows=payload?.candidates||[], gov=payload?.governance||{};
+  if(!rows.length){root.innerHTML='<p class="muted">Brak rejestru v3 Candidate.</p>';return;}
+  root.innerHTML='<div class="cal-table v3-table"><div class="cal-row head"><span>Candidate belief</span><span>n</span><span>Brier</span><span>ECE</span><span>Log loss</span><span>Incremental</span><span>Decyzja produkcyjna</span></div>'+
+    rows.map(x=>'<div class="cal-row"><b>'+esc(x.belief_id)+'</b><span>'+esc(x.sample_n)+'</span><span>'+num(x.brier,3)+'</span><span>'+num(x.ece,3)+'</span><span>'+num(x.log_loss,3)+'</span><span>'+esc(x.incremental_information==null?'—':x.incremental_information)+'</span><span><b>'+esc(x.production_recommendation)+'</b><small>'+esc(x.review_status)+'</small></span></div>').join('')+'</div>'+
+    '<p class="muted">Gate: n≥'+esc(gov.minimum_sample_for_review||50)+' → kalibracja → incremental information → ręczna decyzja. Automatic promotion: OFF.</p>';
+}
 
 function patternMetrics(meta){
   const root=document.getElementById("pattern-metrics");if(!root)return;
@@ -347,12 +355,14 @@ async function load(){
     metric("metrics-summary",d.metrics||{});
     metric("metrics",d.metrics||{});
     calibrationResults(d.calibration_analytics||{});
+    v3Candidates(d.belief_core_v3_candidates||{});
     patterns(d.evidence_patterns||[],d.evidence_pattern_meta||{});
   }catch(_){
     forecasts([]);
     metric("metrics-summary",{});
     metric("metrics",{});
     calibrationResults({});
+    v3Candidates({});
     patterns([],{});
   }
 }
