@@ -471,5 +471,14 @@ class LiveNewsPublisherTests(unittest.TestCase):
         self.assertEqual(diagnostics["reserve_count"], len(reserve))
 
 
+
+    def test_public_web_health_regexes_match_realistic_article_urls(self):
+        termedia = filtered.PUBLIC_WEB_HEALTH_SOURCES["Termedia Menedżer Zdrowia"]["href_re"]
+        rynek = filtered.PUBLIC_WEB_HEALTH_SOURCES["Rynek Zdrowia Aktualności"]["href_re"]
+        self.assertIsNotNone(termedia.search('/mz/Nowe-zalecenia-dla-pacjentow,12345.html'))
+        self.assertIsNotNone(termedia.search('https://www.termedia.pl/mz/Nowe-zalecenia-dla-pacjentow,12345.html'))
+        self.assertIsNotNone(rynek.search('/Serwis-Kardiologia/Nowe-zalecenia-dla-pacjentow,12345,1.html'))
+        self.assertIsNotNone(rynek.search('https://www.rynekzdrowia.pl/Serwis-Kardiologia/Nowe-zalecenia-dla-pacjentow,12345,1.html'))
+
 if __name__ == "__main__":
     unittest.main()
