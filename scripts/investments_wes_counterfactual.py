@@ -226,7 +226,6 @@ def freeze_contracts(
     rows = [deepcopy(x) for x in (out.get("records") or []) if isinstance(x, Mapping)]
     policy = policy if policy is not None else _read(POLICY_PATH, {})
     for row in rows:
-        _refresh_wes_actual_outcome(row, weeks=weeks)
         baseline = row.get("v5_counterfactual")
         if not isinstance(baseline, dict):
             continue
@@ -413,6 +412,7 @@ def apply_evaluations(
     rows = [deepcopy(x) for x in (out.get("records") or []) if isinstance(x, Mapping)]
     now = (evaluated_at or _now()).astimezone(timezone.utc)
     for row in rows:
+        _refresh_wes_actual_outcome(row, weeks=weeks)
         baseline = row.get("v5_counterfactual")
         if not isinstance(baseline, dict):
             continue
