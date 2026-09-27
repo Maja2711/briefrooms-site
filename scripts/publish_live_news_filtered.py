@@ -445,6 +445,28 @@ def _fresh_for_pl_selection(story: dict[str, Any], now: datetime) -> bool:
     return age >= -base.FUTURE_TOLERANCE
 
 
+FED_MINUTES_RE = re.compile(
+    r"\b(?:minutes?\s+of\s+(?:the\s+)?(?:federal\s+open\s+market\s+committee|fomc|board(?:'s)?\s+discount\s+rate)|fomc\s+minutes?)\b",
+    re.IGNORECASE,
+)
+FED_MINUTES_MAX_SOURCE_AGE = timedelta(hours=48)
+
+
+def _time_sensitive_release_eligible(story: dict[str, Any], section_id: str, now: datetime) -> bool:
+    """Keep event-driven releases only around publication; do not treat archives as current news."""
+    if section_id != "business":
+        return True
+    source = str(story.get("source") or "").strip().lower()
+    text = _story_text(story)
+    if source != "federal reserve" or not FED_MINUTES_RE.search(text):
+        return True
+    published = _published_at(story)
+    if published is None:
+        return False
+    age = now.astimezone(timezone.utc) - published
+    return -base.FUTURE_TOLERANCE <= age <= FED_MINUTES_MAX_SOURCE_AGE
+
+
 def _public_image_ready(story: dict[str, Any]) -> bool:
     """Match the final public-surface image contract before a card consumes a slot."""
     raw = str(story.get("image") or "").strip()
@@ -518,7 +540,10 @@ def select_sections(
 
     for section_id, _, _ in config:
         target = base.TARGET if pl_mode else EN_SECTION_TARGETS.get(section_id, base.TARGET)
-        source_candidates = list(fetched.get(section_id) or [])
+        source_candidates = [
+            story for story in (fetched.get(section_id) or [])
+            if _time_sensitive_release_eligible(story, section_id, now)
+        ]
         if pl_mode:
             source_candidates = [
                 story for story in source_candidates
