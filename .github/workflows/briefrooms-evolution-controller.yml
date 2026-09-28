@@ -1,0 +1,240 @@
+name: BriefRooms Evolution Controller
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "43 * * * *"
+  workflow_run:
+    workflows:
+      - "Belief Calibration Foundation"
+      - "Learning Outcome Loop"
+      - "Stock Trading v2 Closed Learning Loop"
+      - "Stock Trading Component Promotion"
+    types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - "scripts/briefrooms_evolution_contracts.py"
+      - "scripts/briefrooms_evolution_controller.py"
+      - "scripts/belief_closed_loop.py"
+      - "scripts/belief_v3_candidate_library.py"
+      - "scripts/evidence_pattern_discovery.py"
+      - "scripts/experience_store.py"
+      - "tests/test_briefrooms_evolution_controller.py"
+      - "data/investments/belief_core_production_overrides.json"
+      - "data/investments/belief_v3_production_registry.json"
+      - ".github/workflows/briefrooms-evolution-controller.yml"
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: briefrooms-evolution-controller
+  cancel-in-progress: false
+
+env:
+  BELIEF_ARTIFACT_NAME: belief-core-shadow-state
+  LEARNING_ARTIFACT_NAME: learning-outcome-loop-state
+
+jobs:
+  evolve:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/scripts
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Checkout production main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate Evolution Controller before state mutation
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/briefrooms_evolution_contracts.py \
+            scripts/briefrooms_evolution_controller.py \
+            scripts/belief_closed_loop.py \
+            scripts/experience_store.py
+          python -m unittest \
+            tests.test_briefrooms_evolution_controller \
+            tests.test_belief_closed_loop -v
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('data/investments/belief_v3_production_registry.json').read_text())
+          assert p['schema_version']=='belief-v3-production-registry-v1'
+          assert p['authority']['trade_execution'] is False
+          assert p['authority']['decision_engine_writeback'] is False
+          print('EVOLUTION_BOOTSTRAP_OK')
+          PY
+
+      - name: Prepare runtime source directories
+        run: |
+          set -euo pipefail
+          echo "BELIEF_STATE_DIR=$RUNNER_TEMP/evolution-belief" >> "$GITHUB_ENV"
+          echo "LEARNING_STATE_DIR=$RUNNER_TEMP/evolution-learning" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/evolution-belief" "$RUNNER_TEMP/evolution-learning"
+
+      - name: Restore latest Belief Core cumulative state
+        id: belief
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${BELIEF_ARTIFACT_NAME}&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/belief-artifacts.json"
+          artifact_id=$(python - "$RUNNER_TEMP/belief-artifacts.json" <<'PY'
+          import json,sys
+          from pathlib import Path
+          rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get('artifacts',[]) if not x.get('expired')]
+          rows.sort(key=lambda x:x.get('created_at',''),reverse=True)
+          print(rows[0]['id'] if rows else '')
+          PY
+          )
+          if [[ -z "$artifact_id" ]]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/belief.zip"
+          mkdir -p "$RUNNER_TEMP/belief-artifact"
+          unzip -q "$RUNNER_TEMP/belief.zip" -d "$RUNNER_TEMP/belief-artifact"
+          archive="$RUNNER_TEMP/belief-artifact/belief-core-state.tgz"
+          [[ -s "$archive" ]] || { echo "available=false" >> "$GITHUB_OUTPUT"; exit 0; }
+          tar -xzf "$archive" -C "$BELIEF_STATE_DIR"
+          test -s "$BELIEF_STATE_DIR/state.json"
+          test -s "$BELIEF_STATE_DIR/BELIEF_CLOSED_LOOP.json"
+          echo "available=true" >> "$GITHUB_OUTPUT"
+
+      - name: Restore latest Learning Outcome Loop state
+        id: learning
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${LEARNING_ARTIFACT_NAME}&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/learning-artifacts.json"
+          artifact_id=$(python - "$RUNNER_TEMP/learning-artifacts.json" <<'PY'
+          import json,sys
+          from pathlib import Path
+          rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get('artifacts',[]) if not x.get('expired')]
+          rows.sort(key=lambda x:x.get('created_at',''),reverse=True)
+          print(rows[0]['id'] if rows else '')
+          PY
+          )
+          if [[ -z "$artifact_id" ]]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/learning.zip"
+          mkdir -p "$RUNNER_TEMP/learning-artifact"
+          unzip -q "$RUNNER_TEMP/learning.zip" -d "$RUNNER_TEMP/learning-artifact"
+          archive="$RUNNER_TEMP/learning-artifact/learning-outcome-loop-state.tgz"
+          [[ -s "$archive" ]] || { echo "available=false" >> "$GITHUB_OUTPUT"; exit 0; }
+          tar -xzf "$archive" -C "$LEARNING_STATE_DIR"
+          test -s "$LEARNING_STATE_DIR/learning_ledger.jsonl"
+          python scripts/experience_store.py \
+            --ledger "$LEARNING_STATE_DIR/learning_ledger.jsonl" \
+            --store "$RUNNER_TEMP/evolution-experience-store.jsonl" \
+            --status "$RUNNER_TEMP/evolution-experience-status.json"
+          echo "available=true" >> "$GITHUB_OUTPUT"
+
+      - name: Read latest Stock Trading regret evidence from research branch
+        id: regret
+        run: |
+          set -euo pipefail
+          rm -f "$RUNNER_TEMP/stock-regret.json"
+          if git fetch origin stock-trading-v2; then
+            if git cat-file -e "origin/stock-trading-v2:data/investments/stock_trading_v2_learning/regret_report.json" 2>/dev/null; then
+              git show "origin/stock-trading-v2:data/investments/stock_trading_v2_learning/regret_report.json" > "$RUNNER_TEMP/stock-regret.json"
+              python -m json.tool "$RUNNER_TEMP/stock-regret.json" >/dev/null
+              echo "available=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+          echo "available=false" >> "$GITHUB_OUTPUT"
+
+      - name: Run unified evolution lifecycle
+        env:
+          BELIEF_AVAILABLE: ${{ steps.belief.outputs.available }}
+          LEARNING_AVAILABLE: ${{ steps.learning.outputs.available }}
+          REGRET_AVAILABLE: ${{ steps.regret.outputs.available }}
+        run: |
+          set -euo pipefail
+          args=(
+            --state data/investments/evolution_controller_state.json
+            --public data/investments/evolution_controller_public.json
+            --audit data/investments/evolution_controller_audit.jsonl
+            --decision-lab-public data/investments/decision_lab_public.json
+            --belief-policy data/investments/belief_core_production_overrides.json
+            --v3-registry data/investments/belief_v3_production_registry.json
+          )
+          if [[ "$BELIEF_AVAILABLE" == "true" ]]; then
+            args+=(--belief-state "$BELIEF_STATE_DIR/state.json")
+            args+=(--belief-closed-loop "$BELIEF_STATE_DIR/BELIEF_CLOSED_LOOP.json")
+          fi
+          if [[ "$LEARNING_AVAILABLE" == "true" ]]; then
+            args+=(--experience-store "$RUNNER_TEMP/evolution-experience-store.jsonl")
+          fi
+          if [[ "$REGRET_AVAILABLE" == "true" ]]; then
+            args+=(--trading-regret "$RUNNER_TEMP/stock-regret.json")
+          fi
+          python scripts/briefrooms_evolution_controller.py "${args[@]}"
+
+      - name: Verify authority and lifecycle state
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('data/investments/evolution_controller_public.json').read_text())
+          assert p['schema_version']=='briefrooms-evolution-controller-public-v1'
+          assert p['authority']['trade_execution'] is False
+          assert p['authority']['position_sizing'] is False
+          assert p['authority']['historical_rewrite'] is False
+          assert p['authority']['stock_trading_materialization'] is False
+          b=json.loads(Path('data/investments/belief_core_production_overrides.json').read_text())
+          assert b['authority']['may_execute_trades'] is False
+          v=json.loads(Path('data/investments/belief_v3_production_registry.json').read_text())
+          assert v['authority']['trade_execution'] is False
+          assert v['authority']['decision_engine_writeback'] is False
+          print('EVOLUTION_AUTHORITY_OK', json.dumps(p['summary'],sort_keys=True))
+          PY
+
+      - name: Persist Evolution Controller state and bounded owned materializations
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            data/investments/evolution_controller_state.json \
+            data/investments/evolution_controller_public.json \
+            data/investments/evolution_controller_audit.jsonl \
+            data/investments/belief_core_production_overrides.json \
+            data/investments/belief_v3_production_registry.json \
+            2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "Evolution state unchanged."
+            exit 0
+          fi
+          git commit -m "data(evolution): advance governed learning lifecycle"
+          for attempt in 1 2 3 4 5; do
+            if git pull --rebase origin main && git push origin HEAD:main; then
+              exit 0
+            fi
+            git rebase --abort 2>/dev/null || true
+            git fetch origin main
+            git rebase origin/main
+            sleep $((attempt*3))
+          done
+          exit 1
