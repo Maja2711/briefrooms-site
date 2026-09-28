@@ -195,6 +195,69 @@ function forecasts(items){
   }));
 }
 
+
+let HISTORY_LOADED=false,HISTORY_ROWS=[],HISTORY_VISIBLE=50;
+
+function historyRowHtml(x){
+  return '<div class="forecast forecast-history-row">'+
+    '<b>'+esc(instrument(x))+'</b>'+
+    '<span class="hypothesis" title="'+esc(x.belief_id||"")+'">'+esc(hypothesis(x))+'</span>'+
+    '<span class="probability" title="'+esc(probabilityMeaning(x))+'">'+pct(x.probability)+'<small>'+esc(probabilityMeaning(x))+'</small></span>'+
+    '<span>'+pct(x.confidence)+'</span>'+
+    '<span class="target forecast-origin" title="Forecast: '+esc(forecastTime(x.forecast_at))+'">'+esc(forecastTime(x.forecast_at))+t0Line(x)+'</span>'+
+    '<span class="target" title="Target: '+esc(target(x.target_at))+'">'+esc(target(x.target_at))+t1Line(x)+'</span>'+
+    outcome(x)+
+    '<span class="brier">'+num(x.brier_score,3)+'</span>'+
+    status(x.status)+
+  '</div>';
+}
+
+function renderForecastHistory(){
+  const root=document.getElementById("forecast-history-body"); if(!root)return;
+  const count=document.getElementById("forecast-history-count");
+  if(count) count.textContent=HISTORY_LOADED?HISTORY_ROWS.length+" records":"—";
+  if(!HISTORY_LOADED){root.innerHTML='<p class="muted">Loading 30D history…</p>';return;}
+  if(!HISTORY_ROWS.length){root.innerHTML='<p class="muted">No forecasts in the last 30 days.</p>';return;}
+  const visible=HISTORY_ROWS.slice(0,HISTORY_VISIBLE);
+  root.innerHTML=
+    '<div class="forecast-list history-list">'+
+      '<div class="forecast head"><span>Instrument</span><span>Hypothesis</span><span>P</span><span>Confidence</span><span>Forecast date</span><span>Target</span><span>Outcome</span><span>Brier</span><span>Status</span></div>'+
+      visible.map(historyRowHtml).join("")+
+    '</div>'+
+    (HISTORY_VISIBLE<HISTORY_ROWS.length?'<button class="history-more" id="forecast-history-more" type="button">Show more · '+esc(HISTORY_ROWS.length-HISTORY_VISIBLE)+' remaining</button>':'')+
+    '<p class="muted history-private-note">Only the rolling last 30 days are published to the frontend. Older history is not sent to the browser and remains in BriefRooms private analytical state.</p>';
+  const more=document.getElementById("forecast-history-more");
+  if(more) more.addEventListener("click",()=>{HISTORY_VISIBLE+=50;renderForecastHistory();});
+}
+
+async function loadForecastHistory(){
+  if(HISTORY_LOADED)return;
+  const root=document.getElementById("forecast-history-body");
+  if(root) root.innerHTML='<p class="muted">Loading 30D history…</p>';
+  try{
+    const r=await fetch("/data/investments/decision_lab_history_30d.json?v="+Date.now(),{cache:"no-store"});
+    if(!r.ok)throw new Error("history unavailable");
+    const d=await r.json();
+    if(d?.schema_version!=="briefrooms_decision_lab_history_v1")throw new Error("history schema");
+    HISTORY_ROWS=Array.isArray(d.rows)?d.rows:[];
+    HISTORY_LOADED=true;
+    HISTORY_VISIBLE=50;
+    renderForecastHistory();
+  }catch(_){
+    if(root) root.innerHTML='<p class="muted">30D history is temporarily unavailable.</p>';
+  }
+}
+
+function setupForecastHistory(){
+  const details=document.getElementById("forecast-history");
+  const label=document.getElementById("forecast-history-toggle-label");
+  if(!details)return;
+  details.addEventListener("toggle",()=>{
+    if(label) label.textContent=details.open?"Hide history":"Show history";
+    if(details.open&&!HISTORY_LOADED) loadForecastHistory();
+  });
+}
+
 function showHorizonPath(row){
   let box=document.getElementById("horizon-path");
   if(!box){
@@ -436,5 +499,6 @@ async function load(){
     patterns([],{});
   }
 }
+setupForecastHistory();
 load();
 })();
