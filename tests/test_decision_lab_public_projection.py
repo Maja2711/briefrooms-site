@@ -66,6 +66,36 @@ class DecisionLabProjectionTests(unittest.TestCase):
         self.assertEqual(row["target_at"], "2026-09-26T17:02:00+00:00")
         self.assertEqual(row["horizon_label"], "24H")
 
+    def test_projection_exposes_legacy_frozen_t0_without_reconstructing_market_data(self):
+        state = {
+            "forecasts": [{
+                "forecast_id": "legacy-t0",
+                "entity": "EURUSD",
+                "belief_id": "eurusd.trend.bullish",
+                "predicted_probability": 0.476,
+                "forecast_confidence": 0.474,
+                "forecast_at": "2026-09-25T17:02:28.714297Z",
+                "target_at": "2026-09-26T17:02:28.714297Z",
+                "horizon_hours": 24,
+                "metadata": {
+                    "market_observed_at": "2026-09-25T17:02:08Z",
+                    "outcome_spec": {
+                        "kind": "price_above",
+                        "symbol": "EURUSD=X",
+                        "reference": 1.1397310495376587,
+                    },
+                },
+            }],
+            "verifications": [],
+            "definitions": [],
+        }
+        payload = build_payload(state, {"belief_calibration": {}})
+        row = payload["forecasts"][0]
+        self.assertEqual(row["t0_values"]["EURUSD=X"], 1.1397310495376587)
+        self.assertEqual(row["t0_at"], "2026-09-25T17:02:08Z")
+        self.assertEqual(row["t0_source"], "frozen_outcome_spec_reference")
+        self.assertIsNone(row["forecast_contract_version"])
+
     def test_projection_exposes_shadow_forecast_contract_without_promotion_authority(self):
         state = {
             "forecasts": [{
@@ -92,6 +122,7 @@ class DecisionLabProjectionTests(unittest.TestCase):
         payload = build_payload(state, {"belief_calibration": {}})
         row = payload["forecasts"][0]
         self.assertEqual(row["t0_values"]["EURUSD=X"], 1.18)
+        self.assertEqual(row["t0_source"], "forecast_contract_v2")
         self.assertEqual(row["settlement_rule"], "first_bar_at_or_after_nominal_target")
         self.assertFalse(row["production_write_authority"])
         self.assertFalse(row["automatic_promotion"])
