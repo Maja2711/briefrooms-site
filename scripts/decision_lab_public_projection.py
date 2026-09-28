@@ -66,7 +66,7 @@ def frozen_t0_projection(forecast):
     return None, meta.get("t0_at") or meta.get("market_observed_at") or forecast.get("forecast_at"), None
 
 
-def build_payload(state, report, closed_loop=None):
+def build_payload(state, report, closed_loop=None, evolution_controller=None):
     forecasts = records(state.get("forecasts"))
     candidate_ids = set(V3_CANDIDATE_IDS)
     candidate_forecasts = [f for f in forecasts if str(f.get("belief_id") or "") in candidate_ids]
@@ -339,6 +339,7 @@ def build_payload(state, report, closed_loop=None):
         "automatic_promotion": False,
         "promotion_policy": "v3_candidates_manual; probability_recalibration_closed_loop_governed",
         "generated_at": report.get("generated_at"),
+        "evolution_controller": evolution_controller or {},
         "closed_loop": closed_loop or {
             "mode": "governed_closed_loop",
             "authority": {
@@ -411,7 +412,8 @@ def main() -> int:
     state = load(root / "state.json", {})
     report = load(root / "BELIEF_CALIBRATION_REPORT.json", {})
     closed_loop = load(root / "BELIEF_CLOSED_LOOP.json", {})
-    payload = build_payload(state, report, closed_loop)
+    evolution_controller = load(Path("data/investments/evolution_controller_public.json"), {})
+    payload = build_payload(state, report, closed_loop, evolution_controller)
 
     out = Path(args.output)
     out.parent.mkdir(parents=True, exist_ok=True)
