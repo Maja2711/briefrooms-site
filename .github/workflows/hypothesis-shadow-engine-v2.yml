@@ -1,0 +1,147 @@
+name: Hypothesis Shadow Engine 2.0
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "47 * * * *"
+  workflow_run:
+    workflows:
+      - "Daily EURUSD X Shadow"
+      - "Stock Trading v2 Closed Learning Loop"
+      - "Daily Stock MISS Learning"
+      - "BRACE-SPX Unified G6 + Adaptive"
+      - "Weekly Engine Star"
+      - "GSE Hourly Learning Pipeline v2"
+      - "Autonomous Weekly Strategy Research Lab"
+    types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - "scripts/hypothesis_shadow_engine_v2.py"
+      - "tests/test_hypothesis_shadow_engine_v2.py"
+      - ".github/workflows/hypothesis-shadow-engine-v2.yml"
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: hypothesis-shadow-engine-v2
+  cancel-in-progress: false
+
+env:
+  STATE_ARTIFACT: hypothesis-shadow-engine-v2-state
+  STATE_ARCHIVE: hypothesis-shadow-engine-v2-state.tgz
+  PUBLIC_PATH: data/investments/hypothesis_shadow_engine_v2_public.json
+
+jobs:
+  run:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PYTHONPATH: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate HSE2 code and contracts
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/hypothesis_shadow_engine_v2.py
+          python -m unittest tests.test_hypothesis_shadow_engine_v2 -v
+
+      - name: Restore durable HSE2 state
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "HSE2_STATE_DIR=$RUNNER_TEMP/hse2-state" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/hse2-state"
+          run_id="$(gh run list --workflow hypothesis-shadow-engine-v2.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')"
+          if [[ -z "$run_id" ]]; then
+            echo "No prior HSE2 state. First run will freeze T0 only; no historical data becomes formal evidence."
+            exit 0
+          fi
+          rm -rf "$RUNNER_TEMP/hse2-artifact"
+          mkdir -p "$RUNNER_TEMP/hse2-artifact"
+          if ! gh run download "$run_id" -n "$STATE_ARTIFACT" -D "$RUNNER_TEMP/hse2-artifact"; then
+            echo "Prior successful run has no HSE2 state artifact; starting a new prospective epoch."
+            exit 0
+          fi
+          archive="$RUNNER_TEMP/hse2-artifact/$STATE_ARCHIVE"
+          if [[ ! -s "$archive" ]]; then
+            echo "No valid HSE2 archive; starting a new prospective epoch."
+            exit 0
+          fi
+          tar -xzf "$archive" -C "$HSE2_STATE_DIR"
+
+      - name: Run six-source prospective hypothesis cycle
+        run: |
+          set -euo pipefail
+          python scripts/hypothesis_shadow_engine_v2.py             --root .             --state-dir "$HSE2_STATE_DIR"             --public "$PUBLIC_PATH"
+          python scripts/hypothesis_shadow_engine_v2.py             --state-dir "$HSE2_STATE_DIR"             --verify
+          python -m json.tool "$PUBLIC_PATH" >/dev/null
+
+      - name: Assert zero production authority and no source mutation
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("data/investments/hypothesis_shadow_engine_v2_public.json").read_text())
+          assert p["engine"] == "Hypothesis Shadow Engine 2.0"
+          assert p["mode"] == "SHADOW_ONLY"
+          assert p["production_impact"] is False
+          assert len(p["source_engines"]) == 6
+          for value in p["authority"].values():
+              assert value is False
+          print("HSE2_ZERO_AUTHORITY_PASS")
+          PY
+          git diff --exit-code --             data/investments/stock_trading_v2_production_state.json             data/investments/stock_trading_champion_manifest.json             data/investments/stock_trading_component_promotion_config.json             data/investments/eurusd_x_public_pl.json             data/public/brace_spx_platform_public.json             data/investments/wes_incremental_alpha_report.json             data/gse/gse_v2_learning_review_status.json             data/investments/research_lab_report.json
+
+      - name: Pack durable HSE2 state
+        run: |
+          set -euo pipefail
+          tar -czf "$RUNNER_TEMP/$STATE_ARCHIVE" -C "$HSE2_STATE_DIR" .
+          test -s "$RUNNER_TEMP/$STATE_ARCHIVE"
+
+      - name: Store private HSE2 research state
+        uses: actions/upload-artifact@v4
+        with:
+          name: hypothesis-shadow-engine-v2-state
+          path: ${{ runner.temp }}/hypothesis-shadow-engine-v2-state.tgz
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
+
+      - name: Publish read-only HSE2 projection
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$PUBLIC_PATH"
+          if git diff --cached --quiet; then
+            echo "HSE2 public projection already current."
+            exit 0
+          fi
+          git commit -m "Refresh Hypothesis Shadow Engine 2.0"
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            if ! git rebase origin/main; then
+              git rebase --abort || true
+              sleep $((attempt*2))
+              continue
+            fi
+            if git push origin HEAD:main; then exit 0; fi
+            sleep $((attempt*3))
+          done
+          exit 1
