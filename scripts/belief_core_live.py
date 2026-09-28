@@ -88,10 +88,25 @@ def in_market_window(local_dt: datetime) -> bool:
 
 
 def due_planned_slot(local_dt: datetime, planned: time, already_done: bool) -> bool:
+    """Return True while the planned market phase is still live.
+
+    GitHub scheduled workflows can be delayed. We therefore do not use a narrow
+    grace period that can silently starve prospective forecasts. A missed slot is
+    never backfilled after its phase: 10:00 is valid until 13:00, 13:00 until
+    16:00, and 16:00 until MARKET_CLOSE. The forecast timestamp remains the real
+    execution time, so no look-ahead or retroactive reconstruction is introduced.
+    """
     if already_done or local_dt.weekday() >= 5:
         return False
     planned_dt = datetime.combine(local_dt.date(), planned, tzinfo=NY)
-    return planned_dt <= local_dt < planned_dt + timedelta(minutes=SLOT_GRACE_MINUTES)
+    if local_dt < planned_dt:
+        return False
+    later_slots = [slot for slot in FORECAST_SLOTS if slot > planned]
+    if later_slots:
+        end_dt = datetime.combine(local_dt.date(), min(later_slots), tzinfo=NY)
+        return local_dt < end_dt
+    end_dt = datetime.combine(local_dt.date(), MARKET_CLOSE, tzinfo=NY)
+    return local_dt <= end_dt
 
 
 def next_weekday_close(local_dt: datetime) -> datetime:
