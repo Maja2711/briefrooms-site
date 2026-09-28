@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from evidence_pattern_discovery import build_pattern_report
@@ -402,10 +403,130 @@ def build_payload(state, report, closed_loop=None, evolution_controller=None):
     }
 
 
+
+def build_history_payload(state, *, now=None, window_days=30):
+    """Build the public rolling history without exposing older private records.
+
+    The cumulative Belief Core state remains untouched and may retain records
+    older than the public window for calibration, diagnostics and research.
+    """
+    now_dt = now
+    if now_dt is None:
+        now_dt = datetime.now(timezone.utc)
+    elif isinstance(now_dt, str):
+        now_dt = datetime.fromisoformat(now_dt.replace("Z", "+00:00"))
+    if now_dt.tzinfo is None:
+        now_dt = now_dt.replace(tzinfo=timezone.utc)
+    now_dt = now_dt.astimezone(timezone.utc)
+    cutoff = now_dt - timedelta(days=int(window_days))
+
+    forecasts = records(state.get("forecasts"))
+    candidate_ids = set(V3_CANDIDATE_IDS)
+    control_forecasts = [
+        f for f in forecasts
+        if str(f.get("belief_id") or "") not in candidate_ids
+    ]
+    definitions = records(state.get("definitions"))
+    definitions_by_id = {
+        str(x.get("belief_id")): x
+        for x in definitions
+        if x.get("belief_id")
+    }
+    verifications = records(state.get("verifications"))
+    verified = {
+        str(v.get("forecast_id")): v
+        for v in verifications
+        if v.get("forecast_id")
+    }
+
+    def parse_dt(value):
+        if not value:
+            return None
+        try:
+            dt = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt.astimezone(timezone.utc)
+        except (TypeError, ValueError):
+            return None
+
+    def horizon_label(f):
+        meta = f.get("metadata") or {}
+        if meta.get("research_horizon_label"):
+            return str(meta["research_horizon_label"])
+        try:
+            h = round(float(f.get("horizon_hours")))
+        except (TypeError, ValueError):
+            return None
+        if h <= 0:
+            return None
+        return {3:"3H", 12:"12H", 24:"24H", 72:"3D", 120:"5D"}.get(h, f"{h}H")
+
+    def row_for(f):
+        fid = str(f.get("forecast_id", ""))
+        v = verified.get(fid)
+        t0_values, t0_at, t0_source = frozen_t0_projection(f)
+        return {
+            "forecast_id": fid,
+            "entity": f.get("entity"),
+            "belief_id": f.get("belief_id"),
+            "claim": definitions_by_id.get(str(f.get("belief_id")), {}).get("claim"),
+            "probability": f.get("predicted_probability"),
+            "confidence": f.get("forecast_confidence"),
+            "forecast_at": f.get("forecast_at"),
+            "target_at": f.get("target_at"),
+            "horizon_hours": f.get("horizon_hours"),
+            "horizon_label": horizon_label(f),
+            "regime": f.get("regime"),
+            "status": "RESOLVED" if v else "OPEN",
+            "outcome": None if not v else bool(v.get("outcome")),
+            "brier_score": None if not v else v.get("brier_score"),
+            "t0_at": t0_at,
+            "t0_values": t0_values,
+            "t0_source": t0_source,
+            "t1_values": (f.get("metadata") or {}).get("t1_values"),
+            "settled_at": (f.get("metadata") or {}).get("settled_at"),
+        }
+
+    multi = [
+        f for f in control_forecasts
+        if (f.get("metadata") or {}).get("multihorizon_contract") == "decision-lab-multihorizon-v1"
+    ]
+    primary = [
+        f for f in multi
+        if (f.get("metadata") or {}).get("primary_research_horizon")
+    ]
+    legacy = [f for f in control_forecasts if f not in multi]
+    display_source = primary + legacy
+
+    public_rows = []
+    for f in display_source:
+        at = parse_dt(f.get("forecast_at"))
+        if at is None or at < cutoff or at > now_dt:
+            continue
+        public_rows.append(row_for(f))
+    public_rows.sort(key=lambda x: str(x.get("forecast_at") or ""), reverse=True)
+
+    resolved = sum(1 for x in public_rows if x["status"] == "RESOLVED")
+    return {
+        "schema_version": "briefrooms_decision_lab_history_v1",
+        "generated_at": now_dt.isoformat().replace("+00:00", "Z"),
+        "window_days": int(window_days),
+        "cutoff_at": cutoff.isoformat().replace("+00:00", "Z"),
+        "older_records_publicly_exposed": False,
+        "count": len(public_rows),
+        "resolved_count": resolved,
+        "open_count": len(public_rows) - resolved,
+        "rows": public_rows,
+    }
+
+
 def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--state-dir", required=True)
     p.add_argument("--output", required=True)
+    p.add_argument("--history-output")
+    p.add_argument("--history-window-days", type=int, default=30)
     args = p.parse_args()
 
     root = Path(args.state_dir)
@@ -421,6 +542,15 @@ def main() -> int:
         json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
+
+    if args.history_output:
+        history = build_history_payload(state, window_days=args.history_window_days)
+        history_out = Path(args.history_output)
+        history_out.parent.mkdir(parents=True, exist_ok=True)
+        history_out.write_text(
+            json.dumps(history, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
     return 0
 
 
