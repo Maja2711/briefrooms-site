@@ -61,8 +61,10 @@ def logistic(x: float) -> float:
 def transform_probability(p: float, transform: Mapping[str, Any]) -> float:
     if str(transform.get("type")) != "logit_affine_v1":
         return float(p)
-    intercept = float(transform.get("intercept") or 0.0)
-    slope = float(transform.get("slope") or 1.0)
+    intercept_raw = transform.get("intercept")
+    slope_raw = transform.get("slope")
+    intercept = 0.0 if intercept_raw is None else float(intercept_raw)
+    slope = 1.0 if slope_raw is None else float(slope_raw)
     return round(clamp(logistic(intercept + slope * logit(float(p))), .01, .99), 6)
 
 
