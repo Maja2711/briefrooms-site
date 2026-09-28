@@ -33,7 +33,9 @@ jobs:
       - name: Collect live DeepBook Predict mainnet probabilities
         run: node scripts/deepbook_predict_shadow.mjs
       - name: Validate shadow isolation
-        run: python -m pytest -q tests/test_deepbook_predict_shadow.py
+        run: |
+          python -m pip install --quiet pytest
+          python -m pytest -q tests/test_deepbook_predict_shadow.py
       - name: Commit shadow observations
         run: |
           if git diff --quiet -- data/investments/deepbook_predict_shadow.json; then exit 0; fi
