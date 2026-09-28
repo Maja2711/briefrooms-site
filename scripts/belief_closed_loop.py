@@ -278,12 +278,17 @@ def run(state_dir: Path, report_path: Path, policy_path: Path, output_path: Path
         for x in state.get("definitions", []) if isinstance(x, Mapping)
         and "v3_candidate" not in set(x.get("tags") or [])
     }
+    rows_by_belief = {belief_id: eligible_rows(state, belief_id) for belief_id in defs}
+    all_rows = sorted(
+        [row for rows in rows_by_belief.values() for row in rows],
+        key=lambda x: x["forecast_at"],
+    )
 
     events = []
-    for belief_id in sorted(defs):
-        rows = eligible_rows(state, belief_id)
-        ch = challengers.get(belief_id)
-        override = (policy.get("overrides") or {}).get(belief_id)
+
+    def process_scope(scope_id: str, rows: Sequence[Dict[str, Any]], reasons: Sequence[str]) -> None:
+        ch = challengers.get(scope_id)
+        override = (policy.get("overrides") or {}).get(scope_id)
 
         if ch and ch.get("status") == "promoted" and override and override.get("active"):
             promoted_at = str(ch.get("promoted_at") or override.get("promoted_at") or "")
@@ -298,26 +303,32 @@ def run(state_dir: Path, report_path: Path, policy_path: Path, output_path: Path
                     prod_m["ece"] is not None and raw_m["ece"] is not None
                     and prod_m["ece"] >= raw_m["ece"] + ROLLBACK_ECE_DEGRADATION
                 )
-                ch["post_promotion_monitor"] = {"n":len(post),"raw":raw_m,"production":prod_m,"brier_relative_degradation":brier_deg}
+                ch["post_promotion_monitor"] = {
+                    "n": len(post),
+                    "raw": raw_m,
+                    "production": prod_m,
+                    "brier_relative_degradation": None if brier_deg is None else round(brier_deg, 6),
+                }
                 if rollback:
                     override["active"] = False
                     override["rolled_back_at"] = now
                     ch["status"] = "rolled_back"
                     ch["rolled_back_at"] = now
                     ch["rediscovery_after_n"] = len(rows) + 20
-                    event = {"at":now,"belief_id":belief_id,"event":"AUTO_ROLLBACK","reason":"post_promotion_degradation"}
-                    policy.setdefault("history", []).append(event); events.append(event)
-            challengers[belief_id] = ch
-            continue
+                    event = {"at":now,"belief_id":scope_id,"event":"AUTO_ROLLBACK","reason":"post_promotion_degradation"}
+                    policy.setdefault("history", []).append(event)
+                    events.append(event)
+            challengers[scope_id] = ch
+            return
 
         if ch and ch.get("status") in {"prospective_shadow","ready_for_promotion"}:
             ev = prospective_evaluation(rows, str(ch["frozen_at"]), ch["transform"])
             ch["prospective"] = ev
             if ev["pass"]:
-                version = f"{belief_id}:cal-overlay:{now}"
+                version = f"{scope_id}:cal-overlay:{now}"
                 override = {
                     "active": True,
-                    "belief_id": belief_id,
+                    "belief_id": scope_id,
                     "version": version,
                     "transform": ch["transform"],
                     "promoted_at": now,
@@ -329,44 +340,61 @@ def run(state_dir: Path, report_path: Path, policy_path: Path, output_path: Path
                         "ece_degradation": ROLLBACK_ECE_DEGRADATION,
                     },
                 }
-                policy.setdefault("overrides", {})[belief_id] = override
+                policy.setdefault("overrides", {})[scope_id] = override
                 ch["status"] = "promoted"
                 ch["promoted_at"] = now
                 ch["production_version"] = version
-                event = {"at":now,"belief_id":belief_id,"event":"AUTO_PROMOTION","version":version,"prospective_n":ev["n"]}
-                policy.setdefault("history", []).append(event); events.append(event)
-            challengers[belief_id] = ch
-            continue
+                event = {"at":now,"belief_id":scope_id,"event":"AUTO_PROMOTION","version":version,"prospective_n":ev["n"]}
+                policy.setdefault("history", []).append(event)
+                events.append(event)
+            challengers[scope_id] = ch
+            return
 
         rediscovery_after = int((ch or {}).get("rediscovery_after_n") or 0)
-        if len(rows) < rediscovery_after:
-            continue
-        is_triggered, reasons = triggered(report, belief_id)
-        if not is_triggered:
-            continue
+        if len(rows) < rediscovery_after or not reasons:
+            return
+
         fitted = fit_transform(rows)
         if not fitted:
-            challengers[belief_id] = {
-                "belief_id": belief_id,
+            challengers[scope_id] = {
+                "belief_id": scope_id,
                 "status": "no_valid_challenger",
                 "last_discovery_at": now,
                 "last_discovery_n": len(rows),
-                "trigger_reasons": reasons,
+                "trigger_reasons": list(reasons),
                 "rediscovery_after_n": len(rows) + 20,
             }
-            continue
-        challengers[belief_id] = {
-            "belief_id": belief_id,
+            return
+
+        challengers[scope_id] = {
+            "belief_id": scope_id,
             "status": "prospective_shadow",
             "created_at": now,
             "frozen_at": now,
-            "trigger_reasons": reasons,
+            "trigger_reasons": list(reasons),
             "transform": fitted["transform"],
             "discovery": {k:v for k,v in fitted.items() if k != "transform"},
             "prospective": prospective_evaluation(rows, now, fitted["transform"]),
             "production_write_authority": False,
         }
-        events.append({"at":now,"belief_id":belief_id,"event":"CHALLENGER_FROZEN","transform":fitted["transform"]})
+        events.append({"at":now,"belief_id":scope_id,"event":"CHALLENGER_FROZEN","transform":fitted["transform"]})
+
+    # Global challenger uses the full resolved v2 history. It does not replace
+    # per-belief challengers; it provides a sample-efficient calibration layer
+    # while individual beliefs are still below their own minimum sample.
+    global_reasons = []
+    global_m = metrics([(r["raw_probability"], r["outcome"]) for r in all_rows])
+    if len(all_rows) >= 100:
+        if global_m["ece"] is not None and global_m["ece"] >= .05:
+            global_reasons.append("overall_ece_above_5pp")
+        if global_m["brier"] is not None and global_m["brier"] >= .25:
+            global_reasons.append("overall_brier_not_better_than_50_50")
+    process_scope("__GLOBAL__", all_rows, global_reasons)
+
+    for belief_id in sorted(defs):
+        rows = rows_by_belief[belief_id]
+        is_triggered, reasons = triggered(report, belief_id)
+        process_scope(belief_id, rows, reasons if is_triggered else [])
 
     policy["updated_at"] = now
     summary = {
@@ -383,6 +411,7 @@ def run(state_dir: Path, report_path: Path, policy_path: Path, output_path: Path
             "source_mutation_authority": False,
         },
         "gates": {
+            "global_discovery_minimum_n": 100,
             "minimum_discovery_n": MIN_DISCOVERY_N,
             "minimum_prospective_n": MIN_PROSPECTIVE_N,
             "promotion_brier_relative_improvement": PROMOTION_BRIER_REL_IMPROVEMENT,
@@ -391,6 +420,7 @@ def run(state_dir: Path, report_path: Path, policy_path: Path, output_path: Path
             "stability_blocks_required": "3_of_4",
             "minimum_post_promotion_n_for_rollback": MIN_ROLLBACK_N,
         },
+        "global_control_metrics": global_m,
         "challengers": challengers,
         "active_production_overrides": sorted(
             bid for bid, row in (policy.get("overrides") or {}).items() if isinstance(row, Mapping) and row.get("active")
