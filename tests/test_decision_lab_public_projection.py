@@ -1,6 +1,6 @@
 import unittest
 
-from decision_lab_public_projection import build_payload
+from decision_lab_public_projection import build_history_payload, build_payload
 from test_evidence_pattern_discovery import ev, verification
 
 
@@ -145,6 +145,60 @@ class DecisionLabProjectionTests(unittest.TestCase):
         self.assertEqual(row["sample_n"], 0)
         self.assertEqual(row["review_status"], "COLLECTING")
         self.assertTrue(row["wired"])
+
+    def test_public_history_exposes_only_last_30_days_without_mutating_private_state(self):
+        old = {
+            "forecast_id": "old-private",
+            "entity": "SPX",
+            "belief_id": "spx.trend.bullish",
+            "predicted_probability": 0.55,
+            "forecast_confidence": 0.50,
+            "forecast_at": "2026-08-20T12:00:00Z",
+            "target_at": "2026-08-21T12:00:00Z",
+            "horizon_hours": 24,
+            "metadata": {},
+        }
+        recent = {
+            "forecast_id": "recent-public",
+            "entity": "SPX",
+            "belief_id": "spx.trend.bullish",
+            "predicted_probability": 0.60,
+            "forecast_confidence": 0.55,
+            "forecast_at": "2026-09-20T12:00:00Z",
+            "target_at": "2026-09-21T12:00:00Z",
+            "horizon_hours": 24,
+            "metadata": {},
+        }
+        v3 = {
+            "forecast_id": "v3-separate",
+            "entity": "SPX",
+            "belief_id": "spx.rates.supportive",
+            "predicted_probability": 0.62,
+            "forecast_confidence": 0.55,
+            "forecast_at": "2026-09-21T12:00:00Z",
+            "target_at": "2026-09-22T12:00:00Z",
+            "horizon_hours": 24,
+            "metadata": {},
+        }
+        state = {
+            "forecasts": [old, recent, v3],
+            "verifications": [],
+            "definitions": [{
+                "belief_id": "spx.trend.bullish",
+                "claim": "SPX will be higher at target",
+            }],
+        }
+        history = build_history_payload(
+            state,
+            now="2026-09-29T00:00:00Z",
+            window_days=30,
+        )
+        self.assertEqual(history["schema_version"], "briefrooms_decision_lab_history_v1")
+        self.assertEqual(history["count"], 1)
+        self.assertEqual(history["rows"][0]["forecast_id"], "recent-public")
+        self.assertFalse(history["older_records_publicly_exposed"])
+        self.assertEqual(len(state["forecasts"]), 3)
+        self.assertEqual(state["forecasts"][0]["forecast_id"], "old-private")
 
     def test_projection_exposes_shadow_forecast_contract_without_promotion_authority(self):
         state = {
