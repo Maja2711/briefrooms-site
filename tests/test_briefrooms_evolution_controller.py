@@ -203,6 +203,92 @@ class EvolutionControllerTests(unittest.TestCase):
             self.assertGreaterEqual(payload["summary"]["delegated_actions"],1)
             self.assertEqual(json.loads(p["policy"].read_text())["overrides"],{})
 
+    def test_v3_requires_frozen_discovery_then_new_matched_oos_before_activation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            from datetime import datetime, timedelta, timezone
+            root=Path(tmp)
+            p=self._paths(root)
+            self._write_base_policy(p["policy"])
+            self._write_base_v3(p["v3"])
+            p["closed"].write_text(json.dumps({"challengers":{}}),encoding="utf-8")
+            p["lab"].write_text(json.dumps({"evidence_patterns":[]}),encoding="utf-8")
+
+            forecasts=[]
+            verifications=[]
+            def add_pair(idx, at):
+                target=at+timedelta(hours=24)
+                target_text=target.isoformat().replace("+00:00","Z")
+                at_text=at.isoformat().replace("+00:00","Z")
+                control_id=f"control-{idx}"
+                candidate_id=f"candidate-{idx}"
+                forecasts.extend([
+                    {
+                        "forecast_id":control_id,
+                        "belief_id":"spx.trend.bullish",
+                        "entity":"SPX",
+                        "forecast_at":at_text,
+                        "target_at":target_text,
+                        "horizon_hours":24,
+                        "predicted_probability":.55,
+                        "metadata":{"outcome_spec":{"kind":"price_above","symbol":"SPY","reference":700.0}},
+                    },
+                    {
+                        "forecast_id":candidate_id,
+                        "belief_id":"spx.rates.supportive",
+                        "entity":"SPX",
+                        "forecast_at":at_text,
+                        "target_at":target_text,
+                        "horizon_hours":24,
+                        "predicted_probability":.80,
+                        "metadata":{"outcome_spec":{"kind":"price_above","symbol":"SPY","reference":700.0}},
+                    },
+                ])
+                for fid,bid,pred in ((control_id,"spx.trend.bullish",.55),(candidate_id,"spx.rates.supportive",.80)):
+                    verifications.append({
+                        "forecast_id":fid,
+                        "belief_id":bid,
+                        "predicted_probability":pred,
+                        "forecast_at":at_text,
+                        "outcome":True,
+                        "calibration_eligible":True,
+                    })
+
+            start=datetime(2026,9,20,tzinfo=timezone.utc)
+            for i in range(50):
+                add_pair(i,start+timedelta(hours=i))
+            p["belief_state"].write_text(json.dumps({"forecasts":forecasts,"verifications":verifications}),encoding="utf-8")
+
+            first=run(
+                state_path=p["state"], public_path=p["public"], audit_path=p["audit"],
+                belief_state_path=p["belief_state"], belief_closed_loop_path=p["closed"],
+                decision_lab_public_path=p["lab"], experience_store_path=None,
+                trading_regret_path=None, belief_policy_path=p["policy"],
+                v3_registry_path=p["v3"], now="2026-10-01T00:00:00Z",
+            )
+            v3_candidates=[x for x in first["candidates"] if x["candidate_type"]=="belief_v3"]
+            self.assertEqual(len(v3_candidates),1)
+            self.assertEqual(v3_candidates[0]["status"],"OOS_RUNNING")
+            self.assertEqual(json.loads(p["v3"].read_text())["active"],{})
+
+            future=datetime(2026,10,2,tzinfo=timezone.utc)
+            for i in range(50,100):
+                add_pair(i,future+timedelta(hours=i-50))
+            p["belief_state"].write_text(json.dumps({"forecasts":forecasts,"verifications":verifications}),encoding="utf-8")
+
+            second=run(
+                state_path=p["state"], public_path=p["public"], audit_path=p["audit"],
+                belief_state_path=p["belief_state"], belief_closed_loop_path=p["closed"],
+                decision_lab_public_path=p["lab"], experience_store_path=None,
+                trading_regret_path=None, belief_policy_path=p["policy"],
+                v3_registry_path=p["v3"], now="2026-10-10T00:00:00Z",
+            )
+            registry=json.loads(p["v3"].read_text())
+            self.assertIn("spx.rates.supportive",registry["active"])
+            active=registry["active"]["spx.rates.supportive"]
+            self.assertFalse(active["trade_execution"])
+            promoted=[x for x in second["candidates"] if x["component_id"]=="belief_v3:spx.rates.supportive"][0]
+            self.assertEqual(promoted["status"],"PROMOTED")
+
     def test_central_monitor_rolls_back_degrading_belief_overlay(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp)
