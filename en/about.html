@@ -120,6 +120,30 @@
       box-shadow:inset 0 1px 0 rgba(222,252,255,.08);
       font-weight:700;
     }
+    .about-hero{
+      position:relative;
+      overflow:hidden;
+      width:min(100%,760px);
+      margin:0 auto 2px;
+      border:1px solid rgba(126,215,255,.22);
+      border-radius:22px;
+      background:rgba(8,29,47,.72);
+      box-shadow:0 22px 48px rgba(0,12,28,.34),inset 0 1px 0 rgba(231,250,255,.12);
+    }
+    .about-hero::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      box-shadow:inset 0 -50px 70px rgba(5,20,35,.18);
+    }
+    .about-hero img{
+      display:block;
+      width:100%;
+      height:auto;
+      aspect-ratio:16/9;
+      object-fit:cover;
+    }
     .about-contact{
       padding:25px 27px;
       border:1px solid rgba(126,215,255,.23);
@@ -142,7 +166,7 @@
       .about-card{padding:20px;gap:26px;border-radius:22px}
       .about-mission{padding:22px 20px}
       .about-principles{grid-template-columns:1fr}
-      .about-contact{padding:21px 19px}
+      .about-hero{width:100%;border-radius:17px}\n      .about-contact{padding:21px 19px}
       .about-contact__actions{align-items:stretch}
       .about-contact__mail,.about-contact__link{justify-content:center;width:100%}
     }
@@ -159,6 +183,9 @@
 
   <main>
     <article class="card about-card">
+      <figure class="about-hero" aria-hidden="false">
+        <img src="/assets/about-hero.webp" alt="A global network of information, data, science and analysis representing how BriefRooms works" width="700" height="394" decoding="async" fetchpriority="high">
+      </figure>
       <section class="about-section" aria-labelledby="about-title">
         <h2 id="about-title">BriefRooms</h2>
         <p>BriefRooms was created around a simple idea: in a world where the volume of information keeps growing, the real problem is not access to news but understanding which information matters, what actually follows from it, and what evidence can support an independent assessment. BriefRooms therefore does not aim to tell users what to think. We want to provide organised information, credible sources, context, alternative scenarios and tools that help people make better decisions for themselves. We bring together news, geopolitics, economics, health, science and investing, but we do not try to publish everything. We select topics that may genuinely matter, separate facts from interpretation, communicate uncertainty, and update our conclusions when better data and new, credible sources become available. We treat artificial intelligence not as an infallible source of answers, but as a tool for analysing large volumes of information, comparing hypotheses, detecting contradictions and identifying relationships that a person could not efficiently analyse alone. One direction of BriefRooms' development is the creation and testing of our own prediction methods based on probabilistic models, algorithms, scenario analysis and systematic hypothesis testing. We do not treat models as finished solutions — we want to modify, compare, calibrate and confront them with real-world outcomes to determine which approaches genuinely improve forecast quality and which merely appear to do so. We also want to incorporate new advances in science, statistics, decision theory, machine learning and other methods that can improve reasoning and prediction under uncertainty. A particular area of BriefRooms' development is our decision-systems laboratory, where we investigate whether data, probabilistic models, AI, algorithms and rigorous outcome verification can produce an increasingly effective decision-making process. We are not interested in a system that always claims it was right. We are interested in a system that can show why it reached a particular conclusion, how strong the evidence was, what it did not know, which assumptions it made and whether its earlier predictions actually proved correct. That is why we preserve the history of forecasts, errors and changes in assessment instead of rewriting the past after the fact. BriefRooms is an independent project built around one fundamental principle: <strong>not to replace the user's thinking, but to give them better foundations for thinking — and to keep testing whether we can do it better.</strong></p>
