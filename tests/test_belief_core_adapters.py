@@ -15,7 +15,8 @@ from belief_core_live import build_adapter_payload
 from belief_liquidity_adapter import LiquidityEvidenceAdapter
 from belief_market_data_adapter import Bar, MarketDataAdapter, MarketSnapshot
 from belief_regime_adapter import RegimeCrossAssetAdapter
-from belief_technical_adapter import TechnicalEvidenceAdapter\nfrom belief_v3_candidate_adapter import READY_CANDIDATE_IDS, WAITING_CANDIDATE_IDS, V3CandidateEvidenceAdapter
+from belief_technical_adapter import TechnicalEvidenceAdapter
+from belief_v3_candidate_adapter import READY_CANDIDATE_IDS, WAITING_CANDIDATE_IDS, V3CandidateEvidenceAdapter
 
 NY = ZoneInfo("America/New_York")
 UTC = ZoneInfo("UTC")
