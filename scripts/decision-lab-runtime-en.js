@@ -45,6 +45,20 @@ function probabilityMeaning(x){
   const label=positive?"leans YES":"leans NO";
   return label+" · "+(Math.max(p,1-p)*100).toFixed(1)+"%";
 }
+function forecastChoice(x){
+  const p=Number(x?.probability);
+  if(!Number.isFinite(p)) return '<span class="forecast-choice pending">—</span>';
+  const yes=p>=.5;
+  const label=yes?"YES":"NO";
+  return '<span class="forecast-choice '+(yes?"yes":"no")+'" title="Forecast direction at the 50% threshold">'+label+' '+(Math.max(p,1-p)*100).toFixed(1)+'%</span>';
+}
+function forecastAccuracy(x){
+  if(String(x?.status||"").toUpperCase()!=="RESOLVED") return '<span class="forecast-accuracy pending">—</span>';
+  const p=Number(x?.probability);
+  if(!Number.isFinite(p)||typeof x?.outcome!=="boolean") return '<span class="forecast-accuracy pending">—</span>';
+  const hit=(p>=.5)===x.outcome;
+  return '<span class="forecast-accuracy '+(hit?"hit":"miss")+'" title="Agreement between forecast direction and realized outcome">'+(hit?"✓ CORRECT":"✕ INCORRECT")+'</span>';
+}
 function target(value){
   if(!value) return "—";
   const d=new Date(value);
@@ -173,19 +187,21 @@ function forecasts(items){
   }
   root.innerHTML=
     '<div class="forecast head">'+
-      '<span>Instrument</span><span>Hypothesis</span><span>P</span><span>Confidence</span>'+
-      '<span>Forecast date</span><span>Target</span><span>Outcome</span><span>Brier</span><span>Status</span>'+
+      '<span>Instrument</span><span>Hypothesis</span><span>P</span><span>Forecast</span><span>Outcome</span><span>Accuracy</span><span>Brier</span>'+
+      '<span>Confidence</span><span>Forecast date</span><span>Target</span><span>Status</span>'+
     '</div>'+
     items.slice(0,20).map(x=>
       '<button class="forecast forecast-click" type="button" data-forecast-id="'+esc(x.forecast_id||'')+'">'+
         '<b>'+esc(instrument(x))+'</b>'+
         '<span class="hypothesis" title="'+esc(x.belief_id||"")+'">'+esc(hypothesis(x))+'</span>'+
-        '<span class="probability" title="'+esc(probabilityMeaning(x))+'">'+pct(x.probability)+'<small>'+esc(probabilityMeaning(x))+'</small></span>'+
+        '<span class="probability" title="'+esc(probabilityMeaning(x))+'">'+pct(x.probability)+'</span>'+
+        forecastChoice(x)+
+        outcome(x)+
+        forecastAccuracy(x)+
+        '<span class="brier">'+num(x.brier_score,3)+'</span>'+
         '<span>'+pct(x.confidence)+'</span>'+
         '<span class="target forecast-origin" title="Forecast: '+esc(forecastTime(x.forecast_at))+'">'+esc(forecastTime(x.forecast_at))+t0Line(x)+'</span>'+
         '<span class="target" title="Target: '+esc(target(x.target_at))+' · '+esc(marketCalendar(x).detail)+'">'+esc(target(x.target_at))+t1Line(x)+calendarBadge(x)+'</span>'+
-        outcome(x)+
-        '<span class="brier">'+num(x.brier_score,3)+'</span>'+
         status(x.status)+
       '</button>'
     ).join("");
@@ -202,12 +218,14 @@ function historyRowHtml(x){
   return '<div class="forecast forecast-history-row">'+
     '<b>'+esc(instrument(x))+'</b>'+
     '<span class="hypothesis" title="'+esc(x.belief_id||"")+'">'+esc(hypothesis(x))+'</span>'+
-    '<span class="probability" title="'+esc(probabilityMeaning(x))+'">'+pct(x.probability)+'<small>'+esc(probabilityMeaning(x))+'</small></span>'+
+    '<span class="probability" title="'+esc(probabilityMeaning(x))+'">'+pct(x.probability)+'</span>'+
+    forecastChoice(x)+
+    outcome(x)+
+    forecastAccuracy(x)+
+    '<span class="brier">'+num(x.brier_score,3)+'</span>'+
     '<span>'+pct(x.confidence)+'</span>'+
     '<span class="target forecast-origin" title="Forecast: '+esc(forecastTime(x.forecast_at))+'">'+esc(forecastTime(x.forecast_at))+t0Line(x)+'</span>'+
     '<span class="target" title="Target: '+esc(target(x.target_at))+'">'+esc(target(x.target_at))+t1Line(x)+'</span>'+
-    outcome(x)+
-    '<span class="brier">'+num(x.brier_score,3)+'</span>'+
     status(x.status)+
   '</div>';
 }
@@ -221,7 +239,7 @@ function renderForecastHistory(){
   const visible=HISTORY_ROWS.slice(0,HISTORY_VISIBLE);
   root.innerHTML=
     '<div class="forecast-list history-list">'+
-      '<div class="forecast head"><span>Instrument</span><span>Hypothesis</span><span>P</span><span>Confidence</span><span>Forecast date</span><span>Target</span><span>Outcome</span><span>Brier</span><span>Status</span></div>'+
+      '<div class="forecast head"><span>Instrument</span><span>Hypothesis</span><span>P</span><span>Forecast</span><span>Outcome</span><span>Accuracy</span><span>Brier</span><span>Confidence</span><span>Forecast date</span><span>Target</span><span>Status</span></div>'+
       visible.map(historyRowHtml).join("")+
     '</div>'+
     (HISTORY_VISIBLE<HISTORY_ROWS.length?'<button class="history-more" id="forecast-history-more" type="button">Show more · '+esc(HISTORY_ROWS.length-HISTORY_VISIBLE)+' remaining</button>':'')+
