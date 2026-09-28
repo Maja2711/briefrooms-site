@@ -84,7 +84,12 @@ def build_payload(state, report):
         meta = f.get("metadata") or {}
         if meta.get("research_horizon_label"):
             return str(meta["research_horizon_label"])
-        h = round(float(f.get("horizon_hours") or 0))
+        try:
+            h = round(float(f.get("horizon_hours")))
+        except (TypeError, ValueError):
+            return None
+        if h <= 0:
+            return None
         return {3:"3H", 12:"12H", 24:"24H", 72:"3D", 120:"5D"}.get(h, f"{h}H")
 
     def row_for(f):
@@ -198,9 +203,14 @@ def build_payload(state, report):
         groups = {}
         for row in eligible:
             f = row["f"]
-            if kind == "instrument": key = instrument_name(f)
-            elif kind == "horizon": key = horizon_label(f)
-            else: key = str(f.get("belief_id") or "—")
+            if kind == "instrument":
+                key = instrument_name(f)
+            elif kind == "horizon":
+                key = horizon_label(f)
+                if not key:
+                    continue
+            else:
+                key = str(f.get("belief_id") or "—")
             groups.setdefault(key, []).append(row)
         return [{"segment": key, **segment_stats(rows)} for key, rows in sorted(groups.items(), key=lambda kv: (-len(kv[1]), kv[0]))]
 
