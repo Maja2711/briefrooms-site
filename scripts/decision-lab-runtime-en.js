@@ -214,9 +214,12 @@ function showHorizonPath(row){
     ? '<div class="horizon-grid">'+path.horizons.map(h=>'<div><b>'+esc(h.horizon_label)+'</b><span>'+esc(h.status==='RESOLVED'?(h.outcome?'TAK':'NIE'):'pending')+'</span><small>Brier '+num(h.brier_score,3)+'</small></div>').join('')+'</div>'+horizonAggregateHtml()
     : '<p class="muted">The 3H / 12H / 24H / 3D / 5D path applies to new forecasts created after the research launch. This older record is not rewritten retroactively.</p>';
   const fmtValues=v=>v&&typeof v==='object'?Object.entries(v).map(([k,val])=>esc(k)+'='+num(val,5)).join(' · '):'—';
+  const legacyT0=contractValue(row.t0_values);
   const contract=row.forecast_contract_version
-    ? '<div class="forecast-contract"><b>Frozen Forecast Contract</b><span>Model: '+esc(row.model_freeze_version||"—")+'</span><span>T0: '+esc(forecastTime(row.t0_at||row.forecast_at))+' · '+fmtValues(row.t0_values)+'</span><span>Horyzont: '+esc(row.horizon_label||"—")+' · Target nominalny: '+esc(target(row.nominal_target_at||row.target_at))+'</span><span>Settlement: '+esc(row.settlement_rule||"—")+' · calendar '+esc(row.market_calendar||"—")+'</span><span>T1: '+esc(forecastTime(row.settled_at))+' · '+fmtValues(row.t1_values)+'</span><small>SHADOW ONLY · no automatic promotion and no authority to write to production</small></div>'
-    : '<div class="forecast-contract legacy"><b>Legacy forecast</b><span>Record predating Forecast Contract v2 — T0/T1 are not backfilled retroactively.</span></div>';
+    ? '<div class="forecast-contract"><b>Frozen Forecast Contract</b><span>Model: '+esc(row.model_freeze_version||"—")+'</span><span>T0: '+esc(forecastTime(row.t0_at||row.forecast_at))+' · '+fmtValues(row.t0_values)+'</span><span>Horizon: '+esc(row.horizon_label||"—")+' · Nominal target: '+esc(target(row.nominal_target_at||row.target_at))+'</span><span>Settlement: '+esc(row.settlement_rule||"—")+' · calendar '+esc(row.market_calendar||"—")+'</span><span>T1: '+esc(forecastTime(row.settled_at))+' · '+fmtValues(row.t1_values)+'</span><small>SHADOW ONLY · no automatic promotion and no authority to write to production</small></div>'
+    : legacyT0
+      ? '<div class="forecast-contract legacy"><b>Legacy forecast · frozen T0</b><span>T0: '+esc(forecastTime(row.t0_at||row.forecast_at))+' · '+fmtValues(row.t0_values)+'</span><span>T0 source: frozen outcome_spec.reference stored before Target — no after-the-fact reconstruction.</span><span>T1: '+esc(forecastTime(row.settled_at))+' · '+fmtValues(row.t1_values)+'</span></div>'
+      : '<div class="forecast-contract legacy"><b>Legacy forecast</b><span>No preserved T0 value; it is not reconstructed after the fact.</span></div>';
   box.innerHTML='<div class="horizon-title"><b>Forecast analysis · '+esc(instrument(row))+'</b><span>Frozen P: '+pct(row.probability)+' · '+esc(forecastTime(row.forecast_at))+'</span></div>'+hypothesisBlock+contract+pathBlock;
   box.scrollIntoView({behavior:"smooth",block:"nearest"});
 }
