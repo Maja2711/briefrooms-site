@@ -1,0 +1,98 @@
+name: Shadow Engines Observatory
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "19 * * * *"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/build_shadow_engines_public.py"
+      - "tests/test_shadow_engines_public.py"
+      - ".github/workflows/shadow-engines-observatory.yml"
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: shadow-engines-observatory
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate shadow registry builder
+        run: |
+          python -m py_compile scripts/build_shadow_engines_public.py
+          python -m unittest tests.test_shadow_engines_public -v
+
+      - name: Collect latest run for every registered shadow engine
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, subprocess
+          workflows=subprocess.check_output(
+              ["python","scripts/build_shadow_engines_public.py","--list-workflows"],
+              text=True
+          ).splitlines()
+          out={}
+          for workflow in workflows:
+              try:
+                  raw=subprocess.check_output([
+                      "gh","run","list",
+                      "--workflow",workflow,
+                      "--branch","main",
+                      "--limit","1",
+                      "--json","databaseId,status,conclusion,createdAt,updatedAt"
+                  ], text=True)
+                  rows=json.loads(raw)
+                  out[workflow]=rows[0] if rows else {}
+              except subprocess.CalledProcessError:
+                  out[workflow]={}
+          with open("/tmp/shadow-workflows.json","w",encoding="utf-8") as fh:
+              json.dump(out,fh,ensure_ascii=False,indent=2)
+          print(json.dumps(out,ensure_ascii=False,indent=2))
+          PY
+
+      - name: Build public Shadow Engines snapshot
+        run: |
+          python scripts/build_shadow_engines_public.py             --workflow-status /tmp/shadow-workflows.json             --output data/investments/shadow_engines_public.json
+          python -m json.tool data/investments/shadow_engines_public.json >/dev/null
+
+      - name: Publish Shadow Engines snapshot
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/investments/shadow_engines_public.json
+          if git diff --cached --quiet; then
+            echo "Shadow Engines snapshot already current."
+            exit 0
+          fi
+          git commit -m "Refresh Shadow Engines observatory"
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            if ! git rebase origin/main; then
+              git rebase --abort || true
+              sleep $((attempt*2))
+              continue
+            fi
+            if git push origin HEAD:main; then exit 0; fi
+            sleep $((attempt*3))
+          done
+          exit 1
