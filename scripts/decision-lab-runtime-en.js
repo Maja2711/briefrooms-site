@@ -289,6 +289,66 @@ function v3Candidates(payload){
     '<p class="muted">n = resolved forecasts. Gate: n≥'+esc(gov.minimum_sample_for_review||50)+' → calibration → incremental information → manual decision. Automatic promotion: OFF.</p>';
 }
 
+function closedLoopStatus(loop){
+  const root=document.getElementById("closed-loop-status"); if(!root)return;
+  const badge=document.getElementById("closed-loop-badge");
+  const data=loop||{}, gates=data.gates||{}, control=data.global_control_metrics||{};
+  const challengers=Object.entries(data.challengers||{}).map(([id,row])=>({id,...(row||{})}));
+  const active=Array.isArray(data.active_production_overrides)?data.active_production_overrides:[];
+  const prospective=challengers.filter(x=>x.status==="prospective_shadow");
+  const promoted=challengers.filter(x=>x.status==="promoted");
+  const rolled=challengers.filter(x=>x.status==="rolled_back");
+  const invalid=challengers.filter(x=>x.status==="no_valid_challenger");
+
+  let headline="MONITORING", tone="neutral";
+  if(active.length){headline="NEW PRODUCTION CALIBRATION";tone="good";}
+  else if(prospective.length){headline="NEW CALIBRATION · OOS TEST";tone="test";}
+  else if(invalid.length){headline="NO BETTER CALIBRATION";tone="neutral";}
+  else if(rolled.length){headline="ROLLBACK";tone="warn";}
+  if(badge){badge.textContent=headline;badge.className="status shadow loop-"+tone;}
+
+  const cards=[
+    ["v2 history",control.n==null?"—":control.n+" resolved"],
+    ["Control Brier",num(control.brier,3)],
+    ["Control ECE",control.ece==null?"—":pct(control.ece)],
+    ["Active calibrations",active.length]
+  ];
+
+  const statusLabel=x=>({
+    prospective_shadow:"OOS TEST",
+    promoted:"PROMOTED",
+    rolled_back:"ROLLBACK",
+    no_valid_challenger:"NO IMPROVEMENT"
+  }[x.status]||String(x.status||"—").replaceAll("_"," ").toUpperCase());
+
+  const detail=x=>{
+    if(x.status==="prospective_shadow"){
+      const n=x.prospective?.n??0, need=gates.minimum_prospective_n??50;
+      const imp=x.prospective?.brier_relative_improvement;
+      return '<span>Prospective: <b>'+esc(n)+' / '+esc(need)+'</b></span><span>Brier improvement: <b>'+(imp==null?"—":pct(imp))+'</b></span><span>Challenger frozen: '+esc(forecastTime(x.frozen_at))+'</span>';
+    }
+    if(x.status==="promoted"){
+      return '<span>Version: <b>'+esc(x.production_version||"—")+'</b></span><span>Promoted: '+esc(forecastTime(x.promoted_at))+'</span><span>Raw Control remains measured in parallel.</span>';
+    }
+    if(x.status==="rolled_back"){
+      return '<span>Rolled back: '+esc(forecastTime(x.rolled_back_at))+'</span><span>Reason: post-promotion degradation.</span>';
+    }
+    if(x.status==="no_valid_challenger"){
+      return '<span>Discovery n: <b>'+esc(x.last_discovery_n??"—")+'</b></span><span>Next search at n: <b>'+esc(x.rediscovery_after_n??"—")+'</b></span><span>The latest search found no challenger that passed frozen validation.</span>';
+    }
+    return '<span>No active model change.</span>';
+  };
+
+  const rows=challengers.length
+    ? challengers.map(x=>'<div class="loop-row"><div><b>'+esc(x.id==="__GLOBAL__"?"GLOBAL calibration":x.id)+'</b><small>'+esc((x.trigger_reasons||[]).join(" · ")||"closed-loop monitor")+'</small></div><span class="loop-state '+esc(x.status||"")+'">'+esc(statusLabel(x))+'</span><div class="loop-detail">'+detail(x)+'</div></div>').join("")
+    : '<div class="loop-empty"><b>No active challenger.</b><span>The closed loop monitors history and will create one when discovery gates are met.</span></div>';
+
+  root.innerHTML=
+    '<div class="closed-loop-grid">'+cards.map(([k,v])=>'<div class="loop-card"><small>'+esc(k)+'</small><b>'+esc(v)+'</b></div>').join("")+'</div>'+
+    '<div class="loop-governance"><b>Promotion gate</b><span>OOS n≥'+esc(gates.minimum_prospective_n??50)+'</span><span>Brier ≥ '+pct(gates.promotion_brier_relative_improvement??.05)+' better</span><span>stability '+esc(gates.stability_blocks_required||"3_of_4")+'</span><span>auto-rollback: ON</span></div>'+
+    '<div class="loop-list">'+rows+'</div>'+
+    '<p class="muted loop-foot">A new calibration may change only versioned model probabilities after passing prospective/OOS gates. Evidence, sources and execution are not modified by this loop.</p>';
+}
 function patternMetrics(meta){
   const root=document.getElementById("pattern-metrics");if(!root)return;
   const s=meta?.sample||{};
@@ -367,6 +427,7 @@ async function load(){
     metric("metrics",d.metrics||{});
     calibrationResults(d.calibration_analytics||{});
     v3Candidates(d.belief_core_v3_candidates||{});
+    closedLoopStatus(d.closed_loop||{});
     patterns(d.evidence_patterns||[],d.evidence_pattern_meta||{});
   }catch(_){
     forecasts([]);
@@ -374,6 +435,7 @@ async function load(){
     metric("metrics",{});
     calibrationResults({});
     v3Candidates({});
+    closedLoopStatus({});
     patterns([],{});
   }
 }
