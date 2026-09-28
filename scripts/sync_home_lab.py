@@ -95,8 +95,8 @@ def check() -> None:
             '<!-- BR_HOME_LAB_START -->',
             '<!-- BR_HOME_LAB_END -->',
             'id="home-lab-root"',
-            '/assets/home-lab.css?v=1',
-            '/scripts/home-lab.js?v=1',
+            '/assets/home-lab.css?v=2',
+            '/scripts/home-lab.js?v=2',
             COPY[lang]["title"],
         )
         for marker in required:
