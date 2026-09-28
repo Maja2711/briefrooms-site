@@ -15,7 +15,7 @@ SIDE_RE = re.compile(r'<aside\s+class=["\']side["\'][^>]*>[\s\S]*?</aside>', re.
 YOUTUBE_RE = re.compile(r'<section\s+class=["\']youtube-picks["\'][^>]*>[\s\S]*?</section>', re.I)
 HOT_X_SCRIPT_RE = re.compile(r'\s*<script\s+src=["\']/scripts/hot-x-render\.js[^"\']*["\'][^>]*></script>\s*', re.I)
 LAB_CSS_RE = re.compile(r'<link\s+rel=["\']stylesheet["\']\s+href=["\']/assets/home-lab\.css[^"\']*["\'][^>]*>', re.I)
-LAB_SCRIPT_RE = re.compile(r'<script\s+src=["\']/scripts/home-lab\.js[^"\']*["\'][^>]*></script>', re.I)
+LAB_SCRIPT_RE = re.compile(r'<script\s+src=["\']/scripts/home-lab(?:-v5)?\.js[^"\']*["\'][^>]*></script>', re.I)
 
 COPY = {
     "pl": {
@@ -80,7 +80,7 @@ def patch_homepage(path: Path, lang: str) -> bool:
         marker = '</body>'
         if marker not in updated:
             raise RuntimeError(f"Missing </body> in {path}")
-        updated = updated.replace(marker, '<script src="/scripts/home-lab.js?v=4" defer></script>\n' + marker, 1)
+        updated = updated.replace(marker, '<script src="/scripts/home-lab-v5.js" defer></script>\n' + marker, 1)
 
     if updated == source:
         return False
@@ -96,7 +96,7 @@ def check() -> None:
             '<!-- BR_HOME_LAB_END -->',
             'id="home-lab-root"',
             '/assets/home-lab.css?v=2',
-            '/scripts/home-lab.js?v=4',
+            '/scripts/home-lab-v5.js',
             COPY[lang]["title"],
         )
         for marker in required:
