@@ -91,6 +91,38 @@ class ExpiredNoEntryLifecycleTests(unittest.TestCase):
         self.assertFalse(row["continuous_exposure_active"])
         self.assertEqual("closed", row["continuous_exposure_status"])
 
+    def test_closed_leg_with_unfilled_reentry_returns_to_closed_after_deadline(self):
+        changed, row = self.run_case({
+            "instrument_id": "btcusd",
+            "symbol": "BTC-USD",
+            "direction": "short",
+            "entry_price": 81593.9765625,
+            "entry_captured_at": "2026-09-21T09:25:00+02:00",
+            "exit_price": 84024.33708186,
+            "exit_captured_at": "2026-09-21T10:35:00+02:00",
+            "exit_reason": "stop_loss",
+            "result": "loss",
+            "result_value": -297.86028599,
+            "result_percent": -2.9786,
+            "trade_status": "pending",
+            "pending_entry_decision": {
+                "decision": {"direction": "long", "strategy_id": "base_v2"},
+            },
+            "continuous_exposure_active": False,
+            "continuous_exposure_status": "closed",
+            "next_entry_status": "pending",
+            "risk_status": "stop_loss_hit",
+        })
+        self.assertTrue(changed)
+        self.assertEqual("closed", row["trade_status"])
+        self.assertEqual("expired_no_entry", row["pending_reentry_outcome"])
+        self.assertEqual("governed_deadline_elapsed_without_reentry", row["pending_reentry_expiry_reason"])
+        self.assertIsNone(row["pending_entry_decision"])
+        self.assertEqual("closed", row["next_entry_status"])
+        self.assertEqual(81593.9765625, row["entry_price"])
+        self.assertEqual(84024.33708186, row["exit_price"])
+        self.assertEqual(-297.86028599, row["result_value"])
+
     def test_plain_neutral_no_trade_closes_without_fake_directional_expiry(self):
         changed, row = self.run_case({
             "instrument_id": "sp500_futures",
