@@ -40,6 +40,11 @@ PARITY_PATHS = (
     "assets/geopolitics/covers/falling-hegemon.svg",
     "scripts/home-briefs.js",
     "scripts/hot-x-render.js",
+    "pl/inwestycje/decision-lab.html",
+    "en/investing/decision-lab.html",
+    "scripts/decision-lab.js",
+    "scripts/decision-lab-runtime-en.js",
+    "assets/decision-lab.css",
 )
 
 
