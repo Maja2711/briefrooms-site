@@ -66,7 +66,7 @@ def frozen_t0_projection(forecast):
     return None, meta.get("t0_at") or meta.get("market_observed_at") or forecast.get("forecast_at"), None
 
 
-def build_payload(state, report):
+def build_payload(state, report, closed_loop=None):
     forecasts = records(state.get("forecasts"))
     candidate_ids = set(V3_CANDIDATE_IDS)
     candidate_forecasts = [f for f in forecasts if str(f.get("belief_id") or "") in candidate_ids]
@@ -337,8 +337,21 @@ def build_payload(state, report):
         "production_write_authority": False,
         "automatic_tuning": False,
         "automatic_promotion": False,
-        "promotion_policy": "candidate_only_manual_production_decision",
+        "promotion_policy": "v3_candidates_manual; probability_recalibration_closed_loop_governed",
         "generated_at": report.get("generated_at"),
+        "closed_loop": closed_loop or {
+            "mode": "governed_closed_loop",
+            "authority": {
+                "automatic_candidate_creation": True,
+                "automatic_prospective_evaluation": True,
+                "automatic_model_overlay_promotion": True,
+                "automatic_rollback": True,
+                "trade_execution_authority": False,
+            },
+            "challengers": {},
+            "active_production_overrides": [],
+            "events_this_run": [],
+        },
         "market_view": market_view,
         "market_view_contract": {
             "method": "deterministic_briefrooms_beliefs_v1",
@@ -397,7 +410,8 @@ def main() -> int:
     root = Path(args.state_dir)
     state = load(root / "state.json", {})
     report = load(root / "BELIEF_CALIBRATION_REPORT.json", {})
-    payload = build_payload(state, report)
+    closed_loop = load(root / "BELIEF_CLOSED_LOOP.json", {})
+    payload = build_payload(state, report, closed_loop)
 
     out = Path(args.output)
     out.parent.mkdir(parents=True, exist_ok=True)
