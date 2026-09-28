@@ -11,19 +11,19 @@ on:
       - "scripts/gpw_stock_candidate_shadow.py"
       - "data/investments/stock_trading_policy.json"
   schedule:
-    - cron: "*/15 7-21 * * 1-5"
+    - cron: "7 7-21 * * 1-5"
 
 permissions:
   contents: write
 
 concurrency:
   group: stock-trading-v1-shadow-challenger
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   shadow:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 55
     env:
       PYTHONPATH: ${{ github.workspace }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
