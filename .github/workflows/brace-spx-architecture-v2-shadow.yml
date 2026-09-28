@@ -2,6 +2,10 @@ name: BRACE-SPX Architecture 2 Shadow
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/brace-spx-architecture-v2-shadow.yml"
   schedule:
     - cron: '15 22 * * 1-5'
   issues:
@@ -95,7 +99,16 @@ jobs:
           assert 'edge_confirmed' in payload['comparison_assessment']
           assert 'candidate_snapshots' not in payload
           assert 'experiments' not in payload
-          assert 'candidate_id' not in json.dumps(payload)
+          forbidden={'candidate','candidate_id','params','predictions','experiments','fold_metrics','daily_paths'}
+          def check(value,path='root'):
+              if isinstance(value,dict):
+                  for key,child in value.items():
+                      assert key not in forbidden, f"forbidden public key: {path}.{key}"
+                      check(child,f"{path}.{key}")
+              elif isinstance(value,list):
+                  for i,child in enumerate(value):
+                      check(child,f"{path}[{i}]")
+          check(payload)
           PY
 
       - name: Stage public snapshot for main
