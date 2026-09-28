@@ -6,7 +6,7 @@
     eyebrow:'Najnowsze briefy',
     heading:'Co dziś naprawdę ma znaczenie',
     promise:'BriefRooms filtruje informacyjny szum, analizuje konsekwencje i mierzy wyniki własnych modeli.',
-    lab:'BriefRooms  —  Lab,modele, testy i wyniki',
+    lab:'BriefRooms Lab — modele, testy i wyniki',
     shareTitle:'BriefRooms Ci się przydał? Podaj dalej.',
     shareText:'Krótkie briefy, konkretne źródła i mniej informacyjnego szumu.',
     engineWeekly:'BriefRooms Trading Engine · WEEKLY',
