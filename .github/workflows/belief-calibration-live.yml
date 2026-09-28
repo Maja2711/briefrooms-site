@@ -117,7 +117,7 @@ jobs:
 
       - name: Validate calibration foundation code
         env:
-          PYTHONPATH: ${{ github.workspace }}/scripts
+          PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}/tests
         run: |
           python -m py_compile \
             scripts/belief_calibration.py \
