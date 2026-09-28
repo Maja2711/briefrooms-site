@@ -19,21 +19,8 @@
   "research_only": true,
   "live_activation": false,
   "single_champion_authorized": false,
-  "source_snapshot_at": "2026-07-31T22:07:18+00:00",
-  "public_report_at": "2026-07-31T22:47:25+00:00",
-  "mandate": {
-    "position_set": "long_flat",
-    "long_allowed": true,
-    "flat_allowed": true,
-    "short_allowed": false,
-    "leverage_allowed": false,
-    "orders_allowed": false
-  },
-  "cost_model": {
-    "basis_points_per_unit_turnover": 5.0,
-    "metrics_are_net_of_costs": true,
-    "applied_equally_to_candidate_and_benchmarks": true
-  },
+  "source_snapshot_at": "2026-09-28T18:43:16+00:00",
+  "public_report_at": "2026-09-28T18:43:16+00:00",
   "progress": {
     "experiments_completed": 10,
     "candidate_space_size": 10,
@@ -49,14 +36,16 @@
     "diagnostic_leader": {
       "authorized_as_champion": false,
       "metrics": {
-        "cagr": 0.069251,
+        "cagr": 0.06925,
         "annualized_volatility": 0.089018,
         "sharpe_excess": 0.717219,
         "max_drawdown": -0.185406,
-        "calmar": 0.373508,
+        "calmar": 0.373507,
         "annualized_turnover": 6.727838,
         "average_exposure": 0.456325
       },
+      "positive_folds": 6,
+      "fold_sharpe_std": 0.766829,
       "economics": {
         "average_exposure": 0.456325,
         "time_long": 0.865993,
@@ -64,14 +53,12 @@
         "time_short": 0.0,
         "time_full_long": 0.059616,
         "gross_cagr_before_costs": 0.072853,
-        "net_cagr_after_costs": 0.069251,
+        "net_cagr_after_costs": 0.06925,
         "cagr_cost_drag": 0.003603,
         "annualized_turnover": 6.727838,
         "annualized_linear_cost_drag": 0.003364,
         "observations": 3858
-      },
-      "positive_folds": 6,
-      "fold_sharpe_std": 0.766828
+      }
     },
     "strict_gate": {
       "passed": false,
@@ -92,31 +79,15 @@
       "sharpe_excess": 0.499228,
       "max_drawdown": -0.551894,
       "calmar": 0.1673,
-      "annualized_turnover": 0.065319,
-      "average_exposure": 0.0
+      "annualized_turnover": 0.065319
     },
     "trend_200d": {
-      "cagr": 0.072945,
+      "cagr": 0.072946,
       "annualized_volatility": 0.117258,
-      "sharpe_excess": 0.598943,
+      "sharpe_excess": 0.598944,
       "max_drawdown": -0.206286,
-      "calmar": 0.353612,
-      "annualized_turnover": 3.265941,
-      "average_exposure": 0.0
-    }
-  },
-  "comparison_assessment": {
-    "cagr_delta": -0.003694,
-    "sharpe_delta": 0.118276,
-    "calmar_delta": 0.019896,
-    "turnover_multiple": 2.06,
-    "lower_volatility": true,
-    "shallower_drawdown": true,
-    "edge_confirmed": false,
-    "assessment": "not_confirmed",
-    "labels": {
-      "pl": "Brak potwierdzonej przewagi nad Trend 200D",
-      "en": "No confirmed edge over the 200D trend"
+      "calmar": 0.353614,
+      "annualized_turnover": 3.265941
     }
   },
   "diversity": {
@@ -159,7 +130,7 @@
     "passed": true,
     "target_path_exact": true,
     "return_correlation": 0.99999918,
-    "total_return_difference": -0.00434
+    "total_return_difference": -0.004331
   },
   "orthogonality_audit": {
     "method": "unsupervised_development_only",
@@ -182,11 +153,11 @@
   "shadow": {
     "status": "warming_up",
     "start": "2026-08-03",
-    "updated_at": "2026-07-31T22:07:13+00:00",
-    "observations_collected": 0,
+    "updated_at": "2026-09-28T18:43:16+00:00",
+    "observations_collected": 41,
     "warmup_required": 252,
-    "observations_remaining": 252,
-    "latest_market_date": null,
+    "observations_remaining": 211,
+    "latest_market_date": "2026-09-28",
     "live_orders": false,
     "autonomous_trading": false,
     "single_champion_selected": false
@@ -214,5 +185,32 @@
   "notes": {
     "pl": "Architecture 2 jest badaniem long/flat zarządzającym ekspozycją, a nie systemem long/short. Wynik ogranicza ryzyko, lecz nie potwierdza przewagi ekonomicznej nad prostym Trend 200D.",
     "en": "Architecture 2 is a long/flat exposure-management study, not a long/short system. It reduces risk, but does not confirm an economic edge over the simple 200D trend benchmark."
+  },
+  "mandate": {
+    "position_set": "long_flat",
+    "long_allowed": true,
+    "flat_allowed": true,
+    "short_allowed": false,
+    "leverage_allowed": false,
+    "orders_allowed": false
+  },
+  "cost_model": {
+    "basis_points_per_unit_turnover": 5.0,
+    "metrics_are_net_of_costs": true,
+    "applied_equally_to_candidate_and_benchmarks": true
+  },
+  "comparison_assessment": {
+    "cagr_delta": -0.003696,
+    "sharpe_delta": 0.118275,
+    "calmar_delta": 0.019893,
+    "turnover_multiple": 2.06,
+    "lower_volatility": true,
+    "shallower_drawdown": true,
+    "edge_confirmed": false,
+    "assessment": "not_confirmed",
+    "labels": {
+      "pl": "Brak potwierdzonej przewagi nad Trend 200D",
+      "en": "No confirmed edge over the 200D trend"
+    }
   }
 }
