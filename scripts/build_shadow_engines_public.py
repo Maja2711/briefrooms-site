@@ -179,11 +179,16 @@ def metadata(engine_id: str, data: Mapping[str, Any]) -> dict[str, Any]:
         adaptive = data.get("adaptive_layer") if isinstance(data.get("adaptive_layer"), Mapping) else {}
         champion = adaptive.get("champion") if isinstance(adaptive.get("champion"), Mapping) else {}
         challenger = adaptive.get("challenger") if isinstance(adaptive.get("challenger"), Mapping) else {}
+        captures = data.get("capture_count")
+        if captures is None:
+            captures = sample.get("captures")
+        champion_id = data.get("champion_setup_id") or champion.get("version") or "X"
+        challenger_id = data.get("active_challenger_id") or challenger.get("version")
         return {
-            "observations": sample.get("captures"),
+            "observations": captures,
             "observation_label": "capture",
-            "champion": champion.get("version") or "X",
-            "challenger": challenger.get("version"),
+            "champion": champion_id,
+            "challenger": challenger_id,
             "data_at": data.get("generated_at"),
         }
     if engine_id == "stock-v1":
