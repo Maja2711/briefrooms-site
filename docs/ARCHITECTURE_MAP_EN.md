@@ -1,8 +1,8 @@
 # BriefRooms Canonical Architecture Map — EN
 
-**Map version:** 1.10  
+**Map version:** 1.11  
 **Snapshot date:** 2026-09-28  
-**Base `main` commit:** `9848e9deaebac84d01cf7f94104070250c3e5004`  
+**Base `main` commit:** `bae6dae03b7dcd4b594942c4989bba23418a44bf`  
 **Repository:** `Maja2711/briefrooms-site`
 
 ## 0. Purpose of this document
@@ -241,7 +241,7 @@ After a successful active `Stock Trading v2 Continuous Discovery` cycle, the wor
 
 ## 7. Shared Learning / Evolution Fabric
 
-**Current state:** a distributed, actually implemented learning layer exists. There is not yet one monolithic runtime module named `AXIOM Evolution Kernel`.
+**Current state:** a distributed, actually implemented learning layer exists together with a shared governance/orchestration runtime, `BriefRooms Evolution Controller`. The Controller does not replace local loops or engine-owned writers and is not a monolithic `AXIOM Evolution Kernel` model.
 
 | ID | Module | Responsibility | Example implementation |
 |---|---|---|---|
@@ -255,6 +255,7 @@ After a successful active `Stock Trading v2 Continuous Discovery` cycle, the wor
 | `LE-08` | Engine-specific self-learning | Local loops for BRACE, Daily Stock, EURUSD, WES, etc. | `brace_portfolio_self_learning.py`, `daily_stock_self_improvement.py`, `daily_eurusd_abc_learning.py`, `gse_v2_learning_loop.py` |
 | `LE-09` | Integrity / anti-hindsight | No retroactive live history, timestamp integrity, activation boundaries, workflow airlocks | `no_retroactive_execution.py`, `daily_stock_timestamp_integrity.py`, `promotion_learning_integrity.py`, verification scripts |
 | `LE-10` | Shared Learning Loop v2 Diagnostics | Shared read-only primitives: ex-ante decision quality, ex-post outcome quality, near-miss/shadow, calibration/model-ablation/evidence-delta diagnostics | `scripts/learning_loop_v2.py`, `scripts/learning_loop_v2_observer.py`; challenger/observer has zero production authority and does not rewrite decisions or thresholds |
+| `LE-11` | BriefRooms Evolution Controller | Canonical lifecycle above the fabric: `EvolutionCandidate -> PromotionGate -> ProductionVersion -> monitor -> RollbackEvent/retirement`; connects Belief calibration, v3, Evidence Patterns, Experience Store and trading regret without taking execution authority | `scripts/briefrooms_evolution_contracts.py`, `scripts/briefrooms_evolution_controller.py`, `.github/workflows/briefrooms-evolution-controller.yml`, `docs/BRIEFROOMS_EVOLUTION_CONTROLLER_EN.md`; bounded write for Belief overlay/v3 registry, Stock Trading only through main-owned Component Promotion |
 
 ### Canonical evolution loop
 
@@ -274,7 +275,7 @@ Experience
  -> Rollback if invariants fail
 ```
 
-Not every engine currently implements every step identically. The Architecture Map captures the shared pattern and local implementations.
+Not every engine implements each step identically. `LE-11` now implements the shared lifecycle and authority routing above those local loops. Discovery/OOS remains owned by source modules, while production materialization is performed only by the authorized writer for that component.
 
 ## 8. Content / research publication layer
 
@@ -306,6 +307,7 @@ Every publicly visible news card — section pages `/pl/aktualnosci` / `/en/news
 - GSE,
 - Autonomous Policy Observatory/Promotion/Closed Loop,
 - Learning Outcome Loop,
+- BriefRooms Evolution Controller,
 - AI Outlook,
 - AI Tournament,
 - AXIOM Thought,
@@ -345,6 +347,8 @@ Examples of private durable state include the Learning Outcome Loop and GSE/Beli
 20. **Method names never decide market direction.** Within `TR-05`, opposing execution candidates in a tie/near-tie resolve to `NO_TRADE`; `inverse_v2` remains Challenger/Shadow until explicit governed promotion.
 21. **WES 1.2 Entry Price Plan is mandatory.** Directional Admission authorizes a LONG/SHORT thesis, not an immediate fill. Before every new entry WES freezes a price target from the decision-time reference price, ATR14, EMA20, ret5/ret20, 55-day range position and post-stop state. The executor may fill only the frozen price-improving BUY LIMIT / SELL LIMIT after a 5m bar touches it. An active target may not chase the market; no touch means WAIT/expiry without a trade.
 22. **An instrument-scoped change must not mutate other instruments.** For `TR-05`, code/UI/test/documentation pushes are validation-only. Paper position state may change only from scheduled runtime, explicit manual dispatch, or a governed workflow-run execution path. An S&P quote/feed change must not recalculate BTC or EUR/USD as a side effect.
+23. **Evolution Controller does not take source-engine authority.** `LE-11` may normalize lifecycle, evaluate prospective/OOS evidence, materialize only explicitly bounded Belief overlay/v3 registry changes, and delegate actions. It may not execute trades, alter sizing/risk limits, or directly mutate Stock Trading production.
+24. **Promotion requires a prospective boundary and segment safety.** Discovery data before `activation_boundary` cannot count as formal OOS promotion evidence; the central gate must also block material degradation in protected slices even if aggregate metrics improve.
 
 ## 11. Authority map — what each layer may NOT do
 
@@ -373,15 +377,15 @@ Public UI             -> renders state; is NOT a decision source
 - **Weekly/WES:** experimental governed paper layer; current policy v5.6.x, `NO_TRADE` active, exposure is not mandatory.
 - **Portfolio 10K:** preserved baseline/champion.
 - **BRACE Portfolio:** **PROBATIONARY_CONTROL**, paper-only; deterministic controller and immutable Portfolio10K fallback baseline.
-- **Shared learning fabric:** exists and is actively developed; not yet one unified Evolution Kernel.
+- **Shared learning fabric:** exists and is actively developed; `LE-11 BriefRooms Evolution Controller` is the shared lifecycle/governance runtime above the fabric. It is not a single decision model or an `AXIOM Evolution Kernel`.
 
-## 13. Planned layer above the current architecture
+## 13. Layer above the Evolution Controller
 
-### `FUT-01` — AXIOM Evolution Kernel / Meta-Exploration
+### `FUT-01` — AXIOM Meta-Exploration
 
-Status: **architectural direction; it must not be confused with an existing single runtime module**.
+Status: **future architectural direction above implemented `LE-11`; not production authority**.
 
-The goal is to orchestrate existing loops rather than replace them:
+`LE-11` already implements shared lifecycle, promotion routing, monitoring, rollback and retirement. `FUT-01` concerns the future choice of **which** module should be explored next based on expected improvement, rather than rebuilding the lifecycle:
 
 ```text
 Experience Graph / Learning Fabric
