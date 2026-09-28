@@ -80,7 +80,7 @@ def patch_homepage(path: Path, lang: str) -> bool:
         marker = '</body>'
         if marker not in updated:
             raise RuntimeError(f"Missing </body> in {path}")
-        updated = updated.replace(marker, '<script src="/scripts/home-lab.js?v=2" defer></script>\n' + marker, 1)
+        updated = updated.replace(marker, '<script src="/scripts/home-lab.js?v=3" defer></script>\n' + marker, 1)
 
     if updated == source:
         return False
@@ -96,7 +96,7 @@ def check() -> None:
             '<!-- BR_HOME_LAB_END -->',
             'id="home-lab-root"',
             '/assets/home-lab.css?v=2',
-            '/scripts/home-lab.js?v=2',
+            '/scripts/home-lab.js?v=3',
             COPY[lang]["title"],
         )
         for marker in required:
