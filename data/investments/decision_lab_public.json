@@ -6,8 +6,34 @@
   "production_write_authority": false,
   "automatic_tuning": false,
   "automatic_promotion": false,
-  "promotion_policy": "candidate_only_manual_production_decision",
-  "generated_at": "2026-09-28T20:27:14.119357Z",
+  "promotion_policy": "v3_candidates_manual; probability_recalibration_closed_loop_governed",
+  "generated_at": "2026-09-28T20:29:51.269776Z",
+  "closed_loop": {
+    "active_production_overrides": [],
+    "authority": {
+      "automatic_candidate_creation": true,
+      "automatic_model_overlay_promotion": true,
+      "automatic_prospective_evaluation": true,
+      "automatic_rollback": true,
+      "evidence_mutation_authority": false,
+      "source_mutation_authority": false,
+      "trade_execution_authority": false
+    },
+    "challengers": {},
+    "events_this_run": [],
+    "gates": {
+      "max_accuracy_degradation": 0.03,
+      "max_ece_degradation": 0.01,
+      "minimum_discovery_n": 50,
+      "minimum_post_promotion_n_for_rollback": 30,
+      "minimum_prospective_n": 50,
+      "promotion_brier_relative_improvement": 0.05,
+      "stability_blocks_required": "3_of_4"
+    },
+    "generated_at": "2026-09-28T20:29:51.878826Z",
+    "mode": "governed_closed_loop",
+    "schema_version": "belief-closed-loop-v1"
+  },
   "market_view": [
     {
       "instrument": "BTC/USD",
