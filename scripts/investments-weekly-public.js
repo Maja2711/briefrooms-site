@@ -364,7 +364,7 @@
       return;
     }
     const stale = liveIsStale(live);
-    updated.textContent = stale ? T.stale : `${T.updated}: ${fmtTime(live.updated_at || '')}`;
+    updated.textContent = stale ? '' : `${T.updated}: ${fmtTime(live.updated_at || '')}`;
     updated.classList.toggle('stale', stale);
     updated.setAttribute('role', 'status');
   }
