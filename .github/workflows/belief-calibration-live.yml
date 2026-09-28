@@ -173,9 +173,10 @@ jobs:
           from pathlib import Path
           p=json.loads((Path(os.environ['STATE_DIR'])/'BELIEF_CLOSED_LOOP.json').read_text())
           assert p['authority']['trade_execution_authority'] is False
-          assert p['authority']['automatic_model_overlay_promotion'] is True
-          assert p['authority']['automatic_rollback'] is True
-          print('Belief closed loop: PASS; active overrides=', len(p['active_production_overrides']))
+          assert p['authority']['automatic_model_overlay_promotion'] is False
+          assert p['authority']['automatic_rollback'] is False
+          assert p['authority']['evolution_controller_handoff'] is True
+          print('Belief closed loop handoff: PASS; active overrides telemetry=', len(p['active_production_overrides']))
           PY
 
       - name: Assert shadow-only safety and report contract
@@ -221,14 +222,14 @@ jobs:
       - name: Publish Decision LAB projection
         run: |
           set -euo pipefail
-          if git diff --quiet -- data/investments/decision_lab_public.json data/investments/belief_core_production_overrides.json; then
-            echo "Decision LAB projection and production overlay policy unchanged."
+          if git diff --quiet -- data/investments/decision_lab_public.json; then
+            echo "Decision LAB projection unchanged."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/decision_lab_public.json data/investments/belief_core_production_overrides.json
-          git commit -m "data(decision-lab): publish learning loop state"
+          git add data/investments/decision_lab_public.json
+          git commit -m "data(decision-lab): publish belief learning state"
           git pull --rebase origin main
           git push origin HEAD:main
 
