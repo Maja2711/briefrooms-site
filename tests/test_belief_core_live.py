@@ -119,7 +119,9 @@ class BeliefCoreLiveTest(unittest.TestCase):
             self.assertEqual(status["evidence_ingested"],24)
             self.assertEqual(status["world_state_snapshots"],1)
             self.assertEqual(status["shared_forecasts_frozen"],5)
-            self.assertEqual(status["wes_forecasts_frozen"],0)\n            self.assertEqual(status["v3_candidate_forecasts_frozen"],2)\n            self.assertEqual(status["v3_ready_candidate_count"],4)
+            self.assertEqual(status["wes_forecasts_frozen"],0)
+            self.assertEqual(status["v3_candidate_forecasts_frozen"],2)
+            self.assertEqual(status["v3_ready_candidate_count"],4)
             self.assertEqual(status["forecasts_verified"],0)
             observations_path=state_dir/"observations.jsonl"
             self.assertTrue(observations_path.exists())
@@ -128,7 +130,8 @@ class BeliefCoreLiveTest(unittest.TestCase):
             retry=run_cycle(state_dir,now,client)
             self.assertEqual(retry["observations_collected"],0)
             self.assertEqual(retry["world_state_snapshots"],0)
-            self.assertEqual(retry["shared_forecasts_frozen"],0)\n            self.assertEqual(retry["v3_candidate_forecasts_frozen"],0)
+            self.assertEqual(retry["shared_forecasts_frozen"],0)
+            self.assertEqual(retry["v3_candidate_forecasts_frozen"],0)
             self.assertEqual(len(observations_path.read_text().splitlines()),113)
 
             core=BeliefCore(state_dir)
