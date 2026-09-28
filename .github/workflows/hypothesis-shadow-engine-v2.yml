@@ -64,8 +64,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          echo "HSE2_STATE_DIR=$RUNNER_TEMP/hse2-state" >> "$GITHUB_ENV"
-          mkdir -p "$RUNNER_TEMP/hse2-state"
+          HSE2_STATE_DIR="$RUNNER_TEMP/hse2-state"
+          export HSE2_STATE_DIR
+          echo "HSE2_STATE_DIR=$HSE2_STATE_DIR" >> "$GITHUB_ENV"
+          mkdir -p "$HSE2_STATE_DIR"
           run_id="$(gh run list --workflow hypothesis-shadow-engine-v2.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')"
           if [[ -z "$run_id" ]]; then
             echo "No prior HSE2 state. First run will freeze T0 only; no historical data becomes formal evidence."
