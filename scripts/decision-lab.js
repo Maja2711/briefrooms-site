@@ -279,11 +279,13 @@ function calibrationResults(a){
 }
 function v3Candidates(payload){
   const root=document.getElementById("v3-candidate-table"); if(!root)return;
-  const rows=payload?.candidates||[], gov=payload?.governance||{};
+  const rows=payload?.candidates||[], gov=payload?.governance||{}, summary=payload?.summary||{};
   if(!rows.length){root.innerHTML='<p class="muted">Brak rejestru v3 Candidate.</p>';return;}
-  root.innerHTML='<div class="cal-table v3-table"><div class="cal-row head"><span>Candidate belief</span><span>n</span><span>Brier</span><span>ECE</span><span>Log loss</span><span>Incremental</span><span>Decyzja produkcyjna</span></div>'+
-    rows.map(x=>'<div class="cal-row"><b>'+esc(x.belief_id)+'</b><span>'+esc(x.sample_n)+'</span><span>'+num(x.brier,3)+'</span><span>'+num(x.ece,3)+'</span><span>'+num(x.log_loss,3)+'</span><span>'+esc(x.incremental_information==null?'—':x.incremental_information)+'</span><span><b>'+esc(x.production_recommendation)+'</b><small>'+esc(x.review_status)+'</small></span></div>').join('')+'</div>'+
-    '<p class="muted">Gate: n≥'+esc(gov.minimum_sample_for_review||50)+' → kalibracja → incremental information → ręczna decyzja. Automatic promotion: OFF.</p>';
+  const sample=x=>esc(x.sample_n??0)+(Number(x.open_n||0)>0?' <small>(+'+esc(x.open_n)+' otw.)</small>':'');
+  const summaryHtml='<div class="candidate-summary"><b>'+esc(summary.wired??0)+' aktywne SHADOW</b><span>'+esc(summary.waiting_for_real_source??0)+' czeka na realne źródła</span><span>'+esc(summary.open_count??0)+' otwartych forecastów</span><span>'+esc(summary.resolved_count??0)+' rozliczonych</span></div>';
+  root.innerHTML=summaryHtml+'<div class="cal-table v3-table"><div class="cal-row head"><span>Candidate belief</span><span>n</span><span>Brier</span><span>ECE</span><span>Log loss</span><span>Incremental</span><span>Status / decyzja</span></div>'+
+    rows.map(x=>'<div class="cal-row"><b>'+esc(x.belief_id)+'</b><span>'+sample(x)+'</span><span>'+num(x.brier,3)+'</span><span>'+num(x.ece,3)+'</span><span>'+num(x.log_loss,3)+'</span><span>'+esc(x.incremental_information==null?'—':x.incremental_information)+'</span><span><b>'+esc(x.production_recommendation)+'</b><small>'+esc(x.review_status)+'</small></span></div>').join('')+'</div>'+
+    '<p class="muted">n = rozliczone forecasty. Gate: n≥'+esc(gov.minimum_sample_for_review||50)+' → kalibracja → incremental information → ręczna decyzja. Automatic promotion: OFF.</p>';
 }
 
 function patternMetrics(meta){
