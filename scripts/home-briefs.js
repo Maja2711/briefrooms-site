@@ -23,7 +23,7 @@
   'use strict';
 
   var QUALITY_STATUS = 'passed_strict_v7';
-  var CARD_LIMIT = 8;
+  var CARD_LIMIT = 12;
   var HOME_MAX_AGE_MS = 24 * 60 * 60 * 1000;
   var FUTURE_TOLERANCE_MS = 10 * 60 * 1000;
   var CONFIG = {
