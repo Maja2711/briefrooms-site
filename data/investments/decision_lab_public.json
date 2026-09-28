@@ -7,7 +7,7 @@
   "automatic_tuning": false,
   "automatic_promotion": false,
   "promotion_policy": "v3_candidates_manual; probability_recalibration_closed_loop_governed",
-  "generated_at": "2026-09-28T20:30:12.437125Z",
+  "generated_at": "2026-09-28T20:31:46.589206Z",
   "closed_loop": {
     "active_production_overrides": [],
     "authority": {
@@ -19,9 +19,21 @@
       "source_mutation_authority": false,
       "trade_execution_authority": false
     },
-    "challengers": {},
+    "challengers": {
+      "__GLOBAL__": {
+        "belief_id": "__GLOBAL__",
+        "last_discovery_at": "2026-09-28T20:31:47.395724Z",
+        "last_discovery_n": 250,
+        "rediscovery_after_n": 270,
+        "status": "no_valid_challenger",
+        "trigger_reasons": [
+          "overall_ece_above_5pp"
+        ]
+      }
+    },
     "events_this_run": [],
     "gates": {
+      "global_discovery_minimum_n": 100,
       "max_accuracy_degradation": 0.03,
       "max_ece_degradation": 0.01,
       "minimum_discovery_n": 50,
@@ -30,7 +42,14 @@
       "promotion_brier_relative_improvement": 0.05,
       "stability_blocks_required": "3_of_4"
     },
-    "generated_at": "2026-09-28T20:30:13.256969Z",
+    "generated_at": "2026-09-28T20:31:47.395724Z",
+    "global_control_metrics": {
+      "accuracy": 0.616,
+      "brier": 0.235407,
+      "ece": 0.080872,
+      "log_loss": 0.663958,
+      "n": 250
+    },
     "mode": "governed_closed_loop",
     "schema_version": "belief-closed-loop-v1"
   },
