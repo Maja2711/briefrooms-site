@@ -35,10 +35,13 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Validate shadow registry builder
+      - name: Validate shadow registry builder and LAB frontend
         run: |
           python -m py_compile scripts/build_shadow_engines_public.py
           python -m unittest tests.test_shadow_engines_public -v
+          node --check scripts/central-lab.js
+          grep -q 'data-tab="shadow"' pl/inwestycje/decision-lab.html
+          grep -q 'central-shadow-engines' pl/inwestycje/decision-lab.html
 
       - name: Collect latest run for every registered shadow engine
         shell: bash
