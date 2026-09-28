@@ -2,6 +2,10 @@ name: Shadow Engines Observatory
 
 on:
   workflow_dispatch:
+  workflow_run:
+    workflows:
+      - "deepbook-predict-shadow"
+    types: [completed]
   schedule:
     - cron: "19 * * * *"
   push:
