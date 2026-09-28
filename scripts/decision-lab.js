@@ -296,6 +296,7 @@ function closedLoopStatus(loop){
 
   if(data.schema_version==="briefrooms-evolution-controller-public-v1"){
     const s=data.summary||{}, candidates=Array.isArray(data.candidates)?data.candidates:[], gates=Array.isArray(data.promotion_gates)?data.promotion_gates:[], versions=data.production_versions||{};
+    const beliefSource=data.source_status?.belief_calibration||{}, scans=beliefSource.scan_status||{};
     const activeVersions=Object.values(versions).flatMap(x=>Array.isArray(x)?x:[]).filter(x=>x?.status==="ACTIVE");
     const running=candidates.filter(x=>["OOS_RUNNING","READY_FOR_OOS","PROMOTION_ELIGIBLE"].includes(x.status));
     const rollbacks=Array.isArray(data.rollback_events)?data.rollback_events:[];
@@ -321,10 +322,12 @@ function closedLoopStatus(loop){
       ].filter(Boolean);
       return '<div class="loop-row"><div><b>'+esc(x.component_id||x.candidate_id)+'</b><small>'+esc(x.candidate_type||"candidate")+' · '+esc(x.source_module||"—")+' → '+esc(x.target_module||"—")+'</small></div><span class="loop-state '+esc(String(x.status||"").toLowerCase())+'">'+esc(statusLabel(x.status))+'</span><div class="loop-detail"><span>'+esc(detail.join(" · ")||"brak dodatkowych danych")+'</span></div></div>';
     }).join("");
+    const scanRows=Object.entries(scans).map(([scope,x])=>'<div class="loop-row"><div><b>'+esc(scope==="__GLOBAL__"?"GLOBAL calibration":scope)+'</b><small>Belief calibration scan</small></div><span class="loop-state '+esc(String(x?.status||"").toLowerCase())+'">'+esc(statusLabel(x?.status||"—"))+'</span><div class="loop-detail"><span>discovery n: <b>'+esc(x?.last_discovery_n??"—")+'</b> · kolejna próba: <b>'+esc(x?.rediscovery_after_n??"—")+'</b> · prospective: <b>'+esc(x?.prospective_n??0)+'</b></span></div></div>').join("");
+    const lifecycleRows=candidateRows+scanRows;
     root.innerHTML=
       '<div class="closed-loop-grid">'+cards.map(([k,v])=>'<div class="loop-card"><small>'+esc(k)+'</small><b>'+esc(v)+'</b></div>').join("")+'</div>'+
       '<div class="loop-governance"><b>Evolution Controller</b><span>prospective/OOS</span><span>segment safety</span><span>wersjonowanie</span><span>rollback + retirement</span><span>execution: OFF</span></div>'+
-      '<div class="loop-list">'+(candidateRows||'<div class="loop-empty"><b>Brak aktywnego kandydata.</b><span>Controller monitoruje Belief, v3, Evidence Patterns, Experience Store i trading regret.</span></div>')+'</div>'+
+      '<div class="loop-list">'+(lifecycleRows||'<div class="loop-empty"><b>Brak aktywnego kandydata.</b><span>Controller monitoruje Belief, v3, Evidence Patterns, Experience Store i trading regret.</span></div>')+'</div>'+
       '<p class="muted loop-foot">Production mutation odbywa się wyłącznie przez uprawnionego właściciela komponentu. Stock Trading pozostaje pod kontrolą Stock Trading Component Promotion.</p>';
     return;
   }
