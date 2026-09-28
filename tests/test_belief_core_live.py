@@ -56,12 +56,22 @@ class BeliefCoreLiveTest(unittest.TestCase):
         self.assertEqual(floor_half_hour(datetime(2026,8,18,10,7,tzinfo=NY)).time(), time(10,0))
         self.assertEqual(floor_half_hour(datetime(2026,8,18,10,37,tzinfo=NY)).time(), time(10,30))
 
-    def test_forecast_slot_has_bounded_grace_and_no_backfill(self) -> None:
+    def test_forecast_slot_uses_market_phase_without_backfill(self) -> None:
         planned=time(10,0)
         self.assertTrue(due_planned_slot(datetime(2026,8,18,10,7,tzinfo=NY),planned,False))
-        self.assertTrue(due_planned_slot(datetime(2026,8,18,10,44,tzinfo=NY),planned,False))
-        self.assertFalse(due_planned_slot(datetime(2026,8,18,10,45,tzinfo=NY),planned,False))
+        self.assertTrue(due_planned_slot(datetime(2026,8,18,12,59,tzinfo=NY),planned,False))
+        self.assertFalse(due_planned_slot(datetime(2026,8,18,13,0,tzinfo=NY),planned,False))
         self.assertFalse(due_planned_slot(datetime(2026,8,18,10,7,tzinfo=NY),planned,True))
+
+        afternoon=time(13,0)
+        self.assertTrue(due_planned_slot(datetime(2026,8,18,13,51,tzinfo=NY),afternoon,False))
+        self.assertTrue(due_planned_slot(datetime(2026,8,18,15,59,tzinfo=NY),afternoon,False))
+        self.assertFalse(due_planned_slot(datetime(2026,8,18,16,0,tzinfo=NY),afternoon,False))
+
+        close=time(16,0)
+        self.assertTrue(due_planned_slot(datetime(2026,8,18,16,19,tzinfo=NY),close,False))
+        self.assertTrue(due_planned_slot(datetime(2026,8,18,16,20,tzinfo=NY),close,False))
+        self.assertFalse(due_planned_slot(datetime(2026,8,18,16,21,tzinfo=NY),close,False))
 
     def test_next_weekday_close_skips_weekend(self) -> None:
         target=next_weekday_close(datetime(2026,8,21,16,7,tzinfo=NY))
