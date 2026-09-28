@@ -129,7 +129,7 @@
     return {
       id:'home-live-gse',variant:'is-gse',label:T.gseLabel,
       status:fresh?T.gseStatus:T.gseStale,statusClass:fresh?'':'is-stale',
-      value:fmtProb(x.probability),valueLabel:T.thesisProbability,
+      value:(Number(x.probability)>=0.5?(isEn?'YES':'TAK'):(isEn?'NO':'NIE'))+' — '+fmtProb(x.probability),valueLabel:'P(tezy)',
       title:question,
       metrics:[
         {label:T.horizon,value:x.horizon_label||(String(x.horizon_hours||'—')+'h')},
