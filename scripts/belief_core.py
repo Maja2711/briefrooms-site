@@ -550,7 +550,8 @@ class BeliefCore:
 
     def capture_forecast(self, belief_id: str, as_of: str | datetime | None = None, target_at: str | datetime | None = None,
                          regime: str = "unknown", forecast_id: Optional[str] = None,
-                         metadata: Optional[Mapping[str, Any]] = None) -> ForecastSnapshot:
+                         metadata: Optional[Mapping[str, Any]] = None,
+                         predicted_probability_override: Optional[float] = None) -> ForecastSnapshot:
         if belief_id not in self.beliefs:
             raise KeyError(f"Unknown or not-yet-computed belief: {belief_id}")
         state = self.beliefs[belief_id]; d = self.definitions[belief_id]
@@ -564,12 +565,19 @@ class BeliefCore:
         fid = forecast_id or _stable_id("forecast", belief_id, iso_z(as_dt), iso_z(target_dt), regime)
         set_scope = f"group:{state.alternative_group}" if state.alternative_group else f"belief:{belief_id}"
         set_id = _stable_id("forecastset", set_scope, iso_z(as_dt), iso_z(target_dt), regime)
+        raw_probability = float(state.probability)
+        predicted_probability = raw_probability if predicted_probability_override is None else clamp(float(predicted_probability_override), .01, .99)
+        metadata_payload = dict(metadata or {})
+        if predicted_probability_override is not None:
+            metadata_payload.setdefault("raw_probability", round(raw_probability, 6))
+            metadata_payload.setdefault("production_probability", round(predicted_probability, 6))
+            metadata_payload.setdefault("production_overlay_applied", True)
         snap = ForecastSnapshot(
-            forecast_id=fid, forecast_set_id=set_id, belief_id=belief_id, predicted_probability=state.probability,
+            forecast_id=fid, forecast_set_id=set_id, belief_id=belief_id, predicted_probability=round(predicted_probability, 6),
             forecast_confidence=state.confidence, forecast_at=iso_z(as_dt), target_at=iso_z(target_dt), horizon_hours=round(h, 6),
             domain=state.domain, entity=state.entity, regime=str(regime or "unknown"), alternative_group=state.alternative_group,
             outcome_rule=d.outcome_rule, representative_evidence_ids=tuple(state.representative_evidence_ids),
-            evidence_snapshot=self._forecast_evidence_snapshot(belief_id, as_dt), metadata=dict(metadata or {}),
+            evidence_snapshot=self._forecast_evidence_snapshot(belief_id, as_dt), metadata=metadata_payload,
         )
         existing = self.forecasts.get(fid)
         if existing is not None:
