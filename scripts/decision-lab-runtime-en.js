@@ -150,8 +150,13 @@ function contractValue(values){
   return entries.map(([k,v])=>entries.length>1?k+" "+num(v,5):num(v,5)).join(" · ");
 }
 function t0Line(x){
-  const v=contractValue(x?.t0_values);
-  return '<small class="contract-mark t0">T0: '+esc(v||"—")+'</small>';
+  const values=x?.t0_values;
+  if(!values||typeof values!=="object") return '<small class="contract-mark t0">T0: —</small>';
+  const entries=Object.entries(values).filter(([,v])=>Number.isFinite(Number(v)));
+  if(!entries.length) return '<small class="contract-mark t0">T0: —</small>';
+  const full=entries.map(([k,v])=>k+" "+num(v,5)).join(" · ");
+  if(entries.length===1) return '<small class="contract-mark t0">T0: '+esc(num(entries[0][1],5))+'</small>';
+  return '<small class="contract-mark t0 frozen-inputs" title="'+esc(full)+'">T0: '+esc(entries.length)+' frozen inputs ⓘ</small>';
 }
 function t1Line(x){
   const v=contractValue(x?.t1_values);
