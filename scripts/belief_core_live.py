@@ -21,6 +21,13 @@ from belief_liquidity_adapter import LiquidityEvidenceAdapter
 from belief_market_data_adapter import Bar, MarketDataAdapter, MarketSnapshot, YahooChartClient
 from belief_regime_adapter import RegimeCrossAssetAdapter
 from belief_technical_adapter import TechnicalEvidenceAdapter
+from belief_v3_candidate_adapter import (
+    CANDIDATE_DEFINITIONS,
+    READY_CANDIDATE_IDS,
+    V3CandidateEvidenceAdapter,
+    candidate_market_symbol,
+    candidate_outcome_spec,
+)
 from belief_wes_assets_adapter import (
     WES_ASSET_BELIEFS,
     WESAssetEvidenceAdapter,
@@ -76,7 +83,7 @@ SPX_BELIEFS: Tuple[BeliefDefinition, ...] = (
         outcome_rule="financial_conditions_majority_supportive",
     ),
 )
-BELIEFS: Tuple[BeliefDefinition, ...] = SPX_BELIEFS + WES_ASSET_BELIEFS
+BELIEFS: Tuple[BeliefDefinition, ...] = SPX_BELIEFS + WES_ASSET_BELIEFS + CANDIDATE_DEFINITIONS
 
 
 def floor_half_hour(dt: datetime) -> datetime:
@@ -131,6 +138,7 @@ def build_adapter_payload(snapshot: MarketSnapshot) -> Dict[str, Any]:
         LiquidityEvidenceAdapter(),
         RegimeCrossAssetAdapter(),
         WESAssetEvidenceAdapter(),
+        V3CandidateEvidenceAdapter(),
     )
     observations = []
     evidence = []
@@ -159,6 +167,8 @@ def classify_regime(snapshot: MarketSnapshot) -> str:
 
 
 def outcome_spec(belief_id: str, snapshot: MarketSnapshot) -> Dict[str, Any]:
+    if belief_id in READY_CANDIDATE_IDS:
+        return candidate_outcome_spec(belief_id, snapshot)
     if belief_id == "spx.trend.bullish":
         return {"kind": "price_above", "symbol": "SPY", "reference": snapshot.latest("SPY")}
     if belief_id == "spx.breadth.healthy":
@@ -336,6 +346,11 @@ def _belief_ids_for_consumer(core: BeliefCore, consumer: str) -> List[str]:
             belief_id for belief_id, definition in core.definitions.items()
             if "BRACE" in definition.tags or "BRACE-SPX" in definition.tags
         )
+    if consumer == "BELIEF-V3-CANDIDATE":
+        return sorted(
+            belief_id for belief_id, definition in core.definitions.items()
+            if "v3_candidate" in definition.tags and belief_id in READY_CANDIDATE_IDS
+        )
     return []
 
 
@@ -436,6 +451,56 @@ def freeze_multihorizon_set(core: BeliefCore, snapshot: MarketSnapshot, when: da
     return count
 
 
+def freeze_v3_candidate_set(core: BeliefCore, snapshot: MarketSnapshot, when: datetime,
+                            slot_key: str, regime: str) -> int:
+    """Freeze READY v3 candidates as isolated 24H prospective SHADOW forecasts."""
+    consumer = "BELIEF-V3-CANDIDATE"
+    count = 0
+    target = when + timedelta(hours=24)
+    for belief_id in _belief_ids_for_consumer(core, consumer):
+        market_symbol = candidate_market_symbol(belief_id)
+        if market_symbol not in snapshot.bars:
+            continue
+        try:
+            spec = candidate_outcome_spec(belief_id, snapshot)
+        except (KeyError, ValueError, ZeroDivisionError):
+            continue
+        if not all(symbol in snapshot.bars for symbol in required_symbols(spec)):
+            continue
+        forecast_id = stable_id("forecast", consumer, slot_key, belief_id, "24h")
+        if forecast_id in core.forecasts:
+            continue
+        metadata = {
+            "consumer": consumer,
+            "slot_key": slot_key,
+            "market_symbol": market_symbol,
+            "market_observed_at": iso_z(snapshot.observed_at(market_symbol)),
+            "outcome_spec": spec,
+            "adapter_contract": "Observation->Evidence/v1",
+            "candidate_library_version": "belief-core-v3-candidate-library-v1",
+            "candidate_stage": "SHADOW",
+            "candidate_isolated_from_control": True,
+            "research_horizon_hours": 24,
+            "research_horizon_label": "24H",
+            "primary_research_horizon": True,
+            "shadow_only": True,
+            "trade_execution_enabled": False,
+            "policy_output_enabled": False,
+            **forecast_contract_metadata(snapshot, market_symbol, spec, when, target, 24),
+        }
+        metadata["model_freeze_version"] = "belief-core-v3-candidate-library-v1"
+        core.capture_forecast(
+            belief_id,
+            as_of=when,
+            target_at=target,
+            regime=regime,
+            forecast_id=forecast_id,
+            metadata=metadata,
+        )
+        count += 1
+    return count
+
+
 def verify_due(core: BeliefCore, client: YahooChartClient, now: datetime,
                live_snapshot: Optional[MarketSnapshot]) -> int:
     verified_ids = {value.forecast_id for value in core.verifications.values() if value.forecast_id}
@@ -473,7 +538,7 @@ def run_cycle(state_dir: Path, now: datetime, client: YahooChartClient) -> Dict[
     completed = scheduler.setdefault("completed_slots", {})
     local = now.astimezone(NY)
     snapshot: Optional[MarketSnapshot] = None
-    evidence_count = observation_count = world_count = forecast_count = wes_count = wes_asset_count = 0
+    evidence_count = observation_count = world_count = forecast_count = wes_count = wes_asset_count = v3_candidate_count = 0
     adapter_counts: Dict[str, Dict[str, int]] = {}
 
     if in_market_window(local):
@@ -511,6 +576,12 @@ def run_cycle(state_dir: Path, now: datetime, client: YahooChartClient) -> Dict[
                     wes_asset_count += freeze_multihorizon_set(core, snapshot, now, "WES-ASSET-SHADOW", asset_key, regime)
                     completed[asset_key] = iso_z(now)
 
+                candidate_key = f"v3-candidates:{local.date().isoformat()}:{planned.hour:02d}{planned.minute:02d}"
+                if due_planned_slot(local, planned, candidate_key in completed):
+                    core.recompute(now)
+                    v3_candidate_count += freeze_v3_candidate_set(core, snapshot, now, candidate_key, regime)
+                    completed[candidate_key] = iso_z(now)
+
             wes_key = f"wes:{local.date().isoformat()}:1600"
             if local.weekday() == 4 and due_planned_slot(local, time(16, 0), wes_key in completed):
                 core.recompute(now)
@@ -529,6 +600,8 @@ def run_cycle(state_dir: Path, now: datetime, client: YahooChartClient) -> Dict[
         "world_state_snapshots": world_count,
         "shared_forecasts_frozen": forecast_count,
         "wes_asset_forecasts_frozen": wes_asset_count,
+        "v3_candidate_forecasts_frozen": v3_candidate_count,
+        "v3_ready_candidate_count": len(READY_CANDIDATE_IDS),
         "wes_forecasts_frozen": wes_count,
         "forecasts_verified": verified,
         "wes_asset_coverage": wes_asset_coverage_report(),
