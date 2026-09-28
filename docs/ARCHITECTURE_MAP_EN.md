@@ -1,6 +1,6 @@
 # BriefRooms Canonical Architecture Map — EN
 
-**Map version:** 1.11  
+**Map version:** 1.10  
 **Snapshot date:** 2026-09-28  
 **Base `main` commit:** `9848e9deaebac84d01cf7f94104070250c3e5004`  
 **Repository:** `Maja2711/briefrooms-site`
