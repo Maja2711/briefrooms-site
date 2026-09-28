@@ -166,73 +166,9 @@
 
   <main>
     <article class="card about-card">
-      <section class="about-mission" aria-labelledby="mission-title">
-        <h2 id="mission-title">Misja BriefRooms</h2>
-        <p>BriefRooms nie ma mówić użytkownikowi, co powinien myśleć. Ma dostarczać mu uporządkowanych informacji, wiarygodnych źródeł, kontekstu i narzędzi potrzebnych do wyrobienia własnej opinii.</p>
-      </section>
-
       <section class="about-section" aria-labelledby="about-title">
-        <h2 id="about-title">Czym jest BriefRooms?</h2>
-        <p><strong>BriefRooms to niezależny serwis informacyjno-analityczny oraz rozwijane laboratorium architektury decyzyjnej, które porządkuje dane, źródła i hipotezy tak, aby wnioski można było prześledzić, zakwestionować i później zweryfikować.</strong></p>
-        <p>Projekt obejmuje pięć głównych obszarów: Aktualności, Geopolitykę, Zdrowie, Naukę oraz Inwestycje. Naszym celem nie jest publikowanie jak największej liczby informacji, lecz wybieranie tematów, które mają rzeczywiste znaczenie, wyjaśnianie ich kontekstu i wskazywanie możliwych konsekwencji.</p>
-        <p>Oddzielamy potwierdzone fakty od interpretacji, opinii, hipotez i scenariuszy. Przy materiałach wskazujemy datę publikacji i aktualizacji, wykorzystane źródła oraz istotne korekty. W części systemowej tę samą zasadę rozwijamy technicznie: chcemy zachować nie tylko końcową odpowiedź, ale także pochodzenie danych, ich świeżość, niezależność, sprzeczności i poziom niepewności.</p>
-      </section>
-
-      <section class="about-section" aria-labelledby="invest-title">
-        <h2 id="invest-title">Inwestycje — laboratorium architektury decyzyjnej</h2>
-        <p><strong>Pokój Inwestycje jest najbardziej rozbudowaną częścią eksperymentalną BriefRooms.</strong> Łączymy w nim dane rynkowe, analizę wydarzeń, scenariusze probabilistyczne, modele krótkiego i dłuższego horyzontu, publiczne portfele modelowe oraz warstwę kontroli jakości decyzji. Interesuje nas nie tylko odpowiedź „co kupić lub sprzedać”, ale przede wszystkim to, jak system dochodzi do wniosku, jak silne są dowody i w jakich warunkach wcześniejsze przekonanie powinno zostać zmienione.</p>
-        <p>Architektura jest budowana warstwowo. <strong>Adaptery</strong> pobierają i normalizują surowe dane z różnych klas źródeł do wspólnego kontraktu obserwacji. Dopiero jawna ocena obserwacji może przekształcić ją w dowód używany dalej przez system. Dzięki temu sam fakt pojawienia się danych nie zwiększa automatycznie przekonania modelu, a brakujące, przestarzałe lub niewiarygodne informacje nie są uzupełniane domysłem.</p>
-        <p>Nad warstwą obserwacji działa <strong>Belief Core</strong> — silnik epistemiczny, który utrzymuje aktualny stan wiedzy o hipotezach. Rozdziela prawdopodobieństwo zdarzenia od jakości materiału dowodowego, uwzględnia świeżość informacji, wiarygodność i niezależność źródeł, sygnały wspierające i przeczące, alternatywne hipotezy oraz pełną ścieżkę pochodzenia danych. Belief Core nie jest silnikiem składania zleceń; jego zadaniem jest przygotowanie audytowalnego stanu wiedzy, na którym mogą pracować kolejne warstwy.</p>
-        <p>Rozwijana wyżej warstwa rozumowania ma otrzymywać nie nieprzetworzony strumień setek rekordów, lecz uporządkowaną reprezentację: co wiemy, skąd to wiemy, czego nie wiemy, gdzie źródła są sprzeczne i które elementy mają największe znaczenie dla aktualnej decyzji. LLM ma pełnić rolę silnika rozumowania nad tym stanem — porównywać hipotezy, szukać luk, analizować scenariusze i kierować uwagę tam, gdzie dodatkowa analiza może realnie zmienić decyzję.</p>
-        <p class="about-note about-motto"><strong>Nie budujemy kompresji po to, żeby LLM mniej myślał. Budujemy reprezentację, żeby LLM wiedział, gdzie myśleć głębiej.</strong></p>
-        <p>To podejście rozdziela odpowiedzialności: adapter odpowiada za poprawne pozyskanie i opis obserwacji, warstwa epistemiczna za jakość i strukturę dowodów, Belief Core za stan przekonań, a warstwa decyzyjna za przełożenie tego stanu na konkretny scenariusz działania przy zadanym ryzyku i horyzoncie. Dzięki temu błędu nie trzeba szukać wyłącznie w końcowej odpowiedzi LLM — można sprawdzić, czy problem powstał w danych, ich interpretacji, aktualizacji przekonania czy dopiero w decyzji.</p>
-        <p>Równolegle utrzymujemy przejrzystość wyników. Przy aktywnych pozycjach pokazujemy między innymi kierunek, cenę wejścia, bieżącą cenę, Stop Loss, Take Profit, relację potencjalnego zysku do ryzyka, status pozycji oraz historię zamkniętych transakcji. Nietrafione prognozy i straty pozostają w historii; wcześniejsze założenia nie są poprawiane po fakcie po to, aby podnieść statystyki.</p>
-        <p>Daily Trading, analizy tygodniowe, Long View i Portfel 10K są dla nas różnymi środowiskami testowymi tej samej idei: decyzja powinna być oparta na jawnych danych, mierzalnym ryzyku, wersjonowanej metodologii i późniejszej weryfikacji wyniku. Scenariusze są ocenami probabilistycznymi, a nie obietnicą określonego rezultatu.</p>
-      </section>
-
-      <section class="about-section" aria-labelledby="architecture-title">
-        <h2 id="architecture-title">Od danych do decyzji</h2>
-        <p>System rozwijamy jako zestaw współpracujących, ale możliwie niezależnych komponentów. Surowe źródło staje się najpierw obserwacją z czasem, identyfikatorem i pochodzeniem. Następnie system ocenia, czy obserwacja może być traktowana jako dowód dla konkretnej hipotezy. Dopiero później Belief Core aktualizuje stan wiedzy, zachowując historię i możliwość audytu.</p>
-        <p>Prognozy są zamrażane w momencie ich powstania, a po pojawieniu się wyniku mogą być weryfikowane za pomocą miar jakości probabilistycznej i kalibracji. Pozwala to badać nie tylko trafność pojedynczej decyzji, ale również nadmierną pewność, jakość źródeł, stabilność modelu w różnych reżimach rynku i to, czy dana metoda faktycznie wnosi wartość.</p>
-        <p>Nie chcemy budować jednego monolitycznego „modelu AI”, który ukrywa cały proces w pojedynczej odpowiedzi. Preferujemy architekturę, w której każda warstwa ma jasno określony kontrakt, zakres odpowiedzialności i ślad audytowy. Dzięki temu kolejne silniki i modele można porównywać, wymieniać lub testować bez utraty całego procesu decyzyjnego.</p>
-      </section>
-
-      <section class="about-section" aria-labelledby="quality-title">
-        <h2 id="quality-title">Standard jakości i weryfikacji</h2>
-        <p>Publikowane materiały przechodzą kontrolę zgodności ze źródłami, spójności językowej oraz jakości merytorycznej. Informacje są porównywane z dostępnymi danymi, dokumentami źródłowymi i wiarygodnymi publikacjami.</p>
-        <p>W miarę możliwości opieramy się na źródłach pierwotnych, oficjalnych dokumentach instytucjonalnych, danych rynkowych, publikacjach naukowych oraz uznanych agencjach informacyjnych. Gdy materiał dowodowy jest niepełny, niejednoznaczny lub sprzeczny, wyraźnie wskazujemy poziom niepewności, zamiast przedstawiać przypuszczenia jako potwierdzone informacje.</p>
-        <ul class="about-principles" aria-label="Podstawowe zasady BriefRooms">
-          <li><strong>Przejrzystość źródeł</strong><br>Użytkownik powinien wiedzieć, na jakiej podstawie powstał materiał.</li>
-          <li><strong>Oddzielanie faktów od oceny</strong><br>Dane, interpretacje i scenariusze są wyraźnie rozróżniane.</li>
-          <li><strong>Uczciwe wskazywanie niepewności</strong><br>Brak wystarczających dowodów nie jest zastępowany pozorną pewnością.</li>
-          <li><strong>Możliwość korekty</strong><br>Treści są poprawiane i aktualizowane, gdy pojawiają się lepsze dane lub zostanie wykazany błąd.</li>
-        </ul>
-      </section>
-
-      <section class="about-section" aria-labelledby="news-title">
-        <h2 id="news-title">Aktualności i geopolityka</h2>
-        <p>W działach Aktualności i Geopolityka koncentrujemy się na wydarzeniach, które mogą mieć znaczenie społeczne, gospodarcze, polityczne lub międzynarodowe. Nie ograniczamy się do powtórzenia nagłówka — wyjaśniamy, co się wydarzyło, dlaczego informacja jest istotna i jakie mogą być jej konsekwencje.</p>
-        <p>Doniesienia pochodzące z różnych źródeł są porównywane i grupowane według rzeczywistego wydarzenia. Ta sama wiadomość nie jest przedstawiana jako kilka odrębnych materiałów tylko dlatego, że została opublikowana przez różnych wydawców. W przypadku szybko rozwijających się wydarzeń treść jest aktualizowana wraz z pojawieniem się nowych, potwierdzonych informacji.</p>
-      </section>
-
-      <section class="about-section" aria-labelledby="science-title">
-        <h2 id="science-title">Zdrowie i nauka</h2>
-        <p>W działach Zdrowie i Nauka podstawą publikowanych materiałów są potwierdzone dane, wiarygodne źródła, publikacje naukowe oraz aktualny stan wiedzy. Priorytetem jest opieranie treści na dowodach, których jakość można ocenić na podstawie metodologii badań, wielkości analizowanej grupy, powtarzalności wyników i zgodności z szerszym dorobkiem naukowym.</p>
-        <p>Pojedyncze badanie, wstępny wynik lub interesująca hipoteza nie są przedstawiane jako rozstrzygający fakt, jeżeli nie znajdują odpowiedniego potwierdzenia w innych danych. Treści są aktualizowane, gdy pojawiają się nowe, wiarygodne i potwierdzające dowody, które zmieniają dotychczasowy stan wiedzy.</p>
-        <p>Zmiana oceny lub wniosku następuje na podstawie jakości danych i siły dowodów, a nie pod wpływem popularności danego poglądu, medialnego zainteresowania czy pojedynczej publikacji. Materiały medyczne mają charakter informacyjny i edukacyjny i nie zastępują diagnozy, konsultacji lekarskiej ani indywidualnie dobranego leczenia.</p>
-        <p class="about-note">W BriefRooms aktualny stan wiedzy nie jest traktowany jako niezmienny dogmat, ale jego zmiana wymaga nowych, wiarygodnych i potwierdzających dowodów.</p>
-      </section>
-
-      <section class="about-section" aria-labelledby="ai-title">
-        <h2 id="ai-title">AI w rozwoju metod analitycznych</h2>
-        <p>Sztuczna inteligencja jest wykorzystywana jako narzędzie badawcze i warstwa rozumowania: do testowania algorytmów, porównywania metod oceny sygnałów, analizy scenariuszy, wyszukiwania niespójności oraz rozwijania zasad zarządzania ryzykiem. Nie traktujemy pojedynczej odpowiedzi modelu jako dowodu ani zastępstwa dla jakości źródeł i weryfikowalnego procesu.</p>
-      </section>
-
-      <section class="about-section" aria-labelledby="independence-title">
-        <h2 id="independence-title">Niezależność, odpowiedzialność i korekty</h2>
-        <p>BriefRooms jest projektem informacyjnym i analitycznym. Publikowane materiały nie stanowią indywidualnej rekomendacji inwestycyjnej ani porady finansowej, prawnej lub medycznej. Użytkownik powinien samodzielnie oceniać informacje i w razie potrzeby konsultować decyzje z odpowiednim specjalistą.</p>
-        <p>Współprace komercyjne, partnerstwa i oznaczenia marek nie wpływają na treść analiz ani wyniki prezentowanych modeli. Materiały sponsorowane, jeżeli występują, są jednoznacznie oznaczane.</p>
-        <p>Każdy użytkownik może zgłosić błąd, nieścisłość lub brakujące źródło. Istotne poprawki są wprowadzane wraz z oznaczeniem aktualizacji. Naszym celem nie jest obrona raz opublikowanej tezy za wszelką cenę, lecz jej poprawienie, gdy pojawią się lepsze dane lub zostanie wykazany błąd.</p>
+        <h2 id="about-title">BriefRooms</h2>
+        <p>BriefRooms powstało z prostego założenia: w świecie, w którym informacji jest coraz więcej, prawdziwym problemem nie jest dostęp do wiadomości, lecz zrozumienie, które z nich mają znaczenie, co naprawdę z nich wynika i na jakich dowodach można oprzeć własną ocenę. Dlatego BriefRooms nie chce mówić użytkownikowi, co ma myśleć. Chcemy dostarczać uporządkowane informacje, wiarygodne źródła, kontekst, różne scenariusze i narzędzia pozwalające samodzielnie podejmować lepsze decyzje. Łączymy aktualności, geopolitykę, gospodarkę, zdrowie, naukę i inwestycje, ale nie próbujemy publikować wszystkiego. Wybieramy tematy, które mogą mieć rzeczywiste znaczenie, oddzielamy fakty od interpretacji, wskazujemy niepewność i aktualizujemy wnioski, gdy pojawiają się lepsze dane i nowe, wiarygodne źródła. Sztuczną inteligencję traktujemy nie jako nieomylne źródło odpowiedzi, lecz jako narzędzie do analizy ogromnej liczby informacji, porównywania hipotez, wykrywania sprzeczności i szukania zależności, których człowiek nie byłby w stanie efektywnie analizować samodzielnie. Jednym z kierunków rozwoju BriefRooms jest tworzenie i testowanie własnych metod predykcji opartych na modelach probabilistycznych, algorytmach, analizie scenariuszy i systematycznej weryfikacji hipotez. Modele nie są dla nas rozwiązaniami skończonymi — chcemy je modyfikować, porównywać, kalibrować i konfrontować z rzeczywistymi wynikami, sprawdzając, które podejścia rzeczywiście poprawiają jakość prognoz, a które jedynie sprawiają takie wrażenie. Interesuje nas również włączanie do tego procesu nowych osiągnięć nauki, statystyki, teorii decyzji, uczenia maszynowego i innych metod, które mogą zwiększać jakość rozumowania oraz przewidywania w warunkach niepewności. Szczególnym obszarem rozwoju BriefRooms jest laboratorium systemów decyzyjnych, w którym badamy, czy dane, modele probabilistyczne, AI, algorytmy i rygorystyczna weryfikacja wyników mogą tworzyć coraz lepszy proces podejmowania decyzji. Nie interesuje nas system, który zawsze twierdzi, że miał rację. Interesuje nas system, który potrafi pokazać, dlaczego doszedł do określonego wniosku, jak silne były dowody, czego nie wiedział, jakie założenia przyjął i czy jego wcześniejsze przewidywania rzeczywiście się sprawdziły. Dlatego zachowujemy historię prognoz, błędów i zmian ocen zamiast poprawiać przeszłość po fakcie. BriefRooms jest projektem niezależnym i rozwijanym wokół jednej fundamentalnej zasady: <strong>nie zastępować myślenia użytkownika, lecz dawać mu lepsze podstawy do myślenia — i stale badać, czy można robić to lepiej.</strong></p>
       </section>
 
       <section class="about-contact" aria-labelledby="contact-title">
