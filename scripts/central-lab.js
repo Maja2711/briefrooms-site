@@ -50,4 +50,47 @@ root.innerHTML='<article class="panel central-head"><header><div><h2>Experiment 
 '<h3 class="central-subtitle">Evidence per silnik</h3><div class="central-table-wrap"><table class="central-table"><thead><tr><th>Silnik</th><th>Dośw.</th><th>Rozl.</th><th>Pending</th><th>Trade n</th><th>Net n / próg</th><th>Hit rate net</th><th>PF net</th><th>Expectancy net</th><th>Śr. R</th><th>Pomiar net</th><th>Ocena</th></tr></thead><tbody>'+engineRows+'</tbody></table></div>'+
 '<h3 class="central-subtitle">Ostatnie doświadczenia</h3><div class="central-table-wrap"><table class="central-table"><thead><tr><th>Silnik</th><th>Instrument</th><th>Akcja</th><th>Confidence</th><th>Status</th><th>Zwrot</th><th>Wyjście</th></tr></thead><tbody>'+recent+'</tbody></table></div>'+
 '<p class="central-note">Dla EUR/USD A/B/C centralny LAB wykorzystuje pełne prospektywne virtual trades i koszt 2 pips round-trip. EURUSD X jest czytany bezpośrednio z własnej projekcji shadow i pokazuje metryki aktualnego Championa po tym samym koszcie 2 pips. Żaden z tych odczytów nie ma writebacku ani prawa zmiany produkcji. Źródła: '+esc((e.sources||[]).map(x=>x.label).join(' · '))+' · EURUSD X · wygenerowano '+esc(e.generated_at||'—')+'.</p></article>';}catch(e){root.innerHTML='<div class="central-error">Registry / Experience Store są chwilowo niedostępne.</div>'}}
-function start(){strategy();brace();registry()}document.readyState==='loading'?document.addEventListener('DOMContentLoaded',start,{once:true}):start();})();
+
+function shadowStatus(s){
+  const key=String(s||'NO DATA').toUpperCase();
+  return '<span class="shadow-engine-status '+key.toLowerCase().replaceAll(' ','-')+'">'+esc(key)+'</span>';
+}
+function shadowWhen(value){
+  if(!value)return '—';
+  const d=new Date(value);
+  if(Number.isNaN(d.valueOf()))return esc(value);
+  return d.toLocaleString('pl-PL',{dateStyle:'short',timeStyle:'short'});
+}
+async function shadows(){
+  const root=document.querySelector('#central-shadow-engines');
+  if(!root)return;
+  try{
+    const r=await get('/data/investments/shadow_engines_public.json');
+    const s=r.summary||{},coverage=r.coverage||{},engines=Array.isArray(r.engines)?r.engines:[];
+    const rows=engines.map(x=>'<tr>'+
+      '<td><strong>'+esc(x.name)+'</strong><small>'+esc(x.workflow||'—')+'</small></td>'+
+      '<td>'+shadowStatus(x.status)+'<small>'+esc(x.status_reason||'')+'</small></td>'+
+      '<td>'+shadowWhen(x.last_run_at)+'</td>'+
+      '<td><b>'+num(x.observations)+'</b><small>'+esc(x.observation_label||'obserwacje')+'</small></td>'+
+      '<td><b>'+esc(x.champion||'—')+'</b></td>'+
+      '<td><b>'+esc(x.challenger||'—')+'</b></td>'+
+      '<td><a href="'+esc(x.domain||'#')+'">'+esc(x.domain_label||'Otwórz')+'</a></td>'+
+    '</tr>').join('');
+    const coverageChip=coverage.complete?'<span class="shadow-coverage ok">COVERAGE OK</span>':'<span class="shadow-coverage error">UNMAPPED SHADOW</span>';
+    const unmapped=Array.isArray(coverage.unmapped_shadow_workflows)&&coverage.unmapped_shadow_workflows.length
+      ? '<p class="shadow-coverage-warning">Niewpięte workflow shadow: '+esc(coverage.unmapped_shadow_workflows.join(' · '))+'</p>' : '';
+    root.innerHTML='<article class="panel central-head shadow-observatory"><header><div><h2>Shadow Engines</h2><p>Automatyczny nadzór nad logicznymi silnikami działającymi w trybie shadow. Status pochodzi z ostatniego GitHub Actions run, a liczba obserwacji oraz Champion/Challenger z kanonicznych stanów danego silnika.</p></div>'+coverageChip+'</header>'+
+      '<div class="central-stats shadow-summary">'+
+        '<div><small>Silniki</small><strong>'+num(s.total)+'</strong></div>'+
+        '<div><small>RUNNING</small><strong>'+num(s.RUNNING)+'</strong></div>'+
+        '<div><small>IDLE</small><strong>'+num(s.IDLE)+'</strong></div>'+
+        '<div><small>ERROR</small><strong>'+num(s.ERROR)+'</strong></div>'+
+        '<div><small>NO DATA</small><strong>'+num(s["NO DATA"])+'</strong></div>'+
+      '</div>'+unmapped+
+      '<div class="central-table-wrap"><table class="central-table shadow-engine-table"><thead><tr><th>Shadow engine</th><th>Status</th><th>Ostatni run</th><th>Obserwacje</th><th>Champion</th><th>Challenger</th><th>Domena</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+      '<p class="central-note">Sekcja jest wyłącznie obserwatorium. Nie ma prawa do promocji, writebacku, zmiany parametrów ani wykonywania transakcji. Wygenerowano '+shadowWhen(r.generated_at)+'.</p></article>';
+  }catch(e){
+    root.innerHTML='<div class="central-error">Shadow Engines Observatory jest chwilowo niedostępny.</div>';
+  }
+}
+function start(){strategy();brace();shadows();registry()}document.readyState==='loading'?document.addEventListener('DOMContentLoaded',start,{once:true}):start();})();
