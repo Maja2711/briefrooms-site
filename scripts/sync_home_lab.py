@@ -74,13 +74,13 @@ def patch_homepage(path: Path, lang: str) -> bool:
         marker = '</head>'
         if marker not in updated:
             raise RuntimeError(f"Missing </head> in {path}")
-        updated = updated.replace(marker, '<link rel="stylesheet" href="/assets/home-lab.css?v=1">\n' + marker, 1)
+        updated = updated.replace(marker, '<link rel="stylesheet" href="/assets/home-lab.css?v=2">\n' + marker, 1)
 
     if not LAB_SCRIPT_RE.search(updated):
         marker = '</body>'
         if marker not in updated:
             raise RuntimeError(f"Missing </body> in {path}")
-        updated = updated.replace(marker, '<script src="/scripts/home-lab.js?v=1" defer></script>\n' + marker, 1)
+        updated = updated.replace(marker, '<script src="/scripts/home-lab.js?v=2" defer></script>\n' + marker, 1)
 
     if updated == source:
         return False
