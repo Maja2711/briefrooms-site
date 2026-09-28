@@ -19,7 +19,7 @@ LAB_SCRIPT_RE = re.compile(r'<script\s+src=["\']/scripts/home-lab\.js[^"\']*["\'
 
 COPY = {
     "pl": {
-        "title": "BriefRooms Lab — modele, testy i wyniki",
+        "title": "BriefRooms  —  Lab,modele, testy i wyniki",
         "desc": "Żywy podgląd prognoz, pozycji, najnowszych analiz i strategicznego House View BriefRooms.",
         "loading": "Ładowanie wyników badań…",
     },
