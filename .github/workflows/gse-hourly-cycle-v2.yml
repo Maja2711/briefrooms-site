@@ -16,6 +16,7 @@ on:
       - "scripts/gse_v2_learning_loop.py"
       - "scripts/gse_publish_learning_review_status.py"
       - "scripts/gse_v2_public_lab_projection.py"
+      - "data/gse/gse_v2_featured_thesis.json"
       - "tests/test_gse_v2_fast_cycle.py"
   schedule:
     - cron: "17 * * * *"
@@ -141,13 +142,13 @@ jobs:
           if [ -f "$PUBLIC_REVIEW_STATUS_PATH" ]; then previous="$PUBLIC_REVIEW_STATUS_PATH"; fi
           python scripts/gse_publish_learning_review_status.py --state-dir "$GSE_STATE_DIR" --output "$PUBLIC_REVIEW_STATUS_PATH" ${previous:+--previous "$previous"}
           cp "$PUBLIC_REVIEW_STATUS_PATH" "$GSE_STATE_DIR/gse_v2_learning_review_status.json"
-          python scripts/gse_v2_public_lab_projection.py --state-dir "$GSE_STATE_DIR" --catalog "$GSE_HISTORICAL_CATALOG" --output "$PUBLIC_LAB_PATH"
+          python scripts/gse_v2_public_lab_projection.py --state-dir "$GSE_STATE_DIR" --catalog "$GSE_HISTORICAL_CATALOG" --featured-thesis-config "$GITHUB_WORKSPACE/data/gse/gse_v2_featured_thesis.json" --output "$PUBLIC_LAB_PATH"
           python - <<'PY'
           import json,os
           from datetime import datetime,timezone,timedelta
           from pathlib import Path
           p=json.loads(Path(os.environ['PUBLIC_LAB_PATH']).read_text())
-          assert p['schema_version']=='gse-v2-public-lab-v2'
+          assert p['schema_version']=='gse-v2-public-lab-v3'
           assert p['learning_timeline']
           assert p['engine']['decision_influence'] is False
           def dt(v): return datetime.fromisoformat(str(v).replace('Z','+00:00')).astimezone(timezone.utc)
