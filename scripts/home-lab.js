@@ -207,39 +207,48 @@
   };
 
   async function latestRoomArticle(){
-    const xmlText=await fetchText('/sitemap.xml');
-    if(!xmlText)return null;
-    const xml=parser().parseFromString(xmlText,'application/xml');
-    const candidates=[...xml.querySelectorAll('url')].map(node=>{
-      const loc=node.querySelector('loc')&&node.querySelector('loc').textContent&&node.querySelector('loc').textContent.trim();
-      const lastmod=node.querySelector('lastmod')&&node.querySelector('lastmod').textContent&&node.querySelector('lastmod').textContent.trim();
-      if(!loc)return null;
-      try{
-        const u=new URL(loc,window.location.origin);
-        return isRoomArticlePath(u.pathname)?{url:u.pathname,lastmod:lastmod||null,room:roomFromPath(u.pathname)}:null;
-      }catch(_){return null;}
-    }).filter(Boolean);
+    const catalogs=isEn
+      ?[{url:'/en/health.html',room:'health'},{url:'/en/science.html',room:'science'},{url:'/en/geopolitics.html',room:'geo'}]
+      :[{url:'/pl/zdrowie.html',room:'health'},{url:'/pl/nauka.html',room:'science'},{url:'/pl/geopolityka.html',room:'geo'}];
 
-    const perRoom=[];
-    ['health','science','geo'].forEach(room=>{
-      const rows=candidates.filter(x=>x.room===room).sort((a,b)=>new Date(b.lastmod||0)-new Date(a.lastmod||0));
-      if(rows[0])perRoom.push(rows[0]);
-    });
-    const enriched=await Promise.all(perRoom.map(async item=>{
-      const html=await fetchText(item.url);
-      if(!html)return null;
+    const catalogHtml=await Promise.all(catalogs.map(x=>fetchText(x.url)));
+    const dated=[];
+    const undated=[];
+    catalogs.forEach((catalog,index)=>{
+      const html=catalogHtml[index];
+      if(!html)return;
       const doc=parser().parseFromString(html,'text/html');
-      const h1=doc.querySelector('h1');
-      const title=(h1&&h1.textContent&&h1.textContent.trim())||(doc.querySelector('title')&&doc.querySelector('title').textContent.split('|')[0].trim());
-      if(!title)return null;
-      const metaDesc=doc.querySelector('meta[name="description"]');
-      const desc=metaDesc?metaDesc.getAttribute('content')||'':'';
+      [...doc.querySelectorAll('.tile-link[href]')].forEach(link=>{
+        let path='';
+        try{path=new URL(link.getAttribute('href'),window.location.origin).pathname;}catch(_){return;}
+        if(!isRoomArticlePath(path))return;
+        const title=(link.querySelector('.tile-title')&&link.querySelector('.tile-title').textContent||'').trim();
+        if(!title)return;
+        const desc=(link.querySelector('.tile-desc')&&link.querySelector('.tile-desc').textContent||'').trim();
+        const time=link.querySelector('time[datetime]');
+        const published=time&&time.getAttribute('datetime');
+        const row={url:path,room:catalog.room,title:title,desc:desc,published:published||null,lastmod:null};
+        (published?dated:undated).push(row);
+      });
+    });
+
+    const completed=await Promise.all(undated.map(async item=>{
+      const html=await fetchText(item.url);
+      if(!html)return item;
+      const doc=parser().parseFromString(html,'text/html');
       const pubMeta=doc.querySelector('meta[property="article:published_time"]');
       const time=doc.querySelector('time[datetime]');
-      const published=(pubMeta&&pubMeta.getAttribute('content'))||(time&&time.getAttribute('datetime'))||item.lastmod;
-      return Object.assign({},item,{title:title,desc:desc,published:published});
+      const published=(pubMeta&&pubMeta.getAttribute('content'))||(time&&time.getAttribute('datetime'))||null;
+      const metaDesc=doc.querySelector('meta[name="description"]');
+      return Object.assign({},item,{
+        published:published,
+        desc:item.desc||(metaDesc?metaDesc.getAttribute('content')||'':'')
+      });
     }));
-    return enriched.filter(Boolean).sort((a,b)=>new Date(b.published||b.lastmod||0)-new Date(a.published||a.lastmod||0))[0]||null;
+
+    return dated.concat(completed)
+      .filter(x=>x.published&&!Number.isNaN(new Date(x.published).getTime()))
+      .sort((a,b)=>new Date(b.published)-new Date(a.published))[0]||null;
   }
 
   function roomModel(item){
