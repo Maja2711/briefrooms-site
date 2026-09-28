@@ -90,16 +90,19 @@ class EvolutionControllerTests(unittest.TestCase):
             self._write_base_v3(p["v3"])
 
             forecasts, verifications = [], []
+            from datetime import datetime, timedelta, timezone
+            start=datetime(2026,9,29,tzinfo=timezone.utc)
             for i in range(60):
                 fid=f"f{i}"
-                at=f"2026-09-{29 + i//24:02d}T{(i%24):02d}:00:00Z"
+                at_dt=start+timedelta(hours=i)
+                at=at_dt.isoformat().replace("+00:00","Z")
                 outcome=bool(i%2)
                 forecasts.append({
                     "forecast_id":fid,
                     "belief_id":"spx.trend.bullish",
                     "entity":"SPX",
                     "forecast_at":at,
-                    "target_at":f"2026-10-{1 + i//24:02d}T{(i%24):02d}:00:00Z",
+                    "target_at":(at_dt+timedelta(hours=24)).isoformat().replace("+00:00","Z"),
                     "horizon_hours":24,
                     "predicted_probability":.90,
                     "metadata":{"raw_probability":.90},
