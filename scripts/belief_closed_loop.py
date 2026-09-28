@@ -3,12 +3,13 @@
 
 Resolved prospective forecasts are not just archived. They can create a frozen
 recalibration challenger. The challenger is evaluated only on forecasts created
-after it was frozen. If strict prospective gates pass, a versioned production
-probability overlay is activated. Raw/control probability remains preserved in
-forecast metadata so the overlay can be monitored and rolled back.
+after it was frozen. If strict prospective gates pass, the challenger is handed to the BriefRooms
+Evolution Controller. This module no longer materializes production changes.
+Raw/control probability remains preserved so the Controller can monitor a later
+promotion and request rollback when needed.
 
-This module never changes evidence, source reliability, belief definitions,
-trading policy, sizing or execution.
+This module never changes production policy, evidence, source reliability,
+belief definitions, trading policy, sizing or execution.
 """
 from __future__ import annotations
 
@@ -290,7 +291,7 @@ def run(state_dir: Path, report_path: Path, policy_path: Path, output_path: Path
         ch = challengers.get(scope_id)
         override = (policy.get("overrides") or {}).get(scope_id)
 
-        if ch and ch.get("status") == "promoted" and override and override.get("active"):
+        if ch and ch.get("status") in {"promoted", "promoted_by_evolution_controller"} and override and override.get("active"):
             promoted_at = str(ch.get("promoted_at") or override.get("promoted_at") or "")
             post = [r for r in rows if promoted_at and r["forecast_at"] and parse_time(r["forecast_at"]) > parse_time(promoted_at)]
             if len(post) >= MIN_ROLLBACK_N:
@@ -310,13 +311,10 @@ def run(state_dir: Path, report_path: Path, policy_path: Path, output_path: Path
                     "brier_relative_degradation": None if brier_deg is None else round(brier_deg, 6),
                 }
                 if rollback:
-                    override["active"] = False
-                    override["rolled_back_at"] = now
-                    ch["status"] = "rolled_back"
-                    ch["rolled_back_at"] = now
-                    ch["rediscovery_after_n"] = len(rows) + 20
-                    event = {"at":now,"belief_id":scope_id,"event":"AUTO_ROLLBACK","reason":"post_promotion_degradation"}
-                    policy.setdefault("history", []).append(event)
+                    ch["status"] = "rollback_recommended"
+                    ch["rollback_recommended_at"] = now
+                    ch["rollback_reason"] = "post_promotion_degradation"
+                    event = {"at":now,"belief_id":scope_id,"event":"ROLLBACK_RECOMMENDED","reason":"post_promotion_degradation"}
                     events.append(event)
             challengers[scope_id] = ch
             return
@@ -325,27 +323,10 @@ def run(state_dir: Path, report_path: Path, policy_path: Path, output_path: Path
             ev = prospective_evaluation(rows, str(ch["frozen_at"]), ch["transform"])
             ch["prospective"] = ev
             if ev["pass"]:
-                version = f"{scope_id}:cal-overlay:{now}"
-                override = {
-                    "active": True,
-                    "belief_id": scope_id,
-                    "version": version,
-                    "transform": ch["transform"],
-                    "promoted_at": now,
-                    "prospective_gate": ev,
-                    "raw_control_preserved": True,
-                    "rollback": {
-                        "minimum_post_promotion_n": MIN_ROLLBACK_N,
-                        "brier_relative_degradation": ROLLBACK_BRIER_REL_DEGRADATION,
-                        "ece_degradation": ROLLBACK_ECE_DEGRADATION,
-                    },
-                }
-                policy.setdefault("overrides", {})[scope_id] = override
-                ch["status"] = "promoted"
-                ch["promoted_at"] = now
-                ch["production_version"] = version
-                event = {"at":now,"belief_id":scope_id,"event":"AUTO_PROMOTION","version":version,"prospective_n":ev["n"]}
-                policy.setdefault("history", []).append(event)
+                ch["status"] = "ready_for_evolution_controller"
+                ch["ready_at"] = now
+                ch["production_write_authority"] = False
+                event = {"at":now,"belief_id":scope_id,"event":"EVOLUTION_HANDOFF_READY","prospective_n":ev["n"]}
                 events.append(event)
             challengers[scope_id] = ch
             return
@@ -396,7 +377,6 @@ def run(state_dir: Path, report_path: Path, policy_path: Path, output_path: Path
         is_triggered, reasons = triggered(report, belief_id)
         process_scope(belief_id, rows, reasons if is_triggered else [])
 
-    policy["updated_at"] = now
     summary = {
         "schema_version": SCHEMA_VERSION,
         "generated_at": now,
@@ -404,8 +384,9 @@ def run(state_dir: Path, report_path: Path, policy_path: Path, output_path: Path
         "authority": {
             "automatic_candidate_creation": True,
             "automatic_prospective_evaluation": True,
-            "automatic_model_overlay_promotion": True,
-            "automatic_rollback": True,
+            "automatic_model_overlay_promotion": False,
+            "automatic_rollback": False,
+            "evolution_controller_handoff": True,
             "trade_execution_authority": False,
             "evidence_mutation_authority": False,
             "source_mutation_authority": False,
@@ -428,7 +409,6 @@ def run(state_dir: Path, report_path: Path, policy_path: Path, output_path: Path
         "events_this_run": events,
     }
     output_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True)+"\n", encoding="utf-8")
-    policy_path.write_text(json.dumps(policy, ensure_ascii=False, indent=2, sort_keys=True)+"\n", encoding="utf-8")
     return summary
 
 
