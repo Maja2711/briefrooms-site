@@ -68,6 +68,9 @@ def frozen_t0_projection(forecast):
 
 def build_payload(state, report):
     forecasts = records(state.get("forecasts"))
+    candidate_ids = set(V3_CANDIDATE_IDS)
+    candidate_forecasts = [f for f in forecasts if str(f.get("belief_id") or "") in candidate_ids]
+    control_forecasts = [f for f in forecasts if str(f.get("belief_id") or "") not in candidate_ids]
     definitions = records(state.get("definitions"))
     state = dict(state)
     state["definitions_by_id"] = {str(x.get("belief_id")): x for x in definitions if x.get("belief_id")}
@@ -112,9 +115,9 @@ def build_payload(state, report):
             "automatic_promotion": False,
         }
 
-    multi = [f for f in forecasts if (f.get("metadata") or {}).get("multihorizon_contract") == "decision-lab-multihorizon-v1"]
+    multi = [f for f in control_forecasts if (f.get("metadata") or {}).get("multihorizon_contract") == "decision-lab-multihorizon-v1"]
     primary = [f for f in multi if (f.get("metadata") or {}).get("primary_research_horizon")]
-    legacy = [f for f in forecasts if f not in multi]
+    legacy = [f for f in control_forecasts if f not in multi]
     display_source = primary + legacy
     rows = [row_for(f) for f in sorted(display_source, key=lambda x: str(x.get("forecast_at", "")), reverse=True)[:40]]
 
@@ -143,7 +146,7 @@ def build_payload(state, report):
 
     # Calibration analytics are computed only from prospectively frozen forecasts
     # that have a deterministic verification. They are descriptive SHADOW output.
-    eligible = []
+    eligible_all = []
     for f in forecasts:
         v = verified.get(str(f.get("forecast_id", "")))
         if not v:
@@ -155,7 +158,8 @@ def build_payload(state, report):
             continue
         if not 0.0 <= prob <= 1.0:
             continue
-        eligible.append({"f": f, "v": v, "p": prob, "y": outcome, "brier": (prob - outcome) ** 2})
+        eligible_all.append({"f": f, "v": v, "p": prob, "y": outcome, "brier": (prob - outcome) ** 2})
+    eligible = [r for r in eligible_all if str(r["f"].get("belief_id") or "") not in candidate_ids]
 
     def calibration_bins(rows, bins=10):
         out = []
@@ -226,11 +230,20 @@ def build_payload(state, report):
     # mandatory later gate and never causes automatic production mutation.
     candidate_registry = public_candidate_registry()
     candidate_by_id = {x["belief_id"]: x for x in candidate_registry}
-    candidate_rows = [r for r in eligible if str(r["f"].get("belief_id") or "") in V3_CANDIDATE_IDS]
+    candidate_rows = [r for r in eligible_all if str(r["f"].get("belief_id") or "") in candidate_ids]
     for bid, candidate in candidate_by_id.items():
         rows_for_belief = [r for r in candidate_rows if str(r["f"].get("belief_id")) == bid]
+        all_for_belief = [f for f in candidate_forecasts if str(f.get("belief_id")) == bid]
+        open_n = sum(1 for f in all_for_belief if str(f.get("forecast_id") or "") not in verified)
         stats = segment_stats(rows_for_belief)
-        candidate.update({"sample_n": stats["n"], "brier": stats["brier"], "ece": stats["ece"]})
+        candidate.update({
+            "sample_n": stats["n"],
+            "forecast_n": len(all_for_belief),
+            "open_n": open_n,
+            "brier": stats["brier"],
+            "ece": stats["ece"],
+            "wired": candidate.get("source_status") == "READY_EXISTING_MARKET_PROXY",
+        })
         if rows_for_belief:
             import math
             losses=[]
@@ -239,7 +252,8 @@ def build_payload(state, report):
                 losses.append(-(y*math.log(p)+(1-y)*math.log(1-p)))
             candidate["log_loss"] = round(sum(losses)/len(losses),6)
         if stats["n"] < V3_GOVERNANCE["minimum_sample_for_review"]:
-            candidate["review_status"] = "COLLECTING" if stats["n"] else candidate["review_status"]
+            if all_for_belief:
+                candidate["review_status"] = "COLLECTING"
             candidate["production_recommendation"] = "NIE OCENIAĆ"
         elif candidate.get("incremental_information") is None:
             candidate["review_status"] = "NEEDS_INCREMENTAL_INFORMATION"
@@ -249,13 +263,24 @@ def build_payload(state, report):
             candidate["production_recommendation"] = "KANDYDAT DO RĘCZNEJ DECYZJI"
 
     cal = report.get("belief_calibration") or {}
-    hypothesis_brier = dict(cal.get("hypothesis_intelligence") or {})
-    overall = cal.get("overall") or {}
+    hypothesis_brier = {
+        key: value for key, value in dict(cal.get("hypothesis_intelligence") or {}).items()
+        if key not in candidate_ids
+    }
+    control_log_loss = None
+    if eligible:
+        import math
+        losses = []
+        for row in eligible:
+            p = max(1e-9, min(1 - 1e-9, row["p"]))
+            y = row["y"]
+            losses.append(-(y * math.log(p) + (1 - y) * math.log(1 - p)))
+        control_log_loss = round(sum(losses) / len(losses), 6)
     def build_market_view():
         configs = {"BTC/USD": ("btc.", "btc.trend.bullish"), "EUR/USD": ("eurusd.", "eurusd.trend.bullish"), "S&P 500": ("spx.", "spx.trend.bullish")}
         out = []
         for instrument, (prefix, trend_id) in configs.items():
-            relevant = [f for f in forecasts if str(f.get("belief_id") or "").startswith(prefix)]
+            relevant = [f for f in control_forecasts if str(f.get("belief_id") or "").startswith(prefix)]
             latest = {}
             for f in sorted(relevant, key=lambda x: str(x.get("forecast_at") or "")):
                 bid = str(f.get("belief_id") or "")
@@ -286,7 +311,13 @@ def build_payload(state, report):
         return out
 
     market_view = build_market_view()
-    aris = build_pattern_report(state)
+    control_state = dict(state)
+    control_state["forecasts"] = control_forecasts
+    control_forecast_ids = {str(f.get("forecast_id") or "") for f in control_forecasts}
+    control_state["verifications"] = [
+        v for v in verifications if str(v.get("forecast_id") or "") in control_forecast_ids
+    ]
+    aris = build_pattern_report(control_state)
 
     return {
         "schema_version": "briefrooms_decision_lab_public_v2",
@@ -312,18 +343,29 @@ def build_payload(state, report):
         "hypothesis_brier": hypothesis_brier,
         "hypothesis_intelligence": hypothesis_brier,
         "metrics": {
-            "forecast_count": len(forecasts),
-            "resolved_count": len(verifications),
-            "calibration_eligible": cal.get("count_calibration_eligible", 0),
-            "brier_score": overall.get("mean_brier"),
-            "ece": overall.get("ece"),
-            "log_loss": overall.get("mean_log_loss"),
-            "calibration_status": overall.get("status", "awaiting_outcomes"),
+            "forecast_count": len(control_forecasts),
+            "resolved_count": len(eligible),
+            "calibration_eligible": len(eligible),
+            "brier_score": calibration_analytics["overall"]["brier"],
+            "ece": calibration_analytics["overall"]["ece"],
+            "log_loss": control_log_loss,
+            "calibration_status": "watch" if eligible else "awaiting_outcomes",
             "brier_skill": calibration_analytics["overall"]["brier_skill_vs_50_50"],
             "max_calibration_gap_pp": (calibration_analytics["max_calibration_gap"]["gap_pp"] if calibration_analytics["max_calibration_gap"] else None),
         },
         "calibration_analytics": calibration_analytics,
-        "belief_core_v3_candidates": {"governance": V3_GOVERNANCE, "candidates": candidate_registry},
+        "belief_core_v3_candidates": {
+            "governance": V3_GOVERNANCE,
+            "summary": {
+                "registered": len(candidate_registry),
+                "wired": sum(1 for x in candidate_registry if x.get("wired")),
+                "waiting_for_real_source": sum(1 for x in candidate_registry if x.get("source_status") != "READY_EXISTING_MARKET_PROXY"),
+                "forecast_count": len(candidate_forecasts),
+                "open_count": sum(1 for f in candidate_forecasts if str(f.get("forecast_id") or "") not in verified),
+                "resolved_count": len(candidate_rows),
+            },
+            "candidates": candidate_registry,
+        },
         "evidence_patterns": aris.get("patterns", []),
         "evidence_pattern_meta": {
             "schema_version": aris.get("schema_version"),
