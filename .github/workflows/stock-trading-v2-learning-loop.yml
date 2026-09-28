@@ -78,15 +78,30 @@ jobs:
       - name: Freeze candidate and canonical admission experience prospectively
         run: |
           set -euo pipefail
+          ingest_preserving_freeze() {
+            local market="$1"
+            local payload="$2"
+            local log
+            log=$(mktemp)
+            if python scripts/stock_trading_v2_experience_store.py --market "$market" --payload "$payload" >"$log" 2>&1; then
+              cat "$log"
+              rm -f "$log"
+              return 0
+            fi
+            cat "$log"
+            if grep -Fq "legacy freeze/source payload hash mismatch" "$log"; then
+              echo "ANTI_HINDSIGHT_PRESERVE: $market source changed after an immutable freeze; preserving frozen experience and continuing."
+              rm -f "$log"
+              return 0
+            fi
+            rm -f "$log"
+            return 1
+          }
           if [[ -f /tmp/stock-trading-v2-production/gpw_daily_pick.json ]]; then
-            python scripts/stock_trading_v2_experience_store.py \
-              --market GPW \
-              --payload /tmp/stock-trading-v2-production/gpw_daily_pick.json
+            ingest_preserving_freeze GPW /tmp/stock-trading-v2-production/gpw_daily_pick.json
           fi
           if [[ -f /tmp/stock-trading-v2-production/us_daily_stock.json ]]; then
-            python scripts/stock_trading_v2_experience_store.py \
-              --market US \
-              --payload /tmp/stock-trading-v2-production/us_daily_stock.json
+            ingest_preserving_freeze US /tmp/stock-trading-v2-production/us_daily_stock.json
           fi
           POLICY_ARG=""
           if [[ -f /tmp/stock-trading-v2-production/stock_trading_policy.json ]]; then
