@@ -39,6 +39,7 @@ jobs:
           set -euo pipefail
           python -m py_compile scripts/sync_home_lab.py
           python -m json.tool data/lab/home_lab_status.json >/dev/null
+          node --check scripts/home-lab.js
 
       - name: Install BriefRooms Lab on PL and EN homepages
         run: |
