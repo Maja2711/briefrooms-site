@@ -83,7 +83,7 @@ jobs:
         env:
           PYTHONPATH: ${{ github.workspace }}
         run: |
-          python scripts/gse_v2_public_lab_projection.py --state-dir "$GSE_STATE_DIR" --catalog "$GSE_HISTORICAL_CATALOG" --output "$PUBLIC_PATH"
+          python scripts/gse_v2_public_lab_projection.py --state-dir "$GSE_STATE_DIR" --catalog "$GSE_HISTORICAL_CATALOG" --featured-thesis-config "$GITHUB_WORKSPACE/data/gse/gse_v2_featured_thesis.json" --output "$PUBLIC_PATH"
 
       - name: Publish projection to main
         run: |

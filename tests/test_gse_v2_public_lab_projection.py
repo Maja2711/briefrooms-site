@@ -46,7 +46,7 @@ class GSEV2PublicLabProjectionTests(unittest.TestCase):
             catalog = root / "catalog.json"
             catalog.write_text(json.dumps({"events":[{"event_id":"e1","event_cluster_id":"c1","event_at":"2024-01-01T00:00:00Z","label":"Event","scenario_types":["sanctions_escalation"],"source":"Primary","source_ref":"https://example.com","source_reliability":0.9}]}))
             out = build_projection(root, catalog)
-            self.assertEqual(out["schema_version"], "gse-v2-public-lab-v2")
+            self.assertEqual(out["schema_version"], "gse-v2-public-lab-v3")
             self.assertEqual(out["engine"]["full_name"], "Geopolitical Scenario Engine")
             self.assertEqual(out["summary"]["verified_clusters"], 12)
             self.assertEqual(out["best_horizon"]["label"], "30d")
@@ -61,6 +61,53 @@ class GSEV2PublicLabProjectionTests(unittest.TestCase):
             self.assertFalse(out["engine"]["decision_influence"])
             self.assertFalse(out["public_boundary"]["raw_evidence_exposed"])
             self.assertNotIn("evidence", out)
+
+
+    def test_featured_thesis_uses_latest_frozen_candidate_and_stays_sanitized(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            candidate = {
+                "candidate_id": "private-candidate-id",
+                "baseline_forecast_id": "private-forecast-id",
+                "asset": "GOLD",
+                "symbol": "GC=F",
+                "forecast_at": "2026-01-04T12:00:00Z",
+                "target_at": "2026-02-03T12:00:00Z",
+                "horizon_hours": 720,
+                "direction": 1,
+                "baseline_v1_probability": 0.61,
+                "v2_regime_candidate_probability": 0.66,
+                "epistemic_confidence": 0.72,
+                "effective_cluster_n": 11,
+                "scenario_diagnostics": [
+                    {"scenario_type": "middle_east_energy_escalation", "neighbours": [{"event_id": "private-event"}]}
+                ],
+            }
+            (root / "gse_v2_regime_forecasts.jsonl").write_text(json.dumps(candidate) + "\n")
+            config = root / "featured.json"
+            config.write_text(json.dumps({
+                "enabled": True,
+                "thesis_id": "gold-up-30d",
+                "question_pl": "Czy ryzyko geopolityczne wesprze złoto?",
+                "question_en": "Will geopolitical risk support gold?",
+                "asset": "GOLD",
+                "horizon_hours": 720,
+                "expected_direction": 1,
+                "max_candidate_age_hours": 12,
+            }))
+            from scripts.gse_v2_public_lab_projection import featured_thesis_projection
+            out = featured_thesis_projection(root, config, generated_at="2026-01-04T13:00:00Z")
+            self.assertEqual(out["thesis_id"], "gold-up-30d")
+            self.assertEqual(out["probability"], 0.66)
+            self.assertEqual(out["baseline_v1_probability"], 0.61)
+            self.assertEqual(out["freshness"], "fresh")
+            self.assertEqual(out["scenario_types"], ["middle_east_energy_escalation"])
+            self.assertTrue(out["research_only"])
+            self.assertFalse(out["decision_influence"])
+            self.assertNotIn("candidate_id", out)
+            self.assertNotIn("baseline_forecast_id", out)
+            self.assertNotIn("neighbours", json.dumps(out))
+
 
 
 if __name__=="__main__":

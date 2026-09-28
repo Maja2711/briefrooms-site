@@ -69,6 +69,16 @@ Private `gse-shadow-state` gains: `gse_v2_enriched_library.json`, `gse_v2_histor
 
 GSE v1 evidence remains hourly and frozen forecasts every 6 hours. Advanced prospective verification runs after GSE cycles. Historical regime library refreshes weekly or immediately after catalogue/library changes. Walk-forward, policy proposal and ledger update on every learning cycle.
 
+
+## Featured public thesis projection
+
+GSE v2 may expose one explicitly configured homepage thesis as a sanitized read-only projection. The thesis contract is deliberately narrow: **asset + expected direction + horizon**. The displayed probability is derived from the newest already-frozen prospective GSE v2 regime candidate for that exact slice. It is therefore a market-reaction thesis, not a free-form probability assigned to an arbitrary geopolitical statement.
+
+The configuration lives in `data/gse/gse_v2_featured_thesis.json`. The public projection may expose the thesis text, asset, direction, horizon, probability, baseline probability, epistemic confidence, effective cluster count, forecast/target timestamps and scenario-family names. It must not expose raw Evidence, historical neighbour rows, private forecast/candidate IDs or any execution-capable payload.
+
+Freshness is explicit. A configured maximum candidate age determines whether the homepage labels the thesis as fresh or stale; stale data is never silently presented as current. Changing the featured thesis changes only the public research projection and does not modify GSE state, Belief Core, WES, BRACE, sizing or execution.
+
+
 ## Hard boundary
 
 The advanced loop asserts `automatic_tuning_enabled=false`, `policy_proposal_auto_apply_enabled=false`, `automatic_promotion_enabled=false`, `decision_engine_connected=false`, `belief_core_connected=false`, `trade_execution_enabled=false`, `policy_output_enabled=false`, `v1_forecast_modified=false`.
