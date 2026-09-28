@@ -6,6 +6,18 @@ from unittest.mock import patch
 from scripts import verify_production as verify
 
 
+class ProductionParityCoverageTests(unittest.TestCase):
+    def test_decision_lab_assets_are_protected_by_production_parity(self) -> None:
+        required = {
+            "pl/inwestycje/decision-lab.html",
+            "en/investing/decision-lab.html",
+            "scripts/decision-lab.js",
+            "scripts/decision-lab-runtime-en.js",
+            "assets/decision-lab.css",
+        }
+        self.assertTrue(required.issubset(set(verify.PARITY_PATHS)))
+
+
 class ProductionParityRetryTests(unittest.TestCase):
     def test_exact_file_parity_retries_until_pages_converges(self) -> None:
         calls: list[str] = []
