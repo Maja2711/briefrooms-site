@@ -15,7 +15,7 @@ from belief_core_live import build_adapter_payload
 from belief_liquidity_adapter import LiquidityEvidenceAdapter
 from belief_market_data_adapter import Bar, MarketDataAdapter, MarketSnapshot
 from belief_regime_adapter import RegimeCrossAssetAdapter
-from belief_technical_adapter import TechnicalEvidenceAdapter
+from belief_technical_adapter import TechnicalEvidenceAdapter\nfrom belief_v3_candidate_adapter import READY_CANDIDATE_IDS, WAITING_CANDIDATE_IDS, V3CandidateEvidenceAdapter
 
 NY = ZoneInfo("America/New_York")
 UTC = ZoneInfo("UTC")
@@ -97,12 +97,30 @@ class AdapterSuiteTest(unittest.TestCase):
         self.assertTrue({"spx.breadth.healthy","spx.volatility.benign","spx.financial_conditions.supportive"} <= {x.belief_id for x in result.evidence})
         self.assertTrue(all(x.derived_from for x in result.evidence))
 
-    def test_full_pipeline_preserves_nine_evidence_but_adds_observation_layer(self) -> None:
+    def test_v3_candidate_adapter_wires_only_ready_market_proxy_candidates(self) -> None:
+        result = V3CandidateEvidenceAdapter().run(self.snapshot)
+        self.assertEqual(len(READY_CANDIDATE_IDS), 4)
+        self.assertEqual(len(WAITING_CANDIDATE_IDS), 7)
+        self.assertEqual(len(result.observations), 5)
+        self.assertEqual(len(result.evidence), 15)
+        self.assertEqual(
+            {x.belief_id for x in result.evidence},
+            {
+                "spx.rates.supportive",
+                "spx.cross_asset_risk.supportive",
+                "eurusd.risk_regime.supportive",
+                "btc.cross_asset_risk.supportive",
+            },
+        )
+        self.assertTrue(all(x.metadata["adapter"] == "belief_v3_candidate_market_proxy" for x in result.evidence))
+
+    def test_full_pipeline_keeps_control_evidence_and_adds_isolated_v3_candidates(self) -> None:
         payload = build_adapter_payload(self.snapshot)
-        self.assertEqual(len(payload["evidence"]), 9)
-        self.assertEqual(len(payload["observations"]), 108)
+        self.assertEqual(len(payload["evidence"]), 24)
+        self.assertEqual(len(payload["observations"]), 113)
         self.assertEqual(payload["adapter_counts"]["market_data"], {"observations":80,"evidence":0})
         self.assertEqual(payload["adapter_counts"]["liquidity_evidence"], {"observations":7,"evidence":2})
+        self.assertEqual(payload["adapter_counts"]["belief_v3_candidate_market_proxy"], {"observations":5,"evidence":15})
         self.assertEqual(payload["regime"], "risk_on")
 
 
