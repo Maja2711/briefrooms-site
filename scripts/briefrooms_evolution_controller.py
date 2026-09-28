@@ -49,6 +49,8 @@ from belief_closed_loop import (
 )
 from belief_v3_candidate_library import V3_CANDIDATE_LIBRARY, V3_GOVERNANCE
 
+V3_CANDIDATE_IDS = {str(x["belief_id"]) for x in V3_CANDIDATE_LIBRARY}
+
 SCHEMA_VERSION = "briefrooms-evolution-controller-v1"
 PUBLIC_SCHEMA_VERSION = "briefrooms-evolution-controller-public-v1"
 V3_REGISTRY_SCHEMA = "belief-v3-production-registry-v1"
@@ -294,7 +296,7 @@ def _belief_rows(belief_state: Mapping[str, Any]) -> list[dict[str, Any]]:
 
 def _rows_for_scope(rows: Sequence[Mapping[str, Any]], scope: str) -> list[dict[str, Any]]:
     if scope == "__GLOBAL__":
-        return [dict(x) for x in rows if not str(x.get("belief_id") or "").startswith("v3.")]
+        return [dict(x) for x in rows if str(x.get("belief_id") or "") not in V3_CANDIDATE_IDS]
     return [dict(x) for x in rows if str(x.get("belief_id") or "") == scope]
 
 
