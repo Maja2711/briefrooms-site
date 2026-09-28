@@ -5,6 +5,12 @@
 
   const isEn=(document.documentElement.lang||'pl').toLowerCase().startsWith('en');
   const lang=isEn?'en':'pl';
+  const homeLabTitle=document.getElementById('home-lab-title');
+  if(homeLabTitle){
+    homeLabTitle.textContent=isEn
+      ? 'BriefRooms — Lab, models, tests and results'
+      : 'BriefRooms — Lab,modele, testy i wyniki';
+  }
   const locale=isEn?'en-GB':'pl-PL';
   const PATHS={
     gse:'/data/gse/gse_v2_lab_public.json',
