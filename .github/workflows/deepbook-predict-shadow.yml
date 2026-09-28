@@ -1,6 +1,13 @@
 name: deepbook-predict-shadow
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/deepbook-predict-shadow.yml"
+      - "scripts/deepbook_predict_shadow.mjs"
+      - "tests/test_deepbook_predict_shadow.py"
+      - "package.json"
   schedule:
     - cron: "*/5 * * * *"
 permissions:
@@ -13,14 +20,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: npm
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: npm install --no-audit --no-fund
+      - run: npm install --no-audit --no-fund --no-package-lock
       - name: Collect live DeepBook Predict mainnet probabilities
         run: node scripts/deepbook_predict_shadow.mjs
       - name: Validate shadow isolation
@@ -32,4 +41,5 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           git add data/investments/deepbook_predict_shadow.json
           git commit -m "data: collect DeepBook Predict shadow probabilities"
-          git push
+          git pull --rebase origin main
+          git push origin HEAD:main
