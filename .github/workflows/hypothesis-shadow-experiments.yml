@@ -1,21 +1,9 @@
-name: Hypothesis Shadow Experiments
+name: Hypothesis Shadow Experiments Legacy HSE1
 
+# Legacy compatibility workflow. HSE2 owns automatic hypothesis intake and
+# prospective evaluation. HSE1 can only be invoked manually for audit/replay.
 on:
   workflow_dispatch:
-  workflow_run:
-    workflows:
-      - "Autonomous Policy Promotion"
-    types: [completed]
-  pull_request:
-    paths:
-      - "scripts/lesson_hypothesis_registry.py"
-      - "scripts/hypothesis_experiment_compiler.py"
-      - "scripts/experiment_result_lesson_loop.py"
-      - "scripts/validation_epoch.py"
-      - "data/investments/lesson_hypothesis_registry_v1.json"
-      - "tests/test_lesson_hypothesis_experiment_compiler.py"
-      - "tests/test_experiment_result_lesson_loop.py"
-      - ".github/workflows/hypothesis-shadow-experiments.yml"
 
 permissions:
   contents: read
