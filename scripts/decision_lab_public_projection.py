@@ -313,9 +313,9 @@ def build_payload(state, report):
     market_view = build_market_view()
     control_state = dict(state)
     control_state["forecasts"] = control_forecasts
-    control_forecast_ids = {str(f.get("forecast_id") or "") for f in control_forecasts}
+    candidate_forecast_ids = {str(f.get("forecast_id") or "") for f in candidate_forecasts}
     control_state["verifications"] = [
-        v for v in verifications if str(v.get("forecast_id") or "") in control_forecast_ids
+        v for v in verifications if str(v.get("forecast_id") or "") not in candidate_forecast_ids
     ]
     aris = build_pattern_report(control_state)
 
