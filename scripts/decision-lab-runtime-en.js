@@ -256,7 +256,8 @@ function calibrationCurve(a){
 let CAL_ANALYTICS={};
 function calibrationBreakdown(kind){
   const root=document.getElementById("calibration-breakdown");if(!root)return;
-  const rows=CAL_ANALYTICS?.breakdown?.[kind]||[];
+  const rawRows=CAL_ANALYTICS?.breakdown?.[kind]||[];
+  const rows=kind==="horizon"?rawRows.filter(x=>String(x?.segment||"").trim().toUpperCase()!=="0H"):rawRows;
   root.innerHTML='<div class="cal-table"><div class="cal-row head"><span>Segment</span><span>n</span><span>Brier</span><span>ECE</span><span>Skill vs 50/50</span></div>'+
     rows.map(x=>'<div class="cal-row"><b>'+esc(x.segment)+'</b><span>'+x.n+'</span><span>'+num(x.brier,3)+'</span><span>'+num(x.ece,3)+'</span><span class="'+(Number(x.brier_skill_vs_50_50)>=0?'skill-pos':'skill-neg')+'">'+pct(x.brier_skill_vs_50_50)+'</span></div>').join('')+'</div>';
 }
