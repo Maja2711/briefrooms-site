@@ -48,7 +48,7 @@ class BeliefClosedLoopTests(unittest.TestCase):
         self.assertGreaterEqual(result["stability"]["improved"], 3)
         self.assertGreater(result["brier_relative_improvement"], .05)
 
-    def test_run_can_promote_only_after_frozen_prospective_challenger(self):
+    def test_run_hands_passed_challenger_to_evolution_controller_without_policy_write(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             state_dir = root / "state"
@@ -95,19 +95,21 @@ class BeliefClosedLoopTests(unittest.TestCase):
             report = root/"report.json"
             report.write_text(json.dumps({"belief_calibration":{"hypothesis_intelligence":{}}}))
             policy = root/"policy.json"
-            policy.write_text(json.dumps({
+            original = {
                 "schema_version":"belief-core-production-overrides-v1",
                 "updated_at":None,
                 "authority":{},
                 "overrides":{},
                 "history":[],
-            }))
+            }
+            policy.write_text(json.dumps(original))
             output = root/"loop.json"
             payload = run(state_dir, report, policy, output)
-            self.assertIn("x.test", payload["active_production_overrides"])
-            saved = json.loads(policy.read_text())
-            self.assertTrue(saved["overrides"]["x.test"]["active"])
-            self.assertEqual(saved["history"][-1]["event"], "AUTO_PROMOTION")
+            self.assertEqual(payload["challengers"]["x.test"]["status"], "ready_for_evolution_controller")
+            self.assertEqual(payload["active_production_overrides"], [])
+            self.assertFalse(payload["authority"]["automatic_model_overlay_promotion"])
+            self.assertTrue(payload["authority"]["evolution_controller_handoff"])
+            self.assertEqual(json.loads(policy.read_text()), original)
 
     def test_global_challenger_starts_from_pooled_v2_history_but_does_not_promote_retroactively(self):
         with tempfile.TemporaryDirectory() as tmp:
