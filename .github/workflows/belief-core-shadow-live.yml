@@ -7,6 +7,9 @@ on:
     paths:
       - ".github/workflows/belief-core-shadow-live.yml"
       - "scripts/belief_core_live.py"
+      - "scripts/belief_closed_loop.py"
+      - "data/investments/belief_core_production_overrides.json"
+      - "tests/test_belief_closed_loop.py"
       - "scripts/belief_market_data_adapter.py"
       - "scripts/belief_wes_assets_adapter.py"
       - "scripts/belief_v3_candidate_adapter.py"
@@ -140,6 +143,7 @@ jobs:
           python -m py_compile \
             scripts/belief_core.py \
             scripts/belief_calibration.py \
+            scripts/belief_closed_loop.py \
             scripts/belief_adapter_contract.py \
             scripts/belief_market_data_adapter.py \
             scripts/belief_technical_adapter.py \
@@ -153,6 +157,7 @@ jobs:
             scripts/belief_core_live.py
           python -m unittest \
             tests/test_belief_core.py \
+            tests/test_belief_closed_loop.py \
             tests/test_belief_core_adapters.py \
             tests/test_belief_core_live.py \
             tests/test_belief_wes_assets.py \
