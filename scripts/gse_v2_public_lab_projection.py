@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
-SCHEMA_VERSION = "gse-v2-public-lab-v2"
+SCHEMA_VERSION = "gse-v2-public-lab-v3"
 HORIZON_LABELS = {24: "24h", 168: "7d", 720: "30d"}
 
 
@@ -163,7 +163,101 @@ def learning_timeline(ledger: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return out
 
 
-def build_projection(state_dir: Path, catalog_path: Path) -> dict[str, Any]:
+
+def featured_thesis_projection(
+    state_dir: Path,
+    config_path: Path | None,
+    *,
+    generated_at: str | None = None,
+) -> dict[str, Any] | None:
+    """Expose one configured, sanitized market-reaction thesis from frozen GSE v2 research.
+
+    This is intentionally not an arbitrary geopolitical-event probability. The public
+    thesis is defined as asset + direction + horizon and is read from an already-frozen
+    prospective GSE v2 candidate. Raw evidence, neighbour rows and private forecast IDs
+    remain private.
+    """
+    if config_path is None:
+        return None
+    config = read_json(config_path, {})
+    if not config or not bool(config.get("enabled", True)):
+        return None
+
+    asset = str(config.get("asset") or "").strip().upper()
+    try:
+        horizon = int(config.get("horizon_hours"))
+        expected_direction = int(config.get("expected_direction"))
+    except (TypeError, ValueError):
+        return None
+    if not asset or horizon <= 0 or expected_direction not in (-1, 1):
+        return None
+
+    candidates = [
+        row for row in read_jsonl(state_dir / "gse_v2_regime_forecasts.jsonl")
+        if str(row.get("asset") or "").upper() == asset
+        and int(row.get("horizon_hours") or 0) == horizon
+        and int(row.get("direction") or 0) in (-1, 1)
+        and _parse_time(row.get("forecast_at")) is not None
+    ]
+    if not candidates:
+        return None
+    candidates.sort(
+        key=lambda row: _parse_time(row.get("forecast_at")) or datetime.min.replace(tzinfo=timezone.utc),
+        reverse=True,
+    )
+    row = candidates[0]
+    p2 = _num(row.get("v2_regime_candidate_probability"))
+    p1 = _num(row.get("baseline_v1_probability"))
+    if p2 is None or not 0.0 <= p2 <= 1.0:
+        return None
+
+    same_direction = int(row.get("direction")) == expected_direction
+    thesis_probability = p2 if same_direction else 1.0 - p2
+    baseline_probability = None if p1 is None else (p1 if same_direction else 1.0 - p1)
+
+    forecast_at = _parse_time(row.get("forecast_at"))
+    reference_at = _parse_time(generated_at) or datetime.now(timezone.utc)
+    age_hours = None if forecast_at is None else max(0.0, (reference_at - forecast_at).total_seconds() / 3600.0)
+    max_age_hours = _num(config.get("max_candidate_age_hours"))
+    if max_age_hours is None or max_age_hours <= 0:
+        max_age_hours = 12.0
+    freshness = "fresh" if age_hours is not None and age_hours <= max_age_hours else "stale"
+
+    scenario_types: list[str] = []
+    for diagnostic in row.get("scenario_diagnostics") or []:
+        name = str((diagnostic or {}).get("scenario_type") or "").strip()
+        if name and name not in scenario_types:
+            scenario_types.append(name)
+
+    return {
+        "schema_version": "gse-v2-featured-thesis-public-v1",
+        "thesis_id": str(config.get("thesis_id") or f"{asset}-{horizon}-{expected_direction}"),
+        "question_pl": str(config.get("question_pl") or ""),
+        "question_en": str(config.get("question_en") or ""),
+        "asset": asset,
+        "symbol": row.get("symbol"),
+        "horizon_hours": horizon,
+        "horizon_label": HORIZON_LABELS.get(horizon, f"{horizon}h"),
+        "expected_direction": "UP" if expected_direction > 0 else "DOWN",
+        "probability": round(float(thesis_probability), 6),
+        "baseline_v1_probability": None if baseline_probability is None else round(float(baseline_probability), 6),
+        "epistemic_confidence": _num(row.get("epistemic_confidence")),
+        "effective_cluster_n": int(row.get("effective_cluster_n") or 0),
+        "forecast_at": row.get("forecast_at"),
+        "target_at": row.get("target_at"),
+        "age_hours": None if age_hours is None else round(age_hours, 3),
+        "freshness": freshness,
+        "max_candidate_age_hours": float(max_age_hours),
+        "scenario_types": scenario_types[:6],
+        "href_pl": str(config.get("href_pl") or "/pl/geo/gse-lab.html"),
+        "href_en": str(config.get("href_en") or "/en/geo/gse-lab.html"),
+        "research_only": True,
+        "decision_influence": False,
+        "trade_execution": False,
+    }
+
+
+def build_projection(state_dir: Path, catalog_path: Path, featured_thesis_config: Path | None = None) -> dict[str, Any]:
     state = read_json(state_dir / "gse_v2_learning_state.json", {})
     gse_state = read_json(state_dir / "gse_state.json", {})
     historical = read_json(state_dir / "gse_v2_historical_walkforward.json", {})
@@ -190,6 +284,7 @@ def build_projection(state_dir: Path, catalog_path: Path) -> dict[str, Any]:
     timeline = learning_timeline(ledger)
 
     generated_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    featured_thesis = featured_thesis_projection(state_dir, featured_thesis_config, generated_at=generated_at)
     last_learning_at = latest_timestamp(row.get("recorded_at") for row in ledger)
     last_base_verification_at = latest_timestamp(row.get("verified_at") for row in base_verifications)
     last_v2_verification_at = latest_timestamp(row.get("verified_at") for row in v2_verifications)
@@ -199,6 +294,7 @@ def build_projection(state_dir: Path, catalog_path: Path) -> dict[str, Any]:
     return {
         "schema_version": SCHEMA_VERSION,
         "generated_at": generated_at,
+        "featured_thesis": featured_thesis,
         "activity": {
             "last_scan_at": last_scan_at,
             "last_learning_at": last_learning_at,
@@ -276,6 +372,7 @@ def build_projection(state_dir: Path, catalog_path: Path) -> dict[str, Any]:
             "read_only_projection": True,
             "raw_evidence_exposed": False,
             "private_forecasts_exposed": False,
+            "featured_thesis_projection": True,
             "trade_execution": False,
             "belief_writeback": False,
         },
@@ -287,8 +384,9 @@ def main() -> int:
     parser.add_argument("--state-dir", type=Path, required=True)
     parser.add_argument("--catalog", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--featured-thesis-config", type=Path)
     args = parser.parse_args()
-    payload = build_projection(args.state_dir, args.catalog)
+    payload = build_projection(args.state_dir, args.catalog, args.featured_thesis_config)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps({"generated_at": payload["generated_at"], "activity": payload["activity"], "summary": payload["summary"], "best_horizon": payload["best_horizon"]}, ensure_ascii=False))
