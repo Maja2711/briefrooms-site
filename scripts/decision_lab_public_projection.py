@@ -23,6 +23,49 @@ def records(value):
     return []
 
 
+def frozen_t0_projection(forecast):
+    """Expose T0 only from values that were frozen before the outcome.
+
+    Forecast Contract v2 stores explicit t0_values. Older forecasts already
+    froze their start/reference values inside outcome_spec.reference. Those
+    references are immutable forecast metadata, so exposing them is not a
+    retrospective market-data reconstruction.
+    """
+    meta = forecast.get("metadata") or {}
+    explicit = meta.get("t0_values")
+    if isinstance(explicit, dict) and explicit:
+        return explicit, meta.get("t0_at") or meta.get("market_observed_at") or forecast.get("forecast_at"), "forecast_contract_v2"
+
+    spec = meta.get("outcome_spec") or {}
+    kind = str(spec.get("kind") or "")
+    reference = spec.get("reference")
+    values = {}
+
+    def add(name, value):
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            return
+        if name:
+            values[str(name)] = number
+
+    if kind in {"price_above", "value_below", "value_above", "absolute_return_below"}:
+        add(spec.get("symbol"), reference)
+    elif kind == "ratio_above":
+        numerator, denominator = spec.get("numerator"), spec.get("denominator")
+        add(f"{numerator}/{denominator}" if numerator and denominator else "ratio", reference)
+    elif kind == "majority_supportive" and isinstance(reference, dict):
+        for key, value in reference.items():
+            add(key, value)
+    elif kind == "credit_duration_supportive" and isinstance(reference, dict):
+        add("HYG/LQD", reference.get("credit_ratio"))
+        add("TLT", reference.get("TLT"))
+
+    if values:
+        return values, meta.get("market_observed_at") or forecast.get("forecast_at"), "frozen_outcome_spec_reference"
+    return None, meta.get("t0_at") or meta.get("market_observed_at") or forecast.get("forecast_at"), None
+
+
 def build_payload(state, report):
     forecasts = records(state.get("forecasts"))
     definitions = records(state.get("definitions"))
@@ -44,6 +87,7 @@ def build_payload(state, report):
     def row_for(f):
         fid = str(f.get("forecast_id", ""))
         v = verified.get(fid)
+        t0_values, t0_at, t0_source = frozen_t0_projection(f)
         return {
             "forecast_id": fid, "entity": f.get("entity"), "belief_id": f.get("belief_id"),
             "claim": (state.get("definitions_by_id") or {}).get(str(f.get("belief_id")), {}).get("claim"),
@@ -55,8 +99,9 @@ def build_payload(state, report):
             "brier_score": None if not v else v.get("brier_score"),
             "forecast_contract_version": (f.get("metadata") or {}).get("forecast_contract_version"),
             "model_freeze_version": (f.get("metadata") or {}).get("model_freeze_version"),
-            "t0_at": (f.get("metadata") or {}).get("t0_at"),
-            "t0_values": (f.get("metadata") or {}).get("t0_values"),
+            "t0_at": t0_at,
+            "t0_values": t0_values,
+            "t0_source": t0_source,
             "nominal_target_at": (f.get("metadata") or {}).get("nominal_target_at"),
             "settlement_rule": (f.get("metadata") or {}).get("settlement_rule"),
             "settlement_max_delay_hours": (f.get("metadata") or {}).get("settlement_max_delay_hours"),
