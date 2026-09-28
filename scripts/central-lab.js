@@ -61,11 +61,31 @@ function shadowWhen(value){
   if(Number.isNaN(d.valueOf()))return esc(value);
   return d.toLocaleString('pl-PL',{dateStyle:'short',timeStyle:'short'});
 }
+function hsePanel(hse){
+  if(!hse||hse.engine!=='Hypothesis Shadow Engine 2.0')return '';
+  const s=hse.summary||{},experiments=Array.isArray(hse.experiments)?hse.experiments:[],lessons=Array.isArray(hse.recent_lessons)?hse.recent_lessons:[];
+  const rows=experiments.slice().sort((a,b)=>String(a.source_engine||'').localeCompare(String(b.source_engine||''))).map(x=>
+    '<tr><td><strong>'+esc(x.source_engine||'—')+'</strong><small>'+esc(x.experiment_id||'')+'</small></td>'+
+    '<td>'+esc(x.claim||'—')+'</td>'+
+    '<td><b>'+esc(x.champion||'—')+'</b><small>vs '+esc(x.challenger||'—')+'</small></td>'+
+    '<td>'+num(x.prospective_n)+' / '+num(x.target_n)+'</td>'+
+    '<td>'+shadowStatus(x.status)+'</td>'+
+    '<td>'+shadowWhen(x.last_evidence_at||x.frozen_at)+'</td></tr>'
+  ).join('');
+  const lessonRows=lessons.slice().reverse().slice(0,8).map(x=>
+    '<tr><td><strong>'+esc(x.source_engine||'—')+'</strong></td><td>'+shadowStatus(x.verdict)+'</td><td>'+esc(x.statement||'—')+'</td></tr>'
+  ).join('');
+  return '<article class="panel central-head hse2-panel"><header><div><h2>Hypothesis Shadow Engine 2.0</h2><p>Sześć źródeł → zamrożona hipoteza → wyłącznie forward evidence → jedna formalna ocena fixed-N → LESSON. Zero production authority.</p></div>'+chip((s.running_shadow||0)+' ACTIVE')+'</header>'+
+    '<div class="central-stats"><div><small>Źródła</small><strong>'+num(s.sources_available)+' / '+num(s.sources_configured)+'</strong></div><div><small>Eksperymenty</small><strong>'+num(s.experiments_total)+'</strong></div><div><small>Forward evidence N</small><strong>'+num(s.prospective_evidence_n)+'</strong></div><div><small>Lessons</small><strong>'+num(s.lessons_total)+'</strong></div></div>'+
+    '<h3 class="central-subtitle">Aktywne i zakończone hipotezy</h3><div class="central-table-wrap"><table class="central-table hse2-table"><thead><tr><th>Źródło</th><th>Hipoteza</th><th>Champion / Challenger</th><th>Forward N</th><th>Status</th><th>Freeze / evidence</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+    (lessonRows?'<h3 class="central-subtitle">Ostatnie LESSONS</h3><div class="central-table-wrap"><table class="central-table"><thead><tr><th>Źródło</th><th>Werdykt</th><th>Lesson</th></tr></thead><tbody>'+lessonRows+'</tbody></table></div>':'<p class="central-note">Brak zakończonych LESSONS — HSE2 zbiera dopiero evidence po granicy T0.</p>')+
+    '<p class="central-note">Wynik formalny może być tylko SUPPORTED, REJECTED albo INCONCLUSIVE. HSE2 nie może zmieniać konfiguracji źródłowych silników ani produkcji.</p></article>';
+}
 async function shadows(){
   const root=document.querySelector('#central-shadow-engines');
   if(!root)return;
   try{
-    const r=await get('/data/investments/shadow_engines_public.json');
+    const [r,hse]=await Promise.all([get('/data/investments/shadow_engines_public.json'),get('/data/investments/hypothesis_shadow_engine_v2_public.json').catch(()=>({}))]);
     const s=r.summary||{},coverage=r.coverage||{},engines=Array.isArray(r.engines)?r.engines:[];
     const rows=engines.map(x=>'<tr>'+
       '<td><strong>'+esc(x.name)+'</strong><small>'+esc(x.workflow||'—')+'</small></td>'+
@@ -88,7 +108,8 @@ async function shadows(){
         '<div><small>NO DATA</small><strong>'+num(s["NO DATA"])+'</strong></div>'+
       '</div>'+unmapped+
       '<div class="central-table-wrap"><table class="central-table shadow-engine-table"><thead><tr><th>Shadow engine</th><th>Status</th><th>Ostatni run</th><th>Obserwacje</th><th>Champion</th><th>Challenger</th><th>Domena</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
-      '<p class="central-note">Sekcja jest wyłącznie obserwatorium. Nie ma prawa do promocji, writebacku, zmiany parametrów ani wykonywania transakcji. Wygenerowano '+shadowWhen(r.generated_at)+'.</p></article>';
+      '<p class="central-note">Sekcja jest wyłącznie obserwatorium. Nie ma prawa do promocji, writebacku, zmiany parametrów ani wykonywania transakcji. Wygenerowano '+shadowWhen(r.generated_at)+'.</p></article>'+
+      hsePanel(hse);
   }catch(e){
     root.innerHTML='<div class="central-error">Shadow Engines Observatory jest chwilowo niedostępny.</div>';
   }
