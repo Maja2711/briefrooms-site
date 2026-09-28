@@ -220,7 +220,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
+          for path in \
             data/investments/stock_trading_v2_experience \
             data/investments/stock_trading_v2_admission \
             data/investments/stock_trading_v2_position_experience \
@@ -232,8 +232,11 @@ jobs:
             data/investments/stock_trading_v2_challenger_evaluations \
             data/investments/market_relationship_trigger_outcomes \
             data/investments/market_relationship_trigger_learning.json \
-            data/investments/market_relationship_deep_belief_learning.json \
-            2>/dev/null || true
+            data/investments/market_relationship_deep_belief_learning.json; do
+              if [[ -e "$path" ]]; then
+                git add "$path"
+              fi
+          done
           if git diff --cached --quiet; then
             echo "No new learning evidence."
             exit 0
