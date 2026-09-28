@@ -298,6 +298,25 @@ def settle_due_positions(now: Optional[datetime] = None) -> bool:
             if entry is None:
                 continue
             if sf(item.get("exit_price")) is not None:
+                # The executed leg is already genuinely closed. A later WES
+                # re-entry attempt may have temporarily reused trade_status
+                # "pending" while preserving the immutable entry/exit of that
+                # closed leg. Once the governed deadline has elapsed, that
+                # unfilled re-entry must be terminalized without rewriting the
+                # historical trade or fabricating a second execution.
+                had_pending_reentry = (
+                    status in {"planned", "pending"}
+                    or isinstance(item.get("pending_entry_decision"), dict)
+                )
+                if had_pending_reentry:
+                    item["pending_reentry_outcome"] = "expired_no_entry"
+                    item["pending_reentry_expired_at"] = deadline.isoformat(timespec="seconds")
+                    item["pending_reentry_expiry_reason"] = "governed_deadline_elapsed_without_reentry"
+                    item["trade_status"] = "closed"
+                    changed = True
+                elif status != "closed":
+                    item["trade_status"] = "closed"
+                    changed = True
                 if v2.mark_exposure_closed(item):
                     changed = True
                 continue
