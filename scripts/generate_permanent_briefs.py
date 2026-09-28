@@ -46,7 +46,7 @@ TRACKING_QUERY_KEYS = {
 SITEMAP_NS = "http://www.sitemaps.org/schemas/sitemap/0.9"
 HOME_BRIEFS_START = "<!-- HOME_BRIEFS_START -->"
 HOME_BRIEFS_END = "<!-- HOME_BRIEFS_END -->"
-HOME_CARD_LIMIT = 8
+HOME_CARD_LIMIT = 10
 REMOVED_PUBLIC_URLS = {f"{SITE_URL}/en/geo/topic.html"}
 
 LANGUAGES = {
