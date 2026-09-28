@@ -96,6 +96,56 @@ class DecisionLabProjectionTests(unittest.TestCase):
         self.assertEqual(row["t0_source"], "frozen_outcome_spec_reference")
         self.assertIsNone(row["forecast_contract_version"])
 
+    def test_v3_candidate_forecasts_are_isolated_from_v2_metrics_and_market_view(self):
+        candidate = {
+            "forecast_id": "v3-open",
+            "entity": "SPX",
+            "belief_id": "spx.rates.supportive",
+            "predicted_probability": 0.62,
+            "forecast_confidence": 0.55,
+            "forecast_at": "2026-09-28T14:00:00Z",
+            "target_at": "2026-09-29T14:00:00Z",
+            "horizon_hours": 24,
+            "metadata": {
+                "candidate_stage": "SHADOW",
+                "candidate_isolated_from_control": True,
+                "forecast_contract_version": "decision-lab-forecast-contract-v2",
+                "t0_at": "2026-09-28T14:00:00Z",
+                "t0_values": {"SPY": 770.0},
+                "outcome_spec": {"kind": "price_above", "symbol": "SPY", "reference": 770.0},
+            },
+        }
+        payload = build_payload(
+            {
+                "forecasts": [candidate],
+                "verifications": [],
+                "definitions": [{
+                    "belief_id": "spx.rates.supportive",
+                    "claim": "US rates conditions are supportive for SPX into the target horizon",
+                }],
+            },
+            {"belief_calibration": {}},
+        )
+        self.assertEqual(payload["metrics"]["forecast_count"], 0)
+        self.assertEqual(payload["metrics"]["resolved_count"], 0)
+        self.assertEqual(payload["forecasts"], [])
+        self.assertEqual(payload["market_view"], [])
+        summary = payload["belief_core_v3_candidates"]["summary"]
+        self.assertEqual(summary["registered"], 11)
+        self.assertEqual(summary["wired"], 4)
+        self.assertEqual(summary["waiting_for_real_source"], 7)
+        self.assertEqual(summary["forecast_count"], 1)
+        self.assertEqual(summary["open_count"], 1)
+        row = next(
+            x for x in payload["belief_core_v3_candidates"]["candidates"]
+            if x["belief_id"] == "spx.rates.supportive"
+        )
+        self.assertEqual(row["forecast_n"], 1)
+        self.assertEqual(row["open_n"], 1)
+        self.assertEqual(row["sample_n"], 0)
+        self.assertEqual(row["review_status"], "COLLECTING")
+        self.assertTrue(row["wired"])
+
     def test_projection_exposes_shadow_forecast_contract_without_promotion_authority(self):
         state = {
             "forecasts": [{
