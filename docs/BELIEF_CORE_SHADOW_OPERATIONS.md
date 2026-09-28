@@ -18,15 +18,15 @@ The operational loop is:
 
 ## Cadence
 
-The GitHub Actions workflow runs every 30 minutes during a UTC window wide enough to cover the US cash session through both EDT and EST. The Python scheduler uses `America/New_York` and applies the actual gates.
+The GitHub Actions workflow has a 30-minute cron fallback and is also triggered after each successful `Update Investment Room Quotes` run. This avoids forecast starvation when GitHub cron is delayed. The Python scheduler uses `America/New_York` and applies the actual market gates.
 
 - Evidence refresh: every 30 minutes while a current US session is available.
 - World State: one snapshot per market hour.
-- BRACE + BRACE-SPX frozen forecasts: 10:00, 13:00, 16:00 New York time, Monday-Friday.
+- BRACE + BRACE-SPX frozen forecasts: market phases beginning at 10:00, 13:00 and 16:00 New York time, Monday-Friday. If GitHub starts a run late, the forecast may be frozen later inside the same phase, but its timestamp is always the actual run time.
 - WES frozen forecast: Friday 16:00 New York time.
 - Verification: every workflow run scans all matured unresolved forecasts.
 
-A forecast slot has a 45-minute grace period. If infrastructure misses the entire window, the system records the gap and does **not** reconstruct the forecast later from data that was not known at forecast time.
+Forecast slots use bounded market phases rather than a narrow 45-minute grace period: 10:00–13:00, 13:00–16:00 and 16:00–16:20 New York time. If infrastructure misses an entire phase, the system does **not** reconstruct that forecast later from data that was not known at forecast time.
 
 ## Initial evidence families
 
