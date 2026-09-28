@@ -17,6 +17,7 @@ if str(SCRIPT_DIR) not in sys.path:
 
 from belief_adapter_contract import stable_id, strength_from_return
 from belief_core import BeliefCore, BeliefDefinition, iso_z, parse_time
+from belief_closed_loop import transform_probability
 from belief_liquidity_adapter import LiquidityEvidenceAdapter
 from belief_market_data_adapter import Bar, MarketDataAdapter, MarketSnapshot, YahooChartClient
 from belief_regime_adapter import RegimeCrossAssetAdapter
@@ -50,6 +51,24 @@ FORECAST_SLOTS = (time(10, 0), time(13, 0), time(16, 0))
 SLOT_GRACE_MINUTES = 45
 RESEARCH_HORIZONS_HOURS = (3, 12, 24, 72, 120)
 PRIMARY_RESEARCH_HORIZON_HOURS = 24
+PRODUCTION_POLICY_PATH = SCRIPT_DIR.parent / "data" / "investments" / "belief_core_production_overrides.json"
+
+
+def load_production_policy() -> Dict[str, Any]:
+    try:
+        payload = json.loads(PRODUCTION_POLICY_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {"overrides": {}}
+    return payload if isinstance(payload, dict) else {"overrides": {}}
+
+
+def production_probability(belief_id: str, raw_probability: float) -> Tuple[float, Optional[Dict[str, Any]]]:
+    policy = load_production_policy()
+    row = (policy.get("overrides") or {}).get(belief_id)
+    if not isinstance(row, dict) or not row.get("active"):
+        return float(raw_probability), None
+    transform = row.get("transform") or {}
+    return transform_probability(float(raw_probability), transform), row
 
 SPX_BELIEFS: Tuple[BeliefDefinition, ...] = (
     BeliefDefinition(
@@ -397,6 +416,8 @@ def freeze_set(core: BeliefCore, snapshot: MarketSnapshot, when: datetime, targe
             continue
         if not all(symbol in snapshot.bars for symbol in required_symbols(spec)):
             continue
+        raw_probability = float(core.beliefs[belief_id].probability)
+        production_p, overlay = production_probability(belief_id, raw_probability)
         metadata = {
             "consumer": consumer,
             "slot_key": slot_key,
@@ -409,8 +430,14 @@ def freeze_set(core: BeliefCore, snapshot: MarketSnapshot, when: datetime, targe
             "policy_output_enabled": False,
             **forecast_contract_metadata(snapshot, market_symbol, spec, when, target, (target - when).total_seconds() / 3600.0),
         }
-        core.capture_forecast(belief_id, as_of=when, target_at=target, regime=regime,
-                              forecast_id=forecast_id, metadata=metadata)
+        if overlay:
+            metadata["production_overlay_version"] = overlay.get("version")
+            metadata["production_overlay_scope"] = "probability_calibration_only"
+        core.capture_forecast(
+            belief_id, as_of=when, target_at=target, regime=regime,
+            forecast_id=forecast_id, metadata=metadata,
+            predicted_probability_override=production_p if overlay else None,
+        )
         count += 1
     return count
 
@@ -435,6 +462,8 @@ def freeze_multihorizon_set(core: BeliefCore, snapshot: MarketSnapshot, when: da
             forecast_id = stable_id("forecast", consumer, slot_key, belief_id, f"{hours}h")
             if forecast_id in core.forecasts:
                 continue
+            raw_probability = float(core.beliefs[belief_id].probability)
+            production_p, overlay = production_probability(belief_id, raw_probability)
             metadata = {
                 "consumer": consumer, "slot_key": slot_key, "market_symbol": market_symbol,
                 "market_observed_at": iso_z(snapshot.observed_at(market_symbol)),
@@ -445,8 +474,14 @@ def freeze_multihorizon_set(core: BeliefCore, snapshot: MarketSnapshot, when: da
                 "multihorizon_contract": "decision-lab-multihorizon-v1",
                 **forecast_contract_metadata(snapshot, market_symbol, spec, when, target, hours),
             }
-            core.capture_forecast(belief_id, as_of=when, target_at=target, regime=regime,
-                                  forecast_id=forecast_id, metadata=metadata)
+            if overlay:
+                metadata["production_overlay_version"] = overlay.get("version")
+                metadata["production_overlay_scope"] = "probability_calibration_only"
+            core.capture_forecast(
+                belief_id, as_of=when, target_at=target, regime=regime,
+                forecast_id=forecast_id, metadata=metadata,
+                predicted_probability_override=production_p if overlay else None,
+            )
             count += 1
     return count
 
