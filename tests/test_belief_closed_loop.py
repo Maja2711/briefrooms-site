@@ -109,6 +109,54 @@ class BeliefClosedLoopTests(unittest.TestCase):
             self.assertTrue(saved["overrides"]["x.test"]["active"])
             self.assertEqual(saved["history"][-1]["event"], "AUTO_PROMOTION")
 
+    def test_global_challenger_starts_from_pooled_v2_history_but_does_not_promote_retroactively(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_dir = root / "state"
+            state_dir.mkdir()
+            start = datetime(2025, 1, 1, tzinfo=timezone.utc)
+            forecasts, verifications = [], []
+            for i in range(120):
+                at = start + timedelta(hours=i)
+                fid = f"g{i}"
+                forecasts.append({
+                    "forecast_id": fid,
+                    "belief_id": "x.test",
+                    "predicted_probability": .90,
+                    "forecast_at": at.isoformat().replace("+00:00","Z"),
+                    "target_at": (at+timedelta(hours=1)).isoformat().replace("+00:00","Z"),
+                    "metadata": {},
+                })
+                verifications.append({
+                    "verification_id": f"gv{i}",
+                    "forecast_id": fid,
+                    "belief_id": "x.test",
+                    "predicted_probability": .90,
+                    "outcome": bool(i % 2),
+                    "forecast_at": at.isoformat().replace("+00:00","Z"),
+                    "target_at": (at+timedelta(hours=1)).isoformat().replace("+00:00","Z"),
+                    "verified_at": (at+timedelta(hours=1)).isoformat().replace("+00:00","Z"),
+                    "calibration_eligible": True,
+                })
+            (state_dir/"state.json").write_text(json.dumps({
+                "definitions":[{"belief_id":"x.test","claim":"test","tags":[]}],
+                "forecasts":forecasts,
+                "verifications":verifications,
+            }))
+            report = root/"report.json"
+            report.write_text(json.dumps({"belief_calibration":{"hypothesis_intelligence":{}}}))
+            policy = root/"policy.json"
+            policy.write_text(json.dumps({
+                "schema_version":"belief-core-production-overrides-v1",
+                "updated_at":None,"authority":{},"overrides":{},"history":[],
+            }))
+            output = root/"loop.json"
+            payload = run(state_dir, report, policy, output)
+            self.assertIn("__GLOBAL__", payload["challengers"])
+            self.assertEqual(payload["challengers"]["__GLOBAL__"]["status"], "prospective_shadow")
+            self.assertEqual(payload["challengers"]["__GLOBAL__"]["prospective"]["n"], 0)
+            self.assertEqual(payload["active_production_overrides"], [])
+
     def test_forecast_keeps_raw_control_when_overlay_is_applied(self):
         with tempfile.TemporaryDirectory() as tmp:
             core = BeliefCore(tmp)
