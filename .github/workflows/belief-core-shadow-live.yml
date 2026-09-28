@@ -17,9 +17,13 @@ on:
       - "tests/test_belief_core_geopolitical_live.py"
       - "docs/BELIEF_GSE_GEOPOLITICAL_ADAPTER.md"
   schedule:
-    # Covers 09:30-16:20 America/New_York across EDT and EST.
-    # The Python scheduler decides whether a run is inside the market window.
+    # Fallback scheduler. GitHub cron can be delayed, so the workflow is also
+    # triggered by the successful quote-refresh workflow below.
     - cron: "7,37 13-22 * * 1-5"
+  workflow_run:
+    workflows:
+      - "Update Investment Room Quotes"
+    types: [completed]
 
 permissions:
   contents: read
@@ -35,6 +39,7 @@ env:
 
 jobs:
   collect:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
