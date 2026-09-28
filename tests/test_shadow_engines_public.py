@@ -27,7 +27,10 @@ class ShadowEnginesPublicTests(unittest.TestCase):
             self.assertTrue(payload["read_only"])
             self.assertFalse(payload["production_authority"])
             self.assertTrue(payload["coverage"]["complete"])
-            self.assertEqual({x["status"] for x in payload["engines"]},{"NO DATA"})
+            states={x["status"] for x in payload["engines"]}
+            self.assertTrue(states <= {"RUNNING","NO DATA"})
+            self.assertIn("RUNNING", states)
+            self.assertIn("NO DATA", states)
 
     def test_failure_is_error_even_without_observations(self):
         with tempfile.TemporaryDirectory() as tmp:
