@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 from datetime import datetime, time, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -21,6 +22,7 @@ from belief_core_live import (  # noqa: E402
     evaluate_spec,
     floor_half_hour,
     next_weekday_close,
+    production_probability,
     run_cycle,
     strength_from_return,
     weekly_target,
@@ -72,6 +74,24 @@ class BeliefCoreLiveTest(unittest.TestCase):
         self.assertTrue(due_planned_slot(datetime(2026,8,18,16,19,tzinfo=NY),close,False))
         self.assertTrue(due_planned_slot(datetime(2026,8,18,16,20,tzinfo=NY),close,False))
         self.assertFalse(due_planned_slot(datetime(2026,8,18,16,21,tzinfo=NY),close,False))
+
+    def test_global_production_overlay_is_applied_without_touching_raw_control(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            policy_path=Path(tmp)/"policy.json"
+            policy_path.write_text(json.dumps({
+                "overrides":{
+                    "__GLOBAL__":{
+                        "active":True,
+                        "belief_id":"__GLOBAL__",
+                        "version":"global-test",
+                        "transform":{"type":"logit_affine_v1","intercept":0.0,"slope":0.0},
+                    }
+                }
+            }))
+            with patch("belief_core_live.PRODUCTION_POLICY_PATH", policy_path):
+                p, overlay=production_probability("spx.trend.bullish", .80)
+            self.assertAlmostEqual(p,.50)
+            self.assertEqual(overlay["version"],"global-test")
 
     def test_next_weekday_close_skips_weekend(self) -> None:
         target=next_weekday_close(datetime(2026,8,21,16,7,tzinfo=NY))
