@@ -24,7 +24,7 @@ on:
 
 permissions:
   contents: read
-  actions: read
+  actions: write
   statuses: write
 
 concurrency:
@@ -246,11 +246,52 @@ jobs:
             echo "state_changed=false" >> "$GITHUB_OUTPUT"
             echo "resolved_delta=window_closed" >> "$GITHUB_OUTPUT"
             echo "trade_path_changed=false" >> "$GITHUB_OUTPUT"
+            echo "new_capture=false" >> "$GITHUB_OUTPUT"
           elif [ "$ABC_RUN_MODE" = "capture" ]; then
+            before_count=$(python - <<'PY'
+          import json, os
+          from pathlib import Path
+          path=Path(os.environ['ABC_STATE_DIR'])/'EURUSD_DAILY_ABC_STATE.json'
+          if not path.is_file():
+              print(0)
+          else:
+              payload=json.loads(path.read_text())
+              print(len(payload.get('captures') or []))
+          PY
+            )
             python scripts/daily_eurusd_experiment_v13.py \
               --state-dir "$ABC_STATE_DIR" \
               --belief-state "$BELIEF_STATE_DIR/state.json"
+            AFTER_COUNT_BEFORE="$before_count" python - <<'PY'
+          import json, os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          path=Path(os.environ['ABC_STATE_DIR'])/'EURUSD_DAILY_ABC_STATE.json'
+          payload=json.loads(path.read_text())
+          captures=payload.get('captures') or []
+          before=int(os.environ['AFTER_COUNT_BEFORE'])
+          after=len(captures)
+          if after <= before:
+              raise SystemExit(f"A/B/C capture liveness failure: count did not increase ({before} -> {after})")
+          latest=captures[-1]
+          observed=str(latest.get('market_observed_at') or '')
+          generated=str(latest.get('signal_generated_at') or '')
+          def parse(value):
+              return datetime.fromisoformat(value.replace('Z','+00:00')).astimezone(timezone.utc)
+          now=datetime.now(timezone.utc)
+          obs=parse(observed)
+          gen=parse(generated)
+          obs_age=(now-obs).total_seconds()/60.0
+          gen_age=(now-gen).total_seconds()/60.0
+          if obs_age < -3 or obs_age > 15:
+              raise SystemExit(f"A/B/C stale market capture: observed_at={observed} age_min={obs_age:.1f}")
+          if gen_age < -3 or gen_age > 15:
+              raise SystemExit(f"A/B/C stale signal capture: generated_at={generated} age_min={gen_age:.1f}")
+          print(f"A/B/C_FRESH_CAPTURE_OK count={after} observed_age_min={obs_age:.1f} signal_age_min={gen_age:.1f}")
+          PY
             echo "state_changed=true" >> "$GITHUB_OUTPUT"
+            echo "new_capture=true" >> "$GITHUB_OUTPUT"
             echo "resolved_delta=capture_cycle" >> "$GITHUB_OUTPUT"
             echo "trade_path_changed=new_capture" >> "$GITHUB_OUTPUT"
           else
@@ -265,6 +306,7 @@ jobs:
             trade=$(printf '%s\n' "$output" | sed -n 's/^ABC_TRADE_PATH_CHANGED=//p' | tail -1)
             echo "resolved_delta=${delta:-0}" >> "$GITHUB_OUTPUT"
             echo "trade_path_changed=${trade:-false}" >> "$GITHUB_OUTPUT"
+            echo "new_capture=false" >> "$GITHUB_OUTPUT"
           fi
           python scripts/daily_eurusd_experiment_v13.py \
             --state-dir "$ABC_STATE_DIR" \
@@ -325,6 +367,38 @@ jobs:
           if-no-files-found: error
           retention-days: 90
           compression-level: 0
+
+      - name: Ensure EURUSD X remains live after a fresh A/B/C capture
+        if: steps.cycle.outputs.new_capture == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          stale=$(python - <<'PY'
+          import json
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          path=Path('data/investments/eurusd_x_public_pl.json')
+          if not path.is_file():
+              print('true')
+              raise SystemExit(0)
+          payload=json.loads(path.read_text())
+          stamp=payload.get('generated_at')
+          if not stamp:
+              print('true')
+              raise SystemExit(0)
+          generated=datetime.fromisoformat(str(stamp).replace('Z','+00:00')).astimezone(timezone.utc)
+          age=(datetime.now(timezone.utc)-generated).total_seconds()/60.0
+          print('true' if age > 75 else 'false')
+          PY
+          )
+          if [ "$stale" = "true" ]; then
+            echo "EURUSD X is stale (>75m); dispatching recovery run."
+            gh workflow run daily-eurusd-x-shadow.yml --ref main
+          else
+            echo "EURUSD X heartbeat is fresh; no recovery dispatch needed."
+          fi
 
       - name: Publish A/B/C live-shadow collection status
         if: always()
