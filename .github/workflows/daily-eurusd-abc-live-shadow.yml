@@ -276,19 +276,21 @@ jobs:
               raise SystemExit(f"A/B/C capture liveness failure: count did not increase ({before} -> {after})")
           latest=captures[-1]
           observed=str(latest.get('market_observed_at') or '')
-          generated=str(latest.get('signal_generated_at') or '')
+          captured=str(latest.get('captured_at') or '')
           def parse(value):
+              if not value:
+                  raise SystemExit("A/B/C capture liveness failure: missing timestamp")
               return datetime.fromisoformat(value.replace('Z','+00:00')).astimezone(timezone.utc)
           now=datetime.now(timezone.utc)
           obs=parse(observed)
-          gen=parse(generated)
+          cap=parse(captured)
           obs_age=(now-obs).total_seconds()/60.0
-          gen_age=(now-gen).total_seconds()/60.0
+          cap_age=(now-cap).total_seconds()/60.0
           if obs_age < -3 or obs_age > 15:
               raise SystemExit(f"A/B/C stale market capture: observed_at={observed} age_min={obs_age:.1f}")
-          if gen_age < -3 or gen_age > 15:
-              raise SystemExit(f"A/B/C stale signal capture: generated_at={generated} age_min={gen_age:.1f}")
-          print(f"A/B/C_FRESH_CAPTURE_OK count={after} observed_age_min={obs_age:.1f} signal_age_min={gen_age:.1f}")
+          if cap_age < -3 or cap_age > 15:
+              raise SystemExit(f"A/B/C stale capture timestamp: captured_at={captured} age_min={cap_age:.1f}")
+          print(f"A/B/C_FRESH_CAPTURE_OK count={after} observed_age_min={obs_age:.1f} capture_age_min={cap_age:.1f}")
           PY
             echo "state_changed=true" >> "$GITHUB_OUTPUT"
             echo "new_capture=true" >> "$GITHUB_OUTPUT"
