@@ -214,9 +214,12 @@ function showHorizonPath(row){
     ? '<div class="horizon-grid">'+path.horizons.map(h=>'<div><b>'+esc(h.horizon_label)+'</b><span>'+esc(h.status==='RESOLVED'?(h.outcome?'TAK':'NIE'):'oczekuje')+'</span><small>Brier '+num(h.brier_score,3)+'</small></div>').join('')+'</div>'+horizonAggregateHtml()
     : '<p class="muted">Ścieżka 3H / 12H / 24H / 3D / 5D dotyczy nowych forecastów utworzonych po uruchomieniu badania. Ten starszy rekord nie jest przepisywany wstecznie.</p>';
   const fmtValues=v=>v&&typeof v==='object'?Object.entries(v).map(([k,val])=>esc(k)+'='+num(val,5)).join(' · '):'—';
+  const legacyT0=contractValue(row.t0_values);
   const contract=row.forecast_contract_version
     ? '<div class="forecast-contract"><b>Frozen Forecast Contract</b><span>Model: '+esc(row.model_freeze_version||"—")+'</span><span>T0: '+esc(forecastTime(row.t0_at||row.forecast_at))+' · '+fmtValues(row.t0_values)+'</span><span>Horyzont: '+esc(row.horizon_label||"—")+' · Target nominalny: '+esc(target(row.nominal_target_at||row.target_at))+'</span><span>Settlement: '+esc(row.settlement_rule||"—")+' · kalendarz '+esc(row.market_calendar||"—")+'</span><span>T1: '+esc(forecastTime(row.settled_at))+' · '+fmtValues(row.t1_values)+'</span><small>SHADOW ONLY · brak automatycznej promocji i brak prawa zapisu do produkcji</small></div>'
-    : '<div class="forecast-contract legacy"><b>Legacy forecast</b><span>Rekord sprzed Forecast Contract v2 — nie uzupełniamy T0/T1 wstecznie.</span></div>';
+    : legacyT0
+      ? '<div class="forecast-contract legacy"><b>Legacy forecast · zamrożone T0</b><span>T0: '+esc(forecastTime(row.t0_at||row.forecast_at))+' · '+fmtValues(row.t0_values)+'</span><span>Źródło T0: frozen outcome_spec.reference zapisane przed Targetem — bez rekonstrukcji po fakcie.</span><span>T1: '+esc(forecastTime(row.settled_at))+' · '+fmtValues(row.t1_values)+'</span></div>'
+      : '<div class="forecast-contract legacy"><b>Legacy forecast</b><span>Brak zachowanej wartości T0; nie rekonstruujemy jej po fakcie.</span></div>';
   box.innerHTML='<div class="horizon-title"><b>Analiza forecastu · '+esc(instrument(row))+'</b><span>P zamrożone: '+pct(row.probability)+' · '+esc(forecastTime(row.forecast_at))+'</span></div>'+hypothesisBlock+contract+pathBlock;
   box.scrollIntoView({behavior:"smooth",block:"nearest"});
 }
