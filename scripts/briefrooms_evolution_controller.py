@@ -353,12 +353,24 @@ def _ingest_belief_calibration(
     audit: Path,
 ) -> None:
     rows = _belief_rows(belief_state)
+    challengers = closed_loop.get("challengers") if isinstance(closed_loop.get("challengers"), Mapping) else {}
+    scan_status = {}
+    for scope, raw in challengers.items():
+        if not isinstance(raw, Mapping):
+            continue
+        scan_status[str(scope)] = {
+            "status": raw.get("status"),
+            "last_discovery_n": raw.get("last_discovery_n"),
+            "rediscovery_after_n": raw.get("rediscovery_after_n"),
+            "prospective_n": (raw.get("prospective") or {}).get("n") if isinstance(raw.get("prospective"), Mapping) else None,
+            "trigger_reasons": list(raw.get("trigger_reasons") or []),
+        }
     state["source_status"]["belief_calibration"] = {
         "available": True,
         "resolved_rows": len(rows),
         "source_generated_at": closed_loop.get("generated_at"),
+        "scan_status": scan_status,
     }
-    challengers = closed_loop.get("challengers") if isinstance(closed_loop.get("challengers"), Mapping) else {}
     for scope, raw in sorted(challengers.items()):
         if not isinstance(raw, Mapping) or not isinstance(raw.get("transform"), Mapping):
             continue
