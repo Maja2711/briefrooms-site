@@ -2,6 +2,10 @@ name: Stock Trading v2 Closed Learning Loop
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/stock-trading-v2-learning-loop.yml"
   schedule:
     # After both GPW and US regular sessions on weekdays. The loop is daily;
     # discovery itself runs continuously during sessions.
