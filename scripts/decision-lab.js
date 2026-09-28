@@ -289,6 +289,66 @@ function v3Candidates(payload){
     '<p class="muted">n = rozliczone forecasty. Gate: n≥'+esc(gov.minimum_sample_for_review||50)+' → kalibracja → incremental information → ręczna decyzja. Automatic promotion: OFF.</p>';
 }
 
+function closedLoopStatus(loop){
+  const root=document.getElementById("closed-loop-status"); if(!root)return;
+  const badge=document.getElementById("closed-loop-badge");
+  const data=loop||{}, gates=data.gates||{}, control=data.global_control_metrics||{};
+  const challengers=Object.entries(data.challengers||{}).map(([id,row])=>({id,...(row||{})}));
+  const active=Array.isArray(data.active_production_overrides)?data.active_production_overrides:[];
+  const prospective=challengers.filter(x=>x.status==="prospective_shadow");
+  const promoted=challengers.filter(x=>x.status==="promoted");
+  const rolled=challengers.filter(x=>x.status==="rolled_back");
+  const invalid=challengers.filter(x=>x.status==="no_valid_challenger");
+
+  let headline="MONITORING", tone="neutral";
+  if(active.length){headline="NOWA KALIBRACJA W PRODUKCJI";tone="good";}
+  else if(prospective.length){headline="NOWA KALIBRACJA · TEST OOS";tone="test";}
+  else if(invalid.length){headline="BRAK LEPSZEJ KALIBRACJI";tone="neutral";}
+  else if(rolled.length){headline="ROLLBACK";tone="warn";}
+  if(badge){badge.textContent=headline;badge.className="status shadow loop-"+tone;}
+
+  const cards=[
+    ["Historia v2",control.n==null?"—":control.n+" rozliczeń"],
+    ["Control Brier",num(control.brier,3)],
+    ["Control ECE",control.ece==null?"—":pct(control.ece)],
+    ["Aktywne kalibracje",active.length]
+  ];
+
+  const statusLabel=x=>({
+    prospective_shadow:"TEST OOS",
+    promoted:"PROMOWANA",
+    rolled_back:"ROLLBACK",
+    no_valid_challenger:"BRAK POPRAWY"
+  }[x.status]||String(x.status||"—").replaceAll("_"," ").toUpperCase());
+
+  const detail=x=>{
+    if(x.status==="prospective_shadow"){
+      const n=x.prospective?.n??0, need=gates.minimum_prospective_n??50;
+      const imp=x.prospective?.brier_relative_improvement;
+      return '<span>Prospective: <b>'+esc(n)+' / '+esc(need)+'</b></span><span>Brier improvement: <b>'+(imp==null?"—":pct(imp))+'</b></span><span>Challenger zamrożony: '+esc(forecastTime(x.frozen_at))+'</span>';
+    }
+    if(x.status==="promoted"){
+      return '<span>Wersja: <b>'+esc(x.production_version||"—")+'</b></span><span>Promocja: '+esc(forecastTime(x.promoted_at))+'</span><span>Raw Control nadal mierzony równolegle.</span>';
+    }
+    if(x.status==="rolled_back"){
+      return '<span>Cofnięto: '+esc(forecastTime(x.rolled_back_at))+'</span><span>Powód: pogorszenie po promocji.</span>';
+    }
+    if(x.status==="no_valid_challenger"){
+      return '<span>Discovery n: <b>'+esc(x.last_discovery_n??"—")+'</b></span><span>Kolejna próba od n: <b>'+esc(x.rediscovery_after_n??"—")+'</b></span><span>Ostatni search nie znalazł challengera spełniającego frozen validation.</span>';
+    }
+    return '<span>Brak aktywnej zmiany modelu.</span>';
+  };
+
+  const rows=challengers.length
+    ? challengers.map(x=>'<div class="loop-row"><div><b>'+esc(x.id==="__GLOBAL__"?"GLOBAL calibration":x.id)+'</b><small>'+esc((x.trigger_reasons||[]).join(" · ")||"closed-loop monitor")+'</small></div><span class="loop-state '+esc(x.status||"")+'">'+esc(statusLabel(x))+'</span><div class="loop-detail">'+detail(x)+'</div></div>').join("")
+    : '<div class="loop-empty"><b>Brak aktywnego challengera.</b><span>Closed loop monitoruje historię i utworzy challengera po spełnieniu bramek discovery.</span></div>';
+
+  root.innerHTML=
+    '<div class="closed-loop-grid">'+cards.map(([k,v])=>'<div class="loop-card"><small>'+esc(k)+'</small><b>'+esc(v)+'</b></div>').join("")+'</div>'+
+    '<div class="loop-governance"><b>Promotion gate</b><span>OOS n≥'+esc(gates.minimum_prospective_n??50)+'</span><span>Brier ≥ '+pct(gates.promotion_brier_relative_improvement??.05)+' lepszy</span><span>stabilność '+esc(gates.stability_blocks_required||"3_of_4")+'</span><span>auto-rollback: ON</span></div>'+
+    '<div class="loop-list">'+rows+'</div>'+
+    '<p class="muted loop-foot">Nowa kalibracja może zmienić wyłącznie wersjonowane P modelu po przejściu bramek prospective/OOS. Evidence, źródła i execution nie są przez ten loop zmieniane.</p>';
+}
 function patternMetrics(meta){
   const root=document.getElementById("pattern-metrics");if(!root)return;
   const s=meta?.sample||{};
@@ -367,6 +427,7 @@ async function load(){
     metric("metrics",d.metrics||{});
     calibrationResults(d.calibration_analytics||{});
     v3Candidates(d.belief_core_v3_candidates||{});
+    closedLoopStatus(d.closed_loop||{});
     patterns(d.evidence_patterns||[],d.evidence_pattern_meta||{});
   }catch(_){
     forecasts([]);
@@ -374,6 +435,7 @@ async function load(){
     metric("metrics",{});
     calibrationResults({});
     v3Candidates({});
+    closedLoopStatus({});
     patterns([],{});
   }
 }
