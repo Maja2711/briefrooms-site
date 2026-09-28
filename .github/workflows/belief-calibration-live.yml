@@ -17,6 +17,9 @@ on:
       - "scripts/belief_calibration.py"
       - "scripts/decision_lab_public_projection.py"
       - "scripts/decision_lab_learning.py"
+      - "scripts/belief_closed_loop.py"
+      - "data/investments/belief_core_production_overrides.json"
+      - "tests/test_belief_closed_loop.py"
       - "scripts/decision-lab.js"
       - "assets/decision-lab.css"
       - "pl/inwestycje/decision-lab.html"
@@ -124,10 +127,12 @@ jobs:
             scripts/belief_data_quality_adapter.py \
             scripts/belief_calibration_foundation.py \
             scripts/decision_lab_public_projection.py \
-            scripts/decision_lab_learning.py
+            scripts/decision_lab_learning.py \
+            scripts/belief_closed_loop.py
           python -m unittest \
             tests.test_belief_core_calibration_foundation \
-            tests.test_decision_lab_public_projection -v
+            tests.test_decision_lab_public_projection \
+            tests.test_belief_closed_loop -v
 
       - name: Build canonical BELIEF_CALIBRATION_REPORT
         env:
@@ -152,6 +157,25 @@ jobs:
           assert p['automatic_tuning'] is False
           assert p['production_write_authority'] is False
           print('Decision LAB learning memory: PASS; actions=', p['action_count'])
+          PY
+
+      - name: Run governed Belief closed loop
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts
+        run: |
+          python scripts/belief_closed_loop.py \
+            --state-dir "$STATE_DIR" \
+            --report "$STATE_DIR/BELIEF_CALIBRATION_REPORT.json" \
+            --policy data/investments/belief_core_production_overrides.json \
+            --output "$STATE_DIR/BELIEF_CLOSED_LOOP.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=json.loads((Path(os.environ['STATE_DIR'])/'BELIEF_CLOSED_LOOP.json').read_text())
+          assert p['authority']['trade_execution_authority'] is False
+          assert p['authority']['automatic_model_overlay_promotion'] is True
+          assert p['authority']['automatic_rollback'] is True
+          print('Belief closed loop: PASS; active overrides=', len(p['active_production_overrides']))
           PY
 
       - name: Assert shadow-only safety and report contract
@@ -197,14 +221,14 @@ jobs:
       - name: Publish Decision LAB projection
         run: |
           set -euo pipefail
-          if git diff --quiet -- data/investments/decision_lab_public.json; then
-            echo "Decision LAB projection unchanged."
+          if git diff --quiet -- data/investments/decision_lab_public.json data/investments/belief_core_production_overrides.json; then
+            echo "Decision LAB projection and production overlay policy unchanged."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/decision_lab_public.json
-          git commit -m "data(decision-lab): publish Belief Core shadow projection"
+          git add data/investments/decision_lab_public.json data/investments/belief_core_production_overrides.json
+          git commit -m "data(decision-lab): publish learning loop state"
           git pull --rebase origin main
           git push origin HEAD:main
 
