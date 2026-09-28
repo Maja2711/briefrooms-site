@@ -90,9 +90,9 @@ SPECS = [
     },
     {
         "id": "hypothesis-shadow",
-        "name": "Hypothesis Shadow Experiments",
-        "workflows": ["hypothesis-shadow-experiments.yml"],
-        "source": "data/investments/lesson_hypothesis_registry_v1.json",
+        "name": "Hypothesis Shadow Engine 2.0",
+        "workflows": ["hypothesis-shadow-engine-v2.yml"],
+        "source": "data/investments/hypothesis_shadow_engine_v2_public.json",
         "domain": "/pl/inwestycje/decision-lab.html",
         "domain_label": "BriefRooms LAB",
         "max_idle_hours": 48,
@@ -117,6 +117,7 @@ IGNORED_SHADOW_WORKFLOWS = {
     "stock-trading-v2-shadow-ingest.yml",
     "shadow-alpha-experience-store.yml",
     "shadow-engines-observatory.yml",
+    "hypothesis-shadow-experiments.yml",
 }
 
 
@@ -249,15 +250,16 @@ def metadata(engine_id: str, data: Mapping[str, Any]) -> dict[str, Any]:
             "data_at": data.get("generated_at") or data.get("updated_at"),
         }
     if engine_id == "hypothesis-shadow":
-        hypotheses = data.get("hypotheses") if isinstance(data.get("hypotheses"), list) else []
-        ready = [x for x in hypotheses if isinstance(x, Mapping) and x.get("status") == "READY_FOR_SHADOW"]
-        target = sum(int(((x.get("experiment_spec") or {}).get("validation_target_n") or 0)) for x in ready)
+        summary = data.get("summary") if isinstance(data.get("summary"), Mapping) else {}
+        running = int(summary.get("running_shadow") or 0)
+        total = int(summary.get("experiments_total") or 0)
+        lessons = int(summary.get("lessons_total") or 0)
         return {
-            "observations": 0,
-            "observation_label": f"formal evidence · target {target}",
-            "champion": "current thresholds",
-            "challenger": f"{len(ready)} hipotezy" if ready else None,
-            "data_at": None,
+            "observations": summary.get("prospective_evidence_n"),
+            "observation_label": "forward evidence",
+            "champion": "6-source HSE2",
+            "challenger": f"{running} aktywne / {total} eksperymentów · {lessons} lessons",
+            "data_at": data.get("generated_at"),
         }
     if engine_id == "deepbook":
         snapshots = data.get("snapshots") if isinstance(data.get("snapshots"), list) else []
