@@ -177,7 +177,10 @@ class DecisionLabProjectionTests(unittest.TestCase):
         self.assertFalse(row["production_write_authority"])
         self.assertFalse(row["automatic_promotion"])
         self.assertFalse(payload["automatic_promotion"])
-        self.assertEqual(payload["promotion_policy"], "candidate_only_manual_production_decision")
+        self.assertEqual(payload["promotion_policy"], "v3_candidates_manual; probability_recalibration_closed_loop_governed")
+        self.assertTrue(payload["closed_loop"]["authority"]["automatic_model_overlay_promotion"])
+        self.assertTrue(payload["closed_loop"]["authority"]["automatic_rollback"])
+        self.assertFalse(payload["closed_loop"]["authority"]["trade_execution_authority"])
 
 if __name__ == "__main__":
     unittest.main()
