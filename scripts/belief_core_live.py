@@ -64,7 +64,10 @@ def load_production_policy() -> Dict[str, Any]:
 
 def production_probability(belief_id: str, raw_probability: float) -> Tuple[float, Optional[Dict[str, Any]]]:
     policy = load_production_policy()
-    row = (policy.get("overrides") or {}).get(belief_id)
+    overrides = policy.get("overrides") or {}
+    row = overrides.get(belief_id)
+    if not isinstance(row, dict) or not row.get("active"):
+        row = overrides.get("__GLOBAL__")
     if not isinstance(row, dict) or not row.get("active"):
         return float(raw_probability), None
     transform = row.get("transform") or {}
