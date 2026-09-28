@@ -115,6 +115,8 @@ IGNORED_SHADOW_WORKFLOWS = {
     "brace-entity-belief-shadow-bridge.yml",
     "brace-entity-belief-shadow-bridge-validation.yml",
     "stock-trading-v2-shadow-ingest.yml",
+    "shadow-alpha-experience-store.yml",
+    "shadow-engines-observatory.yml",
 }
 
 
