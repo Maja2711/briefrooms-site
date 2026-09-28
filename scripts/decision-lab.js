@@ -405,15 +405,23 @@ function patterns(items,meta){
 
 async function load(){
   try{
-    const r=await fetch("/data/investments/decision_lab_public.json?v="+Date.now(),{cache:"no-store"});
+    const stamp=Date.now();
+    const [r,evolutionResponse]=await Promise.all([
+      fetch("/data/investments/decision_lab_public.json?v="+stamp,{cache:"no-store"}),
+      fetch("/data/investments/evolution_controller_public.json?v="+stamp,{cache:"no-store"}).catch(()=>null)
+    ]);
     if(!r.ok)throw 0;
     const d=await r.json();
+    let evolution={};
+    if(evolutionResponse&&evolutionResponse.ok){
+      try{evolution=await evolutionResponse.json();}catch(_){}
+    }
     MULTI_PATHS=d.multihorizon_paths||[]; HORIZON_AGG=d.horizon_aggregate||[]; HYPOTHESIS_BRIER=d.hypothesis_brier||{}; const forecastRows=d.forecasts||[]; const view=(Array.isArray(d.market_view)&&d.market_view.length)?d.market_view:deriveMarketView(forecastRows); marketView(view); forecasts(forecastRows);
     metric("metrics-summary",d.metrics||{});
     metric("metrics",d.metrics||{});
     calibrationResults(d.calibration_analytics||{});
     v3Candidates(d.belief_core_v3_candidates||{});
-    closedLoopStatus((d.evolution_controller&&d.evolution_controller.schema_version)?d.evolution_controller:(d.closed_loop||{}));
+    closedLoopStatus((evolution&&evolution.schema_version)?evolution:((d.evolution_controller&&d.evolution_controller.schema_version)?d.evolution_controller:(d.closed_loop||{})));
     patterns(d.evidence_patterns||[],d.evidence_pattern_meta||{});
   }catch(_){
     forecasts([]);
