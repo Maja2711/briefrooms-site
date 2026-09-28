@@ -20,12 +20,12 @@ LAB_SCRIPT_RE = re.compile(r'<script\s+src=["\']/scripts/home-lab\.js[^"\']*["\'
 COPY = {
     "pl": {
         "title": "BriefRooms Lab — modele, testy i wyniki",
-        "desc": "Badania, uczenie i rozwój silników BriefRooms — wyniki, postęp i status przeglądów.",
+        "desc": "Żywy podgląd prognoz, pozycji, najnowszych analiz i strategicznego House View BriefRooms.",
         "loading": "Ładowanie wyników badań…",
     },
     "en": {
         "title": "BriefRooms Lab — models, tests and results",
-        "desc": "Research, learning and engine development at BriefRooms — results, progress and review status.",
+        "desc": "A live view of BriefRooms forecasts, positions, latest room analysis and strategic House View.",
         "loading": "Loading research results…",
     },
 }
@@ -37,12 +37,13 @@ def lab_section(lang: str) -> str:
         '<!-- BR_HOME_LAB_START -->\n'
         '<section class="home-lab" aria-labelledby="home-lab-title">'
         '<div class="home-lab__head">'
-        '<span class="home-lab__eyebrow">Research status</span>'
+        '<span class="home-lab__eyebrow">Live intelligence</span>'
         f'<h2 id="home-lab-title">{c["title"]}</h2>'
         f'<p>{c["desc"]}</p>'
         '</div>'
         '<div id="home-lab-root" aria-live="polite">'
         '<div class="home-lab__cards" aria-hidden="true">'
+        '<div class="home-lab__skeleton"></div>'
         '<div class="home-lab__skeleton"></div>'
         '<div class="home-lab__skeleton"></div>'
         '<div class="home-lab__skeleton"></div>'
