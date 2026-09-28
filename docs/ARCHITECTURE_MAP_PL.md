@@ -1,8 +1,8 @@
 # Kanoniczna mapa architektury BriefRooms — PL
 
-**Wersja mapy:** 1.10  
+**Wersja mapy:** 1.11  
 **Stan na:** 2026-09-28  
-**Bazowy commit `main`:** `9848e9deaebac84d01cf7f94104070250c3e5004`  
+**Bazowy commit `main`:** `bae6dae03b7dcd4b594942c4989bba23418a44bf`  
 **Repozytorium:** `Maja2711/briefrooms-site`
 
 ## 0. Rola tego dokumentu
@@ -241,7 +241,7 @@ Po udanym aktywnym cyklu `Stock Trading v2 Continuous Discovery` workflow wykonu
 
 ## 7. Shared Learning / Evolution Fabric
 
-**Obecny stan:** istnieje rozproszona, rzeczywiście zaimplementowana warstwa uczenia. Nie istnieje jeszcze jeden monolityczny moduł runtime o nazwie `AXIOM Evolution Kernel`.
+**Obecny stan:** istnieje rozproszona, rzeczywiście zaimplementowana warstwa uczenia oraz wspólny runtime governance/orchestration `BriefRooms Evolution Controller`. Controller nie zastępuje lokalnych pętli ani engine-owned writerów i nie jest monolitycznym modelem `AXIOM Evolution Kernel`.
 
 | ID | Moduł | Odpowiedzialność | Przykładowa implementacja |
 |---|---|---|---|
@@ -255,6 +255,7 @@ Po udanym aktywnym cyklu `Stock Trading v2 Continuous Discovery` workflow wykonu
 | `LE-08` | Engine-specific self-learning | Lokalna pętla dla BRACE, Daily Stock, EURUSD, WES itd. | `brace_portfolio_self_learning.py`, `daily_stock_self_improvement.py`, `daily_eurusd_abc_learning.py`, `gse_v2_learning_loop.py` |
 | `LE-09` | Integrity / anti-hindsight | Zero retroactive live history, timestamp integrity, activation boundaries, workflow airlocks | `no_retroactive_execution.py`, `daily_stock_timestamp_integrity.py`, `promotion_learning_integrity.py`, verification scripts |
 | `LE-10` | Shared Learning Loop v2 Diagnostics | Wspólne read-only primitive: ex-ante decision quality, ex-post outcome quality, near-miss/shadow, calibration/model-ablation/evidence-delta diagnostics | `scripts/learning_loop_v2.py`, `scripts/learning_loop_v2_observer.py`; challenger/observer ma zero production authority i nie przepisuje decyzji ani progów |
+| `LE-11` | BriefRooms Evolution Controller | Kanoniczny lifecycle ponad fabric: `EvolutionCandidate -> PromotionGate -> ProductionVersion -> monitor -> RollbackEvent/retirement`; łączy Belief calibration, v3, Evidence Patterns, Experience Store i trading regret bez przejmowania execution authority | `scripts/briefrooms_evolution_contracts.py`, `scripts/briefrooms_evolution_controller.py`, `.github/workflows/briefrooms-evolution-controller.yml`, `docs/BRIEFROOMS_EVOLUTION_CONTROLLER_PL.md`; bounded write dla Belief overlay/v3 registry, Stock Trading wyłącznie przez main-owned Component Promotion |
 
 ### Kanoniczna pętla ewolucji
 
@@ -274,7 +275,7 @@ Experience
  -> Rollback if invariants fail
 ```
 
-Nie każdy silnik implementuje dziś każdy krok w identyczny sposób. Architecture Map opisuje wspólny wzorzec oraz lokalne implementacje.
+Nie każdy silnik implementuje dziś każdy krok w identyczny sposób. `LE-11` implementuje wspólny lifecycle i routing authority ponad tymi lokalnymi pętlami. Discovery/OOS pozostają w source modules, a produkcyjna materializacja jest wykonywana wyłącznie przez uprawnionego writera danego komponentu.
 
 ## 8. Content / research publication layer
 
@@ -306,6 +307,7 @@ Każda karta wiadomości widoczna publicznie — zarówno w sekcjach `/pl/aktual
 - GSE,
 - Autonomous Policy Observatory/Promotion/Closed Loop,
 - Learning Outcome Loop,
+- BriefRooms Evolution Controller,
 - AI Outlook,
 - AI Tournament,
 - AXIOM Thought,
@@ -346,6 +348,8 @@ Przykłady prywatnego durable state: Learning Outcome Loop oraz GSE/Belief shado
 21. **WES 1.2 Entry Price Plan jest obowiązkowy.** Directional Admission autoryzuje tezę LONG/SHORT, ale nie natychmiastowy fill. Przed każdym nowym wejściem WES zamraża target ceny z wykorzystaniem ceny referencyjnej z chwili decyzji, ATR14, EMA20, ret5/ret20, pozycji w 55-dniowym zakresie oraz stanu po stop-lossie. Executor może wykonać tylko zamrożony price-improving BUY LIMIT / SELL LIMIT po dotknięciu przez świecę 5m. Aktywny target nie może być przesuwany za rynkiem; brak dotknięcia oznacza WAIT/expiry bez transakcji.
 22. **Zmiana scoped do instrumentu nie może mutować innych instrumentów.** Dla `TR-05` push kodu/UI/testu/dokumentacji jest validation-only. Produkcyjny/paper state pozycji może być zmieniany wyłącznie przez harmonogram, jawny manual dispatch lub kontrolowany workflow-run execution path. Zmiana feedu/ceny S&P nie może jako side effect przeliczać BTC ani EUR/USD.
 23. **Stały core EURUSD X jest niezmienny.** W `TR-03` kalibracja X nie może zmieniać MA30/60/100/200, H1/D1/W1/M1, classic daily Pivot ani Bollinger(20, 2.5σ) H1/D1. Champion/Challenger, anomaly discovery i rollback są wyłącznie X-local shadow i nie mają production/A-B-C/Belief writeback.
+24. **Evolution Controller nie przejmuje authority source engine.** `LE-11` może normalizować lifecycle, oceniać prospective/OOS, materializować wyłącznie jawnie bounded Belief overlay/v3 registry i delegować akcje. Nie może wykonywać trade, zmieniać sizingu/risk limitów ani bezpośrednio mutować Stock Trading production.
+25. **Promotion wymaga prospective boundary i segment safety.** Dane discovery sprzed `activation_boundary` nie mogą być formalnym OOS promotion evidence; centralny gate musi również blokować materialną degradację chronionych slice, nawet gdy agregat się poprawia.
 
 ## 11. Authority map — kto czego NIE może robić
 
@@ -377,15 +381,15 @@ Public UI             -> renderuje stan; NIE jest źródłem decyzji
 - **Market Relationship / Trigger:** aktywny US research/shadow runtime w `stock-trading-v2`, prospective 1/3/5/20 learning, bez production authority.
 - **Belief ARIS Research:** aktywny read-only `research_shadow`; reprezentacje + ARIS-PATTERN-1 na frozen forecast/outcome, `ASSOCIATION_ONLY`, bez Belief/causal/decision writeback.
 - **Shared Learning Loop v2:** aktywne read-only diagnostics; zero production authority.
-- **Shared learning fabric:** istnieje i jest aktywnie rozwijany; nie jest jeszcze jednym zunifikowanym Evolution Kernel.
+- **Shared learning fabric:** istnieje i jest aktywnie rozwijany; `LE-11 BriefRooms Evolution Controller` jest wspólnym runtime lifecycle/governance nad fabric. Nie jest jednym modelem decyzyjnym ani `AXIOM Evolution Kernel`.
 
-## 13. Planowana warstwa ponad obecną architekturą
+## 13. Warstwa ponad Evolution Controller
 
-### `FUT-01` — AXIOM Evolution Kernel / Meta-Exploration
+### `FUT-01` — AXIOM Meta-Exploration
 
-Status: **kierunek architektoniczny, nie należy mylić z istniejącym pojedynczym runtime module**.
+Status: **dalszy kierunek architektoniczny ponad wdrożonym `LE-11`; nie jest production authority**.
 
-Celem jest orkiestracja istniejących pętli, a nie ich zastąpienie:
+`LE-11` realizuje już wspólny lifecycle, promotion routing, monitoring, rollback i retirement. `FUT-01` dotyczy przyszłego wyboru, **który** moduł warto eksplorować jako następny na podstawie expected improvement, a nie ponownego budowania lifecycle:
 
 ```text
 Experience Graph / Learning Fabric
