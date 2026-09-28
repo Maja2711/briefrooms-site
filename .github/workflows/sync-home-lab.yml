@@ -7,6 +7,7 @@ on:
     paths:
       - "assets/home-lab.css"
       - "scripts/home-lab.js"
+      - "scripts/home-lab-v5.js"
       - "scripts/sync_home_lab.py"
       - "data/lab/home_lab_status.json"
       - ".github/workflows/sync-home-lab.yml"
@@ -39,7 +40,7 @@ jobs:
           set -euo pipefail
           python -m py_compile scripts/sync_home_lab.py
           python -m json.tool data/lab/home_lab_status.json >/dev/null
-          node --check scripts/home-lab.js
+          node --check scripts/home-lab-v5.js
 
       - name: Install BriefRooms Lab on PL and EN homepages
         run: |
