@@ -207,29 +207,35 @@ jobs:
         run: |
           python scripts/decision_lab_public_projection.py \
             --state-dir "$STATE_DIR" \
-            --output data/investments/decision_lab_public.json
+            --output data/investments/decision_lab_public.json \
+            --history-output data/investments/decision_lab_history_30d.json \
+            --history-window-days 30
           python - <<'PY'
           import json
           from pathlib import Path
           p=json.loads(Path('data/investments/decision_lab_public.json').read_text())
+          h=json.loads(Path('data/investments/decision_lab_history_30d.json').read_text())
           assert p['mode'] == 'research_shadow'
           assert p['execution_authority'] is False
           assert p['production_write_authority'] is False
           assert p['automatic_tuning'] is False
-          print('Decision LAB sanitized projection: PASS')
+          assert h['schema_version'] == 'briefrooms_decision_lab_history_v1'
+          assert h['window_days'] == 30
+          assert h['older_records_publicly_exposed'] is False
+          print('Decision LAB sanitized projection: PASS; public history rows=', h['count'])
           PY
 
       - name: Publish Decision LAB projection
         run: |
           set -euo pipefail
-          if git diff --quiet -- data/investments/decision_lab_public.json; then
-            echo "Decision LAB projection unchanged."
+          if git diff --quiet -- data/investments/decision_lab_public.json data/investments/decision_lab_history_30d.json; then
+            echo "Decision LAB projection and 30D history unchanged."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/decision_lab_public.json
-          git commit -m "data(decision-lab): publish belief learning state"
+          git add data/investments/decision_lab_public.json data/investments/decision_lab_history_30d.json
+          git commit -m "data(decision-lab): publish belief learning state and 30D history"
           git pull --rebase origin main
           git push origin HEAD:main
 
