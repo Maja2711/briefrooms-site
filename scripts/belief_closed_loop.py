@@ -291,6 +291,24 @@ def run(state_dir: Path, report_path: Path, policy_path: Path, output_path: Path
         ch = challengers.get(scope_id)
         override = (policy.get("overrides") or {}).get(scope_id)
 
+        same_overlay = (
+            isinstance(ch, dict)
+            and isinstance(override, dict)
+            and isinstance(ch.get("transform"), Mapping)
+            and isinstance(override.get("transform"), Mapping)
+            and dict(ch["transform"]) == dict(override["transform"])
+        )
+        if same_overlay and override.get("active"):
+            ch["status"] = "promoted_by_evolution_controller"
+            ch["promoted_at"] = str(override.get("promoted_at") or ch.get("promoted_at") or now)
+            ch["production_version"] = override.get("version")
+        elif same_overlay and not override.get("active") and override.get("rolled_back_at"):
+            ch["status"] = "rolled_back_by_evolution_controller"
+            ch["rolled_back_at"] = str(override.get("rolled_back_at"))
+            ch["rediscovery_after_n"] = max(int(ch.get("rediscovery_after_n") or 0), len(rows) + 20)
+            challengers[scope_id] = ch
+            return
+
         if ch and ch.get("status") in {"promoted", "promoted_by_evolution_controller"} and override and override.get("active"):
             promoted_at = str(ch.get("promoted_at") or override.get("promoted_at") or "")
             post = [r for r in rows if promoted_at and r["forecast_at"] and parse_time(r["forecast_at"]) > parse_time(promoted_at)]
