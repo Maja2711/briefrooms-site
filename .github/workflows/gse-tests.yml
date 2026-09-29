@@ -4,14 +4,22 @@ on:
   pull_request:
     paths:
       - "scripts/geopolitical_scenario_engine.py"
+      - "scripts/gse_event_probability_threat_engine.py"
+      - "scripts/gse_v2_public_lab_projection.py"
       - "tests/test_geopolitical_scenario_engine.py"
+      - "tests/test_gse_event_probability_threat_engine.py"
+      - "tests/test_gse_v2_public_lab_projection.py"
       - ".github/workflows/gse-tests.yml"
       - ".github/workflows/gse-shadow-live.yml"
   push:
     branches: [main]
     paths:
       - "scripts/geopolitical_scenario_engine.py"
+      - "scripts/gse_event_probability_threat_engine.py"
+      - "scripts/gse_v2_public_lab_projection.py"
       - "tests/test_geopolitical_scenario_engine.py"
+      - "tests/test_gse_event_probability_threat_engine.py"
+      - "tests/test_gse_v2_public_lab_projection.py"
       - ".github/workflows/gse-tests.yml"
 
 permissions:
@@ -26,8 +34,8 @@ jobs:
         with:
           python-version: "3.12"
       - name: Compile GSE
-        run: python -m py_compile scripts/geopolitical_scenario_engine.py
+        run: python -m py_compile scripts/geopolitical_scenario_engine.py scripts/gse_event_probability_threat_engine.py scripts/gse_v2_public_lab_projection.py
       - name: Run GSE tests
         env:
-          PYTHONPATH: ${{ github.workspace }}/scripts
-        run: python -m unittest tests.test_geopolitical_scenario_engine -v
+          PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+        run: python -m unittest tests.test_geopolitical_scenario_engine tests.test_gse_event_probability_threat_engine tests.test_gse_v2_public_lab_projection -v

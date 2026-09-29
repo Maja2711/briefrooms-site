@@ -26,6 +26,7 @@ Current orchestration:
 
 ```text
 GSE v1 evidence/scenario/forecast state
+    -> Event Probability / Threat Engine
     -> GSE v2 fast prospective cycle
     -> historical walk-forward / enriched library
     -> policy proposal diagnostics
@@ -43,6 +44,20 @@ Primary implementation and workflow:
 - `docs/GSE_V2_ADVANCED_LEARNING_LOOP.md`
 
 The v2 state is persisted in the private cumulative `gse-shadow-state-v2` artifact. GSE v2 remains research/shadow: it has no trade execution, sizing or autonomous production-policy authority.
+
+## Event Probability / Threat Engine
+
+GSE now also contains a separate prospective event-occurrence layer implemented in
+`scripts/gse_event_probability_threat_engine.py` and documented in
+`docs/GSE_EVENT_PROBABILITY_THREAT_ENGINE.md`.
+
+It freezes research-only probabilities for explicitly defined geopolitical events on
+7d/30d/90d horizons, verifies them prospectively, and scores eligible outcomes with
+Brier and log loss against the stored seed prior. This probability is distinct from
+the existing GSE market-reaction probability.
+
+The initial mapping is explicitly uncalibrated and has no decision, Belief writeback,
+policy or execution authority.
 
 ## Geopolitical Evidence
 

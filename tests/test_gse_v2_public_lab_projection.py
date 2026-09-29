@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.gse_v2_public_lab_projection import build_projection, improvement_pct
+from scripts.gse_v2_public_lab_projection import build_projection, event_threat_projection, improvement_pct
 
 
 class GSEV2PublicLabProjectionTests(unittest.TestCase):
@@ -61,6 +61,55 @@ class GSEV2PublicLabProjectionTests(unittest.TestCase):
             self.assertFalse(out["engine"]["decision_influence"])
             self.assertFalse(out["public_boundary"]["raw_evidence_exposed"])
             self.assertNotIn("evidence", out)
+
+
+    def test_event_threat_projection_is_sanitized_and_exposes_brier(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "gse_event_threat_state.json").write_text(json.dumps({
+                "schema_version": "gse-event-threat-v1",
+                "mode": "shadow",
+                "generated_at": "2026-09-29T12:17:00Z",
+                "model_status": "prospective_uncalibrated_seed",
+                "probability_semantics": "research only",
+                "current_estimates": [{
+                    "event_type": "russia_attack_poland",
+                    "label": "Russia armed attack on Poland",
+                    "target": "Poland",
+                    "horizon_hours": 720,
+                    "prior_probability": 0.012,
+                    "predicted_probability": 0.02,
+                    "confidence": 0.4,
+                    "signal_score": 0.5,
+                    "evidence_24h": 2,
+                    "evidence_7d": 3,
+                    "evidence_30d": 4,
+                    "independent_sources_7d": 2,
+                    "primary_sources_30d": 0,
+                    "precursor_categories": ["force_posture"],
+                    "supporting_evidence_ids": ["private-e1"],
+                    "calibration_status": "uncalibrated_seed",
+                }],
+            }))
+            (root / "gse_event_probability_calibration.json").write_text(json.dumps({
+                "overall": {
+                    "count": 12,
+                    "positive_count": 1,
+                    "status": "insufficient_sample",
+                    "mean_brier": 0.03,
+                    "mean_prior_brier": 0.031,
+                    "delta_brier_vs_prior": -0.001,
+                    "bias": 0.01,
+                }
+            }))
+            out = event_threat_projection(root)
+            self.assertEqual(out["model_status"], "prospective_uncalibrated_seed")
+            self.assertEqual(out["calibration"]["count"], 12)
+            self.assertEqual(out["estimates"][0]["target"], "Poland")
+            self.assertEqual(out["estimates"][0]["delta_vs_prior"], 0.008)
+            self.assertNotIn("supporting_evidence_ids", json.dumps(out))
+            self.assertNotIn("private-e1", json.dumps(out))
+            self.assertFalse(out["raw_evidence_exposed"])
 
 
     def test_featured_thesis_uses_latest_frozen_candidate_and_stays_sanitized(self):

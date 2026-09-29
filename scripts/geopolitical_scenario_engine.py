@@ -101,9 +101,11 @@ SCENARIO_RULES: Mapping[str, Mapping[str, Sequence[str]]] = {
 }
 
 GDELT_QUERY = (
-    '(Iran OR Israel OR Hormuz OR Ukraine OR Russia OR "Black Sea" OR "Red Sea" OR Houthi '
+    '(Iran OR Israel OR Hormuz OR Ukraine OR Russia OR NATO OR Poland OR Lithuania OR Latvia OR Estonia '
+    'OR "Eastern Flank" OR Suwalki OR Kaliningrad OR Belarus OR Zapad OR "Black Sea" OR "Red Sea" OR Houthi '
     'OR Taiwan OR sanctions OR blockade OR "export controls" OR grain OR wheat) '
-    '(conflict OR attack OR strike OR military OR sanctions OR shipping OR export OR blockade)'
+    '(conflict OR attack OR strike OR military OR troops OR deployment OR exercise OR cyber OR sabotage '
+    'OR sanctions OR shipping OR export OR blockade OR airspace OR border)'
 )
 
 
