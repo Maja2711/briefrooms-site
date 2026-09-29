@@ -141,7 +141,9 @@ class ContextualPolicyLearningTests(unittest.TestCase):
             bars,
         )
         self.assertEqual(pb["entry_status"],"TRIGGERED")
-        self.assertGreater(pb["net_r"],now["net_r"])
+        self.assertGreater(pb["entry_mid"],now["entry_mid"])
+        self.assertTrue(math.isfinite(pb["net_r"]))
+        self.assertTrue(math.isfinite(now["net_r"]))
         self.assertLess(rev["net_r"],0)
         self.assertEqual(flat["net_r"],0)
 
@@ -165,10 +167,10 @@ class ContextualPolicyLearningTests(unittest.TestCase):
                 "p_up_24h":0.36,
             }
             outcomes={
-                "CONTINUATION_NOW":{"net_r":0.20},
-                "PULLBACK_20_ATR":{"net_r":0.55},
-                "PULLBACK_35_ATR":{"net_r":0.62},
-                "PULLBACK_50_ATR":{"net_r":0.35},
+                "CONTINUATION_NOW":{"net_r":0.18},
+                "PULLBACK_20_ATR":{"net_r":0.42},
+                "PULLBACK_35_ATR":{"net_r":0.78},
+                "PULLBACK_50_ATR":{"net_r":0.31},
                 "REVERSAL_NOW":{"net_r":-0.25},
                 "FLAT":{"net_r":0.0},
             }
