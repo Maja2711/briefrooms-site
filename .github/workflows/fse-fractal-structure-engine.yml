@@ -46,13 +46,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Validate FSE core
+      - name: Validate FSE, HSE2 integration and architecture contracts
         env:
           PYTHONPATH: ${{ github.workspace }}
         run: |
           set -euo pipefail
-          python -m py_compile scripts/fractal_structure_engine.py
-          python -m unittest tests.test_fractal_structure_engine -v
+          python -m py_compile scripts/fractal_structure_engine.py scripts/hypothesis_shadow_engine_v2.py scripts/build_shadow_engines_public.py
+          python -m unittest tests.test_fractal_structure_engine tests.test_hypothesis_shadow_engine_v2 tests.test_shadow_engines_public -v
+          python scripts/validate_architecture_bootstrap.py
 
   shadow:
     if: github.event_name != 'pull_request'
@@ -119,7 +120,7 @@ jobs:
               assert row["research_risk_geometry"]["production_applied"] is False
           print("FSE_ZERO_AUTHORITY_PASS")
           PY
-          git diff --exit-code --             data/investments/stock_trading_v2_production_state.json             data/investments/stock_trading_champion_manifest.json             data/investments/wes_state.json             data/investments/eurusd_x_public_pl.json
+          git diff --exit-code --             data/investments/stock_trading_v2_production_state.json             data/investments/stock_trading_champion_manifest.json             data/investments/wes_incremental_alpha_report.json             data/investments/eurusd_x_public_pl.json
 
       - name: Pack durable FSE state
         run: |
