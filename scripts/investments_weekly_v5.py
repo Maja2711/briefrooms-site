@@ -12,6 +12,7 @@ import investments_weekly_v2 as v2
 import investments_weekly_v3 as v3
 import investments_weekly_v4 as v4
 import investments_weekly_macro as macro
+import no_retroactive_execution as no_retro
 
 ROOT = Path(__file__).resolve().parents[1]
 METHOD = ROOT / "data/investments/methodology.json"
@@ -490,6 +491,12 @@ def entry_point(
     checked_at = now or legacy.now_local()
     if direction not in {"long", "short"} or target is None or target <= 0 or start is None or expires is None:
         return None
+
+    # A delayed runner may replay a pre-existing frozen limit, but only inside
+    # the global NO RETROACTIVE EXECUTION market-data lag. This preserves a
+    # legitimate recent target touch without manufacturing an old LIVE fill.
+    replay_floor = checked_at - no_retro.MAX_LIVE_MARKET_DATA_LAG
+    start = max(start, replay_floor)
     end = min(checked_at, expires)
     if end < start:
         return None
@@ -522,6 +529,36 @@ def entry_plan_expired(pending: Any, now: datetime) -> bool:
     plan = pending.get("entry_price_plan") if isinstance(pending.get("entry_price_plan"), dict) else {}
     expires = parse_dt(plan.get("expires_at"))
     return expires is not None and now >= expires
+
+
+def recover_frozen_pending_touch(
+    item: Dict[str, Any],
+    symbol: str,
+    now: datetime,
+) -> Optional[Tuple[Dict[str, Any], Dict[str, Any]]]:
+    """Resolve a recent touch of an already-frozen entry plan before refresh.
+
+    The frozen authorization basis must prove that the pending decision was
+    execution-authorized when created. Current authorization may already have
+    expired; that must not erase a target touch that occurred moments earlier.
+    The entry_point() replay window is bounded by NO RETROACTIVE EXECUTION.
+    """
+    pending = item.get("pending_entry_decision")
+    if not isinstance(pending, dict):
+        return None
+    decision = pending.get("decision") if isinstance(pending.get("decision"), dict) else {}
+    plan = pending.get("entry_price_plan") if isinstance(pending.get("entry_price_plan"), dict) else {}
+    basis = pending.get("authorization_basis") if isinstance(pending.get("authorization_basis"), dict) else {}
+    if not plan or not basis or basis.get("directional_admission_passed") is not True:
+        return None
+    for key in ("direction", "strategy_id"):
+        value = str(decision.get(key) or "")
+        if not value or value != str(basis.get(key) or ""):
+            return None
+    if str(decision.get("direction") or "") not in {"long", "short"}:
+        return None
+    point = entry_point(symbol, pending, now)
+    return (pending, point) if point is not None else None
 
 
 def pending_matches_wes_authorization(
@@ -830,6 +867,38 @@ def ensure_all() -> Dict[str, Any]:
                                       "macro_score": macro_context.get("score"),
                                       "next_governed_review": "daily_review_23_00_europe_warsaw"})
             continue
+
+        # Before changing/refreshing a pending thesis, settle any recent touch
+        # of its already-frozen target. This closes the expiry-boundary gap
+        # between two scheduler runs without allowing historical backfills.
+        recovered = recover_frozen_pending_touch(item, str(cfg.get("symbol") or ""), now)
+        if recovered is not None:
+            pending, point = recovered
+            entry_plan = pending.get("entry_price_plan") if isinstance(pending.get("entry_price_plan"), dict) else {}
+            frozen = pending["decision"]
+            v4.open_leg(item, cfg, frozen, pending["fresh_signal"], pending["weekly_signal"], point, now)
+            item.update(
+                entry_decision_at=pending["decided_at"],
+                entry_execution_rule="frozen_wes_1_2_limit_target_touch",
+                entry_price_plan_frozen=entry_plan,
+                entry_quality_status="wes_1_2_frozen_entry_target_filled",
+                entry_macro_context=pending.get("macro_context"),
+                pending_entry_decision=None,
+                next_entry_status="open",
+            )
+            changed = True
+            report["actions"].append({
+                "instrument_id": iid,
+                "action": "open_at_preexisting_frozen_entry_target",
+                "direction": frozen.get("direction"),
+                "target_price": entry_plan.get("target_price"),
+                "decision_at": item["entry_decision_at"],
+                "entry_at": item.get("entry_captured_at"),
+                "entry_price": item.get("entry_price"),
+                "macro_score": (pending.get("macro_context") or {}).get("score"),
+            })
+            continue
+
         if decision.get("direction") not in {"long", "short"}:
             abstain(item, decision); changed = True
             report["actions"].append({"instrument_id": iid, "action": "no_trade", "reason_codes": decision.get("reason_codes")}); continue
