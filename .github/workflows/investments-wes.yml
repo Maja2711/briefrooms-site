@@ -2,6 +2,11 @@ name: Weekly Engine Star
 
 on:
   workflow_dispatch:
+  # Independent fallback for entry execution. The normal fast path remains
+  # workflow_run after the 5-minute risk monitor; this 15-minute cadence stays
+  # inside the global 20-minute LIVE market-data replay bound if that chain stalls.
+  schedule:
+    - cron: "2,17,32,47 * * * *"
   push:
     branches: [main]
     paths:
