@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import math
 import statistics
+from decimal import Decimal, ROUND_HALF_UP
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
@@ -96,6 +97,14 @@ def parse_time(value: Any) -> Optional[datetime]:
     return stamp.astimezone(timezone.utc)
 
 
+FX_PRICE_QUANTUM = Decimal("0.00001")
+SYNTHETIC_HALF_SPREAD_DECIMAL = Decimal("0.000075")
+
+
+def fx_price_5(value: Any) -> float:
+    return float(Decimal(str(value)).quantize(FX_PRICE_QUANTUM, rounding=ROUND_HALF_UP))
+
+
 def _finite_price(value: Any, *, low: float = 0.0, high: float = math.inf) -> Optional[float]:
     try:
         number = float(value)
@@ -120,11 +129,11 @@ def _quote_payload(quote: Quote, now: datetime) -> dict[str, Any]:
 
 
 def synthetic_bid_ask(mid_price: float) -> dict[str, float]:
-    mid = float(mid_price)
+    mid_decimal = Decimal(str(mid_price))
     return {
-        "mid": round(mid, 8),
-        "bid": round(mid - SYNTHETIC_HALF_SPREAD_PRICE, 5),
-        "ask": round(mid + SYNTHETIC_HALF_SPREAD_PRICE, 5),
+        "mid": round(float(mid_decimal), 8),
+        "bid": float((mid_decimal - SYNTHETIC_HALF_SPREAD_DECIMAL).quantize(FX_PRICE_QUANTUM, rounding=ROUND_HALF_UP)),
+        "ask": float((mid_decimal + SYNTHETIC_HALF_SPREAD_DECIMAL).quantize(FX_PRICE_QUANTUM, rounding=ROUND_HALF_UP)),
         "spread_pips": SYNTHETIC_SPREAD_PIPS,
         "half_spread_pips": SYNTHETIC_HALF_SPREAD_PIPS,
     }
@@ -520,10 +529,10 @@ def recenter_geometry(
         raise ValueError("synthetic spread produced invalid execution geometry")
 
     return {
-        "entry": round(fill, 5),
+        "entry": fx_price_5(fill),
         "market_mid": round(center, 8),
-        "stop": round(new_stop, 5),
-        "target": round(new_target, 5),
+        "stop": fx_price_5(new_stop),
+        "target": fx_price_5(new_target),
         "risk_distance": round(actual_risk, 8),
         "reward_distance": round(actual_reward, 8),
         "model_mid_risk_distance": round(model_risk, 8),
