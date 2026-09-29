@@ -164,6 +164,66 @@ def learning_timeline(ledger: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 
+def event_threat_projection(state_dir: Path) -> dict[str, Any] | None:
+    """Sanitize the GSE Event Probability / Threat Engine for public Lab display.
+
+    Raw evidence IDs, realization evidence and private frozen forecast IDs remain private.
+    """
+    state = read_json(state_dir / "gse_event_threat_state.json", {})
+    if not state:
+        return None
+    calibration = read_json(state_dir / "gse_event_probability_calibration.json", {})
+    rows: list[dict[str, Any]] = []
+    for row in state.get("current_estimates") or []:
+        try:
+            horizon = int(row.get("horizon_hours") or 0)
+        except (TypeError, ValueError):
+            continue
+        probability = _num(row.get("predicted_probability"))
+        prior = _num(row.get("prior_probability"))
+        rows.append(
+            {
+                "event_type": str(row.get("event_type") or ""),
+                "label": str(row.get("label") or ""),
+                "target": str(row.get("target") or ""),
+                "horizon_hours": horizon,
+                "horizon_label": {168: "7d", 720: "30d", 2160: "90d"}.get(horizon, f"{horizon}h"),
+                "probability": probability,
+                "prior_probability": prior,
+                "delta_vs_prior": None if probability is None or prior is None else round(probability - prior, 6),
+                "confidence": _num(row.get("confidence")),
+                "signal_score": _num(row.get("signal_score")),
+                "evidence_24h": int(row.get("evidence_24h") or 0),
+                "evidence_7d": int(row.get("evidence_7d") or 0),
+                "independent_sources_7d": int(row.get("independent_sources_7d") or 0),
+                "precursor_categories": list(row.get("precursor_categories") or []),
+                "calibration_status": str(row.get("calibration_status") or "uncalibrated_seed"),
+            }
+        )
+    rows.sort(key=lambda row: (str(row.get("target")), int(row.get("horizon_hours") or 0)))
+    overall = calibration.get("overall") or {}
+    return {
+        "schema_version": str(state.get("schema_version") or "gse-event-threat-v1"),
+        "generated_at": state.get("generated_at"),
+        "model_status": str(state.get("model_status") or "prospective_uncalibrated_seed"),
+        "probability_semantics": str(state.get("probability_semantics") or ""),
+        "estimates": rows,
+        "calibration": {
+            "count": int(overall.get("count") or 0),
+            "positive_count": int(overall.get("positive_count") or 0),
+            "status": overall.get("status"),
+            "mean_brier": _num(overall.get("mean_brier")),
+            "mean_prior_brier": _num(overall.get("mean_prior_brier")),
+            "delta_brier_vs_prior": _num(overall.get("delta_brier_vs_prior")),
+            "bias": _num(overall.get("bias")),
+        },
+        "research_only": True,
+        "decision_influence": False,
+        "trade_execution": False,
+        "raw_evidence_exposed": False,
+    }
+
+
 def featured_thesis_projection(
     state_dir: Path,
     config_path: Path | None,
@@ -285,6 +345,7 @@ def build_projection(state_dir: Path, catalog_path: Path, featured_thesis_config
 
     generated_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     featured_thesis = featured_thesis_projection(state_dir, featured_thesis_config, generated_at=generated_at)
+    event_threat = event_threat_projection(state_dir)
     last_learning_at = latest_timestamp(row.get("recorded_at") for row in ledger)
     last_base_verification_at = latest_timestamp(row.get("verified_at") for row in base_verifications)
     last_v2_verification_at = latest_timestamp(row.get("verified_at") for row in v2_verifications)
@@ -295,6 +356,7 @@ def build_projection(state_dir: Path, catalog_path: Path, featured_thesis_config
         "schema_version": SCHEMA_VERSION,
         "generated_at": generated_at,
         "featured_thesis": featured_thesis,
+        "event_threat": event_threat,
         "activity": {
             "last_scan_at": last_scan_at,
             "last_learning_at": last_learning_at,
@@ -373,6 +435,8 @@ def build_projection(state_dir: Path, catalog_path: Path, featured_thesis_config
             "raw_evidence_exposed": False,
             "private_forecasts_exposed": False,
             "featured_thesis_projection": True,
+            "event_threat_projection": True,
+            "event_threat_raw_evidence_exposed": False,
             "trade_execution": False,
             "belief_writeback": False,
         },
