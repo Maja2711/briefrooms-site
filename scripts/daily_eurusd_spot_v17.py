@@ -119,12 +119,14 @@ def _prepare_entry_candidate(candidate: DailyEngineOutput, monitor_bars: Any, ob
         return _flat_with_execution_block(candidate, execution)
 
     fill = float(execution["fill_price"])
+    market_mid = float(execution.get("selected_mid_price") or fill)
     geometry = epe.recenter_geometry(
         candidate.direction,
         float(candidate.entry),
         float(candidate.stop),
         float(candidate.target),
         fill,
+        market_mid=market_mid,
     )
     metadata = dict(candidate.metadata)
     metadata["execution_price_engine"] = dict(execution)
@@ -133,6 +135,9 @@ def _prepare_entry_candidate(candidate: DailyEngineOutput, monitor_bars: Any, ob
         "execution_geometry_recentered": True,
         "execution_risk_distance": geometry["risk_distance"],
         "execution_reward_distance": geometry["reward_distance"],
+        "model_mid_risk_distance": geometry["model_mid_risk_distance"],
+        "model_mid_reward_distance": geometry["model_mid_reward_distance"],
+        "synthetic_spread_pips": execution.get("synthetic_spread_pips"),
     })
     metadata["risk"] = risk
 
