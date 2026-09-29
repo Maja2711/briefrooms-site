@@ -51,14 +51,29 @@ class HSE2Tests(unittest.TestCase):
                 "spec":{"instrument_id":"eurusd","side":"long","timeframe":"H4","rule":"full_stack"}
             }]
         })
+        write(root,"data/investments/fse_public.json",{
+            "generated_at":"2026-09-28T10:00:00Z","module_id":"IN-09","mode":"SHADOW_ONLY","production_impact":False,
+            "hse_measurements":[
+                {"proposal_key":"fse-fractal-memory-eurusd-4h-brier","claim":"FSE Fractal Memory improves Brier.",
+                 "champion":"50/50 directional baseline","challenger":"FSE Fractal Memory",
+                 "metric_name":"brier_improvement_vs_0_5","target_n":40,
+                 "success_mean_edge":0.0025,"reject_mean_edge":-0.0025,"counter":0,"total":0.0,
+                 "details":{"instrument":"EURUSD","kind":"directional_memory"}},
+                {"proposal_key":"fse-structural-risk-eurusd-4h-brier","claim":"FSE structural risk improves Brier.",
+                 "champion":"50/50 large-move baseline","challenger":"FSE Structural Risk",
+                 "metric_name":"risk_brier_improvement_vs_0_5","target_n":40,
+                 "success_mean_edge":0.0025,"reject_mean_edge":-0.0025,"counter":0,"total":0.0,
+                 "details":{"instrument":"EURUSD","kind":"risk_calibration"}}
+            ]
+        })
 
-    def test_all_six_sources_register_without_backfill(self):
+    def test_all_seven_sources_register_without_backfill(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp); state=root/"state"; public=root/"public.json"
             self.populate_sources(root)
             out=run_cycle(root,state,public,"2026-09-28T10:10:00Z")
-            self.assertEqual(out["summary"]["sources_available"],6)
-            self.assertGreaterEqual(out["summary"]["experiments_total"],6)
+            self.assertEqual(out["summary"]["sources_available"],7)
+            self.assertGreaterEqual(out["summary"]["experiments_total"],8)
             self.assertEqual(out["summary"]["prospective_evidence_n"],0)
             self.assertEqual(out["authority"],ZERO_AUTHORITY)
             self.assertTrue(verify(state)["zero_authority"])
