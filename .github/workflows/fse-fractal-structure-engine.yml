@@ -72,6 +72,11 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Start immutable shadow publication clock
+        run: |
+          echo "NO_RETROACTIVE_EXECUTION=1" >> "$GITHUB_ENV"
+          echo "NO_RETROACTIVE_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+
       - name: Restore durable FSE state
         shell: bash
         run: |
@@ -147,6 +152,7 @@ jobs:
             echo "FSE projection already current."
             exit 0
           fi
+          python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
           git commit -m "Refresh FSE fractal structure shadow"
           for attempt in 1 2 3 4 5; do
             git fetch origin main
