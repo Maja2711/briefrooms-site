@@ -17,6 +17,7 @@ from daily_eurusd_lifecycle import (
     empty_history,
     entry_gate,
     evaluate_position,
+    execution_exit_price,
     learning_state,
     load_history,
     position_from_output,
@@ -353,7 +354,8 @@ def run_cycle(output_path: Path, history_path: Path, client: YahooChartClient | 
             output = _closed_output(candidate, trade, history)
         else:
             candidate = build_output(snapshot, history, allow_entry=False)
-            output = _open_output(candidate, position, monitor_bars[-1].close)
+            mark_price = execution_exit_price(position, float(monitor_bars[-1].close))
+            output = _open_output(candidate, position, mark_price)
             save_history(history_path, history, observed_at)
     else:
         candidate = build_output(snapshot, history)
@@ -362,8 +364,11 @@ def run_cycle(output_path: Path, history_path: Path, client: YahooChartClient | 
         if candidate.direction in {"LONG", "SHORT"}:
             position = create_position(candidate.to_dict())
             execution = candidate.metadata.get("execution_price_engine") if isinstance(candidate.metadata, Mapping) else None
-            execution_mark = execution.get("fill_price") if isinstance(execution, Mapping) else None
-            initial_mark = float(execution_mark) if execution_mark is not None else float(monitor_bars[-1].close)
+            execution_mid = execution.get("selected_mid_price") if isinstance(execution, Mapping) else None
+            if execution_mid is not None:
+                initial_mark = execution_exit_price(position, float(execution_mid))
+            else:
+                initial_mark = execution_exit_price(position, float(monitor_bars[-1].close))
             output = _open_output(candidate, position, initial_mark)
         else:
             output = candidate
