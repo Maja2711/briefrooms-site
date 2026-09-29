@@ -65,7 +65,22 @@ function target(value){
   if(Number.isNaN(d.getTime())) return String(value);
   return d.toLocaleString("en-US",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
 }
+function settlementDependencies(x){
+  const values=x?.t0_values;
+  return values&&typeof values==="object"?Object.keys(values):[];
+}
 function marketCalendar(x){
+  const deps=settlementDependencies(x);
+  const usSymbols=new Set(["SPY","RSP","IWM","^VIX","HYG","LQD","TLT","UUP"]);
+  if(deps.some(symbol=>usSymbols.has(symbol))){
+    return {state:"SESSION",label:"US proxy",detail:"Settlement depends on US-session proxy data and uses the first available tradable bar at/after Target."};
+  }
+  if(deps.length&&deps.every(symbol=>symbol==="BTC-USD")){
+    return {state:"OPEN",label:"24/7",detail:"All settlement inputs trade continuously."};
+  }
+  if(deps.length&&deps.every(symbol=>symbol==="EURUSD=X")){
+    return {state:"OPEN",label:"FX 24/5",detail:"Settlement depends only on EUR/USD and uses the first available FX bar at/after Target."};
+  }
   const name=instrument(x), raw=x?.target_at;
   if(!raw) return {state:"UNKNOWN",label:"no target",detail:""};
   const d=new Date(raw); if(Number.isNaN(d.getTime())) return {state:"UNKNOWN",label:"no calendar",detail:""};
@@ -96,8 +111,15 @@ function outcome(x){
     : '<span class="outcome no" title="Hypothesis not confirmed">NO</span>';
 }
 function status(value){
-  const v=String(value||"").toUpperCase();
+  const row=value&&typeof value==="object"?value:null;
+  const v=String(row?.status??value??"").toUpperCase();
   if(v==="RESOLVED") return '<span class="forecast-status resolved">RESOLVED</span>';
+  if(v==="OPEN"&&row){
+    const targetMs=new Date(row.target_at||"").getTime();
+    if(Number.isFinite(targetMs)&&targetMs<=Date.now()){
+      return '<span class="forecast-status open" title="'+esc(marketCalendar(row).detail)+'">AWAITING T1</span>';
+    }
+  }
   if(v==="OPEN") return '<span class="forecast-status open">OPEN</span>';
   return '<span class="forecast-status">'+esc(v||"—")+'</span>';
 }
@@ -202,7 +224,7 @@ function forecasts(items){
         '<span>'+pct(x.confidence)+'</span>'+
         '<span class="target forecast-origin" title="Forecast: '+esc(forecastTime(x.forecast_at))+'">'+esc(forecastTime(x.forecast_at))+t0Line(x)+'</span>'+
         '<span class="target" title="Target: '+esc(target(x.target_at))+' · '+esc(marketCalendar(x).detail)+'">'+esc(target(x.target_at))+t1Line(x)+calendarBadge(x)+'</span>'+
-        status(x.status)+
+        status(x)+
       '</button>'
     ).join("");
   root.querySelectorAll("[data-forecast-id]").forEach(btn=>btn.addEventListener("click",()=>{
@@ -226,7 +248,7 @@ function historyRowHtml(x){
     '<span>'+pct(x.confidence)+'</span>'+
     '<span class="target forecast-origin" title="Forecast: '+esc(forecastTime(x.forecast_at))+'">'+esc(forecastTime(x.forecast_at))+t0Line(x)+'</span>'+
     '<span class="target" title="Target: '+esc(target(x.target_at))+'">'+esc(target(x.target_at))+t1Line(x)+'</span>'+
-    status(x.status)+
+    status(x)+
   '</div>';
 }
 
@@ -487,6 +509,7 @@ function patterns(items,meta){
   if(first){first.classList.add("selected");patternDetail(rows[0]);}
 }
 
+let HAS_LOADED=false;
 async function load(){
   try{
     const stamp=Date.now();
@@ -507,7 +530,9 @@ async function load(){
     v3Candidates(d.belief_core_v3_candidates||{});
     closedLoopStatus((evolution&&evolution.schema_version)?evolution:((d.evolution_controller&&d.evolution_controller.schema_version)?d.evolution_controller:(d.closed_loop||{})));
     patterns(d.evidence_patterns||[],d.evidence_pattern_meta||{});
+    HAS_LOADED=true;
   }catch(_){
+    if(HAS_LOADED)return;
     forecasts([]);
     metric("metrics-summary",{});
     metric("metrics",{});
@@ -519,4 +544,7 @@ async function load(){
 }
 setupForecastHistory();
 load();
+const LIVE_REFRESH_MS=60000;
+setInterval(()=>{if(document.visibilityState==="visible")load();},LIVE_REFRESH_MS);
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")load();});
 })();
