@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import investments_weekly_v5 as v5
+import audit_intraday_risk_exits as risk_market
 import investments_weekly_v5_finalize as finalize
 
 
@@ -227,6 +228,58 @@ class GovernedWeeklyModelTests(unittest.TestCase):
             point = v5.entry_point("EURUSD=X", pending, now)
         self.assertIsNotNone(point)
         self.assertEqual(1.1372, point["price"])
+
+    def test_btc_frozen_limits_execute_on_coinbase_5m_touch(self):
+        now = datetime(2026, 9, 21, 9, 10, tzinfo=v5.legacy.TZ)
+        decided = now - timedelta(minutes=5)
+
+        long_pending = {
+            "entry_not_before": decided.isoformat(),
+            "decision": {"direction": "long"},
+            "entry_price_plan": {
+                "instrument_id": "btcusd",
+                "direction": "long",
+                "target_price": 83000.0,
+                "entry_not_before": decided.isoformat(),
+                "expires_at": (now + timedelta(minutes=55)).isoformat(),
+            },
+        }
+        long_touch = [
+            risk_market.PriceBar(
+                ts=now,
+                high=83100.0,
+                low=82950.0,
+                source="test:coinbase:5m",
+            )
+        ]
+        with patch.object(risk_market, "fetch_coinbase_bars", return_value=long_touch):
+            point = v5.entry_point("BTC-USD", long_pending, now)
+        self.assertIsNotNone(point)
+        self.assertEqual(83000.0, point["price"])
+
+        short_pending = {
+            "entry_not_before": decided.isoformat(),
+            "decision": {"direction": "short"},
+            "entry_price_plan": {
+                "instrument_id": "btcusd",
+                "direction": "short",
+                "target_price": 84000.0,
+                "entry_not_before": decided.isoformat(),
+                "expires_at": (now + timedelta(minutes=55)).isoformat(),
+            },
+        }
+        short_touch = [
+            risk_market.PriceBar(
+                ts=now,
+                high=84050.0,
+                low=83900.0,
+                source="test:coinbase:5m",
+            )
+        ]
+        with patch.object(risk_market, "fetch_coinbase_bars", return_value=short_touch):
+            point = v5.entry_point("BTC-USD", short_pending, now)
+        self.assertIsNotNone(point)
+        self.assertEqual(84000.0, point["price"])
 
     def test_strong_btc_rally_requires_material_pullback_before_long_entry(self):
         now = datetime(2026, 9, 21, 12, 52, 50, tzinfo=v5.legacy.TZ)
