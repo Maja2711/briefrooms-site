@@ -26,6 +26,7 @@ _original_build_output = base.build_output
 _original_open_output = base._open_output
 _original_closed_output = base._closed_output
 _original_evaluate_position = base.evaluate_position
+_original_create_position = base.create_position
 
 
 def _clone(output: DailyEngineOutput, *, metadata: Mapping[str, Any] | None = None) -> DailyEngineOutput:
@@ -305,11 +306,27 @@ def build_output(snapshot: Any, history: Mapping[str, Any] | None = None, *, all
     return apply_event_intelligence_gate(candidate, event_context, allow_entry=allow_entry)
 
 
+def _create_position(payload: Mapping[str, Any]) -> dict[str, Any]:
+    position = dict(_original_create_position(payload))
+    metadata = payload.get("metadata") if isinstance(payload.get("metadata"), Mapping) else {}
+    execution = metadata.get("execution_price_engine") if isinstance(metadata, Mapping) else None
+    if not isinstance(execution, Mapping) or execution.get("verified") is not True:
+        raise ValueError("EPE verified fill is required before opening Daily EUR/USD")
+    position["execution_price_engine"] = dict(execution)
+    return position
+
+
 def _evaluate_position(position: Mapping[str, Any], bars: Any, observed_at: Any) -> dict[str, Any] | None:
-    normal_exit = _original_evaluate_position(position, bars, observed_at)
-    if normal_exit is not None:
-        return normal_exit
-    return daily_event.maybe_close_position(position, bars, observed_at)
+    trade = _original_evaluate_position(position, bars, observed_at)
+    if trade is None:
+        trade = daily_event.maybe_close_position(position, bars, observed_at)
+    if trade is None:
+        return None
+    enriched = dict(trade)
+    execution = position.get("execution_price_engine") if isinstance(position.get("execution_price_engine"), Mapping) else None
+    if isinstance(execution, Mapping):
+        enriched["execution_price_engine"] = dict(execution)
+    return enriched
 
 
 def _open_output(candidate: DailyEngineOutput, position: Mapping[str, Any], mark_price: float) -> DailyEngineOutput:
@@ -344,6 +361,7 @@ def _install() -> None:
     base.ENGINE_VERSION = ENGINE_VERSION
     base.build_output = build_output
     base.prepare_entry_candidate = _prepare_entry_candidate
+    base.create_position = _create_position
     base._open_output = _open_output
     base._closed_output = _closed_output
     base.evaluate_position = _evaluate_position
