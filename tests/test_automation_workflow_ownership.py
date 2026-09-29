@@ -156,6 +156,7 @@ class AutomationWorkflowOwnershipTests(unittest.TestCase):
         self.assertIn("validate-wes-push:", wes)
         self.assertIn("wes-cycle:", wes)
         self.assertIn("github.event_name != 'push'", wes)
+        self.assertIn("github.event.workflow_run.event != 'push'", wes)
 
         self.assertIn("validate-risk-push:", risk)
         self.assertIn("monitor-governed-exposure:", risk)
