@@ -72,7 +72,9 @@ Before every new entry WES freezes an `entry_price_plan` containing:
 
 The executor is deliberately narrow: it may only inspect post-decision 5-minute OHLC bars and fill the frozen target when the bar range touches that price. For LONG this means `Low <= target`; for SHORT it means `High >= target`. The fill is recorded at the frozen target, not at a later quote.
 
-While the plan is active the target is immutable. Repeated WES cycles may refresh the same thesis authorization, but they may not move the active target closer to price. If the target is not touched before expiry, the plan expires without a trade and a later WES cycle may create a new plan from fresh evidence.
+While the plan is active the target is immutable. Repeated WES cycles may refresh the same thesis authorization, but they may not move the active target closer to price. Before an expired or changed plan is refreshed, the executor first resolves any recent touch of the already-frozen target that is still inside the global `NO RETROACTIVE EXECUTION` live-market replay window. If no valid touch exists, the plan expires without a trade and a later WES cycle may create a new plan from fresh evidence.
+
+The normal entry-control path runs after the 5-minute `Governed Weekly Paper Exposure Watch`. `Weekly Engine Star` also has an independent 15-minute fallback schedule (`02/17/32/47` minutes of each hour) so a stalled workflow-run chain does not silently stop pending entry execution. Both paths use the same frozen plan and the same 5-minute OHLC touch rule.
 
 A stop-loss reversal receives an additional pullback requirement and a minimum completed-bar delay before the target can become executable.
 
@@ -93,7 +95,7 @@ The contract is:
 - Missing or unusable market data never means that the threshold was not touched. The position remains unresolved/open and a later run retries the full frozen-risk interval.
 - This safety path has no entry authority and does not run the strategy tournament. Re-entry remains governed by WES admission and re-entry rules after the risk exit is persisted.
 
-The hourly/full WES lifecycle calls the same monitor. There is therefore one SL/TP interpretation, not a fast implementation and a different slow implementation.
+The full maintenance lifecycle calls the same canonical risk monitor. There is therefore one SL/TP interpretation, not a fast implementation and a different slow implementation.
 
 ## Why an inverse signal is tested separately
 
