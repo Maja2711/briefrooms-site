@@ -350,6 +350,54 @@ class WesTests(unittest.TestCase):
         }
         self.assertFalse(v5.pending_matches_wes_authorization(item, wrong))
 
+    def test_no_trade_monitoring_clears_stale_unfilled_pending_entry(self):
+        now = datetime(2026, 9, 29, 20, 32, tzinfo=TZ)
+        item = {
+            'instrument_id': 'btcusd',
+            'direction': 'neutral',
+            'trade_status': 'pending',
+            'entry_price': None,
+            'exit_price': None,
+            'pending_entry_decision': {
+                'decided_at': '2026-09-29T15:50:55+02:00',
+                'decision': {'strategy_id': 'weekly_trend', 'direction': 'long'},
+                'entry_price_plan': {'target_price': 83438.45, 'expires_at': '2026-09-29T16:50:55+02:00'},
+            },
+            'wes_entry_authorization': {'candidate': {'strategy_id': 'weekly_trend', 'direction': 'long'}},
+            'next_entry_status': 'waiting_for_entry_target',
+        }
+        wes.set_monitoring(item, now, datetime(2026, 10, 2, 22, 0, tzinfo=TZ), {}, {})
+        self.assertIsNone(item['pending_entry_decision'])
+        self.assertIsNone(item['wes_entry_authorization'])
+        self.assertEqual('no_trade', item['trade_status'])
+        self.assertEqual('no_trade', item['next_entry_status'])
+        self.assertEqual('neutral', item['direction'])
+        self.assertFalse(item['continuous_exposure_active'])
+        self.assertEqual('no_trade', item['continuous_exposure_status'])
+
+    def test_no_trade_monitoring_preserves_closed_historical_leg(self):
+        now = datetime(2026, 9, 29, 20, 32, tzinfo=TZ)
+        item = {
+            'instrument_id': 'btcusd',
+            'direction': 'short',
+            'trade_status': 'pending',
+            'entry_price': 81593.97,
+            'exit_price': 84024.33,
+            'result_value': -297.86,
+            'pending_entry_decision': {
+                'decision': {'strategy_id': 'base_v2', 'direction': 'long'},
+            },
+            'wes_entry_authorization': {'candidate': {'strategy_id': 'base_v2', 'direction': 'long'}},
+        }
+        wes.set_monitoring(item, now, datetime(2026, 10, 2, 22, 0, tzinfo=TZ), {}, {})
+        self.assertIsNone(item['pending_entry_decision'])
+        self.assertIsNone(item['wes_entry_authorization'])
+        self.assertEqual('closed', item['trade_status'])
+        self.assertEqual('short', item['direction'])
+        self.assertEqual(81593.97, item['entry_price'])
+        self.assertEqual(84024.33, item['exit_price'])
+        self.assertEqual(-297.86, item['result_value'])
+
     def test_repository_policy_marks_inverse_v2_shadow_only(self):
         import json
         policy = json.loads((ROOT / 'data' / 'investments' / 'multi_instrument_exposure_policy.json').read_text(encoding='utf-8'))
