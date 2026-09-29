@@ -84,6 +84,51 @@ def _direction_sign(direction: str) -> float:
     return 1.0 if str(direction).upper() == "LONG" else -1.0
 
 
+def _synthetic_execution_config(position: Mapping[str, Any]) -> dict[str, float] | None:
+    execution = position.get("execution_price_engine") if isinstance(position.get("execution_price_engine"), Mapping) else None
+    if not isinstance(execution, Mapping):
+        return None
+    if str(execution.get("price_type") or "") != "MID_VERIFIED_SYNTHETIC_SPREAD":
+        return None
+    try:
+        half_pips = float(execution.get("synthetic_half_spread_pips"))
+        spread_pips = float(execution.get("synthetic_spread_pips"))
+    except (TypeError, ValueError):
+        return None
+    if half_pips <= 0 or spread_pips <= 0:
+        return None
+    return {
+        "half_pips": half_pips,
+        "spread_pips": spread_pips,
+        "half_price": half_pips * 0.0001,
+    }
+
+
+def execution_exit_price(position: Mapping[str, Any], mid_price: float) -> float:
+    """Executable paper exit: LONG sells BID, SHORT buys ASK."""
+    config = _synthetic_execution_config(position)
+    mid = float(mid_price)
+    if config is None:
+        return mid
+    direction = str(position.get("direction") or "").upper()
+    if direction == "LONG":
+        return mid - config["half_price"]
+    if direction == "SHORT":
+        return mid + config["half_price"]
+    return mid
+
+
+def _execution_bar_values(position: Mapping[str, Any], bar: Bar) -> tuple[float, float, float]:
+    mid_high = float(bar.high if bar.high is not None else bar.close)
+    mid_low = float(bar.low if bar.low is not None else bar.close)
+    mid_close = float(bar.close)
+    config = _synthetic_execution_config(position)
+    if config is None:
+        return mid_high, mid_low, mid_close
+    shift = -config["half_price"] if str(position.get("direction") or "").upper() == "LONG" else config["half_price"]
+    return mid_high + shift, mid_low + shift, mid_close + shift
+
+
 def _trade_id(opened_at: str, direction: str) -> str:
     clean = str(opened_at).replace(":", "").replace("-", "")
     return f"eurusd:{clean}:{str(direction).upper()}"
@@ -202,6 +247,27 @@ def _close_record(
             "bar_high": None if not exit_bar or exit_bar.high is None else float(exit_bar.high),
             "bar_low": None if not exit_bar or exit_bar.low is None else float(exit_bar.low),
             "bar_close": None if not exit_bar else float(exit_bar.close),
+            "execution_price_basis": (
+                "SYNTHETIC_BID"
+                if _synthetic_execution_config(position) and direction == "LONG"
+                else "SYNTHETIC_ASK"
+                if _synthetic_execution_config(position) and direction == "SHORT"
+                else "MID_PROXY"
+            ),
+            "synthetic_spread_pips": (
+                _synthetic_execution_config(position)["spread_pips"]
+                if _synthetic_execution_config(position)
+                else None
+            ),
+            "execution_bar_high": (
+                _execution_bar_values(position, exit_bar)[0] if exit_bar else None
+            ),
+            "execution_bar_low": (
+                _execution_bar_values(position, exit_bar)[1] if exit_bar else None
+            ),
+            "execution_bar_close": (
+                _execution_bar_values(position, exit_bar)[2] if exit_bar else None
+            ),
         },
     }
 
@@ -225,8 +291,7 @@ def evaluate_position(
         key=lambda bar: bar.timestamp,
     )
     for bar in relevant:
-        high = float(bar.high if bar.high is not None else bar.close)
-        low = float(bar.low if bar.low is not None else bar.close)
+        high, low, _ = _execution_bar_values(position, bar)
         if direction == "LONG":
             stop_hit = low <= stop
             target_hit = high >= target
@@ -274,7 +339,7 @@ def evaluate_position(
         return _close_record(
             position,
             exit_reason="TIME_EXIT",
-            exit_price=float(exit_bar.close),
+            exit_price=execution_exit_price(position, float(exit_bar.close)),
             exited_at=exit_bar.timestamp,
             exit_bar=exit_bar,
         )

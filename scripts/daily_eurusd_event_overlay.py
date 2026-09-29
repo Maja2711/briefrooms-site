@@ -112,7 +112,7 @@ def maybe_close_position(
     trade = lifecycle._close_record(
         position,
         exit_reason="EVENT_INTELLIGENCE_THESIS_INVALIDATION",
-        exit_price=float(last.close),
+        exit_price=lifecycle.execution_exit_price(position, float(last.close)),
         exited_at=last.timestamp,
         exit_bar=last,
     )

@@ -12,8 +12,7 @@ Policies:
   target touch must satisfy chronology and OHLC containment before it is
   accepted as a fill.
 
-EPE never invents bid/ask values and never substitutes a stale or historical
-analytical price for a current market fill.
+EPE never substitutes a stale or historical analytical price for a current market fill.\nFor Daily EUR/USD paper execution, EPE explicitly models a fixed 1.5-pip spread\naround the verified market MID; these synthetic BID/ASK prices are always labeled\nas modeled, never as broker-verified executable quotes.
 """
 from __future__ import annotations
 
@@ -29,10 +28,13 @@ from typing import Any, Callable, Mapping, Optional
 from belief_market_data_adapter import YahooChartClient
 
 SCHEMA_VERSION = "execution-price-engine-v1"
-ENGINE_VERSION = "EPE-1.1.0"
+ENGINE_VERSION = "EPE-1.2.0"
 EURUSD_PIP = 0.0001
 EURUSD_MIN = 0.8
 EURUSD_MAX = 1.5
+SYNTHETIC_SPREAD_PIPS = 1.5
+SYNTHETIC_HALF_SPREAD_PIPS = SYNTHETIC_SPREAD_PIPS / 2.0
+SYNTHETIC_HALF_SPREAD_PRICE = SYNTHETIC_HALF_SPREAD_PIPS * EURUSD_PIP
 
 # Current public infrastructure gives us a direct fxapi mid and an independent
 # Yahoo 1m cross-check. These limits are intentionally strict enough to reject
@@ -117,6 +119,37 @@ def _quote_payload(quote: Quote, now: datetime) -> dict[str, Any]:
     }
 
 
+def synthetic_bid_ask(mid_price: float) -> dict[str, float]:
+    mid = float(mid_price)
+    return {
+        "mid": round(mid, 8),
+        "bid": round(mid - SYNTHETIC_HALF_SPREAD_PRICE, 5),
+        "ask": round(mid + SYNTHETIC_HALF_SPREAD_PRICE, 5),
+        "spread_pips": SYNTHETIC_SPREAD_PIPS,
+        "half_spread_pips": SYNTHETIC_HALF_SPREAD_PIPS,
+    }
+
+
+def synthetic_entry_price(direction: str, mid_price: float) -> tuple[float, str, dict[str, float]]:
+    side = str(direction or "").upper()
+    if side not in {"LONG", "SHORT"}:
+        raise ValueError("direction must be LONG or SHORT")
+    levels = synthetic_bid_ask(mid_price)
+    if side == "LONG":
+        return float(levels["ask"]), "ASK", levels
+    return float(levels["bid"]), "BID", levels
+
+
+def synthetic_exit_price(direction: str, mid_price: float) -> tuple[float, str, dict[str, float]]:
+    side = str(direction or "").upper()
+    if side not in {"LONG", "SHORT"}:
+        raise ValueError("direction must be LONG or SHORT")
+    levels = synthetic_bid_ask(mid_price)
+    if side == "LONG":
+        return float(levels["bid"]), "BID", levels
+    return float(levels["ask"]), "ASK", levels
+
+
 def blocked(reason: str, *, mode: str, instrument: str = "EUR/USD", details: Mapping[str, Any] | None = None) -> dict[str, Any]:
     return {
         "schema_version": SCHEMA_VERSION,
@@ -180,6 +213,7 @@ def verify_live_mid_fill(
     if difference_pips > float(max_cross_feed_pips):
         return blocked("cross_feed_divergence", mode="MARKET_NOW", details=details)
 
+    fill_price, fill_side, levels = synthetic_entry_price(side, p_price)
     return {
         "schema_version": SCHEMA_VERSION,
         "engine_version": ENGINE_VERSION,
@@ -188,8 +222,14 @@ def verify_live_mid_fill(
         "status": "VERIFIED_FILL",
         "verified": True,
         "direction": side,
-        "fill_price": round(p_price, 5),
-        "price_type": "LIVE_MID_PAPER_FILL",
+        "selected_mid_price": round(p_price, 8),
+        "synthetic_bid": levels["bid"],
+        "synthetic_ask": levels["ask"],
+        "synthetic_spread_pips": SYNTHETIC_SPREAD_PIPS,
+        "synthetic_half_spread_pips": SYNTHETIC_HALF_SPREAD_PIPS,
+        "fill_price": round(fill_price, 5),
+        "fill_side": fill_side,
+        "price_type": "MID_VERIFIED_SYNTHETIC_SPREAD",
         "verified_at": iso_z(current),
         "primary_quote": _quote_payload(p, current),
         "secondary_quote": _quote_payload(s, current),
@@ -197,7 +237,7 @@ def verify_live_mid_fill(
         "max_cross_feed_pips": float(max_cross_feed_pips),
         "executable_bid_ask_available": False,
         "paper_trading_only": True,
-        "policy": "current_primary_mid_cross_checked_against_independent_1m_market_feed",
+        "policy": "verified_mid_plus_fixed_1_5_pip_synthetic_spread",
     }
 
 
@@ -315,6 +355,8 @@ def verify_live_mid_quotes(
         key=lambda q: (_source_rank(q.source), _quote_age_seconds(q, current)),
     )[0]
 
+    selected_mid = float(selected.price)
+    fill_price, fill_side, levels = synthetic_entry_price(side, selected_mid)
     return {
         "schema_version": SCHEMA_VERSION,
         "engine_version": ENGINE_VERSION,
@@ -323,8 +365,14 @@ def verify_live_mid_quotes(
         "status": "VERIFIED_FILL",
         "verified": True,
         "direction": side,
-        "fill_price": round(float(selected.price), 5),
-        "price_type": "LIVE_MID_PAPER_FILL",
+        "selected_mid_price": round(selected_mid, 8),
+        "synthetic_bid": levels["bid"],
+        "synthetic_ask": levels["ask"],
+        "synthetic_spread_pips": SYNTHETIC_SPREAD_PIPS,
+        "synthetic_half_spread_pips": SYNTHETIC_HALF_SPREAD_PIPS,
+        "fill_price": round(fill_price, 5),
+        "fill_side": fill_side,
+        "price_type": "MID_VERIFIED_SYNTHETIC_SPREAD",
         "verified_at": iso_z(current),
         "verification_quality": quality,
         "selected_quote": _quote_payload(selected, current),
@@ -336,7 +384,7 @@ def verify_live_mid_quotes(
         "max_cross_feed_pips": float(max_cross_feed_pips),
         "executable_bid_ask_available": False,
         "paper_trading_only": True,
-        "policy": "availability_first_use_any_fresh_quote_with_multi_feed_outlier_control",
+        "policy": "availability_first_verified_mid_plus_fixed_1_5_pip_synthetic_spread",
     }
 
 
@@ -431,35 +479,55 @@ def recenter_geometry(
     stop: float,
     target: float,
     fill_price: float,
+    *,
+    market_mid: Optional[float] = None,
 ) -> dict[str, float]:
-    """Move SL/TP geometry to the verified fill without changing risk distances."""
+    """Recenter model SL/TP around the verified MID, not around BID/ASK.
+
+    This keeps the model's market-distance thesis intact while the synthetic
+    spread remains an explicit execution cost. Therefore actual risk/reward
+    measured from the fill changes by the half-spread, as it should.
+    """
     side = str(direction or "").upper()
-    entry = float(analytical_entry)
+    analytical = float(analytical_entry)
     stop_value = float(stop)
     target_value = float(target)
     fill = float(fill_price)
+    center = float(market_mid if market_mid is not None else fill)
+
     if side == "LONG":
-        risk_distance = entry - stop_value
-        reward_distance = target_value - entry
-        if risk_distance <= 0 or reward_distance <= 0:
+        model_risk = analytical - stop_value
+        model_reward = target_value - analytical
+        if model_risk <= 0 or model_reward <= 0:
             raise ValueError("invalid LONG analytical geometry")
-        new_stop = fill - risk_distance
-        new_target = fill + reward_distance
+        new_stop = center - model_risk
+        new_target = center + model_reward
+        actual_risk = fill - new_stop
+        actual_reward = new_target - fill
     elif side == "SHORT":
-        risk_distance = stop_value - entry
-        reward_distance = entry - target_value
-        if risk_distance <= 0 or reward_distance <= 0:
+        model_risk = stop_value - analytical
+        model_reward = analytical - target_value
+        if model_risk <= 0 or model_reward <= 0:
             raise ValueError("invalid SHORT analytical geometry")
-        new_stop = fill + risk_distance
-        new_target = fill - reward_distance
+        new_stop = center + model_risk
+        new_target = center - model_reward
+        actual_risk = new_stop - fill
+        actual_reward = fill - new_target
     else:
         raise ValueError("direction must be LONG or SHORT")
+
+    if actual_risk <= 0 or actual_reward <= 0:
+        raise ValueError("synthetic spread produced invalid execution geometry")
+
     return {
         "entry": round(fill, 5),
+        "market_mid": round(center, 8),
         "stop": round(new_stop, 5),
         "target": round(new_target, 5),
-        "risk_distance": round(risk_distance, 8),
-        "reward_distance": round(reward_distance, 8),
+        "risk_distance": round(actual_risk, 8),
+        "reward_distance": round(actual_reward, 8),
+        "model_mid_risk_distance": round(model_risk, 8),
+        "model_mid_reward_distance": round(model_reward, 8),
     }
 
 
