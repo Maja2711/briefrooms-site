@@ -48,6 +48,7 @@
   const num=(v,d=4)=>valid(v)?Number(v).toFixed(d):'—';
   const pct=(v,d=1)=>valid(v)?`${Number(v).toFixed(d)}%`:'—';
   const ratio=v=>valid(v)?`${Math.round(Number(v)*100)}%`:'—';
+  const probPct=v=>valid(v)?`${(Number(v)*100).toFixed(Number(v)<0.1?2:1)}%`:'—';
   const signed=(v,d=6)=>valid(v)?`${Number(v)>=0?'+':''}${Number(v).toFixed(d)}`:'—';
   const date=v=>{if(!v)return '—';const d=new Date(v);if(Number.isNaN(d.getTime()))return String(v);return new Intl.DateTimeFormat(lang==='pl'?'pl-PL':'en-GB',{timeZone:'Europe/Warsaw',year:'numeric',month:'short',day:'2-digit'}).format(d)};
   const dateTime=v=>{if(!v)return '—';const d=new Date(v);if(Number.isNaN(d.getTime()))return String(v);return new Intl.DateTimeFormat(lang==='pl'?'pl-PL':'en-GB',{timeZone:'Europe/Warsaw',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',timeZoneName:'short'}).format(d)};
@@ -76,7 +77,7 @@
       const tw=el('div','gse-table-wrap');const tt=el('table','gse-table');const thd=document.createElement('thead');const trh=document.createElement('tr');
       [t.event,t.horizon,t.pEvent,t.prior,'ΔP',t.confidence,t.evidence7d,t.sources7d,t.signals].forEach(x=>trh.append(el('th','',x)));thd.append(trh);tt.append(thd);
       const tb=document.createElement('tbody');
-      (threat.estimates||[]).forEach(x=>{const rr=document.createElement('tr');const sig=(x.precursor_categories||[]).map(scenarioLabel).join(' · ')||'—';rr.append(el('td','gse-scenario-name',x.target||scenarioLabel(x.event_type)),el('td','',x.horizon_label||String(x.horizon_hours||'—')),el('td','',ratio(x.probability)),el('td','',ratio(x.prior_probability)),el('td','',signed(x.delta_vs_prior,4)),el('td','',ratio(x.confidence)),el('td','',String(x.evidence_7d??0)),el('td','',String(x.independent_sources_7d??0)),el('td','',sig));tb.append(rr)});tt.append(tb);tw.append(tt);ts.append(tw);frag.append(ts);
+      (threat.estimates||[]).forEach(x=>{const rr=document.createElement('tr');const sig=(x.precursor_categories||[]).map(scenarioLabel).join(' · ')||'—';rr.append(el('td','gse-scenario-name',x.target||scenarioLabel(x.event_type)),el('td','',x.horizon_label||String(x.horizon_hours||'—')),el('td','',probPct(x.probability)),el('td','',probPct(x.prior_probability)),el('td','',signed(x.delta_vs_prior,4)),el('td','',ratio(x.confidence)),el('td','',String(x.evidence_7d??0)),el('td','',String(x.independent_sources_7d??0)),el('td','',sig));tb.append(rr)});tt.append(tb);tw.append(tt);ts.append(tw);frag.append(ts);
     }
 
     const best=data.best_horizon||{};
