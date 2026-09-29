@@ -147,6 +147,87 @@ class GovernedWeeklyModelTests(unittest.TestCase):
         self.assertEqual(100.0, point["price"])
         self.assertIn("frozen_entry_target_touch", point["source"])
 
+    def test_recent_touch_of_just_expired_frozen_plan_is_recovered_before_refresh(self):
+        now = datetime(2026, 9, 21, 9, 10, tzinfo=v5.legacy.TZ)
+        decided = now - timedelta(minutes=65)
+        touch_at = now - timedelta(minutes=10)
+        item = {
+            "instrument_id": "sp500_futures",
+            "pending_entry_decision": {
+                "decided_at": decided.isoformat(),
+                "entry_not_before": decided.isoformat(),
+                "decision": {"strategy_id": "base_v2", "direction": "long"},
+                "fresh_signal": {"risk_distance": {"stop_price_distance": 2.0, "take_price_distance": 3.0}},
+                "weekly_signal": {"regime": "test"},
+                "entry_price_plan": {
+                    "instrument_id": "sp500_futures",
+                    "direction": "long",
+                    "target_price": 100.0,
+                    "entry_not_before": decided.isoformat(),
+                    "expires_at": (now - timedelta(minutes=5)).isoformat(),
+                },
+                "authorization_basis": {
+                    "strategy_id": "base_v2",
+                    "direction": "long",
+                    "directional_admission_passed": True,
+                },
+            },
+        }
+        bars = pd.DataFrame(
+            {"High": [101.0], "Low": [99.5]},
+            index=pd.DatetimeIndex([touch_at]),
+        )
+        with patch.object(v5.v2, "intraday_bars", return_value=bars):
+            recovered = v5.recover_frozen_pending_touch(item, "ES=F", now)
+        self.assertIsNotNone(recovered)
+        pending, point = recovered
+        self.assertEqual(100.0, point["price"])
+        self.assertEqual("base_v2", pending["decision"]["strategy_id"])
+
+    def test_entry_replay_never_reconstructs_touch_older_than_global_live_lag(self):
+        now = datetime(2026, 9, 21, 9, 10, tzinfo=v5.legacy.TZ)
+        decided = now - timedelta(minutes=50)
+        pending = {
+            "entry_not_before": decided.isoformat(),
+            "decision": {"direction": "long"},
+            "entry_price_plan": {
+                "instrument_id": "sp500_futures",
+                "direction": "long",
+                "target_price": 100.0,
+                "entry_not_before": decided.isoformat(),
+                "expires_at": (now + timedelta(minutes=10)).isoformat(),
+            },
+        }
+        old_touch = pd.DataFrame(
+            {"High": [101.0], "Low": [99.5]},
+            index=pd.DatetimeIndex([now - timedelta(minutes=25)]),
+        )
+        with patch.object(v5.v2, "intraday_bars", return_value=old_touch):
+            self.assertIsNone(v5.entry_point("ES=F", pending, now))
+
+    def test_short_sell_limit_executes_when_bar_high_touches_frozen_target(self):
+        now = datetime(2026, 9, 21, 9, 10, tzinfo=v5.legacy.TZ)
+        decided = now - timedelta(minutes=5)
+        pending = {
+            "entry_not_before": decided.isoformat(),
+            "decision": {"direction": "short"},
+            "entry_price_plan": {
+                "instrument_id": "eurusd",
+                "direction": "short",
+                "target_price": 1.1372,
+                "entry_not_before": decided.isoformat(),
+                "expires_at": (now + timedelta(minutes=55)).isoformat(),
+            },
+        }
+        touched = pd.DataFrame(
+            {"High": [1.13725], "Low": [1.1360]},
+            index=pd.DatetimeIndex([now]),
+        )
+        with patch.object(v5.v2, "intraday_bars", return_value=touched):
+            point = v5.entry_point("EURUSD=X", pending, now)
+        self.assertIsNotNone(point)
+        self.assertEqual(1.1372, point["price"])
+
     def test_strong_btc_rally_requires_material_pullback_before_long_entry(self):
         now = datetime(2026, 9, 21, 12, 52, 50, tzinfo=v5.legacy.TZ)
         item = {
