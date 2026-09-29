@@ -244,18 +244,15 @@ def required_symbols(spec: Mapping[str, Any]) -> List[str]:
 
 
 def target_values(client: YahooChartClient, spec: Mapping[str, Any], target_at: datetime, now: datetime,
-                  live_snapshot: Optional[MarketSnapshot]) -> Optional[Dict[str, float]]:
-    target_local = target_at.astimezone(NY)
-    now_local = now.astimezone(NY)
+                  live_snapshot: Optional[MarketSnapshot],
+                  bars_cache: Optional[Dict[Tuple[str, str, str], Optional[List[Bar]]]] = None) -> Optional[Dict[str, float]]:
+    # Settlement must use the first actual bar at/after the frozen Target.
+    # Never substitute the latest live snapshot: a delayed workflow run would
+    # otherwise score a later market state and violate the frozen contract.
+    del live_snapshot  # kept in the signature for compatibility with callers/tests
     symbols = required_symbols(spec)
-    if (
-        live_snapshot is not None
-        and target_local.date() == now_local.date()
-        and live_snapshot.is_current_session(now)
-        and all(symbol in live_snapshot.bars for symbol in symbols)
-    ):
-        return {symbol: live_snapshot.latest(symbol) for symbol in symbols}
     values: Dict[str, float] = {}
+    cache = bars_cache if bars_cache is not None else {}
     # Resolve the outcome at the declared target, not merely on the same calendar
     # date. Intraday research horizons therefore use intraday bars; long horizons
     # may use hourly bars. The first bar at/after target is the deterministic mark.
@@ -263,9 +260,17 @@ def target_values(client: YahooChartClient, spec: Mapping[str, Any], target_at: 
     period, interval = ("5d", "5m") if age_hours <= 24 * 5 else ("3mo", "1h")
     tolerance = timedelta(minutes=20) if interval == "5m" else timedelta(hours=2)
     for symbol in symbols:
-        try:
-            rows = client.bars(symbol, period, interval)
-        except Exception:
+        cache_key = (symbol, period, interval)
+        if cache_key not in cache:
+            try:
+                cache[cache_key] = list(client.bars(symbol, period, interval))
+            except Exception:
+                # Fail closed for the whole dependent batch in this cycle.
+                # The next scheduler run retries instead of creating a partial,
+                # request-order-dependent settlement.
+                cache[cache_key] = None
+        rows = cache[cache_key]
+        if rows is None:
             return None
         candidates = [bar for bar in rows if bar.timestamp >= target_at]
         if not candidates:
@@ -385,7 +390,9 @@ def forecast_contract_metadata(snapshot: MarketSnapshot, market_symbol: str, spe
     """Immutable T0/target settlement contract for prospective LAB research."""
     symbols = required_symbols(spec)
     t0_values = {symbol: snapshot.latest(symbol) for symbol in symbols}
-    continuous = market_symbol == "BTC-USD"
+    continuous = bool(symbols) and all(symbol == "BTC-USD" for symbol in symbols)
+    fx_only = bool(symbols) and all(symbol == "EURUSD=X" for symbol in symbols)
+    market_calendar = "24/7" if continuous else ("fx_24x5" if fx_only else "tradable_session_first_available")
     return {
         "forecast_contract_version": FORECAST_CONTRACT_VERSION,
         "model_freeze_version": MODEL_FREEZE_VERSION,
@@ -395,7 +402,7 @@ def forecast_contract_metadata(snapshot: MarketSnapshot, market_symbol: str, spe
         "horizon_hours": horizon_hours,
         "settlement_rule": "first_bar_at_or_after_nominal_target",
         "settlement_max_delay_hours": 0.333333 if continuous else 72,
-        "market_calendar": "24/7" if continuous else "tradable_session_first_available",
+        "market_calendar": market_calendar,
         "t1_values_recorded_on_verification": True,
         "shadow_only": True,
         "production_write_authority": False,
@@ -543,13 +550,16 @@ def verify_due(core: BeliefCore, client: YahooChartClient, now: datetime,
                live_snapshot: Optional[MarketSnapshot]) -> int:
     verified_ids = {value.forecast_id for value in core.verifications.values() if value.forecast_id}
     count = 0
+    # One market-data fetch per symbol/period/interval per cycle. This prevents
+    # duplicate Yahoo requests from causing partial settlement of one forecast batch.
+    bars_cache: Dict[Tuple[str, str, str], Optional[List[Bar]]] = {}
     for forecast in sorted(core.forecasts.values(), key=lambda item: item.target_at):
         if forecast.forecast_id in verified_ids or parse_time(forecast.target_at) > now:
             continue
         spec = dict(forecast.metadata.get("outcome_spec") or {})
         if not spec:
             continue
-        values = target_values(client, spec, parse_time(forecast.target_at), now, live_snapshot)
+        values = target_values(client, spec, parse_time(forecast.target_at), now, live_snapshot, bars_cache)
         if values is None:
             continue
         outcome = evaluate_spec(spec, values)
