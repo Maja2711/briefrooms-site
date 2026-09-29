@@ -29,6 +29,7 @@ on:
       - "data/investments/multi_instrument_exposure_policy.json"
       - "data/investments/wes_methodology.json"
       - ".github/workflows/investments-wes.yml"
+      - "tests/test_investments_weekly_v5.py"
   workflow_run:
     workflows: ["Governed Weekly Paper Exposure Watch"]
     types: [completed]
@@ -59,7 +60,7 @@ jobs:
         run: |
           python -m py_compile             scripts/instrument_registry.py scripts/investments_weekly_v2.py scripts/investments_weekly_v3.py             scripts/investments_weekly_v4.py scripts/investments_weekly_v5.py scripts/investments_weekly_macro.py             scripts/investments_weekly_ma_structure.py scripts/investments_wes.py scripts/investments_wes_runner.py             scripts/investments_wes_lifecycle.py scripts/investments_wes_memory.py scripts/investments_wes_spx_brace_bridge.py             scripts/investments_wes_counterfactual.py scripts/no_retroactive_execution.py scripts/verify_no_retroactive_execution.py
           python scripts/instrument_registry.py --validate-wes
-          python -m unittest             tests/test_investments_wes.py tests/test_investments_wes_memory.py             tests/test_investments_wes_spx_brace_bridge.py tests/test_investments_wes_counterfactual.py             tests/test_investments_wes_counterfactual_deadline.py tests/test_no_retroactive_execution.py
+          python -m unittest             tests/test_investments_wes.py tests/test_investments_wes_memory.py             tests/test_investments_wes_spx_brace_bridge.py tests/test_investments_wes_counterfactual.py             tests/test_investments_wes_counterfactual_deadline.py tests/test_investments_weekly_v5.py tests/test_no_retroactive_execution.py
 
   wes-cycle:
     # Direct pushes are validation-only, and a workflow_run caused by an
@@ -112,7 +113,8 @@ jobs:
             tests/test_investments_wes_memory.py \
             tests/test_investments_wes_spx_brace_bridge.py \
             tests/test_investments_wes_counterfactual.py \
-            tests/test_investments_wes_counterfactual_deadline.py
+            tests/test_investments_wes_counterfactual_deadline.py \
+            tests/test_investments_weekly_v5.py
       - name: WES preflight trigger gate
         run: python scripts/investments_wes_runner.py --mode preflight
       - name: Execute governed v5 decision after WES admission gate
