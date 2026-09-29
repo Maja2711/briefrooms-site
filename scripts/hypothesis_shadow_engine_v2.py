@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """BriefRooms Hypothesis Shadow Engine 2.0.
 
-Six research producers -> immutable hypothesis -> frozen prospective boundary ->
+Seven research producers -> immutable hypothesis -> frozen prospective boundary ->
 forward evidence -> single fixed-N verdict -> derived LESSON.
 
 Producers:
@@ -11,6 +11,7 @@ Producers:
 - WES
 - GSE
 - Strategy Research
+- FSE — Fractal Structure Engine
 
 This engine is intentionally authority-free. It cannot execute trades, mutate
 source models, promote candidates or write production policy/configuration.
@@ -51,6 +52,7 @@ SOURCE_PATHS = {
     "WES": "data/investments/wes_incremental_alpha_report.json",
     "GSE": "data/gse/gse_v2_learning_review_status.json",
     "STRATEGY_RESEARCH": "data/investments/research_lab_report.json",
+    "FSE": "data/investments/fse_public.json",
 }
 
 
@@ -358,6 +360,46 @@ def proposals_strategy(data: Mapping[str, Any], source_path: str, source_sha256:
     return out[:8]
 
 
+def proposals_fse(data: Mapping[str, Any], source_path: str, source_sha256: str | None) -> list[dict[str, Any]]:
+    """Translate FSE's frozen prospective measurements into HSE2 hypotheses.
+
+    FSE owns neither the verdict nor promotion. HSE2 freezes the current
+    counters/totals and only credits evidence that arrives after that boundary.
+    """
+    out = []
+    rows = data.get("hse_measurements") if isinstance(data.get("hse_measurements"), list) else []
+    for row in rows[:12]:
+        if not isinstance(row, Mapping):
+            continue
+        key = str(row.get("proposal_key") or "")
+        if not key:
+            continue
+        details = row.get("details") if isinstance(row.get("details"), Mapping) else {}
+        out.append(proposal(
+            source_engine="FSE",
+            proposal_key=key,
+            claim=str(row.get("claim") or f"FSE hypothesis {key} retains positive prospective edge."),
+            champion=str(row.get("champion") or "50/50 baseline"),
+            challenger=str(row.get("challenger") or "FSE"),
+            metric_name=str(row.get("metric_name") or "prospective_edge"),
+            target_n=int(row.get("target_n") or 40),
+            success_mean_edge=float(row.get("success_mean_edge") or 0.0025),
+            reject_mean_edge=float(row.get("reject_mean_edge") or -0.0025),
+            counter=int(row.get("counter") or 0),
+            total=finite(row.get("total")),
+            source_at=data.get("generated_at"),
+            source_path=source_path,
+            source_sha256=source_sha256,
+            details={
+                **dict(details),
+                "fse_module_id": data.get("module_id"),
+                "fse_mode": data.get("mode"),
+                "production_impact": data.get("production_impact"),
+            },
+        ))
+    return out
+
+
 ADAPTERS = {
     "EURUSD_X": proposals_eurusd_x,
     "STOCK_TRADING_V2": proposals_stock_v2,
@@ -365,6 +407,7 @@ ADAPTERS = {
     "WES": proposals_wes,
     "GSE": proposals_gse,
     "STRATEGY_RESEARCH": proposals_strategy,
+    "FSE": proposals_fse,
 }
 
 
