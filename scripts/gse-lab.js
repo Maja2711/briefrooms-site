@@ -21,7 +21,7 @@
       learningShow:'Pokaż historię uczenia',learningHide:'Ukryj historię uczenia',
       candidates:'nowi kandydaci',verifications:'nowe weryfikacje',method:'Jak GSE się uczy',
       methodSteps:['Discovery zdarzeń','Clustering kryzysów','Regime similarity','Walk-forward / holdout','Prospective v1 vs v2'],
-      unavailable:'Brak aktualnych danych GSE Lab.',automatic:'Brak automatycznej promocji · brak wpływu na decyzje'
+      threat:'Event Probability / Threat Engine',threatSub:'Prospektywne P wystąpienia zdefiniowanego zdarzenia. Początkowa mapa P jest niekalibrowanym seedem badawczym; skuteczność jest rozliczana Brierem względem zapisanego prior.',event:'Zdarzenie',pEvent:'P(event)',prior:'Prior',confidence:'Confidence',signals:'Prekursory',evidence7d:'Evidence 7d',sources7d:'Źródła 7d',threatBrier:'Threat Brier',threatDelta:'Δ Brier vs prior',uncalibrated:'NIEKALIBROWANE',unavailable:'Brak aktualnych danych GSE Lab.',automatic:'Brak automatycznej promocji · brak wpływu na decyzje'
     },
     en:{
       intro:'GSE studies how verified geopolitical events transmit into markets. It combines event similarity with market regime similarity, then validates results historically and prospectively.',
@@ -40,7 +40,7 @@
       learningShow:'Show learning history',learningHide:'Hide learning history',
       candidates:'new candidates',verifications:'new verifications',method:'How GSE learns',
       methodSteps:['Event discovery','Crisis clustering','Regime similarity','Walk-forward / holdout','Prospective v1 vs v2'],
-      unavailable:'Current GSE Lab data unavailable.',automatic:'No automatic promotion · no decision influence'
+      threat:'Event Probability / Threat Engine',threatSub:'Prospective probability of a defined geopolitical event. The initial probability mapping is an uncalibrated research seed; performance is scored with Brier versus the stored prior.',event:'Event',pEvent:'P(event)',prior:'Prior',confidence:'Confidence',signals:'Precursors',evidence7d:'Evidence 7d',sources7d:'Sources 7d',threatBrier:'Threat Brier',threatDelta:'Δ Brier vs prior',uncalibrated:'UNCALIBRATED',unavailable:'Current GSE Lab data unavailable.',automatic:'No automatic promotion · no decision influence'
     }
   }[lang];
   const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;};
@@ -66,6 +66,18 @@
     const activitySection=el('section','gse-section');
     const ah=el('div','gse-section-head');const acopy=el('div');acopy.append(el('h2','',t.activity),el('p','',t.activitySub));ah.append(acopy);activitySection.append(ah);
     const activityGrid=el('div','gse-grid');activityGrid.append(metric(t.lastScan,dateTime(activity.last_scan_at)),metric(t.lastLearning,dateTime(activity.last_learning_at)),metric(t.lastVerification,dateTime(activity.last_verification_at)),metric(t.panelGenerated,dateTime(activity.projection_generated_at||data.generated_at)));activitySection.append(activityGrid);frag.append(activitySection);
+
+    const threat=data.event_threat;
+    if(threat){
+      const ts=el('section','gse-section');
+      const tsh=el('div','gse-section-head');const tcopy=el('div');tcopy.append(el('h2','',t.threat),el('p','',t.threatSub));tsh.append(tcopy);ts.append(tsh);
+      const tc=threat.calibration||{};const tg=el('div','gse-grid');
+      tg.append(metric(t.status,String(threat.model_status||t.uncalibrated).replaceAll('_',' ')),metric(t.threatBrier,num(tc.mean_brier,6)),metric(t.threatDelta,signed(tc.delta_brier_vs_prior,6)),metric('N',String(tc.count??0)));ts.append(tg);
+      const tw=el('div','gse-table-wrap');const tt=el('table','gse-table');const thd=document.createElement('thead');const trh=document.createElement('tr');
+      [t.event,t.horizon,t.pEvent,t.prior,'ΔP',t.confidence,t.evidence7d,t.sources7d,t.signals].forEach(x=>trh.append(el('th','',x)));thd.append(trh);tt.append(thd);
+      const tb=document.createElement('tbody');
+      (threat.estimates||[]).forEach(x=>{const rr=document.createElement('tr');const sig=(x.precursor_categories||[]).map(scenarioLabel).join(' · ')||'—';rr.append(el('td','gse-scenario-name',x.target||scenarioLabel(x.event_type)),el('td','',x.horizon_label||String(x.horizon_hours||'—')),el('td','',ratio(x.probability)),el('td','',ratio(x.prior_probability)),el('td','',signed(x.delta_vs_prior,4)),el('td','',ratio(x.confidence)),el('td','',String(x.evidence_7d??0)),el('td','',String(x.independent_sources_7d??0)),el('td','',sig));tb.append(rr)});tt.append(tb);tw.append(tt);ts.append(tw);frag.append(ts);
+    }
 
     const best=data.best_horizon||{};
     const highlight=el('section','gse-section');const hi=el('div','gse-highlight');hi.append(el('strong','',`${t.best}: ${best.label||'—'}`),el('p','',`${t.bestBody}. Brier ${num(best.regime_brier)} vs ${num(best.baseline_brier)} · ${t.improvement}: ${pct(best.brier_improvement_pct)} · N=${best.n??'—'}`));highlight.append(hi);frag.append(highlight);
