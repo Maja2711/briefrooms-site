@@ -12,30 +12,154 @@
     "stock_trading_route": "Stock Trading Component Promotion",
     "trade_execution": false
   },
-  "candidates": {},
+  "candidates": {
+    "evo-belief-72343f0df571e6243bf5f328": {
+      "activation_boundary": "2026-09-29T15:09:40.999850Z",
+      "automatic_promotion_allowed": true,
+      "baseline_version": "belief-core-v2-raw",
+      "candidate_id": "evo-belief-72343f0df571e6243bf5f328",
+      "candidate_type": "probability_calibration",
+      "challenger_version": "cal:523c91655e28",
+      "component_id": "belief_probability:__GLOBAL__",
+      "created_at": "2026-09-29T15:09:40.999850Z",
+      "evaluator_profile": "belief_calibration_v1",
+      "metadata": {
+        "trigger_reasons": [
+          "overall_ece_above_5pp"
+        ]
+      },
+      "metrics": {
+        "discovery": {
+          "discovery_n": 194,
+          "validation_brier_relative_improvement": 0.010185,
+          "validation_challenger": {
+            "accuracy": 0.678571,
+            "brier": 0.225264,
+            "ece": 0.075375,
+            "log_loss": 0.64316,
+            "n": 84
+          },
+          "validation_control": {
+            "accuracy": 0.619048,
+            "brier": 0.227582,
+            "ece": 0.139861,
+            "log_loss": 0.647417,
+            "n": 84
+          },
+          "validation_n": 84
+        },
+        "prospective": {
+          "brier_relative_improvement": null,
+          "challenger": {
+            "accuracy": null,
+            "brier": null,
+            "ece": null,
+            "log_loss": null,
+            "n": 0
+          },
+          "control": {
+            "accuracy": null,
+            "brier": null,
+            "ece": null,
+            "log_loss": null,
+            "n": 0
+          },
+          "n": 0,
+          "pass": false,
+          "stability": {
+            "blocks": 0,
+            "improved": 0,
+            "worst_relative_degradation": null
+          }
+        }
+      },
+      "promotion_route": "belief_core_probability_overlay",
+      "proposed_change": {
+        "scope": "__GLOBAL__",
+        "transform": {
+          "intercept": -0.2,
+          "slope": 0.9,
+          "type": "logit_affine_v1"
+        }
+      },
+      "protected_slices": [],
+      "source_module": "EP-07",
+      "source_ref": "belief-closed-loop://__GLOBAL__/2026-09-29T15:09:40.999850Z",
+      "source_sha256": "446cba5a847e1bec2ca9bc492639afacef489a4cbed901d9e3e27ed98ff08067",
+      "status": "OOS_RUNNING",
+      "target_module": "EP-05",
+      "trade_execution_authority": false
+    }
+  },
   "delegated_actions": [],
   "hypotheses": {},
   "production_versions": {},
-  "promotion_gates": {},
+  "promotion_gates": {
+    "evo-belief-72343f0df571e6243bf5f328": {
+      "blockers": [
+        "minimum_prospective_sample"
+      ],
+      "candidate_id": "evo-belief-72343f0df571e6243bf5f328",
+      "criteria": {
+        "brier_relative_improvement_min": 0.05,
+        "log_loss_must_improve": true,
+        "max_accuracy_degradation": 0.03,
+        "max_ece_degradation": 0.01,
+        "protected_slice_max_brier_degradation": 0.1,
+        "stability": "3_of_4"
+      },
+      "evaluated_at": "2026-09-29T15:10:16.568666Z",
+      "evaluator_profile": "belief_calibration_v1",
+      "gate_id": "evo-gate-72abd6f8304cc3206c453f12",
+      "metrics": {
+        "brier_relative_improvement": null,
+        "challenger": {
+          "accuracy": null,
+          "brier": null,
+          "ece": null,
+          "log_loss": null,
+          "n": 0
+        },
+        "control": {
+          "accuracy": null,
+          "brier": null,
+          "ece": null,
+          "log_loss": null,
+          "n": 0
+        },
+        "stability": {
+          "blocks": 0,
+          "improved": 0,
+          "worst_relative_degradation": null
+        }
+      },
+      "minimum_sample": 50,
+      "observed_sample": 0,
+      "prospective_only": true,
+      "segment_checks": [],
+      "source_sha256": "0335b7091113bc5c234ccb6fd24b5afa8f4f11bd180348e67451f08764ae4e6c",
+      "status": "COLLECTING"
+    }
+  },
   "retirement_actions": [],
   "rollback_events": [],
   "schema_version": "briefrooms-evolution-controller-v1",
   "source_status": {
     "belief_calibration": {
       "available": true,
-      "resolved_rows": 262,
+      "resolved_rows": 278,
       "scan_status": {
         "__GLOBAL__": {
-          "last_discovery_n": 250,
-          "prospective_n": null,
-          "rediscovery_after_n": 270,
-          "status": "no_valid_challenger",
+          "last_discovery_n": null,
+          "prospective_n": 0,
+          "rediscovery_after_n": null,
+          "status": "prospective_shadow",
           "trigger_reasons": [
             "overall_ece_above_5pp"
           ]
         }
       },
-      "source_generated_at": "2026-09-29T14:48:24.050938Z"
+      "source_generated_at": "2026-09-29T15:09:40.999850Z"
     },
     "belief_v3": {
       "available": true,
@@ -56,16 +180,16 @@
   },
   "summary": {
     "active_production_versions": 0,
-    "candidates_total": 0,
+    "candidates_total": 1,
     "delegated_actions": 0,
     "gate_pass": 0,
     "hypotheses": 0,
-    "oos_running": 0,
+    "oos_running": 1,
     "promoted": 0,
     "promotion_eligible": 0,
     "retired_or_rolled_back": 0,
     "retirement_actions": 0,
     "rollback_events": 0
   },
-  "updated_at": "2026-09-29T14:48:55.585207Z"
+  "updated_at": "2026-09-29T15:10:16.568666Z"
 }
