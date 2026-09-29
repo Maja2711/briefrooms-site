@@ -1,0 +1,160 @@
+name: FSE Fractal Structure Engine Shadow
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 * * * *"
+  pull_request:
+    paths:
+      - "scripts/fractal_structure_engine.py"
+      - "tests/test_fractal_structure_engine.py"
+      - ".github/workflows/fse-fractal-structure-engine.yml"
+      - "docs/FRACTAL_STRUCTURE_ENGINE_PL.md"
+      - "docs/FRACTAL_STRUCTURE_ENGINE_EN.md"
+      - "docs/ARCHITECTURE_MAP_PL.md"
+      - "docs/ARCHITECTURE_MAP_EN.md"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/fractal_structure_engine.py"
+      - "tests/test_fractal_structure_engine.py"
+      - ".github/workflows/fse-fractal-structure-engine.yml"
+      - "docs/FRACTAL_STRUCTURE_ENGINE_PL.md"
+      - "docs/FRACTAL_STRUCTURE_ENGINE_EN.md"
+      - "docs/ARCHITECTURE_MAP_PL.md"
+      - "docs/ARCHITECTURE_MAP_EN.md"
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: fse-fractal-structure-engine
+  cancel-in-progress: false
+
+env:
+  STATE_ARTIFACT: fse-fractal-structure-engine-state
+  STATE_ARCHIVE: fse-fractal-structure-engine-state.tgz
+  PUBLIC_PATH: data/investments/fse_public.json
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate FSE core
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/fractal_structure_engine.py
+          python -m unittest tests.test_fractal_structure_engine -v
+
+  shadow:
+    if: github.event_name != 'pull_request'
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PYTHONPATH: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Restore durable FSE state
+        shell: bash
+        run: |
+          set -euo pipefail
+          FSE_STATE_DIR="$RUNNER_TEMP/fse-state"
+          echo "FSE_STATE_DIR=$FSE_STATE_DIR" >> "$GITHUB_ENV"
+          mkdir -p "$FSE_STATE_DIR"
+          run_id="$(gh run list --workflow fse-fractal-structure-engine.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')"
+          if [[ -z "$run_id" ]]; then
+            echo "No prior FSE state. First run freezes T0 only."
+            exit 0
+          fi
+          mkdir -p "$RUNNER_TEMP/fse-artifact"
+          if ! gh run download "$run_id" -n "$STATE_ARTIFACT" -D "$RUNNER_TEMP/fse-artifact"; then
+            echo "Prior run has no state artifact; starting a new prospective epoch."
+            exit 0
+          fi
+          archive="$RUNNER_TEMP/fse-artifact/$STATE_ARCHIVE"
+          if [[ -s "$archive" ]]; then
+            tar -xzf "$archive" -C "$FSE_STATE_DIR"
+          fi
+
+      - name: Run FSE shadow cycle
+        run: |
+          set -euo pipefail
+          python scripts/fractal_structure_engine.py --root . --state-dir "$FSE_STATE_DIR" --public "$PUBLIC_PATH"
+          python scripts/fractal_structure_engine.py --state-dir "$FSE_STATE_DIR" --verify
+          python -m json.tool "$PUBLIC_PATH" >/dev/null
+
+      - name: Assert zero production authority
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("data/investments/fse_public.json").read_text())
+          assert p["engine"] == "FSE — Fractal Structure Engine"
+          assert p["module_id"] == "IN-09"
+          assert p["mode"] == "SHADOW_ONLY"
+          assert p["production_impact"] is False
+          assert p["instruments"]
+          assert len(p["hse_measurements"]) == 2 * len(p["instruments"])
+          for value in p["authority"].values():
+              assert value is False
+          for row in p["instruments"]:
+              assert row["research_risk_geometry"]["production_applied"] is False
+          print("FSE_ZERO_AUTHORITY_PASS")
+          PY
+          git diff --exit-code --             data/investments/stock_trading_v2_production_state.json             data/investments/stock_trading_champion_manifest.json             data/investments/wes_state.json             data/investments/eurusd_x_public_pl.json
+
+      - name: Pack durable FSE state
+        run: |
+          set -euo pipefail
+          tar -czf "$RUNNER_TEMP/$STATE_ARCHIVE" -C "$FSE_STATE_DIR" .
+          test -s "$RUNNER_TEMP/$STATE_ARCHIVE"
+
+      - name: Store private FSE state
+        uses: actions/upload-artifact@v4
+        with:
+          name: fse-fractal-structure-engine-state
+          path: ${{ runner.temp }}/fse-fractal-structure-engine-state.tgz
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
+
+      - name: Publish read-only FSE projection
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$PUBLIC_PATH"
+          if git diff --cached --quiet; then
+            echo "FSE projection already current."
+            exit 0
+          fi
+          git commit -m "Refresh FSE fractal structure shadow"
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            if ! git rebase origin/main; then
+              git rebase --abort || true
+              sleep $((attempt*2))
+              continue
+            fi
+            if git push origin HEAD:main; then exit 0; fi
+            sleep $((attempt*3))
+          done
+          exit 1
