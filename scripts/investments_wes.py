@@ -172,6 +172,23 @@ def learning_threshold_penalty(stats: Dict[str, Any], cls: str) -> float:
 
 
 def set_monitoring(item: Dict[str, Any], now: datetime, until: datetime, candidate: Dict[str, Any], profile: Dict[str, Any]) -> None:
+    # NO_TRADE monitoring and an executable pending entry are mutually
+    # exclusive states. If current admission no longer authorizes execution,
+    # cancel the unfilled pending plan instead of leaving stale target metadata.
+    # A previously executed/closed leg remains immutable.
+    executed_closed_leg = sf(item.get("entry_price")) is not None and sf(item.get("exit_price")) is not None
+    item["pending_entry_decision"] = None
+    item["wes_entry_authorization"] = None
+    if executed_closed_leg:
+        item["trade_status"] = "closed"
+        item["next_entry_status"] = "no_trade"
+    elif sf(item.get("entry_price")) is None:
+        item["direction"] = "neutral"
+        item["trade_status"] = "no_trade"
+        item["next_entry_status"] = "no_trade"
+        item["continuous_exposure_active"] = False
+        item["continuous_exposure_status"] = "no_trade"
+
     item["wes_status"] = "no_trade_monitoring_trigger"
     item["wes_methodology"] = VERSION
     item["wes_last_review_at"] = now.isoformat(timespec="seconds")
