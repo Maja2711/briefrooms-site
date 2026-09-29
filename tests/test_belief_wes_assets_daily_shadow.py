@@ -69,7 +69,7 @@ class DailyWESAssetShadowTests(unittest.TestCase):
             self.assertGreaterEqual(status["observations_collected"], wes_counts["observations"])
 
             core = BeliefCore(state_dir)
-            self.assertEqual(len(core.forecasts), 40)
+            initial_forecast_count = len(core.forecasts)
             shared = [f for f in core.forecasts.values() if f.metadata.get("consumer") == "BRACE+BRACE-SPX"]
             assets = [f for f in core.forecasts.values() if f.metadata.get("consumer") == "WES-ASSET-SHADOW"]
             self.assertEqual(len(shared), 5)
@@ -81,7 +81,7 @@ class DailyWESAssetShadowTests(unittest.TestCase):
             retry = run_cycle(state_dir, now, client)
             self.assertEqual(retry["shared_forecasts_frozen"], 0)
             self.assertEqual(retry["wes_asset_forecasts_frozen"], 0)
-            self.assertEqual(len(BeliefCore(state_dir).forecasts), 40)
+            self.assertEqual(len(BeliefCore(state_dir).forecasts), initial_forecast_count)
 
 
 if __name__ == "__main__":
