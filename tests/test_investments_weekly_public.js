@@ -233,11 +233,12 @@ test('WES 1.2 pending entry publishes the frozen target instead of a fake open p
   assert.doesNotMatch(html, /<dt>Cena otwarcia<\/dt><dd>84/);
 });
 
-test('marks stored current prices as delayed when live data is stale', async () => {
+test('keeps stale market status silent while preserving stale state and last stored prices', async () => {
   const { elements, classes } = await renderWithLive({ updatedAt: '2000-01-01T00:00:00Z' });
-  assert.match(elements.updated.textContent, /Dane rynkowe są opóźnione/);
+  assert.equal(elements.updated.textContent, '');
   assert.equal(classes.has('stale'), true);
   assert.match(elements.app.innerHTML, /1,14456/);
+  assert.doesNotMatch(elements.app.innerHTML, /Dane rynkowe są opóźnione/);
 });
 
 test('withholds a record when exit precedes entry', async () => {
