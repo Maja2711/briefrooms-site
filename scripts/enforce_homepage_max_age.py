@@ -525,21 +525,29 @@ def enforce_files() -> None:
         payload, _ = enforce_payload(payload, state_lang, now, lang=lang)
         if lang == "pl":
             sections = payload.get("sections") if isinstance(payload.get("sections"), dict) else {}
-            for section_id, minimum in PL_SECTION_MINIMUMS.items():
+            counts = {}
+            shortfalls = {}
+            for section_id, target in PL_SECTION_MINIMUMS.items():
                 rows = sections.get(section_id, []) if isinstance(sections.get(section_id), list) else []
-                if len(rows) < minimum:
-                    raise RuntimeError(
-                        f"PL section {section_id} below required unique minimum after BriefRooms exposure gate: "
-                        f"{len(rows)}/{minimum}"
-                    )
-            economy_rows = sections.get("ekonomia", [])
-            if not any(
+                count = len(rows)
+                counts[section_id] = count
+                if count < target:
+                    shortfalls[section_id] = {"count": count, "target": target}
+            economy_rows = sections.get("ekonomia", []) if isinstance(sections.get("ekonomia"), list) else []
+            ai_crypto_present = any(
                 PL_AI_CRYPTO_RE.search(
                     " ".join(str(story.get(key) or "") for key in ("title", "summary"))
                 )
                 for story in economy_rows
-            ):
-                raise RuntimeError("PL ekonomia missing required AI/crypto story after BriefRooms exposure gate")
+            )
+            payload.setdefault("health", {})["pl_section_coverage"] = {
+                "status": "ok" if not shortfalls and ai_crypto_present else "degraded",
+                "counts": counts,
+                "targets": dict(PL_SECTION_MINIMUMS),
+                "shortfalls": shortfalls,
+                "ai_crypto_coverage": "ok" if ai_crypto_present else "missing",
+                "policy": "publish_fresh_underfill_instead_of_blocking_entire_feed",
+            }
         path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
     STATE_PATH.write_text(json.dumps(state, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
