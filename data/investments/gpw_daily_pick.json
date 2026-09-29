@@ -1,38 +1,38 @@
 {
   "schema_version": "gpw-daily-pick-v1",
   "policy_version": "gpw-short-horizon-pl-v1.5-ranking-gates-momentum",
-  "date": "2026-09-25",
-  "generated_at": "2026-09-25T14:47:19+02:00",
+  "date": "2026-09-29",
+  "generated_at": "2026-09-29T16:05:20+02:00",
   "timezone": "Europe/Warsaw",
   "publication_cutoff": "10:00",
   "decision": "TRANSAKCJA",
   "reason": "Końcowy wybór dnia: pełny ranking P0.3 połączono z P0.4 data gates, Opening Confirmation oraz empirycznym Expected Value dla horyzontu 1–2 sesji.",
   "locked": true,
   "selection": {
-    "symbol": "ING.WA",
-    "ticker": "ING",
-    "name": "ING Bank Śląski",
-    "sector": "banki",
-    "score": 68.81,
-    "legacy_composite_score": 69.53,
-    "opening_adjusted_score": 74.85,
-    "quant_pre_score": 76.04,
-    "quant_rank": 2,
+    "symbol": "LPP.WA",
+    "ticker": "LPP",
+    "name": "LPP",
+    "sector": "handel",
+    "score": 67.82,
+    "legacy_composite_score": 69.92,
+    "opening_adjusted_score": 70.86,
+    "quant_pre_score": 76.56,
+    "quant_rank": 1,
     "relative_momentum_detail": {
       "engine": "cross-sectional-multihorizon-v2",
       "relative_returns": {
-        "1d": 0.01878,
-        "5d": 0.06323,
-        "20d": 0.0774
+        "1d": -0.00292,
+        "5d": 0.03984,
+        "20d": 0.1971
       },
-      "sector_relative_5d": 0.02046,
-      "risk_adjusted_5d": 2.0205,
+      "sector_relative_5d": 0.02754,
+      "risk_adjusted_5d": 0.9977,
       "components": {
-        "rank_1d": 94.12,
-        "rank_5d": 97.06,
-        "rank_20d": 79.41,
+        "rank_1d": 29.41,
+        "rank_5d": 94.12,
+        "rank_20d": 97.06,
         "rank_risk_adjusted_5d": 94.12,
-        "rank_sector_5d": 91.18
+        "rank_sector_5d": 94.12
       },
       "weights": {
         "rank_1d": 0.1,
@@ -46,32 +46,32 @@
       "status": "fresh",
       "accepted": true,
       "reason": null,
-      "expected_session": "2026-09-24",
-      "latest_session": "2026-09-24",
-      "feature_session": "2026-09-24",
+      "expected_session": "2026-09-28",
+      "latest_session": "2026-09-28",
+      "feature_session": "2026-09-28",
       "lag_sessions": 0
     },
     "execution_data_gate": {
       "engine": "gpw-data-gates-v1",
       "status": "accepted",
-      "session": "2026-09-25",
-      "observed_at": "2026-09-25T14:30:29+02:00",
-      "age_minutes": 16.84,
+      "session": "2026-09-29",
+      "observed_at": "2026-09-29T15:48:07+02:00",
+      "age_minutes": 17.22,
       "crosscheck_status": "single_source",
       "provider": "Yahoo"
     },
-    "opening_confirmation_score": 90.81,
+    "opening_confirmation_score": 73.67,
     "opening_confirmation": {
       "engine": "gpw-opening-confirmation-v1",
-      "score": 90.81,
-      "gap": 0.0,
-      "open_return": 0.01554,
-      "intraday_position": 0.78,
-      "distance_from_high": -0.00453,
+      "score": 73.67,
+      "gap": -0.00161,
+      "open_return": 0.0,
+      "intraday_position": 0.52941,
+      "distance_from_high": -0.00642,
       "components": {
-        "open_return": 98.92,
-        "intraday_position": 78.0,
-        "distance_from_high": 88.68,
+        "open_return": 70.0,
+        "intraday_position": 52.94,
+        "distance_from_high": 83.96,
         "gap_quality": 100.0
       },
       "component_weights": {
@@ -80,24 +80,24 @@
         "distance_from_high": 0.2,
         "gap_quality": 0.2
       },
-      "observed_at": "2026-09-25T14:30:29+02:00"
+      "observed_at": "2026-09-29T15:48:07+02:00"
     },
     "selection_mode": "MANDATORY_DAILY_FINAL",
-    "reference_price": 483.6,
+    "reference_price": 24780.0,
     "entry_zone": [
-      482.15,
-      486.5
+      24705.66,
+      24928.68
     ],
-    "skip_above": 486.5,
+    "skip_above": 24928.68,
     "activation": "Wybór dnia po otwarciu; nie gonić ceny powyżej górnej granicy strefy wejścia.",
-    "stop": 468.51,
-    "target": 521.32,
-    "risk_percent": 0.0312,
-    "reward_risk": 2.5,
-    "valid_until": "2026-09-29",
+    "stop": 24056.42,
+    "target": 25865.36,
+    "risk_percent": 0.0292,
+    "reward_risk": 1.5,
+    "valid_until": "2026-10-01",
     "time_stop": "Maksymalnie 2 sesje od dnia wyboru.",
     "early_exit": "Wyjście przy SL, unieważnieniu setupu lub pogorszeniu danych wykonawczych; nie rozszerzać SL.",
-    "thesis": "ING Bank Śląski ma najwyższy końcowy ranking po połączeniu P0.5 relative momentum, pozostałych czynników ilościowych, bieżącej sesji i empirycznego EV.",
+    "thesis": "LPP ma najwyższy końcowy ranking po połączeniu P0.5 relative momentum, pozostałych czynników ilościowych, bieżącej sesji i empirycznego EV.",
     "why_now": "P0.5 porównuje relatywną siłę 1D/5D/20D, zwrot 5D skorygowany o ATR i siłę względem sektora. P0.4 wymaga wspólnej świeżości danych, a target wybiera P0.2 walk-forward EV.",
     "risk_factors": [
       "Opening Confirmation jest krótkoterminowym overlayem i nie może dominować bazowego rankingu.",
@@ -105,7 +105,7 @@
       "Dla świecy z jednoczesnym TP i SL model konserwatywnie przyjmuje SL jako pierwszy.",
       "Minimalna płynność, P0.4 freshness i maksymalne ryzyko pozostają twardymi bramkami."
     ],
-    "expected_value_score": 44.63,
+    "expected_value_score": 55.68,
     "expected_value_model": {
       "engine": "gpw-empirical-ev-v1",
       "status": "ready",
@@ -122,97 +122,97 @@
       "cost_assumption_percent": 0.38,
       "role": "empirical_target_and_bounded_reranking_overlay",
       "analogue_count": 32,
-      "selected_reward_risk": 2.5,
-      "expected_gross_r": 0.0412,
-      "expected_net_r": -0.096,
-      "conservative_ev_r": -0.1535,
-      "standard_error_r": 0.1643,
-      "effective_sample_size": 30.09,
-      "tp_before_sl_probability": 0.0701,
-      "sl_before_tp_probability": 0.2032,
-      "time_exit_probability": 0.7267,
-      "score": 44.63,
+      "selected_reward_risk": 1.5,
+      "expected_gross_r": 0.3542,
+      "expected_net_r": 0.2076,
+      "conservative_ev_r": 0.1624,
+      "standard_error_r": 0.1291,
+      "effective_sample_size": 29.77,
+      "tp_before_sl_probability": 0.1033,
+      "sl_before_tp_probability": 0.1081,
+      "time_exit_probability": 0.7887,
+      "score": 55.68,
       "confidence": 1.0,
       "grid": [
         {
           "reward_risk": 1.5,
-          "expected_gross_r": -0.0289,
-          "expected_net_r": -0.1661,
-          "conservative_ev_r": -0.2128,
-          "standard_error_r": 0.1332,
-          "effective_sample_size": 30.09,
-          "tp_before_sl_probability": 0.0701,
-          "sl_before_tp_probability": 0.2032,
-          "time_exit_probability": 0.7267
+          "expected_gross_r": 0.3542,
+          "expected_net_r": 0.2076,
+          "conservative_ev_r": 0.1624,
+          "standard_error_r": 0.1291,
+          "effective_sample_size": 29.77,
+          "tp_before_sl_probability": 0.1033,
+          "sl_before_tp_probability": 0.1081,
+          "time_exit_probability": 0.7887
         },
         {
           "reward_risk": 1.75,
-          "expected_gross_r": -0.0114,
-          "expected_net_r": -0.1486,
-          "conservative_ev_r": -0.1977,
-          "standard_error_r": 0.1402,
-          "effective_sample_size": 30.09,
-          "tp_before_sl_probability": 0.0701,
-          "sl_before_tp_probability": 0.2032,
-          "time_exit_probability": 0.7267
+          "expected_gross_r": 0.331,
+          "expected_net_r": 0.1845,
+          "conservative_ev_r": 0.1399,
+          "standard_error_r": 0.1274,
+          "effective_sample_size": 29.77,
+          "tp_before_sl_probability": 0.045,
+          "sl_before_tp_probability": 0.1081,
+          "time_exit_probability": 0.8469
         },
         {
           "reward_risk": 2.0,
-          "expected_gross_r": 0.0061,
-          "expected_net_r": -0.1311,
-          "conservative_ev_r": -0.1828,
-          "standard_error_r": 0.1478,
-          "effective_sample_size": 30.09,
-          "tp_before_sl_probability": 0.0701,
-          "sl_before_tp_probability": 0.2032,
-          "time_exit_probability": 0.7267
+          "expected_gross_r": 0.3423,
+          "expected_net_r": 0.1957,
+          "conservative_ev_r": 0.1495,
+          "standard_error_r": 0.1319,
+          "effective_sample_size": 29.77,
+          "tp_before_sl_probability": 0.045,
+          "sl_before_tp_probability": 0.1081,
+          "time_exit_probability": 0.8469
         },
         {
           "reward_risk": 2.25,
-          "expected_gross_r": 0.0237,
-          "expected_net_r": -0.1135,
-          "conservative_ev_r": -0.1681,
-          "standard_error_r": 0.1558,
-          "effective_sample_size": 30.09,
-          "tp_before_sl_probability": 0.0701,
-          "sl_before_tp_probability": 0.2032,
-          "time_exit_probability": 0.7267
+          "expected_gross_r": 0.3134,
+          "expected_net_r": 0.1668,
+          "conservative_ev_r": 0.1225,
+          "standard_error_r": 0.1267,
+          "effective_sample_size": 29.77,
+          "tp_before_sl_probability": 0.0231,
+          "sl_before_tp_probability": 0.1081,
+          "time_exit_probability": 0.8689
         },
         {
           "reward_risk": 2.5,
-          "expected_gross_r": 0.0412,
-          "expected_net_r": -0.096,
-          "conservative_ev_r": -0.1535,
-          "standard_error_r": 0.1643,
-          "effective_sample_size": 30.09,
-          "tp_before_sl_probability": 0.0701,
-          "sl_before_tp_probability": 0.2032,
-          "time_exit_probability": 0.7267
+          "expected_gross_r": 0.3192,
+          "expected_net_r": 0.1726,
+          "conservative_ev_r": 0.1271,
+          "standard_error_r": 0.1298,
+          "effective_sample_size": 29.77,
+          "tp_before_sl_probability": 0.0231,
+          "sl_before_tp_probability": 0.1081,
+          "time_exit_probability": 0.8689
         }
       ],
-      "analogue_distance_median": 0.6636
+      "analogue_distance_median": 0.5579
     },
     "expected_value_weight": 0.2,
     "target_method": "gpw-empirical-ev-v1",
     "scores": {
-      "relative_momentum": 91.76,
-      "volume_liquidity": 82.19,
-      "market_context": 54.5,
-      "risk_reward": 87.81,
-      "historical_expectancy": 50.0,
-      "expected_value": 44.63,
+      "relative_momentum": 88.24,
+      "volume_liquidity": 87.93,
+      "market_context": 48.41,
+      "risk_reward": 90.08,
+      "historical_expectancy": 58.1,
+      "expected_value": 55.68,
       "catalyst": 50.0,
-      "opening_confirmation": 90.81
+      "opening_confirmation": 73.67
     },
     "sources": [
       {
-        "id": "market-open:ING.WA:2026-09-25",
-        "title": "Yahoo — bieżące kwotowanie ING.WA",
+        "id": "market-open:LPP.WA:2026-09-29",
+        "title": "Yahoo — bieżące kwotowanie LPP.WA",
         "publisher": "Yahoo",
-        "url": "https://finance.yahoo.com/quote/ING.WA",
+        "url": "https://finance.yahoo.com/quote/LPP.WA",
         "source_kind": "market_quote",
         "channel": "Yahoo",
-        "published_at": "2026-09-25T14:30:29+02:00",
+        "published_at": "2026-09-29T15:48:07+02:00",
         "age_hours": 0,
         "materiality": 0
       }
@@ -222,19 +222,19 @@
       "mode": "mandatory_daily_final_p03_p04_p05_opening_empirical_ev",
       "reason": "Najwyższy bezpieczny wynik po pełnym rankingu i wspólnych data gates.",
       "supported_source_ids": [
-        "market-open:ING.WA:2026-09-25"
+        "market-open:LPP.WA:2026-09-29"
       ]
     },
     "market_snapshot": {
       "provider": "Yahoo",
-      "symbol": "ING.WA",
-      "date": "2026-09-25",
-      "observed_at": "2026-09-25T14:30:29+02:00",
-      "open": 476.2,
-      "high": 485.8,
-      "low": 475.8,
-      "last": 483.6,
-      "volume": 7899,
+      "symbol": "LPP.WA",
+      "date": "2026-09-29",
+      "observed_at": "2026-09-29T15:48:07+02:00",
+      "open": 24780.0,
+      "high": 24940.0,
+      "low": 24600.0,
+      "last": 24780.0,
+      "volume": 3488,
       "crosscheck": {
         "available_providers": [
           "Yahoo"
@@ -247,34 +247,34 @@
       "data_gate": {
         "engine": "gpw-data-gates-v1",
         "status": "accepted",
-        "session": "2026-09-25",
-        "observed_at": "2026-09-25T14:30:29+02:00",
-        "age_minutes": 16.84,
+        "session": "2026-09-29",
+        "observed_at": "2026-09-29T15:48:07+02:00",
+        "age_minutes": 17.22,
         "crosscheck_status": "single_source",
         "provider": "Yahoo"
       },
-      "market_snapshot_id": "mkt-22d7367a0de3678de823121b",
-      "market_snapshot_hash": "22d7367a0de3678de823121b848f15cc80165bb270def8aff3b8f74c6bf1fbb8",
+      "market_snapshot_id": "mkt-a56e4017447895a182095559",
+      "market_snapshot_hash": "a56e4017447895a182095559e8a1bb31b081b584d23e4fa5bdfae860e8d79878",
       "canonical_market_snapshot": {
-        "snapshot_id": "mkt-22d7367a0de3678de823121b",
-        "snapshot_hash": "22d7367a0de3678de823121b848f15cc80165bb270def8aff3b8f74c6bf1fbb8",
-        "instrument_id": "equity.pl.ing",
+        "snapshot_id": "mkt-a56e4017447895a182095559",
+        "snapshot_hash": "a56e4017447895a182095559e8a1bb31b081b584d23e4fa5bdfae860e8d79878",
+        "instrument_id": "equity.pl.lpp",
         "provider": "yahoo",
-        "provider_symbol": "ING.WA",
-        "source_ref": "https://finance.yahoo.com/quote/ING.WA",
-        "observed_at": "2026-09-25T12:30:29.000000Z",
-        "received_at": "2026-09-25T12:47:19.232094Z",
-        "created_at": "2026-09-25T12:47:19.232094Z",
+        "provider_symbol": "LPP.WA",
+        "source_ref": "https://finance.yahoo.com/quote/LPP.WA",
+        "observed_at": "2026-09-29T13:48:07.000000Z",
+        "received_at": "2026-09-29T14:05:20.433222Z",
+        "created_at": "2026-09-29T14:05:20.433222Z",
         "market_status": "OPEN",
         "quote_kind": "INTRADAY_OHLC_LAST",
         "bid": null,
         "ask": null,
-        "last": 483.6,
-        "open": 476.2,
-        "high": 485.8,
-        "low": 475.8,
+        "last": 24780.0,
+        "open": 24780.0,
+        "high": 24940.0,
+        "low": 24600.0,
         "close": null,
-        "volume": 7899.0,
+        "volume": 3488.0,
         "source_schema": "legacy-opening-snapshot",
         "contract_version": "briefrooms-market-snapshot-v1"
       },
@@ -282,8 +282,8 @@
         "status": "OK",
         "decision_status": "ALLOWED",
         "policy_id": "gpw-daily-execution-market-snapshot-v1",
-        "assessed_at": "2026-09-25T12:47:19.232094Z",
-        "age_seconds": 1010.232094,
+        "assessed_at": "2026-09-29T14:05:20.433222Z",
+        "age_seconds": 1033.433222,
         "stale": false,
         "missing_fields": [],
         "reasons": [],
@@ -295,31 +295,18 @@
     "quant_engine": "daily-stock-core-v1-final-selector",
     "opening_confirmation_engine": "gpw-opening-confirmation-v1",
     "expected_value_engine": "gpw-empirical-ev-v1",
-    "historical_feature_session": "2026-09-24",
+    "historical_feature_session": "2026-09-28",
     "historical_feature_lag_sessions": 0,
-    "decision_envelope_id": "dec-124524ff02c8eba24a6581a4",
-    "risk_assessment_id": "risk-f0b1feab66fefc7a54848115",
-    "market_snapshot_id": "mkt-22d7367a0de3678de823121b",
-    "instrument_id": "equity.pl.ing",
-    "localized": {
-      "en": {
-        "language": "en",
-        "source_language": "pl",
-        "translation_mode": "gemini_faithful_translation",
-        "thesis": "ING Bank Śląski holds the highest final ranking following the combination of P0.5 relative momentum, other quantitative factors, the current session, and empirical EV.",
-        "why_now": "P0.5 compares 1D/5D/20D relative strength, ATR-adjusted 5D return, and sector strength. P0.4 requires shared data freshness, while the target selects P0.2 walk-forward EV.",
-        "activation": "Daily selection at market open; do not chase the price above the upper limit of the entry zone.",
-        "source_summaries": {
-          "market-open:ING.WA:2026-09-25": "Yahoo current quote for ING.WA"
-        }
-      }
-    }
+    "decision_envelope_id": "dec-c113553164b18ae3d7ee9902",
+    "risk_assessment_id": "risk-478074927ac8cd150786c6ba",
+    "market_snapshot_id": "mkt-a56e4017447895a182095559",
+    "instrument_id": "equity.pl.lpp"
   },
   "data_quality": {
     "status": "healthy",
     "failed_stage": "missed_cutoff_guardian",
     "control_loop_attempts": 0,
-    "expected_session": "2026-09-24",
+    "expected_session": "2026-09-28",
     "data_gate_engine": "gpw-data-gates-v1",
     "market_coverage": 0.95,
     "mandatory_selection": {
@@ -328,30 +315,25 @@
       "ranked_candidates": 35,
       "opening_candidates_evaluated": 8,
       "selected_rank": 1,
-      "selected_quant_rank": 2,
-      "opening_confirmation_score": 90.81,
-      "opening_adjusted_score": 74.85,
-      "expected_value_score": 44.63,
-      "expected_value_r": -0.096,
-      "conservative_ev_r": -0.1535,
-      "selected_reward_risk": 2.5,
-      "tp_before_sl_probability": 0.0701,
-      "sl_before_tp_probability": 0.2032,
-      "time_exit_probability": 0.7267,
-      "final_score": 68.81,
-      "historical_feature_session": "2026-09-24",
+      "selected_quant_rank": 1,
+      "opening_confirmation_score": 73.67,
+      "opening_adjusted_score": 70.86,
+      "expected_value_score": 55.68,
+      "expected_value_r": 0.2076,
+      "conservative_ev_r": 0.1624,
+      "selected_reward_risk": 1.5,
+      "tp_before_sl_probability": 0.1033,
+      "sl_before_tp_probability": 0.1081,
+      "time_exit_probability": 0.7887,
+      "final_score": 67.82,
+      "historical_feature_session": "2026-09-28",
       "historical_feature_lag_sessions": 0,
-      "execution_quote_age_minutes": 16.84,
+      "execution_quote_age_minutes": 17.22,
       "candidate_failures_before_selection": {},
       "late_recovery": true,
       "ignored_non_trade_history_records": 11
     },
-    "decision_envelope": "CANONICALIZED",
-    "en_localization": {
-      "status": "ready",
-      "mode": "existing",
-      "display_only": true
-    }
+    "decision_envelope": "CANONICALIZED"
   },
   "methodology": {
     "horizon": "1-2 sesje GPW",
@@ -586,61 +568,49 @@
   },
   "candidate_ranking": {
     "engine": "gpw-full-ranking-v1",
-    "date": "2026-09-25",
-    "generated_at": "2026-09-25T14:47:08+02:00",
-    "expected_session": "2026-09-24",
+    "date": "2026-09-29",
+    "generated_at": "2026-09-29T16:05:09+02:00",
+    "expected_session": "2026-09-28",
     "universe_size": 40,
     "ranked_count": 35,
     "artifact": "/data/investments/gpw_daily_candidate_ranking.json"
   },
   "outcome": {
-    "status": "RESOLVED",
-    "activated": true,
-    "activated_at": "2026-09-25T14:30:29+02:00",
-    "activation_evidence": "frozen_selection_market_snapshot",
-    "entry_price": 483.6,
-    "exit_price": 468.51,
-    "exit_reason": "stop",
-    "exit_bar_at": "2026-09-29T15:10:00+02:00",
-    "return_percent": -3.5,
-    "gross_return_percent": -3.12,
-    "r_multiple": -1.0,
-    "cost_assumption_percent": 0.38,
-    "settlement_policy": "intraday_5m_stop_first_if_same_bar",
-    "resolved_at": "2026-09-29T15:39:06+02:00"
+    "status": "PENDING",
+    "activated": null
   },
   "decision_envelope": {
-    "envelope_id": "dec-124524ff02c8eba24a6581a4",
-    "envelope_hash": "124524ff02c8eba24a6581a4c4b73a82af110b4639301d0db9234a35920beea2",
+    "envelope_id": "dec-c113553164b18ae3d7ee9902",
+    "envelope_hash": "c113553164b18ae3d7ee99029063c94b6515f737f66fe75cb952468aeaa574a1",
     "engine_id": "gpw_daily",
     "engine_version": "gpw-short-horizon-pl-v1.5-ranking-gates-momentum",
-    "decision_at": "2026-09-25T12:47:19.000000Z",
+    "decision_at": "2026-09-29T14:05:20.000000Z",
     "native_decision": "TRANSAKCJA",
     "action": "LONG",
-    "instrument_id": "equity.pl.ing",
-    "market_snapshot_id": "mkt-22d7367a0de3678de823121b",
-    "market_snapshot_hash": "22d7367a0de3678de823121b848f15cc80165bb270def8aff3b8f74c6bf1fbb8",
+    "instrument_id": "equity.pl.lpp",
+    "market_snapshot_id": "mkt-a56e4017447895a182095559",
+    "market_snapshot_hash": "a56e4017447895a182095559e8a1bb31b081b584d23e4fa5bdfae860e8d79878",
     "market_data_policy_id": "gpw-daily-execution-market-snapshot-v1",
     "market_data_quality_status": "OK",
-    "risk_assessment_id": "risk-f0b1feab66fefc7a54848115",
-    "risk_assessment_hash": "f0b1feab66fefc7a548481158e00f6e686222de4b67a414274679beed279d78f",
+    "risk_assessment_id": "risk-478074927ac8cd150786c6ba",
+    "risk_assessment_hash": "478074927ac8cd150786c6bac0ba29217fdbdf3943544c8a1ca299d9dbe236ff",
     "risk_policy_id": "gpw-daily-risk-policy-v1",
     "risk_policy_version": "gpw-short-horizon-pl-v1.5-ranking-gates-momentum|risk-v1",
     "epistemic_state_id": null,
     "horizon": "1-2 GPW sessions",
-    "confidence": 68.81,
+    "confidence": 67.82,
     "position_plan": {
-      "reference_price": 483.6,
+      "reference_price": 24780.0,
       "entry_zone": [
-        482.15,
-        486.5
+        24705.66,
+        24928.68
       ],
-      "skip_above": 486.5,
-      "stop": 468.51,
-      "target": 521.32,
-      "risk_percent": 0.0312,
-      "reward_risk": 2.5,
-      "valid_until": "2026-09-29",
+      "skip_above": 24928.68,
+      "stop": 24056.42,
+      "target": 25865.36,
+      "risk_percent": 0.0292,
+      "reward_risk": 1.5,
+      "valid_until": "2026-10-01",
       "time_stop": "Maksymalnie 2 sesje od dnia wyboru.",
       "early_exit": "Wyjście przy SL, unieważnieniu setupu lub pogorszeniu danych wykonawczych; nie rozszerzać SL."
     },
@@ -652,23 +622,23 @@
     },
     "contract_version": "briefrooms-decision-envelope-v1"
   },
-  "decision_envelope_id": "dec-124524ff02c8eba24a6581a4",
-  "decision_envelope_hash": "124524ff02c8eba24a6581a4c4b73a82af110b4639301d0db9234a35920beea2",
+  "decision_envelope_id": "dec-c113553164b18ae3d7ee9902",
+  "decision_envelope_hash": "c113553164b18ae3d7ee99029063c94b6515f737f66fe75cb952468aeaa574a1",
   "risk_assessment": {
-    "risk_assessment_id": "risk-f0b1feab66fefc7a54848115",
-    "risk_assessment_hash": "f0b1feab66fefc7a548481158e00f6e686222de4b67a414274679beed279d78f",
+    "risk_assessment_id": "risk-478074927ac8cd150786c6ba",
+    "risk_assessment_hash": "478074927ac8cd150786c6bac0ba29217fdbdf3943544c8a1ca299d9dbe236ff",
     "engine_id": "gpw_daily",
     "policy_id": "gpw-daily-risk-policy-v1",
     "policy_version": "gpw-short-horizon-pl-v1.5-ranking-gates-momentum|risk-v1",
     "policy_fingerprint": "d0e3fa626654dbc13e95b5415657a7da8746c90a586158a847bb1dbd14e7c67a",
-    "assessed_at": "2026-09-25T12:47:19.000000Z",
+    "assessed_at": "2026-09-29T14:05:20.000000Z",
     "action": "LONG",
     "status": "APPROVED",
     "checks": [
       {
         "check_id": "reference_price_positive",
         "passed": true,
-        "observed": 483.6,
+        "observed": 24780.0,
         "limit": 0.0,
         "operator": ">",
         "reason": null
@@ -677,8 +647,8 @@
         "check_id": "entry_zone_ordered",
         "passed": true,
         "observed": [
-          482.15,
-          486.5
+          24705.66,
+          24928.68
         ],
         "limit": "0 < low <= high",
         "operator": "geometry",
@@ -687,23 +657,23 @@
       {
         "check_id": "stop_below_reference",
         "passed": true,
-        "observed": 468.51,
-        "limit": 483.6,
+        "observed": 24056.42,
+        "limit": 24780.0,
         "operator": "<",
         "reason": null
       },
       {
         "check_id": "target_above_reference",
         "passed": true,
-        "observed": 521.32,
-        "limit": 483.6,
+        "observed": 25865.36,
+        "limit": 24780.0,
         "operator": ">",
         "reason": null
       },
       {
         "check_id": "minimum_reward_risk",
         "passed": true,
-        "observed": 2.5,
+        "observed": 1.5,
         "limit": 1.5,
         "operator": ">=",
         "reason": null
@@ -711,7 +681,7 @@
       {
         "check_id": "maximum_risk_percent",
         "passed": true,
-        "observed": 0.0312,
+        "observed": 0.0292,
         "limit": 0.07,
         "operator": "<=",
         "reason": null
@@ -719,15 +689,15 @@
       {
         "check_id": "skip_above_not_below_entry_high",
         "passed": true,
-        "observed": 486.5,
-        "limit": 486.5,
+        "observed": 24928.68,
+        "limit": 24928.68,
         "operator": ">=",
         "reason": null
       },
       {
         "check_id": "time_horizon_present",
         "passed": true,
-        "observed": "2026-09-29",
+        "observed": "2026-10-01",
         "limit": "1-2 GPW sessions",
         "operator": "present",
         "reason": null
@@ -735,42 +705,42 @@
     ],
     "contract_version": "briefrooms-risk-assessment-v1"
   },
-  "risk_assessment_id": "risk-f0b1feab66fefc7a54848115",
-  "risk_assessment_hash": "f0b1feab66fefc7a548481158e00f6e686222de4b67a414274679beed279d78f",
+  "risk_assessment_id": "risk-478074927ac8cd150786c6ba",
+  "risk_assessment_hash": "478074927ac8cd150786c6bac0ba29217fdbdf3943544c8a1ca299d9dbe236ff",
   "risk_policy_id": "gpw-daily-risk-policy-v1",
   "risk_policy_version": "gpw-short-horizon-pl-v1.5-ranking-gates-momentum|risk-v1",
-  "market_snapshot_id": "mkt-22d7367a0de3678de823121b",
-  "instrument_id": "equity.pl.ing",
+  "market_snapshot_id": "mkt-a56e4017447895a182095559",
+  "instrument_id": "equity.pl.lpp",
   "decision_envelope_coverage": "CANONICALIZED",
   "counterfactual_rejected_candidate_freeze": {
     "schema_version": "daily-stock-rejected-candidate-freeze-v1",
     "market": "gpw",
-    "date": "2026-09-25",
-    "decision_at": "2026-09-25T14:47:19+02:00",
-    "frozen_at": "2026-09-25T12:48:47.206432Z",
-    "source_payload_sha256": "78a413802edc4e12ef3afca3ad3c4e238c3e3bef7e29eac1bd3c1d8f6675365b",
+    "date": "2026-09-29",
+    "decision_at": "2026-09-29T16:05:20+02:00",
+    "frozen_at": "2026-09-29T14:06:46.618899Z",
+    "source_payload_sha256": "8895d6d7c4bc33fc83676d81139913f697dc9ab9dac2982c993008eb94041812",
     "status": "frozen",
-    "selected_symbol": "ING.WA",
+    "selected_symbol": "LPP.WA",
     "candidate_count": 39,
     "economically_evaluable_count": 37,
     "candidates": [
       {
-        "candidate_id": "gpw:2026-09-25:11B.WA:LONG",
+        "candidate_id": "gpw:2026-09-29:11B.WA:LONG",
         "market": "gpw",
         "symbol": "11B.WA",
         "name": "11 bit studios",
         "sector": "gry",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-09-25T14:47:19+02:00",
-        "expected_session": "2026-09-24",
+        "decision_at": "2026-09-29T16:05:20+02:00",
+        "expected_session": "2026-09-28",
         "first_blocking_gate": {
           "name": "liquidity",
           "passed": false,
           "hard": true,
           "stage": "quant_screen",
           "reason": "median_turnover_threshold",
-          "observed_value": 705200.575111,
+          "observed_value": 668587.788048,
           "threshold": 1000000.0
         },
         "decision_path": {
@@ -790,7 +760,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "median_turnover_threshold",
-              "observed_value": 705200.575111,
+              "observed_value": 668587.788048,
               "threshold": 1000000.0
             },
             {
@@ -799,7 +769,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "maximum_risk_percent",
-              "observed_value": 0.02776633,
+              "observed_value": 0.02650121,
               "threshold": 0.07
             }
           ],
@@ -816,14 +786,14 @@
           "returns": {}
         },
         "market_state": {
-          "last_session": "2026-09-24",
-          "expected_session": "2026-09-24",
+          "last_session": "2026-09-28",
+          "expected_session": "2026-09-28",
           "historical_lag_sessions": 0,
           "historical_data_status": "fresh",
           "reference_price": 118.0,
-          "median_turnover": 705200.575111,
+          "median_turnover": 668587.788048,
           "turnover_threshold": 1000000.0,
-          "risk_percent": 0.02776633
+          "risk_percent": 0.02650121
         },
         "risk_plan": {
           "reference_price": 118.0,
@@ -831,11 +801,11 @@
             117.41,
             119.77
           ],
-          "stop": 114.72357287,
-          "target": 123.89756884,
+          "stop": 114.8728575,
+          "target": 123.6288565,
           "reward_risk": 1.8,
-          "risk_percent": 0.02776633,
-          "atr": 2.97857012,
+          "risk_percent": 0.02650121,
+          "atr": 2.84285682,
           "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
           "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
         },
@@ -851,18 +821,18 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "66f3eb7891bb801bd03c52f220714d1dac209e9e0b3404c685b06340cbf2aa49"
+        "state_sha256": "eb72ef2761fcd3c862b575a895b899580b64bc8e44c41a0b3a5282f7852ec4b3"
       },
       {
-        "candidate_id": "gpw:2026-09-25:ACP.WA:LONG",
+        "candidate_id": "gpw:2026-09-29:ACP.WA:LONG",
         "market": "gpw",
         "symbol": "ACP.WA",
         "name": "Asseco Poland",
         "sector": "technologia",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-09-25T14:47:19+02:00",
-        "expected_session": "2026-09-24",
+        "decision_at": "2026-09-29T16:05:20+02:00",
+        "expected_session": "2026-09-28",
         "first_blocking_gate": {
           "name": "quant_candidate",
           "passed": false,
@@ -889,7 +859,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "median_turnover_threshold",
-              "observed_value": 31874815.107742,
+              "observed_value": 30275605.758537,
               "threshold": 1000000.0
             },
             {
@@ -898,7 +868,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "maximum_risk_percent",
-              "observed_value": 0.03567242,
+              "observed_value": 0.03714613,
               "threshold": 0.07
             },
             {
@@ -924,26 +894,26 @@
           "returns": {}
         },
         "market_state": {
-          "last_session": "2026-09-24",
-          "expected_session": "2026-09-24",
+          "last_session": "2026-09-28",
+          "expected_session": "2026-09-28",
           "historical_lag_sessions": 0,
           "historical_data_status": "fresh",
-          "reference_price": 221.80000305,
-          "median_turnover": 31874815.107742,
+          "reference_price": 218.5,
+          "median_turnover": 30275605.758537,
           "turnover_threshold": 1000000.0,
-          "risk_percent": 0.03567242
+          "risk_percent": 0.03714613
         },
         "risk_plan": {
-          "reference_price": 221.80000305,
+          "reference_price": 218.5,
           "entry_zone": [
-            220.69100304,
-            225.1270031
+            217.4075,
+            221.7775
           ],
-          "stop": 213.88785924,
-          "target": 236.04186192,
+          "stop": 210.38357119,
+          "target": 233.10957186,
           "reward_risk": 1.8,
-          "risk_percent": 0.03567242,
-          "atr": 7.19285801,
+          "risk_percent": 0.03714613,
+          "atr": 7.37857165,
           "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
           "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
         },
@@ -959,18 +929,18 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "6e6235df6a7da64a2ef72c2356c8c76eda1f794b8b427a5cd4d1d58e8c9ed347"
+        "state_sha256": "82238ff710c4bbfac58bedf8d55286fe484674a93798e57c6b89f7f7a2403491"
       },
       {
-        "candidate_id": "gpw:2026-09-25:ALE.WA:LONG",
+        "candidate_id": "gpw:2026-09-29:ALE.WA:LONG",
         "market": "gpw",
         "symbol": "ALE.WA",
         "name": "Allegro",
         "sector": "handel internetowy",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-09-25T14:47:19+02:00",
-        "expected_session": "2026-09-24",
+        "decision_at": "2026-09-29T16:05:20+02:00",
+        "expected_session": "2026-09-28",
         "first_blocking_gate": {
           "name": "quant_candidate",
           "passed": false,
@@ -997,7 +967,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "median_turnover_threshold",
-              "observed_value": 205060887.615349,
+              "observed_value": 208114066.938568,
               "threshold": 1000000.0
             },
             {
@@ -1006,7 +976,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "maximum_risk_percent",
-              "observed_value": 0.03543809,
+              "observed_value": 0.0347079,
               "threshold": 0.07
             },
             {
@@ -1032,26 +1002,26 @@
           "returns": {}
         },
         "market_state": {
-          "last_session": "2026-09-24",
-          "expected_session": "2026-09-24",
+          "last_session": "2026-09-28",
+          "expected_session": "2026-09-28",
           "historical_lag_sessions": 0,
           "historical_data_status": "fresh",
-          "reference_price": 49.26499939,
-          "median_turnover": 205060887.615349,
+          "reference_price": 49.86000061,
+          "median_turnover": 208114066.938568,
           "turnover_threshold": 1000000.0,
-          "risk_percent": 0.03543809
+          "risk_percent": 0.0347079
         },
         "risk_plan": {
-          "reference_price": 49.26499939,
+          "reference_price": 49.86000061,
           "entry_zone": [
-            49.01867439,
-            50.00397438
+            49.61070061,
+            50.60790062
           ],
-          "stop": 47.51914215,
-          "target": 52.40754242,
+          "stop": 48.12946478,
+          "target": 52.97496511,
           "reward_risk": 1.8,
-          "risk_percent": 0.03543809,
-          "atr": 1.58714294,
+          "risk_percent": 0.0347079,
+          "atr": 1.57321439,
           "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
           "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
         },
@@ -1067,18 +1037,18 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "d59b6a403e71b264e061286469add9f9432a6e9a7514164830a0b4b5e1ea4860"
+        "state_sha256": "ab39d082aeda460b5bcde4ea775a81a02f9fd9b8eaa93ecaa28cc8f9c4ae684a"
       },
       {
-        "candidate_id": "gpw:2026-09-25:ALR.WA:LONG",
+        "candidate_id": "gpw:2026-09-29:ALR.WA:LONG",
         "market": "gpw",
         "symbol": "ALR.WA",
         "name": "Alior Bank",
         "sector": "banki",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-09-25T14:47:19+02:00",
-        "expected_session": "2026-09-24",
+        "decision_at": "2026-09-29T16:05:20+02:00",
+        "expected_session": "2026-09-28",
         "first_blocking_gate": {
           "name": "quant_candidate",
           "passed": false,
@@ -1114,7 +1084,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "maximum_risk_percent",
-              "observed_value": 0.03264088,
+              "observed_value": 0.03009783,
               "threshold": 0.07
             },
             {
@@ -1140,26 +1110,26 @@
           "returns": {}
         },
         "market_state": {
-          "last_session": "2026-09-24",
-          "expected_session": "2026-09-24",
+          "last_session": "2026-09-28",
+          "expected_session": "2026-09-28",
           "historical_lag_sessions": 0,
           "historical_data_status": "fresh",
-          "reference_price": 138.05000305,
+          "reference_price": 138.75,
           "median_turnover": 24033850.5,
           "turnover_threshold": 1000000.0,
-          "risk_percent": 0.03264088
+          "risk_percent": 0.03009783
         },
         "risk_plan": {
-          "reference_price": 138.05000305,
+          "reference_price": 138.75,
           "entry_zone": [
-            137.35975304,
-            140.1207531
+            138.05625,
+            140.83125
           ],
-          "stop": 133.54392994,
-          "target": 146.16093464,
+          "stop": 134.57392665,
+          "target": 146.26693202,
           "reward_risk": 1.8,
-          "risk_percent": 0.03264088,
-          "atr": 4.0964301,
+          "risk_percent": 0.03009783,
+          "atr": 3.79643032,
           "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
           "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
         },
@@ -1175,18 +1145,18 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "4a9301541d759e71218ac2c28fbfb07ac0d840f7a13d0fd4001f2c422a553e94"
+        "state_sha256": "cd3557ab52ad269e318bb5c2fe999fc69ac0f89eb879d9e822400a142858693d"
       },
       {
-        "candidate_id": "gpw:2026-09-25:ATT.WA:LONG",
+        "candidate_id": "gpw:2026-09-29:ATT.WA:LONG",
         "market": "gpw",
         "symbol": "ATT.WA",
         "name": "Grupa Azoty",
         "sector": "chemia",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-09-25T14:47:19+02:00",
-        "expected_session": "2026-09-24",
+        "decision_at": "2026-09-29T16:05:20+02:00",
+        "expected_session": "2026-09-28",
         "first_blocking_gate": {
           "name": "quant_candidate",
           "passed": false,
@@ -1213,7 +1183,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "median_turnover_threshold",
-              "observed_value": 9655952.176059,
+              "observed_value": 7575012.174853,
               "threshold": 1000000.0
             },
             {
@@ -1222,7 +1192,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "maximum_risk_percent",
-              "observed_value": 0.05992395,
+              "observed_value": 0.05051315,
               "threshold": 0.07
             },
             {
@@ -1248,26 +1218,26 @@
           "returns": {}
         },
         "market_state": {
-          "last_session": "2026-09-24",
-          "expected_session": "2026-09-24",
+          "last_session": "2026-09-28",
+          "expected_session": "2026-09-28",
           "historical_lag_sessions": 0,
           "historical_data_status": "fresh",
-          "reference_price": 19.34000015,
-          "median_turnover": 9655952.176059,
+          "reference_price": 19.20999908,
+          "median_turnover": 7575012.174853,
           "turnover_threshold": 1000000.0,
-          "risk_percent": 0.05992395
+          "risk_percent": 0.05051315
         },
         "risk_plan": {
-          "reference_price": 19.34000015,
+          "reference_price": 19.20999908,
           "entry_zone": [
-            19.24330015,
-            19.63010015
+            19.11394909,
+            19.49814907
           ],
-          "stop": 18.18107098,
-          "target": 21.42607266,
+          "stop": 18.23964146,
+          "target": 20.9566428,
           "reward_risk": 1.8,
-          "risk_percent": 0.05992395,
-          "atr": 1.05357197,
+          "risk_percent": 0.05051315,
+          "atr": 0.88214329,
           "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
           "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
         },
@@ -1283,18 +1253,18 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "23c3dea6b98e370722af10015bf3bcdaf087316be3289ea6d6425e25d655c670"
+        "state_sha256": "bea3f829195510501f1e84f43e1bb379ded6d73adda94dc9f3b0532198f8e9a4"
       },
       {
-        "candidate_id": "gpw:2026-09-25:BDX.WA:LONG",
+        "candidate_id": "gpw:2026-09-29:BDX.WA:LONG",
         "market": "gpw",
         "symbol": "BDX.WA",
         "name": "Budimex",
         "sector": "budownictwo",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-09-25T14:47:19+02:00",
-        "expected_session": "2026-09-24",
+        "decision_at": "2026-09-29T16:05:20+02:00",
+        "expected_session": "2026-09-28",
         "first_blocking_gate": {
           "name": "quant_candidate",
           "passed": false,
@@ -1321,7 +1291,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "median_turnover_threshold",
-              "observed_value": 20659825.975403,
+              "observed_value": 20096569.746429,
               "threshold": 1000000.0
             },
             {
@@ -1330,7 +1300,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "maximum_risk_percent",
-              "observed_value": 0.03151332,
+              "observed_value": 0.02950688,
               "threshold": 0.07
             },
             {
@@ -1356,26 +1326,26 @@
           "returns": {}
         },
         "market_state": {
-          "last_session": "2026-09-24",
-          "expected_session": "2026-09-24",
+          "last_session": "2026-09-28",
+          "expected_session": "2026-09-28",
           "historical_lag_sessions": 0,
           "historical_data_status": "fresh",
-          "reference_price": 704.59997559,
-          "median_turnover": 20659825.975403,
+          "reference_price": 691.79998779,
+          "median_turnover": 20096569.746429,
           "turnover_threshold": 1000000.0,
-          "risk_percent": 0.03151332
+          "risk_percent": 0.02950688
         },
         "risk_plan": {
-          "reference_price": 704.59997559,
+          "reference_price": 691.79998779,
           "entry_zone": [
-            701.07697571,
-            715.16897522
+            688.34098785,
+            702.17698761
           ],
-          "stop": 682.39569179,
-          "target": 744.56768642,
+          "stop": 671.38713161,
+          "target": 728.54312892,
           "reward_risk": 1.8,
-          "risk_percent": 0.03151332,
-          "atr": 20.18571254,
+          "risk_percent": 0.02950688,
+          "atr": 18.55714199,
           "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
           "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
         },
@@ -1391,18 +1361,18 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "c75efcf3e62de5df1af2177c1aa306c868a4d99de76a06bf102b0fd11f8f4f3b"
+        "state_sha256": "4bec7207ea5978130e106fd601b3a2178409a35b12566449f2192472172f2ceb"
       },
       {
-        "candidate_id": "gpw:2026-09-25:BHW.WA:LONG",
+        "candidate_id": "gpw:2026-09-29:BHW.WA:LONG",
         "market": "gpw",
         "symbol": "BHW.WA",
         "name": "Bank Handlowy",
         "sector": "banki",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-09-25T14:47:19+02:00",
-        "expected_session": "2026-09-24",
+        "decision_at": "2026-09-29T16:05:20+02:00",
+        "expected_session": "2026-09-28",
         "first_blocking_gate": {
           "name": "quant_candidate",
           "passed": false,
@@ -1429,7 +1399,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "median_turnover_threshold",
-              "observed_value": 6681415.511093,
+              "observed_value": 6444806.241657,
               "threshold": 1000000.0
             },
             {
@@ -1438,7 +1408,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "maximum_risk_percent",
-              "observed_value": 0.02343136,
+              "observed_value": 0.02349441,
               "threshold": 0.07
             },
             {
@@ -1464,26 +1434,26 @@
           "returns": {}
         },
         "market_state": {
-          "last_session": "2026-09-24",
-          "expected_session": "2026-09-24",
+          "last_session": "2026-09-28",
+          "expected_session": "2026-09-28",
           "historical_lag_sessions": 0,
           "historical_data_status": "fresh",
-          "reference_price": 123.40000153,
-          "median_turnover": 6681415.511093,
+          "reference_price": 122.40000153,
+          "median_turnover": 6444806.241657,
           "turnover_threshold": 1000000.0,
-          "risk_percent": 0.02343136
+          "risk_percent": 0.02349441
         },
         "risk_plan": {
-          "reference_price": 123.40000153,
+          "reference_price": 122.40000153,
           "entry_zone": [
-            122.78300152,
-            125.25100155
+            121.78800152,
+            124.23600155
           ],
-          "stop": 120.50857212,
-          "target": 128.60457447,
+          "stop": 119.52428556,
+          "target": 127.57629026,
           "reward_risk": 1.8,
-          "risk_percent": 0.02343136,
-          "atr": 2.62857219,
+          "risk_percent": 0.02349441,
+          "atr": 2.61428724,
           "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
           "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
         },
@@ -1499,18 +1469,18 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "81d69a841f6224751ee8747ee5661c01e1e08be7382dbe756f02f36cce204291"
+        "state_sha256": "bf5e7c1b72d66e245c123e59b16946de0bcf1394353a2fb8685d3d80f6cdba53"
       },
       {
-        "candidate_id": "gpw:2026-09-25:CAR.WA:LONG",
+        "candidate_id": "gpw:2026-09-29:CAR.WA:LONG",
         "market": "gpw",
         "symbol": "CAR.WA",
         "name": "Inter Cars",
         "sector": "handel",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-09-25T14:47:19+02:00",
-        "expected_session": "2026-09-24",
+        "decision_at": "2026-09-29T16:05:20+02:00",
+        "expected_session": "2026-09-28",
         "first_blocking_gate": {
           "name": "quant_candidate",
           "passed": false,
@@ -1537,7 +1507,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "median_turnover_threshold",
-              "observed_value": 5863185.0,
+              "observed_value": 5388180.0,
               "threshold": 1000000.0
             },
             {
@@ -1546,7 +1516,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "maximum_risk_percent",
-              "observed_value": 0.03546448,
+              "observed_value": 0.03318022,
               "threshold": 0.07
             },
             {
@@ -1572,26 +1542,26 @@
           "returns": {}
         },
         "market_state": {
-          "last_session": "2026-09-24",
-          "expected_session": "2026-09-24",
+          "last_session": "2026-09-28",
+          "expected_session": "2026-09-28",
           "historical_lag_sessions": 0,
           "historical_data_status": "fresh",
-          "reference_price": 915.0,
-          "median_turnover": 5863185.0,
+          "reference_price": 933.0,
+          "median_turnover": 5388180.0,
           "turnover_threshold": 1000000.0,
-          "risk_percent": 0.03546448
+          "risk_percent": 0.03318022
         },
         "risk_plan": {
-          "reference_price": 915.0,
+          "reference_price": 933.0,
           "entry_zone": [
-            910.425,
-            928.725
+            928.335,
+            946.995
           ],
-          "stop": 882.55,
-          "target": 973.41,
+          "stop": 902.04285714,
+          "target": 988.72285714,
           "reward_risk": 1.8,
-          "risk_percent": 0.03546448,
-          "atr": 29.5,
+          "risk_percent": 0.03318022,
+          "atr": 28.14285714,
           "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
           "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
         },
@@ -1607,18 +1577,18 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "f679cd61fc669d6064fd08b07787f02f52e86342e7f1a1c7bf5abb22843d4d21"
+        "state_sha256": "f4851435deeb5defabb8197ea3eae6bddb0a8b3db8a7eaa592d580973b89c378"
       },
       {
-        "candidate_id": "gpw:2026-09-25:CCC.WA:LONG",
+        "candidate_id": "gpw:2026-09-29:CCC.WA:LONG",
         "market": "gpw",
         "symbol": "CCC.WA",
         "name": "CCC",
         "sector": "handel",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-09-25T14:47:19+02:00",
-        "expected_session": "2026-09-24",
+        "decision_at": "2026-09-29T16:05:20+02:00",
+        "expected_session": "2026-09-28",
         "first_blocking_gate": {
           "name": "market_data",
           "passed": false,
@@ -1675,18 +1645,18 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "3f72b3d58d55cc00ac5c83ac2d25f56097659ddd7d3ebd391fa66b2e967ca943"
+        "state_sha256": "1ed67be2a383e9e9d137ef9fb2004af1039682c750aae9e8886452085a587ace"
       },
       {
-        "candidate_id": "gpw:2026-09-25:CDR.WA:LONG",
+        "candidate_id": "gpw:2026-09-29:CDR.WA:LONG",
         "market": "gpw",
         "symbol": "CDR.WA",
         "name": "CD Projekt",
         "sector": "gry",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-09-25T14:47:19+02:00",
-        "expected_session": "2026-09-24",
+        "decision_at": "2026-09-29T16:05:20+02:00",
+        "expected_session": "2026-09-28",
         "first_blocking_gate": {
           "name": "quant_candidate",
           "passed": false,
@@ -1722,7 +1692,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "maximum_risk_percent",
-              "observed_value": 0.02878929,
+              "observed_value": 0.02736542,
               "threshold": 0.07
             },
             {
@@ -1748,26 +1718,26 @@
           "returns": {}
         },
         "market_state": {
-          "last_session": "2026-09-24",
-          "expected_session": "2026-09-24",
+          "last_session": "2026-09-28",
+          "expected_session": "2026-09-28",
           "historical_lag_sessions": 0,
           "historical_data_status": "fresh",
-          "reference_price": 245.8999939,
+          "reference_price": 245.19999695,
           "median_turnover": 82293124.790359,
           "turnover_threshold": 1000000.0,
-          "risk_percent": 0.02878929
+          "risk_percent": 0.02736542
         },
         "risk_plan": {
-          "reference_price": 245.8999939,
+          "reference_price": 245.19999695,
           "entry_zone": [
-            244.67049393,
-            249.5884938
+            243.97399696,
+            248.8779969
           ],
-          "stop": 238.8207065,
-          "target": 258.6427112,
+          "stop": 238.48999503,
+          "target": 257.2780004,
           "reward_risk": 1.8,
-          "risk_percent": 0.02878929,
-          "atr": 6.43571581,
+          "risk_percent": 0.02736542,
+          "atr": 6.10000174,
           "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
           "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
         },
@@ -1783,18 +1753,18 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "64224de6a9e96e43b16c74845be3484593472555fc8e4f2d45d70918589f949c"
+        "state_sha256": "19b7570ed61e57b92c44f8f5d0f9cbba071d6d678f9bc1599e865f788273e8ab"
       },
       {
-        "candidate_id": "gpw:2026-09-25:CPS.WA:LONG",
+        "candidate_id": "gpw:2026-09-29:CPS.WA:LONG",
         "market": "gpw",
         "symbol": "CPS.WA",
         "name": "Cyfrowy Polsat",
         "sector": "media i telekomunikacja",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-09-25T14:47:19+02:00",
-        "expected_session": "2026-09-24",
+        "decision_at": "2026-09-29T16:05:20+02:00",
+        "expected_session": "2026-09-28",
         "first_blocking_gate": {
           "name": "quant_candidate",
           "passed": false,
@@ -1830,7 +1800,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "maximum_risk_percent",
-              "observed_value": 0.0404152,
+              "observed_value": 0.04020223,
               "threshold": 0.07
             },
             {
@@ -1856,26 +1826,26 @@
           "returns": {}
         },
         "market_state": {
-          "last_session": "2026-09-24",
-          "expected_session": "2026-09-24",
+          "last_session": "2026-09-28",
+          "expected_session": "2026-09-28",
           "historical_lag_sessions": 0,
           "historical_data_status": "fresh",
-          "reference_price": 16.0,
+          "reference_price": 15.85999966,
           "median_turnover": 6899554.256241,
           "turnover_threshold": 1000000.0,
-          "risk_percent": 0.0404152
+          "risk_percent": 0.04020223
         },
         "risk_plan": {
-          "reference_price": 16.0,
+          "reference_price": 15.85999966,
           "entry_zone": [
-            15.92,
-            16.24
+            15.78069966,
+            16.09789965
           ],
-          "stop": 15.35335688,
-          "target": 17.16395762,
+          "stop": 15.22239223,
+          "target": 17.00769302,
           "reward_risk": 1.8,
-          "risk_percent": 0.0404152,
-          "atr": 0.58785738,
+          "risk_percent": 0.04020223,
+          "atr": 0.57964311,
           "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
           "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
         },
@@ -1891,18 +1861,18 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "f1db1b7ef0d504f4490da247e664dade388662b14f980dbe5151f858c280c137"
+        "state_sha256": "4d556ffb882698bcda85b055c2ce765a18f1e1be4612759bc867c6af28e646f2"
       },
       {
-        "candidate_id": "gpw:2026-09-25:DNP.WA:LONG",
+        "candidate_id": "gpw:2026-09-29:DNP.WA:LONG",
         "market": "gpw",
         "symbol": "DNP.WA",
         "name": "Dino Polska",
         "sector": "handel",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-09-25T14:47:19+02:00",
-        "expected_session": "2026-09-24",
+        "decision_at": "2026-09-29T16:05:20+02:00",
+        "expected_session": "2026-09-28",
         "first_blocking_gate": {
           "name": "quant_candidate",
           "passed": false,
@@ -1929,7 +1899,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "median_turnover_threshold",
-              "observed_value": 147227169.948055,
+              "observed_value": 134288432.016676,
               "threshold": 1000000.0
             },
             {
@@ -1938,7 +1908,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "maximum_risk_percent",
-              "observed_value": 0.03058455,
+              "observed_value": 0.0274171,
               "threshold": 0.07
             },
             {
@@ -1964,26 +1934,26 @@
           "returns": {}
         },
         "market_state": {
-          "last_session": "2026-09-24",
-          "expected_session": "2026-09-24",
+          "last_session": "2026-09-28",
+          "expected_session": "2026-09-28",
           "historical_lag_sessions": 0,
           "historical_data_status": "fresh",
-          "reference_price": 34.63000107,
-          "median_turnover": 147227169.948055,
+          "reference_price": 34.59000015,
+          "median_turnover": 134288432.016676,
           "turnover_threshold": 1000000.0,
-          "risk_percent": 0.03058455
+          "risk_percent": 0.0274171
         },
         "risk_plan": {
-          "reference_price": 34.63000107,
+          "reference_price": 34.59000015,
           "entry_zone": [
-            34.45685106,
-            35.14945108
+            34.41705015,
+            35.10885015
           ],
-          "stop": 33.57085795,
-          "target": 36.53645869,
+          "stop": 33.64164273,
+          "target": 36.29704351,
           "reward_risk": 1.8,
-          "risk_percent": 0.03058455,
-          "atr": 0.96285738,
+          "risk_percent": 0.0274171,
+          "atr": 0.86214311,
           "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
           "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
         },
@@ -1999,18 +1969,18 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "3e79ddd2ed63c1e91f4c76551c8a832e2b763983f3944fed06ebb510522a43d4"
+        "state_sha256": "b5d13ba42372fdd693c3b250dd48a21be433679ea57ddb4cd5c92567c6aa5c19"
       },
       {
-        "candidate_id": "gpw:2026-09-25:DOM.WA:LONG",
+        "candidate_id": "gpw:2026-09-29:DOM.WA:LONG",
         "market": "gpw",
         "symbol": "DOM.WA",
         "name": "Dom Development",
         "sector": "deweloperzy",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-09-25T14:47:19+02:00",
-        "expected_session": "2026-09-24",
+        "decision_at": "2026-09-29T16:05:20+02:00",
+        "expected_session": "2026-09-28",
         "first_blocking_gate": {
           "name": "quant_candidate",
           "passed": false,
@@ -2037,7 +2007,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "median_turnover_threshold",
-              "observed_value": 1871220.0,
+              "observed_value": 1992826.5,
               "threshold": 1000000.0
             },
             {
@@ -2046,7 +2016,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "maximum_risk_percent",
-              "observed_value": 0.03328135,
+              "observed_value": 0.03142857,
               "threshold": 0.07
             },
             {
@@ -2072,26 +2042,26 @@
           "returns": {}
         },
         "market_state": {
-          "last_session": "2026-09-24",
-          "expected_session": "2026-09-24",
+          "last_session": "2026-09-28",
+          "expected_session": "2026-09-28",
           "historical_lag_sessions": 0,
           "historical_data_status": "fresh",
-          "reference_price": 229.0,
-          "median_turnover": 1871220.0,
+          "reference_price": 225.0,
+          "median_turnover": 1992826.5,
           "turnover_threshold": 1000000.0,
-          "risk_percent": 0.03328135
+          "risk_percent": 0.03142857
         },
         "risk_plan": {
-          "reference_price": 229.0,
+          "reference_price": 225.0,
           "entry_zone": [
-            227.855,
-            232.435
+            223.875,
+            228.375
           ],
-          "stop": 221.37857143,
-          "target": 242.71857143,
+          "stop": 217.92857143,
+          "target": 237.72857143,
           "reward_risk": 1.8,
-          "risk_percent": 0.03328135,
-          "atr": 6.92857143,
+          "risk_percent": 0.03142857,
+          "atr": 6.42857143,
           "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
           "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
         },
@@ -2107,18 +2077,18 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "e0ce765661122f826d1f5ffea7ade242edff37c9762140aa400d0d42215c5954"
+        "state_sha256": "7fea57df1a391cb22ac7c41688a34aff5071d3949c3d1e57e5e403900466a3ca"
       },
       {
-        "candidate_id": "gpw:2026-09-25:ENA.WA:LONG",
+        "candidate_id": "gpw:2026-09-29:ENA.WA:LONG",
         "market": "gpw",
         "symbol": "ENA.WA",
         "name": "Enea",
         "sector": "energia",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-09-25T14:47:19+02:00",
-        "expected_session": "2026-09-24",
+        "decision_at": "2026-09-29T16:05:20+02:00",
+        "expected_session": "2026-09-28",
         "first_blocking_gate": {
           "name": "quant_candidate",
           "passed": false,
@@ -2145,7 +2115,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "median_turnover_threshold",
-              "observed_value": 7047424.332214,
+              "observed_value": 6130535.627205,
               "threshold": 1000000.0
             },
             {
@@ -2154,7 +2124,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "maximum_risk_percent",
-              "observed_value": 0.04948852,
+              "observed_value": 0.04218683,
               "threshold": 0.07
             },
             {
@@ -2180,26 +2150,26 @@
           "returns": {}
         },
         "market_state": {
-          "last_session": "2026-09-24",
-          "expected_session": "2026-09-24",
+          "last_session": "2026-09-28",
+          "expected_session": "2026-09-28",
           "historical_lag_sessions": 0,
           "historical_data_status": "fresh",
-          "reference_price": 19.82999992,
-          "median_turnover": 7047424.332214,
+          "reference_price": 19.5,
+          "median_turnover": 6130535.627205,
           "turnover_threshold": 1000000.0,
-          "risk_percent": 0.04948852
+          "risk_percent": 0.04218683
         },
         "risk_plan": {
-          "reference_price": 19.82999992,
+          "reference_price": 19.5,
           "entry_zone": [
-            19.73084992,
-            20.12744992
+            19.4025,
+            19.7925
           ],
-          "stop": 18.84864265,
-          "target": 21.59644302,
+          "stop": 18.6773569,
+          "target": 20.98075759,
           "reward_risk": 1.8,
-          "risk_percent": 0.04948852,
-          "atr": 0.89214298,
+          "risk_percent": 0.04218683,
+          "atr": 0.74785737,
           "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
           "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
         },
@@ -2215,18 +2185,18 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "beaddb30e6526ce43ed3bb80d5d739ffe16ed405526a929427e6fe7db2c492e1"
+        "state_sha256": "a2d90aa2be81a825af09f1360c280c44d642265d6d8b14305f64df76cf4cfcfd"
       },
       {
-        "candidate_id": "gpw:2026-09-25:EUR.WA:LONG",
+        "candidate_id": "gpw:2026-09-29:EUR.WA:LONG",
         "market": "gpw",
         "symbol": "EUR.WA",
         "name": "Eurocash",
         "sector": "handel",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-09-25T14:47:19+02:00",
-        "expected_session": "2026-09-24",
+        "decision_at": "2026-09-29T16:05:20+02:00",
+        "expected_session": "2026-09-28",
         "first_blocking_gate": {
           "name": "quant_candidate",
           "passed": false,
@@ -2253,7 +2223,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "median_turnover_threshold",
-              "observed_value": 2044121.488185,
+              "observed_value": 1868608.216628,
               "threshold": 1000000.0
             },
             {
@@ -2262,7 +2232,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "maximum_risk_percent",
-              "observed_value": 0.04134158,
+              "observed_value": 0.03829787,
               "threshold": 0.07
             },
             {
@@ -2288,26 +2258,26 @@
           "returns": {}
         },
         "market_state": {
-          "last_session": "2026-09-24",
-          "expected_session": "2026-09-24",
+          "last_session": "2026-09-28",
+          "expected_session": "2026-09-28",
           "historical_lag_sessions": 0,
           "historical_data_status": "fresh",
-          "reference_price": 5.25500011,
-          "median_turnover": 2044121.488185,
+          "reference_price": 5.17000008,
+          "median_turnover": 1868608.216628,
           "turnover_threshold": 1000000.0,
-          "risk_percent": 0.04134158
+          "risk_percent": 0.03829787
         },
         "risk_plan": {
-          "reference_price": 5.25500011,
+          "reference_price": 5.17000008,
           "entry_zone": [
-            5.22872511,
-            5.33382512
+            5.14415008,
+            5.24755008
           ],
-          "stop": 5.03775012,
-          "target": 5.6460501,
+          "stop": 4.97200008,
+          "target": 5.52640007,
           "reward_risk": 1.8,
-          "risk_percent": 0.04134158,
-          "atr": 0.19749999,
+          "risk_percent": 0.03829787,
+          "atr": 0.18,
           "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
           "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
         },
@@ -2323,18 +2293,18 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "e18d8658350e5afd7c95a0c7e6848218539ce79cef103275525a25286580de5c"
+        "state_sha256": "f21aca81f1f71e7b2fc82d74c442b08cd05b783d21ed0529584b26c39ffa0e30"
       },
       {
-        "candidate_id": "gpw:2026-09-25:GPW.WA:LONG",
+        "candidate_id": "gpw:2026-09-29:GPW.WA:LONG",
         "market": "gpw",
         "symbol": "GPW.WA",
         "name": "Giełda Papierów Wartościowych",
         "sector": "finanse",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-09-25T14:47:19+02:00",
-        "expected_session": "2026-09-24",
+        "decision_at": "2026-09-29T16:05:20+02:00",
+        "expected_session": "2026-09-28",
         "first_blocking_gate": {
           "name": "quant_candidate",
           "passed": false,
@@ -2361,7 +2331,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "median_turnover_threshold",
-              "observed_value": 10330321.274147,
+              "observed_value": 10181651.733601,
               "threshold": 1000000.0
             },
             {
@@ -2370,7 +2340,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "maximum_risk_percent",
-              "observed_value": 0.03304294,
+              "observed_value": 0.03063492,
               "threshold": 0.07
             },
             {
@@ -2396,26 +2366,26 @@
           "returns": {}
         },
         "market_state": {
-          "last_session": "2026-09-24",
-          "expected_session": "2026-09-24",
+          "last_session": "2026-09-28",
+          "expected_session": "2026-09-28",
           "historical_lag_sessions": 0,
           "historical_data_status": "fresh",
-          "reference_price": 98.80000305,
-          "median_turnover": 10330321.274147,
+          "reference_price": 99.0,
+          "median_turnover": 10181651.733601,
           "turnover_threshold": 1000000.0,
-          "risk_percent": 0.03304294
+          "risk_percent": 0.03063492
         },
         "risk_plan": {
-          "reference_price": 98.80000305,
+          "reference_price": 99.0,
           "entry_zone": [
-            98.30600304,
-            100.2820031
+            98.505,
+            100.485
           ],
-          "stop": 95.53536055,
-          "target": 104.67635955,
+          "stop": 95.96714298,
+          "target": 104.45914264,
           "reward_risk": 1.8,
-          "risk_percent": 0.03304294,
-          "atr": 2.96785682,
+          "risk_percent": 0.03063492,
+          "atr": 2.75714275,
           "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
           "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
         },
@@ -2431,25 +2401,133 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "4a3f29a96b17c54078d3b3de2851e286a6dad6450d9133c003808a7b70ce0710"
+        "state_sha256": "b6291f584400045638f6b87a39a53dd7e40982f81196433d4a981f0977820b43"
       },
       {
-        "candidate_id": "gpw:2026-09-25:JSW.WA:LONG",
+        "candidate_id": "gpw:2026-09-29:ING.WA:LONG",
+        "market": "gpw",
+        "symbol": "ING.WA",
+        "name": "ING Bank Śląski",
+        "sector": "banki",
+        "action": "LONG",
+        "selected": false,
+        "decision_at": "2026-09-29T16:05:20+02:00",
+        "expected_session": "2026-09-28",
+        "first_blocking_gate": {
+          "name": "quant_candidate",
+          "passed": false,
+          "hard": true,
+          "stage": "quant_screen",
+          "reason": "engine_quant_builder_rejected",
+          "observed_value": null,
+          "threshold": null
+        },
+        "decision_path": {
+          "gates": [
+            {
+              "name": "market_data",
+              "passed": true,
+              "hard": true,
+              "stage": "market_data",
+              "reason": "fresh_completed_session",
+              "observed_value": 0,
+              "threshold": 1
+            },
+            {
+              "name": "liquidity",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "median_turnover_threshold",
+              "observed_value": 7810131.145523,
+              "threshold": 1000000.0
+            },
+            {
+              "name": "position_risk",
+              "passed": true,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "maximum_risk_percent",
+              "observed_value": 0.03207947,
+              "threshold": 0.07
+            },
+            {
+              "name": "quant_candidate",
+              "passed": false,
+              "hard": true,
+              "stage": "quant_screen",
+              "reason": "engine_quant_builder_rejected",
+              "observed_value": null,
+              "threshold": null
+            }
+          ],
+          "explicit_engine_rejection": null,
+          "producer_decision": "TRANSAKCJA",
+          "producer_reason": "Końcowy wybór dnia: pełny ranking P0.3 połączono z P0.4 data gates, Opening Confirmation oraz empirycznym Expected Value dla horyzontu 1–2 sesji."
+        },
+        "score_state": {
+          "rank": null,
+          "shortlist_limit": 6,
+          "quant_pre_score": null,
+          "composite_score": null,
+          "scores": {},
+          "returns": {}
+        },
+        "market_state": {
+          "last_session": "2026-09-28",
+          "expected_session": "2026-09-28",
+          "historical_lag_sessions": 0,
+          "historical_data_status": "fresh",
+          "reference_price": 473.20001221,
+          "median_turnover": 7810131.145523,
+          "turnover_threshold": 1000000.0,
+          "risk_percent": 0.03207947
+        },
+        "risk_plan": {
+          "reference_price": 473.20001221,
+          "entry_zone": [
+            470.83401215,
+            480.29801239
+          ],
+          "stop": 458.02000885,
+          "target": 500.52401825,
+          "reward_risk": 1.8,
+          "risk_percent": 0.03207947,
+          "atr": 13.80000305,
+          "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
+          "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
+        },
+        "settlement_eligibility": {
+          "eligible": true,
+          "mode": "risk_plan",
+          "reason": "prospectively_frozen_risk_plan"
+        },
+        "governance": {
+          "decision_influence": false,
+          "ranking_writeback": false,
+          "gate_writeback": false,
+          "historical_backfill": false,
+          "news_or_llm_rerun": false
+        },
+        "state_sha256": "53b1f5f33633249461e3fd7c743094e5e5423b4875fe37f351966a8b232ecb2c"
+      },
+      {
+        "candidate_id": "gpw:2026-09-29:JSW.WA:LONG",
         "market": "gpw",
         "symbol": "JSW.WA",
         "name": "JSW",
         "sector": "surowce",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-09-25T14:47:19+02:00",
-        "expected_session": "2026-09-24",
+        "decision_at": "2026-09-29T16:05:20+02:00",
+        "expected_session": "2026-09-28",
         "first_blocking_gate": {
           "name": "position_risk",
           "passed": false,
           "hard": true,
           "stage": "quant_screen",
           "reason": "maximum_risk_percent",
-          "observed_value": 0.07625161,
+          "observed_value": 0.07103855,
           "threshold": 0.07
         },
         "decision_path": {
@@ -2478,7 +2556,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "maximum_risk_percent",
-              "observed_value": 0.07625161,
+              "observed_value": 0.07103855,
               "threshold": 0.07
             }
           ],
@@ -2495,26 +2573,26 @@
           "returns": {}
         },
         "market_state": {
-          "last_session": "2026-09-24",
-          "expected_session": "2026-09-24",
+          "last_session": "2026-09-28",
+          "expected_session": "2026-09-28",
           "historical_lag_sessions": 0,
           "historical_data_status": "fresh",
-          "reference_price": 31.15999985,
+          "reference_price": 31.5,
           "median_turnover": 37968103.655119,
           "turnover_threshold": 1000000.0,
-          "risk_percent": 0.07625161
+          "risk_percent": 0.07103855
         },
         "risk_plan": {
-          "reference_price": 31.15999985,
+          "reference_price": 31.5,
           "entry_zone": [
-            31.00419985,
-            31.62739985
+            31.3425,
+            31.9725
           ],
-          "stop": 28.78399972,
-          "target": 35.43680008,
+          "stop": 29.2622856,
+          "target": 35.52788592,
           "reward_risk": 1.8,
-          "risk_percent": 0.07625161,
-          "atr": 2.16000012,
+          "risk_percent": 0.07103855,
+          "atr": 2.03428582,
           "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
           "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
         },
@@ -2530,18 +2608,18 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "4c62bb006b4911702a80b32971253b58384728f7c906e05bf301d354b2b4acf4"
+        "state_sha256": "5dd08b9eb0a504209c4ff5495da61acfdcfe4e17d7755b6ae0d263237a8f0bc0"
       },
       {
-        "candidate_id": "gpw:2026-09-25:KGH.WA:LONG",
+        "candidate_id": "gpw:2026-09-29:KGH.WA:LONG",
         "market": "gpw",
         "symbol": "KGH.WA",
         "name": "KGHM",
         "sector": "surowce",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-09-25T14:47:19+02:00",
-        "expected_session": "2026-09-24",
+        "decision_at": "2026-09-29T16:05:20+02:00",
+        "expected_session": "2026-09-28",
         "first_blocking_gate": {
           "name": "quant_candidate",
           "passed": false,
@@ -2568,7 +2646,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "median_turnover_threshold",
-              "observed_value": 230280874.238876,
+              "observed_value": 222558540.661911,
               "threshold": 1000000.0
             },
             {
@@ -2577,7 +2655,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "maximum_risk_percent",
-              "observed_value": 0.04663754,
+              "observed_value": 0.04819375,
               "threshold": 0.07
             },
             {
@@ -2603,26 +2681,26 @@
           "returns": {}
         },
         "market_state": {
-          "last_session": "2026-09-24",
-          "expected_session": "2026-09-24",
+          "last_session": "2026-09-28",
+          "expected_session": "2026-09-28",
           "historical_lag_sessions": 0,
           "historical_data_status": "fresh",
-          "reference_price": 335.8500061,
-          "median_turnover": 230280874.238876,
+          "reference_price": 321.5,
+          "median_turnover": 222558540.661911,
           "turnover_threshold": 1000000.0,
-          "risk_percent": 0.04663754
+          "risk_percent": 0.04819375
         },
         "risk_plan": {
-          "reference_price": 335.8500061,
+          "reference_price": 321.5,
           "entry_zone": [
-            334.17075607,
-            340.8877562
+            319.8925,
+            326.3225
           ],
-          "stop": 320.18678894,
-          "target": 364.043797,
+          "stop": 306.00571093,
+          "target": 349.38972033,
           "reward_risk": 1.8,
-          "risk_percent": 0.04663754,
-          "atr": 14.23928833,
+          "risk_percent": 0.04819375,
+          "atr": 14.08571734,
           "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
           "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
         },
@@ -2638,18 +2716,18 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "f18692d469ca25647bd1788d9f5ed9093759ef032e017598600aae86128a9439"
+        "state_sha256": "7b5b9682cfc18643be92810d7360c9bd9c5040adf398ac830875b8882b121460"
       },
       {
-        "candidate_id": "gpw:2026-09-25:KRU.WA:LONG",
+        "candidate_id": "gpw:2026-09-29:KRU.WA:LONG",
         "market": "gpw",
         "symbol": "KRU.WA",
         "name": "Kruk",
         "sector": "finanse",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-09-25T14:47:19+02:00",
-        "expected_session": "2026-09-24",
+        "decision_at": "2026-09-29T16:05:20+02:00",
+        "expected_session": "2026-09-28",
         "first_blocking_gate": {
           "name": "quant_candidate",
           "passed": false,
@@ -2676,7 +2754,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "median_turnover_threshold",
-              "observed_value": 21083529.720673,
+              "observed_value": 17819077.695786,
               "threshold": 1000000.0
             },
             {
@@ -2685,7 +2763,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "maximum_risk_percent",
-              "observed_value": 0.02143043,
+              "observed_value": 0.02133861,
               "threshold": 0.07
             },
             {
@@ -2711,26 +2789,26 @@
           "returns": {}
         },
         "market_state": {
-          "last_session": "2026-09-24",
-          "expected_session": "2026-09-24",
+          "last_session": "2026-09-28",
+          "expected_session": "2026-09-28",
           "historical_lag_sessions": 0,
           "historical_data_status": "fresh",
-          "reference_price": 385.70001221,
-          "median_turnover": 21083529.720673,
+          "reference_price": 381.1000061,
+          "median_turnover": 17819077.695786,
           "turnover_threshold": 1000000.0,
-          "risk_percent": 0.02143043
+          "risk_percent": 0.02133861
         },
         "risk_plan": {
-          "reference_price": 385.70001221,
+          "reference_price": 381.1000061,
           "entry_zone": [
-            383.77151215,
-            391.48551239
+            379.19450607,
+            386.8165062
           ],
-          "stop": 377.43429456,
-          "target": 400.57830396,
+          "stop": 372.96786085,
+          "target": 395.73786756,
           "reward_risk": 1.8,
-          "risk_percent": 0.02143043,
-          "atr": 7.51428877,
+          "risk_percent": 0.02133861,
+          "atr": 7.39285932,
           "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
           "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
         },
@@ -2746,18 +2824,18 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "1be05164cd4a18680c13153e1c2fc741811635bfec4968eee93dbef0ec8be533"
+        "state_sha256": "1f923c29fcf2bfc7a2febd830d517e2ae5f6866d1a3160bd6c8579ad207599e8"
       },
       {
-        "candidate_id": "gpw:2026-09-25:KTY.WA:LONG",
+        "candidate_id": "gpw:2026-09-29:KTY.WA:LONG",
         "market": "gpw",
         "symbol": "KTY.WA",
         "name": "Grupa Kęty",
         "sector": "przemysł",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-09-25T14:47:19+02:00",
-        "expected_session": "2026-09-24",
+        "decision_at": "2026-09-29T16:05:20+02:00",
+        "expected_session": "2026-09-28",
         "first_blocking_gate": {
           "name": "quant_candidate",
           "passed": false,
@@ -2784,7 +2862,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "median_turnover_threshold",
-              "observed_value": 21713761.0,
+              "observed_value": 24675396.5,
               "threshold": 1000000.0
             },
             {
@@ -2793,7 +2871,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "maximum_risk_percent",
-              "observed_value": 0.04014914,
+              "observed_value": 0.03977987,
               "threshold": 0.07
             },
             {
@@ -2819,26 +2897,26 @@
           "returns": {}
         },
         "market_state": {
-          "last_session": "2026-09-24",
-          "expected_session": "2026-09-24",
+          "last_session": "2026-09-28",
+          "expected_session": "2026-09-28",
           "historical_lag_sessions": 0,
           "historical_data_status": "fresh",
-          "reference_price": 1274.0,
-          "median_turnover": 21713761.0,
+          "reference_price": 1272.0,
+          "median_turnover": 24675396.5,
           "turnover_threshold": 1000000.0,
-          "risk_percent": 0.04014914
+          "risk_percent": 0.03977987
         },
         "risk_plan": {
-          "reference_price": 1274.0,
+          "reference_price": 1272.0,
           "entry_zone": [
-            1267.63,
-            1293.11
+            1265.64,
+            1291.08
           ],
-          "stop": 1222.85,
-          "target": 1366.07,
+          "stop": 1221.4,
+          "target": 1363.08,
           "reward_risk": 1.8,
-          "risk_percent": 0.04014914,
-          "atr": 46.5,
+          "risk_percent": 0.03977987,
+          "atr": 46.0,
           "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
           "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
         },
@@ -2854,126 +2932,18 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "320eeb2e995c34c5b64260b0200578430c0407972f7fddf509f9286b2154b732"
+        "state_sha256": "b93df6d723010bb4b1c9461dbc0692deb128d9158c3c5b431e764446ad4fad2c"
       },
       {
-        "candidate_id": "gpw:2026-09-25:LPP.WA:LONG",
-        "market": "gpw",
-        "symbol": "LPP.WA",
-        "name": "LPP",
-        "sector": "handel",
-        "action": "LONG",
-        "selected": false,
-        "decision_at": "2026-09-25T14:47:19+02:00",
-        "expected_session": "2026-09-24",
-        "first_blocking_gate": {
-          "name": "quant_candidate",
-          "passed": false,
-          "hard": true,
-          "stage": "quant_screen",
-          "reason": "engine_quant_builder_rejected",
-          "observed_value": null,
-          "threshold": null
-        },
-        "decision_path": {
-          "gates": [
-            {
-              "name": "market_data",
-              "passed": true,
-              "hard": true,
-              "stage": "market_data",
-              "reason": "fresh_completed_session",
-              "observed_value": 0,
-              "threshold": 1
-            },
-            {
-              "name": "liquidity",
-              "passed": true,
-              "hard": true,
-              "stage": "quant_screen",
-              "reason": "median_turnover_threshold",
-              "observed_value": 63665100.0,
-              "threshold": 1000000.0
-            },
-            {
-              "name": "position_risk",
-              "passed": true,
-              "hard": true,
-              "stage": "quant_screen",
-              "reason": "maximum_risk_percent",
-              "observed_value": 0.03201531,
-              "threshold": 0.07
-            },
-            {
-              "name": "quant_candidate",
-              "passed": false,
-              "hard": true,
-              "stage": "quant_screen",
-              "reason": "engine_quant_builder_rejected",
-              "observed_value": null,
-              "threshold": null
-            }
-          ],
-          "explicit_engine_rejection": null,
-          "producer_decision": "TRANSAKCJA",
-          "producer_reason": "Końcowy wybór dnia: pełny ranking P0.3 połączono z P0.4 data gates, Opening Confirmation oraz empirycznym Expected Value dla horyzontu 1–2 sesji."
-        },
-        "score_state": {
-          "rank": null,
-          "shortlist_limit": 6,
-          "quant_pre_score": null,
-          "composite_score": null,
-          "scores": {},
-          "returns": {}
-        },
-        "market_state": {
-          "last_session": "2026-09-24",
-          "expected_session": "2026-09-24",
-          "historical_lag_sessions": 0,
-          "historical_data_status": "fresh",
-          "reference_price": 24640.0,
-          "median_turnover": 63665100.0,
-          "turnover_threshold": 1000000.0,
-          "risk_percent": 0.03201531
-        },
-        "risk_plan": {
-          "reference_price": 24640.0,
-          "entry_zone": [
-            24516.8,
-            25009.6
-          ],
-          "stop": 23851.14285714,
-          "target": 26059.94285714,
-          "reward_risk": 1.8,
-          "risk_percent": 0.03201531,
-          "atr": 717.14285714,
-          "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
-          "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
-        },
-        "settlement_eligibility": {
-          "eligible": true,
-          "mode": "risk_plan",
-          "reason": "prospectively_frozen_risk_plan"
-        },
-        "governance": {
-          "decision_influence": false,
-          "ranking_writeback": false,
-          "gate_writeback": false,
-          "historical_backfill": false,
-          "news_or_llm_rerun": false
-        },
-        "state_sha256": "46b3e9a30280e3b58f1d640533148cbb585c366a7f237cb3de50e7a68aba9b22"
-      },
-      {
-        "candidate_id": "gpw:2026-09-25:LWB.WA:LONG",
+        "candidate_id": "gpw:2026-09-29:LWB.WA:LONG",
         "market": "gpw",
         "symbol": "LWB.WA",
         "name": "Bogdanka",
         "sector": "surowce",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-09-25T14:47:19+02:00",
-        "expected_session": "2026-09-24",
+        "decision_at": "2026-09-29T16:05:20+02:00",
+        "expected_session": "2026-09-28",
         "first_blocking_gate": {
           "name": "quant_candidate",
           "passed": false,
@@ -3009,7 +2979,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "maximum_risk_percent",
-              "observed_value": 0.06220914,
+              "observed_value": 0.05774528,
               "threshold": 0.07
             },
             {
@@ -3035,26 +3005,26 @@
           "returns": {}
         },
         "market_state": {
-          "last_session": "2026-09-24",
-          "expected_session": "2026-09-24",
+          "last_session": "2026-09-28",
+          "expected_session": "2026-09-28",
           "historical_lag_sessions": 0,
           "historical_data_status": "fresh",
-          "reference_price": 24.25,
+          "reference_price": 24.89999962,
           "median_turnover": 3702015.142963,
           "turnover_threshold": 1000000.0,
-          "risk_percent": 0.06220914
+          "risk_percent": 0.05774528
         },
         "risk_plan": {
-          "reference_price": 24.25,
+          "reference_price": 24.89999962,
           "entry_zone": [
-            24.12875,
-            24.61375
+            24.77549962,
+            25.27349961
           ],
-          "stop": 22.74142836,
-          "target": 26.96542895,
+          "stop": 23.46214224,
+          "target": 27.48814291,
           "reward_risk": 1.8,
-          "risk_percent": 0.06220914,
-          "atr": 1.37142876,
+          "risk_percent": 0.05774528,
+          "atr": 1.30714308,
           "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
           "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
         },
@@ -3070,18 +3040,18 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "79bb2abd938c6ad22548e47561123d93746a80007d343664be879740273df8df"
+        "state_sha256": "1fa4ad38a783f4a1f1a4820e5e6e351c221008d180d1a5687e392f92c24208d2"
       },
       {
-        "candidate_id": "gpw:2026-09-25:MBK.WA:LONG",
+        "candidate_id": "gpw:2026-09-29:MBK.WA:LONG",
         "market": "gpw",
         "symbol": "MBK.WA",
         "name": "mBank",
         "sector": "banki",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-09-25T14:47:19+02:00",
-        "expected_session": "2026-09-24",
+        "decision_at": "2026-09-29T16:05:20+02:00",
+        "expected_session": "2026-09-28",
         "first_blocking_gate": {
           "name": "quant_candidate",
           "passed": false,
@@ -3108,7 +3078,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "median_turnover_threshold",
-              "observed_value": 25408224.25,
+              "observed_value": 24478574.25,
               "threshold": 1000000.0
             },
             {
@@ -3117,7 +3087,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "maximum_risk_percent",
-              "observed_value": 0.03547461,
+              "observed_value": 0.03544298,
               "threshold": 0.07
             },
             {
@@ -3143,26 +3113,26 @@
           "returns": {}
         },
         "market_state": {
-          "last_session": "2026-09-24",
-          "expected_session": "2026-09-24",
+          "last_session": "2026-09-28",
+          "expected_session": "2026-09-28",
           "historical_lag_sessions": 0,
           "historical_data_status": "fresh",
-          "reference_price": 1505.0,
-          "median_turnover": 25408224.25,
+          "reference_price": 1487.5,
+          "median_turnover": 24478574.25,
           "turnover_threshold": 1000000.0,
-          "risk_percent": 0.03547461
+          "risk_percent": 0.03544298
         },
         "risk_plan": {
-          "reference_price": 1505.0,
+          "reference_price": 1487.5,
           "entry_zone": [
-            1497.475,
-            1527.575
+            1480.0625,
+            1509.8125
           ],
-          "stop": 1451.61071429,
-          "target": 1601.10071429,
+          "stop": 1434.77857143,
+          "target": 1582.39857143,
           "reward_risk": 1.8,
-          "risk_percent": 0.03547461,
-          "atr": 48.53571429,
+          "risk_percent": 0.03544298,
+          "atr": 47.92857143,
           "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
           "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
         },
@@ -3178,18 +3148,18 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "4b66df990a9e9acf1a7c1dbc4b771dde4e4f7dd61afcebfd27e8510205bdd2a6"
+        "state_sha256": "2e6e9a4255469eb4aec7503534eca0733f58e30424d428a1dee69da8dbdd65a0"
       },
       {
-        "candidate_id": "gpw:2026-09-25:MIL.WA:LONG",
+        "candidate_id": "gpw:2026-09-29:MIL.WA:LONG",
         "market": "gpw",
         "symbol": "MIL.WA",
         "name": "Bank Millennium",
         "sector": "banki",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-09-25T14:47:19+02:00",
-        "expected_session": "2026-09-24",
+        "decision_at": "2026-09-29T16:05:20+02:00",
+        "expected_session": "2026-09-28",
         "first_blocking_gate": {
           "name": "quant_candidate",
           "passed": false,
@@ -3216,7 +3186,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "median_turnover_threshold",
-              "observed_value": 14935302.303469,
+              "observed_value": 14851834.844166,
               "threshold": 1000000.0
             },
             {
@@ -3225,7 +3195,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "maximum_risk_percent",
-              "observed_value": 0.03673644,
+              "observed_value": 0.03313895,
               "threshold": 0.07
             },
             {
@@ -3251,26 +3221,26 @@
           "returns": {}
         },
         "market_state": {
-          "last_session": "2026-09-24",
-          "expected_session": "2026-09-24",
+          "last_session": "2026-09-28",
+          "expected_session": "2026-09-28",
           "historical_lag_sessions": 0,
           "historical_data_status": "fresh",
-          "reference_price": 23.27000046,
-          "median_turnover": 14935302.303469,
+          "reference_price": 23.52000046,
+          "median_turnover": 14851834.844166,
           "turnover_threshold": 1000000.0,
-          "risk_percent": 0.03673644
+          "risk_percent": 0.03313895
         },
         "risk_plan": {
-          "reference_price": 23.27000046,
+          "reference_price": 23.52000046,
           "entry_zone": [
-            23.15365046,
-            23.61905046
+            23.40240046,
+            23.87280046
           ],
-          "stop": 22.41514353,
-          "target": 24.80874293,
+          "stop": 22.74057233,
+          "target": 24.92297109,
           "reward_risk": 1.8,
-          "risk_percent": 0.03673644,
-          "atr": 0.77714266,
+          "risk_percent": 0.03313895,
+          "atr": 0.70857103,
           "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
           "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
         },
@@ -3286,18 +3256,18 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "b5c21ee7ea9cf7765a1a562ddb5b268abceb8e1fc87f5748b8274b5a435384c4"
+        "state_sha256": "6c1ac3310f4e1ec6dc290e48615f14cdf81349df2419deb7c0fa1b7b9937cf37"
       },
       {
-        "candidate_id": "gpw:2026-09-25:NEU.WA:LONG",
+        "candidate_id": "gpw:2026-09-29:NEU.WA:LONG",
         "market": "gpw",
         "symbol": "NEU.WA",
         "name": "Neuca",
         "sector": "ochrona zdrowia",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-09-25T14:47:19+02:00",
-        "expected_session": "2026-09-24",
+        "decision_at": "2026-09-29T16:05:20+02:00",
+        "expected_session": "2026-09-28",
         "first_blocking_gate": {
           "name": "quant_candidate",
           "passed": false,
@@ -3324,7 +3294,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "median_turnover_threshold",
-              "observed_value": 2940009.0,
+              "observed_value": 2795043.0,
               "threshold": 1000000.0
             },
             {
@@ -3333,7 +3303,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "maximum_risk_percent",
-              "observed_value": 0.04579592,
+              "observed_value": 0.04391084,
               "threshold": 0.07
             },
             {
@@ -3359,26 +3329,26 @@
           "returns": {}
         },
         "market_state": {
-          "last_session": "2026-09-24",
-          "expected_session": "2026-09-24",
+          "last_session": "2026-09-28",
+          "expected_session": "2026-09-28",
           "historical_lag_sessions": 0,
           "historical_data_status": "fresh",
-          "reference_price": 700.0,
-          "median_turnover": 2940009.0,
+          "reference_price": 705.0,
+          "median_turnover": 2795043.0,
           "turnover_threshold": 1000000.0,
-          "risk_percent": 0.04579592
+          "risk_percent": 0.04391084
         },
         "risk_plan": {
-          "reference_price": 700.0,
+          "reference_price": 705.0,
           "entry_zone": [
-            696.5,
-            710.5
+            701.475,
+            715.575
           ],
-          "stop": 667.94285714,
-          "target": 757.70285714,
+          "stop": 674.04285714,
+          "target": 760.72285714,
           "reward_risk": 1.8,
-          "risk_percent": 0.04579592,
-          "atr": 29.14285714,
+          "risk_percent": 0.04391084,
+          "atr": 28.14285714,
           "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
           "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
         },
@@ -3394,18 +3364,18 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "a4bc324b0ded9b98597ce4ec89e34ccccc1eff7a08a74ec3ba2226ab12f999c9"
+        "state_sha256": "772469b78787fcd8a34983ddb5484b8a045a60792c62f835b5719436640b9188"
       },
       {
-        "candidate_id": "gpw:2026-09-25:OPL.WA:LONG",
+        "candidate_id": "gpw:2026-09-29:OPL.WA:LONG",
         "market": "gpw",
         "symbol": "OPL.WA",
         "name": "Orange Polska",
         "sector": "telekomunikacja",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-09-25T14:47:19+02:00",
-        "expected_session": "2026-09-24",
+        "decision_at": "2026-09-29T16:05:20+02:00",
+        "expected_session": "2026-09-28",
         "first_blocking_gate": {
           "name": "quant_candidate",
           "passed": false,
@@ -3432,7 +3402,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "median_turnover_threshold",
-              "observed_value": 13485498.365017,
+              "observed_value": 12411188.035281,
               "threshold": 1000000.0
             },
             {
@@ -3441,7 +3411,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "maximum_risk_percent",
-              "observed_value": 0.03093221,
+              "observed_value": 0.03076374,
               "threshold": 0.07
             },
             {
@@ -3467,26 +3437,26 @@
           "returns": {}
         },
         "market_state": {
-          "last_session": "2026-09-24",
-          "expected_session": "2026-09-24",
+          "last_session": "2026-09-28",
+          "expected_session": "2026-09-28",
           "historical_lag_sessions": 0,
           "historical_data_status": "fresh",
-          "reference_price": 12.97999954,
-          "median_turnover": 13485498.365017,
+          "reference_price": 13.0,
+          "median_turnover": 12411188.035281,
           "turnover_threshold": 1000000.0,
-          "risk_percent": 0.03093221
+          "risk_percent": 0.03076374
         },
         "risk_plan": {
-          "reference_price": 12.97999954,
+          "reference_price": 13.0,
           "entry_zone": [
-            12.91509954,
-            13.17469954
+            12.935,
+            13.195
           ],
-          "stop": 12.57849949,
-          "target": 13.70269963,
+          "stop": 12.60007142,
+          "target": 13.71987145,
           "reward_risk": 1.8,
-          "risk_percent": 0.03093221,
-          "atr": 0.36500004,
+          "risk_percent": 0.03076374,
+          "atr": 0.36357144,
           "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
           "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
         },
@@ -3502,18 +3472,18 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "745a6f332f385978d4659a461c496210f70beb128b793179ba906dbe38356cee"
+        "state_sha256": "e19fded02d92a927efd0121a1a671eeff6382b12dc2f58676c9fd2e290af2bf4"
       },
       {
-        "candidate_id": "gpw:2026-09-25:PCO.WA:LONG",
+        "candidate_id": "gpw:2026-09-29:PCO.WA:LONG",
         "market": "gpw",
         "symbol": "PCO.WA",
         "name": "Pepco Group",
         "sector": "handel",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-09-25T14:47:19+02:00",
-        "expected_session": "2026-09-24",
+        "decision_at": "2026-09-29T16:05:20+02:00",
+        "expected_session": "2026-09-28",
         "first_blocking_gate": {
           "name": "quant_candidate",
           "passed": false,
@@ -3549,7 +3519,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "maximum_risk_percent",
-              "observed_value": 0.03115638,
+              "observed_value": 0.03090777,
               "threshold": 0.07
             },
             {
@@ -3575,26 +3545,26 @@
           "returns": {}
         },
         "market_state": {
-          "last_session": "2026-09-24",
-          "expected_session": "2026-09-24",
+          "last_session": "2026-09-28",
+          "expected_session": "2026-09-28",
           "historical_lag_sessions": 0,
           "historical_data_status": "fresh",
-          "reference_price": 42.72000122,
+          "reference_price": 43.75,
           "median_turnover": 44205577.490768,
           "turnover_threshold": 1000000.0,
-          "risk_percent": 0.03115638
+          "risk_percent": 0.03090777
         },
         "risk_plan": {
-          "reference_price": 42.72000122,
+          "reference_price": 43.75,
           "entry_zone": [
-            42.50640121,
-            43.36080124
+            43.53125,
+            44.40625
           ],
-          "stop": 41.38900043,
-          "target": 45.11580265,
+          "stop": 42.39778519,
+          "target": 46.18398666,
           "reward_risk": 1.8,
-          "risk_percent": 0.03115638,
-          "atr": 1.21000072,
+          "risk_percent": 0.03090777,
+          "atr": 1.22928619,
           "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
           "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
         },
@@ -3610,18 +3580,18 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "7f4b9b1a668e110e56102e117140eb2f91a928dc53aa72a34b1c973bb51f330e"
+        "state_sha256": "cf3b193bc867663932d2a1200ed340ca28f05554991d6dbd00e5b09247422060"
       },
       {
-        "candidate_id": "gpw:2026-09-25:PEO.WA:LONG",
+        "candidate_id": "gpw:2026-09-29:PEO.WA:LONG",
         "market": "gpw",
         "symbol": "PEO.WA",
         "name": "Bank Pekao",
         "sector": "banki",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-09-25T14:47:19+02:00",
-        "expected_session": "2026-09-24",
+        "decision_at": "2026-09-29T16:05:20+02:00",
+        "expected_session": "2026-09-28",
         "first_blocking_gate": {
           "name": "quant_candidate",
           "passed": false,
@@ -3648,7 +3618,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "median_turnover_threshold",
-              "observed_value": 147640373.425247,
+              "observed_value": 140830561.376938,
               "threshold": 1000000.0
             },
             {
@@ -3657,7 +3627,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "maximum_risk_percent",
-              "observed_value": 0.02596686,
+              "observed_value": 0.02472193,
               "threshold": 0.07
             },
             {
@@ -3683,26 +3653,26 @@
           "returns": {}
         },
         "market_state": {
-          "last_session": "2026-09-24",
-          "expected_session": "2026-09-24",
+          "last_session": "2026-09-28",
+          "expected_session": "2026-09-28",
           "historical_lag_sessions": 0,
           "historical_data_status": "fresh",
-          "reference_price": 281.1000061,
-          "median_turnover": 147640373.425247,
+          "reference_price": 280.0,
+          "median_turnover": 140830561.376938,
           "turnover_threshold": 1000000.0,
-          "risk_percent": 0.02596686
+          "risk_percent": 0.02472193
         },
         "risk_plan": {
-          "reference_price": 281.1000061,
+          "reference_price": 280.0,
           "entry_zone": [
-            279.69450607,
-            285.3165062
+            278.6,
+            284.2
           ],
-          "stop": 273.80072087,
-          "target": 294.23871953,
+          "stop": 273.07785906,
+          "target": 292.45985369,
           "reward_risk": 1.8,
-          "risk_percent": 0.02596686,
-          "atr": 6.63571385,
+          "risk_percent": 0.02472193,
+          "atr": 6.2928554,
           "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
           "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
         },
@@ -3718,18 +3688,18 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "9884393aca6f0bdc97f136b94c43dafb435d23fd5b25755915dffd3f8ff8ac57"
+        "state_sha256": "7b87f4d1b0d603e15c160c7500626f4aa1c3803c8bd2669f88b9948be41b6eec"
       },
       {
-        "candidate_id": "gpw:2026-09-25:PGE.WA:LONG",
+        "candidate_id": "gpw:2026-09-29:PGE.WA:LONG",
         "market": "gpw",
         "symbol": "PGE.WA",
         "name": "PGE",
         "sector": "energia",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-09-25T14:47:19+02:00",
-        "expected_session": "2026-09-24",
+        "decision_at": "2026-09-29T16:05:20+02:00",
+        "expected_session": "2026-09-28",
         "first_blocking_gate": {
           "name": "quant_candidate",
           "passed": false,
@@ -3765,7 +3735,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "maximum_risk_percent",
-              "observed_value": 0.05381727,
+              "observed_value": 0.05004217,
               "threshold": 0.07
             },
             {
@@ -3791,26 +3761,26 @@
           "returns": {}
         },
         "market_state": {
-          "last_session": "2026-09-24",
-          "expected_session": "2026-09-24",
+          "last_session": "2026-09-28",
+          "expected_session": "2026-09-28",
           "historical_lag_sessions": 0,
           "historical_data_status": "fresh",
-          "reference_price": 13.22000027,
+          "reference_price": 13.55000019,
           "median_turnover": 59142383.981558,
           "turnover_threshold": 1000000.0,
-          "risk_percent": 0.05381727
+          "risk_percent": 0.05004217
         },
         "risk_plan": {
-          "reference_price": 13.22000027,
+          "reference_price": 13.55000019,
           "entry_zone": [
-            13.15390027,
-            13.41830027
+            13.48225019,
+            13.75325019
           ],
-          "stop": 12.50853596,
-          "target": 14.50063602,
+          "stop": 12.87192875,
+          "target": 14.77052878,
           "reward_risk": 1.8,
-          "risk_percent": 0.05381727,
-          "atr": 0.64678574,
+          "risk_percent": 0.05004217,
+          "atr": 0.61642858,
           "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
           "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
         },
@@ -3826,18 +3796,18 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "8f08d2070c6de1ff6053b3745478855d300bdecd0a0198e4806ceb64ce4d9214"
+        "state_sha256": "7e5d7a7f7b553f93de8d8953f9829cabe9189a97926083efb121cfd40578070d"
       },
       {
-        "candidate_id": "gpw:2026-09-25:PKN.WA:LONG",
+        "candidate_id": "gpw:2026-09-29:PKN.WA:LONG",
         "market": "gpw",
         "symbol": "PKN.WA",
         "name": "ORLEN",
         "sector": "energia",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-09-25T14:47:19+02:00",
-        "expected_session": "2026-09-24",
+        "decision_at": "2026-09-29T16:05:20+02:00",
+        "expected_session": "2026-09-28",
         "first_blocking_gate": {
           "name": "quant_candidate",
           "passed": false,
@@ -3864,7 +3834,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "median_turnover_threshold",
-              "observed_value": 205723166.513489,
+              "observed_value": 192591530.411621,
               "threshold": 1000000.0
             },
             {
@@ -3873,7 +3843,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "maximum_risk_percent",
-              "observed_value": 0.02955976,
+              "observed_value": 0.02844719,
               "threshold": 0.07
             },
             {
@@ -3899,26 +3869,26 @@
           "returns": {}
         },
         "market_state": {
-          "last_session": "2026-09-24",
-          "expected_session": "2026-09-24",
+          "last_session": "2026-09-28",
+          "expected_session": "2026-09-28",
           "historical_lag_sessions": 0,
           "historical_data_status": "fresh",
-          "reference_price": 150.17999268,
-          "median_turnover": 205723166.513489,
+          "reference_price": 150.63999939,
+          "median_turnover": 192591530.411621,
           "turnover_threshold": 1000000.0,
-          "risk_percent": 0.02955976
+          "risk_percent": 0.02844719
         },
         "risk_plan": {
-          "reference_price": 150.17999268,
+          "reference_price": 150.63999939,
           "entry_zone": [
-            149.42909271,
-            152.43269257
+            149.88679939,
+            152.89959938
           ],
-          "stop": 145.74070816,
-          "target": 158.1707048,
+          "stop": 146.3547154,
+          "target": 158.35351057,
           "reward_risk": 1.8,
-          "risk_percent": 0.02955976,
-          "atr": 4.0357132,
+          "risk_percent": 0.02844719,
+          "atr": 3.89571272,
           "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
           "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
         },
@@ -3934,18 +3904,18 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "d993e929b631508da0dee324d45889c7d388e843c046ca4262310b04238ced1f"
+        "state_sha256": "808cc9fef43c6c1c09d10b4140020ca37707492f7cd681b4a64175a64d7644a7"
       },
       {
-        "candidate_id": "gpw:2026-09-25:PKO.WA:LONG",
+        "candidate_id": "gpw:2026-09-29:PKO.WA:LONG",
         "market": "gpw",
         "symbol": "PKO.WA",
         "name": "PKO BP",
         "sector": "banki",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-09-25T14:47:19+02:00",
-        "expected_session": "2026-09-24",
+        "decision_at": "2026-09-29T16:05:20+02:00",
+        "expected_session": "2026-09-28",
         "first_blocking_gate": {
           "name": "quant_candidate",
           "passed": false,
@@ -3972,7 +3942,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "median_turnover_threshold",
-              "observed_value": 237980274.284008,
+              "observed_value": 244340616.556705,
               "threshold": 1000000.0
             },
             {
@@ -3981,7 +3951,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "maximum_risk_percent",
-              "observed_value": 0.01934299,
+              "observed_value": 0.01882783,
               "threshold": 0.07
             },
             {
@@ -4007,26 +3977,26 @@
           "returns": {}
         },
         "market_state": {
-          "last_session": "2026-09-24",
-          "expected_session": "2026-09-24",
+          "last_session": "2026-09-28",
+          "expected_session": "2026-09-28",
           "historical_lag_sessions": 0,
           "historical_data_status": "fresh",
-          "reference_price": 124.45999908,
-          "median_turnover": 237980274.284008,
+          "reference_price": 124.36000061,
+          "median_turnover": 244340616.556705,
           "turnover_threshold": 1000000.0,
-          "risk_percent": 0.01934299
+          "risk_percent": 0.01882783
         },
         "risk_plan": {
-          "reference_price": 124.45999908,
+          "reference_price": 124.36000061,
           "entry_zone": [
-            123.83769909,
-            126.32689907
+            123.73820061,
+            126.22540062
           ],
-          "stop": 122.05257056,
-          "target": 128.79337043,
+          "stop": 122.0185718,
+          "target": 128.57457247,
           "reward_risk": 1.8,
-          "risk_percent": 0.01934299,
-          "atr": 2.18857138,
+          "risk_percent": 0.01882783,
+          "atr": 2.12857165,
           "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
           "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
         },
@@ -4042,18 +4012,18 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "b412a089ad043f2f398e9dd52ac4f1692ad25b2c7230c4e9ccd71182ddbffa98"
+        "state_sha256": "a3968e05027b10cfffdaaa12bd789c06b7b8a8d0bbd44b48ebe7be588e99d733"
       },
       {
-        "candidate_id": "gpw:2026-09-25:PZU.WA:LONG",
+        "candidate_id": "gpw:2026-09-29:PZU.WA:LONG",
         "market": "gpw",
         "symbol": "PZU.WA",
         "name": "PZU",
         "sector": "ubezpieczenia",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-09-25T14:47:19+02:00",
-        "expected_session": "2026-09-24",
+        "decision_at": "2026-09-29T16:05:20+02:00",
+        "expected_session": "2026-09-28",
         "first_blocking_gate": {
           "name": "quant_candidate",
           "passed": false,
@@ -4080,7 +4050,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "median_turnover_threshold",
-              "observed_value": 116566936.878304,
+              "observed_value": 114008510.818562,
               "threshold": 1000000.0
             },
             {
@@ -4089,7 +4059,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "maximum_risk_percent",
-              "observed_value": 0.02405902,
+              "observed_value": 0.02444972,
               "threshold": 0.07
             },
             {
@@ -4115,26 +4085,26 @@
           "returns": {}
         },
         "market_state": {
-          "last_session": "2026-09-24",
-          "expected_session": "2026-09-24",
+          "last_session": "2026-09-28",
+          "expected_session": "2026-09-28",
           "historical_lag_sessions": 0,
           "historical_data_status": "fresh",
-          "reference_price": 73.48000336,
-          "median_turnover": 116566936.878304,
+          "reference_price": 72.81999969,
+          "median_turnover": 114008510.818562,
           "turnover_threshold": 1000000.0,
-          "risk_percent": 0.02405902
+          "risk_percent": 0.02444972
         },
         "risk_plan": {
-          "reference_price": 73.48000336,
+          "reference_price": 72.81999969,
           "entry_zone": [
-            73.11260334,
-            74.58220341
+            72.4558997,
+            73.91229969
           ],
-          "stop": 71.71214681,
-          "target": 76.66214514,
+          "stop": 71.03957144,
+          "target": 76.02477056,
           "reward_risk": 1.8,
-          "risk_percent": 0.02405902,
-          "atr": 1.60714231,
+          "risk_percent": 0.02444972,
+          "atr": 1.61857115,
           "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
           "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
         },
@@ -4150,18 +4120,18 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "eec012e446508a8302f157617648e9fd15f5948bfd2bace64b315fe9e6bbe988"
+        "state_sha256": "2caee7141403a975e0d6debdb555dedf17091b530485b4a35a722fc01fdce5a9"
       },
       {
-        "candidate_id": "gpw:2026-09-25:RBW.WA:LONG",
+        "candidate_id": "gpw:2026-09-29:RBW.WA:LONG",
         "market": "gpw",
         "symbol": "RBW.WA",
         "name": "Rainbow Tours",
         "sector": "turystyka",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-09-25T14:47:19+02:00",
-        "expected_session": "2026-09-24",
+        "decision_at": "2026-09-29T16:05:20+02:00",
+        "expected_session": "2026-09-28",
         "first_blocking_gate": {
           "name": "quant_candidate",
           "passed": false,
@@ -4197,7 +4167,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "maximum_risk_percent",
-              "observed_value": 0.02624829,
+              "observed_value": 0.04081459,
               "threshold": 0.07
             },
             {
@@ -4223,26 +4193,26 @@
           "returns": {}
         },
         "market_state": {
-          "last_session": "2026-09-24",
-          "expected_session": "2026-09-24",
+          "last_session": "2026-09-28",
+          "expected_session": "2026-09-28",
           "historical_lag_sessions": 0,
           "historical_data_status": "fresh",
-          "reference_price": 135.8999939,
+          "reference_price": 118.19999695,
           "median_turnover": 2112418.567261,
           "turnover_threshold": 1000000.0,
-          "risk_percent": 0.02624829
+          "risk_percent": 0.04081459
         },
         "risk_plan": {
-          "reference_price": 135.8999939,
+          "reference_price": 118.19999695,
           "entry_zone": [
-            135.22049393,
-            137.9384938
+            117.60899696,
+            119.9729969
           ],
-          "stop": 132.33285152,
-          "target": 142.32085018,
+          "stop": 113.37571231,
+          "target": 126.88370929,
           "reward_risk": 1.8,
-          "risk_percent": 0.02624829,
-          "atr": 3.24285671,
+          "risk_percent": 0.04081459,
+          "atr": 4.3857133,
           "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
           "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
         },
@@ -4258,18 +4228,18 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "c125f0ca0535ac40973dd3cf3f06a9fa9e58ded0ec77437e3120a4c913cfbc95"
+        "state_sha256": "a4764ac682ebf1a0d7b49d54916096c388cf01e5fb78db68d807cc54cc299b5b"
       },
       {
-        "candidate_id": "gpw:2026-09-25:SPL.WA:LONG",
+        "candidate_id": "gpw:2026-09-29:SPL.WA:LONG",
         "market": "gpw",
         "symbol": "SPL.WA",
         "name": "Santander Bank Polska",
         "sector": "banki",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-09-25T14:47:19+02:00",
-        "expected_session": "2026-09-24",
+        "decision_at": "2026-09-29T16:05:20+02:00",
+        "expected_session": "2026-09-28",
         "first_blocking_gate": {
           "name": "market_data",
           "passed": false,
@@ -4326,18 +4296,18 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "baad77d53b750cc120fd17f803bc36e31d10aa258ae0742ccb35710c8cf98224"
+        "state_sha256": "7eaff62181613918162f643d0b002d073552a26b85d44f82e7fe56991dc7de18"
       },
       {
-        "candidate_id": "gpw:2026-09-25:TEN.WA:LONG",
+        "candidate_id": "gpw:2026-09-29:TEN.WA:LONG",
         "market": "gpw",
         "symbol": "TEN.WA",
         "name": "Ten Square Games",
         "sector": "gry",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-09-25T14:47:19+02:00",
-        "expected_session": "2026-09-24",
+        "decision_at": "2026-09-29T16:05:20+02:00",
+        "expected_session": "2026-09-28",
         "first_blocking_gate": {
           "name": "quant_candidate",
           "passed": false,
@@ -4373,7 +4343,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "maximum_risk_percent",
-              "observed_value": 0.03082478,
+              "observed_value": 0.03104645,
               "threshold": 0.07
             },
             {
@@ -4399,26 +4369,26 @@
           "returns": {}
         },
         "market_state": {
-          "last_session": "2026-09-24",
-          "expected_session": "2026-09-24",
+          "last_session": "2026-09-28",
+          "expected_session": "2026-09-28",
           "historical_lag_sessions": 0,
           "historical_data_status": "fresh",
-          "reference_price": 98.90000153,
+          "reference_price": 98.69999695,
           "median_turnover": 1740677.862835,
           "turnover_threshold": 1000000.0,
-          "risk_percent": 0.03082478
+          "risk_percent": 0.03104645
         },
         "risk_plan": {
-          "reference_price": 98.90000153,
+          "reference_price": 98.69999695,
           "entry_zone": [
-            98.40550152,
-            100.38350155
+            98.20649696,
+            100.1804969
           ],
-          "stop": 95.85143046,
-          "target": 104.38742945,
+          "stop": 95.63571243,
+          "target": 104.21570908,
           "reward_risk": 1.8,
-          "risk_percent": 0.03082478,
-          "atr": 2.77142824,
+          "risk_percent": 0.03104645,
+          "atr": 2.7857132,
           "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
           "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
         },
@@ -4434,18 +4404,18 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "cdd56743284ef7e25847a8290a4f5ca6ffdfdc0f5f244a97236f36d8a1aa12e6"
+        "state_sha256": "31724eaf1425fbfa8e471b4d60481bde38b9d5ff5444afc646418bf1fda7cb8e"
       },
       {
-        "candidate_id": "gpw:2026-09-25:TPE.WA:LONG",
+        "candidate_id": "gpw:2026-09-29:TPE.WA:LONG",
         "market": "gpw",
         "symbol": "TPE.WA",
         "name": "Tauron Polska Energia",
         "sector": "energia",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-09-25T14:47:19+02:00",
-        "expected_session": "2026-09-24",
+        "decision_at": "2026-09-29T16:05:20+02:00",
+        "expected_session": "2026-09-28",
         "first_blocking_gate": {
           "name": "quant_candidate",
           "passed": false,
@@ -4481,7 +4451,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "maximum_risk_percent",
-              "observed_value": 0.04225332,
+              "observed_value": 0.03630478,
               "threshold": 0.07
             },
             {
@@ -4507,26 +4477,26 @@
           "returns": {}
         },
         "market_state": {
-          "last_session": "2026-09-24",
-          "expected_session": "2026-09-24",
+          "last_session": "2026-09-28",
+          "expected_session": "2026-09-28",
           "historical_lag_sessions": 0,
           "historical_data_status": "fresh",
-          "reference_price": 8.89599991,
+          "reference_price": 8.82999992,
           "median_turnover": 34577043.67676,
           "turnover_threshold": 1000000.0,
-          "risk_percent": 0.04225332
+          "risk_percent": 0.03630478
         },
         "risk_plan": {
-          "reference_price": 8.89599991,
+          "reference_price": 8.82999992,
           "entry_zone": [
-            8.85151991,
-            9.02943991
+            8.78584992,
+            8.96244992
           ],
-          "stop": 8.52011439,
-          "target": 9.57259385,
+          "stop": 8.50942873,
+          "target": 9.40702808,
           "reward_risk": 1.8,
-          "risk_percent": 0.04225332,
-          "atr": 0.34171411,
+          "risk_percent": 0.03630478,
+          "atr": 0.29142836,
           "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
           "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
         },
@@ -4542,18 +4512,18 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "da3bb6a79f463830d50d3db30f72068529e7b048635496339a1bfcd7351cf029"
+        "state_sha256": "d3ecda14907582dd14fe0d6a25d1298e6dbd7dc4b1ddefca3599cff31dc00fab"
       },
       {
-        "candidate_id": "gpw:2026-09-25:TXT.WA:LONG",
+        "candidate_id": "gpw:2026-09-29:TXT.WA:LONG",
         "market": "gpw",
         "symbol": "TXT.WA",
         "name": "Text",
         "sector": "technologia",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-09-25T14:47:19+02:00",
-        "expected_session": "2026-09-24",
+        "decision_at": "2026-09-29T16:05:20+02:00",
+        "expected_session": "2026-09-28",
         "first_blocking_gate": {
           "name": "quant_candidate",
           "passed": false,
@@ -4580,7 +4550,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "median_turnover_threshold",
-              "observed_value": 2349638.573339,
+              "observed_value": 2265438.579855,
               "threshold": 1000000.0
             },
             {
@@ -4589,7 +4559,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "maximum_risk_percent",
-              "observed_value": 0.02280246,
+              "observed_value": 0.02088897,
               "threshold": 0.07
             },
             {
@@ -4615,26 +4585,26 @@
           "returns": {}
         },
         "market_state": {
-          "last_session": "2026-09-24",
-          "expected_session": "2026-09-24",
+          "last_session": "2026-09-28",
+          "expected_session": "2026-09-28",
           "historical_lag_sessions": 0,
           "historical_data_status": "fresh",
-          "reference_price": 41.27999878,
-          "median_turnover": 2349638.573339,
+          "reference_price": 41.29999924,
+          "median_turnover": 2265438.579855,
           "turnover_threshold": 1000000.0,
-          "risk_percent": 0.02280246
+          "risk_percent": 0.02088897
         },
         "risk_plan": {
-          "reference_price": 41.27999878,
+          "reference_price": 41.29999924,
           "entry_zone": [
-            41.07359879,
-            41.89919876
+            41.09349924,
+            41.91949923
           ],
-          "stop": 40.3387131,
-          "target": 42.974313,
+          "stop": 40.43728499,
+          "target": 42.85288489,
           "reward_risk": 1.8,
-          "risk_percent": 0.02280246,
-          "atr": 0.85571425,
+          "risk_percent": 0.02088897,
+          "atr": 0.78428568,
           "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
           "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
         },
@@ -4650,25 +4620,25 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "a30347ff5f9719d42bb411b5f4ab485a74d999dbccc52ab1eac89a0a67d3267d"
+        "state_sha256": "44ebeeefedf8f8b899210b6a4e36f4a3b4f101ee4ea89842e13996c461f9a36b"
       },
       {
-        "candidate_id": "gpw:2026-09-25:WPL.WA:LONG",
+        "candidate_id": "gpw:2026-09-29:WPL.WA:LONG",
         "market": "gpw",
         "symbol": "WPL.WA",
         "name": "Wirtualna Polska",
         "sector": "media",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-09-25T14:47:19+02:00",
-        "expected_session": "2026-09-24",
+        "decision_at": "2026-09-29T16:05:20+02:00",
+        "expected_session": "2026-09-28",
         "first_blocking_gate": {
           "name": "liquidity",
           "passed": false,
           "hard": true,
           "stage": "quant_screen",
           "reason": "median_turnover_threshold",
-          "observed_value": 417109.75,
+          "observed_value": 426779.402744,
           "threshold": 1000000.0
         },
         "decision_path": {
@@ -4688,7 +4658,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "median_turnover_threshold",
-              "observed_value": 417109.75,
+              "observed_value": 426779.402744,
               "threshold": 1000000.0
             },
             {
@@ -4697,7 +4667,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "maximum_risk_percent",
-              "observed_value": 0.03578767,
+              "observed_value": 0.03137401,
               "threshold": 0.07
             }
           ],
@@ -4714,26 +4684,26 @@
           "returns": {}
         },
         "market_state": {
-          "last_session": "2026-09-24",
-          "expected_session": "2026-09-24",
+          "last_session": "2026-09-28",
+          "expected_session": "2026-09-28",
           "historical_lag_sessions": 0,
           "historical_data_status": "fresh",
-          "reference_price": 58.40000153,
-          "median_turnover": 417109.75,
+          "reference_price": 57.59999847,
+          "median_turnover": 426779.402744,
           "turnover_threshold": 1000000.0,
-          "risk_percent": 0.03578767
+          "risk_percent": 0.03137401
         },
         "risk_plan": {
-          "reference_price": 58.40000153,
+          "reference_price": 57.59999847,
           "entry_zone": [
-            58.10800152,
-            59.27600155
+            57.31199848,
+            58.46399845
           ],
-          "stop": 56.31000135,
-          "target": 62.16200185,
+          "stop": 55.79285532,
+          "target": 60.85285616,
           "reward_risk": 1.8,
-          "risk_percent": 0.03578767,
-          "atr": 1.90000016,
+          "risk_percent": 0.03137401,
+          "atr": 1.64285742,
           "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
           "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
         },
@@ -4749,18 +4719,18 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "dcff13ff3d5c077187b745373154bf88dbb2b4eadbc55c7c469e79c83602b3e7"
+        "state_sha256": "cb1c2866fc555a2c71ed9406302c43bed49904bbdb0fca97036301516cc6e18b"
       },
       {
-        "candidate_id": "gpw:2026-09-25:XTB.WA:LONG",
+        "candidate_id": "gpw:2026-09-29:XTB.WA:LONG",
         "market": "gpw",
         "symbol": "XTB.WA",
         "name": "XTB",
         "sector": "finanse",
         "action": "LONG",
         "selected": false,
-        "decision_at": "2026-09-25T14:47:19+02:00",
-        "expected_session": "2026-09-24",
+        "decision_at": "2026-09-29T16:05:20+02:00",
+        "expected_session": "2026-09-28",
         "first_blocking_gate": {
           "name": "quant_candidate",
           "passed": false,
@@ -4796,7 +4766,7 @@
               "hard": true,
               "stage": "quant_screen",
               "reason": "maximum_risk_percent",
-              "observed_value": 0.03796904,
+              "observed_value": 0.03731079,
               "threshold": 0.07
             },
             {
@@ -4822,26 +4792,26 @@
           "returns": {}
         },
         "market_state": {
-          "last_session": "2026-09-24",
-          "expected_session": "2026-09-24",
+          "last_session": "2026-09-28",
+          "expected_session": "2026-09-28",
           "historical_lag_sessions": 0,
           "historical_data_status": "fresh",
-          "reference_price": 153.96000671,
+          "reference_price": 151.58000183,
           "median_turnover": 73063154.935692,
           "turnover_threshold": 1000000.0,
-          "risk_percent": 0.03796904
+          "risk_percent": 0.03731079
         },
         "risk_plan": {
-          "reference_price": 153.96000671,
+          "reference_price": 151.58000183,
           "entry_zone": [
-            153.19020668,
-            156.26940681
+            150.82210182,
+            153.85370186
           ],
-          "stop": 148.11429291,
-          "target": 164.48229156,
+          "stop": 145.92443194,
+          "target": 161.76002764,
           "reward_risk": 1.8,
-          "risk_percent": 0.03796904,
-          "atr": 5.31428528,
+          "risk_percent": 0.03731079,
+          "atr": 5.14142718,
           "plan_source": "diagnostic_pre_gate_same_point_in_time_rules",
           "activation_rule": "diagnostic_reference_plan_only; future settler must respect frozen entry-zone activation"
         },
@@ -4857,7 +4827,7 @@
           "historical_backfill": false,
           "news_or_llm_rerun": false
         },
-        "state_sha256": "1edb30ebb83d155f27b3518ce8ac67355961b67512b081061f4fbaafb0281491"
+        "state_sha256": "ebb9b9b692f70845d673ead5ddec072a1a85f71bd56eeada94662c5c7cda5b95"
       }
     ],
     "contract": {
@@ -4869,12 +4839,6 @@
       "future_outcome_requires_preexisting_freeze": true,
       "historical_freshness_policy_aligned": true
     },
-    "freeze_sha256": "0c73a5b43d1f93ecf718e2209fdd339c253afd0b19c616d7e357f4026aa9fec3"
-  },
-  "history_index": {
-    "url": "/data/investments/gpw_daily_pick_history_index.json",
-    "selected_trades": 21,
-    "resolved_trades": 21,
-    "updated_at": "2026-09-29T15:39:06+02:00"
+    "freeze_sha256": "12e62406d2c92d8038786c99334fc1c2462c7d620edaf2c5180c6e48f10b3746"
   }
 }
