@@ -8,6 +8,7 @@ SL/TP/TIME exits, append-only outcomes and bounded learning from those outcomes.
 from __future__ import annotations
 
 import json
+from decimal import Decimal, ROUND_HALF_UP
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -104,6 +105,13 @@ def _synthetic_execution_config(position: Mapping[str, Any]) -> dict[str, float]
     }
 
 
+FX_PRICE_QUANTUM = Decimal("0.00001")
+
+
+def _fx_price_5(value: Any) -> float:
+    return float(Decimal(str(value)).quantize(FX_PRICE_QUANTUM, rounding=ROUND_HALF_UP))
+
+
 def execution_exit_price(position: Mapping[str, Any], mid_price: float) -> float:
     """Executable paper exit: LONG sells BID, SHORT buys ASK."""
     config = _synthetic_execution_config(position)
@@ -112,9 +120,9 @@ def execution_exit_price(position: Mapping[str, Any], mid_price: float) -> float
         return mid
     direction = str(position.get("direction") or "").upper()
     if direction == "LONG":
-        return mid - config["half_price"]
+        return _fx_price_5(mid - config["half_price"])
     if direction == "SHORT":
-        return mid + config["half_price"]
+        return _fx_price_5(mid + config["half_price"])
     return mid
 
 
