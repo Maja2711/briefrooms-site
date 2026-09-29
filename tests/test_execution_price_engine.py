@@ -60,6 +60,92 @@ class ExecutionPriceEngineTests(unittest.TestCase):
         self.assertFalse(result["verified"])
         self.assertEqual(result["reason"], "primary_quote_stale_or_future")
 
+    def test_availability_first_allows_single_fresh_source(self) -> None:
+        result = epe.verify_live_mid_quotes(
+            "SHORT",
+            [self.quote(1.13400, 8, "fxapi.app:EUR/USD:mid")],
+            now=self.now,
+        )
+        self.assertTrue(result["verified"])
+        self.assertEqual(result["status"], "VERIFIED_FILL")
+        self.assertEqual(result["fill_price"], 1.13400)
+        self.assertEqual(result["verification_quality"], "SINGLE_SOURCE")
+        self.assertEqual(result["fresh_source_count"], 1)
+
+    def test_availability_first_ignores_one_stale_vendor(self) -> None:
+        result = epe.verify_live_mid_quotes(
+            "LONG",
+            [
+                self.quote(1.13400, 9, "fxapi.app:EUR/USD:mid"),
+                self.quote(1.13404, 14, "Currency Exchange Tool:EUR/USD:mid"),
+                self.quote(1.14000, 500, "Yahoo Finance:EURUSD=X:1m:mid-proxy"),
+            ],
+            now=self.now,
+        )
+        self.assertTrue(result["verified"])
+        self.assertEqual(result["verification_quality"], "CONSENSUS")
+        self.assertEqual(result["fresh_source_count"], 2)
+        self.assertEqual(result["fill_price"], 1.13400)
+
+    def test_three_feed_consensus_rejects_yahoo_outlier_without_blocking_trade(self) -> None:
+        result = epe.verify_live_mid_quotes(
+            "SHORT",
+            [
+                self.quote(1.13400, 8, "fxapi.app:EUR/USD:mid"),
+                self.quote(1.13405, 12, "Currency Exchange Tool:EUR/USD:mid"),
+                self.quote(1.13456, 7, "Yahoo Finance:EURUSD=X:1m:mid-proxy"),
+            ],
+            now=self.now,
+        )
+        self.assertTrue(result["verified"])
+        self.assertEqual(result["verification_quality"], "CONSENSUS")
+        self.assertEqual(result["fill_price"], 1.13400)
+        self.assertGreater(result["cross_feed_range_pips"], 5.0)
+
+    def test_two_divergent_feeds_degrade_but_do_not_cancel_entry(self) -> None:
+        result = epe.verify_live_mid_quotes(
+            "LONG",
+            [
+                self.quote(1.13400, 8, "fxapi.app:EUR/USD:mid"),
+                self.quote(1.13440, 6, "Yahoo Finance:EURUSD=X:1m:mid-proxy"),
+            ],
+            now=self.now,
+        )
+        self.assertTrue(result["verified"])
+        self.assertEqual(result["verification_quality"], "DEGRADED_DIVERGENCE")
+        self.assertEqual(result["fill_price"], 1.13400)
+
+    def test_market_fill_survives_provider_outage(self) -> None:
+        def down() -> epe.Quote:
+            raise RuntimeError("vendor down")
+
+        result = epe.eurusd_market_fill(
+            "SHORT",
+            now=self.now,
+            fetchers=[
+                down,
+                lambda: self.quote(1.13402, 5, "Currency Exchange Tool:EUR/USD:mid"),
+                lambda: self.quote(1.13406, 11, "Yahoo Finance:EURUSD=X:1m:mid-proxy"),
+            ],
+        )
+        self.assertTrue(result["verified"])
+        self.assertEqual(result["status"], "VERIFIED_FILL")
+        self.assertEqual(result["fresh_source_count"], 2)
+        self.assertEqual(len(result["provider_errors"]), 1)
+
+    def test_market_fill_blocks_only_when_no_fresh_quote_exists(self) -> None:
+        result = epe.eurusd_market_fill(
+            "SHORT",
+            now=self.now,
+            fetchers=[
+                lambda: self.quote(1.13400, 500, "fxapi.app:EUR/USD:mid"),
+                lambda: self.quote(1.13402, 600, "Currency Exchange Tool:EUR/USD:mid"),
+            ],
+        )
+        self.assertFalse(result["verified"])
+        self.assertEqual(result["status"], "NO_FILL")
+        self.assertEqual(result["reason"], "no_fresh_eurusd_quote")
+
     def test_recenter_geometry_preserves_daily_risk_distances(self) -> None:
         geometry = epe.recenter_geometry(
             "SHORT",

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import math
+import statistics
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
@@ -28,7 +29,7 @@ from typing import Any, Callable, Mapping, Optional
 from belief_market_data_adapter import YahooChartClient
 
 SCHEMA_VERSION = "execution-price-engine-v1"
-ENGINE_VERSION = "EPE-1.0.0"
+ENGINE_VERSION = "EPE-1.1.0"
 EURUSD_PIP = 0.0001
 EURUSD_MIN = 0.8
 EURUSD_MAX = 1.5
@@ -40,6 +41,13 @@ DEFAULT_PRIMARY_MAX_AGE_SECONDS = 180.0
 DEFAULT_SECONDARY_MAX_AGE_SECONDS = 180.0
 DEFAULT_FUTURE_TOLERANCE_SECONDS = 30.0
 DEFAULT_MAX_CROSS_FEED_PIPS = 1.5
+DEFAULT_QUOTE_MAX_AGE_SECONDS = 180.0
+
+SOURCE_PRIORITY = (
+    "fxapi.app:",
+    "Currency Exchange Tool:",
+    "Yahoo Finance:",
+)
 
 
 @dataclass(frozen=True)
@@ -193,6 +201,145 @@ def verify_live_mid_fill(
     }
 
 
+def _source_rank(source: str) -> int:
+    text = str(source or "")
+    for index, prefix in enumerate(SOURCE_PRIORITY):
+        if text.startswith(prefix):
+            return index
+    return len(SOURCE_PRIORITY)
+
+
+def _fresh_quote_candidates(
+    quotes: list[Quote],
+    *,
+    now: datetime,
+    max_age_seconds: float = DEFAULT_QUOTE_MAX_AGE_SECONDS,
+    future_tolerance_seconds: float = DEFAULT_FUTURE_TOLERANCE_SECONDS,
+) -> tuple[list[Quote], list[dict[str, Any]]]:
+    valid: list[Quote] = []
+    rejected: list[dict[str, Any]] = []
+    for raw in quotes:
+        try:
+            quote = raw.normalized()
+        except Exception:
+            rejected.append({"reason": "normalization_failed"})
+            continue
+        price = _finite_price(quote.price, low=EURUSD_MIN, high=EURUSD_MAX)
+        age = _quote_age_seconds(quote, now)
+        if price is None:
+            rejected.append({"source": quote.source, "reason": "invalid_price"})
+            continue
+        if age < -float(future_tolerance_seconds) or age > float(max_age_seconds):
+            rejected.append({
+                "source": quote.source,
+                "reason": "stale_or_future",
+                "age_seconds": round(age, 3),
+            })
+            continue
+        valid.append(Quote(price=price, timestamp=quote.timestamp, source=quote.source))
+    return valid, rejected
+
+
+def verify_live_mid_quotes(
+    direction: str,
+    quotes: list[Quote],
+    *,
+    now: Optional[datetime] = None,
+    max_age_seconds: float = DEFAULT_QUOTE_MAX_AGE_SECONDS,
+    max_cross_feed_pips: float = DEFAULT_MAX_CROSS_FEED_PIPS,
+) -> dict[str, Any]:
+    """Availability-first Daily EUR/USD execution verification.
+
+    At least one fresh valid market quote is sufficient for a paper fill.
+    Multiple feeds improve integrity but do not create an outage when one
+    provider is stale, unavailable or an outlier.
+
+    Selection policy:
+    - 3+ fresh feeds: identify the median cluster and prefer the highest-priority
+      source inside that cluster.
+    - 2 fresh feeds: if they agree, prefer the higher-priority source; if they
+      diverge, still fill from the higher-priority source and mark the evidence
+      degraded instead of cancelling the trade.
+    - 1 fresh feed: fill from it with SINGLE_SOURCE quality.
+    """
+    side = str(direction or "").upper()
+    if side not in {"LONG", "SHORT"}:
+        return blocked("invalid_direction", mode="MARKET_NOW")
+
+    current = (now or utc_now()).astimezone(timezone.utc)
+    valid, rejected = _fresh_quote_candidates(
+        list(quotes or []),
+        now=current,
+        max_age_seconds=max_age_seconds,
+    )
+    if not valid:
+        return blocked(
+            "no_fresh_eurusd_quote",
+            mode="MARKET_NOW",
+            details={
+                "max_age_seconds": float(max_age_seconds),
+                "rejected_quotes": rejected,
+            },
+        )
+
+    prices = [float(q.price) for q in valid]
+    median_price = statistics.median(prices)
+    max_difference_pips = (
+        (max(prices) - min(prices)) / EURUSD_PIP
+        if len(prices) >= 2
+        else 0.0
+    )
+
+    if len(valid) >= 3:
+        inliers = [
+            q for q in valid
+            if abs(float(q.price) - median_price) / EURUSD_PIP <= float(max_cross_feed_pips)
+        ]
+        if len(inliers) >= 2:
+            pool = inliers
+            quality = "CONSENSUS"
+        else:
+            pool = valid
+            quality = "DEGRADED_DIVERGENCE"
+    elif len(valid) == 2:
+        pool = valid
+        quality = "CONSENSUS" if max_difference_pips <= float(max_cross_feed_pips) else "DEGRADED_DIVERGENCE"
+    else:
+        pool = valid
+        quality = "SINGLE_SOURCE"
+
+    # Choose a real observed quote, never an invented average. Source priority
+    # breaks ties; freshness is the secondary criterion.
+    selected = sorted(
+        pool,
+        key=lambda q: (_source_rank(q.source), _quote_age_seconds(q, current)),
+    )[0]
+
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "engine_version": ENGINE_VERSION,
+        "instrument": "EUR/USD",
+        "mode": "MARKET_NOW",
+        "status": "VERIFIED_FILL",
+        "verified": True,
+        "direction": side,
+        "fill_price": round(float(selected.price), 5),
+        "price_type": "LIVE_MID_PAPER_FILL",
+        "verified_at": iso_z(current),
+        "verification_quality": quality,
+        "selected_quote": _quote_payload(selected, current),
+        "fresh_quotes": [_quote_payload(q, current) for q in valid],
+        "rejected_quotes": rejected,
+        "fresh_source_count": len(valid),
+        "median_price": round(float(median_price), 8),
+        "cross_feed_range_pips": round(float(max_difference_pips), 3),
+        "max_cross_feed_pips": float(max_cross_feed_pips),
+        "executable_bid_ask_available": False,
+        "paper_trading_only": True,
+        "policy": "availability_first_use_any_fresh_quote_with_multi_feed_outlier_control",
+    }
+
+
 def _http_json(url: str, timeout: int = 8) -> Mapping[str, Any]:
     req = urllib.request.Request(
         url,
@@ -218,6 +365,27 @@ def fetch_fxapi_eurusd_quote(timeout: int = 8) -> Quote:
     return Quote(price=price, timestamp=stamp, source="fxapi.app:EUR/USD:mid")
 
 
+def fetch_currency_exchange_tool_eurusd_quote(timeout: int = 8) -> Quote:
+    url = "https://www.currencyexchangetool.com/api/v1/convert?amount=1&from=EUR&to=USD"
+    payload = _http_json(url, timeout=timeout)
+    if payload.get("success") is False:
+        raise RuntimeError("Currency Exchange Tool EUR/USD API error")
+    price = _finite_price(
+        payload.get("rate") if payload.get("rate") is not None else payload.get("result"),
+        low=EURUSD_MIN,
+        high=EURUSD_MAX,
+    )
+    stamp = parse_time(
+        payload.get("updatedAt")
+        or payload.get("updated_at")
+        or payload.get("timestamp")
+        or payload.get("time")
+    )
+    if price is None or stamp is None:
+        raise RuntimeError("Currency Exchange Tool EUR/USD quote incomplete")
+    return Quote(price=price, timestamp=stamp, source="Currency Exchange Tool:EUR/USD:mid")
+
+
 def fetch_yahoo_eurusd_quote(client: YahooChartClient | None = None) -> Quote:
     market = client or YahooChartClient(timeout=8)
     bars = market.bars("EURUSD=X", "1d", "1m")
@@ -231,30 +399,30 @@ def eurusd_market_fill(
     direction: str,
     *,
     now: Optional[datetime] = None,
-    primary_fetcher: Callable[[], Quote] = fetch_fxapi_eurusd_quote,
-    secondary_fetcher: Callable[[], Quote] = fetch_yahoo_eurusd_quote,
+    fetchers: Optional[list[Callable[[], Quote]]] = None,
 ) -> dict[str, Any]:
     current = (now or utc_now()).astimezone(timezone.utc)
-    try:
-        primary = primary_fetcher()
-    except Exception as exc:
-        return blocked(
-            "primary_quote_unavailable",
-            mode="MARKET_NOW",
-            details={"error_type": type(exc).__name__},
-        )
-    try:
-        secondary = secondary_fetcher()
-    except Exception as exc:
-        return blocked(
-            "secondary_quote_unavailable",
-            mode="MARKET_NOW",
-            details={
-                "primary_quote": _quote_payload(primary.normalized(), current),
+    providers = fetchers or [
+        fetch_fxapi_eurusd_quote,
+        fetch_currency_exchange_tool_eurusd_quote,
+        fetch_yahoo_eurusd_quote,
+    ]
+    quotes: list[Quote] = []
+    provider_errors: list[dict[str, str]] = []
+    for provider in providers:
+        try:
+            quotes.append(provider())
+        except Exception as exc:
+            provider_errors.append({
+                "provider": getattr(provider, "__name__", "quote_provider"),
                 "error_type": type(exc).__name__,
-            },
-        )
-    return verify_live_mid_fill(direction, primary, secondary, now=current)
+            })
+
+    result = verify_live_mid_quotes(direction, quotes, now=current)
+    if provider_errors:
+        result = dict(result)
+        result["provider_errors"] = provider_errors
+    return result
 
 
 def recenter_geometry(
