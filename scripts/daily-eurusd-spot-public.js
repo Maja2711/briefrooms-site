@@ -111,7 +111,7 @@
     </tr></thead><tbody>${[...trades].reverse().slice(0, 10).map(trade => `<tr>
       <td>${esc(date(trade.opened_at))}</td><td>${esc(date(trade.closed_at))}</td><td><b>${esc(trade.direction || "—")}</b></td><td>${esc(px(trade.entry))}</td><td>${esc(px(trade.exit_price))}</td>
       <td class="${Number(trade.result_percent) >= 0 ? "positive" : "negative"}"><b>${esc(pct(trade.result_percent))}</b></td>
-      <td class="${Number(tradePips(trade)) >= 0 ? "positive" : "negative"}"><b>${tradePips(trade) == null ? "—" : esc(`${tradePips(trade) > 0 ? "+" : ""}${num(tradePips(trade), 1)}`)}</b></td>
+      <td class="${tradePips(trade) == null ? "" : Number(tradePips(trade)) >= 0 ? "positive" : "negative"}"><b>${tradePips(trade) == null ? "—" : esc(`${tradePips(trade) > 0 ? "+" : ""}${num(tradePips(trade), 1)}`)}</b></td>
       <td>${esc(num(trade.r_multiple, 2))}R</td><td>${esc(statusLabel(trade.exit_reason === "STOP_LOSS" ? "CLOSED_SL" : trade.exit_reason === "TAKE_PROFIT" ? "CLOSED_TP" : "CLOSED_TIME"))}</td>
     </tr>`).join("")}</tbody></table></div>`;
   }
