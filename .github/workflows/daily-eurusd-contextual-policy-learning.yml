@@ -1,0 +1,124 @@
+name: Daily EURUSD Contextual Entry Policy Learning
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Monitor Daily EURUSD"]
+    types: [completed]
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: daily-eurusd-contextual-entry-policy-learning
+  cancel-in-progress: false
+
+env:
+  PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+  BELIEF_ARTIFACT_NAME: belief-core-shadow-state
+
+jobs:
+  learn:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout production main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate contextual policy learner
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/daily_eurusd_contextual_policy_learning.py
+          python -m unittest tests.test_daily_eurusd_contextual_policy_learning -v
+
+      - name: Restore latest Belief EURUSD probability state when available
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/contextual-belief"
+          mkdir -p "$root/state" "$root/artifact"
+          run_id="$(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${BELIEF_ARTIFACT_NAME}&per_page=100"             --jq '.artifacts[] | select(.expired == false and .workflow_run.head_branch == "main") | .workflow_run.id'             | head -1 || true)"
+          if [[ -n "$run_id" ]]; then
+            if gh run download "$run_id" -n "$BELIEF_ARTIFACT_NAME" -D "$root/artifact"; then
+              archive="$root/artifact/belief-core-state.tgz"
+              if [[ -s "$archive" ]]; then
+                tar -xzf "$archive" -C "$root/state"
+              fi
+            fi
+          fi
+          if [[ -s "$root/state/state.json" ]]; then
+            echo "CONTEXTUAL_BELIEF_STATE=$root/state/state.json" >> "$GITHUB_ENV"
+            echo "Belief EUR/USD probability context restored."
+          else
+            echo "CONTEXTUAL_BELIEF_STATE=" >> "$GITHUB_ENV"
+            echo "Belief state unavailable; learner continues without P features."
+          fi
+
+      - name: Freeze new contexts and settle due policy counterfactuals
+        run: |
+          set -euo pipefail
+          args=(
+            --spot data/investments/eurusd_daily_spot.json
+            --history data/investments/eurusd_daily_history.json
+            --state data/investments/eurusd_contextual_entry_policy_learning.json
+            --public data/investments/eurusd_contextual_entry_policy_public.json
+            --fse data/investments/fse_public.json
+          )
+          if [[ -n "${CONTEXTUAL_BELIEF_STATE:-}" ]]; then
+            args+=(--belief-state "$CONTEXTUAL_BELIEF_STATE")
+          fi
+          python scripts/daily_eurusd_contextual_policy_learning.py "${args[@]}"
+          python scripts/daily_eurusd_contextual_policy_learning.py             --spot data/investments/eurusd_daily_spot.json             --history data/investments/eurusd_daily_history.json             --state data/investments/eurusd_contextual_entry_policy_learning.json             --public data/investments/eurusd_contextual_entry_policy_public.json             --validate
+          python -m json.tool data/investments/eurusd_contextual_entry_policy_learning.json >/dev/null
+          python -m json.tool data/investments/eurusd_contextual_entry_policy_public.json >/dev/null
+
+      - name: Enforce zero-authority learning boundary
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          state=json.loads(Path('data/investments/eurusd_contextual_entry_policy_learning.json').read_text())
+          authority=state['authority']
+          assert authority['decision_influence'] is False
+          assert authority['trade_execution'] is False
+          assert authority['automatic_policy_mutation'] is False
+          assert authority['automatic_promotion'] is False
+          assert authority['historical_backfill'] is False
+          for episode in state.get('episodes', []):
+              assert episode['policy_change_applied'] is False
+          print('EURUSD_CONTEXTUAL_POLICY_ZERO_AUTHORITY_PASS', len(state.get('episodes', [])))
+          PY
+
+      - name: Publish changed prospective learning state
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --             data/investments/eurusd_contextual_entry_policy_learning.json             data/investments/eurusd_contextual_entry_policy_public.json
+          if git diff --cached --quiet; then
+            echo "No new contextual policy episode or settlement."
+            exit 0
+          fi
+          git commit -m "Update Daily EURUSD contextual policy learning"
+          for attempt in 1 2 3; do
+            if git pull --rebase origin main && git push origin HEAD:main; then
+              exit 0
+            fi
+            git rebase --abort 2>/dev/null || true
+            git fetch origin main
+            git rebase origin/main
+            sleep $((attempt * 3))
+          done
+          echo "Unable to publish contextual policy learning state" >&2
+          exit 1

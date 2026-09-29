@@ -59,6 +59,7 @@ CANONICAL_TOKENS = (
 # research state on their isolated branches/artifact surfaces.
 SHADOW_WORKFLOWS = {
     "daily-eurusd-abc-live-shadow.yml",
+    "daily-eurusd-contextual-policy-learning.yml",
     "brace-spx-architecture-v2-shadow.yml",
     "brace-spx-generation6.yml",
     "brace-spx-recovery-engine.yml",
