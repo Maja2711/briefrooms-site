@@ -13,7 +13,7 @@
     closedTime: "POSITION CLOSED",
     noTrade: "NO POSITION",
     entry: "Entry", stop: "SL", target: "TP", mark: "Current", horizon: "Max horizon",
-    result: "Result", r: "R multiple", exit: "Exit", opened: "Opened", closed: "Closed",
+    result: "Result", pips: "P/L (pips)", r: "R multiple", exit: "Exit", opened: "Opened", closed: "Closed",
     history: "EUR/USD history", noHistory: "No closed EUR/USD positions yet.",
     learning: "Method and outcome learning",
     learningStats: "Learning state",
@@ -46,7 +46,7 @@
     closedTime: "ZAMKNIĘCIE POZYCJI",
     noTrade: "BRAK POZYCJI",
     entry: "Wejście", stop: "SL", target: "TP", mark: "Cena teraz", horizon: "Maks. horyzont",
-    result: "Wynik", r: "Wynik R", exit: "Wyjście", opened: "Otwarcie", closed: "Zamknięcie",
+    result: "Wynik", pips: "Zysk (pips)", r: "Wynik R", exit: "Wyjście", opened: "Otwarcie", closed: "Zamknięcie",
     history: "Historia EUR/USD", noHistory: "Brak zamkniętych pozycji EUR/USD.",
     learning: "Metoda i uczenie z wyników",
     learningStats: "Stan uczenia",
@@ -84,6 +84,15 @@
   const num = (value, digits=2) => Number.isFinite(Number(value))
     ? Number(value).toLocaleString(isEn ? "en-US" : "pl-PL", {minimumFractionDigits:digits, maximumFractionDigits:digits})
     : "—";
+  const tradePips = trade => {
+    const entry = Number(trade?.entry);
+    const exit = Number(trade?.exit_price);
+    if (!Number.isFinite(entry) || !Number.isFinite(exit)) return null;
+    const direction = String(trade?.direction || "").toUpperCase();
+    if (direction !== "LONG" && direction !== "SHORT") return null;
+    const raw = (direction === "SHORT" ? entry - exit : exit - entry) / 0.0001;
+    return Math.abs(raw) < 0.05 ? 0 : raw;
+  };
   const date = value => {
     if (!value) return "—";
     const d = new Date(value);
@@ -98,10 +107,11 @@
   function historyRows(trades) {
     if (!trades.length) return `<p class="brfx-muted">${esc(T.noHistory)}</p>`;
     return `<div class="brfx-history-wrap"><table class="brfx-history"><thead><tr>
-      <th>${esc(T.opened)}</th><th>${esc(T.closed)}</th><th>Side</th><th>${esc(T.entry)}</th><th>${esc(T.exit)}</th><th>${esc(T.result)}</th><th>${esc(T.r)}</th><th>Status</th>
+      <th>${esc(T.opened)}</th><th>${esc(T.closed)}</th><th>Side</th><th>${esc(T.entry)}</th><th>${esc(T.exit)}</th><th>${esc(T.result)}</th><th>${esc(T.pips)}</th><th>${esc(T.r)}</th><th>Status</th>
     </tr></thead><tbody>${[...trades].reverse().slice(0, 10).map(trade => `<tr>
       <td>${esc(date(trade.opened_at))}</td><td>${esc(date(trade.closed_at))}</td><td><b>${esc(trade.direction || "—")}</b></td><td>${esc(px(trade.entry))}</td><td>${esc(px(trade.exit_price))}</td>
       <td class="${Number(trade.result_percent) >= 0 ? "positive" : "negative"}"><b>${esc(pct(trade.result_percent))}</b></td>
+      <td class="${tradePips(trade) == null ? "" : Number(tradePips(trade)) >= 0 ? "positive" : "negative"}"><b>${tradePips(trade) == null ? "—" : esc(`${tradePips(trade) > 0 ? "+" : ""}${num(tradePips(trade), 1)}`)}</b></td>
       <td>${esc(num(trade.r_multiple, 2))}R</td><td>${esc(statusLabel(trade.exit_reason === "STOP_LOSS" ? "CLOSED_SL" : trade.exit_reason === "TAKE_PROFIT" ? "CLOSED_TP" : "CLOSED_TIME"))}</td>
     </tr>`).join("")}</tbody></table></div>`;
   }
