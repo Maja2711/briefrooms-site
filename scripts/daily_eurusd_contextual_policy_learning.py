@@ -855,7 +855,7 @@ def public_summary(state: Mapping[str, Any], now: datetime) -> dict[str, Any]:
     pending = [row for row in episodes if row.get("status") == "PENDING"]
     return {
         "schema_version": PUBLIC_SCHEMA,
-        "generated_at": iso_z(now),
+        "generated_at": str(state.get("updated_at") or iso_z(now)),
         "engine": "Daily Learning Loop — Contextual Entry Policy Learning",
         "mode": "PROSPECTIVE_SHADOW_LEARNING",
         "authority": dict(state.get("authority") or {}),
@@ -947,7 +947,7 @@ def run_cycle(
         now=current,
     )
 
-    if rows_30m:
+    if (added or settled) and rows_30m:
         context = build_context(
             spot=spot,
             rows_30m=rows_30m,
@@ -957,7 +957,9 @@ def run_cycle(
         )
         state["latest_recommendation"] = recommend_policy(state, context)
         state["latest_context"] = context
-    state["updated_at"] = iso_z(current)
+        state["updated_at"] = iso_z(current)
+    elif not state.get("updated_at"):
+        state["updated_at"] = iso_z(current)
     validate_state(state)
     public = public_summary(state, current)
     atomic_json(state_path, state)
