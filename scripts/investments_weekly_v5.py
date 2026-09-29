@@ -13,6 +13,7 @@ import investments_weekly_v3 as v3
 import investments_weekly_v4 as v4
 import investments_weekly_macro as macro
 import no_retroactive_execution as no_retro
+import execution_price_engine as epe
 
 ROOT = Path(__file__).resolve().parents[1]
 METHOD = ROOT / "data/investments/methodology.json"
@@ -561,6 +562,40 @@ def recover_frozen_pending_touch(
     return (pending, point) if point is not None else None
 
 
+def epe_verified_entry_point(
+    pending: Dict[str, Any],
+    point: Dict[str, Any],
+    checked_at: datetime,
+) -> Tuple[Optional[Dict[str, Any]], Dict[str, Any]]:
+    """Final WES execution-integrity gate for an already frozen target touch."""
+    plan = pending.get("entry_price_plan") if isinstance(pending.get("entry_price_plan"), dict) else {}
+    direction = str(plan.get("direction") or (pending.get("decision") or {}).get("direction") or "neutral")
+    target = sf(plan.get("target_price"))
+    entry_not_before = parse_dt(plan.get("entry_not_before") or pending.get("entry_not_before"))
+    expires_at = parse_dt(plan.get("expires_at"))
+    if target is None or entry_not_before is None or expires_at is None:
+        verification = epe.blocked(
+            "missing_frozen_execution_contract",
+            mode="FROZEN_LIMIT_TOUCH",
+            instrument="WES",
+        )
+        return None, verification
+
+    verification = epe.verify_frozen_limit_touch(
+        point,
+        direction=direction,
+        target_price=float(target),
+        entry_not_before=entry_not_before,
+        expires_at=expires_at,
+        checked_at=checked_at,
+    )
+    if verification.get("verified") is not True:
+        return None, verification
+    verified = dict(point)
+    verified["execution_price_engine"] = dict(verification)
+    return verified, verification
+
+
 def pending_matches_wes_authorization(
     item: Dict[str, Any],
     pending: Any,
@@ -875,14 +910,26 @@ def ensure_all() -> Dict[str, Any]:
         if recovered is not None:
             pending, point = recovered
             entry_plan = pending.get("entry_price_plan") if isinstance(pending.get("entry_price_plan"), dict) else {}
+            point, execution_verification = epe_verified_entry_point(pending, point, now)
+            if point is None:
+                item["execution_price_engine"] = execution_verification
+                report["actions"].append({
+                    "instrument_id": iid,
+                    "action": "reject_unverified_frozen_target_touch",
+                    "reason": execution_verification.get("reason"),
+                    "target_price": entry_plan.get("target_price"),
+                })
+                changed = True
+                continue
             frozen = pending["decision"]
             v4.open_leg(item, cfg, frozen, pending["fresh_signal"], pending["weekly_signal"], point, now)
             item.update(
                 entry_decision_at=pending["decided_at"],
-                entry_execution_rule="frozen_wes_1_2_limit_target_touch",
+                entry_execution_rule="epe_verified_frozen_wes_1_2_limit_target_touch",
                 entry_price_plan_frozen=entry_plan,
                 entry_quality_status="wes_1_2_frozen_entry_target_filled",
                 entry_macro_context=pending.get("macro_context"),
+                execution_price_engine=execution_verification,
                 pending_entry_decision=None,
                 next_entry_status="open",
             )
@@ -946,14 +993,25 @@ def ensure_all() -> Dict[str, Any]:
                 "overextension_score": (entry_plan.get("inputs") or {}).get("overextension_score"),
             })
             continue
+        point, execution_verification = epe_verified_entry_point(pending, point, now)
+        if point is None:
+            item["execution_price_engine"] = execution_verification
+            report["actions"].append({
+                "instrument_id": iid,
+                "action": "reject_unverified_frozen_target_touch",
+                "reason": execution_verification.get("reason"),
+                "target_price": entry_plan.get("target_price"),
+            })
+            continue
         frozen = pending["decision"]
         v4.open_leg(item, cfg, frozen, pending["fresh_signal"], pending["weekly_signal"], point, now)
         item.update(
             entry_decision_at=pending["decided_at"],
-            entry_execution_rule="frozen_wes_1_2_limit_target_touch",
+            entry_execution_rule="epe_verified_frozen_wes_1_2_limit_target_touch",
             entry_price_plan_frozen=entry_plan,
             entry_quality_status="wes_1_2_frozen_entry_target_filled",
             entry_macro_context=pending.get("macro_context"),
+            execution_price_engine=execution_verification,
             pending_entry_decision=None,
             next_entry_status="open",
         )
