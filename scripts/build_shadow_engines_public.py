@@ -89,6 +89,15 @@ SPECS = [
         "max_idle_hours": 72,
     },
     {
+        "id": "fse",
+        "name": "FSE Fractal Structure Engine",
+        "workflows": ["fse-fractal-structure-engine.yml"],
+        "source": "data/investments/fse_public.json",
+        "domain": "/pl/inwestycje/decision-lab.html",
+        "domain_label": "BriefRooms LAB",
+        "max_idle_hours": 3,
+    },
+    {
         "id": "hypothesis-shadow",
         "name": "Hypothesis Shadow Engine 2.0",
         "workflows": ["hypothesis-shadow-engine-v2.yml"],
@@ -249,6 +258,22 @@ def metadata(engine_id: str, data: Mapping[str, Any]) -> dict[str, Any]:
             "challenger": "Frozen V5 baseline",
             "data_at": data.get("generated_at") or data.get("updated_at"),
         }
+    if engine_id == "fse":
+        instruments = data.get("instruments") if isinstance(data.get("instruments"), list) else []
+        measurements = data.get("hse_measurements") if isinstance(data.get("hse_measurements"), list) else []
+        directional = [
+            row for row in measurements
+            if isinstance(row, Mapping) and (row.get("details") or {}).get("kind") == "directional_memory"
+        ]
+        observations = sum(int(row.get("counter") or 0) for row in directional)
+        regimes = sorted({str(row.get("regime")) for row in instruments if isinstance(row, Mapping) and row.get("regime")})
+        return {
+            "observations": observations,
+            "observation_label": "resolved prospective snapshots",
+            "champion": "50/50 validation baselines",
+            "challenger": "FSE structure + memory" + (f" · {', '.join(regimes)}" if regimes else ""),
+            "data_at": data.get("generated_at"),
+        }
     if engine_id == "hypothesis-shadow":
         summary = data.get("summary") if isinstance(data.get("summary"), Mapping) else {}
         running = int(summary.get("running_shadow") or 0)
@@ -257,7 +282,7 @@ def metadata(engine_id: str, data: Mapping[str, Any]) -> dict[str, Any]:
         return {
             "observations": summary.get("prospective_evidence_n"),
             "observation_label": "forward evidence",
-            "champion": "6-source HSE2",
+            "champion": "7-source HSE2",
             "challenger": f"{running} aktywne / {total} eksperymentów · {lessons} lessons",
             "data_at": data.get("generated_at"),
         }

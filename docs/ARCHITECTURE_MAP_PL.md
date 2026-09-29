@@ -1,8 +1,8 @@
 # Kanoniczna mapa architektury BriefRooms — PL
 
 **Wersja mapy:** 1.11  
-**Stan na:** 2026-09-28  
-**Bazowy commit `main`:** `bae6dae03b7dcd4b594942c4989bba23418a44bf`  
+**Stan na:** 2026-09-29  
+**Bazowy commit `main`:** `cfce7f04305c65b0e060f1aa2bab6b9392e738f5`  
 **Repozytorium:** `Maja2711/briefrooms-site`
 
 ## 0. Rola tego dokumentu
@@ -166,7 +166,7 @@ Adapter nie jest silnikiem decyzji. Jego podstawowym zadaniem jest tłumaczenie 
 | `IN-05` | Broad/Sector Market Beliefs | Broad market i sector/factor beliefs dla BRACE | `brace_broad_market_belief.py`, `brace_sector_factor_belief.py` |
 | `IN-06` | Investment Semantics / World State | Semantyczne odwzorowanie stanu inwestycyjnego | `INVESTMENT_SEMANTICS_WORLD_STATE.md` i powiązane moduły |
 | `IN-07` | TimesFM Shadow Forecaster | Niezależny forecaster badawczy/shadow i benchmark | `timesfm_shadow_forecaster.py`, `timesfm3_internal_benchmark.py`; nie jest samodzielnym production authority |
-| `IN-08` | Market Relationship / Trigger Engine | `EVENT × ENTITY × PEERS × MARKET REACTION × TIME -> ATTENTION`; scarce research routing dla Stock Trading v2 | Research branch `stock-trading-v2`: `scripts/briefrooms_market_relationship_trigger.py`, `briefrooms_market_relationship_outcomes.py`, `briefrooms_trigger_deep_belief.py`, `briefrooms_trigger_deep_belief_learning.py`; max 6 attention (4 trigger + 2 exploration), max 2 Deep BELIEF proxy, zero production decision authority |
+| `IN-08` | Market Relationship / Trigger Engine | `EVENT × ENTITY × PEERS × MARKET REACTION × TIME -> ATTENTION`; scarce research routing dla Stock Trading v2 | Research branch `stock-trading-v2`: `scripts/briefrooms_market_relationship_trigger.py`, `briefrooms_market_relationship_outcomes.py`, `briefrooms_trigger_deep_belief.py`, `briefrooms_trigger_deep_belief_learning.py`; max 6 attention (4 trigger + 2 exploration), max 2 Deep BELIEF proxy, zero production decision authority |\n| `IN-09` | FSE — Fractal Structure Engine | Wieloskalowa geometria rynku: `scale + persistence + multifractality proxy + tails -> structural risk/regime`; Fractal Memory: normalized fingerprint -> analogues -> forward distribution | `scripts/fractal_structure_engine.py`, `.github/workflows/fse-fractal-structure-engine.yml`, `docs/FRACTAL_STRUCTURE_ENGINE_PL.md`; `SHADOW_ONLY`, prospektywne freeze/outcome + Brier, siódmy producer HSE2, research-only sizing/SL geometry z `production_applied=false`, zero execution/policy/sizing/stop write authority |
 
 ## 6. Decision / trading engines
 

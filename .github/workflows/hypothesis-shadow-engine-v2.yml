@@ -13,6 +13,7 @@ on:
       - "Weekly Engine Star"
       - "GSE Hourly Learning Pipeline v2"
       - "Autonomous Weekly Strategy Research Lab"
+      - "FSE Fractal Structure Engine Shadow"
     types: [completed]
   push:
     branches: [main]
@@ -60,6 +61,11 @@ jobs:
           python -m py_compile scripts/hypothesis_shadow_engine_v2.py
           python -m unittest tests.test_hypothesis_shadow_engine_v2 -v
 
+      - name: Start immutable shadow publication clock
+        run: |
+          echo "NO_RETROACTIVE_EXECUTION=1" >> "$GITHUB_ENV"
+          echo "NO_RETROACTIVE_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+
       - name: Restore durable HSE2 state
         shell: bash
         run: |
@@ -86,7 +92,7 @@ jobs:
           fi
           tar -xzf "$archive" -C "$HSE2_STATE_DIR"
 
-      - name: Run six-source prospective hypothesis cycle
+      - name: Run seven-source prospective hypothesis cycle
         run: |
           set -euo pipefail
           python scripts/hypothesis_shadow_engine_v2.py             --root .             --state-dir "$HSE2_STATE_DIR"             --public "$PUBLIC_PATH"
@@ -103,12 +109,12 @@ jobs:
           assert p["engine"] == "Hypothesis Shadow Engine 2.0"
           assert p["mode"] == "SHADOW_ONLY"
           assert p["production_impact"] is False
-          assert len(p["source_engines"]) == 6
+          assert len(p["source_engines"]) == 7
           for value in p["authority"].values():
               assert value is False
           print("HSE2_ZERO_AUTHORITY_PASS")
           PY
-          git diff --exit-code --             data/investments/stock_trading_v2_production_state.json             data/investments/stock_trading_champion_manifest.json             data/investments/stock_trading_component_promotion_config.json             data/investments/eurusd_x_public_pl.json             data/public/brace_spx_platform_public.json             data/investments/wes_incremental_alpha_report.json             data/gse/gse_v2_learning_review_status.json             data/investments/research_lab_report.json
+          git diff --exit-code --             data/investments/stock_trading_v2_production_state.json             data/investments/stock_trading_champion_manifest.json             data/investments/stock_trading_component_promotion_config.json             data/investments/eurusd_x_public_pl.json             data/public/brace_spx_platform_public.json             data/investments/wes_incremental_alpha_report.json             data/gse/gse_v2_learning_review_status.json             data/investments/research_lab_report.json             data/investments/fse_public.json
 
       - name: Pack durable HSE2 state
         run: |
@@ -135,6 +141,7 @@ jobs:
             echo "HSE2 public projection already current."
             exit 0
           fi
+          python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
           git commit -m "Refresh Hypothesis Shadow Engine 2.0"
           for attempt in 1 2 3 4 5; do
             git fetch origin main
