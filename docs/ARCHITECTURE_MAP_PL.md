@@ -1,8 +1,8 @@
 # Kanoniczna mapa architektury BriefRooms — PL
 
-**Wersja mapy:** 1.11  
+**Wersja mapy:** 1.12  
 **Stan na:** 2026-09-29  
-**Bazowy commit `main`:** `cfce7f04305c65b0e060f1aa2bab6b9392e738f5`  
+**Bazowy commit `main`:** `fbfb8ac0cdec1585d148ada8d35aa223e3e24bf1`  
 **Repozytorium:** `Maja2711/briefrooms-site`
 
 ## 0. Rola tego dokumentu
@@ -161,7 +161,7 @@ Adapter nie jest silnikiem decyzji. Jego podstawowym zadaniem jest tłumaczenie 
 |---|---|---|---|
 | `IN-01` | News Claim / Event Intelligence | Ekstrakcja i strukturyzacja claimów/eventów, źródła, jakość, dedupe | `news_claim_intelligence.py`, `news_event_intelligence_v4.py`, source architecture |
 | `IN-02` | Investment Event Intelligence | Eventy korporacyjne/rynkowe i bridge do stock/weekly | `investment_event_intelligence.py`, `investment_corporate_event_intelligence.py`, `investment_event_stock_bridge.py`, `investment_event_weekly_bridge.py` |
-| `IN-03` | Geopolitical Scenario Engine (GSE) | `Evidence -> Scenario -> Transmission Graph -> Multi-Asset Forecast -> Verification -> Calibration` + prospective learning + sanitizowana publiczna teza `asset × kierunek × horyzont` z zamrożonego forecastu | `geopolitical_scenario_engine.py` pozostaje fundamentem v1; aktywny hourly research/learning runtime to `gse_v2_fast_cycle.py`, `gse_v2_learning_loop.py`, `.github/workflows/gse-hourly-cycle-v2.yml`; `gse_v2_public_lab_projection.py` może publikować jedną konfigurowalną tezę research-only bez raw Evidence/private IDs; shadow/research, bez execution authority |
+| `IN-03` | Geopolitical Scenario Engine (GSE) | Dwie rozdzielone warstwy probabilistyczne: `Evidence -> precursor features -> P(event) -> frozen event forecast -> verification -> Brier/log loss` oraz istniejące `Scenario -> Transmission Graph -> Multi-Asset Forecast -> Verification -> Calibration`; dalej prospective GSE v2 learning i sanitizowana publikacja | `geopolitical_scenario_engine.py` pozostaje fundamentem reakcji rynkowej v1; `gse_event_probability_threat_engine.py` dodaje shadow-only Event Probability / Threat Engine z horyzontami 7d/30d/90d i Brierem vs stored prior; aktywny runtime: `.github/workflows/gse-hourly-cycle-v2.yml`; szczegóły: `docs/GEOPOLITICAL_SCENARIO_ENGINE.md`, `docs/GSE_EVENT_PROBABILITY_THREAT_ENGINE.md`; brak execution/decision/Belief writeback/auto-promotion authority |
 | `IN-04` | BRACE Entity Intelligence | Company entity framework, primary-source evidence, disagreement, interpretation, belief-state forecast, calibration | rodzina `brace_entity_*` |
 | `IN-05` | Broad/Sector Market Beliefs | Broad market i sector/factor beliefs dla BRACE | `brace_broad_market_belief.py`, `brace_sector_factor_belief.py` |
 | `IN-06` | Investment Semantics / World State | Semantyczne odwzorowanie stanu inwestycyjnego | `INVESTMENT_SEMANTICS_WORLD_STATE.md` i powiązane moduły |
