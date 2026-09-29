@@ -22,14 +22,35 @@ from belief_core_live import (  # noqa: E402
     due_planned_slot,
     evaluate_spec,
     floor_half_hour,
+    forecast_contract_metadata,
     next_weekday_close,
     production_probability,
     run_cycle,
     strength_from_return,
+    target_values,
     weekly_target,
 )
 
 NY = ZoneInfo("America/New_York")
+
+
+class CountingTargetClient:
+    def __init__(self, rows):
+        self.rows = rows
+        self.calls = {}
+
+    def bars(self, symbol: str, range_: str = "10d", interval: str = "30m"):
+        key = (symbol, range_, interval)
+        self.calls[key] = self.calls.get(key, 0) + 1
+        return list(self.rows[symbol])
+
+
+class StubSnapshot:
+    def __init__(self, values):
+        self.values = values
+
+    def latest(self, symbol):
+        return self.values[symbol]
 
 
 class FakeChartClient:
@@ -108,6 +129,52 @@ class BeliefCoreLiveTest(unittest.TestCase):
     def test_strength_is_bounded(self) -> None:
         self.assertGreaterEqual(strength_from_return(.0001,.01),0.0)
         self.assertLessEqual(strength_from_return(.50,.01),1.0)
+
+    def test_target_values_uses_first_bar_after_target_and_shared_cache(self) -> None:
+        utc=ZoneInfo("UTC")
+        target=datetime(2026,9,29,20,3,30,tzinfo=utc)
+        now=target+timedelta(minutes=40)
+        client=CountingTargetClient({
+            "BTC-USD":[
+                Bar(timestamp=datetime(2026,9,29,20,0,tzinfo=utc),close=100.0),
+                Bar(timestamp=datetime(2026,9,29,20,5,tzinfo=utc),close=101.0),
+                Bar(timestamp=datetime(2026,9,29,20,10,tzinfo=utc),close=102.0),
+            ]
+        })
+        cache={}
+        trend={"kind":"price_above","symbol":"BTC-USD","reference":99.0}
+        vol={"kind":"absolute_return_below","symbol":"BTC-USD","reference":100.0,"threshold_return":.05}
+        first=target_values(client,trend,target,now,None,cache)
+        second=target_values(client,vol,target,now,None,cache)
+        self.assertEqual(first,{"BTC-USD":101.0})
+        self.assertEqual(second,{"BTC-USD":101.0})
+        self.assertEqual(client.calls[("BTC-USD","5d","5m")],1)
+
+    def test_forecast_calendar_depends_on_settlement_inputs_not_instrument_name(self) -> None:
+        utc=ZoneInfo("UTC")
+        when=datetime(2026,9,28,20,3,tzinfo=utc)
+        target=when+timedelta(hours=24)
+        snapshot=StubSnapshot({"BTC-USD":83379.0,"UUP":28.69,"EURUSD=X":1.137})
+        btc_price=forecast_contract_metadata(
+            snapshot,"BTC-USD",
+            {"kind":"price_above","symbol":"BTC-USD","reference":83379.0},
+            when,target,24,
+        )
+        btc_usd_proxy=forecast_contract_metadata(
+            snapshot,"BTC-USD",
+            {"kind":"value_below","symbol":"UUP","reference":28.69,"threshold":28.69},
+            when,target,24,
+        )
+        eurusd_price=forecast_contract_metadata(
+            snapshot,"EURUSD=X",
+            {"kind":"price_above","symbol":"EURUSD=X","reference":1.137},
+            when,target,24,
+        )
+        self.assertEqual(btc_price["market_calendar"],"24/7")
+        self.assertAlmostEqual(btc_price["settlement_max_delay_hours"],.333333)
+        self.assertEqual(btc_usd_proxy["market_calendar"],"tradable_session_first_available")
+        self.assertEqual(btc_usd_proxy["settlement_max_delay_hours"],72)
+        self.assertEqual(eurusd_price["market_calendar"],"fx_24x5")
 
     def test_price_outcome(self) -> None:
         spec={"kind":"price_above","symbol":"SPY","reference":100.0}
