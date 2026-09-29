@@ -364,7 +364,9 @@ def archive_leg(item: Dict[str, Any], policy_row: Dict[str, Any]) -> bool:
         "exit_price": exit_price, "exit_captured_at": item.get("exit_captured_at"), "exit_source": item.get("exit_source"),
         "exit_reason": item.get("exit_reason"), "gross_result_percent": round(gross, 6),
         "estimated_round_trip_cost_percent": round(cost, 6), "net_result_percent": round(gross - cost, 6),
-        "risk_plan": item.get("risk_plan"), "archived_at": legacy.now_local().isoformat(timespec="seconds"),
+        "risk_plan": item.get("risk_plan"),
+        "execution_price_engine": item.get("execution_price_engine"),
+        "archived_at": legacy.now_local().isoformat(timespec="seconds"),
     })
     item["position_legs"] = legs
     item["continuous_last_exit_at"] = item.get("exit_captured_at")
