@@ -62,7 +62,11 @@ jobs:
           python -m unittest             tests/test_investments_wes.py tests/test_investments_wes_memory.py             tests/test_investments_wes_spx_brace_bridge.py tests/test_investments_wes_counterfactual.py             tests/test_investments_wes_counterfactual_deadline.py tests/test_no_retroactive_execution.py
 
   wes-cycle:
-    if: github.event_name != 'push' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
+    # Direct pushes are validation-only, and a workflow_run caused by an
+    # upstream push validation is validation-only as well. Execution is allowed
+    # only after a successful scheduled/manual Exposure Watch (or direct
+    # scheduled/manual WES invocation).
+    if: github.event_name != 'push' && (github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event != 'push'))
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
