@@ -10,7 +10,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import execution_price_engine as epe
+from belief_market_data_adapter import Bar
 from daily_engine_contract import DailyEngineOutput
+import daily_eurusd_lifecycle as lifecycle
 import daily_eurusd_spot_v17 as v17
 
 
@@ -34,8 +36,11 @@ class ExecutionPriceEngineTests(unittest.TestCase):
         )
         self.assertTrue(result["verified"])
         self.assertEqual(result["status"], "VERIFIED_FILL")
-        self.assertEqual(result["fill_price"], 1.13400)
-        self.assertEqual(result["price_type"], "LIVE_MID_PAPER_FILL")
+        self.assertEqual(result["selected_mid_price"], 1.13400)
+        self.assertEqual(result["fill_price"], 1.13393)
+        self.assertEqual(result["fill_side"], "BID")
+        self.assertEqual(result["synthetic_spread_pips"], 1.5)
+        self.assertEqual(result["price_type"], "MID_VERIFIED_SYNTHETIC_SPREAD")
         self.assertLess(result["cross_feed_difference_pips"], 1.0)
         self.assertFalse(result["executable_bid_ask_available"])
 
@@ -68,7 +73,9 @@ class ExecutionPriceEngineTests(unittest.TestCase):
         )
         self.assertTrue(result["verified"])
         self.assertEqual(result["status"], "VERIFIED_FILL")
-        self.assertEqual(result["fill_price"], 1.13400)
+        self.assertEqual(result["selected_mid_price"], 1.13400)
+        self.assertEqual(result["fill_price"], 1.13393)
+        self.assertEqual(result["fill_side"], "BID")
         self.assertEqual(result["verification_quality"], "SINGLE_SOURCE")
         self.assertEqual(result["fresh_source_count"], 1)
 
@@ -85,7 +92,9 @@ class ExecutionPriceEngineTests(unittest.TestCase):
         self.assertTrue(result["verified"])
         self.assertEqual(result["verification_quality"], "CONSENSUS")
         self.assertEqual(result["fresh_source_count"], 2)
-        self.assertEqual(result["fill_price"], 1.13400)
+        self.assertEqual(result["selected_mid_price"], 1.13400)
+        self.assertEqual(result["fill_price"], 1.13408)
+        self.assertEqual(result["fill_side"], "ASK")
 
     def test_three_feed_consensus_rejects_yahoo_outlier_without_blocking_trade(self) -> None:
         result = epe.verify_live_mid_quotes(
@@ -99,7 +108,9 @@ class ExecutionPriceEngineTests(unittest.TestCase):
         )
         self.assertTrue(result["verified"])
         self.assertEqual(result["verification_quality"], "CONSENSUS")
-        self.assertEqual(result["fill_price"], 1.13400)
+        self.assertEqual(result["selected_mid_price"], 1.13400)
+        self.assertEqual(result["fill_price"], 1.13393)
+        self.assertEqual(result["fill_side"], "BID")
         self.assertGreater(result["cross_feed_range_pips"], 5.0)
 
     def test_two_divergent_feeds_degrade_but_do_not_cancel_entry(self) -> None:
@@ -113,7 +124,9 @@ class ExecutionPriceEngineTests(unittest.TestCase):
         )
         self.assertTrue(result["verified"])
         self.assertEqual(result["verification_quality"], "DEGRADED_DIVERGENCE")
-        self.assertEqual(result["fill_price"], 1.13400)
+        self.assertEqual(result["selected_mid_price"], 1.13400)
+        self.assertEqual(result["fill_price"], 1.13408)
+        self.assertEqual(result["fill_side"], "ASK")
 
     def test_market_fill_survives_provider_outage(self) -> None:
         def down() -> epe.Quote:
@@ -152,13 +165,100 @@ class ExecutionPriceEngineTests(unittest.TestCase):
             analytical_entry=1.13456,
             stop=1.13762,
             target=1.12904,
-            fill_price=1.13400,
+            fill_price=1.13393,
+            market_mid=1.13400,
         )
-        self.assertEqual(geometry["entry"], 1.13400)
+        self.assertEqual(geometry["entry"], 1.13393)
+        self.assertEqual(geometry["market_mid"], 1.13400)
         self.assertEqual(geometry["stop"], 1.13706)
         self.assertEqual(geometry["target"], 1.12848)
-        self.assertAlmostEqual(geometry["risk_distance"], 0.00306, places=8)
-        self.assertAlmostEqual(geometry["reward_distance"], 0.00552, places=8)
+        self.assertAlmostEqual(geometry["risk_distance"], 0.00313, places=8)
+        self.assertAlmostEqual(geometry["reward_distance"], 0.00545, places=8)
+        self.assertAlmostEqual(geometry["model_mid_risk_distance"], 0.00306, places=8)
+        self.assertAlmostEqual(geometry["model_mid_reward_distance"], 0.00552, places=8)
+
+    def test_synthetic_bid_ask_is_exactly_one_point_five_pips_wide(self) -> None:
+        levels = epe.synthetic_bid_ask(1.13400)
+        self.assertEqual(levels["bid"], 1.13393)
+        self.assertEqual(levels["ask"], 1.13408)
+        self.assertAlmostEqual((levels["ask"] - levels["bid"]) / epe.EURUSD_PIP, 1.5, places=6)
+
+    def test_daily_time_exit_uses_opposite_spread_side(self) -> None:
+        opened = self.now - timedelta(hours=24, minutes=1)
+        position = {
+            "trade_id": "synthetic-short",
+            "direction": "SHORT",
+            "opened_at": opened.isoformat(),
+            "expires_at": (opened + timedelta(hours=24)).isoformat(),
+            "entry": 1.13393,
+            "stop": 1.13706,
+            "target": 1.12848,
+            "entry_score": 30.0,
+            "entry_confidence": 0.5,
+            "entry_components": {},
+            "entry_weights": lifecycle.BASE_WEIGHTS,
+            "engine_version": "test",
+            "execution_price_engine": {
+                "price_type": "MID_VERIFIED_SYNTHETIC_SPREAD",
+                "synthetic_spread_pips": 1.5,
+                "synthetic_half_spread_pips": 0.75,
+            },
+        }
+        bar = Bar(
+            timestamp=opened + timedelta(hours=24),
+            open=1.13400,
+            high=1.13405,
+            low=1.13395,
+            close=1.13400,
+        )
+        trade = lifecycle.evaluate_position(position, [bar], self.now)
+        self.assertIsNotNone(trade)
+        self.assertEqual(trade["exit_reason"], "TIME_EXIT")
+        self.assertEqual(trade["exit_price"], 1.13408)
+        self.assertEqual(trade["monitor"]["execution_price_basis"], "SYNTHETIC_ASK")
+        self.assertEqual(trade["monitor"]["synthetic_spread_pips"], 1.5)
+
+    def test_mid_touch_does_not_fake_short_take_profit_before_ask_touches(self) -> None:
+        opened = self.now - timedelta(minutes=10)
+        position = {
+            "trade_id": "synthetic-short-tp",
+            "direction": "SHORT",
+            "opened_at": opened.isoformat(),
+            "expires_at": (opened + timedelta(hours=24)).isoformat(),
+            "entry": 1.13393,
+            "stop": 1.13706,
+            "target": 1.13300,
+            "entry_score": 30.0,
+            "entry_confidence": 0.5,
+            "entry_components": {},
+            "entry_weights": lifecycle.BASE_WEIGHTS,
+            "engine_version": "test",
+            "execution_price_engine": {
+                "price_type": "MID_VERIFIED_SYNTHETIC_SPREAD",
+                "synthetic_spread_pips": 1.5,
+                "synthetic_half_spread_pips": 0.75,
+            },
+        }
+        mid_only_touch = Bar(
+            timestamp=self.now - timedelta(minutes=2),
+            open=1.13310,
+            high=1.13320,
+            low=1.13296,
+            close=1.13305,
+        )
+        self.assertIsNone(lifecycle.evaluate_position(position, [mid_only_touch], self.now))
+
+        executable_touch = Bar(
+            timestamp=self.now - timedelta(minutes=1),
+            open=1.13305,
+            high=1.13315,
+            low=1.13292,
+            close=1.13300,
+        )
+        trade = lifecycle.evaluate_position(position, [executable_touch], self.now)
+        self.assertIsNotNone(trade)
+        self.assertEqual(trade["exit_reason"], "TAKE_PROFIT")
+        self.assertEqual(trade["exit_price"], 1.13300)
 
     def test_wes_frozen_limit_touch_is_verified_only_inside_authorized_window(self) -> None:
         start = self.now - timedelta(minutes=10)
@@ -231,15 +331,21 @@ class DailyEpeIntegrationTests(unittest.TestCase):
             "mode": "MARKET_NOW",
             "status": "VERIFIED_FILL",
             "verified": True,
-            "fill_price": 1.13400,
+            "selected_mid_price": 1.13400,
+            "synthetic_bid": 1.13393,
+            "synthetic_ask": 1.13408,
+            "synthetic_spread_pips": 1.5,
+            "synthetic_half_spread_pips": 0.75,
+            "fill_price": 1.13393,
+            "fill_side": "BID",
             "verified_at": "2026-09-29T19:03:01Z",
-            "price_type": "LIVE_MID_PAPER_FILL",
+            "price_type": "MID_VERIFIED_SYNTHETIC_SPREAD",
         }
 
         output = v17._prepare_entry_candidate(self.candidate(), [], self.now())
 
         self.assertEqual(output.direction, "SHORT")
-        self.assertEqual(output.entry, 1.13400)
+        self.assertEqual(output.entry, 1.13393)
         self.assertEqual(output.stop, 1.13706)
         self.assertEqual(output.target, 1.12848)
         self.assertEqual(output.timestamp, "2026-09-29T19:03:01Z")
@@ -255,15 +361,21 @@ class DailyEpeIntegrationTests(unittest.TestCase):
             "mode": "MARKET_NOW",
             "status": "VERIFIED_FILL",
             "verified": True,
-            "fill_price": 1.13400,
+            "selected_mid_price": 1.13400,
+            "synthetic_bid": 1.13393,
+            "synthetic_ask": 1.13408,
+            "synthetic_spread_pips": 1.5,
+            "synthetic_half_spread_pips": 0.75,
+            "fill_price": 1.13393,
+            "fill_side": "BID",
             "verified_at": "2026-09-29T19:03:01Z",
-            "price_type": "LIVE_MID_PAPER_FILL",
+            "price_type": "MID_VERIFIED_SYNTHETIC_SPREAD",
         }
         executable = v17._prepare_entry_candidate(self.candidate(), [], self.now())
         position = v17._create_position(executable.to_dict())
 
         self.assertTrue(position["execution_price_engine"]["verified"])
-        self.assertEqual(position["execution_price_engine"]["fill_price"], 1.13400)
+        self.assertEqual(position["execution_price_engine"]["fill_price"], 1.13393)
 
     def test_daily_closed_trade_keeps_epe_evidence(self) -> None:
         position = {
