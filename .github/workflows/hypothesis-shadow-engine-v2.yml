@@ -61,6 +61,11 @@ jobs:
           python -m py_compile scripts/hypothesis_shadow_engine_v2.py
           python -m unittest tests.test_hypothesis_shadow_engine_v2 -v
 
+      - name: Start immutable shadow publication clock
+        run: |
+          echo "NO_RETROACTIVE_EXECUTION=1" >> "$GITHUB_ENV"
+          echo "NO_RETROACTIVE_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+
       - name: Restore durable HSE2 state
         shell: bash
         run: |
@@ -136,6 +141,7 @@ jobs:
             echo "HSE2 public projection already current."
             exit 0
           fi
+          python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
           git commit -m "Refresh Hypothesis Shadow Engine 2.0"
           for attempt in 1 2 3 4 5; do
             git fetch origin main
