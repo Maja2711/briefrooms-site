@@ -171,5 +171,84 @@ class WeeklyRiskMonitorTests(unittest.TestCase):
         self.assertTrue(any("coinbase_ticker" in error for error in errors))
 
 
+    def test_eurusd_long_take_profit_closes_at_frozen_level(self):
+        now = datetime(2026, 9, 21, 9, 20, 30, tzinfo=UTC)
+        week = {
+            "week_id": "2026-W39",
+            "instruments": [{
+                "instrument_id": "eurusd",
+                "symbol": "EURUSD=X",
+                "direction": "long",
+                "entry_price": 1.1300,
+                "entry_captured_at": "2026-09-21T09:00:00+02:00",
+                "exit_price": None,
+                "trade_status": "open",
+                "risk_plan": {
+                    "generated_at": "2026-09-21T09:01:00+02:00",
+                    "direction": "long",
+                    "stop_loss_price": 1.1250,
+                    "take_profit_price": 1.1350,
+                },
+            }],
+        }
+        bars = [risk.PriceBar(
+            ts=datetime(2026, 9, 21, 7, 15, tzinfo=UTC),
+            high=1.1352,
+            low=1.1320,
+            source="Yahoo Finance:EURUSD=X:chart:5m",
+        )]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "2026-W39.json"
+            path.write_text(json.dumps(week), encoding="utf-8")
+            with patch.object(risk, "fetch_yahoo_bars", return_value=bars):
+                report = risk.audit(path=path, now=now, persist_report="never")
+            saved = json.loads(path.read_text(encoding="utf-8"))
+        item = saved["instruments"][0]
+        self.assertTrue(report["changed"])
+        self.assertEqual("closed", item["trade_status"])
+        self.assertEqual("take_profit", item["exit_reason"])
+        self.assertEqual(1.1350, item["exit_price"])
+        self.assertGreater(item["result_percent"], 0)
+
+    def test_sp500_short_stop_loss_closes_at_frozen_level(self):
+        now = datetime(2026, 9, 21, 9, 20, 30, tzinfo=UTC)
+        week = {
+            "week_id": "2026-W39",
+            "instruments": [{
+                "instrument_id": "sp500_futures",
+                "symbol": "ES=F",
+                "direction": "short",
+                "entry_price": 6000.0,
+                "entry_captured_at": "2026-09-21T09:00:00+02:00",
+                "exit_price": None,
+                "trade_status": "open",
+                "risk_plan": {
+                    "generated_at": "2026-09-21T09:01:00+02:00",
+                    "direction": "short",
+                    "stop_loss_price": 6020.0,
+                    "take_profit_price": 5960.0,
+                },
+            }],
+        }
+        bars = [risk.PriceBar(
+            ts=datetime(2026, 9, 21, 7, 15, tzinfo=UTC),
+            high=6021.0,
+            low=5990.0,
+            source="Yahoo Finance:ES=F:chart:5m",
+        )]
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "2026-W39.json"
+            path.write_text(json.dumps(week), encoding="utf-8")
+            with patch.object(risk, "fetch_yahoo_bars", return_value=bars):
+                report = risk.audit(path=path, now=now, persist_report="never")
+            saved = json.loads(path.read_text(encoding="utf-8"))
+        item = saved["instruments"][0]
+        self.assertTrue(report["changed"])
+        self.assertEqual("closed", item["trade_status"])
+        self.assertEqual("stop_loss", item["exit_reason"])
+        self.assertEqual(6020.0, item["exit_price"])
+        self.assertLess(item["result_percent"], 0)
+
+
 if __name__ == "__main__":
     unittest.main()
