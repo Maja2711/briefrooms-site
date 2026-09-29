@@ -18,6 +18,7 @@ import daily_eurusd_spot as base
 import daily_eurusd_spot_v16 as v16  # installs v1.6 stack first
 from daily_eurusd_policy import build_ecb_policy_context, policy_conflicts
 import investment_event_engine_profiles as event_profiles
+import execution_price_engine as epe
 
 ENGINE_VERSION = "eurusd-daily-spot-v1.7.0"
 
@@ -72,6 +73,82 @@ def _flat_with_policy_block(candidate: DailyEngineOutput, metadata: Mapping[str,
         status="NO_TRADE",
         decision_mode=candidate.decision_mode,
         metadata=md,
+    ).validate()
+
+
+def _flat_with_execution_block(candidate: DailyEngineOutput, execution: Mapping[str, Any]) -> DailyEngineOutput:
+    md = dict(candidate.metadata)
+    md["execution_price_engine"] = dict(execution)
+    original_candidate = dict(md.get("candidate") or {})
+    md["execution_guarded_candidate"] = {
+        **original_candidate,
+        "effective_direction_before_execution": candidate.direction,
+    }
+    candidate_meta = dict(original_candidate)
+    reasons = list(candidate_meta.get("gate_reasons") or [])
+    reason = f"epe_{str(execution.get('reason') or 'unverified_fill')}"
+    if reason not in reasons:
+        reasons.append(reason)
+    candidate_meta.update({"accepted": False, "gate_reasons": reasons})
+    md["candidate"] = candidate_meta
+    return DailyEngineOutput(
+        instrument=candidate.instrument,
+        timestamp=candidate.timestamp,
+        direction="FLAT",
+        score=float(candidate.score),
+        confidence=float(candidate.confidence),
+        entry=None,
+        stop=None,
+        target=None,
+        horizon=candidate.horizon,
+        engine_version=ENGINE_VERSION,
+        status="NO_TRADE",
+        decision_mode=candidate.decision_mode,
+        metadata=md,
+    ).validate()
+
+
+def _prepare_entry_candidate(candidate: DailyEngineOutput, monitor_bars: Any, observed_at: Any) -> DailyEngineOutput:
+    """Convert a directional Daily decision into an EPE-verified market fill."""
+    if candidate.direction not in {"LONG", "SHORT"}:
+        return candidate
+
+    execution = epe.eurusd_market_fill(candidate.direction)
+    if execution.get("verified") is not True or execution.get("status") != "VERIFIED_FILL":
+        return _flat_with_execution_block(candidate, execution)
+
+    fill = float(execution["fill_price"])
+    geometry = epe.recenter_geometry(
+        candidate.direction,
+        float(candidate.entry),
+        float(candidate.stop),
+        float(candidate.target),
+        fill,
+    )
+    metadata = dict(candidate.metadata)
+    metadata["execution_price_engine"] = dict(execution)
+    risk = dict(metadata.get("risk") or {})
+    risk.update({
+        "execution_geometry_recentered": True,
+        "execution_risk_distance": geometry["risk_distance"],
+        "execution_reward_distance": geometry["reward_distance"],
+    })
+    metadata["risk"] = risk
+
+    return DailyEngineOutput(
+        instrument=candidate.instrument,
+        timestamp=str(execution.get("verified_at") or candidate.timestamp),
+        direction=candidate.direction,
+        score=float(candidate.score),
+        confidence=float(candidate.confidence),
+        entry=geometry["entry"],
+        stop=geometry["stop"],
+        target=geometry["target"],
+        horizon=candidate.horizon,
+        engine_version=ENGINE_VERSION,
+        status="SIGNAL",
+        decision_mode=candidate.decision_mode,
+        metadata=metadata,
     ).validate()
 
 
@@ -266,6 +343,7 @@ def _closed_output(candidate: DailyEngineOutput, trade: Mapping[str, Any], histo
 def _install() -> None:
     base.ENGINE_VERSION = ENGINE_VERSION
     base.build_output = build_output
+    base.prepare_entry_candidate = _prepare_entry_candidate
     base._open_output = _open_output
     base._closed_output = _closed_output
     base.evaluate_position = _evaluate_position

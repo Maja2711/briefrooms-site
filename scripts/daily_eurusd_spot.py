@@ -322,6 +322,15 @@ def _closed_output(candidate: DailyEngineOutput, trade: Mapping[str, Any], histo
     ).validate()
 
 
+def prepare_entry_candidate(
+    candidate: DailyEngineOutput,
+    monitor_bars: Sequence[Bar],
+    observed_at: datetime,
+) -> DailyEngineOutput:
+    """Execution hook. Base engine is a no-op; production v1.7 installs EPE."""
+    return candidate
+
+
 def run_cycle(output_path: Path, history_path: Path, client: YahooChartClient | None = None) -> DailyEngineOutput:
     client = client or YahooChartClient(timeout=15)
     snapshot = fetch_snapshot(client)
@@ -349,8 +358,13 @@ def run_cycle(output_path: Path, history_path: Path, client: YahooChartClient | 
     else:
         candidate = build_output(snapshot, history)
         if candidate.direction in {"LONG", "SHORT"}:
+            candidate = prepare_entry_candidate(candidate, monitor_bars, observed_at)
+        if candidate.direction in {"LONG", "SHORT"}:
             position = create_position(candidate.to_dict())
-            output = _open_output(candidate, position, monitor_bars[-1].close)
+            execution = candidate.metadata.get("execution_price_engine") if isinstance(candidate.metadata, Mapping) else None
+            execution_mark = execution.get("fill_price") if isinstance(execution, Mapping) else None
+            initial_mark = float(execution_mark) if execution_mark is not None else float(monitor_bars[-1].close)
+            output = _open_output(candidate, position, initial_mark)
         else:
             output = candidate
         save_history(history_path, history, observed_at)
