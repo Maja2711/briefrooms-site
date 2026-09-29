@@ -75,12 +75,108 @@ function hsePanel(hse){
   const lessonRows=lessons.slice().reverse().slice(0,8).map(x=>
     '<tr><td><strong>'+esc(x.source_engine||'—')+'</strong></td><td>'+shadowStatus(x.verdict)+'</td><td>'+esc(x.statement||'—')+'</td></tr>'
   ).join('');
-  return '<article class="panel central-head hse2-panel"><header><div><h2>Hypothesis Shadow Engine 2.0</h2><p>Six sources → frozen hypothesis → forward evidence only → one formal fixed-N evaluation → LESSON. Zero production authority.</p></div>'+chip((s.running_shadow||0)+' ACTIVE')+'</header>'+
+  return '<article class="panel central-head hse2-panel"><header><div><h2>Hypothesis Shadow Engine 2.0</h2><p>Seven sources → frozen hypothesis → forward evidence only → one formal fixed-N evaluation → LESSON. Zero production authority.</p></div>'+chip((s.running_shadow||0)+' ACTIVE')+'</header>'+
     '<div class="central-stats"><div><small>Sources</small><strong>'+num(s.sources_available)+' / '+num(s.sources_configured)+'</strong></div><div><small>Experimenty</small><strong>'+num(s.experiments_total)+'</strong></div><div><small>Forward evidence N</small><strong>'+num(s.prospective_evidence_n)+'</strong></div><div><small>Lessons</small><strong>'+num(s.lessons_total)+'</strong></div></div>'+
     '<h3 class="central-subtitle">Active and completed hypotheses</h3><div class="central-table-wrap"><table class="central-table hse2-table"><thead><tr><th>Source</th><th>Hypothesis</th><th>Champion / Challenger</th><th>Forward N</th><th>Status</th><th>Freeze / evidence</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
     (lessonRows?'<h3 class="central-subtitle">Recent LESSONS</h3><div class="central-table-wrap"><table class="central-table"><thead><tr><th>Source</th><th>Verdict</th><th>Lesson</th></tr></thead><tbody>'+lessonRows+'</tbody></table></div>':'<p class="central-note">No completed LESSONS — HSE2 is still collecting evidence after the T0 boundary.</p>')+
     '<p class="central-note">Result formalny może być tylko SUPPORTED, REJECTED albo INCONCLUSIVE. HSE2 nie może zmieniać konfiguracji źródłowych silników ani produkcji.</p></article>';
 }
+
+function fseInstrumentLabel(value){
+  const key=String(value||'').toUpperCase();
+  return ({EURUSD:'EUR/USD',BTCUSD:'BTC/USD',SPX:'S&P 500'})[key]||key||'—';
+}
+function fseSignedPct(value,d=2){
+  if(!finite(value))return '—';
+  const n=Number(value)*100;
+  return (n>0?'+':'')+num(n,d)+'%';
+}
+function fseMae(value,d=2){
+  if(!finite(value))return '—';
+  return '−'+num(Math.abs(Number(value))*100,d)+'%';
+}
+function fseRegime(value){
+  const key=String(value||'UNKNOWN').toUpperCase();
+  return '<span class="fse-regime '+key.toLowerCase().replaceAll('_','-')+'">'+esc(key)+'</span>';
+}
+function fseTrackLabel(m){
+  return String(m?.details?.kind||'')==='risk_calibration'?'Structural Risk':'Fractal Memory';
+}
+async function fse(){
+  const root=document.querySelector('#central-fse-lab');
+  if(!root)return;
+  try{
+    const [r,hse]=await Promise.all([
+      get('/data/investments/fse_public.json'),
+      get('/data/investments/hypothesis_shadow_engine_v2_public.json').catch(()=>({}))
+    ]);
+    const instruments=Array.isArray(r.instruments)?r.instruments:[];
+    const measurements=Array.isArray(r.hse_measurements)?r.hse_measurements:[];
+    const experiments=Array.isArray(hse.experiments)?hse.experiments.filter(x=>x.source_engine==='FSE'):[];
+    const available=Number(r?.source_status?.available||instruments.length);
+    const configured=Number(r?.source_status?.configured||instruments.length);
+    const overviewRows=instruments.map(x=>{
+      const m=x.fractal_memory||{};
+      return '<tr>'+
+        '<td><strong>'+esc(fseInstrumentLabel(x.instrument))+'</strong><small>'+shadowWhen(x.observed_at)+'</small></td>'+
+        '<td>'+fseRegime(x.regime)+'</td>'+
+        '<td><b>'+pct(x.risk_score,1)+'</b></td>'+
+        '<td><b>'+pct(m.p_up_4h,1)+'</b></td>'+
+        '<td>'+num(m.analogues_n)+'</td>'+
+        '<td>'+pct(m.top_similarity,1)+'</td>'+
+        '<td>'+fseSignedPct(m.median_forward_return,2)+'</td>'+
+        '<td>'+fseMae(m.median_adverse_excursion,2)+'</td>'+
+      '</tr>';
+    }).join('');
+    const memoryCards=instruments.map(x=>{
+      const m=x.fractal_memory||{},g=x.research_risk_geometry||{};
+      return '<div class="fse-memory-card">'+
+        '<div class="fse-card-head"><div><strong>'+esc(fseInstrumentLabel(x.instrument))+'</strong><small>'+esc(m.source||'—')+'</small></div>'+fseRegime(x.regime)+'</div>'+
+        '<div class="fse-card-prob"><span>P UP</span><b>'+pct(m.p_up_4h,1)+'</b><em>'+esc(m.forecast||'—')+'</em></div>'+
+        '<div class="fse-card-grid">'+
+          '<span><small>Top similarity</small><b>'+pct(m.top_similarity,1)+'</b></span>'+
+          '<span><small>Mean similarity</small><b>'+pct(m.mean_similarity,1)+'</b></span>'+
+          '<span><small>Analogues</small><b>'+num(m.analogues_n)+'</b></span>'+
+          '<span><small>Median +4h</small><b>'+fseSignedPct(m.median_forward_return,2)+'</b></span>'+
+          '<span><small>MAE</small><b>'+fseMae(m.median_adverse_excursion,2)+'</b></span>'+
+          '<span><small>Risk</small><b>'+pct(x.risk_score,1)+'</b></span>'+
+        '</div>'+
+        '<div class="fse-risk-geometry"><span>Research sizing ×'+num(g.position_size_multiplier,2)+'</span><span>SL distance ×'+num(g.stop_distance_multiplier,2)+'</span><b>PRODUCTION OFF</b></div>'+
+      '</div>';
+    }).join('');
+    const validationRows=measurements.map(m=>{
+      const instrument=String(m?.details?.instrument||'');
+      const counter=Number(m.counter||0),total=Number(m.total||0);
+      const edge=counter>0?total/counter:null;
+      const brier=edge==null?null:.25-edge;
+      const exp=experiments.find(x=>x.metric_name===m.metric_name&&String(x.claim||'').includes(instrument));
+      return '<tr>'+
+        '<td><strong>'+esc(fseInstrumentLabel(instrument))+'</strong></td>'+
+        '<td>'+esc(fseTrackLabel(m))+'</td>'+
+        '<td>'+num(counter)+' / '+num(m.target_n)+'</td>'+
+        '<td>'+(brier==null?'—':num(brier,4))+'</td>'+
+        '<td>'+(edge==null?'—':fseSignedPct(edge,2))+'</td>'+
+        '<td>'+shadowStatus(exp?.status||'RUNNING_SHADOW')+'</td>'+
+        '<td>'+shadowWhen(exp?.last_evidence_at||exp?.frozen_at)+'</td>'+
+      '</tr>';
+    }).join('');
+    const forwardN=experiments.reduce((sum,x)=>sum+Number(x.prospective_n||0),0);
+    const targetN=experiments.reduce((sum,x)=>sum+Number(x.target_n||0),0);
+    const terminal=experiments.filter(x=>['SUPPORTED','REJECTED','INCONCLUSIVE'].includes(String(x.status||'').toUpperCase())).length;
+    root.innerHTML=
+      '<article class="panel central-head fse-panel"><header><div><h2>FSE — Fractal Structure Engine</h2><p>Multiscale market structure: regime detection, structural risk and Fractal Memory. This view is read-only; FSE does not change positions, sizing or stops.</p></div>'+chip(r.mode||'SHADOW_ONLY')+'</header>'+
+      '<div class="central-stats fse-summary"><div><small>Sources</small><strong>'+num(available)+' / '+num(configured)+'</strong></div><div><small>Instruments</small><strong>'+num(instruments.length)+'</strong></div><div><small>HSE2 forward N</small><strong>'+num(forwardN)+' / '+num(targetN)+'</strong></div><div><small>Formal results</small><strong>'+num(terminal)+'</strong></div></div>'+
+      '<h3 class="central-subtitle">Current market structure</h3>'+
+      '<div class="central-table-wrap"><table class="central-table fse-overview-table"><thead><tr><th>Instrument</th><th>Regime</th><th>Risk</th><th>P UP</th><th>Analogues</th><th>Similarity</th><th>Median +4h</th><th>MAE</th></tr></thead><tbody>'+overviewRows+'</tbody></table></div>'+
+      '<h3 class="central-subtitle">Fractal Memory</h3><div class="fse-memory-grid">'+memoryCards+'</div>'+
+      '<h3 class="central-subtitle">Prospective learning · Brier · HSE2</h3>'+
+      '<div class="central-table-wrap"><table class="central-table fse-validation-table"><thead><tr><th>Instrument</th><th>Track</th><th>Forward N</th><th>Brier</th><th>Edge vs 50/50</th><th>HSE2 status</th><th>Freeze / evidence</th></tr></thead><tbody>'+validationRows+'</tbody></table></div>'+
+      '<p class="central-note">Brier and edge appear only after prospective snapshots resolve. Historical bootstrap initializes Fractal Memory but does not count as formal HSE2 evidence. Generated '+shadowWhen(r.generated_at)+'.</p></article>';
+  }catch(e){
+    root.innerHTML='<div class="central-error">FSE is temporarily unavailable.</div>';
+  }
+}
+
 async function shadows(){
   const root=document.querySelector('#central-shadow-engines');
   if(!root)return;
@@ -114,4 +210,4 @@ async function shadows(){
     root.innerHTML='<div class="central-error">Shadow Engines Observatory is temporarily unavailable.</div>';
   }
 }
-function start(){strategy();brace();shadows();registry()}document.readyState==='loading'?document.addEventListener('DOMContentLoaded',start,{once:true}):start();})();
+function start(){strategy();brace();fse();shadows();registry()}document.readyState==='loading'?document.addEventListener('DOMContentLoaded',start,{once:true}):start();})();
