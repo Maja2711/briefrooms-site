@@ -161,6 +161,43 @@ class DailyEpeIntegrationTests(unittest.TestCase):
         self.assertTrue(output.metadata["risk"]["execution_geometry_recentered"])
 
     @patch("daily_eurusd_spot_v17.epe.eurusd_market_fill")
+    def test_daily_position_persists_verified_epe_evidence(self, market_fill) -> None:
+        market_fill.return_value = {
+            "schema_version": epe.SCHEMA_VERSION,
+            "engine_version": epe.ENGINE_VERSION,
+            "instrument": "EUR/USD",
+            "mode": "MARKET_NOW",
+            "status": "VERIFIED_FILL",
+            "verified": True,
+            "fill_price": 1.13400,
+            "verified_at": "2026-09-29T19:03:01Z",
+            "price_type": "LIVE_MID_PAPER_FILL",
+        }
+        executable = v17._prepare_entry_candidate(self.candidate(), [], self.now())
+        position = v17._create_position(executable.to_dict())
+
+        self.assertTrue(position["execution_price_engine"]["verified"])
+        self.assertEqual(position["execution_price_engine"]["fill_price"], 1.13400)
+
+    def test_daily_closed_trade_keeps_epe_evidence(self) -> None:
+        position = {
+            "direction": "SHORT",
+            "execution_price_engine": {
+                "schema_version": epe.SCHEMA_VERSION,
+                "engine_version": epe.ENGINE_VERSION,
+                "status": "VERIFIED_FILL",
+                "verified": True,
+                "fill_price": 1.13400,
+            },
+        }
+        with patch.object(v17, "_original_evaluate_position", return_value={"trade_id": "x"}):
+            trade = v17._evaluate_position(position, [], self.now())
+
+        self.assertIsNotNone(trade)
+        self.assertTrue(trade["execution_price_engine"]["verified"])
+        self.assertEqual(trade["execution_price_engine"]["fill_price"], 1.13400)
+
+    @patch("daily_eurusd_spot_v17.epe.eurusd_market_fill")
     def test_daily_entry_fails_closed_when_epe_cannot_verify_price(self, market_fill) -> None:
         market_fill.return_value = epe.blocked(
             "cross_feed_divergence",
