@@ -60,11 +60,16 @@ class DailyWESAssetShadowTests(unittest.TestCase):
             self.assertEqual(status["shared_forecasts_frozen"], 5)
             self.assertEqual(status["wes_asset_forecasts_frozen"], 35)
             self.assertEqual(status["wes_forecasts_frozen"], 0)
-            self.assertEqual(status["evidence_ingested"], 16)
-            self.assertEqual(status["observations_collected"], 135)
+            # Global adapter totals evolve as new independent research adapters are
+            # added. This test protects WES asset scope, not a stale system-wide count.
+            wes_counts = status["adapter_counts"]["wes_asset_evidence"]
+            self.assertEqual(wes_counts["evidence"], 7)
+            self.assertEqual(wes_counts["observations"], 7)
+            self.assertGreaterEqual(status["evidence_ingested"], wes_counts["evidence"])
+            self.assertGreaterEqual(status["observations_collected"], wes_counts["observations"])
 
             core = BeliefCore(state_dir)
-            self.assertEqual(len(core.forecasts), 40)
+            initial_forecast_count = len(core.forecasts)
             shared = [f for f in core.forecasts.values() if f.metadata.get("consumer") == "BRACE+BRACE-SPX"]
             assets = [f for f in core.forecasts.values() if f.metadata.get("consumer") == "WES-ASSET-SHADOW"]
             self.assertEqual(len(shared), 5)
@@ -76,7 +81,7 @@ class DailyWESAssetShadowTests(unittest.TestCase):
             retry = run_cycle(state_dir, now, client)
             self.assertEqual(retry["shared_forecasts_frozen"], 0)
             self.assertEqual(retry["wes_asset_forecasts_frozen"], 0)
-            self.assertEqual(len(BeliefCore(state_dir).forecasts), 40)
+            self.assertEqual(len(BeliefCore(state_dir).forecasts), initial_forecast_count)
 
 
 if __name__ == "__main__":
