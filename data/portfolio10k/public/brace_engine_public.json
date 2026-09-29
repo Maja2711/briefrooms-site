@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-09-29T00:57:10+00:00",
+  "generated_at": "2026-09-29T01:12:50+00:00",
   "methodology_version": "3.1.0",
-  "data_freshness": "current",
+  "data_freshness": "unsafe",
   "source_metadata": {
     "publisher": "brace_portfolio_publish.py",
     "canonical_frontend_source": true,
@@ -26,11 +26,11 @@
     "executable": false
   },
   "analysis_liveness": {
-    "status": "CURRENT",
-    "overdue": false,
+    "status": "ANALYSIS_OVERDUE",
+    "overdue": true,
     "analysis_generated_at": "2026-09-27T14:16:41+00:00",
-    "analysis_age_hours": 30.428,
-    "latest_required_slot": "2026-09-25T22:30:00+00:00"
+    "analysis_age_hours": 34.936,
+    "latest_required_slot": "2026-09-28T22:30:00+00:00"
   },
   "position_recommendations": [
     {
@@ -209,9 +209,9 @@
     "status": "PROBATIONARY_CONTROL"
   },
   "promotion_progress": {
-    "passed": 10,
+    "passed": 8,
     "total": 18,
-    "percentage": 55.6,
+    "percentage": 44.4,
     "conditions": [
       {
         "group": "probation",
@@ -271,7 +271,7 @@
       {
         "group": "operational",
         "condition": "no_critical_data_errors",
-        "passed": true
+        "passed": false
       },
       {
         "group": "operational",
@@ -286,7 +286,7 @@
       {
         "group": "operational",
         "condition": "timestamps_complete",
-        "passed": true
+        "passed": false
       },
       {
         "group": "operational",
@@ -312,7 +312,9 @@
       "minimum_confidence",
       "transaction_cost_buffer_applied",
       "cooldown_applied",
-      "material_advantage_required"
+      "material_advantage_required",
+      "no_critical_data_errors",
+      "timestamps_complete"
     ],
     "reason": "No status change; promotion gates remain incomplete."
   },
@@ -330,8 +332,10 @@
     "expected_drawdown": 0.093936,
     "current_drawdown": null,
     "annual_turnover": 0.919236,
-    "safe_mode": false,
-    "safe_mode_reasons": []
+    "safe_mode": true,
+    "safe_mode_reasons": [
+      "ANALYSIS_OVERDUE"
+    ]
   },
   "target": {
     "target_annual_return": 0.1,
@@ -619,7 +623,7 @@
   },
   "disclaimer_pl": "To autonomiczny eksperyment analityczny i portfel modelowy. Nie jest to rachunek maklerski ani rekomendacja inwestycyjna.",
   "disclaimer_en": "This is an autonomous analytical experiment and a model portfolio. It is not a brokerage account or investment advice.",
-  "content_sha256": "e913602607a8d89b40c875370d76c04dc3a04b9bd022bfb544fa1cf3b934da33",
+  "content_sha256": "3046e57217dc2f3378511a609a02ac00ec2e9c82e577bf13543b81a6e12385d7",
   "control_authorization": {
     "schema_version": "brace-control-authorization-v1",
     "enabled": true,
