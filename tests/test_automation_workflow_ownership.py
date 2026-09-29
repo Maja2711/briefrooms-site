@@ -192,7 +192,10 @@ class AutomationWorkflowOwnershipTests(unittest.TestCase):
                 self.assertIn("python scripts/verify_weekly_close_deadline.py", source)
 
         exposure = sources["investments-exposure-watch.yml"]
+        wes = sources["investments-wes.yml"]
         self.assertIn('cron: "*/5 * * * *"', exposure)
+        self.assertIn('workflows: ["Governed Weekly Paper Exposure Watch"]', wes)
+        self.assertIn('cron: "2,17,32,47 * * * *"', wes)
         self.assertIn("Evaluate frozen SL/TP from canonical market evidence", exposure)
         self.assertIn("python scripts/audit_intraday_risk_exits.py --persist-report on_close", exposure)
         self.assertIn("Govern re-entry state after a risk exit", exposure)
