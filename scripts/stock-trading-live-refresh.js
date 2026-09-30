@@ -193,6 +193,10 @@
     return `${stateLabel(quote.state)} · ${text.realtimeUnverified}${suffix}`;
   }
 
+  function positionSymbol(position) {
+    return String(position && (position.symbol || position.ticker) || '').trim().toUpperCase();
+  }
+
   function expectedTickers(data, market) {
     return openPositions(data, market).map(p => String(p.ticker || p.symbol || '').trim().toUpperCase()).filter(Boolean);
   }
@@ -365,13 +369,18 @@
 
     ['GPW', 'US'].forEach((market, index) => {
       const positions = openPositions(data, market);
+      const bySymbol = new Map(positions.map(position => [positionSymbol(position), position]).filter(([symbol]) => symbol));
       const cards = domCards(market);
       cards.forEach((card, cardIndex) => {
-        if (positions[cardIndex]) updateCard(card, positions[cardIndex], market);
+        const symbol = String(card.dataset.positionSymbol || '').trim().toUpperCase();
+        const position = bySymbol.get(symbol) || positions[cardIndex];
+        if (position) updateCard(card, position, market);
       });
       const overviewCards = domOverviewCards(market);
       overviewCards.forEach((card, cardIndex) => {
-        if (positions[cardIndex]) updateOverviewCard(card, positions[cardIndex], market);
+        const symbol = String(card.dataset.positionSymbol || '').trim().toUpperCase();
+        const position = bySymbol.get(symbol) || positions[cardIndex];
+        if (position) updateOverviewCard(card, position, market);
       });
       updateMarketStatus(data, market, index);
     });
