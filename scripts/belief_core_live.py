@@ -47,10 +47,16 @@ AUTOMATIC_TUNING_ENABLED = False
 
 MARKET_OPEN = time(9, 30)
 MARKET_CLOSE = time(16, 20)
+US_REGULAR_SESSION_OPEN = time(9, 30)
+US_REGULAR_SESSION_CLOSE = time(16, 0)
+US_REGULAR_SESSION_HOURS = 6.5
+US_SESSION_SYMBOLS = frozenset({"SPY", "RSP", "IWM", "^VIX", "HYG", "LQD", "TLT", "UUP"})
 FORECAST_SLOTS = (time(10, 0), time(13, 0), time(16, 0))
 SLOT_GRACE_MINUTES = 45
 RESEARCH_HORIZONS_HOURS = (3, 12, 24, 72, 120)
 PRIMARY_RESEARCH_HORIZON_HOURS = 24
+CLOCK_HORIZON_LABELS = {3:"3H", 12:"12H", 24:"24H", 72:"3D", 120:"5D"}
+SESSION_HORIZON_LABELS = {3:"0.125S", 12:"0.5S", 24:"1S", 72:"3S", 120:"5S"}
 PRODUCTION_POLICY_PATH = SCRIPT_DIR.parent / "data" / "investments" / "belief_core_production_overrides.json"
 
 
@@ -136,6 +142,96 @@ def due_planned_slot(local_dt: datetime, planned: time, already_done: bool) -> b
         return local_dt < end_dt
     end_dt = datetime.combine(local_dt.date(), MARKET_CLOSE, tzinfo=NY)
     return local_dt <= end_dt
+
+
+def _next_us_weekday(day):
+    day = day + timedelta(days=1)
+    while day.weekday() >= 5:
+        day += timedelta(days=1)
+    return day
+
+
+def _us_session_anchor(when: datetime) -> datetime:
+    """Map forecast runtime to the nearest valid regular-session phase.
+
+    Belief collection can legitimately finish a few minutes after 16:00 NY.
+    Session-based outcomes must anchor that late run to the 16:00 close rather
+    than turning a nominal +1 session forecast into the next day's open.
+    """
+    local = when.astimezone(NY)
+    if local.weekday() >= 5:
+        day = local.date()
+        while day.weekday() >= 5:
+            day += timedelta(days=1)
+        return datetime.combine(day, US_REGULAR_SESSION_OPEN, tzinfo=NY)
+    clock = local.time().replace(tzinfo=None)
+    if clock < US_REGULAR_SESSION_OPEN:
+        return datetime.combine(local.date(), US_REGULAR_SESSION_OPEN, tzinfo=NY)
+    if clock > US_REGULAR_SESSION_CLOSE:
+        return datetime.combine(local.date(), US_REGULAR_SESSION_CLOSE, tzinfo=NY)
+    return local
+
+
+def advance_us_regular_session_equivalent(when: datetime, declared_horizon_hours: float) -> datetime:
+    """Advance an elapsed-time horizon in US regular-session equivalents.
+
+    24H == 1 regular US session (6.5 trading hours), 72H == 3 sessions,
+    120H == 5 sessions. Short horizons preserve the same proportional fraction
+    of a session. Closed overnight/weekend time is never counted as outcome time.
+    """
+    if declared_horizon_hours <= 0:
+        raise ValueError("declared_horizon_hours must be positive")
+    cursor = _us_session_anchor(when)
+    remaining = float(declared_horizon_hours) / 24.0 * US_REGULAR_SESSION_HOURS * 3600.0
+    epsilon = 1e-9
+    while remaining > epsilon:
+        if cursor.weekday() >= 5:
+            day = cursor.date()
+            while day.weekday() >= 5:
+                day += timedelta(days=1)
+            cursor = datetime.combine(day, US_REGULAR_SESSION_OPEN, tzinfo=NY)
+        close_dt = datetime.combine(cursor.date(), US_REGULAR_SESSION_CLOSE, tzinfo=NY)
+        open_dt = datetime.combine(cursor.date(), US_REGULAR_SESSION_OPEN, tzinfo=NY)
+        if cursor < open_dt:
+            cursor = open_dt
+        if cursor >= close_dt:
+            cursor = datetime.combine(_next_us_weekday(cursor.date()), US_REGULAR_SESSION_OPEN, tzinfo=NY)
+            continue
+        available = (close_dt - cursor).total_seconds()
+        if remaining <= available + epsilon:
+            return cursor + timedelta(seconds=remaining)
+        remaining -= available
+        cursor = datetime.combine(_next_us_weekday(cursor.date()), US_REGULAR_SESSION_OPEN, tzinfo=NY)
+    return cursor
+
+
+def horizon_target_plan(spec: Mapping[str, Any], when: datetime, declared_horizon_hours: float) -> Dict[str, Any]:
+    """Return the prospective target contract without consulting future data."""
+    symbols = required_symbols(spec)
+    nominal_elapsed = when + timedelta(hours=declared_horizon_hours)
+    session_dependent = any(symbol in US_SESSION_SYMBOLS for symbol in symbols)
+    if session_dependent:
+        target = advance_us_regular_session_equivalent(when, declared_horizon_hours)
+        label = SESSION_HORIZON_LABELS.get(int(declared_horizon_hours), f"{declared_horizon_hours / 24.0:g}S")
+        basis = "US_REGULAR_SESSION_EQUIVALENT"
+        calibration_bucket = f"{label}_US_SESSION"
+        session_equivalent = declared_horizon_hours / 24.0
+    else:
+        target = nominal_elapsed
+        label = CLOCK_HORIZON_LABELS.get(int(declared_horizon_hours), f"{declared_horizon_hours:g}H")
+        basis = "ELAPSED_TIME"
+        calibration_bucket = label
+        session_equivalent = None
+    return {
+        "target": target,
+        "label": label,
+        "basis": basis,
+        "calibration_bucket": calibration_bucket,
+        "declared_horizon_hours": float(declared_horizon_hours),
+        "elapsed_nominal_target_at": iso_z(nominal_elapsed),
+        "session_equivalent_count": session_equivalent,
+        "required_symbols": symbols,
+    }
 
 
 def next_weekday_close(local_dt: datetime) -> datetime:
@@ -454,9 +550,8 @@ def freeze_set(core: BeliefCore, snapshot: MarketSnapshot, when: datetime, targe
 
 def freeze_multihorizon_set(core: BeliefCore, snapshot: MarketSnapshot, when: datetime,
                             consumer: str, slot_key: str, regime: str) -> int:
-    """Freeze one P/evidence snapshot into predeclared research horizons."""
+    """Freeze one P/evidence snapshot into clock- or session-aware research horizons."""
     count = 0
-    labels = {3:"3H", 12:"12H", 24:"24H", 72:"3D", 120:"5D"}
     for belief_id in _belief_ids_for_consumer(core, consumer):
         market_symbol = belief_market_symbol(belief_id)
         if market_symbol not in snapshot.bars:
@@ -468,7 +563,8 @@ def freeze_multihorizon_set(core: BeliefCore, snapshot: MarketSnapshot, when: da
         if not all(symbol in snapshot.bars for symbol in required_symbols(spec)):
             continue
         for hours in RESEARCH_HORIZONS_HOURS:
-            target = when + timedelta(hours=hours)
+            plan = horizon_target_plan(spec, when, hours)
+            target = plan["target"]
             forecast_id = stable_id("forecast", consumer, slot_key, belief_id, f"{hours}h")
             if forecast_id in core.forecasts:
                 continue
@@ -479,9 +575,13 @@ def freeze_multihorizon_set(core: BeliefCore, snapshot: MarketSnapshot, when: da
                 "market_observed_at": iso_z(snapshot.observed_at(market_symbol)),
                 "outcome_spec": spec, "adapter_contract": "Observation->Evidence/v1",
                 "shadow_only": True, "trade_execution_enabled": False, "policy_output_enabled": False,
-                "research_horizon_hours": hours, "research_horizon_label": labels[hours],
+                "research_horizon_hours": hours, "research_horizon_label": plan["label"],
+                "research_horizon_basis": plan["basis"],
+                "calibration_horizon_bucket": plan["calibration_bucket"],
+                "elapsed_nominal_target_at": plan["elapsed_nominal_target_at"],
+                "session_equivalent_count": plan["session_equivalent_count"],
                 "primary_research_horizon": hours == PRIMARY_RESEARCH_HORIZON_HOURS,
-                "multihorizon_contract": "decision-lab-multihorizon-v1",
+                "multihorizon_contract": "decision-lab-multihorizon-v2-session-aware",
                 **forecast_contract_metadata(snapshot, market_symbol, spec, when, target, hours),
             }
             if overlay:
@@ -501,7 +601,6 @@ def freeze_v3_candidate_set(core: BeliefCore, snapshot: MarketSnapshot, when: da
     """Freeze READY v3 candidates as isolated 24H prospective SHADOW forecasts."""
     consumer = "BELIEF-V3-CANDIDATE"
     count = 0
-    target = when + timedelta(hours=24)
     for belief_id in _belief_ids_for_consumer(core, consumer):
         market_symbol = candidate_market_symbol(belief_id)
         if market_symbol not in snapshot.bars:
@@ -512,6 +611,8 @@ def freeze_v3_candidate_set(core: BeliefCore, snapshot: MarketSnapshot, when: da
             continue
         if not all(symbol in snapshot.bars for symbol in required_symbols(spec)):
             continue
+        plan = horizon_target_plan(spec, when, 24)
+        target = plan["target"]
         forecast_id = stable_id("forecast", consumer, slot_key, belief_id, "24h")
         if forecast_id in core.forecasts:
             continue
@@ -526,7 +627,11 @@ def freeze_v3_candidate_set(core: BeliefCore, snapshot: MarketSnapshot, when: da
             "candidate_stage": "SHADOW",
             "candidate_isolated_from_control": True,
             "research_horizon_hours": 24,
-            "research_horizon_label": "24H",
+            "research_horizon_label": plan["label"],
+            "research_horizon_basis": plan["basis"],
+            "calibration_horizon_bucket": plan["calibration_bucket"],
+            "elapsed_nominal_target_at": plan["elapsed_nominal_target_at"],
+            "session_equivalent_count": plan["session_equivalent_count"],
             "primary_research_horizon": True,
             "shadow_only": True,
             "trade_execution_enabled": False,
