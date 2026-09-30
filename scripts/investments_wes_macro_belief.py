@@ -33,11 +33,35 @@ def state_path() -> Optional[Path]:
     raw=os.environ.get("BELIEF_CORE_STATE","").strip()
     return Path(raw) if raw else None
 
+def _calendar_context(path: Path, now: datetime) -> Dict[str, Any]:
+    observations=path.parent / "observations.jsonl"
+    upcoming=[]
+    if observations.exists():
+        try:
+            for line in observations.read_text(encoding="utf-8").splitlines():
+                if not line.strip(): continue
+                row=json.loads(line)
+                if row.get("adapter") != "macro_event_calendar" or row.get("metric") != "scheduled_macro_event": continue
+                meta=row.get("metadata") if isinstance(row.get("metadata"), Mapping) else {}
+                if str(meta.get("importance") or "") != "high": continue
+                event_at=_dt(meta.get("event_at"))
+                if event_at is None: continue
+                hours=(event_at-now.astimezone(timezone.utc)).total_seconds()/3600.0
+                if -1.0 <= hours <= 24.0:
+                    upcoming.append({"title":meta.get("title"),"event_at":meta.get("event_at"),"hours_until":round(hours,3),"source":row.get("source"),"source_ref":row.get("source_ref")})
+        except (OSError, json.JSONDecodeError):
+            return {"available":False,"status":"calendar_observations_unreadable","events":[]}
+    upcoming.sort(key=lambda x:x["hours_until"])
+    imminent=any(0.0 <= float(x["hours_until"]) <= 1.0 for x in upcoming)
+    return {"available":bool(upcoming),"status":"high_impact_event_imminent" if imminent else "calendar_clear_or_not_imminent","imminent":imminent,"events":upcoming[:8],"source":"belief_macro_calendar_adapter"}
+
+
 def context(now: datetime) -> Dict[str, Any]:
     path=state_path()
     base={"enabled":True,"available":False,"score":0.0,"reason":"belief_state_unavailable","source":"belief_core"}
     if path is None or not path.exists(): return base
     state=_read(path)
+    calendar=_calendar_context(path, now)
     rows={str(x.get("belief_id")):x for x in state.get("beliefs",[]) if isinstance(x,Mapping)}
     evidence_rows={str(x.get("evidence_id")):x for x in state.get("evidence",[]) if isinstance(x,Mapping)}
     used=[]; weighted=0.0; weight_sum=0.0
@@ -59,17 +83,17 @@ def context(now: datetime) -> Dict[str, Any]:
         weighted += w*effective; weight_sum += w
         used.append({"belief_id":bid,"probability":round(p,6),"confidence":round(conf,6),"age_hours":round(age,3)})
     if weight_sum <= 0:
-        return {**base,"reason":"no_fresh_eurusd_beliefs"}
+        return {**base,"reason":"no_fresh_eurusd_beliefs","macro_calendar":calendar}
     normalized=weighted/weight_sum
     score=max(-MAX_SCORE_CONTRIBUTION,min(MAX_SCORE_CONTRIBUTION,normalized*MAX_SCORE_CONTRIBUTION))
     return {"enabled":True,"available":True,"score":round(score,4),
             "direction":"long" if score>0 else "short" if score<0 else "neutral",
             "beliefs":used,"freshness_max_hours":MAX_AGE_HOURS,
-            "score_cap":MAX_SCORE_CONTRIBUTION,"source":"belief_core",
+            "score_cap":MAX_SCORE_CONTRIBUTION,"source":"belief_core","macro_calendar":calendar,
             "rule":"fresh bounded EURUSD beliefs only; no standalone execution authority"}
 
 def apply(macro: Dict[str, Any], belief: Dict[str, Any]) -> Dict[str, Any]:
-    out=dict(macro); out["belief_core"]=belief
+    out=dict(macro); out["belief_core"]=belief; out["belief_macro_calendar"]=belief.get("macro_calendar") or {}
     if not belief.get("available") or out.get("data_quality")!="passed": return out
     base=float(out.get("score") or 0.0); cap=abs(float(out.get("score_cap") or 30.0)) or 30.0
     contribution=float(belief.get("score") or 0.0)
