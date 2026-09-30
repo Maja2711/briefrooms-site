@@ -272,7 +272,7 @@
 
   function openPositionCard(position, market, index) {
     const entry = firstNumber(position, ['entry','entry_price','open_price']);
-    const mark = firstNumber(position, ['last_mark','mark','current_price','close_price']);
+    const mark = firstNumber(position?.current_mark, ['price']) ?? firstNumber(position, ['last_mark','mark','current_price','close_price']);
     const stop = firstNumber(position, ['stop','sl','stop_loss']);
     const target = firstNumber(position, ['target','tp','take_profit']);
     const contractNotional = firstNumber(marketData(market), ['target_position_notional']) ?? 5000;
@@ -393,7 +393,7 @@
 
   function openPositionSummaryCard(position, market) {
     const entry = firstNumber(position, ['entry','entry_price','open_price']);
-    const mark = firstNumber(position, ['last_mark','mark','current_price','close_price']);
+    const mark = firstNumber(position?.current_mark, ['price']) ?? firstNumber(position, ['last_mark','mark','current_price','close_price']);
     const contractNotional = firstNumber(marketData(market), ['target_position_notional']) ?? 5000;
     const notional = firstNumber(position, ['entry_notional','target_position_notional']) ?? contractNotional;
     const p = entry !== null && mark !== null && entry !== 0 ? ((mark - entry) / entry) * 100 : null;
