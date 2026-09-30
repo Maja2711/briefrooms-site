@@ -38,6 +38,7 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 concurrency:
   group: investment-weekly-positions
@@ -80,6 +81,32 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Restore latest Belief Core shadow state for EURUSD context
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/belief_core_state"
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=belief-core-shadow-state&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/belief-artifacts.json"
+          artifact_id=$(python - "$RUNNER_TEMP/belief-artifacts.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get("artifacts",[]) if not x.get("expired")]
+          rows.sort(key=lambda x:x.get("created_at",""), reverse=True)
+          print(rows[0]["id"] if rows else "")
+          PY
+          )
+          if [ -n "$artifact_id" ]; then
+            curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/belief-state.zip"
+            mkdir -p "$RUNNER_TEMP/belief-state-artifact"
+            unzip -q "$RUNNER_TEMP/belief-state.zip" -d "$RUNNER_TEMP/belief-state-artifact"
+            tar -xzf "$RUNNER_TEMP/belief-state-artifact/belief-core-state.tgz" -C "$RUNNER_TEMP/belief_core_state"
+            echo "BELIEF_CORE_STATE=$RUNNER_TEMP/belief_core_state/state.json" >> "$GITHUB_ENV"
+          else
+            echo "BELIEF_CORE_STATE=" >> "$GITHUB_ENV"
+          fi
+
       - name: Start immutable LIVE execution clock
         run: |
           echo "NO_RETROACTIVE_EXECUTION=1" >> "$GITHUB_ENV"
