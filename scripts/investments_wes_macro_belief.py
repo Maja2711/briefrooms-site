@@ -39,12 +39,16 @@ def context(now: datetime) -> Dict[str, Any]:
     if path is None or not path.exists(): return base
     state=_read(path)
     rows={str(x.get("belief_id")):x for x in state.get("beliefs",[]) if isinstance(x,Mapping)}
+    evidence_rows={str(x.get("evidence_id")):x for x in state.get("evidence",[]) if isinstance(x,Mapping)}
     used=[]; weighted=0.0; weight_sum=0.0
     now_utc=now.astimezone(timezone.utc)
     for bid,w in BELIEF_IDS.items():
         row=rows.get(bid)
         if not row: continue
-        updated=_dt(row.get("last_updated"))
+        evidence_ids=list(row.get("representative_evidence_ids") or [])
+        evidence_times=[_dt((evidence_rows.get(str(eid)) or {}).get("observed_at")) for eid in evidence_ids]
+        evidence_times=[x for x in evidence_times if x is not None]
+        updated=max(evidence_times) if evidence_times else None
         if updated is None: continue
         age=(now_utc-updated).total_seconds()/3600.0
         if age < -0.1 or age > MAX_AGE_HOURS: continue
