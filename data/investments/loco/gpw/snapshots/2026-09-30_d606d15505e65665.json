@@ -1,0 +1,1782 @@
+{
+  "schema_version": "gpw-loco-prospective-snapshot-v1",
+  "market": "gpw",
+  "decision_date": "2026-09-30",
+  "producer_decision_at": "2026-09-30T11:26:29+02:00",
+  "captured_at": "2026-09-30T09:26:29Z",
+  "capture_delay_seconds": 0.0,
+  "max_capture_delay_seconds": 1800,
+  "selection_mode": "MANDATORY_DAILY_FINAL",
+  "producer_selected_symbol": "PCO.WA",
+  "producer_selected_score": 70.84,
+  "producer_plan": {
+    "action": "LONG",
+    "symbol": "PCO.WA",
+    "entry_zone": [
+      45.48,
+      45.89
+    ],
+    "stop": 44.15,
+    "target": 48.2,
+    "reward_risk": 1.75,
+    "reference_price": 45.62,
+    "risk_percent": 0.0323
+  },
+  "base_weights": {
+    "catalyst": 25.0,
+    "relative_momentum": 20.0,
+    "volume_liquidity": 15.0,
+    "market_context": 15.0,
+    "risk_reward": 15.0,
+    "historical_expectancy": 10.0
+  },
+  "opening_weight": 0.25,
+  "evaluated_candidate_count": 8,
+  "candidate_errors": {},
+  "ranking_sha256": "03a8559badf08768299b4aa2eebf1eb1b9b3010e8e3c757e1eb18b74cddfbb8c",
+  "producer_state_sha256": "3004f3442da3a6d81b6a66cc7d062ad52366f0753e2c798d04abc19fc7bce038",
+  "candidates": [
+    {
+      "symbol": "PCO.WA",
+      "name": "Pepco Group",
+      "sector": "handel",
+      "quant_rank": 4,
+      "quant_pre_score": 73.62,
+      "base_scores": {
+        "catalyst": 50.0,
+        "relative_momentum": 76.18,
+        "volume_liquidity": 94.57,
+        "market_context": 46.71,
+        "risk_reward": 86.49,
+        "historical_expectancy": 58.1
+      },
+      "legacy_composite_score": 67.71,
+      "opening_confirmation_score": 94.92,
+      "opening_confirmation": {
+        "engine": "gpw-opening-confirmation-v1",
+        "score": 94.92,
+        "gap": 0.00516,
+        "open_return": 0.0183,
+        "intraday_position": 0.92593,
+        "distance_from_high": -0.00175,
+        "components": {
+          "open_return": 93.39,
+          "intraday_position": 92.59,
+          "distance_from_high": 95.62,
+          "gap_quality": 100.0
+        },
+        "component_weights": {
+          "open_return": 0.3,
+          "intraday_position": 0.3,
+          "distance_from_high": 0.2,
+          "gap_quality": 0.2
+        },
+        "observed_at": "2026-09-30T11:11:39+02:00"
+      },
+      "opening_adjusted_score": 74.51,
+      "expected_value_score": 56.17,
+      "expected_value_model": {
+        "engine": "gpw-empirical-ev-v1",
+        "status": "ready",
+        "horizon_sessions": 2,
+        "rr_grid": [
+          1.5,
+          1.75,
+          2.0,
+          2.25,
+          2.5
+        ],
+        "same_bar_policy": "stop_first_conservative",
+        "entry_proxy": "next_session_open",
+        "cost_assumption_percent": 0.38,
+        "role": "empirical_target_and_bounded_reranking_overlay",
+        "analogue_count": 32,
+        "selected_reward_risk": 1.75,
+        "expected_gross_r": 0.3592,
+        "expected_net_r": 0.2325,
+        "conservative_ev_r": 0.1763,
+        "standard_error_r": 0.1606,
+        "effective_sample_size": 31.26,
+        "tp_before_sl_probability": 0.2013,
+        "sl_before_tp_probability": 0.1817,
+        "time_exit_probability": 0.617,
+        "score": 56.17,
+        "confidence": 1.0,
+        "grid": [
+          {
+            "reward_risk": 1.5,
+            "expected_gross_r": 0.3089,
+            "expected_net_r": 0.1822,
+            "conservative_ev_r": 0.1307,
+            "standard_error_r": 0.1471,
+            "effective_sample_size": 31.26,
+            "tp_before_sl_probability": 0.2013,
+            "sl_before_tp_probability": 0.1817,
+            "time_exit_probability": 0.617
+          },
+          {
+            "reward_risk": 1.75,
+            "expected_gross_r": 0.3592,
+            "expected_net_r": 0.2325,
+            "conservative_ev_r": 0.1763,
+            "standard_error_r": 0.1606,
+            "effective_sample_size": 31.26,
+            "tp_before_sl_probability": 0.2013,
+            "sl_before_tp_probability": 0.1817,
+            "time_exit_probability": 0.617
+          },
+          {
+            "reward_risk": 2.0,
+            "expected_gross_r": 0.3418,
+            "expected_net_r": 0.2151,
+            "conservative_ev_r": 0.1592,
+            "standard_error_r": 0.1598,
+            "effective_sample_size": 31.26,
+            "tp_before_sl_probability": 0.0879,
+            "sl_before_tp_probability": 0.1817,
+            "time_exit_probability": 0.7304
+          },
+          {
+            "reward_risk": 2.25,
+            "expected_gross_r": 0.2913,
+            "expected_net_r": 0.1646,
+            "conservative_ev_r": 0.1124,
+            "standard_error_r": 0.1492,
+            "effective_sample_size": 31.26,
+            "tp_before_sl_probability": 0.0314,
+            "sl_before_tp_probability": 0.1817,
+            "time_exit_probability": 0.7869
+          },
+          {
+            "reward_risk": 2.5,
+            "expected_gross_r": 0.2701,
+            "expected_net_r": 0.1434,
+            "conservative_ev_r": 0.0938,
+            "standard_error_r": 0.1416,
+            "effective_sample_size": 31.26,
+            "tp_before_sl_probability": 0.0,
+            "sl_before_tp_probability": 0.1817,
+            "time_exit_probability": 0.8183
+          }
+        ],
+        "analogue_distance_median": 0.4901
+      },
+      "expected_value_weight": 0.2,
+      "final_score": 70.84,
+      "pre_ev_reward_risk": 1.8,
+      "full_reward_risk": 1.75,
+      "risk_percent": 0.0323,
+      "historical_feature_session": "2026-09-29",
+      "historical_feature_lag_sessions": 0,
+      "execution_data_gate": {
+        "engine": "gpw-data-gates-v1",
+        "status": "accepted",
+        "session": "2026-09-30",
+        "observed_at": "2026-09-30T11:11:39+02:00",
+        "age_minutes": 14.84,
+        "crosscheck_status": "single_source",
+        "provider": "Yahoo"
+      },
+      "market_snapshot": {
+        "provider": "Yahoo",
+        "symbol": "PCO.WA",
+        "date": "2026-09-30",
+        "observed_at": "2026-09-30T11:11:39+02:00",
+        "open": 44.8,
+        "high": 45.7,
+        "low": 44.62,
+        "last": 45.62,
+        "volume": 452113,
+        "crosscheck": {
+          "available_providers": [
+            "Yahoo"
+          ],
+          "errors": [
+            "Stooq:PublicationError"
+          ],
+          "status": "single_source"
+        },
+        "data_gate": {
+          "engine": "gpw-data-gates-v1",
+          "status": "accepted",
+          "session": "2026-09-30",
+          "observed_at": "2026-09-30T11:11:39+02:00",
+          "age_minutes": 14.84,
+          "crosscheck_status": "single_source",
+          "provider": "Yahoo"
+        },
+        "market_snapshot_id": "mkt-fbba55eb921d07045d045456",
+        "market_snapshot_hash": "fbba55eb921d07045d045456f29afd60a9f0161a70bb3d0514cf5b9435586f83",
+        "canonical_market_snapshot": {
+          "snapshot_id": "mkt-fbba55eb921d07045d045456",
+          "snapshot_hash": "fbba55eb921d07045d045456f29afd60a9f0161a70bb3d0514cf5b9435586f83",
+          "instrument_id": "equity.pl.pco",
+          "provider": "yahoo",
+          "provider_symbol": "PCO.WA",
+          "source_ref": "https://finance.yahoo.com/quote/PCO.WA",
+          "observed_at": "2026-09-30T09:11:39.000000Z",
+          "received_at": "2026-09-30T09:26:29.609582Z",
+          "created_at": "2026-09-30T09:26:29.609582Z",
+          "market_status": "OPEN",
+          "quote_kind": "INTRADAY_OHLC_LAST",
+          "bid": null,
+          "ask": null,
+          "last": 45.62,
+          "open": 44.8,
+          "high": 45.7,
+          "low": 44.62,
+          "close": null,
+          "volume": 452113.0,
+          "source_schema": "legacy-opening-snapshot",
+          "contract_version": "briefrooms-market-snapshot-v1"
+        },
+        "canonical_data_quality": {
+          "status": "OK",
+          "decision_status": "ALLOWED",
+          "policy_id": "gpw-daily-execution-market-snapshot-v1",
+          "assessed_at": "2026-09-30T09:26:29.609582Z",
+          "age_seconds": 890.609582,
+          "stale": false,
+          "missing_fields": [],
+          "reasons": [],
+          "timestamp_lineage_valid": true,
+          "contract_version": "briefrooms-market-data-quality-v1"
+        }
+      }
+    },
+    {
+      "symbol": "PKO.WA",
+      "name": "PKO BP",
+      "sector": "banki",
+      "quant_rank": 5,
+      "quant_pre_score": 72.11,
+      "base_scores": {
+        "catalyst": 50.0,
+        "relative_momentum": 74.56,
+        "volume_liquidity": 100.0,
+        "market_context": 44.94,
+        "risk_reward": 82.85,
+        "historical_expectancy": 50.0
+      },
+      "legacy_composite_score": 66.58,
+      "opening_confirmation_score": 92.7,
+      "opening_confirmation": {
+        "engine": "gpw-opening-confirmation-v1",
+        "score": 92.7,
+        "gap": 0.00243,
+        "open_return": 0.01164,
+        "intraday_position": 0.86364,
+        "distance_from_high": -0.00239,
+        "components": {
+          "open_return": 93.29,
+          "intraday_position": 86.36,
+          "distance_from_high": 94.02,
+          "gap_quality": 100.0
+        },
+        "component_weights": {
+          "open_return": 0.3,
+          "intraday_position": 0.3,
+          "distance_from_high": 0.2,
+          "gap_quality": 0.2
+        },
+        "observed_at": "2026-09-30T11:11:30+02:00"
+      },
+      "opening_adjusted_score": 73.11,
+      "expected_value_score": 55.18,
+      "expected_value_model": {
+        "engine": "gpw-empirical-ev-v1",
+        "status": "ready",
+        "horizon_sessions": 2,
+        "rr_grid": [
+          1.5,
+          1.75,
+          2.0,
+          2.25,
+          2.5
+        ],
+        "same_bar_policy": "stop_first_conservative",
+        "entry_proxy": "next_session_open",
+        "cost_assumption_percent": 0.38,
+        "role": "empirical_target_and_bounded_reranking_overlay",
+        "analogue_count": 32,
+        "selected_reward_risk": 2.0,
+        "expected_gross_r": 0.3731,
+        "expected_net_r": 0.2026,
+        "conservative_ev_r": 0.148,
+        "standard_error_r": 0.156,
+        "effective_sample_size": 31.69,
+        "tp_before_sl_probability": 0.1041,
+        "sl_before_tp_probability": 0.1269,
+        "time_exit_probability": 0.769,
+        "score": 55.18,
+        "confidence": 1.0,
+        "grid": [
+          {
+            "reward_risk": 1.5,
+            "expected_gross_r": 0.345,
+            "expected_net_r": 0.1744,
+            "conservative_ev_r": 0.1235,
+            "standard_error_r": 0.1455,
+            "effective_sample_size": 31.69,
+            "tp_before_sl_probability": 0.1941,
+            "sl_before_tp_probability": 0.1269,
+            "time_exit_probability": 0.679
+          },
+          {
+            "reward_risk": 1.75,
+            "expected_gross_r": 0.3616,
+            "expected_net_r": 0.191,
+            "conservative_ev_r": 0.138,
+            "standard_error_r": 0.1515,
+            "effective_sample_size": 31.69,
+            "tp_before_sl_probability": 0.1375,
+            "sl_before_tp_probability": 0.1269,
+            "time_exit_probability": 0.7356
+          },
+          {
+            "reward_risk": 2.0,
+            "expected_gross_r": 0.3731,
+            "expected_net_r": 0.2026,
+            "conservative_ev_r": 0.148,
+            "standard_error_r": 0.156,
+            "effective_sample_size": 31.69,
+            "tp_before_sl_probability": 0.1041,
+            "sl_before_tp_probability": 0.1269,
+            "time_exit_probability": 0.769
+          },
+          {
+            "reward_risk": 2.25,
+            "expected_gross_r": 0.3586,
+            "expected_net_r": 0.188,
+            "conservative_ev_r": 0.1347,
+            "standard_error_r": 0.1525,
+            "effective_sample_size": 31.69,
+            "tp_before_sl_probability": 0.0394,
+            "sl_before_tp_probability": 0.1269,
+            "time_exit_probability": 0.8337
+          },
+          {
+            "reward_risk": 2.5,
+            "expected_gross_r": 0.3684,
+            "expected_net_r": 0.1979,
+            "conservative_ev_r": 0.1431,
+            "standard_error_r": 0.1565,
+            "effective_sample_size": 31.69,
+            "tp_before_sl_probability": 0.0394,
+            "sl_before_tp_probability": 0.1269,
+            "time_exit_probability": 0.8337
+          }
+        ],
+        "analogue_distance_median": 0.3278
+      },
+      "expected_value_weight": 0.2,
+      "final_score": 69.52,
+      "pre_ev_reward_risk": 1.8,
+      "full_reward_risk": 2.0,
+      "risk_percent": 0.0194,
+      "historical_feature_session": "2026-09-29",
+      "historical_feature_lag_sessions": 0,
+      "execution_data_gate": {
+        "engine": "gpw-data-gates-v1",
+        "status": "accepted",
+        "session": "2026-09-30",
+        "observed_at": "2026-09-30T11:11:30+02:00",
+        "age_minutes": 14.99,
+        "crosscheck_status": "single_source",
+        "provider": "Yahoo"
+      },
+      "market_snapshot": {
+        "provider": "Yahoo",
+        "symbol": "PKO.WA",
+        "date": "2026-09-30",
+        "observed_at": "2026-09-30T11:11:30+02:00",
+        "open": 123.68,
+        "high": 125.42,
+        "low": 123.22,
+        "last": 125.12,
+        "volume": 571455,
+        "crosscheck": {
+          "available_providers": [
+            "Yahoo"
+          ],
+          "errors": [
+            "Stooq:PublicationError"
+          ],
+          "status": "single_source"
+        },
+        "data_gate": {
+          "engine": "gpw-data-gates-v1",
+          "status": "accepted",
+          "session": "2026-09-30",
+          "observed_at": "2026-09-30T11:11:30+02:00",
+          "age_minutes": 14.99,
+          "crosscheck_status": "single_source",
+          "provider": "Yahoo"
+        },
+        "market_snapshot_id": "mkt-1c68d02ace127be2afb3e6ac",
+        "market_snapshot_hash": "1c68d02ace127be2afb3e6ac203b21aa48f19561972f1c17c557f1266b88a3f6",
+        "canonical_market_snapshot": {
+          "snapshot_id": "mkt-1c68d02ace127be2afb3e6ac",
+          "snapshot_hash": "1c68d02ace127be2afb3e6ac203b21aa48f19561972f1c17c557f1266b88a3f6",
+          "instrument_id": "equity.pl.pko",
+          "provider": "yahoo",
+          "provider_symbol": "PKO.WA",
+          "source_ref": "https://finance.yahoo.com/quote/PKO.WA",
+          "observed_at": "2026-09-30T09:11:30.000000Z",
+          "received_at": "2026-09-30T09:26:29.609582Z",
+          "created_at": "2026-09-30T09:26:29.609582Z",
+          "market_status": "OPEN",
+          "quote_kind": "INTRADAY_OHLC_LAST",
+          "bid": null,
+          "ask": null,
+          "last": 125.12,
+          "open": 123.68,
+          "high": 125.42,
+          "low": 123.22,
+          "close": null,
+          "volume": 571455.0,
+          "source_schema": "legacy-opening-snapshot",
+          "contract_version": "briefrooms-market-snapshot-v1"
+        },
+        "canonical_data_quality": {
+          "status": "OK",
+          "decision_status": "ALLOWED",
+          "policy_id": "gpw-daily-execution-market-snapshot-v1",
+          "assessed_at": "2026-09-30T09:26:29.609582Z",
+          "age_seconds": 899.609582,
+          "stale": false,
+          "missing_fields": [],
+          "reasons": [],
+          "timestamp_lineage_valid": true,
+          "contract_version": "briefrooms-market-data-quality-v1"
+        }
+      }
+    },
+    {
+      "symbol": "LPP.WA",
+      "name": "LPP",
+      "sector": "handel",
+      "quant_rank": 1,
+      "quant_pre_score": 79.25,
+      "base_scores": {
+        "catalyst": 50.0,
+        "relative_momentum": 89.71,
+        "volume_liquidity": 100.0,
+        "market_context": 46.71,
+        "risk_reward": 91.2,
+        "historical_expectancy": 58.1
+      },
+      "legacy_composite_score": 71.94,
+      "opening_confirmation_score": 72.16,
+      "opening_confirmation": {
+        "engine": "gpw-opening-confirmation-v1",
+        "score": 72.16,
+        "gap": -0.0016,
+        "open_return": -0.0024,
+        "intraday_position": 0.5,
+        "distance_from_high": -0.00479,
+        "components": {
+          "open_return": 65.2,
+          "intraday_position": 50.0,
+          "distance_from_high": 88.02,
+          "gap_quality": 100.0
+        },
+        "component_weights": {
+          "open_return": 0.3,
+          "intraday_position": 0.3,
+          "distance_from_high": 0.2,
+          "gap_quality": 0.2
+        },
+        "observed_at": "2026-09-30T11:11:33+02:00"
+      },
+      "opening_adjusted_score": 72.0,
+      "expected_value_score": 55.07,
+      "expected_value_model": {
+        "engine": "gpw-empirical-ev-v1",
+        "status": "ready",
+        "horizon_sessions": 2,
+        "rr_grid": [
+          1.5,
+          1.75,
+          2.0,
+          2.25,
+          2.5
+        ],
+        "same_bar_policy": "stop_first_conservative",
+        "entry_proxy": "next_session_open",
+        "cost_assumption_percent": 0.38,
+        "role": "empirical_target_and_bounded_reranking_overlay",
+        "analogue_count": 32,
+        "selected_reward_risk": 1.5,
+        "expected_gross_r": 0.3347,
+        "expected_net_r": 0.1892,
+        "conservative_ev_r": 0.1449,
+        "standard_error_r": 0.1266,
+        "effective_sample_size": 30.08,
+        "tp_before_sl_probability": 0.1073,
+        "sl_before_tp_probability": 0.0975,
+        "time_exit_probability": 0.7952,
+        "score": 55.07,
+        "confidence": 1.0,
+        "grid": [
+          {
+            "reward_risk": 1.5,
+            "expected_gross_r": 0.3347,
+            "expected_net_r": 0.1892,
+            "conservative_ev_r": 0.1449,
+            "standard_error_r": 0.1266,
+            "effective_sample_size": 30.08,
+            "tp_before_sl_probability": 0.1073,
+            "sl_before_tp_probability": 0.0975,
+            "time_exit_probability": 0.7952
+          },
+          {
+            "reward_risk": 1.75,
+            "expected_gross_r": 0.3131,
+            "expected_net_r": 0.1676,
+            "conservative_ev_r": 0.1238,
+            "standard_error_r": 0.1252,
+            "effective_sample_size": 30.08,
+            "tp_before_sl_probability": 0.0491,
+            "sl_before_tp_probability": 0.0975,
+            "time_exit_probability": 0.8534
+          },
+          {
+            "reward_risk": 2.0,
+            "expected_gross_r": 0.3111,
+            "expected_net_r": 0.1657,
+            "conservative_ev_r": 0.1219,
+            "standard_error_r": 0.1251,
+            "effective_sample_size": 30.08,
+            "tp_before_sl_probability": 0.0263,
+            "sl_before_tp_probability": 0.0975,
+            "time_exit_probability": 0.8762
+          },
+          {
+            "reward_risk": 2.25,
+            "expected_gross_r": 0.3177,
+            "expected_net_r": 0.1723,
+            "conservative_ev_r": 0.1274,
+            "standard_error_r": 0.1282,
+            "effective_sample_size": 30.08,
+            "tp_before_sl_probability": 0.0263,
+            "sl_before_tp_probability": 0.0975,
+            "time_exit_probability": 0.8762
+          },
+          {
+            "reward_risk": 2.5,
+            "expected_gross_r": 0.3243,
+            "expected_net_r": 0.1788,
+            "conservative_ev_r": 0.1327,
+            "standard_error_r": 0.1317,
+            "effective_sample_size": 30.08,
+            "tp_before_sl_probability": 0.0263,
+            "sl_before_tp_probability": 0.0975,
+            "time_exit_probability": 0.8762
+          }
+        ],
+        "analogue_distance_median": 0.6021
+      },
+      "expected_value_weight": 0.2,
+      "final_score": 68.61,
+      "pre_ev_reward_risk": 1.8,
+      "full_reward_risk": 1.5,
+      "risk_percent": 0.0282,
+      "historical_feature_session": "2026-09-29",
+      "historical_feature_lag_sessions": 0,
+      "execution_data_gate": {
+        "engine": "gpw-data-gates-v1",
+        "status": "accepted",
+        "session": "2026-09-30",
+        "observed_at": "2026-09-30T11:11:33+02:00",
+        "age_minutes": 14.94,
+        "crosscheck_status": "single_source",
+        "provider": "Yahoo"
+      },
+      "market_snapshot": {
+        "provider": "Yahoo",
+        "symbol": "LPP.WA",
+        "date": "2026-09-30",
+        "observed_at": "2026-09-30T11:11:33+02:00",
+        "open": 24980.0,
+        "high": 25040.0,
+        "low": 24800.0,
+        "last": 24920.0,
+        "volume": 606,
+        "crosscheck": {
+          "available_providers": [
+            "Yahoo"
+          ],
+          "errors": [
+            "Stooq:PublicationError"
+          ],
+          "status": "single_source"
+        },
+        "data_gate": {
+          "engine": "gpw-data-gates-v1",
+          "status": "accepted",
+          "session": "2026-09-30",
+          "observed_at": "2026-09-30T11:11:33+02:00",
+          "age_minutes": 14.94,
+          "crosscheck_status": "single_source",
+          "provider": "Yahoo"
+        },
+        "market_snapshot_id": "mkt-7bf6406896020d5a255cc7cb",
+        "market_snapshot_hash": "7bf6406896020d5a255cc7cb9862315bd7e59b456650a2d2ab8ae8787518a00d",
+        "canonical_market_snapshot": {
+          "snapshot_id": "mkt-7bf6406896020d5a255cc7cb",
+          "snapshot_hash": "7bf6406896020d5a255cc7cb9862315bd7e59b456650a2d2ab8ae8787518a00d",
+          "instrument_id": "equity.pl.lpp",
+          "provider": "yahoo",
+          "provider_symbol": "LPP.WA",
+          "source_ref": "https://finance.yahoo.com/quote/LPP.WA",
+          "observed_at": "2026-09-30T09:11:33.000000Z",
+          "received_at": "2026-09-30T09:26:29.609582Z",
+          "created_at": "2026-09-30T09:26:29.609582Z",
+          "market_status": "OPEN",
+          "quote_kind": "INTRADAY_OHLC_LAST",
+          "bid": null,
+          "ask": null,
+          "last": 24920.0,
+          "open": 24980.0,
+          "high": 25040.0,
+          "low": 24800.0,
+          "close": null,
+          "volume": 606.0,
+          "source_schema": "legacy-opening-snapshot",
+          "contract_version": "briefrooms-market-snapshot-v1"
+        },
+        "canonical_data_quality": {
+          "status": "OK",
+          "decision_status": "ALLOWED",
+          "policy_id": "gpw-daily-execution-market-snapshot-v1",
+          "assessed_at": "2026-09-30T09:26:29.609582Z",
+          "age_seconds": 896.609582,
+          "stale": false,
+          "missing_fields": [],
+          "reasons": [],
+          "timestamp_lineage_valid": true,
+          "contract_version": "briefrooms-market-data-quality-v1"
+        }
+      }
+    },
+    {
+      "symbol": "ALE.WA",
+      "name": "Allegro",
+      "sector": "handel internetowy",
+      "quant_rank": 2,
+      "quant_pre_score": 75.29,
+      "base_scores": {
+        "catalyst": 50.0,
+        "relative_momentum": 81.91,
+        "volume_liquidity": 100.0,
+        "market_context": 48.37,
+        "risk_reward": 85.53,
+        "historical_expectancy": 50.0
+      },
+      "legacy_composite_score": 68.97,
+      "opening_confirmation_score": 71.87,
+      "opening_confirmation": {
+        "engine": "gpw-opening-confirmation-v1",
+        "score": 71.87,
+        "gap": 0.0,
+        "open_return": 0.00119,
+        "intraday_position": 0.45313,
+        "distance_from_high": -0.00688,
+        "components": {
+          "open_return": 72.38,
+          "intraday_position": 45.31,
+          "distance_from_high": 82.8,
+          "gap_quality": 100.0
+        },
+        "component_weights": {
+          "open_return": 0.3,
+          "intraday_position": 0.3,
+          "distance_from_high": 0.2,
+          "gap_quality": 0.2
+        },
+        "observed_at": "2026-09-30T11:11:44+02:00"
+      },
+      "opening_adjusted_score": 69.7,
+      "expected_value_score": 54.23,
+      "expected_value_model": {
+        "engine": "gpw-empirical-ev-v1",
+        "status": "ready",
+        "horizon_sessions": 2,
+        "rr_grid": [
+          1.5,
+          1.75,
+          2.0,
+          2.25,
+          2.5
+        ],
+        "same_bar_policy": "stop_first_conservative",
+        "entry_proxy": "next_session_open",
+        "cost_assumption_percent": 0.38,
+        "role": "empirical_target_and_bounded_reranking_overlay",
+        "analogue_count": 32,
+        "selected_reward_risk": 2.5,
+        "expected_gross_r": 0.3064,
+        "expected_net_r": 0.1782,
+        "conservative_ev_r": 0.1208,
+        "standard_error_r": 0.1641,
+        "effective_sample_size": 31.38,
+        "tp_before_sl_probability": 0.0842,
+        "sl_before_tp_probability": 0.0821,
+        "time_exit_probability": 0.8338,
+        "score": 54.23,
+        "confidence": 1.0,
+        "grid": [
+          {
+            "reward_risk": 1.5,
+            "expected_gross_r": 0.2307,
+            "expected_net_r": 0.1026,
+            "conservative_ev_r": 0.0569,
+            "standard_error_r": 0.1306,
+            "effective_sample_size": 31.38,
+            "tp_before_sl_probability": 0.1543,
+            "sl_before_tp_probability": 0.0821,
+            "time_exit_probability": 0.7636
+          },
+          {
+            "reward_risk": 1.75,
+            "expected_gross_r": 0.2349,
+            "expected_net_r": 0.1068,
+            "conservative_ev_r": 0.059,
+            "standard_error_r": 0.1365,
+            "effective_sample_size": 31.38,
+            "tp_before_sl_probability": 0.1272,
+            "sl_before_tp_probability": 0.0821,
+            "time_exit_probability": 0.7907
+          },
+          {
+            "reward_risk": 2.0,
+            "expected_gross_r": 0.2668,
+            "expected_net_r": 0.1386,
+            "conservative_ev_r": 0.0868,
+            "standard_error_r": 0.1481,
+            "effective_sample_size": 31.38,
+            "tp_before_sl_probability": 0.1272,
+            "sl_before_tp_probability": 0.0821,
+            "time_exit_probability": 0.7907
+          },
+          {
+            "reward_risk": 2.25,
+            "expected_gross_r": 0.2853,
+            "expected_net_r": 0.1572,
+            "conservative_ev_r": 0.1028,
+            "standard_error_r": 0.1554,
+            "effective_sample_size": 31.38,
+            "tp_before_sl_probability": 0.0842,
+            "sl_before_tp_probability": 0.0821,
+            "time_exit_probability": 0.8338
+          },
+          {
+            "reward_risk": 2.5,
+            "expected_gross_r": 0.3064,
+            "expected_net_r": 0.1782,
+            "conservative_ev_r": 0.1208,
+            "standard_error_r": 0.1641,
+            "effective_sample_size": 31.38,
+            "tp_before_sl_probability": 0.0842,
+            "sl_before_tp_probability": 0.0821,
+            "time_exit_probability": 0.8338
+          }
+        ],
+        "analogue_distance_median": 0.3843
+      },
+      "expected_value_weight": 0.2,
+      "final_score": 66.61,
+      "pre_ev_reward_risk": 1.8,
+      "full_reward_risk": 2.5,
+      "risk_percent": 0.0332,
+      "historical_feature_session": "2026-09-29",
+      "historical_feature_lag_sessions": 0,
+      "execution_data_gate": {
+        "engine": "gpw-data-gates-v1",
+        "status": "accepted",
+        "session": "2026-09-30",
+        "observed_at": "2026-09-30T11:11:44+02:00",
+        "age_minutes": 14.76,
+        "crosscheck_status": "single_source",
+        "provider": "Yahoo"
+      },
+      "market_snapshot": {
+        "provider": "Yahoo",
+        "symbol": "ALE.WA",
+        "date": "2026-09-30",
+        "observed_at": "2026-09-30T11:11:44+02:00",
+        "open": 50.46,
+        "high": 50.87,
+        "low": 50.23,
+        "last": 50.52,
+        "volume": 1122420,
+        "crosscheck": {
+          "available_providers": [
+            "Yahoo"
+          ],
+          "errors": [
+            "Stooq:PublicationError"
+          ],
+          "status": "single_source"
+        },
+        "data_gate": {
+          "engine": "gpw-data-gates-v1",
+          "status": "accepted",
+          "session": "2026-09-30",
+          "observed_at": "2026-09-30T11:11:44+02:00",
+          "age_minutes": 14.76,
+          "crosscheck_status": "single_source",
+          "provider": "Yahoo"
+        },
+        "market_snapshot_id": "mkt-adf2f7ed5b66284221748d95",
+        "market_snapshot_hash": "adf2f7ed5b66284221748d954ca3537fd42335c89b2f2a04955de4804a303677",
+        "canonical_market_snapshot": {
+          "snapshot_id": "mkt-adf2f7ed5b66284221748d95",
+          "snapshot_hash": "adf2f7ed5b66284221748d954ca3537fd42335c89b2f2a04955de4804a303677",
+          "instrument_id": "equity.pl.ale",
+          "provider": "yahoo",
+          "provider_symbol": "ALE.WA",
+          "source_ref": "https://finance.yahoo.com/quote/ALE.WA",
+          "observed_at": "2026-09-30T09:11:44.000000Z",
+          "received_at": "2026-09-30T09:26:29.609582Z",
+          "created_at": "2026-09-30T09:26:29.609582Z",
+          "market_status": "OPEN",
+          "quote_kind": "INTRADAY_OHLC_LAST",
+          "bid": null,
+          "ask": null,
+          "last": 50.52,
+          "open": 50.46,
+          "high": 50.87,
+          "low": 50.23,
+          "close": null,
+          "volume": 1122420.0,
+          "source_schema": "legacy-opening-snapshot",
+          "contract_version": "briefrooms-market-snapshot-v1"
+        },
+        "canonical_data_quality": {
+          "status": "OK",
+          "decision_status": "ALLOWED",
+          "policy_id": "gpw-daily-execution-market-snapshot-v1",
+          "assessed_at": "2026-09-30T09:26:29.609582Z",
+          "age_seconds": 885.609582,
+          "stale": false,
+          "missing_fields": [],
+          "reasons": [],
+          "timestamp_lineage_valid": true,
+          "contract_version": "briefrooms-market-data-quality-v1"
+        }
+      }
+    },
+    {
+      "symbol": "PGE.WA",
+      "name": "PGE",
+      "sector": "energia",
+      "quant_rank": 3,
+      "quant_pre_score": 74.85,
+      "base_scores": {
+        "catalyst": 50.0,
+        "relative_momentum": 96.62,
+        "volume_liquidity": 94.53,
+        "market_context": 48.7,
+        "risk_reward": 68.88,
+        "historical_expectancy": 50.0
+      },
+      "legacy_composite_score": 68.64,
+      "opening_confirmation_score": 78.81,
+      "opening_confirmation": {
+        "engine": "gpw-opening-confirmation-v1",
+        "score": 78.81,
+        "gap": 0.0014,
+        "open_return": 0.03849,
+        "intraday_position": 0.875,
+        "distance_from_high": -0.00669,
+        "components": {
+          "open_return": 53.02,
+          "intraday_position": 87.5,
+          "distance_from_high": 83.27,
+          "gap_quality": 100.0
+        },
+        "component_weights": {
+          "open_return": 0.3,
+          "intraday_position": 0.3,
+          "distance_from_high": 0.2,
+          "gap_quality": 0.2
+        },
+        "observed_at": "2026-09-30T11:11:32+02:00"
+      },
+      "opening_adjusted_score": 71.18,
+      "expected_value_score": 44.63,
+      "expected_value_model": {
+        "engine": "gpw-empirical-ev-v1",
+        "status": "ready",
+        "horizon_sessions": 2,
+        "rr_grid": [
+          1.5,
+          1.75,
+          2.0,
+          2.25,
+          2.5
+        ],
+        "same_bar_policy": "stop_first_conservative",
+        "entry_proxy": "next_session_open",
+        "cost_assumption_percent": 0.38,
+        "role": "empirical_target_and_bounded_reranking_overlay",
+        "analogue_count": 32,
+        "selected_reward_risk": 2.0,
+        "expected_gross_r": -0.0125,
+        "expected_net_r": -0.0987,
+        "conservative_ev_r": -0.1535,
+        "standard_error_r": 0.1565,
+        "effective_sample_size": 27.39,
+        "tp_before_sl_probability": 0.0699,
+        "sl_before_tp_probability": 0.2279,
+        "time_exit_probability": 0.7022,
+        "score": 44.63,
+        "confidence": 0.9782,
+        "grid": [
+          {
+            "reward_risk": 1.5,
+            "expected_gross_r": -0.0373,
+            "expected_net_r": -0.1236,
+            "conservative_ev_r": -0.1742,
+            "standard_error_r": 0.1447,
+            "effective_sample_size": 27.39,
+            "tp_before_sl_probability": 0.0889,
+            "sl_before_tp_probability": 0.2279,
+            "time_exit_probability": 0.6831
+          },
+          {
+            "reward_risk": 1.75,
+            "expected_gross_r": -0.0299,
+            "expected_net_r": -0.1162,
+            "conservative_ev_r": -0.1682,
+            "standard_error_r": 0.1486,
+            "effective_sample_size": 27.39,
+            "tp_before_sl_probability": 0.0699,
+            "sl_before_tp_probability": 0.2279,
+            "time_exit_probability": 0.7022
+          },
+          {
+            "reward_risk": 2.0,
+            "expected_gross_r": -0.0125,
+            "expected_net_r": -0.0987,
+            "conservative_ev_r": -0.1535,
+            "standard_error_r": 0.1565,
+            "effective_sample_size": 27.39,
+            "tp_before_sl_probability": 0.0699,
+            "sl_before_tp_probability": 0.2279,
+            "time_exit_probability": 0.7022
+          },
+          {
+            "reward_risk": 2.25,
+            "expected_gross_r": -0.0354,
+            "expected_net_r": -0.1217,
+            "conservative_ev_r": -0.1737,
+            "standard_error_r": 0.1488,
+            "effective_sample_size": 27.39,
+            "tp_before_sl_probability": 0.0229,
+            "sl_before_tp_probability": 0.2279,
+            "time_exit_probability": 0.7492
+          },
+          {
+            "reward_risk": 2.5,
+            "expected_gross_r": -0.0297,
+            "expected_net_r": -0.116,
+            "conservative_ev_r": -0.1692,
+            "standard_error_r": 0.1521,
+            "effective_sample_size": 27.39,
+            "tp_before_sl_probability": 0.0229,
+            "sl_before_tp_probability": 0.2279,
+            "time_exit_probability": 0.7492
+          }
+        ],
+        "analogue_distance_median": 0.9045
+      },
+      "expected_value_weight": 0.19564,
+      "final_score": 65.99,
+      "pre_ev_reward_risk": 1.8,
+      "full_reward_risk": 2.0,
+      "risk_percent": 0.0478,
+      "historical_feature_session": "2026-09-29",
+      "historical_feature_lag_sessions": 0,
+      "execution_data_gate": {
+        "engine": "gpw-data-gates-v1",
+        "status": "accepted",
+        "session": "2026-09-30",
+        "observed_at": "2026-09-30T11:11:32+02:00",
+        "age_minutes": 14.96,
+        "crosscheck_status": "single_source",
+        "provider": "Yahoo"
+      },
+      "market_snapshot": {
+        "provider": "Yahoo",
+        "symbol": "PGE.WA",
+        "date": "2026-09-30",
+        "observed_at": "2026-09-30T11:11:32+02:00",
+        "open": 14.29,
+        "high": 14.94,
+        "low": 14.14,
+        "last": 14.84,
+        "volume": 1731249,
+        "crosscheck": {
+          "available_providers": [
+            "Yahoo"
+          ],
+          "errors": [
+            "Stooq:PublicationError"
+          ],
+          "status": "single_source"
+        },
+        "data_gate": {
+          "engine": "gpw-data-gates-v1",
+          "status": "accepted",
+          "session": "2026-09-30",
+          "observed_at": "2026-09-30T11:11:32+02:00",
+          "age_minutes": 14.96,
+          "crosscheck_status": "single_source",
+          "provider": "Yahoo"
+        },
+        "market_snapshot_id": "mkt-ae0adb71e3d57d4ab60a0249",
+        "market_snapshot_hash": "ae0adb71e3d57d4ab60a0249d5078fc7837dc51fd4c6f5ba38fdccd25403fea5",
+        "canonical_market_snapshot": {
+          "snapshot_id": "mkt-ae0adb71e3d57d4ab60a0249",
+          "snapshot_hash": "ae0adb71e3d57d4ab60a0249d5078fc7837dc51fd4c6f5ba38fdccd25403fea5",
+          "instrument_id": "equity.pl.pge",
+          "provider": "yahoo",
+          "provider_symbol": "PGE.WA",
+          "source_ref": "https://finance.yahoo.com/quote/PGE.WA",
+          "observed_at": "2026-09-30T09:11:32.000000Z",
+          "received_at": "2026-09-30T09:26:29.609582Z",
+          "created_at": "2026-09-30T09:26:29.609582Z",
+          "market_status": "OPEN",
+          "quote_kind": "INTRADAY_OHLC_LAST",
+          "bid": null,
+          "ask": null,
+          "last": 14.84,
+          "open": 14.29,
+          "high": 14.94,
+          "low": 14.14,
+          "close": null,
+          "volume": 1731249.0,
+          "source_schema": "legacy-opening-snapshot",
+          "contract_version": "briefrooms-market-snapshot-v1"
+        },
+        "canonical_data_quality": {
+          "status": "OK",
+          "decision_status": "ALLOWED",
+          "policy_id": "gpw-daily-execution-market-snapshot-v1",
+          "assessed_at": "2026-09-30T09:26:29.609582Z",
+          "age_seconds": 897.609582,
+          "stale": false,
+          "missing_fields": [],
+          "reasons": [],
+          "timestamp_lineage_valid": true,
+          "contract_version": "briefrooms-market-data-quality-v1"
+        }
+      }
+    },
+    {
+      "symbol": "CDR.WA",
+      "name": "CD Projekt",
+      "sector": "gry",
+      "quant_rank": 6,
+      "quant_pre_score": 71.28,
+      "base_scores": {
+        "catalyst": 50.0,
+        "relative_momentum": 77.21,
+        "volume_liquidity": 83.57,
+        "market_context": 46.89,
+        "risk_reward": 89.65,
+        "historical_expectancy": 50.0
+      },
+      "legacy_composite_score": 65.96,
+      "opening_confirmation_score": 77.66,
+      "opening_confirmation": {
+        "engine": "gpw-opening-confirmation-v1",
+        "score": 77.66,
+        "gap": -0.00121,
+        "open_return": -0.00322,
+        "intraday_position": 0.7,
+        "distance_from_high": -0.00482,
+        "components": {
+          "open_return": 63.56,
+          "intraday_position": 70.0,
+          "distance_from_high": 87.94,
+          "gap_quality": 100.0
+        },
+        "component_weights": {
+          "open_return": 0.3,
+          "intraday_position": 0.3,
+          "distance_from_high": 0.2,
+          "gap_quality": 0.2
+        },
+        "observed_at": "2026-09-30T11:12:03+02:00"
+      },
+      "opening_adjusted_score": 68.89,
+      "expected_value_score": 47.28,
+      "expected_value_model": {
+        "engine": "gpw-empirical-ev-v1",
+        "status": "ready",
+        "horizon_sessions": 2,
+        "rr_grid": [
+          1.5,
+          1.75,
+          2.0,
+          2.25,
+          2.5
+        ],
+        "same_bar_policy": "stop_first_conservative",
+        "entry_proxy": "next_session_open",
+        "cost_assumption_percent": 0.38,
+        "role": "empirical_target_and_bounded_reranking_overlay",
+        "analogue_count": 32,
+        "selected_reward_risk": 2.5,
+        "expected_gross_r": 0.1031,
+        "expected_net_r": -0.0204,
+        "conservative_ev_r": -0.0777,
+        "standard_error_r": 0.164,
+        "effective_sample_size": 30.82,
+        "tp_before_sl_probability": 0.0698,
+        "sl_before_tp_probability": 0.1818,
+        "time_exit_probability": 0.7484,
+        "score": 47.28,
+        "confidence": 1.0,
+        "grid": [
+          {
+            "reward_risk": 1.5,
+            "expected_gross_r": 0.0333,
+            "expected_net_r": -0.0901,
+            "conservative_ev_r": -0.1373,
+            "standard_error_r": 0.1349,
+            "effective_sample_size": 30.82,
+            "tp_before_sl_probability": 0.0698,
+            "sl_before_tp_probability": 0.1818,
+            "time_exit_probability": 0.7484
+          },
+          {
+            "reward_risk": 1.75,
+            "expected_gross_r": 0.0507,
+            "expected_net_r": -0.0727,
+            "conservative_ev_r": -0.1222,
+            "standard_error_r": 0.1413,
+            "effective_sample_size": 30.82,
+            "tp_before_sl_probability": 0.0698,
+            "sl_before_tp_probability": 0.1818,
+            "time_exit_probability": 0.7484
+          },
+          {
+            "reward_risk": 2.0,
+            "expected_gross_r": 0.0682,
+            "expected_net_r": -0.0553,
+            "conservative_ev_r": -0.1072,
+            "standard_error_r": 0.1484,
+            "effective_sample_size": 30.82,
+            "tp_before_sl_probability": 0.0698,
+            "sl_before_tp_probability": 0.1818,
+            "time_exit_probability": 0.7484
+          },
+          {
+            "reward_risk": 2.25,
+            "expected_gross_r": 0.0856,
+            "expected_net_r": -0.0378,
+            "conservative_ev_r": -0.0924,
+            "standard_error_r": 0.1559,
+            "effective_sample_size": 30.82,
+            "tp_before_sl_probability": 0.0698,
+            "sl_before_tp_probability": 0.1818,
+            "time_exit_probability": 0.7484
+          },
+          {
+            "reward_risk": 2.5,
+            "expected_gross_r": 0.1031,
+            "expected_net_r": -0.0204,
+            "conservative_ev_r": -0.0777,
+            "standard_error_r": 0.164,
+            "effective_sample_size": 30.82,
+            "tp_before_sl_probability": 0.0698,
+            "sl_before_tp_probability": 0.1818,
+            "time_exit_probability": 0.7484
+          }
+        ],
+        "analogue_distance_median": 0.4657
+      },
+      "expected_value_weight": 0.2,
+      "final_score": 64.57,
+      "pre_ev_reward_risk": 1.8,
+      "full_reward_risk": 2.5,
+      "risk_percent": 0.0254,
+      "historical_feature_session": "2026-09-29",
+      "historical_feature_lag_sessions": 0,
+      "execution_data_gate": {
+        "engine": "gpw-data-gates-v1",
+        "status": "accepted",
+        "session": "2026-09-30",
+        "observed_at": "2026-09-30T11:12:03+02:00",
+        "age_minutes": 14.44,
+        "crosscheck_status": "single_source",
+        "provider": "Yahoo"
+      },
+      "market_snapshot": {
+        "provider": "Yahoo",
+        "symbol": "CDR.WA",
+        "date": "2026-09-30",
+        "observed_at": "2026-09-30T11:12:03+02:00",
+        "open": 248.4,
+        "high": 248.8,
+        "low": 244.8,
+        "last": 247.6,
+        "volume": 46570,
+        "crosscheck": {
+          "available_providers": [
+            "Yahoo"
+          ],
+          "errors": [
+            "Stooq:PublicationError"
+          ],
+          "status": "single_source"
+        },
+        "data_gate": {
+          "engine": "gpw-data-gates-v1",
+          "status": "accepted",
+          "session": "2026-09-30",
+          "observed_at": "2026-09-30T11:12:03+02:00",
+          "age_minutes": 14.44,
+          "crosscheck_status": "single_source",
+          "provider": "Yahoo"
+        },
+        "market_snapshot_id": "mkt-3dacf2a70b7d6c1b9ae5c588",
+        "market_snapshot_hash": "3dacf2a70b7d6c1b9ae5c588ff24219f562cf2d012f9355720fd43e6b00595c6",
+        "canonical_market_snapshot": {
+          "snapshot_id": "mkt-3dacf2a70b7d6c1b9ae5c588",
+          "snapshot_hash": "3dacf2a70b7d6c1b9ae5c588ff24219f562cf2d012f9355720fd43e6b00595c6",
+          "instrument_id": "equity.pl.cdr",
+          "provider": "yahoo",
+          "provider_symbol": "CDR.WA",
+          "source_ref": "https://finance.yahoo.com/quote/CDR.WA",
+          "observed_at": "2026-09-30T09:12:03.000000Z",
+          "received_at": "2026-09-30T09:26:29.609582Z",
+          "created_at": "2026-09-30T09:26:29.609582Z",
+          "market_status": "OPEN",
+          "quote_kind": "INTRADAY_OHLC_LAST",
+          "bid": null,
+          "ask": null,
+          "last": 247.6,
+          "open": 248.4,
+          "high": 248.8,
+          "low": 244.8,
+          "close": null,
+          "volume": 46570.0,
+          "source_schema": "legacy-opening-snapshot",
+          "contract_version": "briefrooms-market-snapshot-v1"
+        },
+        "canonical_data_quality": {
+          "status": "OK",
+          "decision_status": "ALLOWED",
+          "policy_id": "gpw-daily-execution-market-snapshot-v1",
+          "assessed_at": "2026-09-30T09:26:29.609582Z",
+          "age_seconds": 866.609582,
+          "stale": false,
+          "missing_fields": [],
+          "reasons": [],
+          "timestamp_lineage_valid": true,
+          "contract_version": "briefrooms-market-data-quality-v1"
+        }
+      }
+    },
+    {
+      "symbol": "ENA.WA",
+      "name": "Enea",
+      "sector": "energia",
+      "quant_rank": 7,
+      "quant_pre_score": 70.83,
+      "base_scores": {
+        "catalyst": 50.0,
+        "relative_momentum": 93.09,
+        "volume_liquidity": 69.61,
+        "market_context": 48.7,
+        "risk_reward": 78.39,
+        "historical_expectancy": 50.0
+      },
+      "legacy_composite_score": 65.62,
+      "opening_confirmation_score": 77.68,
+      "opening_confirmation": {
+        "engine": "gpw-opening-confirmation-v1",
+        "score": 77.68,
+        "gap": 0.0099,
+        "open_return": 0.03529,
+        "intraday_position": 0.81818,
+        "distance_from_high": -0.00938,
+        "components": {
+          "open_return": 59.41,
+          "intraday_position": 81.82,
+          "distance_from_high": 76.55,
+          "gap_quality": 100.0
+        },
+        "component_weights": {
+          "open_return": 0.3,
+          "intraday_position": 0.3,
+          "distance_from_high": 0.2,
+          "gap_quality": 0.2
+        },
+        "observed_at": "2026-09-30T11:11:23+02:00"
+      },
+      "opening_adjusted_score": 68.64,
+      "expected_value_score": 35.41,
+      "expected_value_model": {
+        "engine": "gpw-empirical-ev-v1",
+        "status": "ready",
+        "horizon_sessions": 2,
+        "rr_grid": [
+          1.5,
+          1.75,
+          2.0,
+          2.25,
+          2.5
+        ],
+        "same_bar_policy": "stop_first_conservative",
+        "entry_proxy": "next_session_open",
+        "cost_assumption_percent": 0.38,
+        "role": "empirical_target_and_bounded_reranking_overlay",
+        "analogue_count": 32,
+        "selected_reward_risk": 2.5,
+        "expected_gross_r": -0.2452,
+        "expected_net_r": -0.3576,
+        "conservative_ev_r": -0.417,
+        "standard_error_r": 0.1695,
+        "effective_sample_size": 31.04,
+        "tp_before_sl_probability": 0.0664,
+        "sl_before_tp_probability": 0.3416,
+        "time_exit_probability": 0.592,
+        "score": 35.41,
+        "confidence": 1.0,
+        "grid": [
+          {
+            "reward_risk": 1.5,
+            "expected_gross_r": -0.3116,
+            "expected_net_r": -0.4241,
+            "conservative_ev_r": -0.4724,
+            "standard_error_r": 0.1381,
+            "effective_sample_size": 31.04,
+            "tp_before_sl_probability": 0.0664,
+            "sl_before_tp_probability": 0.3416,
+            "time_exit_probability": 0.592
+          },
+          {
+            "reward_risk": 1.75,
+            "expected_gross_r": -0.295,
+            "expected_net_r": -0.4074,
+            "conservative_ev_r": -0.4583,
+            "standard_error_r": 0.1453,
+            "effective_sample_size": 31.04,
+            "tp_before_sl_probability": 0.0664,
+            "sl_before_tp_probability": 0.3416,
+            "time_exit_probability": 0.592
+          },
+          {
+            "reward_risk": 2.0,
+            "expected_gross_r": -0.2784,
+            "expected_net_r": -0.3908,
+            "conservative_ev_r": -0.4444,
+            "standard_error_r": 0.153,
+            "effective_sample_size": 31.04,
+            "tp_before_sl_probability": 0.0664,
+            "sl_before_tp_probability": 0.3416,
+            "time_exit_probability": 0.592
+          },
+          {
+            "reward_risk": 2.25,
+            "expected_gross_r": -0.2618,
+            "expected_net_r": -0.3742,
+            "conservative_ev_r": -0.4306,
+            "standard_error_r": 0.1611,
+            "effective_sample_size": 31.04,
+            "tp_before_sl_probability": 0.0664,
+            "sl_before_tp_probability": 0.3416,
+            "time_exit_probability": 0.592
+          },
+          {
+            "reward_risk": 2.5,
+            "expected_gross_r": -0.2452,
+            "expected_net_r": -0.3576,
+            "conservative_ev_r": -0.417,
+            "standard_error_r": 0.1695,
+            "effective_sample_size": 31.04,
+            "tp_before_sl_probability": 0.0664,
+            "sl_before_tp_probability": 0.3416,
+            "time_exit_probability": 0.592
+          }
+        ],
+        "analogue_distance_median": 0.5173
+      },
+      "expected_value_weight": 0.2,
+      "final_score": 61.99,
+      "pre_ev_reward_risk": 1.8,
+      "full_reward_risk": 2.5,
+      "risk_percent": 0.0395,
+      "historical_feature_session": "2026-09-29",
+      "historical_feature_lag_sessions": 0,
+      "execution_data_gate": {
+        "engine": "gpw-data-gates-v1",
+        "status": "accepted",
+        "session": "2026-09-30",
+        "observed_at": "2026-09-30T11:11:23+02:00",
+        "age_minutes": 15.11,
+        "crosscheck_status": "single_source",
+        "provider": "Yahoo"
+      },
+      "market_snapshot": {
+        "provider": "Yahoo",
+        "symbol": "ENA.WA",
+        "date": "2026-09-30",
+        "observed_at": "2026-09-30T11:11:23+02:00",
+        "open": 20.4,
+        "high": 21.32,
+        "low": 20.22,
+        "last": 21.12,
+        "volume": 348991,
+        "crosscheck": {
+          "available_providers": [
+            "Yahoo"
+          ],
+          "errors": [
+            "Stooq:PublicationError"
+          ],
+          "status": "single_source"
+        },
+        "data_gate": {
+          "engine": "gpw-data-gates-v1",
+          "status": "accepted",
+          "session": "2026-09-30",
+          "observed_at": "2026-09-30T11:11:23+02:00",
+          "age_minutes": 15.11,
+          "crosscheck_status": "single_source",
+          "provider": "Yahoo"
+        },
+        "market_snapshot_id": "mkt-dedc5ac001d52bb1038162fc",
+        "market_snapshot_hash": "dedc5ac001d52bb1038162fc1229b1c843ae1bb54183791d795845d9608363e8",
+        "canonical_market_snapshot": {
+          "snapshot_id": "mkt-dedc5ac001d52bb1038162fc",
+          "snapshot_hash": "dedc5ac001d52bb1038162fc1229b1c843ae1bb54183791d795845d9608363e8",
+          "instrument_id": "equity.pl.ena",
+          "provider": "yahoo",
+          "provider_symbol": "ENA.WA",
+          "source_ref": "https://finance.yahoo.com/quote/ENA.WA",
+          "observed_at": "2026-09-30T09:11:23.000000Z",
+          "received_at": "2026-09-30T09:26:29.609582Z",
+          "created_at": "2026-09-30T09:26:29.609582Z",
+          "market_status": "OPEN",
+          "quote_kind": "INTRADAY_OHLC_LAST",
+          "bid": null,
+          "ask": null,
+          "last": 21.12,
+          "open": 20.4,
+          "high": 21.32,
+          "low": 20.22,
+          "close": null,
+          "volume": 348991.0,
+          "source_schema": "legacy-opening-snapshot",
+          "contract_version": "briefrooms-market-snapshot-v1"
+        },
+        "canonical_data_quality": {
+          "status": "OK",
+          "decision_status": "ALLOWED",
+          "policy_id": "gpw-daily-execution-market-snapshot-v1",
+          "assessed_at": "2026-09-30T09:26:29.609582Z",
+          "age_seconds": 906.609582,
+          "stale": false,
+          "missing_fields": [],
+          "reasons": [],
+          "timestamp_lineage_valid": true,
+          "contract_version": "briefrooms-market-data-quality-v1"
+        }
+      }
+    },
+    {
+      "symbol": "DNP.WA",
+      "name": "Dino Polska",
+      "sector": "handel",
+      "quant_rank": 8,
+      "quant_pre_score": 67.65,
+      "base_scores": {
+        "catalyst": 50.0,
+        "relative_momentum": 46.76,
+        "volume_liquidity": 100.0,
+        "market_context": 46.71,
+        "risk_reward": 90.48,
+        "historical_expectancy": 58.1
+      },
+      "legacy_composite_score": 63.24,
+      "opening_confirmation_score": 75.11,
+      "opening_confirmation": {
+        "engine": "gpw-opening-confirmation-v1",
+        "score": 75.11,
+        "gap": -0.00198,
+        "open_return": -0.00453,
+        "intraday_position": 0.63636,
+        "distance_from_high": -0.00453,
+        "components": {
+          "open_return": 60.95,
+          "intraday_position": 63.64,
+          "distance_from_high": 88.68,
+          "gap_quality": 100.0
+        },
+        "component_weights": {
+          "open_return": 0.3,
+          "intraday_position": 0.3,
+          "distance_from_high": 0.2,
+          "gap_quality": 0.2
+        },
+        "observed_at": "2026-09-30T11:12:20+02:00"
+      },
+      "opening_adjusted_score": 66.21,
+      "expected_value_score": 42.46,
+      "expected_value_model": {
+        "engine": "gpw-empirical-ev-v1",
+        "status": "ready",
+        "horizon_sessions": 2,
+        "rr_grid": [
+          1.5,
+          1.75,
+          2.0,
+          2.25,
+          2.5
+        ],
+        "same_bar_policy": "stop_first_conservative",
+        "entry_proxy": "next_session_open",
+        "cost_assumption_percent": 0.38,
+        "role": "empirical_target_and_bounded_reranking_overlay",
+        "analogue_count": 32,
+        "selected_reward_risk": 2.5,
+        "expected_gross_r": -0.0314,
+        "expected_net_r": -0.1546,
+        "conservative_ev_r": -0.2155,
+        "standard_error_r": 0.174,
+        "effective_sample_size": 31.21,
+        "tp_before_sl_probability": 0.0631,
+        "sl_before_tp_probability": 0.2996,
+        "time_exit_probability": 0.6373,
+        "score": 42.46,
+        "confidence": 1.0,
+        "grid": [
+          {
+            "reward_risk": 1.5,
+            "expected_gross_r": -0.0927,
+            "expected_net_r": -0.2158,
+            "conservative_ev_r": -0.2679,
+            "standard_error_r": 0.1487,
+            "effective_sample_size": 31.21,
+            "tp_before_sl_probability": 0.1141,
+            "sl_before_tp_probability": 0.2996,
+            "time_exit_probability": 0.5863
+          },
+          {
+            "reward_risk": 1.75,
+            "expected_gross_r": -0.0696,
+            "expected_net_r": -0.1928,
+            "conservative_ev_r": -0.2477,
+            "standard_error_r": 0.1569,
+            "effective_sample_size": 31.21,
+            "tp_before_sl_probability": 0.0885,
+            "sl_before_tp_probability": 0.2996,
+            "time_exit_probability": 0.6119
+          },
+          {
+            "reward_risk": 2.0,
+            "expected_gross_r": -0.0474,
+            "expected_net_r": -0.1706,
+            "conservative_ev_r": -0.2285,
+            "standard_error_r": 0.1655,
+            "effective_sample_size": 31.21,
+            "tp_before_sl_probability": 0.0885,
+            "sl_before_tp_probability": 0.2996,
+            "time_exit_probability": 0.6119
+          },
+          {
+            "reward_risk": 2.25,
+            "expected_gross_r": -0.0472,
+            "expected_net_r": -0.1704,
+            "conservative_ev_r": -0.2288,
+            "standard_error_r": 0.1668,
+            "effective_sample_size": 31.21,
+            "tp_before_sl_probability": 0.0631,
+            "sl_before_tp_probability": 0.2996,
+            "time_exit_probability": 0.6373
+          },
+          {
+            "reward_risk": 2.5,
+            "expected_gross_r": -0.0314,
+            "expected_net_r": -0.1546,
+            "conservative_ev_r": -0.2155,
+            "standard_error_r": 0.174,
+            "effective_sample_size": 31.21,
+            "tp_before_sl_probability": 0.0631,
+            "sl_before_tp_probability": 0.2996,
+            "time_exit_probability": 0.6373
+          }
+        ],
+        "analogue_distance_median": 0.442
+      },
+      "expected_value_weight": 0.2,
+      "final_score": 61.46,
+      "pre_ev_reward_risk": 1.8,
+      "full_reward_risk": 2.5,
+      "risk_percent": 0.0262,
+      "historical_feature_session": "2026-09-29",
+      "historical_feature_lag_sessions": 0,
+      "execution_data_gate": {
+        "engine": "gpw-data-gates-v1",
+        "status": "accepted",
+        "session": "2026-09-30",
+        "observed_at": "2026-09-30T11:12:20+02:00",
+        "age_minutes": 14.16,
+        "crosscheck_status": "single_source",
+        "provider": "Yahoo"
+      },
+      "market_snapshot": {
+        "provider": "Yahoo",
+        "symbol": "DNP.WA",
+        "date": "2026-09-30",
+        "observed_at": "2026-09-30T11:12:20+02:00",
+        "open": 35.34,
+        "high": 35.34,
+        "low": 34.9,
+        "last": 35.18,
+        "volume": 1381791,
+        "crosscheck": {
+          "available_providers": [
+            "Yahoo"
+          ],
+          "errors": [
+            "Stooq:PublicationError"
+          ],
+          "status": "single_source"
+        },
+        "data_gate": {
+          "engine": "gpw-data-gates-v1",
+          "status": "accepted",
+          "session": "2026-09-30",
+          "observed_at": "2026-09-30T11:12:20+02:00",
+          "age_minutes": 14.16,
+          "crosscheck_status": "single_source",
+          "provider": "Yahoo"
+        },
+        "market_snapshot_id": "mkt-759ad7639fac16139f81b69b",
+        "market_snapshot_hash": "759ad7639fac16139f81b69b3d88a656d092a5c3d957f725d46833f297f011f0",
+        "canonical_market_snapshot": {
+          "snapshot_id": "mkt-759ad7639fac16139f81b69b",
+          "snapshot_hash": "759ad7639fac16139f81b69b3d88a656d092a5c3d957f725d46833f297f011f0",
+          "instrument_id": "equity.pl.dnp",
+          "provider": "yahoo",
+          "provider_symbol": "DNP.WA",
+          "source_ref": "https://finance.yahoo.com/quote/DNP.WA",
+          "observed_at": "2026-09-30T09:12:20.000000Z",
+          "received_at": "2026-09-30T09:26:29.609582Z",
+          "created_at": "2026-09-30T09:26:29.609582Z",
+          "market_status": "OPEN",
+          "quote_kind": "INTRADAY_OHLC_LAST",
+          "bid": null,
+          "ask": null,
+          "last": 35.18,
+          "open": 35.34,
+          "high": 35.34,
+          "low": 34.9,
+          "close": null,
+          "volume": 1381791.0,
+          "source_schema": "legacy-opening-snapshot",
+          "contract_version": "briefrooms-market-snapshot-v1"
+        },
+        "canonical_data_quality": {
+          "status": "OK",
+          "decision_status": "ALLOWED",
+          "policy_id": "gpw-daily-execution-market-snapshot-v1",
+          "assessed_at": "2026-09-30T09:26:29.609582Z",
+          "age_seconds": 849.609582,
+          "stale": false,
+          "missing_fields": [],
+          "reasons": [],
+          "timestamp_lineage_valid": true,
+          "contract_version": "briefrooms-market-data-quality-v1"
+        }
+      }
+    }
+  ],
+  "supported_components": [
+    "catalyst",
+    "relative_momentum",
+    "volume_liquidity",
+    "market_context",
+    "risk_reward",
+    "historical_expectancy",
+    "opening_confirmation",
+    "expected_value"
+  ],
+  "unsupported_components": {
+    "historical_freshness": "candidate can be stopped before a complete downstream decision state exists",
+    "market_coverage": "market-level hard gate changes whether the decision is allowed at all",
+    "minimum_liquidity": "liquidity-rejected candidates are not prospectively evaluated through opening and EV",
+    "finite_atr_and_price": "invalid geometry has no valid counterfactual trade plan",
+    "execution_freshness": "failed execution quotes do not have a valid frozen execution state",
+    "bounded_published_risk": "risk-rejected candidates are not prospectively evaluated through the complete final selector",
+    "expected_value_history_quality": "EV-unready candidates are not part of the production evaluated set",
+    "independent_review": "mandatory final selector v1 does not use the legacy Gemini reviewer as a ranking component"
+  },
+  "governance": {
+    "prospective_only": true,
+    "historical_backfill": false,
+    "observational_only": true,
+    "decision_influence": false,
+    "ranking_writeback": false,
+    "gate_writeback": false,
+    "production_trade_writeback": false,
+    "automatic_learning_writeback": false,
+    "automatic_promotion": false,
+    "automatic_component_removal": false
+  },
+  "status": "VALIDATED_EQUIVALENT",
+  "validation": {
+    "full_replay_equivalent": true,
+    "symbol_match": true,
+    "score_match": true,
+    "opening_adjusted_match": true,
+    "opening_component_match": true,
+    "expected_value_match": true,
+    "plan_match": true,
+    "full_replay": {
+      "status": "OK",
+      "component": null,
+      "selected_symbol": "PCO.WA",
+      "selected_quant_rank": 4,
+      "legacy_composite_score": 67.71,
+      "opening_adjusted_score": 74.51,
+      "final_score": 70.84,
+      "plan": {
+        "action": "LONG",
+        "symbol": "PCO.WA",
+        "entry_zone": [
+          45.48,
+          45.89
+        ],
+        "stop": 44.15,
+        "target": 48.2,
+        "reward_risk": 1.75,
+        "reference_price": 45.62,
+        "risk_percent": 0.0323,
+        "plan_source": "prospective_loco_replay"
+      },
+      "ranked_symbols": [
+        "PCO.WA",
+        "PKO.WA",
+        "LPP.WA",
+        "ALE.WA",
+        "PGE.WA",
+        "CDR.WA",
+        "ENA.WA",
+        "DNP.WA"
+      ]
+    }
+  },
+  "snapshot_id": "gpw-loco-d606d15505e65665212d",
+  "persisted_at": "2026-09-30T20:15:14.604611Z",
+  "snapshot_sha256": "368374e2022512059b4dd47b1d6341f66d8e1dacfe9afbe8d422b57cb92d4950"
+}
