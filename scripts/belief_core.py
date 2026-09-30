@@ -607,11 +607,12 @@ class BeliefCore:
             raise ValueError("cannot verify a forecast before target_at")
         vid = verification_id or _stable_id("verify", forecast_id)
         p = f.predicted_probability; y = 1.0 if outcome else 0.0
+        calibration_horizon_bucket = str((f.metadata or {}).get("calibration_horizon_bucket") or horizon_bucket(f.horizon_hours))
         v = Verification(
             verification_id=vid, forecast_id=f.forecast_id, forecast_set_id=f.forecast_set_id,
             belief_id=f.belief_id, predicted_probability=p,
             forecast_confidence=f.forecast_confidence, outcome=bool(outcome), forecast_at=f.forecast_at, target_at=f.target_at,
-            verified_at=iso_z(verified_dt), horizon_hours=f.horizon_hours, horizon_bucket=horizon_bucket(f.horizon_hours),
+            verified_at=iso_z(verified_dt), horizon_hours=f.horizon_hours, horizon_bucket=calibration_horizon_bucket,
             domain=f.domain, entity=f.entity, regime=f.regime, alternative_group=f.alternative_group,
             outcome_rule=f.outcome_rule, outcome_source=str(outcome_source or "manual"), outcome_ref=outcome_ref,
             brier_score=round((p-y)**2, 6),
