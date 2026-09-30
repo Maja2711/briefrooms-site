@@ -177,6 +177,15 @@ class BeliefCoreTest(unittest.TestCase):
         r = self.core.calibration_summary()
         self.assertIn("trend", r["by_domain"]); self.assertIn("SPX", r["by_entity"]); self.assertIn("risk-on", r["by_regime"])
 
+    def test_verification_uses_declared_calibration_horizon_bucket(self):
+        self.compute()
+        f=self.core.capture_forecast(
+            "trend", AS_OF, TARGET,
+            metadata={"calibration_horizon_bucket":"1S_US_SESSION"},
+        )
+        v=self.core.verify_forecast(f.forecast_id,True,VERIFY)
+        self.assertEqual(v.horizon_bucket,"1S_US_SESSION")
+
     def test_horizon_bucket(self):
         self.assertEqual(horizon_bucket(24), "<=1d"); self.assertEqual(horizon_bucket(48), "1-3d")
 
