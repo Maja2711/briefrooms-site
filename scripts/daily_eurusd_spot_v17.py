@@ -255,7 +255,12 @@ def apply_belief_macro_gate(candidate: DailyEngineOutput, context: Mapping[str, 
         "source": "Belief Core News Macro Shadow Collection + EURUSD beliefs",
         "fail_neutral": True,
     }
-    if not allow_entry or candidate.direction not in {"LONG", "SHORT"} or not belief.get("available"):
+    if not allow_entry or candidate.direction not in {"LONG", "SHORT"}:
+        return _clone(candidate, metadata=metadata)
+    calendar = belief.get("macro_calendar") if isinstance(belief.get("macro_calendar"), Mapping) else {}
+    if calendar.get("imminent") is True:
+        return _flat_with_event_block(candidate, metadata, "belief_macro_high_impact_event_imminent")
+    if not belief.get("available"):
         return _clone(candidate, metadata=metadata)
     score = float(belief.get("score") or 0.0)
     conflict = (candidate.direction == "LONG" and score <= -6.0) or (candidate.direction == "SHORT" and score >= 6.0)
