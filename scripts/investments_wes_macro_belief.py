@@ -13,7 +13,9 @@ from typing import Any, Dict, Mapping, Optional
 BELIEF_IDS = {
     "eurusd.trend.bullish": 0.45,
     "eurusd.usd_environment.supportive": 0.30,
-    "eurusd.us_rates_pressure.supportive": 0.25,
+    "eurusd.us_rates_pressure.supportive": 0.15,
+    "eurusd.macro_surprise.supportive": 0.20,
+    "eurusd.policy_differential.supportive": 0.10,
 }
 MAX_AGE_HOURS = 8.0
 MAX_SCORE_CONTRIBUTION = 10.0
