@@ -1,6 +1,6 @@
 # BriefRooms Canonical Architecture Map — EN
 
-**Map version:** 1.12  
+**Map version:** 1.13  
 **Snapshot date:** 2026-09-29  
 **Base `main` commit:** `fbfb8ac0cdec1585d148ada8d35aa223e3e24bf1`  
 **Repository:** `Maja2711/briefrooms-site`
@@ -146,8 +146,8 @@ An adapter is not a decision engine. Its primary job is to translate a source in
 | `EP-03` | Epistemic State | Structures current knowledge independently of decisions | `belief_epistemic_state.py`, `belief_epistemic_live.py` |
 | `EP-04` | Epistemic Causal Graph | Explicit causal/relational semantics in the epistemic layer | `belief_epistemic_causal_graph.py`, `belief_epistemic_causal_graph_semantic.py` |
 | `EP-05` | Belief Core v2 | Probability, separate evidence confidence, freshness decay, support/opposition, alternatives | `belief_core.py`, `belief_core_live.py`, `docs/BELIEF_CORE.md`; engineering-complete for shadow data collection |
-| `EP-06` | Frozen Forecast + Verification | Freezes probability/evidence before outcome and verifies later | `belief_core_shadow.py`, `belief_core_verify.py` |
-| `EP-07` | Calibration | Brier, log loss, ECE/MCE, slices, drift and source diagnostics | `belief_calibration.py`, `belief_calibration_foundation.py`; recommendations without silent auto-tuning |
+| `EP-06` | Frozen Forecast + Verification | Freezes probability/evidence before outcome and verifies later; outcome contracts distinguish elapsed-time clocks from US regular-session equivalents without retroactively rewriting frozen targets | `belief_core_shadow.py`, `belief_core_verify.py`, `belief_core_live.py`, `docs/BELIEF_CORE.md` |
+| `EP-07` | Calibration | Brier, log loss, ECE/MCE, slices, drift and source diagnostics; separate buckets for elapsed-time and session-aware horizons (`1S_US_SESSION`, etc.) | `belief_calibration.py`, `belief_calibration_foundation.py`; recommendations without silent auto-tuning |
 | `EP-08` | Read-only Belief Bridges | Deliver epistemic/belief state to selected engines in governed modes | WES/BRACE/SPX bridge files; decision influence depends on the explicit gate |
 | `EP-09` | Belief ARIS Research | Read-only Evidence representation research plus prospective ARIS-PATTERN-1: frozen Evidence combinations -> later outcome, MDL gain, residual and chronological holdout/OOS | `scripts/belief_aris_shadow.py`, `scripts/belief_aris_pattern.py`, `docs/BELIEF_ARIS_SHADOW.md`, `docs/BELIEF_ARIS_PATTERN.md`; `research_shadow`, `ASSOCIATION_ONLY`, no Belief/causal writeback, consumer export, decision influence or auto-promotion |
 
