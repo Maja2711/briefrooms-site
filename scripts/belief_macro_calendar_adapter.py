@@ -14,10 +14,13 @@ from belief_core import iso_z
 from belief_news_event_adapter import HttpClient
 
 NY = ZoneInfo("America/New_York")
+BRUSSELS = ZoneInfo("Europe/Brussels")
 
 BLS_ICS = "https://www.bls.gov/schedule/news_release/bls.ics"
 BEA_SCHEDULE = "https://www.bea.gov/news/schedule"
 FOMC_CALENDAR = "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm"
+EUROSTAT_RELEASE_CALENDAR = "https://ec.europa.eu/eurostat/news/release-calendar"
+ECB_CALENDAR = "https://www.ecb.europa.eu/press/calendars/mgcgc/html/index.en.html"
 
 HIGH_IMPACT_TERMS = (
     "consumer price index",
@@ -27,6 +30,11 @@ HIGH_IMPACT_TERMS = (
     "gross domestic product",
     "personal income and outlays",
     "pce",
+    "hicp",
+    "inflation",
+    "ecb",
+    "monetary policy",
+    "unemployment",
 )
 MEDIUM_IMPACT_TERMS = (
     "producer price index",
@@ -295,6 +303,42 @@ def parse_fomc_calendar(text: str, *, now: datetime, horizon_days: int = 240) ->
     return events
 
 
+
+def parse_eu_calendar_text(text: str, *, now: datetime, source: str, source_ref: str, horizon_days: int = 90) -> List[CalendarEvent]:
+    """Conservative parser for official Eurostat/ECB calendar text.
+
+    Only rows carrying an explicit ISO/date token are promoted. Unknown times use
+    a date-only Brussels anchor and are never presented as sourced exact times.
+    """
+    clean = _strip_html(text)
+    events: List[CalendarEvent] = []
+    patterns = [
+        re.compile(r"(?P<date>\\d{4}-\\d{2}-\\d{2})\\s+(?P<title>.{4,180}?)(?=(?:\\d{4}-\\d{2}-\\d{2})|$)"),
+        re.compile(r"(?P<date>\\d{1,2}\\s+(?:" + "|".join(MONTHS) + r")\\s+\\d{4})\\s+(?P<title>.{4,180}?)(?=(?:\\d{1,2}\\s+(?:" + "|".join(MONTHS) + r")\\s+\\d{4})|$)", re.I),
+    ]
+    for pattern in patterns:
+        for match in pattern.finditer(clean):
+            raw_date = match.group("date")
+            title = " ".join(match.group("title").split()).strip(" -|:")
+            try:
+                day = datetime.strptime(raw_date, "%Y-%m-%d") if "-" in raw_date else datetime.strptime(raw_date, "%d %B %Y")
+            except ValueError:
+                continue
+            event_at = day.replace(hour=0, minute=0, tzinfo=BRUSSELS)
+            delta = event_at - now.astimezone(BRUSSELS)
+            if not (-timedelta(days=1) <= delta <= timedelta(days=horizon_days)):
+                continue
+            importance = _importance(title)
+            if importance == "low":
+                continue
+            uid = f"eu:{source}:{event_at.date().isoformat()}:{title[:80]}"
+            events.append(CalendarEvent(source, source_ref, uid, title, event_at, "date_only", importance,
+                                        {"calendar_source": source_ref, "region": "EU", "currency": "EUR"}))
+        if events:
+            break
+    return events
+
+
 def calendar_event_to_observation(event: CalendarEvent, now: datetime) -> Observation:
     hours_until = (event.event_at - now.astimezone(event.event_at.tzinfo)).total_seconds() / 3600.0
     observed_at = iso_z(now)
@@ -303,7 +347,7 @@ def calendar_event_to_observation(event: CalendarEvent, now: datetime) -> Observ
         observation_id=stable_id("obs-calendar", event.uid, event_at),
         adapter="macro_event_calendar",
         metric="scheduled_macro_event",
-        entity="US_MACRO",
+        entity="EU_MACRO" if str(event.metadata.get("region") or "").upper() == "EU" else "US_MACRO",
         observed_at=observed_at,
         value=round(hours_until, 4),
         unit="hours_until_event",
@@ -407,6 +451,14 @@ class MacroEventCalendarAdapter:
             pass
         try:
             events.extend(parse_fomc_calendar(self.client.text(FOMC_CALENDAR), now=now))
+        except Exception:
+            pass
+        try:
+            events.extend(parse_eu_calendar_text(self.client.text(EUROSTAT_RELEASE_CALENDAR), now=now, source="Eurostat", source_ref=EUROSTAT_RELEASE_CALENDAR))
+        except Exception:
+            pass
+        try:
+            events.extend(parse_eu_calendar_text(self.client.text(ECB_CALENDAR), now=now, source="European Central Bank", source_ref=ECB_CALENDAR))
         except Exception:
             pass
         dedup: Dict[str, CalendarEvent] = {}
