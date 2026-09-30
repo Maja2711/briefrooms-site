@@ -1,7 +1,7 @@
 # Kanoniczna mapa architektury BriefRooms — PL
 
-**Wersja mapy:** 1.12  
-**Stan na:** 2026-09-29  
+**Wersja mapy:** 1.13  
+**Stan na:** 2026-09-30  
 **Bazowy commit `main`:** `fbfb8ac0cdec1585d148ada8d35aa223e3e24bf1`  
 **Repozytorium:** `Maja2711/briefrooms-site`
 
@@ -146,8 +146,8 @@ Adapter nie jest silnikiem decyzji. Jego podstawowym zadaniem jest tłumaczenie 
 | `EP-03` | Epistemic State | Strukturyzuje aktualny stan wiedzy niezależnie od decyzji | `belief_epistemic_state.py`, `belief_epistemic_live.py` |
 | `EP-04` | Epistemic Causal Graph | Jawne relacje i semantyka przyczynowa/relacyjna w epistemic layer | `belief_epistemic_causal_graph.py`, `belief_epistemic_causal_graph_semantic.py` |
 | `EP-05` | Belief Core v2 | Probability, oddzielna evidence confidence, freshness decay, support/opposition, alternatives | `belief_core.py`, `belief_core_live.py`, `docs/BELIEF_CORE.md`; engineering-complete dla shadow data collection |
-| `EP-06` | Frozen Forecast + Verification | Zamraża probability/evidence przed outcome i później weryfikuje | `belief_core_shadow.py`, `belief_core_verify.py` |
-| `EP-07` | Calibration | Brier, log loss, ECE/MCE, slices, drift, source diagnostics | `belief_calibration.py`, `belief_calibration_foundation.py`; rekomendacje bez silent auto-tuning |
+| `EP-06` | Frozen Forecast + Verification | Zamraża probability/evidence przed outcome i później weryfikuje; outcome contracts rozróżniają czas zegarowy od ekwiwalentu regularnej sesji USA, bez retroaktywnego przepisywania targetów | `belief_core_shadow.py`, `belief_core_verify.py`, `belief_core_live.py`, `docs/BELIEF_CORE.md` |
+| `EP-07` | Calibration | Brier, log loss, ECE/MCE, slices, drift, source diagnostics; osobne bucket-y dla horyzontów zegarowych i sesyjnych (`1S_US_SESSION` itd.) | `belief_calibration.py`, `belief_calibration_foundation.py`; rekomendacje bez silent auto-tuning |
 | `EP-08` | Read-only Belief Bridges | Dostarczają epistemic/belief state do wybranych silników w trybach kontrolowanych | WES/BRACE/SPX bridge files; wpływ decyzji zależy od konkretnego gate |
 | `EP-09` | Belief ARIS Research | Read-only badanie reprezentacji Evidence oraz prospektywne ARIS-PATTERN-1: kombinacje frozen Evidence -> późniejszy outcome, MDL gain, residual, chronological holdout/OOS | `scripts/belief_aris_shadow.py`, `scripts/belief_aris_pattern.py`, `docs/BELIEF_ARIS_SHADOW.md`, `docs/BELIEF_ARIS_PATTERN.md`; `research_shadow`, `ASSOCIATION_ONLY`, bez Belief/causal writeback, consumer export, decision influence i auto-promotion |
 
