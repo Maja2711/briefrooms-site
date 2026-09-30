@@ -22,6 +22,15 @@ class DecisionLabLiveRefreshTests(unittest.TestCase):
             self.assertIn('deps.every(symbol=>symbol==="BTC-USD")', text, rel)
             self.assertIn('deps.every(symbol=>symbol==="EURUSD=X")', text, rel)
 
+    def test_forecast_detail_explains_session_aware_horizon_basis(self):
+        pl = (ROOT / "scripts/decision-lab.js").read_text(encoding="utf-8")
+        en = (ROOT / "scripts/decision-lab-runtime-en.js").read_text(encoding="utf-8")
+        self.assertIn("US_REGULAR_SESSION_EQUIVALENT", pl)
+        self.assertIn("ekwiwalent regularnej sesji USA", pl)
+        self.assertIn("referencja zegarowa", pl)
+        self.assertIn("US regular-session equivalent", en)
+        self.assertIn("clock reference", en)
+
     def test_open_forecast_after_target_is_shown_as_waiting_for_t1(self):
         pl = (ROOT / "scripts/decision-lab.js").read_text(encoding="utf-8")
         en = (ROOT / "scripts/decision-lab-runtime-en.js").read_text(encoding="utf-8")

@@ -115,13 +115,18 @@ def build_payload(state, report, closed_loop=None, evolution_controller=None):
             "settlement_rule": (f.get("metadata") or {}).get("settlement_rule"),
             "settlement_max_delay_hours": (f.get("metadata") or {}).get("settlement_max_delay_hours"),
             "market_calendar": (f.get("metadata") or {}).get("market_calendar"),
+            "horizon_basis": (f.get("metadata") or {}).get("research_horizon_basis"),
+            "elapsed_nominal_target_at": (f.get("metadata") or {}).get("elapsed_nominal_target_at"),
+            "session_equivalent_count": (f.get("metadata") or {}).get("session_equivalent_count"),
+            "calibration_horizon_bucket": (f.get("metadata") or {}).get("calibration_horizon_bucket"),
             "t1_values": (f.get("metadata") or {}).get("t1_values"),
             "settled_at": (f.get("metadata") or {}).get("settled_at"),
             "production_write_authority": False,
             "automatic_promotion": False,
         }
 
-    multi = [f for f in control_forecasts if (f.get("metadata") or {}).get("multihorizon_contract") == "decision-lab-multihorizon-v1"]
+    multi_contracts = {"decision-lab-multihorizon-v1", "decision-lab-multihorizon-v2-session-aware"}
+    multi = [f for f in control_forecasts if (f.get("metadata") or {}).get("multihorizon_contract") in multi_contracts]
     primary = [f for f in multi if (f.get("metadata") or {}).get("primary_research_horizon")]
     legacy = [f for f in control_forecasts if f not in multi]
     display_source = primary + legacy
@@ -146,7 +151,9 @@ def build_payload(state, report, closed_loop=None, evolution_controller=None):
             continue
         label = horizon_label(f)
         by_h.setdefault(label, []).append(float(v.get("brier_score")))
-    for label in ("3H","12H","24H","3D","5D"):
+    horizon_order = ("3H","12H","24H","3D","5D","0.125S","0.5S","1S","3S","5S")
+    labels = [x for x in horizon_order if x in by_h] + sorted(x for x in by_h if x not in horizon_order)
+    for label in labels:
         vals = by_h.get(label, [])
         horizon_stats.append({"horizon":label, "n":len(vals), "mean_brier":None if not vals else round(sum(vals)/len(vals),6)})
 

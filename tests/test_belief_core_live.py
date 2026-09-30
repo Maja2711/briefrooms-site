@@ -19,10 +19,12 @@ from belief_core_live import (  # noqa: E402
     POLICY_OUTPUT_ENABLED,
     TRADE_EXECUTION_ENABLED,
     Bar,
+    advance_us_regular_session_equivalent,
     due_planned_slot,
     evaluate_spec,
     floor_half_hour,
     forecast_contract_metadata,
+    horizon_target_plan,
     next_weekday_close,
     production_probability,
     run_cycle,
@@ -96,6 +98,37 @@ class BeliefCoreLiveTest(unittest.TestCase):
         self.assertTrue(due_planned_slot(datetime(2026,8,18,16,19,tzinfo=NY),close,False))
         self.assertTrue(due_planned_slot(datetime(2026,8,18,16,20,tzinfo=NY),close,False))
         self.assertFalse(due_planned_slot(datetime(2026,8,18,16,21,tzinfo=NY),close,False))
+
+    def test_us_session_equivalent_24h_targets_next_session_same_phase(self) -> None:
+        late=datetime(2026,9,28,16,3,30,tzinfo=NY)
+        target=advance_us_regular_session_equivalent(late,24)
+        self.assertEqual(target.date().isoformat(),"2026-09-29")
+        self.assertEqual(target.time(),time(16,0))
+
+        midday=datetime(2026,9,28,13,3,tzinfo=NY)
+        target=advance_us_regular_session_equivalent(midday,24)
+        self.assertEqual(target.date().isoformat(),"2026-09-29")
+        self.assertEqual(target.time(),time(13,3))
+
+    def test_us_session_equivalent_skips_weekend(self) -> None:
+        friday=datetime(2026,10,2,16,3,tzinfo=NY)
+        target=advance_us_regular_session_equivalent(friday,24)
+        self.assertEqual(target.weekday(),0)
+        self.assertEqual(target.date().isoformat(),"2026-10-05")
+        self.assertEqual(target.time(),time(16,0))
+
+    def test_horizon_target_plan_separates_clock_and_us_session_contracts(self) -> None:
+        when=datetime(2026,9,28,16,3,30,tzinfo=NY)
+        btc=horizon_target_plan({"kind":"price_above","symbol":"BTC-USD","reference":1.0},when,24)
+        uup=horizon_target_plan({"kind":"value_below","symbol":"UUP","reference":1.0,"threshold":1.0},when,24)
+        self.assertEqual(btc["basis"],"ELAPSED_TIME")
+        self.assertEqual(btc["label"],"24H")
+        self.assertEqual(btc["target"],when+timedelta(hours=24))
+        self.assertEqual(uup["basis"],"US_REGULAR_SESSION_EQUIVALENT")
+        self.assertEqual(uup["label"],"1S")
+        self.assertEqual(uup["calibration_bucket"],"1S_US_SESSION")
+        self.assertEqual(uup["target"].astimezone(NY).time(),time(16,0))
+        self.assertEqual(uup["session_equivalent_count"],1.0)
 
     def test_global_production_overlay_is_applied_without_touching_raw_control(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
