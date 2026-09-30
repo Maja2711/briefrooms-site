@@ -158,6 +158,20 @@ The auditor checks:
 
 Forecast IDs are deterministic and immutable. Re-running the same shadow observation is idempotent; attempting to reuse the ID for different content fails.
 
+### Session-aware target contract
+
+Prospective WES/Decision LAB forecasts now distinguish the clock used by the outcome instrument:
+
+- BTC-only and EUR/USD-only outcome contracts use **elapsed time** (`3H`, `12H`, `24H`, `3D`, `5D`).
+- Outcome contracts that require US regular-session instruments such as `UUP`, `TLT`, `HYG`, `LQD`, `SPY`, `RSP`, `IWM` or `^VIX` use **US regular-session equivalents**.
+- One declared `24H` horizon maps to **one 6.5-hour regular US session (`1S`)** at the same market phase where possible; `72H -> 3S`, `120H -> 5S`, while shorter horizons map proportionally (`3H -> 0.125S`, `12H -> 0.5S`).
+- Overnight and weekend closed time is not counted as outcome time for session-based contracts. A run a few minutes after 16:00 New York is anchored to the 16:00 close, so a one-session forecast targets the next regular-session close rather than the following day's open.
+- The elapsed-time reference target is retained in metadata for audit, while the immutable `target_at` is the session-aware contract target.
+- Calibration uses a separate declared bucket such as `1S_US_SESSION`; session-based outcomes are never pooled into the clock-based `24H` bucket.
+- Existing frozen forecasts are **not rewritten**. The rule applies prospectively only.
+
+This keeps Brier/log-loss comparisons like-for-like and prevents a nominal `24H` proxy forecast from silently becoming a ~41-hour clock forecast simply because the US market was closed.
+
 `capture_all_forecasts()` freezes all current beliefs. Beliefs in the same `alternative_group` receive the same `forecast_set_id` for coherent later scoring.
 
 ## Verification
