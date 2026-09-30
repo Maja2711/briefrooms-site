@@ -15,6 +15,7 @@ on:
       - "scripts/audit_stock_trading_ui.py"
       - "scripts/stock_trading_v2_production_bridge.py"
       - "scripts/stock-trading-public.js"
+      - "scripts/stock-trading-live-refresh.js"
       - "tests/test_stock_trading_portfolio.py"
       - "tests/test_stock_trading_quote_enricher.py"
       - "tests/test_stock_trading_quote_enricher.py"
@@ -58,6 +59,7 @@ jobs:
         run: |
           python -m py_compile             scripts/stock_trading_portfolio.py             scripts/stock_trading_quote_enricher.py             scripts/stock_trading_v2_production_bridge.py             scripts/audit_stock_trading_ui.py             tests/test_stock_trading_portfolio.py             tests/test_stock_trading_quote_enricher.py             tests/test_stock_trading_v2_production_bridge.py
           node --check scripts/stock-trading-public.js
+          node --check scripts/stock-trading-live-refresh.js
 
       - name: Validate policy contract
         run: |
