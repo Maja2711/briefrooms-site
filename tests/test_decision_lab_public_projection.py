@@ -96,6 +96,53 @@ class DecisionLabProjectionTests(unittest.TestCase):
         self.assertEqual(row["t0_source"], "frozen_outcome_spec_reference")
         self.assertIsNone(row["forecast_contract_version"])
 
+    def test_session_aware_multihorizon_contract_is_public_and_separate(self):
+        forecast = {
+            "forecast_id": "uup-session-1s",
+            "entity": "BTC",
+            "belief_id": "btc.usd_environment.supportive",
+            "predicted_probability": 0.43,
+            "forecast_confidence": 0.47,
+            "forecast_at": "2026-09-28T20:03:30Z",
+            "target_at": "2026-09-29T20:00:00Z",
+            "horizon_hours": 23.941667,
+            "metadata": {
+                "multihorizon_contract": "decision-lab-multihorizon-v2-session-aware",
+                "primary_research_horizon": True,
+                "research_horizon_hours": 24,
+                "research_horizon_label": "1S",
+                "research_horizon_basis": "US_REGULAR_SESSION_EQUIVALENT",
+                "calibration_horizon_bucket": "1S_US_SESSION",
+                "elapsed_nominal_target_at": "2026-09-29T20:03:30Z",
+                "session_equivalent_count": 1.0,
+                "forecast_contract_version": "decision-lab-forecast-contract-v2",
+                "model_freeze_version": "belief-core-v2-shadow-2026-09-27",
+                "t0_at": "2026-09-28T20:03:30Z",
+                "t0_values": {"UUP": 28.69},
+                "nominal_target_at": "2026-09-29T20:00:00Z",
+                "outcome_spec": {"kind": "value_below", "symbol": "UUP", "reference": 28.69, "threshold": 28.69},
+                "market_calendar": "tradable_session_first_available",
+            },
+        }
+        payload = build_payload(
+            {
+                "forecasts": [forecast],
+                "verifications": [],
+                "definitions": [{
+                    "belief_id": "btc.usd_environment.supportive",
+                    "claim": "Broad USD conditions support BTC",
+                }],
+            },
+            {"belief_calibration": {}},
+        )
+        row = payload["forecasts"][0]
+        self.assertEqual(row["horizon_label"], "1S")
+        self.assertEqual(row["horizon_basis"], "US_REGULAR_SESSION_EQUIVALENT")
+        self.assertEqual(row["elapsed_nominal_target_at"], "2026-09-29T20:03:30Z")
+        self.assertEqual(row["session_equivalent_count"], 1.0)
+        self.assertEqual(row["calibration_horizon_bucket"], "1S_US_SESSION")
+        self.assertEqual(payload["multihorizon_paths"][0]["horizons"][0]["horizon_label"], "1S")
+
     def test_v3_candidate_forecasts_are_isolated_from_v2_metrics_and_market_view(self):
         candidate = {
             "forecast_id": "v3-open",
