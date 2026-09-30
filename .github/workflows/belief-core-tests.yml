@@ -83,6 +83,7 @@ jobs:
       - name: Run Belief Core unit tests
         run: |
           python -m unittest discover -s tests -p 'test_belief_core*.py' -v
-          python -m unittest tests.test_decision_lab_live_refresh tests.test_decision_lab_public_projection -v
+          python -m unittest tests.test_decision_lab_live_refresh -v
+          PYTHONPATH=scripts python -m unittest discover -s tests -p 'test_decision_lab_public_projection.py' -v
           python -m unittest tests.test_belief_geopolitical_forecast_adapter -v
           python -m unittest tests.test_learning_ledger tests.test_learning_outcome_loop -v
