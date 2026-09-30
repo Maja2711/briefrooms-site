@@ -96,7 +96,9 @@
 
   function domPendingSymbol(market) {
     const panel = document.getElementById(`str-market-${market.toLowerCase()}`);
-    const node = panel && panel.querySelector('[data-pending-symbol]');
+    const detailNode = panel && panel.querySelector('[data-pending-symbol]');
+    const overviewNode = root.querySelector(`.str-overview-position[data-summary-market="${market}"][data-pending-symbol]`);
+    const node = detailNode || overviewNode;
     return String(node && node.dataset.pendingSymbol || '').toUpperCase();
   }
 
@@ -201,8 +203,20 @@
     return [...panel.querySelectorAll('.str-position:not(.str-position-empty)')];
   }
 
+  function domOverviewCards(market) {
+    return [...root.querySelectorAll(`.str-overview-position[data-summary-market="${market}"]:not(.str-overview-pending)`)];
+  }
+
+  function cardTickers(cards) {
+    return cards.map(card => String(card.querySelector('.str-company-name h3')?.textContent || '').trim().toUpperCase()).filter(Boolean);
+  }
+
   function domTickers(market) {
-    return domCards(market).map(card => String(card.querySelector('.str-company-name h3')?.textContent || '').trim().toUpperCase()).filter(Boolean);
+    return cardTickers(domCards(market));
+  }
+
+  function domOverviewTickers(market) {
+    return cardTickers(domOverviewCards(market));
   }
 
   function sameArray(a, b) {
@@ -210,10 +224,13 @@
   }
 
   function structureChanged(data, runtime) {
-    const hasPanels = document.getElementById('str-market-gpw') && document.getElementById('str-market-us');
-    if (!hasPanels) return false;
+    const hasDetailPanels = document.getElementById('str-market-gpw') || document.getElementById('str-market-us');
+    const hasOverview = root.querySelector('.str-position-overview-grid');
+    if (!hasDetailPanels && !hasOverview) return false;
     return ['GPW', 'US'].some(market => {
-      if (!sameArray(expectedTickers(data, market), domTickers(market))) return true;
+      const expected = expectedTickers(data, market);
+      const actual = hasDetailPanels ? domTickers(market) : domOverviewTickers(market);
+      if (!sameArray(expected, actual)) return true;
       return pendingSymbol(runtime, market) !== domPendingSymbol(market);
     });
   }
@@ -279,6 +296,34 @@
     card.dataset.quoteObservedAt = quote.observedAt || '';
   }
 
+  function updateOverviewCard(card, position, market) {
+    const entry = finiteNumber(position.entry ?? position.entry_price ?? position.open_price);
+    const quote = quoteFor(position);
+    const mark = quote.price;
+    const quantity = finiteNumber(position.quantity ?? position.shares ?? position.position_size);
+    const notional = finiteNumber(position.entry_notional ?? position.target_position_notional);
+    const pnl = card.querySelector('.str-overview-pnl');
+
+    if (pnl && entry !== null && entry !== 0 && mark !== null) {
+      const pct = ((mark - entry) / entry) * 100;
+      const absolute = quantity !== null
+        ? (mark - entry) * quantity
+        : notional !== null
+          ? (pct / 100) * notional
+          : null;
+      const strong = pnl.querySelector('strong');
+      const amount = pnl.querySelector('b');
+      if (strong) strong.textContent = percent(pct);
+      if (amount) amount.textContent = absolute === null
+        ? '—'
+        : `${absolute > 0 ? '+' : ''}${money(absolute, market)}`;
+      pnl.classList.remove('is-neutral', 'is-positive', 'is-negative');
+      pnl.classList.add(pct === 0 ? 'is-neutral' : pct > 0 ? 'is-positive' : 'is-negative');
+    }
+    card.dataset.quoteState = quote.state || 'REFERENCE';
+    card.dataset.quoteObservedAt = quote.observedAt || '';
+  }
+
   function updateMarketStatus(data, market, index) {
     const session = marketRow(data, market).quote_session;
     if (!session || typeof session !== 'object') return;
@@ -313,7 +358,9 @@
 
   function apply(data, runtime) {
     if (!data || typeof data !== 'object') return false;
-    if (!document.getElementById('str-market-gpw') || !document.getElementById('str-market-us')) return false;
+    const hasDetailPanels = document.getElementById('str-market-gpw') || document.getElementById('str-market-us');
+    const hasOverview = root.querySelector('.str-position-overview-grid');
+    if (!hasDetailPanels && !hasOverview) return false;
     if (structureChanged(data, runtime)) return reloadForStructure(data, runtime);
 
     ['GPW', 'US'].forEach((market, index) => {
@@ -321,6 +368,10 @@
       const cards = domCards(market);
       cards.forEach((card, cardIndex) => {
         if (positions[cardIndex]) updateCard(card, positions[cardIndex], market);
+      });
+      const overviewCards = domOverviewCards(market);
+      overviewCards.forEach((card, cardIndex) => {
+        if (positions[cardIndex]) updateOverviewCard(card, positions[cardIndex], market);
       });
       updateMarketStatus(data, market, index);
     });
