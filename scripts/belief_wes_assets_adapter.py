@@ -45,6 +45,28 @@ WES_ASSET_BELIEFS: Tuple[BeliefDefinition, ...] = (
         outcome_rule="tlt_above_reference_proxy",
     ),
     BeliefDefinition(
+        "eurusd.macro_surprise.supportive",
+        "Relative US versus euro-area macro surprise is supportive for EUR/USD into the target horizon",
+        prior_probability=.50,
+        half_life_hours=12,
+        entity="EURUSD",
+        domain="macro_surprise",
+        tags=("shared", "WES", "EURUSD", "macro"),
+        horizon_hours=24,
+        outcome_rule="eurusd_close_above_reference",
+    ),
+    BeliefDefinition(
+        "eurusd.policy_differential.supportive",
+        "Relative ECB versus Fed policy/macro pressure is supportive for EUR/USD into the target horizon",
+        prior_probability=.50,
+        half_life_hours=18,
+        entity="EURUSD",
+        domain="policy_differential",
+        tags=("shared", "WES", "EURUSD", "macro"),
+        horizon_hours=24,
+        outcome_rule="eurusd_close_above_reference",
+    ),
+    BeliefDefinition(
         "btc.trend.bullish",
         "BTC/USD is higher into the target horizon",
         prior_probability=.50,
@@ -109,10 +131,10 @@ def coverage_report() -> Dict[str, Any]:
             "status": "existing_full_bridge_scope",
         },
         "eurusd": {
-            "status": "partial_market_macro_proxy_coverage",
+            "status": "market_plus_macro_belief_coverage",
             "beliefs": [x for x in WES_ASSET_BELIEF_IDS if x.startswith("eurusd.")],
-            "covered": ["price_trend", "broad_usd_environment", "us_rates_pressure_proxy"],
-            "not_covered": ["ecb_policy_state", "eur_us_rate_differential", "euro_area_macro_surprise"],
+            "covered": ["price_trend", "broad_usd_environment", "us_rates_pressure_proxy", "us_eu_macro_surprise", "policy_macro_differential"],
+            "not_covered": ["market_consensus_without_explicit_provider"],
             "rate_differential_claimed": False,
         },
         "btc": {
@@ -300,6 +322,8 @@ def outcome_spec(belief_id: str, snapshot: MarketSnapshot) -> Dict[str, Any]:
         return {"kind":"value_below", "symbol":"UUP", "reference":snapshot.latest("UUP"), "threshold":snapshot.latest("UUP")}
     if belief_id == "eurusd.us_rates_pressure.supportive":
         return {"kind":"value_above", "symbol":"TLT", "reference":snapshot.latest("TLT"), "threshold":snapshot.latest("TLT")}
+    if belief_id in {"eurusd.macro_surprise.supportive", "eurusd.policy_differential.supportive"}:
+        return {"kind":"price_above", "symbol":EURUSD_SYMBOL, "reference":snapshot.latest(EURUSD_SYMBOL)}
     if belief_id == "btc.trend.bullish":
         return {"kind":"price_above", "symbol":BTC_SYMBOL, "reference":snapshot.latest(BTC_SYMBOL)}
     if belief_id == "btc.liquidity.supportive":
