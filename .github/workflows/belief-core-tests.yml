@@ -12,6 +12,7 @@ on:
       - "scripts/belief_core_live.py"
       - "scripts/decision-lab.js"
       - "scripts/decision-lab-runtime-en.js"
+      - "scripts/decision_lab_public_projection.py"
       - "scripts/belief_external_live.py"
       - "scripts/belief_geopolitical_live.py"
       - "scripts/belief_llm_interpreter.py"
@@ -21,6 +22,7 @@ on:
       - "scripts/learning_outcome_loop.py"
       - "tests/test_belief_core*.py"
       - "tests/test_decision_lab_live_refresh.py"
+      - "tests/test_decision_lab_public_projection.py"
       - "tests/test_belief_geopolitical_forecast_adapter.py"
       - "tests/test_learning_ledger.py"
       - "tests/test_learning_outcome_loop.py"
@@ -75,11 +77,12 @@ jobs:
             scripts/belief_geopolitical_live.py \
             scripts/belief_external_live.py \
             scripts/belief_core_live.py \
+            scripts/decision_lab_public_projection.py \
             scripts/learning_ledger.py \
             scripts/learning_outcome_loop.py
       - name: Run Belief Core unit tests
         run: |
           python -m unittest discover -s tests -p 'test_belief_core*.py' -v
-          python -m unittest tests.test_decision_lab_live_refresh -v
+          python -m unittest tests.test_decision_lab_live_refresh tests.test_decision_lab_public_projection -v
           python -m unittest tests.test_belief_geopolitical_forecast_adapter -v
           python -m unittest tests.test_learning_ledger tests.test_learning_outcome_loop -v
