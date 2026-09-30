@@ -282,12 +282,13 @@
     const abs = p !== null && notional !== null ? (p / 100) * notional : null;
     const clock = marketClock(market);
     const ticker = String(position.ticker || position.symbol || '—').toUpperCase();
+    const symbolKey = String(position.symbol || position.ticker || ticker).toUpperCase();
     const name = position.name || ticker;
     const score = firstNumber(position, ['entry_score','score']);
     const sector = sectorLabel(position.sector);
     const executionMode = String(position?.entry_validation?.execution_mode || '').toUpperCase();
     const runnerMode = position?.profit_runner_enabled === true || String(position?.take_profit_mode || '').toUpperCase() === 'THESIS_RUNNER_CHECKPOINT';
-    return `<article class="str-position">
+    return `<article class="str-position" data-position-symbol="${esc(symbolKey)}">
       <div class="str-position-head">
         <span class="str-market-badge">${marketFlag(market)}<b>${market === 'GPW' ? 'GPW' : 'USA'}</b></span>
         <span class="str-active-badge"><i></i>${esc(T.active)}</span>
@@ -399,8 +400,9 @@
     const p = entry !== null && mark !== null && entry !== 0 ? ((mark - entry) / entry) * 100 : null;
     const abs = p !== null && notional !== null ? (p / 100) * notional : null;
     const ticker = String(position.ticker || position.symbol || '—').toUpperCase();
+    const symbolKey = String(position.symbol || position.ticker || ticker).toUpperCase();
     const name = position.name || ticker;
-    return `<article class="str-overview-position" data-summary-market="${market}">
+    return `<article class="str-overview-position" data-summary-market="${market}" data-position-symbol="${esc(symbolKey)}">
       <div class="str-overview-position-head">
         <span class="str-market-badge">${marketFlag(market)}<b>${market === 'GPW' ? 'GPW' : 'USA'}</b></span>
         <span class="str-active-badge"><i></i>${esc(T.active)}</span>
