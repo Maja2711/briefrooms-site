@@ -76,7 +76,22 @@ class DailyWESAssetShadowTests(unittest.TestCase):
             self.assertTrue(all(f.belief_id.startswith("spx.") for f in shared))
             self.assertEqual(len(assets), 35)
             self.assertEqual({f.belief_id for f in assets}, set(WES_ASSET_BELIEF_IDS))
-            self.assertEqual(sorted({f.horizon_hours for f in assets}), [3.0, 12.0, 24.0, 72.0, 120.0])
+            btc_clock = [f for f in assets if f.belief_id == "btc.trend.bullish"]
+            self.assertEqual(
+                sorted(f.metadata["research_horizon_label"] for f in btc_clock),
+                ["12H","24H","3D","3H","5D"],
+            )
+            self.assertTrue(all(f.metadata["research_horizon_basis"] == "ELAPSED_TIME" for f in btc_clock))
+
+            btc_proxy = [f for f in assets if f.belief_id == "btc.liquidity.supportive"]
+            self.assertEqual(
+                sorted(f.metadata["research_horizon_label"] for f in btc_proxy),
+                ["0.125S","0.5S","1S","3S","5S"],
+            )
+            self.assertTrue(all(f.metadata["research_horizon_basis"] == "US_REGULAR_SESSION_EQUIVALENT" for f in btc_proxy))
+            primary_proxy = next(f for f in btc_proxy if f.metadata["primary_research_horizon"])
+            self.assertEqual(primary_proxy.metadata["research_horizon_label"], "1S")
+            self.assertEqual(primary_proxy.metadata["calibration_horizon_bucket"], "1S_US_SESSION")
 
             retry = run_cycle(state_dir, now, client)
             self.assertEqual(retry["shared_forecasts_frozen"], 0)
