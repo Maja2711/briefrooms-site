@@ -2,6 +2,7 @@
 """Viewport regression audit for the public Stock Trading room."""
 from __future__ import annotations
 
+import copy
 import json
 from pathlib import Path
 
@@ -30,6 +31,31 @@ def canonical_open_symbols(market: str) -> list[str]:
         if symbol:
             symbols.append(symbol)
     return symbols
+
+
+def parse_percent_text(value: str) -> float:
+    normalized = (
+        str(value)
+        .replace("\u00a0", "")
+        .replace(" ", "")
+        .replace("+", "")
+        .replace("%", "")
+        .replace(",", ".")
+    )
+    return float(normalized)
+
+
+def open_positions_from_payload(payload: dict, market: str) -> list[dict]:
+    positions = ((payload.get("markets") or {}).get(market) or {}).get("open_positions") or []
+    return [
+        position
+        for position in positions
+        if isinstance(position, dict) and str(position.get("status") or "OPEN").upper() == "OPEN"
+    ]
+
+
+def position_key(position: dict) -> str:
+    return str(position.get("symbol") or position.get("ticker") or "").strip().upper()
 
 
 def visible_count(page, selector: str) -> int:
@@ -70,11 +96,60 @@ def run() -> int:
     SHOT_DIR.mkdir(parents=True, exist_ok=True)
     rows: list[dict] = []
     failures: list[str] = []
+    portfolio_payload = json.loads(PORTFOLIO_PATH.read_text(encoding="utf-8"))
     expected_us_symbols = canonical_open_symbols("US")
     expected_us_count = len(expected_us_symbols)
     with sync_playwright() as pw:
         browser = pw.chromium.launch()
         try:
+            # Regression: overview must refresh current_mark without opening the detailed tickets.
+            refresh_target = None
+            for market in ("GPW", "US"):
+                positions = open_positions_from_payload(portfolio_payload, market)
+                if positions:
+                    refresh_target = (market, positions[0])
+                    break
+            if refresh_target:
+                market, target_position = refresh_target
+                key = position_key(target_position)
+                entry = float(target_position.get("entry") or target_position.get("entry_price") or target_position.get("open_price") or 0)
+                if key and entry > 0:
+                    page = browser.new_page(viewport={"width": 1600, "height": 900})
+                    calls = {"portfolio": 0}
+
+                    def route_portfolio(route):
+                        calls["portfolio"] += 1
+                        payload = copy.deepcopy(portfolio_payload)
+                        if calls["portfolio"] >= 2:
+                            for candidate in open_positions_from_payload(payload, market):
+                                if position_key(candidate) != key:
+                                    continue
+                                mark = dict(candidate.get("current_mark") or {})
+                                mark["price"] = entry * 1.10
+                                candidate["current_mark"] = mark
+                                break
+                        route.fulfill(
+                            status=200,
+                            content_type="application/json",
+                            body=json.dumps(payload, ensure_ascii=False),
+                        )
+
+                    try:
+                        page.route("**/data/investments/stock_trading_portfolio.json*", route_portfolio)
+                        page.goto(BASE + PAGES["pl"], wait_until="domcontentloaded", timeout=30000)
+                        selector = f'.str-overview-position[data-summary-market="{market}"][data-position-symbol="{key}"]'
+                        page.wait_for_selector(selector, timeout=15000)
+                        page.wait_for_timeout(1800)
+                        displayed = parse_percent_text(page.locator(selector).locator(".str-overview-pnl strong").inner_text())
+                        if calls["portfolio"] < 2:
+                            failures.append("live-refresh-overview: refresher did not request a second portfolio snapshot")
+                        if abs(displayed - 10.0) > 0.02:
+                            failures.append(
+                                f"live-refresh-overview: {key} expected +10.00% from refreshed current_mark, got {displayed:.2f}%"
+                            )
+                    finally:
+                        page.close()
+
             for language, path in PAGES.items():
                 for width, height in VIEWPORTS:
                     page = browser.new_page(viewport={"width": width, "height": height})
@@ -121,6 +196,27 @@ def run() -> int:
                                 card_text = card.inner_text()
                                 if "5" not in card_text or "000" not in card_text:
                                     failures.append(f"{label}: {symbol} overview does not show 5K notional")
+
+                        # Every overview P&L must use current_mark.price when available.
+                        for market in ("GPW", "US"):
+                            for position in open_positions_from_payload(portfolio_payload, market):
+                                key = position_key(position)
+                                current_mark = position.get("current_mark") if isinstance(position.get("current_mark"), dict) else {}
+                                mark = current_mark.get("price")
+                                entry = position.get("entry") or position.get("entry_price") or position.get("open_price")
+                                if not key or mark is None or entry in (None, 0):
+                                    continue
+                                expected_pct = ((float(mark) - float(entry)) / float(entry)) * 100.0
+                                selector = f'.str-overview-position[data-summary-market="{market}"][data-position-symbol="{key}"]'
+                                card = page.locator(selector)
+                                if card.count() != 1:
+                                    failures.append(f"{label}: overview identity card missing for {key}")
+                                    continue
+                                displayed_pct = parse_percent_text(card.locator(".str-overview-pnl strong").inner_text())
+                                if abs(displayed_pct - expected_pct) > 0.02:
+                                    failures.append(
+                                        f"{label}: {key} overview uses stale mark: expected {expected_pct:.2f}%, got {displayed_pct:.2f}%"
+                                    )
 
                         summary_widths = card_widths(page, ".str-overview-position")
                         if summary_widths and min(summary_widths) < 300:
