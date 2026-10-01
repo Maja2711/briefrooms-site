@@ -46,24 +46,17 @@ jobs:
           const rows = JSON.parse(fs.readFileSync("/tmp/wrangler-secrets.json", "utf8"));
           const names = new Set((Array.isArray(rows) ? rows : []).map((x) => String(x?.name || "")));
           const missing = ["VAPID_PRIVATE_KEY", "VAPID_PUBLIC_KEY"].filter((name) => !names.has(name));
-          fs.writeFileSync("/tmp/vapid-missing.txt", missing.join("\n"));
-          if (missing.length) {
-            console.log("Missing VAPID secrets:", missing.join(", "));
-            process.exitCode = 2;
-          } else {
-            console.log("Existing VAPID keys detected and preserved.");
-          }
+          fs.writeFileSync("/tmp/vapid-missing.json", JSON.stringify(missing));
+          console.log(missing.length ? `Missing VAPID secrets: ${missing.join(", ")}` : "Existing VAPID keys detected and preserved.");
           NODE
-          status=$?
-          if [ "$status" -eq 2 ]; then
+          missing_count="$(node -p "JSON.parse(require('fs').readFileSync('/tmp/vapid-missing.json','utf8')).length")"
+          if [ "$missing_count" -gt 0 ]; then
             npx web-push generate-vapid-keys --json > /tmp/vapid.json
             PUB="$(node -p "JSON.parse(require('fs').readFileSync('/tmp/vapid.json','utf8')).publicKey")"
             PRIV="$(node -p "JSON.parse(require('fs').readFileSync('/tmp/vapid.json','utf8')).privateKey")"
             printf '%s' "$PUB" | npx wrangler secret put VAPID_PUBLIC_KEY
             printf '%s' "$PRIV" | npx wrangler secret put VAPID_PRIVATE_KEY
             echo "VAPID keys created once because one or both were genuinely missing."
-          elif [ "$status" -ne 0 ]; then
-            exit "$status"
           fi
       - name: Redeploy after secret verification
         working-directory: workers/trading-push
