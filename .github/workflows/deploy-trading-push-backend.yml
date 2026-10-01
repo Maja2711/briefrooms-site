@@ -1,0 +1,56 @@
+name: Deploy Trading Push Backend
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "workers/trading-push/**"
+      - ".github/workflows/deploy-trading-push-backend.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Require Cloudflare credentials
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "Missing CLOUDFLARE_API_TOKEN"; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "Missing CLOUDFLARE_ACCOUNT_ID"; exit 1; }
+      - name: Install backend dependencies
+        working-directory: workers/trading-push
+        run: npm install --no-audit --no-fund
+      - name: Validate backend
+        working-directory: workers/trading-push
+        run: npm run check
+      - name: Deploy Worker and Durable Object
+        working-directory: workers/trading-push
+        run: npx wrangler deploy
+      - name: Bootstrap VAPID secrets once
+        working-directory: workers/trading-push
+        run: |
+          set -euo pipefail
+          names="$(npx wrangler secret list --json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s); console.log(j.map(x=>x.name).join("\n"))})')"
+          if ! grep -qx "VAPID_PRIVATE_KEY" <<<"$names" || ! grep -qx "VAPID_PUBLIC_KEY" <<<"$names"; then
+            npx web-push generate-vapid-keys --json > /tmp/vapid.json
+            PUB="$(node -p "JSON.parse(require('fs').readFileSync('/tmp/vapid.json','utf8')).publicKey")"
+            PRIV="$(node -p "JSON.parse(require('fs').readFileSync('/tmp/vapid.json','utf8')).privateKey")"
+            printf '%s' "$PUB" | npx wrangler secret put VAPID_PUBLIC_KEY
+            printf '%s' "$PRIV" | npx wrangler secret put VAPID_PRIVATE_KEY
+            echo "VAPID keys created in Cloudflare Worker secrets."
+          else
+            echo "Existing VAPID keys preserved."
+          fi
+      - name: Redeploy after secret bootstrap
+        working-directory: workers/trading-push
+        run: npx wrangler deploy
