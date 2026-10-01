@@ -227,42 +227,86 @@ def _eurusd_abc(root: Path) -> dict[str, Any]:
 def _eurusd_x(root: Path) -> dict[str, Any]:
     src = "data/investments/eurusd_x_public_pl.json"
     data = _load(root, src)
+
+    # Current EURUSD X public schema (eurusd-x-public-pl-v1) stores the
+    # champion and its prospective 4h calibration sample in top-level fields
+    # plus setups[]. Keep the legacy adaptive_layer/performance fallback so the
+    # registry remains backward-compatible with older X artifacts.
     adaptive = data.get("adaptive_layer") if isinstance(data.get("adaptive_layer"), Mapping) else {}
-    champion = adaptive.get("champion") if isinstance(adaptive.get("champion"), Mapping) else {}
-    challenger = adaptive.get("challenger") if isinstance(adaptive.get("challenger"), Mapping) else {}
+    legacy_champion = adaptive.get("champion") if isinstance(adaptive.get("champion"), Mapping) else {}
+    legacy_challenger = adaptive.get("challenger") if isinstance(adaptive.get("challenger"), Mapping) else {}
     performance = data.get("performance") if isinstance(data.get("performance"), Mapping) else {}
-    champion_perf = performance.get("champion") if isinstance(performance.get("champion"), Mapping) else {}
-    sample = data.get("sample") if isinstance(data.get("sample"), Mapping) else {}
-    n = _int(champion_perf.get("n")) or 0
+    legacy_champion_perf = performance.get("champion") if isinstance(performance.get("champion"), Mapping) else {}
+    legacy_sample = data.get("sample") if isinstance(data.get("sample"), Mapping) else {}
+
+    champion_id = str(data.get("champion_setup_id") or legacy_champion.get("version") or "X-BASE")
+    challenger_id = str(data.get("active_challenger_id") or legacy_challenger.get("version") or "") or None
+    setups = data.get("setups") if isinstance(data.get("setups"), list) else []
+    champion_setup = next(
+        (
+            item
+            for item in setups
+            if isinstance(item, Mapping) and str(item.get("setup_id") or "") == champion_id
+        ),
+        {},
+    )
+
+    resolved_4h = _int(data.get("resolved_4h"))
+    n = _int(champion_setup.get("n"))
+    if n is None:
+        n = _int(legacy_champion_perf.get("n"))
+    if n is None:
+        n = resolved_4h or 0
+
+    captures = _int(data.get("capture_count"))
+    if captures is None:
+        captures = _int(legacy_sample.get("captures"))
+    resolved = resolved_4h
+    if resolved is None:
+        resolved = _int(legacy_sample.get("resolved"))
+
     minimum = 30
     row = _base(
         experiment_id="eurusd-x-adaptive-shadow",
         name="EURUSD X Adaptive Shadow",
         category="trading",
         family="EURUSD",
-        version=str(champion.get("version") or "X-001"),
+        version=str(data.get("engine_version") or legacy_champion.get("version") or "X-001"),
         started_at=_iso(data.get("generated_at")),
         minimum_sample=minimum,
         purpose="Szybko kalibrowany EUR/USD shadow challenger ze stałym core technicznym, BRs Belief Core, wersjonowanymi eksperymentalnymi dodatkami i automatycznym rollbackiem do ostatniego Championa.",
         source=src,
     )
     row["sample_count"] = n
-    row["sample_unit"] = "resolved_champion_trades"
+    row["sample_unit"] = "resolved_champion_4h_outcomes"
     row["last_updated"] = _iso(data.get("generated_at"))
     row["status"] = "RUNNING" if n >= minimum else "INSUFFICIENT_DATA"
-    row["primary_metric"] = _metric(
-        "Profit factor netto Championa",
-        _float(champion_perf.get("profit_factor")),
-        "ratio",
-        "Wynik po stałym koszcie 2 pips round-trip; do oceny wymagane są również expectancy, hit rate i stabilność kalibracji.",
-    )
+
+    champion_brier = _float(champion_setup.get("brier"))
+    if champion_brier is not None:
+        row["primary_metric"] = _metric(
+            "Brier Championa (4h)",
+            champion_brier,
+            "score",
+            "Niższy Brier jest lepszy; liczony na prospektywnie rozstrzygniętych prognozach Championa dla horyzontu 4h.",
+        )
+    else:
+        row["primary_metric"] = _metric(
+            "Profit factor netto Championa",
+            _float(legacy_champion_perf.get("profit_factor")),
+            "ratio",
+            "Legacy EURUSD X metric; używana tylko dla starszego schematu publicznego.",
+        )
+
     row["details"] = {
-        "captures": _int(sample.get("captures")),
-        "resolved": _int(sample.get("resolved")),
-        "champion": champion.get("version"),
-        "challenger": challenger.get("version"),
-        "expectancy_pips": _float(champion_perf.get("expectancy_pips")),
-        "hit_rate": _float(champion_perf.get("hit_rate")),
+        "captures": captures,
+        "resolved": resolved,
+        "champion": champion_id,
+        "challenger": challenger_id,
+        "brier": champion_brier,
+        "hit_rate": _float(champion_setup.get("hit_rate")) if champion_setup else _float(legacy_champion_perf.get("hit_rate")),
+        "mean_signed_return_bps": _float(champion_setup.get("mean_signed_return_bps")),
+        "signal_n": _int(champion_setup.get("signal_n")),
         "calibration_block_resolved": _int(adaptive.get("calibration_block_resolved")),
         "rollback": adaptive.get("rollback"),
         "fixed_core": data.get("fixed_core"),
