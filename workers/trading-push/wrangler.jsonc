@@ -1,0 +1,29 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "briefrooms-trading-push",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "triggers": {
+    "crons": ["* * * * *"]
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "PUSH_HUB",
+        "class_name": "PushHub"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["PushHub"]
+    }
+  ],
+  "vars": {
+    "VAPID_SUBJECT": "https://briefrooms.com",
+    "EVENT_FEED_URL": "https://raw.githubusercontent.com/Maja2711/briefrooms-site/main/data/notifications/trading-events.json",
+    "ALLOWED_ORIGINS": "https://briefrooms.com,https://www.briefrooms.com"
+  }
+}
