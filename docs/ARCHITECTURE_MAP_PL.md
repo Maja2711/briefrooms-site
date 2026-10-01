@@ -1,6 +1,6 @@
 # Kanoniczna mapa architektury BriefRooms — PL
 
-**Wersja mapy:** 1.14  
+**Wersja mapy:** 1.15  
 **Stan na:** 2026-10-01  
 **Bazowy commit `main`:** `2fa9fd1a9636c995caaa1a6db681ff20148cbb2f`  
 **Repozytorium:** `Maja2711/briefrooms-site`
@@ -480,4 +480,4 @@ Najważniejsze dokumenty szczegółowe użyte do budowy i utrzymania aktualnej m
 |---|---|---|---|
 | `NT-01` | Trading Notifications | Read-only projekcja zmian stanu pozycji do eventów OPEN/CLOSE oraz preferencji użytkownika | `scripts/build_trading_notification_events.py`, `scripts/trading-notifications.js`, `br-trading-sw.js`, `data/notifications/*`, `docs/TRADING_NOTIFICATIONS_PL.md` / `_EN.md`; **zero execution/decision/risk authority** |
 
-`NT-01` czyta wyłącznie już zapisane stany `TR-03`, `TR-04` i `TR-05`. Nie może wywoływać lifecycle, tworzyć filli, modyfikować pozycji ani wpływać na modele. Pierwszy run seeduje stan bez emisji historycznych alertów; później deterministycznie emituje tylko zmiany `OPEN` / `CLOSE`. Konfiguracja dostępu od początku przewiduje `PUBLIC | AUTHENTICATED | PAID`. GitHub Pages pozostaje frontendem; pełny Web Push w tle i agregowane Notification Analytics wymagają osobnego bezpiecznego backendu subskrypcji.
+`NT-01` czyta wyłącznie już zapisane stany `TR-03`, `TR-04` i `TR-05`. Nie może wywoływać lifecycle, tworzyć filli, modyfikować pozycji ani wpływać na modele. Pierwszy run seeduje stan bez emisji historycznych alertów; później deterministycznie emituje tylko zmiany `OPEN` / `CLOSE`. Konfiguracja dostępu przewiduje `PUBLIC | AUTHENTICATED | PAID`. Background Web Push obsługuje odseparowany Cloudflare Worker z Durable Object; prywatny VAPID pozostaje w Worker Secrets.
