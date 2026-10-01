@@ -84,6 +84,12 @@
     const rawData = atob(base64);
     return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)));
   }
+  function sameBytes(a, b) {
+    if (!a || !b || a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i += 1) if (a[i] !== b[i]) return false;
+    return true;
+  }
+
 
   async function getRegistration() {
     if (!("serviceWorker" in navigator)) return null;
@@ -103,11 +109,31 @@
     const keyPayload = await keyResponse.json();
     if (!keyPayload.publicKey) throw new Error("vapid_key_missing");
 
+    const expectedKey = urlBase64ToUint8Array(keyPayload.publicKey);
     let subscription = await registration.pushManager.getSubscription();
+
+    // A PushSubscription is cryptographically bound to the VAPID/applicationServerKey
+    // used when it was created. If the backend key changed in the past, silently repair
+    // the device instead of leaving it subscribed with an unusable endpoint.
+    if (subscription?.options?.applicationServerKey) {
+      const currentKey = new Uint8Array(subscription.options.applicationServerKey);
+      if (!sameBytes(currentKey, expectedKey)) {
+        try {
+          await fetch(push.api_base.replace(/\/$/, "") + "/unsubscribe", {
+            method: "DELETE",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ endpoint: subscription.endpoint }),
+          });
+        } catch (_) {}
+        try { await subscription.unsubscribe(); } catch (_) {}
+        subscription = null;
+      }
+    }
+
     if (!subscription) {
       subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(keyPayload.publicKey),
+        applicationServerKey: expectedKey,
       });
     }
 
@@ -121,6 +147,14 @@
       }),
     });
     if (!response.ok) throw new Error("push_subscribe_failed");
+    const server = await response.json().catch(() => ({}));
+    try {
+      localStorage.setItem("brTradingPushDeviceV1", JSON.stringify({
+        id: server.id || null,
+        endpoint_hash_known: Boolean(server.id),
+        synced_at: new Date().toISOString(),
+      }));
+    } catch (_) {}
     return subscription;
   }
 
