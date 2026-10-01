@@ -7,6 +7,7 @@ historical notifications.
 """
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 from datetime import datetime, timezone
@@ -206,6 +207,9 @@ def build_events(previous: dict[str, Any], current: dict[str, Any]) -> list[dict
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--new-events-output", default=None)
+    args = parser.parse_args()
     previous = read_json(STATE_PATH, {"initialized": False, "engines": {}})
     current = current_state()
     new_events = build_events(previous, current)
@@ -221,6 +225,12 @@ def main() -> int:
             existing_ids.add(event["event_id"])
 
     history = history[-MAX_EVENTS:]
+    if args.new_events_output:
+        Path(args.new_events_output).write_text(
+            json.dumps(new_events, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+
     changed_state = write_json_if_changed(STATE_PATH, current)
     changed_events = write_json_if_changed(EVENTS_PATH, {
         "schema_version": EVENTS_SCHEMA,
