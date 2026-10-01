@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.gse_v2_public_lab_projection import build_projection, event_threat_projection, improvement_pct
+from scripts.gse_v2_public_lab_projection import asset_outlook_projection, build_projection, event_threat_projection, improvement_pct
 
 
 class GSEV2PublicLabProjectionTests(unittest.TestCase):
@@ -110,6 +110,58 @@ class GSEV2PublicLabProjectionTests(unittest.TestCase):
             self.assertNotIn("supporting_evidence_ids", json.dumps(out))
             self.assertNotIn("private-e1", json.dumps(out))
             self.assertFalse(out["raw_evidence_exposed"])
+
+
+    def test_spx_asset_outlook_uses_latest_candidate_per_horizon_and_is_sanitized(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            rows = [
+                {
+                    "candidate_id": "private-old",
+                    "baseline_forecast_id": "private-old-forecast",
+                    "asset": "SPX",
+                    "symbol": "SPY",
+                    "forecast_at": "2026-01-04T06:00:00Z",
+                    "target_at": "2026-01-05T06:00:00Z",
+                    "horizon_hours": 24,
+                    "direction": -1,
+                    "baseline_v1_probability": 0.61,
+                    "v2_regime_candidate_probability": 0.63,
+                    "epistemic_confidence": 0.70,
+                    "effective_cluster_n": 9,
+                    "scenario_diagnostics": [{"scenario_type": "sanctions_escalation", "neighbours": [{"event_id": "private-e1"}]}],
+                },
+                {
+                    "candidate_id": "private-new",
+                    "baseline_forecast_id": "private-new-forecast",
+                    "asset": "SPX",
+                    "symbol": "SPY",
+                    "forecast_at": "2026-01-04T12:00:00Z",
+                    "target_at": "2026-02-03T12:00:00Z",
+                    "horizon_hours": 720,
+                    "direction": -1,
+                    "baseline_v1_probability": 0.70,
+                    "v2_regime_candidate_probability": 0.66,
+                    "epistemic_confidence": 0.91,
+                    "effective_cluster_n": 27,
+                    "scenario_diagnostics": [{"scenario_type": "middle_east_energy_escalation", "neighbours": [{"event_id": "private-e2"}]}],
+                },
+            ]
+            (root / "gse_v2_regime_forecasts.jsonl").write_text("\n".join(json.dumps(row) for row in rows) + "\n")
+            out = asset_outlook_projection(root, "SPX", generated_at="2026-01-04T13:00:00Z")
+            self.assertEqual(out["asset"], "SPX")
+            self.assertEqual(out["primary_horizon"]["horizon_label"], "30d")
+            self.assertEqual(out["primary_horizon"]["direction"], "DOWN")
+            self.assertEqual(out["primary_horizon"]["probability"], 0.66)
+            self.assertEqual(out["primary_horizon"]["freshness"], "fresh")
+            self.assertEqual(out["primary_horizon"]["effective_cluster_n"], 27)
+            self.assertTrue(out["research_only"])
+            self.assertFalse(out["decision_influence"])
+            payload = json.dumps(out)
+            self.assertNotIn("candidate_id", payload)
+            self.assertNotIn("baseline_forecast_id", payload)
+            self.assertNotIn("private-e2", payload)
+            self.assertNotIn("neighbours", payload)
 
 
     def test_featured_thesis_uses_latest_frozen_candidate_and_stays_sanitized(self):
