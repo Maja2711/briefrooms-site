@@ -194,19 +194,19 @@
       "details": {
         "arms": {
           "A": {
-            "directional_accuracy_1h": 0.5882352941176471,
-            "mean_signed_return_bps_1h": 0.4428734693877551,
-            "resolved_1h": 34
-          },
-          "B": {
-            "directional_accuracy_1h": 0.6285714285714286,
-            "mean_signed_return_bps_1h": 1.1495448979591836,
+            "directional_accuracy_1h": 0.5714285714285714,
+            "mean_signed_return_bps_1h": 0.43379200000000007,
             "resolved_1h": 35
           },
+          "B": {
+            "directional_accuracy_1h": 0.6111111111111112,
+            "mean_signed_return_bps_1h": 1.12633,
+            "resolved_1h": 36
+          },
           "C": {
-            "directional_accuracy_1h": 0.6060606060606061,
-            "mean_signed_return_bps_1h": 0.4436775510204082,
-            "resolved_1h": 33
+            "directional_accuracy_1h": 0.5882352941176471,
+            "mean_signed_return_bps_1h": 0.4345800000000001,
+            "resolved_1h": 34
           }
         },
         "captures": 151,
@@ -214,9 +214,9 @@
           "arms": {
             "A": {
               "dominant_error": "FOLLOW_THROUGH_FAILURE",
-              "episode_count": 43,
+              "episode_count": 45,
               "error_recurrence_rate": 0.526316,
-              "hit_rate": 0.55814,
+              "hit_rate": 0.577778,
               "lesson_candidate": {
                 "confidence": null,
                 "eligible": false,
@@ -225,11 +225,28 @@
                 "policy_change_proposed": false,
                 "proposed_action": null
               },
-              "mean_r": 0.230843,
+              "mean_r": 0.301003,
               "policy_stability": 1.0,
-              "recent_vs_prior_mean_r_delta": -0.37535
+              "recent_vs_prior_mean_r_delta": 0.319313
             },
             "B": {
+              "dominant_error": "FOLLOW_THROUGH_FAILURE",
+              "episode_count": 43,
+              "error_recurrence_rate": 0.529412,
+              "hit_rate": 0.604651,
+              "lesson_candidate": {
+                "confidence": null,
+                "eligible": false,
+                "error_pattern": null,
+                "policy_change_applied": false,
+                "policy_change_proposed": false,
+                "proposed_action": null
+              },
+              "mean_r": 0.370962,
+              "policy_stability": 1.0,
+              "recent_vs_prior_mean_r_delta": 0.811644
+            },
+            "C": {
               "dominant_error": "FOLLOW_THROUGH_FAILURE",
               "episode_count": 40,
               "error_recurrence_rate": 0.529412,
@@ -242,26 +259,9 @@
                 "policy_change_proposed": false,
                 "proposed_action": null
               },
-              "mean_r": 0.263141,
+              "mean_r": 0.308775,
               "policy_stability": 1.0,
-              "recent_vs_prior_mean_r_delta": -0.414146
-            },
-            "C": {
-              "dominant_error": "FOLLOW_THROUGH_FAILURE",
-              "episode_count": 38,
-              "error_recurrence_rate": 0.529412,
-              "hit_rate": 0.552632,
-              "lesson_candidate": {
-                "confidence": null,
-                "eligible": false,
-                "error_pattern": null,
-                "policy_change_applied": false,
-                "policy_change_proposed": false,
-                "proposed_action": null
-              },
-              "mean_r": 0.229792,
-              "policy_stability": 1.0,
-              "recent_vs_prior_mean_r_delta": -0.379311
+              "recent_vs_prior_mean_r_delta": 0.31462
             }
           },
           "automatic_challenger_creation": true,
@@ -271,7 +271,7 @@
           "challengers": [],
           "cross_arm_writeback": false,
           "decision_influence": false,
-          "episode_count": 121,
+          "episode_count": 128,
           "historical_backfill": false,
           "mode": "PROSPECTIVE_SHARED_LEARNING_LOOP",
           "prospective_only": true,
@@ -281,7 +281,7 @@
       },
       "family": "EURUSD",
       "id": "eurusd-abc-live-shadow",
-      "last_updated": "2026-09-30T21:25:15.647352Z",
+      "last_updated": "2026-10-01T11:27:18.541816Z",
       "max_drawdown": null,
       "minimum_sample": 40,
       "name": "EURUSD A/B/C Live Shadow",
@@ -295,11 +295,11 @@
         "interpretation": "Forecast skill; nie jest automatycznie formalną alpha ani wynikiem transakcyjnym po kosztach.",
         "label": "Najlepsza trafność kierunku 1h",
         "unit": "fraction",
-        "value": 0.6285714285714286
+        "value": 0.6111111111111112
       },
       "production_impact": false,
       "purpose": "Prospektywne porównanie trzech wariantów: technicznego, Belief-only i hybrydowego.",
-      "sample_count": 33,
+      "sample_count": 34,
       "sample_unit": "resolved_1h_comparisons_per_arm",
       "source": "data/investments/eurusd_abc_public_pl.json",
       "stage": "SHADOW",
@@ -314,12 +314,12 @@
       "category": "trading",
       "delta_vs_benchmark": null,
       "details": {
+        "brier": 0.200465,
         "calibration_block_resolved": null,
-        "captures": null,
-        "challenger": null,
-        "champion": null,
+        "captures": 22,
+        "challenger": "X-BELIEF",
+        "champion": "X-BASE",
         "discovery_layer": null,
-        "expectancy_pips": null,
         "fixed_core": {
           "bollinger": {
             "stddevs": 2.5,
@@ -352,13 +352,15 @@
           ],
           "pivot": "classic_daily_floor_P_R1_R2_R3_S1_S2_S3"
         },
-        "hit_rate": null,
-        "resolved": null,
-        "rollback": null
+        "hit_rate": 0.789474,
+        "mean_signed_return_bps": 3.6338,
+        "resolved": 21,
+        "rollback": null,
+        "signal_n": 19
       },
       "family": "EURUSD",
       "id": "eurusd-x-adaptive-shadow",
-      "last_updated": "2026-10-01T02:10:47.786401Z",
+      "last_updated": "2026-10-01T08:59:08.868545Z",
       "max_drawdown": null,
       "minimum_sample": 30,
       "name": "EURUSD X Adaptive Shadow",
@@ -368,24 +370,24 @@
         "Brak automatycznej promocji do produkcji; rollback dotyczy wyłącznie warstwy badawczej X."
       ],
       "primary_metric": {
-        "interpretation": "Wynik po stałym koszcie 2 pips round-trip; do oceny wymagane są również expectancy, hit rate i stabilność kalibracji.",
-        "label": "Profit factor netto Championa",
-        "unit": "ratio",
-        "value": null
+        "interpretation": "Niższy Brier jest lepszy; liczony na prospektywnie rozstrzygniętych prognozach Championa dla horyzontu 4h.",
+        "label": "Brier Championa (4h)",
+        "unit": "score",
+        "value": 0.200465
       },
       "production_impact": false,
       "purpose": "Szybko kalibrowany EUR/USD shadow challenger ze stałym core technicznym, BRs Belief Core, wersjonowanymi eksperymentalnymi dodatkami i automatycznym rollbackiem do ostatniego Championa.",
-      "sample_count": 0,
-      "sample_unit": "resolved_champion_trades",
+      "sample_count": 21,
+      "sample_unit": "resolved_champion_4h_outcomes",
       "source": "data/investments/eurusd_x_public_pl.json",
       "stage": "SHADOW",
-      "started_at": "2026-10-01T02:10:47.786401Z",
+      "started_at": "2026-10-01T08:59:08.868545Z",
       "status": "INSUFFICIENT_DATA",
       "system_class": "LAB",
-      "version": "X-001"
+      "version": "eurusd-x-v1.0.0"
     }
   ],
-  "generated_at": "2026-10-01T06:00:58.122917Z",
+  "generated_at": "2026-10-01T11:27:18.541816Z",
   "schema_version": "briefrooms-experiment-registry-v1",
   "status_policy": {
     "allowed": [
