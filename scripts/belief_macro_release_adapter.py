@@ -5,7 +5,12 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from belief_adapter_contract import AdapterResult, EvidenceAssessment, Observation, clamp, observation_to_evidence
-from belief_core import iso_z
+from belief_core import BeliefDefinition, iso_z
+
+MACRO_BELIEFS = (
+    BeliefDefinition("eurusd.macro_surprise.supportive","Relative US versus euro-area macro impulse is supportive for EUR/USD",prior_probability=.50,half_life_hours=12,entity="EURUSD",domain="macro_surprise",tags=("shared","WES","Daily","EURUSD","macro"),horizon_hours=24,outcome_rule="eurusd_close_above_reference"),
+    BeliefDefinition("eurusd.policy_differential.supportive","Relative ECB versus Fed policy pressure is supportive for EUR/USD",prior_probability=.50,half_life_hours=18,entity="EURUSD",domain="policy_differential",tags=("shared","WES","Daily","EURUSD","macro"),horizon_hours=24,outcome_rule="eurusd_close_above_reference"),
+)
 
 EUROSTAT_API = "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data"
 BEA_API = "https://apps.bea.gov/api/data/"
