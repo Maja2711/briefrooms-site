@@ -25,6 +25,13 @@ class ProductionParityCoverageTests(unittest.TestCase):
         }
         self.assertTrue(required.issubset(set(verify.PARITY_PATHS)))
 
+    def test_spx_house_view_pages_are_protected_by_production_parity(self) -> None:
+        required = {
+            "pl/inwestycje/spx-scenariusze-2026.html",
+            "en/investing/spx-scenarios-2026.html",
+        }
+        self.assertTrue(required.issubset(set(verify.PARITY_PATHS)))
+
 
 class ProductionParityRetryTests(unittest.TestCase):
     def test_exact_file_parity_retries_until_pages_converges(self) -> None:
