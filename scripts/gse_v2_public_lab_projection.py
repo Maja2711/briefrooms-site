@@ -224,6 +224,90 @@ def event_threat_projection(state_dir: Path) -> dict[str, Any] | None:
     }
 
 
+
+def asset_outlook_projection(
+    state_dir: Path,
+    asset: str,
+    *,
+    generated_at: str | None = None,
+    max_candidate_age_hours: float = 12.0,
+) -> dict[str, Any] | None:
+    """Expose a sanitized latest frozen GSE v2 market outlook for one asset.
+
+    Only the latest candidate per supported horizon is published. Private forecast IDs,
+    neighbours and raw evidence remain private.
+    """
+    asset = str(asset or "").strip().upper()
+    if not asset:
+        return None
+    reference_at = _parse_time(generated_at) or datetime.now(timezone.utc)
+    candidates = [
+        row for row in read_jsonl(state_dir / "gse_v2_regime_forecasts.jsonl")
+        if str(row.get("asset") or "").upper() == asset
+        and int(row.get("horizon_hours") or 0) in HORIZON_LABELS
+        and int(row.get("direction") or 0) in (-1, 1)
+        and _parse_time(row.get("forecast_at")) is not None
+    ]
+    if not candidates:
+        return None
+
+    rows: list[dict[str, Any]] = []
+    for horizon in HORIZON_LABELS:
+        horizon_rows = [row for row in candidates if int(row.get("horizon_hours") or 0) == horizon]
+        if not horizon_rows:
+            continue
+        horizon_rows.sort(
+            key=lambda row: _parse_time(row.get("forecast_at")) or datetime.min.replace(tzinfo=timezone.utc),
+            reverse=True,
+        )
+        row = horizon_rows[0]
+        probability = _num(row.get("v2_regime_candidate_probability"))
+        baseline = _num(row.get("baseline_v1_probability"))
+        if probability is None or not 0.0 <= probability <= 1.0:
+            continue
+        forecast_at = _parse_time(row.get("forecast_at"))
+        age_hours = None if forecast_at is None else max(0.0, (reference_at - forecast_at).total_seconds() / 3600.0)
+        scenario_types: list[str] = []
+        for diagnostic in row.get("scenario_diagnostics") or []:
+            name = str((diagnostic or {}).get("scenario_type") or "").strip()
+            if name and name not in scenario_types:
+                scenario_types.append(name)
+        rows.append({
+            "asset": asset,
+            "symbol": row.get("symbol"),
+            "horizon_hours": horizon,
+            "horizon_label": HORIZON_LABELS[horizon],
+            "direction": "UP" if int(row.get("direction")) > 0 else "DOWN",
+            "probability": round(float(probability), 6),
+            "baseline_v1_probability": None if baseline is None else round(float(baseline), 6),
+            "epistemic_confidence": _num(row.get("epistemic_confidence")),
+            "effective_cluster_n": int(row.get("effective_cluster_n") or 0),
+            "forecast_at": row.get("forecast_at"),
+            "target_at": row.get("target_at"),
+            "age_hours": None if age_hours is None else round(age_hours, 3),
+            "freshness": "fresh" if age_hours is not None and age_hours <= max_candidate_age_hours else "stale",
+            "scenario_types": scenario_types[:6],
+        })
+
+    if not rows:
+        return None
+    rows.sort(key=lambda row: int(row["horizon_hours"]))
+    primary = next((row for row in rows if int(row["horizon_hours"]) == 720), rows[-1])
+    return {
+        "schema_version": "gse-v2-asset-outlook-public-v1",
+        "asset": asset,
+        "generated_at": generated_at,
+        "max_candidate_age_hours": float(max_candidate_age_hours),
+        "primary_horizon": primary,
+        "horizons": rows,
+        "research_only": True,
+        "decision_influence": False,
+        "trade_execution": False,
+        "private_forecasts_exposed": False,
+        "raw_evidence_exposed": False,
+    }
+
+
 def featured_thesis_projection(
     state_dir: Path,
     config_path: Path | None,
@@ -345,6 +429,7 @@ def build_projection(state_dir: Path, catalog_path: Path, featured_thesis_config
 
     generated_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     featured_thesis = featured_thesis_projection(state_dir, featured_thesis_config, generated_at=generated_at)
+    spx_long_view = asset_outlook_projection(state_dir, "SPX", generated_at=generated_at)
     event_threat = event_threat_projection(state_dir)
     last_learning_at = latest_timestamp(row.get("recorded_at") for row in ledger)
     last_base_verification_at = latest_timestamp(row.get("verified_at") for row in base_verifications)
@@ -356,6 +441,7 @@ def build_projection(state_dir: Path, catalog_path: Path, featured_thesis_config
         "schema_version": SCHEMA_VERSION,
         "generated_at": generated_at,
         "featured_thesis": featured_thesis,
+        "spx_long_view": spx_long_view,
         "event_threat": event_threat,
         "activity": {
             "last_scan_at": last_scan_at,
@@ -435,6 +521,7 @@ def build_projection(state_dir: Path, catalog_path: Path, featured_thesis_config
             "raw_evidence_exposed": False,
             "private_forecasts_exposed": False,
             "featured_thesis_projection": True,
+            "spx_long_view_projection": True,
             "event_threat_projection": True,
             "event_threat_raw_evidence_exposed": False,
             "trade_execution": False,
