@@ -28,7 +28,6 @@ from belief_core_live import (
 from belief_llm_interpreter import GeminiEvidenceInterpreter
 from belief_macro_calendar_adapter import MacroEventCalendarAdapter
 from belief_macro_data_adapter import MacroDataAdapter
-from belief_macro_release_adapter import MACRO_BELIEFS
 from belief_news_event_adapter import NewsEventAdapter
 
 EVENT_SEEN_LIMIT = 4000
@@ -55,7 +54,7 @@ def run_external_cycle(
 
     state_dir.mkdir(parents=True, exist_ok=True)
     core = BeliefCore(state_dir)
-    core.register_beliefs(tuple(BELIEFS) + tuple(MACRO_BELIEFS))
+    core.register_beliefs(BELIEFS)
     scheduler = load_scheduler(state_dir)
 
     seen = list(scheduler.get("processed_event_observation_ids") or [])
