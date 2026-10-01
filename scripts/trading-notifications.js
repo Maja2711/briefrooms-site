@@ -25,6 +25,8 @@
     allowed: "Powiadomienia są włączone na tym urządzeniu.",
     denied: "Przeglądarka zablokowała powiadomienia. Zmień zgodę w ustawieniach witryny.",
     unsupported: "Ta przeglądarka nie obsługuje powiadomień systemowych.",
+    pushUnsupported: "To urządzenie nie obsługuje Web Push w tym trybie. Na iPhonie otwórz BriefRooms jako aplikację z ekranu początkowego.",
+    pushTestFailed: "Urządzenie zostało zapisane, ale test Web Push nie dotarł. Odnawiam subskrypcję przy kolejnym otwarciu.",
     foregroundNote: "Background Web Push może dostarczać alerty także po zamknięciu strony. Ustawienia są zapisywane dla tego urządzenia.",
     testTitle: "BriefRooms · test",
     testBody: "Powiadomienia tradingowe działają na tym urządzeniu.",
@@ -47,6 +49,8 @@
     allowed: "Notifications are enabled on this device.",
     denied: "Notifications are blocked by the browser. Change the site permission to enable them.",
     unsupported: "This browser does not support system notifications.",
+    pushUnsupported: "This device does not support Web Push in this mode. On iPhone, open BriefRooms as a Home Screen web app.",
+    pushTestFailed: "The device was saved, but the Web Push test failed. The subscription will be repaired on the next visit.",
     foregroundNote: "Background Web Push can deliver alerts even after the page is closed. Preferences are stored for this device.",
     testTitle: "BriefRooms · test",
     testBody: "Trading notifications work on this device.",
@@ -97,10 +101,28 @@
     return navigator.serviceWorker.ready;
   }
 
+  async function testBackgroundSubscription(config, subscription) {
+    const push = config?.background_push || {};
+    if (!push.enabled || !push.api_base) throw new Error("background_push_unavailable");
+    if (!subscription?.endpoint) throw new Error("subscription_missing");
+    const response = await fetch(push.api_base.replace(/\/$/, "") + "/test-subscription", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ endpoint: subscription.endpoint }),
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      const error = new Error(payload.error || "test_push_failed");
+      error.status = response.status;
+      throw error;
+    }
+    return response.json().catch(() => ({ ok: true }));
+  }
+
   async function syncBackgroundSubscription(config, prefs) {
     const push = config?.background_push || {};
     if (!push.enabled || !push.api_base || !prefs.enabled || Notification.permission !== "granted") return null;
-    if (!("PushManager" in window)) return null;
+    if (!("PushManager" in window)) throw new Error("push_manager_unavailable");
     const registration = await getRegistration();
     if (!registration) return null;
 
@@ -346,12 +368,18 @@
       savePrefs(next);
       try {
         await getRegistration();
-        await syncBackgroundSubscription(config, next);
+        const subscription = await syncBackgroundSubscription(config, next);
+        if (!subscription) throw new Error("subscription_missing");
+        await testBackgroundSubscription(config, subscription);
         status.textContent = t.allowed;
         await pollEvents();
         closeModal();
-      } catch (_) {
-        status.textContent = t.saved;
+      } catch (error) {
+        if (error?.message === "push_manager_unavailable") {
+          status.textContent = t.pushUnsupported;
+        } else {
+          status.textContent = t.pushTestFailed;
+        }
       }
     });
 
