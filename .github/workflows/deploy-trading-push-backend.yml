@@ -54,3 +54,10 @@ jobs:
       - name: Redeploy after secret bootstrap
         working-directory: workers/trading-push
         run: npx wrangler deploy
+
+      - name: Verify production push health
+        working-directory: workers/trading-push
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 5 --retry-delay 2 https://briefrooms.com/api/trading-push/health -o /tmp/push-health.json
+          node -e 'const fs=require("fs"); const j=JSON.parse(fs.readFileSync("/tmp/push-health.json","utf8")); if(!j.ok || !j.ready) { console.error(j); process.exit(1); } console.log(j)'
