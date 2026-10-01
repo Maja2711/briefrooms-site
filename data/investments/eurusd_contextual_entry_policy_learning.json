@@ -1,8 +1,13 @@
 {
   "authority": {
-    "automatic_policy_mutation": false,
-    "automatic_promotion": false,
-    "decision_influence": false,
+    "automatic_policy_mutation": true,
+    "automatic_promotion": true,
+    "automatic_rollback": true,
+    "decision_influence": true,
+    "direction_decision_influence": false,
+    "direction_owner": "Daily EURUSD direction engine",
+    "entry_timing_decision_influence": true,
+    "execution_owner": "Daily EURUSD lifecycle + EPE",
     "historical_backfill": false,
     "trade_execution": false
   },
@@ -911,17 +916,44 @@
     }
   ],
   "governance": {
+    "authority_levels": {
+      "FULL": {
+        "authority_fraction": 1.0,
+        "minimum_evidence_confidence": 0.8
+      },
+      "LOW": {
+        "authority_fraction": 0.25,
+        "minimum_evidence_confidence": 0.35
+      },
+      "MEDIUM": {
+        "authority_fraction": 0.6,
+        "minimum_evidence_confidence": 0.58
+      }
+    },
     "execution_cost_model": "EPE fixed synthetic EURUSD spread 1.5 pips",
     "horizon_hours": 24,
-    "minimum_effective_neighbors": 8.0,
+    "minimum_effective_neighbors": 1.5,
     "minimum_policy_edge_r": 0.1,
-    "minimum_resolved_for_recommendation": 20,
+    "minimum_resolved_for_recommendation": 1,
+    "production_policy_set": [
+      "CONTINUATION_NOW",
+      "PULLBACK_20_ATR",
+      "PULLBACK_35_ATR",
+      "PULLBACK_50_ATR",
+      "FLAT"
+    ],
+    "promotion_model": "continuous_context_local_evidence",
     "pullback_depths_atr": [
       0.2,
       0.35,
       0.5
     ],
-    "uncertainty_penalty": 0.75
+    "recency_half_life_days": 45.0,
+    "research_only_policy_set": [
+      "REVERSAL_NOW"
+    ],
+    "rollback_model": "automatic_context_local_evidence_decay_or_edge_loss",
+    "uncertainty_penalty": 1.0
   },
   "latest_context": {
     "atr_30m": 0.00147656,
@@ -1023,6 +1055,6 @@
     "resolved_episodes": 2,
     "status": "INSUFFICIENT_EVIDENCE"
   },
-  "schema_version": "eurusd-contextual-entry-policy-learning-v1",
+  "schema_version": "eurusd-contextual-entry-policy-learning-v2",
   "updated_at": "2026-10-01T18:54:27Z"
 }
