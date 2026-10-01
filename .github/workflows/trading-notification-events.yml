@@ -38,7 +38,8 @@ jobs:
           node --check scripts/trading-notifications.js
           node --check br-trading-sw.js
           python -m unittest tests.test_trading_notification_events -v
-          python scripts/build_trading_notification_events.py
+          python scripts/build_trading_notification_events.py --new-events-output /tmp/new-trading-events.json
+          python -m py_compile scripts/dispatch_trading_push.py
       - name: Persist notification state/events only when changed
         if: github.event_name != 'pull_request'
         run: |
@@ -59,3 +60,7 @@ jobs:
             sleep $((attempt*3))
           done
           exit 1
+
+      - name: Dispatch background Web Push
+        if: github.event_name != 'pull_request'
+        run: python scripts/dispatch_trading_push.py --events /tmp/new-trading-events.json
