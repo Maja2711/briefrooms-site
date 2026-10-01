@@ -24,7 +24,7 @@
     denied: "Przeglądarka zablokowała powiadomienia. Zmień zgodę w ustawieniach witryny.",
     unsupported: "Ta przeglądarka nie obsługuje powiadomień systemowych.",
     publicMode: "Dostęp: publiczny test BriefRooms.",
-    foregroundNote: "MVP: alerty działają, gdy BriefRooms jest otwarte w przeglądarce. Pełny push przy zamkniętej stronie zostanie aktywowany po podłączeniu bezpiecznego backendu push.",
+    foregroundNote: "Background Web Push może dostarczać alerty także po zamknięciu strony. Ustawienia są zapisywane dla tego urządzenia.",
     testTitle: "BriefRooms · test",
     testBody: "Powiadomienia tradingowe działają na tym urządzeniu.",
     openLabel: "OTWARTO",
@@ -45,7 +45,7 @@
     denied: "Notifications are blocked by the browser. Change the site permission to enable them.",
     unsupported: "This browser does not support system notifications.",
     publicMode: "Access: public BriefRooms test.",
-    foregroundNote: "MVP: alerts work while BriefRooms is open in the browser. Full push with the site closed will activate after a secure push backend is connected.",
+    foregroundNote: "Background Web Push can deliver alerts even after the page is closed. Preferences are stored for this device.",
     testTitle: "BriefRooms · test",
     testBody: "Trading notifications work on this device.",
     openLabel: "OPENED",
@@ -74,6 +74,69 @@
 
   function savePrefs(prefs) {
     localStorage.setItem(PREF_KEY, JSON.stringify(prefs));
+  }
+
+  function urlBase64ToUint8Array(base64String) {
+    const padding = "=".repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+    const rawData = atob(base64);
+    return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)));
+  }
+
+  async function getRegistration() {
+    if (!("serviceWorker" in navigator)) return null;
+    await navigator.serviceWorker.register(SW_URL, { scope: "/" });
+    return navigator.serviceWorker.ready;
+  }
+
+  async function syncBackgroundSubscription(config, prefs) {
+    const push = config?.background_push || {};
+    if (!push.enabled || !push.api_base || !prefs.enabled || Notification.permission !== "granted") return null;
+    if (!("PushManager" in window)) return null;
+    const registration = await getRegistration();
+    if (!registration) return null;
+
+    const keyResponse = await fetch(push.api_base.replace(/\/$/, "") + "/vapid-public-key", { cache: "no-store" });
+    if (!keyResponse.ok) throw new Error("vapid_key_unavailable");
+    const keyPayload = await keyResponse.json();
+    if (!keyPayload.publicKey) throw new Error("vapid_key_missing");
+
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(keyPayload.publicKey),
+      });
+    }
+
+    const response = await fetch(push.api_base.replace(/\/$/, "") + "/subscribe", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        subscription: subscription.toJSON(),
+        preferences: { channels: prefs.channels, events: prefs.events },
+        language: lang,
+      }),
+    });
+    if (!response.ok) throw new Error("push_subscribe_failed");
+    return subscription;
+  }
+
+  async function removeBackgroundSubscription(config) {
+    const push = config?.background_push || {};
+    const registration = await getRegistration();
+    const subscription = registration ? await registration.pushManager.getSubscription() : null;
+    if (!subscription) return;
+    if (push.api_base) {
+      try {
+        await fetch(push.api_base.replace(/\/$/, "") + "/unsubscribe", {
+          method: "DELETE",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ endpoint: subscription.endpoint }),
+        });
+      } catch (_) {}
+    }
+    try { await subscription.unsubscribe(); } catch (_) {}
   }
 
   async function loadConfig() {
@@ -188,7 +251,7 @@
     const status = card.querySelector("[data-brn-status]");
     const enableButton = card.querySelector('[data-brn-action="enable"]');
 
-    card.addEventListener("change", (ev) => {
+    card.addEventListener("change", async (ev) => {
       const input = ev.target.closest("input[data-brn]");
       if (!input) return;
       const next = loadPrefs();
@@ -198,6 +261,7 @@
       if (group === "event") next.events[item] = input.checked;
       savePrefs(next);
       status.textContent = t.saved;
+      try { await syncBackgroundSubscription(config, next); } catch (_) {}
     });
 
     enableButton.addEventListener("click", async () => {
@@ -205,6 +269,7 @@
       if (next.enabled) {
         next.enabled = false;
         savePrefs(next);
+        try { await removeBackgroundSubscription(config); } catch (_) {}
         enableButton.textContent = t.enable;
         status.textContent = t.saved;
         return;
@@ -222,7 +287,10 @@
       savePrefs(next);
       enableButton.textContent = t.disable;
       status.textContent = t.allowed;
-      try { await navigator.serviceWorker.register(SW_URL, { scope: "/" }); } catch (_) {}
+      try {
+        await getRegistration();
+        await syncBackgroundSubscription(config, next);
+      } catch (_) {}
       await pollEvents();
     });
 
@@ -241,7 +309,10 @@
       await showNative(t.testTitle, t.testBody, { event_id: "briefrooms-test" });
     });
 
-    try { await navigator.serviceWorker.register(SW_URL, { scope: "/" }); } catch (_) {}
+    try {
+      await getRegistration();
+      if (prefs.enabled) await syncBackgroundSubscription(config, prefs);
+    } catch (_) {}
     await pollEvents();
     const interval = Math.max(30, Number(config.poll_interval_seconds || 60)) * 1000;
     window.setInterval(pollEvents, interval);
