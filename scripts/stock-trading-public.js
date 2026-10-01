@@ -469,6 +469,18 @@
     return ((exit-entry)/entry)*100;
   }
 
+  function realizedR(p) {
+    const entry = firstNumber(p, ['entry','entry_price','open_price']);
+    const exit = firstNumber(p, ['exit','exit_price','close_price','closed_mark','last_mark']);
+    const initialRisk = firstNumber(p, ['initial_risk_amount']);
+    if (entry !== null && exit !== null && initialRisk !== null && initialRisk > 0) {
+      const r = (exit - entry) / initialRisk;
+      return Number.isFinite(r) ? r : null;
+    }
+    const stored = firstNumber(p, ['realized_r','r_multiple','reward_risk']);
+    return stored !== null && Number.isFinite(stored) && Math.abs(stored) <= 100 ? stored : null;
+  }
+
   function rowResult(p) {
     const normalized = firstNumber(p, ['history_normalized_pnl_amount']);
     if (normalized !== null) return normalized;
@@ -502,7 +514,7 @@
     const returns = rows.map(rowReturn).filter(v => v !== null);
     const cumulative = returns.length ? (returns.reduce((acc,r) => acc*(1+r/100),1)-1)*100 : 0;
     const wins = returns.filter(v => v > 0).length;
-    const rr = rows.map(p => firstNumber(p,['realized_r','r_multiple','reward_risk'])).filter(v => v !== null);
+    const rr = rows.map(realizedR).filter(v => v !== null);
     const holds = rows.map(p => {
       const a = new Date(entryAt(p)||0).getTime();
       const b = new Date(closedAt(p)||0).getTime();
