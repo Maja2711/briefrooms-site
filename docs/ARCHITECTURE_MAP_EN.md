@@ -1,8 +1,8 @@
 # BriefRooms Canonical Architecture Map — EN
 
-**Map version:** 1.13  
+**Map version:** 1.14  
 **Snapshot date:** 2026-09-29  
-**Base `main` commit:** `fbfb8ac0cdec1585d148ada8d35aa223e3e24bf1`  
+**Base `main` commit:** `2fa9fd1a9636c995caaa1a6db681ff20148cbb2f`  
 **Repository:** `Maja2711/briefrooms-site`
 
 ## 0. Purpose of this document
@@ -468,3 +468,12 @@ Primary detailed documents used to build and maintain the current map:
 - 2026-09-29: WES closed the Entry Price Plan expiry boundary: before refreshing a plan it resolves a recent touch of the previous frozen target within the global `NO RETROACTIVE EXECUTION` window; `Weekly Engine Star` keeps the primary trigger after the five-minute risk watch and now has an independent 15-minute fallback.
 
 - 2026-09-21: Weekly/WES/Risk pushes are validation-only; position execution is isolated from UI, quote-feed, test and documentation changes. Instrument-scoped change isolation is now a runtime invariant.
+
+
+## 13. Trading notifications
+
+| ID | Module | Role | Implementation / authority |
+|---|---|---|---|
+| `NT-01` | Trading Notifications | Read-only projection of persisted position transitions into OPEN/CLOSE events plus user preferences | `scripts/build_trading_notification_events.py`, `scripts/trading-notifications.js`, `br-trading-sw.js`, `data/notifications/*`, `docs/TRADING_NOTIFICATIONS_PL.md` / `_EN.md`; **zero execution/decision/risk authority** |
+
+`NT-01` only reads already persisted state owned by `TR-03`, `TR-04` and `TR-05`. It cannot invoke lifecycle logic, create fills, mutate positions or influence models. The first run seeds state without historical alerts; later runs deterministically emit only `OPEN` / `CLOSE` transitions. Access configuration supports `PUBLIC | AUTHENTICATED | PAID` from day one. GitHub Pages remains the frontend; full background Web Push and aggregated Notification Analytics require a separate secure subscription backend.
