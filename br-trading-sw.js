@@ -1,10 +1,10 @@
-const BR_PWA_CACHE = "briefrooms-pwa-shell-v1";
+const BR_PWA_CACHE = "briefrooms-pwa-shell-v2";
 const BR_PWA_ASSETS = [
   "/offline.html",
   "/manifest.webmanifest",
   "/assets/favicon.svg",
-  "/assets/briefrooms-icon-192.svg",
-  "/assets/briefrooms-icon-512.svg",
+  "/assets/briefrooms-app-icon-192-v2.svg",
+  "/assets/briefrooms-app-icon-512-v2.svg",
 ];
 
 self.addEventListener("install", (event) => {
@@ -46,7 +46,7 @@ self.addEventListener("push", (event) => {
   const title = payload.title || "BriefRooms Trading";
   const options = {
     body: payload.body || "",
-    icon: "/assets/favicon.svg",
+    icon: "/assets/briefrooms-app-icon-192-v2.svg",
     badge: "/assets/favicon.svg",
     tag: payload.event_id || payload.tag || undefined,
     data: { url: payload.url || "/pl/inwestycje/daily-trading.html", event_id: payload.event_id || null, ...(payload.data || {}) },
