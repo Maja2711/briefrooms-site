@@ -54,6 +54,54 @@ class ExperimentRegistryTests(unittest.TestCase):
         self.assertEqual(policy["equities"]["applicability"], "WHEN_ECONOMICALLY_MEANINGFUL")
         self.assertEqual(policy["forecasting_and_learning"]["applicability"], "BASELINE_NOT_MARKET_BENCHMARK")
 
+
+    def test_eurusd_x_reads_current_public_schema_progress(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write(
+                root,
+                "data/investments/eurusd_x_public_pl.json",
+                {
+                    "schema_version": "eurusd-x-public-pl-v1",
+                    "engine_version": "eurusd-x-v1.0.0",
+                    "generated_at": "2026-10-01T08:59:08.868545Z",
+                    "capture_count": 22,
+                    "resolved_4h": 21,
+                    "champion_setup_id": "X-BASE",
+                    "active_challenger_id": "X-BELIEF",
+                    "setups": [
+                        {
+                            "setup_id": "X-BASE",
+                            "n": 21,
+                            "brier": 0.200465,
+                            "hit_rate": 0.789474,
+                            "mean_signed_return_bps": 3.6338,
+                            "signal_n": 19,
+                        },
+                        {
+                            "setup_id": "X-BELIEF",
+                            "n": 21,
+                            "brier": 0.205492,
+                            "hit_rate": 0.777778,
+                        },
+                    ],
+                },
+            )
+            registry = build_registry(root)
+
+        row = next(x for x in registry["experiments"] if x["id"] == "eurusd-x-adaptive-shadow")
+        self.assertEqual(row["sample_count"], 21)
+        self.assertEqual(row["minimum_sample"], 30)
+        self.assertEqual(row["sample_unit"], "resolved_champion_4h_outcomes")
+        self.assertEqual(row["status"], "INSUFFICIENT_DATA")
+        self.assertEqual(row["version"], "eurusd-x-v1.0.0")
+        self.assertEqual(row["details"]["captures"], 22)
+        self.assertEqual(row["details"]["resolved"], 21)
+        self.assertEqual(row["details"]["champion"], "X-BASE")
+        self.assertEqual(row["details"]["challenger"], "X-BELIEF")
+        self.assertAlmostEqual(row["primary_metric"]["value"], 0.200465)
+        self.assertEqual(row["primary_metric"]["label"], "Brier Championa (4h)")
+
     def test_gse_candidate_requires_human_review_and_stays_continue(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
