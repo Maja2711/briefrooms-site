@@ -197,6 +197,26 @@ jobs:
           python -m json.tool data/notifications/trading-state.json >/dev/null
           python -m json.tool data/notifications/trading-events.json >/dev/null
 
+      - name: Assert Daily notification coverage
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          spot=json.loads(Path("data/investments/eurusd_daily_spot.json").read_text())
+          events=json.loads(Path("data/notifications/trading-events.json").read_text()).get("events", [])
+          position=((spot.get("metadata") or {}).get("position") or {})
+          if str(position.get("status") or "").upper() == "OPEN":
+              pid=str(position.get("trade_id") or "")
+              raw=f"daily|OPEN|{pid}".encode()
+              expected=hashlib.sha256(raw).hexdigest()[:24]
+              if not any(str(e.get("event_id") or "") == expected for e in events if isinstance(e, dict)):
+                  raise SystemExit(f"OPEN position has no notification event: {pid} / {expected}")
+              print("DAILY_OPEN_NOTIFICATION_EVENT_OK", pid, expected)
+          else:
+              print("DAILY_NOTIFICATION_STATE_OK_FLAT")
+          PY
+
       - name: Persist EURUSD state and append-only outcomes through NO RETROACTIVE airlock
         run: |
           set -euo pipefail
