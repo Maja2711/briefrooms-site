@@ -9,7 +9,7 @@ self.addEventListener("push", (event) => {
     icon: "/assets/favicon.svg",
     badge: "/assets/favicon.svg",
     tag: payload.event_id || payload.tag || undefined,
-    data: { url: payload.url || "/pl/inwestycje/daily-trading.html", ...(payload.data || {}) },
+    data: { url: payload.url || "/pl/inwestycje/daily-trading.html", event_id: payload.event_id || null, ...(payload.data || {}) },
   };
   event.waitUntil(self.registration.showNotification(title, options));
 });
