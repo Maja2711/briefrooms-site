@@ -1,8 +1,8 @@
 # Kanoniczna mapa architektury BriefRooms — PL
 
-**Wersja mapy:** 1.13  
-**Stan na:** 2026-09-30  
-**Bazowy commit `main`:** `fbfb8ac0cdec1585d148ada8d35aa223e3e24bf1`  
+**Wersja mapy:** 1.14  
+**Stan na:** 2026-10-01  
+**Bazowy commit `main`:** `2fa9fd1a9636c995caaa1a6db681ff20148cbb2f`  
 **Repozytorium:** `Maja2711/briefrooms-site`
 
 ## 0. Rola tego dokumentu
@@ -472,3 +472,12 @@ Najważniejsze dokumenty szczegółowe użyte do budowy i utrzymania aktualnej m
 - 2026-09-29: WES domknął boundary expiry dla Entry Price Plan: przed odświeżeniem planu rozlicza niedawne dotknięcie poprzedniego zamrożonego targetu w globalnym oknie `NO RETROACTIVE EXECUTION`; `Weekly Engine Star` zachowuje primary trigger po 5-minutowym risk watch i dostał niezależny fallback co 15 minut.
 
 - 2026-09-21: Push zmian Weekly/WES/Risk jest validation-only; wykonanie pozycji zostało odseparowane od zmian UI, feedów, testów i dokumentacji. Wprowadzono instrument-scoped change isolation.
+
+
+## 13. Powiadomienia tradingowe
+
+| ID | Moduł | Rola | Implementacja / authority |
+|---|---|---|---|
+| `NT-01` | Trading Notifications | Read-only projekcja zmian stanu pozycji do eventów OPEN/CLOSE oraz preferencji użytkownika | `scripts/build_trading_notification_events.py`, `scripts/trading-notifications.js`, `br-trading-sw.js`, `data/notifications/*`, `docs/TRADING_NOTIFICATIONS_PL.md` / `_EN.md`; **zero execution/decision/risk authority** |
+
+`NT-01` czyta wyłącznie już zapisane stany `TR-03`, `TR-04` i `TR-05`. Nie może wywoływać lifecycle, tworzyć filli, modyfikować pozycji ani wpływać na modele. Pierwszy run seeduje stan bez emisji historycznych alertów; później deterministycznie emituje tylko zmiany `OPEN` / `CLOSE`. Konfiguracja dostępu od początku przewiduje `PUBLIC | AUTHENTICATED | PAID`. GitHub Pages pozostaje frontendem; pełny Web Push w tle i agregowane Notification Analytics wymagają osobnego bezpiecznego backendu subskrypcji.
