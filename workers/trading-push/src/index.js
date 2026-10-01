@@ -33,6 +33,78 @@ async function endpointId(endpoint) {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+async function eventId(engine, eventType, positionId) {
+  const raw = `${engine}|${eventType}|${positionId}`;
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(raw));
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 24);
+}
+
+function finiteNumber(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function openDailyPosition(payload) {
+  const position = payload?.metadata?.position;
+  if (!position || String(position.status || "").toUpperCase() !== "OPEN") return null;
+  const direction = String(position.direction || "").toUpperCase();
+  if (!["LONG", "SHORT"].includes(direction)) return null;
+  if (finiteNumber(position.entry) == null || finiteNumber(position.stop) == null || finiteNumber(position.target) == null) return null;
+  return position;
+}
+
+function yahooMinuteBars(payload) {
+  const result = payload?.chart?.result?.[0];
+  const timestamps = Array.isArray(result?.timestamp) ? result.timestamp : [];
+  const quote = result?.indicators?.quote?.[0] || {};
+  const rows = [];
+  for (let i = 0; i < timestamps.length; i += 1) {
+    const close = finiteNumber(quote.close?.[i]);
+    if (close == null) continue;
+    const epoch = Number(timestamps[i]);
+    if (!Number.isFinite(epoch)) continue;
+    rows.push({
+      timestamp: new Date(epoch * 1000).toISOString(),
+      open: finiteNumber(quote.open?.[i]),
+      high: finiteNumber(quote.high?.[i]),
+      low: finiteNumber(quote.low?.[i]),
+      close,
+    });
+  }
+  return rows;
+}
+
+function fastExitHit(position, bars) {
+  const direction = String(position.direction || "").toUpperCase();
+  const stop = finiteNumber(position.stop);
+  const target = finiteNumber(position.target);
+  const openedMs = Date.parse(String(position.opened_at || ""));
+  if (!["LONG", "SHORT"].includes(direction) || stop == null || target == null || !Number.isFinite(openedMs)) return null;
+
+  const execution = position.execution_price_engine || {};
+  const halfPips = finiteNumber(execution.synthetic_half_spread_pips) || 0;
+  const halfPrice = halfPips * 0.0001;
+  const shift = direction === "LONG" ? -halfPrice : halfPrice;
+
+  for (const bar of bars) {
+    const ts = Date.parse(String(bar.timestamp || ""));
+    if (!Number.isFinite(ts) || ts < openedMs) continue;
+    const close = finiteNumber(bar.close);
+    if (close == null) continue;
+    const high = (finiteNumber(bar.high) ?? close) + shift;
+    const low = (finiteNumber(bar.low) ?? close) + shift;
+    const stopHit = direction === "LONG" ? low <= stop : high >= stop;
+    const targetHit = direction === "LONG" ? high >= target : low <= target;
+
+    if (stopHit && targetHit) {
+      return { exit_reason: "STOP_LOSS", exit_price: stop, bar_timestamp: bar.timestamp, conservative_same_bar: true };
+    }
+    if (stopHit) return { exit_reason: "STOP_LOSS", exit_price: stop, bar_timestamp: bar.timestamp, conservative_same_bar: false };
+    if (targetHit) return { exit_reason: "TAKE_PROFIT", exit_price: target, bar_timestamp: bar.timestamp, conservative_same_bar: false };
+  }
+  return null;
+}
+
 function normalizedPrefs(input = {}) {
   const channels = input.channels || {};
   const events = input.events || {};
@@ -66,15 +138,25 @@ function notificationUrl(event, lang) {
 function notificationPayload(event, lang, publicBaseUrl = "") {
   const pl = String(lang || "pl").toLowerCase().startsWith("pl");
   const engine = event.engine === "daily" ? "Daily Trading" : event.engine === "weekly" ? "Weekly Trading" : "Stock Trading";
-  const action = event.event_type === "OPEN" ? (pl ? "OTWARTO" : "OPENED") : (pl ? "ZAMKNIĘTO" : "CLOSED");
+  const reason = String(event.exit_reason || "").toUpperCase();
+  let action = event.event_type === "OPEN" ? (pl ? "OTWARTO" : "OPENED") : (pl ? "ZAMKNIĘTO" : "CLOSED");
+  if (event.event_type === "CLOSE" && reason === "TAKE_PROFIT") action = pl ? "TP OSIĄGNIĘTY" : "TAKE PROFIT";
+  if (event.event_type === "CLOSE" && reason === "STOP_LOSS") action = "STOP LOSS";
   const direction = event.direction ? ` · ${event.direction}` : "";
-  const entry = event.entry != null ? ` @ ${event.entry}` : "";
+  const priceValue = event.event_type === "CLOSE" && event.exit_price != null ? event.exit_price : event.entry;
+  const price = priceValue != null ? ` @ ${priceValue}` : "";
   return JSON.stringify({
     title: `BriefRooms · ${engine}`,
-    body: `${action} · ${event.instrument || ""}${direction}${entry}`,
+    body: `${action} · ${event.instrument || ""}${direction}${price}`,
     event_id: event.event_id,
     url: notificationUrl(event, lang),
-    data: { engine: event.engine, event_type: event.event_type, position_id: event.position_id, analytics_url: `${String(publicBaseUrl || "").replace(/\/$/, "")}/analytics/click` },
+    data: {
+      engine: event.engine,
+      event_type: event.event_type,
+      position_id: event.position_id,
+      exit_reason: event.exit_reason || null,
+      analytics_url: `${String(publicBaseUrl || "").replace(/\/$/, "")}/analytics/click`,
+    },
   });
 }
 
@@ -82,6 +164,155 @@ export class PushHub {
   constructor(ctx, env) {
     this.ctx = ctx;
     this.env = env;
+  }
+
+  async dispatchEvents(events, { seedIfUninitialized = false } = {}) {
+    const initialized = Boolean(await this.ctx.storage.get("feed_initialized"));
+    if (!initialized && seedIfUninitialized) {
+      for (const event of events) if (event?.event_id) await this.ctx.storage.put(`seen:${event.event_id}`, true);
+      await this.ctx.storage.put("feed_initialized", true);
+      return { ok: true, seeded: events.length, sent: 0, failed: 0, expired: 0 };
+    }
+    if (!initialized) await this.ctx.storage.put("feed_initialized", true);
+
+    let sent = 0;
+    let failed = 0;
+    let expired = 0;
+    const subscriptions = await this.ctx.storage.list({ prefix: "sub:" });
+    if (this.env.VAPID_PUBLIC_KEY && this.env.VAPID_PRIVATE_KEY) {
+      webpush.setVapidDetails(
+        this.env.VAPID_SUBJECT || "https://briefrooms.com",
+        this.env.VAPID_PUBLIC_KEY,
+        this.env.VAPID_PRIVATE_KEY,
+      );
+    }
+
+    for (const event of events) {
+      if (!event?.event_id) continue;
+      const seenKey = `seen:${event.event_id}`;
+      if (await this.ctx.storage.get(seenKey)) continue;
+      await this.ctx.storage.put(seenKey, true);
+      for (const [key, record] of subscriptions.entries()) {
+        if (!accepts(record, event)) continue;
+        try {
+          await webpush.sendNotification(
+            record.subscription,
+            notificationPayload(event, record.language, this.env.PUBLIC_BASE_URL),
+            { TTL: 300 },
+          );
+          sent += 1;
+        } catch (error) {
+          const status = Number(error?.statusCode || 0);
+          if (status === 404 || status === 410) {
+            await this.ctx.storage.delete(key);
+            expired += 1;
+          } else {
+            failed += 1;
+          }
+        }
+      }
+    }
+
+    const stats = (await this.ctx.storage.get("stats")) || {};
+    stats.sent = Number(stats.sent || 0) + sent;
+    stats.failed = Number(stats.failed || 0) + failed;
+    stats.expired_removed = Number(stats.expired_removed || 0) + expired;
+    stats.active_subscriptions = (await this.ctx.storage.list({ prefix: "sub:" })).size;
+    stats.last_dispatch_at = new Date().toISOString();
+    await this.ctx.storage.put("stats", stats);
+    return { ok: true, sent, failed, expired };
+  }
+
+  async fastDailyWatch() {
+    const stateUrl = this.env.DAILY_STATE_URL || "https://raw.githubusercontent.com/Maja2711/briefrooms-site/main/data/investments/eurusd_daily_spot.json";
+    const stateResponse = await fetch(`${stateUrl}${stateUrl.includes("?") ? "&" : "?"}_=${Date.now()}`, {
+      headers: { "cache-control": "no-cache", "accept": "application/json" },
+    });
+    if (!stateResponse.ok) throw new Error(`daily_state_http_${stateResponse.status}`);
+    const state = await stateResponse.json();
+    const position = openDailyPosition(state);
+
+    const stats = (await this.ctx.storage.get("stats")) || {};
+    stats.fast_daily_checks = Number(stats.fast_daily_checks || 0) + 1;
+    stats.last_fast_daily_check_at = new Date().toISOString();
+
+    if (!position) {
+      stats.last_fast_daily_status = "FLAT";
+      await this.ctx.storage.put("stats", stats);
+      return { ok: true, status: "FLAT" };
+    }
+
+    const positionId = String(position.trade_id || `daily:${position.opened_at}:${position.direction}`);
+    const openEvent = {
+      event_id: await eventId("daily", "OPEN", positionId),
+      engine: "daily",
+      event_type: "OPEN",
+      position_id: positionId,
+      instrument: "EUR/USD",
+      market: null,
+      direction: String(position.direction || "").toUpperCase(),
+      entry: finiteNumber(position.entry),
+      opened_at: position.opened_at || null,
+      observed_at: new Date().toISOString(),
+      source: "cloudflare_fast_daily_watcher",
+    };
+    const openDispatch = await this.dispatchEvents([openEvent]);
+
+    let bars = [];
+    let marketSource = "Yahoo Finance EURUSD=X 1m OHLC";
+    try {
+      const yahooUrl = this.env.YAHOO_EURUSD_1M_URL || "https://query1.finance.yahoo.com/v8/finance/chart/EURUSD%3DX?range=1d&interval=1m&includePrePost=false&events=div%2Csplits";
+      const response = await fetch(`${yahooUrl}${yahooUrl.includes("?") ? "&" : "?"}_=${Date.now()}`, {
+        headers: { "cache-control": "no-cache", "accept": "application/json" },
+      });
+      if (!response.ok) throw new Error(`yahoo_eurusd_http_${response.status}`);
+      bars = yahooMinuteBars(await response.json());
+      if (!bars.length) throw new Error("yahoo_eurusd_no_bars");
+    } catch (yahooError) {
+      const fxUrl = this.env.FXAPI_EURUSD_URL || "https://fxapi.app/api/EUR/USD.json";
+      const response = await fetch(`${fxUrl}${fxUrl.includes("?") ? "&" : "?"}_=${Date.now()}`, {
+        headers: { "cache-control": "no-cache", "accept": "application/json" },
+      });
+      if (!response.ok) throw yahooError;
+      const quote = await response.json();
+      const rate = finiteNumber(quote?.rate);
+      if (rate == null) throw yahooError;
+      bars = [{ timestamp: new Date().toISOString(), open: rate, high: rate, low: rate, close: rate }];
+      marketSource = "fxapi.app EUR/USD spot fallback";
+    }
+
+    const hit = fastExitHit(position, bars);
+    if (!hit) {
+      stats.last_fast_daily_status = "OPEN_NO_EXIT";
+      stats.last_fast_daily_market_source = marketSource;
+      await this.ctx.storage.put("stats", stats);
+      return { ok: true, status: "OPEN_NO_EXIT", open_dispatch: openDispatch };
+    }
+
+    const closeEvent = {
+      event_id: await eventId("daily", "CLOSE", positionId),
+      engine: "daily",
+      event_type: "CLOSE",
+      position_id: positionId,
+      instrument: "EUR/USD",
+      market: null,
+      direction: String(position.direction || "").toUpperCase(),
+      entry: finiteNumber(position.entry),
+      opened_at: position.opened_at || null,
+      observed_at: hit.bar_timestamp || new Date().toISOString(),
+      exit_reason: hit.exit_reason,
+      exit_price: hit.exit_price,
+      conservative_same_bar: Boolean(hit.conservative_same_bar),
+      source: "cloudflare_fast_exit_watcher",
+      market_source: marketSource,
+    };
+    const closeDispatch = await this.dispatchEvents([closeEvent]);
+    stats.fast_daily_exit_hits = Number(stats.fast_daily_exit_hits || 0) + 1;
+    stats.last_fast_daily_status = hit.exit_reason;
+    stats.last_fast_daily_exit_at = hit.bar_timestamp || new Date().toISOString();
+    stats.last_fast_daily_market_source = marketSource;
+    await this.ctx.storage.put("stats", stats);
+    return { ok: true, status: hit.exit_reason, open_dispatch: openDispatch, close_dispatch: closeDispatch };
   }
 
   async fetch(request) {
@@ -104,6 +335,10 @@ export class PushHub {
         ready: Boolean(this.env.VAPID_PUBLIC_KEY && this.env.VAPID_PRIVATE_KEY),
         active_subscriptions: subscriptions.size,
       }, 200, cors(origin));
+    }
+
+    if (url.hostname === "internal" && path === "/fast-daily-watch" && request.method === "POST") {
+      return json(await this.fastDailyWatch());
     }
 
     if (origin === null) return json({ error: "origin_not_allowed" }, 403);
@@ -180,51 +415,7 @@ export class PushHub {
     if (path === "/ingest" && request.method === "POST") {
       const payload = await bodyJson(request);
       const events = Array.isArray(payload.events) ? payload.events : [];
-      const initialized = Boolean(await this.ctx.storage.get("feed_initialized"));
-      if (!initialized) {
-        for (const event of events) if (event?.event_id) await this.ctx.storage.put(`seen:${event.event_id}`, true);
-        await this.ctx.storage.put("feed_initialized", true);
-        return json({ ok: true, seeded: events.length, sent: 0 });
-      }
-
-      let sent = 0;
-      let failed = 0;
-      let expired = 0;
-      const subscriptions = await this.ctx.storage.list({ prefix: "sub:" });
-      if (this.env.VAPID_PUBLIC_KEY && this.env.VAPID_PRIVATE_KEY) {
-        webpush.setVapidDetails(this.env.VAPID_SUBJECT || "https://briefrooms.com", this.env.VAPID_PUBLIC_KEY, this.env.VAPID_PRIVATE_KEY);
-      }
-
-      for (const event of events) {
-        if (!event?.event_id) continue;
-        const seenKey = `seen:${event.event_id}`;
-        if (await this.ctx.storage.get(seenKey)) continue;
-        await this.ctx.storage.put(seenKey, true);
-        for (const [key, record] of subscriptions.entries()) {
-          if (!accepts(record, event)) continue;
-          try {
-            await webpush.sendNotification(record.subscription, notificationPayload(event, record.language, this.env.PUBLIC_BASE_URL), { TTL: 300 });
-            sent += 1;
-          } catch (error) {
-            const status = Number(error?.statusCode || 0);
-            if (status === 404 || status === 410) {
-              await this.ctx.storage.delete(key);
-              expired += 1;
-            } else {
-              failed += 1;
-            }
-          }
-        }
-      }
-
-      const stats = (await this.ctx.storage.get("stats")) || {};
-      stats.sent = Number(stats.sent || 0) + sent;
-      stats.failed = Number(stats.failed || 0) + failed;
-      stats.expired_removed = Number(stats.expired_removed || 0) + expired;
-      stats.active_subscriptions = (await this.ctx.storage.list({ prefix: "sub:" })).size;
-      stats.last_dispatch_at = new Date().toISOString();
-      await this.ctx.storage.put("stats", stats);
-      return json({ ok: true, sent, failed, expired });
+      return json(await this.dispatchEvents(events, { seedIfUninitialized: true }), 200, cors(origin));
     }
 
     return json({ error: "not_found" }, 404, cors(origin));
@@ -244,15 +435,22 @@ export default {
 
   async scheduled(_controller, env, ctx) {
     ctx.waitUntil((async () => {
-      const response = await fetch(env.EVENT_FEED_URL, { headers: { "cache-control": "no-cache" } });
-      if (!response.ok) throw new Error(`event_feed_http_${response.status}`);
-      const payload = await response.json();
       const h = await hub(env);
-      await h.fetch("https://internal/ingest", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ events: Array.isArray(payload.events) ? payload.events : [] }),
-      });
+      const fastWatch = h.fetch("https://internal/fast-daily-watch", { method: "POST" });
+      const feedIngest = (async () => {
+        const response = await fetch(env.EVENT_FEED_URL, { headers: { "cache-control": "no-cache", "accept": "application/json" } });
+        if (!response.ok) throw new Error(`event_feed_http_${response.status}`);
+        const payload = await response.json();
+        return h.fetch("https://internal/ingest", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ events: Array.isArray(payload.events) ? payload.events : [] }),
+        });
+      })();
+      const results = await Promise.allSettled([fastWatch, feedIngest]);
+      if (results.every((item) => item.status === "rejected")) {
+        throw new Error("all_trading_push_scheduled_jobs_failed");
+      }
     })());
   },
 };
