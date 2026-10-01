@@ -330,10 +330,15 @@ export class PushHub {
 
     if (path === "/health" && request.method === "GET") {
       const subscriptions = await this.ctx.storage.list({ prefix: "sub:" });
+      const stats = (await this.ctx.storage.get("stats")) || {};
       return json({
         ok: true,
         ready: Boolean(this.env.VAPID_PUBLIC_KEY && this.env.VAPID_PRIVATE_KEY),
         active_subscriptions: subscriptions.size,
+        fast_daily_watcher: true,
+        last_fast_daily_check_at: stats.last_fast_daily_check_at || null,
+        last_fast_daily_status: stats.last_fast_daily_status || null,
+        last_fast_daily_market_source: stats.last_fast_daily_market_source || null,
       }, 200, cors(origin));
     }
 
