@@ -127,6 +127,64 @@ class DailyEURUSDContextualProductionTests(unittest.TestCase):
         self.assertAlmostEqual(triggered.entry,1.12035,places=5)
         self.assertEqual(triggered.metadata["contextual_entry_policy"]["status"],"PULLBACK_TRIGGERED")
 
+    def test_pending_pullback_rolls_back_when_authority_falls_to_shadow(self) -> None:
+        c=candidate()
+        pending={
+            "schema_version":"eurusd-contextual-pending-entry-v1",
+            "policy_id":"PULLBACK_35_ATR",
+            "direction":"SHORT",
+            "created_at":NOW.isoformat().replace("+00:00","Z"),
+            "expires_at":(NOW+timedelta(hours=24)).isoformat().replace("+00:00","Z"),
+            "reference_mid":1.1200,
+            "trigger_mid":1.12035,
+            "pullback_depth_atr":0.35,
+            "atr_30m":0.001,
+            "risk_distance":0.003,
+            "reward_risk":1.8,
+            "entry_score":30.0,
+            "entry_confidence":0.5,
+            "authority_level":"LOW",
+        }
+        with patch.object(v18,"_live_recommendation",return_value=(recommendation("PULLBACK_35_ATR","SHADOW"),context())):
+            out=v18._resume_pending(c,pending,object(),bars(1.12020),NOW)
+        self.assertEqual(out.direction,"SHORT")
+        self.assertEqual(out.status,"SIGNAL")
+        policy=out.metadata["contextual_entry_policy"]
+        self.assertEqual(policy["status"],"SHADOW_OBSERVE")
+        self.assertTrue(policy["prior_pending_cancelled"])
+        self.assertTrue(policy["automatic_rollback_applied"])
+        self.assertEqual(policy["cancellation_reason"],"automatic_rollback_authority_lost")
+        self.assertIsNone(policy["pending_entry"])
+
+    def test_pending_pullback_rotates_to_new_authoritative_policy(self) -> None:
+        c=candidate()
+        pending={
+            "schema_version":"eurusd-contextual-pending-entry-v1",
+            "policy_id":"PULLBACK_35_ATR",
+            "direction":"SHORT",
+            "created_at":NOW.isoformat().replace("+00:00","Z"),
+            "expires_at":(NOW+timedelta(hours=24)).isoformat().replace("+00:00","Z"),
+            "reference_mid":1.1200,
+            "trigger_mid":1.12035,
+            "pullback_depth_atr":0.35,
+            "atr_30m":0.001,
+            "risk_distance":0.003,
+            "reward_risk":1.8,
+            "entry_score":30.0,
+            "entry_confidence":0.5,
+            "authority_level":"LOW",
+        }
+        with patch.object(v18,"_live_recommendation",return_value=(recommendation("CONTINUATION_NOW","FULL"),context())):
+            out=v18._resume_pending(c,pending,object(),bars(1.12020),NOW)
+        self.assertEqual(out.direction,"SHORT")
+        self.assertEqual(out.status,"SIGNAL")
+        policy=out.metadata["contextual_entry_policy"]
+        self.assertEqual(policy["status"],"APPLIED_NOW")
+        self.assertTrue(policy["prior_pending_cancelled"])
+        self.assertTrue(policy["automatic_rollback_applied"])
+        self.assertEqual(policy["cancellation_reason"],"automatic_rollback_policy_changed")
+        self.assertEqual(policy["cancelled_pending_policy_id"],"PULLBACK_35_ATR")
+
     def test_reversal_policy_fails_closed_and_cannot_flip_direction(self) -> None:
         c=candidate()
         with patch.object(v18,"_live_recommendation",return_value=(recommendation("REVERSAL_NOW","FULL"),context())):
