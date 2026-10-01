@@ -2,6 +2,11 @@ name: Deploy Trading Push Backend
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "workers/trading-push/**"
+      - ".github/workflows/deploy-trading-push-backend.yml"
 
 permissions:
   contents: read
