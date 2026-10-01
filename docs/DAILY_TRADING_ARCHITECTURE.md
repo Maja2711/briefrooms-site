@@ -71,3 +71,32 @@ Daily EUR/USD may continue to use the Daily-family contract independently; its l
 3. Do not rewrite historical Daily GPW/US ledgers during migration.
 4. Preserve point-in-time lineage and NO RETROACTIVE execution semantics.
 5. Keep GPW and US market-specific data/risk handling inside Stock Trading v2 where market behavior differs.
+
+
+## Daily EUR/USD v1.8 — Contextual Entry Policy
+
+Daily EUR/USD now separates **directional thesis** from **entry timing**.
+
+```text
+Daily Direction Engine -> LONG / SHORT
+Contextual Entry Policy -> NOW / PB20 / PB35 / PB50 / FLAT
+EPE -> verified executable paper fill
+Daily lifecycle -> OPEN / SL / TP / dynamic exit / outcome
+counterfactual settlement -> learner update -> next context-local authority
+```
+
+The contextual learner is prospective and counterfactual. For each frozen decision context it later settles all entry-policy variants against the same future path and EPE spread model. Similarity uses market stretch/move, Daily score/confidence, Belief probability and macro score, FSE state, Event Intelligence and recency. FSE regime mismatch is explicitly penalized.
+
+Authority is **not** granted by a fixed raw trade count. The learner estimates expected R, uncertainty and effective-neighbor support for the current context. Strong, highly similar evidence can earn LOW authority with a small sample; many inconsistent observations can remain SHADOW. Authority progresses context-locally through `SHADOW -> LOW -> MEDIUM -> FULL` and falls automatically when the robust edge disappears.
+
+Production authority is intentionally narrow:
+
+- market direction always remains owned by the Daily directional engine;
+- `REVERSAL_NOW` is retained as research/counterfactual evidence only;
+- the learner may choose only `CONTINUATION_NOW`, `PULLBACK_20_ATR`, `PULLBACK_35_ATR`, `PULLBACK_50_ATR`, or `FLAT`;
+- a pullback choice creates a frozen pending trigger for at most the learner horizon and does not move the trigger behind price;
+- the pending entry is cancelled when direction/admission is invalidated or when it expires;
+- EPE remains the only verified-fill layer and the canonical Daily lifecycle remains the only position/outcome owner;
+- no historical episode is rewritten and no single episode directly mutates production policy.
+
+Runtime implementation: `scripts/daily_eurusd_spot_v18.py` plus `scripts/daily_eurusd_contextual_policy_learning.py`.
