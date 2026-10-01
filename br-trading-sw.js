@@ -1,3 +1,43 @@
+const BR_PWA_CACHE = "briefrooms-pwa-shell-v1";
+const BR_PWA_ASSETS = [
+  "/offline.html",
+  "/manifest.webmanifest",
+  "/assets/favicon.svg",
+  "/assets/briefrooms-icon-192.svg",
+  "/assets/briefrooms-icon-512.svg",
+];
+
+self.addEventListener("install", (event) => {
+  event.waitUntil((async () => {
+    const cache = await caches.open(BR_PWA_CACHE);
+    await cache.addAll(BR_PWA_ASSETS);
+    await self.skipWaiting();
+  })());
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys
+      .filter((key) => key.startsWith("briefrooms-pwa-shell-") && key !== BR_PWA_CACHE)
+      .map((key) => caches.delete(key)));
+    await self.clients.claim();
+  })());
+});
+
+self.addEventListener("fetch", (event) => {
+  const request = event.request;
+  if (request.method !== "GET" || request.mode !== "navigate") return;
+  event.respondWith((async () => {
+    try {
+      return await fetch(request);
+    } catch (_) {
+      const fallback = await caches.match("/offline.html");
+      return fallback || Response.error();
+    }
+  })());
+});
+
 self.addEventListener("push", (event) => {
   let payload = {};
   try { payload = event.data ? event.data.json() : {}; } catch (_) {
