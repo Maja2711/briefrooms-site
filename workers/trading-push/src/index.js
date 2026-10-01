@@ -86,17 +86,18 @@ export class PushHub {
 
   async fetch(request) {
     const url = new URL(request.url);
+    const path = url.pathname.replace(/^\\/api\\/trading-push(?=\\/|$)/, "") || "/";
     const origin = allowedOrigin(request, this.env);
     if (request.method === "OPTIONS") {
       if (origin === null) return new Response(null, { status: 403 });
       return new Response(null, { status: 204, headers: cors(origin) });
     }
 
-    if (url.pathname === "/vapid-public-key" && request.method === "GET") {
+    if (path === "/vapid-public-key" && request.method === "GET") {
       return json({ publicKey: this.env.VAPID_PUBLIC_KEY || null }, 200, cors(origin));
     }
 
-    if (url.pathname === "/health" && request.method === "GET") {
+    if (path === "/health" && request.method === "GET") {
       const subscriptions = await this.ctx.storage.list({ prefix: "sub:" });
       return json({
         ok: true,
@@ -107,7 +108,7 @@ export class PushHub {
 
     if (origin === null) return json({ error: "origin_not_allowed" }, 403);
 
-    if (url.pathname === "/subscribe" && request.method === "POST") {
+    if (path === "/subscribe" && request.method === "POST") {
       const payload = await bodyJson(request);
       const subscription = payload.subscription;
       if (!subscription?.endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth) {
@@ -132,7 +133,7 @@ export class PushHub {
       return json({ ok: true, id }, 200, cors(origin));
     }
 
-    if (url.pathname === "/unsubscribe" && request.method === "DELETE") {
+    if (path === "/unsubscribe" && request.method === "DELETE") {
       const payload = await bodyJson(request);
       if (!payload.endpoint) return json({ error: "endpoint_required" }, 400, cors(origin));
       const id = await endpointId(payload.endpoint);
@@ -146,7 +147,7 @@ export class PushHub {
       return json({ ok: true }, 200, cors(origin));
     }
 
-    if (url.pathname === "/analytics/click" && request.method === "POST") {
+    if (path === "/analytics/click" && request.method === "POST") {
       const payload = await bodyJson(request);
       const stats = (await this.ctx.storage.get("stats")) || {};
       stats.clicked = Number(stats.clicked || 0) + 1;
@@ -158,7 +159,7 @@ export class PushHub {
       return json({ ok: true }, 200, cors(origin));
     }
 
-    if (url.pathname === "/analytics" && request.method === "GET") {
+    if (path === "/analytics" && request.method === "GET") {
       if (!this.env.ADMIN_TOKEN || request.headers.get("authorization") !== `Bearer ${this.env.ADMIN_TOKEN}`) {
         return json({ error: "unauthorized" }, 401, cors(origin));
       }
@@ -176,7 +177,7 @@ export class PushHub {
       return json({ ...stats, active_subscriptions: subs.size, breakdown }, 200, cors(origin));
     }
 
-    if (url.pathname === "/ingest" && request.method === "POST") {
+    if (path === "/ingest" && request.method === "POST") {
       const payload = await bodyJson(request);
       const events = Array.isArray(payload.events) ? payload.events : [];
       const initialized = Boolean(await this.ctx.storage.get("feed_initialized"));
