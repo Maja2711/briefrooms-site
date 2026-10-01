@@ -40,7 +40,7 @@ jobs:
         working-directory: workers/trading-push
         run: |
           set -euo pipefail
-          names="$(npx wrangler secret list --json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s); console.log(j.map(x=>x.name).join("\n"))})')"
+          names="$(npx wrangler secret list 2>/dev/null || true)"
           if ! grep -qx "VAPID_PRIVATE_KEY" <<<"$names" || ! grep -qx "VAPID_PUBLIC_KEY" <<<"$names"; then
             npx web-push generate-vapid-keys --json > /tmp/vapid.json
             PUB="$(node -p "JSON.parse(require('fs').readFileSync('/tmp/vapid.json','utf8')).publicKey")"
