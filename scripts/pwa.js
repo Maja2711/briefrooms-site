@@ -7,13 +7,13 @@
 
   const lang = (document.documentElement.lang || "pl").toLowerCase().startsWith("pl") ? "pl" : "en";
   const copy = lang === "pl" ? {
-    install: "Zainstaluj BriefRooms",
+    install: "BRs · Zainstaluj",
     installing: "Otwieram instalację…",
     iosTitle: "Zainstaluj BriefRooms",
     iosBody: "Na iPhonie/iPadzie wybierz Udostępnij, a następnie „Dodaj do ekranu początkowego”.",
     close: "Zamknij"
   } : {
-    install: "Install BriefRooms",
+    install: "BRs · Install",
     installing: "Opening installer…",
     iosTitle: "Install BriefRooms",
     iosBody: "On iPhone/iPad, tap Share and then “Add to Home Screen”.",
@@ -34,24 +34,47 @@
     const style = document.createElement("style");
     style.textContent = `
       .br-pwa-install{
-        position:fixed;right:22px;bottom:22px;z-index:2147483000;
-        display:none;align-items:center;gap:10px;min-height:48px;padding:0 18px;
-        border:1px solid rgba(120,231,247,.55);border-radius:999px;
-        background:linear-gradient(180deg,rgba(18,55,84,.96),rgba(5,27,49,.98));
-        color:#dffcff;font:850 14px/1 Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
-        letter-spacing:.01em;box-shadow:0 14px 42px rgba(0,0,0,.38),inset 0 1px 0 rgba(255,255,255,.16);
-        backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);cursor:pointer;
+        position:fixed;
+        top:104px;
+        right:max(28px,calc((100vw - 1360px)/2 + 20px));
+        z-index:2147483000;
+        display:none;align-items:center;justify-content:center;
+        min-height:34px;padding:0 13px;
+        border:1px solid rgba(120,231,247,.42);border-radius:999px;
+        background:linear-gradient(180deg,rgba(18,55,84,.90),rgba(5,27,49,.95));
+        color:#dffcff;font:820 11.5px/1 Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+        letter-spacing:.02em;box-shadow:0 8px 24px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.12);
+        backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);cursor:pointer;
+        white-space:nowrap;
       }
-      .br-pwa-install:hover{transform:translateY(-1px);border-color:#78e7f7;box-shadow:0 18px 48px rgba(0,0,0,.42),0 0 24px rgba(35,213,204,.16),inset 0 1px 0 rgba(255,255,255,.2)}
+      .br-pwa-install:hover{border-color:#78e7f7;box-shadow:0 10px 28px rgba(0,0,0,.34),0 0 18px rgba(35,213,204,.12),inset 0 1px 0 rgba(255,255,255,.16)}
       .br-pwa-install:focus-visible{outline:2px solid #78e7f7;outline-offset:3px}
-      .br-pwa-install img{width:28px;height:28px;border-radius:9px;display:block}
+      .br-pwa-install img{display:none}
       .br-pwa-install[data-visible="true"]{display:inline-flex}
       .br-pwa-ios-help{position:fixed;inset:0;z-index:2147483001;display:none;place-items:center;padding:20px;background:rgba(0,8,18,.68);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
       .br-pwa-ios-help[data-open="true"]{display:grid}
       .br-pwa-ios-card{width:min(440px,100%);padding:24px;border:1px solid rgba(120,231,247,.32);border-radius:22px;background:#091827;color:#eef7ff;box-shadow:0 24px 80px rgba(0,0,0,.5);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
       .br-pwa-ios-card h2{margin:0 0 10px;font-size:22px}.br-pwa-ios-card p{margin:0;color:#b7c8d8;line-height:1.55}
       .br-pwa-ios-card button{margin-top:18px;border:1px solid rgba(120,231,247,.34);border-radius:999px;background:rgba(35,213,204,.1);color:#eaffff;padding:9px 14px;font-weight:800}
-      @media(max-width:680px){.br-pwa-install{right:14px;bottom:14px;left:14px;justify-content:center;min-height:52px}}
+      @media(max-width:1050px){
+        .br-pwa-install{
+          top:104px;
+          right:18px;
+        }
+      }
+      @media(max-width:680px){
+        .br-pwa-install{
+          position:fixed;
+          top:calc(112px + env(safe-area-inset-top, 0px));
+          left:14px;
+          right:auto;
+          bottom:auto;
+          min-height:38px;
+          padding:0 12px;
+          font-size:11.5px;
+          justify-content:center;
+        }
+      }
     `;
     document.head.appendChild(style);
 
@@ -59,7 +82,7 @@
     installButton.type = "button";
     installButton.className = "br-pwa-install";
     installButton.setAttribute("aria-label", copy.install);
-    installButton.innerHTML = `<img src="/assets/favicon.svg" alt=""><span>${copy.install}</span>`;
+    installButton.innerHTML = `<span>${copy.install}</span>`;
     document.body.appendChild(installButton);
 
     iosHelp = document.createElement("div");
