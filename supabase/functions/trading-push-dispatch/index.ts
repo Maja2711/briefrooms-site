@@ -1,24 +1,30 @@
 import webpush from "npm:web-push@3.6.7";
 import { eventAllowed, json, preflight, safePathForEngine, serviceClient } from "../_shared/common.ts";
 
-function requireSecret(req: Request): boolean {
-  const expected = Deno.env.get("BRIEFROOMS_PUSH_DISPATCH_SECRET") || "";
-  const got = req.headers.get("x-briefrooms-dispatch-secret") || "";
-  return Boolean(expected && got && expected === got);
-}
-
 Deno.serve(async (req) => {
   const pf = preflight(req); if (pf) return pf;
   if (req.method !== "POST") return json(req, { error: "method_not_allowed" }, 405);
-  if (!requireSecret(req)) return json(req, { error: "unauthorized" }, 401);
 
   try {
-    const event = await req.json();
-    const eventId = String(event?.event_id || "");
+    const body = await req.json();
+    const eventId = String(body?.event_id || "");
+    if (!/^[0-9a-f]{24}$/i.test(eventId)) {
+      return json(req, { error: "invalid_event_id" }, 400);
+    }
+
+    const canonicalUrl = "https://raw.githubusercontent.com/Maja2711/briefrooms-site/main/data/notifications/trading-events.json?v=" + Date.now();
+    const canonicalResponse = await fetch(canonicalUrl, { headers: { "Accept": "application/json" } });
+    if (!canonicalResponse.ok) return json(req, { error: "canonical_feed_unavailable" }, 503);
+    const canonical = await canonicalResponse.json();
+    const event = Array.isArray(canonical?.events)
+      ? canonical.events.find((row: any) => String(row?.event_id || "") === eventId)
+      : null;
+    if (!event) return json(req, { error: "event_not_in_canonical_feed" }, 404);
+
     const engine = String(event?.engine || "").toLowerCase();
     const eventType = String(event?.event_type || "").toUpperCase();
-    if (!eventId || !["daily","weekly","stock"].includes(engine) || !["OPEN","CLOSE"].includes(eventType)) {
-      return json(req, { error: "invalid_event" }, 400);
+    if (!["daily","weekly","stock"].includes(engine) || !["OPEN","CLOSE"].includes(eventType)) {
+      return json(req, { error: "invalid_canonical_event" }, 400);
     }
 
     const publicKey = Deno.env.get("BRIEFROOMS_VAPID_PUBLIC_KEY") || "";
