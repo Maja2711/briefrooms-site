@@ -14,17 +14,17 @@
       "challenger": "X-BELIEF",
       "champion": "X-BASE",
       "claim": "EURUSD X challenger X-BELIEF has higher prospective signed return than champion X-BASE.",
-      "completed_at": null,
+      "completed_at": "2026-10-01T16:28:41.489405Z",
       "experiment_id": "hse2exp-a31a1503002eace9ceef0bfe",
       "frozen_at": "2026-09-28T12:48:28.933079Z",
-      "last_evidence_at": "2026-10-01T08:59:35.863012Z",
-      "lesson_id": null,
+      "last_evidence_at": "2026-10-01T16:28:41.489405Z",
+      "lesson_id": "hse2lesson-197a704c2b7e5dcc06f0c668",
       "metric_name": "challenger_minus_champion_signed_return_bps",
-      "prospective_n": 18,
-      "result_id": null,
+      "prospective_n": 20,
+      "result_id": "hse2res-de4fc821217020c29f483fdb",
       "source_active": true,
       "source_engine": "EURUSD_X",
-      "status": "RUNNING_SHADOW",
+      "status": "SUPPORTED",
       "target_n": 20
     },
     {
@@ -249,7 +249,7 @@
       "target_n": 40
     }
   ],
-  "generated_at": "2026-10-01T15:41:56.557275Z",
+  "generated_at": "2026-10-01T16:28:41.489405Z",
   "mode": "SHADOW_ONLY",
   "pipeline": "SOURCE_HYPOTHESIS -> FREEZE -> FORWARD_EVIDENCE -> SUPPORTED/REJECTED/INCONCLUSIVE -> LESSON",
   "production_impact": false,
@@ -276,6 +276,29 @@
       "source_result_id": "hse2res-47b0f8b223fda7d3ca10821a",
       "statement": "GSE hypothesis finished INCONCLUSIVE at fixed N=30; mean forward edge=-0.00189720 (brier_improvement_v1_minus_v2).",
       "verdict": "INCONCLUSIVE"
+    },
+    {
+      "authority": {
+        "arbitrary_code_execution": false,
+        "automatic_promotion": false,
+        "production_policy_writeback": false,
+        "production_ranking_writeback": false,
+        "production_sizing_writeback": false,
+        "source_model_writeback": false,
+        "trade_execution": false
+      },
+      "derived_at": "2026-10-01T16:28:41.489405Z",
+      "event_hash": "a5eb8748f092da1ba87ce3d38d90267ebbc074c4ba90c0ee58dbd7fea991f208",
+      "hypothesis_input_ready": true,
+      "lesson_id": "hse2lesson-197a704c2b7e5dcc06f0c668",
+      "previous_hash": "bef06285a32a7f0f5669a53d4d585c5eefd817eecdb65ae8964473564546b8b5",
+      "production_authority": false,
+      "schema_version": "briefrooms-hse2-lesson-v1",
+      "source_engine": "EURUSD_X",
+      "source_experiment_id": "hse2exp-a31a1503002eace9ceef0bfe",
+      "source_result_id": "hse2res-de4fc821217020c29f483fdb",
+      "statement": "EURUSD_X hypothesis finished SUPPORTED at fixed N=20; mean forward edge=0.31592000 (challenger_minus_champion_signed_return_bps).",
+      "verdict": "SUPPORTED"
     }
   ],
   "recent_results": [
@@ -309,6 +332,37 @@
       "source_engine": "GSE",
       "success_mean_edge": 0.005,
       "verdict": "INCONCLUSIVE"
+    },
+    {
+      "authority": {
+        "arbitrary_code_execution": false,
+        "automatic_promotion": false,
+        "production_policy_writeback": false,
+        "production_ranking_writeback": false,
+        "production_sizing_writeback": false,
+        "source_model_writeback": false,
+        "trade_execution": false
+      },
+      "challenger": "X-BELIEF",
+      "champion": "X-BASE",
+      "claim": "EURUSD X challenger X-BELIEF has higher prospective signed return than champion X-BASE.",
+      "completed_at": "2026-10-01T16:28:41.489405Z",
+      "epoch_id": "hse2epoch-faac75dc2068bc180031de16",
+      "event_hash": "8170ed9efb5d8d9d1a9e926c28180a4cc3fd7a08969e66048516fcdcbf46aba0",
+      "evidence_blocks": 11,
+      "experiment_id": "hse2exp-a31a1503002eace9ceef0bfe",
+      "formal_evaluation_number": 1,
+      "mean_edge": 0.3159200000000003,
+      "metric_name": "challenger_minus_champion_signed_return_bps",
+      "previous_hash": "bef465baf1faba438e77074e639a8c223c4ab760a01b315bde1d909ac5a47fc0",
+      "reason": "preregistered_mean_edge_success_threshold_passed",
+      "reject_mean_edge": -0.25,
+      "result_id": "hse2res-de4fc821217020c29f483fdb",
+      "sample_n": 20,
+      "schema_version": "briefrooms-hse2-result-v1",
+      "source_engine": "EURUSD_X",
+      "success_mean_edge": 0.25,
+      "verdict": "SUPPORTED"
     }
   ],
   "schema_version": "briefrooms-hse2-public-v1",
@@ -336,9 +390,9 @@
       "experiments_total": 1,
       "path": "data/investments/eurusd_x_public_pl.json",
       "proposal_count": 1,
-      "running_shadow": 1,
-      "source_sha256": "9d56843e5da8a7abe27db6b3c2017c2bb6dff38b0c77bfeaecdfd6e0059188d7",
-      "terminal": 0
+      "running_shadow": 0,
+      "source_sha256": "c74101d11b3467c44b3c4236449a3b41ffd241e00a93068717dea9590cf637a9",
+      "terminal": 1
     },
     "FSE": {
       "available": true,
@@ -389,12 +443,12 @@
   "summary": {
     "experiments_total": 14,
     "inconclusive": 1,
-    "lessons_total": 1,
-    "prospective_evidence_n": 122,
+    "lessons_total": 2,
+    "prospective_evidence_n": 124,
     "rejected": 0,
-    "running_shadow": 13,
+    "running_shadow": 12,
     "sources_available": 7,
     "sources_configured": 7,
-    "supported": 0
+    "supported": 1
   }
 }
