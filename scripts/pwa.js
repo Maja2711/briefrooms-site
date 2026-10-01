@@ -69,15 +69,20 @@
       }
       @media(max-width:680px){
         .br-pwa-install{
-          position:fixed;
-          top:calc(var(--br-site-header-height, 68px) + 44px + env(safe-area-inset-top, 0px));
-          left:14px;
-          right:auto;
-          bottom:auto;
-          min-height:38px;
-          padding:0 12px;
-          font-size:11.5px;
+          position:static;
+          inset:auto;
+          min-height:34px;
+          padding:0 11px;
+          margin:0 0 10px 0;
+          font-size:11px;
           justify-content:center;
+          align-self:flex-start;
+        }
+        .home-lab__head > .br-pwa-install{
+          display:none;
+        }
+        .home-lab__head > .br-pwa-install[data-visible="true"]{
+          display:inline-flex;
         }
       }
     `;
@@ -130,9 +135,30 @@
     });
   }
 
+  function placeInstallButton() {
+    if (!installButton) return;
+    const mobile = window.matchMedia?.("(max-width: 680px)")?.matches === true;
+    const homeLabHead = document.querySelector(".home-lab__head");
+    const homeLabEyebrow = homeLabHead?.querySelector(".home-lab__eyebrow");
+
+    if (mobile && homeLabHead && homeLabEyebrow) {
+      if (installButton.parentElement !== homeLabHead || installButton.nextElementSibling !== homeLabEyebrow) {
+        homeLabHead.insertBefore(installButton, homeLabEyebrow);
+      }
+      installButton.dataset.placement = "home-lab-mobile";
+      return;
+    }
+
+    if (installButton.parentElement !== document.body) {
+      document.body.appendChild(installButton);
+    }
+    installButton.dataset.placement = "floating-desktop";
+  }
+
   function syncButton() {
     ensureUi();
     if (!installButton) return;
+    placeInstallButton();
     const visible = !isStandalone() && (Boolean(deferredPrompt) || isIos());
     installButton.dataset.visible = visible ? "true" : "false";
   }
@@ -165,6 +191,10 @@
     syncButton();
     window.dispatchEvent(new CustomEvent("briefrooms:pwa-installed"));
   });
+
+  window.addEventListener("resize", () => {
+    placeInstallButton();
+  }, { passive: true });
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
