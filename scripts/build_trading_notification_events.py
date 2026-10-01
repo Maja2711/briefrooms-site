@@ -176,7 +176,7 @@ def event_id(engine: str, event_type: str, position_id: str) -> str:
 
 def make_event(engine: str, event_type: str, pos: dict[str, Any]) -> dict[str, Any]:
     now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-    return {
+    event = {
         "event_id": event_id(engine, event_type, str(pos["position_id"])),
         "engine": engine,
         "event_type": event_type,
@@ -189,6 +189,24 @@ def make_event(engine: str, event_type: str, pos: dict[str, Any]) -> dict[str, A
         "observed_at": now,
         "source": "persisted_trading_state_transition",
     }
+    if engine == "daily" and event_type == "CLOSE":
+        history = read_json(DATA / "eurusd_daily_history.json", {})
+        trades = history.get("trades") if isinstance(history, dict) else []
+        if isinstance(trades, list):
+            trade = next(
+                (
+                    row for row in reversed(trades)
+                    if isinstance(row, dict)
+                    and str(row.get("trade_id") or "") == str(pos.get("position_id") or "")
+                ),
+                None,
+            )
+            if trade:
+                event["exit_reason"] = trade.get("exit_reason")
+                event["exit_price"] = trade.get("exit_price")
+                event["closed_at"] = trade.get("closed_at")
+                event["r_multiple"] = trade.get("r_multiple")
+    return event
 
 
 def build_events(previous: dict[str, Any], current: dict[str, Any]) -> list[dict[str, Any]]:
