@@ -164,14 +164,14 @@ jobs:
           }
           leaked=sorted(reasons & forbidden)
           if leaked:
-              raise SystemExit(f'legacy admission veto leaked into v1.7 runtime: {leaked}')
+              raise SystemExit(f'legacy admission veto leaked into v1.8 runtime: {leaked}')
           version=payload.get('engine_version')
           if version != 'eurusd-daily-spot-v1.8.0':
               raise SystemExit(f"unexpected EUR/USD engine version: {version}")
           metadata=payload.get('metadata') or {}
           dynamic=metadata.get('dynamic_exit') or {}
           if not dynamic.get('enabled'):
-              raise SystemExit('v1.7 output missing dynamic-exit metadata')
+              raise SystemExit('v1.8 output missing dynamic-exit metadata')
           guard=metadata.get('same_thesis_reentry_guard') or {}
           if not guard.get('enabled'):
               raise SystemExit('v1.8 output missing same-thesis re-entry guard metadata')
@@ -183,13 +183,13 @@ jobs:
               raise SystemExit('contextual entry policy must not own market direction')
           policy=metadata.get('ecb_policy') or {}
           if not policy.get('enabled'):
-              raise SystemExit('v1.7 output missing ECB policy context')
+              raise SystemExit('v1.8 output missing ECB policy context')
           cb=metadata.get('central_bank_policy') or {}
           if not cb.get('new_entry_veto_enabled') or not cb.get('fail_closed_during_event_window'):
-              raise SystemExit('v1.7 ECB policy safety gate is not enabled')
+              raise SystemExit('v1.8 ECB policy safety gate is not enabled')
           data=metadata.get('data') or {}
           if 'ecb_policy_coverage' not in data:
-              raise SystemExit('v1.7 output missing ecb_policy_coverage')
+              raise SystemExit('v1.8 output missing ecb_policy_coverage')
           source=metadata.get('decision_source','NATIVE_OR_FLAT')
           if source == 'LOW_EDGE_LEARNING_EXPLORATION':
               exploration=metadata.get('exploration') or {}
