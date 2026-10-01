@@ -50,6 +50,13 @@ AUTHORITY_LEVELS = (
     ("MEDIUM", 0.58, 0.60),
     ("LOW", 0.35, 0.25),
 )
+# Lower-authority stages may only intervene when the contextual edge is stronger.
+# This makes authority a deterministic evidence hurdle rather than random trade mixing.
+APPLICATION_EDGE_HURDLES_R = {
+    "LOW": 0.30,
+    "MEDIUM": 0.18,
+    "FULL": 0.10,
+}
 MAX_EPISODES = 600
 FEATURE_KEYS = (
     "move_3h_atr",
@@ -376,6 +383,7 @@ def _governance_contract() -> dict[str, Any]:
             level: {"minimum_evidence_confidence": threshold, "authority_fraction": fraction}
             for level, threshold, fraction in AUTHORITY_LEVELS
         },
+        "application_edge_hurdles_r": dict(APPLICATION_EDGE_HURDLES_R),
         "production_policy_set": [
             "CONTINUATION_NOW",
             "PULLBACK_20_ATR",
@@ -856,6 +864,15 @@ def _authority_from_evidence(*, n_eff: float, edge_r: float, mean_r: float, sd_r
                 level = candidate_level
                 fraction = candidate_fraction
                 break
+
+    application_hurdle = APPLICATION_EDGE_HURDLES_R.get(level)
+    if application_hurdle is not None and edge_r < application_hurdle:
+        # LOW authority is deliberately conservative: a weak edge is not enough
+        # to mutate production timing even when the local sample is internally clean.
+        level = "SHADOW"
+        fraction = 0.0
+        application_hurdle = None
+
     return {
         "level": level,
         "authority_fraction": round(fraction, 4),
@@ -863,6 +880,7 @@ def _authority_from_evidence(*, n_eff: float, edge_r: float, mean_r: float, sd_r
         "sample_strength": round(sample_strength, 6),
         "edge_strength": round(edge_strength, 6),
         "stability": round(stability, 6),
+        "application_edge_hurdle_r": application_hurdle,
         "automatic_rollback": level == "SHADOW",
     }
 
@@ -984,6 +1002,7 @@ def recommend_policy(state: Mapping[str, Any], current_context: Mapping[str, Any
         "authority_level": authority["level"],
         "authority_fraction": authority["authority_fraction"],
         "evidence_confidence": authority["evidence_confidence"],
+        "application_edge_hurdle_r": authority["application_edge_hurdle_r"],
         "evidence_components": {
             "sample_strength": authority["sample_strength"],
             "edge_strength": authority["edge_strength"],
