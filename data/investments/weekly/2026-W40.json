@@ -97,13 +97,13 @@
       "latest_macro_context": {
         "as_of": "2026-09-30T00:00:00",
         "data_quality": "passed",
-        "macro_score": -11.5174,
+        "macro_score": -11.5828,
         "macro_direction": "short",
         "position_direction": "neutral",
         "aligned": false,
         "observations": {
-          "oil_1w_percent": -1.9531,
-          "oil_4w_percent": 0.1552,
+          "oil_1w_percent": -1.9097,
+          "oil_4w_percent": 0.1995,
           "us10y_1w_bps": 17.9,
           "us10y_4w_bps": 49.7
         },
@@ -139,7 +139,7 @@
               "slow_trend": -1,
               "price_vs_all": -1,
               "nearest_ma": "ma60",
-              "nearest_ma_distance_atr": 3.5873,
+              "nearest_ma_distance_atr": 3.5811,
               "support_hold_long": false,
               "resistance_hold_short": false
             },
@@ -153,7 +153,7 @@
               "slow_trend": -1,
               "price_vs_all": -1,
               "nearest_ma": "ma30",
-              "nearest_ma_distance_atr": 1.9303,
+              "nearest_ma_distance_atr": 1.9113,
               "support_hold_long": false,
               "resistance_hold_short": false
             }
@@ -163,7 +163,7 @@
             "d1_below_all_ma",
             "h1_below_all_ma_timing"
           ],
-          "evaluated_at": "2026-10-01T04:08:24+02:00",
+          "evaluated_at": "2026-10-01T04:11:43+02:00",
           "governance": "bounded_context_only_no_veto_no_standalone_trade_trigger"
         },
         "rule": "Context is recorded immediately; an open weekly position is changed only by the governed review rules."
@@ -1082,21 +1082,21 @@
       "reentry_lock": {
         "active": false,
         "scope": "wes_directional_admission",
-        "released_at": "2026-10-01T04:02:46+02:00",
+        "released_at": "2026-10-01T04:11:40+02:00",
         "reason": "wes_1_1_directional_admission_qualified"
       },
       "wes_status": "trigger_qualified_waiting_governed_v5_entry",
       "wes_entry_authorization": {
-        "authorized_at": "2026-10-01T04:02:46+02:00",
-        "expires_at": "2026-10-01T05:02:46+02:00",
+        "authorized_at": "2026-10-01T04:11:40+02:00",
+        "expires_at": "2026-10-01T05:11:40+02:00",
         "authorization_type": "no_trade_trigger",
         "directional_admission_passed": true,
         "candidate": {
           "direction": "short",
           "strategy_id": "base_v2",
-          "raw_score": 66.0,
-          "utility": 13.4646,
-          "signal_delta_from_initial": 66.0,
+          "raw_score": 67.0,
+          "utility": 13.6865,
+          "signal_delta_from_initial": 67.0,
           "confirmations": 3,
           "confirmation_sources": [
             "daily",
@@ -1468,7 +1468,7 @@
       },
       "wes_status": "no_trade_monitoring_trigger",
       "wes_entry_authorization": null,
-      "wes_last_review_at": "2026-10-01T04:02:46+02:00",
+      "wes_last_review_at": "2026-10-01T04:11:40+02:00",
       "wes_trigger_candidate": {
         "direction": "neutral",
         "strategy_id": "no_trade",
@@ -1724,13 +1724,13 @@
       "wes_methodology": "WES-1.2.0",
       "wes_initial_no_trade_score": 0.0,
       "wes_status": "no_trade_monitoring_trigger",
-      "wes_last_review_at": "2026-10-01T04:02:46+02:00",
+      "wes_last_review_at": "2026-10-01T04:11:40+02:00",
       "wes_trigger_candidate": {
         "direction": "long",
         "strategy_id": "base_v2",
-        "raw_score": 49.0,
-        "utility": 8.1038,
-        "signal_delta_from_initial": 49.0,
+        "raw_score": 50.0,
+        "utility": 8.2538,
+        "signal_delta_from_initial": 50.0,
         "confirmations": 2,
         "confirmation_sources": [
           "daily",
@@ -1781,11 +1781,22 @@
     "enabled": true,
     "version": "5.8.0-experimental",
     "common_validation_gate": true,
+    "wes_1_2_directional_admission": true,
+    "price_aware_entry_engine": true,
+    "frozen_entry_target_required": true,
+    "champion_challenger_execution_authority": true,
     "retroactive_entries_forbidden": true,
     "same_week_reentry_block_after_invalidation": true,
     "no_trade_first_class": true,
+    "weekly_candles_used": true,
+    "eurusd_oil_us10y_context_used": true,
+    "contextual_momentum_learning": true,
+    "contextual_multidimensional_learning": true,
+    "counterfactual_candidate_learning": true,
+    "counterfactual_observations_reduce_exploration_only": true,
+    "learning_settlement_archive_before_window_exit": true,
     "execution_parity_report": "data/investments/weekly_execution_parity_v5.json",
-    "last_checked_at": "2026-10-01T04:08:25+02:00"
+    "last_checked_at": "2026-10-01T04:11:43+02:00"
   },
   "daily_position_review": {
     "session_history": [
@@ -1856,6 +1867,6 @@
     "replacement_holding_days": 7,
     "replacement_weekend_carry": true,
     "material_event_reentry": false,
-    "last_preflight_at": "2026-10-01T04:02:46+02:00"
+    "last_preflight_at": "2026-10-01T04:11:40+02:00"
   }
 }
