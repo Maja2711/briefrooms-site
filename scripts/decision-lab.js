@@ -175,7 +175,7 @@ function marketView(items){
     return '<div class="market-card '+esc(x.direction)+'"><div class="market-card-head"><b>'+esc(x.instrument)+'</b><small>'+esc(x.horizon_label||"")+'</small></div>'+
       '<div class="market-direction"><strong>'+arrow(x.direction)+' '+esc(x.direction_label)+'</strong><span>'+pct(x.trend_probability)+'</span></div>'+
       '<div class="market-facts"><span>Sentyment <b>'+esc(x.sentiment_label)+'</b></span><span>'+esc(move(x.probability_movement))+'</span><span>'+esc(quality)+'</span></div>'+
-      '<small class="market-asof">stan '+esc(forecastTime(x.as_of))+' · '+esc(x.environment_components)+' sygnały otoczenia</small></div>';
+      '<small class="market-asof">Market View przeliczono: '+esc(forecastTime(x.calculated_at))+' · forecast bazowy: '+esc(forecastTime(x.as_of))+' · '+esc(x.environment_components)+' sygnały otoczenia</small></div>';
   }).join("");
 }
 
