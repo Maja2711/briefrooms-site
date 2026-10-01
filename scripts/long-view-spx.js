@@ -125,13 +125,13 @@
     const blocked=spx?.no_trade_decision?.blocked_candidate||null;
     const admission=spx?.no_trade_decision?.directional_admission||null;
     const wesDirection=String(blocked?.direction||spx?.direction||'neutral').toUpperCase();
-    const wesLong=(wesDirection==='LONG'&&num(blocked?.raw_score)!==null&&Number(blocked.raw_score)>0);
+    const wesLong=(!noTrade&&wesDirection==='LONG'&&num(spx?.score)!==null&&Number(spx.score)>0);
     const wesText=noTrade?copy.noTrade:`${wesDirection} · score ${spx?.score??'—'}`;
     const wesMeta=noTrade&&blocked
       ?`${copy.candidate} ${wesDirection} ${blocked.raw_score??'—'} · ${copy.confirmations} ${admission?.confirmations??0}/2`
       :`score ${spx?.score??'—'} · ${copy.confirmations} ${admission?.confirmations??0}/2`;
     const weeklyRegime=blocked?.contextual_learning_components?.weekly_regime||spx?.signals?.weekly_regime||'trend_up:vol_normal';
-    const wesDetail=`${copy.regime}: ${String(weeklyRegime).replaceAll('_',' ')} · WES ${spx?.wes_methodology||wesReport?.version||'—'}`;
+    const wesDetail=`${copy.regime}: ${String(weeklyRegime).replaceAll('_',' ')} · WES ${spx?.wes_methodology||wesReport?.version||'—'} · 1W tactical only`;
 
     const fseSp=(fse?.instruments||[]).find(x=>x?.instrument==='SPX')||null;
     const fseMem=fseSp?.fractal_memory||null;
