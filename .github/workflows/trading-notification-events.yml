@@ -37,7 +37,7 @@ jobs:
           python -m py_compile scripts/build_trading_notification_events.py
           node --check scripts/trading-notifications.js
           node --check br-trading-sw.js
-          python -m unittest tests.test_trading_notification_events -v
+          python -m unittest tests.test_trading_notification_events tests.test_trading_background_push -v
           python scripts/build_trading_notification_events.py --new-events-output /tmp/new-trading-events.json
           python -m py_compile scripts/dispatch_trading_push.py
       - name: Persist notification state/events only when changed
