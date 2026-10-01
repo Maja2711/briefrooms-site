@@ -1090,7 +1090,11 @@ def run_cycle(
         now=current,
     )
 
-    if (added or settled) and rows_30m:
+    # Continuous authority is context-local, so the live recommendation must be
+    # recomputed on every learner cycle even when no episode was added/settled.
+    # Otherwise a migrated v1 state can keep a stale "minimum 20" recommendation
+    # while production v1.8 already uses the v2 continuous evidence model.
+    if rows_30m:
         context = build_context(
             spot=spot,
             rows_30m=rows_30m,
