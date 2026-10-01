@@ -317,7 +317,7 @@ def build_payload(state, report, closed_loop=None, evolution_controller=None):
             previous_p = float(prior[0].get("predicted_probability")) if prior else None
             delta = None if previous_p is None else p - previous_p
             hb = hypothesis_brier.get(trend_id) or {}
-            out.append({"instrument":instrument,"trend_belief_id":trend_id,"as_of":trend.get("forecast_at"),"target_at":trend.get("target_at"),
+            out.append({"instrument":instrument,"trend_belief_id":trend_id,"calculated_at":report.get("generated_at"),"as_of":trend.get("forecast_at"),"target_at":trend.get("target_at"),
                 "horizon_label":horizon_label(trend),"direction":direction,"direction_label":{"up":"WZROSTOWY","down":"SPADKOWY","neutral":"NEUTRALNY"}[direction],
                 "trend_probability":round(p,6),"evidence_confidence":trend.get("forecast_confidence"),"sentiment":sentiment,
                 "sentiment_label":{"positive":"POZYTYWNE","negative":"NEGATYWNE","neutral":"NEUTRALNE"}[sentiment],"environment_score":round(env,6),
