@@ -13,7 +13,9 @@
     intro: "Wybierz, z których części Trading Room chcesz otrzymywać alerty o otwarciu i zamknięciu pozycji.",
     enable: "Włącz powiadomienia tradingowe",
     disable: "Wyłącz na tym urządzeniu",
-    test: "Wyślij test",
+    test: "Wyślij",
+    cancel: "Anuluj",
+    settingsTitle: "Ustawienia powiadomień",
     daily: "Daily Trading",
     weekly: "Weekly Trading",
     stock: "Stock Trading",
@@ -34,7 +36,9 @@
     intro: "Choose which Trading Room areas should alert you when a position opens or closes.",
     enable: "Enable trading notifications",
     disable: "Disable on this device",
-    test: "Send test",
+    test: "Send",
+    cancel: "Cancel",
+    settingsTitle: "Notification settings",
     daily: "Daily Trading",
     weekly: "Weekly Trading",
     stock: "Stock Trading",
@@ -219,82 +223,82 @@
     const prefs = loadPrefs();
     const config = await loadConfig();
 
-    const card = document.createElement("section");
-    card.className = "brn-card";
-    card.setAttribute("aria-label", t.title);
-    card.innerHTML = `
-      <div class="brn-head">
-        <div><span class="brn-kicker">BriefRooms Alerts</span><h2>${t.title}</h2><p>${t.intro}</p></div>
-        <button type="button" class="brn-primary" data-brn-action="enable">${prefs.enabled ? t.disable : t.enable}</button>
-      </div>
-      <div class="brn-grid">
-        <fieldset><legend>Trading Room</legend>
-          ${checkbox("channel.daily", t.daily, prefs.channels.daily)}
-          ${checkbox("channel.weekly", t.weekly, prefs.channels.weekly)}
-          ${checkbox("channel.stock", t.stock, prefs.channels.stock)}
-        </fieldset>
-        <fieldset><legend>${lang === "pl" ? "Zdarzenia" : "Events"}</legend>
-          ${checkbox("event.open", t.open, prefs.events.open)}
-          ${checkbox("event.close", t.close, prefs.events.close)}
-        </fieldset>
-      </div>
-      <div class="brn-foot">
-        <span data-brn-status>${config.access_mode === "PUBLIC" ? t.publicMode : ""}</span>
-        <button type="button" class="brn-test" data-brn-action="test">${t.test}</button>
-      </div>
-      <p class="brn-note">${t.foregroundNote}</p>
+    const launcher = document.createElement("div");
+    launcher.className = "brn-launcher";
+    launcher.innerHTML = `<button type="button" class="brn-open" data-brn-action="open">${t.enable}</button>`;
+
+    const modal = document.createElement("div");
+    modal.className = "brn-modal";
+    modal.hidden = true;
+    modal.innerHTML = `
+      <div class="brn-backdrop" data-brn-action="close"></div>
+      <section class="brn-dialog" role="dialog" aria-modal="true" aria-labelledby="brn-title">
+        <button type="button" class="brn-close" data-brn-action="close" aria-label="${t.cancel}">×</button>
+        <span class="brn-kicker">BriefRooms Alerts</span>
+        <h2 id="brn-title">${t.settingsTitle}</h2>
+        <p class="brn-intro">${t.intro}</p>
+        <div class="brn-grid">
+          <fieldset><legend>Trading Room</legend>
+            ${checkbox("channel.daily", t.daily, prefs.channels.daily)}
+            ${checkbox("channel.weekly", t.weekly, prefs.channels.weekly)}
+            ${checkbox("channel.stock", t.stock, prefs.channels.stock)}
+          </fieldset>
+          <fieldset><legend>${lang === "pl" ? "Zdarzenia" : "Events"}</legend>
+            ${checkbox("event.open", t.open, prefs.events.open)}
+            ${checkbox("event.close", t.close, prefs.events.close)}
+          </fieldset>
+        </div>
+        <p class="brn-note">${t.foregroundNote}</p>
+        <div class="brn-status" data-brn-status>${prefs.enabled ? t.allowed : (config.access_mode === "PUBLIC" ? t.publicMode : "")}</div>
+        <div class="brn-actions">
+          ${prefs.enabled ? `<button type="button" class="brn-disable" data-brn-action="disable">${t.disable}</button>` : ""}
+          <button type="button" class="brn-send" data-brn-action="send">${t.test}</button>
+        </div>
+      </section>
     `;
 
     const target = document.querySelector(".switcher") || document.querySelector("main") || document.body;
-    if (target.parentNode) target.parentNode.insertBefore(card, target.nextSibling);
+    if (target.parentNode) target.parentNode.insertBefore(launcher, target.nextSibling);
+    document.body.appendChild(modal);
 
-    const status = card.querySelector("[data-brn-status]");
-    const enableButton = card.querySelector('[data-brn-action="enable"]');
+    const status = modal.querySelector("[data-brn-status]");
+    const sendButton = modal.querySelector('[data-brn-action="send"]');
+    const disableButton = modal.querySelector('[data-brn-action="disable"]');
 
-    card.addEventListener("change", async (ev) => {
-      const input = ev.target.closest("input[data-brn]");
-      if (!input) return;
-      const next = loadPrefs();
-      const key = input.getAttribute("data-brn");
-      const [group, item] = key.split(".");
-      if (group === "channel") next.channels[item] = input.checked;
-      if (group === "event") next.events[item] = input.checked;
-      savePrefs(next);
-      status.textContent = t.saved;
-      try { await syncBackgroundSubscription(config, next); } catch (_) {}
+    function openModal() {
+      const current = loadPrefs();
+      for (const [key, value] of Object.entries(current.channels)) {
+        const input = modal.querySelector(`[data-brn="channel.${key}"]`);
+        if (input) input.checked = value;
+      }
+      for (const [key, value] of Object.entries(current.events)) {
+        const input = modal.querySelector(`[data-brn="event.${key}"]`);
+        if (input) input.checked = value;
+      }
+      modal.hidden = false;
+      document.documentElement.classList.add("brn-modal-open");
+      modal.querySelector(".brn-dialog")?.focus?.();
+    }
+
+    function closeModal() {
+      modal.hidden = true;
+      document.documentElement.classList.remove("brn-modal-open");
+    }
+
+    launcher.querySelector('[data-brn-action="open"]').addEventListener("click", openModal);
+    modal.querySelectorAll('[data-brn-action="close"]').forEach((el) => el.addEventListener("click", closeModal));
+    document.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape" && !modal.hidden) closeModal();
     });
 
-    enableButton.addEventListener("click", async () => {
+    sendButton.addEventListener("click", async () => {
       const next = loadPrefs();
-      if (next.enabled) {
-        next.enabled = false;
-        savePrefs(next);
-        try { await removeBackgroundSubscription(config); } catch (_) {}
-        enableButton.textContent = t.enable;
-        status.textContent = t.saved;
-        return;
+      for (const input of modal.querySelectorAll("input[data-brn]")) {
+        const [group, item] = input.getAttribute("data-brn").split(".");
+        if (group === "channel") next.channels[item] = input.checked;
+        if (group === "event") next.events[item] = input.checked;
       }
-      if (!("Notification" in window)) {
-        status.textContent = t.unsupported;
-        return;
-      }
-      const permission = await Notification.requestPermission();
-      if (permission !== "granted") {
-        status.textContent = t.denied;
-        return;
-      }
-      next.enabled = true;
-      savePrefs(next);
-      enableButton.textContent = t.disable;
-      status.textContent = t.allowed;
-      try {
-        await getRegistration();
-        await syncBackgroundSubscription(config, next);
-      } catch (_) {}
-      await pollEvents();
-    });
 
-    card.querySelector('[data-brn-action="test"]').addEventListener("click", async () => {
       if (!("Notification" in window)) {
         status.textContent = t.unsupported;
         return;
@@ -305,9 +309,30 @@
         status.textContent = t.denied;
         return;
       }
-      try { await navigator.serviceWorker.register(SW_URL, { scope: "/" }); } catch (_) {}
-      await showNative(t.testTitle, t.testBody, { event_id: "briefrooms-test" });
+
+      next.enabled = true;
+      savePrefs(next);
+      try {
+        await getRegistration();
+        await syncBackgroundSubscription(config, next);
+        status.textContent = t.allowed;
+        await pollEvents();
+        closeModal();
+      } catch (_) {
+        status.textContent = t.saved;
+      }
     });
+
+    if (disableButton) {
+      disableButton.addEventListener("click", async () => {
+        const next = loadPrefs();
+        next.enabled = false;
+        savePrefs(next);
+        try { await removeBackgroundSubscription(config); } catch (_) {}
+        status.textContent = t.saved;
+        closeModal();
+      });
+    }
 
     try {
       await getRegistration();
