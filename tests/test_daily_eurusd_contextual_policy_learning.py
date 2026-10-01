@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 import tempfile
 import unittest
+from unittest.mock import patch
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -314,6 +315,45 @@ class ContextualPolicyLearningTests(unittest.TestCase):
         broken["authority"]["direction_decision_influence"]=True
         with self.assertRaises(ValueError):
             learner.validate_state(broken)
+
+    def test_run_cycle_recomputes_latest_recommendation_without_new_episode(self) -> None:
+        class FakeClient:
+            def bars(inner_self, symbol, period, interval):
+                return self.bars_30m()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            spot_path=root/"spot.json"
+            history_path=root/"history.json"
+            state_path=root/"state.json"
+            public_path=root/"public.json"
+            spot_path.write_text('{"direction":"FLAT","score":50,"confidence":0,"metadata":{}}',encoding="utf-8")
+            history_path.write_text('{"schema_version":"eurusd-daily-history-v1","trades":[]}',encoding="utf-8")
+            stale=learner._initial_state()
+            stale["latest_recommendation"]={"status":"INSUFFICIENT_EVIDENCE","minimum_required":20}
+            state_path.write_text(json.dumps(stale),encoding="utf-8")
+
+            fresh={
+                "status":"INSUFFICIENT_EVIDENCE",
+                "minimum_required":1,
+                "authority_level":"SHADOW",
+                "authority_fraction":0.0,
+                "evidence_confidence":0.0,
+                "decision_influence":False,
+                "automatic_rollback":True,
+            }
+            with patch.object(learner,"recommend_policy",return_value=fresh):
+                state,public,changed=learner.run_cycle(
+                    spot_path=spot_path,
+                    history_path=history_path,
+                    state_path=state_path,
+                    public_path=public_path,
+                    now=self.t0,
+                    client=FakeClient(),
+                )
+            self.assertEqual(changed,{"added":0,"settled":0})
+            self.assertEqual(state["latest_recommendation"]["minimum_required"],1)
+            self.assertEqual(public["latest_recommendation"]["minimum_required"],1)
 
 
 if __name__=="__main__":
