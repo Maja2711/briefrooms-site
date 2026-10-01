@@ -13,6 +13,8 @@
     clicked: 'Kliknięcia',
     ctr: 'CTR',
     failed: 'Błędy delivery',
+    lastDispatchFailed: 'ostatnia wysyłka',
+    noRecentErrors: 'brak nowych błędów',
     expired: 'Usunięte wygasłe',
     daily: 'Daily',
     weekly: 'Weekly',
@@ -30,6 +32,8 @@
     clicked: 'Clicks',
     ctr: 'CTR',
     failed: 'Delivery errors',
+    lastDispatchFailed: 'last dispatch',
+    noRecentErrors: 'no new errors',
     expired: 'Expired removed',
     daily: 'Daily',
     weekly: 'Weekly',
@@ -47,8 +51,8 @@
     timeZone: 'Europe/Warsaw'
   });
 
-  function metric(label, value, cls = '') {
-    return `<div class="na-metric ${cls}"><small>${label}</small><strong>${value}</strong></div>`;
+  function metric(label, value, cls = '', detail = '') {
+    return `<div class="na-metric ${cls}"><small>${label}</small><strong>${value}</strong>${detail ? `<em class="na-metric-detail">${detail}</em>` : ''}</div>`;
   }
 
   async function load() {
@@ -64,6 +68,14 @@
       const d = await res.json();
       const b = d.breakdown || {};
       const last = d.last_dispatch_at ? dtf.format(new Date(d.last_dispatch_at)) : '—';
+      const recentFailed = Number(d.last_dispatch_failed || 0);
+      const statusPairs = Object.entries(d.last_failed_statuses || {})
+        .filter(([, count]) => Number(count) > 0)
+        .map(([status, count]) => `${status}: ${nf.format(Number(count))}`)
+        .join(' · ');
+      const failureDetail = recentFailed > 0
+        ? `${T.lastDispatchFailed}: ${nf.format(recentFailed)}${statusPairs ? ` · ${statusPairs}` : ''}`
+        : `${T.lastDispatchFailed}: 0 · ${T.noRecentErrors}`;
 
       root.innerHTML = `
         <article class="panel notification-analytics-panel">
@@ -76,7 +88,7 @@
             ${metric(T.sent, nf.format(Number(d.sent || 0)))}
             ${metric(T.clicked, nf.format(Number(d.clicked || 0)))}
             ${metric(T.ctr, Number(d.ctr_percent || 0).toLocaleString(isPl ? 'pl-PL' : 'en-US', {minimumFractionDigits: 1, maximumFractionDigits: 2}) + '%')}
-            ${metric(T.failed, nf.format(Number(d.failed || 0)), Number(d.failed || 0) ? 'is-warn' : '')}
+            ${metric(T.failed, nf.format(Number(d.failed || 0)), Number(d.failed || 0) ? 'is-warn' : '', failureDetail)}
             ${metric(T.expired, nf.format(Number(d.expired_removed || 0)))}
           </div>
           <div class="na-breakdown">
