@@ -1,0 +1,56 @@
+name: Trading Notification Events
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/5 * * * *"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/build_trading_notification_events.py"
+      - "data/notifications/trading-notification-config.json"
+      - ".github/workflows/trading-notification-events.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: trading-notification-events
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.event_name != 'push' || github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Build read-only notification transitions
+        run: |
+          python -m py_compile scripts/build_trading_notification_events.py
+          python scripts/build_trading_notification_events.py
+      - name: Persist notification state/events only when changed
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/notifications/trading-state.json data/notifications/trading-events.json
+          if git diff --cached --quiet; then
+            echo "No trading notification transition."
+            exit 0
+          fi
+          git commit -m "Update trading notification events"
+          for attempt in 1 2 3 4 5; do
+            if git pull --rebase origin main && git push origin HEAD:main; then
+              exit 0
+            fi
+            git rebase --abort 2>/dev/null || true
+            sleep $((attempt*3))
+          done
+          exit 1
