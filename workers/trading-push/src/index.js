@@ -63,7 +63,7 @@ function notificationUrl(event, lang) {
   return pl ? "/pl/inwestycje/daily-trading.html" : "/en/investing/daily-trading.html";
 }
 
-function notificationPayload(event, lang) {
+function notificationPayload(event, lang, publicBaseUrl = "") {
   const pl = String(lang || "pl").toLowerCase().startsWith("pl");
   const engine = event.engine === "daily" ? "Daily Trading" : event.engine === "weekly" ? "Weekly Trading" : "Stock Trading";
   const action = event.event_type === "OPEN" ? (pl ? "OTWARTO" : "OPENED") : (pl ? "ZAMKNIĘTO" : "CLOSED");
@@ -74,7 +74,7 @@ function notificationPayload(event, lang) {
     body: `${action} · ${event.instrument || ""}${direction}${entry}`,
     event_id: event.event_id,
     url: notificationUrl(event, lang),
-    data: { engine: event.engine, event_type: event.event_type, position_id: event.position_id },
+    data: { engine: event.engine, event_type: event.event_type, position_id: event.position_id, analytics_url: `${String(publicBaseUrl || "").replace(/\/$/, "")}/analytics/click` },
   });
 }
 
@@ -86,7 +86,7 @@ export class PushHub {
 
   async fetch(request) {
     const url = new URL(request.url);
-    const path = url.pathname.replace(/^\/api\/trading-push(?=\/|$)/, "") || "/";
+    const path = url.pathname;
     const origin = allowedOrigin(request, this.env);
     if (request.method === "OPTIONS") {
       if (origin === null) return new Response(null, { status: 403 });
@@ -203,7 +203,7 @@ export class PushHub {
         for (const [key, record] of subscriptions.entries()) {
           if (!accepts(record, event)) continue;
           try {
-            await webpush.sendNotification(record.subscription, notificationPayload(event, record.language), { TTL: 300 });
+            await webpush.sendNotification(record.subscription, notificationPayload(event, record.language, this.env.PUBLIC_BASE_URL), { TTL: 300 });
             sent += 1;
           } catch (error) {
             const status = Number(error?.statusCode || 0);
