@@ -86,7 +86,7 @@ export class PushHub {
 
   async fetch(request) {
     const url = new URL(request.url);
-    const path = url.pathname.replace(/^\\/api\\/trading-push(?=\\/|$)/, "") || "/";
+    const path = url.pathname.replace(/^\/api\/trading-push(?=\/|$)/, "") || "/";
     const origin = allowedOrigin(request, this.env);
     if (request.method === "OPTIONS") {
       if (origin === null) return new Response(null, { status: 403 });
