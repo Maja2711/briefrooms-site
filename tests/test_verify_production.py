@@ -17,6 +17,14 @@ class ProductionParityCoverageTests(unittest.TestCase):
         }
         self.assertTrue(required.issubset(set(verify.PARITY_PATHS)))
 
+    def test_long_view_assets_are_protected_by_production_parity(self) -> None:
+        required = {
+            "pl/inwestycje/long-view.html",
+            "en/investing/long-view.html",
+            "scripts/long-view-spx.js",
+        }
+        self.assertTrue(required.issubset(set(verify.PARITY_PATHS)))
+
 
 class ProductionParityRetryTests(unittest.TestCase):
     def test_exact_file_parity_retries_until_pages_converges(self) -> None:

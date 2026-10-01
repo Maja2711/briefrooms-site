@@ -45,6 +45,9 @@ PARITY_PATHS = (
     "scripts/decision-lab.js",
     "scripts/decision-lab-runtime-en.js",
     "assets/decision-lab.css",
+    "pl/inwestycje/long-view.html",
+    "en/investing/long-view.html",
+    "scripts/long-view-spx.js",
 )
 
 
