@@ -128,7 +128,8 @@ jobs:
             scripts/daily_eurusd_experiment.py \
             scripts/daily_eurusd_experiment_v12.py \
             scripts/no_retroactive_execution.py \
-            scripts/verify_no_retroactive_execution.py
+            scripts/verify_no_retroactive_execution.py \
+            scripts/build_trading_notification_events.py
       - name: Reconcile open position with ECB-aware v1.7 policy
         run: |
           set -euo pipefail
@@ -189,12 +190,23 @@ jobs:
           print('EURUSD_V17_OK', payload.get('direction'), candidate.get('direction'), candidate.get('accepted'), source, sorted(reasons), policy.get('status'), data.get('ecb_policy_coverage'))
           PY
 
+      - name: Build trading notification transition from canonical Daily state
+        run: |
+          set -euo pipefail
+          python scripts/build_trading_notification_events.py
+          python -m json.tool data/notifications/trading-state.json >/dev/null
+          python -m json.tool data/notifications/trading-events.json >/dev/null
+
       - name: Persist EURUSD state and append-only outcomes through NO RETROACTIVE airlock
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- data/investments/eurusd_daily_spot.json data/investments/eurusd_daily_history.json
+          git add -- \
+            data/investments/eurusd_daily_spot.json \
+            data/investments/eurusd_daily_history.json \
+            data/notifications/trading-state.json \
+            data/notifications/trading-events.json
           if git diff --cached --quiet; then
             echo "No EURUSD state change"
             exit 0
@@ -218,7 +230,13 @@ jobs:
               --history data/investments/eurusd_daily_history.json \
               --validate
 
-            git add -- data/investments/eurusd_daily_spot.json data/investments/eurusd_daily_history.json
+            python scripts/build_trading_notification_events.py
+
+            git add -- \
+              data/investments/eurusd_daily_spot.json \
+              data/investments/eurusd_daily_history.json \
+              data/notifications/trading-state.json \
+              data/notifications/trading-events.json
             if git diff --cached --quiet; then
               echo "Remote main already contains an equivalent or fresher EURUSD state"
               exit 0
@@ -230,6 +248,30 @@ jobs:
           done
           echo "Unable to persist EURUSD state after retries" >&2
           exit 1
+
+      - name: Dispatch trading notification to Web Push immediately
+        run: |
+          set -euo pipefail
+          python - <<'PY' > "$RUNNER_TEMP/trading-push-payload.json"
+          import json
+          from pathlib import Path
+          payload = json.loads(Path("data/notifications/trading-events.json").read_text())
+          print(json.dumps({"events": payload.get("events", [])}, separators=(",", ":")))
+          PY
+          curl --fail --silent --show-error \
+            --retry 3 --retry-delay 2 \
+            -H "content-type: application/json" \
+            --data-binary @"$RUNNER_TEMP/trading-push-payload.json" \
+            "https://briefrooms-trading-push.szczerbinski0577.workers.dev/ingest" \
+            -o "$RUNNER_TEMP/trading-push-response.json"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          payload=json.loads(Path(__import__("os").environ["RUNNER_TEMP"]).joinpath("trading-push-response.json").read_text())
+          if payload.get("ok") is not True:
+              raise SystemExit(f"Trading push ingest failed: {payload}")
+          print("TRADING_PUSH_DISPATCH_OK", payload)
+          PY
 
       - name: Validate public frontend runtime after lifecycle persistence
         run: |
