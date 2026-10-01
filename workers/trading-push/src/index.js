@@ -189,6 +189,7 @@ export class PushHub {
     let sent = 0;
     let failed = 0;
     let expired = 0;
+    const failedStatuses = {};
     const subscriptions = await this.ctx.storage.list({ prefix: "sub:" });
     if (this.env.VAPID_PUBLIC_KEY && this.env.VAPID_PRIVATE_KEY) {
       webpush.setVapidDetails(
@@ -219,6 +220,8 @@ export class PushHub {
             expired += 1;
           } else {
             failed += 1;
+            const statusKey = String(status || "unknown");
+            failedStatuses[statusKey] = Number(failedStatuses[statusKey] || 0) + 1;
           }
         }
       }
@@ -229,6 +232,7 @@ export class PushHub {
     stats.failed = Number(stats.failed || 0) + failed;
     stats.expired_removed = Number(stats.expired_removed || 0) + expired;
     stats.active_subscriptions = (await this.ctx.storage.list({ prefix: "sub:" })).size;
+    stats.last_failed_statuses = failedStatuses;
     stats.last_dispatch_at = new Date().toISOString();
     await this.ctx.storage.put("stats", stats);
     return { ok: true, sent, failed, expired };
@@ -352,6 +356,7 @@ export class PushHub {
         test_sent: Number(stats.test_sent || 0),
         test_failed: Number(stats.test_failed || 0),
         last_test_failed_status: stats.last_test_failed_status || null,
+        last_failed_statuses: stats.last_failed_statuses || {},
         last_dispatch_at: stats.last_dispatch_at || null,
         fast_daily_watcher: true,
         last_fast_daily_check_at: stats.last_fast_daily_check_at || null,
