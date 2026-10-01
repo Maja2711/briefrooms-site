@@ -16,8 +16,16 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = event.notification?.data?.url || "/pl/inwestycje/daily-trading.html";
+  const data = event.notification?.data || {};
+  const url = data.url || "/pl/inwestycje/daily-trading.html";
   event.waitUntil((async () => {
+    try {
+      await fetch("/api/trading-push/analytics/click", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ event_id: data.event_id || null }),
+      });
+    } catch (_) {}
     const windows = await clients.matchAll({ type: "window", includeUncontrolled: true });
     for (const client of windows) {
       if ("focus" in client) {
