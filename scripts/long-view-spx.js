@@ -8,15 +8,15 @@
   const copy=lang==='pl'?{
     title:'Cross-check silników BriefRooms',
     sub:'Niezależne warstwy modelowe nie zastępują danych makro. Pokazujemy zgodność, konflikt horyzontów i siłę dowodu.',
-    gse:'Geopolitics · 30-day horizon',
+    gse:'Geopolityka · horyzont 30 dni',
     wes:'Taktyka rynku · 1 tydzień',
     fse:'Struktura rynku · 4 godz.',
     brace:'Reżim rynku · średni termin',
     net:'Wspólny odczyt',
     down:'SPADEK',
     up:'WZROST',
-    noTrade:'NO_TRADE',
-    noOpinion:'NO OPINION',
+    noTrade:'BRAK POZYCJI',
+    noOpinion:'BRAK KIERUNKU',
     stale:'nieświeży freeze',
     fresh:'świeży freeze',
     confidence:'confidence',
@@ -38,19 +38,19 @@
     neutral:'NEUTRALNY',
     neutralText:'Brak spójnego sygnału kierunkowego między silnikami.',
     unavailable:'brak danych',
-    research:'research-only'
+    research:'warstwa badawcza'
   }:{
     title:'BriefRooms engine cross-check',
     sub:'Independent model layers do not replace macro data. We show agreement, horizon conflict and evidence strength.',
-    gse:'GSE v2 · geopolitical 30d',
+    gse:'Geopolitics · 30-day horizon',
     wes:'Market tactics · 1 week',
     fse:'Market structure · 4 hours',
     brace:'Market regime · medium term',
     net:'Combined read-through',
     down:'DOWN',
     up:'UP',
-    noTrade:'NO_TRADE',
-    noOpinion:'NO OPINION',
+    noTrade:'NO POSITION',
+    noOpinion:'NO DIRECTION',
     stale:'stale freeze',
     fresh:'fresh freeze',
     confidence:'confidence',
@@ -72,7 +72,7 @@
     neutral:'NEUTRAL',
     neutralText:'No coherent directional signal across internal engines.',
     unavailable:'unavailable',
-    research:'research-only'
+    research:'research layer'
   };
 
   const esc=(v)=>String(v??'—').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
