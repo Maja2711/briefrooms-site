@@ -48,6 +48,8 @@ PARITY_PATHS = (
     "pl/inwestycje/long-view.html",
     "en/investing/long-view.html",
     "scripts/long-view-spx.js",
+    "pl/inwestycje/spx-scenariusze-2026.html",
+    "en/investing/spx-scenarios-2026.html",
 )
 
 
