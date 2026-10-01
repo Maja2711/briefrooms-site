@@ -28,7 +28,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: main
           fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
@@ -36,6 +35,9 @@ jobs:
       - name: Build read-only notification transitions
         run: |
           python -m py_compile scripts/build_trading_notification_events.py
+          node --check scripts/trading-notifications.js
+          node --check br-trading-sw.js
+          python -m unittest tests.test_trading_notification_events -v
           python scripts/build_trading_notification_events.py
       - name: Persist notification state/events only when changed
         if: github.event_name != 'pull_request'
