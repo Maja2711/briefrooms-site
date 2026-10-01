@@ -467,6 +467,33 @@ export class PushHub {
       return json({ ok: true }, 200, cors(origin));
     }
 
+    if (path === "/analytics/public" && request.method === "GET") {
+      const stats = (await this.ctx.storage.get("stats")) || {};
+      const subs = await this.ctx.storage.list({ prefix: "sub:" });
+      const breakdown = { daily: 0, weekly: 0, stock: 0, open: 0, close: 0 };
+      for (const record of subs.values()) {
+        const p = record.preferences || {};
+        if (p.channels?.daily) breakdown.daily += 1;
+        if (p.channels?.weekly) breakdown.weekly += 1;
+        if (p.channels?.stock) breakdown.stock += 1;
+        if (p.events?.open) breakdown.open += 1;
+        if (p.events?.close) breakdown.close += 1;
+      }
+      const sent = Number(stats.sent || 0);
+      const clicked = Number(stats.clicked || 0);
+      return json({
+        ok: true,
+        active_subscriptions: subs.size,
+        sent,
+        clicked,
+        ctr_percent: sent > 0 ? Number(((clicked / sent) * 100).toFixed(2)) : 0,
+        failed: Number(stats.failed || 0),
+        expired_removed: Number(stats.expired_removed || 0),
+        breakdown,
+        last_dispatch_at: stats.last_dispatch_at || null,
+      }, 200, cors(origin));
+    }
+
     if (path === "/analytics" && request.method === "GET") {
       if (!this.env.ADMIN_TOKEN || request.headers.get("authorization") !== `Bearer ${this.env.ADMIN_TOKEN}`) {
         return json({ error: "unauthorized" }, 401, cors(origin));
