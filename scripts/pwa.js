@@ -35,7 +35,7 @@
     style.textContent = `
       .br-pwa-install{
         position:fixed;
-        top:104px;
+        top:calc(var(--br-site-header-height, 84px) + 20px);
         right:max(28px,calc((100vw - 1360px)/2 + 20px));
         z-index:2147483000;
         display:none;align-items:center;justify-content:center;
@@ -51,6 +51,11 @@
       .br-pwa-install:focus-visible{outline:2px solid #78e7f7;outline-offset:3px}
       .br-pwa-install img{display:none}
       .br-pwa-install[data-visible="true"]{display:inline-flex}
+      #site-header.is-open ~ .br-pwa-install{
+        opacity:0;
+        visibility:hidden;
+        pointer-events:none;
+      }
       .br-pwa-ios-help{position:fixed;inset:0;z-index:2147483001;display:none;place-items:center;padding:20px;background:rgba(0,8,18,.68);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
       .br-pwa-ios-help[data-open="true"]{display:grid}
       .br-pwa-ios-card{width:min(440px,100%);padding:24px;border:1px solid rgba(120,231,247,.32);border-radius:22px;background:#091827;color:#eef7ff;box-shadow:0 24px 80px rgba(0,0,0,.5);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
@@ -58,14 +63,14 @@
       .br-pwa-ios-card button{margin-top:18px;border:1px solid rgba(120,231,247,.34);border-radius:999px;background:rgba(35,213,204,.1);color:#eaffff;padding:9px 14px;font-weight:800}
       @media(max-width:1050px){
         .br-pwa-install{
-          top:104px;
+          top:calc(var(--br-site-header-height, 84px) + 20px);
           right:18px;
         }
       }
       @media(max-width:680px){
         .br-pwa-install{
           position:fixed;
-          top:calc(112px + env(safe-area-inset-top, 0px));
+          top:calc(var(--br-site-header-height, 68px) + 44px + env(safe-area-inset-top, 0px));
           left:14px;
           right:auto;
           bottom:auto;
