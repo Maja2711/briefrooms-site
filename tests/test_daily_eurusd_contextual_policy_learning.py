@@ -240,6 +240,42 @@ class ContextualPolicyLearningTests(unittest.TestCase):
         self.assertEqual(result["authority_level"],"LOW")
         self.assertTrue(result["decision_influence"])
 
+    def test_low_authority_requires_strong_contextual_edge(self) -> None:
+        state=learner._initial_state()
+        features={
+            "move_3h_atr":-1.4,
+            "move_12h_atr":-3.2,
+            "move_24h_atr":-4.1,
+            "ema20_distance_atr":-1.2,
+            "p_up_current":0.38,
+        }
+        outcomes={
+            "CONTINUATION_NOW":{"net_r":0.40},
+            "PULLBACK_20_ATR":{"net_r":0.25},
+            "PULLBACK_35_ATR":{"net_r":0.20},
+            "PULLBACK_50_ATR":{"net_r":0.18},
+            "REVERSAL_NOW":{"net_r":-0.20},
+            "FLAT":{"net_r":0.0},
+        }
+        state["episodes"]=[
+            {
+                "schema_version":learner.EPISODE_SCHEMA,
+                "episode_id":f"weak-edge-{i}",
+                "status":"RESOLVED",
+                "base_direction":"SHORT",
+                "policy_change_applied":False,
+                "context":{"features":features,"fse":{"regime":"STABLE"}},
+                "settlement":{"outcomes":outcomes},
+            }
+            for i in range(8)
+        ]
+        current={"features":features,"daily":{"direction":"SHORT"},"fse":{"regime":"STABLE"}}
+        result=learner.recommend_policy(state,current)
+        self.assertEqual(result["recommended_policy_id"],"CONTINUATION_NOW")
+        self.assertAlmostEqual(result["edge_vs_second_r"],0.15,places=6)
+        self.assertEqual(result["authority_level"],"SHADOW")
+        self.assertFalse(result["decision_influence"])
+
     def test_many_noisy_examples_do_not_force_promotion(self) -> None:
         state=learner._initial_state()
         outcomes={
