@@ -8,15 +8,15 @@
   const copy=lang==='pl'?{
     title:'Cross-check silników BriefRooms',
     sub:'Niezależne warstwy modelowe nie zastępują danych makro. Pokazujemy zgodność, konflikt horyzontów i siłę dowodu.',
-    gse:'GSE v2 · geopolitical 30d',
-    wes:'WES · tactical 1W',
-    fse:'FSE · micro 4h',
-    brace:'BRACE-SPX · regime research',
+    gse:'Geopolityka · horyzont 30 dni',
+    wes:'Taktyka rynku · 1 tydzień',
+    fse:'Struktura rynku · 4 godz.',
+    brace:'Reżim rynku · średni termin',
     net:'Wspólny odczyt',
     down:'SPADEK',
     up:'WZROST',
-    noTrade:'NO_TRADE',
-    noOpinion:'NO OPINION',
+    noTrade:'BRAK POZYCJI',
+    noOpinion:'BRAK KIERUNKU',
     stale:'nieświeży freeze',
     fresh:'świeży freeze',
     confidence:'confidence',
@@ -30,27 +30,27 @@
     adaptive:'Adaptive',
     challengers:'challengery',
     mixed:'MIESZANY · konflikt horyzontów',
-    mixedText:'GSE daje defensywny read-through dla 30d/1M, ale WES (1W) i FSE (4h) nie potwierdzają pełnego risk-off w krótkim horyzoncie. BRACE nadal nie ma autoryzowanego kierunku. WES i FSE są tylko taktycznym kontekstem i nie zmieniają samodzielnie 6M/12M.',
+    mixedText:'Model geopolityczny jest defensywny w horyzoncie około miesiąca, ale krótsze modele rynku nie potwierdzają pełnego risk-off. Średnioterminowy model reżimowy nie daje jeszcze kierunku. To wspiera neutralno-defensywny 1M, bez automatycznej zmiany 6M/12M.',
     defensive:'DEFENSYWNY',
-    defensiveText:'Modele wewnętrzne przesuwają bilans ryzyka w dół; pozostaje to cross-check research, nie samodzielny sygnał inwestycyjny.',
+    defensiveText:'Silniki BriefRooms przesuwają bilans ryzyka w dół; pozostaje to niezależny cross-check, a nie samodzielny sygnał inwestycyjny.',
     positive:'TAKTYCZNIE DODATNI',
-    positiveText:'Krótkoterminowe modele są dodatnie, ale WES (1W) i FSE (4h) są tylko taktycznym cross-checkiem; nie podnoszą samodzielnie 6M/12M House View.',
+    positiveText:'Krótkoterminowe modele rynku są dodatnie, ale pozostają tylko taktycznym cross-checkiem i nie podnoszą samodzielnie 6M/12M House View.',
     neutral:'NEUTRALNY',
     neutralText:'Brak spójnego sygnału kierunkowego między silnikami.',
     unavailable:'brak danych',
-    research:'research-only'
+    research:'warstwa badawcza'
   }:{
     title:'BriefRooms engine cross-check',
     sub:'Independent model layers do not replace macro data. We show agreement, horizon conflict and evidence strength.',
-    gse:'GSE v2 · geopolitical 30d',
-    wes:'WES · tactical 1W',
-    fse:'FSE · micro 4h',
-    brace:'BRACE-SPX · regime research',
+    gse:'Geopolitics · 30-day horizon',
+    wes:'Market tactics · 1 week',
+    fse:'Market structure · 4 hours',
+    brace:'Market regime · medium term',
     net:'Combined read-through',
     down:'DOWN',
     up:'UP',
-    noTrade:'NO_TRADE',
-    noOpinion:'NO OPINION',
+    noTrade:'NO POSITION',
+    noOpinion:'NO DIRECTION',
     stale:'stale freeze',
     fresh:'fresh freeze',
     confidence:'confidence',
@@ -64,15 +64,15 @@
     adaptive:'Adaptive',
     challengers:'challengers',
     mixed:'MIXED · horizon conflict',
-    mixedText:'GSE has a defensive 30d/1M SPX read-through, while WES (1W) and FSE (4h) do not confirm full risk-off at the short horizon. BRACE still has no authorized direction. WES and FSE are tactical context only and do not independently change the 6M/12M House View.',
+    mixedText:'The geopolitical model is defensive around the one-month horizon, while shorter-horizon market models do not confirm full risk-off. The medium-term regime model still has no authorized direction. That supports a neutral-defensive 1M view without automatically changing 6M/12M.',
     defensive:'DEFENSIVE',
-    defensiveText:'Internal models shift the risk balance lower; this remains a research cross-check, not a standalone investment signal.',
+    defensiveText:'BriefRooms models shift the risk balance lower; this remains an independent cross-check, not a standalone investment signal.',
     positive:'TACTICALLY POSITIVE',
-    positiveText:'Short-horizon models lean positive, but WES (1W) and FSE (4h) are tactical cross-checks only and do not independently change the 6M/12M House View.',
+    positiveText:'Short-horizon market models lean positive, but they remain tactical context only and do not independently change the 6M/12M House View.',
     neutral:'NEUTRAL',
     neutralText:'No coherent directional signal across internal engines.',
     unavailable:'unavailable',
-    research:'research-only'
+    research:'research layer'
   };
 
   const esc=(v)=>String(v??'—').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -131,7 +131,7 @@
       ?`${copy.candidate} ${wesDirection} ${blocked.raw_score??'—'} · ${copy.confirmations} ${admission?.confirmations??0}/2`
       :`score ${spx?.score??'—'} · ${copy.confirmations} ${admission?.confirmations??0}/2`;
     const weeklyRegime=blocked?.contextual_learning_components?.weekly_regime||spx?.signals?.weekly_regime||'trend_up:vol_normal';
-    const wesDetail=`${copy.regime}: ${String(weeklyRegime).replaceAll('_',' ')} · WES ${spx?.wes_methodology||wesReport?.version||'—'} · 1W tactical only`;
+    const wesDetail=`${copy.regime}: ${String(weeklyRegime).replaceAll('_',' ')} · 1W tactical only`;
 
     const fseSp=(fse?.instruments||[]).find(x=>x?.instrument==='SPX')||null;
     const fseMem=fseSp?.fractal_memory||null;
@@ -151,7 +151,7 @@
       ?`${copy.warmup} ${frozen.observations_collected??'—'}/${frozen.warmup_required??'—'} · ${copy.adaptive} N=${adaptive?.initial_challenger_prospective_n??0}`
       :'—';
     const braceDetail=frozen
-      ?`${adaptive?.active_challengers??0} ${copy.challengers} · G7 ${brace?.promotion_gate?.status||'NOT_READY'} · ${copy.research}`
+      ?`${adaptive?.active_challengers??0} ${copy.challengers} · ${brace?.promotion_gate?.status||'NOT_READY'} · ${copy.research}`
       :copy.unavailable;
 
     let netLabel=copy.neutral,netText=copy.neutralText,netClass='neutral';
