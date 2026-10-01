@@ -35,8 +35,8 @@
     style.textContent = `
       .br-pwa-install{
         position:fixed;
-        top:184px;
-        right:max(34px,calc((100vw - 1360px)/2 + 34px));
+        top:104px;
+        right:max(28px,calc((100vw - 1360px)/2 + 20px));
         z-index:2147483000;
         display:none;align-items:center;justify-content:center;
         min-height:34px;padding:0 13px;
@@ -47,7 +47,7 @@
         backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);cursor:pointer;
         white-space:nowrap;
       }
-      .br-pwa-install:hover{transform:translateY(-1px);border-color:#78e7f7;box-shadow:0 10px 28px rgba(0,0,0,.34),0 0 18px rgba(35,213,204,.12),inset 0 1px 0 rgba(255,255,255,.16)}
+      .br-pwa-install:hover{border-color:#78e7f7;box-shadow:0 10px 28px rgba(0,0,0,.34),0 0 18px rgba(35,213,204,.12),inset 0 1px 0 rgba(255,255,255,.16)}
       .br-pwa-install:focus-visible{outline:2px solid #78e7f7;outline-offset:3px}
       .br-pwa-install img{display:none}
       .br-pwa-install[data-visible="true"]{display:inline-flex}
@@ -57,10 +57,23 @@
       .br-pwa-ios-card h2{margin:0 0 10px;font-size:22px}.br-pwa-ios-card p{margin:0;color:#b7c8d8;line-height:1.55}
       .br-pwa-ios-card button{margin-top:18px;border:1px solid rgba(120,231,247,.34);border-radius:999px;background:rgba(35,213,204,.1);color:#eaffff;padding:9px 14px;font-weight:800}
       @media(max-width:1050px){
-        .br-pwa-install{top:148px;right:18px}
+        .br-pwa-install{
+          top:104px;
+          right:18px;
+        }
       }
       @media(max-width:680px){
-        .br-pwa-install{top:auto;right:14px;bottom:14px;left:14px;justify-content:center;min-height:42px;font-size:12px}
+        .br-pwa-install{
+          position:fixed;
+          top:calc(112px + env(safe-area-inset-top, 0px));
+          left:14px;
+          right:auto;
+          bottom:auto;
+          min-height:38px;
+          padding:0 12px;
+          font-size:11.5px;
+          justify-content:center;
+        }
       }
     `;
     document.head.appendChild(style);
