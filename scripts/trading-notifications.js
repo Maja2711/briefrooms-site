@@ -25,7 +25,6 @@
     allowed: "Powiadomienia są włączone na tym urządzeniu.",
     denied: "Przeglądarka zablokowała powiadomienia. Zmień zgodę w ustawieniach witryny.",
     unsupported: "Ta przeglądarka nie obsługuje powiadomień systemowych.",
-    publicMode: "Dostęp: publiczny test BriefRooms.",
     foregroundNote: "Background Web Push może dostarczać alerty także po zamknięciu strony. Ustawienia są zapisywane dla tego urządzenia.",
     testTitle: "BriefRooms · test",
     testBody: "Powiadomienia tradingowe działają na tym urządzeniu.",
@@ -48,7 +47,6 @@
     allowed: "Notifications are enabled on this device.",
     denied: "Notifications are blocked by the browser. Change the site permission to enable them.",
     unsupported: "This browser does not support system notifications.",
-    publicMode: "Access: public BriefRooms test.",
     foregroundNote: "Background Web Push can deliver alerts even after the page is closed. Preferences are stored for this device.",
     testTitle: "BriefRooms · test",
     testBody: "Trading notifications work on this device.",
@@ -249,7 +247,7 @@
           </fieldset>
         </div>
         <p class="brn-note">${t.foregroundNote}</p>
-        <div class="brn-status" data-brn-status>${prefs.enabled ? t.allowed : (config.access_mode === "PUBLIC" ? t.publicMode : "")}</div>
+        <div class="brn-status" data-brn-status>${prefs.enabled ? t.allowed : ""}</div>
         <div class="brn-actions">
           ${prefs.enabled ? `<button type="button" class="brn-disable" data-brn-action="disable">${t.disable}</button>` : ""}
           <button type="button" class="brn-send" data-brn-action="send">${t.test}</button>
