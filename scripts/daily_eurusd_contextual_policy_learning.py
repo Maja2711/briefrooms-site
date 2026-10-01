@@ -17,7 +17,9 @@ It then evaluates, strictly prospectively on the later price path:
 - FLAT.
 
 The learner compares net R after the same fixed EPE synthetic spread used by
-Daily. It cannot trade, mutate Daily policy, or auto-promote itself.
+Daily. It never owns market direction or trade execution. Its prospective
+evidence may, however, receive bounded autonomous authority over entry timing
+(NOW / pullback / FLAT), with context-local promotion and automatic rollback.
 """
 from __future__ import annotations
 
@@ -32,15 +34,22 @@ from typing import Any, Iterable, Mapping, Sequence
 from belief_market_data_adapter import Bar, YahooChartClient
 import execution_price_engine as epe
 
-SCHEMA_VERSION = "eurusd-contextual-entry-policy-learning-v1"
-PUBLIC_SCHEMA = "eurusd-contextual-entry-policy-public-v1"
+SCHEMA_VERSION = "eurusd-contextual-entry-policy-learning-v2"
+LEGACY_SCHEMA_VERSION = "eurusd-contextual-entry-policy-learning-v1"
+PUBLIC_SCHEMA = "eurusd-contextual-entry-policy-public-v2"
 EPISODE_SCHEMA = "eurusd-contextual-entry-policy-episode-v1"
 HORIZON_HOURS = 24
 PULLBACK_DEPTHS_ATR = (0.20, 0.35, 0.50)
-MIN_RESOLVED_FOR_RECOMMENDATION = 20
-MIN_EFFECTIVE_NEIGHBORS = 8.0
-UNCERTAINTY_PENALTY = 0.75
+MIN_RESOLVED_FOR_RECOMMENDATION = 1
+MIN_EFFECTIVE_NEIGHBORS = 1.50
+UNCERTAINTY_PENALTY = 1.00
 MIN_POLICY_EDGE_R = 0.10
+RECENCY_HALF_LIFE_DAYS = 45.0
+AUTHORITY_LEVELS = (
+    ("FULL", 0.80, 1.00),
+    ("MEDIUM", 0.58, 0.60),
+    ("LOW", 0.35, 0.25),
+)
 MAX_EPISODES = 600
 FEATURE_KEYS = (
     "move_3h_atr",
@@ -54,11 +63,14 @@ FEATURE_KEYS = (
     "p_up_3h",
     "p_up_12h",
     "p_up_24h",
+    "belief_confidence",
+    "belief_macro_score",
     "fse_p_up_4h",
     "fse_risk_score",
     "fse_hurst_q2",
     "fse_analogue_median_return_atr",
     "event_score",
+    "event_confidence",
 )
 
 
@@ -270,6 +282,7 @@ def build_context(
     candidate = metadata.get("candidate") if isinstance(metadata.get("candidate"), Mapping) else {}
     event = metadata.get("event_intelligence") if isinstance(metadata.get("event_intelligence"), Mapping) else {}
     event_score = event.get("score") if isinstance(event.get("score"), Mapping) else {}
+    belief_macro = metadata.get("belief_macro") if isinstance(metadata.get("belief_macro"), Mapping) else {}
     belief = _belief_curve(belief_state, when)
     fse = _fse_context(fse_public, when, atr_value)
 
@@ -292,11 +305,14 @@ def build_context(
         "p_up_3h": (horizons.get("3") or {}).get("p_up") if isinstance(horizons.get("3"), Mapping) else None,
         "p_up_12h": (horizons.get("12") or {}).get("p_up") if isinstance(horizons.get("12"), Mapping) else None,
         "p_up_24h": (horizons.get("24") or {}).get("p_up") if isinstance(horizons.get("24"), Mapping) else None,
+        "belief_confidence": belief.get("confidence"),
+        "belief_macro_score": belief_macro.get("score"),
         "fse_p_up_4h": fse.get("p_up_4h"),
         "fse_risk_score": fse.get("risk_score"),
         "fse_hurst_q2": fse.get("mean_hurst_q2"),
         "fse_analogue_median_return_atr": fse.get("median_forward_return_atr"),
         "event_score": event_score.get("score_delta"),
+        "event_confidence": event_score.get("confidence"),
     }
     for key, value in optional.items():
         if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(float(value)):
@@ -332,31 +348,73 @@ def build_context(
     }
 
 
+def _authority_contract() -> dict[str, Any]:
+    return {
+        "decision_influence": True,
+        "direction_decision_influence": False,
+        "entry_timing_decision_influence": True,
+        "trade_execution": False,
+        "automatic_policy_mutation": True,
+        "automatic_promotion": True,
+        "automatic_rollback": True,
+        "historical_backfill": False,
+        "execution_owner": "Daily EURUSD lifecycle + EPE",
+        "direction_owner": "Daily EURUSD direction engine",
+    }
+
+
+def _governance_contract() -> dict[str, Any]:
+    return {
+        "horizon_hours": HORIZON_HOURS,
+        "pullback_depths_atr": list(PULLBACK_DEPTHS_ATR),
+        "minimum_resolved_for_recommendation": MIN_RESOLVED_FOR_RECOMMENDATION,
+        "minimum_effective_neighbors": MIN_EFFECTIVE_NEIGHBORS,
+        "uncertainty_penalty": UNCERTAINTY_PENALTY,
+        "minimum_policy_edge_r": MIN_POLICY_EDGE_R,
+        "recency_half_life_days": RECENCY_HALF_LIFE_DAYS,
+        "authority_levels": {
+            level: {"minimum_evidence_confidence": threshold, "authority_fraction": fraction}
+            for level, threshold, fraction in AUTHORITY_LEVELS
+        },
+        "production_policy_set": [
+            "CONTINUATION_NOW",
+            "PULLBACK_20_ATR",
+            "PULLBACK_35_ATR",
+            "PULLBACK_50_ATR",
+            "FLAT",
+        ],
+        "research_only_policy_set": ["REVERSAL_NOW"],
+        "execution_cost_model": "EPE fixed synthetic EURUSD spread 1.5 pips",
+        "promotion_model": "continuous_context_local_evidence",
+        "rollback_model": "automatic_context_local_evidence_decay_or_edge_loss",
+    }
+
+
 def _initial_state() -> dict[str, Any]:
     return {
         "schema_version": SCHEMA_VERSION,
         "updated_at": None,
-        "authority": {
-            "decision_influence": False,
-            "trade_execution": False,
-            "automatic_policy_mutation": False,
-            "automatic_promotion": False,
-            "historical_backfill": False,
-        },
-        "governance": {
-            "horizon_hours": HORIZON_HOURS,
-            "pullback_depths_atr": list(PULLBACK_DEPTHS_ATR),
-            "minimum_resolved_for_recommendation": MIN_RESOLVED_FOR_RECOMMENDATION,
-            "minimum_effective_neighbors": MIN_EFFECTIVE_NEIGHBORS,
-            "uncertainty_penalty": UNCERTAINTY_PENALTY,
-            "minimum_policy_edge_r": MIN_POLICY_EDGE_R,
-            "execution_cost_model": "EPE fixed synthetic EURUSD spread 1.5 pips",
-        },
+        "authority": _authority_contract(),
+        "governance": _governance_contract(),
         "episodes": [],
         "latest_recommendation": None,
     }
 
 
+def normalize_state(state: Mapping[str, Any] | None) -> dict[str, Any]:
+    """Migrate v1 shadow state in-memory without fabricating historical evidence."""
+    if not isinstance(state, Mapping):
+        return _initial_state()
+    version = str(state.get("schema_version") or "")
+    if version not in {SCHEMA_VERSION, LEGACY_SCHEMA_VERSION}:
+        raise ValueError(f"unsupported contextual policy learning schema: {version}")
+    result = dict(state)
+    result["schema_version"] = SCHEMA_VERSION
+    result["authority"] = _authority_contract()
+    result["governance"] = _governance_contract()
+    result.setdefault("episodes", [])
+    result.setdefault("latest_recommendation", None)
+    return result
 def _episode_id(kind: str, source_id: str, when: datetime) -> str:
     clean = iso_z(when).replace("-", "").replace(":", "")
     return f"{kind.lower()}:{source_id}:{clean}"
@@ -747,6 +805,68 @@ def _policy_outcomes(episode: Mapping[str, Any]) -> Mapping[str, Any]:
     return outcomes
 
 
+def _recency_weight(episode: Mapping[str, Any], current_context: Mapping[str, Any]) -> float:
+    current_at = parse_time(current_context.get("observed_at"))
+    prior_at = parse_time(episode.get("market_observed_at"))
+    if current_at is None or prior_at is None or current_at <= prior_at:
+        return 1.0
+    age_days = (current_at - prior_at).total_seconds() / 86400.0
+    return math.exp(-math.log(2.0) * age_days / RECENCY_HALF_LIFE_DAYS)
+
+
+def _context_similarity(
+    current_context: Mapping[str, Any],
+    episode: Mapping[str, Any],
+    scales: Mapping[str, float],
+) -> float:
+    context = episode.get("context") if isinstance(episode.get("context"), Mapping) else {}
+    current_features = current_context.get("features") if isinstance(current_context.get("features"), Mapping) else {}
+    prior_features = context.get("features") if isinstance(context.get("features"), Mapping) else {}
+    similarity = _similarity(current_features, prior_features, scales)
+    if similarity <= 0.0:
+        return 0.0
+
+    current_daily = current_context.get("daily") if isinstance(current_context.get("daily"), Mapping) else {}
+    current_direction = str(current_daily.get("direction") or "").upper()
+    prior_direction = str(episode.get("base_direction") or "").upper()
+    if current_direction in {"LONG", "SHORT"} and prior_direction in {"LONG", "SHORT"} and current_direction != prior_direction:
+        return 0.0
+
+    current_fse = current_context.get("fse") if isinstance(current_context.get("fse"), Mapping) else {}
+    prior_fse = context.get("fse") if isinstance(context.get("fse"), Mapping) else {}
+    current_regime = str(current_fse.get("regime") or "").upper()
+    prior_regime = str(prior_fse.get("regime") or "").upper()
+    if current_regime and prior_regime and current_regime != prior_regime:
+        similarity *= 0.35
+
+    return similarity * _recency_weight(episode, current_context)
+
+
+def _authority_from_evidence(*, n_eff: float, edge_r: float, mean_r: float, sd_r: float) -> dict[str, Any]:
+    sample_strength = 1.0 - math.exp(-max(n_eff, 0.0) / 3.0)
+    edge_strength = max(0.0, min(1.0, max(edge_r, 0.0) / 0.35))
+    stability = 1.0 - min(1.0, max(sd_r, 0.0) / (abs(mean_r) + max(sd_r, 0.0) + 0.25))
+    evidence_confidence = max(0.0, min(1.0, sample_strength * edge_strength * stability))
+
+    level = "SHADOW"
+    fraction = 0.0
+    if edge_r >= MIN_POLICY_EDGE_R:
+        for candidate_level, threshold, candidate_fraction in AUTHORITY_LEVELS:
+            if evidence_confidence >= threshold:
+                level = candidate_level
+                fraction = candidate_fraction
+                break
+    return {
+        "level": level,
+        "authority_fraction": round(fraction, 4),
+        "evidence_confidence": round(evidence_confidence, 6),
+        "sample_strength": round(sample_strength, 6),
+        "edge_strength": round(edge_strength, 6),
+        "stability": round(stability, 6),
+        "automatic_rollback": level == "SHADOW",
+    }
+
+
 def recommend_policy(state: Mapping[str, Any], current_context: Mapping[str, Any]) -> dict[str, Any]:
     resolved = [
         row for row in state.get("episodes") or []
@@ -757,29 +877,31 @@ def recommend_policy(state: Mapping[str, Any], current_context: Mapping[str, Any
             "status": "INSUFFICIENT_EVIDENCE",
             "resolved_episodes": len(resolved),
             "minimum_required": MIN_RESOLVED_FOR_RECOMMENDATION,
+            "authority_level": "SHADOW",
+            "authority_fraction": 0.0,
+            "evidence_confidence": 0.0,
             "decision_influence": False,
+            "automatic_rollback": True,
         }
 
-    current_features = current_context.get("features") if isinstance(current_context.get("features"), Mapping) else {}
     scales = _feature_scales(resolved)
     neighbors: list[tuple[float, Mapping[str, Any]]] = []
     for episode in resolved:
-        context = episode.get("context") if isinstance(episode.get("context"), Mapping) else {}
-        features = context.get("features") if isinstance(context.get("features"), Mapping) else {}
-        similarity = _similarity(current_features, features, scales)
+        similarity = _context_similarity(current_context, episode, scales)
         if similarity > 0.05:
             neighbors.append((similarity, episode))
     neighbors.sort(key=lambda item: item[0], reverse=True)
     neighbors = neighbors[:80]
 
-    policy_ids = [
+    all_policy_ids = [
         "CONTINUATION_NOW",
         *(f"PULLBACK_{int(round(depth * 100)):02d}_ATR" for depth in PULLBACK_DEPTHS_ATR),
         "REVERSAL_NOW",
         "FLAT",
     ]
+    production_policy_ids = [policy_id for policy_id in all_policy_ids if policy_id != "REVERSAL_NOW"]
     stats: dict[str, Any] = {}
-    for policy_id in policy_ids:
+    for policy_id in all_policy_ids:
         weighted: list[tuple[float, float]] = []
         for weight, episode in neighbors:
             outcome = _policy_outcomes(episode).get(policy_id)
@@ -798,6 +920,7 @@ def recommend_policy(state: Mapping[str, Any], current_context: Mapping[str, Any
         se = sd / math.sqrt(max(n_eff, 1.0))
         lower = mean - UNCERTAINTY_PENALTY * se
         stats[policy_id] = {
+            "expected_r": round(mean, 6),
             "weighted_mean_net_r": round(mean, 6),
             "weighted_sd_r": round(sd, 6),
             "effective_neighbors": round(n_eff, 3),
@@ -807,7 +930,8 @@ def recommend_policy(state: Mapping[str, Any], current_context: Mapping[str, Any
 
     eligible = {
         key: value for key, value in stats.items()
-        if float(value.get("effective_neighbors") or 0.0) >= MIN_EFFECTIVE_NEIGHBORS
+        if key in production_policy_ids
+        and float(value.get("effective_neighbors") or 0.0) >= MIN_EFFECTIVE_NEIGHBORS
     }
     if not eligible:
         return {
@@ -815,7 +939,11 @@ def recommend_policy(state: Mapping[str, Any], current_context: Mapping[str, Any
             "resolved_episodes": len(resolved),
             "neighbors": len(neighbors),
             "policy_stats": stats,
+            "authority_level": "SHADOW",
+            "authority_fraction": 0.0,
+            "evidence_confidence": 0.0,
             "decision_influence": False,
+            "automatic_rollback": True,
         }
 
     ranked = sorted(
@@ -826,29 +954,46 @@ def recommend_policy(state: Mapping[str, Any], current_context: Mapping[str, Any
     best_id, best = ranked[0]
     second_value = float(ranked[1][1]["uncertainty_penalized_r"]) if len(ranked) > 1 else 0.0
     edge = float(best["uncertainty_penalized_r"]) - second_value
-    if float(best["uncertainty_penalized_r"]) <= 0 or edge < MIN_POLICY_EDGE_R:
-        status = "NO_ROBUST_POLICY_EDGE"
-    else:
-        status = "SHADOW_POLICY_EDGE"
-
-    family = (
-        "CONTINUATION_PULLBACK" if best_id.startswith("PULLBACK_")
-        else "REVERSAL" if best_id == "REVERSAL_NOW"
-        else best_id
+    authority = _authority_from_evidence(
+        n_eff=float(best.get("effective_neighbors") or 0.0),
+        edge_r=edge,
+        mean_r=float(best.get("weighted_mean_net_r") or 0.0),
+        sd_r=float(best.get("weighted_sd_r") or 0.0),
     )
+    status = "AUTONOMOUS_POLICY_EDGE" if authority["level"] != "SHADOW" else "NO_ROBUST_POLICY_EDGE"
+    family = "CONTINUATION_PULLBACK" if best_id.startswith("PULLBACK_") else best_id
+
+    research_ranked = sorted(
+        ((key, value) for key, value in stats.items()),
+        key=lambda item: float(item[1]["uncertainty_penalized_r"]),
+        reverse=True,
+    )
+    research_best = research_ranked[0][0] if research_ranked else None
+
     return {
         "status": status,
         "recommended_policy_id": best_id,
         "recommended_family": family,
+        "research_best_policy_id": research_best,
+        "research_reversal_is_non_authoritative": research_best == "REVERSAL_NOW",
         "edge_vs_second_r": round(edge, 6),
+        "expected_r": float(best.get("expected_r") or 0.0),
         "resolved_episodes": len(resolved),
         "neighbors": len(neighbors),
         "policy_stats": stats,
-        "decision_influence": False,
-        "automatic_promotion": False,
+        "authority_level": authority["level"],
+        "authority_fraction": authority["authority_fraction"],
+        "evidence_confidence": authority["evidence_confidence"],
+        "evidence_components": {
+            "sample_strength": authority["sample_strength"],
+            "edge_strength": authority["edge_strength"],
+            "stability": authority["stability"],
+        },
+        "decision_influence": authority["level"] != "SHADOW",
+        "automatic_promotion": True,
+        "automatic_rollback": authority["automatic_rollback"],
+        "direction_mutation_allowed": False,
     }
-
-
 def public_summary(state: Mapping[str, Any], now: datetime) -> dict[str, Any]:
     episodes = [row for row in state.get("episodes") or [] if isinstance(row, Mapping)]
     resolved = [row for row in episodes if row.get("status") == "RESOLVED"]
@@ -857,7 +1002,7 @@ def public_summary(state: Mapping[str, Any], now: datetime) -> dict[str, Any]:
         "schema_version": PUBLIC_SCHEMA,
         "generated_at": str(state.get("updated_at") or iso_z(now)),
         "engine": "Daily Learning Loop — Contextual Entry Policy Learning",
-        "mode": "PROSPECTIVE_SHADOW_LEARNING",
+        "mode": "PROSPECTIVE_CONTINUOUS_AUTONOMOUS_ENTRY_POLICY",
         "authority": dict(state.get("authority") or {}),
         "sample": {
             "episodes_total": len(episodes),
@@ -882,7 +1027,11 @@ def validate_state(state: Mapping[str, Any]) -> None:
     if state.get("schema_version") != SCHEMA_VERSION:
         raise ValueError("invalid contextual policy learning schema")
     authority = state.get("authority") if isinstance(state.get("authority"), Mapping) else {}
-    for key in ("decision_influence", "trade_execution", "automatic_policy_mutation", "automatic_promotion", "historical_backfill"):
+    required_true = ("decision_influence", "entry_timing_decision_influence", "automatic_policy_mutation", "automatic_promotion", "automatic_rollback")
+    for key in required_true:
+        if authority.get(key) is not True:
+            raise ValueError(f"contextual learner missing bounded authority: {key}")
+    for key in ("direction_decision_influence", "trade_execution", "historical_backfill"):
         if authority.get(key) is not False:
             raise ValueError(f"contextual learner authority violation: {key}")
     seen: set[str] = set()
@@ -894,7 +1043,7 @@ def validate_state(state: Mapping[str, Any]) -> None:
             raise ValueError("duplicate contextual learning episode")
         seen.add(eid)
         if row.get("policy_change_applied") is not False:
-            raise ValueError("contextual learner cannot mutate production policy")
+            raise ValueError("individual episode cannot directly mutate production policy")
         if row.get("status") == "RESOLVED":
             outcomes = _policy_outcomes(row)
             required = {
@@ -905,8 +1054,6 @@ def validate_state(state: Mapping[str, Any]) -> None:
             }
             if not required.issubset(set(outcomes)):
                 raise ValueError("resolved episode missing policy outcomes")
-
-
 def run_cycle(
     *,
     spot_path: Path,
@@ -924,11 +1071,7 @@ def run_cycle(
     if not isinstance(spot, Mapping) or not isinstance(history, Mapping):
         raise ValueError("Daily EUR/USD spot/history state is required")
 
-    state = load_json(state_path)
-    if not isinstance(state, Mapping):
-        state = _initial_state()
-    else:
-        state = dict(state)
+    state = normalize_state(load_json(state_path))
 
     belief = load_json(belief_state_path, {}) if belief_state_path else {}
     fse = load_json(fse_path, {}) if fse_path else {}
