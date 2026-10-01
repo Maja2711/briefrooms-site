@@ -29,6 +29,7 @@ from belief_v3_candidate_adapter import (
     candidate_market_symbol,
     candidate_outcome_spec,
 )
+from belief_macro_release_adapter import MACRO_BELIEFS
 from belief_wes_assets_adapter import (
     WES_ASSET_BELIEFS,
     WESAssetEvidenceAdapter,
@@ -111,7 +112,7 @@ SPX_BELIEFS: Tuple[BeliefDefinition, ...] = (
         outcome_rule="financial_conditions_majority_supportive",
     ),
 )
-BELIEFS: Tuple[BeliefDefinition, ...] = SPX_BELIEFS + WES_ASSET_BELIEFS + CANDIDATE_DEFINITIONS
+BELIEFS: Tuple[BeliefDefinition, ...] = SPX_BELIEFS + WES_ASSET_BELIEFS + CANDIDATE_DEFINITIONS + MACRO_BELIEFS
 
 
 def floor_half_hour(dt: datetime) -> datetime:

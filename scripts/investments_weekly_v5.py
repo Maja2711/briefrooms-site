@@ -173,6 +173,9 @@ def no_trade(
     floor = float(cfg.get("minimum_directional_raw_score") or 35)
     utility_floor = float(cfg.get("minimum_directional_utility") or 6)
     reasons = list(decision.get("reason_codes") or [])
+    calendar = (macro_context or {}).get("belief_macro_calendar") if isinstance(macro_context, dict) else None
+    if isinstance(calendar, dict) and calendar.get("imminent") is True:
+        reasons.append("belief_macro_high_impact_event_imminent")
     if cfg.get("enabled", True):
         if fresh.get("data_quality") != "passed" and weekly.get("data_quality") != "passed":
             reasons.append("insufficient_data_quality")

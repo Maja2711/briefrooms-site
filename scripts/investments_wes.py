@@ -22,6 +22,7 @@ import investments_weekly_v3 as v3
 import investments_weekly_v4 as v4
 import investments_weekly_v5 as v5
 import investments_weekly_macro as macro
+import investments_wes_macro_belief as macro_belief
 
 ROOT = Path(__file__).resolve().parents[1]
 METHOD = ROOT / "data/investments/methodology.json"
@@ -96,6 +97,8 @@ def governed_candidate(iid: str, cfg: Dict[str, Any], p_cfg: Dict[str, Any], wee
     weekly = v3.weekly_candle_signal(cfg, policy)
     regime = str(weekly.get("regime") or "unknown")
     macro_context = macro.context(iid, now, policy)
+    if iid == "eurusd":
+        macro_context = macro_belief.apply(macro_context, macro_belief.context(now))
     selected_leg_learning = v4.learning_stats(iid, regime, policy)
     base = v4.candidate_methods(fresh, weekly, str(p_cfg.get("default_tie_direction") or "long"))
     candidates = macro.apply_to_candidates(iid, base, fresh, weekly, macro_context, policy)

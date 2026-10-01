@@ -19,6 +19,7 @@ import daily_eurusd_spot_v16 as v16  # installs v1.6 stack first
 from daily_eurusd_policy import build_ecb_policy_context, policy_conflicts
 import investment_event_engine_profiles as event_profiles
 import execution_price_engine as epe
+import investments_wes_macro_belief as belief_macro
 
 ENGINE_VERSION = "eurusd-daily-spot-v1.7.0"
 
@@ -243,6 +244,31 @@ def apply_ecb_policy_gate(candidate: DailyEngineOutput, context: Mapping[str, An
     return _clone(candidate, metadata=metadata)
 
 
+def apply_belief_macro_gate(candidate: DailyEngineOutput, context: Mapping[str, Any], *, allow_entry: bool = True) -> DailyEngineOutput:
+    """Consume the same fresh Belief EUR/USD context as WES; stale/missing state is neutral."""
+    metadata = dict(candidate.metadata)
+    belief = dict(context)
+    metadata["belief_macro"] = belief
+    metadata["belief"] = {
+        "mode": "SHARED_BELIEF_CONTEXT",
+        "decision_influence": bool(belief.get("available")),
+        "source": "Belief Core News Macro Shadow Collection + EURUSD beliefs",
+        "fail_neutral": True,
+    }
+    if not allow_entry or candidate.direction not in {"LONG", "SHORT"}:
+        return _clone(candidate, metadata=metadata)
+    calendar = belief.get("macro_calendar") if isinstance(belief.get("macro_calendar"), Mapping) else {}
+    if calendar.get("imminent") is True:
+        return _flat_with_event_block(candidate, metadata, "belief_macro_high_impact_event_imminent")
+    if not belief.get("available"):
+        return _clone(candidate, metadata=metadata)
+    score = float(belief.get("score") or 0.0)
+    conflict = (candidate.direction == "LONG" and score <= -6.0) or (candidate.direction == "SHORT" and score >= 6.0)
+    if conflict:
+        return _flat_with_event_block(candidate, metadata, "belief_macro_conflict_veto")
+    return _clone(candidate, metadata=metadata)
+
+
 def apply_event_intelligence_gate(candidate: DailyEngineOutput, context: Mapping[str, Any], *, allow_entry: bool = True) -> DailyEngineOutput:
     metadata = dict(candidate.metadata)
     overlay = dict(context)
@@ -293,6 +319,7 @@ def build_output(snapshot: Any, history: Mapping[str, Any] | None = None, *, all
     else:
         context = build_ecb_policy_context(observed_at, fx_rows)
     candidate = apply_ecb_policy_gate(candidate, context, allow_entry=allow_entry)
+    candidate = apply_belief_macro_gate(candidate, belief_macro.context(observed_at) if observed_at is not None else {"available": False, "reason": "candidate_timestamp_unavailable"}, allow_entry=allow_entry)
 
     event_context = (
         daily_event.build_context(observed_at)

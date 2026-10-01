@@ -19,6 +19,7 @@ on:
       - "scripts/investments_weekly_macro.py"
       - "scripts/investments_weekly_ma_structure.py"
       - "scripts/investments_wes.py"
+      - "scripts/investments_wes_macro_belief.py"
       - "scripts/investments_wes_runner.py"
       - "scripts/investments_wes_lifecycle.py"
       - "scripts/investments_wes_memory.py"
@@ -38,6 +39,7 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 concurrency:
   group: investment-weekly-positions
@@ -60,7 +62,7 @@ jobs:
         run: python -m pip install --upgrade pip yfinance pandas numpy
       - name: Validate WES without mutating runtime state
         run: |
-          python -m py_compile             scripts/instrument_registry.py scripts/investments_weekly_v2.py scripts/investments_weekly_v3.py             scripts/investments_weekly_v4.py scripts/investments_weekly_v5.py scripts/execution_price_engine.py scripts/investments_weekly_macro.py             scripts/investments_weekly_ma_structure.py scripts/investments_wes.py scripts/investments_wes_runner.py             scripts/investments_wes_lifecycle.py scripts/investments_wes_memory.py scripts/investments_wes_spx_brace_bridge.py             scripts/investments_wes_counterfactual.py scripts/no_retroactive_execution.py scripts/verify_no_retroactive_execution.py
+          python -m py_compile             scripts/instrument_registry.py scripts/investments_weekly_v2.py scripts/investments_weekly_v3.py             scripts/investments_weekly_v4.py scripts/investments_weekly_v5.py scripts/execution_price_engine.py scripts/investments_weekly_macro.py             scripts/investments_weekly_ma_structure.py scripts/investments_wes.py scripts/investments_wes_macro_belief.py scripts/investments_wes_runner.py             scripts/investments_wes_lifecycle.py scripts/investments_wes_memory.py scripts/investments_wes_spx_brace_bridge.py             scripts/investments_wes_counterfactual.py scripts/no_retroactive_execution.py scripts/verify_no_retroactive_execution.py
           python scripts/instrument_registry.py --validate-wes
           python -m unittest             tests/test_investments_wes.py tests/test_investments_wes_memory.py             tests/test_investments_wes_spx_brace_bridge.py tests/test_investments_wes_counterfactual.py             tests/test_investments_wes_counterfactual_deadline.py tests/test_investments_weekly_v5.py tests/test_execution_price_engine.py tests/test_no_retroactive_execution.py
 
@@ -80,6 +82,32 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Restore latest Belief Core shadow state for EURUSD context
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/belief_core_state"
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=belief-core-shadow-state&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/belief-artifacts.json"
+          artifact_id=$(python - "$RUNNER_TEMP/belief-artifacts.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get("artifacts",[]) if not x.get("expired")]
+          rows.sort(key=lambda x:x.get("created_at",""), reverse=True)
+          print(rows[0]["id"] if rows else "")
+          PY
+          )
+          if [ -n "$artifact_id" ]; then
+            curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" -o "$RUNNER_TEMP/belief-state.zip"
+            mkdir -p "$RUNNER_TEMP/belief-state-artifact"
+            unzip -q "$RUNNER_TEMP/belief-state.zip" -d "$RUNNER_TEMP/belief-state-artifact"
+            tar -xzf "$RUNNER_TEMP/belief-state-artifact/belief-core-state.tgz" -C "$RUNNER_TEMP/belief_core_state"
+            echo "BELIEF_CORE_STATE=$RUNNER_TEMP/belief_core_state/state.json" >> "$GITHUB_ENV"
+          else
+            echo "BELIEF_CORE_STATE=" >> "$GITHUB_ENV"
+          fi
+
       - name: Start immutable LIVE execution clock
         run: |
           echo "NO_RETROACTIVE_EXECUTION=1" >> "$GITHUB_ENV"
@@ -99,6 +127,7 @@ jobs:
             scripts/investments_weekly_macro.py \
             scripts/investments_weekly_ma_structure.py \
             scripts/investments_wes.py \
+            scripts/investments_wes_macro_belief.py \
             scripts/investments_wes_runner.py \
             scripts/investments_wes_lifecycle.py \
             scripts/investments_wes_memory.py \
