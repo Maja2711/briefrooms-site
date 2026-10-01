@@ -20,7 +20,7 @@ self.addEventListener("notificationclick", (event) => {
   const url = data.url || "/pl/inwestycje/daily-trading.html";
   event.waitUntil((async () => {
     try {
-      await fetch("/api/trading-push/analytics/click", {
+      if (data.analytics_url) await fetch(data.analytics_url, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ event_id: data.event_id || null }),
