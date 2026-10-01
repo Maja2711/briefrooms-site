@@ -96,6 +96,8 @@ const replacements=[
 ["jakość badana","quality under study"],
 ["sygnały otoczenia","environment signals"],
 ["oczekuje","pending"],
+["Market View przeliczono: ","Market View calculated: "],
+["forecast bazowy: ","source forecast: "],
 ["stan ","as of "],
 ["Data prognozy","Forecast date"],
 ["Hipoteza","Hypothesis"],
