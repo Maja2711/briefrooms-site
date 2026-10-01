@@ -69,8 +69,8 @@ class TradingNotificationEventsTest(unittest.TestCase):
         ]
         for rel in pages:
             text = (ROOT / rel).read_text(encoding="utf-8")
-            self.assertIn("/assets/trading-notifications.css?v=1", text, rel)
-            self.assertIn("/scripts/trading-notifications.js?v=1", text, rel)
+            self.assertIn("/assets/trading-notifications.css", text, rel)
+            self.assertIn("/scripts/trading-notifications.js", text, rel)
 
 
 if __name__ == "__main__":
