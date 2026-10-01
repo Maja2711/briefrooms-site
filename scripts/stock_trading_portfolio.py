@@ -530,8 +530,20 @@ def _closure(position: Mapping[str, Any], *, now: datetime, exit_price: float, r
     entry = float(position["entry"])
     exit_price_f = float(exit_price)
     pnl_pct = (exit_price_f / entry - 1.0) * 100.0 if entry else 0.0
-    initial_risk = max(entry - float(position.get("stop") or entry), 1e-12)
-    r_multiple = (exit_price_f - entry) / initial_risk
+    initial_risk = _float(position.get("initial_risk_amount"))
+    if initial_risk is None or initial_risk <= 0:
+        initial_stop = _float(position.get("initial_stop"))
+        if initial_stop is not None and initial_stop < entry:
+            initial_risk = entry - initial_stop
+    if initial_risk is None or initial_risk <= 0:
+        opening_stop = _float(position.get("entry_stop"))
+        if opening_stop is not None and opening_stop < entry:
+            initial_risk = entry - opening_stop
+    if initial_risk is None or initial_risk <= 0:
+        current_stop = _float(position.get("stop"))
+        if current_stop is not None and current_stop < entry:
+            initial_risk = entry - current_stop
+    r_multiple = ((exit_price_f - entry) / initial_risk) if initial_risk and initial_risk > 0 else None
     quantity = _float(position.get("quantity"))
     pnl_amount = (exit_price_f - entry) * quantity if quantity is not None else None
     exit_notional = exit_price_f * quantity if quantity is not None else None
@@ -542,7 +554,7 @@ def _closure(position: Mapping[str, Any], *, now: datetime, exit_price: float, r
         "exit_price": round(exit_price_f, 8),
         "exit_reason": reason,
         "return_percent": round(pnl_pct, 5),
-        "r_multiple": round(r_multiple, 4),
+        "r_multiple": round(r_multiple, 4) if r_multiple is not None else None,
         "conservative_same_bar": bool(conservative_same_bar),
         "scheduled_exit": None,
         "valid_until": None,
