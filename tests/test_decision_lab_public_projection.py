@@ -44,6 +44,31 @@ class DecisionLabProjectionTests(unittest.TestCase):
         )
 
 
+    def test_market_view_exposes_projection_time_separately_from_source_forecast_time(self):
+        state = {
+            "forecasts": [{
+                "forecast_id": "eur-market-view",
+                "entity": "EURUSD",
+                "belief_id": "eurusd.trend.bullish",
+                "predicted_probability": 0.44,
+                "forecast_confidence": 0.47,
+                "forecast_at": "2026-09-30T18:25:18Z",
+                "target_at": "2026-10-01T18:25:18Z",
+                "horizon_hours": 24,
+                "metadata": {},
+            }],
+            "verifications": [],
+            "definitions": [],
+        }
+        report = {
+            "generated_at": "2026-10-01T07:13:48Z",
+            "belief_calibration": {},
+        }
+        payload = build_payload(state, report)
+        row = payload["market_view"][0]
+        self.assertEqual(row["calculated_at"], "2026-10-01T07:13:48Z")
+        self.assertEqual(row["as_of"], "2026-09-30T18:25:18Z")
+
     def test_open_forecast_keeps_weekend_target_unchanged(self):
         state = {
             "forecasts": [{
