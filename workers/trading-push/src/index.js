@@ -135,6 +135,17 @@ function notificationUrl(event, lang) {
   return pl ? "/pl/inwestycje/daily-trading.html" : "/en/investing/daily-trading.html";
 }
 
+function testNotificationPayload(lang) {
+  const pl = String(lang || "pl").toLowerCase().startsWith("pl");
+  return JSON.stringify({
+    title: "BriefRooms · test",
+    body: pl ? "Powiadomienia tradingowe działają na tym urządzeniu." : "Trading notifications work on this device.",
+    event_id: `test:${Date.now()}`,
+    url: pl ? "/pl/inwestycje/daily-trading.html" : "/en/investing/daily-trading.html",
+    data: { test: true },
+  });
+}
+
 function notificationPayload(event, lang, publicBaseUrl = "") {
   const pl = String(lang || "pl").toLowerCase().startsWith("pl");
   const engine = event.engine === "daily" ? "Daily Trading" : event.engine === "weekly" ? "Weekly Trading" : "Stock Trading";
@@ -338,6 +349,9 @@ export class PushHub {
         sent: Number(stats.sent || 0),
         failed: Number(stats.failed || 0),
         expired_removed: Number(stats.expired_removed || 0),
+        test_sent: Number(stats.test_sent || 0),
+        test_failed: Number(stats.test_failed || 0),
+        last_test_failed_status: stats.last_test_failed_status || null,
         last_dispatch_at: stats.last_dispatch_at || null,
         fast_daily_watcher: true,
         last_fast_daily_check_at: stats.last_fast_daily_check_at || null,
@@ -375,6 +389,51 @@ export class PushHub {
       stats.active_subscriptions = (await this.ctx.storage.list({ prefix: "sub:" })).size;
       await this.ctx.storage.put("stats", stats);
       return json({ ok: true, id }, 200, cors(origin));
+    }
+
+    if (path === "/test-subscription" && request.method === "POST") {
+      const payload = await bodyJson(request);
+      if (!payload.endpoint) return json({ error: "endpoint_required" }, 400, cors(origin));
+      const id = await endpointId(payload.endpoint);
+      const key = `sub:${id}`;
+      const record = await this.ctx.storage.get(key);
+      if (!record?.subscription) return json({ error: "subscription_not_registered" }, 404, cors(origin));
+
+      const rateKey = `test-rate:${id}`;
+      const now = Date.now();
+      const last = Number((await this.ctx.storage.get(rateKey)) || 0);
+      if (now - last < 10_000) return json({ error: "test_rate_limited" }, 429, cors(origin));
+      await this.ctx.storage.put(rateKey, now);
+
+      if (!this.env.VAPID_PUBLIC_KEY || !this.env.VAPID_PRIVATE_KEY) {
+        return json({ error: "vapid_not_ready" }, 503, cors(origin));
+      }
+      webpush.setVapidDetails(
+        this.env.VAPID_SUBJECT || "https://briefrooms.com",
+        this.env.VAPID_PUBLIC_KEY,
+        this.env.VAPID_PRIVATE_KEY,
+      );
+      try {
+        await webpush.sendNotification(
+          record.subscription,
+          testNotificationPayload(record.language),
+          { TTL: 60 },
+        );
+        const stats = (await this.ctx.storage.get("stats")) || {};
+        stats.test_sent = Number(stats.test_sent || 0) + 1;
+        stats.last_test_sent_at = new Date().toISOString();
+        await this.ctx.storage.put("stats", stats);
+        return json({ ok: true, id }, 200, cors(origin));
+      } catch (error) {
+        const status = Number(error?.statusCode || 0);
+        const stats = (await this.ctx.storage.get("stats")) || {};
+        stats.test_failed = Number(stats.test_failed || 0) + 1;
+        stats.last_test_failed_at = new Date().toISOString();
+        stats.last_test_failed_status = status || null;
+        await this.ctx.storage.put("stats", stats);
+        if (status === 404 || status === 410) await this.ctx.storage.delete(key);
+        return json({ error: "test_push_failed", status: status || null }, 502, cors(origin));
+      }
     }
 
     if (path === "/unsubscribe" && request.method === "DELETE") {
