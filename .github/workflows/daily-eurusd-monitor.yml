@@ -15,6 +15,7 @@ on:
       - "scripts/daily_eurusd_spot_v15.py"
       - "scripts/daily_eurusd_spot_v16.py"
       - "scripts/daily_eurusd_spot_v17.py"
+      - "scripts/daily_eurusd_spot_v18.py"
       - "scripts/investments_wes_macro_belief.py"
       - "scripts/daily_eurusd_contextual_policy_learning.py"
       - "scripts/execution_price_engine.py"
@@ -36,6 +37,7 @@ on:
       - "tests/test_daily_eurusd_ecb_policy.py"
       - "tests/test_execution_price_engine.py"
       - "tests/test_daily_eurusd_contextual_policy_learning.py"
+      - "tests/test_daily_eurusd_contextual_production_policy.py"
       - "tests/test_no_retroactive_execution.py"
       - ".github/workflows/daily-eurusd-monitor.yml"
   schedule:
@@ -110,6 +112,7 @@ jobs:
             tests.test_daily_eurusd_ecb_policy \
             tests.test_execution_price_engine \
             tests.test_daily_eurusd_contextual_policy_learning \
+            tests.test_daily_eurusd_contextual_production_policy \
             tests.test_no_retroactive_execution -v
           python -m py_compile \
             scripts/daily_engine_contract.py \
@@ -121,6 +124,7 @@ jobs:
             scripts/daily_eurusd_spot_v15.py \
             scripts/daily_eurusd_spot_v16.py \
             scripts/daily_eurusd_spot_v17.py \
+            scripts/daily_eurusd_spot_v18.py \
             scripts/investments_wes_macro_belief.py \
             scripts/daily_eurusd_contextual_policy_learning.py \
             scripts/execution_price_engine.py \
@@ -130,13 +134,13 @@ jobs:
             scripts/no_retroactive_execution.py \
             scripts/verify_no_retroactive_execution.py \
             scripts/build_trading_notification_events.py
-      - name: Reconcile open position with ECB-aware v1.7 policy
+      - name: Reconcile position with v1.8 contextual entry policy
         run: |
           set -euo pipefail
-          python scripts/daily_eurusd_spot_v17.py \
+          python scripts/daily_eurusd_spot_v18.py \
             --output data/investments/eurusd_daily_spot.json \
             --history data/investments/eurusd_daily_history.json
-          python scripts/daily_eurusd_spot_v17.py \
+          python scripts/daily_eurusd_spot_v18.py \
             --output data/investments/eurusd_daily_spot.json \
             --history data/investments/eurusd_daily_history.json \
             --validate
@@ -160,26 +164,32 @@ jobs:
           }
           leaked=sorted(reasons & forbidden)
           if leaked:
-              raise SystemExit(f'legacy admission veto leaked into v1.7 runtime: {leaked}')
+              raise SystemExit(f'legacy admission veto leaked into v1.8 runtime: {leaked}')
           version=payload.get('engine_version')
-          if version != 'eurusd-daily-spot-v1.7.0':
+          if version != 'eurusd-daily-spot-v1.8.0':
               raise SystemExit(f"unexpected EUR/USD engine version: {version}")
           metadata=payload.get('metadata') or {}
           dynamic=metadata.get('dynamic_exit') or {}
           if not dynamic.get('enabled'):
-              raise SystemExit('v1.7 output missing dynamic-exit metadata')
+              raise SystemExit('v1.8 output missing dynamic-exit metadata')
           guard=metadata.get('same_thesis_reentry_guard') or {}
           if not guard.get('enabled'):
-              raise SystemExit('v1.7 output missing same-thesis re-entry guard metadata')
+              raise SystemExit('v1.8 output missing same-thesis re-entry guard metadata')
+          contextual_policy=metadata.get('contextual_entry_policy') or {}
+          position=metadata.get('position') or {}
+          if not contextual_policy and not position:
+              raise SystemExit('v1.8 flat/new-entry output missing contextual entry policy metadata')
+          if contextual_policy and contextual_policy.get('direction_mutation_allowed') is not False:
+              raise SystemExit('contextual entry policy must not own market direction')
           policy=metadata.get('ecb_policy') or {}
           if not policy.get('enabled'):
-              raise SystemExit('v1.7 output missing ECB policy context')
+              raise SystemExit('v1.8 output missing ECB policy context')
           cb=metadata.get('central_bank_policy') or {}
           if not cb.get('new_entry_veto_enabled') or not cb.get('fail_closed_during_event_window'):
-              raise SystemExit('v1.7 ECB policy safety gate is not enabled')
+              raise SystemExit('v1.8 ECB policy safety gate is not enabled')
           data=metadata.get('data') or {}
           if 'ecb_policy_coverage' not in data:
-              raise SystemExit('v1.7 output missing ecb_policy_coverage')
+              raise SystemExit('v1.8 output missing ecb_policy_coverage')
           source=metadata.get('decision_source','NATIVE_OR_FLAT')
           if source == 'LOW_EDGE_LEARNING_EXPLORATION':
               exploration=metadata.get('exploration') or {}
@@ -187,7 +197,7 @@ jobs:
                   raise SystemExit('learning exploration must be learning eligible')
               if exploration.get('risk_budget_multiplier') != 0.35:
                   raise SystemExit('learning exploration risk budget must be 0.35')
-          print('EURUSD_V17_OK', payload.get('direction'), candidate.get('direction'), candidate.get('accepted'), source, sorted(reasons), policy.get('status'), data.get('ecb_policy_coverage'))
+          print('EURUSD_V18_OK', payload.get('direction'), candidate.get('direction'), candidate.get('accepted'), source, sorted(reasons), policy.get('status'), data.get('ecb_policy_coverage'))
           PY
 
       - name: Build trading notification transition from canonical Daily state
@@ -242,10 +252,10 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
 
-            python scripts/daily_eurusd_spot_v17.py \
+            python scripts/daily_eurusd_spot_v18.py \
               --output data/investments/eurusd_daily_spot.json \
               --history data/investments/eurusd_daily_history.json
-            python scripts/daily_eurusd_spot_v17.py \
+            python scripts/daily_eurusd_spot_v18.py \
               --output data/investments/eurusd_daily_spot.json \
               --history data/investments/eurusd_daily_history.json \
               --validate

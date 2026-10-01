@@ -83,21 +83,26 @@ jobs:
           python -m json.tool data/investments/eurusd_contextual_entry_policy_learning.json >/dev/null
           python -m json.tool data/investments/eurusd_contextual_entry_policy_public.json >/dev/null
 
-      - name: Enforce zero-authority learning boundary
+      - name: Enforce bounded autonomous entry-timing authority
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
           state=json.loads(Path('data/investments/eurusd_contextual_entry_policy_learning.json').read_text())
           authority=state['authority']
-          assert authority['decision_influence'] is False
+          assert authority['decision_influence'] is True
+          assert authority['entry_timing_decision_influence'] is True
+          assert authority['direction_decision_influence'] is False
           assert authority['trade_execution'] is False
-          assert authority['automatic_policy_mutation'] is False
-          assert authority['automatic_promotion'] is False
+          assert authority['automatic_policy_mutation'] is True
+          assert authority['automatic_promotion'] is True
+          assert authority['automatic_rollback'] is True
           assert authority['historical_backfill'] is False
           for episode in state.get('episodes', []):
               assert episode['policy_change_applied'] is False
-          print('EURUSD_CONTEXTUAL_POLICY_ZERO_AUTHORITY_PASS', len(state.get('episodes', [])))
+          recommendation=state.get('latest_recommendation') or {}
+          assert recommendation.get('authority_level','SHADOW') in {'SHADOW','LOW','MEDIUM','FULL'}
+          print('EURUSD_CONTEXTUAL_POLICY_BOUNDED_AUTHORITY_PASS', len(state.get('episodes', [])), recommendation.get('authority_level','SHADOW'))
           PY
 
       - name: Publish changed prospective learning state
