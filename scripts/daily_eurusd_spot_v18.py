@@ -115,6 +115,7 @@ def _policy_block(
         "recommended_family": recommendation.get("recommended_family"),
         "expected_r": recommendation.get("expected_r"),
         "edge_vs_second_r": recommendation.get("edge_vs_second_r"),
+        "application_edge_hurdle_r": recommendation.get("application_edge_hurdle_r"),
         "effective_policy_stats": recommendation.get("policy_stats"),
         "application_model": "deterministic_evidence_hurdle_not_random_mixing",
         "context": {
@@ -187,13 +188,12 @@ def _pullback_depth(policy_id: str) -> float | None:
         return None
 
 
-def _fresh_policy(
+def _apply_recommendation(
     candidate: DailyEngineOutput,
-    snapshot: Any,
-    monitor_bars: Sequence[Bar],
+    recommendation: Mapping[str, Any],
+    context: Mapping[str, Any],
     observed_at: datetime,
 ) -> DailyEngineOutput:
-    recommendation, context = _live_recommendation(candidate, snapshot, monitor_bars, observed_at)
     level = str(recommendation.get("authority_level") or "SHADOW").upper()
     policy_id = str(recommendation.get("recommended_policy_id") or "CONTINUATION_NOW").upper()
 
@@ -263,6 +263,7 @@ def _fresh_policy(
         "evidence_confidence": recommendation.get("evidence_confidence"),
         "expected_r": recommendation.get("expected_r"),
         "edge_vs_second_r": recommendation.get("edge_vs_second_r"),
+        "application_edge_hurdle_r": recommendation.get("application_edge_hurdle_r"),
     }
     return _flat(
         candidate,
@@ -273,6 +274,34 @@ def _fresh_policy(
         pending=pending,
     )
 
+
+def _fresh_policy(
+    candidate: DailyEngineOutput,
+    snapshot: Any,
+    monitor_bars: Sequence[Bar],
+    observed_at: datetime,
+) -> DailyEngineOutput:
+    recommendation, context = _live_recommendation(candidate, snapshot, monitor_bars, observed_at)
+    return _apply_recommendation(candidate, recommendation, context, observed_at)
+
+
+def _mark_prior_pending_cancelled(
+    output: DailyEngineOutput,
+    pending: Mapping[str, Any],
+    *,
+    reason: str,
+) -> DailyEngineOutput:
+    metadata = dict(output.metadata)
+    block = metadata.get("contextual_entry_policy")
+    block = dict(block) if isinstance(block, Mapping) else {}
+    block.update({
+        "automatic_rollback_applied": reason.startswith("automatic_rollback_"),
+        "prior_pending_cancelled": True,
+        "cancelled_pending_policy_id": pending.get("policy_id"),
+        "cancellation_reason": reason,
+    })
+    metadata["contextual_entry_policy"] = block
+    return _clone(output, metadata=metadata)
 
 def _pending_from_previous(previous: Mapping[str, Any] | None) -> dict[str, Any] | None:
     if not isinstance(previous, Mapping):
@@ -330,6 +359,30 @@ def _resume_pending(
 
     current_mid = float(monitor_bars[-1].close)
     recommendation, context = _live_recommendation(candidate, snapshot, monitor_bars, observed_at)
+    active_level = str(recommendation.get("authority_level") or "SHADOW").upper()
+    active_policy = str(recommendation.get("recommended_policy_id") or "CONTINUATION_NOW").upper()
+    pending_policy = str(pending.get("policy_id") or "").upper()
+
+    # Automatic rollback is evaluated continuously, not only when a new policy
+    # is created. A frozen pullback order must not survive loss of authority.
+    if active_level == "SHADOW" or recommendation.get("decision_influence") is not True:
+        fresh = _apply_recommendation(candidate, recommendation, context, observed_at)
+        return _mark_prior_pending_cancelled(
+            fresh,
+            pending,
+            reason="automatic_rollback_authority_lost",
+        )
+
+    # If the context-local winner rotates while a pullback is waiting, cancel
+    # the old frozen policy and immediately apply the new authoritative policy.
+    if active_policy != pending_policy:
+        fresh = _apply_recommendation(candidate, recommendation, context, observed_at)
+        return _mark_prior_pending_cancelled(
+            fresh,
+            pending,
+            reason="automatic_rollback_policy_changed",
+        )
+
     if not _pending_triggered(pending, current_mid):
         return _flat(
             candidate,
