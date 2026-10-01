@@ -9,7 +9,7 @@ self.addEventListener("push", (event) => {
     icon: "/assets/favicon.svg",
     badge: "/assets/favicon.svg",
     tag: payload.event_id || payload.tag || undefined,
-    data: { url: payload.url || "/pl/inwestycje/daily-trading.html", ...(payload.data || {}) },
+    data: { url: payload.url || "/pl/inwestycje/daily-trading.html", event_id: payload.event_id || null, ...(payload.data || {}) },
   };
   event.waitUntil(self.registration.showNotification(title, options));
 });
@@ -20,7 +20,7 @@ self.addEventListener("notificationclick", (event) => {
   const url = data.url || "/pl/inwestycje/daily-trading.html";
   event.waitUntil((async () => {
     try {
-      await fetch("/api/trading-push/analytics/click", {
+      if (data.analytics_url) await fetch(data.analytics_url, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ event_id: data.event_id || null }),
