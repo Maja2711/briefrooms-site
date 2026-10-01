@@ -1,6 +1,6 @@
 # BriefRooms Canonical Architecture Map — EN
 
-**Map version:** 1.14  
+**Map version:** 1.15  
 **Snapshot date:** 2026-09-29  
 **Base `main` commit:** `2fa9fd1a9636c995caaa1a6db681ff20148cbb2f`  
 **Repository:** `Maja2711/briefrooms-site`
@@ -474,6 +474,6 @@ Primary detailed documents used to build and maintain the current map:
 
 | ID | Module | Role | Implementation / authority |
 |---|---|---|---|
-| `NT-01` | Trading Notifications | Read-only projection of persisted position transitions into OPEN/CLOSE events plus user preferences | `scripts/build_trading_notification_events.py`, `scripts/trading-notifications.js`, `br-trading-sw.js`, `data/notifications/*`, `docs/TRADING_NOTIFICATIONS_PL.md` / `_EN.md`; **zero execution/decision/risk authority** |
+| `NT-01` | Trading Notifications | Read-only projection of persisted position transitions into OPEN/CLOSE events, per-device preferences and background Web Push | `scripts/build_trading_notification_events.py`, `scripts/trading-notifications.js`, `br-trading-sw.js`, `workers/trading-push/*`, `data/notifications/*`, `docs/TRADING_NOTIFICATIONS_PL.md` / `_EN.md`; **zero execution/decision/risk authority** |
 
-`NT-01` only reads already persisted state owned by `TR-03`, `TR-04` and `TR-05`. It cannot invoke lifecycle logic, create fills, mutate positions or influence models. The first run seeds state without historical alerts; later runs deterministically emit only `OPEN` / `CLOSE` transitions. Access configuration supports `PUBLIC | AUTHENTICATED | PAID` from day one. GitHub Pages remains the frontend; full background Web Push and aggregated Notification Analytics require a separate secure subscription backend.
+`NT-01` only reads already persisted state owned by `TR-03`, `TR-04` and `TR-05`. It cannot invoke lifecycle logic, create fills, mutate positions or influence models. The first run seeds state without historical alerts; later runs deterministically emit only `OPEN` / `CLOSE` transitions. Access configuration supports `PUBLIC | AUTHENTICATED | PAID` from day one. GitHub Pages remains the frontend; background Web Push is handled by an isolated Cloudflare Worker with a Durable Object, while private VAPID material remains only in Worker Secrets.

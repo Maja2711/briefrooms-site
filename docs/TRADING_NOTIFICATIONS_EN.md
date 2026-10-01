@@ -2,7 +2,7 @@
 
 ## Status
 
-MVP v1. This layer is a read-only observer of persisted trading state. It has no authority to change decisions, positions, risk, entry prices, TP/SL or execution workflows.
+Background Web Push v2. This layer is a read-only observer of persisted trading state. It has no authority to change decisions, positions, risk, entry prices, TP/SL or execution workflows.
 
 ## User scope
 
@@ -41,15 +41,17 @@ Configuration supports:
 
 globally and per channel. MVP starts in PUBLIC mode.
 
-## GitHub Pages limitation
+## Background Web Push
 
-GitHub Pages cannot safely store Web Push subscriptions or VAPID sending secrets. MVP v1 therefore provides:
-1. per-device preferences,
-2. system test notifications,
-3. polling of the event feed while BriefRooms is open,
-4. a service worker ready to receive real Web Push.
+GitHub Pages remains the public frontend while an isolated Cloudflare Worker named `briefrooms-trading-push` performs push delivery. A Durable Object provides durable subscription storage.
 
-Full background push with the site closed and global Notification Analytics require a secure backend/serverless subscription store. Subscription endpoints and sender secrets must never be stored in the public repository.
+The frontend registers `br-trading-sw.js`, fetches the public VAPID key from the Worker, creates a subscription through `PushManager`, and stores only the push endpoint, required Web Push key material, and Daily/Weekly/Stock + OPEN/CLOSE preferences.
+
+The private VAPID key never reaches GitHub Pages or the public repository. It is generated and stored as a Cloudflare Worker Secret.
+
+The Worker polls the canonical `data/notifications/trading-events.json` feed every minute, deduplicates by `event_id`, and sends only to matching subscriptions. Initial startup is seed-only, so historical events are not sent.
+
+A push-backend failure cannot affect TR-03/TR-04/TR-05 or any execution/risk/decision path.
 
 ## Target Notification Analytics
 
