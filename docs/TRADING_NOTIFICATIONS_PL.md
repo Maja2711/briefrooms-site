@@ -2,7 +2,7 @@
 
 ## Status
 
-MVP v1. Warstwa jest wyłącznie obserwatorem zapisanych stanów tradingowych i nie ma prawa zmieniać decyzji, pozycji, ryzyka, cen wejścia, TP/SL ani workflow wykonawczych.
+Background Web Push v2. Warstwa jest wyłącznie obserwatorem zapisanych stanów tradingowych i nie ma prawa zmieniać decyzji, pozycji, ryzyka, cen wejścia, TP/SL ani workflow wykonawczych.
 
 ## Zakres użytkownika
 
@@ -41,15 +41,21 @@ Konfiguracja posiada:
 
 globalnie i per kanał. W MVP aktywny jest PUBLIC.
 
-## Ograniczenie GitHub Pages
+## Background Web Push
 
-GitHub Pages nie przechowuje bezpiecznie subskrypcji Web Push ani sekretów VAPID. Dlatego v1 ma:
-1. działające ustawienia per urządzenie,
-2. systemowe test notification,
-3. polling nowego event feedu, gdy BriefRooms jest otwarte,
-4. service worker przygotowany do odbioru prawdziwego Web Push.
+GitHub Pages pozostaje publicznym frontendem, natomiast wysyłkę push obsługuje odseparowany Cloudflare Worker `briefrooms-trading-push` z Durable Object jako trwałym magazynem subskrypcji.
 
-Pełny background push przy zamkniętej stronie oraz globalne Notification Analytics wymagają bezpiecznego backendu/serverless z bazą subskrypcji. Nie należy przechowywać endpointów subskrypcji ani kluczy wysyłkowych w publicznym repo.
+Frontend:
+1. rejestruje `br-trading-sw.js`,
+2. pobiera publiczny klucz VAPID z Workera,
+3. tworzy subskrypcję przez `PushManager`,
+4. zapisuje w backendzie wyłącznie endpoint push, klucze wymagane przez Web Push oraz preferencje Daily/Weekly/Stock + OPEN/CLOSE.
+
+Prywatny klucz VAPID nigdy nie trafia do GitHub Pages ani publicznego repo. Jest tworzony i przechowywany jako Cloudflare Worker Secret.
+
+Worker co minutę pobiera kanoniczny feed `data/notifications/trading-events.json`, deduplikuje `event_id` i wysyła alert wyłącznie do pasujących subskrypcji. Pierwsza inicjalizacja jest seed-only, więc nie wysyła historycznych zdarzeń.
+
+Awaria backendu push nie ma wpływu na TR-03/TR-04/TR-05 ani na execution/risk/decision path.
 
 ## Docelowe Notification Analytics
 
