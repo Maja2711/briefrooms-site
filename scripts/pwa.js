@@ -68,7 +68,7 @@
         }
       }
       @media(max-width:680px){
-        .br-pwa-install{
+        .br-pwa-install[data-placement="home-lab-mobile"]{
           position:static;
           inset:auto;
           min-height:34px;
@@ -83,6 +83,16 @@
         }
         .home-lab__head > .br-pwa-install[data-visible="true"]{
           display:inline-flex;
+        }
+        .br-pwa-install[data-placement="floating-mobile"]{
+          position:fixed;
+          top:calc(var(--br-site-header-height, 68px) + 18px);
+          left:14px;
+          right:auto;
+          bottom:auto;
+          min-height:36px;
+          padding:0 11px;
+          font-size:11px;
         }
       }
     `;
@@ -152,7 +162,7 @@
     if (installButton.parentElement !== document.body) {
       document.body.appendChild(installButton);
     }
-    installButton.dataset.placement = "floating-desktop";
+    installButton.dataset.placement = mobile ? "floating-mobile" : "floating-desktop";
   }
 
   function syncButton() {
