@@ -1,4 +1,4 @@
-name: Validate Daily EURUSD Direct Signal Admission
+name: Validate Daily EURUSD Native-Only Direction Authority
 
 on:
   pull_request:
@@ -56,27 +56,28 @@ jobs:
             tests.test_daily_eurusd_lifecycle \
             tests.test_daily_eurusd_direct_signal \
             tests.test_daily_eurusd_a_fallback -v
-      - name: Assert production workflow uses PR25 native-or-A admission
+      - name: Assert production workflow uses native-only direction authority
         run: |
           set -euo pipefail
           python - <<'PY'
           from pathlib import Path
           text=Path('.github/workflows/daily-eurusd-monitor.yml').read_text()
           required=[
-              'scripts/daily_eurusd_spot_v13.py',
+              'scripts/daily_eurusd_spot_v18.py',
               'tests.test_daily_eurusd_a_fallback',
               'tests.test_daily_eurusd_direct_signal',
-              'daily_entry_limit_reached',
-              'post_stop_cooldown',
-              'confidence_below_minimum',
-              'signal_not_persistent',
-              'entry_overextended_vs_ema20',
-              'latest_30m_bar_is_shock_bar',
+              'tests.test_daily_eurusd_contextual_production_policy',
+              'cross_asset_data_misaligned',
+              'PUSH_VALIDATION_ONLY_NO_TRADING_STATE_MUTATION',
           ]
           missing=[item for item in required if item not in text]
           if missing:
-              raise SystemExit(f'PR25 production contract missing: {missing}')
-          if 'python scripts/daily_eurusd_spot_v12.py \\\n' in text:
-              raise SystemExit('v1.2 is still invoked directly in production')
-          print('PR25_NATIVE_OR_A_WORKFLOW_CONTRACT_OK')
+              raise SystemExit(f'native-only production contract missing: {missing}')
+          forbidden=[
+              'PR25_NATIVE_OR_A_WORKFLOW_CONTRACT_OK',
+          ]
+          leaked=[item for item in forbidden if item in text]
+          if leaked:
+              raise SystemExit(f'legacy fallback authority contract leaked: {leaked}')
+          print('DAILY_EURUSD_NATIVE_ONLY_DIRECTION_AUTHORITY_OK')
           PY
