@@ -23,6 +23,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from typing import Any, Mapping, Sequence
+from zoneinfo import ZoneInfo
 
 from belief_market_data_adapter import Bar
 from daily_engine_contract import DailyEngineOutput
@@ -36,6 +37,9 @@ POST_TRADE_REVIEW_SCHEMA = "eurusd-post-trade-review-v1"
 SAME_THESIS_GUARD_WINDOW_HOURS = 12.0
 SAME_THESIS_GUARD_MIN_LOSS_R = -0.15
 RAPID_REVERSAL_WINDOW_MINUTES = 60.0
+SECONDARY_FRIDAY_ENTRY_CUTOFF_HOUR_NY = 12
+SECONDARY_ENTRY_SOURCES = {"A_TECHNICAL_FALLBACK", "LOW_EDGE_LEARNING_EXPLORATION"}
+NY = ZoneInfo("America/New_York")
 MATERIAL_SCORE_STRENGTH_IMPROVEMENT = 3.0
 MATERIAL_CONFIDENCE_IMPROVEMENT = 0.08
 MATERIAL_COMPONENT_L1_CHANGE = 0.20
@@ -413,6 +417,46 @@ def _block_candidate(
     ).validate()
 
 
+def _apply_weekly_close_entry_guard(candidate: DailyEngineOutput) -> DailyEngineOutput:
+    metadata = dict(candidate.metadata)
+    guard = {
+        "enabled": True,
+        "mode": "SECONDARY_FRIDAY_ENTRY_GUARD",
+        "cutoff_hour_new_york": SECONDARY_FRIDAY_ENTRY_CUTOFF_HOUR_NY,
+        "secondary_sources": sorted(SECONDARY_ENTRY_SOURCES),
+    }
+    if candidate.direction not in {"LONG", "SHORT"}:
+        guard.update({"evaluated": False, "blocked": False, "reason": "no_directional_candidate"})
+        metadata["weekly_close_entry_guard"] = guard
+        return _clone(candidate, metadata=metadata)
+
+    observed_at = _parse(candidate.timestamp)
+    if observed_at is None:
+        guard.update({"evaluated": False, "blocked": False, "reason": "missing_candidate_timestamp"})
+        metadata["weekly_close_entry_guard"] = guard
+        return _clone(candidate, metadata=metadata)
+
+    source = _decision_source(metadata)
+    local = observed_at.astimezone(NY)
+    late_friday = local.weekday() == 4 and local.hour >= SECONDARY_FRIDAY_ENTRY_CUTOFF_HOUR_NY
+    blocked = late_friday and source in SECONDARY_ENTRY_SOURCES
+    guard.update({
+        "evaluated": True,
+        "blocked": blocked,
+        "reason": (
+            "late_friday_secondary_entry_blocked"
+            if blocked
+            else "weekly_close_guard_clear"
+        ),
+        "observed_at_new_york": local.isoformat(),
+        "source": source,
+    })
+    metadata["weekly_close_entry_guard"] = guard
+    if not blocked:
+        return _clone(candidate, metadata=metadata)
+    return _block_candidate(candidate, metadata, reason="late_friday_secondary_entry_blocked")
+
+
 def _apply_same_thesis_guard(
     candidate: DailyEngineOutput,
     history: Mapping[str, Any] | None,
@@ -543,8 +587,18 @@ def build_output(snapshot: Any, history: Mapping[str, Any] | None = None, *, all
         guard = _guard_metadata_base()
         guard.update({"evaluated": False, "blocked": False, "reason": "entry_disabled_this_cycle"})
         metadata["same_thesis_reentry_guard"] = guard
+        metadata["weekly_close_entry_guard"] = {
+            "enabled": True,
+            "mode": "SECONDARY_FRIDAY_ENTRY_GUARD",
+            "evaluated": False,
+            "blocked": False,
+            "reason": "entry_disabled_this_cycle",
+            "cutoff_hour_new_york": SECONDARY_FRIDAY_ENTRY_CUTOFF_HOUR_NY,
+            "secondary_sources": sorted(SECONDARY_ENTRY_SOURCES),
+        }
         return _clone(candidate, metadata=metadata)
-    return _apply_same_thesis_guard(candidate, history)
+    candidate = _apply_same_thesis_guard(candidate, history)
+    return _apply_weekly_close_entry_guard(candidate)
 
 
 def create_position(payload: Mapping[str, Any]) -> dict[str, Any]:
