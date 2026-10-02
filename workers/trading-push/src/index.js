@@ -53,6 +53,94 @@ function openDailyPosition(payload) {
   return position;
 }
 
+function parseCsvLine(line) {
+  const out = [];
+  let current = "";
+  let quoted = false;
+  for (let i = 0; i < line.length; i += 1) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (quoted && line[i + 1] === '"') { current += '"'; i += 1; }
+      else quoted = !quoted;
+    } else if (ch === "," && !quoted) {
+      out.push(current);
+      current = "";
+    } else {
+      current += ch;
+    }
+  }
+  out.push(current);
+  return out;
+}
+
+function parseStooqQuoteCsv(text) {
+  const lines = String(text || "").trim().split(/\r?\n/).filter(Boolean);
+  if (lines.length < 2) throw new Error("stooq_eurusd_empty");
+  const headers = parseCsvLine(lines[0]).map((x) => String(x || "").trim().toLowerCase());
+  const values = parseCsvLine(lines[1]);
+  const row = {};
+  headers.forEach((key, i) => { row[key] = String(values[i] ?? "").trim(); });
+  if (Object.values(row).some((v) => ["N/D", "N/A"].includes(String(v).toUpperCase()))) {
+    throw new Error("stooq_eurusd_unavailable");
+  }
+  const bid = finiteNumber(row.bid);
+  const ask = finiteNumber(row.ask);
+  const close = finiteNumber(row.close ?? row.last ?? row.kurs);
+  const high = finiteNumber(row.high ?? row.max);
+  const low = finiteNumber(row.low ?? row.min);
+  const open = finiteNumber(row.open);
+  const price = bid != null && ask != null && ask >= bid ? (bid + ask) / 2 : close;
+  if (price == null) throw new Error("stooq_eurusd_no_price");
+  return {
+    source: "Stooq EURUSD live",
+    symbol: row.symbol || row.symbol_pl || "EURUSD",
+    source_date: row.date || row.data || null,
+    source_time: row.time || row.czas || null,
+    fetched_at: new Date().toISOString(),
+    price,
+    bid,
+    ask,
+    open,
+    high,
+    low,
+    close,
+  };
+}
+
+async function fetchStooqEurusd(env) {
+  const base = env.STOOQ_EURUSD_URL || "https://stooq.pl/q/l/?s=eurusd&f=sd2t2ohlcvba&h&e=csv";
+  const response = await fetch(`${base}${base.includes("?") ? "&" : "?"}_=${Date.now()}`, {
+    headers: { "cache-control": "no-cache", "accept": "text/csv,text/plain,*/*" },
+  });
+  if (!response.ok) throw new Error(`stooq_eurusd_http_${response.status}`);
+  return parseStooqQuoteCsv(await response.text());
+}
+
+function fastExitHitQuote(position, quote) {
+  const direction = String(position.direction || "").toUpperCase();
+  const stop = finiteNumber(position.stop);
+  const target = finiteNumber(position.target);
+  if (!["LONG", "SHORT"].includes(direction) || stop == null || target == null) return null;
+
+  const bid = finiteNumber(quote?.bid);
+  const ask = finiteNumber(quote?.ask);
+  const mid = finiteNumber(quote?.price);
+  const execution = position.execution_price_engine || {};
+  const halfPips = finiteNumber(execution.synthetic_half_spread_pips) || 0;
+  const halfPrice = halfPips * 0.0001;
+  const executable = direction === "LONG"
+    ? (bid ?? (mid == null ? null : mid - halfPrice))
+    : (ask ?? (mid == null ? null : mid + halfPrice));
+  if (executable == null) return null;
+
+  const stopHit = direction === "LONG" ? executable <= stop : executable >= stop;
+  const targetHit = direction === "LONG" ? executable >= target : executable <= target;
+  if (stopHit && targetHit) return { exit_reason: "STOP_LOSS", exit_price: stop, bar_timestamp: quote.fetched_at, conservative_same_bar: true };
+  if (stopHit) return { exit_reason: "STOP_LOSS", exit_price: stop, bar_timestamp: quote.fetched_at, conservative_same_bar: false };
+  if (targetHit) return { exit_reason: "TAKE_PROFIT", exit_price: target, bar_timestamp: quote.fetched_at, conservative_same_bar: false };
+  return null;
+}
+
 function yahooMinuteBars(payload) {
   const result = payload?.chart?.result?.[0];
   const timestamps = Array.isArray(result?.timestamp) ? result.timestamp : [];
@@ -274,30 +362,43 @@ export class PushHub {
     };
     const openDispatch = await this.dispatchEvents([openEvent]);
 
-    let bars = [];
-    let marketSource = "Yahoo Finance EURUSD=X 1m OHLC";
+    let hit = null;
+    let marketSource = "Stooq EURUSD live";
     try {
-      const yahooUrl = this.env.YAHOO_EURUSD_1M_URL || "https://query1.finance.yahoo.com/v8/finance/chart/EURUSD%3DX?range=1d&interval=1m&includePrePost=false&events=div%2Csplits";
-      const response = await fetch(`${yahooUrl}${yahooUrl.includes("?") ? "&" : "?"}_=${Date.now()}`, {
-        headers: { "cache-control": "no-cache", "accept": "application/json" },
-      });
-      if (!response.ok) throw new Error(`yahoo_eurusd_http_${response.status}`);
-      bars = yahooMinuteBars(await response.json());
-      if (!bars.length) throw new Error("yahoo_eurusd_no_bars");
-    } catch (yahooError) {
-      const fxUrl = this.env.FXAPI_EURUSD_URL || "https://fxapi.app/api/EUR/USD.json";
-      const response = await fetch(`${fxUrl}${fxUrl.includes("?") ? "&" : "?"}_=${Date.now()}`, {
-        headers: { "cache-control": "no-cache", "accept": "application/json" },
-      });
-      if (!response.ok) throw yahooError;
-      const quote = await response.json();
-      const rate = finiteNumber(quote?.rate);
-      if (rate == null) throw yahooError;
-      bars = [{ timestamp: new Date().toISOString(), open: rate, high: rate, low: rate, close: rate }];
-      marketSource = "fxapi.app EUR/USD spot fallback";
+      const stooqQuote = await fetchStooqEurusd(this.env);
+      hit = fastExitHitQuote(position, stooqQuote);
+      stats.last_fast_daily_quote = {
+        source: stooqQuote.source,
+        fetched_at: stooqQuote.fetched_at,
+        bid: stooqQuote.bid,
+        ask: stooqQuote.ask,
+        price: stooqQuote.price,
+      };
+    } catch (stooqError) {
+      let bars = [];
+      marketSource = "Yahoo Finance EURUSD=X 1m OHLC fallback";
+      try {
+        const yahooUrl = this.env.YAHOO_EURUSD_1M_URL || "https://query1.finance.yahoo.com/v8/finance/chart/EURUSD%3DX?range=1d&interval=1m&includePrePost=false&events=div%2Csplits";
+        const response = await fetch(`${yahooUrl}${yahooUrl.includes("?") ? "&" : "?"}_=${Date.now()}`, {
+          headers: { "cache-control": "no-cache", "accept": "application/json" },
+        });
+        if (!response.ok) throw new Error(`yahoo_eurusd_http_${response.status}`);
+        bars = yahooMinuteBars(await response.json());
+        if (!bars.length) throw new Error("yahoo_eurusd_no_bars");
+      } catch (yahooError) {
+        const fxUrl = this.env.FXAPI_EURUSD_URL || "https://fxapi.app/api/EUR/USD.json";
+        const response = await fetch(`${fxUrl}${fxUrl.includes("?") ? "&" : "?"}_=${Date.now()}`, {
+          headers: { "cache-control": "no-cache", "accept": "application/json" },
+        });
+        if (!response.ok) throw yahooError;
+        const quote = await response.json();
+        const rate = finiteNumber(quote?.rate);
+        if (rate == null) throw yahooError;
+        bars = [{ timestamp: new Date().toISOString(), open: rate, high: rate, low: rate, close: rate }];
+        marketSource = "fxapi.app EUR/USD spot fallback";
+      }
+      hit = fastExitHit(position, bars);
     }
-
-    const hit = fastExitHit(position, bars);
     if (!hit) {
       stats.last_fast_daily_status = "OPEN_NO_EXIT";
       stats.last_fast_daily_market_source = marketSource;
@@ -368,6 +469,15 @@ export class PushHub {
 
     if (url.hostname === "internal" && path === "/fast-daily-watch" && request.method === "POST") {
       return json(await this.fastDailyWatch());
+    }
+
+    if (path === "/market/eurusd" && request.method === "GET") {
+      try {
+        const quote = await fetchStooqEurusd(this.env);
+        return json({ ok: true, ...quote }, 200, cors(origin));
+      } catch (error) {
+        return json({ ok: false, error: String(error?.message || error) }, 502, cors(origin));
+      }
     }
 
     if (origin === null) return json({ error: "origin_not_allowed" }, 403);
