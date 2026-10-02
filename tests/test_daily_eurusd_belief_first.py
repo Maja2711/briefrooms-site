@@ -1,0 +1,183 @@
+from __future__ import annotations
+
+import json
+import os
+import sys
+import tempfile
+import unittest
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from unittest import mock
+
+SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
+if str(SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS))
+
+from belief_market_data_adapter import Bar, MarketSnapshot
+import daily_eurusd_belief_decision as decision
+import daily_eurusd_spot as base
+import daily_eurusd_spot_v19 as v19
+
+UTC = timezone.utc
+
+
+def _state(now: datetime, values: dict[str, tuple[float, float]]) -> dict:
+    evidence = []
+    beliefs = []
+    for index, (belief_id, (probability, confidence)) in enumerate(values.items()):
+        eid = f"ev-{index}"
+        evidence.append({
+            "evidence_id": eid,
+            "observed_at": (now - timedelta(minutes=10)).isoformat().replace("+00:00", "Z"),
+        })
+        beliefs.append({
+            "belief_id": belief_id,
+            "probability": probability,
+            "confidence": confidence,
+            "representative_evidence_ids": [eid],
+        })
+    return {"schema_version": 2, "beliefs": beliefs, "evidence": evidence}
+
+
+def _snapshot(now: datetime) -> MarketSnapshot:
+    rows = []
+    price = 1.1200
+    for idx in range(90):
+        p = price + idx * 0.00002
+        rows.append(Bar(
+            timestamp=now - timedelta(minutes=30 * (89 - idx)),
+            open=p - 0.00005,
+            high=p + 0.00020,
+            low=p - 0.00020,
+            close=p,
+        ))
+    return MarketSnapshot({base.EURUSD: rows})
+
+
+class BeliefDecisionTest(unittest.TestCase):
+    def test_final_direction_is_synthesized_from_belief_core(self):
+        now = datetime(2026, 10, 2, 18, 0, tzinfo=UTC)
+        state = _state(now, {
+            "eurusd.trend.bullish": (.78, .90),
+            "eurusd.usd_environment.supportive": (.70, .80),
+            "eurusd.us_rates_pressure.supportive": (.62, .70),
+            "eurusd.macro_surprise.supportive": (.66, .75),
+            "eurusd.policy_differential.supportive": (.60, .70),
+        })
+        result = decision.synthesize(state, observed_at=now)
+        self.assertEqual(result["direction"], "LONG")
+        self.assertGreaterEqual(result["score"], 60.0)
+        self.assertEqual(result["decision_source"], "BELIEF_CORE")
+        self.assertFalse(result["legacy_raw_score_direction_authority"])
+
+    def test_missing_belief_state_fails_closed(self):
+        now = datetime(2026, 10, 2, 18, 0, tzinfo=UTC)
+        result = decision.synthesize({}, observed_at=now)
+        self.assertEqual(result["direction"], "FLAT")
+        self.assertIn("belief_state_unavailable", result["reasons"])
+
+    def test_missing_data_is_not_neutral_vote(self):
+        now = datetime(2026, 10, 2, 18, 0, tzinfo=UTC)
+        state = _state(now, {
+            "eurusd.trend.bullish": (.80, .90),
+        })
+        result = decision.synthesize(state, observed_at=now)
+        self.assertEqual(result["direction"], "FLAT")
+        self.assertIn("insufficient_belief_coverage", result["reasons"])
+        self.assertLess(result["coverage_weight"], 0.45)
+
+    def test_macro_and_policy_are_part_of_final_direction_not_post_signal_veto(self):
+        now = datetime(2026, 10, 2, 18, 0, tzinfo=UTC)
+        state = _state(now, {
+            "eurusd.trend.bullish": (.62, .70),
+            "eurusd.usd_environment.supportive": (.58, .60),
+            "eurusd.us_rates_pressure.supportive": (.56, .60),
+            "eurusd.macro_surprise.supportive": (.05, 1.00),
+            "eurusd.policy_differential.supportive": (.05, 1.00),
+        })
+        result = decision.synthesize(state, observed_at=now)
+        self.assertNotEqual(result["direction"], "LONG")
+        ids = {row["belief_id"] for row in result["used_beliefs"]}
+        self.assertIn("eurusd.macro_surprise.supportive", ids)
+        self.assertIn("eurusd.policy_differential.supportive", ids)
+
+    def test_v19_build_does_not_use_legacy_raw_direction_score(self):
+        now = datetime(2026, 10, 2, 18, 0, tzinfo=UTC)
+        state = _state(now, {
+            "eurusd.trend.bullish": (.80, .90),
+            "eurusd.usd_environment.supportive": (.70, .80),
+            "eurusd.us_rates_pressure.supportive": (.65, .70),
+            "eurusd.macro_surprise.supportive": (.65, .70),
+            "eurusd.policy_differential.supportive": (.60, .70),
+        })
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            path = root / "state.json"
+            path.write_text(json.dumps(state), encoding="utf-8")
+            (root / "observations.jsonl").write_text("", encoding="utf-8")
+            with mock.patch.dict(os.environ, {"BELIEF_CORE_STATE": str(path)}, clear=False):
+                with mock.patch.object(base, "_raw_state", side_effect=AssertionError("legacy raw direction called")):
+                    output = v19.build_output(_snapshot(now), {"trades": []})
+        self.assertEqual(output.decision_mode, "WITH")
+        self.assertEqual(output.metadata["direction_authority"]["owner"], "NATIVE_DAILY_EURUSD_BELIEF_FIRST_DECISION_ENGINE")
+        self.assertEqual(output.metadata["final_decision"]["decision_source"], "BELIEF_CORE")
+
+    def test_fse_and_contextual_learner_have_zero_v19_production_influence(self):
+        now = datetime(2026, 10, 2, 18, 0, tzinfo=UTC)
+        candidate = v19.DailyEngineOutput(
+            instrument="EUR/USD",
+            timestamp=now.isoformat().replace("+00:00", "Z"),
+            direction="LONG",
+            score=70.0,
+            confidence=.7,
+            entry=1.12,
+            stop=1.11,
+            target=1.138,
+            horizon="intraday_to_27h",
+            engine_version=v19.ENGINE_VERSION,
+            status="SIGNAL",
+            decision_mode="WITH",
+            metadata={"final_decision": {"direction": "LONG"}},
+        ).validate()
+        with mock.patch.object(v19.v18, "_live_recommendation", side_effect=AssertionError("legacy contextual production path called")):
+            out = v19._fresh_policy_shadow(candidate, None, [], now)
+        self.assertEqual(out.direction, "LONG")
+        self.assertFalse(out.metadata["contextual_entry_policy"]["decision_influence"])
+        self.assertFalse(out.metadata["contextual_entry_policy"]["FSE_production_influence"])
+
+    def test_imminent_belief_calendar_blocks_execution_not_final_decision(self):
+        now = datetime(2026, 10, 2, 18, 0, tzinfo=UTC)
+        state = _state(now, {
+            "eurusd.trend.bullish": (.80, .90),
+            "eurusd.usd_environment.supportive": (.70, .80),
+            "eurusd.us_rates_pressure.supportive": (.65, .70),
+            "eurusd.macro_surprise.supportive": (.65, .70),
+            "eurusd.policy_differential.supportive": (.60, .70),
+        })
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            path = root / "state.json"
+            path.write_text(json.dumps(state), encoding="utf-8")
+            event_at = now + timedelta(minutes=20)
+            obs = {
+                "adapter": "macro_event_calendar",
+                "metric": "scheduled_macro_event",
+                "source": "official",
+                "source_ref": "test://event",
+                "metadata": {
+                    "importance": "high",
+                    "title": "High impact release",
+                    "event_at": event_at.isoformat().replace("+00:00", "Z"),
+                    "region": "US",
+                },
+            }
+            (root / "observations.jsonl").write_text(json.dumps(obs) + "\n", encoding="utf-8")
+            with mock.patch.dict(os.environ, {"BELIEF_CORE_STATE": str(path)}, clear=False):
+                output = v19.build_output(_snapshot(now), {"trades": []})
+        self.assertEqual(output.metadata["final_decision"]["direction"], "LONG")
+        self.assertFalse(output.metadata["execution_admission"]["allowed"])
+        self.assertIn("belief_high_impact_event_imminent", output.metadata["execution_admission"]["reasons"])
+
+
+if __name__ == "__main__":
+    unittest.main()
