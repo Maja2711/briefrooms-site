@@ -163,6 +163,7 @@ daily_doc = read("docs/DAILY_TRADING_ARCHITECTURE.md")
 daily_runtime = read("scripts/daily_eurusd_spot_v19.py")
 daily_decision = read("scripts/daily_eurusd_belief_decision.py")
 daily_workflow = read(".github/workflows/daily-eurusd-monitor.yml")
+epistemic_consumer = read("scripts/epistemic_consumer_interface.py")
 for token in (
     "Daily EUR/USD v1.9 — Belief-first final decision",
     "RAW / PRIMARY / MARKET SOURCES",
@@ -183,10 +184,16 @@ for token in (
     "SPECIALIZED_ADAPTERS",
     "EVIDENCE_ASSESSMENT",
     "BELIEF_CORE",
+    "epistemic-consumer-interface-v1",
+    "DAILY_EURUSD",
     "legacy_raw_score_direction_authority",
 ):
     require(daily_decision, token, "Daily EURUSD Belief decision")
+require(epistemic_consumer, '"DAILY_EURUSD": EURUSD_BELIEF_IDS', "CF-07 Daily EURUSD consumer")
+require(epistemic_consumer, "consumer_may_override_probability: bool = False", "CF-07 authority")
 require(daily_workflow, "scripts/daily_eurusd_spot_v19.py", "Daily EURUSD production workflow")
+require(daily_workflow, "BELIEF_EPISTEMIC_STATE=", "Daily EURUSD production workflow")
+require(daily_workflow, "DAILY_EURUSD_REQUIRE_EPISTEMIC=1", "Daily EURUSD production workflow")
 require(daily_workflow, "EURUSD_V19_BELIEF_FIRST_OK", "Daily EURUSD production workflow")
 forbid(daily_workflow, "python scripts/daily_eurusd_spot_v18.py", "Daily EURUSD production workflow")
 
