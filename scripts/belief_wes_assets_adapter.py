@@ -223,8 +223,9 @@ class WESAssetEvidenceAdapter:
                 u1, u5 = _safe_return(snapshot, "UUP", 13), _safe_return(snapshot, "UUP", 65)
                 if u1 is not None and u5 is not None:
                     usd = clamp(-(.45 * clamp(u1 / .012, -1, 1) + .55 * clamp(u5 / .035, -1, 1)), -1, 1)
-                    obs = self._observation(metric="broad_usd_support_for_eurusd", entity="EURUSD", observed_at=observed_at,
-                        value=usd, cluster="derived:USD:environment", metadata={"proxy":"UUP", "ecb_coverage":False})
+                    uup_observed_at = iso_z(snapshot.observed_at("UUP"))
+                    obs = self._observation(metric="broad_usd_support_for_eurusd", entity="EURUSD", observed_at=uup_observed_at,
+                        value=usd, cluster="derived:USD:environment", metadata={"proxy":"UUP", "ecb_coverage":False, "timestamp_source":"UUP"})
                     observations.append(obs)
                     evidence.append(self._evidence(obs, "eurusd.usd_environment.supportive", usd, "usd_environment",
                         f"Inverse UUP momentum support for EUR/USD={usd:.3f}"))
@@ -233,8 +234,9 @@ class WESAssetEvidenceAdapter:
                 t1, t5 = _safe_return(snapshot, "TLT", 13), _safe_return(snapshot, "TLT", 65)
                 if t1 is not None and t5 is not None:
                     rates = clamp(.45 * clamp(t1 / .018, -1, 1) + .55 * clamp(t5 / .045, -1, 1), -1, 1)
-                    obs = self._observation(metric="us_rates_pressure_proxy_for_eurusd", entity="EURUSD", observed_at=observed_at,
-                        value=rates, cluster="derived:US_RATES:duration_proxy", metadata={"proxy":"TLT", "rate_differential":False, "ecb_coverage":False})
+                    tlt_observed_at = iso_z(snapshot.observed_at("TLT"))
+                    obs = self._observation(metric="us_rates_pressure_proxy_for_eurusd", entity="EURUSD", observed_at=tlt_observed_at,
+                        value=rates, cluster="derived:US_RATES:duration_proxy", metadata={"proxy":"TLT", "rate_differential":False, "ecb_coverage":False, "timestamp_source":"TLT"})
                     observations.append(obs)
                     evidence.append(self._evidence(obs, "eurusd.us_rates_pressure.supportive", rates, "rates_proxy",
                         f"TLT-based US rates-pressure support proxy={rates:.3f}; not an EUR/USD rate differential"))
