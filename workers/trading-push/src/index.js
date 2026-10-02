@@ -185,16 +185,21 @@ function yahooMinuteBars(payload) {
 
 async function fetchYahooMinuteBars(env) {
   const configured = String(env.YAHOO_EURUSD_1M_URL || "").trim();
+  const direct1 = configured || "https://query1.finance.yahoo.com/v8/finance/chart/EURUSD%3DX?range=1d&interval=1m&includePrePost=false&events=div%2Csplits";
+  const direct2 = "https://query2.finance.yahoo.com/v8/finance/chart/EURUSD%3DX?range=1d&interval=1m&includePrePost=false&events=div%2Csplits";
   const candidates = [
-    configured,
-    "https://query1.finance.yahoo.com/v8/finance/chart/EURUSD%3DX?range=1d&interval=1m&includePrePost=false&events=div%2Csplits",
-    "https://query2.finance.yahoo.com/v8/finance/chart/EURUSD%3DX?range=1d&interval=1m&includePrePost=false&events=div%2Csplits",
-  ].filter((value, index, values) => value && values.indexOf(value) === index);
+    { url: direct1, label: "Yahoo Finance query1 EURUSD=X 1m OHLC" },
+    { url: direct2, label: "Yahoo Finance query2 EURUSD=X 1m OHLC" },
+    { url: `https://proxy.cors.dev/${direct1}`, label: "Yahoo Finance EURUSD=X 1m OHLC via cors.dev" },
+    { url: `https://api.allorigins.win/raw?url=${encodeURIComponent(direct1)}`, label: "Yahoo Finance EURUSD=X 1m OHLC via AllOrigins" },
+  ].filter((candidate, index, values) =>
+    candidate.url && values.findIndex((item) => item.url === candidate.url) === index
+  );
 
   const errors = [];
-  for (const base of candidates) {
+  for (const candidate of candidates) {
     try {
-      const response = await fetch(`${base}${base.includes("?") ? "&" : "?"}_=${Date.now()}`, {
+      const response = await fetch(`${candidate.url}${candidate.url.includes("?") ? "&" : "?"}_=${Date.now()}`, {
         headers: {
           "cache-control": "no-cache",
           "accept": "application/json",
@@ -204,16 +209,19 @@ async function fetchYahooMinuteBars(env) {
       if (!response.ok) throw new Error(`http_${response.status}`);
       const bars = yahooMinuteBars(await response.json());
       if (!bars.length) throw new Error("no_bars");
-      return {
-        bars,
-        source: base.includes("query2.") ? "Yahoo Finance query2 EURUSD=X 1m OHLC" : "Yahoo Finance query1 EURUSD=X 1m OHLC",
-      };
+      const latest = bars[bars.length - 1];
+      const latestMs = Date.parse(String(latest.timestamp || ""));
+      if (!Number.isFinite(latestMs)) throw new Error("invalid_latest_timestamp");
+      const ageMs = Date.now() - latestMs;
+      if (ageMs < -60_000 || ageMs > 6 * 60_000) throw new Error(`stale_latest_${Math.round(ageMs / 1000)}s`);
+      return { bars, source: candidate.label, latest };
     } catch (error) {
-      errors.push(`${base.includes("query2.") ? "query2" : "query1"}:${String(error?.message || error)}`);
+      errors.push(`${candidate.label}:${String(error?.message || error)}`);
     }
   }
   throw new Error(`yahoo_eurusd_all_candidates_failed:${errors.join("|")}`);
 }
+
 
 function fastExitHit(position, bars) {
   const direction = String(position.direction || "").toUpperCase();
@@ -481,36 +489,48 @@ export class PushHub {
     const marketSources = [];
     const marketErrors = [];
 
-    // 1) Immediate snapshot path: useful for a current cross.
+    // Canonical SL/TP authority: Yahoo EURUSD=X 1-minute OHLC.
+    // The complete bar history since position open is checked every cycle, so a
+    // brief touch cannot disappear simply because the current quote later reverted.
     try {
-      const stooqQuote = await fetchStooqEurusd(this.env);
-      marketSources.push(stooqQuote.source);
-      hit = fastExitHitQuote(position, stooqQuote);
+      const yahoo = await fetchYahooMinuteBars(this.env);
+      marketSources.push(yahoo.source);
+      hit = fastExitHit(position, yahoo.bars);
       stats.last_fast_daily_quote = {
-        source: stooqQuote.source,
-        fetched_at: stooqQuote.fetched_at,
-        bid: stooqQuote.bid,
-        ask: stooqQuote.ask,
-        price: stooqQuote.price,
+        source: yahoo.source,
+        fetched_at: yahoo.latest.timestamp,
+        bid: null,
+        ask: null,
+        price: yahoo.latest.close,
+        high: yahoo.latest.high,
+        low: yahoo.latest.low,
       };
     } catch (error) {
-      marketErrors.push(`stooq:${String(error?.message || error)}`);
+      marketErrors.push(`yahoo:${String(error?.message || error)}`);
     }
 
-    // 2) Always inspect 1-minute OHLC, even when the current snapshot did not cross.
-    // This catches a brief SL/TP touch that reverted before the next cron tick.
+    // Fallback #1: current Stooq point. It may confirm a cross immediately, but
+    // does not replace 1m OHLC as the canonical no-cross evidence.
     if (!hit) {
       try {
-        const yahoo = await fetchYahooMinuteBars(this.env);
-        marketSources.push(yahoo.source);
-        hit = fastExitHit(position, yahoo.bars);
+        const stooqQuote = await fetchStooqEurusd(this.env);
+        marketSources.push(stooqQuote.source);
+        hit = fastExitHitQuote(position, stooqQuote);
+        if (!stats.last_fast_daily_quote) {
+          stats.last_fast_daily_quote = {
+            source: stooqQuote.source,
+            fetched_at: stooqQuote.fetched_at,
+            bid: stooqQuote.bid,
+            ask: stooqQuote.ask,
+            price: stooqQuote.price,
+          };
+        }
       } catch (error) {
-        marketErrors.push(`yahoo:${String(error?.message || error)}`);
+        marketErrors.push(`stooq:${String(error?.message || error)}`);
       }
     }
 
-    // 3) Last-resort point-in-time fallback. It can confirm a current cross but is
-    // not considered sufficient evidence that no cross occurred between samples.
+    // Fallback #2: current fxapi point. This can confirm a current cross only.
     if (!hit) {
       try {
         const fxUrl = this.env.FXAPI_EURUSD_URL || "https://fxapi.app/api/EUR/USD.json";
@@ -530,10 +550,14 @@ export class PushHub {
         };
         marketSources.push(current.source);
         hit = fastExitHitQuote(position, current);
+        if (!stats.last_fast_daily_quote) {
+          stats.last_fast_daily_quote = current;
+        }
       } catch (error) {
         marketErrors.push(`fxapi:${String(error?.message || error)}`);
       }
     }
+
 
     const marketSource = marketSources.join(" + ") || "none";
     stats.last_fast_daily_market_errors = marketErrors;
@@ -624,12 +648,55 @@ export class PushHub {
     }
 
     if (path === "/market/eurusd" && request.method === "GET") {
+      const errors = [];
+      try {
+        const yahoo = await fetchYahooMinuteBars(this.env);
+        const latest = yahoo.latest;
+        return json({
+          ok: true,
+          source: yahoo.source,
+          price: latest.close,
+          open: latest.open,
+          high: latest.high,
+          low: latest.low,
+          close: latest.close,
+          timestamp: latest.timestamp,
+          ohlc_1m: true,
+        }, 200, cors(origin));
+      } catch (error) {
+        errors.push(`yahoo:${String(error?.message || error)}`);
+      }
+
       try {
         const quote = await fetchStooqEurusd(this.env);
-        return json({ ok: true, ...quote }, 200, cors(origin));
+        return json({ ok: true, ...quote, ohlc_1m: false, fallback: true, errors }, 200, cors(origin));
       } catch (error) {
-        return json({ ok: false, error: String(error?.message || error) }, 502, cors(origin));
+        errors.push(`stooq:${String(error?.message || error)}`);
       }
+
+      try {
+        const fxUrl = this.env.FXAPI_EURUSD_URL || "https://fxapi.app/api/EUR/USD.json";
+        const response = await fetch(`${fxUrl}${fxUrl.includes("?") ? "&" : "?"}_=${Date.now()}`, {
+          headers: { "cache-control": "no-cache", "accept": "application/json" },
+        });
+        if (!response.ok) throw new Error(`http_${response.status}`);
+        const payload = await response.json();
+        const price = finiteNumber(payload?.rate);
+        if (price == null) throw new Error("no_rate");
+        return json({
+          ok: true,
+          source: "fxapi.app EUR/USD spot fallback",
+          price,
+          timestamp: payload?.timestamp || new Date().toISOString(),
+          ohlc_1m: false,
+          fallback: true,
+          errors,
+        }, 200, cors(origin));
+      } catch (error) {
+        errors.push(`fxapi:${String(error?.message || error)}`);
+      }
+
+      return json({ ok: false, error: "eurusd_all_sources_failed", errors }, 502, cors(origin));
     }
 
     if (origin === null) return json({ error: "origin_not_allowed" }, 403);
