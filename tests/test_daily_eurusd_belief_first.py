@@ -166,6 +166,12 @@ class BeliefDecisionTest(unittest.TestCase):
         self.assertEqual(consumer["consumer"], "DAILY_EURUSD")
         self.assertTrue(consumer["available"])
         self.assertFalse(consumer["consumer_may_override_probability"])
+        self.assertTrue(output.metadata["final_decision"]["epistemic_aggregate_authoritative"])
+        self.assertAlmostEqual(
+            output.score,
+            100.0 * float(consumer["aggregate_probability"]),
+            places=2,
+        )
 
     def test_production_requires_epistemic_interface_and_fails_closed_without_it(self):
         now = datetime(2026, 10, 2, 18, 0, tzinfo=UTC)
@@ -213,6 +219,44 @@ class BeliefDecisionTest(unittest.TestCase):
         self.assertEqual(output.decision_mode, "WITH")
         self.assertEqual(output.metadata["direction_authority"]["owner"], "NATIVE_DAILY_EURUSD_BELIEF_FIRST_DECISION_ENGINE")
         self.assertEqual(output.metadata["final_decision"]["decision_source"], "BELIEF_CORE")
+
+    def test_open_and_closed_runtime_projection_stays_v19_with_mode(self):
+        now = datetime(2026, 10, 2, 18, 0, tzinfo=UTC)
+        candidate = v19.DailyEngineOutput(
+            instrument="EUR/USD",
+            timestamp=now.isoformat().replace("+00:00", "Z"),
+            direction="LONG",
+            score=65.0,
+            confidence=.6,
+            entry=1.12,
+            stop=1.11,
+            target=1.138,
+            horizon="intraday_to_27h",
+            engine_version=v19.ENGINE_VERSION,
+            status="SIGNAL",
+            decision_mode="WITH",
+            metadata={
+                "final_decision": {"direction": "LONG"},
+                "candidate": {"direction": "LONG", "score": 65.0, "confidence": .6},
+                "risk": {},
+            },
+        ).validate()
+        position = {
+            "trade_id": "legacy-position",
+            "status": "OPEN",
+            "direction": "LONG",
+            "entry": 1.12,
+            "stop": 1.11,
+            "target": 1.138,
+            "opened_at": now.isoformat().replace("+00:00", "Z"),
+            "entry_score": 65.0,
+            "entry_confidence": .6,
+            "engine_version": "eurusd-daily-spot-v1.8.0",
+        }
+        opened = v19._open_output_v19(candidate, position, 1.121)
+        self.assertEqual(opened.engine_version, v19.ENGINE_VERSION)
+        self.assertEqual(opened.decision_mode, "WITH")
+        self.assertFalse(opened.metadata["runtime_projection"]["historical_position_rewritten"])
 
     def test_fse_and_contextual_learner_have_zero_v19_production_influence(self):
         now = datetime(2026, 10, 2, 18, 0, tzinfo=UTC)
