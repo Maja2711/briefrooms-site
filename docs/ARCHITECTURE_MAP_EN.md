@@ -2,7 +2,7 @@
 
 **Map version:** 1.18  
 **Snapshot date:** 2026-10-02  
-**Base `main` commit:** `cf77692f7fa61e5e3ffec347f6acb5fe01e8bb15`  
+**Base `main` commit:** `6e92704a49f1011a79eaf27765664feb2888a57e`  
 **Repository:** `Maja2711/briefrooms-site`
 
 ## 0. Purpose of this document
