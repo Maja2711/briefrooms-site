@@ -16,7 +16,7 @@ PAGES = [
     ROOT / "en" / "investing" / "open-weekly-positions.html",
     ROOT / "en" / "investing" / "weekly-forecasts.html",
 ]
-SCRIPT_REF = "/scripts/investments-weekly-browser-live.js?v=20261002-6"
+SCRIPT_REF = "/scripts/investments-weekly-browser-live.js?v=20261002-7"
 COMPACT_REF = "/scripts/investments-weekly-price-compact.js?v=20260916-4"
 
 
@@ -89,8 +89,9 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
         self.assertIn("Yahoo EURUSD=X 1m", eurusd_block)
         self.assertNotIn("Stooq EURUSD", eurusd_block)
         self.assertIn("fxapi.app 5m fallback", eurusd_block)
-        self.assertIn("fetchYahooQuote('EURUSD=X', 'codetabs')", eurusd_block)
+        self.assertIn("fetchYahooQuote('EURUSD=X', 'corsdev')", eurusd_block)
         self.assertIn("fetchYahooQuote('EURUSD=X', 'allorigins')", eurusd_block)
+        self.assertIn("https://proxy.cors.dev/", source)
         self.assertIn("directPriority: 'first-fresh'", eurusd_block)
         self.assertIn("directAuthoritativeWhenFresh: true", eurusd_block)
         self.assertIn("Promise.allSettled(cfg.sources.map", source)
