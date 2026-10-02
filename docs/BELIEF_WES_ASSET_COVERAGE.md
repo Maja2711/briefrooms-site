@@ -2,9 +2,9 @@
 
 ## Purpose
 
-This change extends Belief Core beyond its SPX-centric starting point so WES can begin collecting calibrated, frozen beliefs for EUR/USD and BTC before any Engine–Belief bridge is enabled for those instruments.
+This layer extends Belief Core beyond its SPX-centric starting point with calibrated EUR/USD and BTC market/cross-asset beliefs.
 
-The layer remains **shadow-only** and has zero decision influence.
+For WES/BTC research it remains a shadow evidence foundation. For **Daily EUR/USD v1.9**, the EUR/USD beliefs are now upstream production epistemic inputs: the adapter itself still has no decision or execution authority, but its Evidence can change Belief Core and the final Daily EUR/USD decision is made only after Belief Core.
 
 ## Atomic beliefs
 
@@ -22,7 +22,7 @@ The layer remains **shadow-only** and has zero decision influence.
    - US rates-pressure proxy represented by TLT,
    - deterministic outcome: TLT at/above frozen reference.
 
-This third belief is **not** called an EUR-vs-USD rate differential. ECB policy, euro-area rates and a true EUR/USD rate differential are not yet covered.
+This third belief is **not** called an EUR-vs-USD rate differential. The market adapter itself still does not claim ECB policy, euro-area rates or a true EUR/USD rate differential. ECB/Fed/news/macro Evidence is supplied by separate primary-source Belief adapters and may affect the corresponding EUR/USD macro/policy beliefs upstream of Daily v1.9.
 
 ### BTC
 
@@ -76,6 +76,8 @@ WES
 
 When an asset-specific WES forecast is frozen, `market_observed_at` is taken from that asset (`EURUSD=X` or `BTC-USD`) rather than always from SPY.
 
+For EUR/USD Evidence, source timestamps are preserved per input: fresh EUR/USD bars cannot re-stamp an older UUP or TLT observation. Outside US cash hours, EUR/USD trend Evidence may refresh across the FX week while UUP/TLT naturally age.
+
 ## Evidence boundaries
 
 All new evidence is derived from existing secondary Yahoo market data. It has explicit provenance and independence clusters.
@@ -91,12 +93,13 @@ Current coverage status is exposed explicitly:
 
 ### EUR/USD
 
-Still needed:
+Still incomplete at the market/cross-asset foundation level:
 
-- ECB policy/event adapter,
-- euro-area rates data,
-- true EUR-vs-USD rate differential,
-- euro-area macro surprise / growth-inflation state.
+- direct euro-area rates data,
+- true EUR-vs-USD short-rate / OIS differential,
+- richer deterministic euro-area macro surprise / growth-inflation state.
+
+Separate primary-source Belief paths now provide Fed/ECB/news/macro Evidence, including official ECB press-release intake. That does not turn the TLT proxy into a real rate differential.
 
 ### BTC
 
@@ -112,10 +115,12 @@ Those should be separate evidence adapters with their own calibration rather tha
 ## Safety
 
 ```text
-trade execution     = false
-policy output       = false
-automatic tuning    = false
-decision influence  = false
+adapter trade execution authority        = false
+adapter policy-output authority           = false
+automatic tuning                          = false
+direct adapter direction authority        = false
+Daily EUR/USD v1.9 downstream Belief use  = production epistemic input
+WES/BTC asset forecast use                = shadow/research
 ```
 
-This PR only creates the evidence and frozen-forecast foundation required for a later EUR/USD and BTC WES↔Belief bridge.
+The adapter produces auditable Evidence. Daily EUR/USD v1.9 consumes the resulting Belief state through its dedicated read-only Belief-first decision consumer; it does not call this adapter as a trading engine.
