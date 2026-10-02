@@ -107,6 +107,7 @@
   function freshLiveEurUsd(livePayload) {
     const row = livePayload?.prices?.eurusd;
     if (!row || row.fresh !== true) return null;
+    if (String(row.source || "").toLowerCase().includes("fxapi")) return null;
     const price = Number(row.price);
     const stamp = new Date(row.current_price_updated_at || row.timestamp || "");
     if (!Number.isFinite(price) || price < 0.8 || price > 1.5 || Number.isNaN(stamp.valueOf())) return null;
