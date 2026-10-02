@@ -342,7 +342,9 @@ export class PushHub {
     stats.expired_removed = Number(stats.expired_removed || 0) + expired;
     stats.active_subscriptions = (await this.ctx.storage.list({ prefix: "sub:" })).size;
     stats.last_failed_statuses = failedStatuses;
+    stats.last_dispatch_sent = sent;
     stats.last_dispatch_failed = failed;
+    stats.last_dispatch_expired = expired;
     stats.last_dispatch_at = new Date().toISOString();
     await this.ctx.storage.put("stats", stats);
     return { ok: true, sent, failed, expired };
@@ -621,7 +623,9 @@ export class PushHub {
         clicked,
         ctr_percent: sent > 0 ? Number(((clicked / sent) * 100).toFixed(2)) : 0,
         failed: Number(stats.failed || 0),
+        last_dispatch_sent: Number(stats.last_dispatch_sent || 0),
         last_dispatch_failed: Number(stats.last_dispatch_failed || 0),
+        last_dispatch_expired: Number(stats.last_dispatch_expired || 0),
         last_failed_statuses: stats.last_failed_statuses || {},
         expired_removed: Number(stats.expired_removed || 0),
         breakdown,
