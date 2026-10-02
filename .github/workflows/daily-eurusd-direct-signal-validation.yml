@@ -10,12 +10,15 @@ on:
       - "scripts/daily_eurusd_spot_v18.py"
       - "scripts/daily_eurusd_spot_v19.py"
       - "scripts/daily_eurusd_belief_decision.py"
+      - "scripts/belief_epistemic_state.py"
+      - "scripts/epistemic_consumer_interface.py"
       - "scripts/daily_eurusd_experiment.py"
       - "scripts/daily_eurusd_experiment_v12.py"
       - "tests/test_daily_eurusd_lifecycle.py"
       - "tests/test_daily_eurusd_direct_signal.py"
       - "tests/test_daily_eurusd_a_fallback.py"
       - "tests/test_daily_eurusd_belief_first.py"
+      - "tests/test_epistemic_consumer_interface.py"
       - ".github/workflows/daily-eurusd-monitor.yml"
       - ".github/workflows/daily-eurusd-direct-signal-validation.yml"
   push:
@@ -58,6 +61,8 @@ jobs:
             scripts/daily_eurusd_spot_v18.py \
             scripts/daily_eurusd_spot_v19.py \
             scripts/daily_eurusd_belief_decision.py \
+            scripts/belief_epistemic_state.py \
+            scripts/epistemic_consumer_interface.py \
             scripts/daily_eurusd_experiment.py \
             scripts/daily_eurusd_experiment_v12.py
       - name: Run legacy isolation plus Belief-first authority tests
@@ -67,7 +72,8 @@ jobs:
             tests.test_daily_eurusd_lifecycle \
             tests.test_daily_eurusd_direct_signal \
             tests.test_daily_eurusd_a_fallback \
-            tests.test_daily_eurusd_belief_first -v
+            tests.test_daily_eurusd_belief_first \
+            tests.test_epistemic_consumer_interface -v
       - name: Assert production workflow uses Belief-first final direction authority
         run: |
           set -euo pipefail
@@ -77,6 +83,8 @@ jobs:
           required=[
               'scripts/daily_eurusd_spot_v19.py',
               'scripts/daily_eurusd_belief_decision.py',
+              'BELIEF_EPISTEMIC_STATE=',
+              'DAILY_EURUSD_REQUIRE_EPISTEMIC=1',
               'tests.test_daily_eurusd_a_fallback',
               'tests.test_daily_eurusd_belief_first',
               'EURUSD_V19_BELIEF_FIRST_OK',
