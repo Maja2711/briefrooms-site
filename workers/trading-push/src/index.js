@@ -397,12 +397,26 @@ export class PushHub {
   }
 
   async fastDailyWatch() {
-    const stateUrl = this.env.DAILY_STATE_URL || "https://raw.githubusercontent.com/Maja2711/briefrooms-site/main/data/investments/eurusd_daily_spot.json";
-    const stateResponse = await fetch(`${stateUrl}${stateUrl.includes("?") ? "&" : "?"}_=${Date.now()}`, {
-      headers: { "cache-control": "no-cache", "accept": "application/json" },
-    });
-    if (!stateResponse.ok) throw new Error(`daily_state_http_${stateResponse.status}`);
-    const state = await stateResponse.json();
+    const stateUrls = [
+      this.env.DAILY_STATE_URL || "https://raw.githubusercontent.com/Maja2711/briefrooms-site/main/data/investments/eurusd_daily_spot.json",
+      "https://briefrooms.com/data/investments/eurusd_daily_spot.json",
+    ].filter((value, index, values) => value && values.indexOf(value) === index);
+
+    let state = null;
+    const stateErrors = [];
+    for (const stateUrl of stateUrls) {
+      try {
+        const stateResponse = await fetch(`${stateUrl}${stateUrl.includes("?") ? "&" : "?"}_=${Date.now()}`, {
+          headers: { "cache-control": "no-cache", "accept": "application/json" },
+        });
+        if (!stateResponse.ok) throw new Error(`http_${stateResponse.status}`);
+        state = await stateResponse.json();
+        break;
+      } catch (error) {
+        stateErrors.push(`${stateUrl}:${String(error?.message || error)}`);
+      }
+    }
+    if (!state) throw new Error(`daily_state_all_sources_failed:${stateErrors.join("|")}`);
     const position = openDailyPosition(state);
 
     const stats = (await this.ctx.storage.get("stats")) || {};
