@@ -10,7 +10,7 @@ from scripts.daily_eurusd_policy import (
     parse_ecb_decision,
     policy_conflicts,
 )
-from scripts.daily_eurusd_spot_v17 import ENGINE_VERSION, apply_ecb_policy_gate
+from scripts.daily_eurusd_spot_v17 import ENGINE_VERSION, apply_belief_macro_gate, apply_ecb_policy_gate
 
 
 def _candidate(direction: str) -> DailyEngineOutput:
@@ -116,6 +116,48 @@ class DailyEurusdEcbPolicyTests(unittest.TestCase):
         self.assertFalse(context["coverage"])
         self.assertTrue(context["must_block_entry"])
         self.assertEqual(context["block_reason"], "ecb_policy_decision_pending")
+
+    def test_post_release_entry_waits_for_fresh_macro_interpretation(self):
+        context = {
+            "available": False,
+            "score": 0.0,
+            "macro_calendar": {"imminent": False, "events": []},
+            "release_context": {
+                "recent_high_impact_event": {
+                    "title": "Employment Situation",
+                    "event_at": "2026-10-02T12:30:00Z",
+                    "hours_until": -0.10,
+                },
+                "latest_macro_evidence_at": None,
+                "post_release_macro_evidence_fresh": False,
+                "post_release_guard_minutes": 30,
+            },
+        }
+        output = apply_belief_macro_gate(_candidate("LONG"), context)
+        self.assertEqual(output.direction, "FLAT")
+        self.assertIn(
+            "belief_macro_post_release_interpretation_pending",
+            output.metadata["candidate"]["gate_reasons"],
+        )
+
+    def test_post_release_entry_can_continue_after_fresh_macro_evidence(self):
+        context = {
+            "available": True,
+            "score": 3.0,
+            "macro_calendar": {"imminent": False, "events": []},
+            "release_context": {
+                "recent_high_impact_event": {
+                    "title": "Employment Situation",
+                    "event_at": "2026-10-02T12:30:00Z",
+                    "hours_until": -0.10,
+                },
+                "latest_macro_evidence_at": "2026-10-02T12:31:00Z",
+                "post_release_macro_evidence_fresh": True,
+                "post_release_guard_minutes": 30,
+            },
+        }
+        output = apply_belief_macro_gate(_candidate("LONG"), context)
+        self.assertEqual(output.direction, "LONG")
 
     def test_policy_conflict_direction_is_symmetric(self):
         bullish = {"coverage": True, "policy_score": 0.8}
