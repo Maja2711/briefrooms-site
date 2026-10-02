@@ -90,7 +90,7 @@
     empty: '—'
   };
 
-  const state = { data: null, runtime: null, period: '30', view: 'overview', selectedMarket: null };
+  const state = { data: null, runtime: null, period: '30', view: 'overview', selectedMarket: 'GPW' };
   const asNumber = (v) => Number.isFinite(Number(v)) ? Number(v) : null;
   const esc = (v) => String(v ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
   const firstNumber = (obj, keys) => {
@@ -252,7 +252,7 @@
     const open = openPositions(market).length;
     const max = maxPositions(market);
     const free = Math.max(0, max - open);
-    const active = state.view === 'details' && state.selectedMarket === market;
+    const active = state.selectedMarket === market;
     const pending = pendingCandidate(market);
     return `<button class="str-market-tab ${active ? 'is-active' : ''}" type="button" data-market-jump="${market}" aria-pressed="${active ? 'true' : 'false'}">
       <span class="str-market-tab-title">${marketFlag(market)}<b>${esc(market === 'GPW' ? T.gpw : T.us)}</b></span>
@@ -439,20 +439,21 @@
   }
 
   function openSectionBody() {
-    const allOpen = ['GPW','US'].flatMap(market => openPositions(market).map(position => ({position, market})));
+    const selectedMarkets = state.selectedMarket ? [state.selectedMarket] : ['GPW','US'];
+    const allOpen = selectedMarkets.flatMap(market => openPositions(market).map(position => ({position, market})));
     if (state.view === 'overview') {
-      const overviewCards = ['GPW','US'].flatMap(market => {
+      const overviewCards = selectedMarkets.flatMap(market => {
         const cards = openPositions(market).map(position => openPositionSummaryCard(position, market));
         const pending = pendingCandidate(market);
         if (pending) cards.push(pendingSummaryCard(pending, market));
         return cards;
       });
       if (!overviewCards.length) {
-        return `<div class="str-position-overview-grid">${emptyMarketCard('GPW')}${emptyMarketCard('US')}</div>`;
+        return `<div class="str-position-overview-grid">${selectedMarkets.map(emptyMarketCard).join('')}</div>`;
       }
       return `<div class="str-position-overview-grid">${overviewCards.join('')}</div>`;
     }
-    const markets = state.selectedMarket ? [state.selectedMarket] : ['GPW','US'];
+    const markets = selectedMarkets;
     return `<div class="str-open-grid str-open-grid-details">${markets.map(marketTicketPanel).join('')}</div>`;
   }
 
@@ -499,7 +500,7 @@
   }
 
   function filteredClosed() {
-    const rows = allClosed();
+    const rows = allClosed().filter(p => !state.selectedMarket || p.__market === state.selectedMarket);
     if (state.period === 'all') return rows;
     const days = state.period === '30' ? 30 : 90;
     const cutoff = Date.now() - days*86400000;
@@ -648,7 +649,6 @@
 
     root.querySelector('[data-back-overview]')?.addEventListener('click', () => {
       state.view = 'overview';
-      state.selectedMarket = null;
       render();
       requestAnimationFrame(() => document.getElementById('str-open-section')?.scrollIntoView({behavior:'smooth',block:'start'}));
     });
