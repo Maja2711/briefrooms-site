@@ -75,7 +75,13 @@ Daily EUR/USD may continue to use the Daily-family contract independently; its l
 
 ## Daily EUR/USD v1.8 — Contextual Entry Policy
 
-Daily EUR/USD now separates **directional thesis** from **entry timing**.
+Daily EUR/USD now has a strict **single direction owner** and separates the directional thesis from entry timing.
+
+**Production direction invariant:** only the NATIVE Daily EUR/USD Direction Engine may emit LONG or SHORT. If NATIVE says FLAT, the production candidate is FLAT. Arm A / A-B-C research, low-edge exploration, FSE, Belief Core, LLM and contextual learning may observe, veto for safety, delay, cancel or research alternatives, but none of them may manufacture or reverse market direction.
+
+Legacy `A_TECHNICAL_FALLBACK` and `LOW_EDGE_LEARNING_EXPLORATION` code remains only for historical compatibility/research diagnostics. It has `production_authority=false`. The final v1.8 boundary independently blocks any non-NATIVE directional candidate as defense in depth.
+
+Adaptive component weights are also NATIVE-only. Historical fallback/exploration trades remain immutable in the ledger and performance history, but their outcomes no longer modify NATIVE component weights.
 
 ```text
 Daily Direction Engine -> LONG / SHORT
@@ -126,4 +132,15 @@ Risk exit and new-entry authority are deliberately separated.
 - A recent meaningful loss in the same direction cannot be bypassed merely by switching source family from NATIVE_COMPONENTS to A_TECHNICAL_FALLBACK (or vice versa). Cross-family re-entry must show material score/confidence/state change or fresh source-backed external evidence.
 - On Friday from 12:00 New York time onward, secondary entry sources A_TECHNICAL_FALLBACK and LOW_EDGE_LEARNING_EXPLORATION are blocked from opening new positions. This does not automatically block a primary NATIVE signal.
 - These guards affect only future admission. They never retroactively close, rewrite or reverse an already-open position.
+
+### Data and execution admission integrity
+
+A NATIVE LONG/SHORT signal is necessary but not sufficient for a new fill.
+
+- EUR/USD, UUP and TLT model inputs must be timestamp-aligned within 90 minutes. Misaligned cross-asset proxies block new admission rather than being treated as neutral.
+- EPE requires at least two independent fresh EUR/USD quotes for a new paper fill.
+- With two fresh quotes, cross-feed disagreement above the configured tolerance blocks the fill.
+- With three or more feeds, at least two must form an inlier consensus cluster.
+- Single-source and degraded-divergence fills are not considered verified.
+- Code pushes to `main` are validation-only for Daily EUR/USD. Production state reconciliation runs only from the scheduled market cycle or explicit manual dispatch.
 

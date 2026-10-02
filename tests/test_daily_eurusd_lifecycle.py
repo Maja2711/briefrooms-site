@@ -92,6 +92,45 @@ class DailyEurusdLifecycleTests(unittest.TestCase):
         self.assertGreater(learning["entry_thresholds"]["min_confidence"], 0.32)
         self.assertLess(learning["adaptive_weights"]["trend"], BASE_WEIGHTS["trend"])
 
+    def test_exploration_outcome_cannot_reweight_native_model(self):
+        exploration = {
+            "trade_id": "exploration-loss",
+            "direction": "LONG",
+            "opened_at": "2026-08-20T10:00:00Z",
+            "closed_at": "2026-08-20T11:00:00Z",
+            "r_multiple": -1.0,
+            "exit_reason": "STOP_LOSS",
+            "decision_source": "LOW_EDGE_LEARNING_EXPLORATION",
+            "entry_components": {
+                "trend": 0.7,
+                "broad_usd_environment": 0.2,
+                "us_rates_pressure_proxy": 0.1,
+            },
+        }
+        learning = learning_state([exploration])
+        self.assertEqual(learning["adaptive_weights"], BASE_WEIGHTS)
+        self.assertEqual(learning["adaptive_weight_learning"]["authority"], "NATIVE_ONLY")
+        self.assertEqual(learning["adaptive_weight_learning"]["eligible_closed_trades"], 0)
+
+    def test_native_outcome_still_updates_native_model_weights(self):
+        native = {
+            "trade_id": "native-loss",
+            "direction": "LONG",
+            "opened_at": "2026-08-20T10:00:00Z",
+            "closed_at": "2026-08-20T11:00:00Z",
+            "r_multiple": -1.0,
+            "exit_reason": "STOP_LOSS",
+            "decision_source": "NATIVE",
+            "entry_components": {
+                "trend": 0.7,
+                "broad_usd_environment": 0.2,
+                "us_rates_pressure_proxy": 0.1,
+            },
+        }
+        learning = learning_state([native])
+        self.assertLess(learning["adaptive_weights"]["trend"], BASE_WEIGHTS["trend"])
+        self.assertEqual(learning["adaptive_weight_learning"]["eligible_closed_trades"], 1)
+
     def test_old_64_score_28_percent_confidence_would_now_be_rejected(self):
         gate = entry_gate(
             direction="LONG",

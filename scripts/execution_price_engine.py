@@ -301,19 +301,11 @@ def verify_live_mid_quotes(
     max_age_seconds: float = DEFAULT_QUOTE_MAX_AGE_SECONDS,
     max_cross_feed_pips: float = DEFAULT_MAX_CROSS_FEED_PIPS,
 ) -> dict[str, Any]:
-    """Availability-first Daily EUR/USD execution verification.
+    """Fail-closed Daily EUR/USD execution verification.
 
-    At least one fresh valid market quote is sufficient for a paper fill.
-    Multiple feeds improve integrity but do not create an outage when one
-    provider is stale, unavailable or an outlier.
-
-    Selection policy:
-    - 3+ fresh feeds: identify the median cluster and prefer the highest-priority
-      source inside that cluster.
-    - 2 fresh feeds: if they agree, prefer the higher-priority source; if they
-      diverge, still fill from the higher-priority source and mark the evidence
-      degraded instead of cancelling the trade.
-    - 1 fresh feed: fill from it with SINGLE_SOURCE quality.
+    A new paper fill requires at least two independent fresh quotes that agree
+    within the configured cross-feed tolerance. One source is insufficient for
+    a verified fill, and contradictory fresh sources block the entry.
     """
     side = str(direction or "").upper()
     if side not in {"LONG", "SHORT"}:
@@ -334,6 +326,18 @@ def verify_live_mid_quotes(
                 "rejected_quotes": rejected,
             },
         )
+    if len(valid) < 2:
+        return blocked(
+            "insufficient_independent_quotes",
+            mode="MARKET_NOW",
+            details={
+                "fresh_quotes": [_quote_payload(q, current) for q in valid],
+                "rejected_quotes": rejected,
+                "fresh_source_count": len(valid),
+                "required_fresh_sources": 2,
+                "max_age_seconds": float(max_age_seconds),
+            },
+        )
 
     prices = [float(q.price) for q in valid]
     median_price = statistics.median(prices)
@@ -348,18 +352,35 @@ def verify_live_mid_quotes(
             q for q in valid
             if abs(float(q.price) - median_price) / EURUSD_PIP <= float(max_cross_feed_pips)
         ]
-        if len(inliers) >= 2:
-            pool = inliers
-            quality = "CONSENSUS"
-        else:
-            pool = valid
-            quality = "DEGRADED_DIVERGENCE"
-    elif len(valid) == 2:
-        pool = valid
-        quality = "CONSENSUS" if max_difference_pips <= float(max_cross_feed_pips) else "DEGRADED_DIVERGENCE"
+        if len(inliers) < 2:
+            return blocked(
+                "cross_feed_divergence",
+                mode="MARKET_NOW",
+                details={
+                    "fresh_quotes": [_quote_payload(q, current) for q in valid],
+                    "rejected_quotes": rejected,
+                    "fresh_source_count": len(valid),
+                    "cross_feed_range_pips": round(float(max_difference_pips), 3),
+                    "max_cross_feed_pips": float(max_cross_feed_pips),
+                },
+            )
+        pool = inliers
+        quality = "CONSENSUS"
     else:
+        if max_difference_pips > float(max_cross_feed_pips):
+            return blocked(
+                "cross_feed_divergence",
+                mode="MARKET_NOW",
+                details={
+                    "fresh_quotes": [_quote_payload(q, current) for q in valid],
+                    "rejected_quotes": rejected,
+                    "fresh_source_count": len(valid),
+                    "cross_feed_range_pips": round(float(max_difference_pips), 3),
+                    "max_cross_feed_pips": float(max_cross_feed_pips),
+                },
+            )
         pool = valid
-        quality = "SINGLE_SOURCE"
+        quality = "CONSENSUS"
 
     # Choose a real observed quote, never an invented average. Source priority
     # breaks ties; freshness is the secondary criterion.
@@ -397,7 +418,7 @@ def verify_live_mid_quotes(
         "max_cross_feed_pips": float(max_cross_feed_pips),
         "executable_bid_ask_available": False,
         "paper_trading_only": True,
-        "policy": "availability_first_verified_mid_plus_fixed_1_5_pip_synthetic_spread",
+        "policy": "two_source_consensus_verified_mid_plus_fixed_1_5_pip_synthetic_spread",
     }
 
 

@@ -38,7 +38,7 @@ class ExecutionPriceEngineTests(unittest.TestCase):
         self.assertEqual(quote.timestamp.isoformat(), "2026-10-02T08:44:08+00:00")
         self.assertEqual(quote.source, "Stooq:EURUSD:bid-ask-mid")
 
-    def test_availability_first_prefers_stooq_inside_consensus(self) -> None:
+    def test_consensus_prefers_stooq_inside_cluster(self) -> None:
         result = epe.verify_live_mid_quotes(
             "SHORT",
             [
@@ -90,21 +90,18 @@ class ExecutionPriceEngineTests(unittest.TestCase):
         self.assertFalse(result["verified"])
         self.assertEqual(result["reason"], "primary_quote_stale_or_future")
 
-    def test_availability_first_allows_single_fresh_source(self) -> None:
+    def test_single_fresh_source_is_not_enough_for_verified_fill(self) -> None:
         result = epe.verify_live_mid_quotes(
             "SHORT",
             [self.quote(1.13400, 8, "fxapi.app:EUR/USD:mid")],
             now=self.now,
         )
-        self.assertTrue(result["verified"])
-        self.assertEqual(result["status"], "VERIFIED_FILL")
-        self.assertEqual(result["selected_mid_price"], 1.13400)
-        self.assertEqual(result["fill_price"], 1.13393)
-        self.assertEqual(result["fill_side"], "BID")
-        self.assertEqual(result["verification_quality"], "SINGLE_SOURCE")
-        self.assertEqual(result["fresh_source_count"], 1)
+        self.assertFalse(result["verified"])
+        self.assertEqual(result["status"], "NO_FILL")
+        self.assertEqual(result["reason"], "insufficient_independent_quotes")
+        self.assertEqual(result["details"]["fresh_source_count"], 1)
 
-    def test_availability_first_ignores_one_stale_vendor(self) -> None:
+    def test_consensus_ignores_one_stale_vendor(self) -> None:
         result = epe.verify_live_mid_quotes(
             "LONG",
             [
@@ -138,7 +135,7 @@ class ExecutionPriceEngineTests(unittest.TestCase):
         self.assertEqual(result["fill_side"], "BID")
         self.assertGreater(result["cross_feed_range_pips"], 5.0)
 
-    def test_two_divergent_feeds_degrade_but_do_not_cancel_entry(self) -> None:
+    def test_two_divergent_feeds_block_entry(self) -> None:
         result = epe.verify_live_mid_quotes(
             "LONG",
             [
@@ -147,11 +144,10 @@ class ExecutionPriceEngineTests(unittest.TestCase):
             ],
             now=self.now,
         )
-        self.assertTrue(result["verified"])
-        self.assertEqual(result["verification_quality"], "DEGRADED_DIVERGENCE")
-        self.assertEqual(result["selected_mid_price"], 1.13400)
-        self.assertEqual(result["fill_price"], 1.13408)
-        self.assertEqual(result["fill_side"], "ASK")
+        self.assertFalse(result["verified"])
+        self.assertEqual(result["status"], "NO_FILL")
+        self.assertEqual(result["reason"], "cross_feed_divergence")
+        self.assertGreater(result["details"]["cross_feed_range_pips"], 1.5)
 
     def test_market_fill_survives_provider_outage(self) -> None:
         def down() -> epe.Quote:

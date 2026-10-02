@@ -54,7 +54,52 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  validate-on-push:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate Daily EURUSD code without mutating trading state
+        run: |
+          set -euo pipefail
+          python -m unittest \
+            tests.test_daily_eurusd_lifecycle \
+            tests.test_daily_eurusd_direct_signal \
+            tests.test_daily_eurusd_a_fallback \
+            tests.test_daily_eurusd_dynamic_exit \
+            tests.test_daily_eurusd_macro_event_risk \
+            tests.test_daily_eurusd_learning_exploration \
+            tests.test_daily_eurusd_post_trade_intelligence \
+            tests.test_daily_eurusd_ecb_policy \
+            tests.test_execution_price_engine \
+            tests.test_daily_eurusd_contextual_policy_learning \
+            tests.test_daily_eurusd_contextual_production_policy \
+            tests.test_no_retroactive_execution -v
+          python -m py_compile \
+            scripts/daily_engine_contract.py \
+            scripts/daily_eurusd_lifecycle.py \
+            scripts/daily_eurusd_macro_event_risk.py \
+            scripts/daily_eurusd_spot.py \
+            scripts/daily_eurusd_spot_v12.py \
+            scripts/daily_eurusd_spot_v13.py \
+            scripts/daily_eurusd_spot_v14.py \
+            scripts/daily_eurusd_spot_v15.py \
+            scripts/daily_eurusd_spot_v16.py \
+            scripts/daily_eurusd_spot_v17.py \
+            scripts/daily_eurusd_spot_v18.py \
+            scripts/execution_price_engine.py
+          echo "PUSH_VALIDATION_ONLY_NO_TRADING_STATE_MUTATION"
+
   reconcile-eurusd:
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
@@ -196,13 +241,13 @@ jobs:
           data=metadata.get('data') or {}
           if 'ecb_policy_coverage' not in data:
               raise SystemExit('v1.8 output missing ecb_policy_coverage')
-          source=metadata.get('decision_source','NATIVE_OR_FLAT')
-          if source == 'LOW_EDGE_LEARNING_EXPLORATION':
-              exploration=metadata.get('exploration') or {}
-              if not metadata.get('learning_eligible'):
-                  raise SystemExit('learning exploration must be learning eligible')
-              if exploration.get('risk_budget_multiplier') != 0.35:
-                  raise SystemExit('learning exploration risk budget must be 0.35')
+          authority=metadata.get('direction_authority') or {}
+          if not position and payload.get('direction') in {'LONG','SHORT'}:
+              if authority.get('owner') != 'NATIVE_DAILY_EURUSD_DIRECTION_ENGINE' or authority.get('allowed') is not True:
+                  raise SystemExit(f"non-native direction authority leaked into production: {authority}")
+              if authority.get('source') != 'NATIVE':
+                  raise SystemExit(f"directional candidate source is not NATIVE: {authority}")
+          source=authority.get('source','NATIVE_OR_FLAT')
           print('EURUSD_V18_OK', payload.get('direction'), candidate.get('direction'), candidate.get('accepted'), source, sorted(reasons), policy.get('status'), data.get('ecb_policy_coverage'))
           PY
 

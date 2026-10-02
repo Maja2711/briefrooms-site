@@ -73,6 +73,63 @@ def _clone(
     ).validate()
 
 
+def _enforce_native_direction_authority(candidate: DailyEngineOutput) -> DailyEngineOutput:
+    metadata = dict(candidate.metadata)
+    candidate_meta = metadata.get("candidate") if isinstance(metadata.get("candidate"), Mapping) else {}
+    source = str(
+        metadata.get("decision_source")
+        or candidate_meta.get("source")
+        or "NATIVE"
+    ).upper()
+    directional = candidate.direction in {"LONG", "SHORT"}
+    allowed = (not directional) or source == "NATIVE"
+    metadata["direction_authority"] = {
+        "owner": "NATIVE_DAILY_EURUSD_DIRECTION_ENGINE",
+        "single_owner": True,
+        "source": source,
+        "direction": candidate.direction,
+        "allowed": allowed,
+        "rule": "Only NATIVE may create LONG/SHORT; native FLAT is final for direction admission.",
+    }
+    if allowed:
+        return _clone(candidate, metadata=metadata)
+
+    original = dict(candidate_meta)
+    metadata["non_native_direction_blocked"] = {
+        **original,
+        "effective_direction_before_block": candidate.direction,
+        "source": source,
+    }
+    reasons = list(original.get("gate_reasons") or [])
+    if "non_native_direction_authority_blocked" not in reasons:
+        reasons.append("non_native_direction_authority_blocked")
+    metadata["candidate"] = {
+        **original,
+        "accepted": False,
+        "gate_reasons": reasons,
+    }
+    return _clone(
+        candidate,
+        direction="FLAT",
+        entry=None,
+        stop=None,
+        target=None,
+        status="NO_TRADE",
+        metadata=metadata,
+    )
+
+
+def build_output(
+    snapshot: Any,
+    history: Mapping[str, Any] | None = None,
+    *,
+    allow_entry: bool = True,
+) -> DailyEngineOutput:
+    return _enforce_native_direction_authority(
+        _original_build_output(snapshot, history, allow_entry=allow_entry)
+    )
+
+
 def _load_mapping(path: Path | None) -> dict[str, Any]:
     if path is None:
         return {}
@@ -525,7 +582,7 @@ def run_cycle(output_path: Path, history_path: Path, client: Any | None = None) 
         # Refresh the decision stack before evaluating the existing position.
         # The raw refreshed candidate remains non-executable (allow_entry=False),
         # but it is valid thesis-management information for the open trade.
-        candidate = _original_build_output(snapshot, history, allow_entry=False)
+        candidate = build_output(snapshot, history, allow_entry=False)
         management_position = dict(position)
         candidate_meta = candidate.metadata.get("candidate") if isinstance(candidate.metadata, Mapping) else None
         belief_meta = candidate.metadata.get("belief_macro") if isinstance(candidate.metadata, Mapping) else None
@@ -544,7 +601,7 @@ def run_cycle(output_path: Path, history_path: Path, client: Any | None = None) 
             output = _open_output(candidate, position, mark_price)
             lifecycle.save_history(history_path, history, observed_at)
     else:
-        candidate = _original_build_output(snapshot, history)
+        candidate = build_output(snapshot, history)
         pending = _pending_from_previous(previous)
         if pending is not None:
             candidate = _resume_pending(candidate, pending, snapshot, monitor_bars, observed_at)
@@ -571,6 +628,7 @@ def run_cycle(output_path: Path, history_path: Path, client: Any | None = None) 
 
 def _install() -> None:
     base.ENGINE_VERSION = ENGINE_VERSION
+    base.build_output = build_output
     base.create_position = _create_position
     base.evaluate_position = _evaluate_position
     base._open_output = _open_output

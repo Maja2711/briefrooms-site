@@ -1,22 +1,9 @@
 #!/usr/bin/env python3
-"""PR33 controlled learning exploration for active Daily EUR/USD.
+"""Legacy low-edge exploration compatibility layer for Daily EUR/USD.
 
-The normal v1.4 decision path keeps priority. If it remains FLAT, v1.5 may
-open one low-edge learning position when the active engine's own continuous
-score has a measurable direction and the native components broadly agree.
-
-This is deliberately not a random always-in-market rule. Exploration requires:
-- |score - 50| >= 1.0 point,
-- at least two native components supporting the chosen direction,
-- weighted directional dominance >= 0.20,
-- fresh market state,
-- no exploration trade already closed on the same UTC day,
-- a two-hour exploration cooldown after the latest closed trade.
-
-Exploration uses the existing 30m ATR SL/TP geometry and one-open-position
-lifecycle. It is tagged end-to-end so closed outcomes, MFE and MAE can be used
-for learning/audit without pretending the trade was a normal high-conviction
-signal. The engine remains shadow/virtual and does not execute broker orders.
+Exploration remains research-only. It may compute eligibility diagnostics from
+the native score/components, but it cannot turn native FLAT into LONG/SHORT and
+cannot create production/paper positions.
 """
 from __future__ import annotations
 
@@ -192,86 +179,28 @@ def _promote_learning_exploration(
     *,
     now: datetime | None = None,
 ) -> DailyEngineOutput:
-    if native.direction != "FLAT":
-        metadata = dict(native.metadata)
-        if metadata.get("decision_source") == "A_TECHNICAL_FALLBACK":
-            metadata["learning_eligible"] = True
-            metadata["learning_namespace"] = "A_TECHNICAL_FALLBACK"
-        return _clone(native, metadata=metadata)
+    """Keep exploration diagnostics while preserving native direction exactly."""
+    eligible = False
+    diagnostics: dict[str, Any] = {"reason": "native_direction_not_flat"}
+    if native.direction == "FLAT":
+        eligible, diagnostics = _exploration_admission(native, history, now=now)
 
-    eligible, diagnostics = _exploration_admission(native, history, now=now)
     metadata = dict(native.metadata)
     metadata["exploration"] = {
         "mode": "LOW_EDGE_LEARNING_EXPLORATION",
-        "eligible": bool(eligible),
+        "production_authority": False,
+        "status": "RESEARCH_ONLY",
+        "eligible_shadow": bool(eligible),
         "min_edge_points": EXPLORATION_MIN_EDGE_POINTS,
         "min_supporting_components": EXPLORATION_MIN_SUPPORTING_COMPONENTS,
         "min_directional_dominance": EXPLORATION_MIN_DIRECTIONAL_DOMINANCE,
         "cooldown_hours": EXPLORATION_COOLDOWN_HOURS,
         "max_per_utc_day": EXPLORATION_MAX_PER_UTC_DAY,
-        "risk_budget_multiplier": EXPLORATION_RISK_BUDGET_MULTIPLIER,
+        "risk_budget_multiplier": 0.0,
         **diagnostics,
+        "note": "Exploration cannot create a production/paper trade; native FLAT remains FLAT.",
     }
-    if not eligible:
-        return _clone(native, metadata=metadata)
-
-    fx_rows = list(snapshot.bars.get(base.EURUSD) or [])
-    if not fx_rows:
-        metadata["exploration"].update({"eligible": False, "reason": "missing_execution_bars"})
-        return _clone(native, metadata=metadata)
-    atr = base._atr(fx_rows, 26)
-    if atr is None or float(atr) <= 0.0:
-        metadata["exploration"].update({"eligible": False, "reason": "invalid_execution_atr"})
-        return _clone(native, metadata=metadata)
-
-    direction = str(diagnostics["direction"])
-    entry = float(fx_rows[-1].close)
-    risk = max(float(atr) * 1.35, entry * 0.0027)
-    reward_risk = 1.8
-    stop = entry - risk if direction == "LONG" else entry + risk
-    target = entry + risk * reward_risk if direction == "LONG" else entry - risk * reward_risk
-    confidence = min(0.25, abs(float(native.score) - 50.0) / 50.0)
-
-    previous_candidate = dict(metadata.get("candidate") or {})
-    metadata["native_candidate"] = previous_candidate
-    metadata["decision_source"] = "LOW_EDGE_LEARNING_EXPLORATION"
-    metadata["learning_eligible"] = True
-    metadata["learning_namespace"] = "NATIVE_COMPONENTS_LOW_EDGE"
-    metadata["candidate"] = {
-        "direction": direction,
-        "score": round(float(native.score), 2),
-        "confidence": round(confidence, 3),
-        "accepted": True,
-        "gate_reasons": [],
-        "source": "LOW_EDGE_LEARNING_EXPLORATION",
-        "native_was_flat": True,
-        "edge_points": diagnostics["edge_points"],
-        "supporting_components": diagnostics["supporting_components"],
-        "directional_dominance": diagnostics["directional_dominance"],
-    }
-    risk_meta = dict(metadata.get("risk") or {})
-    risk_meta["exploration_risk_budget_multiplier"] = EXPLORATION_RISK_BUDGET_MULTIPLIER
-    risk_meta["reward_risk"] = reward_risk
-    metadata["risk"] = risk_meta
-
-    def px(value: float) -> float:
-        return round(float(value), 5)
-
-    return DailyEngineOutput(
-        instrument=native.instrument,
-        timestamp=native.timestamp,
-        direction=direction,
-        score=float(native.score),
-        confidence=confidence,
-        entry=px(entry),
-        stop=px(stop),
-        target=px(target),
-        horizon=native.horizon,
-        engine_version=ENGINE_VERSION,
-        status="SIGNAL",
-        decision_mode=native.decision_mode,
-        metadata=metadata,
-    ).validate()
+    return _clone(native, metadata=metadata)
 
 
 def build_output(snapshot: Any, history: Mapping[str, Any] | None = None, *, allow_entry: bool = True) -> DailyEngineOutput:

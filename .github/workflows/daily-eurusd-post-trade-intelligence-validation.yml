@@ -10,12 +10,17 @@ on:
       - "scripts/daily_eurusd_spot_v14.py"
       - "scripts/daily_eurusd_spot_v15.py"
       - "scripts/daily_eurusd_spot_v16.py"
+      - "scripts/daily_eurusd_spot_v17.py"
+      - "scripts/daily_eurusd_spot_v18.py"
+      - "scripts/execution_price_engine.py"
       - "tests/test_daily_eurusd_lifecycle.py"
       - "tests/test_daily_eurusd_direct_signal.py"
       - "tests/test_daily_eurusd_a_fallback.py"
       - "tests/test_daily_eurusd_dynamic_exit.py"
       - "tests/test_daily_eurusd_learning_exploration.py"
       - "tests/test_daily_eurusd_post_trade_intelligence.py"
+      - "tests/test_execution_price_engine.py"
+      - "tests/test_daily_eurusd_contextual_production_policy.py"
       - ".github/workflows/daily-eurusd-post-trade-intelligence-validation.yml"
       - ".github/workflows/daily-eurusd-monitor.yml"
   push:
@@ -52,7 +57,21 @@ jobs:
             tests.test_daily_eurusd_a_fallback \
             tests.test_daily_eurusd_dynamic_exit \
             tests.test_daily_eurusd_learning_exploration \
-            tests.test_daily_eurusd_post_trade_intelligence -v
+            tests.test_daily_eurusd_post_trade_intelligence \
+            tests.test_execution_price_engine \
+            tests.test_daily_eurusd_contextual_production_policy -v
+
+      - name: Assert Daily push is validation-only
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          text=Path('.github/workflows/daily-eurusd-monitor.yml').read_text(encoding='utf-8')
+          assert "validate-on-push:" in text
+          assert "if: github.event_name == 'push'" in text
+          assert "if: github.event_name != 'push'" in text
+          assert "PUSH_VALIDATION_ONLY_NO_TRADING_STATE_MUTATION" in text
+          print("DAILY_EURUSD_PUSH_VALIDATION_ONLY_PASS")
+          PY
 
       - name: Compile active EURUSD engine chain
         run: |
@@ -64,4 +83,7 @@ jobs:
             scripts/daily_eurusd_spot_v13.py \
             scripts/daily_eurusd_spot_v14.py \
             scripts/daily_eurusd_spot_v15.py \
-            scripts/daily_eurusd_spot_v16.py
+            scripts/daily_eurusd_spot_v16.py \
+            scripts/daily_eurusd_spot_v17.py \
+            scripts/daily_eurusd_spot_v18.py \
+            scripts/execution_price_engine.py

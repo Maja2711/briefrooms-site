@@ -12,7 +12,7 @@ UTC=timezone.utc
 NOW=datetime(2026,10,1,18,0,tzinfo=UTC)
 
 
-def candidate(direction: str="SHORT") -> DailyEngineOutput:
+def candidate(direction: str="SHORT", source: str="NATIVE") -> DailyEngineOutput:
     entry=1.1200
     risk=0.0030
     stop=entry-risk if direction=="LONG" else entry+risk
@@ -31,7 +31,7 @@ def candidate(direction: str="SHORT") -> DailyEngineOutput:
         status="SIGNAL",
         decision_mode="WITHOUT",
         metadata={
-            "decision_source":"NATIVE",
+            "decision_source":source,
             "candidate":{"direction":direction,"score":30.0 if direction=="SHORT" else 70.0,"confidence":0.50,"accepted":True,"gate_reasons":[]},
             "components":{"trend":-0.4 if direction=="SHORT" else 0.4},
             "weights":{"trend":1.0},
@@ -72,6 +72,40 @@ def bars(close: float) -> list[Bar]:
 
 
 class DailyEURUSDContextualProductionTests(unittest.TestCase):
+    def test_non_native_direction_is_blocked_at_final_v18_authority_boundary(self) -> None:
+        out=v18._enforce_native_direction_authority(candidate("SHORT", source="A_TECHNICAL_FALLBACK"))
+        self.assertEqual(out.direction,"FLAT")
+        self.assertEqual(out.status,"NO_TRADE")
+        self.assertFalse(out.metadata["direction_authority"]["allowed"])
+        self.assertEqual(out.metadata["direction_authority"]["owner"],"NATIVE_DAILY_EURUSD_DIRECTION_ENGINE")
+        self.assertIn("non_native_direction_authority_blocked",out.metadata["candidate"]["gate_reasons"])
+
+    def test_native_direction_passes_final_v18_authority_boundary(self) -> None:
+        out=v18._enforce_native_direction_authority(candidate("LONG", source="NATIVE"))
+        self.assertEqual(out.direction,"LONG")
+        self.assertTrue(out.metadata["direction_authority"]["allowed"])
+        self.assertEqual(out.metadata["direction_authority"]["source"],"NATIVE")
+
+    def test_native_flat_remains_final_for_direction_admission(self) -> None:
+        flat=DailyEngineOutput(
+            instrument="EUR/USD",
+            timestamp=NOW.isoformat().replace("+00:00","Z"),
+            direction="FLAT",
+            score=50.0,
+            confidence=0.0,
+            entry=None,
+            stop=None,
+            target=None,
+            horizon="intraday_to_27h",
+            engine_version="eurusd-daily-spot-v1.7.0",
+            status="NO_TRADE",
+            decision_mode="WITHOUT",
+            metadata={"candidate":{"direction":"FLAT","accepted":False,"gate_reasons":["raw_score_neutral"]}},
+        ).validate()
+        out=v18._enforce_native_direction_authority(flat)
+        self.assertEqual(out.direction,"FLAT")
+        self.assertTrue(out.metadata["direction_authority"]["allowed"])
+
     def test_shadow_keeps_directional_candidate_unchanged(self) -> None:
         c=candidate()
         with patch.object(v18,"_live_recommendation",return_value=(recommendation("PULLBACK_35_ATR","SHADOW"),context())):
