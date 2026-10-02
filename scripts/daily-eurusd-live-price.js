@@ -7,15 +7,15 @@
   const isEn = document.documentElement.lang.toLowerCase().startsWith("en");
   const STATE_URL = "/data/investments/eurusd_daily_spot.json";
   const NOTIFICATION_CONFIG_URL = "/data/notifications/trading-notification-config.json";
-  const REFRESH_MS = 60_000;
-  const LIVE_MAX_AGE_MS = 10 * 60_000;
-  const REQUEST_TIMEOUT_MS = 7_000;
+  const REFRESH_MS = 15_000;
+  const LIVE_MAX_AGE_MS = 2 * 60_000;
+  const REQUEST_TIMEOUT_MS = 3_000;
 
   const T = isEn ? {
-    live: "Current", engine: "Last engine price", sourceLive: "live mid-market",
+    live: "Current", engine: "Last engine price", refreshing: "refreshing", sourceLive: "live mid-market",
     sourceEngine: "engine snapshot", stale: "stale", updated: "updated"
   } : {
-    live: "Cena teraz", engine: "Ostatnia cena silnika", sourceLive: "live mid-market",
+    live: "Cena teraz", engine: "Ostatnia cena silnika", refreshing: "odświeżanie", sourceLive: "live mid-market",
     sourceEngine: "snapshot silnika", stale: "nieaktualne", updated: "aktualizacja"
   };
 
@@ -95,6 +95,25 @@
     return validateQuote(data?.rate, data?.timestamp, "fxapi.app");
   }
 
+  async function quoteYahoo(route) {
+    const upstream = `https://query1.finance.yahoo.com/v8/finance/chart/EURUSD%3DX?interval=1m&range=1d&_=${Date.now()}`;
+    const url = route === "allorigins"
+      ? `https://api.allorigins.win/raw?url=${encodeURIComponent(upstream)}`
+      : `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(upstream)}`;
+    const data = await fetchJson(url);
+    const chart = data?.chart?.result?.[0];
+    if (!chart) throw new Error("yahoo_missing_chart");
+    const timestamps = Array.isArray(chart.timestamp) ? chart.timestamp : [];
+    const closes = chart?.indicators?.quote?.[0]?.close || [];
+    for (let i = Math.min(timestamps.length, closes.length) - 1; i >= 0; i -= 1) {
+      const ts = number(timestamps[i]);
+      const price = number(closes[i]);
+      if (ts == null || price == null) continue;
+      return validateQuote(price, new Date(ts * 1000).toISOString(), route === "allorigins" ? "Yahoo EURUSD=X · backup" : "Yahoo EURUSD=X");
+    }
+    throw new Error("yahoo_missing_quote");
+  }
+
   async function quoteCurrencyExchangeTool() {
     const data = await fetchJson(`https://www.currencyexchangetool.com/api/v1/convert?amount=1&from=EUR&to=USD&_=${Date.now()}`);
     if (!data || data.success === false) throw new Error("currencyexchangetool_api_error");
@@ -102,15 +121,26 @@
   }
 
   async function fetchLiveQuote() {
-    const providers = [quoteStooq, quoteFxApi, quoteCurrencyExchangeTool];
-    const errors = [];
-    for (const provider of providers) {
+    const providers = [
+      ["Stooq", quoteStooq],
+      ["Yahoo", () => quoteYahoo("codetabs")],
+      ["Yahoo backup", () => quoteYahoo("allorigins")],
+      ["fxapi.app", quoteFxApi],
+      ["Currency Exchange Tool", quoteCurrencyExchangeTool],
+    ];
+    const settled = await Promise.allSettled(providers.map(async ([name, provider]) => {
       try {
         return await provider();
       } catch (error) {
-        errors.push(error?.message || String(error));
+        throw new Error(`${name}:${error?.message || String(error)}`);
       }
-    }
+    }));
+    const quotes = settled
+      .filter(result => result.status === "fulfilled")
+      .map(result => result.value)
+      .sort((a, b) => new Date(b.updatedAt).valueOf() - new Date(a.updatedAt).valueOf());
+    if (quotes.length) return quotes[0];
+    const errors = settled.filter(result => result.status === "rejected").map(result => result.reason?.message || String(result.reason));
     throw new Error(`all_live_providers_failed:${errors.join("|")}`);
   }
 
@@ -212,6 +242,12 @@
       const position = getOpenPosition(payload);
       if (maybeReloadForStateChange(payload, position)) return;
       if (!position) return;
+
+      const priceCell = root.querySelector(".brfx-plan-four > div:nth-child(4)");
+      const pendingLabel = priceCell?.querySelector("span");
+      const pendingMeta = priceCell ? ensureLiveMeta(priceCell) : null;
+      if (pendingLabel) pendingLabel.textContent = `${T.live} · ${T.refreshing}`;
+      if (pendingMeta) pendingMeta.textContent = T.refreshing;
 
       let liveQuote = null;
       try {

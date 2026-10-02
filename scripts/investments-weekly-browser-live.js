@@ -20,13 +20,17 @@
 
   const FEEDS = {
     eurusd: {
-      pollMs: 60_000,
-      maxAgeMs: 10 * 60_000,
+      pollMs: 15_000,
+      maxAgeMs: 2 * 60_000,
+      backendMaxAgeMs: 2 * 60_000,
       minPrice: 0.8,
       maxPrice: 1.5,
-      directPriority: 'first-fresh',
-      directAuthoritativeWhenFresh: true,
       sources: [
+        { name: 'Yahoo EURUSD=X', fetch: () => fetchYahooQuote('EURUSD=X', 'codetabs') },
+        { name: 'Yahoo EURUSD=X · backup route', fetch: () => fetchYahooQuote('EURUSD=X', 'allorigins') },
+        { name: 'Stooq EURUSD', fetch: () => fetchStooqEurUsd('direct') },
+        { name: 'Stooq EURUSD · proxy 1', fetch: () => fetchStooqEurUsd('codetabs') },
+        { name: 'Stooq EURUSD · proxy 2', fetch: () => fetchStooqEurUsd('allorigins') },
         { name: 'fxapi.app', fetch: fetchEurUsdFxApi },
         { name: 'Currency Exchange Tool', fetch: fetchEurUsdCurrencyExchangeTool },
       ],
@@ -377,6 +381,42 @@
     return parseStooqEsCsv(await fetchText(url));
   }
 
+
+  function parseStooqEurUsdCsv(text) {
+    const lines = String(text || '').trim().split(/\r?\n/).filter(Boolean);
+    if (lines.length < 2) throw new Error('stooq_eurusd_missing_row');
+    const header = lines[0].split(',').map((value) => value.trim().toLowerCase());
+    const row = lines[lines.length - 1].split(',').map((value) => value.trim());
+    const at = (name) => {
+      const index = header.indexOf(name);
+      return index >= 0 ? (row[index] || '') : '';
+    };
+    const bid = positive(at('bid'));
+    const ask = positive(at('ask'));
+    const close = positive(at('close'));
+    const price = bid !== null && ask !== null ? (bid + ask) / 2 : close;
+    const dateText = at('date');
+    const timeText = at('time');
+    if (price === null) throw new Error('stooq_eurusd_invalid_price');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateText) || !/^\d{2}:\d{2}(:\d{2})?$/.test(timeText)) {
+      throw new Error('stooq_eurusd_invalid_timestamp');
+    }
+    return {
+      price,
+      updatedAt: warsawLocalTimestamp(dateText, timeText).toISOString(),
+      source: 'Stooq EURUSD',
+    };
+  }
+
+  async function fetchStooqEurUsd(route) {
+    const upstream = `https://stooq.com/q/l/?s=eurusd&f=sd2t2ohlcvba&h&e=csv&_=${Date.now()}`;
+    const url = route === 'allorigins'
+      ? `https://api.allorigins.win/raw?url=${encodeURIComponent(upstream)}`
+      : route === 'codetabs'
+        ? `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(upstream)}`
+        : upstream;
+    return parseStooqEurUsdCsv(await fetchText(url));
+  }
   async function fetchEurUsdFxApi() {
     const data = await fetchJson('https://fxapi.app/api/EUR/USD.json');
     if (!data?.timestamp) throw new Error('fxapi_eurusd_source_timestamp_missing');

@@ -16,7 +16,7 @@ PAGES = [
     ROOT / "en" / "investing" / "open-weekly-positions.html",
     ROOT / "en" / "investing" / "weekly-forecasts.html",
 ]
-SCRIPT_REF = "/scripts/investments-weekly-browser-live.js?v=20260921-10"
+SCRIPT_REF = "/scripts/investments-weekly-browser-live.js?v=20261002-1"
 COMPACT_REF = "/scripts/investments-weekly-price-compact.js?v=20260916-4"
 
 
@@ -85,12 +85,11 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
         self.assertIn("https://fxapi.app/api/EUR/USD.json", source)
         self.assertIn("fxapi.app", source)
         self.assertIn("Currency Exchange Tool", source)
-        self.assertNotIn("Yahoo EURUSD=X", source)
-        self.assertLess(source.index("{ name: 'fxapi.app'"), source.index("{ name: 'Currency Exchange Tool'"))
-        self.assertIn("directPriority: 'first-fresh'", source)
-        self.assertIn("directAuthoritativeWhenFresh: true", source)
-        self.assertIn("for (let index = 0; index < cfg.sources.length; index += 1)", source)
-        self.assertIn("if (quoteFresh(quote, cfg.maxAgeMs)) return attempts;", source)
+        self.assertIn("Yahoo EURUSD=X", source)
+        self.assertIn("Stooq EURUSD", source)
+        self.assertIn("Promise.allSettled(cfg.sources.map", source)
+        self.assertNotIn("directPriority: 'first-fresh'", source)
+        self.assertNotIn("directAuthoritativeWhenFresh: true", source)
         self.assertIn("['live', 'fallback'].includes(state?.mode)", source)
         self.assertIn("CNBC @SP.1", source)
         self.assertIn("quote.cnbc.com/quote-html-webservice/restQuote", source)
@@ -103,8 +102,8 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
         self.assertIn("fetchStooqEs", source)
         self.assertIn("Coinbase BTC-USD", source)
         self.assertIn("CoinGecko BTC/USD", source)
-        self.assertIn("pollMs: 60_000", source)
-        self.assertIn("maxAgeMs: 10 * 60_000", source)
+        self.assertIn("pollMs: 15_000", source)
+        self.assertIn("maxAgeMs: 2 * 60_000", source)
         self.assertIn("maxAgeMs: 2 * 60_000", source)
         self.assertIn("maxAgeMs: 15 * 60_000", source)
         self.assertIn("backendMaxAgeMs: 15 * 60_000", source)
@@ -150,8 +149,11 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
         self.assertIn('if instrument_id == "eurusd":', source)
         self.assertIn("fxapi_eurusd_quote", source)
         self.assertIn("currency_exchange_tool_eurusd_quote", source)
-        self.assertIn('if instrument_id == "eurusd":\n                    age = quote_age(quote)', source)
-        self.assertIn('if instrument_id == "eurusd" and candidate_fresh:', source)
+        self.assertIn('lambda: yahoo_quote(instrument_id)', source)
+        self.assertIn('lambda: stooq_quote(instrument_id)', source)
+        self.assertIn('with ThreadPoolExecutor(max_workers=len(provider_list)) as executor:', source)
+        self.assertIn('candidates.sort', source)
+        self.assertIn('timedelta(minutes=2)', source)
 
     def test_server_snapshot_chooses_newest_es_provider_by_timestamp(self) -> None:
         source = FAST_UPDATER.read_text(encoding="utf-8")

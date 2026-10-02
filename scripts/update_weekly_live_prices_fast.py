@@ -33,7 +33,7 @@ class Instrument:
 
 
 INSTRUMENTS: Dict[str, Instrument] = {
-    "eurusd": Instrument("EURUSD=X", "eurusd", 0.8, 1.5, timedelta(minutes=10)),
+    "eurusd": Instrument("EURUSD=X", "eurusd", 0.8, 1.5, timedelta(minutes=2)),
     "sp500_futures": Instrument("ES=F", "es.f", 500.0, 100_000.0, timedelta(minutes=15)),
     "btcusd": Instrument("BTC-USD", None, 1_000.0, 2_000_000.0, timedelta(minutes=5)),
 }
@@ -329,6 +329,8 @@ def coinbase_quote() -> Dict[str, Any]:
 def providers(instrument_id: str) -> list[Callable[[], Dict[str, Any]]]:
     if instrument_id == "eurusd":
         return [
+            lambda: yahoo_quote(instrument_id),
+            lambda: stooq_quote(instrument_id),
             fxapi_eurusd_quote,
             currency_exchange_tool_eurusd_quote,
         ]
@@ -352,20 +354,31 @@ def providers(instrument_id: str) -> list[Callable[[], Dict[str, Any]]]:
 def newest_valid(instrument_id: str) -> tuple[Optional[Dict[str, Any]], list[str]]:
     candidates: list[Dict[str, Any]] = []
     errors: list[str] = []
-    cfg = INSTRUMENTS[instrument_id]
-    for provider in providers(instrument_id):
-        try:
-            quote = provider()
-            if valid_quote(instrument_id, quote):
-                candidates.append(quote)
-                if instrument_id == "eurusd":
-                    age = quote_age(quote)
-                    if timedelta(seconds=-60) <= age <= cfg.max_age:
-                        return quote, errors
-            else:
-                errors.append(f"{getattr(provider, '__name__', 'provider')}: invalid quote")
-        except Exception as exc:
-            errors.append(f"{getattr(provider, '__name__', 'provider')}: {exc}")
+    provider_list = providers(instrument_id)
+
+    if instrument_id == "eurusd":
+        with ThreadPoolExecutor(max_workers=len(provider_list)) as executor:
+            future_map = {executor.submit(provider): provider for provider in provider_list}
+            for future in as_completed(future_map):
+                provider = future_map[future]
+                try:
+                    quote = future.result()
+                    if valid_quote(instrument_id, quote):
+                        candidates.append(quote)
+                    else:
+                        errors.append(f"{getattr(provider, '__name__', 'provider')}: invalid quote")
+                except Exception as exc:
+                    errors.append(f"{getattr(provider, '__name__', 'provider')}: {exc}")
+    else:
+        for provider in provider_list:
+            try:
+                quote = provider()
+                if valid_quote(instrument_id, quote):
+                    candidates.append(quote)
+                else:
+                    errors.append(f"{getattr(provider, '__name__', 'provider')}: invalid quote")
+            except Exception as exc:
+                errors.append(f"{getattr(provider, '__name__', 'provider')}: {exc}")
 
     if not candidates:
         return None, errors
@@ -385,7 +398,9 @@ def refresh_one(instrument_id: str, previous: Dict[str, Any]) -> Dict[str, Any]:
     chosen = candidate
     old_source = str((old or {}).get("source") or "")
     old_aligned_for_eurusd = (
-        old_source.startswith("fxapi.app:")
+        old_source.startswith("Yahoo Finance:")
+        or old_source.startswith("Stooq:")
+        or old_source.startswith("fxapi.app:")
         or old_source.startswith("Currency Exchange Tool:")
     )
     old_eligible = instrument_id != "eurusd" or old_aligned_for_eurusd
