@@ -29,6 +29,7 @@ EURUSD = "EURUSD=X"
 UUP = "UUP"
 TLT = "TLT"
 SYMBOLS = (EURUSD, UUP, TLT)
+MAX_CROSS_ASSET_TIMESTAMP_GAP_MINUTES = 90.0
 
 
 def _clamp(value: float, low: float = -1.0, high: float = 1.0) -> float:
@@ -94,6 +95,41 @@ def _rates_component(rows: Sequence[Bar]) -> float | None:
     if None in {r1, r5}:
         return None
     return _clamp(0.45 * _clamp(float(r1) / 0.018) + 0.55 * _clamp(float(r5) / 0.045))
+
+
+def _cross_asset_alignment(snapshot: MarketSnapshot) -> dict[str, Any]:
+    latest: dict[str, datetime] = {}
+    for symbol in SYMBOLS:
+        rows = list(snapshot.bars.get(symbol) or [])
+        if not rows:
+            return {
+                "passed": False,
+                "reason": "missing_required_market_series",
+                "missing": symbol,
+                "max_gap_minutes": None,
+                "threshold_minutes": MAX_CROSS_ASSET_TIMESTAMP_GAP_MINUTES,
+            }
+        latest[symbol] = rows[-1].timestamp.astimezone(timezone.utc)
+
+    fx_at = latest[EURUSD]
+    gaps = {
+        symbol: abs((fx_at - latest[symbol]).total_seconds()) / 60.0
+        for symbol in (UUP, TLT)
+    }
+    max_gap = max(gaps.values()) if gaps else 0.0
+    return {
+        "passed": max_gap <= MAX_CROSS_ASSET_TIMESTAMP_GAP_MINUTES,
+        "reason": (
+            "aligned"
+            if max_gap <= MAX_CROSS_ASSET_TIMESTAMP_GAP_MINUTES
+            else "cross_asset_timestamp_misalignment"
+        ),
+        "reference_symbol": EURUSD,
+        "timestamps": {key: value.isoformat().replace("+00:00", "Z") for key, value in latest.items()},
+        "gap_minutes_vs_eurusd": {key: round(value, 2) for key, value in gaps.items()},
+        "max_gap_minutes": round(max_gap, 2),
+        "threshold_minutes": MAX_CROSS_ASSET_TIMESTAMP_GAP_MINUTES,
+    }
 
 
 def _raw_state(snapshot: MarketSnapshot, weights: Mapping[str, float]) -> dict[str, Any]:
@@ -166,6 +202,7 @@ def build_output(
     learning = learning_state(history_payload.get("trades") or [])
     weights = learning["adaptive_weights"]
     raw = _raw_state(snapshot, weights)
+    alignment = _cross_asset_alignment(snapshot)
     previous_score = _previous_score(snapshot, weights)
     gate = entry_gate(
         direction=str(raw["raw_direction"]),
@@ -177,6 +214,12 @@ def build_output(
         stretch_atr=raw["stretch_atr"],
         shock_ratio=raw["shock_ratio"],
     )
+    if not alignment["passed"]:
+        gate = {
+            **gate,
+            "accepted": False,
+            "reasons": [*gate["reasons"], "cross_asset_data_misaligned"],
+        }
     if not allow_entry:
         gate = {**gate, "accepted": False, "reasons": [*gate["reasons"], "entry_disabled_this_cycle"]}
 
@@ -229,6 +272,7 @@ def build_output(
         "data": {
             "provider": "Yahoo Finance chart",
             "symbols": list(SYMBOLS),
+            "cross_asset_alignment": alignment,
             "executable_bid_ask_available": False,
             "rate_differential_claimed": False,
             "ecb_policy_coverage": False,
