@@ -260,6 +260,17 @@ def apply_belief_macro_gate(candidate: DailyEngineOutput, context: Mapping[str, 
     calendar = belief.get("macro_calendar") if isinstance(belief.get("macro_calendar"), Mapping) else {}
     if calendar.get("imminent") is True:
         return _flat_with_event_block(candidate, metadata, "belief_macro_high_impact_event_imminent")
+
+    # After a high-impact release, wait for post-release macro evidence/LLM
+    # interpretation before admitting a fresh position. The guard naturally
+    # expires after the bounded 30-minute release_context window.
+    release_context = belief.get("release_context") if isinstance(belief.get("release_context"), Mapping) else {}
+    if (
+        release_context.get("recent_high_impact_event")
+        and release_context.get("post_release_macro_evidence_fresh") is not True
+    ):
+        return _flat_with_event_block(candidate, metadata, "belief_macro_post_release_interpretation_pending")
+
     if not belief.get("available"):
         return _clone(candidate, metadata=metadata)
     score = float(belief.get("score") or 0.0)
