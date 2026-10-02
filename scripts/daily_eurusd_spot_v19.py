@@ -74,6 +74,18 @@ def _market_geometry(snapshot: Any, direction: str) -> tuple[float | None, float
     return round(entry, 5), round(entry + risk, 5), round(entry - reward_risk * risk, 5)
 
 
+def fetch_snapshot(client: Any | None = None) -> Any:
+    """Fetch only the direct EUR/USD market fact needed after final Belief synthesis.
+
+    UUP/TLT and all other explanatory inputs belong upstream in the adapter /
+    Evidence / Belief pipeline and are intentionally not fetched by the
+    production decision runtime.
+    """
+    client = client or base.YahooChartClient(timeout=15)
+    bars = {base.EURUSD: client.bars(base.EURUSD, "10d", "30m")}
+    return base.MarketSnapshot(bars)
+
+
 def _execution_admission(
     candidate: DailyEngineOutput,
     history: Mapping[str, Any] | None,
@@ -353,6 +365,7 @@ def _install() -> None:
     v18._original_prepare_entry_candidate = prepare_entry_candidate
 
     base.ENGINE_VERSION = ENGINE_VERSION
+    base.fetch_snapshot = fetch_snapshot
     base.build_output = build_output
     base.prepare_entry_candidate = prepare_entry_candidate
     base.run_cycle = v18.run_cycle
