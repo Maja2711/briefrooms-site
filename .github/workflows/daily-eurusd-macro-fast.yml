@@ -11,9 +11,11 @@ on:
       - "scripts/belief_macro_data_adapter.py"
       - "scripts/belief_macro_expectations_adapter.py"
       - "scripts/belief_macro_expectations_collector.py"
+      - "scripts/belief_macro_forecaster_skill.py"
       - "data/investments/eurusd_macro_expectations.json"
       - "tests/test_belief_macro_expectations_adapter.py"
       - "tests/test_belief_macro_expectations_collector.py"
+      - "tests/test_belief_macro_forecaster_skill.py"
       - "tests/test_daily_eurusd_macro_fast.py"
       - ".github/workflows/daily-eurusd-macro-fast.yml"
   schedule:
@@ -23,6 +25,7 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 concurrency:
   group: daily-eurusd-macro-fast
@@ -63,19 +66,61 @@ jobs:
             scripts/belief_macro_calendar_adapter.py \
             scripts/belief_macro_data_adapter.py \
             scripts/belief_macro_expectations_adapter.py \
-            scripts/belief_macro_expectations_collector.py
+            scripts/belief_macro_expectations_collector.py \
+            scripts/belief_macro_forecaster_skill.py
           python -m unittest \
             tests.test_belief_macro_expectations_adapter \
             tests.test_belief_macro_expectations_collector \
+            tests.test_belief_macro_forecaster_skill \
             tests.test_belief_macro_eurusd \
             tests.test_daily_eurusd_macro_fast -v
+
+      - name: Restore prospective forecaster skill ledger
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          skill_path="$RUNNER_TEMP/eurusd_macro_forecaster_skill.json"
+          echo "BELIEF_MACRO_FORECASTER_SKILL_PATH=$skill_path" >> "$GITHUB_ENV"
+          printf '%s\n' '{"schema_version":"briefrooms-macro-forecaster-skill-v1","updated_at":null,"skills":{},"settled_ids":[]}' > "$skill_path"
+
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=eurusd-macro-forecaster-skill&per_page=100"
+          if ! curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/forecaster-artifacts.json"; then
+            echo "No readable prior forecaster skill artifact; starting neutral."
+            exit 0
+          fi
+          artifact_id=$(python - "$RUNNER_TEMP/forecaster-artifacts.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get("artifacts",[]) if not x.get("expired")]
+          rows.sort(key=lambda x:x.get("created_at",""), reverse=True)
+          print(rows[0]["id"] if rows else "")
+          PY
+          )
+          if [ -z "$artifact_id" ]; then
+            echo "No prior forecaster skill artifact; starting neutral."
+            exit 0
+          fi
+          curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" \
+            -o "$RUNNER_TEMP/forecaster-skill.zip"
+          mkdir -p "$RUNNER_TEMP/forecaster-skill-artifact"
+          unzip -q "$RUNNER_TEMP/forecaster-skill.zip" -d "$RUNNER_TEMP/forecaster-skill-artifact"
+          restored=$(find "$RUNNER_TEMP/forecaster-skill-artifact" -name 'eurusd_macro_forecaster_skill.json' -print -quit)
+          if [ -n "$restored" ]; then
+            cp "$restored" "$skill_path"
+            python -m json.tool "$skill_path" >/dev/null
+            echo "Restored prospective forecaster skill ledger."
+          fi
 
       - name: Collect sourced institutional macro expectations
         run: |
           set -euo pipefail
           expectations_path="$RUNNER_TEMP/eurusd_macro_expectations.json"
           echo "BELIEF_MACRO_EXPECTATIONS_PATH=$expectations_path" >> "$GITHUB_ENV"
-          python scripts/belief_macro_expectations_collector.py --output "$expectations_path"
+          python scripts/belief_macro_expectations_collector.py \
+            --output "$expectations_path" \
+            --skill-ledger "$BELIEF_MACRO_FORECASTER_SKILL_PATH"
           python -m json.tool "$expectations_path" >/dev/null
 
       - name: Build EURUSD macro fast context
@@ -84,6 +129,24 @@ jobs:
           python scripts/daily_eurusd_macro_fast.py \
             --output data/investments/eurusd_macro_fast_context.json
           python -m json.tool data/investments/eurusd_macro_fast_context.json >/dev/null
+
+      - name: Settle prospective institution-level forecast skill
+        run: |
+          set -euo pipefail
+          python scripts/belief_macro_forecaster_skill.py \
+            --state "$BELIEF_MACRO_FORECASTER_SKILL_PATH" \
+            --expectations "$BELIEF_MACRO_EXPECTATIONS_PATH" \
+            --context data/investments/eurusd_macro_fast_context.json
+          python -m json.tool "$BELIEF_MACRO_FORECASTER_SKILL_PATH" >/dev/null
+
+      - name: Store private forecaster skill ledger
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: eurusd-macro-forecaster-skill
+          path: ${{ env.BELIEF_MACRO_FORECASTER_SKILL_PATH }}
+          if-no-files-found: error
+          retention-days: 90
 
       - name: Persist changed macro fast context
         run: |
