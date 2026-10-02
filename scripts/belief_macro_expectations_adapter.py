@@ -106,6 +106,7 @@ def _valid_forecasts(rows: Any, now: datetime) -> list[dict[str, Any]]:
         valid.append(item)
 
     mae_rows = [float(row["historical_mae"]) for row in valid if row.get("historical_mae") is not None]
+    rank_rows = [float(row["external_rank"]) for row in valid if row.get("external_rank") is not None]
     if len(mae_rows) >= 2:
         benchmark_mae = median(mae_rows)
         for item in valid:
@@ -116,6 +117,19 @@ def _valid_forecasts(rows: Any, now: datetime) -> list[dict[str, Any]]:
                 continue
             item["accuracy_weight"] = max(0.5, min(2.0, benchmark_mae / float(mae)))
             item["accuracy_weight_source"] = "inverse_historical_mae_normalized"
+    elif len(rank_rows) >= 2:
+        benchmark_rank = median(rank_rows)
+        for item in valid:
+            rank = item.get("external_rank")
+            if rank is None:
+                item["accuracy_weight"] = 1.0
+                item["accuracy_weight_source"] = "equal_weight_missing_external_rank"
+                continue
+            item["accuracy_weight"] = max(
+                0.75,
+                min(1.25, math.sqrt(benchmark_rank / float(rank))),
+            )
+            item["accuracy_weight_source"] = "sourced_external_rank_prior"
     else:
         for item in valid:
             item["accuracy_weight"] = 1.0
@@ -196,12 +210,17 @@ def _observation(release: Mapping[str, Any], now: datetime, provider: str) -> Ob
             "accuracy_weight_method": (
                 "inverse_historical_mae_normalized"
                 if sum(1 for row in forecasts if row.get("historical_mae") is not None) >= 2
-                else "equal_weight_insufficient_history"
+                else (
+                    "sourced_external_rank_prior"
+                    if sum(1 for row in forecasts if row.get("external_rank") is not None) >= 2
+                    else "equal_weight_insufficient_history"
+                )
             ),
             "probability_proxy_calibrated": False,
             "note": (
-                "Probability proxy is a weighted forecast-error mixture when historical_mae is supplied; "
-                "it is not presented as a calibrated market probability."
+                "Internal prospective MAE is preferred. A sourced external ranking may provide only a mild "
+                "weighting prior before internal history is sufficient. The probability proxy still requires "
+                "historical MAE and is not presented as a calibrated market probability."
             ),
         },
     )
