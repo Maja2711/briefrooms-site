@@ -1,14 +1,9 @@
 #!/usr/bin/env python3
-"""PR25 participation layer for active Daily EUR/USD.
+"""Legacy Arm-A compatibility layer for Daily EUR/USD.
 
-Native Daily EUR/USD keeps first priority. When the native score is genuinely
-FLAT, this layer computes the same multi-timeframe technical model used by
-research Arm A directly from fresh EUR/USD H1/D1 data. A fresh LONG/SHORT A
-signal is promoted as a fallback candidate using the active engine's current
-30m entry and ATR risk geometry.
-
-The research A/B/C state is NOT read by this module. This preserves the Research
-Lab boundary: the active engine re-computes the technical method independently.
+Production direction authority is exclusively owned by the native Daily EUR/USD
+Direction Engine. Arm A remains available for research/shadow analysis only and
+can never turn a native FLAT into LONG/SHORT.
 """
 from __future__ import annotations
 
@@ -56,80 +51,33 @@ def _promote_a_fallback(
     *,
     now: datetime | None = None,
 ) -> DailyEngineOutput:
-    """Promote a fresh Arm-A LONG/SHORT only when native candidate is FLAT."""
-    if native.direction != "FLAT":
-        return native
-    direction = str(technical.get("direction") or "FLAT").upper()
-    if direction not in {"LONG", "SHORT"}:
-        return native
-
-    observed_at = _parse_iso(native.timestamp)
-    current = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
-    age_minutes = max(0.0, (current - observed_at).total_seconds() / 60.0)
-    if current < observed_at or age_minutes > A_FALLBACK_MAX_MARKET_AGE_MINUTES:
-        return native
-
-    fx_rows = list(snapshot.bars.get(base.EURUSD) or [])
-    if not fx_rows:
-        return native
-    atr = base._atr(fx_rows, 26)
-    if atr is None or float(atr) <= 0:
-        return native
-
-    entry = float(fx_rows[-1].close)
-    risk = max(float(atr) * 1.35, entry * 0.0027)
-    target_multiple = 1.8
-    stop = entry - risk if direction == "LONG" else entry + risk
-    target = entry + risk * target_multiple if direction == "LONG" else entry - risk * target_multiple
-    score = float(technical.get("score") or 50.0)
-    confidence = float(technical.get("confidence") or 0.0)
-
+    """Record Arm-A shadow diagnostics without production direction authority."""
     metadata = dict(native.metadata)
-    native_candidate = dict((metadata.get("candidate") or {}))
-    metadata["decision_source"] = "A_TECHNICAL_FALLBACK"
-    metadata["learning_eligible"] = False
-    metadata["native_candidate"] = native_candidate
-    metadata["candidate"] = {
-        "direction": direction,
-        "score": round(score, 2),
-        "confidence": round(confidence, 3),
-        "accepted": True,
-        "gate_reasons": [],
-        "source": "A_TECHNICAL_FALLBACK",
-        "native_was_flat": True,
-        "market_age_minutes": round(age_minutes, 2),
-    }
-    # Do not attribute a fallback trade to the native trend/UUP/TLT component
-    # learner. Empty components make the existing bounded learner skip weight
-    # attribution while the trade still enters P&L/history statistics.
-    metadata["components"] = {}
+    technical_direction = str(technical.get("direction") or "FLAT").upper()
     metadata["a_fallback"] = {
+        "production_authority": False,
+        "status": "RESEARCH_ONLY",
         "method": "same_technical_model_as_research_arm_A_recomputed_live",
         "research_state_consumed": False,
-        "direction": direction,
-        "score": round(score, 2),
-        "confidence": round(confidence, 3),
-        "market_observed_at": native.timestamp,
-        "max_market_age_minutes": A_FALLBACK_MAX_MARKET_AGE_MINUTES,
-        "risk_source": "active_daily_eurusd_current_30m_atr",
+        "shadow_direction": technical_direction,
+        "shadow_score": technical.get("score"),
+        "shadow_confidence": technical.get("confidence"),
+        "native_direction": native.direction,
+        "note": "Native FLAT remains FLAT; Arm A cannot create a production trade.",
     }
-
-    def px(value: float) -> float:
-        return round(float(value), 5)
-
     return DailyEngineOutput(
-        instrument="EUR/USD",
+        instrument=native.instrument,
         timestamp=native.timestamp,
-        direction=direction,
-        score=score,
-        confidence=confidence,
-        entry=px(entry),
-        stop=px(stop),
-        target=px(target),
-        horizon="intraday_to_24h",
+        direction=native.direction,
+        score=native.score,
+        confidence=native.confidence,
+        entry=native.entry,
+        stop=native.stop,
+        target=native.target,
+        horizon=native.horizon,
         engine_version=ENGINE_VERSION,
-        status="SIGNAL",
-        decision_mode="WITHOUT",
+        status=native.status,
+        decision_mode=native.decision_mode,
         metadata=metadata,
     ).validate()
 
@@ -141,38 +89,29 @@ def build_output(
     allow_entry: bool = True,
 ) -> DailyEngineOutput:
     native = _original_build_output(snapshot, history, allow_entry=allow_entry)
-    if not allow_entry or native.direction != "FLAT":
-        return native
-
-    observed_at = _parse_iso(native.timestamp)
-    reference = float((snapshot.bars.get(base.EURUSD) or [])[-1].close)
-    try:
-        technical = fetch_a_technical_signal(reference_price=reference, observed_at=observed_at)
-    except Exception as exc:
-        # Fail closed: inability to compute A can never manufacture a trade.
-        metadata = dict(native.metadata)
-        metadata["a_fallback"] = {
-            "available": False,
-            "reason": "technical_fallback_unavailable",
-            "error_type": type(exc).__name__,
-            "research_state_consumed": False,
-        }
-        return DailyEngineOutput(
-            instrument=native.instrument,
-            timestamp=native.timestamp,
-            direction=native.direction,
-            score=native.score,
-            confidence=native.confidence,
-            entry=native.entry,
-            stop=native.stop,
-            target=native.target,
-            horizon=native.horizon,
-            engine_version=ENGINE_VERSION,
-            status=native.status,
-            decision_mode=native.decision_mode,
-            metadata=metadata,
-        ).validate()
-    return _promote_a_fallback(native, snapshot, technical)
+    metadata = dict(native.metadata)
+    metadata["a_fallback"] = {
+        "production_authority": False,
+        "status": "DETACHED_FROM_PRODUCTION",
+        "research_state_consumed": False,
+        "native_direction": native.direction,
+        "note": "Arm A is evaluated only in dedicated shadow workflows; production cannot promote it.",
+    }
+    return DailyEngineOutput(
+        instrument=native.instrument,
+        timestamp=native.timestamp,
+        direction=native.direction,
+        score=native.score,
+        confidence=native.confidence,
+        entry=native.entry,
+        stop=native.stop,
+        target=native.target,
+        horizon=native.horizon,
+        engine_version=ENGINE_VERSION,
+        status=native.status,
+        decision_mode=native.decision_mode,
+        metadata=metadata,
+    ).validate()
 
 
 def _install() -> None:
