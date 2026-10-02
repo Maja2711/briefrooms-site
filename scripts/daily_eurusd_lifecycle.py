@@ -387,9 +387,15 @@ def _loss_streak(trades: Sequence[Mapping[str, Any]], direction: str | None = No
     return count
 
 
+def _native_weight_learning_trade(trade: Mapping[str, Any]) -> bool:
+    source = str(trade.get("decision_source") or "NATIVE_LEGACY").upper()
+    return source in {"NATIVE", "NATIVE_LEGACY"}
+
+
 def _adaptive_weights(trades: Sequence[Mapping[str, Any]]) -> tuple[dict[str, float], dict[str, float]]:
     multipliers = {key: 1.0 for key in BASE_WEIGHTS}
-    recent = sorted(trades, key=lambda item: str(item.get("closed_at") or ""))[-20:]
+    native = [trade for trade in trades if _native_weight_learning_trade(trade)]
+    recent = sorted(native, key=lambda item: str(item.get("closed_at") or ""))[-20:]
     for trade in recent:
         r = float(trade.get("r_multiple") or 0.0)
         if r == 0:
@@ -428,6 +434,7 @@ def learning_state(trades: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     long_streak = _loss_streak(closed, "LONG")
     short_streak = _loss_streak(closed, "SHORT")
     weights, multipliers = _adaptive_weights(closed)
+    native_learning_count = sum(1 for trade in closed if _native_weight_learning_trade(trade))
 
     general_penalty = min(6.0, float(streak) + max(0.0, -avg_r))
     long_penalty = min(3.0, float(long_streak) * 0.75)
@@ -456,6 +463,12 @@ def learning_state(trades: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
         "direction_loss_streak": {"LONG": long_streak, "SHORT": short_streak},
         "adaptive_weights": weights,
         "component_multipliers": multipliers,
+        "adaptive_weight_learning": {
+            "authority": "NATIVE_ONLY",
+            "eligible_closed_trades": native_learning_count,
+            "excluded_sources": ["A_TECHNICAL_FALLBACK", "LOW_EDGE_LEARNING_EXPLORATION"],
+            "history_rewritten": False,
+        },
         "entry_thresholds": {
             "long": round(long_threshold, 2),
             "short": round(short_threshold, 2),
