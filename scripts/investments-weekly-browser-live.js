@@ -30,7 +30,7 @@
       directPriority: 'first-fresh',
       directAuthoritativeWhenFresh: true,
       sources: [
-        { name: 'Yahoo EURUSD=X 1m', fetch: () => fetchYahooQuote('EURUSD=X', 'codetabs') },
+        { name: 'Yahoo EURUSD=X 1m', fetch: () => fetchYahooQuote('EURUSD=X', 'corsdev') },
         { name: 'Yahoo EURUSD=X 1m backup', fetch: () => fetchYahooQuote('EURUSD=X', 'allorigins') },
         { name: 'fxapi.app 5m fallback', fetch: fetchEurUsdFxApi },
       ],
@@ -412,7 +412,9 @@
     const upstream = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1m&range=1d&_=${Date.now()}`;
     const url = route === 'allorigins'
       ? `https://api.allorigins.win/raw?url=${encodeURIComponent(upstream)}`
-      : `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(upstream)}`;
+      : route === 'corsdev'
+        ? `https://proxy.cors.dev/${upstream}`
+        : `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(upstream)}`;
     const data = await fetchJson(url);
     const chart = data?.chart?.result?.[0];
     if (!chart) throw new Error(`yahoo_${symbol}_missing_chart`);
