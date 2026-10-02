@@ -49,7 +49,8 @@ self.addEventListener("push", (event) => {
     icon: "/assets/briefrooms-app-icon-192-v2.svg",
     badge: "/assets/favicon.svg",
     tag: payload.event_id || payload.tag || undefined,
-    data: { url: payload.url || "/pl/inwestycje/daily-trading.html", event_id: payload.event_id || null, ...(payload.data || {}) },
+    timestamp: payload.sent_at ? Date.parse(payload.sent_at) : Date.now(),
+    data: { url: payload.url || "/pl/inwestycje/daily-trading.html", event_id: payload.event_id || null, sent_at: payload.sent_at || null, ...(payload.data || {}) },
   };
   event.waitUntil(self.registration.showNotification(title, options));
 });
