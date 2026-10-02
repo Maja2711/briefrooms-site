@@ -519,6 +519,36 @@
       return bTime - aTime;
     })[0] || null;
   }
+  function eurusdSourceFamily(source) {
+    const s = String(source || '').toLowerCase();
+    if (s.includes('stooq')) return 'stooq';
+    if (s.includes('yahoo')) return 'yahoo';
+    if (s.includes('fxapi')) return 'fxapi';
+    if (s.includes('currency exchange')) return 'currency';
+    if (s.includes('briefrooms backend')) return 'backend';
+    return s || 'unknown';
+  }
+
+  function chooseEurUsdConsensus(quotes) {
+    const byFamily = new Map();
+    quotes.filter(Boolean).forEach((quote) => {
+      const family = eurusdSourceFamily(quote.source);
+      const previous = byFamily.get(family);
+      const previousAt = validTimestamp(previous?.updatedAt)?.valueOf() || 0;
+      const quoteAt = validTimestamp(quote.updatedAt)?.valueOf() || 0;
+      if (!previous || quoteAt > previousAt) byFamily.set(family, quote);
+    });
+    const distinct = [...byFamily.values()];
+    if (distinct.length <= 1) return distinct[0] || null;
+    const prices = distinct.map((quote) => Number(quote.price)).sort((a,b)=>a-b);
+    const median = prices.length % 2
+      ? prices[(prices.length - 1) / 2]
+      : (prices[(prices.length / 2) - 1] + prices[prices.length / 2]) / 2;
+    const inliers = distinct.filter((quote) => Math.abs(Number(quote.price) - median) / 0.0001 <= 1.5);
+    const pool = inliers.length >= 2 ? inliers : distinct;
+    return newestQuote(...pool);
+  }
+
 
   async function refreshBackend() {
     if (backendInFlight) return;
@@ -591,10 +621,15 @@
     const previous = states.get(instrumentId) || null;
     const direct = await fetchAllSources(instrumentId);
     const freshDirect = direct.filter((row) => quoteFresh(row.quote, cfg.maxAgeMs));
-    const preferredFreshDirect = cfg.directPriority === 'first-fresh'
-      ? (freshDirect[0] || null)
-      : (freshDirect.sort((a, b) =>
-          (validTimestamp(b.quote.updatedAt)?.valueOf() || 0) - (validTimestamp(a.quote.updatedAt)?.valueOf() || 0))[0] || null);
+    const consensusQuote = instrumentId === 'eurusd'
+      ? chooseEurUsdConsensus(freshDirect.map((row) => row.quote))
+      : null;
+    const preferredFreshDirect = instrumentId === 'eurusd'
+      ? (consensusQuote ? freshDirect.find((row) => row.quote === consensusQuote) || null : null)
+      : (cfg.directPriority === 'first-fresh'
+          ? (freshDirect[0] || null)
+          : (freshDirect.sort((a, b) =>
+              (validTimestamp(b.quote.updatedAt)?.valueOf() || 0) - (validTimestamp(a.quote.updatedAt)?.valueOf() || 0))[0] || null));
     const newestDirect = newestQuote(...direct.map((row) => row.quote));
 
     if (preferredFreshDirect) {
