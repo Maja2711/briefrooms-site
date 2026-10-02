@@ -21,12 +21,13 @@
   const FEEDS = {
     eurusd: {
       pollMs: 15_000,
-      maxAgeMs: 2 * 60_000,
-      backendMaxAgeMs: 2 * 60_000,
+      maxAgeMs: 5 * 60_000,
+      backendMaxAgeMs: 5 * 60_000,
       minPrice: 0.8,
       maxPrice: 1.5,
+      directPriority: 'first-fresh',
+      directAuthoritativeWhenFresh: true,
       sources: [
-        { name: 'Currency Exchange Tool', fetch: fetchEurUsdCurrencyExchangeTool },
         { name: 'fxapi.app', fetch: fetchEurUsdFxApi },
       ],
     },
@@ -377,53 +378,10 @@
   }
 
 
-  function parseStooqEurUsdCsv(text) {
-    const lines = String(text || '').trim().split(/\r?\n/).filter(Boolean);
-    if (lines.length < 2) throw new Error('stooq_eurusd_missing_row');
-    const header = lines[0].split(',').map((value) => value.trim().toLowerCase());
-    const row = lines[lines.length - 1].split(',').map((value) => value.trim());
-    const at = (name) => {
-      const index = header.indexOf(name);
-      return index >= 0 ? (row[index] || '') : '';
-    };
-    const bid = positive(at('bid'));
-    const ask = positive(at('ask'));
-    const close = positive(at('close'));
-    const price = bid !== null && ask !== null ? (bid + ask) / 2 : close;
-    const dateText = at('date');
-    const timeText = at('time');
-    if (price === null) throw new Error('stooq_eurusd_invalid_price');
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateText) || !/^\d{2}:\d{2}(:\d{2})?$/.test(timeText)) {
-      throw new Error('stooq_eurusd_invalid_timestamp');
-    }
-    return {
-      price,
-      updatedAt: warsawLocalTimestamp(dateText, timeText).toISOString(),
-      source: 'Stooq EURUSD',
-    };
-  }
-
-  async function fetchStooqEurUsd(route) {
-    const upstream = `https://stooq.com/q/l/?s=eurusd&f=sd2t2ohlcvba&h&e=csv&_=${Date.now()}`;
-    const url = route === 'allorigins'
-      ? `https://api.allorigins.win/raw?url=${encodeURIComponent(upstream)}`
-      : route === 'codetabs'
-        ? `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(upstream)}`
-        : upstream;
-    return parseStooqEurUsdCsv(await fetchText(url));
-  }
   async function fetchEurUsdFxApi() {
     const data = await fetchJson('https://fxapi.app/api/EUR/USD.json');
     if (!data?.timestamp) throw new Error('fxapi_eurusd_source_timestamp_missing');
     return { price: data.rate, updatedAt: data.timestamp, source: 'fxapi.app' };
-  }
-
-  async function fetchEurUsdCurrencyExchangeTool() {
-    const data = await fetchJson('https://www.currencyexchangetool.com/api/v1/convert?amount=1&from=EUR&to=USD');
-    if (!data || data.success === false) throw new Error('currencyexchangetool_eurusd_api_error');
-    const updatedAt = data.updatedAt || data.updated_at || data.timestamp || data.time;
-    if (!updatedAt) throw new Error('currencyexchangetool_eurusd_source_timestamp_missing');
-    return { price: data.rate ?? data.result, updatedAt, source: 'Currency Exchange Tool' };
   }
 
   async function fetchCoinbaseBtc() {
@@ -483,6 +441,7 @@
   }
 
   function saveCache(instrumentId, quote) {
+    if (instrumentId === 'eurusd') return;
     if (!quote || positive(quote.price) === null) return;
     try {
       localStorage.setItem(cacheKey(instrumentId), JSON.stringify({
@@ -497,6 +456,7 @@
   }
 
   function loadCache(instrumentId) {
+    if (instrumentId === 'eurusd') return null;
     try {
       const raw = localStorage.getItem(cacheKey(instrumentId));
       if (!raw) return null;
@@ -586,16 +546,10 @@
     const previous = states.get(instrumentId) || null;
     const direct = await fetchAllSources(instrumentId);
     const freshDirect = direct.filter((row) => quoteFresh(row.quote, cfg.maxAgeMs));
-    const preferredFreshDirect = instrumentId === 'eurusd'
-      ? (
-          freshDirect.find((row) => String(row.quote.source || '') === 'Currency Exchange Tool')
-          || freshDirect.find((row) => String(row.quote.source || '') === 'fxapi.app')
-          || null
-        )
-      : (cfg.directPriority === 'first-fresh'
-          ? (freshDirect[0] || null)
-          : (freshDirect.sort((a, b) =>
-              (validTimestamp(b.quote.updatedAt)?.valueOf() || 0) - (validTimestamp(a.quote.updatedAt)?.valueOf() || 0))[0] || null));
+    const preferredFreshDirect = cfg.directPriority === 'first-fresh'
+      ? (freshDirect[0] || null)
+      : (freshDirect.sort((a, b) =>
+          (validTimestamp(b.quote.updatedAt)?.valueOf() || 0) - (validTimestamp(a.quote.updatedAt)?.valueOf() || 0))[0] || null);
     const newestDirect = newestQuote(...direct.map((row) => row.quote));
 
     if (preferredFreshDirect) {
@@ -784,6 +738,16 @@
     });
   }
 
+  function purgeLegacyEurUsdCache() {
+    try {
+      for (let version = 1; version <= 6; version += 1) {
+        localStorage.removeItem(`briefrooms:weekly-market-feed:v${version}:eurusd`);
+      }
+    } catch (_) {
+      // Ignore storage restrictions; EUR/USD no longer reads browser cache.
+    }
+  }
+
   function bootstrapCachedStates() {
     Object.keys(FEEDS).forEach((instrumentId) => {
       const cached = loadCache(instrumentId);
@@ -815,6 +779,7 @@
     }
   }
 
+  purgeLegacyEurUsdCache();
   bootstrapCachedStates();
 
   document.addEventListener('br:weekly-rendered', (event) => {
