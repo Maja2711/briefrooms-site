@@ -99,6 +99,17 @@ class DailyEURUSDDynamicExitTests(unittest.TestCase):
         self.assertEqual(trade["exit_reason"], "DYNAMIC_RISK_EXIT")
         self.assertLess(trade["monitor"]["dynamic_exit"]["age_hours"], 4.0)
 
+    def test_dynamic_risk_exit_has_no_first_hour_age_gate(self):
+        bars = [
+            bar(0, 1.1000),
+            bar(0.20, 1.1010),
+            bar(0.40, 1.1040),
+        ]
+        trade = v14.evaluate_position(position("SHORT"), bars, bars[-1].timestamp)
+        self.assertIsNotNone(trade)
+        self.assertEqual(trade["exit_reason"], "DYNAMIC_RISK_EXIT")
+        self.assertLess(trade["monitor"]["dynamic_exit"]["age_hours"], 1.0)
+
     def test_large_edge_giveback_can_close_after_crossing_breakeven(self):
         bars = [
             bar(0, 1.1000),
