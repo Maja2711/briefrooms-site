@@ -44,7 +44,7 @@
   const formatDateTime = value => {
     const d = new Date(value);
     if (Number.isNaN(d.valueOf())) return "—";
-    return d.toLocaleString(isEn ? "en-GB" : "pl-PL", { dateStyle: "short", timeStyle: "medium" });
+    return d.toLocaleString(isEn ? "en-GB" : "pl-PL", { dateStyle: "short", timeStyle: "medium" }).replace(",", " ·");
   };
 
   const ageMinutes = value => {
@@ -204,7 +204,7 @@
     pnl.classList.toggle("negative", Number(resultPct) < 0);
 
     if (usingLive) {
-      meta.textContent = `${T.sourceLive} · ${liveQuote.source} · ${T.updated} ${formatDateTime(liveQuote.updatedAt)}`;
+      meta.textContent = formatDateTime(liveQuote.updatedAt);
       meta.classList.remove("brfx-live-stale");
       card.dataset.livePriceSource = liveQuote.source;
       card.dataset.livePriceAt = liveQuote.updatedAt;
