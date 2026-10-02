@@ -25,6 +25,7 @@ from belief_core_live import (  # noqa: E402
     floor_half_hour,
     forecast_contract_metadata,
     horizon_target_plan,
+    in_fx_window,
     next_weekday_close,
     production_probability,
     run_cycle,
@@ -81,6 +82,13 @@ class BeliefCoreLiveTest(unittest.TestCase):
     def test_floor_half_hour(self) -> None:
         self.assertEqual(floor_half_hour(datetime(2026,8,18,10,7,tzinfo=NY)).time(), time(10,0))
         self.assertEqual(floor_half_hour(datetime(2026,8,18,10,37,tzinfo=NY)).time(), time(10,30))
+
+    def test_fx_window_covers_sunday_open_through_friday_close(self) -> None:
+        self.assertTrue(in_fx_window(datetime(2026, 10, 4, 17, 1, tzinfo=NY)))
+        self.assertTrue(in_fx_window(datetime(2026, 10, 6, 3, 0, tzinfo=NY)))
+        self.assertTrue(in_fx_window(datetime(2026, 10, 9, 16, 59, tzinfo=NY)))
+        self.assertFalse(in_fx_window(datetime(2026, 10, 9, 17, 1, tzinfo=NY)))
+        self.assertFalse(in_fx_window(datetime(2026, 10, 10, 12, 0, tzinfo=NY)))
 
     def test_forecast_slot_uses_market_phase_without_backfill(self) -> None:
         planned=time(10,0)
@@ -228,6 +236,34 @@ class BeliefCoreLiveTest(unittest.TestCase):
         spec={"kind":"majority_supportive","reference":{"TLT":100.0,"HYG":80.0,"UUP":25.0}}
         self.assertTrue(evaluate_spec(spec,{"TLT":101.0,"HYG":81.0,"UUP":26.0}))
         self.assertFalse(evaluate_spec(spec,{"TLT":99.0,"HYG":79.0,"UUP":24.0}))
+
+    def test_eurusd_evidence_refreshes_outside_us_cash_session(self) -> None:
+        now = datetime(2026, 10, 6, 3, 7, tzinfo=NY)
+
+        class FxClient:
+            def __init__(self):
+                self.rows = {}
+                starts = {"EURUSD=X": 1.1200, "UUP": 28.0, "TLT": 90.0}
+                steps = {"EURUSD=X": .00002, "UUP": -.001, "TLT": .01}
+                for symbol, start in starts.items():
+                    rows = []
+                    for i in range(90):
+                        ts = now - timedelta(minutes=30 * (89 - i))
+                        rows.append(Bar(timestamp=ts.astimezone(ZoneInfo("UTC")), close=start + steps[symbol] * i))
+                    self.rows[symbol] = rows
+
+            def bars(self, symbol: str, range_: str = "10d", interval: str = "30m"):
+                if symbol not in self.rows:
+                    raise RuntimeError(symbol)
+                return list(self.rows[symbol])
+
+        with tempfile.TemporaryDirectory() as tmp:
+            status = run_cycle(Path(tmp) / "core", now, FxClient())
+            live = status["eurusd_24x5_liveness"]
+            self.assertTrue(live["attempted"])
+            self.assertEqual(live["status"], "ok")
+            self.assertGreaterEqual(live["evidence"], 1)
+            self.assertIn("EURUSD=X", live["symbols"])
 
     def test_end_to_end_1007_shadow_cycle_is_retry_idempotent(self) -> None:
         now=datetime(2026,8,18,10,7,tzinfo=NY)
