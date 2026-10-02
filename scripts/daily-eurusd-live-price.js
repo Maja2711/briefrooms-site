@@ -6,6 +6,7 @@
 
   const isEn = document.documentElement.lang.toLowerCase().startsWith("en");
   const STATE_URL = "/data/investments/eurusd_daily_spot.json";
+  const CANONICAL_MARKET_URL = "https://briefrooms-trading-push.szczerbinski0577.workers.dev/market/eurusd";
   const REFRESH_MS = 15_000;
   const LIVE_MAX_AGE_MS = 3 * 60_000;
   const FALLBACK_MAX_AGE_MS = 6 * 60_000;
@@ -99,6 +100,17 @@
     return validateQuote(price, stamp * 1000, source, LIVE_MAX_AGE_MS);
   }
 
+  async function quoteCanonicalWorker() {
+    const data = await fetchJson(`${CANONICAL_MARKET_URL}?_=${Date.now()}`);
+    if (data?.ok !== true) throw new Error("canonical_worker_not_ok");
+    return validateQuote(
+      data?.price ?? data?.close,
+      data?.timestamp ?? data?.fetched_at,
+      String(data?.source || "BriefRooms canonical EUR/USD"),
+      LIVE_MAX_AGE_MS
+    );
+  }
+
   async function quoteYahoo(route) {
     const upstream = `https://query1.finance.yahoo.com/v8/finance/chart/EURUSD%3DX?interval=1m&range=1d&_=${Date.now()}`;
     const url = route === "allorigins"
@@ -126,6 +138,11 @@
 
   async function fetchLiveQuote() {
     const errors = [];
+    try {
+      return await quoteCanonicalWorker();
+    } catch (error) {
+      errors.push(error?.message || String(error));
+    }
     for (const route of ["corsdev", "allorigins"]) {
       try {
         return await quoteYahoo(route);
