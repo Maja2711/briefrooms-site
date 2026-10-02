@@ -12,7 +12,7 @@
     closedTp: "TARGET HIT",
     closedTime: "POSITION CLOSED",
     noTrade: "NO POSITION",
-    entry: "Entry", stop: "SL", target: "TP", mark: "Current", horizon: "Max horizon",
+    entry: "Entry", stop: "SL", target: "TP", mark: "Current", markFallback: "Last engine price", horizon: "Max horizon",
     result: "Result", pips: "P/L (pips)", r: "R multiple", exit: "Exit", opened: "Opened", closed: "Closed",
     history: "EUR/USD history", noHistory: "No closed EUR/USD positions yet.",
     learning: "Method and outcome learning",
@@ -45,7 +45,7 @@
     closedTp: "CEL OSIĄGNIĘTY",
     closedTime: "ZAMKNIĘCIE POZYCJI",
     noTrade: "BRAK POZYCJI",
-    entry: "Wejście", stop: "SL", target: "TP", mark: "Cena teraz", horizon: "Maks. horyzont",
+    entry: "Wejście", stop: "SL", target: "TP", mark: "Cena teraz", markFallback: "Ostatnia cena silnika", horizon: "Maks. horyzont",
     result: "Wynik", pips: "Zysk (pips)", r: "Wynik R", exit: "Wyjście", opened: "Otwarcie", closed: "Zamknięcie",
     history: "Historia EUR/USD", noHistory: "Brak zamkniętych pozycji EUR/USD.",
     learning: "Metoda i uczenie z wyników",
@@ -147,10 +147,12 @@
 
     let main = "";
     if (position) {
-      const initialMark = freshLiveEurUsd(livePayload) ?? Number(position.mark_price);
+      const liveMark = freshLiveEurUsd(livePayload);
+      const initialMark = liveMark ?? Number(position.mark_price);
       const initialPct = livePositionPercent(position, initialMark);
+      const initialMarkLabel = liveMark == null ? T.markFallback : T.mark;
       main = `<div class="brfx-signal"><strong>${esc(position.direction)}</strong><span>${esc(T.open)} · score ${num(position.entry_score,1)}/100 · confidence ${Math.round(Number(position.entry_confidence || 0)*100)}%</span></div>
-        <div class="brfx-plan brfx-plan-four"><div><span>${esc(T.entry)}</span><b>${px(position.entry)}</b></div><div><span>${esc(T.stop)}</span><b>${px(position.stop)}</b></div><div><span>${esc(T.target)}</span><b>${px(position.target)}</b></div><div><span>${esc(T.mark)}</span><b>${px(initialMark)}</b><small class="${Number(initialPct) >= 0 ? "positive" : "negative"}">${pct(initialPct)}</small></div></div>
+        <div class="brfx-plan brfx-plan-four"><div><span>${esc(T.entry)}</span><b>${px(position.entry)}</b></div><div><span>${esc(T.stop)}</span><b>${px(position.stop)}</b></div><div><span>${esc(T.target)}</span><b>${px(position.target)}</b></div><div><span>${esc(initialMarkLabel)}</span><b>${px(initialMark)}</b><small class="${Number(initialPct) >= 0 ? "positive" : "negative"}">${pct(initialPct)}</small></div></div>
         <p class="brfx-foot">${esc(T.opened)}: ${esc(date(position.opened_at))} · ${esc(T.horizon)}: ${esc(date(position.expires_at))}</p>`;
     } else if (lastTrade) {
       main = `<div class="brfx-signal"><strong class="${Number(lastTrade.result_percent) >= 0 ? "positive" : "negative"}">${esc(statusLabel(status))}</strong><span>${esc(lastTrade.direction)} · ${esc(T.result)} ${esc(pct(lastTrade.result_percent))} · ${esc(T.r)} ${esc(num(lastTrade.r_multiple,2))}R</span></div>
