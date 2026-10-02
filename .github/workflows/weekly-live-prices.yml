@@ -38,6 +38,14 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Validate clean EURUSD frontend contract
+        run: |
+          node --check scripts/daily-eurusd-live-price.js
+          node --check scripts/daily-eurusd-spot-public.js
+          node --check scripts/investments-weekly-browser-live.js
+          node --check scripts/investments-weekly-public.js
+          python -m unittest tests/test_weekly_browser_live_contract.py
+
       - name: Refresh Weekly live prices
         run: python scripts/update_weekly_live_prices_fast.py
 
@@ -88,8 +96,8 @@ jobs:
 
           if set(valid) != expected:
               raise SystemExit(f"Invalid Weekly live prices: valid={valid}")
-          if not fresh:
-              raise SystemExit("No fresh Weekly quote was obtained; BTC should normally keep this path live")
+          if "eurusd" not in fresh:
+              raise SystemExit(f"EUR/USD is not fresh in Weekly live-price snapshot: fresh={fresh}")
           print(f"Weekly live-price snapshot OK; fresh={','.join(fresh)}")
           PY
 
