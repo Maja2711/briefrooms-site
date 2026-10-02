@@ -642,7 +642,6 @@
 
     root.querySelector('[data-show-details]')?.addEventListener('click', () => {
       state.view = 'details';
-      state.selectedMarket = null;
       render();
       requestAnimationFrame(() => document.getElementById('str-open-section')?.scrollIntoView({behavior:'smooth',block:'start'}));
     });
