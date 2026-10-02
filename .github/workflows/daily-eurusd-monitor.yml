@@ -18,6 +18,10 @@ on:
       - "scripts/daily_eurusd_spot_v17.py"
       - "scripts/daily_eurusd_spot_v18.py"
       - "scripts/daily_eurusd_spot_v19.py"
+      - "scripts/daily_eurusd_belief_decision.py"
+      - "scripts/belief_core_live.py"
+      - "scripts/belief_wes_assets_adapter.py"
+      - "scripts/belief_news_event_adapter.py"
       - "scripts/investments_wes_macro_belief.py"
       - "scripts/daily_eurusd_contextual_policy_learning.py"
       - "scripts/execution_price_engine.py"
@@ -41,6 +45,9 @@ on:
       - "tests/test_execution_price_engine.py"
       - "tests/test_daily_eurusd_contextual_policy_learning.py"
       - "tests/test_daily_eurusd_contextual_production_policy.py"
+      - "tests/test_daily_eurusd_belief_first.py"
+      - "tests/test_belief_core_live.py"
+      - "tests/test_belief_wes_assets.py"
       - "tests/test_no_retroactive_execution.py"
       - ".github/workflows/daily-eurusd-monitor.yml"
   schedule:
@@ -98,6 +105,7 @@ jobs:
             scripts/daily_eurusd_spot_v17.py \
             scripts/daily_eurusd_spot_v18.py \
             scripts/daily_eurusd_spot_v19.py \
+            scripts/daily_eurusd_belief_decision.py \
             scripts/execution_price_engine.py
           echo "PUSH_VALIDATION_ONLY_NO_TRADING_STATE_MUTATION"
 
