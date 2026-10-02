@@ -214,7 +214,15 @@ Runtime files:
 
 The expectations collector is provider-agnostic and reads only an explicitly configured JSON feed through `BELIEF_MACRO_EXPECTATIONS_URL` with an optional bearer token in `BELIEF_MACRO_EXPECTATIONS_TOKEN`. The workflow stores the fetched bundle under `$RUNNER_TEMP`; institution-level forecast payloads are not committed to the public repository.
 
-Every usable forecast must include an institution, numeric forecast, publication timestamp and HTTP(S) `source_ref`. At least two sourced institution forecasts are required before an expectation distribution is admitted. An externally asserted ranking or `accuracy_weight` is not trusted. When historical MAE exists for at least two forecasters, weights are derived mechanically from inverse MAE normalized to the cross-forecaster median; otherwise the distribution is equal-weighted.
+Every usable forecast must include an institution, numeric forecast, publication timestamp and HTTP(S) `source_ref`. At least two sourced institution forecasts are required before an expectation distribution is admitted. An externally asserted `accuracy_weight` is never trusted.
+
+Forecast skill follows a strict evidence hierarchy:
+
+1. **BriefRooms prospective forecaster ledger** — after at least three settled forecasts for the same institution + indicator, the internally observed MAE becomes the preferred weighting input.
+2. **Sourced external ranking/history** — before BriefRooms has enough internal history, a provider may supply either historical MAE with its own source URL or an indicator-specific external rank with a source URL. Rank is only a mild cold-start prior and never creates a calibrated probability by itself.
+3. **Equal weighting** — if neither internal skill nor sourced external ranking/history is available.
+
+The private skill ledger is maintained by `scripts/belief_macro_forecaster_skill.py`. It freezes institution forecasts before release, settles them only against later official comparable actuals, records derived MAE/RMSE/bias per institution and indicator, deduplicates settlements, and stores only aggregate skill plus opaque settlement IDs. Raw licensed forecast bundles remain outside the ledger.
 
 If the feed is absent, invalid or unavailable, pre-release expectations fail closed: no bank view is invented and no pre-release LLM decision influence is created from missing forecasts. Scheduled high-impact event risk remains available independently.
 
