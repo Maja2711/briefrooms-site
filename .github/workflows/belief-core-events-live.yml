@@ -11,12 +11,14 @@ on:
       - "scripts/belief_company_primary_sources.py"
       - "scripts/belief_macro_calendar_adapter.py"
       - "scripts/belief_macro_data_adapter.py"
+      - "scripts/belief_macro_expectations_adapter.py"
       - "scripts/belief_macro_release_adapter.py"
       - "tests/test_belief_macro_eurusd.py"
       - "scripts/belief_llm_interpreter.py"
       - "tests/test_belief_core_news_macro.py"
       - "tests/test_belief_company_primary_sources.py"
       - "tests/test_belief_macro_data_adapter.py"
+      - "tests/test_belief_macro_expectations_adapter.py"
   pull_request:
     branches: [main]
     paths:
@@ -26,10 +28,12 @@ on:
       - "scripts/belief_company_primary_sources.py"
       - "scripts/belief_macro_calendar_adapter.py"
       - "scripts/belief_macro_data_adapter.py"
+      - "scripts/belief_macro_expectations_adapter.py"
       - "scripts/belief_llm_interpreter.py"
       - "tests/test_belief_core_news_macro.py"
       - "tests/test_belief_company_primary_sources.py"
       - "tests/test_belief_macro_data_adapter.py"
+      - "tests/test_belief_macro_expectations_adapter.py"
   schedule:
     # High-frequency macro window: payrolls/CPI/PCE and other major US releases
     # must reach Belief Core quickly enough for Daily EUR/USD position management.
@@ -162,12 +166,14 @@ jobs:
             scripts/belief_company_primary_sources.py \
             scripts/belief_macro_calendar_adapter.py \
             scripts/belief_macro_data_adapter.py \
+            scripts/belief_macro_expectations_adapter.py \
             scripts/belief_macro_release_adapter.py \
             scripts/belief_external_live.py
           python -m unittest \
             tests.test_belief_core_news_macro \
             tests.test_belief_company_primary_sources \
             tests.test_belief_macro_data_adapter \
+            tests.test_belief_macro_expectations_adapter \
             tests.test_belief_macro_eurusd -v
           python - <<'PY'
           import belief_core_live as live
