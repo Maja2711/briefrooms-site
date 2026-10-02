@@ -387,6 +387,15 @@ export class PushHub {
     return { ok: failed === 0, sent, failed, expired, pending };
   }
 
+  async recordFastDailyError(error) {
+    const stats = (await this.ctx.storage.get("stats")) || {};
+    stats.fast_daily_failures = Number(stats.fast_daily_failures || 0) + 1;
+    stats.last_fast_daily_error_at = new Date().toISOString();
+    stats.last_fast_daily_error = String(error?.message || error || "unknown").slice(0, 500);
+    stats.last_fast_daily_status = "ERROR";
+    await this.ctx.storage.put("stats", stats);
+  }
+
   async fastDailyWatch() {
     const stateUrl = this.env.DAILY_STATE_URL || "https://raw.githubusercontent.com/Maja2711/briefrooms-site/main/data/investments/eurusd_daily_spot.json";
     const stateResponse = await fetch(`${stateUrl}${stateUrl.includes("?") ? "&" : "?"}_=${Date.now()}`, {
@@ -525,6 +534,9 @@ export class PushHub {
         last_dispatch_pending: Number(stats.last_dispatch_pending || 0),
         last_dispatch_at: stats.last_dispatch_at || null,
         fast_daily_watcher: true,
+        fast_daily_failures: Number(stats.fast_daily_failures || 0),
+        last_fast_daily_error_at: stats.last_fast_daily_error_at || null,
+        last_fast_daily_error: stats.last_fast_daily_error || null,
         last_fast_daily_check_at: stats.last_fast_daily_check_at || null,
         last_fast_daily_status: stats.last_fast_daily_status || null,
         last_fast_daily_market_source: stats.last_fast_daily_market_source || null,
@@ -533,7 +545,12 @@ export class PushHub {
     }
 
     if (url.hostname === "internal" && path === "/fast-daily-watch" && request.method === "POST") {
-      return json(await this.fastDailyWatch());
+      try {
+        return json(await this.fastDailyWatch());
+      } catch (error) {
+        await this.recordFastDailyError(error);
+        return json({ ok: false, error: String(error?.message || error) }, 500);
+      }
     }
 
     if (path === "/market/eurusd" && request.method === "GET") {
@@ -726,21 +743,41 @@ export default {
   async scheduled(_controller, env, ctx) {
     ctx.waitUntil((async () => {
       const h = await hub(env);
-      const fastWatch = h.fetch("https://internal/fast-daily-watch", { method: "POST" });
-      const feedIngest = (async () => {
-        const response = await fetch(env.EVENT_FEED_URL, { headers: { "cache-control": "no-cache", "accept": "application/json" } });
-        if (!response.ok) throw new Error(`event_feed_http_${response.status}`);
-        const payload = await response.json();
-        return h.fetch("https://internal/ingest", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ events: Array.isArray(payload.events) ? payload.events : [] }),
-        });
-      })();
-      const results = await Promise.allSettled([fastWatch, feedIngest]);
-      if (results.every((item) => item.status === "rejected")) {
-        throw new Error("all_trading_push_scheduled_jobs_failed");
+
+      let fastWatchOk = false;
+      let lastFastError = null;
+      for (let attempt = 1; attempt <= 3; attempt += 1) {
+        try {
+          const response = await h.fetch("https://internal/fast-daily-watch", { method: "POST" });
+          if (!response.ok) {
+            const payload = await response.text();
+            throw new Error(`fast_daily_watch_http_${response.status}:${payload.slice(0, 300)}`);
+          }
+          fastWatchOk = true;
+          break;
+        } catch (error) {
+          lastFastError = error;
+          if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, attempt * 750));
+        }
+      }
+
+      const response = await fetch(env.EVENT_FEED_URL, {
+        headers: { "cache-control": "no-cache", "accept": "application/json" },
+      });
+      if (!response.ok) throw new Error(`event_feed_http_${response.status}`);
+      const payload = await response.json();
+      const ingestResponse = await h.fetch("https://internal/ingest", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ events: Array.isArray(payload.events) ? payload.events : [] }),
+      });
+      if (!ingestResponse.ok) {
+        throw new Error(`event_ingest_http_${ingestResponse.status}`);
+      }
+
+      if (!fastWatchOk) {
+        throw lastFastError || new Error("fast_daily_watch_failed_after_retries");
       }
     })());
-  },
+  }
 };
