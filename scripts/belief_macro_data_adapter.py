@@ -261,6 +261,8 @@ def _labor_result(payroll: Sequence[SeriesPoint], unemployment: Sequence[SeriesP
         for i in range(len(payroll) - 3, len(payroll))
     ]
     payroll_3m_avg = sum(payroll_changes) / len(payroll_changes)
+    payroll_month_change = p_latest.value - payroll[-2].value
+    unemployment_month_change = u_latest.value - unemployment[-2].value
     unemployment_3m_change = u_latest.value - unemployment[-4].value
     cluster = f"bls:labor:{p_latest.period}"
 
@@ -272,7 +274,10 @@ def _labor_result(payroll: Sequence[SeriesPoint], unemployment: Sequence[SeriesP
         value=p_latest.value,
         unit="thousands",
         cluster=cluster,
-        metadata={"three_month_average_change_thousands": payroll_3m_avg},
+        metadata={
+            "latest_month_change_thousands": payroll_month_change,
+            "three_month_average_change_thousands": payroll_3m_avg,
+        },
     )
     unemployment_primary = _primary_observation(
         now=now,
@@ -282,7 +287,10 @@ def _labor_result(payroll: Sequence[SeriesPoint], unemployment: Sequence[SeriesP
         value=u_latest.value,
         unit="percent",
         cluster=cluster,
-        metadata={"three_month_change_percentage_points": unemployment_3m_change},
+        metadata={
+            "latest_month_change_percentage_points": unemployment_month_change,
+            "three_month_change_percentage_points": unemployment_3m_change,
+        },
     )
     observations = [payroll_primary, unemployment_primary]
     evidence = []
