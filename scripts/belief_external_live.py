@@ -25,7 +25,7 @@ from belief_core_live import (
     load_scheduler,
     save_scheduler,
 )
-from belief_llm_interpreter import GeminiEvidenceInterpreter
+from belief_llm_interpreter import EURUSD_ALLOWED_BELIEFS, GeminiEvidenceInterpreter
 from belief_macro_calendar_adapter import MacroEventCalendarAdapter
 from belief_macro_data_adapter import MacroDataAdapter
 from belief_macro_expectations_adapter import MacroExpectationsAdapter
@@ -81,6 +81,7 @@ def run_external_cycle(
     macro_adapter: MacroEventCalendarAdapter,
     macro_data_adapter: Optional[MacroDataAdapter] = None,
     macro_expectations_adapter: Optional[MacroExpectationsAdapter] = None,
+    macro_interpreter: Optional[GeminiEvidenceInterpreter] = None,
 ) -> Dict[str, Any]:
     if TRADE_EXECUTION_ENABLED or POLICY_OUTPUT_ENABLED or AUTOMATIC_TUNING_ENABLED or MODE != "shadow":
         raise RuntimeError("Belief Core external adapter safety invariant violated")
@@ -120,6 +121,7 @@ def run_external_cycle(
     # This gives EUR/USD macro beliefs a sourced LLM interpretation path without
     # allowing Gemini to invent consensus/actual values.
     interpreter = news_adapter.interpreter
+    macro_interpreter = macro_interpreter or interpreter
     macro_seen = list(scheduler.get("processed_macro_llm_keys") or [])
     macro_seen_set = set(str(value) for value in macro_seen)
     macro_llm_attempted = 0
@@ -129,13 +131,13 @@ def run_external_cycle(
         macro_llm_source_observations.extend(macro_data_result.observations)
     if macro_expectations_result is not None:
         macro_llm_source_observations.extend(macro_expectations_result.observations)
-    if interpreter is not None and interpreter.available and macro_llm_source_observations:
+    if macro_interpreter is not None and macro_interpreter.available and macro_llm_source_observations:
         for observation in _macro_llm_candidates(macro_llm_source_observations):
             key = _macro_llm_key(observation)
             if key in macro_seen_set:
                 continue
             macro_llm_attempted += 1
-            result = interpreter.interpret(observation)
+            result = macro_interpreter.interpret(observation)
             if result is not None:
                 all_observations.append(result.observation)
                 all_evidence.append(result.evidence)
@@ -191,6 +193,8 @@ def run_external_cycle(
         "llm_model": interpreter.model if interpreter else "",
         "macro_llm_attempted": macro_llm_attempted,
         "macro_llm_evidence": macro_llm_evidence,
+        "macro_llm_available": bool(macro_interpreter and macro_interpreter.available),
+        "macro_llm_model": macro_interpreter.model if macro_interpreter else "",
         "processed_macro_llm_keys": len(macro_seen),
         "processed_event_observation_ids": len(seen),
         "primary_source_counts": primary_source_counts,
@@ -218,6 +222,7 @@ def main() -> int:
 
     now = parse_time(args.now) if args.now else datetime.now(timezone.utc)
     interpreter = GeminiEvidenceInterpreter()
+    macro_interpreter = GeminiEvidenceInterpreter(allowed_beliefs=EURUSD_ALLOWED_BELIEFS)
     news = NewsEventAdapter(
         interpreter=interpreter,
         enable_sec=False if args.disable_sec else None,
@@ -233,6 +238,7 @@ def main() -> int:
         macro_adapter=macro,
         macro_data_adapter=macro_data,
         macro_expectations_adapter=macro_expectations,
+        macro_interpreter=macro_interpreter,
     )
     print(json.dumps(status, indent=2, sort_keys=True))
     return 0
