@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`epistemic-consumer-interface-v1` is the shared read-only contract through which BRACE and WES consume Belief Core epistemic state.
+`epistemic-consumer-interface-v1` is the shared read-only contract through which BRACE, WES and Daily EUR/USD consume Belief Core epistemic state.
 
 Consumers no longer need direct knowledge of Belief Core persistence internals. They receive a bounded projection from `belief-epistemic-state-v1`.
 
@@ -12,7 +12,7 @@ Canonical path:
 Belief Core
   -> EpistemicState
   -> Epistemic Consumer Interface
-  -> BRACE / WES
+  -> BRACE / WES / Daily EURUSD
 ```
 
 ## Authority
@@ -48,8 +48,9 @@ consumer challenge
 
 - `BRACE_SPX`
 - `WES_SPX`
+- `DAILY_EURUSD`
 
-Both consume the same five SPX supportive beliefs:
+BRACE_SPX and WES_SPX consume the same five SPX supportive beliefs:
 
 - `spx.trend.bullish`
 - `spx.breadth.healthy`
@@ -58,6 +59,8 @@ Both consume the same five SPX supportive beliefs:
 - `spx.financial_conditions.supportive`
 
 This intentionally prevents BRACE and WES from inventing different interpretations of the same Belief Core state.
+
+`DAILY_EURUSD` consumes exactly the five governed EUR/USD beliefs: trend, broad USD environment, US-rates pressure proxy, relative macro surprise and policy differential. Daily EUR/USD v1.9 requires this bounded profile in production before its sole decision engine may emit final LONG/SHORT/FLAT. The interface itself remains read-only and has no trade-execution authority.
 
 ## Envelope
 
