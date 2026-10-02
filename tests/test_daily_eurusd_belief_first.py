@@ -40,6 +40,38 @@ def _state(now: datetime, values: dict[str, tuple[float, float]]) -> dict:
     return {"schema_version": 2, "beliefs": beliefs, "evidence": evidence}
 
 
+def _epistemic_state(now: datetime, values: dict[str, tuple[float, float]]) -> dict:
+    states = {}
+    for index, (belief_id, (probability, confidence)) in enumerate(values.items()):
+        states[belief_id] = {
+            "state_id": f"eurusd-state-{index}",
+            "topic": belief_id,
+            "probability": probability,
+            "confidence": confidence,
+            "delta_probability": 0.01,
+            "contradiction": 0.10,
+            "freshness": 0.90,
+            "audit_status": "clean",
+            "member_belief_ids": [belief_id],
+            "dominant_support_evidence_ids": [f"e-{index}"],
+            "dominant_opposition_evidence_ids": [],
+            "drilldown_required": False,
+            "drilldown_reasons": [],
+        }
+    return {
+        "contract_version": "belief-epistemic-state-v1",
+        "created_at": (now - timedelta(minutes=5)).isoformat().replace("+00:00", "Z"),
+        "authority": {
+            "llm_may_ignore_aggregate": False,
+            "llm_may_override_probability": False,
+        },
+        "controls": {
+            "belief_core_writeback_enabled": False,
+        },
+        "states": states,
+    }
+
+
 def _snapshot(now: datetime) -> MarketSnapshot:
     rows = []
     price = 1.1200
@@ -101,6 +133,57 @@ class BeliefDecisionTest(unittest.TestCase):
         ids = {row["belief_id"] for row in result["used_beliefs"]}
         self.assertIn("eurusd.macro_surprise.supportive", ids)
         self.assertIn("eurusd.policy_differential.supportive", ids)
+
+    def test_production_epistemic_interface_is_the_decision_input(self):
+        now = datetime(2026, 10, 2, 18, 0, tzinfo=UTC)
+        payload = _epistemic_state(now, {
+            "eurusd.trend.bullish": (.80, .90),
+            "eurusd.usd_environment.supportive": (.70, .80),
+            "eurusd.us_rates_pressure.supportive": (.65, .70),
+            "eurusd.macro_surprise.supportive": (.65, .70),
+            "eurusd.policy_differential.supportive": (.60, .70),
+        })
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            ep = root / "epistemic_state.json"
+            ep.write_text(json.dumps(payload), encoding="utf-8")
+            raw = root / "state.json"
+            raw.write_text("{}", encoding="utf-8")
+            (root / "observations.jsonl").write_text("", encoding="utf-8")
+            with mock.patch.dict(
+                os.environ,
+                {
+                    "BELIEF_EPISTEMIC_STATE": str(ep),
+                    "BELIEF_CORE_STATE": str(raw),
+                    "DAILY_EURUSD_REQUIRE_EPISTEMIC": "1",
+                },
+                clear=False,
+            ):
+                output = v19.build_output(_snapshot(now), {"trades": []})
+        self.assertEqual(output.metadata["final_decision"]["direction"], "LONG")
+        consumer = output.metadata["final_decision"]["epistemic_consumer"]
+        self.assertEqual(consumer["contract"], "epistemic-consumer-interface-v1")
+        self.assertEqual(consumer["consumer"], "DAILY_EURUSD")
+        self.assertTrue(consumer["available"])
+        self.assertFalse(consumer["consumer_may_override_probability"])
+
+    def test_production_requires_epistemic_interface_and_fails_closed_without_it(self):
+        now = datetime(2026, 10, 2, 18, 0, tzinfo=UTC)
+        with mock.patch.dict(
+            os.environ,
+            {
+                "BELIEF_EPISTEMIC_STATE": "",
+                "BELIEF_CORE_STATE": "",
+                "DAILY_EURUSD_REQUIRE_EPISTEMIC": "1",
+            },
+            clear=False,
+        ):
+            output = v19.build_output(_snapshot(now), {"trades": []})
+        self.assertEqual(output.metadata["final_decision"]["direction"], "FLAT")
+        self.assertEqual(
+            output.metadata["final_decision"]["epistemic_consumer"]["reason"],
+            "required_epistemic_consumer_state_unavailable",
+        )
 
     def test_v19_build_does_not_use_legacy_raw_direction_score(self):
         now = datetime(2026, 10, 2, 18, 0, tzinfo=UTC)
