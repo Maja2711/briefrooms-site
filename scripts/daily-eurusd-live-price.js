@@ -7,6 +7,7 @@
   const isEn = document.documentElement.lang.toLowerCase().startsWith("en");
   const STATE_URL = "/data/investments/eurusd_daily_spot.json";
   const NOTIFICATION_CONFIG_URL = "/data/notifications/trading-notification-config.json";
+  const BACKEND_LIVE_URL = "/data/investments/live_prices.json";
   const REFRESH_MS = 15_000;
   const LIVE_MAX_AGE_MS = 2 * 60_000;
   const REQUEST_TIMEOUT_MS = 3_000;
@@ -81,6 +82,17 @@
     return { price: rate, updatedAt: sourceTime.toISOString(), source };
   }
 
+
+  async function quoteBackendLive() {
+    const data = await fetchJson(`${BACKEND_LIVE_URL}?_=${Date.now()}`);
+    const row = data?.prices?.eurusd;
+    if (!row) throw new Error("backend_live_eurusd_missing");
+    return validateQuote(
+      row.price,
+      row.current_price_updated_at || row.timestamp,
+      `BriefRooms backend · ${row.source || "live_prices.json"}`
+    );
+  }
   async function quoteStooq() {
     const cfg = await fetchJson(`${NOTIFICATION_CONFIG_URL}?_=${Date.now()}`);
     const base = cfg?.background_push?.api_base || cfg?.analytics?.api_base;
@@ -122,6 +134,7 @@
 
   async function fetchLiveQuote() {
     const providers = [
+      ["BriefRooms backend", quoteBackendLive],
       ["Stooq", quoteStooq],
       ["Yahoo", () => quoteYahoo("codetabs")],
       ["Yahoo backup", () => quoteYahoo("allorigins")],
