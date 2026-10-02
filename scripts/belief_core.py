@@ -730,9 +730,18 @@ class BeliefCore:
             findings.extend(x.to_dict() for x in self.auditor.audit(d, state, items, as_dt))
         return {"schema_version": SCHEMA_VERSION, "mode": MODE, "status": "ready" if self.beliefs else "awaiting_evidence",
                 "generated_at": iso_z(as_dt),
-                "controls": {"decision_engine_connected": False, "trade_execution_enabled": False,
-                             "policy_output_enabled": False, "automatic_tuning_enabled": False,
-                             "message": "Belief Core v2 is shadow-only and cannot control BRACE/WES/BRACE-SPX."},
+                "controls": {
+                    "decision_engine_connected": False,
+                    "direct_decision_engine_connected": False,
+                    "production_epistemic_consumers": ["DAILY_EURUSD"],
+                    "trade_execution_enabled": False,
+                    "policy_output_enabled": False,
+                    "automatic_tuning_enabled": False,
+                    "message": (
+                        "Belief Core has no direct decision/execution authority. "
+                        "Daily EURUSD v1.9 consumes only its governed EpistemicState through CF-07."
+                    ),
+                },
                 "summary": {"belief_count": len(self.beliefs), "evidence_count": len(self.evidence),
                             "forecast_count": len(self.forecasts), "verification_count": len(self.verifications),
                             "unresolved_forecast_count": len(self.unresolved_forecasts()),
