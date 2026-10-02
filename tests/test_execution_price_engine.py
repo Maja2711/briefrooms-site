@@ -90,6 +90,24 @@ class ExecutionPriceEngineTests(unittest.TestCase):
         self.assertFalse(result["verified"])
         self.assertEqual(result["reason"], "primary_quote_stale_or_future")
 
+    def test_two_quotes_from_same_provider_count_as_one_source(self) -> None:
+        result = epe.verify_live_mid_quotes(
+            "SHORT",
+            [
+                self.quote(1.13400, 8, "fxapi.app:EUR/USD:mid"),
+                self.quote(1.13402, 4, "fxapi.app:EUR/USD:backup"),
+            ],
+            now=self.now,
+        )
+        self.assertFalse(result["verified"])
+        self.assertEqual(result["status"], "NO_FILL")
+        self.assertEqual(result["reason"], "insufficient_independent_quotes")
+        self.assertEqual(result["details"]["fresh_source_count"], 1)
+        self.assertTrue(any(
+            row.get("reason") == "duplicate_provider_quote"
+            for row in result["details"]["rejected_quotes"]
+        ))
+
     def test_single_fresh_source_is_not_enough_for_verified_fill(self) -> None:
         result = epe.verify_live_mid_quotes(
             "SHORT",
