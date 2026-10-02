@@ -479,28 +479,36 @@ def run_cycle(output_path: Path, history_path: Path, client: Any | None = None) 
     client = client or base.YahooChartClient(timeout=15)
     snapshot = base.fetch_snapshot(client)
     monitor_bars = client.bars(base.EURUSD, "5d", "1m")
-    observed_at = monitor_bars[-1].timestamp.astimezone(timezone.utc)
-    try:
-        if injected_client:
-            raise RuntimeError("skip_external_stooq_for_injected_test_client")
-        stooq = epe.fetch_stooq_eurusd_quote(timeout=5)
-        stooq_at = stooq.timestamp.astimezone(timezone.utc)
-        age_seconds = (datetime.now(timezone.utc) - stooq_at).total_seconds()
-        if -30.0 <= age_seconds <= epe.DEFAULT_QUOTE_MAX_AGE_SECONDS:
-            monitor_bars = list(monitor_bars)
-            monitor_bars.append(Bar(
-                timestamp=stooq_at,
-                open=float(stooq.price),
-                high=float(stooq.price),
-                low=float(stooq.price),
-                close=float(stooq.price),
-            ))
-            monitor_bars.sort(key=lambda bar: bar.timestamp)
-            observed_at = max(observed_at, stooq_at)
-    except Exception:
-        # Stooq is the preferred live point, but the canonical Yahoo 1m path
-        # remains available so an upstream outage cannot blind lifecycle exits.
-        pass
+    yahoo_observed_at = monitor_bars[-1].timestamp.astimezone(timezone.utc)
+    observed_at = yahoo_observed_at
+
+    # Canonical TP/SL authority is Yahoo EURUSD=X 1m OHLC, matching the fast
+    # watcher and public Daily price path. Stooq is used only when Yahoo itself
+    # is materially stale, so a different point feed cannot override healthy
+    # Yahoo high/low history.
+    yahoo_age_seconds = (datetime.now(timezone.utc) - yahoo_observed_at).total_seconds()
+    if yahoo_age_seconds > 120.0:
+        try:
+            if injected_client:
+                raise RuntimeError("skip_external_stooq_for_injected_test_client")
+            stooq = epe.fetch_stooq_eurusd_quote(timeout=5)
+            stooq_at = stooq.timestamp.astimezone(timezone.utc)
+            age_seconds = (datetime.now(timezone.utc) - stooq_at).total_seconds()
+            if -30.0 <= age_seconds <= epe.DEFAULT_QUOTE_MAX_AGE_SECONDS:
+                monitor_bars = list(monitor_bars)
+                monitor_bars.append(Bar(
+                    timestamp=stooq_at,
+                    open=float(stooq.price),
+                    high=float(stooq.price),
+                    low=float(stooq.price),
+                    close=float(stooq.price),
+                ))
+                monitor_bars.sort(key=lambda bar: bar.timestamp)
+                observed_at = max(observed_at, stooq_at)
+        except Exception:
+            # Yahoo remains canonical. If it is stale and Stooq is unavailable,
+            # lifecycle persistence waits for the next healthy observation.
+            pass
     history = lifecycle.load_history(history_path)
     previous = base._load_json(output_path)
 
