@@ -318,6 +318,15 @@ export class PushHub {
       const eventCompleteKey = `event-complete:${event.event_id}`;
       if (await this.ctx.storage.get(eventCompleteKey)) continue;
 
+      // Migration from the legacy global seen-key model. Historical events already
+      // marked seen must not be replayed to every subscriber after this deploy.
+      // A recovery event uses a fresh event_id, so it still goes through normally.
+      const legacySeenKey = `seen:${event.event_id}`;
+      if (await this.ctx.storage.get(legacySeenKey)) {
+        await this.ctx.storage.put(eventCompleteKey, true);
+        continue;
+      }
+
       let eventFailed = 0;
       let eventEligible = 0;
 
