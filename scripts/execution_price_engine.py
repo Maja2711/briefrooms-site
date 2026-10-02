@@ -262,6 +262,14 @@ def _source_rank(source: str) -> int:
     return len(SOURCE_PRIORITY)
 
 
+def _source_identity(source: str) -> str:
+    text = str(source or "").strip()
+    for prefix in SOURCE_PRIORITY:
+        if text.startswith(prefix):
+            return prefix.rstrip(":").casefold()
+    return (text.split(":", 1)[0] or text).strip().casefold()
+
+
 def _fresh_quote_candidates(
     quotes: list[Quote],
     *,
@@ -269,7 +277,7 @@ def _fresh_quote_candidates(
     max_age_seconds: float = DEFAULT_QUOTE_MAX_AGE_SECONDS,
     future_tolerance_seconds: float = DEFAULT_FUTURE_TOLERANCE_SECONDS,
 ) -> tuple[list[Quote], list[dict[str, Any]]]:
-    valid: list[Quote] = []
+    valid_by_source: dict[str, Quote] = {}
     rejected: list[dict[str, Any]] = []
     for raw in quotes:
         try:
@@ -289,7 +297,28 @@ def _fresh_quote_candidates(
                 "age_seconds": round(age, 3),
             })
             continue
-        valid.append(Quote(price=price, timestamp=quote.timestamp, source=quote.source))
+        normalized = Quote(price=price, timestamp=quote.timestamp, source=quote.source)
+        identity = _source_identity(normalized.source)
+        prior = valid_by_source.get(identity)
+        if prior is None:
+            valid_by_source[identity] = normalized
+            continue
+        # Multiple records from one provider are one independent source.
+        # Keep the freshest observation and explicitly audit the duplicate.
+        if normalized.timestamp > prior.timestamp:
+            rejected.append({
+                "source": prior.source,
+                "reason": "duplicate_provider_quote",
+                "provider_identity": identity,
+            })
+            valid_by_source[identity] = normalized
+        else:
+            rejected.append({
+                "source": normalized.source,
+                "reason": "duplicate_provider_quote",
+                "provider_identity": identity,
+            })
+    valid = list(valid_by_source.values())
     return valid, rejected
 
 
