@@ -22,6 +22,7 @@ from typing import Any, Mapping, Sequence
 from belief_market_data_adapter import Bar
 from daily_engine_contract import DailyEngineOutput
 import daily_eurusd_lifecycle as lifecycle
+import daily_eurusd_macro_event_risk as macro_event_risk
 import daily_eurusd_spot as base
 import daily_eurusd_spot_v17 as v17  # installs the complete v1.7 production stack first
 import daily_eurusd_contextual_policy_learning as contextual
@@ -453,6 +454,8 @@ def _create_position(payload: Mapping[str, Any]) -> dict[str, Any]:
 def _evaluate_position(position: Mapping[str, Any], bars: Sequence[Bar], observed_at: datetime) -> dict[str, Any] | None:
     trade = _original_evaluate_position(position, bars, observed_at)
     if trade is None:
+        trade = macro_event_risk.maybe_close_position(position, bars, observed_at)
+    if trade is None:
         return None
     enriched = dict(trade)
     policy = position.get("contextual_entry_policy_at_entry")
@@ -519,14 +522,24 @@ def run_cycle(output_path: Path, history_path: Path, client: Any | None = None) 
     position = _original_position_from_output(previous)
 
     if position:
-        trade = _evaluate_position(position, monitor_bars, observed_at)
+        # Refresh the decision stack before evaluating the existing position.
+        # The raw refreshed candidate remains non-executable (allow_entry=False),
+        # but it is valid thesis-management information for the open trade.
+        candidate = _original_build_output(snapshot, history, allow_entry=False)
+        management_position = dict(position)
+        candidate_meta = candidate.metadata.get("candidate") if isinstance(candidate.metadata, Mapping) else None
+        belief_meta = candidate.metadata.get("belief_macro") if isinstance(candidate.metadata, Mapping) else None
+        if isinstance(candidate_meta, Mapping):
+            management_position["_management_candidate"] = dict(candidate_meta)
+        if isinstance(belief_meta, Mapping):
+            management_position["_belief_macro_context"] = dict(belief_meta)
+
+        trade = _evaluate_position(management_position, monitor_bars, observed_at)
         if trade:
             history = lifecycle.append_trade(history, trade)
             lifecycle.save_history(history_path, history, observed_at)
-            candidate = _original_build_output(snapshot, history, allow_entry=False)
             output = _closed_output(candidate, trade, history)
         else:
-            candidate = _original_build_output(snapshot, history, allow_entry=False)
             mark_price = lifecycle.execution_exit_price(position, float(monitor_bars[-1].close))
             output = _open_output(candidate, position, mark_price)
             lifecycle.save_history(history_path, history, observed_at)
