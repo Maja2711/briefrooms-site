@@ -12,6 +12,8 @@ on:
       - "scripts/belief_macro_calendar_adapter.py"
       - "scripts/belief_macro_data_adapter.py"
       - "scripts/belief_macro_expectations_adapter.py"
+      - "scripts/belief_macro_expectations_collector.py"
+      - "scripts/daily_eurusd_macro_fast.py"
       - "scripts/belief_macro_release_adapter.py"
       - "tests/test_belief_macro_eurusd.py"
       - "scripts/belief_llm_interpreter.py"
@@ -19,6 +21,8 @@ on:
       - "tests/test_belief_company_primary_sources.py"
       - "tests/test_belief_macro_data_adapter.py"
       - "tests/test_belief_macro_expectations_adapter.py"
+      - "tests/test_belief_macro_expectations_collector.py"
+      - "tests/test_daily_eurusd_macro_fast.py"
   pull_request:
     branches: [main]
     paths:
@@ -29,11 +33,15 @@ on:
       - "scripts/belief_macro_calendar_adapter.py"
       - "scripts/belief_macro_data_adapter.py"
       - "scripts/belief_macro_expectations_adapter.py"
+      - "scripts/belief_macro_expectations_collector.py"
+      - "scripts/daily_eurusd_macro_fast.py"
       - "scripts/belief_llm_interpreter.py"
       - "tests/test_belief_core_news_macro.py"
       - "tests/test_belief_company_primary_sources.py"
       - "tests/test_belief_macro_data_adapter.py"
       - "tests/test_belief_macro_expectations_adapter.py"
+      - "tests/test_belief_macro_expectations_collector.py"
+      - "tests/test_daily_eurusd_macro_fast.py"
   schedule:
     # Full news/macro Belief Core remains a slower comprehensive collection.
     # The dedicated Daily EURUSD Macro Fast Lane handles 5-minute event risk.
@@ -78,10 +86,17 @@ jobs:
           python -m py_compile \
             scripts/belief_company_primary_sources.py \
             scripts/belief_news_event_adapter.py \
+            scripts/belief_macro_expectations_adapter.py \
+            scripts/belief_macro_expectations_collector.py \
+            scripts/daily_eurusd_macro_fast.py \
             scripts/belief_external_live.py
           python -m unittest \
             tests.test_belief_company_primary_sources \
-            tests.test_belief_core_news_macro -v
+            tests.test_belief_core_news_macro \
+            tests.test_belief_macro_expectations_adapter \
+            tests.test_belief_macro_expectations_collector \
+            tests.test_belief_macro_eurusd \
+            tests.test_daily_eurusd_macro_fast -v
 
   collect-events:
     if: github.event_name != 'pull_request'

@@ -112,6 +112,12 @@ def _velocity_r_per_hour(
 ) -> float:
     last = _bar_at_or_before(bars, observed_at)
     earlier = _bar_at_or_before(bars, observed_at - timedelta(hours=lookback_hours))
+    # Cap the requested lookback at the history available since the position
+    # opened. Otherwise a 1h/3h velocity silently becomes an implicit minimum
+    # position-age gate and cannot react to a fast adverse move minutes after
+    # entry. Two distinct bars are still required before velocity is actionable.
+    if earlier is None and bars:
+        earlier = min(bars, key=lambda bar: bar.timestamp)
     if last is None or earlier is None or last.timestamp <= earlier.timestamp:
         return 0.0
     hours = (last.timestamp - earlier.timestamp).total_seconds() / 3600.0

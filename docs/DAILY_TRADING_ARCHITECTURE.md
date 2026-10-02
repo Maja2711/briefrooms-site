@@ -100,3 +100,20 @@ Production authority is intentionally narrow:
 - no historical episode is rewritten and no single episode directly mutates production policy.
 
 Runtime implementation: `scripts/daily_eurusd_spot_v18.py` plus `scripts/daily_eurusd_contextual_policy_learning.py`.
+
+## Daily EUR/USD high-impact macro risk
+
+Daily EUR/USD v1.8 keeps directional authority in the Daily Direction Engine, but open-position risk is event-aware.
+
+For high-impact releases such as Employment Situation/NFP, CPI/PCE, FOMC and ECB events:
+
+- dynamic risk exits have no minimum position-age gate;
+- a profitable position with little remaining reward relative to downside can be closed before the release by the macro-event asymmetry overlay;
+- sourced institutional expectations can be converted into an auditable distribution and probability proxy before the release;
+- the governed EURUSD-only LLM interprets that sourced package but is not allowed to invent consensus or bank forecasts;
+- after the release, official BLS/BEA/Eurostat data are re-read and a fresh interpretation is required before the post-release context is marked ready;
+- the BLS monthly period contract is `YYYY-MMM`, and NFP comparison uses the monthly payroll change carried in the primary payroll observation metadata;
+- missing expectations fail closed and do not create directional LLM influence.
+
+The low-latency runtime is `scripts/daily_eurusd_macro_fast.py`; open-position event-risk authority is `scripts/daily_eurusd_macro_event_risk.py`. Neither component may create a new direction or reverse an existing position.
+

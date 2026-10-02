@@ -10,11 +10,16 @@ on:
       - "scripts/belief_macro_calendar_adapter.py"
       - "scripts/belief_macro_data_adapter.py"
       - "scripts/belief_macro_expectations_adapter.py"
+      - "scripts/belief_macro_expectations_collector.py"
       - "data/investments/eurusd_macro_expectations.json"
       - "tests/test_belief_macro_expectations_adapter.py"
+      - "tests/test_belief_macro_expectations_collector.py"
+      - "tests/test_daily_eurusd_macro_fast.py"
       - ".github/workflows/daily-eurusd-macro-fast.yml"
   schedule:
-    - cron: "0,5,10,15,20,25,30,35,40,45,50,55 12-17 * * 1-5"
+    # Cover the full two-hour pre-release window for 08:30 ET US data across DST,
+    # plus the post-release interpretation window. Daily EURUSD runs at +2 minutes.
+    - cron: "0,5,10,15,20,25,30,35,40,45,50,55 10-18 * * 1-5"
 
 permissions:
   contents: write
@@ -34,7 +39,8 @@ jobs:
       GEMINI_REVIEW_MODEL: gemini-3.5-flash
       GEMINI_FALLBACK_MODEL: gemini-3.5-flash-lite
       GEMINI_MIN_INTERVAL_SECONDS: "3"
-      BELIEF_MACRO_EXPECTATIONS_PATH: data/investments/eurusd_macro_expectations.json
+      BELIEF_MACRO_EXPECTATIONS_URL: ${{ secrets.BELIEF_MACRO_EXPECTATIONS_URL }}
+      BELIEF_MACRO_EXPECTATIONS_TOKEN: ${{ secrets.BELIEF_MACRO_EXPECTATIONS_TOKEN }}
 
     steps:
       - uses: actions/checkout@v4
@@ -56,10 +62,21 @@ jobs:
             scripts/belief_llm_interpreter.py \
             scripts/belief_macro_calendar_adapter.py \
             scripts/belief_macro_data_adapter.py \
-            scripts/belief_macro_expectations_adapter.py
+            scripts/belief_macro_expectations_adapter.py \
+            scripts/belief_macro_expectations_collector.py
           python -m unittest \
             tests.test_belief_macro_expectations_adapter \
-            tests.test_belief_macro_eurusd -v
+            tests.test_belief_macro_expectations_collector \
+            tests.test_belief_macro_eurusd \
+            tests.test_daily_eurusd_macro_fast -v
+
+      - name: Collect sourced institutional macro expectations
+        run: |
+          set -euo pipefail
+          expectations_path="$RUNNER_TEMP/eurusd_macro_expectations.json"
+          echo "BELIEF_MACRO_EXPECTATIONS_PATH=$expectations_path" >> "$GITHUB_ENV"
+          python scripts/belief_macro_expectations_collector.py --output "$expectations_path"
+          python -m json.tool "$expectations_path" >/dev/null
 
       - name: Build EURUSD macro fast context
         run: |

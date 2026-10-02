@@ -10,6 +10,7 @@ management and post-release entry gating.
 """
 
 import argparse
+import hashlib
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -88,7 +89,32 @@ def _previous_month(event_at: datetime) -> str:
     if month == 0:
         year -= 1
         month = 12
-    return f"{year:04d}-{month:02d}"
+    # MacroDataAdapter uses BLS-style YYYY-MMM period identifiers.
+    return f"{year:04d}-M{month:02d}"
+
+
+def _actual_payload(obs: Observation) -> dict[str, Any]:
+    metadata = dict(obs.metadata)
+    payload: dict[str, Any] = {
+        "metric": obs.metric,
+        "value": obs.value,
+        "unit": obs.unit,
+        "metadata": metadata,
+        "source": obs.source,
+        "source_ref": obs.source_ref,
+    }
+    # NFP forecasts are normally expressed as the monthly payroll change, while
+    # the primary BLS series stores the total payroll level. Surface the directly
+    # comparable monthly change without replacing the primary observation.
+    if obs.metric == "total_nonfarm_payroll_level" and metadata.get("latest_month_change_thousands") is not None:
+        payload["comparable_metric"] = "nonfarm_payrolls_change"
+        payload["comparable_value"] = metadata.get("latest_month_change_thousands")
+        payload["comparable_unit"] = "thousands"
+    elif obs.metric == "unemployment_rate":
+        payload["comparable_metric"] = "unemployment_rate"
+        payload["comparable_value"] = obs.value
+        payload["comparable_unit"] = obs.unit
+    return payload
 
 
 def _expectation_for_event(
@@ -150,17 +176,7 @@ def _composite_observation(
     if not actuals and expectation is None:
         return None
 
-    actual_payload = [
-        {
-            "metric": obs.metric,
-            "value": obs.value,
-            "unit": obs.unit,
-            "metadata": dict(obs.metadata),
-            "source": obs.source,
-            "source_ref": obs.source_ref,
-        }
-        for obs in actuals
-    ]
+    actual_payload = [_actual_payload(obs) for obs in actuals]
     expectation_payload = None
     if expectation is not None:
         expectation_payload = {
@@ -257,7 +273,9 @@ def build_context(
             "status": "CLEAR",
             "event": None,
             "expectations": None,
+            "expectations_status": "NOT_APPLICABLE",
             "actuals": [],
+            "actuals_status": "NOT_APPLICABLE",
             "llm": None,
             "eurusd_score": 0.0,
             "decision_influence": False,
@@ -282,6 +300,7 @@ def build_context(
     )
 
     expectation_summary = None
+    expectation_fingerprint = None
     if expectation is not None:
         expectation_summary = {
             "value": expectation.value,
@@ -291,22 +310,25 @@ def build_context(
                 "market_consensus": expectation.metadata.get("market_consensus"),
             },
         }
+        expectation_fingerprint = hashlib.sha256(
+            json.dumps(
+                {
+                    "value": expectation.value,
+                    "forecasts": expectation.metadata.get("forecasts"),
+                    "source_ref": expectation.source_ref,
+                },
+                ensure_ascii=False,
+                sort_keys=True,
+                default=str,
+            ).encode("utf-8")
+        ).hexdigest()
 
-    actual_summary = [
-        {
-            "metric": obs.metric,
-            "value": obs.value,
-            "unit": obs.unit,
-            "metadata": dict(obs.metadata),
-            "source_ref": obs.source_ref,
-        }
-        for obs in actuals
-    ]
+    actual_summary = [_actual_payload(obs) for obs in actuals]
 
     data_key = json.dumps({
         "event_uid": event.get("uid"),
         "phase": phase,
-        "expectations": expectation_summary,
+        "expectation_fingerprint": expectation_fingerprint,
         "actuals": actual_summary,
     }, ensure_ascii=False, sort_keys=True, default=str)
 
@@ -325,7 +347,9 @@ def build_context(
         "status": phase,
         "event": {**event, "hours_until_at_check": round(hours_until, 4)},
         "expectations": expectation_summary,
+        "expectations_status": "READY" if expectation is not None else "MISSING",
         "actuals": actual_summary,
+        "actuals_status": "READY" if actuals else ("WAITING" if phase == "POST_RELEASE" else "NOT_APPLICABLE"),
         "llm_key": data_key,
         "llm": llm,
         "eurusd_score": round(score, 4),
@@ -335,7 +359,9 @@ def build_context(
             "no_invented_consensus": True,
             "eurusd_only_llm_beliefs": list(EURUSD_ALLOWED_BELIEFS),
             "pre_event_expectations_require_sourced_bundle": True,
+            "missing_expectations_fail_closed": True,
             "post_release_requires_official_actuals": True,
+            "official_actual_period_contract": "BLS_YYYY-MMM",
         },
     }
 
