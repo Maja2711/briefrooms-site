@@ -707,7 +707,9 @@
       const labelNode = nowBox.querySelector('span');
       if (labelNode) {
         if (item.instrument_id === 'eurusd') {
-          labelNode.textContent = T.priceNow;
+          labelNode.textContent = String(quote.source || '').toLowerCase().includes('fxapi')
+            ? (isEn ? 'Last available quote' : 'Ostatni dostępny kurs')
+            : T.priceNow;
         } else if (nowBox.dataset.defaultPriceLabel) {
           labelNode.textContent = nowBox.dataset.defaultPriceLabel;
         }
