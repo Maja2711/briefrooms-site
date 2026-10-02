@@ -5,6 +5,7 @@ on:
   pull_request:
     paths:
       - "scripts/epistemic_consumer_interface.py"
+      - "scripts/daily_eurusd_belief_decision.py"
       - "scripts/epistemic_consumer_live.py"
       - "scripts/brace_spx_epistemic_bridge.py"
       - "scripts/wes_spx_epistemic_bridge.py"
@@ -45,6 +46,6 @@ jobs:
           assert a.belief_core_writeback_enabled is False
           assert a.decision_writeback_enabled is False
           assert a.automatic_tuning_enabled is False
-          assert set(e.CONSUMER_PROFILES) == {'BRACE_SPX','WES_SPX'}
+          assert set(e.CONSUMER_PROFILES) == {'BRACE_SPX','WES_SPX','DAILY_EURUSD'}
           print('Epistemic consumer authority invariants: PASS')
           PY
