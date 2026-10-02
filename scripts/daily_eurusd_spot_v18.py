@@ -25,6 +25,7 @@ import daily_eurusd_lifecycle as lifecycle
 import daily_eurusd_spot as base
 import daily_eurusd_spot_v17 as v17  # installs the complete v1.7 production stack first
 import daily_eurusd_contextual_policy_learning as contextual
+import execution_price_engine as epe
 
 ENGINE_VERSION = "eurusd-daily-spot-v1.8.0"
 CONTEXTUAL_STATE_PATH = Path("data/investments/eurusd_contextual_entry_policy_learning.json")
@@ -478,6 +479,25 @@ def run_cycle(output_path: Path, history_path: Path, client: Any | None = None) 
     snapshot = base.fetch_snapshot(client)
     monitor_bars = client.bars(base.EURUSD, "5d", "1m")
     observed_at = monitor_bars[-1].timestamp.astimezone(timezone.utc)
+    try:
+        stooq = epe.fetch_stooq_eurusd_quote(timeout=5)
+        stooq_at = stooq.timestamp.astimezone(timezone.utc)
+        age_seconds = (datetime.now(timezone.utc) - stooq_at).total_seconds()
+        if -30.0 <= age_seconds <= epe.DEFAULT_QUOTE_MAX_AGE_SECONDS:
+            monitor_bars = list(monitor_bars)
+            monitor_bars.append(Bar(
+                timestamp=stooq_at,
+                open=float(stooq.price),
+                high=float(stooq.price),
+                low=float(stooq.price),
+                close=float(stooq.price),
+            ))
+            monitor_bars.sort(key=lambda bar: bar.timestamp)
+            observed_at = max(observed_at, stooq_at)
+    except Exception:
+        # Stooq is the preferred live point, but the canonical Yahoo 1m path
+        # remains available so an upstream outage cannot blind lifecycle exits.
+        pass
     history = lifecycle.load_history(history_path)
     previous = base._load_json(output_path)
 
