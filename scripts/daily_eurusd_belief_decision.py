@@ -15,9 +15,11 @@ from __future__ import annotations
 import json
 import math
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Mapping, Optional
+
+from epistemic_consumer_interface import EpistemicConsumerInterface
 
 LONG_THRESHOLD = 60.0
 SHORT_THRESHOLD = 40.0
@@ -72,6 +74,156 @@ def load_state(path: Path | None = None) -> dict[str, Any]:
     except (OSError, json.JSONDecodeError):
         return {}
     return payload if isinstance(payload, dict) else {}
+
+
+EPISTEMIC_MAX_SNAPSHOT_AGE_HOURS = 2.0
+
+
+def epistemic_state_path() -> Optional[Path]:
+    raw = os.environ.get("BELIEF_EPISTEMIC_STATE", "").strip()
+    return Path(raw) if raw else None
+
+
+def _epistemic_projection_to_belief_state(
+    payload: Mapping[str, Any],
+    *,
+    observed_at: datetime,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Translate the bounded CF-07 consumer envelope into synthesis inputs.
+
+    The decision engine never mutates the epistemic aggregate. Freshness from
+    EpistemicState is converted back into an equivalent age only so the existing
+    per-belief half-life admission contract can remain explicit.
+    """
+    try:
+        interface = EpistemicConsumerInterface(payload)
+        envelope = interface.envelope("DAILY_EURUSD")
+    except Exception as exc:
+        return {}, {
+            "contract": "epistemic-consumer-interface-v1",
+            "consumer": "DAILY_EURUSD",
+            "available": False,
+            "reason": f"epistemic_consumer_invalid:{type(exc).__name__}",
+        }
+
+    source_at = _parse_time(envelope.source_created_at)
+    now = observed_at.astimezone(timezone.utc)
+    if source_at is None:
+        return {}, {
+            "contract": envelope.contract_version,
+            "consumer": "DAILY_EURUSD",
+            "available": False,
+            "reason": "epistemic_timestamp_missing",
+        }
+    snapshot_age = (now - source_at).total_seconds() / 3600.0
+    if snapshot_age < -0.10:
+        return {}, {
+            "contract": envelope.contract_version,
+            "consumer": "DAILY_EURUSD",
+            "available": False,
+            "reason": "epistemic_state_created_after_engine_state",
+            "source_created_at": envelope.source_created_at,
+            "age_hours": round(snapshot_age, 6),
+        }
+    if snapshot_age > EPISTEMIC_MAX_SNAPSHOT_AGE_HOURS:
+        return {}, {
+            "contract": envelope.contract_version,
+            "consumer": "DAILY_EURUSD",
+            "available": False,
+            "reason": "epistemic_state_too_old",
+            "source_created_at": envelope.source_created_at,
+            "age_hours": round(snapshot_age, 6),
+        }
+    if not envelope.available:
+        return {}, {
+            "contract": envelope.contract_version,
+            "consumer": "DAILY_EURUSD",
+            "available": False,
+            "reason": envelope.reason,
+            "source_created_at": envelope.source_created_at,
+            "age_hours": round(snapshot_age, 6),
+        }
+
+    beliefs: list[dict[str, Any]] = []
+    evidence: list[dict[str, Any]] = []
+    for row in envelope.states:
+        belief_id = str(row.get("belief_id") or "")
+        if belief_id not in BELIEF_WEIGHTS:
+            continue
+        try:
+            freshness = max(0.0, min(1.0, float(row.get("freshness") or 0.0)))
+        except (TypeError, ValueError):
+            freshness = 0.0
+        half_life = BELIEF_MAX_AGE_HOURS[belief_id]
+        if freshness <= 0.0:
+            equivalent_age = half_life * 100.0
+        else:
+            equivalent_age = max(0.0, -half_life * math.log(freshness, 2.0))
+        evidence_at = now - timedelta(hours=equivalent_age)
+        evidence_id = f"epistemic:{row.get('state_id') or belief_id}"
+        evidence.append({
+            "evidence_id": evidence_id,
+            "observed_at": evidence_at.isoformat().replace("+00:00", "Z"),
+        })
+        beliefs.append({
+            "belief_id": belief_id,
+            "probability": row.get("probability"),
+            "confidence": row.get("confidence"),
+            "audit_status": row.get("audit_status"),
+            "representative_evidence_ids": [evidence_id],
+        })
+
+    return {
+        "beliefs": beliefs,
+        "evidence": evidence,
+    }, {
+        "contract": envelope.contract_version,
+        "source_contract": envelope.source_contract_version,
+        "consumer": "DAILY_EURUSD",
+        "available": True,
+        "reason": envelope.reason,
+        "source_created_at": envelope.source_created_at,
+        "age_hours": round(snapshot_age, 6),
+        "source_sha256": envelope.source_sha256,
+        "aggregate_authoritative": envelope.authority.aggregate_authoritative,
+        "consumer_may_override_probability": envelope.authority.consumer_may_override_probability,
+        "belief_core_writeback_enabled": envelope.authority.belief_core_writeback_enabled,
+        "state_count": len(envelope.states),
+    }
+
+
+def load_effective_state(
+    *,
+    observed_at: datetime,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    ep_path = epistemic_state_path()
+    require_epistemic = os.environ.get("DAILY_EURUSD_REQUIRE_EPISTEMIC", "").strip().lower() in {
+        "1", "true", "yes",
+    }
+    if ep_path is not None and ep_path.exists():
+        try:
+            payload = json.loads(ep_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            payload = {}
+        state, meta = _epistemic_projection_to_belief_state(payload, observed_at=observed_at)
+        return state, meta
+
+    if require_epistemic:
+        return {}, {
+            "contract": "epistemic-consumer-interface-v1",
+            "consumer": "DAILY_EURUSD",
+            "available": False,
+            "reason": "required_epistemic_consumer_state_unavailable",
+        }
+
+    # Compatibility path for isolated unit tests/manual research. Production
+    # workflow sets DAILY_EURUSD_REQUIRE_EPISTEMIC=1 and cannot use this path.
+    return load_state(), {
+        "contract": "legacy-raw-belief-state-compat",
+        "consumer": "DAILY_EURUSD",
+        "available": bool(load_state()),
+        "reason": "test_or_manual_compatibility_path",
+    }
 
 
 def _evidence_index(state: Mapping[str, Any]) -> dict[str, Mapping[str, Any]]:
