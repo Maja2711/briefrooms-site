@@ -47,7 +47,19 @@ jobs:
           python -m unittest tests/test_weekly_browser_live_contract.py
 
       - name: Refresh Weekly live prices
-        run: python scripts/update_weekly_live_prices_fast.py
+        run: |
+          python scripts/update_weekly_live_prices_fast.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          row = json.loads(Path("data/investments/live_prices.json").read_text())["prices"]["eurusd"]
+          print("EURUSD_AUDIT", json.dumps({
+              "price": row.get("price"),
+              "timestamp": row.get("timestamp"),
+              "source": row.get("source"),
+              "fresh": row.get("fresh"),
+          }, ensure_ascii=False))
+          PY
 
       - name: Monitor frozen Weekly SL/TP from 5-minute OHLC
         run: |
