@@ -19,6 +19,7 @@ def candidate(
     source: str = "LOW_EDGE_LEARNING_EXPLORATION",
     components: dict[str, float] | None = None,
     fresh_macro: bool = False,
+    observed_at: datetime = NOW,
 ) -> DailyEngineOutput:
     components = components or {
         "trend": -0.10,
@@ -31,7 +32,7 @@ def candidate(
     target = entry + 1.8 * risk if direction == "LONG" else entry - 1.8 * risk
     return DailyEngineOutput(
         instrument="EUR/USD",
-        timestamp=NOW.isoformat().replace("+00:00", "Z"),
+        timestamp=observed_at.isoformat().replace("+00:00", "Z"),
         direction=direction,
         score=score,
         confidence=confidence,
@@ -231,6 +232,36 @@ class DailyEURUSDPostTradeIntelligenceTests(unittest.TestCase):
             {"trades": [prior_long]},
         )
         self.assertEqual(output.direction, "SHORT")
+
+    def test_late_friday_secondary_fallback_is_blocked(self):
+        friday = datetime(2026, 10, 2, 16, 16, tzinfo=UTC)  # 12:16 New York
+        output = v16._apply_weekly_close_entry_guard(
+            candidate(
+                source="A_TECHNICAL_FALLBACK",
+                direction="SHORT",
+                score=36.41,
+                confidence=0.272,
+                observed_at=friday,
+            )
+        )
+        self.assertEqual(output.direction, "FLAT")
+        guard = output.metadata["weekly_close_entry_guard"]
+        self.assertTrue(guard["blocked"])
+        self.assertEqual(guard["reason"], "late_friday_secondary_entry_blocked")
+
+    def test_late_friday_native_signal_is_not_automatically_blocked(self):
+        friday = datetime(2026, 10, 2, 16, 16, tzinfo=UTC)
+        output = v16._apply_weekly_close_entry_guard(
+            candidate(
+                source="NATIVE",
+                direction="SHORT",
+                score=34.0,
+                confidence=0.32,
+                observed_at=friday,
+            )
+        )
+        self.assertEqual(output.direction, "SHORT")
+        self.assertFalse(output.metadata["weekly_close_entry_guard"]["blocked"])
 
     def test_old_loss_outside_guard_window_is_not_blocked(self):
         output = v16._apply_same_thesis_guard(
