@@ -12,7 +12,7 @@
     "trade_execution": false
   },
   "engine": "Daily Learning Loop — Contextual Entry Policy Learning",
-  "generated_at": "2026-10-02T09:13:23Z",
+  "generated_at": "2026-10-02T11:59:13Z",
   "governance": {
     "application_edge_hurdles_r": {
       "FULL": 0.1,
@@ -59,15 +59,78 @@
     "uncertainty_penalty": 1.0
   },
   "latest_recommendation": {
+    "application_edge_hurdle_r": null,
     "authority_fraction": 0.0,
     "authority_level": "SHADOW",
+    "automatic_promotion": true,
     "automatic_rollback": true,
     "decision_influence": false,
-    "evidence_confidence": 0.0,
-    "neighbors": 0,
-    "policy_stats": {},
-    "resolved_episodes": 2,
-    "status": "INSUFFICIENT_SIMILAR_CONTEXT"
+    "direction_mutation_allowed": false,
+    "edge_vs_second_r": 0.009324,
+    "evidence_components": {
+      "edge_strength": 0.02664,
+      "sample_strength": 0.575567,
+      "stability": 0.909822
+    },
+    "evidence_confidence": 0.01395,
+    "expected_r": 1.6958,
+    "neighbors": 3,
+    "policy_stats": {
+      "CONTINUATION_NOW": {
+        "effective_neighbors": 2.571,
+        "expected_r": 1.687065,
+        "raw_neighbors": 3,
+        "uncertainty_penalized_r": 1.55316,
+        "weighted_mean_net_r": 1.687065,
+        "weighted_sd_r": 0.214721
+      },
+      "FLAT": {
+        "effective_neighbors": 2.571,
+        "expected_r": 0.0,
+        "raw_neighbors": 3,
+        "uncertainty_penalized_r": 0.0,
+        "weighted_mean_net_r": 0.0,
+        "weighted_sd_r": 0.0
+      },
+      "PULLBACK_20_ATR": {
+        "effective_neighbors": 2.571,
+        "expected_r": 1.692245,
+        "raw_neighbors": 3,
+        "uncertainty_penalized_r": 1.566203,
+        "weighted_mean_net_r": 1.692245,
+        "weighted_sd_r": 0.202111
+      },
+      "PULLBACK_35_ATR": {
+        "effective_neighbors": 2.571,
+        "expected_r": 1.6958,
+        "raw_neighbors": 3,
+        "uncertainty_penalized_r": 1.575527,
+        "weighted_mean_net_r": 1.6958,
+        "weighted_sd_r": 0.19286
+      },
+      "PULLBACK_50_ATR": {
+        "effective_neighbors": 2.571,
+        "expected_r": 0.995631,
+        "raw_neighbors": 3,
+        "uncertainty_penalized_r": 0.481414,
+        "weighted_mean_net_r": 0.995631,
+        "weighted_sd_r": 0.824564
+      },
+      "REVERSAL_NOW": {
+        "effective_neighbors": 2.571,
+        "expected_r": -1.024294,
+        "raw_neighbors": 3,
+        "uncertainty_penalized_r": -1.025229,
+        "weighted_mean_net_r": -1.024294,
+        "weighted_sd_r": 0.0015
+      }
+    },
+    "recommended_family": "CONTINUATION_PULLBACK",
+    "recommended_policy_id": "PULLBACK_35_ATR",
+    "research_best_policy_id": "PULLBACK_35_ATR",
+    "research_reversal_is_non_authoritative": false,
+    "resolved_episodes": 3,
+    "status": "NO_ROBUST_POLICY_EDGE"
   },
   "mode": "PROSPECTIVE_CONTINUOUS_AUTONOMOUS_ENTRY_POLICY",
   "policies": [
@@ -84,9 +147,9 @@
   "sample": {
     "entry_points": 4,
     "episodes_total": 6,
-    "pending": 4,
+    "pending": 3,
     "post_exit_points": 2,
-    "resolved": 2
+    "resolved": 3
   },
   "schema_version": "eurusd-contextual-entry-policy-public-v2"
 }

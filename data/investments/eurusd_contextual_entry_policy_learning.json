@@ -635,9 +635,123 @@
       "reward_risk": 1.8,
       "risk_distance": 0.00305119,
       "schema_version": "eurusd-contextual-entry-policy-episode-v1",
-      "settlement": null,
+      "settlement": {
+        "bars": 288,
+        "outcomes": {
+          "CONTINUATION_NOW": {
+            "direction": "SHORT",
+            "entered_at": "2026-10-01T09:19:00Z",
+            "entry_mid": 1.13007128,
+            "exit_price": 1.12458,
+            "exit_reason": "TAKE_PROFIT",
+            "exit_side": "ASK",
+            "exited_at": "2026-10-01T15:30:00Z",
+            "fill_price": 1.13,
+            "fill_side": "BID",
+            "mae_r": -0.466927,
+            "mfe_r": 2.157194,
+            "net_r": 1.776356,
+            "status": "RESOLVED",
+            "stop": 1.13312,
+            "synthetic_spread_pips": 1.5,
+            "target": 1.12458
+          },
+          "FLAT": {
+            "direction": "FLAT",
+            "entry_status": "NO_TRADE",
+            "mae_r": 0.0,
+            "mfe_r": 0.0,
+            "net_r": 0.0,
+            "status": "RESOLVED",
+            "synthetic_spread_pips": 0.0
+          },
+          "PULLBACK_20_ATR": {
+            "direction": "SHORT",
+            "entered_at": "2026-10-01T09:20:00Z",
+            "entry_mid": 1.13020636,
+            "entry_status": "TRIGGERED",
+            "exit_price": 1.12471,
+            "exit_reason": "TAKE_PROFIT",
+            "exit_side": "ASK",
+            "exited_at": "2026-10-01T15:30:00Z",
+            "fill_price": 1.13013,
+            "fill_side": "BID",
+            "mae_r": -0.424321,
+            "mfe_r": 2.1998,
+            "net_r": 1.776356,
+            "pullback_depth_atr": 0.2,
+            "status": "RESOLVED",
+            "stop": 1.13326,
+            "synthetic_spread_pips": 1.5,
+            "target": 1.12471,
+            "trigger_mid": 1.13020636
+          },
+          "PULLBACK_35_ATR": {
+            "direction": "SHORT",
+            "entered_at": "2026-10-01T09:20:00Z",
+            "entry_mid": 1.13030768,
+            "entry_status": "TRIGGERED",
+            "exit_price": 1.12482,
+            "exit_reason": "TAKE_PROFIT",
+            "exit_side": "ASK",
+            "exited_at": "2026-10-01T15:30:00Z",
+            "fill_price": 1.13023,
+            "fill_side": "BID",
+            "mae_r": -0.391547,
+            "mfe_r": 2.232575,
+            "net_r": 1.773079,
+            "pullback_depth_atr": 0.35,
+            "status": "RESOLVED",
+            "stop": 1.13336,
+            "synthetic_spread_pips": 1.5,
+            "target": 1.12482,
+            "trigger_mid": 1.13030768
+          },
+          "PULLBACK_50_ATR": {
+            "direction": "SHORT",
+            "entered_at": "2026-10-01T11:45:00Z",
+            "entry_mid": 1.13040899,
+            "entry_status": "TRIGGERED",
+            "exit_price": 1.12492,
+            "exit_reason": "TAKE_PROFIT",
+            "exit_side": "ASK",
+            "exited_at": "2026-10-01T15:30:00Z",
+            "fill_price": 1.13033,
+            "fill_side": "BID",
+            "mae_r": -0.358772,
+            "mfe_r": 2.265349,
+            "net_r": 1.773079,
+            "pullback_depth_atr": 0.5,
+            "status": "RESOLVED",
+            "stop": 1.13346,
+            "synthetic_spread_pips": 1.5,
+            "target": 1.12492,
+            "trigger_mid": 1.13040899
+          },
+          "REVERSAL_NOW": {
+            "direction": "LONG",
+            "entered_at": "2026-10-01T09:19:00Z",
+            "entry_mid": 1.13007128,
+            "exit_price": 1.12702,
+            "exit_reason": "STOP_LOSS",
+            "exit_side": "BID",
+            "exited_at": "2026-10-01T10:00:00Z",
+            "fill_price": 1.13015,
+            "fill_side": "ASK",
+            "mae_r": -1.052207,
+            "mfe_r": 0.033308,
+            "net_r": -1.025829,
+            "status": "RESOLVED",
+            "stop": 1.12702,
+            "synthetic_spread_pips": 1.5,
+            "target": 1.13556
+          }
+        },
+        "settled_at": "2026-10-02T11:59:13Z",
+        "target_at": "2026-10-02T09:19:00Z"
+      },
       "source_id": "eurusd:20260930T183512Z:SHORT",
-      "status": "PENDING",
+      "status": "RESOLVED",
       "target_at": "2026-10-02T09:19:00Z"
     },
     {
@@ -1102,7 +1216,7 @@
     "uncertainty_penalty": 1.0
   },
   "latest_context": {
-    "atr_30m": 0.00058932,
+    "atr_30m": 0.00070589,
     "belief_probability_curve": {
       "available": true,
       "confidence": 0.455559,
@@ -1144,9 +1258,9 @@
     },
     "daily": {
       "candidate": {
-        "confidence": 0.214,
+        "confidence": 0.262,
         "direction": "SHORT",
-        "score": 39.3,
+        "score": 36.92,
         "source": null
       },
       "confidence": 0.214,
@@ -1154,29 +1268,23 @@
       "direction": "SHORT",
       "score": 39.3
     },
-    "ema20": 1.12546274,
+    "ema20": 1.12485734,
     "event": {
       "available": true,
-      "confidence": 0.4375,
+      "confidence": null,
       "decision_overlay": null,
-      "dominant_event_scope": "macro_geopolitical",
-      "score_delta": -4.52
+      "dominant_event_scope": null,
+      "score_delta": null
     },
     "features": {
       "belief_confidence": 0.455559,
       "belief_macro_score": 0.0,
       "daily_confidence": 0.214,
       "daily_score_signed": -0.214,
-      "ema20_distance_atr": -0.379429,
-      "event_confidence": 0.4375,
-      "event_score": -4.52,
-      "fse_analogue_median_return_atr": 0.0,
-      "fse_hurst_q2": 0.512412,
-      "fse_p_up_4h": 0.404958,
-      "fse_risk_score": 0.377342,
-      "move_12h_atr": 0.429645,
-      "move_24h_atr": -7.982619,
-      "move_3h_atr": -1.720401,
+      "ema20_distance_atr": -1.787614,
+      "move_12h_atr": -2.149132,
+      "move_24h_atr": -10.259967,
+      "move_3h_atr": -2.687343,
       "p_up_12h": 0.316665,
       "p_up_24h": 0.316665,
       "p_up_3h": 0.316665,
@@ -1184,32 +1292,86 @@
       "p_up_delta": 0.001182
     },
     "fse": {
-      "analogues_n": 15,
-      "available": true,
-      "mean_hurst_q2": 0.5124124974952027,
-      "mean_similarity": 0.8337590313982395,
-      "median_forward_return": 0.0,
-      "median_forward_return_atr": 0.0,
-      "observed_at": "2026-10-02T05:48:08Z",
-      "p_up_4h": 0.40495793085484616,
-      "production_impact": false,
-      "regime": "STABLE",
-      "risk_score": 0.3773418447084154
+      "available": false,
+      "reason": "stale_or_future"
     },
-    "observed_at": "2026-10-02T09:13:08Z",
-    "reference_mid": 1.12523913
+    "observed_at": "2026-10-02T11:59:07Z",
+    "reference_mid": 1.12359548
   },
   "latest_recommendation": {
+    "application_edge_hurdle_r": null,
     "authority_fraction": 0.0,
     "authority_level": "SHADOW",
+    "automatic_promotion": true,
     "automatic_rollback": true,
     "decision_influence": false,
-    "evidence_confidence": 0.0,
-    "neighbors": 0,
-    "policy_stats": {},
-    "resolved_episodes": 2,
-    "status": "INSUFFICIENT_SIMILAR_CONTEXT"
+    "direction_mutation_allowed": false,
+    "edge_vs_second_r": 0.009324,
+    "evidence_components": {
+      "edge_strength": 0.02664,
+      "sample_strength": 0.575567,
+      "stability": 0.909822
+    },
+    "evidence_confidence": 0.01395,
+    "expected_r": 1.6958,
+    "neighbors": 3,
+    "policy_stats": {
+      "CONTINUATION_NOW": {
+        "effective_neighbors": 2.571,
+        "expected_r": 1.687065,
+        "raw_neighbors": 3,
+        "uncertainty_penalized_r": 1.55316,
+        "weighted_mean_net_r": 1.687065,
+        "weighted_sd_r": 0.214721
+      },
+      "FLAT": {
+        "effective_neighbors": 2.571,
+        "expected_r": 0.0,
+        "raw_neighbors": 3,
+        "uncertainty_penalized_r": 0.0,
+        "weighted_mean_net_r": 0.0,
+        "weighted_sd_r": 0.0
+      },
+      "PULLBACK_20_ATR": {
+        "effective_neighbors": 2.571,
+        "expected_r": 1.692245,
+        "raw_neighbors": 3,
+        "uncertainty_penalized_r": 1.566203,
+        "weighted_mean_net_r": 1.692245,
+        "weighted_sd_r": 0.202111
+      },
+      "PULLBACK_35_ATR": {
+        "effective_neighbors": 2.571,
+        "expected_r": 1.6958,
+        "raw_neighbors": 3,
+        "uncertainty_penalized_r": 1.575527,
+        "weighted_mean_net_r": 1.6958,
+        "weighted_sd_r": 0.19286
+      },
+      "PULLBACK_50_ATR": {
+        "effective_neighbors": 2.571,
+        "expected_r": 0.995631,
+        "raw_neighbors": 3,
+        "uncertainty_penalized_r": 0.481414,
+        "weighted_mean_net_r": 0.995631,
+        "weighted_sd_r": 0.824564
+      },
+      "REVERSAL_NOW": {
+        "effective_neighbors": 2.571,
+        "expected_r": -1.024294,
+        "raw_neighbors": 3,
+        "uncertainty_penalized_r": -1.025229,
+        "weighted_mean_net_r": -1.024294,
+        "weighted_sd_r": 0.0015
+      }
+    },
+    "recommended_family": "CONTINUATION_PULLBACK",
+    "recommended_policy_id": "PULLBACK_35_ATR",
+    "research_best_policy_id": "PULLBACK_35_ATR",
+    "research_reversal_is_non_authoritative": false,
+    "resolved_episodes": 3,
+    "status": "NO_ROBUST_POLICY_EDGE"
   },
   "schema_version": "eurusd-contextual-entry-policy-learning-v2",
-  "updated_at": "2026-10-02T09:13:23Z"
+  "updated_at": "2026-10-02T11:59:13Z"
 }
