@@ -103,7 +103,7 @@
     const upstream = `https://query1.finance.yahoo.com/v8/finance/chart/EURUSD%3DX?interval=1m&range=1d&_=${Date.now()}`;
     const url = route === "allorigins"
       ? `https://api.allorigins.win/raw?url=${encodeURIComponent(upstream)}`
-      : `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(upstream)}`;
+      : `https://proxy.cors.dev/${upstream}`;
     return yahooQuoteFromPayload(await fetchJson(url), route === "allorigins" ? "Yahoo EURUSD=X 1m · backup" : "Yahoo EURUSD=X 1m");
   }
 
@@ -126,7 +126,7 @@
 
   async function fetchLiveQuote() {
     const errors = [];
-    for (const route of ["codetabs", "allorigins"]) {
+    for (const route of ["corsdev", "allorigins"]) {
       try {
         return await quoteYahoo(route);
       } catch (error) {
