@@ -309,6 +309,7 @@ function notificationPayload(event, lang, publicBaseUrl = "") {
     title: `BriefRooms · ${engine}`,
     body: `${action} · ${event.instrument || ""}${direction}${price}`,
     event_id: event.event_id,
+    sent_at: new Date().toISOString(),
     url: notificationUrl(event, lang),
     data: {
       engine: event.engine,
@@ -385,7 +386,7 @@ export class PushHub {
           await webpush.sendNotification(
             record.subscription,
             notificationPayload(event, record.language, this.env.PUBLIC_BASE_URL),
-            { TTL: 300 },
+            { TTL: 120, urgency: "high" },
           );
           await this.ctx.storage.put(deliveredKey, true);
           sent += 1;
@@ -765,7 +766,7 @@ export class PushHub {
         await webpush.sendNotification(
           record.subscription,
           testNotificationPayload(record.language),
-          { TTL: 60 },
+          { TTL: 60, urgency: "high" },
         );
         const stats = (await this.ctx.storage.get("stats")) || {};
         stats.test_sent = Number(stats.test_sent || 0) + 1;
