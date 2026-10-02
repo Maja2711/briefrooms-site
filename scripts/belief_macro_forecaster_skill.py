@@ -165,7 +165,8 @@ def settle(
         return out, 0
 
     provider = str(expectations.get("provider") or "").strip()
-    settled = set(str(x) for x in out.get("settled_ids") or [])
+    settled_list = [str(x) for x in out.get("settled_ids") or []]
+    settled = set(settled_list)
     changed = 0
 
     for release in expectations.get("releases") or []:
@@ -236,9 +237,10 @@ def settle(
                 "minimum_internal_observations": MIN_INTERNAL_OBSERVATIONS,
             }
             settled.add(sid)
+            settled_list.append(sid)
             changed += 1
 
-    out["settled_ids"] = list(settled)[-MAX_SETTLED_IDS:]
+    out["settled_ids"] = settled_list[-MAX_SETTLED_IDS:]
     if changed:
         out["updated_at"] = iso_z(now)
     return out, changed
