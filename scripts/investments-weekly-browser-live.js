@@ -26,13 +26,10 @@
       minPrice: 0.8,
       maxPrice: 1.5,
       sources: [
-        { name: 'Yahoo EURUSD=X', fetch: () => fetchYahooQuote('EURUSD=X', 'codetabs') },
-        { name: 'Yahoo EURUSD=X · backup route', fetch: () => fetchYahooQuote('EURUSD=X', 'allorigins') },
         { name: 'Stooq EURUSD', fetch: () => fetchStooqEurUsd('direct') },
         { name: 'Stooq EURUSD · proxy 1', fetch: () => fetchStooqEurUsd('codetabs') },
         { name: 'Stooq EURUSD · proxy 2', fetch: () => fetchStooqEurUsd('allorigins') },
         { name: 'fxapi.app', fetch: fetchEurUsdFxApi },
-        { name: 'Currency Exchange Tool', fetch: fetchEurUsdCurrencyExchangeTool },
       ],
     },
     btcusd: {
@@ -591,10 +588,18 @@
     const previous = states.get(instrumentId) || null;
     const direct = await fetchAllSources(instrumentId);
     const freshDirect = direct.filter((row) => quoteFresh(row.quote, cfg.maxAgeMs));
-    const preferredFreshDirect = cfg.directPriority === 'first-fresh'
-      ? (freshDirect[0] || null)
-      : (freshDirect.sort((a, b) =>
-          (validTimestamp(b.quote.updatedAt)?.valueOf() || 0) - (validTimestamp(a.quote.updatedAt)?.valueOf() || 0))[0] || null);
+    const preferredFreshDirect = instrumentId === 'eurusd'
+      ? (
+          freshDirect.filter((row) => String(row.quote.source || '').startsWith('Stooq'))
+            .sort((a, b) => (validTimestamp(b.quote.updatedAt)?.valueOf() || 0) - (validTimestamp(a.quote.updatedAt)?.valueOf() || 0))[0]
+          || freshDirect.filter((row) => String(row.quote.source || '') === 'fxapi.app')
+            .sort((a, b) => (validTimestamp(b.quote.updatedAt)?.valueOf() || 0) - (validTimestamp(a.quote.updatedAt)?.valueOf() || 0))[0]
+          || null
+        )
+      : (cfg.directPriority === 'first-fresh'
+          ? (freshDirect[0] || null)
+          : (freshDirect.sort((a, b) =>
+              (validTimestamp(b.quote.updatedAt)?.valueOf() || 0) - (validTimestamp(a.quote.updatedAt)?.valueOf() || 0))[0] || null));
     const newestDirect = newestQuote(...direct.map((row) => row.quote));
 
     if (preferredFreshDirect) {
