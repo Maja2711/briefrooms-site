@@ -32,7 +32,7 @@ from typing import Any, Callable, Mapping, Optional
 from belief_market_data_adapter import YahooChartClient
 
 SCHEMA_VERSION = "execution-price-engine-v1"
-ENGINE_VERSION = "EPE-1.2.0"
+ENGINE_VERSION = "EPE-1.3.0"
 EURUSD_PIP = 0.0001
 EURUSD_MIN = 0.8
 EURUSD_MAX = 1.5
@@ -40,8 +40,8 @@ SYNTHETIC_SPREAD_PIPS = 1.5
 SYNTHETIC_HALF_SPREAD_PIPS = SYNTHETIC_SPREAD_PIPS / 2.0
 SYNTHETIC_HALF_SPREAD_PRICE = SYNTHETIC_HALF_SPREAD_PIPS * EURUSD_PIP
 
-# Current public infrastructure gives us a direct fxapi mid and an independent
-# Yahoo 1m cross-check. These limits are intentionally strict enough to reject
+# Current public infrastructure prioritizes Stooq live EUR/USD, with fxapi,
+# Currency Exchange Tool and Yahoo as independent fallbacks/cross-checks. These limits are intentionally strict enough to reject
 # a several-pip ghost price while tolerating normal timestamp granularity.
 DEFAULT_PRIMARY_MAX_AGE_SECONDS = 180.0
 DEFAULT_SECONDARY_MAX_AGE_SECONDS = 180.0
