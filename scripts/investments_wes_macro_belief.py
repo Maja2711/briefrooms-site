@@ -19,6 +19,7 @@ BELIEF_IDS = {
 }
 MAX_AGE_HOURS = 8.0
 MAX_SCORE_CONTRIBUTION = 10.0
+FAST_CONTEXT_PATH = Path("data/investments/eurusd_macro_fast_context.json")
 
 def _dt(v: Any) -> Optional[datetime]:
     if not v: return None
@@ -34,6 +35,24 @@ def _read(path: Path) -> Dict[str, Any]:
 def state_path() -> Optional[Path]:
     raw=os.environ.get("BELIEF_CORE_STATE","").strip()
     return Path(raw) if raw else None
+
+def _fast_context(now: datetime) -> Dict[str, Any]:
+    payload=_read(FAST_CONTEXT_PATH)
+    if not payload:
+        return {}
+    event=payload.get("event") if isinstance(payload.get("event"),Mapping) else None
+    if not event:
+        return {}
+    event_at=_dt(event.get("event_at"))
+    if event_at is None:
+        return {}
+    hours=(event_at-now.astimezone(timezone.utc)).total_seconds()/3600.0
+    if hours < -1.0 or hours > 2.0:
+        return {}
+    out=dict(payload)
+    out["hours_until"]=round(hours,4)
+    out["phase_now"]="PRE_RELEASE" if hours >= 0 else "POST_RELEASE"
+    return out
 
 def _calendar_context(path: Path, now: datetime) -> Dict[str, Any]:
     observations=path.parent / "observations.jsonl"
@@ -60,8 +79,27 @@ def _calendar_context(path: Path, now: datetime) -> Dict[str, Any]:
 
 def context(now: datetime) -> Dict[str, Any]:
     path=state_path()
-    base={"enabled":True,"available":False,"score":0.0,"reason":"belief_state_unavailable","source":"belief_core"}
-    if path is None or not path.exists(): return base
+    fast=_fast_context(now)
+    base={
+        "enabled":True,
+        "available":False,
+        "score":0.0,
+        "reason":"belief_state_unavailable",
+        "source":"belief_core",
+        "fast_context":fast,
+    }
+    if path is None or not path.exists():
+        fast_score=float(fast.get("eurusd_score") or 0.0) if fast else 0.0
+        if fast and fast.get("llm") and abs(fast_score) > 0.0:
+            return {
+                **base,
+                "available":True,
+                "score":round(max(-MAX_SCORE_CONTRIBUTION,min(MAX_SCORE_CONTRIBUTION,fast_score)),4),
+                "direction":"long" if fast_score>0 else "short" if fast_score<0 else "neutral",
+                "reason":"macro_fast_lane_only",
+                "source":"macro_fast_lane",
+            }
+        return base
     state=_read(path)
     calendar=_calendar_context(path, now)
     rows={str(x.get("belief_id")):x for x in state.get("beliefs",[]) if isinstance(x,Mapping)}
@@ -103,10 +141,19 @@ def context(now: datetime) -> Dict[str, Any]:
     if recent_events:
         latest_recent_event=max(recent_events,key=lambda row: float(row.get("hours_until") or -999.0))
     recent_event_at=_dt(latest_recent_event.get("event_at")) if latest_recent_event else None
+    fast_post_ready=bool(
+        fast
+        and fast.get("phase_now") == "POST_RELEASE"
+        and fast.get("post_release_ready") is True
+        and fast.get("llm")
+    )
     post_release_macro_evidence_fresh=bool(
-        recent_event_at is not None
-        and latest_macro_evidence_at is not None
-        and latest_macro_evidence_at >= recent_event_at
+        (
+            recent_event_at is not None
+            and latest_macro_evidence_at is not None
+            and latest_macro_evidence_at >= recent_event_at
+        )
+        or fast_post_ready
     )
     release_context={
         "recent_high_impact_event":dict(latest_recent_event) if latest_recent_event else None,
@@ -116,17 +163,32 @@ def context(now: datetime) -> Dict[str, Any]:
         ),
         "post_release_macro_evidence_fresh":post_release_macro_evidence_fresh,
         "post_release_guard_minutes":30,
+        "fast_lane_post_release_ready":fast_post_ready,
     }
+    fast_score=float(fast.get("eurusd_score") or 0.0) if fast and fast.get("llm") else 0.0
     if weight_sum <= 0:
+        if abs(fast_score) > 0.0:
+            score=max(-MAX_SCORE_CONTRIBUTION,min(MAX_SCORE_CONTRIBUTION,fast_score))
+            return {**base,"available":True,"reason":"macro_fast_lane_only","score":round(score,4),
+                    "direction":"long" if score>0 else "short" if score<0 else "neutral",
+                    "beliefs":[],"freshness_max_hours":MAX_AGE_HOURS,
+                    "score_cap":MAX_SCORE_CONTRIBUTION,"source":"macro_fast_lane",
+                    "macro_calendar":calendar,"release_context":release_context,
+                    "rule":"sourced EURUSD macro fast lane; no standalone execution authority"}
         return {**base,"reason":"no_fresh_eurusd_beliefs","macro_calendar":calendar,"release_context":release_context}
     normalized=weighted/weight_sum
-    score=max(-MAX_SCORE_CONTRIBUTION,min(MAX_SCORE_CONTRIBUTION,normalized*MAX_SCORE_CONTRIBUTION))
+    belief_score=max(-MAX_SCORE_CONTRIBUTION,min(MAX_SCORE_CONTRIBUTION,normalized*MAX_SCORE_CONTRIBUTION))
+    score=fast_score if abs(fast_score) >= abs(belief_score) else belief_score
+    score=max(-MAX_SCORE_CONTRIBUTION,min(MAX_SCORE_CONTRIBUTION,score))
     return {"enabled":True,"available":True,"score":round(score,4),
             "direction":"long" if score>0 else "short" if score<0 else "neutral",
             "beliefs":used,"freshness_max_hours":MAX_AGE_HOURS,
-            "score_cap":MAX_SCORE_CONTRIBUTION,"source":"belief_core","macro_calendar":calendar,
+            "score_cap":MAX_SCORE_CONTRIBUTION,
+            "source":"belief_core+macro_fast_lane" if abs(fast_score)>0.0 else "belief_core",
+            "macro_calendar":calendar,
             "release_context":release_context,
-            "rule":"fresh bounded EURUSD beliefs only; no standalone execution authority"}
+            "fast_context":fast,
+            "rule":"fresh bounded EURUSD beliefs with event fast lane; no standalone execution authority"}
 
 def apply(macro: Dict[str, Any], belief: Dict[str, Any]) -> Dict[str, Any]:
     out=dict(macro); out["belief_core"]=belief; out["belief_macro_calendar"]=belief.get("macro_calendar") or {}
