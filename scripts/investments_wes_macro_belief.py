@@ -67,6 +67,7 @@ def context(now: datetime) -> Dict[str, Any]:
     rows={str(x.get("belief_id")):x for x in state.get("beliefs",[]) if isinstance(x,Mapping)}
     evidence_rows={str(x.get("evidence_id")):x for x in state.get("evidence",[]) if isinstance(x,Mapping)}
     used=[]; weighted=0.0; weight_sum=0.0
+    latest_macro_evidence_at=None
     now_utc=now.astimezone(timezone.utc)
     for bid,w in BELIEF_IDS.items():
         row=rows.get(bid)
@@ -83,15 +84,48 @@ def context(now: datetime) -> Dict[str, Any]:
         directional=(p-0.5)*2.0
         effective=directional*max(0.0,min(1.0,conf))
         weighted += w*effective; weight_sum += w
-        used.append({"belief_id":bid,"probability":round(p,6),"confidence":round(conf,6),"age_hours":round(age,3)})
+        used.append({
+            "belief_id":bid,
+            "probability":round(p,6),
+            "confidence":round(conf,6),
+            "age_hours":round(age,3),
+            "updated_at":updated.isoformat().replace("+00:00","Z"),
+        })
+        if bid in {"eurusd.macro_surprise.supportive","eurusd.policy_differential.supportive"}:
+            if latest_macro_evidence_at is None or updated > latest_macro_evidence_at:
+                latest_macro_evidence_at=updated
+    recent_events=[
+        row for row in (calendar.get("events") or [])
+        if isinstance(row,Mapping)
+        and -0.5 <= float(row.get("hours_until") or 999.0) < 0.0
+    ]
+    latest_recent_event=None
+    if recent_events:
+        latest_recent_event=max(recent_events,key=lambda row: float(row.get("hours_until") or -999.0))
+    recent_event_at=_dt(latest_recent_event.get("event_at")) if latest_recent_event else None
+    post_release_macro_evidence_fresh=bool(
+        recent_event_at is not None
+        and latest_macro_evidence_at is not None
+        and latest_macro_evidence_at >= recent_event_at
+    )
+    release_context={
+        "recent_high_impact_event":dict(latest_recent_event) if latest_recent_event else None,
+        "latest_macro_evidence_at":(
+            latest_macro_evidence_at.isoformat().replace("+00:00","Z")
+            if latest_macro_evidence_at is not None else None
+        ),
+        "post_release_macro_evidence_fresh":post_release_macro_evidence_fresh,
+        "post_release_guard_minutes":30,
+    }
     if weight_sum <= 0:
-        return {**base,"reason":"no_fresh_eurusd_beliefs","macro_calendar":calendar}
+        return {**base,"reason":"no_fresh_eurusd_beliefs","macro_calendar":calendar,"release_context":release_context}
     normalized=weighted/weight_sum
     score=max(-MAX_SCORE_CONTRIBUTION,min(MAX_SCORE_CONTRIBUTION,normalized*MAX_SCORE_CONTRIBUTION))
     return {"enabled":True,"available":True,"score":round(score,4),
             "direction":"long" if score>0 else "short" if score<0 else "neutral",
             "beliefs":used,"freshness_max_hours":MAX_AGE_HOURS,
             "score_cap":MAX_SCORE_CONTRIBUTION,"source":"belief_core","macro_calendar":calendar,
+            "release_context":release_context,
             "rule":"fresh bounded EURUSD beliefs only; no standalone execution authority"}
 
 def apply(macro: Dict[str, Any], belief: Dict[str, Any]) -> Dict[str, Any]:
