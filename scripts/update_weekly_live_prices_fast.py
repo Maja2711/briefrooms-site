@@ -290,7 +290,7 @@ def fxapi_eurusd_quote() -> Dict[str, Any]:
         "price": price,
         "timestamp": stamp.isoformat(timespec="seconds"),
         "source": "fxapi.app:EUR/USD",
-        "note": "same primary EUR/USD feed as Daily",
+        "note": "5-minute fallback for EUR/USD",
     }
 
 
@@ -311,7 +311,10 @@ def coinbase_quote() -> Dict[str, Any]:
 
 def providers(instrument_id: str) -> list[Callable[[], Dict[str, Any]]]:
     if instrument_id == "eurusd":
-        return [fxapi_eurusd_quote]
+        return [
+            lambda: yahoo_quote("eurusd"),
+            fxapi_eurusd_quote,
+        ]
 
     if instrument_id == "sp500_futures":
         return [
@@ -361,6 +364,17 @@ def newest_valid(instrument_id: str) -> tuple[Optional[Dict[str, Any]], list[str
     if not candidates:
         return None, errors
     if instrument_id == "eurusd":
+        fresh_yahoo = [
+            item for item in candidates
+            if str(item.get("source") or "").startswith("Yahoo Finance:EURUSD=X:")
+            and timedelta(seconds=-60) <= quote_age(item) <= timedelta(minutes=3)
+        ]
+        if fresh_yahoo:
+            fresh_yahoo.sort(
+                key=lambda item: parse_iso(item.get("timestamp")) or datetime.min.replace(tzinfo=WARSAW),
+                reverse=True,
+            )
+            return fresh_yahoo[0], errors
         fresh_fxapi = [
             item for item in candidates
             if str(item.get("source") or "").startswith("fxapi.app:")
@@ -387,7 +401,10 @@ def refresh_one(instrument_id: str, previous: Dict[str, Any]) -> Dict[str, Any]:
 
     chosen = candidate
     old_source = str((old or {}).get("source") or "")
-    old_aligned_for_eurusd = old_source.startswith("fxapi.app:")
+    old_aligned_for_eurusd = (
+        old_source.startswith("Yahoo Finance:EURUSD=X:")
+        or old_source.startswith("fxapi.app:")
+    )
     old_eligible = instrument_id != "eurusd" or old_aligned_for_eurusd
     if old and old_eligible and valid_quote(instrument_id, old):
         old_stamp = parse_iso(old.get("current_price_updated_at") or old.get("timestamp"))
