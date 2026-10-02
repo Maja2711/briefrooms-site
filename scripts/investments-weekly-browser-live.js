@@ -10,10 +10,12 @@
 
   const T = isEn ? {
     backend: 'BriefRooms backend',
+    priceNow: 'Price now',
     result: 'Result',
     points: 'pts',
   } : {
     backend: 'backend BriefRooms',
+    priceNow: 'Cena teraz',
     result: 'Wynik',
     points: 'pkt',
   };
@@ -701,8 +703,12 @@
       }
 
       const labelNode = nowBox.querySelector('span');
-      if (labelNode && nowBox.dataset.defaultPriceLabel) {
-        labelNode.textContent = nowBox.dataset.defaultPriceLabel;
+      if (labelNode) {
+        if (item.instrument_id === 'eurusd') {
+          labelNode.textContent = T.priceNow;
+        } else if (nowBox.dataset.defaultPriceLabel) {
+          labelNode.textContent = nowBox.dataset.defaultPriceLabel;
+        }
       }
       const currentAt = validTimestamp(nowBox.dataset.liveAt)?.valueOf() || 0;
       const quoteAt = validTimestamp(quote.updatedAt)?.valueOf() || 0;
