@@ -27,6 +27,31 @@ class ExecutionPriceEngineTests(unittest.TestCase):
             source=source,
         )
 
+    @patch("execution_price_engine._http_text")
+    def test_stooq_live_quote_parses_bid_ask_and_warsaw_timestamp(self, http_text) -> None:
+        http_text.return_value = (
+            "Symbol,Date,Time,Open,High,Low,Close,Volume,Bid,Ask\n"
+            "EURUSD,2026-10-02,10:44:08,1.12405,1.12689,1.12318,1.12506,,1.12499,1.12512\n"
+        )
+        quote = epe.fetch_stooq_eurusd_quote()
+        self.assertAlmostEqual(quote.price, 1.125055, places=7)
+        self.assertEqual(quote.timestamp.isoformat(), "2026-10-02T08:44:08+00:00")
+        self.assertEqual(quote.source, "Stooq:EURUSD:bid-ask-mid")
+
+    def test_availability_first_prefers_stooq_inside_consensus(self) -> None:
+        result = epe.verify_live_mid_quotes(
+            "SHORT",
+            [
+                self.quote(1.13403, 7, "fxapi.app:EUR/USD:mid"),
+                self.quote(1.13401, 5, "Stooq:EURUSD:bid-ask-mid"),
+                self.quote(1.13404, 8, "Yahoo Finance:EURUSD=X:1m:mid-proxy"),
+            ],
+            now=self.now,
+        )
+        self.assertTrue(result["verified"])
+        self.assertEqual(result["selected_mid_price"], 1.13401)
+        self.assertTrue(result["selected_quote"]["source"].startswith("Stooq:"))
+
     def test_live_eurusd_fill_uses_current_primary_mid_after_cross_check(self) -> None:
         result = epe.verify_live_mid_fill(
             "SHORT",
