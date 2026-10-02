@@ -886,9 +886,112 @@
       "reward_risk": 1.8,
       "risk_distance": 0.00304672,
       "schema_version": "eurusd-contextual-entry-policy-episode-v1",
-      "settlement": null,
+      "settlement": {
+        "bars": 288,
+        "outcomes": {
+          "CONTINUATION_NOW": {
+            "direction": "SHORT",
+            "entered_at": "2026-10-01T14:43:30Z",
+            "entry_mid": 1.12841344,
+            "exit_price": 1.12293,
+            "exit_reason": "TAKE_PROFIT",
+            "exit_side": "ASK",
+            "exited_at": "2026-10-01T15:50:00Z",
+            "fill_price": 1.12834,
+            "fill_side": "BID",
+            "mae_r": 0.0,
+            "mfe_r": 1.905208,
+            "net_r": 1.77568,
+            "status": "RESOLVED",
+            "stop": 1.13146,
+            "synthetic_spread_pips": 1.5,
+            "target": 1.12293
+          },
+          "FLAT": {
+            "direction": "FLAT",
+            "entry_status": "NO_TRADE",
+            "mae_r": 0.0,
+            "mfe_r": 0.0,
+            "net_r": 0.0,
+            "status": "RESOLVED",
+            "synthetic_spread_pips": 0.0
+          },
+          "PULLBACK_20_ATR": {
+            "direction": "SHORT",
+            "entered_at": "2026-10-02T14:05:00Z",
+            "entry_mid": 1.12862764,
+            "entry_status": "TRIGGERED",
+            "exit_price": 1.12862,
+            "exit_reason": "HORIZON_EXIT",
+            "exit_side": "ASK",
+            "exited_at": "2026-10-02T14:40:00Z",
+            "fill_price": 1.12855,
+            "fill_side": "BID",
+            "mae_r": -0.105197,
+            "mfe_r": 0.229027,
+            "net_r": -0.022976,
+            "pullback_depth_atr": 0.2,
+            "status": "RESOLVED",
+            "stop": 1.13167,
+            "synthetic_spread_pips": 1.5,
+            "target": 1.12314,
+            "trigger_mid": 1.12862764
+          },
+          "PULLBACK_35_ATR": {
+            "direction": "SHORT",
+            "entered_at": "2026-10-02T14:05:00Z",
+            "entry_mid": 1.1287883,
+            "entry_status": "TRIGGERED",
+            "exit_price": 1.12862,
+            "exit_reason": "HORIZON_EXIT",
+            "exit_side": "ASK",
+            "exited_at": "2026-10-02T14:40:00Z",
+            "fill_price": 1.12871,
+            "fill_side": "BID",
+            "mae_r": -0.052681,
+            "mfe_r": 0.281543,
+            "net_r": 0.02954,
+            "pullback_depth_atr": 0.35,
+            "status": "RESOLVED",
+            "stop": 1.13184,
+            "synthetic_spread_pips": 1.5,
+            "target": 1.1233,
+            "trigger_mid": 1.1287883
+          },
+          "PULLBACK_50_ATR": {
+            "direction": "SHORT",
+            "entry_status": "NOT_TRIGGERED",
+            "mae_r": 0.0,
+            "mfe_r": 0.0,
+            "net_r": 0.0,
+            "status": "RESOLVED",
+            "synthetic_spread_pips": 0.0,
+            "trigger_mid": 1.12894895
+          },
+          "REVERSAL_NOW": {
+            "direction": "LONG",
+            "entered_at": "2026-10-01T14:43:30Z",
+            "entry_mid": 1.12841344,
+            "exit_price": 1.12537,
+            "exit_reason": "STOP_LOSS",
+            "exit_side": "BID",
+            "exited_at": "2026-10-01T15:30:00Z",
+            "fill_price": 1.12849,
+            "fill_side": "ASK",
+            "mae_r": -1.713977,
+            "mfe_r": 0.0,
+            "net_r": -1.024052,
+            "status": "RESOLVED",
+            "stop": 1.12537,
+            "synthetic_spread_pips": 1.5,
+            "target": 1.1339
+          }
+        },
+        "settled_at": "2026-10-02T15:04:53Z",
+        "target_at": "2026-10-02T14:43:30Z"
+      },
       "source_id": "eurusd:20261001T144330Z:SHORT",
-      "status": "PENDING",
+      "status": "RESOLVED",
       "target_at": "2026-10-02T14:43:30Z"
     },
     {
@@ -1355,7 +1458,7 @@
     "uncertainty_penalty": 1.0
   },
   "latest_context": {
-    "atr_30m": 0.00101327,
+    "atr_30m": 0.00106715,
     "belief_probability_curve": {
       "available": true,
       "confidence": 0.455559,
@@ -1399,7 +1502,7 @@
       "candidate": {
         "confidence": 0.0,
         "direction": "FLAT",
-        "score": 59.63,
+        "score": 48.98,
         "source": null
       },
       "confidence": 0.205,
@@ -1407,7 +1510,7 @@
       "direction": "LONG",
       "score": 60.24
     },
-    "ema20": 1.12606188,
+    "ema20": 1.126156,
     "event": {
       "available": true,
       "confidence": null,
@@ -1420,14 +1523,14 @@
       "belief_macro_score": 0.0,
       "daily_confidence": 0.205,
       "daily_score_signed": 0.2048,
-      "ema20_distance_atr": 2.195108,
+      "ema20_distance_atr": 1.161625,
       "fse_analogue_median_return_atr": 0.0,
       "fse_hurst_q2": 0.472492,
       "fse_p_up_4h": 0.454725,
       "fse_risk_score": 0.364923,
-      "move_12h_atr": 3.506722,
-      "move_24h_atr": 1.380242,
-      "move_3h_atr": 4.629197,
+      "move_12h_atr": 1.902161,
+      "move_24h_atr": 1.664782,
+      "move_3h_atr": 3.915807,
       "p_up_12h": 0.316665,
       "p_up_24h": 0.316665,
       "p_up_3h": 0.316665,
@@ -1447,8 +1550,8 @@
       "regime": "STABLE",
       "risk_score": 0.3649228862410918
     },
-    "observed_at": "2026-10-02T14:38:06Z",
-    "reference_mid": 1.12828612
+    "observed_at": "2026-10-02T15:04:07Z",
+    "reference_mid": 1.12739563
   },
   "latest_recommendation": {
     "authority_fraction": 0.0,
@@ -1458,9 +1561,9 @@
     "evidence_confidence": 0.0,
     "neighbors": 0,
     "policy_stats": {},
-    "resolved_episodes": 3,
+    "resolved_episodes": 4,
     "status": "INSUFFICIENT_SIMILAR_CONTEXT"
   },
   "schema_version": "eurusd-contextual-entry-policy-learning-v2",
-  "updated_at": "2026-10-02T14:38:08Z"
+  "updated_at": "2026-10-02T15:04:53Z"
 }
