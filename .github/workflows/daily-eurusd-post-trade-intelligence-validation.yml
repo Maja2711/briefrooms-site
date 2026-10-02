@@ -54,6 +54,18 @@ jobs:
             tests.test_daily_eurusd_learning_exploration \
             tests.test_daily_eurusd_post_trade_intelligence -v
 
+      - name: Assert Daily push is validation-only
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          text=Path('.github/workflows/daily-eurusd-monitor.yml').read_text(encoding='utf-8')
+          assert "validate-on-push:" in text
+          assert "if: github.event_name == 'push'" in text
+          assert "if: github.event_name != 'push'" in text
+          assert "PUSH_VALIDATION_ONLY_NO_TRADING_STATE_MUTATION" in text
+          print("DAILY_EURUSD_PUSH_VALIDATION_ONLY_PASS")
+          PY
+
       - name: Compile active EURUSD engine chain
         run: |
           set -euo pipefail
