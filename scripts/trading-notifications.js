@@ -101,6 +101,18 @@
     return navigator.serviceWorker.ready;
   }
 
+  async function backgroundSubscriptionStatus(config, subscription) {
+    const push = config?.background_push || {};
+    if (!push.enabled || !push.api_base || !subscription?.endpoint) return null;
+    const response = await fetch(push.api_base.replace(/\/$/, "") + "/subscription-status", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ endpoint: subscription.endpoint }),
+    });
+    if (!response.ok) return null;
+    return response.json().catch(() => null);
+  }
+
   async function testBackgroundSubscription(config, subscription) {
     const push = config?.background_push || {};
     if (!push.enabled || !push.api_base) throw new Error("background_push_unavailable");
@@ -114,6 +126,7 @@
       const payload = await response.json().catch(() => ({}));
       const error = new Error(payload.error || "test_push_failed");
       error.status = response.status;
+      error.pushStatus = Number(payload.status || 0) || null;
       throw error;
     }
     return response.json().catch(() => ({ ok: true }));
@@ -150,6 +163,20 @@
         try { await subscription.unsubscribe(); } catch (_) {}
         subscription = null;
       }
+    }
+
+    // If the backend has already discarded this endpoint (for example after
+    // a 404/410 from the push provider), do not re-register the same dead
+    // browser subscription. Recreate it locally so the provider issues a
+    // fresh endpoint for this device.
+    if (subscription) {
+      try {
+        const serverStatus = await backgroundSubscriptionStatus(config, subscription);
+        if (serverStatus && serverStatus.registered === false) {
+          try { await subscription.unsubscribe(); } catch (_) {}
+          subscription = null;
+        }
+      } catch (_) {}
     }
 
     if (!subscription) {
@@ -375,6 +402,23 @@
         await pollEvents();
         closeModal();
       } catch (error) {
+        const providerStatus = Number(error?.pushStatus || error?.status || 0);
+        if (providerStatus === 404 || providerStatus === 410) {
+          try {
+            const registration = await getRegistration();
+            const stale = registration ? await registration.pushManager.getSubscription() : null;
+            if (stale) {
+              try { await stale.unsubscribe(); } catch (_) {}
+            }
+            const repaired = await syncBackgroundSubscription(config, next);
+            if (!repaired) throw new Error("subscription_repair_failed");
+            await testBackgroundSubscription(config, repaired);
+            status.textContent = t.allowed;
+            await pollEvents();
+            closeModal();
+            return;
+          } catch (_) {}
+        }
         if (error?.message === "push_manager_unavailable") {
           status.textContent = t.pushUnsupported;
         } else {
