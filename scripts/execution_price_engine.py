@@ -415,53 +415,59 @@ def _http_text(url: str, timeout: int = 8) -> str:
 
 
 def fetch_stooq_eurusd_quote(timeout: int = 8) -> Quote:
-    """Fetch the current Stooq EUR/USD quote.
-
-    Stooq's live quote endpoint exposes current quote data as CSV. We request
-    bid/ask as well as OHLC; EPE still normalizes to a single observed market
-    price because its execution contract is mid-plus-explicit-spread.
-    """
-    url = "https://stooq.pl/q/l/?s=eurusd&f=sd2t2ohlcvba&h&e=csv"
-    text = _http_text(url, timeout=timeout)
-    rows = list(csv.DictReader(io.StringIO(text)))
-    if not rows:
-        raise RuntimeError("Stooq EUR/USD quote empty")
-    row = rows[0]
-    normalized = {str(k or "").strip().lower(): str(v or "").strip() for k, v in row.items()}
-    if any(v.upper() in {"N/D", "N/A"} for v in normalized.values()):
-        raise RuntimeError("Stooq EUR/USD quote unavailable")
-
-    bid = _finite_price(normalized.get("bid"), low=EURUSD_MIN, high=EURUSD_MAX)
-    ask = _finite_price(normalized.get("ask"), low=EURUSD_MIN, high=EURUSD_MAX)
-    last = _finite_price(
-        normalized.get("close") or normalized.get("last") or normalized.get("kurs"),
-        low=EURUSD_MIN,
-        high=EURUSD_MAX,
+    """Fetch current Stooq EUR/USD, preferring Bid/Ask-capable CSV."""
+    urls = (
+        "https://stooq.com/q/l/?s=eurusd&f=sd2t2ohlcvba&h&e=csv",
+        "https://stooq.com/q/l/?s=eurusd&f=sd2t2ohlcv&h&e=csv",
+        "https://stooq.pl/q/l/?s=eurusd&f=sd2t2ohlcvba&h&e=csv",
+        "https://stooq.pl/q/l/?s=eurusd&f=sd2t2ohlcv&h&e=csv",
     )
-    if bid is not None and ask is not None and ask >= bid:
-        price = (bid + ask) / 2.0
-        source = "Stooq:EURUSD:bid-ask-mid"
-    elif last is not None:
-        price = last
-        source = "Stooq:EURUSD:live"
-    else:
-        raise RuntimeError("Stooq EUR/USD quote has no valid price")
-
-    date_text = normalized.get("date") or normalized.get("data")
-    time_text = normalized.get("time") or normalized.get("czas")
-    if not date_text or not time_text:
-        raise RuntimeError("Stooq EUR/USD quote missing timestamp")
-    parsed = None
-    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y%m%d %H%M%S", "%Y%m%d %H:%M:%S"):
+    errors: list[str] = []
+    for url in urls:
         try:
-            parsed = datetime.strptime(f"{date_text} {time_text}", fmt)
-            break
-        except ValueError:
-            continue
-    if parsed is None:
-        raise RuntimeError("Stooq EUR/USD quote timestamp invalid")
-    stamp = parsed.replace(tzinfo=ZoneInfo("Europe/Warsaw")).astimezone(timezone.utc)
-    return Quote(price=price, timestamp=stamp, source=source)
+            text = _http_text(url, timeout=timeout)
+            rows = list(csv.DictReader(io.StringIO(text)))
+            if not rows:
+                raise RuntimeError("empty")
+            row = rows[0]
+            normalized = {str(k or "").strip().lower(): str(v or "").strip() for k, v in row.items()}
+            if any(v.upper() in {"N/D", "N/A"} for v in normalized.values()):
+                raise RuntimeError("unavailable")
+
+            bid = _finite_price(normalized.get("bid"), low=EURUSD_MIN, high=EURUSD_MAX)
+            ask = _finite_price(normalized.get("ask"), low=EURUSD_MIN, high=EURUSD_MAX)
+            last = _finite_price(
+                normalized.get("close") or normalized.get("last") or normalized.get("kurs"),
+                low=EURUSD_MIN,
+                high=EURUSD_MAX,
+            )
+            if bid is not None and ask is not None and ask >= bid:
+                price = (bid + ask) / 2.0
+                source = "Stooq:EURUSD:bid-ask-mid"
+            elif last is not None:
+                price = last
+                source = "Stooq:EURUSD:live"
+            else:
+                raise RuntimeError("no_valid_price")
+
+            date_text = normalized.get("date") or normalized.get("data")
+            time_text = normalized.get("time") or normalized.get("czas")
+            if not date_text or not time_text:
+                raise RuntimeError("missing_timestamp")
+            parsed = None
+            for fmt in ("%Y-%m-%d %H:%M:%S", "%Y%m%d %H%M%S", "%Y%m%d %H:%M:%S"):
+                try:
+                    parsed = datetime.strptime(f"{date_text} {time_text}", fmt)
+                    break
+                except ValueError:
+                    continue
+            if parsed is None:
+                raise RuntimeError("invalid_timestamp")
+            stamp = parsed.replace(tzinfo=ZoneInfo("Europe/Warsaw")).astimezone(timezone.utc)
+            return Quote(price=price, timestamp=stamp, source=source)
+        except Exception as exc:
+            errors.append(f"{url}:{type(exc).__name__}")
+    raise RuntimeError(f"Stooq EUR/USD quote unavailable: {'|'.join(errors)}")
 
 
 def _http_json(url: str, timeout: int = 8) -> Mapping[str, Any]:
