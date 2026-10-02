@@ -30,6 +30,8 @@ import investments_wes_macro_belief as legacy_macro_context
 
 ENGINE_VERSION = "eurusd-daily-spot-v1.9.0"
 _epe_prepare = base.prepare_entry_candidate
+_v18_open_output = v18._open_output
+_v18_closed_output = v18._closed_output
 
 
 def _clone(
@@ -338,6 +340,37 @@ def prepare_entry_candidate(
     return _clone(prepared)
 
 
+def _open_output_v19(
+    candidate: DailyEngineOutput,
+    position: Mapping[str, Any],
+    mark_price: float,
+) -> DailyEngineOutput:
+    """Preserve legacy position facts while projecting them through v1.9 runtime."""
+    output = _v18_open_output(candidate, position, mark_price)
+    metadata = dict(output.metadata)
+    metadata["runtime_projection"] = {
+        "engine_version": ENGINE_VERSION,
+        "decision_mode": "WITH",
+        "historical_position_rewritten": False,
+    }
+    return _clone(output, metadata=metadata)
+
+
+def _closed_output_v19(
+    candidate: DailyEngineOutput,
+    trade: Mapping[str, Any],
+    history: Mapping[str, Any],
+) -> DailyEngineOutput:
+    output = _v18_closed_output(candidate, trade, history)
+    metadata = dict(output.metadata)
+    metadata["runtime_projection"] = {
+        "engine_version": ENGINE_VERSION,
+        "decision_mode": "WITH",
+        "historical_trade_rewritten": False,
+    }
+    return _clone(output, metadata=metadata)
+
+
 def _fresh_policy_shadow(
     candidate: DailyEngineOutput,
     snapshot: Any,
@@ -386,11 +419,15 @@ def _install() -> None:
     v18._fresh_policy = _fresh_policy_shadow
     v18._resume_pending = _resume_pending_v19
     v18._original_prepare_entry_candidate = prepare_entry_candidate
+    v18._open_output = _open_output_v19
+    v18._closed_output = _closed_output_v19
 
     base.ENGINE_VERSION = ENGINE_VERSION
     base.fetch_snapshot = fetch_snapshot
     base.build_output = build_output
     base.prepare_entry_candidate = prepare_entry_candidate
+    base._open_output = _open_output_v19
+    base._closed_output = _closed_output_v19
     base.run_cycle = v18.run_cycle
 
 
