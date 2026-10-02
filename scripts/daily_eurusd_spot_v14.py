@@ -30,9 +30,12 @@ import daily_eurusd_spot_v13 as v13  # installs PR25 admission/A fallback first
 ENGINE_VERSION = "eurusd-daily-spot-v1.4.0"
 SOFT_HORIZON_HOURS = 24.0
 HARD_HORIZON_HOURS = 27.0
-MIN_DYNAMIC_AGE_HOURS = 4.0
+MIN_DYNAMIC_AGE_HOURS = 0.0
 PROFIT_PROTECT_MIN_R = 0.25
 PROFIT_GIVEBACK_R = 0.25
+EDGE_GIVEBACK_MIN_MFE_R = 0.50
+EDGE_GIVEBACK_R = 0.50
+EDGE_GIVEBACK_MAX_CURRENT_R = 0.10
 LOSS_CONTAINMENT_R = -0.35
 LATE_LOSS_R = -0.15
 SOFT_EXTENSION_MIN_R = -0.10
@@ -255,24 +258,35 @@ def evaluate_position(
     feasibility = float(diagnostics["tp_feasibility_ratio"])
     hold_score = float(diagnostics["hold_score"])
 
-    if age >= MIN_DYNAMIC_AGE_HOURS:
-        # Protect an existing gain when momentum has rolled over or a meaningful
-        # fraction of MFE has already been surrendered.
-        if current_r >= PROFIT_PROTECT_MIN_R and (
-            (giveback >= PROFIT_GIVEBACK_R and v1 <= 0.0)
-            or (age >= 8.0 and hold_score <= -0.15)
-        ):
-            return _dynamic_close(position, relevant, "DYNAMIC_PROFIT_EXIT", diagnostics)
+    # Dynamic risk management has no minimum position age. A high-impact macro
+    # shock can invalidate a trade minutes after entry; waiting four hours is not
+    # a valid risk-control assumption.
+    if current_r >= PROFIT_PROTECT_MIN_R and (
+        (giveback >= PROFIT_GIVEBACK_R and v1 <= 0.0)
+        or (age >= 8.0 and hold_score <= -0.15)
+    ):
+        return _dynamic_close(position, relevant, "DYNAMIC_PROFIT_EXIT", diagnostics)
 
-        # Do not wait mechanically for -1R when both current P&L and recent
-        # directional pace have deteriorated.
-        if current_r <= LOSS_CONTAINMENT_R and v1 < 0.0 and v3 <= 0.0 and hold_score <= -0.10:
-            return _dynamic_close(position, relevant, "DYNAMIC_RISK_EXIT", diagnostics)
+    # Edge-giveback circuit breaker: once a trade has achieved meaningful MFE,
+    # do not require it to remain profitable before protection can trigger.
+    # This specifically closes the gap where +0.5R/+0.8R can reverse through
+    # breakeven during a macro shock before the next cycle.
+    if (
+        float(diagnostics["mfe_r"]) >= EDGE_GIVEBACK_MIN_MFE_R
+        and giveback >= EDGE_GIVEBACK_R
+        and current_r <= EDGE_GIVEBACK_MAX_CURRENT_R
+        and v1 <= 0.0
+    ):
+        return _dynamic_close(position, relevant, "DYNAMIC_EDGE_GIVEBACK_EXIT", diagnostics)
 
-        # Late losing/stalled trades are cut earlier when TP pace is no longer
-        # economically plausible under the remaining hard-horizon time.
-        if age >= 12.0 and current_r <= LATE_LOSS_R and feasibility < 0.35 and v1 <= 0.0 and hold_score < 0.0:
-            return _dynamic_close(position, relevant, "DYNAMIC_RISK_EXIT", diagnostics)
+    # Do not wait mechanically for -1R when both current P&L and recent
+    # directional pace have deteriorated. This is intentionally age-independent.
+    if current_r <= LOSS_CONTAINMENT_R and v1 < 0.0 and v3 <= 0.0 and hold_score <= -0.10:
+        return _dynamic_close(position, relevant, "DYNAMIC_RISK_EXIT", diagnostics)
+
+    # Late losing/stalled trades get an additional feasibility-based exit.
+    if age >= 12.0 and current_r <= LATE_LOSS_R and feasibility < 0.35 and v1 <= 0.0 and hold_score < 0.0:
+        return _dynamic_close(position, relevant, "DYNAMIC_RISK_EXIT", diagnostics)
 
     # 24h is now a soft decision point, not an automatic exit. Extension to 27h
     # is granted only if the position still has positive hold economics.
