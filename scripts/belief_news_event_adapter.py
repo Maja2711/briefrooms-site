@@ -40,6 +40,9 @@ FED_FEEDS = (
 BLS_FEEDS = (
     ("BLS latest numbers", "https://www.bls.gov/feed/bls_latest.rss"),
 )
+ECB_FEEDS = (
+    ("European Central Bank press releases", "https://www.ecb.europa.eu/rss/press.html"),
+)
 BEA_CURRENT_RELEASES = "https://www.bea.gov/news/current-releases"
 SEC_TICKER_MAP = "https://www.sec.gov/files/company_tickers.json"
 SEC_SUBMISSIONS = "https://data.sec.gov/submissions/CIK{cik:010d}.json"
@@ -185,14 +188,28 @@ def parse_rss(xml_text: str, *, source: str, now: datetime, lookback_hours: int)
         if not link or link in seen:
             continue
         seen.add(link)
-        hint = "fed_speech" if "speech" in source.lower() or "testimony" in source.lower() else "other"
+        source_lower = source.lower()
+        hint = (
+            "fed_speech"
+            if "speech" in source_lower or "testimony" in source_lower
+            else "ecb_primary"
+            if "european central bank" in source_lower
+            else "other"
+        )
+        entity = (
+            "FED"
+            if "federal reserve" in source_lower
+            else "ECB"
+            if "european central bank" in source_lower
+            else "US_MACRO"
+        )
         out.append(
             SourceDocument(
                 source=source,
                 source_ref=link,
                 title=html.unescape(title),
                 published_at=iso_z(published),
-                entity="FED" if "Federal Reserve" in source else "US_MACRO",
+                entity=entity,
                 document_text=description or title,
                 category_hint=hint,
                 reliability=.98,
@@ -608,7 +625,7 @@ class NewsEventAdapter:
 
     def collect_documents(self, now: datetime) -> List[SourceDocument]:
         documents: List[SourceDocument] = []
-        for source, url in FED_FEEDS + BLS_FEEDS:
+        for source, url in FED_FEEDS + BLS_FEEDS + ECB_FEEDS:
             try:
                 documents.extend(
                     parse_rss(
