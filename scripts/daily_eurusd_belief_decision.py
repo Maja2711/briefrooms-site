@@ -120,6 +120,9 @@ def synthesize(
         if row is None:
             unavailable.append({"belief_id": belief_id, "reason": "missing_belief"})
             continue
+        if str(row.get("audit_status") or "").lower() == "critical":
+            unavailable.append({"belief_id": belief_id, "reason": "belief_audit_critical"})
+            continue
         updated = _latest_representative_evidence_at(row, evidence)
         if updated is None:
             unavailable.append({"belief_id": belief_id, "reason": "no_representative_evidence"})
