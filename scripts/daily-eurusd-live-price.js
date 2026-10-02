@@ -6,11 +6,9 @@
 
   const isEn = document.documentElement.lang.toLowerCase().startsWith("en");
   const STATE_URL = "/data/investments/eurusd_daily_spot.json";
-  const NOTIFICATION_CONFIG_URL = "/data/notifications/trading-notification-config.json";
-  const BACKEND_LIVE_URL = "/data/investments/live_prices.json";
   const REFRESH_MS = 15_000;
   const LIVE_MAX_AGE_MS = 2 * 60_000;
-  const REQUEST_TIMEOUT_MS = 3_000;
+  const REQUEST_TIMEOUT_MS = 2_500;
 
   const T = isEn ? {
     live: "Current", engine: "Last engine price", refreshing: "refreshing", sourceLive: "live mid-market",
@@ -83,23 +81,68 @@
   }
 
 
-  async function quoteBackendLive() {
-    const data = await fetchJson(`${BACKEND_LIVE_URL}?_=${Date.now()}`);
-    const row = data?.prices?.eurusd;
-    if (!row) throw new Error("backend_live_eurusd_missing");
-    return validateQuote(
-      row.price,
-      row.current_price_updated_at || row.timestamp,
-      `BriefRooms backend · ${row.source || "live_prices.json"}`
-    );
+  async function fetchText(url) {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    try {
+      const response = await fetch(url, { cache: "no-store", mode: "cors", signal: controller.signal });
+      if (!response.ok) throw new Error(`http_${response.status}`);
+      return await response.text();
+    } finally {
+      window.clearTimeout(timeout);
+    }
   }
-  async function quoteStooq() {
-    const cfg = await fetchJson(`${NOTIFICATION_CONFIG_URL}?_=${Date.now()}`);
-    const base = cfg?.background_push?.api_base || cfg?.analytics?.api_base;
-    if (!base) throw new Error("stooq_worker_base_missing");
-    const data = await fetchJson(`${String(base).replace(/\/$/, "")}/market/eurusd?_=${Date.now()}`);
-    if (!data?.ok) throw new Error(data?.error || "stooq_worker_quote_error");
-    return validateQuote(data.price, data.fetched_at, "Stooq");
+
+  function timeZoneOffsetMs(date, timeZone) {
+    const formatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone, hour12: false, year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", second: "2-digit"
+    });
+    const parts = Object.fromEntries(formatter.formatToParts(date)
+      .filter(part => part.type !== "literal").map(part => [part.type, part.value]));
+    return Date.UTC(Number(parts.year), Number(parts.month)-1, Number(parts.day),
+      Number(parts.hour)%24, Number(parts.minute), Number(parts.second)) - date.getTime();
+  }
+
+  function warsawTimestamp(dateText, timeText) {
+    const normalized = String(timeText || "").length === 5 ? `${timeText}:00` : String(timeText || "");
+    const [y,m,d] = String(dateText || "").split("-").map(Number);
+    const [hh,mm,ss] = normalized.split(":").map(Number);
+    if (![y,m,d,hh,mm,ss].every(Number.isFinite)) throw new Error("stooq_invalid_timestamp");
+    const wallUtc = Date.UTC(y,m-1,d,hh,mm,ss);
+    const guess = new Date(wallUtc);
+    const first = timeZoneOffsetMs(guess, "Europe/Warsaw");
+    let instant = new Date(wallUtc-first);
+    const corrected = timeZoneOffsetMs(instant, "Europe/Warsaw");
+    if (corrected !== first) instant = new Date(wallUtc-corrected);
+    return instant;
+  }
+
+  function parseStooqCsv(text, source) {
+    const lines = String(text || "").trim().split(/\r?\n/).filter(Boolean);
+    if (lines.length < 2) throw new Error("stooq_missing_row");
+    const headers = lines[0].split(",").map(v => v.trim().toLowerCase());
+    const row = lines[lines.length-1].split(",").map(v => v.trim());
+    const at = name => {
+      const i = headers.indexOf(name);
+      return i >= 0 ? (row[i] || "") : "";
+    };
+    const bid = number(at("bid"));
+    const ask = number(at("ask"));
+    const close = number(at("close"));
+    const price = bid != null && ask != null ? (bid + ask) / 2 : close;
+    if (price == null) throw new Error("stooq_invalid_price");
+    return validateQuote(price, warsawTimestamp(at("date"), at("time")).toISOString(), source);
+  }
+
+  async function quoteStooq(route) {
+    const upstream = `https://stooq.com/q/l/?s=eurusd&f=sd2t2ohlcvba&h&e=csv&_=${Date.now()}`;
+    const url = route === "allorigins"
+      ? `https://api.allorigins.win/raw?url=${encodeURIComponent(upstream)}`
+      : route === "codetabs"
+        ? `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(upstream)}`
+        : upstream;
+    return parseStooqCsv(await fetchText(url), route === "direct" ? "Stooq EURUSD" : `Stooq EURUSD · ${route}`);
   }
 
   async function quoteFxApi() {
@@ -107,53 +150,25 @@
     return validateQuote(data?.rate, data?.timestamp, "fxapi.app");
   }
 
-  async function quoteYahoo(route) {
-    const upstream = `https://query1.finance.yahoo.com/v8/finance/chart/EURUSD%3DX?interval=1m&range=1d&_=${Date.now()}`;
-    const url = route === "allorigins"
-      ? `https://api.allorigins.win/raw?url=${encodeURIComponent(upstream)}`
-      : `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(upstream)}`;
-    const data = await fetchJson(url);
-    const chart = data?.chart?.result?.[0];
-    if (!chart) throw new Error("yahoo_missing_chart");
-    const timestamps = Array.isArray(chart.timestamp) ? chart.timestamp : [];
-    const closes = chart?.indicators?.quote?.[0]?.close || [];
-    for (let i = Math.min(timestamps.length, closes.length) - 1; i >= 0; i -= 1) {
-      const ts = number(timestamps[i]);
-      const price = number(closes[i]);
-      if (ts == null || price == null) continue;
-      return validateQuote(price, new Date(ts * 1000).toISOString(), route === "allorigins" ? "Yahoo EURUSD=X · backup" : "Yahoo EURUSD=X");
-    }
-    throw new Error("yahoo_missing_quote");
-  }
-
-  async function quoteCurrencyExchangeTool() {
-    const data = await fetchJson(`https://www.currencyexchangetool.com/api/v1/convert?amount=1&from=EUR&to=USD&_=${Date.now()}`);
-    if (!data || data.success === false) throw new Error("currencyexchangetool_api_error");
-    return validateQuote(data.rate ?? data.result, data.updatedAt, "Currency Exchange Tool");
-  }
-
   async function fetchLiveQuote() {
     const providers = [
-      ["BriefRooms backend", quoteBackendLive],
-      ["Stooq", quoteStooq],
-      ["Yahoo", () => quoteYahoo("codetabs")],
-      ["Yahoo backup", () => quoteYahoo("allorigins")],
+      ["Stooq direct", () => quoteStooq("direct")],
+      ["Stooq proxy 1", () => quoteStooq("codetabs")],
+      ["Stooq proxy 2", () => quoteStooq("allorigins")],
       ["fxapi.app", quoteFxApi],
-      ["Currency Exchange Tool", quoteCurrencyExchangeTool],
     ];
     const settled = await Promise.allSettled(providers.map(async ([name, provider]) => {
-      try {
-        return await provider();
-      } catch (error) {
-        throw new Error(`${name}:${error?.message || String(error)}`);
-      }
+      try { return await provider(); }
+      catch (error) { throw new Error(`${name}:${error?.message || String(error)}`); }
     }));
-    const quotes = settled
-      .filter(result => result.status === "fulfilled")
-      .map(result => result.value)
-      .sort((a, b) => new Date(b.updatedAt).valueOf() - new Date(a.updatedAt).valueOf());
-    if (quotes.length) return quotes[0];
-    const errors = settled.filter(result => result.status === "rejected").map(result => result.reason?.message || String(result.reason));
+    const quotes = settled.filter(x => x.status === "fulfilled").map(x => x.value);
+    const stooq = quotes.filter(q => String(q.source).startsWith("Stooq"))
+      .sort((a,b)=>new Date(b.updatedAt)-new Date(a.updatedAt));
+    if (stooq.length) return stooq[0];
+    const fx = quotes.filter(q => q.source === "fxapi.app")
+      .sort((a,b)=>new Date(b.updatedAt)-new Date(a.updatedAt));
+    if (fx.length) return fx[0];
+    const errors = settled.filter(x => x.status === "rejected").map(x => x.reason?.message || String(x.reason));
     throw new Error(`all_live_providers_failed:${errors.join("|")}`);
   }
 
