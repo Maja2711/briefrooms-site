@@ -33,7 +33,7 @@ class Instrument:
 
 
 INSTRUMENTS: Dict[str, Instrument] = {
-    "eurusd": Instrument("EURUSD=X", "eurusd", 0.8, 1.5, timedelta(minutes=2)),
+    "eurusd": Instrument("EURUSD=X", "eurusd", 0.8, 1.5, timedelta(minutes=5)),
     "sp500_futures": Instrument("ES=F", "es.f", 500.0, 100_000.0, timedelta(minutes=15)),
     "btcusd": Instrument("BTC-USD", None, 1_000.0, 2_000_000.0, timedelta(minutes=5)),
 }
@@ -294,23 +294,6 @@ def fxapi_eurusd_quote() -> Dict[str, Any]:
     }
 
 
-def currency_exchange_tool_eurusd_quote() -> Dict[str, Any]:
-    url = "https://www.currencyexchangetool.com/api/v1/convert?amount=1&from=EUR&to=USD"
-    data = json.loads(request_bytes(url).decode("utf-8"))
-    if not data or data.get("success") is False:
-        raise RuntimeError("Currency Exchange Tool EUR/USD API error")
-    price = safe_float(data.get("rate") if data.get("rate") is not None else data.get("result"))
-    stamp = parse_iso(data.get("updatedAt") or data.get("updated_at") or data.get("timestamp") or data.get("time"))
-    if price is None or stamp is None:
-        raise RuntimeError("Currency Exchange Tool EUR/USD quote incomplete")
-    return {
-        "price": price,
-        "timestamp": stamp.isoformat(timespec="seconds"),
-        "source": "Currency Exchange Tool:EUR/USD",
-        "note": "same fallback EUR/USD feed as Daily",
-    }
-
-
 def coinbase_quote() -> Dict[str, Any]:
     url = "https://api.exchange.coinbase.com/products/BTC-USD/ticker"
     data = json.loads(request_bytes(url).decode("utf-8"))
@@ -328,10 +311,7 @@ def coinbase_quote() -> Dict[str, Any]:
 
 def providers(instrument_id: str) -> list[Callable[[], Dict[str, Any]]]:
     if instrument_id == "eurusd":
-        return [
-            currency_exchange_tool_eurusd_quote,
-            fxapi_eurusd_quote,
-        ]
+        return [fxapi_eurusd_quote]
 
     if instrument_id == "sp500_futures":
         return [
@@ -381,17 +361,6 @@ def newest_valid(instrument_id: str) -> tuple[Optional[Dict[str, Any]], list[str
     if not candidates:
         return None, errors
     if instrument_id == "eurusd":
-        fresh_primary = [
-            item for item in candidates
-            if str(item.get("source") or "").startswith("Currency Exchange Tool:")
-            and timedelta(seconds=-60) <= quote_age(item) <= INSTRUMENTS["eurusd"].max_age
-        ]
-        if fresh_primary:
-            fresh_primary.sort(
-                key=lambda item: parse_iso(item.get("timestamp")) or datetime.min.replace(tzinfo=WARSAW),
-                reverse=True,
-            )
-            return fresh_primary[0], errors
         fresh_fxapi = [
             item for item in candidates
             if str(item.get("source") or "").startswith("fxapi.app:")
@@ -418,10 +387,7 @@ def refresh_one(instrument_id: str, previous: Dict[str, Any]) -> Dict[str, Any]:
 
     chosen = candidate
     old_source = str((old or {}).get("source") or "")
-    old_aligned_for_eurusd = (
-        old_source.startswith("Currency Exchange Tool:")
-        or old_source.startswith("fxapi.app:")
-    )
+    old_aligned_for_eurusd = old_source.startswith("fxapi.app:")
     old_eligible = instrument_id != "eurusd" or old_aligned_for_eurusd
     if old and old_eligible and valid_quote(instrument_id, old):
         old_stamp = parse_iso(old.get("current_price_updated_at") or old.get("timestamp"))
