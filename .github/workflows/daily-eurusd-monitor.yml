@@ -16,6 +16,7 @@ on:
       - "scripts/daily_eurusd_spot_v15.py"
       - "scripts/daily_eurusd_spot_v16.py"
       - "scripts/daily_eurusd_spot_v17.py"
+      - "scripts/daily_eurusd_spot_v18.py"
       - "scripts/daily_eurusd_spot_v19.py"
       - "scripts/investments_wes_macro_belief.py"
       - "scripts/daily_eurusd_contextual_policy_learning.py"
@@ -95,6 +96,7 @@ jobs:
             scripts/daily_eurusd_spot_v15.py \
             scripts/daily_eurusd_spot_v16.py \
             scripts/daily_eurusd_spot_v17.py \
+            scripts/daily_eurusd_spot_v18.py \
             scripts/daily_eurusd_spot_v19.py \
             scripts/execution_price_engine.py
           echo "PUSH_VALIDATION_ONLY_NO_TRADING_STATE_MUTATION"
@@ -175,6 +177,7 @@ jobs:
             scripts/daily_eurusd_spot_v15.py \
             scripts/daily_eurusd_spot_v16.py \
             scripts/daily_eurusd_spot_v17.py \
+            scripts/daily_eurusd_spot_v18.py \
             scripts/daily_eurusd_spot_v19.py \
             scripts/investments_wes_macro_belief.py \
             scripts/daily_eurusd_contextual_policy_learning.py \
@@ -216,7 +219,7 @@ jobs:
           }
           leaked=sorted(reasons & forbidden)
           if leaked:
-              raise SystemExit(f'legacy admission veto leaked into v1.8 runtime: {leaked}')
+              raise SystemExit(f'legacy admission veto leaked into v1.9 runtime: {leaked}')
           version=payload.get('engine_version')
           if version != 'eurusd-daily-spot-v1.9.0':
               raise SystemExit(f"unexpected EUR/USD engine version: {version}")
@@ -235,23 +238,29 @@ jobs:
               raise SystemExit('v1.9 flat/new-entry output missing contextual entry policy metadata')
           if contextual_policy and contextual_policy.get('direction_mutation_allowed') is not False:
               raise SystemExit('contextual entry policy must not own market direction')
-          policy=metadata.get('ecb_policy') or {}
-          if not policy.get('enabled'):
-              raise SystemExit('v1.8 output missing ECB policy context')
-          cb=metadata.get('central_bank_policy') or {}
-          if not cb.get('new_entry_veto_enabled') or not cb.get('fail_closed_during_event_window'):
-              raise SystemExit('v1.9 ECB policy safety gate is not enabled')
-          data=metadata.get('data') or {}
-          if 'ecb_policy_coverage' not in data:
-              raise SystemExit('v1.9 output missing ecb_policy_coverage')
+          pipeline=metadata.get('belief_pipeline') or {}
+          if pipeline.get('architecture') != 'BELIEF_FIRST_V1' or pipeline.get('final_decision_after_belief') is not True:
+              raise SystemExit(f'v1.9 output missing Belief-first pipeline contract: {pipeline}')
           authority=metadata.get('direction_authority') or {}
-          if not position and payload.get('direction') in {'LONG','SHORT'}:
-              if authority.get('owner') != 'NATIVE_DAILY_EURUSD_DIRECTION_ENGINE' or authority.get('allowed') is not True:
-                  raise SystemExit(f"non-native direction authority leaked into production: {authority}")
-              if authority.get('source') != 'NATIVE':
-                  raise SystemExit(f"directional candidate source is not NATIVE: {authority}")
-          source=authority.get('source','NATIVE_OR_FLAT')
-          print('EURUSD_V19_BELIEF_FIRST_OK', payload.get('direction'), candidate.get('direction'), candidate.get('accepted'), source, sorted(reasons), policy.get('status'), data.get('ecb_policy_coverage'))
+          final_decision=metadata.get('final_decision') or {}
+          if authority.get('owner') != 'NATIVE_DAILY_EURUSD_BELIEF_FIRST_DECISION_ENGINE':
+              raise SystemExit(f'unexpected v1.9 direction owner: {authority}')
+          if authority.get('source') != 'BELIEF_CORE':
+              raise SystemExit(f'v1.9 final direction is not sourced from Belief Core: {authority}')
+          if final_decision.get('legacy_raw_score_direction_authority') is not False:
+              raise SystemExit('legacy raw EURUSD/UUP/TLT direction authority leaked into v1.9')
+          shadow=metadata.get('shadow_boundary') or {}
+          for name in ('A_B_C','FSE','EURUSD_X'):
+              row=shadow.get(name) or {}
+              if row.get('production_direction_authority') is not False:
+                  raise SystemExit(f'{name} regained production direction authority: {row}')
+              if row.get('production_timing_authority') is not False:
+                  raise SystemExit(f'{name} regained production timing authority: {row}')
+          contextual=metadata.get('contextual_entry_policy') or {}
+          if contextual and contextual.get('decision_influence') is not False:
+              raise SystemExit(f'legacy contextual learner still influences v1.9 production: {contextual}')
+          source=authority.get('source','BELIEF_CORE')
+          print('EURUSD_V19_BELIEF_FIRST_OK', payload.get('direction'), final_decision.get('direction'), candidate.get('accepted'), source, sorted(reasons), final_decision.get('coverage_weight'))
           PY
 
       - name: Build trading notification transition from canonical Daily state
