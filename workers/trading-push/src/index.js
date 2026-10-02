@@ -326,9 +326,21 @@ export class PushHub {
         await this.ctx.storage.put(`event-complete:${event.event_id}`, true);
       }
       await this.ctx.storage.put("feed_initialized", true);
+      await this.ctx.storage.put("delivery_v2_initialized", true);
       return { ok: true, seeded: events.length, sent: 0, failed: 0, expired: 0, pending: 0 };
     }
     if (!initialized) await this.ctx.storage.put("feed_initialized", true);
+
+    // One-time migration: legacy seen:* keys represented globally consumed events.
+    // Convert them to event-complete:* once, then never consult seen:* again.
+    if (!await this.ctx.storage.get("delivery_v2_initialized")) {
+      const legacySeen = await this.ctx.storage.list({ prefix: "seen:" });
+      for (const [key] of legacySeen.entries()) {
+        const eventIdValue = key.slice("seen:".length);
+        if (eventIdValue) await this.ctx.storage.put(`event-complete:${eventIdValue}`, true);
+      }
+      await this.ctx.storage.put("delivery_v2_initialized", true);
+    }
 
     let sent = 0;
     let failed = 0;
@@ -349,15 +361,6 @@ export class PushHub {
       if (!event?.event_id) continue;
       const eventCompleteKey = `event-complete:${event.event_id}`;
       if (await this.ctx.storage.get(eventCompleteKey)) continue;
-
-      // Migration from the legacy global seen-key model. Historical events already
-      // marked seen must not be replayed to every subscriber after this deploy.
-      // A recovery event uses a fresh event_id, so it still goes through normally.
-      const legacySeenKey = `seen:${event.event_id}`;
-      if (await this.ctx.storage.get(legacySeenKey)) {
-        await this.ctx.storage.put(eventCompleteKey, true);
-        continue;
-      }
 
       let eventFailed = 0;
       let eventEligible = 0;
@@ -380,7 +383,7 @@ export class PushHub {
           sent += 1;
         } catch (error) {
           const status = Number(error?.statusCode || 0);
-          if (status === 404 || status === 410) {
+          if (status === 403 || status === 404 || status === 410) {
             await this.ctx.storage.delete(key);
             await this.ctx.storage.put(deliveredKey, true);
             expired += 1;
@@ -399,9 +402,6 @@ export class PushHub {
         pending += 1;
       }
 
-      // Keep the legacy key only for diagnostics. It is no longer used to suppress
-      // retries because delivery is tracked per event + subscription.
-      await this.ctx.storage.put(`seen:${event.event_id}`, true);
     }
 
     const stats = (await this.ctx.storage.get("stats")) || {};
