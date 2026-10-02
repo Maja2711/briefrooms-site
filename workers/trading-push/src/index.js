@@ -108,12 +108,33 @@ function parseStooqQuoteCsv(text) {
 }
 
 async function fetchStooqEurusd(env) {
-  const base = env.STOOQ_EURUSD_URL || "https://stooq.pl/q/l/?s=eurusd&f=sd2t2ohlcvba&h&e=csv";
-  const response = await fetch(`${base}${base.includes("?") ? "&" : "?"}_=${Date.now()}`, {
-    headers: { "cache-control": "no-cache", "accept": "text/csv,text/plain,*/*" },
-  });
-  if (!response.ok) throw new Error(`stooq_eurusd_http_${response.status}`);
-  return parseStooqQuoteCsv(await response.text());
+  const configured = String(env.STOOQ_EURUSD_URL || "").trim();
+  const candidates = configured
+    ? [configured]
+    : [
+        "https://stooq.com/q/l/?s=eurusd&f=sd2t2ohlcvba&h&e=csv",
+        "https://stooq.com/q/l/?s=eurusd&f=sd2t2ohlcv&h&e=csv",
+        "https://stooq.pl/q/l/?s=eurusd&f=sd2t2ohlcvba&h&e=csv",
+        "https://stooq.pl/q/l/?s=eurusd&f=sd2t2ohlcv&h&e=csv",
+      ];
+  const errors = [];
+  for (const base of candidates) {
+    try {
+      const response = await fetch(`${base}${base.includes("?") ? "&" : "?"}_=${Date.now()}`, {
+        headers: {
+          "cache-control": "no-cache",
+          "accept": "text/csv,text/plain,*/*",
+          "user-agent": "Mozilla/5.0 (compatible; BriefRooms/1.0; +https://briefrooms.com)",
+        },
+      });
+      if (!response.ok) throw new Error(`http_${response.status}`);
+      const quote = parseStooqQuoteCsv(await response.text());
+      return { ...quote, endpoint: base.includes("stooq.pl") ? "stooq.pl" : "stooq.com" };
+    } catch (error) {
+      errors.push(`${base.includes("stooq.pl") ? "pl" : "com"}:${String(error?.message || error)}`);
+    }
+  }
+  throw new Error(`stooq_eurusd_all_candidates_failed:${errors.join("|")}`);
 }
 
 function fastExitHitQuote(position, quote) {
