@@ -1,14 +1,40 @@
 from __future__ import annotations
 
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
+from scripts.belief_market_data_adapter import Bar, MarketSnapshot
 from scripts.daily_eurusd_lifecycle import append_trade, empty_history
+from scripts import daily_eurusd_spot as base
 from scripts.daily_eurusd_spot_v12 import (
     ENGINE_VERSION,
     direct_entry_gate,
     direct_learning_state,
 )
+
+
+def aligned_snapshot(*, proxy_lag_minutes: int = 0) -> MarketSnapshot:
+    end = datetime(2026, 8, 20, 15, 0, tzinfo=timezone.utc)
+    def rows(symbol: str, lag: int, drift: float) -> list[Bar]:
+        out=[]
+        start=end-timedelta(minutes=30*79)-timedelta(minutes=lag)
+        price=1.10 if symbol=="EURUSD=X" else 25.0 if symbol=="UUP" else 90.0
+        for i in range(80):
+            price *= 1.0 + drift
+            out.append(Bar(
+                timestamp=start+timedelta(minutes=30*i),
+                open=price,
+                high=price*1.0005,
+                low=price*0.9995,
+                close=price,
+                volume=1000+i,
+            ))
+        return out
+    return MarketSnapshot({
+        "EURUSD=X": rows("EURUSD=X",0,0.0008),
+        "UUP": rows("UUP",proxy_lag_minutes,-0.0008),
+        "TLT": rows("TLT",proxy_lag_minutes,0.0008),
+    })
 
 
 class DailyEurusdDirectSignalAdmissionTests(unittest.TestCase):
@@ -73,6 +99,20 @@ class DailyEurusdDirectSignalAdmissionTests(unittest.TestCase):
         )
         self.assertFalse(gate["accepted"])
         self.assertEqual(gate["reasons"], ["raw_score_neutral"])
+
+    def test_cross_asset_timestamp_gap_blocks_even_direct_native_signal(self):
+        output = base.build_output(aligned_snapshot(proxy_lag_minutes=180), empty_history())
+        self.assertEqual(output.direction, "FLAT")
+        self.assertFalse(output.metadata["candidate"]["accepted"])
+        self.assertIn("cross_asset_data_misaligned", output.metadata["candidate"]["gate_reasons"])
+        alignment = output.metadata["data"]["cross_asset_alignment"]
+        self.assertFalse(alignment["passed"])
+        self.assertGreater(alignment["max_gap_minutes"], 90.0)
+
+    def test_aligned_cross_asset_inputs_do_not_block_native_signal(self):
+        output = base.build_output(aligned_snapshot(proxy_lag_minutes=0), empty_history())
+        self.assertIn(output.direction, {"LONG", "SHORT"})
+        self.assertTrue(output.metadata["data"]["cross_asset_alignment"]["passed"])
 
     def test_learning_keeps_weights_but_has_no_admission_limits(self):
         state = direct_learning_state(self._loss_history()["trades"])
