@@ -11,6 +11,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: deploy-trading-push-backend
+  cancel-in-progress: true
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -69,22 +73,23 @@ jobs:
           curl --fail --silent --show-error --retry 5 --retry-delay 2 https://briefrooms-trading-push.szczerbinski0577.workers.dev/health -o /tmp/push-health.json
           node -e 'const fs=require("fs"); const j=JSON.parse(fs.readFileSync("/tmp/push-health.json","utf8")); if(!j.ok || !j.ready) { console.error(j); process.exit(1); } console.log(j)'
 
-      - name: Probe production EURUSD market feed
-        continue-on-error: true
+      - name: Verify canonical production EURUSD 1m feed
         run: |
-          set -u
-          if curl --silent --show-error --retry 2 --retry-delay 1 \
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 5 --retry-delay 2 \
             https://briefrooms-trading-push.szczerbinski0577.workers.dev/market/eurusd \
             -o /tmp/eurusd-market.json
-          then
-            node - <<'NODE'
+          node - <<'NODE'
           const fs=require("fs");
           const j=JSON.parse(fs.readFileSync("/tmp/eurusd-market.json","utf8"));
-          console.log("EURUSD_MARKET_PROBE", j);
+          const yahoo = String(j.source || "").includes("Yahoo Finance");
+          const valid = j.ok === true && j.ohlc_1m === true && yahoo && Number.isFinite(Number(j.price));
+          if (!valid) {
+            console.error("CANONICAL_EURUSD_1M_FEED_NOT_READY", j);
+            process.exit(1);
+          }
+          console.log("CANONICAL_EURUSD_1M_FEED_OK", j.source, j.price, j.high, j.low, j.timestamp);
           NODE
-          else
-            echo "EURUSD market probe unavailable; deployment remains valid because the fast watcher has Yahoo/fxapi fallbacks."
-          fi
 
       - name: Persist public push health snapshot
         run: |
