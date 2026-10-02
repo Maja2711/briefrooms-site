@@ -7,6 +7,7 @@ import io
 import json
 import math
 import re
+import statistics
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -351,6 +352,60 @@ def providers(instrument_id: str) -> list[Callable[[], Dict[str, Any]]]:
     return result
 
 
+def eurusd_source_family(source: Any) -> str:
+    text = str(source or "").lower()
+    if "stooq" in text:
+        return "stooq"
+    if "yahoo" in text:
+        return "yahoo"
+    if "fxapi" in text:
+        return "fxapi"
+    if "currency exchange" in text:
+        return "currency"
+    return text or "unknown"
+
+
+def choose_eurusd_consensus(candidates: list[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    if not candidates:
+        return None
+    by_family: Dict[str, Dict[str, Any]] = {}
+    for quote in candidates:
+        family = eurusd_source_family(quote.get("source"))
+        previous = by_family.get(family)
+        previous_at = parse_iso(previous.get("timestamp")) if previous else None
+        quote_at = parse_iso(quote.get("timestamp"))
+        if previous is None or (quote_at and (previous_at is None or quote_at > previous_at)):
+            by_family[family] = quote
+    distinct = list(by_family.values())
+    if len(distinct) == 1:
+        return distinct[0]
+
+    prices = [float(item["price"]) for item in distinct if safe_float(item.get("price")) is not None]
+    if not prices:
+        return None
+    median_price = statistics.median(prices)
+    inliers = [
+        item for item in distinct
+        if abs(float(item["price"]) - median_price) / 0.0001 <= 1.5
+    ]
+    if len(inliers) >= 2:
+        inliers.sort(key=lambda item: parse_iso(item.get("timestamp")) or datetime.min.replace(tzinfo=WARSAW), reverse=True)
+        return inliers[0]
+
+    if len(distinct) == 2:
+        spread_pips = abs(float(distinct[0]["price"]) - float(distinct[1]["price"])) / 0.0001
+        if spread_pips <= 1.5:
+            distinct.sort(key=lambda item: parse_iso(item.get("timestamp")) or datetime.min.replace(tzinfo=WARSAW), reverse=True)
+            return distinct[0]
+
+    priority = {"stooq": 0, "fxapi": 1, "yahoo": 2, "currency": 3}
+    distinct.sort(key=lambda item: (
+        priority.get(eurusd_source_family(item.get("source")), 99),
+        -(parse_iso(item.get("timestamp")) or datetime.min.replace(tzinfo=WARSAW)).timestamp(),
+    ))
+    return distinct[0]
+
+
 def newest_valid(instrument_id: str) -> tuple[Optional[Dict[str, Any]], list[str]]:
     candidates: list[Dict[str, Any]] = []
     errors: list[str] = []
@@ -382,6 +437,8 @@ def newest_valid(instrument_id: str) -> tuple[Optional[Dict[str, Any]], list[str
 
     if not candidates:
         return None, errors
+    if instrument_id == "eurusd":
+        return choose_eurusd_consensus(candidates), errors
     candidates.sort(
         key=lambda item: parse_iso(item.get("timestamp")) or datetime.min.replace(tzinfo=WARSAW),
         reverse=True,
