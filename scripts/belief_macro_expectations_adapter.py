@@ -96,10 +96,30 @@ def _valid_forecasts(rows: Any, now: datetime) -> list[dict[str, Any]]:
         item["published_at"] = iso_z(published_at)
         item["forecast"] = forecast
         try:
-            item["accuracy_weight"] = max(0.05, min(5.0, float(row.get("accuracy_weight") or 1.0)))
+            historical_mae = float(row.get("historical_mae"))
+            item["historical_mae"] = historical_mae if historical_mae > 0 else None
         except (TypeError, ValueError):
-            item["accuracy_weight"] = 1.0
+            item["historical_mae"] = None
+        # Do not trust an externally asserted "accuracy_weight". The canonical
+        # weight is derived below from observed historical forecast error.
+        item["accuracy_weight"] = 1.0
         valid.append(item)
+
+    mae_rows = [float(row["historical_mae"]) for row in valid if row.get("historical_mae") is not None]
+    if len(mae_rows) >= 2:
+        benchmark_mae = median(mae_rows)
+        for item in valid:
+            mae = item.get("historical_mae")
+            if mae is None:
+                item["accuracy_weight"] = 1.0
+                item["accuracy_weight_source"] = "equal_weight_missing_history"
+                continue
+            item["accuracy_weight"] = max(0.5, min(2.0, benchmark_mae / float(mae)))
+            item["accuracy_weight_source"] = "inverse_historical_mae_normalized"
+    else:
+        for item in valid:
+            item["accuracy_weight"] = 1.0
+            item["accuracy_weight_source"] = "equal_weight_insufficient_history"
     return valid
 
 
@@ -173,6 +193,11 @@ def _observation(release: Mapping[str, Any], now: datetime, provider: str) -> Ob
             "forecast_count": len(forecasts),
             "forecasts": forecasts,
             "probability_proxy_requires_historical_mae": True,
+            "accuracy_weight_method": (
+                "inverse_historical_mae_normalized"
+                if sum(1 for row in forecasts if row.get("historical_mae") is not None) >= 2
+                else "equal_weight_insufficient_history"
+            ),
             "probability_proxy_calibrated": False,
             "note": (
                 "Probability proxy is a weighted forecast-error mixture when historical_mae is supplied; "
