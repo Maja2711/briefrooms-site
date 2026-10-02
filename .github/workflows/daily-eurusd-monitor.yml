@@ -16,7 +16,7 @@ on:
       - "scripts/daily_eurusd_spot_v15.py"
       - "scripts/daily_eurusd_spot_v16.py"
       - "scripts/daily_eurusd_spot_v17.py"
-      - "scripts/daily_eurusd_spot_v18.py"
+      - "scripts/daily_eurusd_spot_v19.py"
       - "scripts/investments_wes_macro_belief.py"
       - "scripts/daily_eurusd_contextual_policy_learning.py"
       - "scripts/execution_price_engine.py"
@@ -82,6 +82,7 @@ jobs:
             tests.test_execution_price_engine \
             tests.test_daily_eurusd_contextual_policy_learning \
             tests.test_daily_eurusd_contextual_production_policy \
+            tests.test_daily_eurusd_belief_first \
             tests.test_no_retroactive_execution -v
           python -m py_compile \
             scripts/daily_engine_contract.py \
@@ -94,7 +95,7 @@ jobs:
             scripts/daily_eurusd_spot_v15.py \
             scripts/daily_eurusd_spot_v16.py \
             scripts/daily_eurusd_spot_v17.py \
-            scripts/daily_eurusd_spot_v18.py \
+            scripts/daily_eurusd_spot_v19.py \
             scripts/execution_price_engine.py
           echo "PUSH_VALIDATION_ONLY_NO_TRADING_STATE_MUTATION"
 
@@ -161,6 +162,7 @@ jobs:
             tests.test_execution_price_engine \
             tests.test_daily_eurusd_contextual_policy_learning \
             tests.test_daily_eurusd_contextual_production_policy \
+            tests.test_daily_eurusd_belief_first \
             tests.test_no_retroactive_execution -v
           python -m py_compile \
             scripts/daily_engine_contract.py \
@@ -173,9 +175,10 @@ jobs:
             scripts/daily_eurusd_spot_v15.py \
             scripts/daily_eurusd_spot_v16.py \
             scripts/daily_eurusd_spot_v17.py \
-            scripts/daily_eurusd_spot_v18.py \
+            scripts/daily_eurusd_spot_v19.py \
             scripts/investments_wes_macro_belief.py \
             scripts/daily_eurusd_contextual_policy_learning.py \
+            scripts/daily_eurusd_belief_decision.py \
             scripts/execution_price_engine.py \
             scripts/daily_eurusd_policy.py \
             scripts/daily_eurusd_experiment.py \
@@ -183,13 +186,13 @@ jobs:
             scripts/no_retroactive_execution.py \
             scripts/verify_no_retroactive_execution.py \
             scripts/build_trading_notification_events.py
-      - name: Reconcile position with v1.8 contextual entry policy
+      - name: Reconcile position with v1.9 Belief-first final decision
         run: |
           set -euo pipefail
-          python scripts/daily_eurusd_spot_v18.py \
+          python scripts/daily_eurusd_spot_v19.py \
             --output data/investments/eurusd_daily_spot.json \
             --history data/investments/eurusd_daily_history.json
-          python scripts/daily_eurusd_spot_v18.py \
+          python scripts/daily_eurusd_spot_v19.py \
             --output data/investments/eurusd_daily_spot.json \
             --history data/investments/eurusd_daily_history.json \
             --validate
@@ -215,21 +218,21 @@ jobs:
           if leaked:
               raise SystemExit(f'legacy admission veto leaked into v1.8 runtime: {leaked}')
           version=payload.get('engine_version')
-          if version != 'eurusd-daily-spot-v1.8.0':
+          if version != 'eurusd-daily-spot-v1.9.0':
               raise SystemExit(f"unexpected EUR/USD engine version: {version}")
           metadata=payload.get('metadata') or {}
           dynamic=metadata.get('dynamic_exit') or {}
           if not dynamic.get('enabled'):
-              raise SystemExit('v1.8 output missing dynamic-exit metadata')
+              raise SystemExit('v1.9 output missing dynamic-exit metadata')
           guard=metadata.get('same_thesis_reentry_guard') or {}
           if not guard.get('enabled'):
-              raise SystemExit('v1.8 output missing same-thesis re-entry guard metadata')
+              raise SystemExit('v1.9 output missing same-thesis re-entry guard metadata')
           contextual_policy=metadata.get('contextual_entry_policy') or {}
           position=metadata.get('position') or {}
           lifecycle_status=str(payload.get('status') or '').upper()
           terminal_close=lifecycle_status in {'CLOSED_SL','CLOSED_TP','CLOSED_TIME','CLOSED_DYNAMIC','CLOSED_EVENT'}
           if not contextual_policy and not position and not terminal_close:
-              raise SystemExit('v1.8 flat/new-entry output missing contextual entry policy metadata')
+              raise SystemExit('v1.9 flat/new-entry output missing contextual entry policy metadata')
           if contextual_policy and contextual_policy.get('direction_mutation_allowed') is not False:
               raise SystemExit('contextual entry policy must not own market direction')
           policy=metadata.get('ecb_policy') or {}
@@ -237,10 +240,10 @@ jobs:
               raise SystemExit('v1.8 output missing ECB policy context')
           cb=metadata.get('central_bank_policy') or {}
           if not cb.get('new_entry_veto_enabled') or not cb.get('fail_closed_during_event_window'):
-              raise SystemExit('v1.8 ECB policy safety gate is not enabled')
+              raise SystemExit('v1.9 ECB policy safety gate is not enabled')
           data=metadata.get('data') or {}
           if 'ecb_policy_coverage' not in data:
-              raise SystemExit('v1.8 output missing ecb_policy_coverage')
+              raise SystemExit('v1.9 output missing ecb_policy_coverage')
           authority=metadata.get('direction_authority') or {}
           if not position and payload.get('direction') in {'LONG','SHORT'}:
               if authority.get('owner') != 'NATIVE_DAILY_EURUSD_DIRECTION_ENGINE' or authority.get('allowed') is not True:
@@ -248,7 +251,7 @@ jobs:
               if authority.get('source') != 'NATIVE':
                   raise SystemExit(f"directional candidate source is not NATIVE: {authority}")
           source=authority.get('source','NATIVE_OR_FLAT')
-          print('EURUSD_V18_OK', payload.get('direction'), candidate.get('direction'), candidate.get('accepted'), source, sorted(reasons), policy.get('status'), data.get('ecb_policy_coverage'))
+          print('EURUSD_V19_BELIEF_FIRST_OK', payload.get('direction'), candidate.get('direction'), candidate.get('accepted'), source, sorted(reasons), policy.get('status'), data.get('ecb_policy_coverage'))
           PY
 
       - name: Build trading notification transition from canonical Daily state
@@ -303,10 +306,10 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
 
-            python scripts/daily_eurusd_spot_v18.py \
+            python scripts/daily_eurusd_spot_v19.py \
               --output data/investments/eurusd_daily_spot.json \
               --history data/investments/eurusd_daily_history.json
-            python scripts/daily_eurusd_spot_v18.py \
+            python scripts/daily_eurusd_spot_v19.py \
               --output data/investments/eurusd_daily_spot.json \
               --history data/investments/eurusd_daily_history.json \
               --validate
