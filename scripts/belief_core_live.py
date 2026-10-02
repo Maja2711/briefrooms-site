@@ -30,6 +30,7 @@ from belief_v3_candidate_adapter import (
     candidate_outcome_spec,
 )
 from belief_macro_release_adapter import MACRO_BELIEFS
+from belief_macro_calendar_adapter import MacroEventCalendarAdapter
 from belief_wes_assets_adapter import (
     WES_ASSET_BELIEFS,
     WESAssetEvidenceAdapter,
@@ -718,6 +719,10 @@ def run_cycle(state_dir: Path, now: datetime, client: YahooChartClient) -> Dict[
         "observations": 0,
         "evidence": 0,
     }
+    eurusd_calendar_coverage: Dict[str, Any] = {
+        "status": "not_due",
+        "complete": None,
+    }
 
     # Daily EUR/USD is a 24x5 consumer. Outside the US cash-session collection
     # window, refresh only its dedicated market/cross-asset adapter. UUP/TLT
@@ -725,6 +730,24 @@ def run_cycle(state_dir: Path, now: datetime, client: YahooChartClient) -> Dict[
     # instead of being falsely refreshed by a new EUR/USD timestamp.
     if in_fx_window(local) and not in_market_window(local):
         eurusd_liveness["attempted"] = True
+
+        calendar_key = f"eurusd-calendar:{local.date().isoformat()}:{local.hour:02d}"
+        if calendar_key not in completed:
+            calendar = MacroEventCalendarAdapter()
+            calendar_result = calendar.run(now)
+            observation_count += append_observations(state_dir, calendar_result.observations)
+            coverage = calendar.source_status()
+            eurusd_calendar_coverage = {
+                "status": "ok" if coverage.get("complete") else "coverage_failed",
+                **coverage,
+            }
+            completed[calendar_key] = iso_z(now)
+        else:
+            eurusd_calendar_coverage = {
+                "status": "already_checked_this_hour",
+                "complete": None,
+            }
+
         asset_bars: Dict[str, List[Bar]] = {}
         for symbol in ("EURUSD=X", "UUP", "TLT"):
             try:
@@ -820,6 +843,7 @@ def run_cycle(state_dir: Path, now: datetime, client: YahooChartClient) -> Dict[
         "forecasts_verified": verified,
         "wes_asset_coverage": wes_asset_coverage_report(),
         "eurusd_24x5_liveness": eurusd_liveness,
+        "eurusd_macro_calendar_coverage": eurusd_calendar_coverage,
         "mode": MODE,
     }
     scheduler["gaps"] = scheduler.get("gaps", [])[-100:]
