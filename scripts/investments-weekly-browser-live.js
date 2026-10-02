@@ -23,14 +23,16 @@
   const FEEDS = {
     eurusd: {
       pollMs: 15_000,
-      maxAgeMs: 5 * 60_000,
+      maxAgeMs: 3 * 60_000,
       backendMaxAgeMs: 5 * 60_000,
       minPrice: 0.8,
       maxPrice: 1.5,
       directPriority: 'first-fresh',
       directAuthoritativeWhenFresh: true,
       sources: [
-        { name: 'fxapi.app', fetch: fetchEurUsdFxApi },
+        { name: 'Yahoo EURUSD=X 1m', fetch: () => fetchYahooQuote('EURUSD=X', 'codetabs') },
+        { name: 'Yahoo EURUSD=X 1m backup', fetch: () => fetchYahooQuote('EURUSD=X', 'allorigins') },
+        { name: 'fxapi.app 5m fallback', fetch: fetchEurUsdFxApi },
       ],
     },
     btcusd: {
