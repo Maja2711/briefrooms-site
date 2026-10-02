@@ -135,8 +135,9 @@ def build_output(
         raise ValueError("EUR/USD market series is required for timestamp and risk geometry")
     observed_at = rows[-1].timestamp.astimezone(timezone.utc)
 
-    state = belief_decision.load_state()
+    state, consumer_meta = belief_decision.load_effective_state(observed_at=observed_at)
     decision = belief_decision.synthesize(state, observed_at=observed_at)
+    decision["epistemic_consumer"] = dict(consumer_meta)
     direction = str(decision["direction"])
     entry, stop, target = _market_geometry(snapshot, direction)
 
@@ -161,12 +162,15 @@ def build_output(
         "belief": {
             "mode": "WITH",
             "decision_influence": True,
-            "source": "BriefRooms Belief Core state",
+            "source": "CF-07 Epistemic Consumer Interface over BriefRooms Belief Core",
+            "consumer": "DAILY_EURUSD",
             "trade_execution_authority": False,
         },
         "belief_pipeline": {
             "architecture": "BELIEF_FIRST_V1",
-            "order": decision["routing"],
+            "order": [*decision["routing"][:-1], "EPISTEMIC_CONSUMER_INTERFACE", decision["routing"][-1]],
+            "consumer_contract": consumer_meta.get("contract"),
+            "consumer_available": consumer_meta.get("available"),
             "raw_market_direction_before_belief": False,
             "final_decision_after_belief": True,
             "missing_data_is_neutral_vote": False,
