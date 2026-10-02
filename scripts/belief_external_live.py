@@ -31,6 +31,12 @@ from belief_macro_data_adapter import MacroDataAdapter
 from belief_news_event_adapter import NewsEventAdapter
 
 EVENT_SEEN_LIMIT = 4000
+MACRO_LLM_SEEN_LIMIT = 1000
+MACRO_LLM_METRICS = {
+    "total_nonfarm_payroll_level",
+    "unemployment_rate",
+    "cpi_index_sa",
+}
 
 
 def _primary_news_ids(observations) -> list[str]:
@@ -38,6 +44,23 @@ def _primary_news_ids(observations) -> list[str]:
         row.observation_id
         for row in observations
         if row.adapter == "news_event" and row.metric == "primary_event_document"
+    ]
+
+
+def _macro_llm_key(observation) -> str:
+    metadata = observation.metadata if isinstance(observation.metadata, dict) else dict(observation.metadata or {})
+    period = str(metadata.get("data_period") or "")
+    return f"{observation.adapter}:{observation.metric}:{period}:{observation.source_ref}"
+
+
+def _macro_llm_candidates(observations):
+    return [
+        row
+        for row in observations
+        if row.adapter == "macro_data"
+        and row.source_type == "primary"
+        and row.status == "ok"
+        and row.metric in MACRO_LLM_METRICS
     ]
 
 
@@ -74,6 +97,30 @@ def run_external_cycle(
         all_observations.extend(macro_data_result.observations)
         all_evidence.extend(macro_data_result.evidence)
 
+    # Interpret selected official BLS macro observations once per data period.
+    # This gives EUR/USD macro beliefs a sourced LLM interpretation path without
+    # allowing Gemini to invent consensus/actual values.
+    interpreter = news_adapter.interpreter
+    macro_seen = list(scheduler.get("processed_macro_llm_keys") or [])
+    macro_seen_set = set(str(value) for value in macro_seen)
+    macro_llm_attempted = 0
+    macro_llm_evidence = 0
+    if interpreter is not None and interpreter.available and macro_data_result is not None:
+        for observation in _macro_llm_candidates(macro_data_result.observations):
+            key = _macro_llm_key(observation)
+            if key in macro_seen_set:
+                continue
+            macro_llm_attempted += 1
+            result = interpreter.interpret(observation)
+            if result is not None:
+                all_observations.append(result.observation)
+                all_evidence.append(result.evidence)
+                macro_llm_evidence += 1
+            macro_seen.append(key)
+            macro_seen_set.add(key)
+        macro_seen = macro_seen[-MACRO_LLM_SEEN_LIMIT:]
+    scheduler["processed_macro_llm_keys"] = macro_seen
+
     written = append_observations(state_dir, all_observations)
     if all_evidence:
         core.ingest(all_evidence)
@@ -83,7 +130,6 @@ def run_external_cycle(
     # A valid `none` classification is still a completed interpretation and must
     # not consume Gemini quota again on every hourly retry. If Gemini is down,
     # leave the document unprocessed so a later run can classify it.
-    interpreter = news_adapter.interpreter
     if interpreter is not None and interpreter.available:
         for observation_id in _primary_news_ids(news_result.observations):
             if observation_id not in seen_set:
@@ -117,6 +163,9 @@ def run_external_cycle(
         "evidence_ingested": len(all_evidence),
         "llm_available": bool(interpreter and interpreter.available),
         "llm_model": interpreter.model if interpreter else "",
+        "macro_llm_attempted": macro_llm_attempted,
+        "macro_llm_evidence": macro_llm_evidence,
+        "processed_macro_llm_keys": len(macro_seen),
         "processed_event_observation_ids": len(seen),
         "primary_source_counts": primary_source_counts,
         "primary_source_status": primary_source_status,
