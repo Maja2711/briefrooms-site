@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from belief_core import iso_z
+from belief_macro_forecaster_skill import internal_historical_mae, load_state
 
 EXPECTATIONS_URL_ENV = "BELIEF_MACRO_EXPECTATIONS_URL"
 EXPECTATIONS_TOKEN_ENV = "BELIEF_MACRO_EXPECTATIONS_TOKEN"
@@ -48,7 +49,12 @@ def _http_url(value: Any) -> str | None:
     return text
 
 
-def normalize_payload(payload: Mapping[str, Any], *, now: datetime) -> dict[str, Any]:
+def normalize_payload(
+    payload: Mapping[str, Any],
+    *,
+    now: datetime,
+    skill_ledger: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
     provider = str(payload.get("provider") or "").strip()
     if not provider:
         raise ValueError("macro expectations feed is missing provider")
@@ -91,10 +97,37 @@ def normalize_payload(payload: Mapping[str, Any], *, now: datetime) -> dict[str,
                 "published_at": iso_z(published_at),
                 "source_ref": source_ref,
             }
+            internal = internal_historical_mae(
+                skill_ledger,
+                institution=institution,
+                indicator=indicator,
+            )
+            if internal is not None:
+                historical_mae, sample_size = internal
+                row["historical_mae"] = historical_mae
+                row["historical_mae_source"] = "briefrooms_prospective_ledger"
+                row["historical_sample_size"] = sample_size
+            else:
+                external_mae_ref = _http_url(raw_forecast.get("historical_mae_source_ref"))
+                try:
+                    historical_mae = float(raw_forecast.get("historical_mae"))
+                    if (
+                        math.isfinite(historical_mae)
+                        and historical_mae > 0
+                        and external_mae_ref is not None
+                    ):
+                        row["historical_mae"] = historical_mae
+                        row["historical_mae_source"] = "sourced_external_history"
+                        row["historical_mae_source_ref"] = external_mae_ref
+                except (TypeError, ValueError):
+                    pass
+
+            rank_ref = _http_url(raw_forecast.get("external_rank_source_ref"))
             try:
-                historical_mae = float(raw_forecast.get("historical_mae"))
-                if math.isfinite(historical_mae) and historical_mae > 0:
-                    row["historical_mae"] = historical_mae
+                external_rank = float(raw_forecast.get("external_rank"))
+                if math.isfinite(external_rank) and external_rank > 0 and rank_ref is not None:
+                    row["external_rank"] = external_rank
+                    row["external_rank_source_ref"] = rank_ref
             except (TypeError, ValueError):
                 pass
             forecasts.append(row)
@@ -143,7 +176,13 @@ def fetch_payload(url: str, *, token: str = "", timeout: int = 20) -> Mapping[st
     return payload
 
 
-def collect(now: datetime, *, url: str, token: str = "") -> dict[str, Any]:
+def collect(
+    now: datetime,
+    *,
+    url: str,
+    token: str = "",
+    skill_ledger: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
     now = now.astimezone(timezone.utc)
     if not str(url or "").strip():
         return {
@@ -154,7 +193,11 @@ def collect(now: datetime, *, url: str, token: str = "") -> dict[str, Any]:
             "releases": [],
         }
     try:
-        return normalize_payload(fetch_payload(url, token=token), now=now)
+        return normalize_payload(
+            fetch_payload(url, token=token),
+            now=now,
+            skill_ledger=skill_ledger,
+        )
     except Exception as exc:
         return {
             "schema_version": "briefrooms-macro-expectations-v1",
@@ -170,14 +213,17 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", required=True)
     parser.add_argument("--now")
+    parser.add_argument("--skill-ledger")
     args = parser.parse_args()
 
     now = _dt(args.now) if args.now else datetime.now(timezone.utc)
     assert now is not None
+    skill_ledger = load_state(Path(args.skill_ledger)) if args.skill_ledger else None
     payload = collect(
         now,
         url=os.environ.get(EXPECTATIONS_URL_ENV, ""),
         token=os.environ.get(EXPECTATIONS_TOKEN_ENV, ""),
+        skill_ledger=skill_ledger,
     )
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
