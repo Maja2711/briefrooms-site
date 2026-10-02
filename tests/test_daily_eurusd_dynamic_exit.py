@@ -87,6 +87,30 @@ class DailyEURUSDDynamicExitTests(unittest.TestCase):
         self.assertEqual(trade["exit_reason"], "DYNAMIC_RISK_EXIT")
         self.assertGreater(trade["r_multiple"], -1.0)
 
+    def test_dynamic_risk_exit_has_no_four_hour_age_gate(self):
+        bars = [
+            bar(0, 1.1000),
+            bar(1.0, 1.1010),
+            bar(2.0, 1.1030),
+            bar(3.0, 1.1040),
+        ]
+        trade = v14.evaluate_position(position("SHORT"), bars, bars[-1].timestamp)
+        self.assertIsNotNone(trade)
+        self.assertEqual(trade["exit_reason"], "DYNAMIC_RISK_EXIT")
+        self.assertLess(trade["monitor"]["dynamic_exit"]["age_hours"], 4.0)
+
+    def test_large_edge_giveback_can_close_after_crossing_breakeven(self):
+        bars = [
+            bar(0, 1.1000),
+            bar(1.5, 1.0930, low=1.0920),
+            bar(2.5, 1.1010, high=1.1015),
+        ]
+        trade = v14.evaluate_position(position("SHORT"), bars, bars[-1].timestamp)
+        self.assertIsNotNone(trade)
+        self.assertEqual(trade["exit_reason"], "DYNAMIC_EDGE_GIVEBACK_EXIT")
+        self.assertGreaterEqual(trade["monitor"]["dynamic_exit"]["mfe_r"], 0.5)
+        self.assertGreaterEqual(trade["monitor"]["dynamic_exit"]["giveback_r"], 0.5)
+
     def test_soft_24h_horizon_extends_when_hold_economics_remain_positive(self):
         bars = [
             bar(0, 1.1000),
