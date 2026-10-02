@@ -93,6 +93,13 @@ EVIDENCE ASSESSMENT
 BELIEF CORE
         |
         v
+EPISTEMIC STATE
+        |
+        v
+CF-07 EPISTEMIC CONSUMER INTERFACE
+profile: DAILY_EURUSD
+        |
+        v
 NATIVE DAILY EURUSD BELIEF-FIRST DECISION ENGINE
         |
         v
@@ -116,7 +123,7 @@ There is one final production direction owner:
 
 `NATIVE_DAILY_EURUSD_BELIEF_FIRST_DECISION_ENGINE`.
 
-It does not create a preliminary EUR/USD direction before Belief. It consumes the current governed EUR/USD Belief state and only then emits the final `LONG / SHORT / FLAT`.
+It does not create a preliminary EUR/USD direction before Belief. Belief Core is projected into the authoritative read-only EpistemicState, and the existing CF-07 Epistemic Consumer Interface exposes only the five governed EUR/USD states through profile `DAILY_EURUSD`. The decision engine cannot override or write back probabilities/confidence; it synthesizes the final `LONG / SHORT / FLAT` only from that bounded projection. Production requires this interface and fails closed to FLAT when the projection is missing, invalid, future-dated or stale.
 
 The former direct path:
 
@@ -162,6 +169,7 @@ After `FINAL LONG / SHORT / FLAT`, later layers may not manufacture or reverse m
 
 For a directional final decision, execution admission may block the trade for operational/risk reasons, including:
 
+- missing/stale/failed required macro-calendar source coverage;
 - high-impact scheduled event proximity or post-release Evidence still pending;
 - re-entry / same-thesis safety;
 - invalid or unavailable execution geometry;
@@ -187,13 +195,15 @@ Runtime implementation:
 
 - `scripts/daily_eurusd_belief_decision.py`;
 - `scripts/daily_eurusd_spot_v19.py`;
+- `scripts/belief_epistemic_state.py`;
+- `scripts/epistemic_consumer_interface.py` (`DAILY_EURUSD`);
 - upstream Belief adapters / `belief_core_live.py`;
 - `scripts/execution_price_engine.py`;
 - canonical Daily lifecycle.
 
 ## Daily EUR/USD high-impact macro risk
 
-Daily EUR/USD v1.8 keeps directional authority in the Daily Direction Engine, but open-position risk is event-aware.
+Daily EUR/USD v1.9 makes the new-entry direction only through the Belief-first path above, while open-position risk remains independently event-aware.
 
 For high-impact releases such as Employment Situation/NFP, CPI/PCE, FOMC and ECB events:
 
