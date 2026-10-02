@@ -108,10 +108,19 @@ def _execution_admission(
     if calendar.get("blocked") is True:
         reasons.append(str(calendar.get("reason") or "belief_calendar_safety_block"))
 
-    # Re-use only the existing same-thesis risk governance. It is no longer a
-    # direction engine: any veto is translated to execution_admission=false
-    # while final_decision remains immutable in metadata.
-    guarded = v16._apply_same_thesis_guard(candidate, history)
+    # Re-use only the history/thesis-change part of the legacy re-entry guard.
+    # v1.8 allowed macro/event side channels to count as "fresh external
+    # evidence" and release a cross-family guard. Under Belief-first v1.9 all
+    # such directional evidence must already have reached CF-07 before the
+    # final decision, so remove those side-channel fields for this admission
+    # check. They remain available later for open-position risk management.
+    guard_metadata = dict(candidate.metadata)
+    guard_metadata.pop("belief_macro", None)
+    guard_metadata.pop("event_intelligence", None)
+    guarded = v16._apply_same_thesis_guard(
+        _clone(candidate, metadata=guard_metadata),
+        history,
+    )
     guard_meta = (guarded.metadata or {}).get("same_thesis_reentry_guard") or {}
     details["same_thesis_reentry_guard"] = dict(guard_meta)
     if candidate.direction in {"LONG", "SHORT"} and guarded.direction == "FLAT":
