@@ -313,8 +313,8 @@ def parse_eu_calendar_text(text: str, *, now: datetime, source: str, source_ref:
     clean = _strip_html(text)
     events: List[CalendarEvent] = []
     patterns = [
-        re.compile(r"(?P<date>\\d{4}-\\d{2}-\\d{2})\\s+(?P<title>.{4,180}?)(?=(?:\\d{4}-\\d{2}-\\d{2})|$)"),
-        re.compile(r"(?P<date>\\d{1,2}\\s+(?:" + "|".join(MONTHS) + r")\\s+\\d{4})\\s+(?P<title>.{4,180}?)(?=(?:\\d{1,2}\\s+(?:" + "|".join(MONTHS) + r")\\s+\\d{4})|$)", re.I),
+        re.compile(r"(?P<date>\d{4}-\d{2}-\d{2})\s+(?P<title>.{4,180}?)(?=(?:\d{4}-\d{2}-\d{2})|$)"),
+        re.compile(r"(?P<date>\d{1,2}\s+(?:" + "|".join(MONTHS) + r")\s+\d{4})\s+(?P<title>.{4,180}?)(?=(?:\d{1,2}\s+(?:" + "|".join(MONTHS) + r")\s+\d{4})|$)", re.I),
     ]
     for pattern in patterns:
         for match in pattern.finditer(clean):
