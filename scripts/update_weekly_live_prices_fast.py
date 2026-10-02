@@ -329,10 +329,8 @@ def coinbase_quote() -> Dict[str, Any]:
 def providers(instrument_id: str) -> list[Callable[[], Dict[str, Any]]]:
     if instrument_id == "eurusd":
         return [
-            lambda: yahoo_quote(instrument_id),
             lambda: stooq_quote(instrument_id),
             fxapi_eurusd_quote,
-            currency_exchange_tool_eurusd_quote,
         ]
 
     if instrument_id == "sp500_futures":
@@ -382,6 +380,29 @@ def newest_valid(instrument_id: str) -> tuple[Optional[Dict[str, Any]], list[str
 
     if not candidates:
         return None, errors
+    if instrument_id == "eurusd":
+        fresh_stooq = [
+            item for item in candidates
+            if str(item.get("source") or "").startswith("Stooq:")
+            and timedelta(seconds=-60) <= quote_age(item) <= INSTRUMENTS["eurusd"].max_age
+        ]
+        if fresh_stooq:
+            fresh_stooq.sort(
+                key=lambda item: parse_iso(item.get("timestamp")) or datetime.min.replace(tzinfo=WARSAW),
+                reverse=True,
+            )
+            return fresh_stooq[0], errors
+        fresh_fxapi = [
+            item for item in candidates
+            if str(item.get("source") or "").startswith("fxapi.app:")
+            and timedelta(seconds=-60) <= quote_age(item) <= INSTRUMENTS["eurusd"].max_age
+        ]
+        if fresh_fxapi:
+            fresh_fxapi.sort(
+                key=lambda item: parse_iso(item.get("timestamp")) or datetime.min.replace(tzinfo=WARSAW),
+                reverse=True,
+            )
+            return fresh_fxapi[0], errors
     candidates.sort(
         key=lambda item: parse_iso(item.get("timestamp")) or datetime.min.replace(tzinfo=WARSAW),
         reverse=True,
@@ -398,10 +419,8 @@ def refresh_one(instrument_id: str, previous: Dict[str, Any]) -> Dict[str, Any]:
     chosen = candidate
     old_source = str((old or {}).get("source") or "")
     old_aligned_for_eurusd = (
-        old_source.startswith("Yahoo Finance:")
-        or old_source.startswith("Stooq:")
+        old_source.startswith("Stooq:")
         or old_source.startswith("fxapi.app:")
-        or old_source.startswith("Currency Exchange Tool:")
     )
     old_eligible = instrument_id != "eurusd" or old_aligned_for_eurusd
     if old and old_eligible and valid_quote(instrument_id, old):

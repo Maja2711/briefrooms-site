@@ -16,7 +16,7 @@ PAGES = [
     ROOT / "en" / "investing" / "open-weekly-positions.html",
     ROOT / "en" / "investing" / "weekly-forecasts.html",
 ]
-SCRIPT_REF = "/scripts/investments-weekly-browser-live.js?v=20261002-1"
+SCRIPT_REF = "/scripts/investments-weekly-browser-live.js?v=20261002-3"
 COMPACT_REF = "/scripts/investments-weekly-price-compact.js?v=20260916-4"
 
 
@@ -84,12 +84,13 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
         source = LIVE_SCRIPT.read_text(encoding="utf-8")
         self.assertIn("https://fxapi.app/api/EUR/USD.json", source)
         self.assertIn("fxapi.app", source)
-        self.assertIn("Currency Exchange Tool", source)
-        self.assertIn("Yahoo EURUSD=X", source)
-        self.assertIn("Stooq EURUSD", source)
+        eurusd_block = source[source.index("eurusd: {"):source.index("btcusd: {")]
+        self.assertNotIn("Currency Exchange Tool", eurusd_block)
+        self.assertNotIn("Yahoo EURUSD=X", eurusd_block)
+        self.assertIn("Stooq EURUSD", eurusd_block)
+        self.assertIn("fxapi.app", eurusd_block)
         self.assertIn("Promise.allSettled(cfg.sources.map", source)
-        self.assertNotIn("directPriority: 'first-fresh'", source)
-        self.assertNotIn("directAuthoritativeWhenFresh: true", source)
+        self.assertIn("startsWith('Stooq')", source)
         self.assertIn("['live', 'fallback'].includes(state?.mode)", source)
         self.assertIn("CNBC @SP.1", source)
         self.assertIn("quote.cnbc.com/quote-html-webservice/restQuote", source)
@@ -144,15 +145,15 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
         source = FAST_UPDATER.read_text(encoding="utf-8")
         self.assertIn("def fxapi_eurusd_quote()", source)
         self.assertIn("https://fxapi.app/api/EUR/USD.json", source)
-        self.assertIn("def currency_exchange_tool_eurusd_quote()", source)
-        self.assertIn("https://www.currencyexchangetool.com/api/v1/convert?amount=1&from=EUR&to=USD", source)
         self.assertIn('if instrument_id == "eurusd":', source)
         self.assertIn("fxapi_eurusd_quote", source)
-        self.assertIn("currency_exchange_tool_eurusd_quote", source)
-        self.assertIn('lambda: yahoo_quote(instrument_id)', source)
-        self.assertIn('lambda: stooq_quote(instrument_id)', source)
+        provider_block = source[source.index('if instrument_id == "eurusd":'):source.index('if instrument_id == "sp500_futures":')]
+        self.assertIn('lambda: stooq_quote(instrument_id)', provider_block)
+        self.assertNotIn('lambda: yahoo_quote(instrument_id)', provider_block)
+        self.assertNotIn('currency_exchange_tool_eurusd_quote', provider_block)
         self.assertIn('with ThreadPoolExecutor(max_workers=len(provider_list)) as executor:', source)
-        self.assertIn('candidates.sort', source)
+        self.assertIn('fresh_stooq', source)
+        self.assertIn('fresh_fxapi', source)
         self.assertIn('timedelta(minutes=2)', source)
 
     def test_server_snapshot_chooses_newest_es_provider_by_timestamp(self) -> None:
