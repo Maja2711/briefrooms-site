@@ -289,17 +289,22 @@ export class PushHub {
   async dispatchEvents(events, { seedIfUninitialized = false } = {}) {
     const initialized = Boolean(await this.ctx.storage.get("feed_initialized"));
     if (!initialized && seedIfUninitialized) {
-      for (const event of events) if (event?.event_id) await this.ctx.storage.put(`seen:${event.event_id}`, true);
+      for (const event of events) {
+        if (!event?.event_id) continue;
+        await this.ctx.storage.put(`event-complete:${event.event_id}`, true);
+      }
       await this.ctx.storage.put("feed_initialized", true);
-      return { ok: true, seeded: events.length, sent: 0, failed: 0, expired: 0 };
+      return { ok: true, seeded: events.length, sent: 0, failed: 0, expired: 0, pending: 0 };
     }
     if (!initialized) await this.ctx.storage.put("feed_initialized", true);
 
     let sent = 0;
     let failed = 0;
     let expired = 0;
+    let pending = 0;
     const failedStatuses = {};
     const subscriptions = await this.ctx.storage.list({ prefix: "sub:" });
+
     if (this.env.VAPID_PUBLIC_KEY && this.env.VAPID_PRIVATE_KEY) {
       webpush.setVapidDetails(
         this.env.VAPID_SUBJECT || "https://briefrooms.com",
@@ -310,30 +315,52 @@ export class PushHub {
 
     for (const event of events) {
       if (!event?.event_id) continue;
-      const seenKey = `seen:${event.event_id}`;
-      if (await this.ctx.storage.get(seenKey)) continue;
-      await this.ctx.storage.put(seenKey, true);
+      const eventCompleteKey = `event-complete:${event.event_id}`;
+      if (await this.ctx.storage.get(eventCompleteKey)) continue;
+
+      let eventFailed = 0;
+      let eventEligible = 0;
+
       for (const [key, record] of subscriptions.entries()) {
         if (!accepts(record, event)) continue;
+        eventEligible += 1;
+
+        const subId = key.startsWith("sub:") ? key.slice(4) : key;
+        const deliveredKey = `delivered:${event.event_id}:${subId}`;
+        if (await this.ctx.storage.get(deliveredKey)) continue;
+
         try {
           await webpush.sendNotification(
             record.subscription,
             notificationPayload(event, record.language, this.env.PUBLIC_BASE_URL),
             { TTL: 300 },
           );
+          await this.ctx.storage.put(deliveredKey, true);
           sent += 1;
         } catch (error) {
           const status = Number(error?.statusCode || 0);
           if (status === 404 || status === 410) {
             await this.ctx.storage.delete(key);
+            await this.ctx.storage.put(deliveredKey, true);
             expired += 1;
           } else {
             failed += 1;
+            eventFailed += 1;
             const statusKey = String(status || "unknown");
             failedStatuses[statusKey] = Number(failedStatuses[statusKey] || 0) + 1;
           }
         }
       }
+
+      if (eventFailed === 0) {
+        await this.ctx.storage.put(eventCompleteKey, true);
+      } else {
+        pending += 1;
+      }
+
+      // Keep the legacy key only for diagnostics. It is no longer used to suppress
+      // retries because delivery is tracked per event + subscription.
+      await this.ctx.storage.put(`seen:${event.event_id}`, true);
     }
 
     const stats = (await this.ctx.storage.get("stats")) || {};
@@ -345,9 +372,10 @@ export class PushHub {
     stats.last_dispatch_sent = sent;
     stats.last_dispatch_failed = failed;
     stats.last_dispatch_expired = expired;
+    stats.last_dispatch_pending = pending;
     stats.last_dispatch_at = new Date().toISOString();
     await this.ctx.storage.put("stats", stats);
-    return { ok: true, sent, failed, expired };
+    return { ok: failed === 0, sent, failed, expired, pending };
   }
 
   async fastDailyWatch() {
@@ -482,6 +510,10 @@ export class PushHub {
         test_failed: Number(stats.test_failed || 0),
         last_test_failed_status: stats.last_test_failed_status || null,
         last_failed_statuses: stats.last_failed_statuses || {},
+        last_dispatch_sent: Number(stats.last_dispatch_sent || 0),
+        last_dispatch_failed: Number(stats.last_dispatch_failed || 0),
+        last_dispatch_expired: Number(stats.last_dispatch_expired || 0),
+        last_dispatch_pending: Number(stats.last_dispatch_pending || 0),
         last_dispatch_at: stats.last_dispatch_at || null,
         fast_daily_watcher: true,
         last_fast_daily_check_at: stats.last_fast_daily_check_at || null,
