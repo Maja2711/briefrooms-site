@@ -464,6 +464,7 @@ export class PushHub {
         last_fast_daily_check_at: stats.last_fast_daily_check_at || null,
         last_fast_daily_status: stats.last_fast_daily_status || null,
         last_fast_daily_market_source: stats.last_fast_daily_market_source || null,
+        last_fast_daily_quote: stats.last_fast_daily_quote || null,
       }, 200, cors(origin));
     }
 
