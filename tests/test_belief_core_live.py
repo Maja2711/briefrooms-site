@@ -257,8 +257,27 @@ class BeliefCoreLiveTest(unittest.TestCase):
                     raise RuntimeError(symbol)
                 return list(self.rows[symbol])
 
+        class FakeCalendar:
+            def run(self, when):
+                class Result:
+                    observations = ()
+                    evidence = ()
+                return Result()
+
+            def source_status(self):
+                return {
+                    "schema_version": "macro-calendar-coverage-v1",
+                    "required_sources": ["BLS", "BEA", "FOMC", "EUROSTAT", "ECB"],
+                    "sources": {
+                        key: {"status": "ok"}
+                        for key in ("BLS", "BEA", "FOMC", "EUROSTAT", "ECB")
+                    },
+                    "complete": True,
+                }
+
         with tempfile.TemporaryDirectory() as tmp:
-            status = run_cycle(Path(tmp) / "core", now, FxClient())
+            with patch("belief_core_live.MacroEventCalendarAdapter", FakeCalendar):
+                status = run_cycle(Path(tmp) / "core", now, FxClient())
             live = status["eurusd_24x5_liveness"]
             self.assertTrue(live["attempted"])
             self.assertEqual(live["status"], "ok")
