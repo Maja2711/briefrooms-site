@@ -105,6 +105,8 @@ def coverage_report() -> Dict[str, Any]:
     return {
         "schema_version": "belief-wes-asset-coverage-v1",
         "decision_influence": False,
+        "direct_decision_authority": False,
+        "production_epistemic_consumers": ["DAILY_EURUSD"],
         "spx": {
             "status": "existing_full_bridge_scope",
         },
