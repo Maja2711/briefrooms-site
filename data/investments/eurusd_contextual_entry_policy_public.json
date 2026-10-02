@@ -12,7 +12,7 @@
     "trade_execution": false
   },
   "engine": "Daily Learning Loop — Contextual Entry Policy Learning",
-  "generated_at": "2026-10-02T15:04:53Z",
+  "generated_at": "2026-10-02T16:14:55Z",
   "governance": {
     "application_edge_hurdles_r": {
       "FULL": 0.1,
@@ -59,15 +59,78 @@
     "uncertainty_penalty": 1.0
   },
   "latest_recommendation": {
-    "authority_fraction": 0.0,
-    "authority_level": "SHADOW",
-    "automatic_rollback": true,
-    "decision_influence": false,
-    "evidence_confidence": 0.0,
-    "neighbors": 0,
-    "policy_stats": {},
+    "application_edge_hurdle_r": 0.3,
+    "authority_fraction": 0.25,
+    "authority_level": "LOW",
+    "automatic_promotion": true,
+    "automatic_rollback": false,
+    "decision_influence": true,
+    "direction_mutation_allowed": false,
+    "edge_vs_second_r": 1.273649,
+    "evidence_components": {
+      "edge_strength": 1.0,
+      "sample_strength": 0.593701,
+      "stability": 0.8915
+    },
+    "evidence_confidence": 0.529285,
+    "expected_r": 1.6671,
+    "neighbors": 4,
+    "policy_stats": {
+      "CONTINUATION_NOW": {
+        "effective_neighbors": 2.702,
+        "expected_r": 1.6671,
+        "raw_neighbors": 4,
+        "uncertainty_penalized_r": 1.525156,
+        "weighted_mean_net_r": 1.6671,
+        "weighted_sd_r": 0.23332
+      },
+      "FLAT": {
+        "effective_neighbors": 2.702,
+        "expected_r": 0.0,
+        "raw_neighbors": 4,
+        "uncertainty_penalized_r": 0.0,
+        "weighted_mean_net_r": 0.0,
+        "weighted_sd_r": 0.0
+      },
+      "PULLBACK_20_ATR": {
+        "effective_neighbors": 2.702,
+        "expected_r": 0.69537,
+        "raw_neighbors": 4,
+        "uncertainty_penalized_r": 0.204566,
+        "weighted_mean_net_r": 0.69537,
+        "weighted_sd_r": 0.806757
+      },
+      "PULLBACK_35_ATR": {
+        "effective_neighbors": 2.702,
+        "expected_r": 0.728845,
+        "raw_neighbors": 4,
+        "uncertainty_penalized_r": 0.251507,
+        "weighted_mean_net_r": 0.728845,
+        "weighted_sd_r": 0.784623
+      },
+      "PULLBACK_50_ATR": {
+        "effective_neighbors": 2.702,
+        "expected_r": 0.389198,
+        "raw_neighbors": 4,
+        "uncertainty_penalized_r": -0.006497,
+        "weighted_mean_net_r": 0.389198,
+        "weighted_sd_r": 0.650421
+      },
+      "REVERSAL_NOW": {
+        "effective_neighbors": 2.702,
+        "expected_r": -1.023958,
+        "raw_neighbors": 4,
+        "uncertainty_penalized_r": -1.024463,
+        "weighted_mean_net_r": -1.023958,
+        "weighted_sd_r": 0.00083
+      }
+    },
+    "recommended_family": "CONTINUATION_NOW",
+    "recommended_policy_id": "CONTINUATION_NOW",
+    "research_best_policy_id": "CONTINUATION_NOW",
+    "research_reversal_is_non_authoritative": false,
     "resolved_episodes": 4,
-    "status": "INSUFFICIENT_SIMILAR_CONTEXT"
+    "status": "AUTONOMOUS_POLICY_EDGE"
   },
   "mode": "PROSPECTIVE_CONTINUOUS_AUTONOMOUS_ENTRY_POLICY",
   "policies": [
@@ -83,9 +146,9 @@
   ],
   "sample": {
     "entry_points": 5,
-    "episodes_total": 7,
-    "pending": 3,
-    "post_exit_points": 2,
+    "episodes_total": 8,
+    "pending": 4,
+    "post_exit_points": 3,
     "resolved": 4
   },
   "schema_version": "eurusd-contextual-entry-policy-public-v2"
