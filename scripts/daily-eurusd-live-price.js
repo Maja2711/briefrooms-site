@@ -132,6 +132,35 @@
     return validateQuote(data.rate ?? data.result, data.updatedAt, "Currency Exchange Tool");
   }
 
+  function sourceFamily(source) {
+    const s = String(source || "").toLowerCase();
+    if (s.includes("stooq")) return "stooq";
+    if (s.includes("yahoo")) return "yahoo";
+    if (s.includes("fxapi")) return "fxapi";
+    if (s.includes("currency exchange")) return "currency";
+    return s || "unknown";
+  }
+
+  function chooseConsensusQuote(quotes) {
+    const byFamily = new Map();
+    for (const quote of quotes) {
+      const family = sourceFamily(quote.source);
+      const prev = byFamily.get(family);
+      if (!prev || new Date(quote.updatedAt).valueOf() > new Date(prev.updatedAt).valueOf()) byFamily.set(family, quote);
+    }
+    const distinct = [...byFamily.values()];
+    if (!distinct.length) return null;
+    if (distinct.length === 1) return distinct[0];
+
+    const prices = distinct.map(q => Number(q.price)).sort((a,b)=>a-b);
+    const median = prices.length % 2 ? prices[(prices.length-1)/2] : (prices[prices.length/2-1] + prices[prices.length/2]) / 2;
+    const inliers = distinct.filter(q => Math.abs(Number(q.price) - median) / 0.0001 <= 1.5);
+    const pool = inliers.length >= 2 ? inliers : distinct;
+    const backend = pool.find(q => String(q.source).startsWith("BriefRooms backend"));
+    if (inliers.length < 2 && backend) return backend;
+    return pool.sort((a,b)=>new Date(b.updatedAt).valueOf()-new Date(a.updatedAt).valueOf())[0];
+  }
+
   async function fetchLiveQuote() {
     const providers = [
       ["BriefRooms backend", quoteBackendLive],
@@ -152,7 +181,7 @@
       .filter(result => result.status === "fulfilled")
       .map(result => result.value)
       .sort((a, b) => new Date(b.updatedAt).valueOf() - new Date(a.updatedAt).valueOf());
-    if (quotes.length) return quotes[0];
+    if (quotes.length) return chooseConsensusQuote(quotes);
     const errors = settled.filter(result => result.status === "rejected").map(result => result.reason?.message || String(result.reason));
     throw new Error(`all_live_providers_failed:${errors.join("|")}`);
   }
