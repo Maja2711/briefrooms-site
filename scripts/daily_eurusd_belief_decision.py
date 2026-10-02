@@ -240,12 +240,22 @@ def calendar_safety(
 
     now = observed_at.astimezone(timezone.utc)
     events: list[dict[str, Any]] = []
+    latest_coverage: dict[str, Any] | None = None
+    latest_coverage_at: Optional[datetime] = None
     try:
         for raw in observations.read_text(encoding="utf-8").splitlines():
             if not raw.strip():
                 continue
             row = json.loads(raw)
-            if row.get("adapter") != "macro_event_calendar" or row.get("metric") != "scheduled_macro_event":
+            if row.get("adapter") != "macro_event_calendar":
+                continue
+            if row.get("metric") == "calendar_coverage":
+                coverage_at = _parse_time(row.get("observed_at"))
+                if coverage_at is not None and (latest_coverage_at is None or coverage_at > latest_coverage_at):
+                    latest_coverage_at = coverage_at
+                    latest_coverage = dict(row.get("metadata") or {})
+                continue
+            if row.get("metric") != "scheduled_macro_event":
                 continue
             meta = row.get("metadata") if isinstance(row.get("metadata"), Mapping) else {}
             if str(meta.get("importance") or "").lower() != "high":
@@ -270,6 +280,12 @@ def calendar_safety(
     imminent = [row for row in events if 0.0 <= float(row["hours_until"]) <= 1.0]
     recent = [row for row in events if -0.5 <= float(row["hours_until"]) < 0.0]
 
+    coverage_age_minutes: float | None = None
+    coverage_complete = False
+    if latest_coverage_at is not None:
+        coverage_age_minutes = (now - latest_coverage_at).total_seconds() / 60.0
+        coverage_complete = bool((latest_coverage or {}).get("complete")) and -5.0 <= coverage_age_minutes <= 90.0
+
     latest_macro_at: Optional[datetime] = None
     for row in (decision or {}).get("used_beliefs") or []:
         if str(row.get("belief_id")) not in {
@@ -290,20 +306,37 @@ def calendar_safety(
             and (latest_macro_at is None or latest_macro_at < event_at)
         )
 
-    blocked = bool(imminent or post_release_pending)
+    coverage_failed = not coverage_complete
+    blocked = bool(imminent or post_release_pending or coverage_failed)
     reason = (
         "belief_high_impact_event_imminent"
         if imminent
         else "belief_post_release_evidence_pending"
         if post_release_pending
+        else "belief_calendar_coverage_unavailable"
+        if latest_coverage is None
+        else "belief_calendar_coverage_stale"
+        if coverage_age_minutes is None or coverage_age_minutes > 90.0
+        else "belief_calendar_coverage_failed"
+        if not bool(latest_coverage.get("complete"))
         else "clear"
     )
     return {
-        "available": True,
+        "available": latest_coverage is not None,
         "blocked": blocked,
         "reason": reason,
         "imminent": bool(imminent),
         "post_release_evidence_pending": post_release_pending,
+        "calendar_coverage": {
+            "complete": coverage_complete,
+            "observed_at": (
+                latest_coverage_at.isoformat().replace("+00:00", "Z")
+                if latest_coverage_at is not None
+                else None
+            ),
+            "age_minutes": None if coverage_age_minutes is None else round(coverage_age_minutes, 3),
+            "source_status": dict((latest_coverage or {}).get("sources") or {}),
+        },
         "events": events[:8],
         "source": "belief_macro_calendar_adapter",
         "direction_mutation_allowed": False,
