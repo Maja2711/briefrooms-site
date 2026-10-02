@@ -290,20 +290,41 @@ jobs:
           payload = json.loads(Path("data/notifications/trading-events.json").read_text())
           print(json.dumps({"events": payload.get("events", [])}, separators=(",", ":")))
           PY
-          curl --fail --silent --show-error \
-            --retry 3 --retry-delay 2 \
-            -H "content-type: application/json" \
-            --data-binary @"$RUNNER_TEMP/trading-push-payload.json" \
-            "https://briefrooms-trading-push.szczerbinski0577.workers.dev/ingest" \
-            -o "$RUNNER_TEMP/trading-push-response.json"
-          python - <<'PY'
-          import json
+
+          delivered=0
+          for attempt in 1 2 3; do
+            curl --fail --silent --show-error \
+              --retry 2 --retry-delay 1 \
+              -H "content-type: application/json" \
+              --data-binary @"$RUNNER_TEMP/trading-push-payload.json" \
+              "https://briefrooms-trading-push.szczerbinski0577.workers.dev/ingest" \
+              -o "$RUNNER_TEMP/trading-push-response.json"
+
+            if python - <<'PY'
+          import json, os
           from pathlib import Path
-          payload=json.loads(Path(__import__("os").environ["RUNNER_TEMP"]).joinpath("trading-push-response.json").read_text())
-          if payload.get("ok") is not True:
-              raise SystemExit(f"Trading push ingest failed: {payload}")
-          print("TRADING_PUSH_DISPATCH_OK", payload)
+          payload=json.loads(Path(os.environ["RUNNER_TEMP"]).joinpath("trading-push-response.json").read_text())
+          failed=int(payload.get("failed") or 0)
+          pending=int(payload.get("pending") or 0)
+          ok=payload.get("ok") is True and failed == 0 and pending == 0
+          print("TRADING_PUSH_ATTEMPT", payload)
+          raise SystemExit(0 if ok else 1)
           PY
+            then
+              delivered=1
+              break
+            fi
+
+            echo "Trading push delivery incomplete on attempt ${attempt}; retrying only undelivered subscriptions"
+            sleep $((attempt * 2))
+          done
+
+          if [ "$delivered" -ne 1 ]; then
+            echo "Trading push delivery still incomplete after retries" >&2
+            cat "$RUNNER_TEMP/trading-push-response.json" >&2
+            exit 1
+          fi
+
 
       - name: Validate public frontend runtime after lifecycle persistence
         run: |
