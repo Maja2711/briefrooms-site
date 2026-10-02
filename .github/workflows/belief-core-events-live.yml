@@ -31,9 +31,11 @@ on:
       - "tests/test_belief_company_primary_sources.py"
       - "tests/test_belief_macro_data_adapter.py"
   schedule:
-    # 30-minute primary-source/event scan from US pre-market through early evening.
-    # Wide UTC coverage handles both EDT and EST; source timestamps remain explicit.
-    - cron: "2,32 12-23 * * 1-5"
+    # High-frequency macro window: payrolls/CPI/PCE and other major US releases
+    # must reach Belief Core quickly enough for Daily EUR/USD position management.
+    - cron: "2,7,12,17,22,27,32,37,42,47,52,57 12-17 * * 1-5"
+    # Lower-frequency continuation after the primary US data window.
+    - cron: "2,32 18-23 * * 1-5"
 
 permissions:
   contents: read
