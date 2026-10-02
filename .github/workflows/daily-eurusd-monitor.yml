@@ -19,6 +19,8 @@ on:
       - "scripts/daily_eurusd_spot_v18.py"
       - "scripts/daily_eurusd_spot_v19.py"
       - "scripts/daily_eurusd_belief_decision.py"
+      - "scripts/belief_epistemic_state.py"
+      - "scripts/epistemic_consumer_interface.py"
       - "scripts/belief_core_live.py"
       - "scripts/belief_wes_assets_adapter.py"
       - "scripts/belief_news_event_adapter.py"
@@ -46,6 +48,7 @@ on:
       - "tests/test_daily_eurusd_contextual_policy_learning.py"
       - "tests/test_daily_eurusd_contextual_production_policy.py"
       - "tests/test_daily_eurusd_belief_first.py"
+      - "tests/test_epistemic_consumer_interface.py"
       - "tests/test_belief_core_live.py"
       - "tests/test_belief_wes_assets.py"
       - "tests/test_no_retroactive_execution.py"
@@ -91,6 +94,7 @@ jobs:
             tests.test_daily_eurusd_contextual_policy_learning \
             tests.test_daily_eurusd_contextual_production_policy \
             tests.test_daily_eurusd_belief_first \
+            tests.test_epistemic_consumer_interface \
             tests.test_no_retroactive_execution -v
           python -m py_compile \
             scripts/daily_engine_contract.py \
@@ -106,6 +110,8 @@ jobs:
             scripts/daily_eurusd_spot_v18.py \
             scripts/daily_eurusd_spot_v19.py \
             scripts/daily_eurusd_belief_decision.py \
+            scripts/belief_epistemic_state.py \
+            scripts/epistemic_consumer_interface.py \
             scripts/execution_price_engine.py
           echo "PUSH_VALIDATION_ONLY_NO_TRADING_STATE_MUTATION"
 
@@ -220,6 +226,8 @@ jobs:
             scripts/investments_wes_macro_belief.py \
             scripts/daily_eurusd_contextual_policy_learning.py \
             scripts/daily_eurusd_belief_decision.py \
+            scripts/belief_epistemic_state.py \
+            scripts/epistemic_consumer_interface.py \
             scripts/execution_price_engine.py \
             scripts/daily_eurusd_policy.py \
             scripts/daily_eurusd_experiment.py \
