@@ -8,6 +8,10 @@ from typing import Any, Callable, Mapping, Optional, Sequence, Tuple
 from belief_adapter_contract import EvidenceAssessment, Observation, clamp, observation_to_evidence
 from belief_core import Evidence, iso_z
 
+EURUSD_ALLOWED_BELIEFS: Tuple[str, ...] = (
+    *EURUSD_ALLOWED_BELIEFS,
+)
+
 ALLOWED_BELIEFS: Tuple[str, ...] = (
     "spx.trend.bullish",
     "spx.breadth.healthy",
