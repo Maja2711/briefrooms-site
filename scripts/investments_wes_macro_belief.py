@@ -54,42 +54,64 @@ def _fast_context(now: datetime) -> Dict[str, Any]:
     out["phase_now"]="PRE_RELEASE" if hours >= 0 else "POST_RELEASE"
     return out
 
-def _calendar_context(path: Path, now: datetime) -> Dict[str, Any]:
-    observations=path.parent / "observations.jsonl"
-    upcoming=[]
-    if observations.exists():
-        try:
-            for line in observations.read_text(encoding="utf-8").splitlines():
-                if not line.strip(): continue
-                row=json.loads(line)
-                if row.get("adapter") != "macro_event_calendar" or row.get("metric") != "scheduled_macro_event": continue
-                meta=row.get("metadata") if isinstance(row.get("metadata"), Mapping) else {}
-                if str(meta.get("importance") or "") != "high": continue
-                event_at=_dt(meta.get("event_at"))
-                if event_at is None: continue
-                hours=(event_at-now.astimezone(timezone.utc)).total_seconds()/3600.0
-                if -1.0 <= hours <= 24.0:
-                    upcoming.append({"title":meta.get("title"),"event_at":meta.get("event_at"),"hours_until":round(hours,3),"source":row.get("source"),"source_ref":row.get("source_ref")})
-        except (OSError, json.JSONDecodeError):
-            return {"available":False,"status":"calendar_observations_unreadable","events":[]}
-    upcoming.sort(key=lambda x:x["hours_until"])
-    imminent=any(0.0 <= float(x["hours_until"]) <= 1.0 for x in upcoming)
-    return {"available":bool(upcoming),"status":"high_impact_event_imminent" if imminent else "calendar_clear_or_not_imminent","imminent":imminent,"events":upcoming[:8],"source":"belief_macro_calendar_adapter"}
-
-
-def context(now: datetime) -> Dict[str, Any]:
-    path=state_path()
-    fast=_fast_context(now)
-    base={
-        "enabled":True,
-        "available":False,
-        "score":0.0,
-        "reason":"belief_state_unavailable",
-        "source":"belief_core",
-        "fast_context":fast,
+def _fast_calendar_context(fast: Mapping[str, Any]) -> Dict[str, Any]:
+    event=fast.get("event") if isinstance(fast.get("event"),Mapping) else None
+    if not event:
+        return {"available":False,"status":"calendar_clear_or_not_imminent","imminent":False,"events":[],"source":"macro_fast_lane"}
+    try:
+        hours=float(fast.get("hours_until"))
+    except (TypeError,ValueError):
+        return {"available":False,"status":"calendar_clear_or_not_imminent","imminent":False,"events":[],"source":"macro_fast_lane"}
+    row={
+        "title":event.get("title"),
+        "event_at":event.get("event_at"),
+        "hours_until":round(hours,3),
+        "source":event.get("source"),
+        "source_ref":event.get("source_ref"),
     }
-    if path is None or not path.exists():
-        fast_score=float(fast.get("eurusd_score") or 0.0) if fast else 0.0
+    imminent=0.0 <= hours <= 1.0
+    return {
+        "available":True,
+        "status":"high_impact_event_imminent" if imminent else "calendar_clear_or_not_imminent",
+        "imminent":imminent,
+        "events":[row],
+        "source":"macro_fast_lane",
+    }
+
+
+def _merge_calendar(primary: Mapping[str, Any], fast: Mapping[str, Any]) -> Dict[str, Any]:
+    fast_calendar=_fast_calendar_context(fast)
+    rows=[]
+    seen=set()
+    for source in (primary,fast_calendar):
+        for row in source.get("events") or []:
+            if not isinstance(row,Mapping):
+                continue
+            key=(str(row.get("event_at") or ""),str(row.get("title") or ""))
+            if key in seen:
+                continue
+            seen.add(key)
+            rows.append(dict(row))
+    rows.sort(key=lambda row: float(row.get("hours_until") or 999.0))
+    imminent=any(0.0 <= float(row.get("hours_until") or 999.0) <= 1.0 for row in rows)
+    return {
+        "available":bool(rows),
+        "status":"high_impact_event_imminent" if imminent else "calendar_clear_or_not_imminent",
+        "imminent":imminent,
+        "events":rows[:8],
+        "source":"belief_macro_calendar_adapter+macro_fast_lane" if primary.get("events") and fast_calendar.get("events") else (
+            primary.get("source") if primary.get("events") else fast_calendar.get("source")
+        ),
+    }
+
+
+def _release_context(
+    calendar: Mapping[str, Any],
+    fast: Mapping[str, Any],
+    latest_macro_evidence_at: Optional[datetime],
+) -> Dict[str, Any]:
+    release_context=_release_context(calendar,fast,latest_macro_evidence_at)
+    fast_score=float(fast.get("eurusd_score") or 0.0) if fast and fast.get("llm") else 0.0
         if fast and fast.get("llm") and abs(fast_score) > 0.0:
             return {
                 **base,
@@ -98,10 +120,12 @@ def context(now: datetime) -> Dict[str, Any]:
                 "direction":"long" if fast_score>0 else "short" if fast_score<0 else "neutral",
                 "reason":"macro_fast_lane_only",
                 "source":"macro_fast_lane",
+                "macro_calendar":calendar,
+                "release_context":release_context,
             }
-        return base
+        return {**base,"macro_calendar":calendar,"release_context":release_context}
     state=_read(path)
-    calendar=_calendar_context(path, now)
+    calendar=_merge_calendar(_calendar_context(path, now),fast)
     rows={str(x.get("belief_id")):x for x in state.get("beliefs",[]) if isinstance(x,Mapping)}
     evidence_rows={str(x.get("evidence_id")):x for x in state.get("evidence",[]) if isinstance(x,Mapping)}
     used=[]; weighted=0.0; weight_sum=0.0
