@@ -23,6 +23,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from typing import Any, Mapping, Sequence
+from zoneinfo import ZoneInfo
 
 from belief_market_data_adapter import Bar
 from daily_engine_contract import DailyEngineOutput
@@ -35,6 +36,10 @@ ENTRY_THESIS_SCHEMA = "eurusd-entry-thesis-v1"
 POST_TRADE_REVIEW_SCHEMA = "eurusd-post-trade-review-v1"
 SAME_THESIS_GUARD_WINDOW_HOURS = 12.0
 SAME_THESIS_GUARD_MIN_LOSS_R = -0.15
+RAPID_REVERSAL_WINDOW_MINUTES = 60.0
+SECONDARY_FRIDAY_ENTRY_CUTOFF_HOUR_NY = 12
+SECONDARY_ENTRY_SOURCES = {"A_TECHNICAL_FALLBACK", "LOW_EDGE_LEARNING_EXPLORATION"}
+NY = ZoneInfo("America/New_York")
 MATERIAL_SCORE_STRENGTH_IMPROVEMENT = 3.0
 MATERIAL_CONFIDENCE_IMPROVEMENT = 0.08
 MATERIAL_COMPONENT_L1_CHANGE = 0.20
@@ -333,6 +338,125 @@ def _guard_metadata_base() -> dict[str, Any]:
     }
 
 
+def _fresh_external_evidence(candidate: DailyEngineOutput) -> bool:
+    metadata = candidate.metadata if isinstance(candidate.metadata, Mapping) else {}
+    belief = metadata.get("belief_macro") if isinstance(metadata.get("belief_macro"), Mapping) else {}
+    release = belief.get("release_context") if isinstance(belief.get("release_context"), Mapping) else {}
+    fast = belief.get("fast_context") if isinstance(belief.get("fast_context"), Mapping) else {}
+    if bool(belief.get("available")) and (
+        bool(release.get("post_release_macro_evidence_fresh"))
+        or bool(fast.get("post_release_ready"))
+        or bool(fast.get("decision_influence"))
+    ):
+        return True
+    event = metadata.get("event_intelligence") if isinstance(metadata.get("event_intelligence"), Mapping) else {}
+    return bool(event.get("decision_influence")) and bool(event.get("coverage"))
+
+
+def _latest_opposite_recent_exit(
+    history: Mapping[str, Any] | None,
+    *,
+    direction: str,
+    observed_at: datetime,
+) -> Mapping[str, Any] | None:
+    if not history:
+        return None
+    cutoff = observed_at - timedelta(minutes=RAPID_REVERSAL_WINDOW_MINUTES)
+    opposite = "LONG" if str(direction).upper() == "SHORT" else "SHORT"
+    rows: list[tuple[datetime, Mapping[str, Any]]] = []
+    for trade in history.get("trades") or []:
+        if not isinstance(trade, Mapping):
+            continue
+        if str(trade.get("direction") or "").upper() != opposite:
+            continue
+        closed_at = _parse(str(trade.get("closed_at") or ""))
+        if closed_at is None or closed_at < cutoff or closed_at > observed_at:
+            continue
+        exit_reason = str(trade.get("exit_reason") or "").upper()
+        if exit_reason not in {
+            "DYNAMIC_RISK_EXIT",
+            "STOP_LOSS",
+            "MACRO_EVENT_THESIS_INVALIDATION",
+        }:
+            continue
+        rows.append((closed_at, trade))
+    if not rows:
+        return None
+    rows.sort(key=lambda item: item[0], reverse=True)
+    return rows[0][1]
+
+
+def _block_candidate(
+    candidate: DailyEngineOutput,
+    metadata: dict[str, Any],
+    *,
+    reason: str,
+) -> DailyEngineOutput:
+    guarded_candidate = dict(metadata.get("candidate") or {})
+    metadata["guarded_candidate"] = guarded_candidate
+    candidate_meta = dict(guarded_candidate)
+    reasons = list(candidate_meta.get("gate_reasons") or [])
+    if reason not in reasons:
+        reasons.append(reason)
+    candidate_meta.update({"accepted": False, "gate_reasons": reasons})
+    metadata["candidate"] = candidate_meta
+    return DailyEngineOutput(
+        instrument=candidate.instrument,
+        timestamp=candidate.timestamp,
+        direction="FLAT",
+        score=float(candidate.score),
+        confidence=float(candidate.confidence),
+        entry=None,
+        stop=None,
+        target=None,
+        horizon=candidate.horizon,
+        engine_version=ENGINE_VERSION,
+        status="NO_TRADE",
+        decision_mode=candidate.decision_mode,
+        metadata=metadata,
+    ).validate()
+
+
+def _apply_weekly_close_entry_guard(candidate: DailyEngineOutput) -> DailyEngineOutput:
+    metadata = dict(candidate.metadata)
+    guard = {
+        "enabled": True,
+        "mode": "SECONDARY_FRIDAY_ENTRY_GUARD",
+        "cutoff_hour_new_york": SECONDARY_FRIDAY_ENTRY_CUTOFF_HOUR_NY,
+        "secondary_sources": sorted(SECONDARY_ENTRY_SOURCES),
+    }
+    if candidate.direction not in {"LONG", "SHORT"}:
+        guard.update({"evaluated": False, "blocked": False, "reason": "no_directional_candidate"})
+        metadata["weekly_close_entry_guard"] = guard
+        return _clone(candidate, metadata=metadata)
+
+    observed_at = _parse(candidate.timestamp)
+    if observed_at is None:
+        guard.update({"evaluated": False, "blocked": False, "reason": "missing_candidate_timestamp"})
+        metadata["weekly_close_entry_guard"] = guard
+        return _clone(candidate, metadata=metadata)
+
+    source = _decision_source(metadata)
+    local = observed_at.astimezone(NY)
+    late_friday = local.weekday() == 4 and local.hour >= SECONDARY_FRIDAY_ENTRY_CUTOFF_HOUR_NY
+    blocked = late_friday and source in SECONDARY_ENTRY_SOURCES
+    guard.update({
+        "evaluated": True,
+        "blocked": blocked,
+        "reason": (
+            "late_friday_secondary_entry_blocked"
+            if blocked
+            else "weekly_close_guard_clear"
+        ),
+        "observed_at_new_york": local.isoformat(),
+        "source": source,
+    })
+    metadata["weekly_close_entry_guard"] = guard
+    if not blocked:
+        return _clone(candidate, metadata=metadata)
+    return _block_candidate(candidate, metadata, reason="late_friday_secondary_entry_blocked")
+
+
 def _apply_same_thesis_guard(
     candidate: DailyEngineOutput,
     history: Mapping[str, Any] | None,
@@ -352,6 +476,31 @@ def _apply_same_thesis_guard(
         return _clone(candidate, metadata=metadata)
 
     current_thesis = _entry_thesis_from_payload(candidate.to_dict())
+    source = str(current_thesis.get("source") or "").upper()
+    rapid_reversal = _latest_opposite_recent_exit(
+        history,
+        direction=candidate.direction,
+        observed_at=observed_at,
+    )
+    if (
+        rapid_reversal is not None
+        and source != "NATIVE"
+        and not _fresh_external_evidence(candidate)
+    ):
+        guard.update({
+            "evaluated": True,
+            "blocked": True,
+            "reason": "rapid_opposite_reentry_requires_primary_or_fresh_external_evidence",
+            "current_thesis": current_thesis,
+            "rapid_reversal_window_minutes": RAPID_REVERSAL_WINDOW_MINUTES,
+            "prior_trade_id": rapid_reversal.get("trade_id"),
+            "prior_direction": rapid_reversal.get("direction"),
+            "prior_closed_at": rapid_reversal.get("closed_at"),
+            "prior_exit_reason": rapid_reversal.get("exit_reason"),
+        })
+        metadata["same_thesis_reentry_guard"] = guard
+        return _block_candidate(candidate, metadata, reason="rapid_reversal_reentry_blocked")
+
     losses = _recent_directional_losses(
         history,
         direction=candidate.direction,
@@ -375,20 +524,33 @@ def _apply_same_thesis_guard(
     if not matching:
         latest = losses[0]
         prior_thesis = _entry_thesis_from_row(latest)
+        change = _thesis_change_diagnostics(current_thesis, prior_thesis)
+        fresh_external = _fresh_external_evidence(candidate)
+        material = bool(change["material_change"]) or fresh_external
         guard.update({
             "evaluated": True,
-            "blocked": False,
-            "reason": "recent_loss_belongs_to_different_thesis_family",
+            "blocked": not material,
+            "reason": (
+                "cross_family_material_new_evidence_detected"
+                if material
+                else "recent_same_direction_loss_without_material_new_evidence"
+            ),
             "current_thesis": current_thesis,
+            "prior_thesis": prior_thesis,
             "latest_directional_loss": {
                 "trade_id": latest.get("trade_id"),
                 "closed_at": latest.get("closed_at"),
                 "r_multiple": latest.get("r_multiple"),
                 "source_family": prior_thesis.get("source_family"),
             },
+            "cross_family": True,
+            "fresh_external_evidence": fresh_external,
+            "change": change,
         })
         metadata["same_thesis_reentry_guard"] = guard
-        return _clone(candidate, metadata=metadata)
+        if material:
+            return _clone(candidate, metadata=metadata)
+        return _block_candidate(candidate, metadata, reason="same_direction_reentry_blocked")
 
     prior_trade = matching[0]
     prior_thesis = _entry_thesis_from_row(prior_trade)
@@ -414,30 +576,8 @@ def _apply_same_thesis_guard(
         metadata["same_thesis_reentry_guard"] = guard
         return _clone(candidate, metadata=metadata)
 
-    guarded_candidate = dict(metadata.get("candidate") or {})
-    metadata["guarded_candidate"] = guarded_candidate
-    candidate_meta = dict(guarded_candidate)
-    reasons = list(candidate_meta.get("gate_reasons") or [])
-    if "same_thesis_reentry_blocked" not in reasons:
-        reasons.append("same_thesis_reentry_blocked")
-    candidate_meta.update({"accepted": False, "gate_reasons": reasons})
-    metadata["candidate"] = candidate_meta
     metadata["same_thesis_reentry_guard"] = guard
-    return DailyEngineOutput(
-        instrument=candidate.instrument,
-        timestamp=candidate.timestamp,
-        direction="FLAT",
-        score=float(candidate.score),
-        confidence=float(candidate.confidence),
-        entry=None,
-        stop=None,
-        target=None,
-        horizon=candidate.horizon,
-        engine_version=ENGINE_VERSION,
-        status="NO_TRADE",
-        decision_mode=candidate.decision_mode,
-        metadata=metadata,
-    ).validate()
+    return _block_candidate(candidate, metadata, reason="same_thesis_reentry_blocked")
 
 
 def build_output(snapshot: Any, history: Mapping[str, Any] | None = None, *, allow_entry: bool = True) -> DailyEngineOutput:
@@ -447,8 +587,18 @@ def build_output(snapshot: Any, history: Mapping[str, Any] | None = None, *, all
         guard = _guard_metadata_base()
         guard.update({"evaluated": False, "blocked": False, "reason": "entry_disabled_this_cycle"})
         metadata["same_thesis_reentry_guard"] = guard
+        metadata["weekly_close_entry_guard"] = {
+            "enabled": True,
+            "mode": "SECONDARY_FRIDAY_ENTRY_GUARD",
+            "evaluated": False,
+            "blocked": False,
+            "reason": "entry_disabled_this_cycle",
+            "cutoff_hour_new_york": SECONDARY_FRIDAY_ENTRY_CUTOFF_HOUR_NY,
+            "secondary_sources": sorted(SECONDARY_ENTRY_SOURCES),
+        }
         return _clone(candidate, metadata=metadata)
-    return _apply_same_thesis_guard(candidate, history)
+    candidate = _apply_same_thesis_guard(candidate, history)
+    return _apply_weekly_close_entry_guard(candidate)
 
 
 def create_position(payload: Mapping[str, Any]) -> dict[str, Any]:

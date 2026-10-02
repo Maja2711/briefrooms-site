@@ -13,6 +13,7 @@ on:
       - "scripts/belief_macro_data_adapter.py"
       - "scripts/belief_macro_expectations_adapter.py"
       - "scripts/belief_macro_expectations_collector.py"
+      - "scripts/belief_macro_forecaster_skill.py"
       - "scripts/daily_eurusd_macro_fast.py"
       - "scripts/belief_macro_release_adapter.py"
       - "tests/test_belief_macro_eurusd.py"
@@ -22,6 +23,7 @@ on:
       - "tests/test_belief_macro_data_adapter.py"
       - "tests/test_belief_macro_expectations_adapter.py"
       - "tests/test_belief_macro_expectations_collector.py"
+      - "tests/test_belief_macro_forecaster_skill.py"
       - "tests/test_daily_eurusd_macro_fast.py"
   pull_request:
     branches: [main]
@@ -34,6 +36,7 @@ on:
       - "scripts/belief_macro_data_adapter.py"
       - "scripts/belief_macro_expectations_adapter.py"
       - "scripts/belief_macro_expectations_collector.py"
+      - "scripts/belief_macro_forecaster_skill.py"
       - "scripts/daily_eurusd_macro_fast.py"
       - "scripts/belief_llm_interpreter.py"
       - "tests/test_belief_core_news_macro.py"
@@ -41,6 +44,7 @@ on:
       - "tests/test_belief_macro_data_adapter.py"
       - "tests/test_belief_macro_expectations_adapter.py"
       - "tests/test_belief_macro_expectations_collector.py"
+      - "tests/test_belief_macro_forecaster_skill.py"
       - "tests/test_daily_eurusd_macro_fast.py"
   schedule:
     # Full news/macro Belief Core remains a slower comprehensive collection.
@@ -88,6 +92,7 @@ jobs:
             scripts/belief_news_event_adapter.py \
             scripts/belief_macro_expectations_adapter.py \
             scripts/belief_macro_expectations_collector.py \
+            scripts/belief_macro_forecaster_skill.py \
             scripts/daily_eurusd_macro_fast.py \
             scripts/belief_external_live.py
           python -m unittest \
@@ -95,6 +100,7 @@ jobs:
             tests.test_belief_core_news_macro \
             tests.test_belief_macro_expectations_adapter \
             tests.test_belief_macro_expectations_collector \
+            tests.test_belief_macro_forecaster_skill \
             tests.test_belief_macro_eurusd \
             tests.test_daily_eurusd_macro_fast -v
 

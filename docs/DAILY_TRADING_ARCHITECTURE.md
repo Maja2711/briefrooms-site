@@ -117,3 +117,13 @@ For high-impact releases such as Employment Situation/NFP, CPI/PCE, FOMC and ECB
 
 The low-latency runtime is `scripts/daily_eurusd_macro_fast.py`; open-position event-risk authority is `scripts/daily_eurusd_macro_event_risk.py`. Neither component may create a new direction or reverse an existing position.
 
+### Re-entry and weekly-close governance
+
+Risk exit and new-entry authority are deliberately separated.
+
+- An open EUR/USD position may still be closed immediately by SL/TP, Dynamic Risk or macro-event risk; there is no minimum position age.
+- A new opposite-direction entry within 60 minutes of a recent opposite STOP_LOSS, DYNAMIC_RISK_EXIT or MACRO_EVENT_THESIS_INVALIDATION cannot be created by a secondary fallback alone. It requires either the primary NATIVE direction engine or fresh source-backed macro/event evidence.
+- A recent meaningful loss in the same direction cannot be bypassed merely by switching source family from NATIVE_COMPONENTS to A_TECHNICAL_FALLBACK (or vice versa). Cross-family re-entry must show material score/confidence/state change or fresh source-backed external evidence.
+- On Friday from 12:00 New York time onward, secondary entry sources A_TECHNICAL_FALLBACK and LOW_EDGE_LEARNING_EXPLORATION are blocked from opening new positions. This does not automatically block a primary NATIVE signal.
+- These guards affect only future admission. They never retroactively close, rewrite or reverse an already-open position.
+

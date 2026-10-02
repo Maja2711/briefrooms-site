@@ -18,6 +18,8 @@ def candidate(
     confidence: float = 0.22,
     source: str = "LOW_EDGE_LEARNING_EXPLORATION",
     components: dict[str, float] | None = None,
+    fresh_macro: bool = False,
+    observed_at: datetime = NOW,
 ) -> DailyEngineOutput:
     components = components or {
         "trend": -0.10,
@@ -30,7 +32,7 @@ def candidate(
     target = entry + 1.8 * risk if direction == "LONG" else entry - 1.8 * risk
     return DailyEngineOutput(
         instrument="EUR/USD",
-        timestamp=NOW.isoformat().replace("+00:00", "Z"),
+        timestamp=observed_at.isoformat().replace("+00:00", "Z"),
         direction=direction,
         score=score,
         confidence=confidence,
@@ -59,6 +61,16 @@ def candidate(
                 "gate_reasons": [],
                 "source": source,
             },
+            "belief_macro": {
+                "available": fresh_macro,
+                "release_context": {
+                    "post_release_macro_evidence_fresh": fresh_macro,
+                },
+                "fast_context": {
+                    "post_release_ready": fresh_macro,
+                    "decision_influence": fresh_macro,
+                },
+            },
         },
     ).validate()
 
@@ -70,18 +82,20 @@ def loss_trade(
     confidence: float = 0.20,
     hours_ago: float = 2.0,
     components: dict[str, float] | None = None,
+    direction: str = "SHORT",
+    exit_reason: str = "STOP_LOSS",
 ) -> dict[str, object]:
     return {
         "trade_id": "prior-loss",
         "instrument": "EUR/USD",
-        "direction": "SHORT",
+        "direction": direction,
         "opened_at": (NOW - timedelta(hours=hours_ago + 2)).isoformat().replace("+00:00", "Z"),
         "closed_at": (NOW - timedelta(hours=hours_ago)).isoformat().replace("+00:00", "Z"),
         "entry": 1.1575,
         "stop": 1.1606,
         "target": 1.1519,
         "exit_price": 1.1606,
-        "exit_reason": "STOP_LOSS",
+        "exit_reason": exit_reason,
         "r_multiple": -1.0,
         "outcome": "LOSS",
         "entry_score": score,
@@ -142,15 +156,112 @@ class DailyEURUSDPostTradeIntelligenceTests(unittest.TestCase):
         self.assertEqual(guard["reason"], "material_new_evidence_detected")
         self.assertIn("directional_score_strength_improved", guard["change"]["material_change_triggers"])
 
-    def test_different_thesis_family_is_not_blocked(self):
+    def test_different_thesis_family_no_longer_bypasses_directional_loss_guard(self):
         output = v16._apply_same_thesis_guard(
-            candidate(source="LOW_EDGE_LEARNING_EXPLORATION"),
-            {"trades": [loss_trade(source="A_TECHNICAL_FALLBACK")]},
+            candidate(source="A_TECHNICAL_FALLBACK", score=36.41, confidence=0.272),
+            {"trades": [loss_trade(source="NATIVE", score=39.30, confidence=0.214)]},
+        )
+        self.assertEqual(output.direction, "FLAT")
+        guard = output.metadata["same_thesis_reentry_guard"]
+        self.assertTrue(guard["blocked"])
+        self.assertTrue(guard["cross_family"])
+        self.assertEqual(
+            guard["reason"],
+            "recent_same_direction_loss_without_material_new_evidence",
+        )
+        self.assertIn("same_direction_reentry_blocked", output.metadata["candidate"]["gate_reasons"])
+
+    def test_cross_family_reentry_can_pass_with_materially_stronger_signal(self):
+        output = v16._apply_same_thesis_guard(
+            candidate(source="A_TECHNICAL_FALLBACK", score=31.0, confidence=0.34),
+            {"trades": [loss_trade(source="NATIVE", score=39.30, confidence=0.214)]},
         )
         self.assertEqual(output.direction, "SHORT")
         guard = output.metadata["same_thesis_reentry_guard"]
         self.assertFalse(guard["blocked"])
-        self.assertEqual(guard["reason"], "recent_loss_belongs_to_different_thesis_family")
+        self.assertEqual(guard["reason"], "cross_family_material_new_evidence_detected")
+
+    def test_rapid_opposite_reentry_from_fallback_is_blocked(self):
+        prior_long = loss_trade(
+            source="NATIVE",
+            direction="LONG",
+            hours_ago=0.03,
+            exit_reason="DYNAMIC_RISK_EXIT",
+        )
+        output = v16._apply_same_thesis_guard(
+            candidate(source="A_TECHNICAL_FALLBACK", direction="SHORT", score=36.41, confidence=0.272),
+            {"trades": [prior_long]},
+        )
+        self.assertEqual(output.direction, "FLAT")
+        guard = output.metadata["same_thesis_reentry_guard"]
+        self.assertTrue(guard["blocked"])
+        self.assertEqual(
+            guard["reason"],
+            "rapid_opposite_reentry_requires_primary_or_fresh_external_evidence",
+        )
+        self.assertIn("rapid_reversal_reentry_blocked", output.metadata["candidate"]["gate_reasons"])
+
+    def test_rapid_opposite_reentry_is_allowed_for_native_primary_signal(self):
+        prior_long = loss_trade(
+            source="NATIVE",
+            direction="LONG",
+            hours_ago=0.03,
+            exit_reason="DYNAMIC_RISK_EXIT",
+        )
+        output = v16._apply_same_thesis_guard(
+            candidate(source="NATIVE", direction="SHORT", score=34.0, confidence=0.32),
+            {"trades": [prior_long]},
+        )
+        self.assertEqual(output.direction, "SHORT")
+
+    def test_rapid_opposite_reentry_is_allowed_with_fresh_macro_evidence(self):
+        prior_long = loss_trade(
+            source="NATIVE",
+            direction="LONG",
+            hours_ago=0.03,
+            exit_reason="DYNAMIC_RISK_EXIT",
+        )
+        output = v16._apply_same_thesis_guard(
+            candidate(
+                source="A_TECHNICAL_FALLBACK",
+                direction="SHORT",
+                score=36.41,
+                confidence=0.272,
+                fresh_macro=True,
+            ),
+            {"trades": [prior_long]},
+        )
+        self.assertEqual(output.direction, "SHORT")
+
+    def test_late_friday_secondary_fallback_is_blocked(self):
+        friday = datetime(2026, 10, 2, 16, 16, tzinfo=UTC)  # 12:16 New York
+        output = v16._apply_weekly_close_entry_guard(
+            candidate(
+                source="A_TECHNICAL_FALLBACK",
+                direction="SHORT",
+                score=36.41,
+                confidence=0.272,
+                observed_at=friday,
+            )
+        )
+        self.assertEqual(output.direction, "FLAT")
+        guard = output.metadata["weekly_close_entry_guard"]
+        self.assertTrue(guard["blocked"])
+        self.assertEqual(guard["reason"], "late_friday_secondary_entry_blocked")
+
+    def test_late_friday_native_signal_is_not_automatically_blocked(self):
+        friday = datetime(2026, 10, 2, 16, 16, tzinfo=UTC)
+        output = v16._apply_weekly_close_entry_guard(
+            candidate(
+                source="NATIVE",
+                direction="SHORT",
+                score=34.0,
+                confidence=0.32,
+                observed_at=friday,
+            )
+        )
+        self.assertEqual(output.direction, "SHORT")
+        self.assertFalse(output.metadata["weekly_close_entry_guard"]["blocked"])
 
     def test_old_loss_outside_guard_window_is_not_blocked(self):
         output = v16._apply_same_thesis_guard(
