@@ -7,8 +7,8 @@
   const isEn = document.documentElement.lang.toLowerCase().startsWith("en");
   const STATE_URL = "/data/investments/eurusd_daily_spot.json";
   const REFRESH_MS = 15_000;
-  const LIVE_MAX_AGE_MS = 2 * 60_000;
-  const REQUEST_TIMEOUT_MS = 2_500;
+  const LIVE_MAX_AGE_MS = 5 * 60_000;
+  const REQUEST_TIMEOUT_MS = 3_500;
 
   const T = isEn ? {
     live: "Current", engine: "Last engine price", refreshing: "refreshing", sourceLive: "live mid-market",
@@ -81,29 +81,30 @@
   }
 
 
-  async function quoteCurrencyExchangeTool() {
-    const data = await fetchJson(`https://www.currencyexchangetool.com/api/v1/convert?amount=1&from=EUR&to=USD&_=${Date.now()}`);
-    if (!data || data.success === false) throw new Error("currency_exchange_tool_error");
-    return validateQuote(
-      data.rate ?? data.result,
-      data.updatedAt ?? data.updated_at ?? data.timestamp ?? data.time,
-      "Currency Exchange Tool"
-    );
-  }
-
   async function quoteFxApi() {
     const data = await fetchJson(`https://fxapi.app/api/EUR/USD.json?_=${Date.now()}`);
     return validateQuote(data?.rate, data?.timestamp, "fxapi.app");
   }
 
+  async function quoteFreshBackendSnapshot() {
+    const data = await fetchJson(`/data/investments/live_prices.json?_=${Date.now()}`);
+    const row = data?.prices?.eurusd;
+    if (!row || row.fresh !== true) throw new Error("backend_eurusd_not_fresh");
+    return validateQuote(
+      row.price,
+      row.current_price_updated_at ?? row.timestamp,
+      "BriefRooms EUR/USD snapshot"
+    );
+  }
+
   async function fetchLiveQuote() {
     try {
-      return await quoteCurrencyExchangeTool();
-    } catch (primaryError) {
+      return await quoteFxApi();
+    } catch (directError) {
       try {
-        return await quoteFxApi();
-      } catch (fallbackError) {
-        throw new Error(`eurusd_live_failed:${primaryError?.message || primaryError}|${fallbackError?.message || fallbackError}`);
+        return await quoteFreshBackendSnapshot();
+      } catch (snapshotError) {
+        throw new Error(`eurusd_live_failed:${directError?.message || directError}|${snapshotError?.message || snapshotError}`);
       }
     }
   }
@@ -207,12 +208,6 @@
       if (maybeReloadForStateChange(payload, position)) return;
       if (!position) return;
 
-      const priceCell = root.querySelector(".brfx-plan-four > div:nth-child(4)");
-      const pendingLabel = priceCell?.querySelector("span");
-      const pendingMeta = priceCell ? ensureLiveMeta(priceCell) : null;
-      if (pendingLabel) pendingLabel.textContent = `${T.live} · ${T.refreshing}`;
-      if (pendingMeta) pendingMeta.textContent = T.refreshing;
-
       let liveQuote = null;
       try {
         liveQuote = await fetchLiveQuote();
@@ -231,7 +226,7 @@
   style.textContent = `.brfx-live-meta{font-size:9px!important;color:#7f95aa!important;line-height:1.25;margin-top:4px}.brfx-live-stale{color:#ffb86b!important}`;
   document.head.appendChild(style);
 
-  setTimeout(refresh, 250);
+  setTimeout(refresh, 100);
   const timer = window.setInterval(refresh, REFRESH_MS);
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") refresh();
