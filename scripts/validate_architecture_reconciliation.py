@@ -186,10 +186,13 @@ for token in (
     "BELIEF_CORE",
     "epistemic-consumer-interface-v1",
     "DAILY_EURUSD",
+    "epistemic_aggregate_authoritative",
     "legacy_raw_score_direction_authority",
 ):
     require(daily_decision, token, "Daily EURUSD Belief decision")
 require(epistemic_consumer, '"DAILY_EURUSD": EURUSD_BELIEF_IDS', "CF-07 Daily EURUSD consumer")
+require(epistemic_consumer, "EURUSD_PROFILE_WEIGHTS", "CF-07 Daily EURUSD aggregate")
+require(epistemic_consumer, "authoritative_daily_eurusd_epistemic_projection", "CF-07 Daily EURUSD aggregate")
 require(epistemic_consumer, "consumer_may_override_probability: bool = False", "CF-07 authority")
 require(daily_workflow, "scripts/daily_eurusd_spot_v19.py", "Daily EURUSD production workflow")
 require(daily_workflow, "BELIEF_EPISTEMIC_STATE=", "Daily EURUSD production workflow")
