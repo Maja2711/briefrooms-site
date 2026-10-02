@@ -643,6 +643,16 @@ async function hub(env) {
 
 export default {
   async fetch(request, env) {
+    const url = new URL(request.url);
+    if (url.pathname === "/market/eurusd" && request.method === "GET") {
+      const origin = allowedOrigin(request, env);
+      try {
+        const quote = await fetchStooqEurusd(env);
+        return json({ ok: true, ...quote }, 200, cors(origin));
+      } catch (error) {
+        return json({ ok: false, error: String(error?.message || error) }, 502, cors(origin));
+      }
+    }
     const h = await hub(env);
     return h.fetch(request);
   },
