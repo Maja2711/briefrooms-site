@@ -105,6 +105,22 @@ class InterpretationContractTest(unittest.TestCase):
                 "alternative_hypothesis": "none",
             })
 
+    def test_eurusd_macro_belief_is_allowed_for_sourced_llm_interpretation(self) -> None:
+        row = validate_interpretation_payload({
+            "belief_id": "eurusd.macro_surprise.supportive",
+            "direction": 1,
+            "strength": .7,
+            "confidence": .8,
+            "materiality": .9,
+            "event_type": "macro_release",
+            "market_scope": "macro",
+            "horizon_hours": 24,
+            "summary": "The supplied macro release is supportive for EUR/USD.",
+            "alternative_hypothesis": "The surprise may already be priced.",
+        })
+        self.assertEqual(row.belief_id, "eurusd.macro_surprise.supportive")
+        self.assertEqual(row.direction, 1)
+
     def test_llm_evidence_keeps_primary_provenance(self) -> None:
         now = datetime(2026, 8, 18, 13, 0, tzinfo=UTC)
         primary, result = interpreted_event(now)
