@@ -188,7 +188,41 @@ This serializes the market and external-evidence writers. A News/Macro cycle the
 
 Only previously unseen primary event Observations are sent to Gemini. A completed `none` classification is remembered so the same source does not consume model quota every 30 minutes. If Gemini is unavailable, the source is not marked interpreted and can be retried later.
 
-## 5. Frozen Forecast + Verification integration
+## 5. EUR/USD macro fast lane and sourced expectations
+
+Daily EUR/USD uses a separate low-latency event path for high-impact US/EU releases:
+
+```text
+official macro calendar
+    -> sourced institutional expectations collector
+    -> MacroExpectationsAdapter
+       -> market consensus
+       -> institution-level forecasts
+       -> historical-MAE-derived forecaster weights
+       -> below/above-consensus probability proxy
+    -> EURUSD macro event package
+    -> governed EURUSD-only Gemini interpretation
+    -> Daily EUR/USD risk / post-release entry gating
+```
+
+Runtime files:
+
+- `scripts/belief_macro_expectations_collector.py`
+- `scripts/belief_macro_expectations_adapter.py`
+- `scripts/daily_eurusd_macro_fast.py`
+- `.github/workflows/daily-eurusd-macro-fast.yml`
+
+The expectations collector is provider-agnostic and reads only an explicitly configured JSON feed through `BELIEF_MACRO_EXPECTATIONS_URL` with an optional bearer token in `BELIEF_MACRO_EXPECTATIONS_TOKEN`. The workflow stores the fetched bundle under `$RUNNER_TEMP`; institution-level forecast payloads are not committed to the public repository.
+
+Every usable forecast must include an institution, numeric forecast, publication timestamp and HTTP(S) `source_ref`. At least two sourced institution forecasts are required before an expectation distribution is admitted. An externally asserted ranking or `accuracy_weight` is not trusted. When historical MAE exists for at least two forecasters, weights are derived mechanically from inverse MAE normalized to the cross-forecaster median; otherwise the distribution is equal-weighted.
+
+If the feed is absent, invalid or unavailable, pre-release expectations fail closed: no bank view is invented and no pre-release LLM decision influence is created from missing forecasts. Scheduled high-impact event risk remains available independently.
+
+For post-release payroll handling, the BLS data contract uses `YYYY-MMM` periods (for example `2026-M09`). The fast lane must use the same period key. The primary BLS payroll observation remains the total nonfarm payroll level, while `latest_month_change_thousands` is surfaced as the directly comparable `nonfarm_payrolls_change` value for comparison against the pre-release forecast distribution. Fresh official actuals can then trigger a new EURUSD-only LLM interpretation and mark `post_release_ready=true`.
+
+Open-position event risk has **no minimum position age**. A position can be reduced/closed minutes after entry when the thesis is invalidated or when a high-impact event creates strongly unfavorable reward-to-downside asymmetry. This is risk authority only; it cannot create or reverse a trade.
+
+## 6. Frozen Forecast + Verification integration
 
 No second forecast system is introduced.
 
@@ -221,7 +255,7 @@ Later evidence cannot rewrite that forecast snapshot. Verification scores the or
 
 `tests/test_belief_core_news_macro.py` includes an explicit regression test proving that a Gemini-derived Fed event Evidence enters a frozen forecast and remains byte-for-byte the same evidence snapshot in the later Verification object.
 
-## 6. Safety boundaries
+## 7. Safety boundaries
 
 These adapters cannot:
 
@@ -235,7 +269,7 @@ These adapters cannot:
 
 Belief Core remains shadow-only.
 
-## 7. v1 limitations and next improvements
+## 8. v1 limitations and next improvements
 
 This is intentionally a narrow first production/shadow version.
 
