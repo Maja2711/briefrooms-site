@@ -177,6 +177,49 @@ class BeliefDecisionTest(unittest.TestCase):
         self.assertEqual(rows[0].entity, "ECB")
         self.assertEqual(rows[0].category_hint, "ecb_primary")
 
+    def test_calendar_coverage_failure_is_not_treated_as_clear(self):
+        now = datetime(2026, 10, 2, 18, 0, tzinfo=UTC)
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            state_path = root / "state.json"
+            state_path.write_text("{}", encoding="utf-8")
+            coverage = {
+                "adapter": "macro_event_calendar",
+                "metric": "calendar_coverage",
+                "observed_at": now.isoformat().replace("+00:00", "Z"),
+                "metadata": {
+                    "complete": False,
+                    "sources": {"BLS": {"status": "failed"}, "ECB": {"status": "ok"}},
+                },
+            }
+            (root / "observations.jsonl").write_text(json.dumps(coverage) + "\n", encoding="utf-8")
+            safety = decision.calendar_safety(observed_at=now, state_path=state_path, decision={})
+        self.assertTrue(safety["blocked"])
+        self.assertEqual(safety["reason"], "belief_calendar_coverage_failed")
+
+    def test_complete_fresh_calendar_without_event_is_clear(self):
+        now = datetime(2026, 10, 2, 18, 0, tzinfo=UTC)
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            state_path = root / "state.json"
+            state_path.write_text("{}", encoding="utf-8")
+            coverage = {
+                "adapter": "macro_event_calendar",
+                "metric": "calendar_coverage",
+                "observed_at": now.isoformat().replace("+00:00", "Z"),
+                "metadata": {
+                    "complete": True,
+                    "sources": {
+                        key: {"status": "ok"}
+                        for key in ("BLS", "BEA", "FOMC", "EUROSTAT", "ECB")
+                    },
+                },
+            }
+            (root / "observations.jsonl").write_text(json.dumps(coverage) + "\n", encoding="utf-8")
+            safety = decision.calendar_safety(observed_at=now, state_path=state_path, decision={})
+        self.assertFalse(safety["blocked"])
+        self.assertEqual(safety["reason"], "clear")
+
     def test_imminent_belief_calendar_blocks_execution_not_final_decision(self):
         now = datetime(2026, 10, 2, 18, 0, tzinfo=UTC)
         state = _state(now, {
