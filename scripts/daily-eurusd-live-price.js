@@ -6,6 +6,7 @@
 
   const isEn = document.documentElement.lang.toLowerCase().startsWith("en");
   const STATE_URL = "/data/investments/eurusd_daily_spot.json";
+  const NOTIFICATION_CONFIG_URL = "/data/notifications/trading-notification-config.json";
   const REFRESH_MS = 60_000;
   const LIVE_MAX_AGE_MS = 10 * 60_000;
   const REQUEST_TIMEOUT_MS = 7_000;
@@ -80,6 +81,15 @@
     return { price: rate, updatedAt: sourceTime.toISOString(), source };
   }
 
+  async function quoteStooq() {
+    const cfg = await fetchJson(`${NOTIFICATION_CONFIG_URL}?_=${Date.now()}`);
+    const base = cfg?.background_push?.api_base || cfg?.analytics?.api_base;
+    if (!base) throw new Error("stooq_worker_base_missing");
+    const data = await fetchJson(`${String(base).replace(/\/$/, "")}/market/eurusd?_=${Date.now()}`);
+    if (!data?.ok) throw new Error(data?.error || "stooq_worker_quote_error");
+    return validateQuote(data.price, data.fetched_at, "Stooq");
+  }
+
   async function quoteFxApi() {
     const data = await fetchJson(`https://fxapi.app/api/EUR/USD.json?_=${Date.now()}`);
     return validateQuote(data?.rate, data?.timestamp, "fxapi.app");
@@ -92,7 +102,7 @@
   }
 
   async function fetchLiveQuote() {
-    const providers = [quoteFxApi, quoteCurrencyExchangeTool];
+    const providers = [quoteStooq, quoteFxApi, quoteCurrencyExchangeTool];
     const errors = [];
     for (const provider of providers) {
       try {
