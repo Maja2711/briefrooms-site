@@ -69,6 +69,38 @@ class DailyEURUSDMacroEventRiskTests(unittest.TestCase):
         self.assertEqual(trade["exit_reason"], "MACRO_EVENT_ASYMMETRY_EXIT")
         self.assertGreater(trade["r_multiple"], 0.5)
 
+    def test_october_2_payroll_case_would_exit_before_stop(self):
+        p = position()
+        p["_management_candidate"] = {"direction": "SHORT", "score": 32.10}
+        p["_belief_macro_context"] = {
+            "available": False,
+            "score": 0.0,
+            "macro_calendar": {
+                "events": [{
+                    "title": "Employment Situation",
+                    "event_at": "2026-10-02T12:30:00Z",
+                    "hours_until": 0.148,
+                    "source": "U.S. Bureau of Labor Statistics",
+                }]
+            },
+        }
+        # Approximate the observed path from the real trade: entry 1.12509,
+        # then a favorable excursion below 1.1230 shortly before payrolls.
+        bars = [
+            bar(0, 1.12509),
+            bar(175, 1.12270, low=1.12246),
+            bar(189, 1.12279, low=1.12260),
+        ]
+        trade = risk.maybe_close_position(p, bars, bars[-1].timestamp)
+        self.assertIsNotNone(trade)
+        self.assertEqual(trade["exit_reason"], "MACRO_EVENT_ASYMMETRY_EXIT")
+        self.assertLess(trade["exit_price"], p["entry"])
+        self.assertGreater(trade["r_multiple"], 0.5)
+        self.assertLess(
+            trade["macro_event_risk"]["reward_to_downside"],
+            risk.PRE_EVENT_MAX_REWARD_TO_DOWNSIDE,
+        )
+
     def test_post_event_giveback_plus_flat_candidate_invalidates_short(self):
         p = position()
         p["_management_candidate"] = {"direction": "FLAT", "score": 45.81}
