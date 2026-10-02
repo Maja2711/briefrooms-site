@@ -55,6 +55,10 @@ class MacroExpectationsAdapterTests(unittest.TestCase):
         self.assertEqual(obs.value["market_consensus"], 80.0)
         self.assertIsNotNone(obs.value["p_actual_below_market_consensus_proxy"])
         self.assertEqual(len(obs.metadata["forecasts"]), 2)
+        forecasts = obs.metadata["forecasts"]
+        self.assertGreater(forecasts[0]["accuracy_weight"], forecasts[1]["accuracy_weight"])
+        self.assertEqual(forecasts[0]["accuracy_weight_source"], "inverse_historical_mae_normalized")
+        self.assertEqual(obs.metadata["accuracy_weight_method"], "inverse_historical_mae_normalized")
 
     def test_missing_or_unsourced_forecasts_fail_neutral(self):
         now = datetime(2026, 10, 2, 12, 0, tzinfo=UTC)
