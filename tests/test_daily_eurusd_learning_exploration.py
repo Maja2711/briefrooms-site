@@ -71,28 +71,27 @@ def flat_candidate(
 
 
 class DailyEURUSDLearningExplorationTests(unittest.TestCase):
-    def test_current_low_edge_structure_promotes_long_learning_trade(self):
-        promoted = v15._promote_learning_exploration(
+    def test_eligible_low_edge_structure_remains_flat_in_production(self):
+        out = v15._promote_learning_exploration(
             flat_candidate(), snapshot(), {"trades": []}, now=NOW + timedelta(minutes=10)
         )
-        self.assertEqual(promoted.direction, "LONG")
-        self.assertEqual(promoted.engine_version, "eurusd-daily-spot-v1.5.0")
-        self.assertEqual(promoted.metadata["decision_source"], "LOW_EDGE_LEARNING_EXPLORATION")
-        self.assertTrue(promoted.metadata["learning_eligible"])
-        self.assertEqual(promoted.metadata["learning_namespace"], "NATIVE_COMPONENTS_LOW_EDGE")
-        self.assertEqual(promoted.metadata["exploration"]["supporting_component_count"], 2)
-        self.assertLess(promoted.stop, promoted.entry)
-        self.assertGreater(promoted.target, promoted.entry)
+        self.assertEqual(out.direction, "FLAT")
+        self.assertEqual(out.status, "NO_TRADE")
+        self.assertIsNone(out.entry)
+        self.assertFalse(out.metadata["exploration"]["production_authority"])
+        self.assertTrue(out.metadata["exploration"]["eligible_shadow"])
+        self.assertEqual(out.metadata["exploration"]["supporting_component_count"], 2)
+        self.assertEqual(out.metadata["exploration"]["risk_budget_multiplier"], 0.0)
 
     def test_edge_below_one_point_stays_flat(self):
-        promoted = v15._promote_learning_exploration(
+        out = v15._promote_learning_exploration(
             flat_candidate(score=50.70), snapshot(), {"trades": []}, now=NOW
         )
-        self.assertEqual(promoted.direction, "FLAT")
-        self.assertEqual(promoted.metadata["exploration"]["reason"], "edge_too_small")
+        self.assertEqual(out.direction, "FLAT")
+        self.assertEqual(out.metadata["exploration"]["reason"], "edge_too_small")
 
     def test_component_conflict_stays_flat(self):
-        promoted = v15._promote_learning_exploration(
+        out = v15._promote_learning_exploration(
             flat_candidate(
                 score=52.0,
                 components={
@@ -105,62 +104,45 @@ class DailyEURUSDLearningExplorationTests(unittest.TestCase):
             {"trades": []},
             now=NOW,
         )
-        self.assertEqual(promoted.direction, "FLAT")
-        self.assertEqual(promoted.metadata["exploration"]["reason"], "insufficient_component_agreement")
+        self.assertEqual(out.direction, "FLAT")
+        self.assertEqual(out.metadata["exploration"]["reason"], "insufficient_component_agreement")
 
-    def test_only_one_exploration_close_per_utc_day(self):
-        history = {
-            "trades": [{
-                "closed_at": (NOW - timedelta(hours=1)).isoformat().replace("+00:00", "Z"),
-                "decision_source": "LOW_EDGE_LEARNING_EXPLORATION",
-                "r_multiple": 0.1,
-            }]
-        }
-        promoted = v15._promote_learning_exploration(
-            flat_candidate(), snapshot(), history, now=NOW
-        )
-        self.assertEqual(promoted.direction, "FLAT")
-        self.assertEqual(promoted.metadata["exploration"]["reason"], "exploration_daily_limit")
-
-    def test_exploration_waits_two_hours_after_latest_close(self):
-        history = {
-            "trades": [{
-                "closed_at": (NOW - timedelta(hours=1)).isoformat().replace("+00:00", "Z"),
+    def test_exploration_history_never_creates_position(self):
+        out = v15._promote_learning_exploration(
+            flat_candidate(), snapshot(),
+            {"trades": [{
+                "closed_at": (NOW - timedelta(hours=3)).isoformat().replace("+00:00", "Z"),
                 "decision_source": "NATIVE",
-                "r_multiple": -0.2,
-            }]
-        }
-        promoted = v15._promote_learning_exploration(
-            flat_candidate(), snapshot(), history, now=NOW
+                "r_multiple": 0.2,
+            }]},
+            now=NOW,
         )
-        self.assertEqual(promoted.direction, "FLAT")
-        self.assertEqual(promoted.metadata["exploration"]["reason"], "learning_exploration_cooldown")
+        self.assertEqual(out.direction, "FLAT")
+        with self.assertRaises(ValueError):
+            v15.create_position(out.to_dict())
 
-    def test_position_and_closed_trade_keep_learning_provenance_and_excursions(self):
-        candidate = v15._promote_learning_exploration(
-            flat_candidate(), snapshot(), {"trades": []}, now=NOW
-        )
-        position = v15.create_position(candidate.to_dict())
-        self.assertEqual(position["decision_source"], "LOW_EDGE_LEARNING_EXPLORATION")
-        self.assertTrue(position["learning_eligible"])
+    def test_native_direction_passes_through_unchanged(self):
+        native = DailyEngineOutput(
+            instrument="EUR/USD",
+            timestamp=NOW.isoformat().replace("+00:00", "Z"),
+            direction="SHORT",
+            score=35.0,
+            confidence=0.30,
+            entry=1.1686,
+            stop=1.1718,
+            target=1.1628,
+            horizon="intraday_to_27h",
+            engine_version="eurusd-daily-spot-v1.4.0",
+            status="SIGNAL",
+            decision_mode="WITHOUT",
+            metadata={"decision_source": "NATIVE", "candidate": {"direction": "SHORT", "accepted": True}},
+        ).validate()
+        out = v15._promote_learning_exploration(native, snapshot(), {"trades": []}, now=NOW)
+        self.assertEqual(out.direction, "SHORT")
+        self.assertEqual(out.entry, native.entry)
+        self.assertFalse(out.metadata["exploration"]["production_authority"])
 
-        close_bar = Bar(
-            timestamp=NOW + timedelta(hours=1),
-            open=float(candidate.entry),
-            high=float(candidate.target) + 0.0001,
-            low=float(candidate.entry) - 0.0002,
-            close=float(candidate.target),
-            volume=1000,
-        )
-        trade = v15.evaluate_position(position, [close_bar], close_bar.timestamp)
-        self.assertIsNotNone(trade)
-        assert trade is not None
-        self.assertEqual(trade["decision_source"], "LOW_EDGE_LEARNING_EXPLORATION")
-        self.assertTrue(trade["learning_eligible"])
-        self.assertIn("mfe_r", trade)
-        self.assertIn("mae_r", trade)
-        self.assertGreater(trade["mfe_r"], 0.0)
-        self.assertLess(trade["mae_r"], 0.0)
+
 
 
 if __name__ == "__main__":
