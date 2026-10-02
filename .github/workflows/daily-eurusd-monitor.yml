@@ -177,7 +177,9 @@ jobs:
               raise SystemExit('v1.8 output missing same-thesis re-entry guard metadata')
           contextual_policy=metadata.get('contextual_entry_policy') or {}
           position=metadata.get('position') or {}
-          if not contextual_policy and not position:
+          lifecycle_status=str(payload.get('status') or '').upper()
+          terminal_close=lifecycle_status in {'CLOSED_SL','CLOSED_TP','CLOSED_TIME','CLOSED_DYNAMIC','CLOSED_EVENT'}
+          if not contextual_policy and not position and not terminal_close:
               raise SystemExit('v1.8 flat/new-entry output missing contextual entry policy metadata')
           if contextual_policy and contextual_policy.get('direction_mutation_allowed') is not False:
               raise SystemExit('contextual entry policy must not own market direction')
