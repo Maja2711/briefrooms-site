@@ -2,7 +2,7 @@
 
 **Wersja mapy:** 1.18  
 **Stan na:** 2026-10-02  
-**Bazowy commit `main`:** `cf77692f7fa61e5e3ffec347f6acb5fe01e8bb15`  
+**Bazowy commit `main`:** `6e92704a49f1011a79eaf27765664feb2888a57e`  
 **Repozytorium:** `Maja2711/briefrooms-site`
 
 ## 0. Rola tego dokumentu
