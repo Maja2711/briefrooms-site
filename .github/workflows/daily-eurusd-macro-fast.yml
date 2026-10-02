@@ -12,6 +12,7 @@ on:
       - "scripts/belief_macro_expectations_adapter.py"
       - "data/investments/eurusd_macro_expectations.json"
       - "tests/test_belief_macro_expectations_adapter.py"
+      - "tests/test_daily_eurusd_macro_fast.py"
       - ".github/workflows/daily-eurusd-macro-fast.yml"
   schedule:
     - cron: "0,5,10,15,20,25,30,35,40,45,50,55 12-17 * * 1-5"
@@ -59,7 +60,8 @@ jobs:
             scripts/belief_macro_expectations_adapter.py
           python -m unittest \
             tests.test_belief_macro_expectations_adapter \
-            tests.test_belief_macro_eurusd -v
+            tests.test_belief_macro_eurusd \
+            tests.test_daily_eurusd_macro_fast -v
 
       - name: Build EURUSD macro fast context
         run: |
