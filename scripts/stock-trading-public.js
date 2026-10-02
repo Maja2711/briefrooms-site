@@ -90,7 +90,7 @@
     empty: '—'
   };
 
-  const state = { data: null, runtime: null, period: '30', view: 'overview', selectedMarket: 'GPW' };
+  const state = { data: null, runtime: null, period: '30', view: 'overview', selectedMarket: null };
   const asNumber = (v) => Number.isFinite(Number(v)) ? Number(v) : null;
   const esc = (v) => String(v ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
   const firstNumber = (obj, keys) => {
