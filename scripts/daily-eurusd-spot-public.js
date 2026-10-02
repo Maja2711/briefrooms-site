@@ -104,6 +104,24 @@
     NO_TRADE: T.noTrade, SIGNAL: T.open
   }[String(status || "").toUpperCase()] || String(status || T.noTrade));
 
+  function freshLiveEurUsd(livePayload) {
+    const row = livePayload?.prices?.eurusd;
+    if (!row || row.fresh !== true) return null;
+    const price = Number(row.price);
+    const stamp = new Date(row.current_price_updated_at || row.timestamp || "");
+    if (!Number.isFinite(price) || price < 0.8 || price > 1.5 || Number.isNaN(stamp.valueOf())) return null;
+    const ageMs = Date.now() - stamp.valueOf();
+    return ageMs >= -60_000 && ageMs <= 5 * 60_000 ? price : null;
+  }
+
+  function livePositionPercent(position, mark) {
+    const entry = Number(position?.entry);
+    const current = Number(mark);
+    if (!Number.isFinite(entry) || entry <= 0 || !Number.isFinite(current)) return position?.unrealized_percent;
+    const sign = String(position?.direction || "").toUpperCase() === "SHORT" ? -1 : 1;
+    return sign * ((current - entry) / entry) * 100;
+  }
+
   function historyRows(trades) {
     if (!trades.length) return `<p class="brfx-muted">${esc(T.noHistory)}</p>`;
     return `<div class="brfx-history-wrap"><table class="brfx-history"><thead><tr>
@@ -116,7 +134,7 @@
     </tr>`).join("")}</tbody></table></div>`;
   }
 
-  function render(payload, historyPayload) {
+  function render(payload, historyPayload, livePayload) {
     const md = payload.metadata || {};
     const position = md.position && md.position.status === "OPEN" ? md.position : null;
     const lastTrade = md.last_trade || null;
@@ -129,8 +147,10 @@
 
     let main = "";
     if (position) {
+      const initialMark = freshLiveEurUsd(livePayload) ?? Number(position.mark_price);
+      const initialPct = livePositionPercent(position, initialMark);
       main = `<div class="brfx-signal"><strong>${esc(position.direction)}</strong><span>${esc(T.open)} · score ${num(position.entry_score,1)}/100 · confidence ${Math.round(Number(position.entry_confidence || 0)*100)}%</span></div>
-        <div class="brfx-plan brfx-plan-four"><div><span>${esc(T.entry)}</span><b>${px(position.entry)}</b></div><div><span>${esc(T.stop)}</span><b>${px(position.stop)}</b></div><div><span>${esc(T.target)}</span><b>${px(position.target)}</b></div><div><span>${esc(T.mark)}</span><b>${px(position.mark_price)}</b><small class="${Number(position.unrealized_percent) >= 0 ? "positive" : "negative"}">${pct(position.unrealized_percent)}</small></div></div>
+        <div class="brfx-plan brfx-plan-four"><div><span>${esc(T.entry)}</span><b>${px(position.entry)}</b></div><div><span>${esc(T.stop)}</span><b>${px(position.stop)}</b></div><div><span>${esc(T.target)}</span><b>${px(position.target)}</b></div><div><span>${esc(T.mark)}</span><b>${px(initialMark)}</b><small class="${Number(initialPct) >= 0 ? "positive" : "negative"}">${pct(initialPct)}</small></div></div>
         <p class="brfx-foot">${esc(T.opened)}: ${esc(date(position.opened_at))} · ${esc(T.horizon)}: ${esc(date(position.expires_at))}</p>`;
     } else if (lastTrade) {
       main = `<div class="brfx-signal"><strong class="${Number(lastTrade.result_percent) >= 0 ? "positive" : "negative"}">${esc(statusLabel(status))}</strong><span>${esc(lastTrade.direction)} · ${esc(T.result)} ${esc(pct(lastTrade.result_percent))} · ${esc(T.r)} ${esc(num(lastTrade.r_multiple,2))}R</span></div>
@@ -163,7 +183,8 @@
 
   Promise.all([
     fetch("/data/investments/eurusd_daily_spot.json?v=" + Date.now(), {cache:"no-store"}).then(response => { if (!response.ok) throw new Error("feed"); return response.json(); }),
-    fetch("/data/investments/eurusd_daily_history.json?v=" + Date.now(), {cache:"no-store"}).then(response => response.ok ? response.json() : null).catch(() => null)
-  ]).then(([payload, history]) => render(payload, history))
+    fetch("/data/investments/eurusd_daily_history.json?v=" + Date.now(), {cache:"no-store"}).then(response => response.ok ? response.json() : null).catch(() => null),
+    fetch("/data/investments/live_prices.json?v=" + Date.now(), {cache:"no-store"}).then(response => response.ok ? response.json() : null).catch(() => null)
+  ]).then(([payload, history, live]) => render(payload, history, live))
     .catch(() => { root.innerHTML = `<div class="brfx-error">${esc(T.error)}</div>`; });
 })();
