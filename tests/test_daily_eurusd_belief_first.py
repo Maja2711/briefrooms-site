@@ -199,7 +199,15 @@ class BeliefDecisionTest(unittest.TestCase):
             path = root / "state.json"
             path.write_text(json.dumps(state), encoding="utf-8")
             (root / "observations.jsonl").write_text("", encoding="utf-8")
-            with mock.patch.dict(os.environ, {"BELIEF_CORE_STATE": str(path)}, clear=False):
+            with mock.patch.dict(
+                os.environ,
+                {
+                    "BELIEF_CORE_STATE": str(path),
+                    "BELIEF_EPISTEMIC_STATE": "",
+                    "DAILY_EURUSD_REQUIRE_EPISTEMIC": "",
+                },
+                clear=False,
+            ):
                 with mock.patch.object(base, "_raw_state", side_effect=AssertionError("legacy raw direction called")):
                     output = v19.build_output(_snapshot(now), {"trades": []})
         self.assertEqual(output.decision_mode, "WITH")
@@ -330,7 +338,15 @@ class BeliefDecisionTest(unittest.TestCase):
                 },
             }
             (root / "observations.jsonl").write_text(json.dumps(obs) + "\n", encoding="utf-8")
-            with mock.patch.dict(os.environ, {"BELIEF_CORE_STATE": str(path)}, clear=False):
+            with mock.patch.dict(
+                os.environ,
+                {
+                    "BELIEF_CORE_STATE": str(path),
+                    "BELIEF_EPISTEMIC_STATE": "",
+                    "DAILY_EURUSD_REQUIRE_EPISTEMIC": "",
+                },
+                clear=False,
+            ):
                 output = v19.build_output(_snapshot(now), {"trades": []})
         self.assertEqual(output.metadata["final_decision"]["direction"], "LONG")
         self.assertFalse(output.metadata["execution_admission"]["allowed"])
