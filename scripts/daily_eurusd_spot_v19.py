@@ -201,6 +201,22 @@ def build_output(
             "A_TECHNICAL_FALLBACK": {"production_direction_authority": False},
             "LOW_EDGE_LEARNING_EXPLORATION": {"production_direction_authority": False},
         },
+        "contextual_entry_policy": {
+            "mode": "LEGACY_V18_CONTEXTUAL_LEARNER",
+            "status": "SHADOW_AFTER_BELIEF_FIRST_MIGRATION",
+            "decision_influence": False,
+            "direction_mutation_allowed": False,
+            "timing_mutation_allowed": False,
+            "reason": "Legacy learner was trained under pre-v1.9 decision semantics; production authority reset prospectively.",
+            "FSE_production_influence": False,
+        },
+        "same_thesis_reentry_guard": {
+            "enabled": True,
+            "evaluated": False,
+            "blocked": False,
+            "reason": "no_directional_candidate" if direction == "FLAT" else "awaiting_execution_admission",
+            "direction_mutation_allowed": False,
+        },
         "learning": {
             **legacy_learning,
             "production_direction_learning_applied": False,
@@ -256,6 +272,9 @@ def build_output(
             history,
             observed_at=observed_at,
         )
+        guard = (md["execution_admission"].get("same_thesis_reentry_guard") or {})
+        if guard:
+            md["same_thesis_reentry_guard"] = dict(guard)
         provisional = _clone(provisional, metadata=md)
     elif not allow_entry:
         md = dict(provisional.metadata)
