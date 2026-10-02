@@ -152,6 +152,36 @@ jobs:
             echo "BELIEF_CORE_STATE=" >> "$GITHUB_ENV"
           fi
 
+      - name: Restore authoritative Epistemic State for Daily EURUSD
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/belief_epistemic_state"
+          echo "DAILY_EURUSD_REQUIRE_EPISTEMIC=1" >> "$GITHUB_ENV"
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=belief-epistemic-state&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/epistemic-artifacts.json"
+          artifact_id=$(python - "$RUNNER_TEMP/epistemic-artifacts.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get("artifacts",[]) if not x.get("expired")]
+          rows.sort(key=lambda x:x.get("created_at",""), reverse=True)
+          print(rows[0]["id"] if rows else "")
+          PY
+          )
+          if [ -n "$artifact_id" ]; then
+            curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json"               "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip"               -o "$RUNNER_TEMP/epistemic-state.zip"
+            mkdir -p "$RUNNER_TEMP/epistemic-state-artifact"
+            unzip -q "$RUNNER_TEMP/epistemic-state.zip" -d "$RUNNER_TEMP/epistemic-state-artifact"
+            test -f "$RUNNER_TEMP/epistemic-state-artifact/belief-epistemic-state.tgz"
+            tar -xzf "$RUNNER_TEMP/epistemic-state-artifact/belief-epistemic-state.tgz" -C "$RUNNER_TEMP/belief_epistemic_state"
+            test -s "$RUNNER_TEMP/belief_epistemic_state/epistemic_state.json"
+            echo "BELIEF_EPISTEMIC_STATE=$RUNNER_TEMP/belief_epistemic_state/epistemic_state.json" >> "$GITHUB_ENV"
+          else
+            echo "BELIEF_EPISTEMIC_STATE=" >> "$GITHUB_ENV"
+            echo "No Epistemic State artifact: v1.9 will fail closed to FLAT."
+          fi
+
       - name: Start immutable LIVE execution clock
         run: |
           echo "NO_RETROACTIVE_EXECUTION=1" >> "$GITHUB_ENV"
