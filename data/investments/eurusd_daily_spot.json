@@ -1,6 +1,6 @@
 {
   "instrument": "EUR/USD",
-  "timestamp": "2026-10-02T18:05:06Z",
+  "timestamp": "2026-10-02T19:52:08Z",
   "direction": "SHORT",
   "score": 36.41,
   "confidence": 0.272,
@@ -18,31 +18,30 @@
     "decision_influence": false,
     "belief": {
       "mode": "SHARED_BELIEF_CONTEXT",
-      "decision_influence": false,
+      "decision_influence": true,
       "source": "Belief Core News Macro Shadow Collection + EURUSD beliefs",
       "fail_neutral": true
     },
     "components": {
-      "trend": 0.0341,
-      "broad_usd_environment": -0.1028,
-      "us_rates_pressure_proxy": -0.3642
+      "trend": -0.1449,
+      "broad_usd_environment": -0.1607,
+      "us_rates_pressure_proxy": -0.4964
     },
     "weights": {
-      "trend": 0.532982,
-      "broad_usd_environment": 0.252705,
-      "us_rates_pressure_proxy": 0.214313
+      "trend": 0.53575,
+      "broad_usd_environment": 0.250022,
+      "us_rates_pressure_proxy": 0.214228
     },
     "candidate": {
-      "direction": "FLAT",
-      "score": 45.71,
-      "confidence": 0.0,
+      "direction": "SHORT",
+      "score": 38.79,
+      "confidence": 0.224,
       "accepted": false,
       "gate_reasons": [
-        "raw_score_neutral",
         "entry_disabled_this_cycle"
       ],
-      "previous_score": 46.03,
-      "stretch_atr": 0.0533,
+      "previous_score": 43.91,
+      "stretch_atr": 0.2006,
       "shock_ratio": 0.0
     },
     "learning": {
@@ -57,14 +56,23 @@
         "SHORT": 2
       },
       "adaptive_weights": {
-        "trend": 0.532982,
-        "broad_usd_environment": 0.252705,
-        "us_rates_pressure_proxy": 0.214313
+        "trend": 0.53575,
+        "broad_usd_environment": 0.250022,
+        "us_rates_pressure_proxy": 0.214228
       },
       "component_multipliers": {
-        "trend": 0.965236,
-        "broad_usd_environment": 1.006835,
-        "us_rates_pressure_proxy": 1.067337
+        "trend": 0.946313,
+        "broad_usd_environment": 0.97157,
+        "us_rates_pressure_proxy": 1.040593
+      },
+      "adaptive_weight_learning": {
+        "authority": "NATIVE_ONLY",
+        "eligible_closed_trades": 17,
+        "excluded_sources": [
+          "A_TECHNICAL_FALLBACK",
+          "LOW_EDGE_LEARNING_EXPLORATION"
+        ],
+        "history_rewritten": false
       },
       "entry_thresholds": {
         "long": 60.0,
@@ -101,6 +109,22 @@
         "UUP",
         "TLT"
       ],
+      "cross_asset_alignment": {
+        "passed": true,
+        "reason": "aligned",
+        "reference_symbol": "EURUSD=X",
+        "timestamps": {
+          "EURUSD=X": "2026-10-02T19:52:08Z",
+          "UUP": "2026-10-02T19:53:04Z",
+          "TLT": "2026-10-02T19:53:06Z"
+        },
+        "gap_minutes_vs_eurusd": {
+          "UUP": 0.93,
+          "TLT": 0.97
+        },
+        "max_gap_minutes": 0.97,
+        "threshold_minutes": 90.0
+      },
       "executable_bid_ask_available": false,
       "rate_differential_claimed": false,
       "ecb_policy_coverage": false,
@@ -108,6 +132,13 @@
       "ecb_policy_status": "NO_ACTIVE_ECB_EVENT",
       "ecb_policy_consensus_claimed": false,
       "ecb_ois_repricing_claimed": false
+    },
+    "a_fallback": {
+      "production_authority": false,
+      "status": "DETACHED_FROM_PRODUCTION",
+      "research_state_consumed": false,
+      "native_direction": "FLAT",
+      "note": "Arm A is evaluated only in dedicated shadow workflows; production cannot promote it."
     },
     "dynamic_exit": {
       "enabled": true,
@@ -150,7 +181,7 @@
       "schema_version": "eurusd-ecb-policy-context-v1",
       "enabled": true,
       "central_bank": "ECB",
-      "observed_at": "2026-10-02T18:05:06Z",
+      "observed_at": "2026-10-02T19:52:08Z",
       "event_active": false,
       "coverage": false,
       "must_block_entry": false,
@@ -188,11 +219,21 @@
     },
     "belief_macro": {
       "enabled": true,
-      "available": false,
-      "score": 0.0,
-      "reason": "no_fresh_eurusd_beliefs",
+      "available": true,
+      "score": -1.0962,
+      "direction": "short",
+      "beliefs": [
+        {
+          "belief_id": "eurusd.us_rates_pressure.supportive",
+          "probability": 0.384427,
+          "confidence": 0.47425,
+          "age_hours": 1.451,
+          "updated_at": "2026-10-02T18:25:06Z"
+        }
+      ],
+      "freshness_max_hours": 8.0,
+      "score_cap": 10.0,
       "source": "belief_core",
-      "fast_context": {},
       "macro_calendar": {
         "available": false,
         "status": "calendar_clear_or_not_imminent",
@@ -206,7 +247,9 @@
         "post_release_macro_evidence_fresh": false,
         "post_release_guard_minutes": 30,
         "fast_lane_post_release_ready": false
-      }
+      },
+      "fast_context": {},
+      "rule": "fresh bounded EURUSD beliefs with event fast lane; no standalone execution authority"
     },
     "event_intelligence": {
       "schema_version": "daily-eurusd-event-overlay-v1",
@@ -228,7 +271,7 @@
       "fail_neutral": true,
       "score": null,
       "status": "EVENT_SNAPSHOT_STALE",
-      "age_minutes": 96.2,
+      "age_minutes": 203.23,
       "gate_evaluated": false,
       "gate_reason": "entry_disabled_or_no_directional_candidate"
     },
@@ -239,6 +282,14 @@
       "new_entry_veto_enabled": true,
       "existing_position_close_enabled": true,
       "missing_or_stale_snapshot": "FAIL_NEUTRAL"
+    },
+    "direction_authority": {
+      "owner": "NATIVE_DAILY_EURUSD_DIRECTION_ENGINE",
+      "single_owner": true,
+      "source": "NATIVE",
+      "direction": "FLAT",
+      "allowed": true,
+      "rule": "Only NATIVE may create LONG/SHORT; native FLAT is final for direction admission."
     },
     "position": {
       "schema_version": "eurusd-daily-position-v1",
@@ -362,16 +413,15 @@
       "unrealized_percent": -0.0524
     },
     "candidate_at_refresh": {
-      "direction": "FLAT",
-      "score": 45.71,
-      "confidence": 0.0,
+      "direction": "SHORT",
+      "score": 38.79,
+      "confidence": 0.224,
       "accepted": false,
       "gate_reasons": [
-        "raw_score_neutral",
         "entry_disabled_this_cycle"
       ],
-      "previous_score": 46.03,
-      "stretch_atr": 0.0533,
+      "previous_score": 43.91,
+      "stretch_atr": 0.2006,
       "shock_ratio": 0.0
     },
     "open_position_policy_check": {
