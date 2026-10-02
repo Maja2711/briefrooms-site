@@ -1,0 +1,89 @@
+name: Daily EURUSD Macro Fast Lane
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/daily_eurusd_macro_fast.py"
+      - "scripts/belief_llm_interpreter.py"
+      - "scripts/belief_macro_calendar_adapter.py"
+      - "scripts/belief_macro_data_adapter.py"
+      - "scripts/belief_macro_expectations_adapter.py"
+      - "data/investments/eurusd_macro_expectations.json"
+      - "tests/test_belief_macro_expectations_adapter.py"
+      - ".github/workflows/daily-eurusd-macro-fast.yml"
+  schedule:
+    - cron: "0,5,10,15,20,25,30,35,40,45,50,55 12-17 * * 1-5"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-eurusd-macro-fast
+  cancel-in-progress: true
+
+jobs:
+  macro-fast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GEMINI_GENERATION_MODEL: gemini-3.5-flash
+      GEMINI_REVIEW_MODEL: gemini-3.5-flash
+      GEMINI_FALLBACK_MODEL: gemini-3.5-flash-lite
+      GEMINI_MIN_INTERVAL_SECONDS: "3"
+      BELIEF_MACRO_EXPECTATIONS_PATH: data/investments/eurusd_macro_expectations.json
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install fast-lane dependency
+        run: pip install requests
+
+      - name: Validate macro fast lane
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/daily_eurusd_macro_fast.py \
+            scripts/belief_llm_interpreter.py \
+            scripts/belief_macro_calendar_adapter.py \
+            scripts/belief_macro_data_adapter.py \
+            scripts/belief_macro_expectations_adapter.py
+          python -m unittest \
+            tests.test_belief_macro_expectations_adapter \
+            tests.test_belief_macro_eurusd -v
+
+      - name: Build EURUSD macro fast context
+        run: |
+          set -euo pipefail
+          python scripts/daily_eurusd_macro_fast.py \
+            --output data/investments/eurusd_macro_fast_context.json
+          python -m json.tool data/investments/eurusd_macro_fast_context.json >/dev/null
+
+      - name: Persist changed macro fast context
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/investments/eurusd_macro_fast_context.json
+          if git diff --cached --quiet; then
+            echo "Macro fast context unchanged"
+            exit 0
+          fi
+          git commit -m "Update EURUSD macro fast context"
+          for attempt in 1 2 3; do
+            if git pull --rebase origin main && git push origin HEAD:main; then
+              exit 0
+            fi
+            git rebase --abort 2>/dev/null || true
+            sleep $((attempt * 2))
+          done
+          exit 1
