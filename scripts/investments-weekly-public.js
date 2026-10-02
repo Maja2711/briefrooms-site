@@ -324,7 +324,10 @@
     const currentRecord = liveRecord(live, item.instrument_id);
     const current = livePrice(live, item.instrument_id);
     const currentTime = fmtTime(liveTimestamp(live, item.instrument_id));
-    const currentLabel = item.instrument_id === 'eurusd' && currentRecord.fresh !== true ? T.lastPrice : T.price;
+    const currentSource = String(currentRecord.source || '').toLowerCase();
+    const currentLabel = item.instrument_id === 'eurusd' && (currentRecord.fresh !== true || currentSource.includes('fxapi'))
+      ? T.lastPrice
+      : T.price;
     if (state.withheld) {
       return `<article class="card ${esc(dir(item))} integrity-withheld"><div class="head"><div><p>${esc(label(item))}</p><h3>${esc(dirText(item))}</h3></div></div><dl class="grid"><div class="cell big"><dt>${T.pnl}</dt><dd class="neutral">${esc(T.withheld)}</dd></div><div class="cell"><dt>${T.status}</dt><dd>${esc(T.audit)}</dd></div><div class="cell big"><dt>${T.audit}</dt><dd>${esc(state.reason)}</dd></div></dl></article>`;
     }
