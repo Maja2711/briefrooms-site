@@ -183,6 +183,38 @@ function yahooMinuteBars(payload) {
   return rows;
 }
 
+async function fetchYahooMinuteBars(env) {
+  const configured = String(env.YAHOO_EURUSD_1M_URL || "").trim();
+  const candidates = [
+    configured,
+    "https://query1.finance.yahoo.com/v8/finance/chart/EURUSD%3DX?range=1d&interval=1m&includePrePost=false&events=div%2Csplits",
+    "https://query2.finance.yahoo.com/v8/finance/chart/EURUSD%3DX?range=1d&interval=1m&includePrePost=false&events=div%2Csplits",
+  ].filter((value, index, values) => value && values.indexOf(value) === index);
+
+  const errors = [];
+  for (const base of candidates) {
+    try {
+      const response = await fetch(`${base}${base.includes("?") ? "&" : "?"}_=${Date.now()}`, {
+        headers: {
+          "cache-control": "no-cache",
+          "accept": "application/json",
+          "user-agent": "Mozilla/5.0 (compatible; BriefRooms/1.0; +https://briefrooms.com)",
+        },
+      });
+      if (!response.ok) throw new Error(`http_${response.status}`);
+      const bars = yahooMinuteBars(await response.json());
+      if (!bars.length) throw new Error("no_bars");
+      return {
+        bars,
+        source: base.includes("query2.") ? "Yahoo Finance query2 EURUSD=X 1m OHLC" : "Yahoo Finance query1 EURUSD=X 1m OHLC",
+      };
+    } catch (error) {
+      errors.push(`${base.includes("query2.") ? "query2" : "query1"}:${String(error?.message || error)}`);
+    }
+  }
+  throw new Error(`yahoo_eurusd_all_candidates_failed:${errors.join("|")}`);
+}
+
 function fastExitHit(position, bars) {
   const direction = String(position.direction || "").toUpperCase();
   const stop = finiteNumber(position.stop);
@@ -446,9 +478,13 @@ export class PushHub {
     const openDispatch = await this.dispatchEvents([openEvent]);
 
     let hit = null;
-    let marketSource = "Stooq EURUSD live";
+    const marketSources = [];
+    const marketErrors = [];
+
+    // 1) Immediate snapshot path: useful for a current cross.
     try {
       const stooqQuote = await fetchStooqEurusd(this.env);
+      marketSources.push(stooqQuote.source);
       hit = fastExitHitQuote(position, stooqQuote);
       stats.last_fast_daily_quote = {
         source: stooqQuote.source,
@@ -457,31 +493,50 @@ export class PushHub {
         ask: stooqQuote.ask,
         price: stooqQuote.price,
       };
-    } catch (stooqError) {
-      let bars = [];
-      marketSource = "Yahoo Finance EURUSD=X 1m OHLC fallback";
+    } catch (error) {
+      marketErrors.push(`stooq:${String(error?.message || error)}`);
+    }
+
+    // 2) Always inspect 1-minute OHLC, even when the current snapshot did not cross.
+    // This catches a brief SL/TP touch that reverted before the next cron tick.
+    if (!hit) {
       try {
-        const yahooUrl = this.env.YAHOO_EURUSD_1M_URL || "https://query1.finance.yahoo.com/v8/finance/chart/EURUSD%3DX?range=1d&interval=1m&includePrePost=false&events=div%2Csplits";
-        const response = await fetch(`${yahooUrl}${yahooUrl.includes("?") ? "&" : "?"}_=${Date.now()}`, {
-          headers: { "cache-control": "no-cache", "accept": "application/json" },
-        });
-        if (!response.ok) throw new Error(`yahoo_eurusd_http_${response.status}`);
-        bars = yahooMinuteBars(await response.json());
-        if (!bars.length) throw new Error("yahoo_eurusd_no_bars");
-      } catch (yahooError) {
+        const yahoo = await fetchYahooMinuteBars(this.env);
+        marketSources.push(yahoo.source);
+        hit = fastExitHit(position, yahoo.bars);
+      } catch (error) {
+        marketErrors.push(`yahoo:${String(error?.message || error)}`);
+      }
+    }
+
+    // 3) Last-resort point-in-time fallback. It can confirm a current cross but is
+    // not considered sufficient evidence that no cross occurred between samples.
+    if (!hit) {
+      try {
         const fxUrl = this.env.FXAPI_EURUSD_URL || "https://fxapi.app/api/EUR/USD.json";
         const response = await fetch(`${fxUrl}${fxUrl.includes("?") ? "&" : "?"}_=${Date.now()}`, {
           headers: { "cache-control": "no-cache", "accept": "application/json" },
         });
-        if (!response.ok) throw yahooError;
+        if (!response.ok) throw new Error(`fxapi_http_${response.status}`);
         const quote = await response.json();
         const rate = finiteNumber(quote?.rate);
-        if (rate == null) throw yahooError;
-        bars = [{ timestamp: new Date().toISOString(), open: rate, high: rate, low: rate, close: rate }];
-        marketSource = "fxapi.app EUR/USD spot fallback";
+        if (rate == null) throw new Error("fxapi_no_rate");
+        const current = {
+          source: "fxapi.app EUR/USD spot",
+          fetched_at: new Date().toISOString(),
+          price: rate,
+          bid: null,
+          ask: null,
+        };
+        marketSources.push(current.source);
+        hit = fastExitHitQuote(position, current);
+      } catch (error) {
+        marketErrors.push(`fxapi:${String(error?.message || error)}`);
       }
-      hit = fastExitHit(position, bars);
     }
+
+    const marketSource = marketSources.join(" + ") || "none";
+    stats.last_fast_daily_market_errors = marketErrors;
     if (!hit) {
       stats.last_fast_daily_status = "OPEN_NO_EXIT";
       stats.last_fast_daily_market_source = marketSource;
@@ -554,6 +609,7 @@ export class PushHub {
         last_fast_daily_check_at: stats.last_fast_daily_check_at || null,
         last_fast_daily_status: stats.last_fast_daily_status || null,
         last_fast_daily_market_source: stats.last_fast_daily_market_source || null,
+        last_fast_daily_market_errors: stats.last_fast_daily_market_errors || [],
         last_fast_daily_quote: stats.last_fast_daily_quote || null,
       }, 200, cors(origin));
     }
