@@ -241,13 +241,13 @@ jobs:
           data=metadata.get('data') or {}
           if 'ecb_policy_coverage' not in data:
               raise SystemExit('v1.8 output missing ecb_policy_coverage')
-          source=metadata.get('decision_source','NATIVE_OR_FLAT')
-          if source == 'LOW_EDGE_LEARNING_EXPLORATION':
-              exploration=metadata.get('exploration') or {}
-              if not metadata.get('learning_eligible'):
-                  raise SystemExit('learning exploration must be learning eligible')
-              if exploration.get('risk_budget_multiplier') != 0.35:
-                  raise SystemExit('learning exploration risk budget must be 0.35')
+          authority=metadata.get('direction_authority') or {}
+          if not position and payload.get('direction') in {'LONG','SHORT'}:
+              if authority.get('owner') != 'NATIVE_DAILY_EURUSD_DIRECTION_ENGINE' or authority.get('allowed') is not True:
+                  raise SystemExit(f"non-native direction authority leaked into production: {authority}")
+              if authority.get('source') != 'NATIVE':
+                  raise SystemExit(f"directional candidate source is not NATIVE: {authority}")
+          source=authority.get('source','NATIVE_OR_FLAT')
           print('EURUSD_V18_OK', payload.get('direction'), candidate.get('direction'), candidate.get('accepted'), source, sorted(reasons), policy.get('status'), data.get('ecb_policy_coverage'))
           PY
 
