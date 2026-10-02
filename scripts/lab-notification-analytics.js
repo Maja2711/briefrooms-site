@@ -74,14 +74,14 @@
       const d = await res.json();
       const b = d.breakdown || {};
       const last = d.last_dispatch_at ? dtf.format(new Date(d.last_dispatch_at)) : '—';
+      const recentSent = Number(d.last_dispatch_sent || 0);
       const recentFailed = Number(d.last_dispatch_failed || 0);
+      const recentExpired = Number(d.last_dispatch_expired || 0);
       const statusPairs = Object.entries(d.last_failed_statuses || {})
         .filter(([, count]) => Number(count) > 0)
         .map(([status, count]) => `${status}: ${nf.format(Number(count))}`)
         .join(' · ');
-      const failureDetail = recentFailed > 0
-        ? `${T.lastDispatchFailed}: ${nf.format(recentFailed)}${statusPairs ? ` · ${statusPairs}` : ''}`
-        : `${T.lastDispatchFailed}: 0 · ${T.noRecentErrors}`;
+      const failureDetail = `${T.lastDispatchFailed}: ${T.sentNow} ${nf.format(recentSent)} · ${T.failedNow} ${nf.format(recentFailed)} · ${T.expiredNow} ${nf.format(recentExpired)}${statusPairs ? ` · ${statusPairs}` : (recentFailed === 0 ? ` · ${T.noRecentErrors}` : '')}`;
 
       root.innerHTML = `
         <article class="panel notification-analytics-panel">
