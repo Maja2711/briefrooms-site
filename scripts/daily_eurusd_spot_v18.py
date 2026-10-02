@@ -475,11 +475,14 @@ def _closed_output(candidate: DailyEngineOutput, trade: Mapping[str, Any], histo
 
 
 def run_cycle(output_path: Path, history_path: Path, client: Any | None = None) -> DailyEngineOutput:
+    injected_client = client is not None
     client = client or base.YahooChartClient(timeout=15)
     snapshot = base.fetch_snapshot(client)
     monitor_bars = client.bars(base.EURUSD, "5d", "1m")
     observed_at = monitor_bars[-1].timestamp.astimezone(timezone.utc)
     try:
+        if injected_client:
+            raise RuntimeError("skip_external_stooq_for_injected_test_client")
         stooq = epe.fetch_stooq_eurusd_quote(timeout=5)
         stooq_at = stooq.timestamp.astimezone(timezone.utc)
         age_seconds = (datetime.now(timezone.utc) - stooq_at).total_seconds()
