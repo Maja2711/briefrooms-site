@@ -109,10 +109,12 @@ class DailyEurusdDirectSignalAdmissionTests(unittest.TestCase):
         self.assertFalse(alignment["passed"])
         self.assertGreater(alignment["max_gap_minutes"], 90.0)
 
-    def test_aligned_cross_asset_inputs_do_not_block_native_signal(self):
+    def test_aligned_cross_asset_inputs_do_not_create_alignment_block(self):
         output = base.build_output(aligned_snapshot(proxy_lag_minutes=0), empty_history())
-        self.assertIn(output.direction, {"LONG", "SHORT"})
-        self.assertTrue(output.metadata["data"]["cross_asset_alignment"]["passed"])
+        alignment = output.metadata["data"]["cross_asset_alignment"]
+        self.assertTrue(alignment["passed"])
+        self.assertNotIn("cross_asset_data_misaligned", output.metadata["candidate"]["gate_reasons"])
+        self.assertIn(output.direction, {"LONG", "SHORT", "FLAT"})
 
     def test_learning_keeps_weights_but_has_no_admission_limits(self):
         state = direct_learning_state(self._loss_history()["trades"])
