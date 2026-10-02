@@ -138,7 +138,11 @@ def build_output(
     observed_at = rows[-1].timestamp.astimezone(timezone.utc)
 
     state, consumer_meta = belief_decision.load_effective_state(observed_at=observed_at)
-    decision = belief_decision.synthesize(state, observed_at=observed_at)
+    decision = belief_decision.synthesize(
+        state,
+        observed_at=observed_at,
+        authoritative_consumer=consumer_meta,
+    )
     decision["epistemic_consumer"] = dict(consumer_meta)
     direction = str(decision["direction"])
     entry, stop, target = _market_geometry(snapshot, direction)
