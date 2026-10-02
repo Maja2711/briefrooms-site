@@ -16,6 +16,8 @@ EPE never substitutes a stale or historical analytical price for a current marke
 """
 from __future__ import annotations
 
+import csv
+import io
 import json
 import math
 import statistics
@@ -24,12 +26,13 @@ import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from typing import Any, Callable, Mapping, Optional
 
 from belief_market_data_adapter import YahooChartClient
 
 SCHEMA_VERSION = "execution-price-engine-v1"
-ENGINE_VERSION = "EPE-1.2.0"
+ENGINE_VERSION = "EPE-1.3.0"
 EURUSD_PIP = 0.0001
 EURUSD_MIN = 0.8
 EURUSD_MAX = 1.5
@@ -37,8 +40,8 @@ SYNTHETIC_SPREAD_PIPS = 1.5
 SYNTHETIC_HALF_SPREAD_PIPS = SYNTHETIC_SPREAD_PIPS / 2.0
 SYNTHETIC_HALF_SPREAD_PRICE = SYNTHETIC_HALF_SPREAD_PIPS * EURUSD_PIP
 
-# Current public infrastructure gives us a direct fxapi mid and an independent
-# Yahoo 1m cross-check. These limits are intentionally strict enough to reject
+# Current public infrastructure prioritizes Stooq live EUR/USD, with fxapi,
+# Currency Exchange Tool and Yahoo as independent fallbacks/cross-checks. These limits are intentionally strict enough to reject
 # a several-pip ghost price while tolerating normal timestamp granularity.
 DEFAULT_PRIMARY_MAX_AGE_SECONDS = 180.0
 DEFAULT_SECONDARY_MAX_AGE_SECONDS = 180.0
@@ -47,6 +50,7 @@ DEFAULT_MAX_CROSS_FEED_PIPS = 1.5
 DEFAULT_QUOTE_MAX_AGE_SECONDS = 180.0
 
 SOURCE_PRIORITY = (
+    "Stooq:",
     "fxapi.app:",
     "Currency Exchange Tool:",
     "Yahoo Finance:",
@@ -397,6 +401,69 @@ def verify_live_mid_quotes(
     }
 
 
+def _http_text(url: str, timeout: int = 8) -> str:
+    req = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": "BriefRooms-EPE/1.0",
+            "Accept": "text/csv,text/plain,*/*",
+            "Cache-Control": "no-cache",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as response:
+        return response.read().decode("utf-8", errors="replace")
+
+
+def fetch_stooq_eurusd_quote(timeout: int = 8) -> Quote:
+    """Fetch the current Stooq EUR/USD quote.
+
+    Stooq's live quote endpoint exposes current quote data as CSV. We request
+    bid/ask as well as OHLC; EPE still normalizes to a single observed market
+    price because its execution contract is mid-plus-explicit-spread.
+    """
+    url = "https://stooq.pl/q/l/?s=eurusd&f=sd2t2ohlcvba&h&e=csv"
+    text = _http_text(url, timeout=timeout)
+    rows = list(csv.DictReader(io.StringIO(text)))
+    if not rows:
+        raise RuntimeError("Stooq EUR/USD quote empty")
+    row = rows[0]
+    normalized = {str(k or "").strip().lower(): str(v or "").strip() for k, v in row.items()}
+    if any(v.upper() in {"N/D", "N/A"} for v in normalized.values()):
+        raise RuntimeError("Stooq EUR/USD quote unavailable")
+
+    bid = _finite_price(normalized.get("bid"), low=EURUSD_MIN, high=EURUSD_MAX)
+    ask = _finite_price(normalized.get("ask"), low=EURUSD_MIN, high=EURUSD_MAX)
+    last = _finite_price(
+        normalized.get("close") or normalized.get("last") or normalized.get("kurs"),
+        low=EURUSD_MIN,
+        high=EURUSD_MAX,
+    )
+    if bid is not None and ask is not None and ask >= bid:
+        price = (bid + ask) / 2.0
+        source = "Stooq:EURUSD:bid-ask-mid"
+    elif last is not None:
+        price = last
+        source = "Stooq:EURUSD:live"
+    else:
+        raise RuntimeError("Stooq EUR/USD quote has no valid price")
+
+    date_text = normalized.get("date") or normalized.get("data")
+    time_text = normalized.get("time") or normalized.get("czas")
+    if not date_text or not time_text:
+        raise RuntimeError("Stooq EUR/USD quote missing timestamp")
+    parsed = None
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y%m%d %H%M%S", "%Y%m%d %H:%M:%S"):
+        try:
+            parsed = datetime.strptime(f"{date_text} {time_text}", fmt)
+            break
+        except ValueError:
+            continue
+    if parsed is None:
+        raise RuntimeError("Stooq EUR/USD quote timestamp invalid")
+    stamp = parsed.replace(tzinfo=ZoneInfo("Europe/Warsaw")).astimezone(timezone.utc)
+    return Quote(price=price, timestamp=stamp, source=source)
+
+
 def _http_json(url: str, timeout: int = 8) -> Mapping[str, Any]:
     req = urllib.request.Request(
         url,
@@ -460,6 +527,7 @@ def eurusd_market_fill(
 ) -> dict[str, Any]:
     current = (now or utc_now()).astimezone(timezone.utc)
     providers = fetchers or [
+        fetch_stooq_eurusd_quote,
         fetch_fxapi_eurusd_quote,
         fetch_currency_exchange_tool_eurusd_quote,
         fetch_yahoo_eurusd_quote,
