@@ -14,6 +14,11 @@ ALLOWED_BELIEFS: Tuple[str, ...] = (
     "spx.volatility.benign",
     "spx.liquidity.supportive",
     "spx.financial_conditions.supportive",
+    "eurusd.trend.bullish",
+    "eurusd.usd_environment.supportive",
+    "eurusd.us_rates_pressure.supportive",
+    "eurusd.macro_surprise.supportive",
+    "eurusd.policy_differential.supportive",
 )
 
 MIN_INTERPRETATION_CONFIDENCE = 0.68
@@ -259,8 +264,17 @@ class GeminiEvidenceInterpreter:
         if observation.status != "ok" or not self.available:
             return None
 
-        document_text = str(observation.metadata.get("document_text") or observation.value or "")
-        document_text = document_text.strip()
+        document_text = str(observation.metadata.get("document_text") or "").strip()
+        if not document_text:
+            document_text = json.dumps(
+                {
+                    "value": observation.value,
+                    "metadata": dict(observation.metadata),
+                },
+                ensure_ascii=False,
+                sort_keys=True,
+                default=str,
+            )
         if len(document_text) < 40:
             return None
 
@@ -269,7 +283,7 @@ class GeminiEvidenceInterpreter:
                 "Interpret one already-observed primary-source market event. "
                 "Do not invent facts, forecasts, prices, or consensus estimates. "
                 "Choose at most one allowed belief that this event directly changes over the next 1-7 days. "
-                "If the document is company-specific or immaterial to the shared US-market world state, return belief_id='none'."
+                "If the document is company-specific or immaterial to both the shared US-market world state and EUR/USD, return belief_id='none'."
             ),
             "allowed_beliefs": list(self.allowed_beliefs),
             "belief_meanings": {
@@ -278,9 +292,15 @@ class GeminiEvidenceInterpreter:
                 "spx.volatility.benign": "equity volatility remains contained",
                 "spx.liquidity.supportive": "credit/liquidity conditions remain supportive",
                 "spx.financial_conditions.supportive": "rates/USD/credit financial conditions remain supportive",
+                "eurusd.trend.bullish": "EUR/USD directional trend is bullish into the target horizon",
+                "eurusd.usd_environment.supportive": "broad USD environment is supportive for EUR/USD (weaker USD pressure)",
+                "eurusd.us_rates_pressure.supportive": "US rates pressure is supportive for EUR/USD",
+                "eurusd.macro_surprise.supportive": "relative macro surprise is supportive for EUR/USD",
+                "eurusd.policy_differential.supportive": "relative ECB/Fed policy differential is supportive for EUR/USD",
             },
             "hard_rules": [
-                "Use only the supplied document.",
+                "Use only the supplied document or structured observation.",
+                "Never invent a consensus estimate, bank forecast, actual release value, or revision that is not supplied.",
                 "A company filing normally maps to none unless it plausibly has broad-market impact.",
                 "direction=+1 supports the selected belief; direction=-1 contradicts it.",
                 "confidence measures confidence in the interpretation, not source reliability.",
