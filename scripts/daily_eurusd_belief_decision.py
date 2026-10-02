@@ -19,20 +19,20 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Mapping, Optional
 
-from epistemic_consumer_interface import EpistemicConsumerInterface
+from epistemic_consumer_interface import (
+    EURUSD_MIN_COVERAGE_WEIGHT,
+    EURUSD_PROFILE_WEIGHTS,
+    EURUSD_REQUIRED_ANCHOR,
+    EpistemicConsumerInterface,
+)
 
 LONG_THRESHOLD = 60.0
 SHORT_THRESHOLD = 40.0
 
-# Preserve the already-deployed EUR/USD Belief bridge priors during the
-# architecture migration. This PR changes routing/authority, not model tuning.
-BELIEF_WEIGHTS = {
-    "eurusd.trend.bullish": 0.45,
-    "eurusd.usd_environment.supportive": 0.30,
-    "eurusd.us_rates_pressure.supportive": 0.15,
-    "eurusd.macro_surprise.supportive": 0.20,
-    "eurusd.policy_differential.supportive": 0.10,
-}
+# CF-07 owns the predeclared EUR/USD epistemic aggregation weights. The
+# decision engine consumes that authoritative aggregate rather than defining a
+# second, potentially divergent aggregation.
+BELIEF_WEIGHTS = dict(EURUSD_PROFILE_WEIGHTS)
 
 # Freshness follows the corresponding BeliefDefinition half-life. Missing or
 # stale evidence is not converted to a neutral vote; it reduces coverage.
@@ -44,8 +44,8 @@ BELIEF_MAX_AGE_HOURS = {
     "eurusd.policy_differential.supportive": 18.0,
 }
 
-MIN_COVERAGE_WEIGHT = 0.45
-REQUIRED_ANCHOR_BELIEF = "eurusd.trend.bullish"
+MIN_COVERAGE_WEIGHT = EURUSD_MIN_COVERAGE_WEIGHT
+REQUIRED_ANCHOR_BELIEF = EURUSD_REQUIRED_ANCHOR
 
 
 def _parse_time(value: Any) -> Optional[datetime]:
@@ -189,6 +189,16 @@ def _epistemic_projection_to_belief_state(
         "consumer_may_override_probability": envelope.authority.consumer_may_override_probability,
         "belief_core_writeback_enabled": envelope.authority.belief_core_writeback_enabled,
         "state_count": len(envelope.states),
+        "aggregate_probability": envelope.aggregate_probability,
+        "aggregate_confidence": envelope.aggregate_confidence,
+        "coverage_weight": envelope.coverage_weight,
+        "qualified_state_count": envelope.qualified_state_count,
+        "qualified_belief_ids": [
+            str(row.get("belief_id"))
+            for row in envelope.states
+            if float(row.get("freshness") or 0.0) >= 0.50
+            and str(row.get("audit_status") or "").lower() != "critical"
+        ],
     }
 
 
@@ -251,6 +261,7 @@ def synthesize(
     state: Mapping[str, Any],
     *,
     observed_at: datetime,
+    authoritative_consumer: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Return the single final LONG/SHORT/FLAT decision from Belief Core state."""
     now = observed_at.astimezone(timezone.utc)
@@ -330,6 +341,20 @@ def synthesize(
     score = round(50.0 + 50.0 * normalized, 2)
     confidence = round(mean_confidence * coverage, 4)
 
+    consumer_authoritative = bool(
+        authoritative_consumer
+        and authoritative_consumer.get("available") is True
+        and authoritative_consumer.get("contract") == "epistemic-consumer-interface-v1"
+        and authoritative_consumer.get("aggregate_authoritative") is True
+    )
+    if consumer_authoritative:
+        try:
+            score = round(100.0 * float(authoritative_consumer["aggregate_probability"]), 2)
+            confidence = round(float(authoritative_consumer["aggregate_confidence"]), 4)
+            coverage = float(authoritative_consumer.get("coverage_weight") or 0.0)
+        except (KeyError, TypeError, ValueError):
+            consumer_authoritative = False
+
     reasons: list[str] = []
     if not state:
         reasons.append("belief_state_unavailable")
@@ -372,6 +397,7 @@ def synthesize(
         ],
         "legacy_raw_score_direction_authority": False,
         "shadow_engine_direction_authority": False,
+        "epistemic_aggregate_authoritative": consumer_authoritative,
     }
 
 
