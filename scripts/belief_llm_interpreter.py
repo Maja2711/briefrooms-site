@@ -9,7 +9,11 @@ from belief_adapter_contract import EvidenceAssessment, Observation, clamp, obse
 from belief_core import Evidence, iso_z
 
 EURUSD_ALLOWED_BELIEFS: Tuple[str, ...] = (
-    *EURUSD_ALLOWED_BELIEFS,
+    "eurusd.trend.bullish",
+    "eurusd.usd_environment.supportive",
+    "eurusd.us_rates_pressure.supportive",
+    "eurusd.macro_surprise.supportive",
+    "eurusd.policy_differential.supportive",
 )
 
 ALLOWED_BELIEFS: Tuple[str, ...] = (
@@ -18,11 +22,7 @@ ALLOWED_BELIEFS: Tuple[str, ...] = (
     "spx.volatility.benign",
     "spx.liquidity.supportive",
     "spx.financial_conditions.supportive",
-    "eurusd.trend.bullish",
-    "eurusd.usd_environment.supportive",
-    "eurusd.us_rates_pressure.supportive",
-    "eurusd.macro_surprise.supportive",
-    "eurusd.policy_differential.supportive",
+    *EURUSD_ALLOWED_BELIEFS,
 )
 
 MIN_INTERPRETATION_CONFIDENCE = 0.68
