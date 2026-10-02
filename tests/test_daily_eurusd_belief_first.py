@@ -14,6 +14,7 @@ if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
 from belief_market_data_adapter import Bar, MarketSnapshot
+from belief_news_event_adapter import parse_rss
 import daily_eurusd_belief_decision as decision
 import daily_eurusd_spot as base
 import daily_eurusd_spot_v19 as v19
@@ -144,6 +145,37 @@ class BeliefDecisionTest(unittest.TestCase):
         self.assertEqual(out.direction, "LONG")
         self.assertFalse(out.metadata["contextual_entry_policy"]["decision_influence"])
         self.assertFalse(out.metadata["contextual_entry_policy"]["FSE_production_influence"])
+
+    def test_v19_runtime_fetches_only_direct_eurusd_market_fact(self):
+        now = datetime(2026, 10, 2, 18, 0, tzinfo=UTC)
+        snapshot = _snapshot(now)
+
+        class Client:
+            def bars(self, symbol, range_="10d", interval="30m"):
+                if symbol != base.EURUSD:
+                    raise AssertionError(f"direct explanatory market read leaked into v1.9: {symbol}")
+                return list(snapshot.bars[base.EURUSD])
+
+        fetched = v19.fetch_snapshot(Client())
+        self.assertEqual(set(fetched.bars), {base.EURUSD})
+
+    def test_official_ecb_feed_is_normalized_as_ecb_primary_event(self):
+        now = datetime(2026, 10, 29, 14, 0, tzinfo=UTC)
+        xml = """<rss><channel><item>
+        <title>Monetary policy decisions</title>
+        <link>https://www.ecb.europa.eu/press/pr/date/2026/html/example.en.html</link>
+        <pubDate>Thu, 29 Oct 2026 13:15:00 GMT</pubDate>
+        <description>The Governing Council decided on interest rates.</description>
+        </item></channel></rss>"""
+        rows = parse_rss(
+            xml,
+            source="European Central Bank press releases",
+            now=now,
+            lookback_hours=36,
+        )
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0].entity, "ECB")
+        self.assertEqual(rows[0].category_hint, "ecb_primary")
 
     def test_imminent_belief_calendar_blocks_execution_not_final_decision(self):
         now = datetime(2026, 10, 2, 18, 0, tzinfo=UTC)
