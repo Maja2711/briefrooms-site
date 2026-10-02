@@ -7,8 +7,9 @@
   const isEn = document.documentElement.lang.toLowerCase().startsWith("en");
   const STATE_URL = "/data/investments/eurusd_daily_spot.json";
   const REFRESH_MS = 15_000;
-  const LIVE_MAX_AGE_MS = 5 * 60_000;
-  const REQUEST_TIMEOUT_MS = 3_500;
+  const LIVE_MAX_AGE_MS = 3 * 60_000;
+  const FALLBACK_MAX_AGE_MS = 6 * 60_000;
+  const REQUEST_TIMEOUT_MS = 4_500;
 
   const T = isEn ? {
     live: "Current", engine: "Last engine price", refreshing: "refreshing", sourceLive: "live mid-market",
@@ -70,20 +71,45 @@
     return response.json();
   }
 
-  function validateQuote(price, timestamp, source) {
+  function validateQuote(price, timestamp, source, maxAgeMs = LIVE_MAX_AGE_MS) {
     const rate = number(price);
     if (rate == null || rate < 0.8 || rate > 1.5) throw new Error(`${source}_invalid_rate`);
     const sourceTime = timestamp ? new Date(timestamp) : new Date();
     if (Number.isNaN(sourceTime.valueOf())) throw new Error(`${source}_invalid_timestamp`);
     const age = Date.now() - sourceTime.valueOf();
-    if (age < -60_000 || age > LIVE_MAX_AGE_MS) throw new Error(`${source}_stale`);
+    if (age < -60_000 || age > maxAgeMs) throw new Error(`${source}_stale`);
     return { price: rate, updatedAt: sourceTime.toISOString(), source };
   }
 
 
+  function yahooQuoteFromPayload(data, source) {
+    const chart = data?.chart?.result?.[0];
+    if (!chart) throw new Error("yahoo_eurusd_missing_chart");
+    const timestamps = Array.isArray(chart.timestamp) ? chart.timestamp : [];
+    const closes = chart?.indicators?.quote?.[0]?.close || [];
+    for (let index = Math.min(timestamps.length, closes.length) - 1; index >= 0; index -= 1) {
+      const price = number(closes[index]);
+      const stamp = number(timestamps[index]);
+      if (price == null || stamp == null) continue;
+      return validateQuote(price, stamp * 1000, source, LIVE_MAX_AGE_MS);
+    }
+    const price = number(chart?.meta?.regularMarketPrice);
+    const stamp = number(chart?.meta?.regularMarketTime);
+    if (price == null || stamp == null) throw new Error("yahoo_eurusd_missing_quote");
+    return validateQuote(price, stamp * 1000, source, LIVE_MAX_AGE_MS);
+  }
+
+  async function quoteYahoo(route) {
+    const upstream = `https://query1.finance.yahoo.com/v8/finance/chart/EURUSD%3DX?interval=1m&range=1d&_=${Date.now()}`;
+    const url = route === "allorigins"
+      ? `https://api.allorigins.win/raw?url=${encodeURIComponent(upstream)}`
+      : `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(upstream)}`;
+    return yahooQuoteFromPayload(await fetchJson(url), route === "allorigins" ? "Yahoo EURUSD=X 1m · backup" : "Yahoo EURUSD=X 1m");
+  }
+
   async function quoteFxApi() {
     const data = await fetchJson(`https://fxapi.app/api/EUR/USD.json?_=${Date.now()}`);
-    return validateQuote(data?.rate, data?.timestamp, "fxapi.app");
+    return validateQuote(data?.rate, data?.timestamp, "fxapi.app · 5m fallback", FALLBACK_MAX_AGE_MS);
   }
 
   async function quoteFreshBackendSnapshot() {
@@ -93,20 +119,31 @@
     return validateQuote(
       row.price,
       row.current_price_updated_at ?? row.timestamp,
-      "BriefRooms EUR/USD snapshot"
+      `BriefRooms EUR/USD snapshot · ${row.source || "unknown"}`,
+      FALLBACK_MAX_AGE_MS
     );
   }
 
   async function fetchLiveQuote() {
-    try {
-      return await quoteFxApi();
-    } catch (directError) {
+    const errors = [];
+    for (const route of ["codetabs", "allorigins"]) {
       try {
-        return await quoteFreshBackendSnapshot();
-      } catch (snapshotError) {
-        throw new Error(`eurusd_live_failed:${directError?.message || directError}|${snapshotError?.message || snapshotError}`);
+        return await quoteYahoo(route);
+      } catch (error) {
+        errors.push(error?.message || String(error));
       }
     }
+    try {
+      return await quoteFxApi();
+    } catch (error) {
+      errors.push(error?.message || String(error));
+    }
+    try {
+      return await quoteFreshBackendSnapshot();
+    } catch (error) {
+      errors.push(error?.message || String(error));
+    }
+    throw new Error(`eurusd_live_failed:${errors.join("|")}`);
   }
 
   function getOpenPosition(payload) {
