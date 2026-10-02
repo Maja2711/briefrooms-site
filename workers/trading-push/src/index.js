@@ -701,6 +701,19 @@ export class PushHub {
 
     if (origin === null) return json({ error: "origin_not_allowed" }, 403);
 
+    if (path === "/subscription-status" && request.method === "POST") {
+      const payload = await bodyJson(request);
+      if (!payload.endpoint) return json({ error: "endpoint_required" }, 400, cors(origin));
+      const id = await endpointId(payload.endpoint);
+      const record = await this.ctx.storage.get(`sub:${id}`);
+      return json({
+        ok: true,
+        id,
+        registered: Boolean(record?.subscription),
+        updated_at: record?.updated_at || null,
+      }, 200, cors(origin));
+    }
+
     if (path === "/subscribe" && request.method === "POST") {
       const payload = await bodyJson(request);
       const subscription = payload.subscription;
