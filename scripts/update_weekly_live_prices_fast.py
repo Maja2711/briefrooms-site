@@ -329,7 +329,7 @@ def coinbase_quote() -> Dict[str, Any]:
 def providers(instrument_id: str) -> list[Callable[[], Dict[str, Any]]]:
     if instrument_id == "eurusd":
         return [
-            lambda: stooq_quote(instrument_id),
+            currency_exchange_tool_eurusd_quote,
             fxapi_eurusd_quote,
         ]
 
@@ -381,17 +381,17 @@ def newest_valid(instrument_id: str) -> tuple[Optional[Dict[str, Any]], list[str
     if not candidates:
         return None, errors
     if instrument_id == "eurusd":
-        fresh_stooq = [
+        fresh_primary = [
             item for item in candidates
-            if str(item.get("source") or "").startswith("Stooq:")
+            if str(item.get("source") or "").startswith("Currency Exchange Tool:")
             and timedelta(seconds=-60) <= quote_age(item) <= INSTRUMENTS["eurusd"].max_age
         ]
-        if fresh_stooq:
-            fresh_stooq.sort(
+        if fresh_primary:
+            fresh_primary.sort(
                 key=lambda item: parse_iso(item.get("timestamp")) or datetime.min.replace(tzinfo=WARSAW),
                 reverse=True,
             )
-            return fresh_stooq[0], errors
+            return fresh_primary[0], errors
         fresh_fxapi = [
             item for item in candidates
             if str(item.get("source") or "").startswith("fxapi.app:")
@@ -419,7 +419,7 @@ def refresh_one(instrument_id: str, previous: Dict[str, Any]) -> Dict[str, Any]:
     chosen = candidate
     old_source = str((old or {}).get("source") or "")
     old_aligned_for_eurusd = (
-        old_source.startswith("Stooq:")
+        old_source.startswith("Currency Exchange Tool:")
         or old_source.startswith("fxapi.app:")
     )
     old_eligible = instrument_id != "eurusd" or old_aligned_for_eurusd

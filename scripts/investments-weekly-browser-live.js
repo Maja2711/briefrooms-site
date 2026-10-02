@@ -26,9 +26,7 @@
       minPrice: 0.8,
       maxPrice: 1.5,
       sources: [
-        { name: 'Stooq EURUSD', fetch: () => fetchStooqEurUsd('direct') },
-        { name: 'Stooq EURUSD · proxy 1', fetch: () => fetchStooqEurUsd('codetabs') },
-        { name: 'Stooq EURUSD · proxy 2', fetch: () => fetchStooqEurUsd('allorigins') },
+        { name: 'Currency Exchange Tool', fetch: fetchEurUsdCurrencyExchangeTool },
         { name: 'fxapi.app', fetch: fetchEurUsdFxApi },
       ],
     },
@@ -590,10 +588,8 @@
     const freshDirect = direct.filter((row) => quoteFresh(row.quote, cfg.maxAgeMs));
     const preferredFreshDirect = instrumentId === 'eurusd'
       ? (
-          freshDirect.filter((row) => String(row.quote.source || '').startsWith('Stooq'))
-            .sort((a, b) => (validTimestamp(b.quote.updatedAt)?.valueOf() || 0) - (validTimestamp(a.quote.updatedAt)?.valueOf() || 0))[0]
-          || freshDirect.filter((row) => String(row.quote.source || '') === 'fxapi.app')
-            .sort((a, b) => (validTimestamp(b.quote.updatedAt)?.valueOf() || 0) - (validTimestamp(a.quote.updatedAt)?.valueOf() || 0))[0]
+          freshDirect.find((row) => String(row.quote.source || '') === 'Currency Exchange Tool')
+          || freshDirect.find((row) => String(row.quote.source || '') === 'fxapi.app')
           || null
         )
       : (cfg.directPriority === 'first-fresh'

@@ -81,68 +81,14 @@
   }
 
 
-  async function fetchText(url) {
-    const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-    try {
-      const response = await fetch(url, { cache: "no-store", mode: "cors", signal: controller.signal });
-      if (!response.ok) throw new Error(`http_${response.status}`);
-      return await response.text();
-    } finally {
-      window.clearTimeout(timeout);
-    }
-  }
-
-  function timeZoneOffsetMs(date, timeZone) {
-    const formatter = new Intl.DateTimeFormat("en-CA", {
-      timeZone, hour12: false, year: "numeric", month: "2-digit", day: "2-digit",
-      hour: "2-digit", minute: "2-digit", second: "2-digit"
-    });
-    const parts = Object.fromEntries(formatter.formatToParts(date)
-      .filter(part => part.type !== "literal").map(part => [part.type, part.value]));
-    return Date.UTC(Number(parts.year), Number(parts.month)-1, Number(parts.day),
-      Number(parts.hour)%24, Number(parts.minute), Number(parts.second)) - date.getTime();
-  }
-
-  function warsawTimestamp(dateText, timeText) {
-    const normalized = String(timeText || "").length === 5 ? `${timeText}:00` : String(timeText || "");
-    const [y,m,d] = String(dateText || "").split("-").map(Number);
-    const [hh,mm,ss] = normalized.split(":").map(Number);
-    if (![y,m,d,hh,mm,ss].every(Number.isFinite)) throw new Error("stooq_invalid_timestamp");
-    const wallUtc = Date.UTC(y,m-1,d,hh,mm,ss);
-    const guess = new Date(wallUtc);
-    const first = timeZoneOffsetMs(guess, "Europe/Warsaw");
-    let instant = new Date(wallUtc-first);
-    const corrected = timeZoneOffsetMs(instant, "Europe/Warsaw");
-    if (corrected !== first) instant = new Date(wallUtc-corrected);
-    return instant;
-  }
-
-  function parseStooqCsv(text, source) {
-    const lines = String(text || "").trim().split(/\r?\n/).filter(Boolean);
-    if (lines.length < 2) throw new Error("stooq_missing_row");
-    const headers = lines[0].split(",").map(v => v.trim().toLowerCase());
-    const row = lines[lines.length-1].split(",").map(v => v.trim());
-    const at = name => {
-      const i = headers.indexOf(name);
-      return i >= 0 ? (row[i] || "") : "";
-    };
-    const bid = number(at("bid"));
-    const ask = number(at("ask"));
-    const close = number(at("close"));
-    const price = bid != null && ask != null ? (bid + ask) / 2 : close;
-    if (price == null) throw new Error("stooq_invalid_price");
-    return validateQuote(price, warsawTimestamp(at("date"), at("time")).toISOString(), source);
-  }
-
-  async function quoteStooq(route) {
-    const upstream = `https://stooq.com/q/l/?s=eurusd&f=sd2t2ohlcvba&h&e=csv&_=${Date.now()}`;
-    const url = route === "allorigins"
-      ? `https://api.allorigins.win/raw?url=${encodeURIComponent(upstream)}`
-      : route === "codetabs"
-        ? `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(upstream)}`
-        : upstream;
-    return parseStooqCsv(await fetchText(url), route === "direct" ? "Stooq EURUSD" : `Stooq EURUSD · ${route}`);
+  async function quoteCurrencyExchangeTool() {
+    const data = await fetchJson(`https://www.currencyexchangetool.com/api/v1/convert?amount=1&from=EUR&to=USD&_=${Date.now()}`);
+    if (!data || data.success === false) throw new Error("currency_exchange_tool_error");
+    return validateQuote(
+      data.rate ?? data.result,
+      data.updatedAt ?? data.updated_at ?? data.timestamp ?? data.time,
+      "Currency Exchange Tool"
+    );
   }
 
   async function quoteFxApi() {
@@ -151,25 +97,15 @@
   }
 
   async function fetchLiveQuote() {
-    const providers = [
-      ["Stooq direct", () => quoteStooq("direct")],
-      ["Stooq proxy 1", () => quoteStooq("codetabs")],
-      ["Stooq proxy 2", () => quoteStooq("allorigins")],
-      ["fxapi.app", quoteFxApi],
-    ];
-    const settled = await Promise.allSettled(providers.map(async ([name, provider]) => {
-      try { return await provider(); }
-      catch (error) { throw new Error(`${name}:${error?.message || String(error)}`); }
-    }));
-    const quotes = settled.filter(x => x.status === "fulfilled").map(x => x.value);
-    const stooq = quotes.filter(q => String(q.source).startsWith("Stooq"))
-      .sort((a,b)=>new Date(b.updatedAt)-new Date(a.updatedAt));
-    if (stooq.length) return stooq[0];
-    const fx = quotes.filter(q => q.source === "fxapi.app")
-      .sort((a,b)=>new Date(b.updatedAt)-new Date(a.updatedAt));
-    if (fx.length) return fx[0];
-    const errors = settled.filter(x => x.status === "rejected").map(x => x.reason?.message || String(x.reason));
-    throw new Error(`all_live_providers_failed:${errors.join("|")}`);
+    try {
+      return await quoteCurrencyExchangeTool();
+    } catch (primaryError) {
+      try {
+        return await quoteFxApi();
+      } catch (fallbackError) {
+        throw new Error(`eurusd_live_failed:${primaryError?.message || primaryError}|${fallbackError?.message || fallbackError}`);
+      }
+    }
   }
 
   function getOpenPosition(payload) {
