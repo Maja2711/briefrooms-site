@@ -35,11 +35,9 @@ on:
       - "tests/test_belief_macro_data_adapter.py"
       - "tests/test_belief_macro_expectations_adapter.py"
   schedule:
-    # High-frequency macro window: payrolls/CPI/PCE and other major US releases
-    # must reach Belief Core quickly enough for Daily EUR/USD position management.
-    - cron: "2,7,12,17,22,27,32,37,42,47,52,57 12-17 * * 1-5"
-    # Lower-frequency continuation after the primary US data window.
-    - cron: "2,32 18-23 * * 1-5"
+    # Full news/macro Belief Core remains a slower comprehensive collection.
+    # The dedicated Daily EURUSD Macro Fast Lane handles 5-minute event risk.
+    - cron: "2,32 12-23 * * 1-5"
 
 permissions:
   contents: read
@@ -49,7 +47,7 @@ permissions:
 # Belief Core state artifact and therefore must never write concurrently.
 concurrency:
   group: belief-core-live-shadow
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 env:
   ARTIFACT_NAME: belief-core-shadow-state
