@@ -1,15 +1,15 @@
 {
   "instrument": "EUR/USD",
-  "timestamp": "2026-10-02T09:09:08Z",
-  "direction": "FLAT",
-  "score": 39.76,
-  "confidence": 0.205,
-  "entry": null,
-  "stop": null,
-  "target": null,
+  "timestamp": "2026-10-02T09:12:17Z",
+  "direction": "SHORT",
+  "score": 39.3,
+  "confidence": 0.214,
+  "entry": 1.12509,
+  "stop": 1.12821,
+  "target": 1.1197,
   "horizon": "intraday_to_27h",
   "engine_version": "eurusd-daily-spot-v1.8.0",
-  "status": "CLOSED_SL",
+  "status": "OPEN",
   "decision_mode": "WITHOUT",
   "metadata": {
     "market": "FX_SPOT",
@@ -23,7 +23,7 @@
       "fail_neutral": true
     },
     "components": {
-      "trend": -0.2312,
+      "trend": -0.2482,
       "broad_usd_environment": -0.3194,
       "us_rates_pressure_proxy": 0.0029
     },
@@ -34,14 +34,12 @@
     },
     "candidate": {
       "direction": "SHORT",
-      "score": 39.76,
-      "confidence": 0.205,
-      "accepted": false,
-      "gate_reasons": [
-        "entry_disabled_this_cycle"
-      ],
-      "previous_score": 36.63,
-      "stretch_atr": 0.1442,
+      "score": 39.3,
+      "confidence": 0.214,
+      "accepted": true,
+      "gate_reasons": [],
+      "previous_score": 36.17,
+      "stretch_atr": 0.3215,
       "shock_ratio": 0.0
     },
     "learning": {
@@ -91,7 +89,13 @@
       "soft_horizon_hours": 24.0,
       "hard_horizon_hours": 27.0,
       "dynamic_exit_policy": "R_PACE_V1",
-      "dynamic_monitor_cycle": "5m workflow / 1m OHLC path"
+      "dynamic_monitor_cycle": "5m workflow / 1m OHLC path",
+      "execution_geometry_recentered": true,
+      "execution_risk_distance": 0.003116,
+      "execution_reward_distance": 0.005394,
+      "model_mid_risk_distance": 0.00304,
+      "model_mid_reward_distance": 0.00547,
+      "synthetic_spread_pips": 1.5
     },
     "data": {
       "provider": "Yahoo Finance chart",
@@ -129,15 +133,76 @@
       "generic_loss_cooldown": false,
       "window_hours": 12.0,
       "min_loss_r": -0.15,
-      "evaluated": false,
+      "evaluated": true,
       "blocked": false,
-      "reason": "entry_disabled_this_cycle"
+      "reason": "material_new_evidence_detected",
+      "prior_trade_id": "eurusd:20261001T185355Z:SHORT",
+      "prior_closed_at": "2026-10-02T07:15:00Z",
+      "prior_r_multiple": -1.0,
+      "source_family": "NATIVE_COMPONENTS",
+      "current_thesis": {
+        "schema_version": "eurusd-entry-thesis-v1",
+        "source": "NATIVE",
+        "source_family": "NATIVE_COMPONENTS",
+        "direction": "SHORT",
+        "score": 39.3,
+        "directional_strength": 10.7,
+        "confidence": 0.214,
+        "components": {
+          "trend": -0.2482,
+          "broad_usd_environment": -0.3194,
+          "us_rates_pressure_proxy": 0.0029
+        },
+        "weights": {
+          "trend": 0.54056,
+          "broad_usd_environment": 0.251746,
+          "us_rates_pressure_proxy": 0.207694
+        }
+      },
+      "prior_thesis": {
+        "schema_version": "eurusd-entry-thesis-v1",
+        "source": "NATIVE",
+        "source_family": "NATIVE_COMPONENTS",
+        "direction": "SHORT",
+        "score": 29.01,
+        "directional_strength": 20.99,
+        "confidence": 0.42,
+        "components": {
+          "trend": -0.4891,
+          "broad_usd_environment": -0.3994,
+          "us_rates_pressure_proxy": -0.2623
+        },
+        "weights": {
+          "trend": 0.542264,
+          "broad_usd_environment": 0.25149,
+          "us_rates_pressure_proxy": 0.206246
+        }
+      },
+      "change": {
+        "material_change": true,
+        "material_change_triggers": [
+          "component_state_changed"
+        ],
+        "directional_score_strength_improvement": -10.29,
+        "confidence_improvement": -0.206,
+        "component_l1_change": 0.5861,
+        "shared_components": [
+          "broad_usd_environment",
+          "trend",
+          "us_rates_pressure_proxy"
+        ],
+        "thresholds": {
+          "score_strength_improvement": 3.0,
+          "confidence_improvement": 0.08,
+          "component_l1_change": 0.2
+        }
+      }
     },
     "ecb_policy": {
       "schema_version": "eurusd-ecb-policy-context-v1",
       "enabled": true,
       "central_bank": "ECB",
-      "observed_at": "2026-10-02T09:09:08Z",
+      "observed_at": "2026-10-02T09:12:08Z",
       "event_active": false,
       "coverage": false,
       "must_block_entry": false,
@@ -164,8 +229,9 @@
         "note": "No direct EUR OIS feed is configured in v1.7."
       },
       "veto_threshold": 0.35,
-      "gate_evaluated": false,
-      "gate_reason": "entry_disabled_this_cycle"
+      "gate_evaluated": true,
+      "gate_blocked": false,
+      "gate_reason": "ecb_policy_aligned_or_neutral"
     },
     "central_bank_policy": {
       "mode": "ECB_OFFICIAL_DECISION_PLUS_MARKET_REACTION_V1",
@@ -187,7 +253,7 @@
           {
             "title": "Employment Situation",
             "event_at": "2026-10-02T12:30:00Z",
-            "hours_until": 3.348,
+            "hours_until": 3.298,
             "source": "U.S. Bureau of Labor Statistics",
             "source_ref": "https://www.bls.gov/schedule/news_release/bls.ics"
           }
@@ -311,9 +377,10 @@
         ]
       },
       "status": "ACTIVE",
-      "age_minutes": 24.1,
-      "gate_evaluated": false,
-      "gate_reason": "entry_disabled_or_no_directional_candidate"
+      "age_minutes": 27.1,
+      "gate_evaluated": true,
+      "gate_blocked": false,
+      "gate_reason": "event_intelligence_aligned_neutral_or_below_threshold"
     },
     "event_intelligence_policy": {
       "profile_version": "engine-weighting-v2",
@@ -323,222 +390,271 @@
       "existing_position_close_enabled": true,
       "missing_or_stale_snapshot": "FAIL_NEUTRAL"
     },
-    "position": null,
-    "last_trade": {
-      "trade_id": "eurusd:20261001T185355Z:SHORT",
+    "contextual_entry_policy": {
+      "schema_version": "eurusd-contextual-entry-production-v1",
+      "mode": "CONTINUOUS_AUTONOMOUS_PROMOTION",
+      "status": "SHADOW_OBSERVE",
+      "direction_owner": "Daily EURUSD direction engine",
+      "execution_owner": "EPE + Daily EURUSD lifecycle",
+      "direction_mutation_allowed": false,
+      "research_reversal_authoritative": false,
+      "automatic_promotion": true,
+      "automatic_rollback": true,
+      "authority_level": "SHADOW",
+      "authority_fraction": 0.0,
+      "evidence_confidence": 0.0,
+      "recommended_policy_id": null,
+      "recommended_family": null,
+      "expected_r": null,
+      "edge_vs_second_r": null,
+      "application_edge_hurdle_r": null,
+      "effective_policy_stats": {},
+      "application_model": "deterministic_evidence_hurdle_not_random_mixing",
+      "context": {
+        "observed_at": "2026-10-02T09:12:08Z",
+        "reference_mid": 1.12511253,
+        "atr_30m": 0.00058446,
+        "features": {
+          "move_3h_atr": -1.951346,
+          "move_12h_atr": 0.216612,
+          "move_24h_atr": -8.265737,
+          "ema20_distance_atr": -0.578572,
+          "daily_score_signed": -0.214,
+          "daily_confidence": 0.214,
+          "p_up_current": 0.317847,
+          "p_up_delta": 0.001182,
+          "p_up_3h": 0.316665,
+          "p_up_12h": 0.316665,
+          "p_up_24h": 0.316665,
+          "belief_confidence": 0.455559,
+          "belief_macro_score": 0.0,
+          "fse_p_up_4h": 0.404958,
+          "fse_risk_score": 0.377342,
+          "fse_hurst_q2": 0.512412,
+          "fse_analogue_median_return_atr": 0.0,
+          "event_score": -4.52,
+          "event_confidence": 0.4375
+        },
+        "fse_regime": "STABLE"
+      },
+      "pending_entry": null,
+      "cancellation_reason": null
+    },
+    "execution_price_engine": {
+      "schema_version": "execution-price-engine-v1",
+      "engine_version": "EPE-1.3.0",
       "instrument": "EUR/USD",
+      "mode": "MARKET_NOW",
+      "status": "VERIFIED_FILL",
+      "verified": true,
       "direction": "SHORT",
-      "opened_at": "2026-10-01T18:53:55Z",
-      "closed_at": "2026-10-02T07:15:00Z",
-      "entry": 1.12365,
-      "stop": 1.12676,
-      "target": 1.11826,
-      "exit_price": 1.12676,
-      "exit_reason": "STOP_LOSS",
-      "result_percent": -0.27678,
-      "return_fraction": -0.00276777,
-      "r_multiple": -1.0,
-      "outcome": "LOSS",
-      "entry_score": 29.01,
-      "entry_confidence": 0.42,
+      "selected_mid_price": 1.125166,
+      "synthetic_bid": 1.12509,
+      "synthetic_ask": 1.12524,
+      "synthetic_spread_pips": 1.5,
+      "synthetic_half_spread_pips": 0.75,
+      "fill_price": 1.12509,
+      "fill_side": "BID",
+      "price_type": "MID_VERIFIED_SYNTHETIC_SPREAD",
+      "verified_at": "2026-10-02T09:12:17Z",
+      "verification_quality": "CONSENSUS",
+      "selected_quote": {
+        "price": 1.125166,
+        "timestamp": "2026-10-02T09:10:07Z",
+        "source": "fxapi.app:EUR/USD:mid",
+        "age_seconds": 129.093
+      },
+      "fresh_quotes": [
+        {
+          "price": 1.125166,
+          "timestamp": "2026-10-02T09:10:07Z",
+          "source": "fxapi.app:EUR/USD:mid",
+          "age_seconds": 129.093
+        },
+        {
+          "price": 1.12511253,
+          "timestamp": "2026-10-02T09:12:08Z",
+          "source": "Yahoo Finance:EURUSD=X:1m:mid-proxy",
+          "age_seconds": 9.066
+        }
+      ],
+      "rejected_quotes": [],
+      "fresh_source_count": 2,
+      "median_price": 1.12513927,
+      "cross_feed_range_pips": 0.535,
+      "max_cross_feed_pips": 1.5,
+      "executable_bid_ask_available": false,
+      "paper_trading_only": true,
+      "policy": "availability_first_verified_mid_plus_fixed_1_5_pip_synthetic_spread",
+      "provider_errors": [
+        {
+          "provider": "fetch_stooq_eurusd_quote",
+          "error_type": "RuntimeError"
+        },
+        {
+          "provider": "fetch_currency_exchange_tool_eurusd_quote",
+          "error_type": "HTTPError"
+        }
+      ]
+    },
+    "position": {
+      "schema_version": "eurusd-daily-position-v1",
+      "trade_id": "eurusd:20261002T091217Z:SHORT",
+      "status": "OPEN",
+      "direction": "SHORT",
+      "opened_at": "2026-10-02T09:12:17Z",
+      "expires_at": "2026-10-03T12:12:17Z",
+      "entry": 1.12509,
+      "stop": 1.12821,
+      "target": 1.1197,
+      "entry_score": 39.3,
+      "entry_confidence": 0.214,
       "entry_components": {
-        "trend": -0.4891,
-        "broad_usd_environment": -0.3994,
-        "us_rates_pressure_proxy": -0.2623
+        "trend": -0.2482,
+        "broad_usd_environment": -0.3194,
+        "us_rates_pressure_proxy": 0.0029
       },
       "entry_weights": {
-        "trend": 0.542264,
-        "broad_usd_environment": 0.25149,
-        "us_rates_pressure_proxy": 0.206246
+        "trend": 0.54056,
+        "broad_usd_environment": 0.251746,
+        "us_rates_pressure_proxy": 0.207694
       },
-      "engine_version": "eurusd-daily-spot-v1.7.0",
-      "monitor": {
-        "source": "Yahoo Finance EURUSD=X 1m OHLC",
-        "conservative_same_bar": false,
-        "bar_timestamp": "2026-10-02T07:15:00Z",
-        "bar_open": 1.126887559890747,
-        "bar_high": 1.126887559890747,
-        "bar_low": 1.126887559890747,
-        "bar_close": 1.126887559890747,
-        "execution_price_basis": "SYNTHETIC_ASK",
-        "synthetic_spread_pips": 1.5,
-        "execution_bar_high": 1.1269625598907471,
-        "execution_bar_low": 1.1269625598907471,
-        "execution_bar_close": 1.1269625598907471
-      },
+      "engine_version": "eurusd-daily-spot-v1.8.0",
+      "legacy_bootstrap": false,
+      "soft_expires_at": "2026-10-03T09:12:17Z",
+      "dynamic_exit_policy": "R_PACE_V1",
+      "soft_horizon_hours": 24.0,
+      "hard_horizon_hours": 27.0,
       "decision_source": "NATIVE",
       "learning_eligible": true,
       "learning_namespace": "NATIVE",
-      "mfe_r": 0.0581,
-      "mae_r": -1.041,
-      "mfe_pips": 1.81,
-      "mae_pips": -32.38,
       "entry_thesis": {
         "schema_version": "eurusd-entry-thesis-v1",
         "source": "NATIVE",
         "source_family": "NATIVE_COMPONENTS",
         "direction": "SHORT",
-        "score": 29.01,
-        "directional_strength": 20.99,
-        "confidence": 0.42,
+        "score": 39.3,
+        "directional_strength": 10.7,
+        "confidence": 0.214,
         "components": {
-          "trend": -0.4891,
-          "broad_usd_environment": -0.3994,
-          "us_rates_pressure_proxy": -0.2623
+          "trend": -0.2482,
+          "broad_usd_environment": -0.3194,
+          "us_rates_pressure_proxy": 0.0029
         },
         "weights": {
-          "trend": 0.542264,
-          "broad_usd_environment": 0.25149,
-          "us_rates_pressure_proxy": 0.206246
+          "trend": 0.54056,
+          "broad_usd_environment": 0.251746,
+          "us_rates_pressure_proxy": 0.207694
         }
-      },
-      "post_trade_review": {
-        "schema_version": "eurusd-post-trade-review-v1",
-        "review_mode": "DETERMINISTIC_OBSERVED_PATH",
-        "classification_basis": "observed_price_path_not_causal_proof",
-        "causal_claim": false,
-        "primary_pattern": "DIRECTION_OR_ENTRY_TIMING_FAILURE",
-        "evidence": {
-          "exit_reason": "STOP_LOSS",
-          "r_multiple": -1.0,
-          "mfe_r": 0.0581,
-          "mae_r": -1.041,
-          "reached_0_25r_favorable": false,
-          "reached_0_50r_favorable": false,
-          "reached_0_75r_adverse": true,
-          "reached_1r_adverse": true,
-          "decision_source": "NATIVE"
-        },
-        "error_attribution": {
-          "direction_or_entry_timing": "supported_by_path",
-          "follow_through": "weak",
-          "exit_management": "not_indicated_by_path",
-          "risk_geometry": "unresolved_from_single_trade",
-          "macro_or_news_event": "not_evaluated_by_this_layer",
-          "data_quality": "not_inferred_from_outcome"
-        },
-        "entry_thesis": {
-          "schema_version": "eurusd-entry-thesis-v1",
-          "source": "NATIVE",
-          "source_family": "NATIVE_COMPONENTS",
-          "direction": "SHORT",
-          "score": 29.01,
-          "directional_strength": 20.99,
-          "confidence": 0.42,
-          "components": {
-            "trend": -0.4891,
-            "broad_usd_environment": -0.3994,
-            "us_rates_pressure_proxy": -0.2623
-          },
-          "weights": {
-            "trend": 0.542264,
-            "broad_usd_environment": 0.25149,
-            "us_rates_pressure_proxy": 0.206246
-          }
-        },
-        "learning_action": "require_material_thesis_change_before_same_family_reentry",
-        "policy_mutation_allowed_from_single_trade": false
       },
       "execution_price_engine": {
         "schema_version": "execution-price-engine-v1",
-        "engine_version": "EPE-1.2.0",
+        "engine_version": "EPE-1.3.0",
         "instrument": "EUR/USD",
         "mode": "MARKET_NOW",
         "status": "VERIFIED_FILL",
         "verified": true,
         "direction": "SHORT",
-        "selected_mid_price": 1.12372172,
-        "synthetic_bid": 1.12365,
-        "synthetic_ask": 1.1238,
+        "selected_mid_price": 1.125166,
+        "synthetic_bid": 1.12509,
+        "synthetic_ask": 1.12524,
         "synthetic_spread_pips": 1.5,
         "synthetic_half_spread_pips": 0.75,
-        "fill_price": 1.12365,
+        "fill_price": 1.12509,
         "fill_side": "BID",
         "price_type": "MID_VERIFIED_SYNTHETIC_SPREAD",
-        "verified_at": "2026-10-01T18:53:55Z",
-        "verification_quality": "SINGLE_SOURCE",
+        "verified_at": "2026-10-02T09:12:17Z",
+        "verification_quality": "CONSENSUS",
         "selected_quote": {
-          "price": 1.12372172,
-          "timestamp": "2026-10-01T18:52:57Z",
-          "source": "Yahoo Finance:EURUSD=X:1m:mid-proxy",
-          "age_seconds": 58.836
+          "price": 1.125166,
+          "timestamp": "2026-10-02T09:10:07Z",
+          "source": "fxapi.app:EUR/USD:mid",
+          "age_seconds": 129.093
         },
         "fresh_quotes": [
           {
-            "price": 1.12372172,
-            "timestamp": "2026-10-01T18:52:57Z",
-            "source": "Yahoo Finance:EURUSD=X:1m:mid-proxy",
-            "age_seconds": 58.836
-          }
-        ],
-        "rejected_quotes": [
-          {
+            "price": 1.125166,
+            "timestamp": "2026-10-02T09:10:07Z",
             "source": "fxapi.app:EUR/USD:mid",
-            "reason": "stale_or_future",
-            "age_seconds": 227.214
+            "age_seconds": 129.093
+          },
+          {
+            "price": 1.12511253,
+            "timestamp": "2026-10-02T09:12:08Z",
+            "source": "Yahoo Finance:EURUSD=X:1m:mid-proxy",
+            "age_seconds": 9.066
           }
         ],
-        "fresh_source_count": 1,
-        "median_price": 1.12372172,
-        "cross_feed_range_pips": 0.0,
+        "rejected_quotes": [],
+        "fresh_source_count": 2,
+        "median_price": 1.12513927,
+        "cross_feed_range_pips": 0.535,
         "max_cross_feed_pips": 1.5,
         "executable_bid_ask_available": false,
         "paper_trading_only": true,
         "policy": "availability_first_verified_mid_plus_fixed_1_5_pip_synthetic_spread",
         "provider_errors": [
           {
+            "provider": "fetch_stooq_eurusd_quote",
+            "error_type": "RuntimeError"
+          },
+          {
             "provider": "fetch_currency_exchange_tool_eurusd_quote",
             "error_type": "HTTPError"
           }
         ]
-      }
+      },
+      "contextual_entry_policy_at_entry": {
+        "mode": "CONTINUOUS_AUTONOMOUS_PROMOTION",
+        "status": "SHADOW_OBSERVE",
+        "authority_level": "SHADOW",
+        "authority_fraction": 0.0,
+        "evidence_confidence": 0.0,
+        "recommended_policy_id": null,
+        "recommended_family": null,
+        "expected_r": null,
+        "edge_vs_second_r": null,
+        "direction_mutation_allowed": false
+      },
+      "mark_price": 1.12524,
+      "unrealized_percent": -0.01333
     },
-    "post_trade_review": {
-      "schema_version": "eurusd-post-trade-review-v1",
-      "review_mode": "DETERMINISTIC_OBSERVED_PATH",
-      "classification_basis": "observed_price_path_not_causal_proof",
-      "causal_claim": false,
-      "primary_pattern": "DIRECTION_OR_ENTRY_TIMING_FAILURE",
-      "evidence": {
-        "exit_reason": "STOP_LOSS",
-        "r_multiple": -1.0,
-        "mfe_r": 0.0581,
-        "mae_r": -1.041,
-        "reached_0_25r_favorable": false,
-        "reached_0_50r_favorable": false,
-        "reached_0_75r_adverse": true,
-        "reached_1r_adverse": true,
-        "decision_source": "NATIVE"
-      },
-      "error_attribution": {
-        "direction_or_entry_timing": "supported_by_path",
-        "follow_through": "weak",
-        "exit_management": "not_indicated_by_path",
-        "risk_geometry": "unresolved_from_single_trade",
-        "macro_or_news_event": "not_evaluated_by_this_layer",
-        "data_quality": "not_inferred_from_outcome"
-      },
-      "entry_thesis": {
-        "schema_version": "eurusd-entry-thesis-v1",
-        "source": "NATIVE",
-        "source_family": "NATIVE_COMPONENTS",
-        "direction": "SHORT",
-        "score": 29.01,
-        "directional_strength": 20.99,
-        "confidence": 0.42,
-        "components": {
-          "trend": -0.4891,
-          "broad_usd_environment": -0.3994,
-          "us_rates_pressure_proxy": -0.2623
-        },
-        "weights": {
-          "trend": 0.542264,
-          "broad_usd_environment": 0.25149,
-          "us_rates_pressure_proxy": 0.206246
-        }
-      },
-      "learning_action": "require_material_thesis_change_before_same_family_reentry",
-      "policy_mutation_allowed_from_single_trade": false
+    "candidate_at_refresh": {
+      "direction": "SHORT",
+      "score": 39.3,
+      "confidence": 0.214,
+      "accepted": true,
+      "gate_reasons": [],
+      "previous_score": 36.17,
+      "stretch_atr": 0.3215,
+      "shock_ratio": 0.0
+    },
+    "open_position_policy_check": {
+      "evaluated": false,
+      "direction": "SHORT",
+      "conflict": false,
+      "advisory_only": true,
+      "note": "ECB entry veto stays advisory for existing positions; lifecycle/risk exits remain authoritative."
+    },
+    "open_position_event_check": {
+      "evaluated": true,
+      "direction": "SHORT",
+      "decision": "HOLD",
+      "engine_profile": "DAILY",
+      "close_authority": true,
+      "note": "Fresh Event Intelligence can close through the canonical Daily lifecycle record."
+    },
+    "contextual_entry_policy_at_entry": {
+      "mode": "CONTINUOUS_AUTONOMOUS_PROMOTION",
+      "status": "SHADOW_OBSERVE",
+      "authority_level": "SHADOW",
+      "authority_fraction": 0.0,
+      "evidence_confidence": 0.0,
+      "recommended_policy_id": null,
+      "recommended_family": null,
+      "expected_r": null,
+      "edge_vs_second_r": null,
+      "direction_mutation_allowed": false
     }
   },
   "schema_version": "daily-engine-output-v1"
