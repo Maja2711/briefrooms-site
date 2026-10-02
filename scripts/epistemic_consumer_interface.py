@@ -25,9 +25,18 @@ SPX_BELIEF_IDS: Tuple[str, ...] = (
     "spx.financial_conditions.supportive",
 )
 
+EURUSD_BELIEF_IDS: Tuple[str, ...] = (
+    "eurusd.trend.bullish",
+    "eurusd.usd_environment.supportive",
+    "eurusd.us_rates_pressure.supportive",
+    "eurusd.macro_surprise.supportive",
+    "eurusd.policy_differential.supportive",
+)
+
 CONSUMER_PROFILES: Dict[str, Tuple[str, ...]] = {
     "BRACE_SPX": SPX_BELIEF_IDS,
     "WES_SPX": SPX_BELIEF_IDS,
+    "DAILY_EURUSD": EURUSD_BELIEF_IDS,
 }
 
 
@@ -199,7 +208,7 @@ class EpistemicConsumerInterface:
             "stance": env.stance,
             "confidence": env.aggregate_confidence,
             "risk_on_probability_mean": env.aggregate_probability,
-            "aggregation": "epistemic_consumer_interface_equal_weight_predeclared_spx_states",
+            "aggregation": f"epistemic_consumer_interface_equal_weight_predeclared_{consumer.lower()}_states",
             "reason": "authoritative_epistemic_consumer_projection",
             "forecast_set_id": env.source_sha256[:20],
             "forecast_at": env.source_created_at,
