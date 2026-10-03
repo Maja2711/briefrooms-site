@@ -376,7 +376,8 @@ def synthesize(
     return {
         "schema_version": "daily-eurusd-belief-decision-v1",
         "owner": "NATIVE_DAILY_EURUSD_BELIEF_FIRST_DECISION_ENGINE",
-        "decision_source": "BELIEF_CORE",
+        "decision_source": "NATIVE_BELIEF_FIRST",
+        "epistemic_source": "BELIEF_CORE_CF07",
         "direction": direction,
         "score": score,
         "confidence": confidence,
