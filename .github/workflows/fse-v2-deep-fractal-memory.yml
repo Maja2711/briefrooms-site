@@ -1,0 +1,102 @@
+name: FSE v2 Deep Fractal Memory Shadow
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "37 * * * *"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/fractal_structure_engine_v2.py"
+      - "tests/test_fractal_structure_engine_v2.py"
+      - ".github/workflows/fse-v2-deep-fractal-memory.yml"
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: fse-v2-deep-fractal-memory
+  cancel-in-progress: false
+env:
+  STATE_ARTIFACT: fse-v2-deep-memory-state
+  STATE_ARCHIVE: fse-v2-deep-memory-state.tgz
+  PUBLIC_PATH: data/investments/fse_v2_public.json
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate FSE v2
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/fractal_structure_engine_v2.py
+          python -m unittest tests.test_fractal_structure_engine_v2 -v
+  shadow:
+    if: github.event_name != 'pull_request'
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PYTHONPATH: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Restore durable v2 state
+        run: |
+          set -euo pipefail
+          FSE_V2_STATE_DIR="$RUNNER_TEMP/fse-v2-state"
+          echo "FSE_V2_STATE_DIR=$FSE_V2_STATE_DIR" >> "$GITHUB_ENV"
+          mkdir -p "$FSE_V2_STATE_DIR"
+          run_id="$(gh run list --workflow fse-v2-deep-fractal-memory.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')"
+          if [[ -n "$run_id" ]]; then
+            mkdir -p "$RUNNER_TEMP/fse-v2-artifact"
+            gh run download "$run_id" -n "$STATE_ARTIFACT" -D "$RUNNER_TEMP/fse-v2-artifact" || true
+            archive="$RUNNER_TEMP/fse-v2-artifact/$STATE_ARCHIVE"
+            [[ -s "$archive" ]] && tar -xzf "$archive" -C "$FSE_V2_STATE_DIR"
+          fi
+      - name: Run independent v2 challenger
+        run: |
+          set -euo pipefail
+          python scripts/fractal_structure_engine_v2.py --root . --state-dir "$FSE_V2_STATE_DIR" --public "$PUBLIC_PATH"
+          python scripts/fractal_structure_engine_v2.py --state-dir "$FSE_V2_STATE_DIR" --verify
+          python - <<'PY'
+          import json
+          p=json.load(open("data/investments/fse_v2_public.json"))
+          assert p["mode"]=="SHADOW_ONLY" and p["production_impact"] is False
+          assert all(v is False for v in p["authority"].values())
+          print("FSE_V2_ZERO_AUTHORITY_PASS")
+          PY
+      - name: Store private v2 state
+        run: |
+          tar -czf "$RUNNER_TEMP/$STATE_ARCHIVE" -C "$FSE_V2_STATE_DIR" .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fse-v2-deep-memory-state
+          path: ${{ runner.temp }}/fse-v2-deep-memory-state.tgz
+          retention-days: 90
+          compression-level: 0
+      - name: Publish read-only v2 projection
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$PUBLIC_PATH"
+          git diff --cached --quiet && exit 0
+          git commit -m "Refresh FSE v2 Deep Fractal Memory shadow"
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            git rebase origin/main || { git rebase --abort || true; sleep $((attempt*2)); continue; }
+            git push origin HEAD:main && exit 0
+            sleep $((attempt*3))
+          done
+          exit 1
