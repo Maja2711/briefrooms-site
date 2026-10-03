@@ -14,7 +14,7 @@ def bars(n,minutes=60):
 class Fake:
     def bars(self,symbol,range_,interval):
         if interval=="60m": return bars(1800,60)
-        if interval=="1d": return bars(4000,1440)
+        if interval=="1d": return bars(6000,1440,1990)
         raise AssertionError((range_,interval))
 
 class TestFSEv2(unittest.TestCase):
@@ -23,7 +23,7 @@ class TestFSEv2(unittest.TestCase):
         self.assertGreaterEqual(len(g),18)
         self.assertTrue(all(math.isfinite(x) for x in g))
     def test_deep_memory_searches_many_candidates(self):
-        out=v2.deep_historical_analogues(bars(1800),bars(4000,1440),top_k=40)
+        out=v2.deep_historical_analogues(bars(1800),bars(6000,1440,1990),top_k=40)
         self.assertEqual(out["source"],"DEEP_HISTORY")
         self.assertEqual(out["analogues_n"],40)
         self.assertGreater(out["history_candidates"],40)
