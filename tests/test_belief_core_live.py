@@ -320,7 +320,7 @@ class BeliefCoreLiveTest(unittest.TestCase):
             self.assertFalse(dashboard["controls"]["policy_output_enabled"])
 
     def test_fx_week_calendar_liveness_appends_fresh_coverage_when_enabled(self) -> None:
-        now=datetime(2026,8,18,10,7,tzinfo=NY)
+        now=datetime(2026,8,18,18,7,tzinfo=NY)
 
         class FakeCalendarAdapter:
             def run(self, current):
@@ -340,14 +340,16 @@ class BeliefCoreLiveTest(unittest.TestCase):
                 )
                 return AdapterResult("macro_event_calendar",(observation,),())
 
+            def source_status(self):
+                return {"complete":True,"sources":{"BLS":{"status":"ok"},"BEA":{"status":"ok"},"FOMC":{"status":"ok"},"EUROSTAT":{"status":"ok"},"ECB":{"status":"ok"}}}
+
         with tempfile.TemporaryDirectory() as tmp:
             state_dir=Path(tmp)/"core"
-            with patch.dict("os.environ", {"BELIEF_EURUSD_CALENDAR_LIVENESS":"1"}, clear=False):
-                with patch("belief_core_live.MacroEventCalendarAdapter", FakeCalendarAdapter):
-                    status=run_cycle(state_dir,now,FakeChartClient(now))
-            calendar=status["eurusd_calendar_liveness"]
-            self.assertTrue(calendar["attempted"])
+            with patch("belief_core_live.MacroEventCalendarAdapter", FakeCalendarAdapter):
+                status=run_cycle(state_dir,now,FakeChartClient(now))
+            calendar=status["eurusd_macro_calendar_coverage"]
             self.assertEqual(calendar["status"],"ok")
+            self.assertTrue(calendar["complete"])
             rows=[json.loads(x) for x in (state_dir/"observations.jsonl").read_text().splitlines()]
             self.assertTrue(any(x.get("metric")=="calendar_coverage" for x in rows))
 
