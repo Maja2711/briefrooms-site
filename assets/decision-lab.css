@@ -264,3 +264,28 @@ a{color:inherit;text-decoration:none}.decision-shell{max-width:1480px;margin:aut
 @media(max-width:650px){.notification-analytics-panel>.na-summary{display:grid;grid-template-columns:1fr auto;gap:8px 10px}.na-summary-copy{grid-column:1/-1}.na-summary>.status{justify-self:start}.na-toggle{justify-self:end}}
 
 .na-expanded-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:8px}.na-expanded-head p{margin:0;max-width:760px}@media(max-width:650px){.na-expanded-head{display:block}.na-expanded-head .status{display:inline-flex;margin-top:8px}}
+
+
+/* 2026-10-03 mobile LAB stability + all engine tiles visible */
+html,body{width:100%;max-width:100%;overflow-x:hidden}
+.decision-shell{width:100%;min-width:0}
+.decision-shell>*{min-width:0}
+@media(max-width:850px){
+  .lab-hero-clean{position:relative;isolation:isolate;overflow:hidden;border-radius:18px;min-height:240px;padding:24px 18px}
+  .lab-hero-clean:before{content:"";position:absolute;inset:0;z-index:-2;background:linear-gradient(90deg,rgba(3,16,26,.96) 0%,rgba(3,16,26,.88) 48%,rgba(3,16,26,.58) 100%),url("/assets/briefrooms-lab-hero-3d.webp?v=20260927-1") center/cover no-repeat;opacity:.9}
+  .lab-hero-clean:after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,rgba(3,16,26,.08),rgba(3,16,26,.56))}
+  .lab-render-hero{display:none!important}
+  .lab-glass-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;overflow:visible;padding:0;margin:14px 0 20px}
+  .lab-glass-tabs button{width:100%;min-width:0;min-height:76px;padding:10px 9px;gap:8px;border-radius:13px}
+  .lab-glass-tabs .tab-icon{flex:0 0 34px;width:34px;height:34px;border-radius:10px;font-size:19px}
+  .lab-glass-tabs b{font-size:11px;overflow-wrap:anywhere}
+  .lab-glass-tabs small{font-size:8px;line-height:1.15}
+}
+@media(max-width:420px){
+  .decision-shell{padding-left:10px;padding-right:10px}
+  .lab-hero-clean{padding:20px 14px;min-height:220px}
+  .lab-hero-clean h1{font-size:44px}
+  .lab-glass-tabs{gap:7px}
+  .lab-glass-tabs button{min-height:72px;padding:9px 8px}
+  .lab-glass-tabs .tab-icon{flex-basis:31px;width:31px;height:31px;font-size:17px}
+}
