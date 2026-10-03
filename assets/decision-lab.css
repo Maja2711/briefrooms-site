@@ -294,3 +294,30 @@ html,body{width:100%;max-width:100%;overflow-x:hidden}
 .central-stats>div{min-width:0;overflow:hidden}
 .central-stats strong{display:block;max-width:100%;overflow-wrap:anywhere;word-break:break-word;line-height:1.08}
 @media(max-width:650px){.central-stats strong{font-size:clamp(1.15rem,6vw,1.55rem)}}
+
+
+/* 2026-10-03 Results & Calibration: true mobile layout, no clipped analytics */
+@media(max-width:650px){
+  #tab-results,#tab-results>*{min-width:0;max-width:100%}
+  #tab-results .panel{min-width:0;max-width:100%;overflow:hidden}
+  #tab-results .panel>header{min-width:0}
+  #tab-results .panel>header>div{min-width:0}
+  #tab-results .panel>header p{white-space:normal;overflow-wrap:anywhere}
+  .calibration-chart,.rolling-chart{width:100%;min-width:0;overflow:hidden}
+  .calibration-chart svg,.rolling-chart svg{width:100%;height:auto;max-width:100%;max-height:none;overflow:hidden}
+  .cal-bin-list{grid-template-columns:1fr;min-width:0}
+  .cal-bin-list span{min-width:0;white-space:normal;overflow-wrap:anywhere}
+  .breakdown-tabs{width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+  .breakdown-tabs button{min-width:0;padding:8px 5px;font-size:11px}
+  .cal-table{width:100%;overflow:visible}
+  .cal-row,.v3-table .cal-row{min-width:0!important;width:100%;grid-template-columns:1fr!important;gap:5px;padding:12px 8px}
+  .cal-row.head,.v3-table .cal-row.head{display:none}
+  .cal-row>b,.v3-table .cal-row>b{font-size:12px;white-space:normal;overflow-wrap:anywhere;margin-bottom:3px}
+  .cal-row>span,.v3-table .cal-row>span{min-width:0;white-space:normal;overflow-wrap:anywhere}
+  .cal-row>span:not(:last-child),.v3-table .cal-row>span:not(:last-child){font-size:11px}
+  .v3-table{width:100%;overflow:visible}
+  .v3-candidate-panel>header{align-items:flex-start;flex-direction:column}
+  .v3-candidate-panel>header .status{white-space:normal}
+  .rolling-legend{flex-wrap:wrap;gap:8px 14px}
+  .rolling-legend small{width:100%;margin-left:0}
+}
