@@ -98,6 +98,15 @@ SPECS = [
         "max_idle_hours": 3,
     },
     {
+        "id": "fse-v2",
+        "name": "FSE v2 Deep Fractal Memory",
+        "workflows": ["fse-v2-deep-fractal-memory.yml"],
+        "source": "data/investments/fse_v2_public.json",
+        "domain": "/pl/inwestycje/decision-lab.html",
+        "domain_label": "BriefRooms LAB",
+        "max_idle_hours": 3,
+    },
+    {
         "id": "hypothesis-shadow",
         "name": "Hypothesis Shadow Engine 2.0",
         "workflows": ["hypothesis-shadow-engine-v2.yml"],
