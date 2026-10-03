@@ -830,27 +830,13 @@ def select_sections(
         # Freshness has authority over visual fullness. The downstream public
         # 24h guard may shrink this further, so an underfilled section is valid.
         selected[section_id] = items[:target]
+        minimum = PL_SECTION_MINIMUMS.get(section_id, 0) if pl_mode else 0
+        minimum_met = len(selected[section_id]) >= minimum if pl_mode else True
+        # Section minimums are editorial targets, not an atomic publication gate.
+        # A temporarily underfilled desk must never suppress a new qualified story
+        # from another desk or language. Publish the best eligible set now and let
+        # later hourly runs refill the section while preserving freshness/dedupe.
         if pl_mode:
-            minimum = PL_SECTION_MINIMUMS.get(section_id, 0)
-            if len(selected[section_id]) < minimum:
-                raw = list(fetched.get(section_id) or [])
-                fresh = [story for story in raw if _fresh_for_pl_selection(story, now)]
-                with_image = [story for story in fresh if story.get("image")]
-                by_source: dict[str, dict[str, int]] = {}
-                for story in raw:
-                    source = str(story.get("source") or "unknown")
-                    stats = by_source.setdefault(source, {"raw": 0, "fresh": 0, "image": 0})
-                    stats["raw"] += 1
-                    if _fresh_for_pl_selection(story, now):
-                        stats["fresh"] += 1
-                        if story.get("image"):
-                            stats["image"] += 1
-                raise RuntimeError(
-                    f"PL section {section_id} underfilled after freshness/dedupe: "
-                    f"{len(selected[section_id])}/{minimum}; raw={len(raw)} "
-                    f"fresh={len(fresh)} fresh_with_image={len(with_image)} "
-                    f"sources={by_source}"
-                )
             if section_id == "ekonomia":
                 ai_crypto_count = sum(
                     1 for story in selected[section_id]
@@ -869,6 +855,9 @@ def select_sections(
             "source_diversity_policy": EDITORIAL_SELECTION_POLICY_VERSION,
             "preferred_source_cap": preferred_source_cap,
             "hard_source_cap": MAX_SOURCE_SHARE if len(active_sources) >= 2 else target,
+            "editorial_minimum": minimum,
+            "editorial_minimum_met": minimum_met,
+            "underfill_allowed_for_incremental_publication": True,
         }
         if pl_mode and section_id == "ekonomia":
             section_health["ai_crypto_count"] = ai_crypto_count
