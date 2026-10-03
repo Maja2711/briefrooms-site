@@ -27,6 +27,8 @@
     last: 'Ostatnia wysyłka',
     unavailable: 'Dane Notification Analytics są chwilowo niedostępne.',
     endpoints: 'endpointów',
+    expand: 'Rozwiń',
+    collapse: 'Zwiń',
   } : {
     title: 'Notification Analytics',
     lead: 'Aggregated monitoring of Trading notifications. Subscription count represents active device/browser endpoints, not unique users.',
@@ -49,6 +51,8 @@
     last: 'Last dispatch',
     unavailable: 'Notification Analytics data is temporarily unavailable.',
     endpoints: 'endpoints',
+    expand: 'Expand',
+    collapse: 'Collapse',
   };
 
   const nf = new Intl.NumberFormat(isPl ? 'pl-PL' : 'en-US');
@@ -84,11 +88,13 @@
       const failureDetail = `${T.lastDispatchFailed}: ${T.sentNow} ${nf.format(recentSent)} · ${T.failedNow} ${nf.format(recentFailed)} · ${T.expiredNow} ${nf.format(recentExpired)}${statusPairs ? ` · ${statusPairs}` : (recentFailed === 0 ? ` · ${T.noRecentErrors}` : '')}`;
 
       root.innerHTML = `
-        <article class="panel notification-analytics-panel">
-          <header>
-            <div><h2>${T.title}</h2><p>${T.lead}</p></div>
+        <details class="panel notification-analytics-panel">
+          <summary class="na-summary">
+            <div class="na-summary-copy"><h2>${T.title}</h2><p>${T.lead}</p></div>
             <span class="status shadow">LIVE AGGREGATES</span>
-          </header>
+            <span class="na-toggle"><span class="na-toggle-label">${T.expand}</span><span class="na-chevron" aria-hidden="true">⌄</span></span>
+          </summary>
+          <div class="na-body">
           <div class="na-primary">
             ${metric(T.active, nf.format(Number(d.active_subscriptions || 0)), 'is-blue')}
             ${metric(T.sent, nf.format(Number(d.sent || 0)))}
@@ -105,7 +111,15 @@
             <div><span>${T.close}</span><b>${nf.format(Number(b.close || 0))}</b></div>
           </div>
           <p class="na-foot"><span>${T.last}: <b>${last}</b></span><span>${T.active}: <b>${nf.format(Number(d.active_subscriptions || 0))} ${T.endpoints}</b></span></p>
-        </article>`;
+          </div>
+        </details>`;
+      const details = root.querySelector('.notification-analytics-panel');
+      const toggleLabel = root.querySelector('.na-toggle-label');
+      if (details && toggleLabel) {
+        details.addEventListener('toggle', () => {
+          toggleLabel.textContent = details.open ? T.collapse : T.expand;
+        });
+      }
     } catch (err) {
       console.error('Notification Analytics:', err);
       root.innerHTML = `<article class="panel notification-analytics-panel"><header><div><h2>${T.title}</h2><p>${T.unavailable}</p></div><span class="status">OFFLINE</span></header></article>`;
