@@ -291,8 +291,14 @@ jobs:
           final_decision=metadata.get('final_decision') or {}
           if authority.get('owner') != 'NATIVE_DAILY_EURUSD_BELIEF_FIRST_DECISION_ENGINE':
               raise SystemExit(f'unexpected v1.9 direction owner: {authority}')
-          if authority.get('source') != 'BELIEF_CORE':
-              raise SystemExit(f'v1.9 final direction is not sourced from Belief Core: {authority}')
+          if authority.get('source') != 'NATIVE_BELIEF_FIRST':
+              raise SystemExit(f'v1.9 final direction owner/source is not NATIVE_BELIEF_FIRST: {authority}')
+          if authority.get('epistemic_input') != 'BELIEF_CORE_CF07':
+              raise SystemExit(f'v1.9 epistemic input is not Belief Core through CF-07: {authority}')
+          if final_decision.get('decision_source') != 'NATIVE_BELIEF_FIRST':
+              raise SystemExit(f'v1.9 final decision source is not NATIVE_BELIEF_FIRST: {final_decision}')
+          if final_decision.get('epistemic_source') != 'BELIEF_CORE_CF07':
+              raise SystemExit(f'v1.9 final decision lost Belief/CF-07 epistemic source: {final_decision}')
           if final_decision.get('legacy_raw_score_direction_authority') is not False:
               raise SystemExit('legacy raw EURUSD/UUP/TLT direction authority leaked into v1.9')
           shadow=metadata.get('shadow_boundary') or {}
@@ -305,7 +311,7 @@ jobs:
           contextual=metadata.get('contextual_entry_policy') or {}
           if contextual and contextual.get('decision_influence') is not False:
               raise SystemExit(f'legacy contextual learner still influences v1.9 production: {contextual}')
-          source=authority.get('source','BELIEF_CORE')
+          source=authority.get('source','NATIVE_BELIEF_FIRST')
           print('EURUSD_V19_BELIEF_FIRST_OK', payload.get('direction'), final_decision.get('direction'), candidate.get('accepted'), source, sorted(reasons), final_decision.get('coverage_weight'))
           PY
 
