@@ -208,7 +208,8 @@ def build_output(
         "direction_authority": {
             "owner": "NATIVE_DAILY_EURUSD_BELIEF_FIRST_DECISION_ENGINE",
             "single_owner": True,
-            "source": "BELIEF_CORE",
+            "source": "NATIVE_BELIEF_FIRST",
+            "epistemic_input": "BELIEF_CORE_CF07",
             "direction": direction,
             "allowed": True,
             "rule": "Final LONG/SHORT/FLAT is synthesized only after Belief Core; no shadow/fallback may manufacture direction.",
@@ -251,7 +252,7 @@ def build_output(
         },
         "data": {
             "market_geometry_source": "EURUSD 30m market snapshot",
-            "directional_evidence_source": "BELIEF_CORE_STATE",
+            "directional_evidence_source": "BELIEF_CORE_CF07",
             "executable_bid_ask_available": False,
         },
     }
