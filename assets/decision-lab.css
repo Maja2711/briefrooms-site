@@ -321,3 +321,47 @@ html,body{width:100%;max-width:100%;overflow-x:hidden}
   .rolling-legend{flex-wrap:wrap;gap:8px 14px}
   .rolling-legend small{width:100%;margin-left:0}
 }
+
+
+/* 2026-10-03 Decision LAB: site-wide mobile containment and readable records */
+@media(max-width:650px){
+  html,body{max-width:100%;overflow-x:hidden}
+  main,.tab-panel,.tab-panel.active,.grid,.panel,.central-lab-view,.pattern-layout,.pattern-main,.pattern-detail{min-width:0;max-width:100%}
+  .tab-panel *{box-sizing:border-box}
+  .panel{overflow:hidden}
+  .panel>header{min-width:0;max-width:100%;align-items:flex-start;gap:10px}
+  .panel>header>div{min-width:0;max-width:100%}
+  .panel>header h2,.panel>header p,.central-lab-view p,.central-note{max-width:100%;white-space:normal;overflow-wrap:anywhere}
+  .panel>header .status{flex:0 0 auto;max-width:100%;white-space:normal}
+
+  /* Forecasts: replace 1320px desktop row with readable mobile cards. */
+  #tab-forecasts,.forecast-grid,.forecast-list{width:100%;min-width:0;max-width:100%}
+  .forecast-list{overflow:visible}
+  .forecast{min-width:0!important;width:100%;grid-template-columns:1fr!important;gap:7px;padding:14px 10px}
+  .forecast.head{display:none}
+  .forecast>*{min-width:0;max-width:100%;white-space:normal;overflow-wrap:anywhere}
+  .forecast>b{font-size:14px}
+  .forecast .hypothesis{font-size:12px;line-height:1.45}
+  .forecast .target{white-space:normal}
+  .forecast .probability{font-size:17px}
+  .forecast-history,.forecast-history-body{min-width:0;max-width:100%}
+  .forecast-history>summary>span:first-child{min-width:0}
+  .forecast-history>summary small{white-space:normal;overflow-wrap:anywhere}
+
+  /* Generic central LAB tables: no hidden right-hand columns on phones. */
+  .central-table-wrap{width:100%;max-width:100%;overflow:visible}
+  .central-table,.shadow-engine-table,.hse2-table,.fse-overview-table,.fse-validation-table{min-width:0!important;width:100%;display:block}
+  .central-table thead,.shadow-engine-table thead,.hse2-table thead,.fse-overview-table thead,.fse-validation-table thead{display:none}
+  .central-table tbody,.central-table tr,.central-table td{display:block;width:100%;max-width:100%}
+  .central-table tr{padding:11px 0;border-bottom:1px solid var(--line)}
+  .central-table td{padding:5px 8px;border:0;min-width:0!important;white-space:normal!important;overflow-wrap:anywhere;text-align:left!important}
+  .central-table td small{white-space:normal!important;overflow-wrap:anywhere}
+
+  /* Other grids/panels in every tab. */
+  .central-stats,.shadow-summary,.fse-summary,.closed-loop-grid,.research-funnel{grid-template-columns:1fr!important}
+  .pattern-layout,.fse-memory-grid{grid-template-columns:1fr!important}
+  .loop-row{grid-template-columns:1fr!important;min-width:0}
+  .loop-row>*{min-width:0;max-width:100%}
+  .research-candidates td,.research-candidates td:last-child{min-width:0!important;white-space:normal!important;overflow-wrap:anywhere}
+  img,svg,canvas{max-width:100%;height:auto}
+}
