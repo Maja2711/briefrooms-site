@@ -90,11 +90,11 @@
       root.innerHTML = `
         <details class="panel notification-analytics-panel">
           <summary class="na-summary">
-            <div class="na-summary-copy"><h2>${T.title}</h2><p>${T.lead}</p></div>
-            <span class="status shadow">LIVE AGGREGATES</span>
+            <div class="na-summary-copy"><h2>${T.title}</h2></div>
             <span class="na-toggle"><span class="na-toggle-label">${T.expand}</span><span class="na-chevron" aria-hidden="true">⌄</span></span>
           </summary>
           <div class="na-body">
+          <div class="na-expanded-head"><p>${T.lead}</p><span class="status shadow">LIVE AGGREGATES</span></div>
           <div class="na-primary">
             ${metric(T.active, nf.format(Number(d.active_subscriptions || 0)), 'is-blue')}
             ${metric(T.sent, nf.format(Number(d.sent || 0)))}
