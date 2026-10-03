@@ -43,7 +43,6 @@ concurrency:
 env:
   ARTIFACT_NAME: belief-core-shadow-state
   GSE_ARTIFACT_NAME: gse-shadow-state
-  BELIEF_EURUSD_CALENDAR_LIVENESS: "1"
 
 jobs:
   collect:
@@ -212,8 +211,6 @@ jobs:
           assert controls['policy_output_enabled'] is False
           assert controls['automatic_tuning_enabled'] is False
           assert scheduler['last_status']['mode'] == 'shadow'
-          calendar=scheduler['last_status'].get('eurusd_calendar_liveness') or {}
-          assert calendar.get('attempted') in {True, False}
           coverage=scheduler['last_status']['wes_asset_coverage']
           assert coverage['decision_influence'] is False
           assert coverage['eurusd']['rate_differential_claimed'] is False
