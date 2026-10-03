@@ -201,6 +201,47 @@ def event_threat_projection(state_dir: Path) -> dict[str, Any] | None:
             }
         )
     rows.sort(key=lambda row: (str(row.get("target")), int(row.get("horizon_hours") or 0)))
+
+    # Public room highlight: one immutable daily 30d forecast from the latest
+    # frozen GSE Threat batch. The engine may scan hourly, but this selection
+    # changes only when the next daily freeze is written.
+    frozen = [
+        row for row in read_jsonl(state_dir / "gse_event_probability_forecasts.jsonl")
+        if int(row.get("horizon_hours") or 0) == 720
+        and _parse_time(row.get("forecast_at")) is not None
+        and _num(row.get("predicted_probability")) is not None
+    ]
+    daily_featured = None
+    if frozen:
+        latest_at = max(_parse_time(row.get("forecast_at")) for row in frozen)
+        latest_batch = [row for row in frozen if _parse_time(row.get("forecast_at")) == latest_at]
+        best = max(
+            latest_batch,
+            key=lambda row: (
+                float(_num(row.get("predicted_probability")) or 0.0),
+                float(_num(row.get("confidence")) or 0.0),
+                float(_num(row.get("signal_score")) or 0.0),
+            ),
+        )
+        p = _num(best.get("predicted_probability"))
+        prior = _num(best.get("prior_probability"))
+        daily_featured = {
+            "event_type": str(best.get("event_type") or ""),
+            "label": str(best.get("label") or ""),
+            "target": str(best.get("target") or ""),
+            "horizon_hours": 720,
+            "horizon_label": "30d",
+            "probability": p,
+            "prior_probability": prior,
+            "delta_vs_prior": None if p is None or prior is None else round(p - prior, 6),
+            "confidence": _num(best.get("confidence")),
+            "signal_score": _num(best.get("signal_score")),
+            "forecast_at": best.get("forecast_at"),
+            "target_at": best.get("target_at"),
+            "selection_policy": "highest_probability_then_confidence_then_signal",
+            "publication_cadence": "daily_frozen_forecast",
+        }
+
     overall = calibration.get("overall") or {}
     return {
         "schema_version": str(state.get("schema_version") or "gse-event-threat-v1"),
@@ -208,6 +249,7 @@ def event_threat_projection(state_dir: Path) -> dict[str, Any] | None:
         "model_status": str(state.get("model_status") or "prospective_uncalibrated_seed"),
         "probability_semantics": str(state.get("probability_semantics") or ""),
         "estimates": rows,
+        "daily_featured_30d": daily_featured,
         "calibration": {
             "count": int(overall.get("count") or 0),
             "positive_count": int(overall.get("positive_count") or 0),
