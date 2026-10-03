@@ -11,7 +11,7 @@ PAGES = {
 }
 BLOCK = re.compile(r"\s*<!-- BR_GSE_LAB_ENTRY_START -->[\s\S]*?<!-- BR_GSE_LAB_ENTRY_END -->\s*", re.I)
 STYLE = '<link rel="stylesheet" href="/assets/gse-lab-entry.css?v=1" />'
-SCRIPT = '<script src="/scripts/gse-lab-entry.js?v=1" defer></script>'
+SCRIPT = '<script src="/scripts/gse-lab-entry.js?v=2" defer></script>'
 
 
 def block(lang: str) -> str:
@@ -34,7 +34,7 @@ def block(lang: str) -> str:
     <div class="gse-lab-entry__metric"><strong data-gse-best>30d</strong><span>najlepszy horyzont</span></div>
   </div>
   <div class="gse-lab-entry__bottom">
-    <p class="gse-lab-entry__finding" data-gse-finding>Najlepszy historyczny horyzont: 30d. Szczegóły i pełne wyniki są w laboratorium.</p>
+    <p class="gse-lab-entry__finding" data-gse-finding>Predykcja GSE · 30 dni: oczekiwanie na najnowszą zamrożoną prognozę dzienną.</p>
     <a class="gse-lab-entry__link" href="/pl/geo/gse-lab.html">Otwórz GSE Lab →</a>
   </div>
 </section>
@@ -57,7 +57,7 @@ def block(lang: str) -> str:
     <div class="gse-lab-entry__metric"><strong data-gse-best>30d</strong><span>best horizon</span></div>
   </div>
   <div class="gse-lab-entry__bottom">
-    <p class="gse-lab-entry__finding" data-gse-finding>Best historical horizon: 30d. Full results are available in the lab.</p>
+    <p class="gse-lab-entry__finding" data-gse-finding>GSE prediction · 30 days: awaiting the latest daily frozen forecast.</p>
     <a class="gse-lab-entry__link" href="/en/geo/gse-lab.html">Open GSE Lab →</a>
   </div>
 </section>
@@ -69,6 +69,7 @@ def patch(path: Path, lang: str) -> bool:
     cleaned = BLOCK.sub("\n", source)
     if STYLE not in cleaned:
         cleaned = cleaned.replace("</head>", STYLE + "\n</head>", 1)
+    cleaned = re.sub(r'<script src="/scripts/gse-lab-entry\\.js\\?v=\\d+" defer></script>', SCRIPT, cleaned)
     if SCRIPT not in cleaned:
         cleaned = cleaned.replace("</body>", SCRIPT + "\n</body>", 1)
     marker = re.search(r"<main(?:\s[^>]*)?>", cleaned, re.I)
