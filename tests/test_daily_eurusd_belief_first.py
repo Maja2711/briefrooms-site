@@ -100,7 +100,7 @@ class BeliefDecisionTest(unittest.TestCase):
         result = decision.synthesize(state, observed_at=now)
         self.assertEqual(result["direction"], "LONG")
         self.assertGreaterEqual(result["score"], 60.0)
-        self.assertEqual(result["decision_source"], "BELIEF_CORE")
+        self.assertEqual(result["decision_source"], "NATIVE_BELIEF_FIRST")\n        self.assertEqual(result["epistemic_source"], "BELIEF_CORE_CF07")
         self.assertFalse(result["legacy_raw_score_direction_authority"])
 
     def test_missing_belief_state_fails_closed(self):
@@ -218,7 +218,7 @@ class BeliefDecisionTest(unittest.TestCase):
                     output = v19.build_output(_snapshot(now), {"trades": []})
         self.assertEqual(output.decision_mode, "WITH")
         self.assertEqual(output.metadata["direction_authority"]["owner"], "NATIVE_DAILY_EURUSD_BELIEF_FIRST_DECISION_ENGINE")
-        self.assertEqual(output.metadata["final_decision"]["decision_source"], "BELIEF_CORE")
+        self.assertEqual(output.metadata["final_decision"]["decision_source"], "NATIVE_BELIEF_FIRST")
 
     def test_open_and_closed_runtime_projection_stays_v19_with_mode(self):
         now = datetime(2026, 10, 2, 18, 0, tzinfo=UTC)
