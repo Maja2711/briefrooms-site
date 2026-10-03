@@ -106,9 +106,10 @@ async function fse(){
   const root=document.querySelector('#central-fse-lab');
   if(!root)return;
   try{
-    const [r,hse]=await Promise.all([
+    const [r,hse,v2]=await Promise.all([
       get('/data/investments/fse_public.json'),
-      get('/data/investments/hypothesis_shadow_engine_v2_public.json').catch(()=>({}))
+      get('/data/investments/hypothesis_shadow_engine_v2_public.json').catch(()=>({})),
+      get('/data/investments/fse_v2_public.json').catch(()=>({}))
     ]);
     const instruments=Array.isArray(r.instruments)?r.instruments:[];
     const measurements=Array.isArray(r.hse_measurements)?r.hse_measurements:[];
@@ -169,6 +170,10 @@ async function fse(){
       '<h3 class="central-subtitle">Aktualna struktura rynku</h3>'+
       '<div class="central-table-wrap"><table class="central-table fse-overview-table"><thead><tr><th>Instrument</th><th>Regime</th><th>Risk</th><th>P UP</th><th>Analogów</th><th>Similarity</th><th>Median +4h</th><th>MAE</th></tr></thead><tbody>'+overviewRows+'</tbody></table></div>'+
       '<h3 class="central-subtitle">Fractal Memory</h3><div class="fse-memory-grid">'+memoryCards+'</div>'+
+      '<h3 class="central-subtitle">FSE v1 vs FSE v2 · Deep Fractal Memory</h3>'+
+      (v2?.engine?'<div class="central-table-wrap"><table class="central-table"><thead><tr><th>Instrument</th><th>v1 P UP</th><th>v2 P UP</th><th>v2 analogi</th><th>Przeszukane struktury</th><th>Efektywne analogi</th><th>Historia 1h</th><th>Historia 1D</th><th>v2 Brier</th><th>v2 edge</th></tr></thead><tbody>'+
+      (v2.instruments||[]).map(x=>{const old=instruments.find(y=>y.instrument===x.instrument)||{},m=x.memory||{},vm=(v2.measurements||[]).find(y=>y.instrument===x.instrument)||{};return '<tr><td><strong>'+esc(fseInstrumentLabel(x.instrument))+'</strong></td><td>'+pct(old?.fractal_memory?.p_up_4h,1)+'</td><td><b>'+pct(m.p_up,1)+'</b></td><td>'+num(m.analogues_n)+'</td><td>'+num(m.history_candidates)+'</td><td>'+num(m.effective_analogues,1)+'</td><td>'+num(m.hourly_history_bars)+'</td><td>'+num(m.daily_history_bars)+'</td><td>'+num(vm.mean_brier,4)+'</td><td>'+(finite(vm.mean_edge)?fseSignedPct(vm.mean_edge,2):'—')+'</td></tr>'}).join('')+
+      '</tbody></table></div><p class="central-note">FSE v2 jest niezależnym challengerem SHADOW_ONLY. v1 pozostaje zamrożony metodologicznie; v2 przeszukuje pełną dostępną pamięć źródła i nie ma żadnego writebacku do tradingu.</p>':'<p class="central-note">FSE v2 czeka na pierwszy pełny cykl shadow.</p>')+
       '<h3 class="central-subtitle">Prospective learning · Brier · HSE2</h3>'+
       '<div class="central-table-wrap"><table class="central-table fse-validation-table"><thead><tr><th>Instrument</th><th>Tor</th><th>Forward N</th><th>Brier</th><th>Edge vs 50/50</th><th>HSE2 status</th><th>Freeze / evidence</th></tr></thead><tbody>'+validationRows+'</tbody></table></div>'+
       '<p class="central-note">Brier i edge pojawią się dopiero po rozliczeniu prospektywnych snapshotów. Historical bootstrap służy do inicjalizacji Fractal Memory, ale nie jest zaliczany jako formalny evidence HSE2. Wygenerowano '+shadowWhen(r.generated_at)+'.</p></article>';
