@@ -44,7 +44,7 @@ def robust_scale(xs:Sequence[float])->float:
 
 def sample_entropy(xs:Sequence[float],m:int=2)->float:
     """Small, deterministic SampEn proxy; bounded sample keeps runtime stable."""
-    x=list(xs[-256:])
+    x=list(xs[-96:])
     if len(x)<32:return 0.0
     r=.2*max(stdev(x),1e-12)
     def count(k):
