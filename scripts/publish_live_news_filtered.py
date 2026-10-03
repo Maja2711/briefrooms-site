@@ -856,8 +856,9 @@ def select_sections(
                     1 for story in selected[section_id]
                     if AI_CRYPTO_RE.search(_story_text(story))
                 )
-                if ai_crypto_count < PL_ECONOMY_AI_CRYPTO_MINIMUM:
-                    raise RuntimeError("PL ekonomia missing required AI/crypto story")
+                # Availability of one editorial subtype must not block the
+                # entire PL/EN publication. Keep the target observable in
+                # section health and let the next run recover naturally.
         times = [base.story_time(item) for item in items if base.story_time(item) > 0]
         section_health: dict[str, Any] = {
             "count": len(selected[section_id]),
@@ -869,6 +870,10 @@ def select_sections(
             "preferred_source_cap": preferred_source_cap,
             "hard_source_cap": MAX_SOURCE_SHARE if len(active_sources) >= 2 else target,
         }
+        if pl_mode and section_id == "ekonomia":
+            section_health["ai_crypto_count"] = ai_crypto_count
+            section_health["ai_crypto_minimum"] = PL_ECONOMY_AI_CRYPTO_MINIMUM
+            section_health["ai_crypto_target_met"] = ai_crypto_count >= PL_ECONOMY_AI_CRYPTO_MINIMUM
         if sport_mode:
             section_health["tracked_athletes"] = athlete_counts
             section_health["discipline_mix"] = discipline_counts
