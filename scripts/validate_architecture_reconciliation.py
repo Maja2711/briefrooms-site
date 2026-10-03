@@ -163,6 +163,7 @@ daily_doc = read("docs/DAILY_TRADING_ARCHITECTURE.md")
 daily_runtime = read("scripts/daily_eurusd_spot_v19.py")
 daily_decision = read("scripts/daily_eurusd_belief_decision.py")
 daily_workflow = read(".github/workflows/daily-eurusd-monitor.yml")
+belief_live_workflow = read(".github/workflows/belief-core-shadow-live.yml")
 epistemic_consumer = read("scripts/epistemic_consumer_interface.py")
 for token in (
     "Daily EUR/USD v1.9 — Belief-first final decision",
@@ -198,6 +199,7 @@ require(daily_workflow, "scripts/daily_eurusd_spot_v19.py", "Daily EURUSD produc
 require(daily_workflow, "BELIEF_EPISTEMIC_STATE=", "Daily EURUSD production workflow")
 require(daily_workflow, "DAILY_EURUSD_REQUIRE_EPISTEMIC=1", "Daily EURUSD production workflow")
 require(daily_workflow, "EURUSD_V19_BELIEF_FIRST_OK", "Daily EURUSD production workflow")
+require(belief_live_workflow, 'BELIEF_EURUSD_CALENDAR_LIVENESS: "1"', "Belief EURUSD calendar liveness")
 forbid(daily_workflow, "python scripts/daily_eurusd_spot_v18.py", "Daily EURUSD production workflow")
 
 research_agents = git_show(args.research_ref, "AGENTS.md")
