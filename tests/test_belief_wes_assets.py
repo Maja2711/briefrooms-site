@@ -119,6 +119,30 @@ class WESAssetAdapterTests(unittest.TestCase):
         btc_liq = next(x for x in result.evidence if x.belief_id == "btc.liquidity.supportive")
         self.assertFalse(btc_liq.metadata["on_chain_coverage"])
 
+    def test_eurusd_cross_asset_evidence_keeps_provider_timestamps(self):
+        fx_now = self.snapshot.observed_at(EURUSD_SYMBOL)
+        stale = fx_now - timedelta(hours=6)
+        bars = dict(self.snapshot.bars)
+        for symbol in ("UUP", "TLT"):
+            shifted = []
+            for row in bars[symbol]:
+                shifted.append(Bar(
+                    timestamp=row.timestamp - timedelta(hours=6),
+                    close=row.close,
+                    open=row.open,
+                    high=row.high,
+                    low=row.low,
+                    volume=row.volume,
+                ))
+            bars[symbol] = shifted
+        snapshot = MarketSnapshot(bars)
+        result = WESAssetEvidenceAdapter().run(snapshot)
+        usd = next(x for x in result.evidence if x.belief_id == "eurusd.usd_environment.supportive")
+        rates = next(x for x in result.evidence if x.belief_id == "eurusd.us_rates_pressure.supportive")
+        self.assertEqual(usd.observed_at, stale.astimezone(UTC).isoformat().replace("+00:00", "Z"))
+        self.assertEqual(rates.observed_at, stale.astimezone(UTC).isoformat().replace("+00:00", "Z"))
+        self.assertNotEqual(usd.observed_at, fx_now.astimezone(UTC).isoformat().replace("+00:00", "Z"))
+
     def test_coverage_report_does_not_claim_ecb_or_onchain(self):
         report = coverage_report()
         self.assertEqual(report["eurusd"]["status"], "partial_market_macro_proxy_coverage")

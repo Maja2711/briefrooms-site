@@ -434,33 +434,85 @@ def event_risk_evidence(primary: Observation, *, now: datetime):
 
 class MacroEventCalendarAdapter:
     name = "macro_event_calendar"
-    version = "1.0.0"
+    version = "1.1.0"
 
     def __init__(self, *, client: Optional[HttpClient] = None) -> None:
         self.client = client or HttpClient()
+        self._last_source_status: Dict[str, Dict[str, Any]] = {}
+
+    def _collect(
+        self,
+        *,
+        key: str,
+        url: str,
+        loader,
+    ) -> List[CalendarEvent]:
+        try:
+            rows = list(loader(self.client.text(url)))
+        except Exception as exc:
+            self._last_source_status[key] = {
+                "status": "failed",
+                "source_ref": url,
+                "event_count": 0,
+                "error_type": type(exc).__name__,
+            }
+            return []
+        self._last_source_status[key] = {
+            "status": "ok",
+            "source_ref": url,
+            "event_count": len(rows),
+        }
+        return rows
+
+    def source_status(self) -> Dict[str, Any]:
+        required = ("BLS", "BEA", "FOMC", "EUROSTAT", "ECB")
+        rows = {key: dict(self._last_source_status.get(key) or {"status": "not_checked"}) for key in required}
+        complete = all((rows[key].get("status") == "ok") for key in required)
+        return {
+            "schema_version": "macro-calendar-coverage-v1",
+            "required_sources": list(required),
+            "sources": rows,
+            "complete": complete,
+        }
 
     def collect_events(self, now: datetime) -> List[CalendarEvent]:
+        self._last_source_status = {}
         events: List[CalendarEvent] = []
-        try:
-            events.extend(parse_bls_ics(self.client.text(BLS_ICS), now=now))
-        except Exception:
-            pass
-        try:
-            events.extend(parse_bea_schedule(self.client.text(BEA_SCHEDULE), now=now))
-        except Exception:
-            pass
-        try:
-            events.extend(parse_fomc_calendar(self.client.text(FOMC_CALENDAR), now=now))
-        except Exception:
-            pass
-        try:
-            events.extend(parse_eu_calendar_text(self.client.text(EUROSTAT_RELEASE_CALENDAR), now=now, source="Eurostat", source_ref=EUROSTAT_RELEASE_CALENDAR))
-        except Exception:
-            pass
-        try:
-            events.extend(parse_eu_calendar_text(self.client.text(ECB_CALENDAR), now=now, source="European Central Bank", source_ref=ECB_CALENDAR))
-        except Exception:
-            pass
+        events.extend(self._collect(
+            key="BLS",
+            url=BLS_ICS,
+            loader=lambda text: parse_bls_ics(text, now=now),
+        ))
+        events.extend(self._collect(
+            key="BEA",
+            url=BEA_SCHEDULE,
+            loader=lambda text: parse_bea_schedule(text, now=now),
+        ))
+        events.extend(self._collect(
+            key="FOMC",
+            url=FOMC_CALENDAR,
+            loader=lambda text: parse_fomc_calendar(text, now=now),
+        ))
+        events.extend(self._collect(
+            key="EUROSTAT",
+            url=EUROSTAT_RELEASE_CALENDAR,
+            loader=lambda text: parse_eu_calendar_text(
+                text,
+                now=now,
+                source="Eurostat",
+                source_ref=EUROSTAT_RELEASE_CALENDAR,
+            ),
+        ))
+        events.extend(self._collect(
+            key="ECB",
+            url=ECB_CALENDAR,
+            loader=lambda text: parse_eu_calendar_text(
+                text,
+                now=now,
+                source="European Central Bank",
+                source_ref=ECB_CALENDAR,
+            ),
+        ))
         dedup: Dict[str, CalendarEvent] = {}
         for event in events:
             dedup[event.uid] = event
@@ -469,7 +521,24 @@ class MacroEventCalendarAdapter:
     def run(self, now: datetime) -> AdapterResult:
         observations: List[Observation] = []
         evidence = []
-        for event in self.collect_events(now):
+        events = self.collect_events(now)
+        coverage = self.source_status()
+        observations.append(Observation.make(
+            adapter=self.name,
+            metric="calendar_coverage",
+            entity="GLOBAL_MACRO",
+            observed_at=iso_z(now),
+            value={"complete": coverage["complete"]},
+            unit="coverage_status",
+            source="BriefRooms macro calendar source-health audit",
+            source_type="derived",
+            source_ref="derived:macro-calendar-coverage",
+            reliability=1.0,
+            independence_cluster="derived:macro-calendar-coverage",
+            tags=("macro_calendar", "coverage", self.version),
+            metadata=coverage,
+        ))
+        for event in events:
             primary = calendar_event_to_observation(event, now)
             observations.append(primary)
             risk = event_risk_evidence(primary, now=now)

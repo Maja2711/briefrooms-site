@@ -30,6 +30,7 @@ from belief_v3_candidate_adapter import (
     candidate_outcome_spec,
 )
 from belief_macro_release_adapter import MACRO_BELIEFS
+from belief_macro_calendar_adapter import MacroEventCalendarAdapter
 from belief_wes_assets_adapter import (
     WES_ASSET_BELIEFS,
     WESAssetEvidenceAdapter,
@@ -121,6 +122,24 @@ def floor_half_hour(dt: datetime) -> datetime:
 
 def in_market_window(local_dt: datetime) -> bool:
     return local_dt.weekday() < 5 and MARKET_OPEN <= local_dt.time().replace(tzinfo=None) <= MARKET_CLOSE
+
+
+def in_fx_window(local_dt: datetime) -> bool:
+    """Approximate the continuous FX week in New York time.
+
+    Sunday after 17:00 NY through Friday before 17:00 NY is treated as the
+    tradable EUR/USD week. This is a data-collection window only; EPE remains
+    the fill authority.
+    """
+    weekday = local_dt.weekday()
+    clock = local_dt.time().replace(tzinfo=None)
+    if weekday == 6:
+        return clock >= time(17, 0)
+    if weekday in {0, 1, 2, 3}:
+        return True
+    if weekday == 4:
+        return clock < time(17, 0)
+    return False
 
 
 def due_planned_slot(local_dt: datetime, planned: time, already_done: bool) -> bool:
@@ -694,6 +713,70 @@ def run_cycle(state_dir: Path, now: datetime, client: YahooChartClient) -> Dict[
     snapshot: Optional[MarketSnapshot] = None
     evidence_count = observation_count = world_count = forecast_count = wes_count = wes_asset_count = v3_candidate_count = 0
     adapter_counts: Dict[str, Dict[str, int]] = {}
+    eurusd_liveness = {
+        "attempted": False,
+        "status": "not_due",
+        "observations": 0,
+        "evidence": 0,
+    }
+    eurusd_calendar_coverage: Dict[str, Any] = {
+        "status": "not_due",
+        "complete": None,
+    }
+
+    # Daily EUR/USD is a 24x5 consumer. Outside the US cash-session collection
+    # window, refresh only its dedicated market/cross-asset adapter. UUP/TLT
+    # retain their own source timestamps, so closed US markets decay naturally
+    # instead of being falsely refreshed by a new EUR/USD timestamp.
+    if in_fx_window(local) and not in_market_window(local):
+        eurusd_liveness["attempted"] = True
+
+        calendar_key = f"eurusd-calendar:{local.date().isoformat()}:{local.hour:02d}"
+        if calendar_key not in completed:
+            calendar = MacroEventCalendarAdapter()
+            calendar_result = calendar.run(now)
+            observation_count += append_observations(state_dir, calendar_result.observations)
+            coverage = calendar.source_status()
+            eurusd_calendar_coverage = {
+                "status": "ok" if coverage.get("complete") else "coverage_failed",
+                **coverage,
+            }
+            completed[calendar_key] = iso_z(now)
+        else:
+            eurusd_calendar_coverage = {
+                "status": "already_checked_this_hour",
+                "complete": None,
+            }
+
+        asset_bars: Dict[str, List[Bar]] = {}
+        for symbol in ("EURUSD=X", "UUP", "TLT"):
+            try:
+                rows = list(client.bars(symbol, "10d", "30m"))
+            except Exception:
+                rows = []
+            if rows:
+                asset_bars[symbol] = rows
+        if asset_bars.get("EURUSD=X"):
+            asset_snapshot = MarketSnapshot(asset_bars)
+            asset_result = WESAssetEvidenceAdapter().run(asset_snapshot)
+            observation_count += append_observations(state_dir, asset_result.observations)
+            if asset_result.evidence:
+                core.ingest(asset_result.evidence)
+                core.recompute(now)
+                core.save()
+            evidence_count += len(asset_result.evidence)
+            adapter_counts["wes_asset_evidence_fx_liveness"] = {
+                "observations": len(asset_result.observations),
+                "evidence": len(asset_result.evidence),
+            }
+            eurusd_liveness.update({
+                "status": "ok",
+                "observations": len(asset_result.observations),
+                "evidence": len(asset_result.evidence),
+                "symbols": sorted(asset_bars),
+            })
+        else:
+            eurusd_liveness["status"] = "eurusd_market_data_unavailable"
 
     if in_market_window(local):
         snapshot = fetch_snapshot(client)
@@ -759,6 +842,8 @@ def run_cycle(state_dir: Path, now: datetime, client: YahooChartClient) -> Dict[
         "wes_forecasts_frozen": wes_count,
         "forecasts_verified": verified,
         "wes_asset_coverage": wes_asset_coverage_report(),
+        "eurusd_24x5_liveness": eurusd_liveness,
+        "eurusd_macro_calendar_coverage": eurusd_calendar_coverage,
         "mode": MODE,
     }
     scheduler["gaps"] = scheduler.get("gaps", [])[-100:]

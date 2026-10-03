@@ -1,4 +1,4 @@
-name: Validate Daily EURUSD Native-Only Direction Authority
+name: Validate Daily EURUSD Belief-First Direction Authority
 
 on:
   pull_request:
@@ -7,11 +7,22 @@ on:
       - "scripts/daily_eurusd_spot.py"
       - "scripts/daily_eurusd_spot_v12.py"
       - "scripts/daily_eurusd_spot_v13.py"
+      - "scripts/daily_eurusd_spot_v18.py"
+      - "scripts/daily_eurusd_spot_v19.py"
+      - "scripts/daily_eurusd_belief_decision.py"
+      - "scripts/belief_epistemic_state.py"
+      - "scripts/belief_news_event_adapter.py"
+      - "scripts/belief_macro_calendar_adapter.py"
+      - "scripts/belief_wes_assets_adapter.py"
+      - "scripts/belief_core_live.py"
+      - "scripts/epistemic_consumer_interface.py"
       - "scripts/daily_eurusd_experiment.py"
       - "scripts/daily_eurusd_experiment_v12.py"
       - "tests/test_daily_eurusd_lifecycle.py"
       - "tests/test_daily_eurusd_direct_signal.py"
       - "tests/test_daily_eurusd_a_fallback.py"
+      - "tests/test_daily_eurusd_belief_first.py"
+      - "tests/test_epistemic_consumer_interface.py"
       - ".github/workflows/daily-eurusd-monitor.yml"
       - ".github/workflows/daily-eurusd-direct-signal-validation.yml"
   push:
@@ -19,8 +30,19 @@ on:
     paths:
       - "scripts/daily_eurusd_spot_v12.py"
       - "scripts/daily_eurusd_spot_v13.py"
+      - "scripts/daily_eurusd_spot_v18.py"
+      - "scripts/daily_eurusd_spot_v19.py"
+      - "scripts/daily_eurusd_belief_decision.py"
+      - "tests/test_epistemic_consumer_interface.py"
+      - "scripts/belief_news_event_adapter.py"
+      - "scripts/belief_macro_calendar_adapter.py"
+      - "scripts/belief_wes_assets_adapter.py"
+      - "scripts/belief_core_live.py"
+      - "scripts/epistemic_consumer_interface.py"
+      - "scripts/belief_epistemic_state.py"
       - "tests/test_daily_eurusd_direct_signal.py"
       - "tests/test_daily_eurusd_a_fallback.py"
+      - "tests/test_daily_eurusd_belief_first.py"
       - ".github/workflows/daily-eurusd-monitor.yml"
       - ".github/workflows/daily-eurusd-direct-signal-validation.yml"
 
@@ -38,7 +60,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Compile PR25 runtime
+      - name: Compile Daily EURUSD authority runtime
         run: |
           set -euo pipefail
           python -m py_compile \
@@ -47,36 +69,48 @@ jobs:
             scripts/daily_eurusd_spot.py \
             scripts/daily_eurusd_spot_v12.py \
             scripts/daily_eurusd_spot_v13.py \
+            scripts/daily_eurusd_spot_v18.py \
+            scripts/daily_eurusd_spot_v19.py \
+            scripts/daily_eurusd_belief_decision.py \
+            scripts/belief_epistemic_state.py \
+            scripts/epistemic_consumer_interface.py \
             scripts/daily_eurusd_experiment.py \
             scripts/daily_eurusd_experiment_v12.py
-      - name: Run lifecycle, direct admission and A fallback tests
+      - name: Run legacy isolation plus Belief-first authority tests
         run: |
           set -euo pipefail
           python -m unittest \
             tests.test_daily_eurusd_lifecycle \
             tests.test_daily_eurusd_direct_signal \
-            tests.test_daily_eurusd_a_fallback -v
-      - name: Assert production workflow uses native-only direction authority
+            tests.test_daily_eurusd_a_fallback \
+            tests.test_daily_eurusd_belief_first \
+            tests.test_epistemic_consumer_interface -v
+      - name: Assert production workflow uses Belief-first final direction authority
         run: |
           set -euo pipefail
           python - <<'PY'
           from pathlib import Path
           text=Path('.github/workflows/daily-eurusd-monitor.yml').read_text()
           required=[
-              'scripts/daily_eurusd_spot_v18.py',
+              'scripts/daily_eurusd_spot_v19.py',
+              'scripts/daily_eurusd_belief_decision.py',
+              'BELIEF_EPISTEMIC_STATE=',
+              'DAILY_EURUSD_REQUIRE_EPISTEMIC=1',
               'tests.test_daily_eurusd_a_fallback',
+              'tests.test_daily_eurusd_belief_first',
+              'EURUSD_V19_BELIEF_FIRST_OK',
               'tests.test_daily_eurusd_direct_signal',
               'tests.test_daily_eurusd_contextual_production_policy',
               'PUSH_VALIDATION_ONLY_NO_TRADING_STATE_MUTATION',
           ]
           missing=[item for item in required if item not in text]
           if missing:
-              raise SystemExit(f'native-only production contract missing: {missing}')
+              raise SystemExit(f'Belief-first production contract missing: {missing}')
           forbidden=[
               'PR25_NATIVE_OR_A_WORKFLOW_CONTRACT_OK',
           ]
           leaked=[item for item in forbidden if item in text]
           if leaked:
               raise SystemExit(f'legacy fallback authority contract leaked: {leaked}')
-          print('DAILY_EURUSD_NATIVE_ONLY_DIRECTION_AUTHORITY_OK')
+          print('DAILY_EURUSD_BELIEF_FIRST_DIRECTION_AUTHORITY_OK')
           PY

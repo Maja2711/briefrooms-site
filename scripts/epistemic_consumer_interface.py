@@ -25,9 +25,29 @@ SPX_BELIEF_IDS: Tuple[str, ...] = (
     "spx.financial_conditions.supportive",
 )
 
+EURUSD_BELIEF_IDS: Tuple[str, ...] = (
+    "eurusd.trend.bullish",
+    "eurusd.usd_environment.supportive",
+    "eurusd.us_rates_pressure.supportive",
+    "eurusd.macro_surprise.supportive",
+    "eurusd.policy_differential.supportive",
+)
+
+EURUSD_PROFILE_WEIGHTS: Dict[str, float] = {
+    "eurusd.trend.bullish": 0.45,
+    "eurusd.usd_environment.supportive": 0.30,
+    "eurusd.us_rates_pressure.supportive": 0.15,
+    "eurusd.macro_surprise.supportive": 0.20,
+    "eurusd.policy_differential.supportive": 0.10,
+}
+EURUSD_MIN_FRESHNESS = 0.50
+EURUSD_MIN_COVERAGE_WEIGHT = 0.45
+EURUSD_REQUIRED_ANCHOR = "eurusd.trend.bullish"
+
 CONSUMER_PROFILES: Dict[str, Tuple[str, ...]] = {
     "BRACE_SPX": SPX_BELIEF_IDS,
     "WES_SPX": SPX_BELIEF_IDS,
+    "DAILY_EURUSD": EURUSD_BELIEF_IDS,
 }
 
 
@@ -81,6 +101,8 @@ class ConsumerEnvelope:
     source_sha256: str
     authority: ConsumerAuthority = ConsumerAuthority()
     contract_version: str = CONTRACT_VERSION
+    coverage_weight: Optional[float] = None
+    qualified_state_count: int = 0
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -129,11 +151,57 @@ class EpistemicConsumerInterface:
                 drilldown_reasons=(), states=tuple(selected), source_contract_version=EPISTEMIC_CONTRACT,
                 source_created_at=source_created_at, source_sha256=_sha(self.payload),
             )
-        probs = [float(x.get("probability", 0.5)) for x in selected]
-        confs = [float(x.get("confidence", 0.0)) for x in selected]
-        contradictions = [float(x.get("contradiction", 0.0)) for x in selected]
-        deltas = [abs(float(x.get("delta_probability"))) for x in selected if x.get("delta_probability") is not None]
-        p = fmean(probs)
+        if consumer == "DAILY_EURUSD":
+            total_weight = sum(EURUSD_PROFILE_WEIGHTS.values())
+            qualified = [
+                x for x in selected
+                if float(x.get("freshness", 0.0)) >= EURUSD_MIN_FRESHNESS
+                and str(x.get("audit_status") or "").lower() != "critical"
+            ]
+            qualified_ids = {
+                str((x.get("member_belief_ids") or [None])[0])
+                for x in qualified
+            }
+            used_weight = sum(EURUSD_PROFILE_WEIGHTS.get(bid, 0.0) for bid in qualified_ids)
+            coverage_weight = 0.0 if total_weight <= 0 else used_weight / total_weight
+            anchor_ready = EURUSD_REQUIRED_ANCHOR in qualified_ids
+            if coverage_weight < EURUSD_MIN_COVERAGE_WEIGHT or not anchor_ready:
+                return ConsumerEnvelope(
+                    consumer=consumer, available=False,
+                    reason=(
+                        "required_eurusd_trend_state_not_qualified"
+                        if not anchor_ready
+                        else "insufficient_fresh_eurusd_epistemic_coverage"
+                    ),
+                    stance="unavailable", aggregate_probability=None, aggregate_confidence=None,
+                    max_contradiction=None, max_abs_delta_probability=None, drilldown_required=False,
+                    drilldown_reasons=(), states=tuple(selected), source_contract_version=EPISTEMIC_CONTRACT,
+                    source_created_at=source_created_at, source_sha256=_sha(self.payload),
+                    coverage_weight=round(coverage_weight, 6),
+                    qualified_state_count=len(qualified),
+                )
+            weighted_signal = 0.0
+            weighted_confidence = 0.0
+            for x in qualified:
+                bid = str((x.get("member_belief_ids") or [None])[0])
+                weight = EURUSD_PROFILE_WEIGHTS[bid]
+                probability = max(0.0, min(1.0, float(x.get("probability", 0.5))))
+                confidence = max(0.0, min(1.0, float(x.get("confidence", 0.0))))
+                weighted_signal += weight * ((probability - 0.5) * 2.0) * confidence
+                weighted_confidence += weight * confidence
+            normalized = max(-1.0, min(1.0, weighted_signal / used_weight))
+            p = 0.5 + 0.5 * normalized
+            aggregate_confidence = (weighted_confidence / used_weight) * coverage_weight
+            aggregate_states = qualified
+        else:
+            p = fmean(float(x.get("probability", 0.5)) for x in selected)
+            aggregate_confidence = fmean(float(x.get("confidence", 0.0)) for x in selected)
+            coverage_weight = 1.0
+            aggregate_states = selected
+
+        confs = [float(x.get("confidence", 0.0)) for x in aggregate_states]
+        contradictions = [float(x.get("contradiction", 0.0)) for x in aggregate_states]
+        deltas = [abs(float(x.get("delta_probability"))) for x in aggregate_states if x.get("delta_probability") is not None]
         if p >= 0.60:
             stance = "risk_on"
         elif p <= 0.40:
@@ -158,13 +226,20 @@ class EpistemicConsumerInterface:
             "dominant_opposition_evidence_ids": list(x.get("dominant_opposition_evidence_ids") or []),
         } for x in selected)
         return ConsumerEnvelope(
-            consumer=consumer, available=True, reason="authoritative_epistemic_state_projection",
-            stance=stance, aggregate_probability=round(p, 6), aggregate_confidence=round(fmean(confs), 6),
+            consumer=consumer, available=True,
+            reason=(
+                "authoritative_daily_eurusd_epistemic_projection"
+                if consumer == "DAILY_EURUSD"
+                else "authoritative_epistemic_state_projection"
+            ),
+            stance=stance, aggregate_probability=round(p, 6), aggregate_confidence=round(aggregate_confidence, 6),
             max_contradiction=round(max(contradictions), 6),
             max_abs_delta_probability=round(max(deltas), 6) if deltas else None,
             drilldown_required=drilldown_required, drilldown_reasons=tuple(reasons),
             states=compact_states, source_contract_version=EPISTEMIC_CONTRACT,
             source_created_at=source_created_at, source_sha256=_sha(self.payload),
+            coverage_weight=round(coverage_weight, 6),
+            qualified_state_count=len(aggregate_states),
         )
 
     def point_in_time_projection(self, consumer: str, engine_at: datetime, *, max_age_hours: float = 18.0) -> Dict[str, Any]:
@@ -199,7 +274,7 @@ class EpistemicConsumerInterface:
             "stance": env.stance,
             "confidence": env.aggregate_confidence,
             "risk_on_probability_mean": env.aggregate_probability,
-            "aggregation": "epistemic_consumer_interface_equal_weight_predeclared_spx_states",
+            "aggregation": f"epistemic_consumer_interface_equal_weight_predeclared_{consumer.lower()}_states",
             "reason": "authoritative_epistemic_consumer_projection",
             "forecast_set_id": env.source_sha256[:20],
             "forecast_at": env.source_created_at,

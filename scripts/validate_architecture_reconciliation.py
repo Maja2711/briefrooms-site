@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Semantic Architecture Reconciliation 1.18 guard.
+"""Semantic Architecture Reconciliation 1.19 guard.
 
 Checks runtime facts that a version-only documentation check cannot protect:
 active phase/status, branch authority, Trigger wiring, WES NO_TRADE, and
@@ -143,9 +143,9 @@ require(legacy_closed_loop, "contents: read", "legacy closed loop")
 forbid(legacy_closed_loop, "Apply statistically proven autonomous policy calibration", "legacy closed loop")
 forbid(legacy_closed_loop, "git push origin HEAD:main", "legacy closed loop")
 
-for token in ("**Wersja mapy:** 1.18", "IN-08", "EP-09", "LE-10", "LE-11", "PROBATIONARY_CONTROL", "NO_TRADE", "FULL", "WES 1.2.0"):
+for token in ("**Wersja mapy:** 1.19", "IN-08", "EP-09", "LE-10", "LE-11", "PROBATIONARY_CONTROL", "NO_TRADE", "FULL", "WES 1.2.0"):
     require(pl_map, token, "PL Architecture Map")
-for token in ("**Map version:** 1.18", "IN-08", "EP-09", "LE-10", "LE-11", "PROBATIONARY_CONTROL", "NO_TRADE", "FULL", "WES 1.2.0"):
+for token in ("**Map version:** 1.19", "IN-08", "EP-09", "LE-10", "LE-11", "PROBATIONARY_CONTROL", "NO_TRADE", "FULL", "WES 1.2.0"):
     require(en_map, token, "EN Architecture Map")
 require(stock_doc, "PRODUCTION CHAMPION — FULL", "Stock Trading architecture")
 require(stock_doc, "Market Relationship / Trigger", "Stock Trading architecture")
@@ -158,6 +158,49 @@ require(gse_doc, "Active v2 runtime", "GSE architecture")
 require(auto_doc, "Production materialization from this legacy PR35/PR36 loop is retired", "Autonomous Policy docs")
 require(agents, "stock-trading-v2", "root AGENTS branch authority")
 require(agents, "Instrument-scoped change isolation", "root AGENTS scoped-change authority")
+
+daily_doc = read("docs/DAILY_TRADING_ARCHITECTURE.md")
+daily_runtime = read("scripts/daily_eurusd_spot_v19.py")
+daily_decision = read("scripts/daily_eurusd_belief_decision.py")
+daily_workflow = read(".github/workflows/daily-eurusd-monitor.yml")
+belief_live_workflow = read(".github/workflows/belief-core-shadow-live.yml")
+epistemic_consumer = read("scripts/epistemic_consumer_interface.py")
+for token in (
+    "Daily EUR/USD v1.9 — Belief-first final decision",
+    "RAW / PRIMARY / MARKET SOURCES",
+    "BELIEF CORE",
+    "FINAL LONG / SHORT / FLAT",
+    "zero v1.9 production direction **and timing** authority",
+):
+    require(daily_doc, token, "Daily EURUSD v1.9 architecture")
+for token in (
+    "NATIVE_DAILY_EURUSD_BELIEF_FIRST_DECISION_ENGINE",
+    "BELIEF_FIRST_V1",
+    '"FSE": {"production_direction_authority": False, "production_timing_authority": False}',
+    "SHADOW_AFTER_BELIEF_FIRST_MIGRATION",
+):
+    require(daily_runtime, token, "Daily EURUSD v1.9 runtime")
+for token in (
+    "RAW_SOURCES",
+    "SPECIALIZED_ADAPTERS",
+    "EVIDENCE_ASSESSMENT",
+    "BELIEF_CORE",
+    "epistemic-consumer-interface-v1",
+    "DAILY_EURUSD",
+    "epistemic_aggregate_authoritative",
+    "legacy_raw_score_direction_authority",
+):
+    require(daily_decision, token, "Daily EURUSD Belief decision")
+require(epistemic_consumer, '"DAILY_EURUSD": EURUSD_BELIEF_IDS', "CF-07 Daily EURUSD consumer")
+require(epistemic_consumer, "EURUSD_PROFILE_WEIGHTS", "CF-07 Daily EURUSD aggregate")
+require(epistemic_consumer, "authoritative_daily_eurusd_epistemic_projection", "CF-07 Daily EURUSD aggregate")
+require(epistemic_consumer, "consumer_may_override_probability: bool = False", "CF-07 authority")
+require(daily_workflow, "scripts/daily_eurusd_spot_v19.py", "Daily EURUSD production workflow")
+require(daily_workflow, "BELIEF_EPISTEMIC_STATE=", "Daily EURUSD production workflow")
+require(daily_workflow, "DAILY_EURUSD_REQUIRE_EPISTEMIC=1", "Daily EURUSD production workflow")
+require(daily_workflow, "EURUSD_V19_BELIEF_FIRST_OK", "Daily EURUSD production workflow")
+require(belief_live_workflow, "belief_core_live.py", "Belief EURUSD live collector")
+forbid(daily_workflow, "python scripts/daily_eurusd_spot_v18.py", "Daily EURUSD production workflow")
 
 research_agents = git_show(args.research_ref, "AGENTS.md")
 research_discovery = git_show(args.research_ref, ".github/workflows/stock-trading-v2-continuous-discovery.yml")
@@ -179,9 +222,9 @@ for label, main_text, research_text in (
         errors.append(f"default-branch {label} drifted from research-branch runtime definition")
 
 if errors:
-    print("Architecture Reconciliation 1.18 FAILED:", file=sys.stderr)
+    print("Architecture Reconciliation 1.19 FAILED:", file=sys.stderr)
     for error in errors:
         print(f"- {error}", file=sys.stderr)
     raise SystemExit(1)
 
-print("Architecture Reconciliation 1.18 passed.")
+print("Architecture Reconciliation 1.19 passed.")

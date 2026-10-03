@@ -14,6 +14,7 @@ if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
 from belief_core import BeliefCore  # noqa: E402
+from belief_adapter_contract import AdapterResult, Observation  # noqa: E402
 from belief_core_live import (  # noqa: E402
     AUTOMATIC_TUNING_ENABLED,
     POLICY_OUTPUT_ENABLED,
@@ -25,6 +26,7 @@ from belief_core_live import (  # noqa: E402
     floor_half_hour,
     forecast_contract_metadata,
     horizon_target_plan,
+    in_fx_window,
     next_weekday_close,
     production_probability,
     run_cycle,
@@ -81,6 +83,13 @@ class BeliefCoreLiveTest(unittest.TestCase):
     def test_floor_half_hour(self) -> None:
         self.assertEqual(floor_half_hour(datetime(2026,8,18,10,7,tzinfo=NY)).time(), time(10,0))
         self.assertEqual(floor_half_hour(datetime(2026,8,18,10,37,tzinfo=NY)).time(), time(10,30))
+
+    def test_fx_window_covers_sunday_open_through_friday_close(self) -> None:
+        self.assertTrue(in_fx_window(datetime(2026, 10, 4, 17, 1, tzinfo=NY)))
+        self.assertTrue(in_fx_window(datetime(2026, 10, 6, 3, 0, tzinfo=NY)))
+        self.assertTrue(in_fx_window(datetime(2026, 10, 9, 16, 59, tzinfo=NY)))
+        self.assertFalse(in_fx_window(datetime(2026, 10, 9, 17, 1, tzinfo=NY)))
+        self.assertFalse(in_fx_window(datetime(2026, 10, 10, 12, 0, tzinfo=NY)))
 
     def test_forecast_slot_uses_market_phase_without_backfill(self) -> None:
         planned=time(10,0)
@@ -229,6 +238,53 @@ class BeliefCoreLiveTest(unittest.TestCase):
         self.assertTrue(evaluate_spec(spec,{"TLT":101.0,"HYG":81.0,"UUP":26.0}))
         self.assertFalse(evaluate_spec(spec,{"TLT":99.0,"HYG":79.0,"UUP":24.0}))
 
+    def test_eurusd_evidence_refreshes_outside_us_cash_session(self) -> None:
+        now = datetime(2026, 10, 6, 3, 7, tzinfo=NY)
+
+        class FxClient:
+            def __init__(self):
+                self.rows = {}
+                starts = {"EURUSD=X": 1.1200, "UUP": 28.0, "TLT": 90.0}
+                steps = {"EURUSD=X": .00002, "UUP": -.001, "TLT": .01}
+                for symbol, start in starts.items():
+                    rows = []
+                    for i in range(90):
+                        ts = now - timedelta(minutes=30 * (89 - i))
+                        rows.append(Bar(timestamp=ts.astimezone(ZoneInfo("UTC")), close=start + steps[symbol] * i))
+                    self.rows[symbol] = rows
+
+            def bars(self, symbol: str, range_: str = "10d", interval: str = "30m"):
+                if symbol not in self.rows:
+                    raise RuntimeError(symbol)
+                return list(self.rows[symbol])
+
+        class FakeCalendar:
+            def run(self, when):
+                class Result:
+                    observations = ()
+                    evidence = ()
+                return Result()
+
+            def source_status(self):
+                return {
+                    "schema_version": "macro-calendar-coverage-v1",
+                    "required_sources": ["BLS", "BEA", "FOMC", "EUROSTAT", "ECB"],
+                    "sources": {
+                        key: {"status": "ok"}
+                        for key in ("BLS", "BEA", "FOMC", "EUROSTAT", "ECB")
+                    },
+                    "complete": True,
+                }
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch("belief_core_live.MacroEventCalendarAdapter", FakeCalendar):
+                status = run_cycle(Path(tmp) / "core", now, FxClient())
+            live = status["eurusd_24x5_liveness"]
+            self.assertTrue(live["attempted"])
+            self.assertEqual(live["status"], "ok")
+            self.assertGreaterEqual(live["evidence"], 1)
+            self.assertIn("EURUSD=X", live["symbols"])
+
     def test_end_to_end_1007_shadow_cycle_is_retry_idempotent(self) -> None:
         now=datetime(2026,8,18,10,7,tzinfo=NY)
         with tempfile.TemporaryDirectory() as tmp:
@@ -262,6 +318,40 @@ class BeliefCoreLiveTest(unittest.TestCase):
             dashboard=core.dashboard_snapshot(now)
             self.assertFalse(dashboard["controls"]["trade_execution_enabled"])
             self.assertFalse(dashboard["controls"]["policy_output_enabled"])
+
+    def test_fx_week_calendar_liveness_appends_fresh_coverage_when_enabled(self) -> None:
+        now=datetime(2026,8,18,18,7,tzinfo=NY)
+
+        class FakeCalendarAdapter:
+            def run(self, current):
+                observation=Observation.make(
+                    adapter="macro_event_calendar",
+                    metric="calendar_coverage",
+                    entity="GLOBAL_MACRO",
+                    observed_at=current.astimezone(ZoneInfo("UTC")).isoformat().replace("+00:00","Z"),
+                    value={"complete":True},
+                    unit="coverage_status",
+                    source="test calendar",
+                    source_type="derived",
+                    source_ref="test://calendar",
+                    reliability=1.0,
+                    independence_cluster="test:calendar",
+                    metadata={"complete":True,"sources":{"BLS":{"status":"ok"},"BEA":{"status":"ok"},"FOMC":{"status":"ok"},"EUROSTAT":{"status":"ok"},"ECB":{"status":"ok"}}},
+                )
+                return AdapterResult("macro_event_calendar",(observation,),())
+
+            def source_status(self):
+                return {"complete":True,"sources":{"BLS":{"status":"ok"},"BEA":{"status":"ok"},"FOMC":{"status":"ok"},"EUROSTAT":{"status":"ok"},"ECB":{"status":"ok"}}}
+
+        with tempfile.TemporaryDirectory() as tmp:
+            state_dir=Path(tmp)/"core"
+            with patch("belief_core_live.MacroEventCalendarAdapter", FakeCalendarAdapter):
+                status=run_cycle(state_dir,now,FakeChartClient(now))
+            calendar=status["eurusd_macro_calendar_coverage"]
+            self.assertEqual(calendar["status"],"ok")
+            self.assertTrue(calendar["complete"])
+            rows=[json.loads(x) for x in (state_dir/"observations.jsonl").read_text().splitlines()]
+            self.assertTrue(any(x.get("metric")=="calendar_coverage" for x in rows))
 
 
 if __name__ == "__main__":

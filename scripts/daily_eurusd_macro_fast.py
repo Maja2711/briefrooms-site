@@ -266,6 +266,7 @@ def build_context(
 ) -> dict[str, Any]:
     now = now.astimezone(timezone.utc)
     calendar_result = calendar.run(now)
+    calendar_coverage = calendar.source_status() if hasattr(calendar, "source_status") else {"complete": False, "sources": {}}
     events = _high_impact_events(calendar_result.observations, now)
     if not events:
         return {
@@ -279,6 +280,7 @@ def build_context(
             "llm": None,
             "eurusd_score": 0.0,
             "decision_influence": False,
+            "calendar_coverage": calendar_coverage,
         }
 
     event = events[0]
@@ -355,6 +357,7 @@ def build_context(
         "eurusd_score": round(score, 4),
         "decision_influence": bool(llm),
         "post_release_ready": post_release_ready,
+        "calendar_coverage": calendar_coverage,
         "rules": {
             "no_invented_consensus": True,
             "eurusd_only_llm_beliefs": list(EURUSD_ALLOWED_BELIEFS),

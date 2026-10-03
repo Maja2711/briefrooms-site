@@ -3,17 +3,22 @@ name: Belief Epistemic State Projection
 on:
   workflow_dispatch:
   workflow_run:
-    workflows: ["Belief Core Live Shadow Collection"]
+    workflows:
+      - "Belief Core Live Shadow Collection"
+      - "Belief Core News Macro Shadow Collection"
     types: [completed]
   pull_request:
     paths:
       - "scripts/belief_epistemic_state.py"
       - "scripts/belief_epistemic_live.py"
+      - "scripts/epistemic_consumer_interface.py"
+      - "scripts/epistemic_consumer_live.py"
       - "scripts/canonical_epistemic_state.py"
       - "scripts/canonical_epistemic_state_builder.py"
       - "scripts/canonical_epistemic_verification.py"
       - "scripts/canonical_epistemic_verification_builder.py"
       - "tests/test_belief_epistemic_state.py"
+      - "tests/test_epistemic_consumer_interface.py"
       - "tests/test_canonical_epistemic_state.py"
       - "tests/test_canonical_epistemic_verification.py"
       - ".github/workflows/belief-epistemic-state.yml"
@@ -63,11 +68,14 @@ jobs:
             scripts/canonical_epistemic_state.py \
             scripts/canonical_epistemic_state_builder.py \
             scripts/canonical_epistemic_verification.py \
-            scripts/canonical_epistemic_verification_builder.py
+            scripts/canonical_epistemic_verification_builder.py \
+            scripts/epistemic_consumer_interface.py \
+            scripts/epistemic_consumer_live.py
           python -m unittest \
             tests.test_belief_epistemic_state \
             tests.test_canonical_epistemic_state \
-            tests.test_canonical_epistemic_verification -v
+            tests.test_canonical_epistemic_verification \
+            tests.test_epistemic_consumer_interface -v
 
       - name: Restore triggering Belief Core state
         if: github.event_name == 'workflow_run'

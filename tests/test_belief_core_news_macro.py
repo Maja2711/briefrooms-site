@@ -147,6 +147,24 @@ class PrimarySourceParsingTest(unittest.TestCase):
         self.assertEqual(rows[0].published_at, "2026-08-18T13:30:00Z")
         self.assertEqual(rows[0].entity, "FED")
 
+    def test_calendar_adapter_exposes_source_coverage_failure(self) -> None:
+        now = datetime(2026, 8, 18, 12, 0, tzinfo=UTC)
+
+        class Client:
+            def text(self, url):
+                if "ecb.europa.eu" in url:
+                    raise RuntimeError("ECB unavailable")
+                return ""
+
+        result = MacroEventCalendarAdapter(client=Client()).run(now)
+        coverage = next(
+            row for row in result.observations
+            if row.adapter == "macro_event_calendar" and row.metric == "calendar_coverage"
+        )
+        self.assertFalse(coverage.metadata["complete"])
+        self.assertEqual(coverage.metadata["sources"]["ECB"]["status"], "failed")
+        self.assertEqual(coverage.metadata["sources"]["BLS"]["status"], "ok")
+
     def test_bls_calendar_event_and_imminent_risk_evidence(self) -> None:
         now = datetime(2026, 8, 18, 7, 30, tzinfo=NY)
         ics = """BEGIN:VCALENDAR

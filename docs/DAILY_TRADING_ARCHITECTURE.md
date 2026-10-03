@@ -73,43 +73,137 @@ Daily EUR/USD may continue to use the Daily-family contract independently; its l
 5. Keep GPW and US market-specific data/risk handling inside Stock Trading v2 where market behavior differs.
 
 
-## Daily EUR/USD v1.8 — Contextual Entry Policy
+## Daily EUR/USD v1.9 — Belief-first final decision
 
-Daily EUR/USD now has a strict **single direction owner** and separates the directional thesis from entry timing.
-
-**Production direction invariant:** only the NATIVE Daily EUR/USD Direction Engine may emit LONG or SHORT. If NATIVE says FLAT, the production candidate is FLAT. Arm A / A-B-C research, low-edge exploration, FSE, Belief Core, LLM and contextual learning may observe, veto for safety, delay, cancel or research alternatives, but none of them may manufacture or reverse market direction.
-
-Legacy `A_TECHNICAL_FALLBACK` and `LOW_EDGE_LEARNING_EXPLORATION` code remains only for historical compatibility/research diagnostics. It has `production_authority=false`. The final v1.8 boundary independently blocks any non-NATIVE directional candidate as defense in depth.
-
-Adaptive component weights are also NATIVE-only. Historical fallback/exploration trades remain immutable in the ledger and performance history, but their outcomes no longer modify NATIVE component weights.
+Daily EUR/USD now follows the same epistemic ordering as the canonical BriefRooms architecture.
 
 ```text
-Daily Direction Engine -> LONG / SHORT
-Contextual Entry Policy -> NOW / PB20 / PB35 / PB50 / FLAT
-EPE -> verified executable paper fill
-Daily lifecycle -> OPEN / SL / TP / dynamic exit / outcome
-counterfactual settlement -> learner update -> next context-local authority
+RAW / PRIMARY / MARKET SOURCES
+        |
+        v
+SPECIALIZED ADAPTERS
+        |
+        v
+OBSERVATIONS
+        |
+        v
+EVIDENCE ASSESSMENT
+        |
+        v
+BELIEF CORE
+        |
+        v
+EPISTEMIC STATE
+        |
+        v
+CF-07 EPISTEMIC CONSUMER INTERFACE
+profile: DAILY_EURUSD
+        |
+        v
+NATIVE DAILY EURUSD BELIEF-FIRST DECISION ENGINE
+        |
+        v
+FINAL LONG / SHORT / FLAT
+        |
+        +---- FLAT ----------------------> END
+        |
+        v
+EXECUTION ADMISSION / SAFETY
+        |
+        v
+EPE VERIFIED FILL
+        |
+        v
+CANONICAL POSITION LIFECYCLE
 ```
 
-The contextual learner is prospective and counterfactual. For each frozen decision context it later settles all entry-policy variants against the same future path and EPE spread model. Similarity uses market stretch/move, Daily score/confidence, Belief probability and macro score, FSE state, Event Intelligence and recency. FSE regime mismatch is explicitly penalized.
+### Direction authority
 
-Authority is **not** granted by a fixed raw trade count. The learner estimates expected R, uncertainty and effective-neighbor support for the current context. Strong, highly similar evidence can earn LOW authority with a small sample; many inconsistent observations can remain SHADOW. Authority progresses context-locally through `SHADOW -> LOW -> MEDIUM -> FULL` and falls automatically when the robust edge disappears.
+There is one final production direction owner:
 
-Production authority is intentionally narrow:
+`NATIVE_DAILY_EURUSD_BELIEF_FIRST_DECISION_ENGINE`.
 
-- market direction always remains owned by the Daily directional engine;
-- `REVERSAL_NOW` is retained as research/counterfactual evidence only;
-- the learner may choose only `CONTINUATION_NOW`, `PULLBACK_20_ATR`, `PULLBACK_35_ATR`, `PULLBACK_50_ATR`, or `FLAT`;
-- a pullback choice creates a frozen pending trigger for at most the learner horizon and does not move the trigger behind price;
-- the pending entry is cancelled when direction/admission is invalidated or when it expires;
-- EPE remains the only verified-fill layer and the canonical Daily lifecycle remains the only position/outcome owner;
-- no historical episode is rewritten and no single episode directly mutates production policy.
+It does not create a preliminary EUR/USD direction before Belief. Belief Core is projected into the authoritative read-only EpistemicState, and the existing CF-07 Epistemic Consumer Interface exposes only the five governed EUR/USD states through profile `DAILY_EURUSD`. The decision engine cannot override or write back probabilities/confidence; it synthesizes the final `LONG / SHORT / FLAT` only from that bounded projection. Production requires this interface and fails closed to FLAT when the projection is missing, invalid, future-dated or stale.
 
-Runtime implementation: `scripts/daily_eurusd_spot_v18.py` plus `scripts/daily_eurusd_contextual_policy_learning.py`.
+The former direct path:
+
+`EURUSD trend + UUP + TLT -> score -> LONG/SHORT/FLAT`
+
+is legacy implementation lineage only. It has no v1.9 production direction authority.
+
+UUP and TLT remain useful upstream cross-asset Evidence. They are produced by `belief_wes_assets_adapter.py`, enter Belief Core, preserve their own market timestamps, decay according to freshness, and are never re-stamped with a fresher EUR/USD timestamp.
+
+EUR/USD market Evidence is refreshed across the tradable FX week (approximately Sunday 17:00 New York through Friday 17:00 New York). Closed US-market UUP/TLT observations are allowed to age naturally instead of being treated as current.
+
+### Belief coverage and missing data
+
+v1.9 uses the existing governed EUR/USD Belief family:
+
+- `eurusd.trend.bullish`;
+- `eurusd.usd_environment.supportive`;
+- `eurusd.us_rates_pressure.supportive`;
+- `eurusd.macro_surprise.supportive`;
+- `eurusd.policy_differential.supportive`.
+
+The migration intentionally preserves the existing bridge weights as an initial production prior. It does **not** claim those weights are statistically optimal. Tuning remains a future-only calibration/promotion task.
+
+Missing or stale Evidence is not converted into a neutral vote. It reduces coverage. If the required EUR/USD trend anchor is unavailable or total qualified coverage is below the minimum contract, the final decision fails closed to `FLAT`.
+
+Official ECB releases are now collected into the primary-source News/Event intake, so they can become Evidence for the EUR/USD policy-differential belief before the final decision. Fed, macro-release, expectations and broader event inputs follow the same Observation -> Evidence -> Belief path. An LLM interpreter may structure already-observed sourced material but may not invent consensus, release values or forecasts.
+
+### Shadow isolation
+
+The following remain research/shadow and have zero v1.9 production direction **and timing** authority:
+
+- A/B/C;
+- FSE;
+- EURUSD X;
+- legacy `A_TECHNICAL_FALLBACK`;
+- legacy `LOW_EDGE_LEARNING_EXPLORATION`.
+
+The v1.8 Contextual Entry Policy is reset to `SHADOW_AFTER_BELIEF_FIRST_MIGRATION`. Its historical/counterfactual state is retained for audit, but it cannot choose NOW/PULLBACK/FLAT in v1.9 production until a future prospective promotion explicitly proves value under the new Belief-first semantics. This also removes the previous indirect FSE influence on production entry timing.
+
+### What remains after the final decision
+
+After `FINAL LONG / SHORT / FLAT`, later layers may not manufacture or reverse market direction.
+
+For a directional final decision, execution admission may block the trade for operational/risk reasons, including:
+
+- missing/stale/failed required macro-calendar source coverage;
+- high-impact scheduled event proximity or post-release Evidence still pending;
+- re-entry / same-thesis safety;
+- invalid or unavailable execution geometry;
+- EPE quote-consensus failure.
+
+A blocked execution does not rewrite the epistemic decision. Runtime metadata preserves the final decision separately from the executable candidate.
+
+EPE remains the only new-entry fill authority and requires at least two distinct fresh agreeing EUR/USD quote providers.
+
+Open-position risk remains separate from new-entry direction. SL/TP, dynamic risk, macro-event risk and governed Event Intelligence may close an already-open position when new information invalidates its risk economics. They cannot originate the next LONG/SHORT.
+
+### Migration / history
+
+v1.9 is prospective only.
+
+- Existing v1-v1.8 trades remain immutable historical records.
+- No historical trade is re-labelled or recomputed.
+- Legacy adaptive Daily component weights are retained for audit but are not applied to the v1.9 direction decision.
+- Legacy pending contextual entries are cancelled prospectively on v1.9 activation rather than reinterpreted under new semantics.
+- Code pushes remain validation-only; scheduled/manual runtime owns trading-state mutation.
+
+Runtime implementation:
+
+- `scripts/daily_eurusd_belief_decision.py`;
+- `scripts/daily_eurusd_spot_v19.py`;
+- `scripts/belief_epistemic_state.py`;
+- `scripts/epistemic_consumer_interface.py` (`DAILY_EURUSD`);
+- upstream Belief adapters / `belief_core_live.py`;
+- `scripts/execution_price_engine.py`;
+- canonical Daily lifecycle.
 
 ## Daily EUR/USD high-impact macro risk
 
-Daily EUR/USD v1.8 keeps directional authority in the Daily Direction Engine, but open-position risk is event-aware.
+Daily EUR/USD v1.9 makes the new-entry direction only through the Belief-first path above, while open-position risk remains independently event-aware.
 
 For high-impact releases such as Employment Situation/NFP, CPI/PCE, FOMC and ECB events:
 

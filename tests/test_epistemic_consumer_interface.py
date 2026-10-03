@@ -4,7 +4,12 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 
-from scripts.epistemic_consumer_interface import EpistemicConsumerInterface, build_consumer_bundle, SPX_BELIEF_IDS
+from scripts.epistemic_consumer_interface import (
+    EpistemicConsumerInterface,
+    EURUSD_BELIEF_IDS,
+    SPX_BELIEF_IDS,
+    build_consumer_bundle,
+)
 
 
 def sample_state():
@@ -45,6 +50,30 @@ class EpistemicConsumerInterfaceTests(unittest.TestCase):
         self.assertFalse(brace.authority.consumer_may_override_probability)
         self.assertFalse(brace.authority.belief_core_writeback_enabled)
         self.assertEqual(brace.source_created_at, "2026-08-24T08:00:00Z")
+
+    def test_daily_eurusd_profile_is_read_only_and_complete(self):
+        payload = sample_state()
+        for i, belief_id in enumerate(EURUSD_BELIEF_IDS):
+            payload["states"][belief_id] = {
+                "state_id": f"eur-state-{i}",
+                "topic": belief_id,
+                "probability": 0.61,
+                "confidence": 0.72,
+                "delta_probability": 0.01,
+                "contradiction": 0.10,
+                "freshness": 0.90,
+                "audit_status": "clean",
+                "member_belief_ids": [belief_id],
+                "dominant_support_evidence_ids": [f"eur-e{i}"],
+                "dominant_opposition_evidence_ids": [],
+                "drilldown_required": False,
+                "drilldown_reasons": [],
+            }
+        env = EpistemicConsumerInterface(payload, {}).envelope("DAILY_EURUSD")
+        self.assertTrue(env.available)
+        self.assertEqual(len(env.states), len(EURUSD_BELIEF_IDS))
+        self.assertFalse(env.authority.consumer_may_override_probability)
+        self.assertFalse(env.authority.decision_writeback_enabled)
 
     def test_missing_state_fails_closed(self):
         payload = sample_state()
