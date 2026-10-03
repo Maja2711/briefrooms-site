@@ -72,6 +72,18 @@
       value('[data-gse-live]',s.prospective_paired_n??'—');
       value('[data-gse-best]',best.label||'—');
       const status=box.querySelector('[data-gse-status]');if(status)status.textContent=String(data.readiness?.status||data.engine?.mode||'shadow').replaceAll('_',' ').toUpperCase();
-      const finding=box.querySelector('[data-gse-finding]');if(finding&&best.label){const imp=Number.isFinite(Number(best.brier_improvement_pct))?Number(best.brier_improvement_pct).toFixed(1)+'%':'—';finding.textContent=lang==='pl'?`Najlepszy historyczny horyzont: ${best.label}; poprawa Brier względem prostej bazy: ${imp}. Walidacja live: ${p.paired_n??'—'} sparowanych prognoz.`:`Best historical horizon: ${best.label}; Brier improvement versus the simple baseline: ${imp}. Prospective validation: ${p.paired_n??'—'} paired forecasts.`}
+      const finding=box.querySelector('[data-gse-finding]');
+      const featured=data.event_threat?.daily_featured_30d;
+      if(finding&&featured){
+        const pct=Number.isFinite(Number(featured.probability))?(Number(featured.probability)*100).toFixed(1).replace('.',lang==='pl'?',':'.')+'%':'—';
+        const targetsPl={'Poland':'Polska','Lithuania':'Litwa','Latvia':'Łotwa','Estonia':'Estonia','NATO eastern flank':'wschodnia flanka NATO'};
+        const target=lang==='pl'?(targetsPl[featured.target]||featured.target):featured.target;
+        finding.textContent=lang==='pl'
+          ?`Predykcja GSE · 30 dni: atak zbrojny Rosji — ${target}. P ${pct}. Zamrożona prognoza dzienna.`
+          :`GSE prediction · 30 days: Russian armed attack — ${target}. P ${pct}. Daily frozen forecast.`;
+      }else if(finding&&best.label){
+        const imp=Number.isFinite(Number(best.brier_improvement_pct))?Number(best.brier_improvement_pct).toFixed(1)+'%':'—';
+        finding.textContent=lang==='pl'?`Najlepszy historyczny horyzont: ${best.label}; poprawa Brier względem prostej bazy: ${imp}.`:`Best historical horizon: ${best.label}; Brier improvement versus the simple baseline: ${imp}.`;
+      }
     }).catch(()=>{});
 })();
