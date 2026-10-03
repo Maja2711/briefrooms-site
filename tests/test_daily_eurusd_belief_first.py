@@ -100,7 +100,8 @@ class BeliefDecisionTest(unittest.TestCase):
         result = decision.synthesize(state, observed_at=now)
         self.assertEqual(result["direction"], "LONG")
         self.assertGreaterEqual(result["score"], 60.0)
-        self.assertEqual(result["decision_source"], "NATIVE_BELIEF_FIRST")\n        self.assertEqual(result["epistemic_source"], "BELIEF_CORE_CF07")
+        self.assertEqual(result["decision_source"], "NATIVE_BELIEF_FIRST")
+        self.assertEqual(result["epistemic_source"], "BELIEF_CORE_CF07")
         self.assertFalse(result["legacy_raw_score_direction_authority"])
 
     def test_missing_belief_state_fails_closed(self):
