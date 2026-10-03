@@ -719,6 +719,34 @@ def run_cycle(state_dir: Path, now: datetime, client: YahooChartClient) -> Dict[
         "observations": 0,
         "evidence": 0,
     }
+
+    calendar_liveness = {
+        "attempted": False,
+        "status": "disabled",
+        "observations": 0,
+    }
+    if in_fx_window(local) and os.getenv("BELIEF_EURUSD_CALENDAR_LIVENESS", "").strip().lower() in {"1", "true", "yes"}:
+        calendar_liveness["attempted"] = True
+        try:
+            calendar_result = MacroEventCalendarAdapter().run(now)
+            calendar_liveness.update({
+                "status": "ok",
+                "observations": len(calendar_result.observations),
+                "coverage": next(
+                    (
+                        dict(row.metadata)
+                        for row in calendar_result.observations
+                        if row.metric == "calendar_coverage"
+                    ),
+                    {},
+                ),
+            })
+            observation_count += append_observations(state_dir, calendar_result.observations)
+        except Exception as exc:
+            calendar_liveness.update({
+                "status": "failed",
+                "error_type": type(exc).__name__,
+            })
     eurusd_calendar_coverage: Dict[str, Any] = {
         "status": "not_due",
         "complete": None,
