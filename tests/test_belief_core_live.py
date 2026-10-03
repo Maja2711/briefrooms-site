@@ -14,6 +14,7 @@ if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
 from belief_core import BeliefCore  # noqa: E402
+from belief_adapter_contract import AdapterResult, Observation  # noqa: E402
 from belief_core_live import (  # noqa: E402
     AUTOMATIC_TUNING_ENABLED,
     POLICY_OUTPUT_ENABLED,
@@ -317,6 +318,38 @@ class BeliefCoreLiveTest(unittest.TestCase):
             dashboard=core.dashboard_snapshot(now)
             self.assertFalse(dashboard["controls"]["trade_execution_enabled"])
             self.assertFalse(dashboard["controls"]["policy_output_enabled"])
+
+    def test_fx_week_calendar_liveness_appends_fresh_coverage_when_enabled(self) -> None:
+        now=datetime(2026,8,18,10,7,tzinfo=NY)
+
+        class FakeCalendarAdapter:
+            def run(self, current):
+                observation=Observation.make(
+                    adapter="macro_event_calendar",
+                    metric="calendar_coverage",
+                    entity="GLOBAL_MACRO",
+                    observed_at=current.astimezone(ZoneInfo("UTC")).isoformat().replace("+00:00","Z"),
+                    value={"complete":True},
+                    unit="coverage_status",
+                    source="test calendar",
+                    source_type="derived",
+                    source_ref="test://calendar",
+                    reliability=1.0,
+                    independence_cluster="test:calendar",
+                    metadata={"complete":True,"sources":{"BLS":{"status":"ok"},"BEA":{"status":"ok"},"FOMC":{"status":"ok"},"EUROSTAT":{"status":"ok"},"ECB":{"status":"ok"}}},
+                )
+                return AdapterResult("macro_event_calendar",(observation,),())
+
+        with tempfile.TemporaryDirectory() as tmp:
+            state_dir=Path(tmp)/"core"
+            with patch.dict("os.environ", {"BELIEF_EURUSD_CALENDAR_LIVENESS":"1"}, clear=False):
+                with patch("belief_core_live.MacroEventCalendarAdapter", FakeCalendarAdapter):
+                    status=run_cycle(state_dir,now,FakeChartClient(now))
+            calendar=status["eurusd_calendar_liveness"]
+            self.assertTrue(calendar["attempted"])
+            self.assertEqual(calendar["status"],"ok")
+            rows=[json.loads(x) for x in (state_dir/"observations.jsonl").read_text().splitlines()]
+            self.assertTrue(any(x.get("metric")=="calendar_coverage" for x in rows))
 
 
 if __name__ == "__main__":
