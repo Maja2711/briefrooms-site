@@ -124,6 +124,185 @@ class GovernedWeeklyModelTests(unittest.TestCase):
         self.assertEqual("buy_limit", pending["entry_price_plan"]["order_type"])
         self.assertLess(pending["entry_price_plan"]["target_price"], 100.0)
 
+    def test_strong_aligned_trend_chooses_market_entry(self):
+        now = datetime(2026, 10, 5, 8, 5, tzinfo=v5.legacy.TZ)
+        item = {
+            "instrument_id": "eurusd",
+            "validation_gate": "enabled_for_paper_trading",
+            "wes_entry_authorization": {
+                "authorized_at": now.isoformat(timespec="seconds"),
+                "directional_admission_passed": True,
+                "candidate": {
+                    "strategy_id": "daily_weekly_blend",
+                    "direction": "short",
+                    "execution_authority": "champion_execution",
+                },
+            },
+        }
+        decision = {
+            "strategy_id": "daily_weekly_blend",
+            "direction": "short",
+            "raw_score": -70.0,
+            "utility": 12.0,
+            "directional_admission": {"passed": True, "confirmations": 3},
+        }
+        fresh = {
+            "score": -72.0,
+            "data_quality": "passed",
+            "signals": {
+                "last_close": 1.1250,
+                "atr14": 0.0060,
+                "ema20": 1.1320,
+                "ret5_pct": -1.2,
+                "ret20_pct": -3.0,
+                "range55_position": 0.20,
+            },
+        }
+        weekly = {"score": -45.0, "data_quality": "passed"}
+        policy = {"entry_price_engine": {
+            "enabled": True,
+            "require_for_all_new_entries": True,
+            "version": "WES-1.3.0",
+            "max_wait_minutes": 60,
+            "minimum_pullback_atr": 0.10,
+            "base_pullback_atr": 0.12,
+            "overextension_extra_pullback_atr": 0.48,
+            "maximum_pullback_atr": 0.75,
+            "ret5_full_scale_percent": 8.0,
+            "ema_distance_full_scale_atr": 2.5,
+            "structural_ema20_buffer_atr": 0.25,
+            "max_target_distance_percent": {"eurusd": 0.75},
+            "market_entry": {
+                "enabled": True,
+                "max_wait_minutes": 15,
+                "min_daily_abs_score": 55,
+                "min_weekly_abs_score": 20,
+                "min_selected_utility": 8,
+                "min_confirmations": 2,
+                "minimum_absolute_momentum_pct": 0.15,
+                "require_daily_weekly_alignment": True,
+                "require_momentum_alignment": True,
+                "maximum_overextension_score": 0.90,
+                "block_immediate_market_after_stop": True,
+                "allow_limit_to_market_promotion": True,
+            },
+        }}
+        pending = v5.freeze_decision(item, decision, fresh, weekly, now, policy)
+        plan = pending["entry_price_plan"]
+        self.assertEqual("market_now", plan["execution_mode"])
+        self.assertEqual("market", plan["order_type"])
+        self.assertEqual("waiting_for_market_entry", item["next_entry_status"])
+        self.assertTrue(plan["market_entry_diagnostics"]["eligible"])
+        self.assertEqual("strong_aligned_trend_continuation", plan["market_entry_reason"])
+
+    def test_existing_limit_can_promote_to_market_when_same_trend_strengthens(self):
+        now = datetime(2026, 10, 5, 8, 5, tzinfo=v5.legacy.TZ)
+        item = {
+            "instrument_id": "eurusd",
+            "validation_gate": "enabled_for_paper_trading",
+            "wes_entry_authorization": {
+                "authorized_at": now.isoformat(timespec="seconds"),
+                "directional_admission_passed": True,
+                "candidate": {
+                    "strategy_id": "daily_weekly_blend",
+                    "direction": "short",
+                    "execution_authority": "champion_execution",
+                },
+            },
+        }
+        weak_decision = {
+            "strategy_id": "daily_weekly_blend",
+            "direction": "short",
+            "raw_score": -42.0,
+            "utility": 7.0,
+            "directional_admission": {"passed": True, "confirmations": 2},
+        }
+        weak_fresh = {
+            "score": -42.0,
+            "data_quality": "passed",
+            "signals": {
+                "last_close": 1.1250, "atr14": 0.0060, "ema20": 1.1290,
+                "ret5_pct": -0.5, "ret20_pct": -1.0, "range55_position": 0.35,
+            },
+        }
+        policy = {"entry_price_engine": {
+            "enabled": True, "require_for_all_new_entries": True, "version": "WES-1.3.0",
+            "max_wait_minutes": 60, "minimum_pullback_atr": 0.10, "base_pullback_atr": 0.12,
+            "overextension_extra_pullback_atr": 0.48, "maximum_pullback_atr": 0.75,
+            "ret5_full_scale_percent": 8.0, "ema_distance_full_scale_atr": 2.5,
+            "structural_ema20_buffer_atr": 0.25, "max_target_distance_percent": {"eurusd": 0.75},
+            "market_entry": {
+                "enabled": True, "max_wait_minutes": 15, "min_daily_abs_score": 55,
+                "min_weekly_abs_score": 20, "min_selected_utility": 8, "min_confirmations": 2,
+                "minimum_absolute_momentum_pct": 0.15, "require_daily_weekly_alignment": True,
+                "require_momentum_alignment": True, "maximum_overextension_score": 0.90,
+                "block_immediate_market_after_stop": True, "allow_limit_to_market_promotion": True,
+            },
+        }}
+        pending = v5.freeze_decision(
+            item, weak_decision, weak_fresh,
+            {"score": -25.0, "data_quality": "passed"}, now, policy
+        )
+        self.assertEqual("limit_pullback", pending["entry_price_plan"]["execution_mode"])
+        original_target = pending["entry_price_plan"]["target_price"]
+
+        strong_decision = dict(
+            weak_decision,
+            raw_score=-72.0,
+            utility=12.0,
+            directional_admission={"passed": True, "confirmations": 3},
+        )
+        strong_fresh = {
+            **weak_fresh,
+            "score": -72.0,
+            "signals": {**weak_fresh["signals"], "ret5_pct": -1.3, "ret20_pct": -3.2},
+        }
+        promoted = v5.maybe_promote_pending_to_market(
+            pending, strong_decision, strong_fresh,
+            {"score": -44.0, "data_quality": "passed"}, policy,
+            now + timedelta(minutes=20),
+        )
+        self.assertTrue(promoted)
+        self.assertEqual("market_now", pending["entry_price_plan"]["execution_mode"])
+        self.assertEqual(original_target, pending["entry_price_plan"]["original_target_price"])
+        self.assertIn("promoted_from_limit_at", pending["entry_price_plan"])
+
+    def test_market_entry_uses_freshest_completed_5m_bar_after_decision(self):
+        now = datetime(2026, 10, 5, 9, 20, tzinfo=v5.legacy.TZ)
+        decided = now - timedelta(minutes=15)
+        pending = {
+            "entry_not_before": decided.isoformat(),
+            "decision": {"direction": "long"},
+            "entry_price_plan": {
+                "instrument_id": "sp500_futures",
+                "direction": "long",
+                "execution_mode": "market_now",
+                "order_type": "market",
+                "entry_not_before": decided.isoformat(),
+                "expires_at": (now + timedelta(minutes=10)).isoformat(),
+            },
+        }
+        idx = pd.DatetimeIndex([
+            now - timedelta(minutes=10),
+            now - timedelta(minutes=5),
+        ])
+        bars = pd.DataFrame(
+            {
+                "Open": [7800.0, 7804.0],
+                "High": [7806.0, 7810.0],
+                "Low": [7798.0, 7802.0],
+                "Close": [7804.0, 7808.0],
+            },
+            index=idx,
+        )
+        with patch.object(v5.v2, "intraday_bars", return_value=bars):
+            point = v5.entry_point("ES=F", pending, now)
+        self.assertIsNotNone(point)
+        self.assertEqual(7808.0, point["price"])
+        self.assertEqual(7810.0, point["observed_high"])
+        self.assertEqual(7802.0, point["observed_low"])
+        self.assertIn("market_now_completed_bar", point["source"])
+
     def test_entry_executes_only_when_frozen_limit_target_is_touched(self):
         decided = datetime(2026, 7, 20, 8, 35, tzinfo=v5.legacy.TZ)
         pending = {
