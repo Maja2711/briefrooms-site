@@ -299,6 +299,60 @@ class ExecutionPriceEngineTests(unittest.TestCase):
         self.assertEqual(trade["exit_reason"], "TAKE_PROFIT")
         self.assertEqual(trade["exit_price"], 1.13300)
 
+    def test_wes_market_bar_fill_requires_fresh_post_authorization_bar(self) -> None:
+        start = self.now - timedelta(minutes=10)
+        expires = self.now + timedelta(minutes=10)
+        point = {
+            "price": 1.12473,
+            "timestamp": (self.now - timedelta(minutes=5)).isoformat(),
+            "source": "Yahoo Finance:EURUSD=X:5m:market_now_completed_bar",
+            "observed_high": 1.12490,
+            "observed_low": 1.12450,
+        }
+        result = epe.verify_market_bar_fill(
+            point,
+            direction="short",
+            entry_not_before=start,
+            expires_at=expires,
+            checked_at=self.now,
+        )
+        self.assertTrue(result["verified"])
+        self.assertEqual("MARKET_NOW", result["mode"])
+        self.assertEqual(1.12473, result["fill_price"])
+        self.assertEqual("FRESH_COMPLETED_5M_CLOSE", result["price_type"])
+
+        early = dict(point, timestamp=(start - timedelta(seconds=1)).isoformat())
+        rejected = epe.verify_market_bar_fill(
+            early,
+            direction="short",
+            entry_not_before=start,
+            expires_at=expires,
+            checked_at=self.now,
+        )
+        self.assertFalse(rejected["verified"])
+        self.assertEqual("market_bar_before_authorization", rejected["reason"])
+
+    def test_wes_market_bar_fill_rejects_stale_completed_bar(self) -> None:
+        start = self.now - timedelta(minutes=30)
+        expires = self.now + timedelta(minutes=10)
+        stale = {
+            "price": 7808.0,
+            "timestamp": (self.now - timedelta(minutes=16)).isoformat(),
+            "source": "Yahoo Finance:ES=F:5m:market_now_completed_bar",
+            "observed_high": 7810.0,
+            "observed_low": 7802.0,
+        }
+        rejected = epe.verify_market_bar_fill(
+            stale,
+            direction="long",
+            entry_not_before=start,
+            expires_at=expires,
+            checked_at=self.now,
+            max_age_seconds=15 * 60,
+        )
+        self.assertFalse(rejected["verified"])
+        self.assertEqual("market_bar_stale_or_future", rejected["reason"])
+
     def test_wes_frozen_limit_touch_is_verified_only_inside_authorized_window(self) -> None:
         start = self.now - timedelta(minutes=10)
         expires = self.now + timedelta(minutes=30)
