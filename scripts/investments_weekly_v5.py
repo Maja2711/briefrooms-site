@@ -1138,11 +1138,12 @@ def ensure_all() -> Dict[str, Any]:
             pending, point = recovered
             entry_plan = pending.get("entry_price_plan") if isinstance(pending.get("entry_price_plan"), dict) else {}
             point, execution_verification = epe_verified_entry_point(pending, point, now)
+            execution_mode = str(entry_plan.get("execution_mode") or "limit_pullback")
             if point is None:
                 item["execution_price_engine"] = execution_verification
                 report["actions"].append({
                     "instrument_id": iid,
-                    "action": "reject_unverified_frozen_target_touch",
+                    "action": "reject_unverified_market_entry" if execution_mode == "market_now" else "reject_unverified_frozen_target_touch",
                     "reason": execution_verification.get("reason"),
                     "target_price": entry_plan.get("target_price"),
                 })
@@ -1152,9 +1153,17 @@ def ensure_all() -> Dict[str, Any]:
             v4.open_leg(item, cfg, frozen, pending["fresh_signal"], pending["weekly_signal"], point, now)
             item.update(
                 entry_decision_at=pending["decided_at"],
-                entry_execution_rule="epe_verified_frozen_wes_1_2_limit_target_touch",
+                entry_execution_rule=(
+                    "epe_verified_wes_1_3_market_now_5m"
+                    if execution_mode == "market_now"
+                    else "epe_verified_frozen_wes_1_3_limit_target_touch"
+                ),
                 entry_price_plan_frozen=entry_plan,
-                entry_quality_status="wes_1_2_frozen_entry_target_filled",
+                entry_quality_status=(
+                    "wes_1_3_market_entry_filled"
+                    if execution_mode == "market_now"
+                    else "wes_1_3_frozen_entry_target_filled"
+                ),
                 entry_macro_context=pending.get("macro_context"),
                 execution_price_engine=execution_verification,
                 pending_entry_decision=None,
@@ -1163,7 +1172,7 @@ def ensure_all() -> Dict[str, Any]:
             changed = True
             report["actions"].append({
                 "instrument_id": iid,
-                "action": "open_at_preexisting_frozen_entry_target",
+                "action": "open_at_preexisting_market_entry" if execution_mode == "market_now" else "open_at_preexisting_frozen_entry_target",
                 "direction": frozen.get("direction"),
                 "target_price": entry_plan.get("target_price"),
                 "decision_at": item["entry_decision_at"],
@@ -1206,18 +1215,32 @@ def ensure_all() -> Dict[str, Any]:
             else freeze_decision(item, decision, fresh, weekly, now, policy)
         )
         changed = True
+        if maybe_promote_pending_to_market(pending, decision, fresh, weekly, policy, now):
+            item["pending_entry_decision"] = pending
+            item["next_entry_status"] = "waiting_for_market_entry"
+            item["entry_quality_status"] = "wes_1_3_limit_promoted_to_market"
+            report["actions"].append({
+                "instrument_id": iid,
+                "action": "promote_limit_to_market",
+                "direction": (pending.get("decision") or {}).get("direction"),
+                "original_target_price": (pending.get("entry_price_plan") or {}).get("original_target_price"),
+                "promoted_at": (pending.get("entry_price_plan") or {}).get("promoted_from_limit_at"),
+                "market_entry_diagnostics": (pending.get("entry_price_plan") or {}).get("market_entry_diagnostics"),
+            })
         point = entry_point(str(cfg.get("symbol") or ""), pending, now)
         entry_plan = pending.get("entry_price_plan") if isinstance(pending.get("entry_price_plan"), dict) else {}
+        execution_mode = str(entry_plan.get("execution_mode") or "limit_pullback")
         if not point:
             report["actions"].append({
                 "instrument_id": iid,
-                "action": "wait_for_entry_target",
+                "action": "wait_for_market_entry" if execution_mode == "market_now" else "wait_for_entry_target",
                 "direction": (pending.get("decision") or {}).get("direction"),
                 "target_price": entry_plan.get("target_price"),
                 "reference_price": entry_plan.get("reference_price"),
                 "order_type": entry_plan.get("order_type"),
                 "expires_at": entry_plan.get("expires_at"),
                 "overextension_score": (entry_plan.get("inputs") or {}).get("overextension_score"),
+                "market_entry_diagnostics": entry_plan.get("market_entry_diagnostics"),
             })
             continue
         point, execution_verification = epe_verified_entry_point(pending, point, now)
@@ -1225,7 +1248,7 @@ def ensure_all() -> Dict[str, Any]:
             item["execution_price_engine"] = execution_verification
             report["actions"].append({
                 "instrument_id": iid,
-                "action": "reject_unverified_frozen_target_touch",
+                "action": "reject_unverified_market_entry" if execution_mode == "market_now" else "reject_unverified_frozen_target_touch",
                 "reason": execution_verification.get("reason"),
                 "target_price": entry_plan.get("target_price"),
             })
@@ -1234,9 +1257,17 @@ def ensure_all() -> Dict[str, Any]:
         v4.open_leg(item, cfg, frozen, pending["fresh_signal"], pending["weekly_signal"], point, now)
         item.update(
             entry_decision_at=pending["decided_at"],
-            entry_execution_rule="epe_verified_frozen_wes_1_2_limit_target_touch",
+            entry_execution_rule=(
+                "epe_verified_wes_1_3_market_now_5m"
+                if execution_mode == "market_now"
+                else "epe_verified_frozen_wes_1_3_limit_target_touch"
+            ),
             entry_price_plan_frozen=entry_plan,
-            entry_quality_status="wes_1_2_frozen_entry_target_filled",
+            entry_quality_status=(
+                "wes_1_3_market_entry_filled"
+                if execution_mode == "market_now"
+                else "wes_1_3_frozen_entry_target_filled"
+            ),
             entry_macro_context=pending.get("macro_context"),
             execution_price_engine=execution_verification,
             pending_entry_decision=None,
@@ -1244,7 +1275,7 @@ def ensure_all() -> Dict[str, Any]:
         )
         report["actions"].append({
             "instrument_id": iid,
-            "action": "open_at_frozen_entry_target",
+            "action": "open_at_market_now" if execution_mode == "market_now" else "open_at_frozen_entry_target",
             "direction": frozen.get("direction"),
             "target_price": entry_plan.get("target_price"),
             "decision_at": item["entry_decision_at"],
@@ -1254,9 +1285,9 @@ def ensure_all() -> Dict[str, Any]:
         })
     week["multi_instrument_exposure_layer"] = {
         "enabled": True, "version": VERSION, "common_validation_gate": True,
-        "wes_1_2_directional_admission": True,
+        "wes_1_3_directional_admission": True,
         "price_aware_entry_engine": True,
-        "frozen_entry_target_required": True,
+        "hybrid_market_or_frozen_limit_entry": True,
         "champion_challenger_execution_authority": True,
         "retroactive_entries_forbidden": True, "same_week_reentry_block_after_invalidation": True,
         "no_trade_first_class": True, "weekly_candles_used": True,
