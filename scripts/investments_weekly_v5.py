@@ -532,10 +532,11 @@ def build_entry_price_plan(
     expires_at = now + timedelta(minutes=wait_minutes)
 
     return {
-        "version": str(cfg.get("version") or "WES-1.2.0"),
+        "version": str(cfg.get("version") or "WES-1.3.0"),
         "frozen_at": now.isoformat(timespec="seconds"),
         "instrument_id": iid,
         "direction": direction,
+        "execution_mode": "limit_pullback",
         "order_type": order_type,
         "target_price": round(target, 8),
         "reference_price": round(reference, 8),
@@ -575,7 +576,12 @@ def freeze_decision(
     frozen.update(decided_at=now.isoformat(timespec="seconds"), validation_gate=item.get("validation_gate"))
     entry_plan = build_entry_price_plan(item, frozen, fresh, now, policy)
     if (policy.get("entry_price_engine") or {}).get("require_for_all_new_entries", True) and entry_plan is None:
-        raise RuntimeError("WES 1.2 entry price plan could not be frozen")
+        raise RuntimeError("WES 1.3 entry price plan could not be frozen")
+    if entry_plan is not None:
+        market_now, diagnostics = _entry_market_mode(frozen, fresh, weekly, policy, entry_plan)
+        entry_plan["market_entry_diagnostics"] = diagnostics
+        if market_now:
+            entry_plan = _promote_plan_to_market_now(entry_plan, diagnostics, now, policy)
     entry_not_before = (entry_plan or {}).get("entry_not_before") or frozen["decided_at"]
     auth = item.get("wes_entry_authorization") if isinstance(item.get("wes_entry_authorization"), dict) else {}
     pending = {
@@ -592,13 +598,18 @@ def freeze_decision(
             "direction": frozen.get("direction"),
             "directional_admission_passed": auth.get("directional_admission_passed"),
         },
-        "rule": "execute_only_when_frozen_entry_target_is_touched_after_decision",
+        "rule": (
+            "execute_market_now_on_first_fresh_completed_5m_bar_after_decision"
+            if (entry_plan or {}).get("execution_mode") == "market_now"
+            else "execute_only_when_frozen_entry_target_is_touched_after_decision"
+        ),
     }
+    market_mode = (entry_plan or {}).get("execution_mode") == "market_now"
     item.update(
         pending_entry_decision=pending,
         trade_status="pending",
-        next_entry_status="waiting_for_entry_target",
-        entry_quality_status="wes_1_2_waiting_for_frozen_entry_target",
+        next_entry_status="waiting_for_market_entry" if market_mode else "waiting_for_entry_target",
+        entry_quality_status="wes_1_3_waiting_for_market_entry" if market_mode else "wes_1_3_waiting_for_frozen_entry_target",
     )
     return pending
 
