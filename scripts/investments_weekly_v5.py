@@ -777,28 +777,45 @@ def epe_verified_entry_point(
     point: Dict[str, Any],
     checked_at: datetime,
 ) -> Tuple[Optional[Dict[str, Any]], Dict[str, Any]]:
-    """Final WES execution-integrity gate for an already frozen target touch."""
+    """Final WES execution-integrity gate for MARKET or frozen LIMIT execution."""
     plan = pending.get("entry_price_plan") if isinstance(pending.get("entry_price_plan"), dict) else {}
     direction = str(plan.get("direction") or (pending.get("decision") or {}).get("direction") or "neutral")
+    execution_mode = str(plan.get("execution_mode") or "limit_pullback")
     target = sf(plan.get("target_price"))
     entry_not_before = parse_dt(plan.get("entry_not_before") or pending.get("entry_not_before"))
     expires_at = parse_dt(plan.get("expires_at"))
-    if target is None or entry_not_before is None or expires_at is None:
+    if entry_not_before is None or expires_at is None:
         verification = epe.blocked(
-            "missing_frozen_execution_contract",
-            mode="FROZEN_LIMIT_TOUCH",
+            "missing_execution_contract",
+            mode="MARKET_NOW" if execution_mode == "market_now" else "FROZEN_LIMIT_TOUCH",
             instrument="WES",
         )
         return None, verification
 
-    verification = epe.verify_frozen_limit_touch(
-        point,
-        direction=direction,
-        target_price=float(target),
-        entry_not_before=entry_not_before,
-        expires_at=expires_at,
-        checked_at=checked_at,
-    )
+    if execution_mode == "market_now":
+        verification = epe.verify_market_bar_fill(
+            point,
+            direction=direction,
+            entry_not_before=entry_not_before,
+            expires_at=expires_at,
+            checked_at=checked_at,
+        )
+    elif target is None:
+        verification = epe.blocked(
+            "missing_frozen_limit_target",
+            mode="FROZEN_LIMIT_TOUCH",
+            instrument="WES",
+        )
+        return None, verification
+    else:
+        verification = epe.verify_frozen_limit_touch(
+            point,
+            direction=direction,
+            target_price=float(target),
+            entry_not_before=entry_not_before,
+            expires_at=expires_at,
+            checked_at=checked_at,
+        )
     if verification.get("verified") is not True:
         return None, verification
     verified = dict(point)
