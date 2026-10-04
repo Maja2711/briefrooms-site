@@ -96,10 +96,10 @@ if weekly_policy.get("continuous_position_required") is not False:
 if ((weekly_policy.get("no_trade") or {}).get("enabled")) is not True:
     errors.append("WES NO_TRADE gate must remain enabled")
 directional = weekly_policy.get("directional_admission") or {}
-if directional.get("version") != "WES-1.2.0":
-    errors.append("WES directional admission version must be WES-1.2.0")
+if directional.get("version") != "WES-1.3.0":
+    errors.append("WES directional admission version must be WES-1.3.0")
 if directional.get("require_for_all_new_entries") is not True:
-    errors.append("WES 1.2 must require directional admission for all new entries")
+    errors.append("WES 1.3 must require directional admission for all new entries")
 cc = ((weekly_policy.get("strategy_tournament") or {}).get("champion_challenger") or {})
 if "inverse_v2" not in set(cc.get("challenger_shadow_methods") or []):
     errors.append("WES inverse_v2 must remain Challenger/Shadow")
@@ -108,14 +108,25 @@ if "inverse_v2" in set(cc.get("execution_methods") or []):
 if cc.get("challenger_execution_enabled") is not False:
     errors.append("WES Challenger execution must remain disabled")
 entry_engine = weekly_policy.get("entry_price_engine") or {}
-if entry_engine.get("version") != "WES-1.2.0":
-    errors.append("WES entry price engine version must be WES-1.2.0")
+if entry_engine.get("version") != "WES-1.3.0":
+    errors.append("WES entry price engine version must be WES-1.3.0")
 if entry_engine.get("require_for_all_new_entries") is not True:
-    errors.append("WES 1.2 must require a frozen entry price plan for all new entries")
-if entry_engine.get("order_style") != "price_improving_limit_only":
-    errors.append("WES 1.2 entry execution must remain price-improving limit only")
-if entry_engine.get("target_refresh_policy") != "keep_frozen_until_filled_expired_or_thesis_changes":
-    errors.append("WES 1.2 target must not chase the market")
+    errors.append("WES 1.3 must require an execution plan for all new entries")
+if entry_engine.get("order_style") != "adaptive_market_or_price_improving_limit":
+    errors.append("WES 1.3 entry execution must remain adaptive MARKET-or-LIMIT")
+if entry_engine.get("target_refresh_policy") != "keep_limit_frozen_until_filled_expired_thesis_changes_or_same_thesis_is_promoted_to_market":
+    errors.append("WES 1.3 LIMIT target must stay frozen except for one-way same-thesis promotion to MARKET")
+market_entry = entry_engine.get("market_entry") or {}
+if market_entry.get("enabled") is not True:
+    errors.append("WES 1.3 strong-trend MARKET entry must remain enabled")
+if market_entry.get("require_daily_weekly_alignment") is not True:
+    errors.append("WES 1.3 MARKET entry must require aligned Daily and Weekly trend")
+if market_entry.get("require_momentum_alignment") is not True:
+    errors.append("WES 1.3 MARKET entry must require aligned momentum")
+if market_entry.get("allow_limit_to_market_promotion") is not True:
+    errors.append("WES 1.3 same-thesis LIMIT-to-MARKET promotion must remain enabled")
+if market_entry.get("block_immediate_market_after_stop") is not True:
+    errors.append("WES 1.3 immediate MARKET re-entry after stop must remain blocked")
 if auto_cfg.get("automatic_materialization_enabled") is not False:
     errors.append("legacy Autonomous Policy Loop regained Stock Trading materialization authority")
 if auto_cfg.get("production_authority") != "RETIRED_TO_STOCK_TRADING_COMPONENT_PROMOTION":
