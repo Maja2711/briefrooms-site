@@ -645,28 +645,71 @@ def _yahoo_entry_target_touch(
     return None
 
 
+def _yahoo_market_entry(
+    symbol: str,
+    start: datetime,
+    end: datetime,
+    checked_at: datetime,
+) -> Optional[Dict[str, Any]]:
+    """Return the freshest completed 5m close after authorization."""
+    cutoff = checked_at - timedelta(minutes=5)
+    effective_end = min(end, cutoff)
+    if effective_end < start:
+        return None
+    df = v2.intraday_bars(symbol, start, effective_end)
+    if df is None:
+        return None
+    try:
+        df = df[(df.index >= start) & (df.index <= effective_end)]
+        if df.empty:
+            return None
+        ts = df.index[-1]
+        row = df.iloc[-1]
+        close = v2._row_value(row, "Close")
+        high = v2._row_value(row, "High")
+        low = v2._row_value(row, "Low")
+        if close is None or high is None or low is None:
+            return None
+        return {
+            "price": close,
+            "timestamp": ts.to_pydatetime().astimezone(legacy.TZ).isoformat(timespec="seconds"),
+            "source": f"Yahoo Finance:{symbol}:5m:market_now_completed_bar",
+            "observed_high": high,
+            "observed_low": low,
+        }
+    except Exception:
+        return None
+
+
 def entry_point(
     symbol: str,
     pending: Dict[str, Any],
     now: Optional[datetime] = None,
 ) -> Optional[Dict[str, Any]]:
-    """Execute only a pre-frozen WES 1.2 price target; never choose a market price here."""
+    """Execute the frozen WES 1.3 mode: strong-trend MARKET or pullback LIMIT."""
     plan = pending.get("entry_price_plan") if isinstance(pending.get("entry_price_plan"), dict) else {}
     direction = str(plan.get("direction") or (pending.get("decision") or {}).get("direction") or "neutral")
+    execution_mode = str(plan.get("execution_mode") or "limit_pullback")
     target = sf(plan.get("target_price"))
     start = parse_dt(plan.get("entry_not_before") or pending.get("entry_not_before"))
     expires = parse_dt(plan.get("expires_at"))
     checked_at = now or legacy.now_local()
-    if direction not in {"long", "short"} or target is None or target <= 0 or start is None or expires is None:
+    if direction not in {"long", "short"} or start is None or expires is None:
         return None
 
-    # A delayed runner may replay a pre-existing frozen limit, but only inside
-    # the global NO RETROACTIVE EXECUTION market-data lag. This preserves a
-    # legitimate recent target touch without manufacturing an old LIVE fill.
+    # A delayed runner may replay only within the global NO RETROACTIVE
+    # EXECUTION lag. MARKET mode uses the freshest completed bar in that
+    # window; LIMIT mode may recover a recent frozen-target touch.
     replay_floor = checked_at - no_retro.MAX_LIVE_MARKET_DATA_LAG
     start = max(start, replay_floor)
     end = min(checked_at, expires)
     if end < start:
+        return None
+
+    if execution_mode == "market_now":
+        return _yahoo_market_entry(symbol, start, end, checked_at)
+
+    if target is None or target <= 0:
         return None
 
     iid = str(plan.get("instrument_id") or "")
