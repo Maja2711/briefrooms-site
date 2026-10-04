@@ -664,6 +664,72 @@ def recenter_geometry(
     }
 
 
+def verify_market_bar_fill(
+    point: Mapping[str, Any],
+    *,
+    direction: str,
+    entry_not_before: datetime,
+    expires_at: datetime,
+    checked_at: datetime,
+    max_age_seconds: float = 15 * 60,
+) -> dict[str, Any]:
+    """Verify a WES MARKET entry from a fresh completed 5m bar."""
+    side = str(direction or "").lower()
+    if side not in {"long", "short"}:
+        return blocked("invalid_direction", mode="MARKET_NOW", instrument="WES")
+
+    point_price = _finite_price(point.get("price"))
+    stamp = parse_time(point.get("timestamp"))
+    high = _finite_price(point.get("observed_high"))
+    low = _finite_price(point.get("observed_low"))
+    source = str(point.get("source") or "")
+    if point_price is None or stamp is None or high is None or low is None or not source:
+        return blocked("incomplete_market_bar_evidence", mode="MARKET_NOW", instrument="WES")
+
+    start = entry_not_before.astimezone(timezone.utc)
+    expiry = expires_at.astimezone(timezone.utc)
+    checked = checked_at.astimezone(timezone.utc)
+    if stamp < start:
+        return blocked("market_bar_before_authorization", mode="MARKET_NOW", instrument="WES")
+    if stamp > min(expiry, checked):
+        return blocked("market_bar_outside_execution_window", mode="MARKET_NOW", instrument="WES")
+    age_seconds = (checked - stamp).total_seconds()
+    if age_seconds < -DEFAULT_FUTURE_TOLERANCE_SECONDS or age_seconds > float(max_age_seconds):
+        return blocked(
+            "market_bar_stale_or_future",
+            mode="MARKET_NOW",
+            instrument="WES",
+            details={"age_seconds": round(age_seconds, 3), "max_age_seconds": float(max_age_seconds)},
+        )
+    if not (low <= point_price <= high):
+        return blocked(
+            "market_fill_not_contained_in_observed_bar",
+            mode="MARKET_NOW",
+            instrument="WES",
+            details={"observed_low": low, "observed_high": high, "fill_price": point_price},
+        )
+
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "engine_version": ENGINE_VERSION,
+        "instrument": "WES",
+        "mode": "MARKET_NOW",
+        "status": "VERIFIED_FILL",
+        "verified": True,
+        "direction": side.upper(),
+        "fill_price": round(point_price, 8),
+        "price_type": "FRESH_COMPLETED_5M_CLOSE",
+        "verified_at": iso_z(checked),
+        "market_bar_timestamp": iso_z(stamp),
+        "age_seconds": round(age_seconds, 3),
+        "source": source,
+        "observed_high": float(high),
+        "observed_low": float(low),
+        "paper_trading_only": True,
+        "policy": "strong_trend_market_entry_requires_fresh_post_authorization_completed_5m_bar",
+    }
+
+
 def verify_frozen_limit_touch(
     point: Mapping[str, Any],
     *,
