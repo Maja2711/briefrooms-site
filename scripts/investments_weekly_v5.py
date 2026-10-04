@@ -20,7 +20,7 @@ METHOD = ROOT / "data/investments/methodology.json"
 POLICY = ROOT / "data/investments/multi_instrument_exposure_policy.json"
 STATE = ROOT / "data/investments/multi_instrument_exposure_state_v5.json"
 REPORT = ROOT / "data/investments/multi_instrument_exposure_report_v5.json"
-VERSION = "5.8.0-experimental"
+VERSION = "5.9.0-experimental"
 
 read, write, sf, parse_dt = v4.read, v4.write, v2.sf, v2.parse_dt
 
@@ -273,6 +273,159 @@ def settle_unfilled_reentry(item: Dict[str, Any], decision: Dict[str, Any], reas
 
 def _clip(value: float, low: float, high: float) -> float:
     return max(low, min(high, value))
+
+
+def _entry_market_mode(
+    decision: Dict[str, Any],
+    fresh: Dict[str, Any],
+    weekly: Dict[str, Any],
+    policy: Dict[str, Any],
+    entry_plan: Optional[Dict[str, Any]] = None,
+) -> Tuple[bool, Dict[str, Any]]:
+    """Choose MARKET only for a strong, aligned continuation setup.
+
+    Directional admission remains the authority for whether WES may trade.
+    This layer only decides *how* to execute an already-authorized thesis:
+    take the first fresh completed 5m market bar when trend continuation is
+    strong, otherwise keep the price-improving frozen limit plan.
+    """
+    engine = policy.get("entry_price_engine") if isinstance(policy.get("entry_price_engine"), dict) else {}
+    cfg = engine.get("market_entry") if isinstance(engine.get("market_entry"), dict) else {}
+    direction = str(decision.get("direction") or "neutral")
+    daily_score = float(fresh.get("score") or 0.0)
+    weekly_score = float(weekly.get("score") or 0.0) if weekly.get("data_quality") == "passed" else 0.0
+    utility = float(decision.get("utility") or 0.0)
+    admission = decision.get("directional_admission") if isinstance(decision.get("directional_admission"), dict) else {}
+    confirmations = int(admission.get("confirmations") or 0)
+
+    signals = fresh.get("signals") if isinstance(fresh.get("signals"), dict) else {}
+    ret5 = sf(signals.get("ret5_pct"))
+    ret20 = sf(signals.get("ret20_pct"))
+    momentum_floor = abs(float(cfg.get("minimum_absolute_momentum_pct") or 0.15))
+    daily_floor = abs(float(cfg.get("min_daily_abs_score") or 55.0))
+    weekly_floor = abs(float(cfg.get("min_weekly_abs_score") or 20.0))
+    utility_floor = float(cfg.get("min_selected_utility") or 8.0)
+    confirmations_floor = int(cfg.get("min_confirmations") or 2)
+    max_overextension = float(cfg.get("maximum_overextension_score") or 0.90)
+
+    daily_aligned = (
+        fresh.get("data_quality") == "passed"
+        and _direction_from_score(daily_score) == direction
+        and abs(daily_score) >= daily_floor
+    )
+    weekly_aligned = (
+        weekly.get("data_quality") == "passed"
+        and _direction_from_score(weekly_score) == direction
+        and abs(weekly_score) >= weekly_floor
+    )
+    momentum_aligned = False
+    if ret5 is not None and ret20 is not None:
+        if direction == "long":
+            momentum_aligned = ret5 >= momentum_floor and ret20 >= momentum_floor
+        elif direction == "short":
+            momentum_aligned = ret5 <= -momentum_floor and ret20 <= -momentum_floor
+
+    inputs = (entry_plan or {}).get("inputs") if isinstance((entry_plan or {}).get("inputs"), dict) else {}
+    overextension = sf(inputs.get("overextension_score"))
+    post_stop_reversal = bool(inputs.get("post_stop_reversal"))
+    overextension_ok = overextension is None or overextension <= max_overextension
+
+    reasons: list[str] = []
+    if direction not in {"long", "short"}:
+        reasons.append("non_directional")
+    if not cfg.get("enabled", False):
+        reasons.append("market_entry_disabled")
+    if admission.get("passed") is not True:
+        reasons.append("directional_admission_not_passed")
+    if not daily_aligned:
+        reasons.append("daily_trend_not_strong_aligned")
+    if cfg.get("require_daily_weekly_alignment", True) and not weekly_aligned:
+        reasons.append("weekly_trend_not_strong_aligned")
+    if cfg.get("require_momentum_alignment", True) and not momentum_aligned:
+        reasons.append("momentum_not_aligned")
+    if confirmations < confirmations_floor:
+        reasons.append("insufficient_confirmations_for_market_entry")
+    if utility < utility_floor:
+        reasons.append("selected_utility_below_market_entry_floor")
+    if not overextension_ok:
+        reasons.append("too_overextended_for_market_entry")
+    if post_stop_reversal and cfg.get("block_immediate_market_after_stop", True):
+        reasons.append("post_stop_reversal_requires_pullback")
+
+    diagnostics = {
+        "version": str(cfg.get("version") or "WES-1.3.0"),
+        "direction": direction,
+        "daily_score": round(daily_score, 4),
+        "weekly_score": round(weekly_score, 4),
+        "selected_utility": round(utility, 4),
+        "confirmations": confirmations,
+        "ret5_pct": ret5,
+        "ret20_pct": ret20,
+        "overextension_score": overextension,
+        "daily_aligned": daily_aligned,
+        "weekly_aligned": weekly_aligned,
+        "momentum_aligned": momentum_aligned,
+        "eligible": not reasons,
+        "reasons": reasons,
+    }
+    return not reasons, diagnostics
+
+
+def _promote_plan_to_market_now(
+    plan: Dict[str, Any],
+    diagnostics: Dict[str, Any],
+    now: datetime,
+    policy: Dict[str, Any],
+    *,
+    promotion: bool = False,
+) -> Dict[str, Any]:
+    engine = policy.get("entry_price_engine") if isinstance(policy.get("entry_price_engine"), dict) else {}
+    cfg = engine.get("market_entry") if isinstance(engine.get("market_entry"), dict) else {}
+    promoted = dict(plan)
+    if promoted.get("execution_mode") != "market_now":
+        promoted["original_order_type"] = promoted.get("order_type")
+        promoted["original_target_price"] = promoted.get("target_price")
+    promoted["execution_mode"] = "market_now"
+    promoted["order_type"] = "market"
+    promoted["entry_not_before"] = now.isoformat(timespec="seconds")
+    max_wait = max(5, int(cfg.get("max_wait_minutes") or 15))
+    existing_expiry = parse_dt(promoted.get("expires_at"))
+    desired_expiry = now + timedelta(minutes=max_wait)
+    if existing_expiry is not None:
+        desired_expiry = min(existing_expiry, desired_expiry)
+    promoted["expires_at"] = desired_expiry.isoformat(timespec="seconds")
+    promoted["market_entry_diagnostics"] = diagnostics
+    promoted["market_entry_reason"] = "strong_aligned_trend_continuation"
+    promoted["status"] = "waiting_for_fresh_market_bar"
+    if promotion:
+        promoted["promoted_from_limit_at"] = now.isoformat(timespec="seconds")
+        promoted["promotion_rule"] = "same_authorized_thesis_strengthened_to_market_entry"
+    return promoted
+
+
+def maybe_promote_pending_to_market(
+    pending: Dict[str, Any],
+    decision: Dict[str, Any],
+    fresh: Dict[str, Any],
+    weekly: Dict[str, Any],
+    policy: Dict[str, Any],
+    now: datetime,
+) -> bool:
+    """One-way LIMIT -> MARKET escalation for the same still-authorized thesis."""
+    engine = policy.get("entry_price_engine") if isinstance(policy.get("entry_price_engine"), dict) else {}
+    cfg = engine.get("market_entry") if isinstance(engine.get("market_entry"), dict) else {}
+    if not cfg.get("allow_limit_to_market_promotion", True):
+        return False
+    plan = pending.get("entry_price_plan") if isinstance(pending.get("entry_price_plan"), dict) else {}
+    if not plan or plan.get("execution_mode") == "market_now":
+        return False
+    eligible, diagnostics = _entry_market_mode(decision, fresh, weekly, policy, plan)
+    if not eligible:
+        return False
+    pending["entry_price_plan"] = _promote_plan_to_market_now(plan, diagnostics, now, policy, promotion=True)
+    pending["entry_not_before"] = pending["entry_price_plan"]["entry_not_before"]
+    pending["rule"] = "strong_trend_promoted_limit_to_market_on_first_fresh_completed_5m_bar"
+    return True
 
 
 def build_entry_price_plan(
