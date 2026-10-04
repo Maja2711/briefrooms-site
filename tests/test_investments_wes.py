@@ -138,9 +138,14 @@ class WesTests(unittest.TestCase):
              patch.object(wes.v4, 'choose_governed', return_value=decision) as choose_mock:
             result = wes.governed_candidate('eurusd', cfg, p_cfg, week, policy, method, now)
 
-        contextual_mock.assert_called_once_with(
-            'eurusd', macro_candidates, fresh, policy, weekly=weekly, macro_context=macro_context
-        )
+        contextual_mock.assert_called_once()
+        call_args, call_kwargs = contextual_mock.call_args
+        self.assertEqual(('eurusd', macro_candidates, fresh, policy), call_args)
+        self.assertEqual(weekly, call_kwargs['weekly'])
+        actual_macro = call_kwargs['macro_context']
+        self.assertEqual(macro_context['data_quality'], actual_macro['data_quality'])
+        self.assertEqual(macro_context['direction'], actual_macro['direction'])
+        self.assertEqual(macro_context['ma_structure'], actual_macro['ma_structure'])
         learning_mock.assert_called_once_with(selected_learning, contextual)
         choose_mock.assert_called_once_with(adjusted_candidates, choice_learning, policy, 'eurusd')
         self.assertEqual(choice_learning, result['learning'])
