@@ -163,31 +163,41 @@ jobs:
       - name: Persist public push health snapshot
         run: |
           set -euo pipefail
-          # Refetch after commit-sync smoke tests so the public snapshot contains
-          # the latest commit-bound observability fields instead of pre-test data.
-          curl --fail --silent --show-error --retry 5 --retry-delay 2 \
-            https://briefrooms-trading-push.szczerbinski0577.workers.dev/health \
-            -o /tmp/push-health.json
-          mkdir -p data/notifications
-          node - <<'NODE'
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Health is derived observability state. On a concurrent main update,
+          # recompute it from the fresh head instead of rebasing a stale snapshot.
+          for attempt in 1 2 3 4; do
+            git fetch --quiet origin main
+            git reset --hard origin/main
+
+            curl --fail --silent --show-error --retry 5 --retry-delay 2 \
+              https://briefrooms-trading-push.szczerbinski0577.workers.dev/health \
+              -o /tmp/push-health.json
+
+            mkdir -p data/notifications
+            node - <<'NODE'
           const fs=require("fs");
           const j=JSON.parse(fs.readFileSync("/tmp/push-health.json","utf8"));
           j.snapshot_at=new Date().toISOString();
           fs.writeFileSync("data/notifications/trading-push-health.json", JSON.stringify(j,null,2)+"\n");
           NODE
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/notifications/trading-push-health.json
-          if git diff --cached --quiet; then
-            echo "Push health snapshot unchanged"
-            exit 0
-          fi
-          git commit -m "Update trading push health snapshot"
-          for attempt in 1 2 3; do
-            if git pull --rebase origin main && git push origin HEAD:main; then
+
+            git add data/notifications/trading-push-health.json
+            if git diff --cached --quiet; then
+              echo "Push health snapshot unchanged"
               exit 0
             fi
-            git rebase --abort 2>/dev/null || true
+
+            git commit -m "Update trading push health snapshot"
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+
+            echo "Health snapshot push conflict (${attempt}/4); recomputing from fresh main."
             sleep $((attempt * 2))
           done
+
+          echo "Unable to persist refreshed push health snapshot" >&2
           exit 1
