@@ -15,7 +15,7 @@ class ResearchQuestion:
     trigger_reasons:tuple[str,...]; priority:float; uncertainty:float
     contradiction:float; freshness_gap:float; impact:float
     redundancy_penalty:float; expected_information_value:float
-    status:str="shadow_candidate"
+    status:str="production_candidate"
 
 def clamp(x:float)->float: return max(0.0,min(1.0,float(x)))
 def sid(*parts:Any)->str:
@@ -58,8 +58,8 @@ def build(epistemic:Mapping[str,Any])->dict[str,Any]:
             if q: rows.append(q)
     rows.sort(key=lambda q:(-q.priority,q.question_id))
     selected=rows[:MAX_QUESTIONS_PER_RUN]
-    return {"contract_version":CONTRACT_VERSION,"mode":"shadow","source_contract":epistemic.get("contract_version"),
-      "authority":{"belief_core_writeback":False,"probability_override":False,"trade_execution":False,"automatic_research":False,"automatic_tuning":False},
+    return {"contract_version":CONTRACT_VERSION,"mode":"production","source_contract":epistemic.get("contract_version"),
+      "authority":{"belief_core_writeback":False,"probability_override":False,"trade_execution":False,"automatic_research":True,"automatic_tuning":False},
       "selection_policy":{"objective":"expected_information_value_proxy","max_questions_per_run":MAX_QUESTIONS_PER_RUN,
       "principle":"reduce uncertainty/contradiction with independent evidence; penalize redundancy"},
       "candidate_count":len(rows),"selected_count":len(selected),"questions":[asdict(x) for x in selected]}
