@@ -216,7 +216,7 @@ require(daily_workflow, "EURUSD_V19_BELIEF_FIRST_OK", "Daily EURUSD production w
 require(daily_doc, "### Realtime open-position lifecycle", "Daily EURUSD realtime architecture")
 require(daily_fast_lifecycle, '"entry_authority": False', "Daily EURUSD realtime exit-only runtime")
 require(daily_fast_lifecycle, '"direction_authority": False', "Daily EURUSD realtime exit-only runtime")
-require(daily_fast_lifecycle, "v14.evaluate_position", "Daily EURUSD realtime lifecycle rule reuse")
+require(daily_fast_lifecycle, "v18._evaluate_position", "Daily EURUSD realtime lifecycle rule reuse")
 require(daily_realtime_workflow, "Watch persisted OPEN position every five seconds", "Daily EURUSD realtime workflow")
 require(daily_realtime_workflow, "scripts/daily_eurusd_realtime_watch.sh", "Daily EURUSD realtime workflow")
 require(daily_workflow, "/sync-daily", "Daily EURUSD immediate notification handoff")
