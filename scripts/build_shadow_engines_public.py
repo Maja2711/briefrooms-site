@@ -129,6 +129,8 @@ SPECS = [
 # These contain "shadow" in the workflow path but are infrastructure/validation,
 # not separate user-facing model engines.
 IGNORED_SHADOW_WORKFLOWS = {
+    # Production Question Engine retained a legacy *shadow* filename; it is not a shadow model.
+    "belief-question-engine-shadow.yml",
     "belief-wes-assets-daily-shadow-validation.yml",
     "brace-entity-belief-shadow-bridge.yml",
     "brace-entity-belief-shadow-bridge-validation.yml",
