@@ -2,7 +2,7 @@
 
 ## Status
 
-The filename is retained for historical continuity, but the current governed runtime is newer than the original v4 exposure rule. Runtime authority lives in `data/investments/multi_instrument_exposure_policy.json` (currently policy v5.8.0) together with `data/investments/wes_methodology.json` (WES 1.2.0).
+The filename is retained for historical continuity, but the current governed runtime is newer than the original v4 exposure rule. Runtime authority lives in `data/investments/multi_instrument_exposure_policy.json` (currently policy v5.9.1) together with `data/investments/wes_methodology.json` (WES 1.3.1).
 
 The system remains experimental governed paper trading only. It places no broker orders.
 
@@ -35,48 +35,61 @@ Integrity checks, the public Weekly Trading UI and WES execution must interpret 
 
 The legacy Monday `entry_latest_local` field is not a universal WES execution deadline. WES may remain in `NO_TRADE` and admit a later qualified trigger under the active lifecycle policy. The effective position/weekly deadline is enforced separately by the governed close-deadline verifier.
 
-## WES 1.2 — Directional Admission, Champion/Challenger & Price-Aware Entry
+## WES 1.3.1 — Directional Admission, adaptive delta, MARKET/LIMIT & persistent execution
 
-WES 1.2 keeps WES 1.1 directional/Champion-Challenger hardening and additionally separates direction selection from entry-price execution. A candidate can be useful for learning without being allowed to open a paper position.
+WES 1.3.1 keeps Champion/Challenger separation and NO_TRADE as a first-class decision, but removes the mechanical failure mode in which an already very strong trend had to improve by another fixed delta before WES could even consider execution.
 
-Every new entry, including the initial Monday entry, must pass all of the following:
+Every new entry still requires:
 
-- the selected method belongs to the execution-authorized Champion pool;
-- the exact method and direction have a current WES authorization;
-- the authorization is not expired and is valid for that exact candidate;
-- the direction has at least two independent confirmations;
-- a candidate that opposes aligned, valid Daily and Weekly signals is rejected;
-- opposing execution-authorized candidates inside the configured utility margin resolve to `NO_TRADE`.
+- an execution-authorized Champion-pool method;
+- current directional admission;
+- at least the active profile's required number of independent confirmations;
+- the active raw-score and utility floors;
+- no hard Daily/Weekly directional conflict;
+- prospective execution only; no historical fill reconstruction.
 
-Method names are never used to resolve a directional tie. Determinism for same-direction candidates comes from an explicit policy priority after utility and absolute signal strength; opposing near-ties fail closed.
+### Adaptive absolute-strength bypass for delta
 
-`inverse_v2` remains fully calculated for research, counterfactual outcomes, contextual learning and Challenger evaluation, but it is `challenger_shadow` and has no execution authority. It can obtain execution authority only through an explicit governed promotion that changes policy.
+The ordinary trigger still uses `delta` to demand genuine improvement from a weak or moderate initial NO_TRADE state. WES 1.3.1 may bypass only that delta condition when absolute conviction is already exceptional.
 
-The WES preflight is the sole admission authority. The v5 runtime independently verifies the WES authorization before creating any new entry, so a workflow that bypasses preflight cannot silently open a position.
+The bypass is deliberately relative to the active trigger profile rather than a second unrelated set of fixed numbers:
 
-### Entry Price Plan
+- raw score must be at least `1.30 × active raw threshold`;
+- utility must be at least `1.30 × active utility threshold`;
+- the active confirmation-count requirement still applies;
+- both Daily and Weekly must confirm the same direction;
+- directional admission and Champion execution authority remain mandatory.
 
-A valid LONG or SHORT decision is not itself an instruction to enter at the current market price.
+Because the reference is the active trigger profile, the bypass automatically becomes stricter as the week approaches Friday.
 
-Before every new entry WES freezes an `entry_price_plan` containing:
+### Adaptive MARKET versus LIMIT decision
 
-- the decision-time reference price;
-- ATR14 and EMA20 distance;
-- 5-day and 20-day momentum;
-- the 55-day range position;
-- a deterministic overextension score;
-- a pullback distance expressed in ATR;
-- a fixed BUY LIMIT or SELL LIMIT target;
-- `entry_not_before` and `expires_at` timestamps;
-- whether the setup is a post-stop reversal.
+Directional admission answers **whether WES may trade the thesis**. The Entry Engine separately answers **how to enter**.
 
-The executor is deliberately narrow: it may only inspect post-decision 5-minute OHLC bars and fill the frozen target when the bar range touches that price. For LONG this means `Low <= target`; for SHORT it means `High >= target`. The fill is recorded at the frozen target, not at a later quote.
+WES first constructs the same deterministic pullback plan from the decision-time reference price, ATR14, EMA20 distance, ret5/ret20, 55-day range location and post-stop state. It then calculates a continuation score from:
 
-While the plan is active the target is immutable. Repeated WES cycles may refresh the same thesis authorization, but they may not move the active target closer to price. Before an expired or changed plan is refreshed, the executor first resolves any recent touch of the already-frozen target that is still inside the global `NO RETROACTIVE EXECUTION` live-market replay window. If no valid touch exists, the plan expires without a trade and a later WES cycle may create a new plan from fresh evidence.
+- Daily trend strength;
+- Weekly trend strength;
+- selected-candidate utility;
+- number of independent confirmations;
+- momentum alignment;
+- an explicit penalty for overextension.
 
-The normal entry-control path runs after the 5-minute `Governed Weekly Paper Exposure Watch`. `Weekly Engine Star` also has an independent 15-minute fallback schedule (`02/17/32/47` minutes of each hour) so a stalled workflow-run chain does not silently stop pending entry execution. Both paths use the same frozen plan and the same 5-minute OHLC touch rule.
+A passing composite score may select `market_now`. A weaker or more extended setup remains `limit_pullback`.
 
-A stop-loss reversal receives an additional pullback requirement and a minimum completed-bar delay before the target can become executable.
+MARKET retains hard vetoes. It is not allowed when meaningful Daily or Weekly evidence opposes the thesis, momentum is clearly opposed, overextension exceeds the configured ceiling, directional admission is absent, or the setup is an immediate post-stop reversal. Every MARKET fill must be a fresh completed post-decision 5-minute close verified by EPE.
+
+### Persistent frozen LIMIT plan
+
+A valid pullback LIMIT no longer disappears merely because the original 60-minute authorization window elapsed while the same thesis remained valid.
+
+Repeated WES cycles may **reaffirm** the same pending plan when the exact method/direction remains execution-authorized and still clears the base raw, utility, confirmation and directional-admission gates. Reaffirmation may extend `expires_at`, but it may **never change the frozen target price or move the limit toward the market**.
+
+A still-valid LIMIT may promote one-way to MARKET when the same thesis later reaches the composite MARKET score. If the thesis changes, execution authority disappears, or liveness exceeds the bounded reaffirmation gap, the plan fails closed instead of being silently recreated.
+
+The normal entry-control path still follows the 5-minute governed exposure/risk chain, and `Weekly Engine Star` keeps its independent 15-minute fallback schedule. A separate WES cycle watchdog checks persisted preflight/postflight freshness during the active week and dispatches recovery if a full cycle becomes stale.
+
+A stop-loss reversal keeps the additional pullback requirement and completed-bar delay before execution can become eligible.
 
 ## Risk execution reliability
 
