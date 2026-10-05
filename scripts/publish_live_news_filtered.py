@@ -81,8 +81,6 @@ PL_SECTION_MINIMUMS = {
     "zdrowie": 6,
     "nauka": 6,
     "sport": 9,
-    # Dedicated AI/crypto is availability-driven: freshness wins over padding.
-    "ai-technologia-krypto": 0,
 }
 PL_SCIENCE_AI_TARGET = 0
 EN_SECTION_TARGETS = base.EN_SECTION_TARGETS
@@ -727,8 +725,106 @@ def select_sections(
                 if ai_added >= PL_SCIENCE_AI_TARGET:
                     break
 
-        # PL economy contract: reserve one slot for a fresh AI/crypto story before
-        # general ranking can consume all nine cards.
+        # PL contract: reserve one politics-section slot for a material
+        # Russia-Ukraine-war update before general ranking can consume all nine.
+        if pl_mode and section_id == "polityka":
+            topic_candidate = next(
+                (
+                    story for story in candidates
+                    if story.get("image") and is_pl_ukraine_russia_war_story(story)
+                ),
+                None,
+            )
+            if topic_candidate is not None:
+                try_add(topic_candidate, discipline_cap=False, source_cap=preferred_source_cap)
+            else:
+                carried_topic = _recent_carried_ukraine_war_story(previous_sections, section_id, now)
+                if carried_topic is not None:
+                    copy = dict(carried_topic)
+                    copy["carried_forward"] = True
+                    if try_add(
+                        copy,
+                        discipline_cap=False,
+                        source_cap=(MAX_SOURCE_SHARE if len(active_sources) >= 2 else target),
+                    ) == "added":
+                        forced_topic_carried = 1
+
+        for story in candidates:
+            result = try_add(story, discipline_cap=sport_mode, source_cap=preferred_source_cap)
+            if result == "discipline_cap":
+                deferred_discipline.append(story)
+            elif result == "source_cap":
+                deferred_source.append(story)
+            if len(items) >= target:
+                break
+
+        if sport_mode and len(items) < target:
+            for story in deferred_discipline:
+                result = try_add(story, discipline_cap=False, source_cap=preferred_source_cap)
+                if result == "source_cap":
+                    deferred_source.append(story)
+                if len(items) >= target:
+                    break
+
+        if len(items) < target and preferred_source_cap < MAX_SOURCE_SHARE:
+            for story in deferred_source:
+                try_add(story, discipline_cap=False, source_cap=MAX_SOURCE_SHARE)
+                if len(items) >= target:
+                    break
+
+        carried = forced_topic_carried
+        if len(items) < target:
+            old_items = previous_sections.get(section_id, []) if isinstance(previous_sections.get(section_id), list) else []
+            for old in old_items:
+                try:
+                    published = datetime.fromisoformat(str(old.get("published_at") or "").replace("Z", "+00:00"))
+                    if published.tzinfo is None:
+                        published = published.replace(tzinfo=timezone.utc)
+                    if now - published.astimezone(timezone.utc) > base.MAX_CARRY_AGE:
+                        continue
+                except Exception:
+                    continue
+                copy = dict(old)
+                copy["carried_forward"] = True
+                carry_source_cap = MAX_SOURCE_SHARE if len(active_sources) >= 2 else target
+                if try_add(copy, discipline_cap=False, source_cap=carry_source_cap) == "added":
+                    carried += 1
+                if len(items) >= target:
+                    break
+
+        selected[section_id] = items[:target]
+        if pl_mode:
+            minimum = PL_SECTION_MINIMUMS.get(section_id, 0)
+            if len(selected[section_id]) < minimum:
+                raw = list(fetched.get(section_id) or [])
+                fresh = [story for story in raw if _fresh_for_pl_selection(story, now)]
+                with_image = [story for story in fresh if story.get("image")]
+                by_source: dict[str, dict[str, int]] = {}
+                for story in raw:
+                    source = str(story.get("source") or "unknown")
+                    stats = by_source.setdefault(source, {"raw": 0, "fresh": 0, "image": 0})
+                    stats["raw"] += 1
+                    if _fresh_for_pl_selection(story, now):
+                        stats["fresh"] += 1
+                        if story.get("image"):
+                            stats["image"] += 1
+                raise RuntimeError(
+                    f"PL section {section_id} underfilled after freshness/dedupe: "
+                    f"{len(selected[section_id])}/{minimum}; raw={len(raw)} "
+                    f"fresh={len(fresh)} fresh_with_image={len(with_image)} sources={by_source}"
+                )
+
+        times = [base.story_time(item) for item in items if base.story_time(item) > 0]
+        section_health: dict[str, Any] = {
+            "count": len(selected[section_id]),
+            "fresh_count": len(selected[section_id]) - carried,
+            "carried_count": carried,
+            "newest_source_at": datetime.fromtimestamp(max(times), tz=timezone.utc).isoformat(timespec="seconds") if times else None,
+            "source_mix": source_counts,
+            "source_diversity_policy": EDITORIAL_SELECTION_POLICY_VERSION,
+            "preferred_source_cap": preferred_source_cap,
+            "hard_source_cap": MAX_SOURCE_SHARE if len(active_sources) >= 2 else target,
+        }
         if sport_mode:
             section_health["tracked_athletes"] = athlete_counts
             section_health["discipline_mix"] = discipline_counts
