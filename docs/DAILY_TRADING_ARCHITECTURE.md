@@ -227,6 +227,49 @@ Risk exit and new-entry authority are deliberately separated.
 - On Friday from 12:00 New York time onward, secondary entry sources A_TECHNICAL_FALLBACK and LOW_EDGE_LEARNING_EXPLORATION are blocked from opening new positions. This does not automatically block a primary NATIVE signal.
 - These guards affect only future admission. They never retroactively close, rewrite or reverse an already-open position.
 
+### Realtime open-position lifecycle
+
+Daily EUR/USD keeps the full Belief-first reconciliation cycle on the normal production monitor, but an already persisted OPEN position has a separate low-latency **exit-only** runtime:
+
+```text
+persisted OPEN position on main
+        |
+        v
+Daily EURUSD Realtime Lifecycle
+5-second probe of 1m EUR/USD observations
+        |
+        v
+same SL/TP + R_PACE + soft-24h/hard-27h exit family
+        |
+        +---- no exit --------------------> keep watching
+        |
+        v
+refresh current main + re-evaluate trigger
+        |
+        v
+NO RETROACTIVE airlock
+        |
+        v
+persist CLOSED state + history + notification transition
+        |
+        v
+commit-bound /sync-daily by exact main SHA
+        |
+        v
+Web Push
+```
+
+Implementation:
+
+- `scripts/daily_eurusd_fast_lifecycle.py`;
+- `scripts/daily_eurusd_realtime_watch.sh`;
+- `.github/workflows/daily-eurusd-realtime-lifecycle.yml`;
+- commit-bound notification handoff in `.github/workflows/daily-eurusd-monitor.yml` and `workers/trading-push/src/index.js`.
+
+The realtime lifecycle has **no direction authority and no entry/fill authority**. It can only close the currently persisted OPEN position under the existing lifecycle rule family. Before every write it fetches the latest `main`, re-evaluates the exit against that fresh state, and abandons the write if another canonical path has already closed the position. The regular Daily monitor remains the full Belief/macro/event reconciliation path and also ensures that a realtime watcher exists whenever Daily EUR/USD is OPEN.
+
+The target observation cadence while a position is OPEN is five seconds. This removes GitHub scheduled-cron latency from ordinary SL/TP/dynamic/time exits. End-to-end Web Push latency is still subject to market-feed freshness, GitHub/network latency, the browser push service and the device OS, so this is a low-latency target rather than a hard external SLA.
+
 ### Data and execution admission integrity
 
 A NATIVE LONG/SHORT signal is necessary but not sufficient for a new fill.
