@@ -28,6 +28,7 @@ from belief_core_live import (  # noqa: E402
     horizon_target_plan,
     in_fx_window,
     next_weekday_close,
+    outcome_spec,
     production_probability,
     run_cycle,
     strength_from_return,
@@ -217,6 +218,17 @@ class BeliefCoreLiveTest(unittest.TestCase):
         self.assertEqual(btc_usd_proxy["market_calendar"],"tradable_session_first_available")
         self.assertEqual(btc_usd_proxy["settlement_max_delay_hours"],72)
         self.assertEqual(eurusd_price["market_calendar"],"fx_24x5")
+
+    def test_eurusd_macro_beliefs_use_canonical_price_outcome(self) -> None:
+        snapshot = StubSnapshot({"EURUSD=X": 1.137})
+        for belief_id in (
+            "eurusd.macro_surprise.supportive",
+            "eurusd.policy_differential.supportive",
+        ):
+            spec = outcome_spec(belief_id, snapshot)
+            self.assertEqual(spec["kind"], "price_above")
+            self.assertEqual(spec["symbol"], "EURUSD=X")
+            self.assertEqual(spec["reference"], 1.137)
 
     def test_price_outcome(self) -> None:
         spec={"kind":"price_above","symbol":"SPY","reference":100.0}
