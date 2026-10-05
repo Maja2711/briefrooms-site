@@ -21,6 +21,7 @@ REQUIRED_AIRLOCK_WORKFLOWS = {
     "investments-exposure-watch.yml",
     "investments-weekly.yml",
     "investments-weekly-freshness-watchdog.yml",
+    "weekly-live-prices.yml",
     "investment-event-intelligence-production.yml",
     "stock-trading-portfolio.yml",
     "stock-trading-v2-production.yml",
