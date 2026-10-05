@@ -8,6 +8,7 @@ on:
     paths:
       - "scripts/daily_engine_contract.py"
       - "scripts/daily_eurusd_lifecycle.py"
+      - "scripts/daily_eurusd_fast_lifecycle.py"
       - "scripts/daily_eurusd_macro_event_risk.py"
       - "scripts/daily_eurusd_spot.py"
       - "scripts/daily_eurusd_spot_v12.py"
@@ -37,6 +38,7 @@ on:
       - "en/investing/daily-trading.html"
       - "pl/inwestycje/daily-trading.html"
       - "tests/test_daily_eurusd_lifecycle.py"
+      - "tests/test_daily_eurusd_fast_lifecycle.py"
       - "tests/test_daily_eurusd_direct_signal.py"
       - "tests/test_daily_eurusd_a_fallback.py"
       - "tests/test_daily_eurusd_dynamic_exit.py"
@@ -58,7 +60,7 @@ on:
 
 permissions:
   contents: write
-  actions: read
+  actions: write
 
 concurrency:
   group: daily-eurusd-monitor
@@ -83,6 +85,7 @@ jobs:
           set -euo pipefail
           python -m unittest \
             tests.test_daily_eurusd_lifecycle \
+            tests.test_daily_eurusd_fast_lifecycle \
             tests.test_daily_eurusd_direct_signal \
             tests.test_daily_eurusd_a_fallback \
             tests.test_daily_eurusd_dynamic_exit \
@@ -99,6 +102,7 @@ jobs:
           python -m py_compile \
             scripts/daily_engine_contract.py \
             scripts/daily_eurusd_lifecycle.py \
+            scripts/daily_eurusd_fast_lifecycle.py \
             scripts/daily_eurusd_macro_event_risk.py \
             scripts/daily_eurusd_spot.py \
             scripts/daily_eurusd_spot_v12.py \
@@ -198,6 +202,7 @@ jobs:
           set -euo pipefail
           python -m unittest \
             tests.test_daily_eurusd_lifecycle \
+            tests.test_daily_eurusd_fast_lifecycle \
             tests.test_daily_eurusd_direct_signal \
             tests.test_daily_eurusd_a_fallback \
             tests.test_daily_eurusd_dynamic_exit \
@@ -213,6 +218,7 @@ jobs:
           python -m py_compile \
             scripts/daily_engine_contract.py \
             scripts/daily_eurusd_lifecycle.py \
+            scripts/daily_eurusd_fast_lifecycle.py \
             scripts/daily_eurusd_macro_event_risk.py \
             scripts/daily_eurusd_spot.py \
             scripts/daily_eurusd_spot_v12.py \
@@ -343,8 +349,12 @@ jobs:
           PY
 
       - name: Persist EURUSD state and append-only outcomes through NO RETROACTIVE airlock
+        id: persist
         run: |
           set -euo pipefail
+          echo "changed=false" >> "$GITHUB_OUTPUT"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -- \
@@ -352,14 +362,19 @@ jobs:
             data/investments/eurusd_daily_history.json \
             data/notifications/trading-state.json \
             data/notifications/trading-events.json
+
           if git diff --cached --quiet; then
             echo "No EURUSD state change"
             exit 0
           fi
+
           python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
           git commit -m "Monitor Daily EURUSD position"
+
           for attempt in 1 2 3; do
-            if git push; then
+            if git push origin HEAD:main; then
+              echo "changed=true" >> "$GITHUB_OUTPUT"
+              echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
               exit 0
             fi
 
@@ -374,7 +389,6 @@ jobs:
               --output data/investments/eurusd_daily_spot.json \
               --history data/investments/eurusd_daily_history.json \
               --validate
-
             python scripts/build_trading_notification_events.py
 
             git add -- \
@@ -382,8 +396,11 @@ jobs:
               data/investments/eurusd_daily_history.json \
               data/notifications/trading-state.json \
               data/notifications/trading-events.json
+
             if git diff --cached --quiet; then
               echo "Remote main already contains an equivalent or fresher EURUSD state"
+              echo "changed=false" >> "$GITHUB_OUTPUT"
+              echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
               exit 0
             fi
 
@@ -391,53 +408,103 @@ jobs:
             git commit -m "Monitor Daily EURUSD position"
             sleep $((attempt * 3))
           done
+
           echo "Unable to persist EURUSD state after retries" >&2
           exit 1
 
-      - name: Dispatch trading notification to Web Push immediately
+      - name: Dispatch persisted Daily transition to Web Push immediately
+        if: steps.persist.outputs.changed == 'true'
+        env:
+          PUSH_API: https://briefrooms-trading-push.szczerbinski0577.workers.dev
         run: |
           set -euo pipefail
-          python - <<'PY' > "$RUNNER_TEMP/trading-push-payload.json"
-          import json
-          from pathlib import Path
-          payload = json.loads(Path("data/notifications/trading-events.json").read_text())
-          print(json.dumps({"events": payload.get("events", [])}, separators=(",", ":")))
-          PY
+          sha="${{ steps.persist.outputs.sha }}"
 
-          delivered=0
-          for attempt in 1 2 3; do
-            curl --fail --silent --show-error \
-              --retry 2 --retry-delay 1 \
+          for attempt in 1 2 3 4; do
+            code=$(curl --silent --show-error \
+              -o "$RUNNER_TEMP/trading-push-response.json" \
+              -w "%{http_code}" \
               -H "content-type: application/json" \
-              --data-binary @"$RUNNER_TEMP/trading-push-payload.json" \
-              "https://briefrooms-trading-push.szczerbinski0577.workers.dev/ingest" \
-              -o "$RUNNER_TEMP/trading-push-response.json"
+              --data "{\"sha\":\"$sha\"}" \
+              "$PUSH_API/sync-daily" || true)
 
-            if python - <<'PY'
+            cat "$RUNNER_TEMP/trading-push-response.json" || true
+
+            if [ "$code" = "200" ] && python - <<'PY'
           import json, os
           from pathlib import Path
-          payload=json.loads(Path(os.environ["RUNNER_TEMP"]).joinpath("trading-push-response.json").read_text())
-          failed=int(payload.get("failed") or 0)
-          pending=int(payload.get("pending") or 0)
-          ok=payload.get("ok") is True and failed == 0 and pending == 0
-          print("TRADING_PUSH_ATTEMPT", payload)
+          p=Path(os.environ["RUNNER_TEMP"])/"trading-push-response.json"
+          j=json.loads(p.read_text())
+          d=j.get("dispatch") or {}
+          ok=(j.get("ok") is True and int(d.get("failed") or 0) == 0 and int(d.get("pending") or 0) == 0)
+          print("TRADING_PUSH_COMMIT_SYNC", j)
           raise SystemExit(0 if ok else 1)
           PY
             then
-              delivered=1
-              break
+              exit 0
             fi
 
-            echo "Trading push delivery incomplete on attempt ${attempt}; retrying only undelivered subscriptions"
-            sleep $((attempt * 2))
+            # Another workflow may have advanced main after this run. Sync the
+            # newest main head; it contains at least this persisted transition or
+            # a fresher canonical Daily state.
+            git fetch --quiet origin main
+            sha=$(git rev-parse origin/main)
+            sleep "$attempt"
           done
 
-          if [ "$delivered" -ne 1 ]; then
-            echo "Trading push delivery still incomplete after retries" >&2
-            cat "$RUNNER_TEMP/trading-push-response.json" >&2
-            exit 1
+          echo "Immediate commit-bound trading push failed after retries" >&2
+          exit 1
+
+      - name: Ensure realtime lifecycle watcher is active for an OPEN position
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          is_open=$(python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path("data/investments/eurusd_daily_spot.json").read_text())
+          pos=((p.get("metadata") or {}).get("position") or {})
+          print("1" if str(pos.get("status") or "").upper() == "OPEN" else "0")
+          PY
+          )
+
+          if [ "$is_open" != "1" ]; then
+            echo "Daily EURUSD is not OPEN; no realtime watcher required."
+            exit 0
           fi
 
+          api="https://api.github.com/repos/$GITHUB_REPOSITORY/actions/workflows/daily-eurusd-realtime-lifecycle.yml/runs?per_page=20"
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "$api" -o "$RUNNER_TEMP/realtime-runs.json"
+
+          active=$(python - <<'PY'
+          import json, os
+          from pathlib import Path
+          rows=json.loads((Path(os.environ["RUNNER_TEMP"])/"realtime-runs.json").read_text()).get("workflow_runs", [])
+          active={"queued","in_progress","pending","requested","waiting"}
+          print(sum(1 for r in rows if str(r.get("status") or "") in active and str(r.get("event") or "") == "workflow_dispatch"))
+          PY
+          )
+
+          if [ "$active" -gt 0 ]; then
+            echo "Realtime Daily EURUSD watcher already active."
+            exit 0
+          fi
+
+          curl --fail --silent --show-error \
+            -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/workflows/daily-eurusd-realtime-lifecycle.yml/dispatches" \
+            -d '{"ref":"main"}'
+
+          echo "Realtime Daily EURUSD watcher dispatched."
 
       - name: Validate public frontend runtime after lifecycle persistence
         run: |
