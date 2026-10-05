@@ -18,6 +18,7 @@ on:
       - "scripts/audit_weekly_model_runtime.py"
       - "scripts/no_retroactive_execution.py"
       - "scripts/verify_no_retroactive_execution.py"
+      - "scripts/sync_trading_push_commit.sh"
       - "tests/test_audit_intraday_risk_exits.py"
       - "tests/test_no_retroactive_execution.py"
       - "data/investments/multi_instrument_exposure_policy.json"
@@ -109,6 +110,7 @@ jobs:
           python scripts/render_simple_investments.py
 
       - name: Persist risk exit atomically through NO RETROACTIVE airlock
+        id: commit
         if: steps.risk.outputs.risk_exit == 'true'
         run: |
           set -euo pipefail
@@ -146,6 +148,8 @@ jobs:
                 --baseline-ref HEAD^ \
                 --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
               if git push origin HEAD:main; then
+                echo "changed=true" >> "$GITHUB_OUTPUT"
+                echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
                 exit 0
               fi
             fi
@@ -155,3 +159,9 @@ jobs:
 
           echo "::error::Could not persist Weekly risk exit after 5 attempts."
           exit 1
+
+      - name: Dispatch persisted Weekly risk transition to Web Push immediately
+        if: steps.commit.outputs.changed == 'true'
+        env:
+          PUSH_API: https://briefrooms-trading-push.szczerbinski0577.workers.dev
+        run: bash scripts/sync_trading_push_commit.sh "${{ steps.commit.outputs.sha }}" weekly
