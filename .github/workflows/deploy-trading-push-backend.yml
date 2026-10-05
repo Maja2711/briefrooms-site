@@ -73,6 +73,43 @@ jobs:
           curl --fail --silent --show-error --retry 5 --retry-delay 2 https://briefrooms-trading-push.szczerbinski0577.workers.dev/health -o /tmp/push-health.json
           node -e 'const fs=require("fs"); const j=JSON.parse(fs.readFileSync("/tmp/push-health.json","utf8")); if(!j.ok || !j.ready) { console.error(j); process.exit(1); } console.log(j)'
 
+      - name: Verify commit-bound Daily sync endpoint
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            curl --fail --silent --show-error \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/$GITHUB_REPOSITORY/commits/main" \
+              -o /tmp/main-head.json
+            sha=$(node -p "JSON.parse(require('fs').readFileSync('/tmp/main-head.json','utf8')).sha")
+            code=$(curl --silent --show-error \
+              -o /tmp/sync-daily.json \
+              -w "%{http_code}" \
+              -H "content-type: application/json" \
+              --data "{\"sha\":\"$sha\"}" \
+              https://briefrooms-trading-push.szczerbinski0577.workers.dev/sync-daily || true)
+            cat /tmp/sync-daily.json
+            if [ "$code" = "200" ]; then
+              node - <<'NODE'
+          const fs=require("fs");
+          const j=JSON.parse(fs.readFileSync("/tmp/sync-daily.json","utf8"));
+          const d=j.dispatch || {};
+          if (j.ok !== true || Number(d.failed || 0) !== 0 || Number(d.pending || 0) !== 0) {
+            console.error("COMMIT_BOUND_DAILY_SYNC_NOT_READY", j);
+            process.exit(1);
+          }
+          console.log("COMMIT_BOUND_DAILY_SYNC_OK", j.sha, j.status, j.event_id, d.sent || 0);
+          NODE
+              exit 0
+            fi
+            sleep "$attempt"
+          done
+          echo "Commit-bound Daily sync endpoint failed production verification" >&2
+          exit 1
+
       - name: Verify canonical production EURUSD 1m feed
         run: |
           set -euo pipefail
