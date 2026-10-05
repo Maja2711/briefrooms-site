@@ -270,17 +270,17 @@ async function githubJson(url) {
       "user-agent": "BriefRooms-Trading-Push/1.0",
     },
   });
-  if (!response.ok) throw new Error(\`github_http_\${response.status}:\${url}\`);
+  if (!response.ok) throw new Error(`github_http_${response.status}:${url}`);
   return response.json();
 }
 
 async function commitFileJson(sha, path, { optional = false } = {}) {
   const response = await fetch(
-    \`https://raw.githubusercontent.com/\${COMMIT_SYNC_REPO}/\${sha}/\${path}?_=\${Date.now()}\`,
+    `https://raw.githubusercontent.com/${COMMIT_SYNC_REPO}/${sha}/${path}?_=${Date.now()}`,
     { headers: { "cache-control": "no-cache", "accept": "application/json" } },
   );
   if (optional && response.status === 404) return null;
-  if (!response.ok) throw new Error(\`commit_file_http_\${response.status}:\${path}\`);
+  if (!response.ok) throw new Error(`commit_file_http_${response.status}:${path}`);
   return response.json();
 }
 
@@ -324,7 +324,7 @@ function dailyCommitSnapshot(payload) {
   if (position && String(position.status || "").toUpperCase() === "OPEN") {
     const direction = String(position.direction || "").toUpperCase();
     if (["LONG", "SHORT"].includes(direction)) {
-      const pid = String(position.trade_id || \`daily:\${position.opened_at}:\${direction}\`);
+      const pid = String(position.trade_id || `daily:${position.opened_at}:${direction}`);
       out.open.set(pid, commitPosition({
         engine: "daily",
         positionId: pid,
@@ -357,7 +357,7 @@ function dailyCommitSnapshot(payload) {
 function weeklyCommitPositionId(payload, row) {
   const weekId = String(payload?.week_id || "weekly");
   const instrumentId = String(row?.instrument_id || row?.symbol || "unknown");
-  return String(row?.position_id || \`\${weekId}:\${instrumentId}:\${row?.entry_captured_at || row?.entry_price}\`);
+  return String(row?.position_id || `${weekId}:${instrumentId}:${row?.entry_captured_at || row?.entry_price}`);
 }
 
 function weeklyCommitSnapshot(payload) {
@@ -402,7 +402,7 @@ function stockCommitSnapshot(payload) {
     if (!block || typeof block !== "object") continue;
     for (const row of Array.isArray(block.open_positions) ? block.open_positions : []) {
       if (!row || typeof row !== "object" || String(row.status || "OPEN").toUpperCase() !== "OPEN") continue;
-      const pid = String(row.position_id || \`\${market}:\${row.symbol}:\${row.opened_at}\`);
+      const pid = String(row.position_id || `${market}:${row.symbol}:${row.opened_at}`);
       out.open.set(pid, commitPosition({
         engine: "stock",
         positionId: pid,
@@ -415,7 +415,7 @@ function stockCommitSnapshot(payload) {
     }
     for (const row of Array.isArray(block.closed_positions) ? block.closed_positions : []) {
       if (!row || typeof row !== "object") continue;
-      const pid = String(row.position_id || \`\${market}:\${row.symbol}:\${row.opened_at}\`);
+      const pid = String(row.position_id || `${market}:${row.symbol}:${row.opened_at}`);
       out.closed.set(pid, commitPosition({
         engine: "stock",
         positionId: pid,
@@ -447,7 +447,7 @@ function transitionDescriptors(engine, before, after, observedAt = null) {
       engine,
       event_type: "OPEN",
       observed_at: after?.observed_at || observedAt,
-      source: \`persisted_\${engine}_commit_transition\`,
+      source: `persisted_${engine}_commit_transition`,
     });
   }
 
@@ -461,7 +461,7 @@ function transitionDescriptors(engine, before, after, observedAt = null) {
       event_type: "CLOSE",
       position_id: pid,
       observed_at: after?.observed_at || closed.closed_at || observedAt,
-      source: \`persisted_\${engine}_commit_transition\`,
+      source: `persisted_${engine}_commit_transition`,
     });
   }
   return events;
@@ -469,7 +469,7 @@ function transitionDescriptors(engine, before, after, observedAt = null) {
 
 async function latestWeeklyPayloadAtCommit(sha) {
   const rows = await githubJson(
-    \`https://api.github.com/repos/\${COMMIT_SYNC_REPO}/contents/data/investments/weekly?ref=\${encodeURIComponent(sha)}&_=\${Date.now()}\`,
+    `https://api.github.com/repos/${COMMIT_SYNC_REPO}/contents/data/investments/weekly?ref=${encodeURIComponent(sha)}&_=${Date.now()}`,
   );
   if (!Array.isArray(rows)) throw new Error("weekly_commit_directory_invalid");
   const candidates = rows
@@ -491,7 +491,7 @@ async function snapshotAtCommit(engine, sha) {
   if (engine === "stock") {
     return stockCommitSnapshot(await commitFileJson(sha, "data/investments/stock_trading_portfolio.json", { optional: true }));
   }
-  throw new Error(\`unsupported_commit_sync_engine:\${engine}\`);
+  throw new Error(`unsupported_commit_sync_engine:${engine}`);
 }
 
 function normalizedPrefs(input = {}) {
@@ -781,15 +781,15 @@ export class PushHub {
     if (!/^[0-9a-f]{40}$/.test(sha)) throw new Error("invalid_commit_sha");
 
     const [headPayload, targetPayload] = await Promise.all([
-      githubJson(\`https://api.github.com/repos/\${COMMIT_SYNC_REPO}/commits/main?_=\${Date.now()}\`),
-      githubJson(\`https://api.github.com/repos/\${COMMIT_SYNC_REPO}/commits/\${sha}?_=\${Date.now()}\`),
+      githubJson(`https://api.github.com/repos/${COMMIT_SYNC_REPO}/commits/main?_=${Date.now()}`),
+      githubJson(`https://api.github.com/repos/${COMMIT_SYNC_REPO}/commits/${sha}?_=${Date.now()}`),
     ]);
     const headSha = String(headPayload?.sha || "").toLowerCase();
     if (!headSha) throw new Error("github_main_head_missing");
 
     if (sha !== headSha) {
       const compare = await githubJson(
-        \`https://api.github.com/repos/\${COMMIT_SYNC_REPO}/compare/\${sha}...main?_=\${Date.now()}\`,
+        `https://api.github.com/repos/${COMMIT_SYNC_REPO}/compare/${sha}...main?_=${Date.now()}`,
       );
       const isAncestor = String(compare?.status || "") === "ahead" && Number(compare?.behind_by || 0) === 0;
       const committedAt = Date.parse(
@@ -798,7 +798,7 @@ export class PushHub {
       const ageMs = Date.now() - committedAt;
       const recent = Number.isFinite(committedAt) && ageMs >= -5 * 60_000 && ageMs <= 2 * 60 * 60_000;
       if (!isAncestor || !recent) {
-        throw new Error(\`commit_not_recent_main_ancestor:\${headSha}\`);
+        throw new Error(`commit_not_recent_main_ancestor:${headSha}`);
       }
     }
 
