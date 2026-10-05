@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Semantic Architecture Reconciliation 1.20 guard.
+"""Semantic Architecture Reconciliation 1.21 guard.
 
 Checks runtime facts that a version-only documentation check cannot protect:
 active phase/status, branch authority, Trigger wiring, WES NO_TRADE, and
@@ -154,9 +154,9 @@ require(legacy_closed_loop, "contents: read", "legacy closed loop")
 forbid(legacy_closed_loop, "Apply statistically proven autonomous policy calibration", "legacy closed loop")
 forbid(legacy_closed_loop, "git push origin HEAD:main", "legacy closed loop")
 
-for token in ("**Wersja mapy:** 1.20", "IN-08", "EP-09", "LE-10", "LE-11", "PROBATIONARY_CONTROL", "NO_TRADE", "FULL", "WES 1.2.0"):
+for token in ("**Wersja mapy:** 1.21", "IN-08", "EP-09", "LE-10", "LE-11", "PROBATIONARY_CONTROL", "NO_TRADE", "FULL", "WES 1.2.0"):
     require(pl_map, token, "PL Architecture Map")
-for token in ("**Map version:** 1.20", "IN-08", "EP-09", "LE-10", "LE-11", "PROBATIONARY_CONTROL", "NO_TRADE", "FULL", "WES 1.2.0"):
+for token in ("**Map version:** 1.21", "IN-08", "EP-09", "LE-10", "LE-11", "PROBATIONARY_CONTROL", "NO_TRADE", "FULL", "WES 1.2.0"):
     require(en_map, token, "EN Architecture Map")
 require(stock_doc, "PRODUCTION CHAMPION — FULL", "Stock Trading architecture")
 require(stock_doc, "Market Relationship / Trigger", "Stock Trading architecture")
@@ -175,6 +175,12 @@ daily_runtime = read("scripts/daily_eurusd_spot_v19.py")
 daily_decision = read("scripts/daily_eurusd_belief_decision.py")
 daily_workflow = read(".github/workflows/daily-eurusd-monitor.yml")
 daily_realtime_workflow = read(".github/workflows/daily-eurusd-realtime-lifecycle.yml")
+weekly_workflow = read(".github/workflows/investments-weekly.yml")
+weekly_wes_workflow = read(".github/workflows/investments-wes.yml")
+weekly_risk_workflow = read(".github/workflows/investments-exposure-watch.yml")
+stock_v2_workflow = read(".github/workflows/stock-trading-v2-production.yml")
+stock_portfolio_workflow = read(".github/workflows/stock-trading-portfolio.yml")
+push_sync_script = read("scripts/sync_trading_push_commit.sh")
 daily_fast_lifecycle = read("scripts/daily_eurusd_fast_lifecycle.py")
 trading_push_worker = read("workers/trading-push/src/index.js")
 belief_live_workflow = read(".github/workflows/belief-core-shadow-live.yml")
@@ -219,10 +225,27 @@ require(daily_fast_lifecycle, '"direction_authority": False', "Daily EURUSD real
 require(daily_fast_lifecycle, "v18._evaluate_position", "Daily EURUSD realtime lifecycle rule reuse")
 require(daily_realtime_workflow, "Watch persisted OPEN position every five seconds", "Daily EURUSD realtime workflow")
 require(daily_realtime_workflow, "scripts/daily_eurusd_realtime_watch.sh", "Daily EURUSD realtime workflow")
-require(daily_workflow, "/sync-daily", "Daily EURUSD immediate notification handoff")
+require(daily_workflow, "sync_trading_push_commit.sh", "Daily EURUSD immediate notification handoff")
+require(daily_workflow, "daily", "Daily EURUSD notification channel")
 require(daily_workflow, "daily-eurusd-realtime-lifecycle.yml", "Daily EURUSD watcher recovery")
-require(trading_push_worker, "async syncDailyCommit(commitSha)", "Trading push commit-bound sync")
-require(trading_push_worker, "direct_ingest_disabled_use_sync_daily", "Trading push injection boundary")
+require(trading_push_worker, "async syncTradingCommit(commitSha, requestedEngines)", "Trading push all-channel commit-bound sync")
+require(trading_push_worker, "transitionDescriptors", "Trading push exact commit-parent transition diff")
+require(trading_push_worker, "direct_ingest_disabled_use_commit_sync", "Trading push injection boundary")
+require(trading_push_worker, 'url.hostname === "internal" && path === "/ingest"', "Trading push internal-only recovery ingest")
+require(push_sync_script, "/sync-trading", "Shared trading push handoff")
+for workflow_text, label in (
+    (weekly_workflow, "Weekly maintenance immediate notification"),
+    (weekly_wes_workflow, "WES immediate notification"),
+    (weekly_risk_workflow, "Weekly risk immediate notification"),
+):
+    require(workflow_text, "sync_trading_push_commit.sh", label)
+    require(workflow_text, "weekly", label)
+for workflow_text, label in (
+    (stock_v2_workflow, "Stock v2 admission immediate notification"),
+    (stock_portfolio_workflow, "Stock portfolio lifecycle immediate notification"),
+):
+    require(workflow_text, "sync_trading_push_commit.sh", label)
+    require(workflow_text, "stock", label)
 require(belief_live_workflow, "belief_core_live.py", "Belief EURUSD live collector")
 forbid(daily_workflow, "python scripts/daily_eurusd_spot_v18.py", "Daily EURUSD production workflow")
 
@@ -246,9 +269,9 @@ for label, main_text, research_text in (
         errors.append(f"default-branch {label} drifted from research-branch runtime definition")
 
 if errors:
-    print("Architecture Reconciliation 1.20 FAILED:", file=sys.stderr)
+    print("Architecture Reconciliation 1.21 FAILED:", file=sys.stderr)
     for error in errors:
         print(f"- {error}", file=sys.stderr)
     raise SystemExit(1)
 
-print("Architecture Reconciliation 1.20 passed.")
+print("Architecture Reconciliation 1.21 passed.")
