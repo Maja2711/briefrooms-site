@@ -195,6 +195,84 @@ class GovernedWeeklyModelTests(unittest.TestCase):
         self.assertTrue(plan["market_entry_diagnostics"]["eligible"])
         self.assertEqual("strong_aligned_trend_continuation", plan["market_entry_reason"])
 
+    def test_wes_1_3_1_spx_like_signal_uses_composite_market_score(self):
+        decision = {
+            "direction": "long",
+            "utility": 14.1271,
+            "directional_admission": {"passed": True, "confirmations": 2},
+        }
+        fresh = {
+            "score": 29.0,
+            "data_quality": "passed",
+            "signals": {"ret5_pct": 0.2969, "ret20_pct": 0.6184},
+        }
+        weekly = {"score": 61.0, "data_quality": "passed"}
+        plan = {"inputs": {"overextension_score": 0.37031, "post_stop_reversal": False}}
+        policy = {
+            "directional_admission": {"daily_min_abs_score": 25, "weekly_min_abs_score": 15},
+            "entry_price_engine": {"market_entry": {
+                "enabled": True,
+                "version": "WES-1.3.1",
+                "min_selected_utility": 8,
+                "min_confirmations": 2,
+                "minimum_absolute_momentum_pct": 0.15,
+                "maximum_overextension_score": 0.90,
+                "require_at_least_one_trend_alignment": True,
+                "block_opposed_daily_or_weekly": True,
+                "block_opposed_momentum": True,
+                "block_immediate_market_after_stop": True,
+                "scoring": {
+                    "minimum_score": 0.70,
+                    "weights": {"daily": 0.25, "weekly": 0.25, "utility": 0.20, "confirmations": 0.15, "momentum": 0.15},
+                    "full_strength_reference": {"daily_abs_score": 55, "weekly_abs_score": 55, "utility": 14, "confirmations": 4},
+                    "overextension_penalty_weight": 0.20,
+                },
+            }},
+        }
+        eligible, diagnostics = v5._entry_market_mode(decision, fresh, weekly, policy, plan)
+        self.assertTrue(eligible)
+        self.assertGreaterEqual(diagnostics["market_score"], 0.70)
+        self.assertTrue(diagnostics["daily_aligned"])
+        self.assertTrue(diagnostics["weekly_aligned"])
+        self.assertTrue(diagnostics["momentum_aligned"])
+
+    def test_wes_1_3_1_persistent_limit_reaffirmation_never_moves_target(self):
+        now = datetime(2026, 10, 5, 9, 5, tzinfo=v5.legacy.TZ)
+        pending = {
+            "entry_price_plan": {
+                "execution_mode": "limit_pullback",
+                "target_price": 7747.8049694,
+                "expires_at": (now - timedelta(minutes=5)).isoformat(),
+            }
+        }
+        policy = {"entry_price_engine": {"persistent_plan": {
+            "enabled": True,
+            "reaffirmation_extension_minutes": 60,
+            "max_reaffirmation_gap_minutes": 20,
+        }}}
+        original_target = pending["entry_price_plan"]["target_price"]
+        self.assertTrue(v5.renew_persistent_entry_plan(pending, now, policy))
+        self.assertEqual(original_target, pending["entry_price_plan"]["target_price"])
+        self.assertEqual(1, pending["entry_price_plan"]["reaffirmation_count"])
+        self.assertGreater(v5.parse_dt(pending["entry_price_plan"]["expires_at"]), now)
+
+    def test_wes_1_3_1_stale_limit_plan_fails_closed_instead_of_reaffirming(self):
+        now = datetime(2026, 10, 5, 10, 0, tzinfo=v5.legacy.TZ)
+        pending = {
+            "entry_price_plan": {
+                "execution_mode": "limit_pullback",
+                "target_price": 100.0,
+                "expires_at": (now - timedelta(minutes=21)).isoformat(),
+            }
+        }
+        policy = {"entry_price_engine": {"persistent_plan": {
+            "enabled": True,
+            "reaffirmation_extension_minutes": 60,
+            "max_reaffirmation_gap_minutes": 20,
+        }}}
+        self.assertFalse(v5.renew_persistent_entry_plan(pending, now, policy))
+        self.assertEqual(100.0, pending["entry_price_plan"]["target_price"])
+
     def test_existing_limit_can_promote_to_market_when_same_trend_strengthens(self):
         now = datetime(2026, 10, 5, 8, 5, tzinfo=v5.legacy.TZ)
         item = {
