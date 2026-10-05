@@ -2,34 +2,130 @@ name: L3-A Experience Value Settlement
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/l3a_settlement.py"
+      - "scripts/l3a_experience_lineage.py"
+      - "tests/test_l3a_executor_e2e.py"
+      - ".github/workflows/l3a-experience-value-settlement.yml"
   workflow_run:
-    workflows: ["Belief Core Calibration"]
+    workflows: ["Belief Calibration Foundation"]
     types: [completed]
 
 permissions:
   contents: read
-  actions: read
+  actions: write
+
+concurrency:
+  group: belief-core-live-shadow
+  cancel-in-progress: false
+
+env:
+  BELIEF_ARTIFACT_NAME: belief-core-shadow-state
 
 jobs:
-  validate-lineage:
+  settle:
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: $GITHUB_WORKSPACE/scripts:$GITHUB_WORKSPACE
+
     steps:
       - uses: actions/checkout@v4
-        with: {ref: main}
+        with:
+          ref: main
       - uses: actions/setup-python@v5
-        with: {python-version: "3.12"}
-      - name: Validate complete L3-A lineage contract
+        with:
+          python-version: "3.12"
+
+      - name: Validate settlement contracts
         run: |
-          python -m unittest tests.test_belief_question_engine tests.test_l3_experience_acquisition tests.test_l3a_experience_lineage -v
-          python - <<'PY'
-          from scripts.l3a_experience_lineage import attribution, forecast_metadata, settle
-          i={"intent_id":"demo-intent","question_id":"demo-question","belief_id":"demo-belief"}
-          a=attribution(i,evidence_ids=["evidence-1"],p_before=.45,p_after=.60,forecast_id="forecast-1")
-          m=forecast_metadata(i,a)
-          s=settle(a,{"verification_id":"verify-1","forecast_id":"forecast-1","outcome":True,"brier_score":.16,"log_loss":.51})
-          assert m["l3_question_id"]=="demo-question"
-          assert s["future_metrics"]["brier_gain_vs_pre_research"] > 0
-          print("L3-A E2E lineage contract: PASS")
+          python -m py_compile scripts/l3a_experience_lineage.py scripts/l3a_research_executor.py scripts/l3a_settlement.py
+          python -m unittest tests.test_l3a_experience_lineage tests.test_l3a_executor_e2e -v
+
+      - name: Prepare state path
+        run: |
+          echo "STATE_DIR=$RUNNER_TEMP/belief_core_state" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/belief_core_state" "$RUNNER_TEMP/belief-artifact"
+
+      - name: Restore triggering calibrated Belief state
+        if: github.event_name == 'workflow_run'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/artifacts?per_page=100" > "$RUNNER_TEMP/a.json"
+          id=$(python - "$RUNNER_TEMP/a.json" <<'PY'
+          import json,sys
+          from pathlib import Path
+          rows=json.loads(Path(sys.argv[1]).read_text()).get("artifacts",[])
+          rows=[x for x in rows if x.get("name")=="belief-core-shadow-state" and not x.get("expired")]
+          print(rows[0]["id"] if rows else "")
           PY
+          )
+          test -n "$id"
+          curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/$id/zip" -o "$RUNNER_TEMP/state.zip"
+          unzip -q "$RUNNER_TEMP/state.zip" -d "$RUNNER_TEMP/belief-artifact"
+          test -f "$RUNNER_TEMP/belief-artifact/belief-core-state.tgz"
+          tar -xzf "$RUNNER_TEMP/belief-artifact/belief-core-state.tgz" -C "$STATE_DIR"
+
+      - name: Restore latest Belief state for manual or push run
+        if: github.event_name != 'workflow_run'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${BELIEF_ARTIFACT_NAME}&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/a.json"
+          id=$(python - "$RUNNER_TEMP/a.json" <<'PY'
+          import json,sys
+          from pathlib import Path
+          rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get("artifacts",[]) if not x.get("expired")]
+          rows.sort(key=lambda x:x.get("created_at",""),reverse=True)
+          print(rows[0]["id"] if rows else "")
+          PY
+          )
+          test -n "$id"
+          curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/$id/zip" -o "$RUNNER_TEMP/state.zip"
+          unzip -q "$RUNNER_TEMP/state.zip" -d "$RUNNER_TEMP/belief-artifact"
+          test -f "$RUNNER_TEMP/belief-artifact/belief-core-state.tgz"
+          tar -xzf "$RUNNER_TEMP/belief-artifact/belief-core-state.tgz" -C "$STATE_DIR"
+
+      - name: Settle L3-A only from real Verification rows
+        run: |
+          python scripts/l3a_settlement.py --state-dir "$STATE_DIR" --output "$RUNNER_TEMP/L3A_SETTLEMENT_SUMMARY.json"
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          path=Path(os.environ["STATE_DIR"])/"L3A_EXPERIENCE_STATE.json"
+          p=json.loads(path.read_text()) if path.exists() else {"records":[]}
+          for r in p["records"]:
+              if r.get("research_result_status")=="SETTLED":
+                  fm=r["future_metrics"]
+                  assert fm["verification_id"]
+                  assert fm["brier_score"] is not None
+                  assert fm["pre_research_counterfactual_brier"] is not None
+                  assert fm["brier_gain_vs_pre_research"] is not None
+          print("L3-A real Verification settlement contract PASS")
+          PY
+
+      - name: Pack settled cumulative state
+        run: tar -czf "$RUNNER_TEMP/belief-core-state.tgz" -C "$STATE_DIR" .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: belief-core-shadow-state
+          path: ${{ runner.temp }}/belief-core-state.tgz
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: l3a-experience-value-settlement
+          path: ${{ runner.temp }}/L3A_SETTLEMENT_SUMMARY.json
+          if-no-files-found: error
+          retention-days: 30
