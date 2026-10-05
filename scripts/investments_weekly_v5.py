@@ -20,7 +20,7 @@ METHOD = ROOT / "data/investments/methodology.json"
 POLICY = ROOT / "data/investments/multi_instrument_exposure_policy.json"
 STATE = ROOT / "data/investments/multi_instrument_exposure_state_v5.json"
 REPORT = ROOT / "data/investments/multi_instrument_exposure_report_v5.json"
-VERSION = "5.9.0-experimental"
+VERSION = "5.9.1-experimental"
 
 read, write, sf, parse_dt = v4.read, v4.write, v2.sf, v2.parse_dt
 
@@ -282,15 +282,18 @@ def _entry_market_mode(
     policy: Dict[str, Any],
     entry_plan: Optional[Dict[str, Any]] = None,
 ) -> Tuple[bool, Dict[str, Any]]:
-    """Choose MARKET only for a strong, aligned continuation setup.
+    """Score MARKET vs LIMIT after the directional thesis is already authorized.
 
-    Directional admission remains the authority for whether WES may trade.
-    This layer only decides *how* to execute an already-authorized thesis:
-    take the first fresh completed 5m market bar when trend continuation is
-    strong, otherwise keep the price-improving frozen limit plan.
+    WES 1.3.1 does not require one arbitrary Daily threshold. Strong Weekly,
+    utility, confirmations and aligned momentum may compensate for a merely
+    moderate Daily score. Hard vetoes remain for genuinely conflicting evidence,
+    excessive overextension, post-stop chase and missing admission authority.
     """
     engine = policy.get("entry_price_engine") if isinstance(policy.get("entry_price_engine"), dict) else {}
     cfg = engine.get("market_entry") if isinstance(engine.get("market_entry"), dict) else {}
+    scoring = cfg.get("scoring") if isinstance(cfg.get("scoring"), dict) else {}
+    directional_cfg = policy.get("directional_admission") if isinstance(policy.get("directional_admission"), dict) else {}
+
     direction = str(decision.get("direction") or "neutral")
     daily_score = float(fresh.get("score") or 0.0)
     weekly_score = float(weekly.get("score") or 0.0) if weekly.get("data_quality") == "passed" else 0.0
@@ -302,33 +305,76 @@ def _entry_market_mode(
     ret5 = sf(signals.get("ret5_pct"))
     ret20 = sf(signals.get("ret20_pct"))
     momentum_floor = abs(float(cfg.get("minimum_absolute_momentum_pct") or 0.15))
-    daily_floor = abs(float(cfg.get("min_daily_abs_score") or 55.0))
-    weekly_floor = abs(float(cfg.get("min_weekly_abs_score") or 20.0))
     utility_floor = float(cfg.get("min_selected_utility") or 8.0)
     confirmations_floor = int(cfg.get("min_confirmations") or 2)
     max_overextension = float(cfg.get("maximum_overextension_score") or 0.90)
 
-    daily_aligned = (
-        fresh.get("data_quality") == "passed"
-        and _direction_from_score(daily_score) == direction
-        and abs(daily_score) >= daily_floor
+    daily_dir = _direction_from_score(daily_score)
+    weekly_dir = _direction_from_score(weekly_score)
+    daily_valid = fresh.get("data_quality") == "passed"
+    weekly_valid = weekly.get("data_quality") == "passed"
+    daily_confirmation_floor = float(directional_cfg.get("daily_min_abs_score") or 25.0)
+    weekly_confirmation_floor = float(directional_cfg.get("weekly_min_abs_score") or 15.0)
+
+    daily_aligned = daily_valid and daily_dir == direction
+    weekly_aligned = weekly_valid and weekly_dir == direction
+    daily_opposed = (
+        daily_valid
+        and daily_dir in {"long", "short"}
+        and daily_dir != direction
+        and abs(daily_score) >= daily_confirmation_floor
     )
-    weekly_aligned = (
-        weekly.get("data_quality") == "passed"
-        and _direction_from_score(weekly_score) == direction
-        and abs(weekly_score) >= weekly_floor
+    weekly_opposed = (
+        weekly_valid
+        and weekly_dir in {"long", "short"}
+        and weekly_dir != direction
+        and abs(weekly_score) >= weekly_confirmation_floor
     )
+
     momentum_aligned = False
+    momentum_opposed = False
     if ret5 is not None and ret20 is not None:
         if direction == "long":
             momentum_aligned = ret5 >= momentum_floor and ret20 >= momentum_floor
+            momentum_opposed = ret5 <= -momentum_floor and ret20 <= -momentum_floor
         elif direction == "short":
             momentum_aligned = ret5 <= -momentum_floor and ret20 <= -momentum_floor
+            momentum_opposed = ret5 >= momentum_floor and ret20 >= momentum_floor
 
     inputs = (entry_plan or {}).get("inputs") if isinstance((entry_plan or {}).get("inputs"), dict) else {}
     overextension = sf(inputs.get("overextension_score"))
     post_stop_reversal = bool(inputs.get("post_stop_reversal"))
-    overextension_ok = overextension is None or overextension <= max_overextension
+    overextension_value = _clip(float(overextension or 0.0), 0.0, 1.0)
+
+    refs = scoring.get("full_strength_reference") if isinstance(scoring.get("full_strength_reference"), dict) else {}
+    daily_ref = max(1.0, float(refs.get("daily_abs_score") or 55.0))
+    weekly_ref = max(1.0, float(refs.get("weekly_abs_score") or 55.0))
+    utility_ref = max(0.1, float(refs.get("utility") or 14.0))
+    confirmations_ref = max(1.0, float(refs.get("confirmations") or 4.0))
+
+    daily_strength = _clip(abs(daily_score) / daily_ref, 0.0, 1.0) if daily_aligned else 0.0
+    weekly_strength = _clip(abs(weekly_score) / weekly_ref, 0.0, 1.0) if weekly_aligned else 0.0
+    utility_strength = _clip(utility / utility_ref, 0.0, 1.0)
+    confirmations_strength = _clip(confirmations / confirmations_ref, 0.0, 1.0)
+    momentum_strength = 1.0 if momentum_aligned else 0.0 if momentum_opposed else 0.5
+
+    weights = scoring.get("weights") if isinstance(scoring.get("weights"), dict) else {}
+    w_daily = max(0.0, float(weights.get("daily") or 0.25))
+    w_weekly = max(0.0, float(weights.get("weekly") or 0.25))
+    w_utility = max(0.0, float(weights.get("utility") or 0.20))
+    w_confirmations = max(0.0, float(weights.get("confirmations") or 0.15))
+    w_momentum = max(0.0, float(weights.get("momentum") or 0.15))
+    weight_total = max(0.0001, w_daily + w_weekly + w_utility + w_confirmations + w_momentum)
+    gross_score = (
+        w_daily * daily_strength
+        + w_weekly * weekly_strength
+        + w_utility * utility_strength
+        + w_confirmations * confirmations_strength
+        + w_momentum * momentum_strength
+    ) / weight_total
+    penalty_weight = max(0.0, float(scoring.get("overextension_penalty_weight") or 0.20))
+    market_score = _clip(gross_score - penalty_weight * overextension_value, 0.0, 1.0)
+    minimum_market_score = _clip(float(scoring.get("minimum_score") or 0.70), 0.0, 1.0)
 
     reasons: list[str] = []
     if direction not in {"long", "short"}:
@@ -337,23 +383,27 @@ def _entry_market_mode(
         reasons.append("market_entry_disabled")
     if admission.get("passed") is not True:
         reasons.append("directional_admission_not_passed")
-    if not daily_aligned:
-        reasons.append("daily_trend_not_strong_aligned")
-    if cfg.get("require_daily_weekly_alignment", True) and not weekly_aligned:
-        reasons.append("weekly_trend_not_strong_aligned")
-    if cfg.get("require_momentum_alignment", True) and not momentum_aligned:
-        reasons.append("momentum_not_aligned")
     if confirmations < confirmations_floor:
         reasons.append("insufficient_confirmations_for_market_entry")
     if utility < utility_floor:
         reasons.append("selected_utility_below_market_entry_floor")
-    if not overextension_ok:
+    if cfg.get("require_at_least_one_trend_alignment", True) and not (daily_aligned or weekly_aligned):
+        reasons.append("no_aligned_daily_or_weekly_trend")
+    if cfg.get("block_opposed_daily_or_weekly", True) and daily_opposed:
+        reasons.append("daily_trend_opposes_market_entry")
+    if cfg.get("block_opposed_daily_or_weekly", True) and weekly_opposed:
+        reasons.append("weekly_trend_opposes_market_entry")
+    if cfg.get("block_opposed_momentum", True) and momentum_opposed:
+        reasons.append("momentum_opposes_market_entry")
+    if overextension is not None and overextension > max_overextension:
         reasons.append("too_overextended_for_market_entry")
     if post_stop_reversal and cfg.get("block_immediate_market_after_stop", True):
         reasons.append("post_stop_reversal_requires_pullback")
+    if market_score < minimum_market_score:
+        reasons.append("market_score_below_threshold")
 
     diagnostics = {
-        "version": str(cfg.get("version") or "WES-1.3.0"),
+        "version": str(cfg.get("version") or "WES-1.3.1"),
         "direction": direction,
         "daily_score": round(daily_score, 4),
         "weekly_score": round(weekly_score, 4),
@@ -364,11 +414,60 @@ def _entry_market_mode(
         "overextension_score": overextension,
         "daily_aligned": daily_aligned,
         "weekly_aligned": weekly_aligned,
+        "daily_opposed": daily_opposed,
+        "weekly_opposed": weekly_opposed,
         "momentum_aligned": momentum_aligned,
+        "momentum_opposed": momentum_opposed,
+        "score_components": {
+            "daily": round(daily_strength, 4),
+            "weekly": round(weekly_strength, 4),
+            "utility": round(utility_strength, 4),
+            "confirmations": round(confirmations_strength, 4),
+            "momentum": round(momentum_strength, 4),
+        },
+        "gross_market_score": round(gross_score, 4),
+        "overextension_penalty": round(penalty_weight * overextension_value, 4),
+        "market_score": round(market_score, 4),
+        "minimum_market_score": round(minimum_market_score, 4),
         "eligible": not reasons,
         "reasons": reasons,
     }
     return not reasons, diagnostics
+
+
+def renew_persistent_entry_plan(
+    pending: Dict[str, Any],
+    now: datetime,
+    policy: Dict[str, Any],
+) -> bool:
+    """Reaffirm the same frozen LIMIT without moving its target.
+
+    Renewal is allowed only within a bounded liveness gap. This keeps a valid
+    thesis executable across repeated WES cycles while failing closed if WES
+    itself stops running for too long.
+    """
+    engine = policy.get("entry_price_engine") if isinstance(policy.get("entry_price_engine"), dict) else {}
+    cfg = engine.get("persistent_plan") if isinstance(engine.get("persistent_plan"), dict) else {}
+    if not cfg.get("enabled", True):
+        return False
+    plan = pending.get("entry_price_plan") if isinstance(pending.get("entry_price_plan"), dict) else {}
+    if not plan or str(plan.get("execution_mode") or "limit_pullback") != "limit_pullback":
+        return False
+    expires = parse_dt(plan.get("expires_at"))
+    if expires is None:
+        return False
+    max_gap = max(5, int(cfg.get("max_reaffirmation_gap_minutes") or 20))
+    if now > expires + timedelta(minutes=max_gap):
+        return False
+    extension = max(15, int(cfg.get("reaffirmation_extension_minutes") or 60))
+    desired_expiry = now + timedelta(minutes=extension)
+    if desired_expiry > expires:
+        plan["expires_at"] = desired_expiry.isoformat(timespec="seconds")
+    plan["last_reaffirmed_at"] = now.isoformat(timespec="seconds")
+    plan["reaffirmation_count"] = int(plan.get("reaffirmation_count") or 0) + 1
+    plan["persistence_policy"] = "same_thesis_reaffirmation_extends_time_only_never_moves_frozen_target"
+    pending["entry_price_plan"] = plan
+    return True
 
 
 def _promote_plan_to_market_now(
@@ -437,7 +536,7 @@ def build_entry_price_plan(
 ) -> Optional[Dict[str, Any]]:
     """Freeze the desired entry price before execution.
 
-    WES 1.2 deliberately separates directional admission from price execution.
+    WES 1.3.1 separates directional admission from adaptive execution.
     A valid LONG/SHORT thesis may remain WAIT indefinitely until the frozen
     price is touched or the plan expires.
     """
@@ -532,7 +631,7 @@ def build_entry_price_plan(
     expires_at = now + timedelta(minutes=wait_minutes)
 
     return {
-        "version": str(cfg.get("version") or "WES-1.3.0"),
+        "version": str(cfg.get("version") or "WES-1.3.1"),
         "frozen_at": now.isoformat(timespec="seconds"),
         "instrument_id": iid,
         "direction": direction,
@@ -576,7 +675,7 @@ def freeze_decision(
     frozen.update(decided_at=now.isoformat(timespec="seconds"), validation_gate=item.get("validation_gate"))
     entry_plan = build_entry_price_plan(item, frozen, fresh, now, policy)
     if (policy.get("entry_price_engine") or {}).get("require_for_all_new_entries", True) and entry_plan is None:
-        raise RuntimeError("WES 1.3 entry price plan could not be frozen")
+        raise RuntimeError("WES 1.3.1 entry price plan could not be frozen")
     if entry_plan is not None:
         market_now, diagnostics = _entry_market_mode(frozen, fresh, weekly, policy, entry_plan)
         entry_plan["market_entry_diagnostics"] = diagnostics
