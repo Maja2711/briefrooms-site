@@ -371,12 +371,12 @@ function weeklyCommitSnapshot(payload) {
     const direction = String(row.direction || "").toLowerCase();
     const entry = row.entry_price;
     const exitPrice = row.exit_price;
-    const hasVerifiedEntry = finiteNumber(entry) != null && ["long", "short"].includes(direction);
-    const isOpen = hasVerifiedEntry && (
-      ["open", "opened", "active", "holding"].includes(status) || (
-        exitPrice == null && !["pending", "planned", "no_trade", "closed", "cancelled", "expired_no_entry"].includes(status)
-      )
-    );
+    const hasVerifiedEntry = finiteNumber(entry) != null
+      && Boolean(row.entry_captured_at)
+      && ["long", "short"].includes(direction);
+    // Fail closed: a planned/pending price or an incomplete row is never a real fill.
+    // Commit-bound OPEN requires both a verified fill timestamp and an explicit active status.
+    const isOpen = hasVerifiedEntry && ["open", "opened", "active", "holding"].includes(status);
     const pid = weeklyCommitPositionId(payload, row);
     const label = row.label_pl || row.label_en || row.symbol || row.instrument_id || pid;
     const base = commitPosition({
@@ -457,7 +457,10 @@ function transitionDescriptors(engine, before, after, observedAt = null) {
 
   for (const [pid, prior] of beforeOpen.entries()) {
     if (afterOpen.has(pid)) continue;
-    const closed = afterClosed.get(pid) || {};
+    const closed = afterClosed.get(pid);
+    // Fail closed: disappearance alone is not proof of execution. Rollover,
+    // partial writes or a malformed snapshot must never fabricate a CLOSE push.
+    if (!closed || !closed.closed_at) continue;
     events.push({
       ...prior,
       ...closed,
