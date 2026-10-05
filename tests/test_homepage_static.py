@@ -143,6 +143,17 @@ class HomepageStaticTests(unittest.TestCase):
             output,
         )
 
+    def test_newsroom_ai_crypto_tab_exists_after_sport(self) -> None:
+        cases = (
+            ("pl", "aktualnosci.html", "#sport", "#ai-technologia-krypto"),
+            ("en", "news.html", "#sport", "#ai-technology-crypto"),
+        )
+        for lang, filename, sport_href, ai_href in cases:
+            source = (ROOT / lang / filename).read_text(encoding="utf-8")
+            sport = source.index(f'href="{sport_href}"')
+            ai = source.index(f'href="{ai_href}"')
+            self.assertGreater(ai, sport, lang)
+
     def test_repository_homepages_have_balanced_html(self) -> None:
         for lang in ("pl", "en"):
             parser = BalancedHTMLParser()
