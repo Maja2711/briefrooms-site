@@ -368,10 +368,14 @@ function weeklyCommitSnapshot(payload) {
   for (const row of rows) {
     if (!row || typeof row !== "object") continue;
     const status = String(row.trade_status || "").toLowerCase();
+    const direction = String(row.direction || "").toLowerCase();
     const entry = row.entry_price;
     const exitPrice = row.exit_price;
-    const isOpen = ["open", "opened", "active", "holding"].includes(status) || (
-      entry != null && exitPrice == null && !["pending", "planned", "no_trade", "closed", "cancelled", "expired_no_entry"].includes(status)
+    const hasVerifiedEntry = finiteNumber(entry) != null && ["long", "short"].includes(direction);
+    const isOpen = hasVerifiedEntry && (
+      ["open", "opened", "active", "holding"].includes(status) || (
+        exitPrice == null && !["pending", "planned", "no_trade", "closed", "cancelled", "expired_no_entry"].includes(status)
+      )
     );
     const pid = weeklyCommitPositionId(payload, row);
     const label = row.label_pl || row.label_en || row.symbol || row.instrument_id || pid;
