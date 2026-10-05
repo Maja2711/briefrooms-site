@@ -49,7 +49,7 @@ The frontend registers `br-trading-sw.js`, fetches the public VAPID key from the
 
 The private VAPID key never reaches GitHub Pages or the public repository. It is generated and stored as a Cloudflare Worker Secret.
 
-The Worker polls the canonical `data/notifications/trading-events.json` feed every minute, deduplicates by `event_id`, and sends only to matching subscriptions. Initial startup is seed-only, so historical events are not sent.
+For Daily EUR/USD the production path is immediate and bound to a specific persisted state: after a successful OPEN/CLOSE write, the workflow calls `/sync-daily` and sends only the commit SHA. The Worker verifies through the GitHub API that the SHA is the current `main` head, fetches `eurusd_daily_spot.json` from that exact commit, builds the deterministic event, and immediately sends Web Push. This keeps the notification layer from guessing market state or waiting for the next poll. Public direct `/ingest` is disabled. Minute polling of the canonical `data/notifications/trading-events.json` feed remains a recovery mechanism for all channels. Initial startup is seed-only, so historical events are not sent.
 
 A push-backend failure cannot affect TR-03/TR-04/TR-05 or any execution/risk/decision path.
 
