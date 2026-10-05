@@ -1,5 +1,5 @@
 {
-  "policy_version": "5.9.0",
+  "policy_version": "5.9.1",
   "name": "BriefRooms governed multi-instrument weekly paper exposure",
   "status": "experimental_paper_trading_only",
   "enabled": true,
@@ -258,7 +258,7 @@
     "threshold_mutation_allowed": false
   },
   "directional_admission": {
-    "version": "WES-1.3.0",
+    "version": "WES-1.3.1",
     "enabled": true,
     "require_for_all_new_entries": true,
     "authorization_ttl_minutes": 60,
@@ -273,10 +273,17 @@
       "confirmations": 2,
       "delta": 0
     },
-    "rule": "Every new entry requires WES directional admission for the exact execution-authorized method and direction. Admission authorizes the thesis. WES 1.3 then chooses execution style: strong aligned continuation may use a fresh post-decision 5m MARKET entry; otherwise WES freezes a price-improving pullback LIMIT. If Daily and Weekly are both valid, aligned and opposite to the proposed trade, admission is blocked."
+    "rule": "Every new entry requires WES directional admission for the exact execution-authorized method and direction. Admission authorizes the thesis. WES 1.3.1 keeps delta for ordinary trigger improvement but permits a scaled absolute-strength bypass when Daily and Weekly jointly confirm an already very strong signal. Execution style is selected separately by the scored MARKET/LIMIT engine.",
+    "absolute_strength_delta_bypass": {
+      "enabled": true,
+      "raw_multiplier": 1.3,
+      "utility_multiplier": 1.3,
+      "require_daily_weekly_confirmation": true,
+      "rule": "Delta remains required for ordinary trigger improvement. It is bypassed only when the absolute signal is at least 1.30x the active raw and utility trigger thresholds, directional admission passes, the active confirmation count is met, and Daily plus Weekly both confirm the direction. Because thresholds scale from the active trigger profile, the bypass tightens automatically later in the week."
+    }
   },
   "entry_price_engine": {
-    "version": "WES-1.3.0",
+    "version": "WES-1.3.1",
     "enabled": true,
     "require_for_all_new_entries": true,
     "order_style": "adaptive_market_or_price_improving_limit",
@@ -302,25 +309,49 @@
       "btcusd": 3.5
     },
     "missing_atr_policy": "NO_ENTRY",
-    "target_refresh_policy": "keep_limit_frozen_until_filled_expired_thesis_changes_or_same_thesis_is_promoted_to_market",
-    "fill_rule": "MARKET mode fills only on a fresh completed post-decision 5m bar verified by EPE. LIMIT mode fills only when the frozen target is touched after the decision. No analytical or retroactive price may be fabricated.",
-    "rule": "Direction and execution style are separate decisions. Strong, aligned continuation may enter on a fresh completed 5m market bar so WES does not remain outside a correctly identified runaway trend. Less decisive or more extended setups keep a deterministic price-improving pullback target. Existing frozen LIMIT plans may only escalate one-way to MARKET when the same authorized thesis strengthens; they are never chased by repeatedly moving the limit.",
+    "target_refresh_policy": "keep_limit_price_frozen_reaffirm_time_only_cancel_on_thesis_break_or_promote_same_thesis_to_market",
+    "fill_rule": "MARKET mode fills only on a fresh completed post-decision 5m bar verified by EPE. LIMIT mode fills only when the frozen target is touched. Persistent LIMIT reaffirmation may extend time but may never move the frozen target. No analytical or retroactive price may be fabricated.",
+    "rule": "Direction and execution style are separate decisions. WES 1.3.1 uses a scored MARKET/LIMIT engine so a strong aligned trend is not blocked by one arbitrary Daily threshold. Persistent LIMIT plans keep their original price while the same thesis is reaffirmed, can promote one-way to MARKET when continuation strengthens, and are cancelled when the thesis fails.",
     "market_entry": {
-      "version": "WES-1.3.0",
+      "version": "WES-1.3.1",
       "enabled": true,
       "max_wait_minutes": 15,
-      "min_daily_abs_score": 55,
-      "min_weekly_abs_score": 20,
       "min_selected_utility": 8,
       "min_confirmations": 2,
       "minimum_absolute_momentum_pct": 0.15,
-      "require_daily_weekly_alignment": true,
-      "require_momentum_alignment": true,
       "maximum_overextension_score": 0.9,
       "block_immediate_market_after_stop": true,
       "allow_limit_to_market_promotion": true,
       "execution_price": "freshest_completed_5m_close_after_authorization",
-      "rule": "Use MARKET only when an already-authorized LONG/SHORT thesis has strong aligned Daily and Weekly trend, aligned 5d/20d momentum, sufficient utility/confirmations and is not excessively overextended. Otherwise use the frozen pullback LIMIT. A still-authorized LIMIT may be promoted one-way to MARKET if these strong-trend conditions become true while waiting."
+      "rule": "MARKET vs LIMIT is decided by a composite continuation score after directional admission. Daily and Weekly strength, utility, confirmations and momentum contribute positively; overextension is penalized. Opposed Daily/Weekly evidence, opposed momentum, excessive overextension and immediate post-stop chase remain hard vetoes. A valid LIMIT may promote one-way to MARKET when the same thesis later reaches the MARKET score.",
+      "require_at_least_one_trend_alignment": true,
+      "block_opposed_daily_or_weekly": true,
+      "block_opposed_momentum": true,
+      "scoring": {
+        "minimum_score": 0.7,
+        "weights": {
+          "daily": 0.25,
+          "weekly": 0.25,
+          "utility": 0.2,
+          "confirmations": 0.15,
+          "momentum": 0.15
+        },
+        "full_strength_reference": {
+          "daily_abs_score": 55,
+          "weekly_abs_score": 55,
+          "utility": 14,
+          "confirmations": 4
+        },
+        "overextension_penalty_weight": 0.2
+      }
+    },
+    "persistent_plan": {
+      "enabled": true,
+      "reaffirmation_extension_minutes": 60,
+      "max_reaffirmation_gap_minutes": 20,
+      "preserve_frozen_target": true,
+      "require_same_direction_and_strategy": true,
+      "rule": "A valid unfilled LIMIT survives repeated WES cycles while the same execution-authorized thesis still clears the base raw, utility, confirmation and directional-admission gates. Reaffirmation extends time only; it never moves the frozen target. A plan that is not reaffirmed within the bounded liveness gap fails closed."
     }
   }
 }
