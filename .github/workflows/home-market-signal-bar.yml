@@ -46,8 +46,8 @@ jobs:
           python -m py_compile scripts/install_home_market_signal_bar.py
           python scripts/install_home_market_signal_bar.py
           python scripts/install_home_market_signal_bar.py --check
-          grep -q 'home-market-signal-v6.js?v=7' pl/index.html
-          grep -q 'home-market-signal-v6.js?v=7' en/index.html
+          grep -q 'home-market-signal-v6.js?v=8' pl/index.html
+          grep -q 'home-market-signal-v6.js?v=8' en/index.html
           grep -q 'home-intelligence-layout.js?v=2' pl/index.html
           grep -q 'BriefRooms Stock Trading · OPEN' scripts/home-intelligence-layout.js
           ! grep -q 'home-market-signal-guard-v1.js' pl/index.html
@@ -110,7 +110,7 @@ jobs:
                       with urllib.request.urlopen(req,timeout=20) as r:
                           body=r.read().decode('utf-8',errors='replace')
                       page_ok=(
-                          '/scripts/home-market-signal-v6.js?v=7' in body
+                          '/scripts/home-market-signal-v6.js?v=8' in body
                           and '/scripts/home-intelligence-layout.js?v=2' in body
                           and 'home-market-signal-guard-v1.js' not in body
                           and 'home-weekly-top-position.js' not in body
