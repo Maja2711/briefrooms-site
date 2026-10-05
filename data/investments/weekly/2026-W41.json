@@ -24,7 +24,7 @@
       "symbol": "EURUSD=X",
       "label_pl": "EUR/USD",
       "label_en": "EUR/USD",
-      "direction": "short",
+      "direction": "neutral",
       "score": -73,
       "signal_strength": 0.73,
       "confidence": 0.73,
@@ -74,7 +74,7 @@
       "entry_captured_at": null,
       "entry_source": null,
       "entry_quality_status": "not_due",
-      "trade_status": "planned",
+      "trade_status": "no_trade",
       "risk_plan": null,
       "exit_price": null,
       "exit_captured_at": null,
@@ -84,12 +84,14 @@
       "result_value": null,
       "result_percent": null,
       "rationale_pl": [
+        "NO TRADE — obserwuję trigger do otwarcia pozycji. WES otworzy pozycję tylko po nowym, wystarczająco silnym i potwierdzonym sygnale; nic na siłę.",
         "Model v2.0.0: short / spadek.",
         "Score -73; progi: long 35, short -35.",
         "Siła sygnału jest wskaźnikiem heurystycznym, a nie prawdopodobieństwem powodzenia.",
         "Zmienność wpływa na score i poziomy ryzyka zapisane przed otwarciem."
       ],
       "rationale_en": [
+        "NO TRADE — monitoring for an entry trigger. WES will open only after a new, sufficiently strong and confirmed signal; no forced exposure.",
         "Model v2.0.0: short / bearish.",
         "Score -73; thresholds: long 35, short -35.",
         "Signal strength is heuristic, not a probability of success.",
@@ -101,23 +103,38 @@
       "wes_initial_admission_evaluated": true,
       "wes_initial_admission_at": "2026-10-05T00:00:51+02:00",
       "reentry_lock": {
-        "active": false,
-        "scope": "wes_directional_admission",
-        "released_at": "2026-10-05T00:00:51+02:00",
-        "reason": "wes_1_1_directional_admission_qualified"
+        "active": true,
+        "scope": "wes_no_trade_monitoring",
+        "until": "2026-10-09T22:00:00+02:00",
+        "reason": "wes_waiting_for_qualified_trigger",
+        "policy": "NO_TRADE remains active monitoring, not forced exposure"
       },
-      "wes_status": "initial_directional_admission_authorized",
-      "wes_entry_authorization": {
-        "authorized_at": "2026-10-05T00:00:51+02:00",
-        "expires_at": "2026-10-05T01:00:51+02:00",
-        "authorization_type": "initial_weekly_entry",
-        "directional_admission_passed": true,
-        "candidate": {
+      "wes_status": "no_trade_monitoring_trigger",
+      "wes_entry_authorization": null,
+      "wes_initial_no_trade_score": 73.0,
+      "pending_entry_decision": null,
+      "next_entry_status": "no_trade",
+      "continuous_exposure_active": false,
+      "continuous_exposure_status": "no_trade",
+      "wes_last_review_at": "2026-10-05T02:07:54+02:00",
+      "wes_trigger_candidate": {
+        "direction": "short",
+        "strategy_id": "base_v2",
+        "raw_score": 75.0,
+        "utility": 14.3647,
+        "signal_delta_from_initial": 2.0,
+        "confirmations": 4,
+        "confirmation_sources": [
+          "daily",
+          "ma_structure",
+          "macro",
+          "weekly"
+        ],
+        "entry_class": "monday_weekly",
+        "execution_authority": "champion_execution",
+        "directional_admission": {
+          "version": "WES-1.3.0",
           "direction": "short",
-          "strategy_id": "base_v2",
-          "raw_score": 75.0,
-          "utility": 14.5128,
-          "signal_delta_from_initial": 75.0,
           "confirmations": 4,
           "confirmation_sources": [
             "daily",
@@ -125,33 +142,17 @@
             "macro",
             "weekly"
           ],
-          "entry_class": "monday_weekly",
           "execution_authority": "champion_execution",
-          "directional_admission": {
-            "version": "WES-1.3.0",
-            "direction": "short",
-            "confirmations": 4,
-            "confirmation_sources": [
-              "daily",
-              "ma_structure",
-              "macro",
-              "weekly"
-            ],
-            "execution_authority": "champion_execution",
-            "passed": true
-          }
-        },
-        "required": {
-          "allowed": true,
-          "raw": 41.0,
-          "utility": 6.0,
-          "confirmations": 2,
-          "delta": 0.0,
-          "profile": "initial_weekly_entry",
-          "learning_threshold_adjustment": 6.0
-        },
-        "source_exit_at": null,
-        "source_exit_reason": null
+          "passed": true
+        }
+      },
+      "wes_required_trigger": {
+        "allowed": true,
+        "raw": 50.0,
+        "utility": 7.5,
+        "confirmations": 2,
+        "delta": 15.0,
+        "learning_threshold_adjustment": 6.0
       }
     },
     {
@@ -237,21 +238,21 @@
       "reentry_lock": {
         "active": false,
         "scope": "wes_directional_admission",
-        "released_at": "2026-10-05T00:00:51+02:00",
+        "released_at": "2026-10-05T02:07:54+02:00",
         "reason": "wes_1_1_directional_admission_qualified"
       },
       "wes_status": "trigger_qualified_waiting_governed_v5_entry",
       "wes_entry_authorization": {
-        "authorized_at": "2026-10-05T00:00:51+02:00",
-        "expires_at": "2026-10-05T01:00:51+02:00",
+        "authorized_at": "2026-10-05T02:07:54+02:00",
+        "expires_at": "2026-10-05T03:07:54+02:00",
         "authorization_type": "no_trade_trigger",
         "directional_admission_passed": true,
         "candidate": {
           "direction": "long",
           "strategy_id": "weekly_trend",
-          "raw_score": 62.0,
-          "utility": 14.2771,
-          "signal_delta_from_initial": 37.0,
+          "raw_score": 67.0,
+          "utility": 15.0271,
+          "signal_delta_from_initial": 42.0,
           "confirmations": 2,
           "confirmation_sources": [
             "daily",
@@ -288,7 +289,7 @@
       "symbol": "BTC-USD",
       "label_pl": "BTC/USD",
       "label_en": "BTC/USD",
-      "direction": "long",
+      "direction": "neutral",
       "score": 59,
       "signal_strength": 0.59,
       "confidence": 0.59,
@@ -338,7 +339,7 @@
       "entry_captured_at": null,
       "entry_source": null,
       "entry_quality_status": "not_due",
-      "trade_status": "planned",
+      "trade_status": "no_trade",
       "risk_plan": null,
       "exit_price": null,
       "exit_captured_at": null,
@@ -348,12 +349,14 @@
       "result_value": null,
       "result_percent": null,
       "rationale_pl": [
+        "NO TRADE — obserwuję trigger do otwarcia pozycji. WES otworzy pozycję tylko po nowym, wystarczająco silnym i potwierdzonym sygnale; nic na siłę.",
         "Model v2.0.0: long / wzrost.",
         "Score 59; progi: long 45, short -45.",
         "Siła sygnału jest wskaźnikiem heurystycznym, a nie prawdopodobieństwem powodzenia.",
         "Zmienność wpływa na score i poziomy ryzyka zapisane przed otwarciem."
       ],
       "rationale_en": [
+        "NO TRADE — monitoring for an entry trigger. WES will open only after a new, sufficiently strong and confirmed signal; no forced exposure.",
         "Model v2.0.0: long / bullish.",
         "Score 59; thresholds: long 45, short -45.",
         "Signal strength is heuristic, not a probability of success.",
@@ -365,53 +368,52 @@
       "wes_initial_admission_evaluated": true,
       "wes_initial_admission_at": "2026-10-05T00:00:51+02:00",
       "reentry_lock": {
-        "active": false,
-        "scope": "wes_directional_admission",
-        "released_at": "2026-10-05T00:00:51+02:00",
-        "reason": "wes_1_1_directional_admission_qualified"
+        "active": true,
+        "scope": "wes_no_trade_monitoring",
+        "until": "2026-10-09T22:00:00+02:00",
+        "reason": "wes_waiting_for_qualified_trigger",
+        "policy": "NO_TRADE remains active monitoring, not forced exposure"
       },
-      "wes_status": "initial_directional_admission_authorized",
-      "wes_entry_authorization": {
-        "authorized_at": "2026-10-05T00:00:51+02:00",
-        "expires_at": "2026-10-05T01:00:51+02:00",
-        "authorization_type": "initial_weekly_entry",
-        "directional_admission_passed": true,
-        "candidate": {
+      "wes_status": "no_trade_monitoring_trigger",
+      "wes_entry_authorization": null,
+      "wes_initial_no_trade_score": 59.0,
+      "pending_entry_decision": null,
+      "next_entry_status": "no_trade",
+      "continuous_exposure_active": false,
+      "continuous_exposure_status": "no_trade",
+      "wes_last_review_at": "2026-10-05T02:07:54+02:00",
+      "wes_trigger_candidate": {
+        "direction": "long",
+        "strategy_id": "weekly_trend",
+        "raw_score": 69.0,
+        "utility": 11.1038,
+        "signal_delta_from_initial": 10.0,
+        "confirmations": 2,
+        "confirmation_sources": [
+          "daily",
+          "weekly"
+        ],
+        "entry_class": "monday_weekly",
+        "execution_authority": "champion_execution",
+        "directional_admission": {
+          "version": "WES-1.3.0",
           "direction": "long",
-          "strategy_id": "weekly_trend",
-          "raw_score": 68.0,
-          "utility": 10.9538,
-          "signal_delta_from_initial": 68.0,
           "confirmations": 2,
           "confirmation_sources": [
             "daily",
             "weekly"
           ],
-          "entry_class": "monday_weekly",
           "execution_authority": "champion_execution",
-          "directional_admission": {
-            "version": "WES-1.3.0",
-            "direction": "long",
-            "confirmations": 2,
-            "confirmation_sources": [
-              "daily",
-              "weekly"
-            ],
-            "execution_authority": "champion_execution",
-            "passed": true
-          }
-        },
-        "required": {
-          "allowed": true,
-          "raw": 41.0,
-          "utility": 6.0,
-          "confirmations": 2,
-          "delta": 0.0,
-          "profile": "initial_weekly_entry",
-          "learning_threshold_adjustment": 6.0
-        },
-        "source_exit_at": null,
-        "source_exit_reason": null
+          "passed": true
+        }
+      },
+      "wes_required_trigger": {
+        "allowed": true,
+        "raw": 50.0,
+        "utility": 7.5,
+        "confirmations": 2,
+        "delta": 15.0,
+        "learning_threshold_adjustment": 6.0
       }
     }
   ],
@@ -436,7 +438,7 @@
     "replacement_holding_days": 7,
     "replacement_weekend_carry": true,
     "material_event_reentry": false,
-    "last_preflight_at": "2026-10-05T00:00:51+02:00"
+    "last_preflight_at": "2026-10-05T02:07:54+02:00"
   },
   "daily_position_review": {
     "session_history": [
