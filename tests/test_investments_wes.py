@@ -356,7 +356,7 @@ class WesTests(unittest.TestCase):
             wes.postflight()
         build.assert_not_called()
         self.assertEqual(frozen, week['instruments'][0]['risk_plan'])
-        self.assertEqual('WES-1.2.0', week['instruments'][0]['wes_methodology'])
+        self.assertEqual(wes.VERSION, week['instruments'][0]['wes_methodology'])
 
     def test_wes_1_2_legacy_pending_without_price_plan_is_never_reused(self):
         item = {
