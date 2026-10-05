@@ -558,7 +558,10 @@ def select_sections(
             # not qualify without an explicit AI or crypto/blockchain signal.
             source_candidates = [
                 story for story in source_candidates
-                if AI_CRYPTO_RE.search(_story_text(story))
+                # Dedicated room is intentionally high-precision: the AI/crypto
+                # signal must be explicit in the headline, not merely incidental
+                # background in the article summary.
+                if AI_CRYPTO_RE.search(str(story.get("title") or ""))
             ]
         elif section_id in {"ekonomia", "nauka", "business", "science"}:
             # Reserve AI/crypto stories for the dedicated final section and avoid
