@@ -124,6 +124,32 @@ test("PL and EN routes remain correct for Daily Weekly and Stock channels", () =
 });
 
 
+test("Commit-bound CLOSE requires an explicit persisted closed record", () => {
+  const before = weeklyCommitSnapshot({
+    week_id: "2026-W41",
+    instruments: [
+      { instrument_id: "eurusd", label_pl: "EUR/USD", trade_status: "open", direction: "short", entry_price: 1.12, entry_captured_at: "2026-10-05T08:00:00Z" },
+    ],
+  });
+  const after = weeklyCommitSnapshot({
+    week_id: "2026-W41",
+    instruments: [],
+  });
+  assert.deepEqual(transitionDescriptors("weekly", before, after, "2026-10-05T09:00:00Z"), []);
+});
+
+test("Weekly OPEN requires explicit active status and verified fill timestamp", () => {
+  const empty = weeklyCommitSnapshot({ week_id: "2026-W41", instruments: [] });
+  const incomplete = weeklyCommitSnapshot({
+    week_id: "2026-W41",
+    instruments: [
+      { instrument_id: "btcusd", label_pl: "BTC/USD", trade_status: "", direction: "long", entry_price: 125000 },
+    ],
+  });
+  assert.equal(incomplete.open.size, 0);
+  assert.deepEqual(transitionDescriptors("weekly", empty, incomplete, "2026-10-05T09:00:00Z"), []);
+});
+
 test("Weekly pending LIMIT plan never emits OPEN without a verified fill", () => {
   const before = weeklyCommitSnapshot({
     week_id: "2026-W41",
