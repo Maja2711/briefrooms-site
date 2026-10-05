@@ -11,6 +11,7 @@ on:
     paths:
       - "scripts/daily_eurusd_fast_lifecycle.py"
       - "scripts/daily_eurusd_realtime_watch.sh"
+      - "scripts/sync_trading_push_commit.sh"
       - "tests/test_daily_eurusd_fast_lifecycle.py"
       - ".github/workflows/daily-eurusd-realtime-lifecycle.yml"
 
@@ -40,6 +41,7 @@ jobs:
           python -m py_compile scripts/daily_eurusd_fast_lifecycle.py scripts/build_trading_notification_events.py scripts/verify_no_retroactive_execution.py
           python -m unittest tests.test_daily_eurusd_fast_lifecycle -v
           bash -n scripts/daily_eurusd_realtime_watch.sh
+          bash -n scripts/sync_trading_push_commit.sh
 
   watch-open-position:
     if: github.event_name != 'push'
@@ -62,6 +64,7 @@ jobs:
           python -m py_compile scripts/daily_eurusd_fast_lifecycle.py scripts/build_trading_notification_events.py scripts/verify_no_retroactive_execution.py
           python -m unittest tests.test_daily_eurusd_fast_lifecycle -v
           bash -n scripts/daily_eurusd_realtime_watch.sh
+          bash -n scripts/sync_trading_push_commit.sh
 
       - name: Start immutable realtime execution clock
         run: |
