@@ -1,0 +1,239 @@
+name: Daily EURUSD Realtime Lifecycle
+# NO RETROACTIVE EXECUTION
+#
+# This workflow has OPEN-POSITION EXIT authority only.
+# It never creates a new LONG/SHORT decision or position.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/daily_eurusd_fast_lifecycle.py"
+      - "tests/test_daily_eurusd_fast_lifecycle.py"
+      - ".github/workflows/daily-eurusd-realtime-lifecycle.yml"
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: daily-eurusd-realtime-lifecycle
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate realtime lifecycle
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/daily_eurusd_fast_lifecycle.py
+          python -m unittest tests.test_daily_eurusd_fast_lifecycle -v
+
+  watch-open-position:
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+      PUSH_API: https://briefrooms-trading-push.szczerbinski0577.workers.dev
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate exit-only authority
+        run: |
+          set -euo pipefail
+          python -m py_compile             scripts/daily_eurusd_fast_lifecycle.py             scripts/build_trading_notification_events.py             scripts/verify_no_retroactive_execution.py
+          python -m unittest tests.test_daily_eurusd_fast_lifecycle -v
+
+      - name: Start immutable realtime execution clock
+        run: |
+          echo "NO_RETROACTIVE_EXECUTION=1" >> "$GITHUB_ENV"
+          echo "NO_RETROACTIVE_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+
+      - name: Watch the persisted OPEN position every five seconds
+        id: watch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          # Keep one runner alive while the position is open. Before any write we
+          # refresh main and re-evaluate, so a concurrent canonical close wins.
+          watch_seconds=$((5 * 60 * 60 + 25 * 60))
+          handoff_seconds=30
+          started=$(date +%s)
+          deadline=$((started + watch_seconds))
+          next_repo_refresh=$started
+
+          sync_push_commit() {
+            local sha="$1"
+            for attempt in 1 2 3 4; do
+              http_code=$(curl --silent --show-error                 -o "$RUNNER_TEMP/sync-daily-response.json"                 -w "%{http_code}"                 -H "content-type: application/json"                 --data "{\"sha\":\"$sha\"}"                 "$PUSH_API/sync-daily" || true)
+              cat "$RUNNER_TEMP/sync-daily-response.json" || true
+              if [ "$http_code" = "200" ]; then
+                python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=Path(os.environ["RUNNER_TEMP"])/"sync-daily-response.json"
+          j=json.loads(p.read_text())
+          d=j.get("dispatch") or {}
+          if j.get("ok") is not True or int(d.get("failed") or 0) or int(d.get("pending") or 0):
+              raise SystemExit(f"incomplete immediate push: {j}")
+          print("REALTIME_PUSH_SYNC_OK", j.get("sha"), j.get("status"), j.get("event_id"), d.get("sent"))
+          PY
+                return 0
+              fi
+              # main may have advanced after our push; always follow the newest
+              # canonical head instead of replaying an older commit.
+              git fetch --quiet origin main
+              sha=$(git rev-parse origin/main)
+              sleep "$attempt"
+            done
+            return 1
+          }
+
+          persist_triggered_exit() {
+            for attempt in 1 2 3; do
+              git fetch --quiet origin main
+              git reset --hard origin/main
+
+              python scripts/daily_eurusd_fast_lifecycle.py                 --output data/investments/eurusd_daily_spot.json                 --history data/investments/eurusd_daily_history.json                 --apply
+
+              python scripts/build_trading_notification_events.py
+
+              git add --                 data/investments/eurusd_daily_spot.json                 data/investments/eurusd_daily_history.json                 data/notifications/trading-state.json                 data/notifications/trading-events.json
+
+              if git diff --cached --quiet; then
+                echo "Realtime trigger no longer applies on fresh main; canonical state already won."
+                return 2
+              fi
+
+              python scripts/verify_no_retroactive_execution.py                 --baseline-ref HEAD                 --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
+
+              git config user.name "github-actions[bot]"
+              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+              git commit -m "Close Daily EURUSD via realtime lifecycle"
+              sha=$(git rev-parse HEAD)
+
+              if git push origin HEAD:main; then
+                sync_push_commit "$sha"
+                echo "close_sha=$sha" >> "$GITHUB_OUTPUT"
+                return 0
+              fi
+
+              echo "Realtime close push conflict on attempt $attempt; recomputing from fresh main."
+              git reset --hard origin/main || true
+              sleep "$attempt"
+            done
+            return 1
+          }
+
+          while [ "$(date +%s)" -lt "$deadline" ]; do
+            now=$(date +%s)
+
+            # Refresh persisted state periodically. A full Daily cycle may have
+            # closed/replaced the state while this lightweight watcher was alive.
+            if [ "$now" -ge "$next_repo_refresh" ]; then
+              git fetch --quiet origin main || true
+              if git diff --quiet && git diff --cached --quiet; then
+                git reset --hard origin/main >/dev/null
+              fi
+              next_repo_refresh=$((now + 30))
+            fi
+
+            if ! python scripts/daily_eurusd_fast_lifecycle.py               --output data/investments/eurusd_daily_spot.json               --history data/investments/eurusd_daily_history.json               --probe-json "$RUNNER_TEMP/eurusd-realtime-probe.json"; then
+              echo "Realtime probe source error; retrying after 15 seconds."
+              sleep 15
+              continue
+            fi
+
+            read -r position_open exit_triggered <<EOF
+          $(python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=Path(os.environ["RUNNER_TEMP"])/"eurusd-realtime-probe.json"
+          j=json.loads(p.read_text())
+          print("1" if j.get("position_open") else "0", "1" if j.get("exit_triggered") else "0")
+          PY
+          )
+          EOF
+
+            if [ "$position_open" != "1" ]; then
+              echo "No persisted OPEN Daily EURUSD position; realtime watcher is not needed."
+              echo "position_open=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            if [ "$exit_triggered" = "1" ]; then
+              echo "Realtime exit trigger observed; refreshing main and re-validating before write."
+              if persist_triggered_exit; then
+                echo "position_open=false" >> "$GITHUB_OUTPUT"
+                exit 0
+              else
+                rc=$?
+                if [ "$rc" -eq 2 ]; then
+                  echo "position_open=false" >> "$GITHUB_OUTPUT"
+                  exit 0
+                fi
+                exit "$rc"
+              fi
+            fi
+
+            sleep 5
+          done
+
+          # Seamless handoff: queue the next watcher, then keep this one alive for
+          # another 30 seconds so a condition cannot fall between two runners.
+          git fetch --quiet origin main || true
+          git reset --hard origin/main >/dev/null || true
+          python scripts/daily_eurusd_fast_lifecycle.py             --output data/investments/eurusd_daily_spot.json             --history data/investments/eurusd_daily_history.json             --probe-json "$RUNNER_TEMP/eurusd-realtime-final.json" || true
+
+          still_open=$(python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=Path(os.environ["RUNNER_TEMP"])/"eurusd-realtime-final.json"
+          try:
+              j=json.loads(p.read_text())
+          except Exception:
+              j={}
+          print("1" if j.get("position_open") else "0")
+          PY
+          )
+
+          if [ "$still_open" = "1" ]; then
+            curl --fail --silent --show-error               -X POST               -H "Authorization: Bearer $GH_TOKEN"               -H "Accept: application/vnd.github+json"               -H "X-GitHub-Api-Version: 2022-11-28"               "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/workflows/daily-eurusd-realtime-lifecycle.yml/dispatches"               -d '{"ref":"main"}'
+            echo "Queued successor realtime watcher."
+          fi
+
+          handoff_end=$(( $(date +%s) + handoff_seconds ))
+          while [ "$(date +%s)" -lt "$handoff_end" ] && [ "$still_open" = "1" ]; do
+            if python scripts/daily_eurusd_fast_lifecycle.py               --output data/investments/eurusd_daily_spot.json               --history data/investments/eurusd_daily_history.json               --probe-json "$RUNNER_TEMP/eurusd-realtime-handoff.json"; then
+              triggered=$(python - <<'PY'
+          import json, os
+          from pathlib import Path
+          j=json.loads((Path(os.environ["RUNNER_TEMP"])/"eurusd-realtime-handoff.json").read_text())
+          print("1" if j.get("exit_triggered") else "0")
+          PY
+          )
+              if [ "$triggered" = "1" ]; then
+                persist_triggered_exit || true
+                break
+              fi
+            fi
+            sleep 5
+          done
