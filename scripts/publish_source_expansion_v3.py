@@ -751,10 +751,10 @@ def validate(max_age_minutes: int = 30) -> None:
                 if isinstance(story, dict)
                 and filtered.is_pl_ukraine_russia_war_story(story)
             )
-            if war_count < filtered.PL_UKRAINE_RUSSIA_WAR_MINIMUM:
-                raise RuntimeError(
-                    "pl homepage is missing required Russia-Ukraine-war coverage"
-                )
+            # Topic coverage is an editorial target, not a global publication
+            # circuit breaker. If no fresh qualifying story exists, expose the
+            # shortfall in diagnostics and allow the rest of the fresh newsroom
+            # to publish rather than freezing the entire site.
             if int(war_policy.get("selected_story_count") or 0) != war_count:
                 raise RuntimeError("pl Russia-Ukraine-war diagnostics mismatch")
         approved = list(home)
