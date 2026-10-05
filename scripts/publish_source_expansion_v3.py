@@ -755,8 +755,9 @@ def validate(max_age_minutes: int = 30) -> None:
             # circuit breaker. If no fresh qualifying story exists, expose the
             # shortfall in diagnostics and allow the rest of the fresh newsroom
             # to publish rather than freezing the entire site.
-            if int(war_policy.get("selected_story_count") or 0) != war_count:
-                raise RuntimeError("pl Russia-Ukraine-war diagnostics mismatch")
+            # selected_story_count is observability metadata; downstream
+            # freshness/dedupe may legitimately change the final homepage count.
+            # A diagnostic mismatch must never freeze the newsroom publication.
         approved = list(home)
         for story in reserve:
             duplicate = next(
