@@ -34,17 +34,22 @@ def build(questions:Mapping[str,Any], prior:Mapping[str,Any]|None=None, now:str|
     for q in ranked[:MAX_ACTIVE]:
         qid=str(q.get("question_id") or ""); qtype=str(q.get("question_type") or "")
         if not qid or qtype not in EXECUTABLE_TYPES: continue
-        route="approved_primary_source_research"
-        if qtype in {"challenge_move","audit"}: route="prospective_challenger_research"
+        belief_id=str(q.get("belief_id") or "")
+        if qtype in {"challenge_move","audit"}:
+            route="prospective_challenger_research"
+        elif belief_id in {"eurusd.macro_surprise.supportive","eurusd.policy_differential.supportive"}:
+            route="approved_primary_source_research"
+        else:
+            route="approved_market_evidence_research"
         prior_row=previous.get(qid,{})
         intent={
-          "intent_id":stable("l3ri",{"question_id":qid,"belief_id":q.get("belief_id"),"question_type":qtype}),
+          "intent_id":stable("l3ri",{"question_id":qid,"belief_id":belief_id,"question_type":qtype}),
           "question_id":qid,"belief_id":q.get("belief_id"),"question_type":qtype,"question":q.get("question"),
           "expected_information_value":float(q.get("expected_information_value") or 0),
           "route":route,"status":prior_row.get("status") or "READY_FOR_RESEARCH",
           "created_at":prior_row.get("created_at") or now,
           "preregistration":{
-             "prospective_only":True,"historical_backfill":False,"dedupe_key":stable("dedupe",{"q":qid,"b":q.get("belief_id")}),
+             "prospective_only":True,"historical_backfill":False,"dedupe_key":stable("dedupe",{"q":qid,"b":belief_id}),
              "success_measure":"uncertainty_or_contradiction_reduction_with_independent_evidence",
              "falsification":"no_new_independent_evidence_or_no_epistemic_improvement"
           },
@@ -57,7 +62,9 @@ def build(questions:Mapping[str,Any], prior:Mapping[str,Any]|None=None, now:str|
         "belief_probability_override":False,"engine_policy_writeback":False,"code_mutation":False,"trade_execution":False,
         "automatic_production_promotion":False},
       "budget":{"max_active_research_intents":MAX_ACTIVE},"intents":intents,
-      "summary":{"selected":len(intents),"primary_source_research":sum(x["route"]=="approved_primary_source_research" for x in intents),
+      "summary":{"selected":len(intents),
+                 "market_evidence_research":sum(x["route"]=="approved_market_evidence_research" for x in intents),
+                 "primary_source_research":sum(x["route"]=="approved_primary_source_research" for x in intents),
                  "prospective_challenger_research":sum(x["route"]=="prospective_challenger_research" for x in intents)}
     }
 
