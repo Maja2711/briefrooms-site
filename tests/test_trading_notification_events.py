@@ -58,6 +58,102 @@ class TradingNotificationEventsTest(unittest.TestCase):
         self.assertEqual(ev_close[0]["position_id"], "eurusd:1")
         self.assertNotEqual(ev_open[0]["event_id"], ev_close[0]["event_id"])
 
+
+    def test_weekly_pending_price_plan_is_not_open_position(self):
+        original_data = mod.DATA
+        with tempfile.TemporaryDirectory() as td:
+            try:
+                mod.DATA = Path(td)
+                weekly = mod.DATA / "weekly"
+                weekly.mkdir(parents=True)
+                (weekly / "2026-W41.json").write_text(json.dumps({
+                    "week_id": "2026-W41",
+                    "instruments": [{
+                        "instrument_id": "eurusd",
+                        "label_pl": "EUR/USD",
+                        "trade_status": "pending",
+                        "direction": "short",
+                        "entry_price": 1.12,
+                        "exit_price": None,
+                        "pending_entry_decision": {
+                            "entry_price_plan": {"target_price": 1.12}
+                        },
+                    }],
+                }), encoding="utf-8")
+                self.assertEqual(mod.weekly_open_positions(), [])
+            finally:
+                mod.DATA = original_data
+
+    def test_recovery_weekly_close_includes_exit_metadata(self):
+        original_data = mod.DATA
+        with tempfile.TemporaryDirectory() as td:
+            try:
+                mod.DATA = Path(td)
+                weekly = mod.DATA / "weekly"
+                weekly.mkdir(parents=True)
+                payload = {
+                    "week_id": "2026-W41",
+                    "instruments": [{
+                        "instrument_id": "btcusd",
+                        "label_pl": "BTC/USD",
+                        "trade_status": "closed",
+                        "direction": "long",
+                        "entry_price": 120000,
+                        "entry_captured_at": "2026-10-05T08:00:00Z",
+                        "exit_price": 125000,
+                        "exit_reason": "TAKE_PROFIT",
+                        "exit_captured_at": "2026-10-05T10:00:00Z",
+                    }],
+                }
+                (weekly / "2026-W41.json").write_text(json.dumps(payload), encoding="utf-8")
+                pid = mod.weekly_position_id(payload, payload["instruments"][0])
+                event = mod.make_event("weekly", "CLOSE", {
+                    "position_id": pid,
+                    "instrument": "BTC/USD",
+                    "direction": "LONG",
+                    "opened_at": "2026-10-05T08:00:00Z",
+                    "entry": 120000,
+                })
+                self.assertEqual(event["exit_reason"], "TAKE_PROFIT")
+                self.assertEqual(event["exit_price"], 125000)
+                self.assertEqual(event["closed_at"], "2026-10-05T10:00:00Z")
+            finally:
+                mod.DATA = original_data
+
+    def test_recovery_stock_close_includes_exit_metadata(self):
+        original_data = mod.DATA
+        with tempfile.TemporaryDirectory() as td:
+            try:
+                mod.DATA = Path(td)
+                (mod.DATA / "stock_trading_portfolio.json").write_text(json.dumps({
+                    "markets": {
+                        "US": {
+                            "closed_positions": [{
+                                "position_id": "us:a:AAPL",
+                                "ticker": "AAPL",
+                                "direction": "LONG",
+                                "entry": 250,
+                                "exit_price": 255,
+                                "exit_reason": "TAKE_PROFIT",
+                                "closed_at": "2026-10-05T10:00:00Z",
+                            }]
+                        }
+                    }
+                }), encoding="utf-8")
+                event = mod.make_event("stock", "CLOSE", {
+                    "position_id": "us:a:AAPL",
+                    "instrument": "AAPL",
+                    "market": "US",
+                    "direction": "LONG",
+                    "opened_at": "2026-10-05T08:00:00Z",
+                    "entry": 250,
+                })
+                self.assertEqual(event["exit_reason"], "TAKE_PROFIT")
+                self.assertEqual(event["exit_price"], 255)
+                self.assertEqual(event["closed_at"], "2026-10-05T10:00:00Z")
+            finally:
+                mod.DATA = original_data
+
     def test_ui_is_enabled_on_all_trading_pages(self):
         pages = [
             "pl/inwestycje/daily-trading.html",
