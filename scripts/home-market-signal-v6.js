@@ -131,18 +131,27 @@
     };
   }
 
-  function selectTopStockPosition(portfolio) {
+  function stockMarketForLang(lang) {
+    return lang === 'en' ? 'US' : 'GPW';
+  }
+
+  function selectTopStockPosition(portfolio, lang) {
     var markets = portfolio && portfolio.markets || {};
-    var candidates = [];
-    Object.keys(markets).forEach(function (market) {
-      var positions = markets[market] && markets[market].open_positions;
-      (Array.isArray(positions) ? positions : []).forEach(function (item) {
-        if (!validStockPosition(item)) return;
-        var copy = Object.assign({}, item);
-        copy._market = market;
-        candidates.push(copy);
-      });
+    var targetMarket = stockMarketForLang(lang || 'pl');
+    var marketKey = Object.keys(markets).find(function (market) {
+      return String(market || '').toUpperCase() === targetMarket;
     });
+    if (!marketKey) return null;
+
+    var candidates = [];
+    var positions = markets[marketKey] && markets[marketKey].open_positions;
+    (Array.isArray(positions) ? positions : []).forEach(function (item) {
+      if (!validStockPosition(item)) return;
+      var copy = Object.assign({}, item);
+      copy._market = marketKey;
+      candidates.push(copy);
+    });
+
     if (!candidates.length) return null;
     candidates.sort(function (a, b) {
       var sa = stockScore(a);
@@ -196,7 +205,7 @@
   function chooseSignal(weeklyItems, portfolio, lang) {
     var weekly = selectTopWeeklyPosition(weeklyItems);
     if (weekly) return weeklySignal(weekly, lang);
-    var stock = selectTopStockPosition(portfolio);
+    var stock = selectTopStockPosition(portfolio, lang);
     if (stock) return stockSignal(stock, lang);
     return null;
   }
@@ -341,7 +350,7 @@
 
     try {
       var portfolio = await fetchJson(fetchImpl, '/data/investments/stock_trading_portfolio.json');
-      var stock = selectTopStockPosition(portfolio);
+      var stock = selectTopStockPosition(portfolio, lang);
       if (stock) return render(document, stockSignal(stock, lang), lang);
     } catch (error) {
       logger.warn('BriefRooms Stock Trading portfolio signal unavailable.', error);
@@ -364,6 +373,7 @@
     selectTopStockPosition: selectTopStockPosition,
     selectTopWeeklyPosition: selectTopWeeklyPosition,
     stockDirection: stockDirection,
+    stockMarketForLang: stockMarketForLang,
     stockSignal: stockSignal,
     validStockPosition: validStockPosition,
     validWeeklyPosition: validWeeklyPosition,
