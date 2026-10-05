@@ -59,6 +59,39 @@ class TradingNotificationEventsTest(unittest.TestCase):
         self.assertNotEqual(ev_open[0]["event_id"], ev_close[0]["event_id"])
 
 
+    def test_recovery_close_requires_canonical_close_metadata(self):
+        previous = {
+            "initialized": True,
+            "engines": {
+                "daily": {"open_positions": []},
+                "weekly": {"open_positions": [{
+                    "engine": "weekly",
+                    "position_id": "2026-W41:eurusd:2026-10-05T08:00:00Z",
+                    "instrument": "EUR/USD",
+                    "direction": "SHORT",
+                    "opened_at": "2026-10-05T08:00:00Z",
+                    "entry": 1.12,
+                }]},
+                "stock": {"open_positions": []},
+            },
+        }
+        current = {
+            "initialized": True,
+            "engines": {
+                "daily": {"open_positions": []},
+                "weekly": {"open_positions": []},
+                "stock": {"open_positions": []},
+            },
+        }
+        original_data = mod.DATA
+        with tempfile.TemporaryDirectory() as td:
+            try:
+                mod.DATA = Path(td)
+                (mod.DATA / "weekly").mkdir(parents=True)
+                self.assertEqual(mod.build_events(previous, current), [])
+            finally:
+                mod.DATA = original_data
+
     def test_weekly_pending_price_plan_is_not_open_position(self):
         original_data = mod.DATA
         with tempfile.TemporaryDirectory() as td:
