@@ -8,7 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 HOME_PATHS = [ROOT / "pl" / "index.html", ROOT / "en" / "index.html"]
 
-ASSET_TAG = '<script src="/scripts/home-market-signal-v6.js?v=7" defer></script>'
+ASSET_TAG = '<script src="/scripts/home-market-signal-v6.js?v=8" defer></script>'
 HOME_BRIEFS_TAG = '<script src="/scripts/home-briefs.js?v=seo-static-1" defer></script>'
 
 MARKET_SIGNAL_RE = re.compile(
@@ -43,7 +43,7 @@ def patch(source: str) -> str:
     return source
 
 def validate(source: str) -> None:
-    if source.count("home-market-signal-v6.js?v=7") != 1:
+    if source.count("home-market-signal-v6.js?v=8") != 1:
         raise RuntimeError("Homepage must load the passive market signal renderer exactly once")
     if "home-market-signal-guard-v1.js" in source:
         raise RuntimeError("Blocking DOM guard must not be loaded")
