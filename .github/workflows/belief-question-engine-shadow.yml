@@ -1,0 +1,57 @@
+name: Belief Question Engine Shadow
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Belief Epistemic State Projection"]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  question-engine:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate Question Engine
+        run: python -m unittest tests.test_belief_question_engine -v
+      - name: Restore latest Epistemic State
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/epistemic"
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=belief-epistemic-state&per_page=20"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/a.json"
+          id=$(python -c "import json; x=json.load(open('$RUNNER_TEMP/a.json')); r=[a for a in x.get('artifacts',[]) if not a.get('expired')]; r.sort(key=lambda a:a.get('created_at',''),reverse=True); print(r[0]['id'] if r else '')")
+          test -n "$id"
+          curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/$id/zip" -o "$RUNNER_TEMP/e.zip"
+          unzip -q "$RUNNER_TEMP/e.zip" -d "$RUNNER_TEMP/e-art"
+          tar -xzf "$RUNNER_TEMP/e-art/belief-epistemic-state.tgz" -C "$RUNNER_TEMP/epistemic"
+      - name: Generate ranked research questions
+        run: python scripts/belief_question_engine.py --epistemic-state "$RUNNER_TEMP/epistemic/epistemic_state.json" --output "$RUNNER_TEMP/epistemic/BELIEF_QUESTIONS.json"
+      - name: Assert shadow authority
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=json.loads((Path(os.environ["RUNNER_TEMP"])/"epistemic/BELIEF_QUESTIONS.json").read_text())
+          assert p["mode"]=="shadow"
+          assert p["authority"]["belief_core_writeback"] is False
+          assert p["authority"]["probability_override"] is False
+          assert p["authority"]["trade_execution"] is False
+          print("Question Engine shadow safety: PASS; selected=",p["selected_count"])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: belief-question-engine-shadow
+          path: ${{ runner.temp }}/epistemic/BELIEF_QUESTIONS.json
+          retention-days: 30
