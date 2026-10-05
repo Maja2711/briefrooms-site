@@ -258,6 +258,242 @@ function fastExitHit(position, bars) {
   return null;
 }
 
+
+const COMMIT_SYNC_REPO = "Maja2711/briefrooms-site";
+const COMMIT_SYNC_ENGINES = new Set(["daily", "weekly", "stock"]);
+
+async function githubJson(url) {
+  const response = await fetch(url, {
+    headers: {
+      "cache-control": "no-cache",
+      "accept": "application/vnd.github+json",
+      "user-agent": "BriefRooms-Trading-Push/1.0",
+    },
+  });
+  if (!response.ok) throw new Error(\`github_http_\${response.status}:\${url}\`);
+  return response.json();
+}
+
+async function commitFileJson(sha, path, { optional = false } = {}) {
+  const response = await fetch(
+    \`https://raw.githubusercontent.com/\${COMMIT_SYNC_REPO}/\${sha}/\${path}?_=\${Date.now()}\`,
+    { headers: { "cache-control": "no-cache", "accept": "application/json" } },
+  );
+  if (optional && response.status === 404) return null;
+  if (!response.ok) throw new Error(\`commit_file_http_\${response.status}:\${path}\`);
+  return response.json();
+}
+
+function emptyCommitSnapshot() {
+  return { open: new Map(), closed: new Map(), observed_at: null };
+}
+
+function commitPosition({
+  engine,
+  positionId,
+  instrument,
+  direction,
+  openedAt,
+  entry,
+  market = null,
+  exitReason = null,
+  exitPrice = null,
+  closedAt = null,
+  rMultiple = null,
+}) {
+  return {
+    engine,
+    position_id: String(positionId || ""),
+    instrument: String(instrument || ""),
+    market,
+    direction: direction ? String(direction).toUpperCase() : null,
+    opened_at: openedAt || null,
+    entry: finiteNumber(entry),
+    exit_reason: exitReason || null,
+    exit_price: finiteNumber(exitPrice),
+    closed_at: closedAt || null,
+    r_multiple: finiteNumber(rMultiple),
+  };
+}
+
+function dailyCommitSnapshot(payload) {
+  if (!payload || typeof payload !== "object") return emptyCommitSnapshot();
+  const out = emptyCommitSnapshot();
+  out.observed_at = payload.timestamp || payload.updated_at || null;
+  const position = payload?.metadata?.position;
+  if (position && String(position.status || "").toUpperCase() === "OPEN") {
+    const direction = String(position.direction || "").toUpperCase();
+    if (["LONG", "SHORT"].includes(direction)) {
+      const pid = String(position.trade_id || \`daily:\${position.opened_at}:\${direction}\`);
+      out.open.set(pid, commitPosition({
+        engine: "daily",
+        positionId: pid,
+        instrument: "EUR/USD",
+        direction,
+        openedAt: position.opened_at,
+        entry: position.entry,
+      }));
+    }
+  }
+  const last = payload?.metadata?.last_trade;
+  if (last && last.closed_at && last.trade_id) {
+    const pid = String(last.trade_id);
+    out.closed.set(pid, commitPosition({
+      engine: "daily",
+      positionId: pid,
+      instrument: "EUR/USD",
+      direction: last.direction,
+      openedAt: last.opened_at,
+      entry: last.entry,
+      exitReason: last.exit_reason,
+      exitPrice: last.exit_price,
+      closedAt: last.closed_at,
+      rMultiple: last.r_multiple,
+    }));
+  }
+  return out;
+}
+
+function weeklyCommitPositionId(payload, row) {
+  const weekId = String(payload?.week_id || "weekly");
+  const instrumentId = String(row?.instrument_id || row?.symbol || "unknown");
+  return String(row?.position_id || \`\${weekId}:\${instrumentId}:\${row?.entry_captured_at || row?.entry_price}\`);
+}
+
+function weeklyCommitSnapshot(payload) {
+  if (!payload || typeof payload !== "object") return emptyCommitSnapshot();
+  const out = emptyCommitSnapshot();
+  out.observed_at = payload.updated_at || payload.generated_at || null;
+  const rows = Array.isArray(payload.instruments) ? payload.instruments : [];
+  for (const row of rows) {
+    if (!row || typeof row !== "object") continue;
+    const status = String(row.trade_status || "").toLowerCase();
+    const entry = row.entry_price;
+    const exitPrice = row.exit_price;
+    const isOpen = ["open", "opened", "active", "holding"].includes(status) || (
+      entry != null && exitPrice == null && !["pending", "planned", "no_trade", "closed", "cancelled", "expired_no_entry"].includes(status)
+    );
+    const pid = weeklyCommitPositionId(payload, row);
+    const label = row.label_pl || row.label_en || row.symbol || row.instrument_id || pid;
+    const base = commitPosition({
+      engine: "weekly",
+      positionId: pid,
+      instrument: label,
+      direction: row.direction,
+      openedAt: row.entry_captured_at,
+      entry,
+      exitReason: row.exit_reason || row.close_reason,
+      exitPrice,
+      closedAt: row.closed_at || row.exit_captured_at,
+      rMultiple: row.r_multiple,
+    });
+    if (isOpen) out.open.set(pid, base);
+    if (status === "closed" || exitPrice != null || base.closed_at) out.closed.set(pid, base);
+  }
+  return out;
+}
+
+function stockCommitSnapshot(payload) {
+  if (!payload || typeof payload !== "object") return emptyCommitSnapshot();
+  const out = emptyCommitSnapshot();
+  out.observed_at = payload.updated_at || null;
+  const markets = payload.markets && typeof payload.markets === "object" ? payload.markets : {};
+  for (const [market, block] of Object.entries(markets)) {
+    if (!block || typeof block !== "object") continue;
+    for (const row of Array.isArray(block.open_positions) ? block.open_positions : []) {
+      if (!row || typeof row !== "object" || String(row.status || "OPEN").toUpperCase() !== "OPEN") continue;
+      const pid = String(row.position_id || \`\${market}:\${row.symbol}:\${row.opened_at}\`);
+      out.open.set(pid, commitPosition({
+        engine: "stock",
+        positionId: pid,
+        instrument: row.ticker || row.symbol || row.name || pid,
+        direction: row.direction || "LONG",
+        openedAt: row.opened_at,
+        entry: row.entry,
+        market,
+      }));
+    }
+    for (const row of Array.isArray(block.closed_positions) ? block.closed_positions : []) {
+      if (!row || typeof row !== "object") continue;
+      const pid = String(row.position_id || \`\${market}:\${row.symbol}:\${row.opened_at}\`);
+      out.closed.set(pid, commitPosition({
+        engine: "stock",
+        positionId: pid,
+        instrument: row.ticker || row.symbol || row.name || pid,
+        direction: row.direction || "LONG",
+        openedAt: row.opened_at,
+        entry: row.entry,
+        market,
+        exitReason: row.exit_reason || row.close_reason,
+        exitPrice: row.exit_price ?? row.exit,
+        closedAt: row.closed_at,
+        rMultiple: row.r_multiple,
+      }));
+    }
+  }
+  return out;
+}
+
+function transitionDescriptors(engine, before, after, observedAt = null) {
+  const events = [];
+  const beforeOpen = before?.open instanceof Map ? before.open : new Map();
+  const afterOpen = after?.open instanceof Map ? after.open : new Map();
+  const afterClosed = after?.closed instanceof Map ? after.closed : new Map();
+
+  for (const [pid, pos] of afterOpen.entries()) {
+    if (beforeOpen.has(pid)) continue;
+    events.push({
+      ...pos,
+      engine,
+      event_type: "OPEN",
+      observed_at: after?.observed_at || observedAt,
+      source: \`persisted_\${engine}_commit_transition\`,
+    });
+  }
+
+  for (const [pid, prior] of beforeOpen.entries()) {
+    if (afterOpen.has(pid)) continue;
+    const closed = afterClosed.get(pid) || {};
+    events.push({
+      ...prior,
+      ...closed,
+      engine,
+      event_type: "CLOSE",
+      position_id: pid,
+      observed_at: after?.observed_at || closed.closed_at || observedAt,
+      source: \`persisted_\${engine}_commit_transition\`,
+    });
+  }
+  return events;
+}
+
+async function latestWeeklyPayloadAtCommit(sha) {
+  const rows = await githubJson(
+    \`https://api.github.com/repos/\${COMMIT_SYNC_REPO}/contents/data/investments/weekly?ref=\${encodeURIComponent(sha)}&_=\${Date.now()}\`,
+  );
+  if (!Array.isArray(rows)) throw new Error("weekly_commit_directory_invalid");
+  const candidates = rows
+    .filter((row) => row?.type === "file" && /^20\\d{2}-W\\d{2}\\.json$/.test(String(row?.name || "")))
+    .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  const latest = candidates[candidates.length - 1];
+  if (!latest?.path) return null;
+  return commitFileJson(sha, latest.path, { optional: true });
+}
+
+async function snapshotAtCommit(engine, sha) {
+  if (!sha) return emptyCommitSnapshot();
+  if (engine === "daily") {
+    return dailyCommitSnapshot(await commitFileJson(sha, "data/investments/eurusd_daily_spot.json", { optional: true }));
+  }
+  if (engine === "weekly") {
+    return weeklyCommitSnapshot(await latestWeeklyPayloadAtCommit(sha));
+  }
+  if (engine === "stock") {
+    return stockCommitSnapshot(await commitFileJson(sha, "data/investments/stock_trading_portfolio.json", { optional: true }));
+  }
+  throw new Error(\`unsupported_commit_sync_engine:\${engine}\`);
+}
+
 function normalizedPrefs(input = {}) {
   const channels = input.channels || {};
   const events = input.events || {};
@@ -539,6 +775,96 @@ export class PushHub {
     return { ok: true, status: "FLAT" };
   }
 
+
+  async verifyRecentMainCommit(commitSha) {
+    const sha = String(commitSha || "").trim().toLowerCase();
+    if (!/^[0-9a-f]{40}$/.test(sha)) throw new Error("invalid_commit_sha");
+
+    const [headPayload, targetPayload] = await Promise.all([
+      githubJson(\`https://api.github.com/repos/\${COMMIT_SYNC_REPO}/commits/main?_=\${Date.now()}\`),
+      githubJson(\`https://api.github.com/repos/\${COMMIT_SYNC_REPO}/commits/\${sha}?_=\${Date.now()}\`),
+    ]);
+    const headSha = String(headPayload?.sha || "").toLowerCase();
+    if (!headSha) throw new Error("github_main_head_missing");
+
+    if (sha !== headSha) {
+      const compare = await githubJson(
+        \`https://api.github.com/repos/\${COMMIT_SYNC_REPO}/compare/\${sha}...main?_=\${Date.now()}\`,
+      );
+      const isAncestor = String(compare?.status || "") === "ahead" && Number(compare?.behind_by || 0) === 0;
+      const committedAt = Date.parse(
+        targetPayload?.commit?.committer?.date || targetPayload?.commit?.author?.date || "",
+      );
+      const ageMs = Date.now() - committedAt;
+      const recent = Number.isFinite(committedAt) && ageMs >= -5 * 60_000 && ageMs <= 2 * 60 * 60_000;
+      if (!isAncestor || !recent) {
+        throw new Error(\`commit_not_recent_main_ancestor:\${headSha}\`);
+      }
+    }
+
+    const parentSha = String(targetPayload?.parents?.[0]?.sha || "").toLowerCase() || null;
+    return { sha, head_sha: headSha, parent_sha: parentSha };
+  }
+
+  async syncTradingCommit(commitSha, requestedEngines) {
+    const engines = [...new Set(
+      (Array.isArray(requestedEngines) ? requestedEngines : [requestedEngines])
+        .map((value) => String(value || "").trim().toLowerCase())
+        .filter(Boolean),
+    )];
+    if (!engines.length) throw new Error("commit_sync_engines_required");
+    if (engines.some((engine) => !COMMIT_SYNC_ENGINES.has(engine))) {
+      throw new Error("invalid_commit_sync_engine");
+    }
+
+    const commit = await this.verifyRecentMainCommit(commitSha);
+    const checkedAt = new Date().toISOString();
+    const events = [];
+    const engineStatus = {};
+
+    for (const engine of engines) {
+      const [before, after] = await Promise.all([
+        snapshotAtCommit(engine, commit.parent_sha),
+        snapshotAtCommit(engine, commit.sha),
+      ]);
+      const descriptors = transitionDescriptors(engine, before, after, checkedAt);
+      for (const descriptor of descriptors) {
+        descriptor.event_id = await eventId(engine, descriptor.event_type, descriptor.position_id);
+        events.push(descriptor);
+      }
+      engineStatus[engine] = {
+        transitions: descriptors.length,
+        open_after: after.open.size,
+      };
+    }
+
+    const dispatch = events.length
+      ? await this.dispatchEvents(events)
+      : { ok: true, sent: 0, failed: 0, expired: 0, pending: 0 };
+
+    const stats = (await this.ctx.storage.get("stats")) || {};
+    stats.last_commit_sync_at = checkedAt;
+    stats.last_commit_sync_sha = commit.sha;
+    stats.last_commit_sync_head_sha = commit.head_sha;
+    stats.last_commit_sync_engines = engines;
+    stats.last_commit_sync_event_count = events.length;
+    stats.last_commit_sync_status = events.length ? "TRANSITIONS_DISPATCHED" : "NO_TRANSITION";
+    stats.last_commit_sync_engine_status = engineStatus;
+    await this.ctx.storage.put("stats", stats);
+
+    return {
+      ok: dispatch.ok === true,
+      sha: commit.sha,
+      head_sha: commit.head_sha,
+      engines,
+      status: events.length ? "TRANSITIONS_DISPATCHED" : "NO_TRANSITION",
+      event_count: events.length,
+      event_ids: events.map((event) => event.event_id),
+      engine_status: engineStatus,
+      dispatch,
+    };
+  }
+
   async syncDailyCommit(commitSha) {
     const sha = String(commitSha || "").trim().toLowerCase();
     if (!/^[0-9a-f]{40}$/.test(sha)) {
@@ -669,7 +995,12 @@ export class PushHub {
         last_dispatch_at: stats.last_dispatch_at || null,
         last_commit_sync_at: stats.last_commit_sync_at || null,
         last_commit_sync_sha: stats.last_commit_sync_sha || null,
+        last_commit_sync_head_sha: stats.last_commit_sync_head_sha || null,
+        last_commit_sync_engines: stats.last_commit_sync_engines || [],
+        last_commit_sync_event_count: Number(stats.last_commit_sync_event_count || 0),
         last_commit_sync_status: stats.last_commit_sync_status || null,
+        last_commit_sync_engine_status: stats.last_commit_sync_engine_status || {},
+        recovery_ingest_internal_only: true,
         fast_daily_watcher: true,
         fast_daily_failures: Number(stats.fast_daily_failures || 0),
         last_fast_daily_error_at: stats.last_fast_daily_error_at || null,
@@ -682,12 +1013,34 @@ export class PushHub {
       }, 200, cors(origin));
     }
 
+
+    if (url.hostname === "internal" && path === "/ingest" && request.method === "POST") {
+      const payload = await bodyJson(request);
+      const events = Array.isArray(payload.events) ? payload.events : [];
+      return json(await this.dispatchEvents(events, { seedIfUninitialized: true }));
+    }
+
     if (url.hostname === "internal" && path === "/fast-daily-watch" && request.method === "POST") {
       try {
         return json(await this.fastDailyWatch());
       } catch (error) {
         await this.recordFastDailyError(error);
         return json({ ok: false, error: String(error?.message || error) }, 500);
+      }
+    }
+
+
+    if (path === "/sync-trading" && request.method === "POST") {
+      try {
+        const payload = await bodyJson(request);
+        const result = await this.syncTradingCommit(payload.sha, payload.engines);
+        return json(result, result.ok ? 200 : 502, cors(origin));
+      } catch (error) {
+        const message = String(error?.message || error || "sync_trading_failed");
+        const status = message.startsWith("commit_not_recent_main_ancestor:") ? 409
+          : ["invalid_commit_sha", "commit_sync_engines_required", "invalid_commit_sync_engine"].includes(message) ? 400
+          : 502;
+        return json({ ok: false, error: message }, status, cors(origin));
       }
     }
 
@@ -918,7 +1271,7 @@ export class PushHub {
     }
 
     if (path === "/ingest" && request.method === "POST") {
-      return json({ error: "direct_ingest_disabled_use_sync_daily" }, 403, cors(origin));
+      return json({ error: "direct_ingest_disabled_use_commit_sync" }, 403, cors(origin));
     }
 
     return json({ error: "not_found" }, 404, cors(origin));
@@ -978,4 +1331,4 @@ export default {
   }
 };
 
-export { finiteNumber, yahooMinuteBars };
+export { finiteNumber, yahooMinuteBars, dailyCommitSnapshot, weeklyCommitSnapshot, stockCommitSnapshot, transitionDescriptors, notificationPayload };
