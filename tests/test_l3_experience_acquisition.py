@@ -8,7 +8,7 @@ class TestL3ExperienceAcquisition(unittest.TestCase):
   x=build(q,now="2026-10-05T16:00:00Z")
   self.assertEqual(len(x["intents"]),2); self.assertTrue(x["authority"]["automatic_research_routing"])
   self.assertFalse(x["authority"]["belief_probability_override"]); self.assertFalse(x["authority"]["code_mutation"])
-  self.assertEqual(x["intents"][0]["route"],"approved_primary_source_research")
+  self.assertEqual(x["intents"][0]["route"],"approved_market_evidence_research")
  def test_rejects_unsafe_upstream_authority(self):
   with self.assertRaises(ValueError): build({"mode":"production","authority":{"probability_override":True,"trade_execution":False},"questions":[]})
 if __name__=="__main__": unittest.main()
