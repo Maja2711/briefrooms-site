@@ -267,7 +267,7 @@ def set_monitoring(item: Dict[str, Any], now: datetime, until: datetime, candida
 
 
 def preflight() -> Dict[str, Any]:
-    """Delegate to the single production WES 1.1 admission implementation."""
+    """Delegate to the single production WES 1.3.1 admission implementation."""
     import investments_wes_runner as runner
 
     return runner.preflight()
@@ -368,7 +368,8 @@ def postflight() -> Dict[str, Any]:
                 item["wes_status"] = "no_trade_monitoring_trigger"
                 item["wes_methodology"] = VERSION
     week.setdefault("wes", {}).update({"version": VERSION, "last_postflight_at": now.isoformat(timespec="seconds"), "dynamic_risk": True, "learning_by_entry_class": True})
-    if changed: write(path, week)
+    # Persist liveness on every completed postflight, even when no position state changed.
+    write(path, week)
     report["status"] = "completed"; report["week_id"] = week.get("week_id"); write(REPORT, report); return report
 
 
