@@ -52,10 +52,28 @@ class TradingNotificationEventsTest(unittest.TestCase):
 
         self.assertEqual(mod.build_events(opened, opened), [])
 
-        ev_close = mod.build_events(opened, empty)
+        original_data = mod.DATA
+        with tempfile.TemporaryDirectory() as td:
+            try:
+                mod.DATA = Path(td)
+                (mod.DATA / "eurusd_daily_history.json").write_text(json.dumps({
+                    "trades": [{
+                        "trade_id": "eurusd:1",
+                        "direction": "SHORT",
+                        "entry": 1.13,
+                        "opened_at": "2026-10-01T10:00:00Z",
+                        "exit_price": 1.12,
+                        "exit_reason": "TAKE_PROFIT",
+                        "closed_at": "2026-10-01T12:00:00Z",
+                    }]
+                }), encoding="utf-8")
+                ev_close = mod.build_events(opened, empty)
+            finally:
+                mod.DATA = original_data
         self.assertEqual(len(ev_close), 1)
         self.assertEqual(ev_close[0]["event_type"], "CLOSE")
         self.assertEqual(ev_close[0]["position_id"], "eurusd:1")
+        self.assertEqual(ev_close[0]["closed_at"], "2026-10-01T12:00:00Z")
         self.assertNotEqual(ev_open[0]["event_id"], ev_close[0]["event_id"])
 
 
