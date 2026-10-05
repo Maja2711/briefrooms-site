@@ -1,6 +1,6 @@
 # BriefRooms Canonical Architecture Map — EN
 
-**Map version:** 1.23  
+**Map version:** 1.24  
 **Snapshot date:** 2026-10-05  
 **Base `main` commit:** `f369f95fe45330d0a1f697b9de5d681448305767`  
 **Repository:** `Maja2711/briefrooms-site`
@@ -173,11 +173,13 @@ An adapter is not a decision engine. Its primary job is to translate a source in
 
 | ID | Module | Function | Authority |
 |---|---|---|---|
-| `LE-01` | Production Question Engine | Epistemic State -> question ranking using an Expected Information Value proxy | May select questions and initiate research; no probability override, trade execution, or policy writeback |
-| `LE-02` | L3 Experience Acquisition Orchestrator | Question -> preregistered research intent -> routing into existing research/experiment paths | Production research orchestration; max 3 active intents/cycle; no code mutation, engine-policy writeback, trade execution, or automatic production promotion |
-| `LE-03` | Existing Research / Experiment Fabric | Research Lab, Lesson/Hypothesis Registry, Experiment Compiler/Registry, Learning Ledger, Statistical Gates | Prospective evidence/outcomes and evaluation; production promotion only through the existing domain controller |
+| `L3-01` | Production Question Engine | Epistemic State -> question ranking using an Expected Information Value proxy | May select questions and initiate research; no probability override, trade execution, or policy writeback |
+| `L3-02` | Autonomous Experience Acquisition Orchestrator / Executor | Question -> preregistered research intent -> execution through existing approved source/Evidence adapters -> deterministic diff of newly acquired Evidence | Max 3 active intents/cycle; may initiate approved research but cannot directly set P, mutate model/policy/code, or execute trades |
+| `L3-03` | Existing Research / Experiment Fabric | Research Lab, Lesson/Hypothesis Registry, Experiment Compiler/Registry, Learning Ledger, Statistical Gates; unsupported intents end as WAITING_FOR_CAPABILITY | Prospective evidence/outcomes and evaluation; production promotion only through the existing domain controller |
+| `L3-04` | Experience Lineage / Value Attribution | `question_id -> intent_id -> new Evidence IDs -> P_before/P_after/DeltaP -> frozen forecast -> real Verification -> Brier/log-loss -> counterfactual Brier of old P`; implementation: `scripts/l3a_research_executor.py`, `scripts/l3a_experience_lineage.py`, `scripts/l3a_settlement.py`, workflows `L3 Autonomous Experience Acquisition` and `L3-A Experience Value Settlement` | Measurement/provenance for future L3-B. Brier comes only from canonical real Verification; L3-A has no probability/policy/trade/promotion authority |
 
-Canonical L3 loop: `Epistemic State -> Question Engine -> L3 Orchestrator -> research / preregistration -> prospective evidence/outcomes -> Learning Ledger / Experiment Registry -> statistical gate -> promotion recommendation/controller -> future-only change`. Missing or infeasible research is never converted into a fabricated result. L3 may not rewrite code or directly override Belief probability or a trading decision.
+Canonical L3-A loop: `Epistemic State -> Question Engine -> research intent -> approved adapters -> Observation/Evidence -> Belief Core recompute -> attributed frozen forecast -> canonical Verification -> Brier/log-loss -> experience value`. **Belief Core may normally change P from newly accepted Evidence; L3-01/L3-02 may not override P directly.** A point-in-time Belief state is saved before research and attribution includes only Evidence IDs absent from that state. The forecast is frozen prospectively and settlement never binds an outcome retroactively. Missing new Evidence, an outcome contract, or capability is recorded explicitly and never converted into a fabricated result.
+
 
 ## 6. Decision / trading engines
 
