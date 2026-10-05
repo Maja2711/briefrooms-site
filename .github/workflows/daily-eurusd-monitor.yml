@@ -33,6 +33,7 @@ on:
       - "scripts/daily_eurusd_experiment_v12.py"
       - "scripts/no_retroactive_execution.py"
       - "scripts/verify_no_retroactive_execution.py"
+      - "scripts/sync_trading_push_commit.sh"
       - "scripts/daily-eurusd-spot-public.js"
       - "scripts/daily-eurusd-live-price.js"
       - "en/investing/daily-trading.html"
@@ -416,44 +417,7 @@ jobs:
         if: steps.persist.outputs.changed == 'true'
         env:
           PUSH_API: https://briefrooms-trading-push.szczerbinski0577.workers.dev
-        run: |
-          set -euo pipefail
-          sha="${{ steps.persist.outputs.sha }}"
-
-          for attempt in 1 2 3 4; do
-            code=$(curl --silent --show-error \
-              -o "$RUNNER_TEMP/trading-push-response.json" \
-              -w "%{http_code}" \
-              -H "content-type: application/json" \
-              --data "{\"sha\":\"$sha\"}" \
-              "$PUSH_API/sync-daily" || true)
-
-            cat "$RUNNER_TEMP/trading-push-response.json" || true
-
-            if [ "$code" = "200" ] && python - <<'PY'
-          import json, os
-          from pathlib import Path
-          p=Path(os.environ["RUNNER_TEMP"])/"trading-push-response.json"
-          j=json.loads(p.read_text())
-          d=j.get("dispatch") or {}
-          ok=(j.get("ok") is True and int(d.get("failed") or 0) == 0 and int(d.get("pending") or 0) == 0)
-          print("TRADING_PUSH_COMMIT_SYNC", j)
-          raise SystemExit(0 if ok else 1)
-          PY
-            then
-              exit 0
-            fi
-
-            # Another workflow may have advanced main after this run. Sync the
-            # newest main head; it contains at least this persisted transition or
-            # a fresher canonical Daily state.
-            git fetch --quiet origin main
-            sha=$(git rev-parse origin/main)
-            sleep "$attempt"
-          done
-
-          echo "Immediate commit-bound trading push failed after retries" >&2
-          exit 1
+        run: bash scripts/sync_trading_push_commit.sh "${{ steps.persist.outputs.sha }}" daily
 
       - name: Ensure realtime lifecycle watcher is active for an OPEN position
         env:
