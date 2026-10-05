@@ -86,8 +86,18 @@ def preflight():
                 baseline = abs(float(item.get("score") or 0.0))
                 item["wes_initial_no_trade_score"] = baseline
         delta = max(0.0, raw - abs(float(baseline or 0.0)))
+        delta_passed = delta >= float(profile["delta"])
+        bypass_passed, bypass_diagnostics = wes.absolute_strength_delta_bypass(
+            profile,
+            raw,
+            utility,
+            int(data["confirmations"]),
+            list(data["confirmation_sources"]),
+            admission_meta,
+            policy,
+        )
 
-        approved = (
+        base_thresholds_passed = (
             bool(profile.get("allowed"))
             and direction in {"long", "short"}
             and str(decision.get("execution_authority") or "") == "champion_execution"
@@ -95,7 +105,25 @@ def preflight():
             and raw >= float(profile["raw"])
             and utility >= float(profile["utility"])
             and int(data["confirmations"]) >= int(profile["confirmations"])
-            and delta >= float(profile["delta"])
+        )
+
+        existing_pending = item.get("pending_entry_decision") if isinstance(item.get("pending_entry_decision"), dict) else {}
+        existing_pending_decision = existing_pending.get("decision") if isinstance(existing_pending.get("decision"), dict) else {}
+        same_pending_thesis = (
+            bool(existing_pending)
+            and str(existing_pending_decision.get("direction") or "") == direction
+            and str(existing_pending_decision.get("strategy_id") or "") == str(decision.get("strategy_id") or "")
+            and base_thresholds_passed
+        )
+        persistent_plan_reaffirmed = (
+            same_pending_thesis
+            and wes.v5.renew_persistent_entry_plan(existing_pending, now, policy)
+        )
+
+        approved = base_thresholds_passed and (
+            delta_passed
+            or bypass_passed
+            or persistent_plan_reaffirmed
         )
         candidate = {
             "direction": direction,
@@ -108,6 +136,13 @@ def preflight():
             "entry_class": cls,
             "execution_authority": decision.get("execution_authority"),
             "directional_admission": admission_meta,
+            "delta_gate": {
+                "delta": round(delta, 4),
+                "required_delta": round(float(profile["delta"]), 4),
+                "passed": delta_passed,
+                "absolute_strength_bypass": bypass_diagnostics,
+                "persistent_plan_reaffirmed": persistent_plan_reaffirmed,
+            },
         }
 
         if initial_plan:
@@ -115,11 +150,19 @@ def preflight():
             item["wes_initial_admission_at"] = now.isoformat(timespec="seconds")
 
         if approved:
+            if persistent_plan_reaffirmed:
+                item["pending_entry_decision"] = existing_pending
+                item["next_entry_status"] = (
+                    "waiting_for_market_entry"
+                    if str(((existing_pending.get("entry_price_plan") or {}).get("execution_mode") or "")) == "market_now"
+                    else "waiting_for_entry_target"
+                )
+                item["entry_quality_status"] = "wes_1_3_1_persistent_plan_reaffirmed"
             item["reentry_lock"] = {
                 "active": False,
                 "scope": "wes_directional_admission",
                 "released_at": now.isoformat(timespec="seconds"),
-                "reason": "wes_1_1_directional_admission_qualified",
+                "reason": "wes_1_3_1_directional_admission_qualified",
             }
             item["wes_status"] = (
                 "initial_directional_admission_authorized"
@@ -138,7 +181,13 @@ def preflight():
             }
             report["actions"].append({
                 "instrument_id": iid,
-                "action": "authorize_initial_entry" if initial_plan else "authorize_early_reentry" if early_reentry else "authorize_trigger",
+                "action": (
+                    "reaffirm_persistent_entry_plan"
+                    if persistent_plan_reaffirmed
+                    else "authorize_initial_entry" if initial_plan
+                    else "authorize_early_reentry" if early_reentry
+                    else "authorize_trigger"
+                ),
                 **candidate,
             })
         else:
