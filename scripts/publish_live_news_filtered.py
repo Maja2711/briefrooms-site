@@ -81,13 +81,16 @@ PL_SECTION_MINIMUMS = {
     "zdrowie": 6,
     "nauka": 6,
     "sport": 9,
+    # Dedicated AI/crypto is availability-driven: freshness wins over padding.
+    "ai-technologia-krypto": 0,
 }
-PL_ECONOMY_AI_CRYPTO_MINIMUM = 1
-PL_SCIENCE_AI_TARGET = 3
+PL_SCIENCE_AI_TARGET = 0
 EN_SECTION_TARGETS = base.EN_SECTION_TARGETS
 AI_CRYPTO_RE = re.compile(
-    r"\b(?:AI|sztuczn\w*\s+inteligencj\w*|artificial\s+intelligence|OpenAI|ChatGPT|"
-    r"bitcoin|BTC|ethereum|ETH|kryptowalut\w*|crypto|blockchain|stablecoin\w*)\b",
+    r"\b(?:AI|sztuczn\w*\s+inteligencj\w*|artificial\s+intelligence|machine\s+learning|"
+    r"generative\s+AI|genAI|LLM|large\s+language\s+model\w*|OpenAI|ChatGPT|Anthropic|Claude|"
+    r"Gemini|DeepMind|Nvidia|GPU\w*|bitcoin|BTC|ethereum|ETH|kryptowalut\w*|cryptocurrency\w*|"
+    r"crypto|blockchain|stablecoin\w*|tokeniz\w*|tokenis\w*|DeFi)\b",
     re.IGNORECASE,
 )
 
@@ -550,6 +553,23 @@ def select_sections(
                 if _fresh_for_pl_selection(story, now)
                 and _eligible_before_selection(story, now, prior_exposure)
             ]
+
+        ai_section = section_id in {"ai-technologia-krypto", "ai-technology-crypto"}
+        if ai_section:
+            # This room is intentionally strict: generic consumer technology does
+            # not qualify without an explicit AI or crypto/blockchain signal.
+            source_candidates = [
+                story for story in source_candidates
+                if AI_CRYPTO_RE.search(_story_text(story))
+            ]
+        elif section_id in {"ekonomia", "nauka", "business", "science"}:
+            # Reserve AI/crypto stories for the dedicated final section and avoid
+            # cross-section duplicates / artificial AI quotas elsewhere.
+            source_candidates = [
+                story for story in source_candidates
+                if not AI_CRYPTO_RE.search(_story_text(story))
+            ]
+
         sport_mode = pl_mode and section_id == "sport"
         if sport_mode:
             support = _sport_entity_support(source_candidates)
@@ -709,160 +729,6 @@ def select_sections(
 
         # PL economy contract: reserve one slot for a fresh AI/crypto story before
         # general ranking can consume all nine cards.
-        if pl_mode and section_id == "ekonomia":
-            ai_crypto_candidate = next(
-                (
-                    story for story in candidates
-                    if story.get("image") and AI_CRYPTO_RE.search(_story_text(story))
-                ),
-                None,
-            )
-            if ai_crypto_candidate is not None:
-                try_add(
-                    ai_crypto_candidate,
-                    discipline_cap=False,
-                    source_cap=preferred_source_cap,
-                )
-
-        # PL contract: reserve one politics-section slot for a material
-        # Russia-Ukraine-war update before general ranking can consume all nine.
-        # If no fresh qualifying item is available, carry the latest qualifying
-        # previously-published item for at most the global 24h freshness horizon.
-        if pl_mode and section_id == "polityka":
-            topic_candidate = next(
-                (
-                    story
-                    for story in candidates
-                    if story.get("image") and is_pl_ukraine_russia_war_story(story)
-                ),
-                None,
-            )
-            if topic_candidate is not None:
-                try_add(
-                    topic_candidate,
-                    discipline_cap=False,
-                    source_cap=preferred_source_cap,
-                )
-            else:
-                carried_topic = _recent_carried_ukraine_war_story(
-                    previous_sections,
-                    section_id,
-                    now,
-                )
-                if carried_topic is not None:
-                    copy = dict(carried_topic)
-                    copy["carried_forward"] = True
-                    if try_add(
-                        copy,
-                        discipline_cap=False,
-                        source_cap=(
-                            MAX_SOURCE_SHARE if len(active_sources) >= 2 else target
-                        ),
-                    ) == "added":
-                        forced_topic_carried = 1
-
-        for story in candidates:
-            result = try_add(
-                story,
-                discipline_cap=sport_mode,
-                source_cap=preferred_source_cap,
-            )
-            if result == "discipline_cap":
-                deferred_discipline.append(story)
-            elif result == "source_cap":
-                deferred_source.append(story)
-            if len(items) >= target:
-                break
-
-        # Discipline diversity is a soft constraint. It may be relaxed to avoid an
-        # underfilled section, while the per-athlete cap remains hard.
-        if sport_mode and len(items) < target:
-            for story in deferred_discipline:
-                result = try_add(
-                    story,
-                    discipline_cap=False,
-                    source_cap=preferred_source_cap,
-                )
-                if result == "source_cap":
-                    deferred_source.append(story)
-                if len(items) >= target:
-                    break
-
-        # A publisher can exceed the preferred share only to prevent an otherwise
-        # incomplete section, and never occupy more than five of nine cards when at
-        # least two publishers supplied usable material.
-        if len(items) < target and preferred_source_cap < MAX_SOURCE_SHARE:
-            for story in deferred_source:
-                try_add(
-                    story,
-                    discipline_cap=False,
-                    source_cap=MAX_SOURCE_SHARE,
-                )
-                if len(items) >= target:
-                    break
-
-        carried = forced_topic_carried
-        if len(items) < target:
-            old_items = previous_sections.get(section_id, []) if isinstance(previous_sections.get(section_id), list) else []
-            for old in old_items:
-                try:
-                    published = datetime.fromisoformat(str(old.get("published_at") or "").replace("Z", "+00:00"))
-                    if published.tzinfo is None:
-                        published = published.replace(tzinfo=timezone.utc)
-                    if now - published.astimezone(timezone.utc) > base.MAX_CARRY_AGE:
-                        continue
-                except Exception:
-                    continue
-                copy = dict(old)
-                copy["carried_forward"] = True
-                carry_source_cap = (
-                    MAX_SOURCE_SHARE if len(active_sources) >= 2 else target
-                )
-                if try_add(
-                    copy,
-                    discipline_cap=False,
-                    source_cap=carry_source_cap,
-                ) == "added":
-                    carried += 1
-                if len(items) >= target:
-                    break
-
-        # Freshness has authority over visual fullness. The downstream public
-        # 24h guard may shrink this further, so an underfilled section is valid.
-        selected[section_id] = items[:target]
-        minimum = PL_SECTION_MINIMUMS.get(section_id, 0) if pl_mode else 0
-        minimum_met = len(selected[section_id]) >= minimum if pl_mode else True
-        # Section minimums are editorial targets, not an atomic publication gate.
-        # A temporarily underfilled desk must never suppress a new qualified story
-        # from another desk or language. Publish the best eligible set now and let
-        # later hourly runs refill the section while preserving freshness/dedupe.
-        if pl_mode:
-            if section_id == "ekonomia":
-                ai_crypto_count = sum(
-                    1 for story in selected[section_id]
-                    if AI_CRYPTO_RE.search(_story_text(story))
-                )
-                # Availability of one editorial subtype must not block the
-                # entire PL/EN publication. Keep the target observable in
-                # section health and let the next run recover naturally.
-        times = [base.story_time(item) for item in items if base.story_time(item) > 0]
-        section_health: dict[str, Any] = {
-            "count": len(selected[section_id]),
-            "fresh_count": len(selected[section_id]) - carried,
-            "carried_count": carried,
-            "newest_source_at": datetime.fromtimestamp(max(times), tz=timezone.utc).isoformat(timespec="seconds") if times else None,
-            "source_mix": source_counts,
-            "source_diversity_policy": EDITORIAL_SELECTION_POLICY_VERSION,
-            "preferred_source_cap": preferred_source_cap,
-            "hard_source_cap": MAX_SOURCE_SHARE if len(active_sources) >= 2 else target,
-            "editorial_minimum": minimum,
-            "editorial_minimum_met": minimum_met,
-            "underfill_allowed_for_incremental_publication": True,
-        }
-        if pl_mode and section_id == "ekonomia":
-            section_health["ai_crypto_count"] = ai_crypto_count
-            section_health["ai_crypto_minimum"] = PL_ECONOMY_AI_CRYPTO_MINIMUM
-            section_health["ai_crypto_target_met"] = ai_crypto_count >= PL_ECONOMY_AI_CRYPTO_MINIMUM
         if sport_mode:
             section_health["tracked_athletes"] = athlete_counts
             section_health["discipline_mix"] = discipline_counts
