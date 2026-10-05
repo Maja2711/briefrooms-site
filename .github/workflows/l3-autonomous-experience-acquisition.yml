@@ -2,51 +2,191 @@ name: L3 Autonomous Experience Acquisition
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/l3_experience_acquisition.py"
+      - "scripts/l3a_research_executor.py"
+      - "scripts/l3a_experience_lineage.py"
+      - "tests/test_l3_experience_acquisition.py"
+      - "tests/test_l3a_experience_lineage.py"
+      - "tests/test_l3a_executor_e2e.py"
+      - ".github/workflows/l3-autonomous-experience-acquisition.yml"
   workflow_run:
     workflows: ["Belief Question Engine Production"]
     types: [completed]
 
 permissions:
   contents: read
-  actions: read
+  actions: write
+
+concurrency:
+  group: belief-core-live-shadow
+  cancel-in-progress: false
+
+env:
+  BELIEF_ARTIFACT_NAME: belief-core-shadow-state
+  QUESTION_ARTIFACT_NAME: belief-question-engine-production
 
 jobs:
   acquire:
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: $GH_WORKSPACE/scripts:$GH_WORKSPACE
+      GEMINI_API_KEY: $GEMINI_KEY
+      GEMINI_GENERATION_MODEL: gemini-3.5-flash
+      GEMINI_REVIEW_MODEL: gemini-3.5-flash
+      GEMINI_FALLBACK_MODEL: gemini-3.5-flash-lite
+      GEMINI_MIN_INTERVAL_SECONDS: "8"
+      BELIEF_SEC_ENABLED: "1"
+      BELIEF_COMPANY_PRIMARY_ENABLED: "1"
+      BELIEF_HTTP_USER_AGENT: "BriefRooms-L3A/1.0 https://briefrooms.com"
+
     steps:
       - uses: actions/checkout@v4
-        with: {ref: main}
+        with:
+          ref: main
       - uses: actions/setup-python@v5
-        with: {python-version: "3.12"}
-      - name: Validate L3 orchestrator
-        run: python -m unittest tests.test_l3_experience_acquisition -v
-      - name: Restore latest production questions
-        env: {GH_TOKEN: "${{ github.token }}"}
+        with:
+          python-version: "3.12"
+
+      - name: Export protected runtime values
         run: |
-          mkdir -p "$RUNNER_TEMP/l3"
-          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=belief-question-engine-production&per_page=20"
-          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/a.json"
-          id=$(python -c "import json; x=json.load(open('$RUNNER_TEMP/a.json')); r=[a for a in x.get('artifacts',[]) if not a.get('expired')]; r.sort(key=lambda a:a.get('created_at',''),reverse=True); print(r[0]['id'] if r else '')")
+          echo "GH_WORKSPACE=$GITHUB_WORKSPACE" >> "$GITHUB_ENV"
+          echo "GEMINI_KEY=${{ secrets.GEMINI_API_KEY }}" >> "$GITHUB_ENV"
+
+      - name: Install source-first research dependencies
+        run: pip install requests pypdf
+
+      - name: Validate L3-A contracts
+        env:
+          PYTHONPATH: $GITHUB_WORKSPACE/scripts:$GITHUB_WORKSPACE
+        run: |
+          python -m py_compile scripts/l3_experience_acquisition.py scripts/l3a_experience_lineage.py scripts/l3a_research_executor.py scripts/l3a_settlement.py
+          python -m unittest tests.test_l3_experience_acquisition tests.test_l3a_experience_lineage tests.test_l3a_executor_e2e -v
+
+      - name: Prepare runtime paths
+        run: |
+          echo "STATE_DIR=$RUNNER_TEMP/belief_core_state" >> "$GITHUB_ENV"
+          echo "L3_DIR=$RUNNER_TEMP/l3" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/belief_core_state" "$RUNNER_TEMP/l3" "$RUNNER_TEMP/questions"
+
+      - name: Restore triggering production questions
+        if: github.event_name == 'workflow_run'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/artifacts?per_page=100" > "$RUNNER_TEMP/question-artifacts.json"
+          id=$(python - "$RUNNER_TEMP/question-artifacts.json" <<'PY'
+          import json,sys
+          from pathlib import Path
+          rows=json.loads(Path(sys.argv[1]).read_text()).get("artifacts",[])
+          rows=[x for x in rows if x.get("name")=="belief-question-engine-production" and not x.get("expired")]
+          print(rows[0]["id"] if rows else "")
+          PY
+          )
           test -n "$id"
-          curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/$id/zip" -o "$RUNNER_TEMP/q.zip"
-          unzip -q "$RUNNER_TEMP/q.zip" -d "$RUNNER_TEMP/q"
+          curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/$id/zip" -o "$RUNNER_TEMP/questions.zip"
+          unzip -q "$RUNNER_TEMP/questions.zip" -d "$RUNNER_TEMP/questions"
+
+      - name: Restore latest production questions for manual or push run
+        if: github.event_name != 'workflow_run'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${QUESTION_ARTIFACT_NAME}&per_page=50"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/q-artifacts.json"
+          id=$(python - "$RUNNER_TEMP/q-artifacts.json" <<'PY'
+          import json,sys
+          from pathlib import Path
+          rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get("artifacts",[]) if not x.get("expired")]
+          rows.sort(key=lambda x:x.get("created_at",""),reverse=True)
+          print(rows[0]["id"] if rows else "")
+          PY
+          )
+          test -n "$id"
+          curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/$id/zip" -o "$RUNNER_TEMP/questions.zip"
+          unzip -q "$RUNNER_TEMP/questions.zip" -d "$RUNNER_TEMP/questions"
+
       - name: Build autonomous research intents
-        run: python scripts/l3_experience_acquisition.py --questions "$RUNNER_TEMP/q/BELIEF_QUESTIONS.json" --output "$RUNNER_TEMP/l3/L3_RESEARCH_INTENTS.json"
-      - name: Assert authority boundary
+        run: |
+          test -f "$RUNNER_TEMP/questions/BELIEF_QUESTIONS.json"
+          python scripts/l3_experience_acquisition.py --questions "$RUNNER_TEMP/questions/BELIEF_QUESTIONS.json" --output "$L3_DIR/L3_RESEARCH_INTENTS.json"
+
+      - name: Restore latest cumulative Belief Core state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${BELIEF_ARTIFACT_NAME}&per_page=100"
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "$api" > "$RUNNER_TEMP/belief-artifacts.json"
+          id=$(python - "$RUNNER_TEMP/belief-artifacts.json" <<'PY'
+          import json,sys
+          from pathlib import Path
+          rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get("artifacts",[]) if not x.get("expired")]
+          rows.sort(key=lambda x:x.get("created_at",""),reverse=True)
+          print(rows[0]["id"] if rows else "")
+          PY
+          )
+          test -n "$id"
+          curl -fsSL -L -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/$id/zip" -o "$RUNNER_TEMP/belief.zip"
+          mkdir -p "$RUNNER_TEMP/belief-artifact"
+          unzip -q "$RUNNER_TEMP/belief.zip" -d "$RUNNER_TEMP/belief-artifact"
+          test -f "$RUNNER_TEMP/belief-artifact/belief-core-state.tgz"
+          tar -xzf "$RUNNER_TEMP/belief-artifact/belief-core-state.tgz" -C "$STATE_DIR"
+          test -f "$STATE_DIR/state.json"
+          cp "$STATE_DIR/state.json" "$L3_DIR/STATE_BEFORE_RESEARCH.json"
+
+      - name: Execute approved source-first research
+        env:
+          PYTHONPATH: $GITHUB_WORKSPACE/scripts:$GITHUB_WORKSPACE
+        run: |
+          set -euo pipefail
+          python scripts/belief_external_live.py --state-dir "$STATE_DIR"
+          python scripts/belief_core_live.py --state-dir "$STATE_DIR"
+
+      - name: Attribute new Evidence and freeze L3-A forecasts
+        env:
+          PYTHONPATH: $GITHUB_WORKSPACE/scripts:$GITHUB_WORKSPACE
+        run: |
+          python scripts/l3a_research_executor.py --intents "$L3_DIR/L3_RESEARCH_INTENTS.json" --before-state "$L3_DIR/STATE_BEFORE_RESEARCH.json" --state-dir "$STATE_DIR" --output "$L3_DIR/L3A_RESEARCH_RESULTS.json"
+
+      - name: Assert L3-A authority and real-lineage contract
         run: |
           python - <<'PY'
-          import json, os
+          import json,os
           from pathlib import Path
-          p=json.loads((Path(os.environ["RUNNER_TEMP"])/"l3/L3_RESEARCH_INTENTS.json").read_text())
-          a=p["authority"]
-          assert a["automatic_question_selection"] and a["automatic_research_routing"] and a["automatic_experiment_preregistration"]
-          assert not a["belief_probability_override"] and not a["engine_policy_writeback"] and not a["code_mutation"] and not a["trade_execution"] and not a["automatic_production_promotion"]
-          print("L3 authority boundary PASS",p["summary"])
+          p=json.loads((Path(os.environ["L3_DIR"])/"L3A_RESEARCH_RESULTS.json").read_text())
+          for r in p["results"]:
+              a=r["authority"]
+              assert not a["probability_override"] and not a["engine_policy_writeback"] and not a["code_mutation"] and not a["trade_execution"] and not a["automatic_production_promotion"]
+              if r["research_result_status"]=="WAITING_OUTCOME":
+                  assert r["evidence_ids"] and r["forecast_id"]
+                  assert r["p_before"] is not None and r["p_after"] is not None
+          print("L3-A production research lineage PASS",p["summary"])
           PY
+
+      - name: Pack cumulative Belief Core state including L3-A lineage
+        run: tar -czf "$RUNNER_TEMP/belief-core-state.tgz" -C "$STATE_DIR" .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: belief-core-shadow-state
+          path: ${{ runner.temp }}/belief-core-state.tgz
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
       - uses: actions/upload-artifact@v4
         with:
           name: l3-autonomous-experience-acquisition
-          path: ${{ runner.temp }}/l3/L3_RESEARCH_INTENTS.json
+          path: |
+            ${{ runner.temp }}/l3/L3_RESEARCH_INTENTS.json
+            ${{ runner.temp }}/l3/L3A_RESEARCH_RESULTS.json
+          if-no-files-found: error
           retention-days: 30
