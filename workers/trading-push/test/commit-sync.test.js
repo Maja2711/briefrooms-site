@@ -86,3 +86,39 @@ test("Background push copy and destination are localized for PL and EN", () => {
   assert.match(en.body, /^TAKE PROFIT/);
   assert.equal(en.url, "/en/investing/open-weekly-positions.html");
 });
+
+
+test("PL and EN routes remain correct for Daily Weekly and Stock channels", () => {
+  const fixtures = [
+    {
+      event: { event_id: "d1", engine: "daily", event_type: "OPEN", position_id: "d", instrument: "EUR/USD", direction: "SHORT", entry: 1.12 },
+      plUrl: "/pl/inwestycje/daily-trading.html",
+      enUrl: "/en/investing/daily-trading.html",
+      plAction: "OTWARTO",
+      enAction: "OPENED",
+    },
+    {
+      event: { event_id: "w1", engine: "weekly", event_type: "OPEN", position_id: "w", instrument: "S&P 500 futures", direction: "LONG", entry: 6800 },
+      plUrl: "/pl/inwestycje/pozycje-tygodniowe.html",
+      enUrl: "/en/investing/open-weekly-positions.html",
+      plAction: "OTWARTO",
+      enAction: "OPENED",
+    },
+    {
+      event: { event_id: "s1", engine: "stock", event_type: "CLOSE", position_id: "s", instrument: "AAPL", direction: "LONG", entry: 250, exit_price: 255, exit_reason: "TIME_EXIT" },
+      plUrl: "/pl/inwestycje/stock-trading.html",
+      enUrl: "/en/investing/stock-trading.html",
+      plAction: "ZAMKNIĘTO",
+      enAction: "CLOSED",
+    },
+  ];
+
+  for (const row of fixtures) {
+    const pl = JSON.parse(notificationPayload(row.event, "pl", "https://push.example"));
+    const en = JSON.parse(notificationPayload(row.event, "en", "https://push.example"));
+    assert.equal(pl.url, row.plUrl);
+    assert.equal(en.url, row.enUrl);
+    assert.match(pl.body, new RegExp(`^${row.plAction}`));
+    assert.match(en.body, new RegExp(`^${row.enAction}`));
+  }
+});
