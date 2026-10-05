@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
@@ -39,6 +40,22 @@ def write_json_if_changed(path: Path, payload: Any) -> bool:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
     return True
+
+
+def finite_number(value: Any) -> float | None:
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if math.isfinite(number) else None
+
+
+def weekly_position_id(payload: dict[str, Any], row: dict[str, Any]) -> str:
+    week_id = str(payload.get("week_id") or "weekly")
+    instrument_id = str(row.get("instrument_id") or row.get("symbol") or "unknown")
+    return str(row.get("position_id") or f"{week_id}:{instrument_id}:{row.get('entry_captured_at') or row.get('entry_price')}")
 
 
 def compact_position(
@@ -97,16 +114,18 @@ def weekly_open_positions() -> list[dict[str, Any]]:
         if not isinstance(row, dict):
             continue
         status = str(row.get("trade_status") or "").lower()
+        direction = str(row.get("direction") or "").lower()
         entry = row.get("entry_price")
         exit_price = row.get("exit_price")
-        is_open = status in {"open", "opened", "active", "holding"} or (
-            entry is not None and exit_price is None and status not in {"pending", "no_trade", "closed", "cancelled"}
-        )
+        has_verified_entry = finite_number(entry) is not None and direction in {"long", "short"}
+        is_open = has_verified_entry and finite_number(exit_price) is None and status not in {
+            "pending", "planned", "no_trade", "closed", "cancelled", "expired_no_entry"
+        }
         if not is_open:
             continue
         instrument_id = str(row.get("instrument_id") or row.get("symbol") or "unknown")
         label = row.get("label_pl") or row.get("label_en") or row.get("symbol") or instrument_id
-        pid = row.get("position_id") or f"{week_id}:{instrument_id}:{row.get('entry_captured_at') or entry}"
+        pid = weekly_position_id(payload, row)
         out.append(compact_position(
             engine="weekly",
             position_id=str(pid),
@@ -174,6 +193,71 @@ def event_id(engine: str, event_type: str, position_id: str) -> str:
     return hashlib.sha256(raw).hexdigest()[:24]
 
 
+def recovery_close_details(engine: str, position_id: str) -> dict[str, Any]:
+    """Read close metadata from canonical state for the recovery feed only."""
+    if engine == "daily":
+        history = read_json(DATA / "eurusd_daily_history.json", {})
+        trades = history.get("trades") if isinstance(history, dict) else []
+        if isinstance(trades, list):
+            trade = next(
+                (
+                    row for row in reversed(trades)
+                    if isinstance(row, dict)
+                    and str(row.get("trade_id") or "") == position_id
+                ),
+                None,
+            )
+            if trade:
+                return {
+                    "exit_reason": trade.get("exit_reason"),
+                    "exit_price": trade.get("exit_price"),
+                    "closed_at": trade.get("closed_at"),
+                    "r_multiple": trade.get("r_multiple"),
+                }
+        return {}
+
+    if engine == "weekly":
+        for path in reversed(sorted((DATA / "weekly").glob("20??-W??.json"))):
+            payload = read_json(path, {})
+            rows = payload.get("instruments") if isinstance(payload, dict) else []
+            if not isinstance(rows, list):
+                continue
+            for row in rows:
+                if not isinstance(row, dict) or weekly_position_id(payload, row) != position_id:
+                    continue
+                status = str(row.get("trade_status") or "").lower()
+                exit_price = finite_number(row.get("exit_price"))
+                closed_at = row.get("closed_at") or row.get("exit_captured_at")
+                if status == "closed" or exit_price is not None or closed_at:
+                    return {
+                        "exit_reason": row.get("exit_reason") or row.get("close_reason"),
+                        "exit_price": row.get("exit_price"),
+                        "closed_at": closed_at,
+                        "r_multiple": row.get("r_multiple"),
+                    }
+        return {}
+
+    if engine == "stock":
+        payload = read_json(DATA / "stock_trading_portfolio.json", {})
+        markets = payload.get("markets") if isinstance(payload, dict) else {}
+        if not isinstance(markets, dict):
+            return {}
+        for block in markets.values():
+            rows = block.get("closed_positions") if isinstance(block, dict) else []
+            if not isinstance(rows, list):
+                continue
+            for row in reversed(rows):
+                if not isinstance(row, dict) or str(row.get("position_id") or "") != position_id:
+                    continue
+                return {
+                    "exit_reason": row.get("exit_reason") or row.get("close_reason"),
+                    "exit_price": row.get("exit_price") if row.get("exit_price") is not None else row.get("exit"),
+                    "closed_at": row.get("closed_at"),
+                    "r_multiple": row.get("r_multiple"),
+                }
+    return {}
+
+
 def make_event(engine: str, event_type: str, pos: dict[str, Any]) -> dict[str, Any]:
     now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     event = {
@@ -189,23 +273,11 @@ def make_event(engine: str, event_type: str, pos: dict[str, Any]) -> dict[str, A
         "observed_at": now,
         "source": "persisted_trading_state_transition",
     }
-    if engine == "daily" and event_type == "CLOSE":
-        history = read_json(DATA / "eurusd_daily_history.json", {})
-        trades = history.get("trades") if isinstance(history, dict) else []
-        if isinstance(trades, list):
-            trade = next(
-                (
-                    row for row in reversed(trades)
-                    if isinstance(row, dict)
-                    and str(row.get("trade_id") or "") == str(pos.get("position_id") or "")
-                ),
-                None,
-            )
-            if trade:
-                event["exit_reason"] = trade.get("exit_reason")
-                event["exit_price"] = trade.get("exit_price")
-                event["closed_at"] = trade.get("closed_at")
-                event["r_multiple"] = trade.get("r_multiple")
+    if event_type == "CLOSE":
+        details = recovery_close_details(engine, str(pos.get("position_id") or ""))
+        for key, value in details.items():
+            if value is not None:
+                event[key] = value
     return event
 
 
