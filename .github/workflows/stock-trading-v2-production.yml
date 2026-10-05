@@ -12,6 +12,7 @@ on:
       - "scripts/stock_trading_portfolio.py"
       - "scripts/no_retroactive_execution.py"
       - "scripts/verify_no_retroactive_execution.py"
+      - "scripts/sync_trading_push_commit.sh"
       - "data/investments/stock_trading_v2_production_config.json"
       - "data/investments/stock_trading_policy.json"
       - "tests/test_no_retroactive_execution.py"
@@ -129,6 +130,7 @@ jobs:
               python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
               if git push origin HEAD:main; then
                 echo "changed=true" >> "$GITHUB_OUTPUT"
+                echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
                 exit 0
               fi
             fi
@@ -139,6 +141,12 @@ jobs:
             sleep $((attempt*3))
           done
           exit 1
+
+      - name: Dispatch persisted Stock Trading transition to Web Push immediately
+        if: steps.commit.outputs.changed == 'true'
+        env:
+          PUSH_API: https://briefrooms-trading-push.szczerbinski0577.workers.dev
+        run: bash scripts/sync_trading_push_commit.sh "${{ steps.commit.outputs.sha }}" stock
 
       - name: Request Pages refresh
         if: steps.commit.outputs.changed == 'true'
