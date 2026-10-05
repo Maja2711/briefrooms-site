@@ -30,7 +30,7 @@ POLICY = ROOT / "data/investments/multi_instrument_exposure_policy.json"
 WEEKLY = ROOT / "data/investments/weekly"
 REPORT = ROOT / "data/investments/wes_report.json"
 LEARNING = ROOT / "data/investments/wes_learning.json"
-VERSION = "WES-1.2.0"
+VERSION = "WES-1.3.1"
 
 read, write, sf, parse_dt = v4.read, v4.write, v2.sf, v2.parse_dt
 
@@ -90,6 +90,63 @@ def confirmations(
     policy = policy if isinstance(policy, dict) else read(POLICY, {})
     names = v5.directional_confirmation_sources(direction, fresh, weekly, macro_context, policy)
     return len(names), names
+
+
+def absolute_strength_delta_bypass(
+    profile: Dict[str, Any],
+    raw: float,
+    utility: float,
+    confirmations_count: int,
+    confirmation_sources: List[str],
+    admission_meta: Dict[str, Any],
+    policy: Dict[str, Any],
+) -> Tuple[bool, Dict[str, Any]]:
+    """Allow a very strong absolute signal to bypass only the incremental-delta gate.
+
+    Thresholds scale from the active trigger profile, so the bypass becomes
+    stricter automatically later in the week instead of relying on a second
+    unrelated set of fixed thresholds.
+    """
+    directional = policy.get("directional_admission") if isinstance(policy.get("directional_admission"), dict) else {}
+    cfg = directional.get("absolute_strength_delta_bypass") if isinstance(directional.get("absolute_strength_delta_bypass"), dict) else {}
+    raw_multiplier = max(1.0, float(cfg.get("raw_multiplier") or 1.30))
+    utility_multiplier = max(1.0, float(cfg.get("utility_multiplier") or 1.30))
+    required_raw = float(profile.get("raw") or 0.0) * raw_multiplier
+    required_utility = float(profile.get("utility") or 0.0) * utility_multiplier
+    required_confirmations = int(profile.get("confirmations") or 0)
+    sources = set(confirmation_sources or [])
+    require_daily_weekly = bool(cfg.get("require_daily_weekly_confirmation", True))
+
+    reasons: List[str] = []
+    if not cfg.get("enabled", True):
+        reasons.append("absolute_strength_bypass_disabled")
+    if admission_meta.get("passed") is not True:
+        reasons.append("directional_admission_not_passed")
+    if raw < required_raw:
+        reasons.append("raw_below_scaled_absolute_strength")
+    if utility < required_utility:
+        reasons.append("utility_below_scaled_absolute_strength")
+    if confirmations_count < required_confirmations:
+        reasons.append("insufficient_confirmations_for_absolute_strength")
+    if require_daily_weekly and not {"daily", "weekly"}.issubset(sources):
+        reasons.append("daily_weekly_confirmation_required")
+
+    diagnostics = {
+        "version": VERSION,
+        "eligible": not reasons,
+        "raw": round(raw, 4),
+        "required_raw": round(required_raw, 4),
+        "raw_multiplier": raw_multiplier,
+        "utility": round(utility, 4),
+        "required_utility": round(required_utility, 4),
+        "utility_multiplier": utility_multiplier,
+        "confirmations": confirmations_count,
+        "required_confirmations": required_confirmations,
+        "confirmation_sources": sorted(sources),
+        "require_daily_weekly_confirmation": require_daily_weekly,
+        "reasons": reasons,
+    }
+    return not reasons, diagnostics
 
 
 def governed_candidate(iid: str, cfg: Dict[str, Any], p_cfg: Dict[str, Any], week: Dict[str, Any], policy: Dict[str, Any], method: Dict[str, Any], now: datetime) -> Dict[str, Any]:
