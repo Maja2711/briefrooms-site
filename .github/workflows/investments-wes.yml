@@ -27,6 +27,7 @@ on:
       - "scripts/investments_wes_counterfactual.py"
       - "scripts/no_retroactive_execution.py"
       - "scripts/verify_no_retroactive_execution.py"
+      - "scripts/sync_trading_push_commit.sh"
       - "data/investments/methodology.json"
       - "data/investments/multi_instrument_exposure_policy.json"
       - "data/investments/wes_methodology.json"
@@ -189,6 +190,7 @@ jobs:
       - name: Render WES public status
         run: python scripts/render_simple_investments.py
       - name: Commit WES state and public pages through execution airlock
+        id: commit
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -215,6 +217,7 @@ jobs:
           fi
           if git diff --cached --quiet; then
             echo "No WES change to commit."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
@@ -222,9 +225,19 @@ jobs:
           for attempt in 1 2 3 4 5; do
             if git pull --rebase origin main; then
               python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
-              if git push origin HEAD:main; then exit 0; fi
+              if git push origin HEAD:main; then
+                echo "changed=true" >> "$GITHUB_OUTPUT"
+                echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
             fi
             git rebase --abort || true
             if [ "$attempt" -eq 5 ]; then exit 1; fi
             sleep $((attempt * 5))
           done
+
+      - name: Dispatch persisted Weekly WES transition to Web Push immediately
+        if: steps.commit.outputs.changed == 'true'
+        env:
+          PUSH_API: https://briefrooms-trading-push.szczerbinski0577.workers.dev
+        run: bash scripts/sync_trading_push_commit.sh "${{ steps.commit.outputs.sha }}" weekly
