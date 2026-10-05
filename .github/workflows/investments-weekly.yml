@@ -26,6 +26,7 @@ on:
       - "scripts/verify_weekly_close_deadline.py"
       - "scripts/no_retroactive_execution.py"
       - "scripts/verify_no_retroactive_execution.py"
+      - "scripts/sync_trading_push_commit.sh"
       - "data/investments/public_quarantine.json"
       - "data/investments/methodology.json"
       - "data/investments/multi_instrument_exposure_policy.json"
@@ -113,12 +114,14 @@ jobs:
           python scripts/daily_position_review.py
           python scripts/daily_review_completeness.py --current
       - name: Checkpoint daily review durably through NO RETROACTIVE airlock
+        id: checkpoint
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git restore --worktree -- data/investments/live_prices.json || true
           git add data/investments
+          echo "changed=false" >> "$GITHUB_OUTPUT"
           if ! git diff --cached --quiet; then
             python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
             git commit -m "Checkpoint daily position review"
@@ -126,7 +129,12 @@ jobs:
             for attempt in 1 2 3 4 5; do
               if git pull --rebase origin main; then
                 python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
-                if git push origin HEAD:main; then pushed=1; break; fi
+                if git push origin HEAD:main; then
+                  pushed=1
+                  echo "changed=true" >> "$GITHUB_OUTPUT"
+                  echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+                  break
+                fi
               fi
               git rebase --abort || true
               sleep $((attempt * 4))
@@ -138,6 +146,12 @@ jobs:
             git status --short
             exit 1
           fi
+      - name: Dispatch checkpointed Weekly transition to Web Push immediately
+        if: steps.checkpoint.outputs.changed == 'true'
+        env:
+          PUSH_API: https://briefrooms-trading-push.szczerbinski0577.workers.dev
+        run: bash scripts/sync_trading_push_commit.sh "${{ steps.checkpoint.outputs.sha }}" weekly
+
       - name: Enforce daily review completeness
         run: python scripts/daily_review_completeness.py --current --enforce --no-write
       - name: Restore governed exposure
@@ -166,6 +180,7 @@ jobs:
           python scripts/audit_weekly_model_runtime.py
           python scripts/render_simple_investments.py
       - name: Commit weekly positions atomically through NO RETROACTIVE airlock
+        id: final_commit
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -179,7 +194,10 @@ jobs:
                   data/investments/multi_instrument_validation_v4.json \
                   pl/inwestycje.html pl/inwestycje/pozycje-tygodniowe.html pl/inwestycje/prognozy-tygodniowe.html \
                   en/investing.html en/investing/open-weekly-positions.html en/investing/weekly-forecasts.html
-          if git diff --cached --quiet; then exit 0; fi
+          if git diff --cached --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
           git commit -m "Maintain governed weekly paper positions"
           if ! git diff --quiet; then
@@ -190,8 +208,18 @@ jobs:
           for attempt in 1 2 3 4 5; do
             if git pull --rebase origin main; then
               python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
-              if git push; then exit 0; fi
+              if git push; then
+                echo "changed=true" >> "$GITHUB_OUTPUT"
+                echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
             fi
             sleep $((attempt * 4))
           done
           exit 1
+
+      - name: Dispatch final Weekly transition to Web Push immediately
+        if: steps.final_commit.outputs.changed == 'true'
+        env:
+          PUSH_API: https://briefrooms-trading-push.szczerbinski0577.workers.dev
+        run: bash scripts/sync_trading_push_commit.sh "${{ steps.final_commit.outputs.sha }}" weekly
