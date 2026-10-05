@@ -157,12 +157,20 @@ jobs:
           import json,os
           from pathlib import Path
           p=json.loads((Path(os.environ["L3_DIR"])/"L3A_RESEARCH_RESULTS.json").read_text())
+          state=json.loads((Path(os.environ["STATE_DIR"])/"state.json").read_text())
+          forecasts={str(x["forecast_id"]):x for x in state.get("forecasts",[])}
           for r in p["results"]:
               a=r["authority"]
               assert not a["probability_override"] and not a["engine_policy_writeback"] and not a["code_mutation"] and not a["trade_execution"] and not a["automatic_production_promotion"]
               if r["research_result_status"]=="WAITING_OUTCOME":
                   assert r["evidence_ids"] and r["forecast_id"]
                   assert r["p_before"] is not None and r["p_after"] is not None
+                  f=forecasts[r["forecast_id"]]
+                  m=f["metadata"]
+                  assert m["l3_question_id"]==r["question_id"]
+                  assert m["l3_intent_id"]==r["intent_id"]
+                  assert sorted(m["l3_evidence_ids"])==sorted(r["evidence_ids"])
+                  assert abs(float(f["predicted_probability"])-float(r["p_after"])) < 1e-6
           print("L3-A production research lineage PASS",p["summary"])
           PY
 
