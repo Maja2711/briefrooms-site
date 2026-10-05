@@ -35,7 +35,7 @@ jobs:
     timeout-minutes: 20
     env:
       PYTHONPATH: $GH_WORKSPACE/scripts:$GH_WORKSPACE
-      GEMINI_API_KEY: $GEMINI_KEY
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       GEMINI_GENERATION_MODEL: gemini-3.5-flash
       GEMINI_REVIEW_MODEL: gemini-3.5-flash
       GEMINI_FALLBACK_MODEL: gemini-3.5-flash-lite
@@ -52,17 +52,12 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Export protected runtime values
-        run: |
-          echo "GH_WORKSPACE=$GITHUB_WORKSPACE" >> "$GITHUB_ENV"
-          echo "GEMINI_KEY=${{ secrets.GEMINI_API_KEY }}" >> "$GITHUB_ENV"
-
       - name: Install source-first research dependencies
         run: pip install requests pypdf
 
       - name: Validate L3-A contracts
         env:
-          PYTHONPATH: $GITHUB_WORKSPACE/scripts:$GITHUB_WORKSPACE
+          PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
         run: |
           python -m py_compile scripts/l3_experience_acquisition.py scripts/l3a_experience_lineage.py scripts/l3a_research_executor.py scripts/l3a_settlement.py
           python -m unittest tests.test_l3_experience_acquisition tests.test_l3a_experience_lineage tests.test_l3a_executor_e2e -v
@@ -144,7 +139,7 @@ jobs:
 
       - name: Execute approved source-first research
         env:
-          PYTHONPATH: $GITHUB_WORKSPACE/scripts:$GITHUB_WORKSPACE
+          PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
         run: |
           set -euo pipefail
           python scripts/belief_external_live.py --state-dir "$STATE_DIR"
@@ -152,7 +147,7 @@ jobs:
 
       - name: Attribute new Evidence and freeze L3-A forecasts
         env:
-          PYTHONPATH: $GITHUB_WORKSPACE/scripts:$GITHUB_WORKSPACE
+          PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
         run: |
           python scripts/l3a_research_executor.py --intents "$L3_DIR/L3_RESEARCH_INTENTS.json" --before-state "$L3_DIR/STATE_BEFORE_RESEARCH.json" --state-dir "$STATE_DIR" --output "$L3_DIR/L3A_RESEARCH_RESULTS.json"
 
