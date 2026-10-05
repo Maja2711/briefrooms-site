@@ -2,6 +2,13 @@ name: Belief Question Engine Production
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/belief_question_engine.py"
+      - "scripts/l3_experience_acquisition.py"
+      - "scripts/l3a_research_executor.py"
+      - ".github/workflows/belief-question-engine-shadow.yml"
   workflow_run:
     workflows: ["Belief Epistemic State Projection"]
     types: [completed]
