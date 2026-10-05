@@ -311,7 +311,7 @@
     "missing_atr_policy": "NO_ENTRY",
     "target_refresh_policy": "keep_limit_price_frozen_reaffirm_time_only_cancel_on_thesis_break_or_promote_same_thesis_to_market",
     "fill_rule": "MARKET mode fills only on a fresh completed post-decision 5m bar verified by EPE. LIMIT mode fills only when the frozen target is touched. Persistent LIMIT reaffirmation may extend time but may never move the frozen target. No analytical or retroactive price may be fabricated.",
-    "rule": "Direction and execution style are separate decisions. WES 1.3.1 uses a scored MARKET/LIMIT engine so a strong aligned trend is not blocked by one arbitrary Daily threshold. Persistent LIMIT plans keep their original price while the same thesis is reaffirmed, can promote one-way to MARKET when continuation strengthens, and are cancelled when the thesis fails.",
+    "rule": "Direction and execution style are separate decisions. WES 1.3.1 uses a Weekly-primary execution score; Daily remains independent and can only modify MARKET timing within bounded limits. Persistent LIMIT plans keep their original price while the same thesis is reaffirmed, can promote one-way to MARKET when the Weekly-primary score plus bounded Daily modifier qualifies, and are cancelled when the thesis fails.",
     "market_entry": {
       "version": "WES-1.3.1",
       "enabled": true,
@@ -323,27 +323,34 @@
       "block_immediate_market_after_stop": true,
       "allow_limit_to_market_promotion": true,
       "execution_price": "freshest_completed_5m_close_after_authorization",
-      "rule": "MARKET vs LIMIT is decided by a composite continuation score after directional admission. Daily and Weekly strength, utility, confirmations and momentum contribute positively; overextension is penalized. Opposed Daily/Weekly evidence, opposed momentum, excessive overextension and immediate post-stop chase remain hard vetoes. A valid LIMIT may promote one-way to MARKET when the same thesis later reaches the MARKET score.",
-      "require_at_least_one_trend_alignment": true,
-      "block_opposed_daily_or_weekly": true,
+      "rule": "MARKET vs LIMIT is Weekly-primary. Weekly conviction is the thesis owner and must align with the authorized direction. The primary execution score uses Weekly strength, selected-candidate utility, independent confirmations and raw market momentum, minus overextension. Daily remains an independent engine and contributes only a bounded confirmation/timing modifier; moderate opposition is a penalty, while strong opposed Daily evidence may veto MARKET. Daily never changes the Weekly thesis.",
       "block_opposed_momentum": true,
       "scoring": {
+        "model": "weekly_primary_daily_confirmation_modifier",
         "minimum_score": 0.7,
-        "weights": {
-          "daily": 0.25,
-          "weekly": 0.25,
-          "utility": 0.2,
+        "primary_weights": {
+          "weekly": 0.45,
+          "utility": 0.25,
           "confirmations": 0.15,
           "momentum": 0.15
         },
         "full_strength_reference": {
-          "daily_abs_score": 55,
           "weekly_abs_score": 55,
           "utility": 14,
           "confirmations": 4
         },
-        "overextension_penalty_weight": 0.2
-      }
+        "overextension_penalty_weight": 0.2,
+        "daily_confirmation_modifier": {
+          "neutral_abs_score_below": 25,
+          "full_strength_abs_score": 55,
+          "aligned_bonus_max": 0.08,
+          "opposed_penalty_max": 0.1,
+          "strong_opposition_veto_abs_score": 55,
+          "rule": "Daily is not part of the primary score. Aligned Daily adds at most +0.08, moderate opposed Daily subtracts at most -0.10, and opposed Daily at |score| >= 55 vetoes MARKET. Missing/weak Daily contributes 0."
+        }
+      },
+      "require_weekly_primary_alignment": true,
+      "block_strong_daily_opposition": true
     },
     "persistent_plan": {
       "enabled": true,
