@@ -1,0 +1,76 @@
+name: WES Cycle Watchdog
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "3,13,23,33,43,53 * * * *"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/wes_cycle_watchdog.py"
+      - "tests/test_wes_cycle_watchdog.py"
+      - "data/investments/multi_instrument_exposure_policy.json"
+      - ".github/workflows/wes-cycle-watchdog.yml"
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  validate-watchdog:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate WES liveness guard
+        run: |
+          python -m py_compile scripts/wes_cycle_watchdog.py
+          python -m unittest tests/test_wes_cycle_watchdog.py -v
+
+  monitor-wes-cycle:
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate guard before live check
+        run: |
+          python -m py_compile scripts/wes_cycle_watchdog.py
+          python -m unittest tests/test_wes_cycle_watchdog.py -v
+      - name: Check persisted WES preflight and postflight freshness
+        id: liveness
+        shell: bash
+        run: |
+          set +e
+          python scripts/wes_cycle_watchdog.py --mode check | tee /tmp/wes-cycle-watchdog.json
+          rc=${PIPESTATUS[0]}
+          set -e
+          if [ "$rc" -eq 0 ]; then
+            echo "stale=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "stale=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Dispatch WES recovery when stale
+        if: steps.liveness.outputs.stale == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          curl -fsSL -X POST \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/investments-wes.yml/dispatches" \
+            -d '{"ref":"main"}'
+          echo "::error::WES cycle was stale. Recovery dispatch sent to Weekly Engine Star."
+          exit 1
