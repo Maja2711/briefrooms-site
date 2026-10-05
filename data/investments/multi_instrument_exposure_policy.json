@@ -353,5 +353,14 @@
       "require_same_direction_and_strategy": true,
       "rule": "A valid unfilled LIMIT survives repeated WES cycles while the same execution-authorized thesis still clears the base raw, utility, confirmation and directional-admission gates. Reaffirmation extends time only; it never moves the frozen target. A plan that is not reaffirmed within the bounded liveness gap fails closed."
     }
+  },
+  "wes_cycle_watchdog": {
+    "enabled": true,
+    "scheduler_interval_minutes": 15,
+    "max_age_minutes": 25,
+    "active_from_week_entry": true,
+    "active_until_week_exit": true,
+    "auto_dispatch_recovery": true,
+    "rule": "During the active weekly trading window, the persisted WES preflight and final postflight must both be no older than 25 minutes. A stale cycle is a production-liveness failure and the independent watchdog dispatches Weekly Engine Star recovery; it never fabricates entries."
   }
 }
