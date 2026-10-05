@@ -1,8 +1,23 @@
 'use strict';
 
-const assert = require('node:assert/strict');
-const test = require('node:test');
-const widget = require('../scripts/home-market-signal-v6.js');
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import test from 'node:test';
+import vm from 'node:vm';
+
+const source = fs.readFileSync(new URL('../scripts/home-market-signal-v6.js', import.meta.url), 'utf8');
+const sandbox = {
+  module: { exports: {} },
+  exports: {},
+  console,
+  Date,
+  Intl,
+  setTimeout,
+  clearTimeout
+};
+sandbox.globalThis = sandbox;
+vm.runInNewContext(source, sandbox, { filename: 'home-market-signal-v6.js' });
+const widget = sandbox.module.exports;
 
 function weekly(id, direction = 'long', conviction = 10, entry = 100, tp = 110, sl = 95, score = 50) {
   return {
