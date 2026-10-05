@@ -163,7 +163,7 @@ def execute(
                 "automatic_production_promotion":False,
             },
         }
-        if route != "approved_primary_source_research":
+        if route not in {"approved_primary_source_research","approved_market_evidence_research"}:
             rec={**base,"research_result_status":"WAITING_FOR_CAPABILITY","evidence_ids":[],"forecast_id":None}
             _record_attempt(state_dir,rec); results.append(rec); continue
 
