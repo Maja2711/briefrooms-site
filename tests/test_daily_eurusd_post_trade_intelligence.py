@@ -71,6 +71,19 @@ def candidate(
                     "decision_influence": fresh_macro,
                 },
             },
+            "execution_price_engine": {
+                "schema_version": "execution-price-engine-v1",
+                "engine_version": "EPE-1.3.0",
+                "instrument": "EUR/USD",
+                "mode": "MARKET_NOW",
+                "status": "VERIFIED_FILL",
+                "verified": True,
+                "direction": direction,
+                "fill_price": entry,
+                "price_type": "TEST_VERIFIED_FILL",
+                "verified_at": observed_at.isoformat().replace("+00:00", "Z"),
+                "paper_trading_only": True,
+            },
         },
     ).validate()
 
