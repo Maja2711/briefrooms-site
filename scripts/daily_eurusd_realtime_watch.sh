@@ -15,29 +15,7 @@ next_repo_refresh=$started
 
 sync_push_commit() {
   local sha="$1"
-  for attempt in 1 2 3 4; do
-    http_code=$(curl --silent --show-error       -o "$RUNNER_TEMP/sync-daily-response.json"       -w "%{http_code}"       -H "content-type: application/json"       --data "{\"sha\":\"$sha\"}"       "$PUSH_API/sync-daily" || true)
-    cat "$RUNNER_TEMP/sync-daily-response.json" || true
-    if [ "$http_code" = "200" ]; then
-      if python - <<'PY'
-import json, os
-from pathlib import Path
-p=Path(os.environ["RUNNER_TEMP"])/"sync-daily-response.json"
-j=json.loads(p.read_text())
-d=j.get("dispatch") or {}
-ok=(j.get("ok") is True and int(d.get("failed") or 0) == 0 and int(d.get("pending") or 0) == 0)
-print("REALTIME_PUSH_SYNC", j)
-raise SystemExit(0 if ok else 1)
-PY
-      then
-        return 0
-      fi
-    fi
-    git fetch --quiet origin main
-    sha=$(git rev-parse origin/main)
-    sleep "$attempt"
-  done
-  return 1
+  bash scripts/sync_trading_push_commit.sh "$sha" daily
 }
 
 persist_triggered_exit() {
