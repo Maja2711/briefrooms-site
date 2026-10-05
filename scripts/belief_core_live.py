@@ -319,6 +319,9 @@ def outcome_spec(belief_id: str, snapshot: MarketSnapshot) -> Dict[str, Any]:
     if belief_id == "spx.financial_conditions.supportive":
         return {"kind": "majority_supportive", "reference": {
             "TLT": snapshot.latest("TLT"), "HYG": snapshot.latest("HYG"), "UUP": snapshot.latest("UUP")}}
+    if belief_id in {"eurusd.macro_surprise.supportive", "eurusd.policy_differential.supportive"}:
+        symbol = belief_market_symbol(belief_id)
+        return {"kind": "price_above", "symbol": symbol, "reference": snapshot.latest(symbol)}
     if belief_id.startswith("eurusd.") or belief_id.startswith("btc."):
         return wes_asset_outcome_spec(belief_id, snapshot)
     raise KeyError(belief_id)
