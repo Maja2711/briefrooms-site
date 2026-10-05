@@ -1,0 +1,80 @@
+name: Daily EURUSD Cycle Watchdog
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "4,9,14,19,24,29,34,39,44,49,54,59 * * * *"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/daily_eurusd_cycle_watchdog.py"
+      - "tests/test_daily_eurusd_cycle_watchdog.py"
+      - ".github/workflows/daily-eurusd-cycle-watchdog.yml"
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  validate-watchdog:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate Daily EURUSD liveness guard
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/daily_eurusd_cycle_watchdog.py
+          python -m unittest tests/test_daily_eurusd_cycle_watchdog.py -v
+
+  monitor-daily-eurusd-cycle:
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate guard before live check
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/daily_eurusd_cycle_watchdog.py
+          python -m unittest tests/test_daily_eurusd_cycle_watchdog.py -v
+
+      - name: Check canonical Daily EURUSD state freshness
+        id: liveness
+        shell: bash
+        run: |
+          set +e
+          python scripts/daily_eurusd_cycle_watchdog.py --mode check --max-age-minutes 15 | tee /tmp/daily-eurusd-cycle-watchdog.json
+          rc=${PIPESTATUS[0]}
+          set -e
+          if [ "$rc" -eq 0 ]; then
+            echo "stale=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "stale=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Dispatch Daily EURUSD recovery when stale
+        if: steps.liveness.outputs.stale == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          curl -fsSL -X POST \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/daily-eurusd-monitor.yml/dispatches" \
+            -d '{"ref":"main"}'
+          echo "::error::Daily EURUSD canonical state is stale. Recovery dispatch sent to Monitor Daily EURUSD."
+          exit 1
