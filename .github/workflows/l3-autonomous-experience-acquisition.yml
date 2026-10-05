@@ -127,13 +127,29 @@ jobs:
           test -f "$STATE_DIR/state.json"
           cp "$STATE_DIR/state.json" "$L3_DIR/STATE_BEFORE_RESEARCH.json"
 
-      - name: Execute approved source-first research
+      - name: Execute intent-routed approved Evidence research
         env:
           PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
         run: |
           set -euo pipefail
-          python scripts/belief_external_live.py --state-dir "$STATE_DIR"
-          python scripts/belief_core_live.py --state-dir "$STATE_DIR"
+          plan=$(python - "$L3_DIR/L3_RESEARCH_INTENTS.json" <<'PY'
+          import json,sys
+          from pathlib import Path
+          p=json.loads(Path(sys.argv[1]).read_text())
+          routes={str(x.get("route") or "") for x in p.get("intents",[]) if isinstance(x,dict)}
+          print(("market" if "approved_market_evidence_research" in routes else "") + "|" +
+                ("external" if "approved_primary_source_research" in routes else ""))
+          PY
+          )
+          market="${plan%%|*}"
+          external="${plan#*|}"
+          echo "L3-A research adapter plan: market=${market:-off} external=${external:-off}"
+          if [ "$external" = "external" ]; then
+            python scripts/belief_external_live.py --state-dir "$STATE_DIR"
+          fi
+          if [ "$market" = "market" ]; then
+            python scripts/belief_core_live.py --state-dir "$STATE_DIR"
+          fi
 
       - name: Attribute new Evidence and freeze L3-A forecasts
         env:
