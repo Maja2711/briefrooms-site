@@ -1,6 +1,6 @@
 # Kanoniczna mapa architektury BriefRooms — PL
 
-**Wersja mapy:** 1.22  
+**Wersja mapy:** 1.23  
 **Stan na:** 2026-10-05  
 **Bazowy commit `main`:** `f369f95fe45330d0a1f697b9de5d681448305767`  
 **Repozytorium:** `Maja2711/briefrooms-site`
