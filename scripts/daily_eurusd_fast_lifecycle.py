@@ -19,6 +19,7 @@ import daily_eurusd_lifecycle as lifecycle
 import daily_eurusd_spot as base
 import daily_eurusd_spot_v14 as v14
 import daily_eurusd_spot_v16 as v16
+import daily_eurusd_spot_v18 as v18
 
 DEFAULT_OUTPUT = Path("data/investments/eurusd_daily_spot.json")
 DEFAULT_HISTORY = Path("data/investments/eurusd_daily_history.json")
@@ -43,7 +44,14 @@ def _open_position(payload: Mapping[str, Any]) -> dict[str, Any] | None:
     if str(position.get("status") or "").upper() != "OPEN":
         return None
     normalized = v14.normalize_position(dict(position))
-    return dict(normalized or position)
+    result = dict(normalized or position)
+    candidate = metadata.get("candidate_at_refresh") if isinstance(metadata.get("candidate_at_refresh"), Mapping) else metadata.get("candidate")
+    belief_macro = metadata.get("belief_macro") if isinstance(metadata.get("belief_macro"), Mapping) else None
+    if isinstance(candidate, Mapping):
+        result["_management_candidate"] = dict(candidate)
+    if isinstance(belief_macro, Mapping):
+        result["_belief_macro_context"] = dict(belief_macro)
+    return result
 
 
 def _enrich_trade(position: Mapping[str, Any], trade: Mapping[str, Any]) -> dict[str, Any]:
@@ -69,7 +77,10 @@ def evaluate_open_position(
     if position is None or not bars:
         return None
     observed = observed_at or bars[-1].timestamp.astimezone(timezone.utc)
-    trade = v14.evaluate_position(position, bars, observed)
+    # v1.9 delegates open-position lifecycle to v18; call that same
+    # production chain so SL/TP, R_PACE, Event Intelligence and macro-event
+    # invalidation cannot drift between the normal and realtime paths.
+    trade = v18._evaluate_position(position, bars, observed)
     if trade is None:
         return None
     return _enrich_trade(position, trade)
