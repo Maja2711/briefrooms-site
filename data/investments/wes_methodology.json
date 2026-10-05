@@ -1,29 +1,30 @@
 {
   "methodology": "Weekly Engine Star",
   "short_name": "WES",
-  "version": "1.2.0",
-  "lifecycle_revision": "price-aware-entry-1",
+  "version": "1.3.1",
+  "lifecycle_revision": "adaptive-entry-persistence-1",
   "status": "experimental_governed_paper_only",
   "objective": "maximize_total_net_profit_after_costs_without_forcing_exposure",
   "principles": [
     "NO TRADE is an active monitoring state, not a terminal weekly decision.",
-    "Every new entry, including the initial Monday entry, requires WES 1.1 directional admission for the exact method and direction.",
+    "Every new entry requires current WES directional admission for an execution-authorized Champion method and direction.",
     "Research ranking and execution authority are separate: Challengers remain shadow/counterfactual until governed promotion.",
-    "Opposing execution candidates inside the configured utility margin resolve to NO TRADE; method names never break market-direction ties.",
+    "Opposing execution candidates inside the configured utility margin resolve to NO_TRADE; method names never break market-direction ties.",
     "A trade direction requires at least two independent directional confirmations, and a candidate opposing aligned Daily and Weekly signals is blocked.",
-    "A normal late-week entry requires a new qualified trigger and increasingly strong confirmation as Friday close approaches.",
-    "If a governed position closes on Monday or Tuesday, WES may admit one fresh replacement entry later in the same trading week when the full methodology, shared validation gate and WES trigger thresholds qualify it.",
-    "A qualified Monday/Tuesday-close replacement uses a rolling seven-calendar-day deadline measured from its actual replacement entry and may remain open through the weekend.",
-    "Material-event exits remain fail-closed and are not eligible for the early-close replacement path.",
-    "Normal weekly positions that are not early-close replacements remain subject to the frozen Friday weekly close.",
-    "Friday tactical entries use a deliberately reduced TP and tighter SL only when they still belong to the original short Friday horizon; an early-close replacement uses its full rolling seven-day horizon instead.",
+    "Normal trigger delta remains useful for ordinary signals, but WES 1.3.1 may bypass delta when absolute raw and utility strength scale to at least 1.30x the active trigger profile and Daily plus Weekly jointly confirm the same direction.",
+    "Directional admission authorizes the thesis; the Entry Engine separately decides MARKET versus LIMIT.",
+    "MARKET versus LIMIT uses a composite continuation score from Daily, Weekly, utility, confirmations, momentum and overextension instead of one arbitrary Daily threshold.",
+    "Opposed Daily or Weekly evidence, opposed momentum, excessive overextension and immediate post-stop chasing remain hard MARKET vetoes.",
+    "A valid LIMIT freezes its target price. Reaffirming the same thesis may extend the plan validity window but never move that frozen target.",
+    "A still-authorized LIMIT may promote one-way to MARKET if the same thesis strengthens enough to pass the MARKET score.",
+    "If the thesis or execution authority fails, the pending plan is cancelled rather than silently refreshed.",
+    "Every MARKET execution requires a fresh completed post-decision 5-minute bar verified by the Execution Price Engine.",
+    "Every LIMIT execution requires an observed post-decision 5-minute touch of the frozen target verified by the Execution Price Engine.",
+    "No historical or analytical price may be fabricated as an execution.",
+    "If WES preflight/postflight liveness becomes stale during the active week, the independent watchdog must fail closed and dispatch recovery.",
     "TP and SL are adaptive to effective remaining holding time, signal strength and learned results by entry class.",
     "Learning must improve expected net profit, not maximize trade count or win rate in isolation.",
-    "No rule may force a directional position when admission gates are not met.",
-    "Directional admission authorizes a thesis, not an immediate market-price fill.",
-    "Every new entry requires a frozen price-aware Entry Price Plan before execution.",
-    "A pending entry is executed only when a post-decision 5-minute bar touches the frozen target; otherwise it remains WAIT and may expire without a trade.",
-    "The entry target may not chase the market during its validity window. It can change only after expiry or a governed thesis/method/direction change."
+    "No rule may force a directional position when admission gates are not met."
   ],
   "entry_classes": {
     "monday_weekly": "normal weekly horizon",
@@ -62,7 +63,7 @@
     "research_lab_linked": true
   },
   "directional_admission": {
-    "version": "WES-1.1.0",
+    "version": "WES-1.3.1",
     "applies_to": [
       "initial_weekly_entry",
       "no_trade_trigger",
@@ -73,7 +74,9 @@
     "aligned_daily_weekly_opposition": "hard_block",
     "missing_or_expired_authorization": "NO_TRADE",
     "authorization_scope": "exact_method_and_direction",
-    "authorization_ttl_minutes": 20
+    "authorization_ttl_minutes": 60,
+    "delta_policy": "ordinary_delta_or_scaled_absolute_strength_bypass",
+    "absolute_strength_bypass": "raw and utility >= 1.30x active trigger profile with Daily and Weekly confirmation"
   },
   "champion_challenger": {
     "research_and_execution_separated": true,
@@ -83,8 +86,8 @@
     "method_name_tie_break_forbidden": true
   },
   "entry_price_engine": {
-    "version": "WES-1.2.0",
-    "mode": "frozen_price_improving_limit",
+    "version": "WES-1.3.1",
+    "mode": "adaptive_market_or_frozen_price_improving_limit",
     "applies_to": [
       "initial_weekly_entry",
       "no_trade_trigger",
@@ -98,10 +101,24 @@
       "ret5_pct",
       "ret20_pct",
       "range55_position",
-      "post_stop_reversal_state"
+      "post_stop_reversal_state",
+      "Daily_score",
+      "Weekly_score",
+      "selected_utility",
+      "directional_confirmations"
     ],
-    "execution": "first post-decision 5m OHLC range touch of frozen target",
-    "no_touch": "WAIT_then_expire_without_trade",
-    "target_mutation": "forbidden_while_plan_active"
+    "market_execution": "fresh completed post-decision 5m close after composite MARKET score passes",
+    "limit_execution": "first post-decision 5m OHLC range touch of frozen target",
+    "persistent_limit": "same-thesis reaffirmation extends validity only; frozen target never moves",
+    "promotion": "same-thesis LIMIT may promote one-way to MARKET",
+    "invalidation": "cancel pending execution when the thesis or execution authority no longer qualifies",
+    "no_execution": "WAIT or NO_TRADE; never fabricate a fill"
+  },
+  "cycle_watchdog": {
+    "version": "WES-1.3.1",
+    "scheduler_interval_minutes": 15,
+    "maximum_persisted_cycle_age_minutes": 25,
+    "independent_watchdog_interval_minutes": 10,
+    "stale_action": "fail closed and dispatch Weekly Engine Star recovery"
   }
 }
