@@ -99,7 +99,9 @@ jobs:
           assert 'edge_confirmed' in payload['comparison_assessment']
           assert 'candidate_snapshots' not in payload
           assert 'experiments' not in payload
-          # Exact-key guard: do not use substring checks here; the legitimate\n          # public-boundary key `candidate_identity_exposed` previously caused a false positive.\n          forbidden={'candidate','candidate_id','params','predictions','experiments','fold_metrics','daily_paths'}
+          # Exact-key guard: do not use substring checks here; the legitimate
+          # public-boundary key `candidate_identity_exposed` previously caused a false positive.
+          forbidden={'candidate','candidate_id','params','predictions','experiments','fold_metrics','daily_paths'}
           def check(value,path='root'):
               if isinstance(value,dict):
                   for key,child in value.items():
