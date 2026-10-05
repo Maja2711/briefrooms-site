@@ -1,7 +1,7 @@
 # BriefRooms Canonical Architecture Map — EN
 
-**Map version:** 1.20  
-**Snapshot date:** 2026-10-02  
+**Map version:** 1.21  
+**Snapshot date:** 2026-10-05  
 **Base `main` commit:** `f369f95fe45330d0a1f697b9de5d681448305767`  
 **Repository:** `Maja2711/briefrooms-site`
 
@@ -477,4 +477,4 @@ Primary detailed documents used to build and maintain the current map:
 |---|---|---|---|
 | `NT-01` | Trading Notifications | Read-only projection of persisted position transitions into OPEN/CLOSE events, per-device preferences and background Web Push | `scripts/build_trading_notification_events.py`, `scripts/trading-notifications.js`, `br-trading-sw.js`, `workers/trading-push/*`, `data/notifications/*`, `docs/TRADING_NOTIFICATIONS_PL.md` / `_EN.md`; **zero execution/decision/risk authority** |
 
-`NT-01` only reads already persisted state owned by `TR-03`, `TR-04` and `TR-05`. It cannot invoke lifecycle logic, create fills, mutate positions or influence models. For Daily EUR/USD the production push path is now commit-bound: after persisting OPEN/CLOSE, the workflow sends only the commit SHA to the Worker through `/sync-daily`; the Worker verifies that the SHA is the current `main` head, fetches the exact persisted state from that commit itself, and only then emits Web Push. Public direct `/ingest` is disabled, while minute feed polling remains recovery-only. The first run seeds state without historical alerts; later runs deterministically emit only `OPEN` / `CLOSE` transitions. Access configuration supports `PUBLIC | AUTHENTICATED | PAID` from day one. GitHub Pages remains the frontend; background Web Push is handled by an isolated Cloudflare Worker with a Durable Object, while private VAPID material remains only in Worker Secrets.
+`NT-01` only reads already persisted state owned by `TR-03`, `TR-04` and `TR-05`. It cannot invoke lifecycle logic, create fills, mutate positions or influence models. The production Web Push path is commit-bound for **every channel**: Daily EUR/USD, Weekly EUR/USD, Weekly BTC/USD, Weekly S&P 500 futures, and Stock Trading GPW/US. After a successful canonical write, every writer uses the shared `scripts/sync_trading_push_commit.sh` handoff to send only the exact commit SHA and channel to `/sync-trading`. The Worker accepts the current head or a recent ancestor of current `main`, compares that commit's state with its direct parent, and emits only real `absent -> OPEN` / `OPEN -> CLOSED` transitions. Weekly is wired at WES, full maintenance and the five-minute risk path; Stock Trading is wired at v2 production admission and canonical portfolio lifecycle; Daily uses the same path from its realtime watcher as well. Deterministic `event_id = engine + event_type + position_id` prevents duplicates. Language and destination URL are selected per device subscription (PL/EN). Public `/ingest` is disabled; internal-only ingest plus the canonical feed remain recovery-only. Access configuration supports `PUBLIC | AUTHENTICATED | PAID`. GitHub Pages remains the frontend; background Web Push is handled by an isolated Cloudflare Worker with a Durable Object, while private VAPID material remains only in Worker Secrets.
