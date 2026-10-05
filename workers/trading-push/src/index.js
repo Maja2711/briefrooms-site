@@ -40,6 +40,10 @@ async function eventId(engine, eventType, positionId) {
 }
 
 function finiteNumber(value) {
+  // Market APIs (notably Yahoo chart) use null for missing/incomplete OHLC cells.
+  // Number(null) === 0 would fabricate a zero price and can create false TP/SL hits.
+  if (value === null || value === undefined) return null;
+  if (typeof value === "string" && value.trim() === "") return null;
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
 }
@@ -438,6 +442,9 @@ export class PushHub {
   }
 
   async fastDailyWatch() {
+    // Notification delivery must observe persisted trading state only.
+    // It must never infer a CLOSE independently from market data, because that
+    // would race the canonical lifecycle and can poison event-id deduplication.
     const stateUrls = [
       this.env.DAILY_STATE_URL || "https://raw.githubusercontent.com/Maja2711/briefrooms-site/main/data/investments/eurusd_daily_spot.json",
       "https://briefrooms.com/data/investments/eurusd_daily_spot.json",
@@ -458,141 +465,78 @@ export class PushHub {
       }
     }
     if (!state) throw new Error(`daily_state_all_sources_failed:${stateErrors.join("|")}`);
+
+    const checkedAt = new Date().toISOString();
+    const priorStats = (await this.ctx.storage.get("stats")) || {};
+    const checkCount = Number(priorStats.fast_daily_checks || 0) + 1;
+
+    const persistWatcherStats = async (status, extra = {}) => {
+      // dispatchEvents() also updates stats, so reload to avoid clobbering
+      // delivery counters with a stale pre-dispatch snapshot.
+      const current = (await this.ctx.storage.get("stats")) || {};
+      current.fast_daily_checks = checkCount;
+      current.last_fast_daily_check_at = checkedAt;
+      current.last_fast_daily_status = status;
+      current.last_fast_daily_market_source = "persisted_daily_state_only";
+      current.last_fast_daily_market_errors = [];
+      current.last_fast_daily_quote = null;
+      Object.assign(current, extra);
+      await this.ctx.storage.put("stats", current);
+    };
+
     const position = openDailyPosition(state);
-
-    const stats = (await this.ctx.storage.get("stats")) || {};
-    stats.fast_daily_checks = Number(stats.fast_daily_checks || 0) + 1;
-    stats.last_fast_daily_check_at = new Date().toISOString();
-
-    if (!position) {
-      stats.last_fast_daily_status = "FLAT";
-      await this.ctx.storage.put("stats", stats);
-      return { ok: true, status: "FLAT" };
-    }
-
-    const positionId = String(position.trade_id || `daily:${position.opened_at}:${position.direction}`);
-    const openEvent = {
-      event_id: await eventId("daily", "OPEN", positionId),
-      engine: "daily",
-      event_type: "OPEN",
-      position_id: positionId,
-      instrument: "EUR/USD",
-      market: null,
-      direction: String(position.direction || "").toUpperCase(),
-      entry: finiteNumber(position.entry),
-      opened_at: position.opened_at || null,
-      observed_at: new Date().toISOString(),
-      source: "cloudflare_fast_daily_watcher",
-    };
-    const openDispatch = await this.dispatchEvents([openEvent]);
-
-    let hit = null;
-    const marketSources = [];
-    const marketErrors = [];
-
-    // Canonical SL/TP authority: Yahoo EURUSD=X 1-minute OHLC.
-    // The complete bar history since position open is checked every cycle, so a
-    // brief touch cannot disappear simply because the current quote later reverted.
-    try {
-      const yahoo = await fetchYahooMinuteBars(this.env);
-      marketSources.push(yahoo.source);
-      hit = fastExitHit(position, yahoo.bars);
-      stats.last_fast_daily_quote = {
-        source: yahoo.source,
-        fetched_at: yahoo.latest.timestamp,
-        bid: null,
-        ask: null,
-        price: yahoo.latest.close,
-        high: yahoo.latest.high,
-        low: yahoo.latest.low,
+    if (position) {
+      const positionId = String(position.trade_id || `daily:${position.opened_at}:${position.direction}`);
+      const openEvent = {
+        event_id: await eventId("daily", "OPEN", positionId),
+        engine: "daily",
+        event_type: "OPEN",
+        position_id: positionId,
+        instrument: "EUR/USD",
+        market: null,
+        direction: String(position.direction || "").toUpperCase(),
+        entry: finiteNumber(position.entry),
+        opened_at: position.opened_at || null,
+        observed_at: state.timestamp || checkedAt,
+        source: "persisted_daily_state_fast_watcher",
       };
-    } catch (error) {
-      marketErrors.push(`yahoo:${String(error?.message || error)}`);
+      const openDispatch = await this.dispatchEvents([openEvent]);
+      await persistWatcherStats("OPEN_PERSISTED");
+      return { ok: true, status: "OPEN_PERSISTED", open_dispatch: openDispatch };
     }
 
-    // Fallback #1: current Stooq point. It may confirm a cross immediately, but
-    // does not replace 1m OHLC as the canonical no-cross evidence.
-    if (!hit) {
-      try {
-        const stooqQuote = await fetchStooqEurusd(this.env);
-        marketSources.push(stooqQuote.source);
-        hit = fastExitHitQuote(position, stooqQuote);
-        if (!stats.last_fast_daily_quote) {
-          stats.last_fast_daily_quote = {
-            source: stooqQuote.source,
-            fetched_at: stooqQuote.fetched_at,
-            bid: stooqQuote.bid,
-            ask: stooqQuote.ask,
-            price: stooqQuote.price,
-          };
-        }
-      } catch (error) {
-        marketErrors.push(`stooq:${String(error?.message || error)}`);
-      }
+    const lastTrade = state?.metadata?.last_trade || null;
+    const positionId = String(lastTrade?.trade_id || "");
+    const direction = String(lastTrade?.direction || "").toUpperCase();
+    const closedAt = lastTrade?.closed_at || null;
+
+    if (positionId && closedAt && ["LONG", "SHORT"].includes(direction)) {
+      const closeEvent = {
+        event_id: await eventId("daily", "CLOSE", positionId),
+        engine: "daily",
+        event_type: "CLOSE",
+        position_id: positionId,
+        instrument: "EUR/USD",
+        market: null,
+        direction,
+        entry: finiteNumber(lastTrade.entry),
+        opened_at: lastTrade.opened_at || null,
+        observed_at: state.timestamp || closedAt || checkedAt,
+        exit_reason: lastTrade.exit_reason || null,
+        exit_price: finiteNumber(lastTrade.exit_price),
+        closed_at: closedAt,
+        r_multiple: finiteNumber(lastTrade.r_multiple),
+        source: "persisted_daily_state_fast_watcher",
+      };
+      const closeDispatch = await this.dispatchEvents([closeEvent]);
+      await persistWatcherStats("CLOSE_PERSISTED", {
+        last_fast_daily_exit_at: closedAt,
+      });
+      return { ok: true, status: "CLOSE_PERSISTED", close_dispatch: closeDispatch };
     }
 
-    // Fallback #2: current fxapi point. This can confirm a current cross only.
-    if (!hit) {
-      try {
-        const fxUrl = this.env.FXAPI_EURUSD_URL || "https://fxapi.app/api/EUR/USD.json";
-        const response = await fetch(`${fxUrl}${fxUrl.includes("?") ? "&" : "?"}_=${Date.now()}`, {
-          headers: { "cache-control": "no-cache", "accept": "application/json" },
-        });
-        if (!response.ok) throw new Error(`fxapi_http_${response.status}`);
-        const quote = await response.json();
-        const rate = finiteNumber(quote?.rate);
-        if (rate == null) throw new Error("fxapi_no_rate");
-        const current = {
-          source: "fxapi.app EUR/USD spot",
-          fetched_at: new Date().toISOString(),
-          price: rate,
-          bid: null,
-          ask: null,
-        };
-        marketSources.push(current.source);
-        hit = fastExitHitQuote(position, current);
-        if (!stats.last_fast_daily_quote) {
-          stats.last_fast_daily_quote = current;
-        }
-      } catch (error) {
-        marketErrors.push(`fxapi:${String(error?.message || error)}`);
-      }
-    }
-
-
-    const marketSource = marketSources.join(" + ") || "none";
-    stats.last_fast_daily_market_errors = marketErrors;
-    if (!hit) {
-      stats.last_fast_daily_status = "OPEN_NO_EXIT";
-      stats.last_fast_daily_market_source = marketSource;
-      await this.ctx.storage.put("stats", stats);
-      return { ok: true, status: "OPEN_NO_EXIT", open_dispatch: openDispatch };
-    }
-
-    const closeEvent = {
-      event_id: await eventId("daily", "CLOSE", positionId),
-      engine: "daily",
-      event_type: "CLOSE",
-      position_id: positionId,
-      instrument: "EUR/USD",
-      market: null,
-      direction: String(position.direction || "").toUpperCase(),
-      entry: finiteNumber(position.entry),
-      opened_at: position.opened_at || null,
-      observed_at: hit.bar_timestamp || new Date().toISOString(),
-      exit_reason: hit.exit_reason,
-      exit_price: hit.exit_price,
-      conservative_same_bar: Boolean(hit.conservative_same_bar),
-      source: "cloudflare_fast_exit_watcher",
-      market_source: marketSource,
-    };
-    const closeDispatch = await this.dispatchEvents([closeEvent]);
-    stats.fast_daily_exit_hits = Number(stats.fast_daily_exit_hits || 0) + 1;
-    stats.last_fast_daily_status = hit.exit_reason;
-    stats.last_fast_daily_exit_at = hit.bar_timestamp || new Date().toISOString();
-    stats.last_fast_daily_market_source = marketSource;
-    await this.ctx.storage.put("stats", stats);
-    return { ok: true, status: hit.exit_reason, open_dispatch: openDispatch, close_dispatch: closeDispatch };
+    await persistWatcherStats("FLAT");
+    return { ok: true, status: "FLAT" };
   }
 
   async fetch(request) {
