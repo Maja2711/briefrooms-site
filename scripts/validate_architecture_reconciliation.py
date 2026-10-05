@@ -125,8 +125,22 @@ if market_entry.get("enabled") is not True:
 scoring = market_entry.get("scoring") or {}
 if float(scoring.get("minimum_score") or 0.0) <= 0:
     errors.append("WES 1.3.1 MARKET/LIMIT composite scoring threshold missing")
-if market_entry.get("block_opposed_daily_or_weekly") is not True:
-    errors.append("WES 1.3.1 MARKET entry must hard-block opposed Daily/Weekly evidence")
+if scoring.get("model") != "weekly_primary_daily_confirmation_modifier":
+    errors.append("WES 1.3.1 execution scoring must remain Weekly-primary with Daily modifier")
+primary_weights = scoring.get("primary_weights") or {}
+if "daily" in primary_weights:
+    errors.append("WES 1.3.1 Daily must not regain a primary MARKET/LIMIT weight")
+if float(primary_weights.get("weekly") or 0.0) <= 0:
+    errors.append("WES 1.3.1 Weekly primary execution weight missing")
+daily_modifier = scoring.get("daily_confirmation_modifier") or {}
+if float(daily_modifier.get("aligned_bonus_max") or 0.0) > 0.10:
+    errors.append("WES 1.3.1 Daily aligned bonus exceeds bounded modifier contract")
+if float(daily_modifier.get("opposed_penalty_max") or 0.0) > 0.12:
+    errors.append("WES 1.3.1 Daily opposed penalty exceeds bounded modifier contract")
+if market_entry.get("require_weekly_primary_alignment") is not True:
+    errors.append("WES 1.3.1 MARKET entry must require Weekly-primary alignment")
+if market_entry.get("block_strong_daily_opposition") is not True:
+    errors.append("WES 1.3.1 strong opposed Daily veto must remain enabled")
 if market_entry.get("block_opposed_momentum") is not True:
     errors.append("WES 1.3.1 MARKET entry must hard-block opposed momentum")
 if market_entry.get("allow_limit_to_market_promotion") is not True:
