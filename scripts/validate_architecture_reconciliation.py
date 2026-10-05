@@ -178,6 +178,8 @@ daily_realtime_workflow = read(".github/workflows/daily-eurusd-realtime-lifecycl
 weekly_workflow = read(".github/workflows/investments-weekly.yml")
 weekly_wes_workflow = read(".github/workflows/investments-wes.yml")
 weekly_risk_workflow = read(".github/workflows/investments-exposure-watch.yml")
+weekly_freshness_workflow = read(".github/workflows/investments-weekly-freshness-watchdog.yml")
+weekly_live_prices_workflow = read(".github/workflows/weekly-live-prices.yml")
 stock_v2_workflow = read(".github/workflows/stock-trading-v2-production.yml")
 stock_portfolio_workflow = read(".github/workflows/stock-trading-portfolio.yml")
 push_sync_script = read("scripts/sync_trading_push_commit.sh")
@@ -237,6 +239,8 @@ for workflow_text, label in (
     (weekly_workflow, "Weekly maintenance immediate notification"),
     (weekly_wes_workflow, "WES immediate notification"),
     (weekly_risk_workflow, "Weekly risk immediate notification"),
+    (weekly_freshness_workflow, "Weekly freshness recovery immediate notification"),
+    (weekly_live_prices_workflow, "Weekly live-price/risk immediate notification"),
 ):
     require(workflow_text, "sync_trading_push_commit.sh", label)
     require(workflow_text, "weekly", label)
