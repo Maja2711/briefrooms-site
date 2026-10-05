@@ -2,16 +2,6 @@ name: L3 Autonomous Experience Acquisition
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - "scripts/l3_experience_acquisition.py"
-      - "scripts/l3a_research_executor.py"
-      - "scripts/l3a_experience_lineage.py"
-      - "tests/test_l3_experience_acquisition.py"
-      - "tests/test_l3a_experience_lineage.py"
-      - "tests/test_l3a_executor_e2e.py"
-      - ".github/workflows/l3-autonomous-experience-acquisition.yml"
   workflow_run:
     workflows: ["Belief Question Engine Production"]
     types: [completed]
