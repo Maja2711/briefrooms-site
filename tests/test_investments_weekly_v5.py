@@ -217,24 +217,181 @@ class GovernedWeeklyModelTests(unittest.TestCase):
                 "min_confirmations": 2,
                 "minimum_absolute_momentum_pct": 0.15,
                 "maximum_overextension_score": 0.90,
-                "require_at_least_one_trend_alignment": True,
-                "block_opposed_daily_or_weekly": True,
+                "require_weekly_primary_alignment": True,
+                "block_strong_daily_opposition": True,
                 "block_opposed_momentum": True,
                 "block_immediate_market_after_stop": True,
                 "scoring": {
+                    "model": "weekly_primary_daily_confirmation_modifier",
                     "minimum_score": 0.70,
-                    "weights": {"daily": 0.25, "weekly": 0.25, "utility": 0.20, "confirmations": 0.15, "momentum": 0.15},
-                    "full_strength_reference": {"daily_abs_score": 55, "weekly_abs_score": 55, "utility": 14, "confirmations": 4},
+                    "primary_weights": {"weekly": 0.45, "utility": 0.25, "confirmations": 0.15, "momentum": 0.15},
+                    "full_strength_reference": {"weekly_abs_score": 55, "utility": 14, "confirmations": 4},
                     "overextension_penalty_weight": 0.20,
+                    "daily_confirmation_modifier": {
+                        "neutral_abs_score_below": 25,
+                        "full_strength_abs_score": 55,
+                        "aligned_bonus_max": 0.08,
+                        "opposed_penalty_max": 0.10,
+                        "strong_opposition_veto_abs_score": 55,
+                    },
                 },
             }},
         }
         eligible, diagnostics = v5._entry_market_mode(decision, fresh, weekly, policy, plan)
         self.assertTrue(eligible)
         self.assertGreaterEqual(diagnostics["market_score"], 0.70)
+        self.assertEqual("weekly_primary_daily_confirmation_modifier", diagnostics["scoring_model"])
         self.assertTrue(diagnostics["daily_aligned"])
         self.assertTrue(diagnostics["weekly_aligned"])
         self.assertTrue(diagnostics["momentum_aligned"])
+        self.assertGreater(diagnostics["daily_confirmation_modifier"], 0.0)
+        self.assertNotIn("daily", diagnostics["primary_score_components"])
+
+    def test_daily_is_bounded_modifier_not_primary_weight(self):
+        decision = {
+            "direction": "long",
+            "utility": 14.0,
+            "directional_admission": {"passed": True, "confirmations": 3},
+        }
+        weekly = {"score": 60.0, "data_quality": "passed"}
+        plan = {"inputs": {"overextension_score": 0.25, "post_stop_reversal": False}}
+        policy = {
+            "directional_admission": {"daily_min_abs_score": 25, "weekly_min_abs_score": 15},
+            "entry_price_engine": {"market_entry": {
+                "enabled": True,
+                "min_selected_utility": 8,
+                "min_confirmations": 2,
+                "minimum_absolute_momentum_pct": 0.15,
+                "maximum_overextension_score": 0.90,
+                "require_weekly_primary_alignment": True,
+                "block_strong_daily_opposition": True,
+                "block_opposed_momentum": True,
+                "scoring": {
+                    "model": "weekly_primary_daily_confirmation_modifier",
+                    "minimum_score": 0.70,
+                    "primary_weights": {"weekly": 0.45, "utility": 0.25, "confirmations": 0.15, "momentum": 0.15},
+                    "full_strength_reference": {"weekly_abs_score": 55, "utility": 14, "confirmations": 4},
+                    "overextension_penalty_weight": 0.20,
+                    "daily_confirmation_modifier": {
+                        "neutral_abs_score_below": 25,
+                        "full_strength_abs_score": 55,
+                        "aligned_bonus_max": 0.08,
+                        "opposed_penalty_max": 0.10,
+                        "strong_opposition_veto_abs_score": 55,
+                    },
+                },
+            }},
+        }
+        neutral_daily = {
+            "score": 0.0,
+            "data_quality": "passed",
+            "signals": {"ret5_pct": 0.5, "ret20_pct": 1.0},
+        }
+        aligned_daily = {
+            "score": 55.0,
+            "data_quality": "passed",
+            "signals": {"ret5_pct": 0.5, "ret20_pct": 1.0},
+        }
+        _, neutral_diag = v5._entry_market_mode(decision, neutral_daily, weekly, policy, plan)
+        _, aligned_diag = v5._entry_market_mode(decision, aligned_daily, weekly, policy, plan)
+        self.assertEqual(neutral_diag["primary_market_score"], aligned_diag["primary_market_score"])
+        self.assertEqual(0.0, neutral_diag["daily_confirmation_modifier"])
+        self.assertEqual(0.08, aligned_diag["daily_confirmation_modifier"])
+        self.assertAlmostEqual(
+            aligned_diag["market_score"] - neutral_diag["market_score"],
+            0.08,
+            places=4,
+        )
+
+    def test_moderate_opposed_daily_penalizes_but_does_not_own_weekly_thesis(self):
+        decision = {
+            "direction": "long",
+            "utility": 14.0,
+            "directional_admission": {"passed": True, "confirmations": 3},
+        }
+        fresh = {
+            "score": -35.0,
+            "data_quality": "passed",
+            "signals": {"ret5_pct": 0.5, "ret20_pct": 1.0},
+        }
+        weekly = {"score": 65.0, "data_quality": "passed"}
+        plan = {"inputs": {"overextension_score": 0.15, "post_stop_reversal": False}}
+        policy = {
+            "directional_admission": {"daily_min_abs_score": 25, "weekly_min_abs_score": 15},
+            "entry_price_engine": {"market_entry": {
+                "enabled": True,
+                "min_selected_utility": 8,
+                "min_confirmations": 2,
+                "minimum_absolute_momentum_pct": 0.15,
+                "maximum_overextension_score": 0.90,
+                "require_weekly_primary_alignment": True,
+                "block_strong_daily_opposition": True,
+                "block_opposed_momentum": True,
+                "scoring": {
+                    "minimum_score": 0.70,
+                    "primary_weights": {"weekly": 0.45, "utility": 0.25, "confirmations": 0.15, "momentum": 0.15},
+                    "full_strength_reference": {"weekly_abs_score": 55, "utility": 14, "confirmations": 4},
+                    "overextension_penalty_weight": 0.20,
+                    "daily_confirmation_modifier": {
+                        "neutral_abs_score_below": 25,
+                        "full_strength_abs_score": 55,
+                        "aligned_bonus_max": 0.08,
+                        "opposed_penalty_max": 0.10,
+                        "strong_opposition_veto_abs_score": 55,
+                    },
+                },
+            }},
+        }
+        eligible, diagnostics = v5._entry_market_mode(decision, fresh, weekly, policy, plan)
+        self.assertTrue(eligible)
+        self.assertTrue(diagnostics["weekly_aligned"])
+        self.assertTrue(diagnostics["daily_opposed"])
+        self.assertLess(diagnostics["daily_confirmation_modifier"], 0.0)
+        self.assertNotIn("strong_daily_opposition_veto", diagnostics["reasons"])
+
+    def test_strong_opposed_daily_can_veto_market_without_changing_weekly_direction(self):
+        decision = {
+            "direction": "long",
+            "utility": 14.0,
+            "directional_admission": {"passed": True, "confirmations": 3},
+        }
+        fresh = {
+            "score": -60.0,
+            "data_quality": "passed",
+            "signals": {"ret5_pct": 0.5, "ret20_pct": 1.0},
+        }
+        weekly = {"score": 65.0, "data_quality": "passed"}
+        plan = {"inputs": {"overextension_score": 0.10, "post_stop_reversal": False}}
+        policy = {
+            "directional_admission": {"daily_min_abs_score": 25, "weekly_min_abs_score": 15},
+            "entry_price_engine": {"market_entry": {
+                "enabled": True,
+                "min_selected_utility": 8,
+                "min_confirmations": 2,
+                "minimum_absolute_momentum_pct": 0.15,
+                "maximum_overextension_score": 0.90,
+                "require_weekly_primary_alignment": True,
+                "block_strong_daily_opposition": True,
+                "block_opposed_momentum": True,
+                "scoring": {
+                    "minimum_score": 0.70,
+                    "primary_weights": {"weekly": 0.45, "utility": 0.25, "confirmations": 0.15, "momentum": 0.15},
+                    "full_strength_reference": {"weekly_abs_score": 55, "utility": 14, "confirmations": 4},
+                    "overextension_penalty_weight": 0.20,
+                    "daily_confirmation_modifier": {
+                        "neutral_abs_score_below": 25,
+                        "full_strength_abs_score": 55,
+                        "aligned_bonus_max": 0.08,
+                        "opposed_penalty_max": 0.10,
+                        "strong_opposition_veto_abs_score": 55,
+                    },
+                },
+            }},
+        }
+        eligible, diagnostics = v5._entry_market_mode(decision, fresh, weekly, policy, plan)
+        self.assertFalse(eligible)
+        self.assertTrue(diagnostics["weekly_aligned"])
+        self.assertIn("strong_daily_opposition_veto", diagnostics["reasons"])
 
     def test_wes_1_3_1_persistent_limit_reaffirmation_never_moves_target(self):
         now = datetime(2026, 10, 5, 9, 5, tzinfo=v5.legacy.TZ)
