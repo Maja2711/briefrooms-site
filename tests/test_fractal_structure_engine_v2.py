@@ -4,8 +4,8 @@ from pathlib import Path
 from scripts import fractal_structure_engine as v1
 from scripts import fractal_structure_engine_v2 as v2
 
-def bars(n,minutes=60):
-    t=datetime(2000,1,1,tzinfo=timezone.utc); p=100.; out=[]
+def bars(n,minutes=60,year=2000):
+    t=datetime(year,1,1,tzinfo=timezone.utc); p=100.; out=[]
     for i in range(n):
         old=p; p*=math.exp(.0001+math.sin(i/19)*.001+math.sin(i/73)*.0004)
         out.append(v1.Bar(t+timedelta(minutes=i*minutes),p,old,max(old,p)*1.001,min(old,p)*.999,1000))
@@ -36,6 +36,7 @@ class TestFSEv2(unittest.TestCase):
             self.assertEqual(out["mode"],"SHADOW_ONLY")
             self.assertFalse(out["production_impact"])
             self.assertEqual(out["authority"],v2.ZERO_AUTHORITY)
+            self.assertEqual(out["errors"],{})
             self.assertEqual(len(out["instruments"]),1)
             self.assertTrue(v2.verify(state)["zero_authority"])
 if __name__=="__main__": unittest.main()
