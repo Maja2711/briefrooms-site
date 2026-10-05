@@ -282,12 +282,13 @@ def _entry_market_mode(
     policy: Dict[str, Any],
     entry_plan: Optional[Dict[str, Any]] = None,
 ) -> Tuple[bool, Dict[str, Any]]:
-    """Score MARKET vs LIMIT after the directional thesis is already authorized.
+    """Choose MARKET vs LIMIT with Weekly as the thesis owner.
 
-    WES 1.3.1 does not require one arbitrary Daily threshold. Strong Weekly,
-    utility, confirmations and aligned momentum may compensate for a merely
-    moderate Daily score. Hard vetoes remain for genuinely conflicting evidence,
-    excessive overextension, post-stop chase and missing admission authority.
+    WES keeps Weekly and Daily independent. The primary execution score is built
+    only from Weekly conviction, selected-candidate utility, independent
+    confirmations and raw market momentum. Daily never contributes a primary
+    weight: it is a bounded confirmation/timing modifier. A strongly opposed
+    Daily signal may veto MARKET, but it never changes the Weekly thesis.
     """
     engine = policy.get("entry_price_engine") if isinstance(policy.get("entry_price_engine"), dict) else {}
     cfg = engine.get("market_entry") if isinstance(engine.get("market_entry"), dict) else {}
@@ -316,8 +317,16 @@ def _entry_market_mode(
     daily_confirmation_floor = float(directional_cfg.get("daily_min_abs_score") or 25.0)
     weekly_confirmation_floor = float(directional_cfg.get("weekly_min_abs_score") or 15.0)
 
-    daily_aligned = daily_valid and daily_dir == direction
-    weekly_aligned = weekly_valid and weekly_dir == direction
+    daily_aligned = (
+        daily_valid
+        and daily_dir == direction
+        and abs(daily_score) >= daily_confirmation_floor
+    )
+    weekly_aligned = (
+        weekly_valid
+        and weekly_dir == direction
+        and abs(weekly_score) >= weekly_confirmation_floor
+    )
     daily_opposed = (
         daily_valid
         and daily_dir in {"long", "short"}
@@ -347,33 +356,56 @@ def _entry_market_mode(
     overextension_value = _clip(float(overextension or 0.0), 0.0, 1.0)
 
     refs = scoring.get("full_strength_reference") if isinstance(scoring.get("full_strength_reference"), dict) else {}
-    daily_ref = max(1.0, float(refs.get("daily_abs_score") or 55.0))
     weekly_ref = max(1.0, float(refs.get("weekly_abs_score") or 55.0))
     utility_ref = max(0.1, float(refs.get("utility") or 14.0))
     confirmations_ref = max(1.0, float(refs.get("confirmations") or 4.0))
 
-    daily_strength = _clip(abs(daily_score) / daily_ref, 0.0, 1.0) if daily_aligned else 0.0
     weekly_strength = _clip(abs(weekly_score) / weekly_ref, 0.0, 1.0) if weekly_aligned else 0.0
     utility_strength = _clip(utility / utility_ref, 0.0, 1.0)
     confirmations_strength = _clip(confirmations / confirmations_ref, 0.0, 1.0)
     momentum_strength = 1.0 if momentum_aligned else 0.0 if momentum_opposed else 0.5
 
-    weights = scoring.get("weights") if isinstance(scoring.get("weights"), dict) else {}
-    w_daily = max(0.0, float(weights.get("daily") or 0.25))
-    w_weekly = max(0.0, float(weights.get("weekly") or 0.25))
-    w_utility = max(0.0, float(weights.get("utility") or 0.20))
+    weights = scoring.get("primary_weights") if isinstance(scoring.get("primary_weights"), dict) else {}
+    w_weekly = max(0.0, float(weights.get("weekly") or 0.45))
+    w_utility = max(0.0, float(weights.get("utility") or 0.25))
     w_confirmations = max(0.0, float(weights.get("confirmations") or 0.15))
     w_momentum = max(0.0, float(weights.get("momentum") or 0.15))
-    weight_total = max(0.0001, w_daily + w_weekly + w_utility + w_confirmations + w_momentum)
-    gross_score = (
-        w_daily * daily_strength
-        + w_weekly * weekly_strength
+    weight_total = max(0.0001, w_weekly + w_utility + w_confirmations + w_momentum)
+    primary_score = (
+        w_weekly * weekly_strength
         + w_utility * utility_strength
         + w_confirmations * confirmations_strength
         + w_momentum * momentum_strength
     ) / weight_total
+
     penalty_weight = max(0.0, float(scoring.get("overextension_penalty_weight") or 0.20))
-    market_score = _clip(gross_score - penalty_weight * overextension_value, 0.0, 1.0)
+    overextension_penalty = penalty_weight * overextension_value
+    score_before_daily = _clip(primary_score - overextension_penalty, 0.0, 1.0)
+
+    daily_cfg = scoring.get("daily_confirmation_modifier") if isinstance(scoring.get("daily_confirmation_modifier"), dict) else {}
+    daily_neutral_floor = max(0.0, float(daily_cfg.get("neutral_abs_score_below") or daily_confirmation_floor))
+    daily_full_strength = max(daily_neutral_floor + 0.0001, float(daily_cfg.get("full_strength_abs_score") or 55.0))
+    aligned_bonus_max = max(0.0, float(daily_cfg.get("aligned_bonus_max") or 0.08))
+    opposed_penalty_max = max(0.0, float(daily_cfg.get("opposed_penalty_max") or 0.10))
+    strong_opposition_veto = max(
+        daily_neutral_floor,
+        float(daily_cfg.get("strong_opposition_veto_abs_score") or daily_full_strength),
+    )
+    daily_strength = (
+        _clip(abs(daily_score) / daily_full_strength, 0.0, 1.0)
+        if daily_valid and abs(daily_score) >= daily_neutral_floor
+        else 0.0
+    )
+    daily_modifier = 0.0
+    daily_modifier_state = "neutral_or_unavailable"
+    if daily_aligned:
+        daily_modifier = aligned_bonus_max * daily_strength
+        daily_modifier_state = "aligned_bonus"
+    elif daily_opposed:
+        daily_modifier = -opposed_penalty_max * daily_strength
+        daily_modifier_state = "opposed_penalty"
+
+    market_score = _clip(score_before_daily + daily_modifier, 0.0, 1.0)
     minimum_market_score = _clip(float(scoring.get("minimum_score") or 0.70), 0.0, 1.0)
 
     reasons: list[str] = []
@@ -387,12 +419,16 @@ def _entry_market_mode(
         reasons.append("insufficient_confirmations_for_market_entry")
     if utility < utility_floor:
         reasons.append("selected_utility_below_market_entry_floor")
-    if cfg.get("require_at_least_one_trend_alignment", True) and not (daily_aligned or weekly_aligned):
-        reasons.append("no_aligned_daily_or_weekly_trend")
-    if cfg.get("block_opposed_daily_or_weekly", True) and daily_opposed:
-        reasons.append("daily_trend_opposes_market_entry")
-    if cfg.get("block_opposed_daily_or_weekly", True) and weekly_opposed:
-        reasons.append("weekly_trend_opposes_market_entry")
+    if cfg.get("require_weekly_primary_alignment", True) and not weekly_aligned:
+        reasons.append("weekly_primary_not_aligned")
+    if weekly_opposed:
+        reasons.append("weekly_primary_opposes_market_entry")
+    if (
+        cfg.get("block_strong_daily_opposition", True)
+        and daily_opposed
+        and abs(daily_score) >= strong_opposition_veto
+    ):
+        reasons.append("strong_daily_opposition_veto")
     if cfg.get("block_opposed_momentum", True) and momentum_opposed:
         reasons.append("momentum_opposes_market_entry")
     if overextension is not None and overextension > max_overextension:
@@ -404,6 +440,7 @@ def _entry_market_mode(
 
     diagnostics = {
         "version": str(cfg.get("version") or "WES-1.3.1"),
+        "scoring_model": "weekly_primary_daily_confirmation_modifier",
         "direction": direction,
         "daily_score": round(daily_score, 4),
         "weekly_score": round(weekly_score, 4),
@@ -418,15 +455,22 @@ def _entry_market_mode(
         "weekly_opposed": weekly_opposed,
         "momentum_aligned": momentum_aligned,
         "momentum_opposed": momentum_opposed,
-        "score_components": {
-            "daily": round(daily_strength, 4),
+        "primary_score_components": {
             "weekly": round(weekly_strength, 4),
             "utility": round(utility_strength, 4),
             "confirmations": round(confirmations_strength, 4),
             "momentum": round(momentum_strength, 4),
         },
-        "gross_market_score": round(gross_score, 4),
-        "overextension_penalty": round(penalty_weight * overextension_value, 4),
+        "primary_market_score": round(primary_score, 4),
+        "overextension_penalty": round(overextension_penalty, 4),
+        "score_before_daily_modifier": round(score_before_daily, 4),
+        "daily_confirmation_modifier": round(daily_modifier, 4),
+        "daily_confirmation_state": daily_modifier_state,
+        "daily_modifier_bounds": {
+            "aligned_bonus_max": aligned_bonus_max,
+            "opposed_penalty_max": opposed_penalty_max,
+            "strong_opposition_veto_abs_score": strong_opposition_veto,
+        },
         "market_score": round(market_score, 4),
         "minimum_market_score": round(minimum_market_score, 4),
         "eligible": not reasons,
