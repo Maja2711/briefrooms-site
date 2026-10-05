@@ -151,6 +151,49 @@ class WesTests(unittest.TestCase):
         self.assertEqual(choice_learning, result['learning'])
         self.assertEqual(selected_learning, result['selected_leg_learning'])
 
+    def test_wes_1_3_1_absolute_strength_bypasses_delta_for_eurusd_like_signal(self):
+        profile = {"allowed": True, "raw": 50.0, "utility": 7.5, "confirmations": 2, "delta": 15.0}
+        policy = {"directional_admission": {"absolute_strength_delta_bypass": {
+            "enabled": True,
+            "raw_multiplier": 1.30,
+            "utility_multiplier": 1.30,
+            "require_daily_weekly_confirmation": True,
+        }}}
+        eligible, diagnostics = wes.absolute_strength_delta_bypass(
+            profile,
+            raw=75.0,
+            utility=14.455,
+            confirmations_count=4,
+            confirmation_sources=["daily", "weekly", "macro", "ma_structure"],
+            admission_meta={"passed": True},
+            policy=policy,
+        )
+        self.assertTrue(eligible)
+        self.assertTrue(diagnostics["eligible"])
+        self.assertEqual(65.0, diagnostics["required_raw"])
+        self.assertEqual(9.75, diagnostics["required_utility"])
+
+    def test_wes_1_3_1_absolute_strength_bypass_scales_with_trigger_profile(self):
+        profile = {"allowed": True, "raw": 50.0, "utility": 7.5, "confirmations": 2, "delta": 15.0}
+        policy = {"directional_admission": {"absolute_strength_delta_bypass": {
+            "enabled": True,
+            "raw_multiplier": 1.30,
+            "utility_multiplier": 1.30,
+            "require_daily_weekly_confirmation": True,
+        }}}
+        eligible, diagnostics = wes.absolute_strength_delta_bypass(
+            profile,
+            raw=60.0,
+            utility=9.0,
+            confirmations_count=2,
+            confirmation_sources=["daily", "weekly"],
+            admission_meta={"passed": True},
+            policy=policy,
+        )
+        self.assertFalse(eligible)
+        self.assertIn("raw_below_scaled_absolute_strength", diagnostics["reasons"])
+        self.assertIn("utility_below_scaled_absolute_strength", diagnostics["reasons"])
+
     def test_wes_1_1_inverse_is_shadow_and_cannot_win_exact_btc_tie(self):
         policy = {
             'strategy_tournament': {
