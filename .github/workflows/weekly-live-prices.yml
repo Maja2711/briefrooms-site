@@ -7,6 +7,7 @@ on:
     paths:
       - "scripts/update_weekly_live_prices_fast.py"
       - "scripts/audit_intraday_risk_exits.py"
+      - "scripts/sync_trading_push_commit.sh"
       - ".github/workflows/weekly-live-prices.yml"
   schedule:
     # Dedicated fast path for Weekly Trading current-price marks.
@@ -114,6 +115,7 @@ jobs:
           PY
 
       - name: Commit Weekly live prices
+        id: commit
         shell: bash
         run: |
           set -euo pipefail
@@ -122,12 +124,15 @@ jobs:
           git add data/investments/live_prices.json data/investments/weekly data/investments/intraday_risk_audit.json
           if git diff --cached --quiet; then
             echo "No Weekly live-price or SL/TP state changes"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           git commit -m "Update Weekly prices and 5m risk exits"
 
           for attempt in 1 2 3 4 5; do
             if git pull --rebase origin main && git push origin HEAD:main; then
+              echo "changed=true" >> "$GITHUB_OUTPUT"
+              echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
               exit 0
             fi
             git rebase --abort || true
@@ -137,3 +142,9 @@ jobs:
 
           echo "Unable to push Weekly live prices after 5 attempts" >&2
           exit 1
+
+      - name: Dispatch persisted Weekly price/risk transition to Web Push immediately
+        if: steps.commit.outputs.changed == 'true'
+        env:
+          PUSH_API: https://briefrooms-trading-push.szczerbinski0577.workers.dev
+        run: bash scripts/sync_trading_push_commit.sh "${{ steps.commit.outputs.sha }}" weekly
