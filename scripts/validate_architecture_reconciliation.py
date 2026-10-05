@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Semantic Architecture Reconciliation 1.19 guard.
+"""Semantic Architecture Reconciliation 1.20 guard.
 
 Checks runtime facts that a version-only documentation check cannot protect:
 active phase/status, branch authority, Trigger wiring, WES NO_TRADE, and
@@ -154,9 +154,9 @@ require(legacy_closed_loop, "contents: read", "legacy closed loop")
 forbid(legacy_closed_loop, "Apply statistically proven autonomous policy calibration", "legacy closed loop")
 forbid(legacy_closed_loop, "git push origin HEAD:main", "legacy closed loop")
 
-for token in ("**Wersja mapy:** 1.19", "IN-08", "EP-09", "LE-10", "LE-11", "PROBATIONARY_CONTROL", "NO_TRADE", "FULL", "WES 1.2.0"):
+for token in ("**Wersja mapy:** 1.20", "IN-08", "EP-09", "LE-10", "LE-11", "PROBATIONARY_CONTROL", "NO_TRADE", "FULL", "WES 1.2.0"):
     require(pl_map, token, "PL Architecture Map")
-for token in ("**Map version:** 1.19", "IN-08", "EP-09", "LE-10", "LE-11", "PROBATIONARY_CONTROL", "NO_TRADE", "FULL", "WES 1.2.0"):
+for token in ("**Map version:** 1.20", "IN-08", "EP-09", "LE-10", "LE-11", "PROBATIONARY_CONTROL", "NO_TRADE", "FULL", "WES 1.2.0"):
     require(en_map, token, "EN Architecture Map")
 require(stock_doc, "PRODUCTION CHAMPION — FULL", "Stock Trading architecture")
 require(stock_doc, "Market Relationship / Trigger", "Stock Trading architecture")
@@ -174,6 +174,9 @@ daily_doc = read("docs/DAILY_TRADING_ARCHITECTURE.md")
 daily_runtime = read("scripts/daily_eurusd_spot_v19.py")
 daily_decision = read("scripts/daily_eurusd_belief_decision.py")
 daily_workflow = read(".github/workflows/daily-eurusd-monitor.yml")
+daily_realtime_workflow = read(".github/workflows/daily-eurusd-realtime-lifecycle.yml")
+daily_fast_lifecycle = read("scripts/daily_eurusd_fast_lifecycle.py")
+trading_push_worker = read("workers/trading-push/src/index.js")
 belief_live_workflow = read(".github/workflows/belief-core-shadow-live.yml")
 epistemic_consumer = read("scripts/epistemic_consumer_interface.py")
 for token in (
@@ -210,6 +213,16 @@ require(daily_workflow, "scripts/daily_eurusd_spot_v19.py", "Daily EURUSD produc
 require(daily_workflow, "BELIEF_EPISTEMIC_STATE=", "Daily EURUSD production workflow")
 require(daily_workflow, "DAILY_EURUSD_REQUIRE_EPISTEMIC=1", "Daily EURUSD production workflow")
 require(daily_workflow, "EURUSD_V19_BELIEF_FIRST_OK", "Daily EURUSD production workflow")
+require(daily_doc, "### Realtime open-position lifecycle", "Daily EURUSD realtime architecture")
+require(daily_fast_lifecycle, '"entry_authority": False', "Daily EURUSD realtime exit-only runtime")
+require(daily_fast_lifecycle, '"direction_authority": False', "Daily EURUSD realtime exit-only runtime")
+require(daily_fast_lifecycle, "v14.evaluate_position", "Daily EURUSD realtime lifecycle rule reuse")
+require(daily_realtime_workflow, "Watch persisted OPEN position every five seconds", "Daily EURUSD realtime workflow")
+require(daily_realtime_workflow, "scripts/daily_eurusd_realtime_watch.sh", "Daily EURUSD realtime workflow")
+require(daily_workflow, "/sync-daily", "Daily EURUSD immediate notification handoff")
+require(daily_workflow, "daily-eurusd-realtime-lifecycle.yml", "Daily EURUSD watcher recovery")
+require(trading_push_worker, "async syncDailyCommit(commitSha)", "Trading push commit-bound sync")
+require(trading_push_worker, "direct_ingest_disabled_use_sync_daily", "Trading push injection boundary")
 require(belief_live_workflow, "belief_core_live.py", "Belief EURUSD live collector")
 forbid(daily_workflow, "python scripts/daily_eurusd_spot_v18.py", "Daily EURUSD production workflow")
 
@@ -233,9 +246,9 @@ for label, main_text, research_text in (
         errors.append(f"default-branch {label} drifted from research-branch runtime definition")
 
 if errors:
-    print("Architecture Reconciliation 1.19 FAILED:", file=sys.stderr)
+    print("Architecture Reconciliation 1.20 FAILED:", file=sys.stderr)
     for error in errors:
         print(f"- {error}", file=sys.stderr)
     raise SystemExit(1)
 
-print("Architecture Reconciliation 1.19 passed.")
+print("Architecture Reconciliation 1.20 passed.")
