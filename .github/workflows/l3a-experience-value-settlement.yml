@@ -1,0 +1,35 @@
+name: L3-A Experience Value Settlement
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Belief Core Calibration"]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  validate-lineage:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with: {ref: main}
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - name: Validate complete L3-A lineage contract
+        run: |
+          python -m unittest tests.test_belief_question_engine tests.test_l3_experience_acquisition tests.test_l3a_experience_lineage -v
+          python - <<'PY'
+          from scripts.l3a_experience_lineage import attribution, forecast_metadata, settle
+          i={"intent_id":"demo-intent","question_id":"demo-question","belief_id":"demo-belief"}
+          a=attribution(i,evidence_ids=["evidence-1"],p_before=.45,p_after=.60,forecast_id="forecast-1")
+          m=forecast_metadata(i,a)
+          s=settle(a,{"verification_id":"verify-1","forecast_id":"forecast-1","outcome":True,"brier_score":.16,"log_loss":.51})
+          assert m["l3_question_id"]=="demo-question"
+          assert s["future_metrics"]["brier_gain_vs_pre_research"] > 0
+          print("L3-A E2E lineage contract: PASS")
+          PY
