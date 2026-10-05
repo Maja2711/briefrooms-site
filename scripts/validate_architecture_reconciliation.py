@@ -175,7 +175,7 @@ require(stock_doc, "Market Relationship / Trigger", "Stock Trading architecture"
 require(stock_doc, "stock-trading-v2", "Stock Trading branch authority")
 require(weekly_doc, "NO_TRADE", "Weekly methodology")
 require(weekly_doc, "WES 1.3.1", "Weekly methodology")
-require(weekly_doc, "Entry Price", "Weekly methodology")
+require(weekly_doc, "Adaptive MARKET versus LIMIT decision", "Weekly methodology")
 require(weekly_doc, "inverse_v2", "Weekly methodology")
 require(gse_doc, "Active v2 runtime", "GSE architecture")
 require(auto_doc, "Production materialization from this legacy PR35/PR36 loop is retired", "Autonomous Policy docs")
