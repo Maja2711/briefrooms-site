@@ -25,9 +25,8 @@
     noActive: 'Brak aktywnej pozycji', noActiveText: 'Brak otwartej pozycji na tym rynku.', cash: 'CASH / wolny slot',
     pending: 'Kandydat wybrany', pendingShort: 'kandydat oczekuje',
     pendingText: 'Stock Trading v2 wybrał spółkę, ale airlock czeka na kurs wykonawczy nie starszy niż 2 min.',
-    pendingTextGpw: 'Stock Trading v2 wybrał spółkę; GPW czeka na kurs Yahoo z bieżącej sesji nie starszy niż 20 min (DELAYED PAPER).',
+    pendingTextGpw: 'Stock Trading v2 wybrał spółkę; GPW czeka na kurs Yahoo z bieżącej sesji nie starszy niż 20 min.',
     pendingNotOpen: 'Pozycja nieotwarta — brak legalnego fillu',
-    delayedPaper: 'DELAYED PAPER · GPW ≤20 min',
     market: 'Rynek', sector: 'Sektor', status: 'Status', noPosition: 'Brak pozycji',
     entry: 'Cena wejścia', last: 'Ostatni kurs', closedMarket: 'rynek zamknięty',
     sl: 'SL', tp: 'Cel runnera', runnerPolicy: 'LET WINNERS RUN', entered: 'Wejście', pnl: 'P&L (od wejścia)',
@@ -66,9 +65,8 @@
     noActive: 'No active position', noActiveText: 'No open position in this market.', cash: 'CASH / free slot',
     pending: 'Candidate selected', pendingShort: 'candidate waiting',
     pendingText: 'Stock Trading v2 selected a stock, but the airlock is waiting for an execution quote no older than 2 minutes.',
-    pendingTextGpw: 'Stock Trading v2 selected a stock; GPW is waiting for a current-session Yahoo quote no older than 20 minutes (DELAYED PAPER).',
+    pendingTextGpw: 'Stock Trading v2 selected a stock; GPW is waiting for a current-session Yahoo quote no older than 20 minutes.',
     pendingNotOpen: 'Position not open — no legal fill yet',
-    delayedPaper: 'DELAYED PAPER · GPW ≤20 min',
     market: 'Market', sector: 'Sector', status: 'Status', noPosition: 'No position',
     entry: 'Entry price', last: 'Last price', closedMarket: 'market closed',
     sl: 'SL', tp: 'Runner target', runnerPolicy: 'LET WINNERS RUN', entered: 'Entry', pnl: 'P&L (since entry)',
@@ -286,7 +284,6 @@
     const name = position.name || ticker;
     const score = firstNumber(position, ['entry_score','score']);
     const sector = sectorLabel(position.sector);
-    const executionMode = String(position?.entry_validation?.execution_mode || '').toUpperCase();
     const runnerMode = position?.profit_runner_enabled === true || String(position?.take_profit_mode || '').toUpperCase() === 'THESIS_RUNNER_CHECKPOINT';
     return `<article class="str-position" data-position-symbol="${esc(symbolKey)}">
       <div class="str-position-head">
@@ -311,7 +308,6 @@
               ${notional !== null ? `<span class="str-meta-pill"><b>${esc(T.positionValue)}: ${money(notional, market)}</b></span>` : `<span class="str-meta-pill">${esc(T.legacySizing)}</span>`}
               ${quantity !== null ? `<span class="str-meta-pill">${esc(T.shares)}: ${quantity.toLocaleString(locale,{maximumFractionDigits:8})}</span>` : ''}
               ${score !== null ? `<span class="str-meta-pill">${esc(T.score)}: ${score.toLocaleString(locale,{maximumFractionDigits:2})}</span>` : ''}
-              ${market === 'GPW' && executionMode === 'DELAYED_PAPER' ? `<span class="str-meta-pill"><b>${esc(T.delayedPaper)}</b></span>` : ''}
               ${runnerMode ? `<span class="str-meta-pill"><b>${esc(T.runnerPolicy)}</b></span>` : ''}
             </div>
             <div class="str-pnl ${p === null || p === 0 ? 'is-neutral' : p > 0 ? 'is-positive' : 'is-negative'}">
