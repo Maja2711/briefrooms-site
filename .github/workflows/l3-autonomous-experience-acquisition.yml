@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      PYTHONPATH: $GH_WORKSPACE/scripts:$GH_WORKSPACE
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       GEMINI_GENERATION_MODEL: gemini-3.5-flash
       GEMINI_REVIEW_MODEL: gemini-3.5-flash
