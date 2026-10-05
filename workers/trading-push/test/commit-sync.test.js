@@ -122,3 +122,30 @@ test("PL and EN routes remain correct for Daily Weekly and Stock channels", () =
     assert.match(en.body, new RegExp(`^${row.enAction}`));
   }
 });
+
+
+test("Weekly pending LIMIT plan never emits OPEN without a verified fill", () => {
+  const before = weeklyCommitSnapshot({
+    week_id: "2026-W41",
+    instruments: [
+      { instrument_id: "eurusd", label_pl: "EUR/USD", trade_status: "no_trade", direction: "neutral", entry_price: null },
+    ],
+  });
+  const after = weeklyCommitSnapshot({
+    week_id: "2026-W41",
+    instruments: [
+      {
+        instrument_id: "eurusd",
+        label_pl: "EUR/USD",
+        trade_status: "pending",
+        direction: "short",
+        entry_price: null,
+        pending_entry_decision: {
+          entry_price_plan: { execution_mode: "price_improving_limit", target_price: 1.12 },
+        },
+      },
+    ],
+  });
+  assert.equal(after.open.size, 0);
+  assert.deepEqual(transitionDescriptors("weekly", before, after, "2026-10-05T10:00:00Z"), []);
+});
