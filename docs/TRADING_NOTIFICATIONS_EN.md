@@ -49,7 +49,13 @@ The frontend registers `br-trading-sw.js`, fetches the public VAPID key from the
 
 The private VAPID key never reaches GitHub Pages or the public repository. It is generated and stored as a Cloudflare Worker Secret.
 
-For Daily EUR/USD the production path is immediate and bound to a specific persisted state: after a successful OPEN/CLOSE write, the workflow calls `/sync-daily` and sends only the commit SHA. The Worker verifies through the GitHub API that the SHA is the current `main` head, fetches `eurusd_daily_spot.json` from that exact commit, builds the deterministic event, and immediately sends Web Push. This keeps the notification layer from guessing market state or waiting for the next poll. Public direct `/ingest` is disabled. Minute polling of the canonical `data/notifications/trading-events.json` feed remains a recovery mechanism for all channels. Initial startup is seed-only, so historical events are not sent.
+For every production channel, the push path is now immediate and commit-bound: **Daily EUR/USD, Weekly EUR/USD, Weekly BTC/USD, Weekly S&P 500 futures, and Stock Trading (GPW and US)**. Every canonical writer that successfully persists a position change to `main` sends only that exact commit SHA plus the channel name to the Worker through `/sync-trading`. The Worker verifies that the SHA is the current head or a recent ancestor of current `main`, fetches the exact state at that commit and its direct parent, and emits only real `absent -> OPEN` and `OPEN -> CLOSED` transitions. This prevents a simultaneous close of one position and opening of another from losing an alert, while ordinary mark-to-market updates do not create false notifications.
+
+For Weekly, the mechanism covers all three WES instruments — EUR/USD, BTC/USD and S&P 500 futures — whether the write comes from WES admission/lifecycle, full maintenance, or the canonical five-minute risk-exit path. For Stock Trading it covers both v2 production admission and canonical portfolio lifecycle. Daily uses the same shared mechanism, including its realtime exit watcher.
+
+Web Push language is stored per device subscription: a PL device receives Polish copy and a PL destination, while an EN device receives English copy and an EN destination. Event IDs remain deterministic from `engine + event_type + position_id`, so a parallel recovery path cannot duplicate an already delivered transition.
+
+Public direct `/ingest` is disabled. Internal `https://internal/ingest` is available only to the Worker scheduler as a recovery mechanism that reads canonical `data/notifications/trading-events.json`; polling is no longer the primary alert-delivery path. Recovery initialization remains seed-only, so historical events are not emitted.
 
 A push-backend failure cannot affect TR-03/TR-04/TR-05 or any execution/risk/decision path.
 
