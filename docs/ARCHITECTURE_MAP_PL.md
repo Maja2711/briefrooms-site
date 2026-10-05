@@ -1,6 +1,6 @@
 # Kanoniczna mapa architektury BriefRooms — PL
 
-**Wersja mapy:** 1.21  
+**Wersja mapy:** 1.22  
 **Stan na:** 2026-10-05  
 **Bazowy commit `main`:** `f369f95fe45330d0a1f697b9de5d681448305767`  
 **Repozytorium:** `Maja2711/briefrooms-site`
@@ -167,6 +167,17 @@ Adapter nie jest silnikiem decyzji. Jego podstawowym zadaniem jest tłumaczenie 
 | `IN-06` | Investment Semantics / World State | Semantyczne odwzorowanie stanu inwestycyjnego | `INVESTMENT_SEMANTICS_WORLD_STATE.md` i powiązane moduły |
 | `IN-07` | TimesFM Shadow Forecaster | Niezależny forecaster badawczy/shadow i benchmark | `timesfm_shadow_forecaster.py`, `timesfm3_internal_benchmark.py`; nie jest samodzielnym production authority |
 | `IN-08` | Market Relationship / Trigger Engine | `EVENT × ENTITY × PEERS × MARKET REACTION × TIME -> ATTENTION`; scarce research routing dla Stock Trading v2 | Research branch `stock-trading-v2`: `scripts/briefrooms_market_relationship_trigger.py`, `briefrooms_market_relationship_outcomes.py`, `briefrooms_trigger_deep_belief.py`, `briefrooms_trigger_deep_belief_learning.py`; max 6 attention (4 trigger + 2 exploration), max 2 Deep BELIEF proxy, zero production decision authority |\n| `IN-09` | FSE — Fractal Structure Engine | Wieloskalowa geometria rynku: `scale + persistence + multifractality proxy + tails -> structural risk/regime`; Fractal Memory: normalized fingerprint -> analogues -> forward distribution | `scripts/fractal_structure_engine.py`, `.github/workflows/fse-fractal-structure-engine.yml`, `docs/FRACTAL_STRUCTURE_ENGINE_PL.md`; `SHADOW_ONLY`, prospektywne freeze/outcome + Brier, siódmy producer HSE2, research-only sizing/SL geometry z `production_applied=false`, zero execution/policy/sizing/stop write authority |
+
+
+### L3 — autonomiczne zdobywanie doświadczenia
+
+| ID | Moduł | Funkcja | Authority |
+|---|---|---|---|
+| `LE-01` | Production Question Engine | Epistemic State -> ranking pytań według proxy Expected Information Value | Może wybierać pytania i uruchamiać research; bez probability override, trade execution i policy writeback |
+| `LE-02` | L3 Experience Acquisition Orchestrator | Question -> preregistered research intent -> routing do istniejących research/experiment paths | Production research orchestration; max 3 aktywne intencje/cykl; bez code mutation, engine-policy writeback, trade execution i automatic production promotion |
+| `LE-03` | Existing Research / Experiment Fabric | Research Lab, Lesson/Hypothesis Registry, Experiment Compiler/Registry, Learning Ledger, Statistical Gates | Prospektywne evidence/outcomes i ocena; production promotion wyłącznie przez istniejący właściwy controller |
+
+Kanoniczna pętla L3: `Epistemic State -> Question Engine -> L3 Orchestrator -> research / preregistration -> prospective evidence/outcomes -> Learning Ledger / Experiment Registry -> statistical gate -> promotion recommendation/controller -> future-only change`. Brakujący lub niewykonalny research nie jest zamieniany w sztuczny wynik. L3 nie ma prawa samodzielnie przepisywać kodu ani bezpośrednio nadpisywać Belief probability lub decyzji tradingowej.
 
 ## 6. Decision / trading engines
 
