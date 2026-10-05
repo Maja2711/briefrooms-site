@@ -56,6 +56,12 @@ PL = [
         ("RMF24 Sport", "https://www.rmf24.pl/sport/feed"),
         ("TVP Sport", "https://sport.tvp.pl/rss"),
     ]),
+    ("ai-technologia-krypto", "AI / Technologia / Krypto", [
+        ("Spider's Web", "https://spidersweb.pl/?feed=mcfeed"),
+        ("Business Insider Polska", "https://businessinsider.com.pl/.feed"),
+        ("Bankier.pl", "https://www.bankier.pl/rss/wiadomosci.xml"),
+        ("Polsat News", "https://www.polsatnews.pl/rss/technologie.xml"),
+    ]),
 ]
 
 EN = [
@@ -101,6 +107,10 @@ EN = [
     ("sport", "Sport", [
         ("BBC Sport", "https://feeds.bbci.co.uk/sport/rss.xml?edition=int"),
         ("The Guardian", "https://www.theguardian.com/sport/rss"),
+    ]),
+    ("ai-technology-crypto", "AI / Technology / Crypto", [
+        ("The Guardian", "https://www.theguardian.com/technology/rss"),
+        ("BBC Business", "https://feeds.bbci.co.uk/news/business/rss.xml"),
     ]),
 ]
 
