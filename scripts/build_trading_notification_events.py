@@ -117,10 +117,16 @@ def weekly_open_positions() -> list[dict[str, Any]]:
         direction = str(row.get("direction") or "").lower()
         entry = row.get("entry_price")
         exit_price = row.get("exit_price")
-        has_verified_entry = finite_number(entry) is not None and direction in {"long", "short"}
-        is_open = has_verified_entry and finite_number(exit_price) is None and status not in {
-            "pending", "planned", "no_trade", "closed", "cancelled", "expired_no_entry"
-        }
+        has_verified_entry = (
+            finite_number(entry) is not None
+            and bool(row.get("entry_captured_at"))
+            and direction in {"long", "short"}
+        )
+        is_open = (
+            has_verified_entry
+            and finite_number(exit_price) is None
+            and status in {"open", "opened", "active", "holding"}
+        )
         if not is_open:
             continue
         instrument_id = str(row.get("instrument_id") or row.get("symbol") or "unknown")
@@ -291,7 +297,12 @@ def build_events(previous: dict[str, Any], current: dict[str, Any]) -> list[dict
         for pid in sorted(after.keys() - before.keys()):
             events.append(make_event(engine, "OPEN", after[pid]))
         for pid in sorted(before.keys() - after.keys()):
-            events.append(make_event(engine, "CLOSE", before[pid]))
+            event = make_event(engine, "CLOSE", before[pid])
+            # Recovery is fail-closed too: disappearance is not execution proof.
+            # Require canonical close metadata before a CLOSE may enter the feed.
+            if not event.get("closed_at"):
+                continue
+            events.append(event)
     return events
 
 
