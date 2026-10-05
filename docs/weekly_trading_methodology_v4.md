@@ -66,18 +66,28 @@ Because the reference is the active trigger profile, the bypass automatically be
 
 Directional admission answers **whether WES may trade the thesis**. The Entry Engine separately answers **how to enter**.
 
-WES first constructs the same deterministic pullback plan from the decision-time reference price, ATR14, EMA20 distance, ret5/ret20, 55-day range location and post-stop state. It then calculates a continuation score from:
+WES first constructs the same deterministic pullback plan from the decision-time reference price, ATR14, EMA20 distance, ret5/ret20, 55-day range location and post-stop state. MARKET/LIMIT is then evaluated in two stages.
 
-- Daily trend strength;
+The **primary score belongs to Weekly** and uses:
+
 - Weekly trend strength;
 - selected-candidate utility;
 - number of independent confirmations;
-- momentum alignment;
+- raw market momentum alignment;
 - an explicit penalty for overextension.
 
-A passing composite score may select `market_now`. A weaker or more extended setup remains `limit_pullback`.
+The Daily EUR/USD engine remains independent. Its score is **not** a primary weight in WES. Daily can only modify execution timing within bounded limits:
 
-MARKET retains hard vetoes. It is not allowed when meaningful Daily or Weekly evidence opposes the thesis, momentum is clearly opposed, overextension exceeds the configured ceiling, directional admission is absent, or the setup is an immediate post-stop reversal. Every MARKET fill must be a fresh completed post-decision 5-minute close verified by EPE.
+- aligned Daily evidence adds at most `+0.08`;
+- weak or unavailable Daily contributes `0`;
+- moderate opposed Daily subtracts at most `-0.10`;
+- strongly opposed Daily (`|score| >= 55`) may veto MARKET.
+
+Daily therefore cannot change the Weekly thesis or become a second Weekly decision engine. It can only make WES more or less willing to execute that already-authorized Weekly thesis immediately.
+
+A passing Weekly-primary score plus bounded Daily modifier may select `market_now`. A weaker or more extended setup remains `limit_pullback`.
+
+MARKET retains hard vetoes. Weekly itself must align with the authorized WES direction. Clearly opposed market momentum, excessive overextension, missing directional admission, immediate post-stop chase, or a very strong opposed Daily signal block MARKET. Every MARKET fill must still be a fresh completed post-decision 5-minute close verified by EPE.
 
 ### Persistent frozen LIMIT plan
 
