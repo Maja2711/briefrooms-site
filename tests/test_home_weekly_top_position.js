@@ -34,11 +34,11 @@ function stock(ticker, thesis, entryScore, openedAt) {
   };
 }
 
-function portfolio(items) {
+function portfolio(usItems, gpwItems) {
   return {
     markets: {
-      US: { open_positions: items || [] },
-      GPW: { open_positions: [] }
+      US: { open_positions: usItems || [] },
+      GPW: { open_positions: gpwItems || [] }
     }
   };
 }
@@ -79,7 +79,7 @@ test('active canonical weekly position has priority over Stock Trading portfolio
 });
 
 test('Stock Trading signal is explicitly labelled OPEN and never WEEKLY', () => {
-  const selected = widget.chooseSignal([], portfolio([stock('MPC', 100, 93)]), 'pl');
+  const selected = widget.chooseSignal([], portfolio([], [stock('ALE', 100, 93)]), 'pl');
   assert.equal(selected.kind, 'stock');
   assert.equal(widget.kickerFor(selected, 'pl'), 'BRIEFROOMS STOCK TRADING · OPEN');
   assert.equal(widget.kickerFor(selected, 'pl').includes('WEEKLY'), false);
@@ -90,7 +90,7 @@ test('Stock Trading portfolio is the only fallback when no canonical weekly posi
     stock('NTRA', 100, 87),
     stock('MPC', 100, 93),
     stock('NET', 96, 86)
-  ]), 'pl');
+  ]), 'en');
   assert.equal(selected.kind, 'stock');
   assert.equal(selected.ticker, 'MPC');
 });
@@ -98,7 +98,7 @@ test('Stock Trading portfolio is the only fallback when no canonical weekly posi
 test('closed Stock Trading positions are not promoted', () => {
   const closed = stock('DNP', 999, 999);
   closed.status = 'CLOSED';
-  assert.equal(widget.selectTopStockPosition(portfolio([closed])), null);
+  assert.equal(widget.selectTopStockPosition(portfolio([closed]), 'en'), null);
 });
 
 test('Stock Trading ranking uses thesis score, then entry score', () => {
@@ -106,8 +106,43 @@ test('Stock Trading ranking uses thesis score, then entry score', () => {
     stock('AAA', 90, 99),
     stock('BBB', 100, 80),
     stock('CCC', 100, 90)
-  ]));
+  ]), 'en');
   assert.equal(selected.ticker, 'CCC');
+});
+
+test('PL homepage promotes only GPW stocks even when a US position scores higher', () => {
+  const selected = widget.chooseSignal([], portfolio(
+    [stock('NVDA', 999, 999)],
+    [stock('ALE', 80, 80)]
+  ), 'pl');
+  assert.equal(selected.kind, 'stock');
+  assert.equal(selected.ticker, 'ALE');
+  assert.equal(selected.market, 'GPW');
+});
+
+test('EN homepage promotes only US stocks even when a GPW position scores higher', () => {
+  const selected = widget.chooseSignal([], portfolio(
+    [stock('NVDA', 80, 80)],
+    [stock('ALE', 999, 999)]
+  ), 'en');
+  assert.equal(selected.kind, 'stock');
+  assert.equal(selected.ticker, 'NVDA');
+  assert.equal(selected.market, 'US');
+});
+
+test('stock promotion never falls back across language markets', () => {
+  assert.equal(widget.chooseSignal([], portfolio([stock('NVDA', 90, 90)], []), 'pl'), null);
+  assert.equal(widget.chooseSignal([], portfolio([], [stock('ALE', 90, 90)]), 'en'), null);
+});
+
+test('canonical weekly positions remain shared between PL and EN', () => {
+  const eur = weekly('eurusd', 'short', 50, 1.12, 1.10, 1.13, 80);
+  const pl = widget.chooseSignal([eur], portfolio([stock('NVDA', 999, 999)], [stock('ALE', 999, 999)]), 'pl');
+  const en = widget.chooseSignal([eur], portfolio([stock('NVDA', 999, 999)], [stock('ALE', 999, 999)]), 'en');
+  assert.equal(pl.kind, 'weekly');
+  assert.equal(en.kind, 'weekly');
+  assert.equal(pl.instrument_id, 'eurusd');
+  assert.equal(en.instrument_id, 'eurusd');
 });
 
 test('direction is derived safely from entry, stop and target when absent', () => {
