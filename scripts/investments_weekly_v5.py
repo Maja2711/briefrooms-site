@@ -708,7 +708,7 @@ def freeze_decision(
         pending_entry_decision=pending,
         trade_status="pending",
         next_entry_status="waiting_for_market_entry" if market_mode else "waiting_for_entry_target",
-        entry_quality_status="wes_1_3_waiting_for_market_entry" if market_mode else "wes_1_3_waiting_for_frozen_entry_target",
+        entry_quality_status="wes_1_3_1_waiting_for_market_entry" if market_mode else "wes_1_3_1_waiting_for_frozen_entry_target",
     )
     return pending
 
@@ -1253,15 +1253,15 @@ def ensure_all() -> Dict[str, Any]:
             item.update(
                 entry_decision_at=pending["decided_at"],
                 entry_execution_rule=(
-                    "epe_verified_wes_1_3_market_now_5m"
+                    "epe_verified_wes_1_3_1_market_now_5m"
                     if execution_mode == "market_now"
-                    else "epe_verified_frozen_wes_1_3_limit_target_touch"
+                    else "epe_verified_frozen_wes_1_3_1_limit_target_touch"
                 ),
                 entry_price_plan_frozen=entry_plan,
                 entry_quality_status=(
-                    "wes_1_3_market_entry_filled"
+                    "wes_1_3_1_market_entry_filled"
                     if execution_mode == "market_now"
-                    else "wes_1_3_frozen_entry_target_filled"
+                    else "wes_1_3_1_frozen_entry_target_filled"
                 ),
                 entry_macro_context=pending.get("macro_context"),
                 execution_price_engine=execution_verification,
@@ -1317,7 +1317,7 @@ def ensure_all() -> Dict[str, Any]:
         if maybe_promote_pending_to_market(pending, decision, fresh, weekly, policy, now):
             item["pending_entry_decision"] = pending
             item["next_entry_status"] = "waiting_for_market_entry"
-            item["entry_quality_status"] = "wes_1_3_limit_promoted_to_market"
+            item["entry_quality_status"] = "wes_1_3_1_limit_promoted_to_market"
             report["actions"].append({
                 "instrument_id": iid,
                 "action": "promote_limit_to_market",
@@ -1357,15 +1357,15 @@ def ensure_all() -> Dict[str, Any]:
         item.update(
             entry_decision_at=pending["decided_at"],
             entry_execution_rule=(
-                "epe_verified_wes_1_3_market_now_5m"
+                "epe_verified_wes_1_3_1_market_now_5m"
                 if execution_mode == "market_now"
-                else "epe_verified_frozen_wes_1_3_limit_target_touch"
+                else "epe_verified_frozen_wes_1_3_1_limit_target_touch"
             ),
             entry_price_plan_frozen=entry_plan,
             entry_quality_status=(
-                "wes_1_3_market_entry_filled"
+                "wes_1_3_1_market_entry_filled"
                 if execution_mode == "market_now"
-                else "wes_1_3_frozen_entry_target_filled"
+                else "wes_1_3_1_frozen_entry_target_filled"
             ),
             entry_macro_context=pending.get("macro_context"),
             execution_price_engine=execution_verification,
@@ -1384,7 +1384,7 @@ def ensure_all() -> Dict[str, Any]:
         })
     week["multi_instrument_exposure_layer"] = {
         "enabled": True, "version": VERSION, "common_validation_gate": True,
-        "wes_1_3_directional_admission": True,
+        "wes_1_3_1_directional_admission": True,
         "price_aware_entry_engine": True,
         "hybrid_market_or_frozen_limit_entry": True,
         "champion_challenger_execution_authority": True,
