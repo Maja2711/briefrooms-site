@@ -1,4 +1,4 @@
-name: Belief Question Engine Shadow
+name: Belief Question Engine Production
 
 on:
   workflow_dispatch:
@@ -38,20 +38,20 @@ jobs:
           tar -xzf "$RUNNER_TEMP/e-art/belief-epistemic-state.tgz" -C "$RUNNER_TEMP/epistemic"
       - name: Generate ranked research questions
         run: python scripts/belief_question_engine.py --epistemic-state "$RUNNER_TEMP/epistemic/epistemic_state.json" --output "$RUNNER_TEMP/epistemic/BELIEF_QUESTIONS.json"
-      - name: Assert shadow authority
+      - name: Assert production boundaries
         run: |
           python - <<'PY'
           import json, os
           from pathlib import Path
           p=json.loads((Path(os.environ["RUNNER_TEMP"])/"epistemic/BELIEF_QUESTIONS.json").read_text())
-          assert p["mode"]=="shadow"
+          assert p["mode"]=="production"
           assert p["authority"]["belief_core_writeback"] is False
           assert p["authority"]["probability_override"] is False
           assert p["authority"]["trade_execution"] is False
-          print("Question Engine shadow safety: PASS; selected=",p["selected_count"])
+          assert p["authority"]["automatic_research"] is True\n          print("Question Engine production boundaries: PASS; selected=",p["selected_count"])
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: belief-question-engine-shadow
+          name: belief-question-engine-production
           path: ${{ runner.temp }}/epistemic/BELIEF_QUESTIONS.json
           retention-days: 30
