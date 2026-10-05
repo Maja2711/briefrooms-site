@@ -779,6 +779,8 @@ def select_sections(
         if len(items) < target:
             old_items = previous_sections.get(section_id, []) if isinstance(previous_sections.get(section_id), list) else []
             for old in old_items:
+                if ai_section and not AI_CRYPTO_RE.search(str(old.get("title") or "")):
+                    continue
                 try:
                     published = datetime.fromisoformat(str(old.get("published_at") or "").replace("Z", "+00:00"))
                     if published.tzinfo is None:
