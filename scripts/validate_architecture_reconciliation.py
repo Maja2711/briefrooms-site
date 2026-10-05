@@ -96,10 +96,10 @@ if weekly_policy.get("continuous_position_required") is not False:
 if ((weekly_policy.get("no_trade") or {}).get("enabled")) is not True:
     errors.append("WES NO_TRADE gate must remain enabled")
 directional = weekly_policy.get("directional_admission") or {}
-if directional.get("version") != "WES-1.3.0":
-    errors.append("WES directional admission version must be WES-1.3.0")
+if directional.get("version") != "WES-1.3.1":
+    errors.append("WES directional admission version must be WES-1.3.1")
 if directional.get("require_for_all_new_entries") is not True:
-    errors.append("WES 1.3 must require directional admission for all new entries")
+    errors.append("WES 1.3.1 must require directional admission for all new entries")
 cc = ((weekly_policy.get("strategy_tournament") or {}).get("champion_challenger") or {})
 if "inverse_v2" not in set(cc.get("challenger_shadow_methods") or []):
     errors.append("WES inverse_v2 must remain Challenger/Shadow")
@@ -108,25 +108,37 @@ if "inverse_v2" in set(cc.get("execution_methods") or []):
 if cc.get("challenger_execution_enabled") is not False:
     errors.append("WES Challenger execution must remain disabled")
 entry_engine = weekly_policy.get("entry_price_engine") or {}
-if entry_engine.get("version") != "WES-1.3.0":
-    errors.append("WES entry price engine version must be WES-1.3.0")
+if entry_engine.get("version") != "WES-1.3.1":
+    errors.append("WES entry price engine version must be WES-1.3.1")
 if entry_engine.get("require_for_all_new_entries") is not True:
-    errors.append("WES 1.3 must require an execution plan for all new entries")
+    errors.append("WES 1.3.1 must require an execution plan for all new entries")
 if entry_engine.get("order_style") != "adaptive_market_or_price_improving_limit":
-    errors.append("WES 1.3 entry execution must remain adaptive MARKET-or-LIMIT")
-if entry_engine.get("target_refresh_policy") != "keep_limit_frozen_until_filled_expired_thesis_changes_or_same_thesis_is_promoted_to_market":
-    errors.append("WES 1.3 LIMIT target must stay frozen except for one-way same-thesis promotion to MARKET")
+    errors.append("WES 1.3.1 entry execution must remain adaptive MARKET-or-LIMIT")
+if entry_engine.get("target_refresh_policy") != "keep_limit_price_frozen_reaffirm_time_only_cancel_on_thesis_break_or_promote_same_thesis_to_market":
+    errors.append("WES 1.3.1 LIMIT target must stay frozen while same-thesis persistence extends time only")
+persistent_plan = entry_engine.get("persistent_plan") or {}
+if persistent_plan.get("enabled") is not True or persistent_plan.get("preserve_frozen_target") is not True:
+    errors.append("WES 1.3.1 persistent LIMIT plan must remain enabled with frozen-target preservation")
 market_entry = entry_engine.get("market_entry") or {}
 if market_entry.get("enabled") is not True:
-    errors.append("WES 1.3 strong-trend MARKET entry must remain enabled")
-if market_entry.get("require_daily_weekly_alignment") is not True:
-    errors.append("WES 1.3 MARKET entry must require aligned Daily and Weekly trend")
-if market_entry.get("require_momentum_alignment") is not True:
-    errors.append("WES 1.3 MARKET entry must require aligned momentum")
+    errors.append("WES 1.3.1 strong-trend MARKET entry must remain enabled")
+scoring = market_entry.get("scoring") or {}
+if float(scoring.get("minimum_score") or 0.0) <= 0:
+    errors.append("WES 1.3.1 MARKET/LIMIT composite scoring threshold missing")
+if market_entry.get("block_opposed_daily_or_weekly") is not True:
+    errors.append("WES 1.3.1 MARKET entry must hard-block opposed Daily/Weekly evidence")
+if market_entry.get("block_opposed_momentum") is not True:
+    errors.append("WES 1.3.1 MARKET entry must hard-block opposed momentum")
 if market_entry.get("allow_limit_to_market_promotion") is not True:
-    errors.append("WES 1.3 same-thesis LIMIT-to-MARKET promotion must remain enabled")
+    errors.append("WES 1.3.1 same-thesis LIMIT-to-MARKET promotion must remain enabled")
 if market_entry.get("block_immediate_market_after_stop") is not True:
-    errors.append("WES 1.3 immediate MARKET re-entry after stop must remain blocked")
+    errors.append("WES 1.3.1 immediate MARKET re-entry after stop must remain blocked")
+delta_bypass = directional.get("absolute_strength_delta_bypass") or {}
+if delta_bypass.get("enabled") is not True or delta_bypass.get("require_daily_weekly_confirmation") is not True:
+    errors.append("WES 1.3.1 absolute-strength delta bypass must require Daily+Weekly confirmation")
+watchdog = weekly_policy.get("wes_cycle_watchdog") or {}
+if watchdog.get("enabled") is not True or watchdog.get("auto_dispatch_recovery") is not True:
+    errors.append("WES 1.3.1 independent cycle watchdog and recovery dispatch must remain enabled")
 if auto_cfg.get("automatic_materialization_enabled") is not False:
     errors.append("legacy Autonomous Policy Loop regained Stock Trading materialization authority")
 if auto_cfg.get("production_authority") != "RETIRED_TO_STOCK_TRADING_COMPONENT_PROMOTION":
@@ -154,15 +166,17 @@ require(legacy_closed_loop, "contents: read", "legacy closed loop")
 forbid(legacy_closed_loop, "Apply statistically proven autonomous policy calibration", "legacy closed loop")
 forbid(legacy_closed_loop, "git push origin HEAD:main", "legacy closed loop")
 
-for token in ("**Wersja mapy:** 1.21", "IN-08", "EP-09", "LE-10", "LE-11", "PROBATIONARY_CONTROL", "NO_TRADE", "FULL", "WES 1.2.0"):
+for token in ("**Wersja mapy:** 1.21", "IN-08", "EP-09", "LE-10", "LE-11", "PROBATIONARY_CONTROL", "NO_TRADE", "FULL", "WES 1.3.1"):
     require(pl_map, token, "PL Architecture Map")
-for token in ("**Map version:** 1.21", "IN-08", "EP-09", "LE-10", "LE-11", "PROBATIONARY_CONTROL", "NO_TRADE", "FULL", "WES 1.2.0"):
+for token in ("**Map version:** 1.21", "IN-08", "EP-09", "LE-10", "LE-11", "PROBATIONARY_CONTROL", "NO_TRADE", "FULL", "WES 1.3.1"):
     require(en_map, token, "EN Architecture Map")
+require(wes_cycle_watchdog_workflow, "scripts/wes_cycle_watchdog.py", "WES 1.3.1 cycle watchdog")
+require(wes_cycle_watchdog_workflow, "actions/workflows/investments-wes.yml/dispatches", "WES 1.3.1 automatic recovery dispatch")
 require(stock_doc, "PRODUCTION CHAMPION — FULL", "Stock Trading architecture")
 require(stock_doc, "Market Relationship / Trigger", "Stock Trading architecture")
 require(stock_doc, "stock-trading-v2", "Stock Trading branch authority")
 require(weekly_doc, "NO_TRADE", "Weekly methodology")
-require(weekly_doc, "WES 1.2", "Weekly methodology")
+require(weekly_doc, "WES 1.3.1", "Weekly methodology")
 require(weekly_doc, "Entry Price", "Weekly methodology")
 require(weekly_doc, "inverse_v2", "Weekly methodology")
 require(gse_doc, "Active v2 runtime", "GSE architecture")
@@ -179,6 +193,7 @@ weekly_workflow = read(".github/workflows/investments-weekly.yml")
 weekly_wes_workflow = read(".github/workflows/investments-wes.yml")
 weekly_risk_workflow = read(".github/workflows/investments-exposure-watch.yml")
 weekly_freshness_workflow = read(".github/workflows/investments-weekly-freshness-watchdog.yml")
+wes_cycle_watchdog_workflow = read(".github/workflows/wes-cycle-watchdog.yml")
 weekly_live_prices_workflow = read(".github/workflows/weekly-live-prices.yml")
 stock_v2_workflow = read(".github/workflows/stock-trading-v2-production.yml")
 stock_portfolio_workflow = read(".github/workflows/stock-trading-portfolio.yml")
