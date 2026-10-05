@@ -182,6 +182,7 @@ weekly_freshness_workflow = read(".github/workflows/investments-weekly-freshness
 weekly_live_prices_workflow = read(".github/workflows/weekly-live-prices.yml")
 stock_v2_workflow = read(".github/workflows/stock-trading-v2-production.yml")
 stock_portfolio_workflow = read(".github/workflows/stock-trading-portfolio.yml")
+event_intelligence_workflow = read(".github/workflows/investment-event-intelligence-production.yml")
 push_sync_script = read("scripts/sync_trading_push_commit.sh")
 daily_fast_lifecycle = read("scripts/daily_eurusd_fast_lifecycle.py")
 trading_push_worker = read("workers/trading-push/src/index.js")
@@ -250,6 +251,9 @@ for workflow_text, label in (
 ):
     require(workflow_text, "sync_trading_push_commit.sh", label)
     require(workflow_text, "stock", label)
+require(event_intelligence_workflow, "sync_trading_push_commit.sh", "Event Intelligence immediate notification")
+require(event_intelligence_workflow, "weekly", "Event Intelligence Weekly notification")
+require(event_intelligence_workflow, "stock", "Event Intelligence Stock notification")
 require(belief_live_workflow, "belief_core_live.py", "Belief EURUSD live collector")
 forbid(daily_workflow, "python scripts/daily_eurusd_spot_v18.py", "Daily EURUSD production workflow")
 
