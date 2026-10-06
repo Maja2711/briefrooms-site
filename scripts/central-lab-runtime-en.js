@@ -106,6 +106,55 @@ function fseTrackLabel(m){
   if(kind==='p_calibration_regime_phase')return 'P Calibration Challenger';
   return 'Fractal Memory';
 }
+
+const FSE_TREND_TFS=['1m','5m','15m','1h','4h','1d','1w'];
+const FSE_TREND_WEIGHTS={ '1m':1,'5m':1.25,'15m':1.5,'1h':2,'4h':2.5,'1d':3,'1w':3.5 };
+function fseDirectionValue(value){
+  const key=String(value||'').toUpperCase();
+  return key==='UP'?1:(key==='DOWN'?-1:0);
+}
+function fseTrendScore(phaseMap,tfs=FSE_TREND_TFS){
+  let total=0,weight=0;
+  tfs.forEach(tf=>{
+    const row=phaseMap?.[tf];
+    if(!row||!row.direction)return;
+    const w=Number(FSE_TREND_WEIGHTS[tf]||1);
+    total+=w*fseDirectionValue(row.direction);
+    weight+=w;
+  });
+  return weight?total/weight:0;
+}
+function fseTrendLabel(score){
+  if(score>=.45)return {key:'bullish',label:'BULLISH'};
+  if(score>=.20)return {key:'up',label:'LEAN UP'};
+  if(score>0)return {key:'mixed-up',label:'MIXED · slight UP'};
+  if(score<=-.45)return {key:'bearish',label:'BEARISH'};
+  if(score<=-.20)return {key:'down',label:'LEAN DOWN'};
+  if(score<0)return {key:'mixed-down',label:'MIXED · slight DOWN'};
+  return {key:'mixed',label:'MIXED'};
+}
+function fseBiasLabel(score){
+  if(score>=.20)return 'UP';
+  if(score<=-.20)return 'DOWN';
+  return 'MIXED';
+}
+function fseDirectionChip(tf,row,dominant){
+  const dir=String(row?.direction||'FLAT').toUpperCase();
+  const key=['UP','DOWN','FLAT'].includes(dir)?dir.toLowerCase():'flat';
+  const arrow=dir==='UP'?'↑':(dir==='DOWN'?'↓':'→');
+  return '<span class="fse-tf-direction '+key+(String(dominant||'').toLowerCase()===tf?' dominant':'')+'"><small>'+esc(tf)+'</small><b>'+arrow+' '+esc(dir)+'</b></span>';
+}
+function fseFractalTrendCard(x){
+  const map=x.phase_map||{},a=x.cross_scale_alignment||{};
+  const score=fseTrendScore(map);
+  const trend=fseTrendLabel(score);
+  const lower=fseBiasLabel(fseTrendScore(map,['1m','5m','15m']));
+  const higher=fseBiasLabel(fseTrendScore(map,['1h','4h','1d','1w']));
+  const ribbon=FSE_TREND_TFS.map(tf=>fseDirectionChip(tf,map[tf],a.dominant_scale)).join('');
+  return '<section class="fse-trend-card '+trend.key+'"><div class="fse-trend-head"><div><strong>'+esc(fseInstrumentLabel(x.instrument))+'</strong><small>Fractal Trend · FSE-PHASE</small></div><span class="fse-trend-badge '+trend.key+'">'+esc(trend.label)+'</span></div>'+
+    '<div class="fse-trend-meta"><span>Lower TF <b>'+esc(lower)+'</b></span><span>Higher TF <b>'+esc(higher)+'</b></span><span>Alignment <b>'+pct(a.alignment_score,1)+'</b></span><span>Cascade <b>'+esc(a.cascade_state||'—')+'</b></span></div>'+
+    '<div class="fse-tf-ribbon">'+ribbon+'</div></section>';
+}
 async function fse(){
   const root=document.querySelector('#central-fse-lab');
   if(!root)return;
@@ -123,6 +172,7 @@ async function fse(){
     const experiments=Array.isArray(hse.experiments)?hse.experiments.filter(x=>x.source_engine==='FSE'):[];
     const available=Number(r?.source_status?.available||instruments.length);
     const configured=Number(r?.source_status?.configured||instruments.length);
+    const fractalTrendCards=v2Instruments.map(fseFractalTrendCard).join('');
     const overviewRows=instruments.map(x=>{const m=x.fractal_memory||{};return '<tr><td><strong>'+esc(fseInstrumentLabel(x.instrument))+'</strong><small>'+shadowWhen(x.observed_at)+'</small></td><td>'+fseRegime(x.regime)+'</td><td><b>'+pct(x.risk_score,1)+'</b></td><td><b>'+pct(m.p_up_4h,1)+'</b></td><td>'+num(m.analogues_n)+'</td><td>'+pct(m.top_similarity,1)+'</td><td>'+fseSignedPct(m.median_forward_return,2)+'</td><td>'+fseMae(m.median_adverse_excursion,2)+'</td></tr>';}).join('');
     const memoryCards=instruments.map(x=>{const m=x.fractal_memory||{},g=x.research_risk_geometry||{};return '<div class="fse-memory-card"><div class="fse-card-head"><div><strong>'+esc(fseInstrumentLabel(x.instrument))+'</strong><small>'+esc(m.source||'—')+'</small></div>'+fseRegime(x.regime)+'</div><div class="fse-card-prob"><span>P UP</span><b>'+pct(m.p_up_4h,1)+'</b><em>'+esc(m.forecast||'—')+'</em></div><div class="fse-card-grid"><span><small>Top similarity</small><b>'+pct(m.top_similarity,1)+'</b></span><span><small>Mean similarity</small><b>'+pct(m.mean_similarity,1)+'</b></span><span><small>Analogues</small><b>'+num(m.analogues_n)+'</b></span><span><small>Median +4h</small><b>'+fseSignedPct(m.median_forward_return,2)+'</b></span><span><small>MAE</small><b>'+fseMae(m.median_adverse_excursion,2)+'</b></span><span><small>Risk</small><b>'+pct(x.risk_score,1)+'</b></span></div><div class="fse-risk-geometry"><span>Research sizing ×'+num(g.position_size_multiplier,2)+'</span><span>SL distance ×'+num(g.stop_distance_multiplier,2)+'</span><b>PRODUCTION OFF</b></div></div>';}).join('');
     const phaseSummary=v2Instruments.map(x=>{const a=x.cross_scale_alignment||{},c=x.p_calibration_challenger||{},p1=x?.phase_map?.['1h']||{},pm=p1.phase_memory||{};return '<tr><td><strong>'+esc(fseInstrumentLabel(x.instrument))+'</strong></td><td><b>'+esc(a.cascade_state||'—')+'</b></td><td>'+pct(a.alignment_score,1)+'</td><td>'+esc(a.dominant_scale||'—')+'</td><td>'+pct(c.p_base,1)+'</td><td>'+pct(pm.p_up_remaining,1)+'</td><td><b>'+pct(c.p_challenger,1)+'</b></td><td>'+(finite(c.shift_pp)?num(c.shift_pp,1)+' pp':'—')+'</td><td>'+esc(x.regime||'—')+'</td></tr>';}).join('');
@@ -132,6 +182,7 @@ async function fse(){
     const targetN=experiments.reduce((sum,x)=>sum+Number(x.target_n||0),0);
     root.innerHTML='<article class="panel central-head fse-panel"><header><div><h2>FSE — Fractal Structure Engine</h2><p>Multiscale market structure: regime, Fractal Memory and FSE-PHASE. The Phase Engine tracks how a structure forms across time scales without production trading authority.</p></div>'+chip(v2?.methodology_version||r.mode||'SHADOW_ONLY')+'</header>'+
       '<div class="central-stats fse-summary"><div><small>Sources</small><strong>'+num(available)+' / '+num(configured)+'</strong></div><div><small>Instruments</small><strong>'+num(instruments.length)+'</strong></div><div><small>HSE2 forward N</small><strong>'+num(forwardN)+' / '+num(targetN)+'</strong></div><div><small>Promotion gate</small><strong>'+esc(v2?.promotion_gate?.status||'NOT ELIGIBLE')+'</strong></div></div>'+
+      '<h3 class="central-subtitle fse-trend-title">Fractal Trend — direction from fractal structures</h3>'+(fractalTrendCards?'<div class="fse-trend-grid">'+fractalTrendCards+'</div>':'<p class="central-note">Fractal Trend is waiting for FSE-PHASE data.</p>')+
       '<h3 class="central-subtitle">Current market structure</h3><div class="central-table-wrap"><table class="central-table fse-overview-table"><thead><tr><th>Instrument</th><th>Regime</th><th>Risk</th><th>P UP</th><th>Analogues</th><th>Similarity</th><th>Median +4h</th><th>MAE</th></tr></thead><tbody>'+overviewRows+'</tbody></table></div>'+
       '<h3 class="central-subtitle">Fractal Memory</h3><div class="fse-memory-grid">'+memoryCards+'</div>'+
       '<h3 class="central-subtitle">FSE-PHASE · Cross-Scale Alignment + P Challenger</h3>'+(v2?.methodology_version?'<div class="central-table-wrap"><table class="central-table fse-phase-summary"><thead><tr><th>Instrument</th><th>Cascade</th><th>Alignment</th><th>Dominant TF</th><th>P base</th><th>P phase 1H</th><th>P challenger</th><th>Shift</th><th>Regime</th></tr></thead><tbody>'+phaseSummary+'</tbody></table></div>':'<p class="central-note">FSE-PHASE is waiting for its first post-deployment cycle.</p>')+
