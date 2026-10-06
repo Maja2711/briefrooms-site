@@ -182,3 +182,119 @@ Nie wolno zbudować globalnego FSE risk actuatora omijającego politykę ryzyka 
 - Podobieństwo struktury nie dowodzi przyczynowości.
 - Bootstrap historyczny służy inicjalizacji, nie walidacji alpha.
 - Produkcyjny wpływ sizing/SL pozostaje wyłączony do czasu prospektywnej walidacji.
+
+## 9. FSE-PHASE — Phase Engine / Intrabar / Cross-Scale
+
+Rozszerzenie FSE-PHASE-1.0 pozostaje częścią modułu IN-09; nie jest osobnym silnikiem produkcyjnym.
+
+Pipeline:
+
+FSE core -> Phase Engine -> Intrabar Formation -> Cross-Scale Alignment -> Phase Fractal Memory -> prospective HSE2 -> P Calibration Challenger -> manual promotion gate
+
+### 9.1 Skale
+
+Phase Engine analizuje:
+
+1m -> 5m -> 15m -> 1h -> 4h -> 1d -> 1w
+
+- 1m, 5m, 15m, 1h, 1d są pobierane z wtórnego feedu badawczego Yahoo Chart.
+- 4h jest deterministyczną agregacją 1h.
+- 1w jest agregacją dziennych barów według tygodnia ISO.
+- Skale miesięczne / wieloletnie nie są włączone do pierwszej wersji Phase Engine; długie konteksty są badane przez rolling daily history, nie przez pojedyncze „świece 10Y/100Y”.
+
+### 9.2 Phase Engine
+
+Każda skala otrzymuje deterministyczny opis:
+
+- structure_id,
+- phase: CONSOLIDATION / DEVELOPMENT / EXPANSION / MATURATION / TRANSITION / REVERSAL,
+- direction,
+- confidence,
+- path efficiency,
+- trend z-score,
+- volatility ratio,
+- curvature.
+
+structure_id jest stabilnym hashem skwantowanego fingerprintu struktury. Nie oznacza odkrycia uniwersalnego „prawa fraktalnego”; służy do śledzenia podobnych stanów w pamięci badawczej.
+
+### 9.3 Phase Fractal Memory
+
+Bieżący częściowy kształt jest porównywany z prefiksami historycznych motywów przy siatce ukończenia:
+
+40% / 55% / 70% / 85%.
+
+Najlepiej dopasowany etap tworzy rozkład:
+
+- phase_progress,
+- P(up remaining),
+- top/mean similarity,
+- median remaining return,
+- median remaining bars,
+- liczba analogów.
+
+To jest estymacja etapu na podstawie analogów, a nie deterministyczna deklaracja, że każdy rynek przechodzi te same fazy.
+
+### 9.4 Intrabar Formation
+
+Wyższa skala jest obserwowana od środka przez niższą:
+
+- 5m <- 1m,
+- 15m <- 5m,
+- 1h <- 15m,
+- 4h <- 1h,
+- 1d <- 1h,
+- 1w <- 1d.
+
+FSE publikuje m.in. formation_progress, kierunek mikrostruktury, efficiency, pozycję wewnątrz bieżącego range i range fraction. Liczba oczekiwanych child-bars jest wyznaczana z historycznej mediany, dzięki czemu sesja SPY nie jest traktowana tak samo jak 24/7 BTC.
+
+### 9.5 Cross-Scale Alignment
+
+Dla sąsiednich skal liczony jest:
+
+- directional agreement,
+- podobieństwo efficiency / volatility-ratio / curvature,
+- confidence,
+- informacyjny fast-scale lead score.
+
+Wynik syntetyczny:
+
+- alignment_score,
+- cascade_state = COHERENT / MIXED / FRACTURED,
+- dominant_scale.
+
+Alignment jest Evidence badawczym. Nie tworzy sygnału wykonawczego.
+
+### 9.6 P Calibration / Regime-Phase Challenger
+
+Challenger bierze:
+
+- P_base z Deep Fractal Memory,
+- P_phase z Phase Fractal Memory 1h,
+- cross-scale alignment,
+- regime z Structural Risk.
+
+Wyznacza osobne P_challenger. Korekta jest twardo ograniczona do ±6 pp względem P_base.
+
+W TURBULENT i TRANSITION challenger stosuje jawny shrink confidence. Parametry są zamrożonym research prior, a nie wytrenowanym kalibratorem produkcyjnym.
+
+Nie wolno nadpisywać source-model P.
+
+### 9.7 Prospective HSE2
+
+Od wersji FSE-PHASE-1.0 FSE wystawia dodatkowe hipotezy:
+
+1. Phase Fractal Memory vs 50/50 — metryka: prospective directional Brier edge.
+2. Regime-Phase P Calibration Challenger vs frozen FSE v2 base P — metryka: Brier_base - Brier_challenger.
+
+Każdy eksperyment ma N=40. Liczone są wyłącznie resolution powstałe z snapshotów zamrożonych po wdrożeniu FSE-PHASE-1.0. Stare FSE v2 snapshoty pozostają w ledgerze, ale nie otrzymują credit dla nowych hipotez.
+
+### 9.8 Promotion
+
+Publiczny promotion_gate może osiągnąć tylko:
+
+- NOT_ELIGIBLE,
+- READY_FOR_MANUAL_REVIEW.
+
+automatic_promotion=false.
+
+Nawet po pozytywnym HSE2 potrzebny jest jawny, per-engine bridge i promotion gate właściciela danego silnika. FSE nie może utworzyć globalnego risk/probability actuatora.
