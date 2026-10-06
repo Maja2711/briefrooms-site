@@ -16,7 +16,7 @@ NY = ZoneInfo("America/New_York")
 YAHOO_BASE = "https://query1.finance.yahoo.com/v8/finance/chart"
 USER_AGENT = "BriefRooms-BeliefCore/2.1 (+shadow-research)"
 CORE_SYMBOLS = ("SPY", "RSP", "IWM", "^VIX", "HYG", "LQD", "TLT", "UUP")
-OPTIONAL_WES_ASSET_SYMBOLS = ("EURUSD=X", "BTC-USD")
+OPTIONAL_WES_ASSET_SYMBOLS = ("EURUSD=X", "BTC-USD", "DX-Y.NYB", "ZT=F", "ZN=F")
 DEFAULT_SYMBOLS = CORE_SYMBOLS + OPTIONAL_WES_ASSET_SYMBOLS
 
 
@@ -129,9 +129,10 @@ class MarketDataAdapter:
             except Exception:
                 if symbol in CORE_SYMBOLS:
                     raise
-                # EUR/USD and BTC are an additive WES coverage layer. A failure
-                # of an optional source must not take down the established SPX
-                # Belief pipeline; downstream adapters simply remain unavailable.
+                # EUR/USD, BTC and the 24x5 USD/rates proxies are additive WES
+                # coverage. A failure of an optional source must not take down
+                # the established SPX Belief pipeline; downstream adapters
+                # simply remain unavailable.
                 continue
         return MarketSnapshot(bars)
 
