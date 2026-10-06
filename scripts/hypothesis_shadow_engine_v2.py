@@ -55,6 +55,7 @@ SOURCE_PATHS = {
     "FSE": "data/investments/fse_public.json",
 }
 FSE_SUPPLEMENTAL_PATH = "data/investments/fse_v2_public.json"
+FSE_PHASE_CONTRACT_PATH = SOURCE_PATHS["FSE"] + " + " + FSE_SUPPLEMENTAL_PATH
 
 
 def canonical(value: Any) -> str:
@@ -426,25 +427,27 @@ def collect_proposals(root: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]
             supplemental_path = root / FSE_SUPPLEMENTAL_PATH
             supplemental = load_json(supplemental_path)
             supplemental_digest = file_sha(supplemental_path)
-            primary_rows = data.get("hse_measurements") if isinstance(data.get("hse_measurements"), list) else []
-            phase_rows = supplemental.get("hse_measurements") if isinstance(supplemental.get("hse_measurements"), list) else []
-            merged = dict(data or supplemental)
-            merged["module_id"] = "IN-09"
-            merged["mode"] = "SHADOW_ONLY"
-            merged["production_impact"] = False
-            merged["components"] = ["FSE-CORE", "FSE-PHASE"]
-            merged["hse_measurements"] = [*primary_rows, *phase_rows]
-            generated = [str(x) for x in (data.get("generated_at"), supplemental.get("generated_at")) if x]
-            merged["generated_at"] = max(generated) if generated else None
+
+            # Preserve the original FSE core contract path so existing HSE2
+            # experiment IDs, freeze boundaries and prospective N remain stable.
+            core_rows = adapter(data, rel, digest) if data else []
+
+            # FSE-PHASE was first frozen with the combined dependency path.
+            # Keep that contract path stable as well: the phase challenger
+            # depends on its own state plus the frozen FSE v2 base probability.
+            phase_rows = adapter(
+                supplemental,
+                FSE_PHASE_CONTRACT_PATH,
+                supplemental_digest,
+            ) if supplemental else []
+
+            rows = [*core_rows, *phase_rows]
             combined_digest = sha({"core": digest, "phase": supplemental_digest})
-            source_ref = rel + " + " + FSE_SUPPLEMENTAL_PATH
-            rows = adapter(merged, source_ref, combined_digest) if merged["hse_measurements"] else []
-            available = bool(data or supplemental)
             proposals.extend(rows)
             source_status[source_engine] = {
                 "path": rel,
                 "supplemental_path": FSE_SUPPLEMENTAL_PATH,
-                "available": available,
+                "available": bool(data or supplemental),
                 "proposal_count": len(rows),
                 "source_sha256": combined_digest,
                 "core_sha256": digest,
@@ -552,8 +555,45 @@ def freeze_new_experiment(state_dir: Path, p: Mapping[str, Any], at: str) -> dic
     }
 
 
+def supersede_fse_routing_duplicates(registry: dict[str, Any]) -> int:
+    """Keep the audit trail while disabling the one-cycle FSE routing duplicates.
+
+    The first FSE-PHASE integration temporarily used the combined core+phase
+    source_path for all FSE proposals. Because source_path is part of the
+    immutable experiment contract, that created duplicate core experiments.
+    We never delete epochs/evidence. Instead, if a canonical core experiment
+    with the same proposal_key exists, the combined-path duplicate is marked
+    administrative_superseded and excluded from formal evaluation/public views.
+    """
+    experiments = [x for x in registry.get("experiments", []) if isinstance(x, dict)]
+    canonical_core = {
+        str(x.get("proposal_key")): x
+        for x in experiments
+        if x.get("source_engine") == "FSE"
+        and x.get("source_path") == SOURCE_PATHS["FSE"]
+        and str(x.get("proposal_key") or "").startswith(("fse-fractal-memory-", "fse-structural-risk-"))
+    }
+    changed = 0
+    for exp in experiments:
+        key = str(exp.get("proposal_key") or "")
+        if (
+            exp.get("source_engine") == "FSE"
+            and exp.get("source_path") == FSE_PHASE_CONTRACT_PATH
+            and key in canonical_core
+            and exp.get("experiment_id") != canonical_core[key].get("experiment_id")
+        ):
+            if not exp.get("administrative_superseded"):
+                changed += 1
+            exp["administrative_superseded"] = True
+            exp["source_active"] = False
+            exp["superseded_by_experiment_id"] = canonical_core[key].get("experiment_id")
+            exp["superseded_reason"] = "fse_phase_routing_path_correction_2026_10_06"
+    return changed
+
+
 def register_and_collect(state_dir: Path, proposals: list[dict[str, Any]], at: str) -> dict[str, Any]:
     registry = load_registry(state_dir)
+    supersede_fse_routing_duplicates(registry)
     by_id = {str(x.get("experiment_id")): x for x in registry.get("experiments", []) if isinstance(x, dict)}
     seen = set()
     new_experiments = 0
@@ -665,7 +705,11 @@ def evaluate(state_dir: Path, registry: dict[str, Any], at: str) -> dict[str, An
     lessons_created = 0
 
     for exp in registry.get("experiments", []):
-        if not isinstance(exp, dict) or exp.get("status") != "RUNNING_SHADOW":
+        if (
+            not isinstance(exp, dict)
+            or exp.get("status") != "RUNNING_SHADOW"
+            or exp.get("administrative_superseded") is True
+        ):
             continue
         target_n = int(exp.get("target_n") or 0)
         rows = [x for x in evidence if x.get("experiment_id") == exp.get("experiment_id")]
@@ -777,8 +821,12 @@ def public_projection(registry: Mapping[str, Any], source_status: Mapping[str, A
     results = read_jsonl(state_dir / RESULTS_FILE)
     lessons = read_jsonl(state_dir / LESSONS_FILE)
     experiments = []
+    superseded = [
+        exp for exp in registry.get("experiments", [])
+        if isinstance(exp, Mapping) and exp.get("administrative_superseded") is True
+    ]
     for exp in registry.get("experiments", []):
-        if not isinstance(exp, Mapping):
+        if not isinstance(exp, Mapping) or exp.get("administrative_superseded") is True:
             continue
         experiments.append({
             key: exp.get(key)
@@ -807,6 +855,7 @@ def public_projection(registry: Mapping[str, Any], source_status: Mapping[str, A
         "inconclusive": sum(x.get("status") == "INCONCLUSIVE" for x in experiments),
         "prospective_evidence_n": sum(int(x.get("prospective_n") or 0) for x in experiments),
         "lessons_total": len(lessons),
+        "administrative_superseded_experiments": len(superseded),
     }
     return {
         "schema_version": PUBLIC_SCHEMA,
@@ -818,6 +867,10 @@ def public_projection(registry: Mapping[str, Any], source_status: Mapping[str, A
         "summary": summary,
         "sources": sources,
         "experiments": experiments,
+        "administrative_corrections": {
+            "superseded_experiments": len(superseded),
+            "reason": "FSE contract-routing correction; durable epochs/evidence retained, superseded contracts excluded from formal evaluation",
+        },
         "recent_results": results[-12:],
         "recent_lessons": lessons[-12:],
         "authority": dict(ZERO_AUTHORITY),
