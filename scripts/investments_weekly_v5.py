@@ -1030,51 +1030,35 @@ def epe_verified_entry_point(
     point: Dict[str, Any],
     checked_at: datetime,
 ) -> Tuple[Optional[Dict[str, Any]], Dict[str, Any]]:
-    """Final WES execution-integrity gate for MARKET or frozen LIMIT execution."""
+    """Verify the simple public WES contract driven by the exact Cena teraz snapshot."""
     plan = pending.get("entry_price_plan") if isinstance(pending.get("entry_price_plan"), dict) else {}
     direction = str(plan.get("direction") or (pending.get("decision") or {}).get("direction") or "neutral")
-    execution_mode = str(plan.get("execution_mode") or "limit_pullback")
     target = sf(plan.get("target_price"))
-    entry_not_before = parse_dt(plan.get("entry_not_before") or pending.get("entry_not_before"))
-    expires_at = parse_dt(plan.get("expires_at"))
-    if entry_not_before is None or expires_at is None:
-        verification = epe.blocked(
-            "missing_execution_contract",
-            mode="MARKET_NOW" if execution_mode == "market_now" else "FROZEN_LIMIT_TOUCH",
-            instrument="WES",
-        )
+    live_price = sf(point.get("canonical_live_price"))
+    stamp = parse_dt(point.get("timestamp"))
+    if direction not in {"long", "short"} or target is None or live_price is None or stamp is None:
+        verification = epe.blocked("missing_canonical_live_target_contract", mode="CANONICAL_LIVE_TARGET", instrument="WES")
         return None, verification
-
-    if execution_mode == "market_now":
-        verification = epe.verify_market_bar_fill(
-            point,
-            direction=direction,
-            entry_not_before=entry_not_before,
-            expires_at=expires_at,
-            checked_at=checked_at,
-        )
-    elif target is None:
-        verification = epe.blocked(
-            "missing_frozen_limit_target",
-            mode="FROZEN_LIMIT_TOUCH",
-            instrument="WES",
-        )
+    marketable = live_price <= target if direction == "long" else live_price >= target
+    if not marketable:
+        verification = epe.blocked("canonical_live_price_has_not_reached_target", mode="CANONICAL_LIVE_TARGET", instrument="WES")
         return None, verification
-    else:
-        verification = epe.verify_frozen_limit_touch(
-            point,
-            direction=direction,
-            target_price=float(target),
-            entry_not_before=entry_not_before,
-            expires_at=expires_at,
-            checked_at=checked_at,
-        )
-    if verification.get("verified") is not True:
-        return None, verification
+    verification = {
+        "verified": True,
+        "status": "VERIFIED",
+        "mode": "CANONICAL_LIVE_TARGET",
+        "instrument": "WES",
+        "direction": direction,
+        "target_price": float(target),
+        "canonical_live_price": float(live_price),
+        "observed_at": stamp.isoformat(timespec="seconds"),
+        "checked_at": checked_at.isoformat(timespec="seconds"),
+        "rule": "LONG: Cena teraz <= target; SHORT: Cena teraz >= target",
+    }
     verified = dict(point)
+    verified["price"] = float(target)
     verified["execution_price_engine"] = dict(verification)
     return verified, verification
-
 
 def pending_matches_wes_authorization(
     item: Dict[str, Any],
