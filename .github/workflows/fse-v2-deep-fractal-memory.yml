@@ -11,6 +11,9 @@ on:
   pull_request:
     paths:
       - "scripts/fractal_structure_engine_v2.py"
+      - "scripts/fse_intraday_fast.py"
+      - "tests/test_fse_intraday_fast.py"
+      - ".github/workflows/weekly-live-prices.yml"
       - "scripts/central-lab.js"
       - "scripts/central-lab-runtime-en.js"
       - "assets/decision-lab.css"
@@ -55,8 +58,8 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}
         run: |
           set -euo pipefail
-          python -m py_compile scripts/fractal_structure_engine_v2.py
-          python -m unittest tests.test_fractal_structure_engine_v2 -v
+          python -m py_compile scripts/fractal_structure_engine_v2.py scripts/fse_intraday_fast.py
+          python -m unittest tests.test_fractal_structure_engine_v2 tests.test_fse_intraday_fast -v
           python -m unittest tests.test_decision_lab_fse_frontend -v
           node --check scripts/central-lab.js
           node --check scripts/central-lab-runtime-en.js
