@@ -167,10 +167,6 @@ async function fse(){
   }catch(e){
     root.innerHTML='<div class="central-error">FSE jest chwilowo niedostępny.</div>';
   }
-}Wygenerowano '+shadowWhen(r.generated_at)+'.</p></article>';
-  }catch(e){
-    root.innerHTML='<div class="central-error">FSE jest chwilowo niedostępny.</div>';
-  }
 }
 
 async function shadows(){
