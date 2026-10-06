@@ -882,6 +882,57 @@ def _yahoo_market_entry(
         return None
 
 
+def _canonical_live_entry_point(
+    pending: Dict[str, Any],
+    checked_at: datetime,
+) -> Optional[Dict[str, Any]]:
+    """Use the exact WES public live-price snapshot as primary execution trigger."""
+    plan = pending.get("entry_price_plan") if isinstance(pending.get("entry_price_plan"), dict) else {}
+    iid = str(plan.get("instrument_id") or "")
+    direction = str(plan.get("direction") or (pending.get("decision") or {}).get("direction") or "")
+    mode = str(plan.get("execution_mode") or "limit_pullback")
+    target = sf(plan.get("target_price"))
+    start = parse_dt(plan.get("entry_not_before") or pending.get("entry_not_before"))
+    expires = parse_dt(plan.get("expires_at"))
+    if not iid or direction not in {"long", "short"} or start is None or expires is None:
+        return None
+    live = read(ROOT / "data/investments/live_prices.json", {})
+    rec = (live.get("prices") or {}).get(iid) if isinstance(live.get("prices"), dict) else None
+    if not isinstance(rec, dict):
+        return None
+    price = sf(rec.get("price"))
+    stamp = parse_dt(rec.get("current_price_updated_at") or rec.get("timestamp"))
+    if price is None or price <= 0 or stamp is None:
+        return None
+    if stamp < start or stamp > min(expires, checked_at):
+        return None
+    max_age = timedelta(minutes=6)
+    if checked_at - stamp > max_age or stamp - checked_at > timedelta(seconds=30):
+        return None
+    source = str(rec.get("source") or "WES canonical live price")
+    if mode == "market_now":
+        return {
+            "price": price,
+            "timestamp": stamp.astimezone(legacy.TZ).isoformat(timespec="seconds"),
+            "source": f"{source}:canonical_live_market",
+            "observed_high": price,
+            "observed_low": price,
+        }
+    if target is None or target <= 0:
+        return None
+    marketable = price <= target if direction == "long" else price >= target
+    if not marketable:
+        return None
+    return {
+        "price": target,
+        "timestamp": stamp.astimezone(legacy.TZ).isoformat(timespec="seconds"),
+        "source": f"{source}:canonical_live_marketable_limit",
+        "observed_high": max(price, target),
+        "observed_low": min(price, target),
+        "canonical_live_price": price,
+    }
+
+
 def entry_point(
     symbol: str,
     pending: Dict[str, Any],
@@ -906,6 +957,10 @@ def entry_point(
     end = min(checked_at, expires)
     if end < start:
         return None
+
+    canonical = _canonical_live_entry_point(pending, checked_at)
+    if canonical is not None:
+        return canonical
 
     if execution_mode == "market_now":
         return _yahoo_market_entry(symbol, start, end, checked_at)
