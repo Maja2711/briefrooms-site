@@ -430,6 +430,7 @@ def _install() -> None:
     # v18 retains lifecycle/open-position management. Replace only the
     # new-entry decision/timing hooks with the Belief-first v1.9 contract.
     v18.build_output = build_output
+    v18._clone = _clone
     v18._fresh_policy = _fresh_policy_shadow
     v18._resume_pending = _resume_pending_v19
     v18._original_prepare_entry_candidate = prepare_entry_candidate
