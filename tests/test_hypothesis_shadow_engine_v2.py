@@ -3,7 +3,15 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.hypothesis_shadow_engine_v2 import run_cycle, verify, ZERO_AUTHORITY
+from scripts.hypothesis_shadow_engine_v2 import (
+    FSE_PHASE_CONTRACT_PATH,
+    REGISTRY_FILE,
+    SOURCE_PATHS,
+    ZERO_AUTHORITY,
+    run_cycle,
+    supersede_fse_routing_duplicates,
+    verify,
+)
 
 
 def write(root: Path, rel: str, value):
@@ -128,6 +136,37 @@ class HSE2Tests(unittest.TestCase):
             self.assertEqual(wes3["status"],"SUPPORTED")
             self.assertEqual(len([x for x in third["recent_results"] if x["experiment_id"]==wes["experiment_id"]]),1)
 
+
+    def test_fse_core_contract_path_stays_stable_and_phase_uses_frozen_phase_path(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); state=root/"state"; public=root/"public.json"
+            self.populate_sources(root)
+            run_cycle(root,state,public,"2026-10-06T05:10:00Z")
+            registry=json.loads((state/REGISTRY_FILE).read_text())
+            fse=[x for x in registry["experiments"] if x["source_engine"]=="FSE"]
+            core=[x for x in fse if x["proposal_key"].startswith(("fse-fractal-memory-","fse-structural-risk-"))]
+            phase=[x for x in fse if x["proposal_key"].startswith(("fse-phase-memory-","fse-regime-phase-calibration-"))]
+            self.assertTrue(core)
+            self.assertTrue(phase)
+            self.assertTrue(all(x["source_path"]==SOURCE_PATHS["FSE"] for x in core))
+            self.assertTrue(all(x["source_path"]==FSE_PHASE_CONTRACT_PATH for x in phase))
+
+    def test_administrative_duplicate_is_superseded_but_not_deleted(self):
+        registry={"experiments":[
+            {"experiment_id":"canonical","source_engine":"FSE","proposal_key":"fse-fractal-memory-eurusd-4h-brier",
+             "source_path":SOURCE_PATHS["FSE"],"source_active":True},
+            {"experiment_id":"duplicate","source_engine":"FSE","proposal_key":"fse-fractal-memory-eurusd-4h-brier",
+             "source_path":FSE_PHASE_CONTRACT_PATH,"source_active":True,"prospective_n":1},
+            {"experiment_id":"phase","source_engine":"FSE","proposal_key":"fse-phase-memory-eurusd-4h-brier",
+             "source_path":FSE_PHASE_CONTRACT_PATH,"source_active":True},
+        ]}
+        changed=supersede_fse_routing_duplicates(registry)
+        self.assertEqual(changed,1)
+        dup=registry["experiments"][1]
+        self.assertTrue(dup["administrative_superseded"])
+        self.assertFalse(dup["source_active"])
+        self.assertEqual(dup["superseded_by_experiment_id"],"canonical")
+        self.assertEqual(registry["experiments"][2]["source_active"],True)
 
     def test_fse_phase_evidence_is_only_counted_after_hse_freeze(self):
         with tempfile.TemporaryDirectory() as tmp:
