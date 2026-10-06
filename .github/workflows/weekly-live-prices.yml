@@ -58,9 +58,17 @@ jobs:
         env:
           PYTHONPATH: ${{ github.workspace }}
         run: |
-          set -euo pipefail
-          python -m py_compile scripts/investments_weekly_v5.py scripts/execution_price_engine.py scripts/no_retroactive_execution.py
-          python scripts/investments_weekly_v5.py --mode ensure-exposure
+          set -uo pipefail
+          mkdir -p data/investments
+          : > data/investments/wes_fast_execution_diagnostic.log
+          python -m py_compile scripts/investments_weekly_v5.py scripts/execution_price_engine.py scripts/no_retroactive_execution.py >> data/investments/wes_fast_execution_diagnostic.log 2>&1
+          compile_status=$?
+          if [ "$compile_status" -eq 0 ]; then
+            python scripts/investments_weekly_v5.py --mode ensure-exposure >> data/investments/wes_fast_execution_diagnostic.log 2>&1
+            echo "executor_status=$?" >> data/investments/wes_fast_execution_diagnostic.log
+          else
+            echo "compile_status=$compile_status" >> data/investments/wes_fast_execution_diagnostic.log
+          fi
 
       - name: Critical WES SL TP executor
         run: |
@@ -74,7 +82,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/live_prices.json data/investments/weekly data/investments/intraday_risk_audit.json
+          git add data/investments/live_prices.json data/investments/weekly data/investments/intraday_risk_audit.json data/investments/wes_fast_execution_diagnostic.log
           if ! git diff --cached --quiet; then
             python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
             git commit -m "Execute WES live ENTRY SL TP"
