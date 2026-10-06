@@ -186,7 +186,7 @@ async function fse(){
         cross_scale_alignment:fx.cross_scale_alignment||x.cross_scale_alignment,
         _fast_meta:{
           available:true,
-          fresh:fastFresh,
+          fresh:fastFresh&&sourceAge<=Number(fast.stale_after_minutes||12),
           generated_at:fast.generated_at,
           latest_fast_observed_at:fx.latest_fast_observed_at,
           source_age_minutes:sourceAge,
