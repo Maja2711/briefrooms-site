@@ -50,7 +50,7 @@
       },
       "family": "Geopolitics",
       "id": "gse-v2-learning-lab",
-      "last_updated": "2026-10-06T03:02:02.013434Z",
+      "last_updated": "2026-10-06T17:13:50.963244Z",
       "max_drawdown": null,
       "minimum_sample": 60,
       "name": "GSE v2 Learning Lab",
@@ -83,7 +83,7 @@
       },
       "family": "Weekly Investments",
       "id": "strategy-research-lab",
-      "last_updated": "2026-10-06T02:49:11+02:00",
+      "last_updated": "2026-10-06T09:34:31+02:00",
       "max_drawdown": null,
       "minimum_sample": 30,
       "name": "Autonomous Strategy Research Lab",
@@ -99,7 +99,7 @@
       },
       "production_impact": false,
       "purpose": "Autonomiczne generowanie i filtrowanie kandydatów strategii bez prawa do produkcyjnej aktywacji.",
-      "sample_count": 200,
+      "sample_count": 201,
       "sample_unit": "research_cycles",
       "source": "data/investments/research_lab_report.json",
       "stage": "SHADOW",
@@ -194,46 +194,46 @@
       "details": {
         "arms": {
           "A": {
-            "directional_accuracy_1h": 0.5789473684210527,
-            "mean_signed_return_bps_1h": 0.0329,
-            "resolved_1h": 38
+            "directional_accuracy_1h": 0.5641025641025641,
+            "mean_signed_return_bps_1h": 0.03283265306122449,
+            "resolved_1h": 39
           },
           "B": {
-            "directional_accuracy_1h": 0.5897435897435898,
-            "mean_signed_return_bps_1h": 0.34453877551020407,
+            "directional_accuracy_1h": 0.5384615384615384,
+            "mean_signed_return_bps_1h": -0.14192040816326532,
             "resolved_1h": 39
           },
           "C": {
-            "directional_accuracy_1h": 0.5945945945945946,
-            "mean_signed_return_bps_1h": 0.03370408163265306,
-            "resolved_1h": 37
+            "directional_accuracy_1h": 0.5789473684210527,
+            "mean_signed_return_bps_1h": 0.03363673469387755,
+            "resolved_1h": 38
           }
         },
-        "captures": 158,
+        "captures": 160,
         "learning_loop": {
           "arms": {
             "A": {
               "dominant_error": "FOLLOW_THROUGH_FAILURE",
-              "episode_count": 50,
-              "error_recurrence_rate": 0.565217,
-              "hit_rate": 0.54,
+              "episode_count": 52,
+              "error_recurrence_rate": 0.6,
+              "hit_rate": 0.519231,
               "lesson_candidate": {
-                "confidence": null,
-                "eligible": false,
-                "error_pattern": null,
+                "confidence": 0.6,
+                "eligible": true,
+                "error_pattern": "FOLLOW_THROUGH_FAILURE",
                 "policy_change_applied": false,
-                "policy_change_proposed": false,
-                "proposed_action": null
+                "policy_change_proposed": true,
+                "proposed_action": "test follow-through confirmation before entry; do not change policy automatically"
               },
-              "mean_r": 0.263888,
+              "mean_r": 0.21538,
               "policy_stability": 1.0,
-              "recent_vs_prior_mean_r_delta": -0.87367
+              "recent_vs_prior_mean_r_delta": -0.818206
             },
             "B": {
               "dominant_error": "FOLLOW_THROUGH_FAILURE",
-              "episode_count": 48,
-              "error_recurrence_rate": 0.571429,
-              "hit_rate": 0.5625,
+              "episode_count": 49,
+              "error_recurrence_rate": 0.590909,
+              "hit_rate": 0.55102,
               "lesson_candidate": {
                 "confidence": null,
                 "eligible": false,
@@ -242,36 +242,95 @@
                 "policy_change_proposed": false,
                 "proposed_action": null
               },
-              "mean_r": 0.325012,
+              "mean_r": 0.298026,
               "policy_stability": 1.0,
-              "recent_vs_prior_mean_r_delta": -0.943529
+              "recent_vs_prior_mean_r_delta": -0.912396
             },
             "C": {
               "dominant_error": "FOLLOW_THROUGH_FAILURE",
-              "episode_count": 45,
-              "error_recurrence_rate": 0.571429,
-              "hit_rate": 0.533333,
+              "episode_count": 47,
+              "error_recurrence_rate": 0.608696,
+              "hit_rate": 0.510638,
               "lesson_candidate": {
-                "confidence": null,
-                "eligible": false,
-                "error_pattern": null,
+                "confidence": 0.6087,
+                "eligible": true,
+                "error_pattern": "FOLLOW_THROUGH_FAILURE",
                 "policy_change_applied": false,
-                "policy_change_proposed": false,
-                "proposed_action": null
+                "policy_change_proposed": true,
+                "proposed_action": "test follow-through confirmation before entry; do not change policy automatically"
               },
-              "mean_r": 0.266672,
+              "mean_r": 0.212886,
               "policy_stability": 1.0,
-              "recent_vs_prior_mean_r_delta": -0.88525
+              "recent_vs_prior_mean_r_delta": -0.822798
             }
           },
           "automatic_challenger_creation": true,
           "automatic_policy_mutation": false,
           "available": true,
-          "challenger_count": 0,
-          "challengers": [],
+          "challenger_count": 2,
+          "challengers": [
+            {
+              "arm_id": "A",
+              "challenger_id": "abc-ch-9db7c5c001f1707405e3",
+              "created_at": "2026-10-06T11:52:41.702999Z",
+              "frozen_baseline": {
+                "episode_count": 52,
+                "hit_rate": 0.519231,
+                "mean_r": 0.21538
+              },
+              "lesson_confidence": 0.6,
+              "proposed_action": "test follow-through confirmation before entry; do not change policy automatically",
+              "prospective_evidence": {
+                "challenger_observations": 0,
+                "starts_after_episode_count": 52,
+                "status": "AWAITING_EXECUTABLE_SHADOW"
+              },
+              "shadow_contract": {
+                "automatic_creation": true,
+                "automatic_policy_mutation": false,
+                "automatic_promotion": false,
+                "decision_influence": false,
+                "executable_rule_status": "AWAITING_EXPLICIT_RULE_COMPILATION",
+                "historical_backfill": false,
+                "production_execution": false,
+                "prospective_only": true
+              },
+              "source_error_pattern": "FOLLOW_THROUGH_FAILURE",
+              "status": "SHADOW_CANDIDATE"
+            },
+            {
+              "arm_id": "C",
+              "challenger_id": "abc-ch-3a5256b7120aefb34bd2",
+              "created_at": "2026-10-06T11:52:41.702999Z",
+              "frozen_baseline": {
+                "episode_count": 47,
+                "hit_rate": 0.510638,
+                "mean_r": 0.212886
+              },
+              "lesson_confidence": 0.6087,
+              "proposed_action": "test follow-through confirmation before entry; do not change policy automatically",
+              "prospective_evidence": {
+                "challenger_observations": 0,
+                "starts_after_episode_count": 47,
+                "status": "AWAITING_EXECUTABLE_SHADOW"
+              },
+              "shadow_contract": {
+                "automatic_creation": true,
+                "automatic_policy_mutation": false,
+                "automatic_promotion": false,
+                "decision_influence": false,
+                "executable_rule_status": "AWAITING_EXPLICIT_RULE_COMPILATION",
+                "historical_backfill": false,
+                "production_execution": false,
+                "prospective_only": true
+              },
+              "source_error_pattern": "FOLLOW_THROUGH_FAILURE",
+              "status": "SHADOW_CANDIDATE"
+            }
+          ],
           "cross_arm_writeback": false,
           "decision_influence": false,
-          "episode_count": 143,
+          "episode_count": 148,
           "historical_backfill": false,
           "mode": "PROSPECTIVE_SHARED_LEARNING_LOOP",
           "prospective_only": true,
@@ -281,7 +340,7 @@
       },
       "family": "EURUSD",
       "id": "eurusd-abc-live-shadow",
-      "last_updated": "2026-10-05T20:54:41.867642Z",
+      "last_updated": "2026-10-06T18:21:01.843334Z",
       "max_drawdown": null,
       "minimum_sample": 40,
       "name": "EURUSD A/B/C Live Shadow",
@@ -295,11 +354,11 @@
         "interpretation": "Forecast skill; nie jest automatycznie formalną alpha ani wynikiem transakcyjnym po kosztach.",
         "label": "Najlepsza trafność kierunku 1h",
         "unit": "fraction",
-        "value": 0.5945945945945946
+        "value": 0.5789473684210527
       },
       "production_impact": false,
       "purpose": "Prospektywne porównanie trzech wariantów: technicznego, Belief-only i hybrydowego.",
-      "sample_count": 37,
+      "sample_count": 38,
       "sample_unit": "resolved_1h_comparisons_per_arm",
       "source": "data/investments/eurusd_abc_public_pl.json",
       "stage": "SHADOW",
@@ -314,9 +373,9 @@
       "category": "trading",
       "delta_vs_benchmark": null,
       "details": {
-        "brier": 0.252551,
+        "brier": 0.256589,
         "calibration_block_resolved": null,
-        "captures": 35,
+        "captures": 38,
         "challenger": "X-BELIEF",
         "champion": "X-BASE",
         "discovery_layer": null,
@@ -352,15 +411,15 @@
           ],
           "pivot": "classic_daily_floor_P_R1_R2_R3_S1_S2_S3"
         },
-        "hit_rate": 0.59375,
-        "mean_signed_return_bps": 0.328,
-        "resolved": 34,
+        "hit_rate": 0.575758,
+        "mean_signed_return_bps": -0.3975,
+        "resolved": 37,
         "rollback": null,
-        "signal_n": 32
+        "signal_n": 33
       },
       "family": "EURUSD",
       "id": "eurusd-x-adaptive-shadow",
-      "last_updated": "2026-10-06T02:19:24.117943Z",
+      "last_updated": "2026-10-06T17:12:52.742060Z",
       "max_drawdown": null,
       "minimum_sample": 30,
       "name": "EURUSD X Adaptive Shadow",
@@ -373,21 +432,21 @@
         "interpretation": "Niższy Brier jest lepszy; liczony na prospektywnie rozstrzygniętych prognozach Championa dla horyzontu 4h.",
         "label": "Brier Championa (4h)",
         "unit": "score",
-        "value": 0.252551
+        "value": 0.256589
       },
       "production_impact": false,
       "purpose": "Szybko kalibrowany EUR/USD shadow challenger ze stałym core technicznym, BRs Belief Core, wersjonowanymi eksperymentalnymi dodatkami i automatycznym rollbackiem do ostatniego Championa.",
-      "sample_count": 34,
+      "sample_count": 37,
       "sample_unit": "resolved_champion_4h_outcomes",
       "source": "data/investments/eurusd_x_public_pl.json",
       "stage": "SHADOW",
-      "started_at": "2026-10-06T02:19:24.117943Z",
+      "started_at": "2026-10-06T17:12:52.742060Z",
       "status": "RUNNING",
       "system_class": "LAB",
       "version": "eurusd-x-v1.0.0"
     }
   ],
-  "generated_at": "2026-10-06T03:02:02.013434Z",
+  "generated_at": "2026-10-06T18:21:01.843334Z",
   "schema_version": "briefrooms-experiment-registry-v1",
   "status_policy": {
     "allowed": [
