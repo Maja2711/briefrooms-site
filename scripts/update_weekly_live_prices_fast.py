@@ -2,6 +2,10 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
+
 import csv
 import html
 import io
@@ -474,6 +478,20 @@ def main() -> None:
         for key in INSTRUMENTS
     )
     print(f"Updated {OUT}: {status}")
+
+    # Atomic WES contract: a successful canonical price refresh MUST immediately
+    # execute ENTRY and then SL/TP in the same process invocation. There is no
+    # separate scheduler between "Cena teraz" and ticket state.
+    env = dict(os.environ)
+    env.setdefault("PYTHONPATH", str(ROOT / "scripts"))
+    subprocess.run(
+        [sys.executable, str(ROOT / "scripts/investments_weekly_v5.py"), "--mode", "ensure-exposure"],
+        cwd=str(ROOT), env=env, check=True,
+    )
+    subprocess.run(
+        [sys.executable, str(ROOT / "scripts/audit_intraday_risk_exits.py"), "--persist-report", "on_close"],
+        cwd=str(ROOT), env=env, check=True,
+    )
 
 
 if __name__ == "__main__":
