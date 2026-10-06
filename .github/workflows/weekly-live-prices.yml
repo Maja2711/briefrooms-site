@@ -95,6 +95,30 @@ jobs:
           print("FSE_INTRADAY_FAST_PASS")
           PY
 
+      - name: Execute pending Weekly ENTRY from fresh 5-minute market evidence
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/investments_weekly_v5.py scripts/execution_price_engine.py scripts/no_retroactive_execution.py
+          python -m unittest tests.test_execution_price_engine -v
+          python scripts/investments_weekly_v5.py --mode ensure-exposure
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          files=sorted(Path("data/investments/weekly").glob("*.json"), reverse=True)
+          if not files:
+              raise SystemExit("No Weekly state file after ENTRY execution")
+          week=json.loads(files[0].read_text(encoding="utf-8"))
+          for item in week.get("instruments") or []:
+              pending=item.get("pending_entry_decision")
+              if item.get("trade_status") == "pending" and isinstance(pending, dict):
+                  plan=pending.get("entry_price_plan") or {}
+                  print("WES_PENDING_ENTRY", item.get("instrument_id"), plan.get("execution_mode"), plan.get("target_price"), plan.get("expires_at"))
+              elif item.get("trade_status") == "open":
+                  print("WES_OPEN", item.get("instrument_id"), item.get("direction"), item.get("entry_price"), item.get("entry_captured_at"))
+          PY
+
       - name: Monitor frozen Weekly SL/TP from 5-minute OHLC
         run: |
           set -euo pipefail
