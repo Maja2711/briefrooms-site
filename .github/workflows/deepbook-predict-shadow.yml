@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/deepbook-predict-shadow.yml"
-      - "scripts/deepbook_predict_shadow.mjs"
+      - "scripts/deepbook_predict_shadow.mjs"\n      - "scripts/deepbook_predict_shadow_score.py"
       - "tests/test_deepbook_predict_shadow.py"
       - "package.json"
       - "scripts/update_weekly_live_prices_fast.py"
@@ -52,7 +52,7 @@ jobs:
       - run: npm install --no-audit --no-fund --no-package-lock
       - name: Collect live DeepBook Predict mainnet probabilities
         run: node scripts/deepbook_predict_shadow.mjs
-      - name: Validate shadow isolation
+      - name: Settle expired predictions and score benchmark\n        run: python scripts/deepbook_predict_shadow_score.py\n      - name: Validate shadow isolation
         run: |
           python -m pip install --quiet pytest
           python -m pytest -q tests/test_deepbook_predict_shadow.py
