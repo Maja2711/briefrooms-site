@@ -182,3 +182,119 @@ A global FSE risk actuator bypassing EURUSD, WES, Stock Trading or BRACE risk ow
 - Structural similarity does not establish causality.
 - Historical bootstrap initializes memory; it is not alpha validation.
 - Production sizing/SL influence remains disabled pending prospective validation.
+
+## 9. FSE-PHASE — Phase Engine / Intrabar / Cross-Scale
+
+The FSE-PHASE-1.0 extension remains part of module IN-09; it is not a separate production engine.
+
+Pipeline:
+
+FSE core -> Phase Engine -> Intrabar Formation -> Cross-Scale Alignment -> Phase Fractal Memory -> prospective HSE2 -> P Calibration Challenger -> manual promotion gate
+
+### 9.1 Scales
+
+The Phase Engine analyses:
+
+1m -> 5m -> 15m -> 1h -> 4h -> 1d -> 1w
+
+- 1m, 5m, 15m, 1h, 1d come from the secondary Yahoo Chart research feed.
+- 4h is deterministic 1h aggregation.
+- 1w is ISO-week aggregation from daily bars.
+- Monthly / multi-year bars are not part of the first Phase Engine version; long context is represented by rolling daily history rather than literal 10Y/100Y candles.
+
+### 9.2 Phase Engine
+
+Each scale receives a deterministic description:
+
+- structure_id,
+- phase: CONSOLIDATION / DEVELOPMENT / EXPANSION / MATURATION / TRANSITION / REVERSAL,
+- direction,
+- confidence,
+- path efficiency,
+- trend z-score,
+- volatility ratio,
+- curvature.
+
+structure_id is a stable hash of a quantized structural fingerprint. It is not a claim that a universal fractal law has been discovered; it is a research identity for structurally similar states.
+
+### 9.3 Phase Fractal Memory
+
+The current partial path is matched against prefixes of historical motifs on the completion grid:
+
+40% / 55% / 70% / 85%.
+
+The best-matching stage produces:
+
+- phase_progress,
+- P(up remaining),
+- top/mean similarity,
+- median remaining return,
+- median remaining bars,
+- analogue count.
+
+This is an analogue-based stage estimate, not a deterministic assumption that every market follows the same phases.
+
+### 9.4 Intrabar Formation
+
+A higher scale is observed internally through a child scale:
+
+- 5m <- 1m,
+- 15m <- 5m,
+- 1h <- 15m,
+- 4h <- 1h,
+- 1d <- 1h,
+- 1w <- 1d.
+
+FSE publishes formation_progress, microstructure direction, efficiency, position within the current range and range fraction. Expected child-bar counts are inferred from historical medians, so SPY sessions are not treated like 24/7 BTC.
+
+### 9.5 Cross-Scale Alignment
+
+Adjacent scales are compared by:
+
+- directional agreement,
+- similarity of efficiency / volatility ratio / curvature,
+- confidence,
+- an informational fast-scale lead score.
+
+Synthetic outputs:
+
+- alignment_score,
+- cascade_state = COHERENT / MIXED / FRACTURED,
+- dominant_scale.
+
+Alignment is research Evidence. It does not create an executable trade signal.
+
+### 9.6 P Calibration / Regime-Phase Challenger
+
+The challenger uses:
+
+- P_base from Deep Fractal Memory,
+- P_phase from 1h Phase Fractal Memory,
+- cross-scale alignment,
+- Structural Risk regime.
+
+It emits a separate P_challenger. The change is hard-capped at ±6 pp versus P_base.
+
+TURBULENT and TRANSITION apply explicit confidence shrinkage. These parameters are a frozen research prior, not a trained production calibrator.
+
+Source-model probability is never overwritten.
+
+### 9.7 Prospective HSE2
+
+From FSE-PHASE-1.0, FSE exposes two additional hypotheses:
+
+1. Phase Fractal Memory vs 50/50 — metric: prospective directional Brier edge.
+2. Regime-Phase P Calibration Challenger vs frozen FSE v2 base P — metric: Brier_base - Brier_challenger.
+
+Each experiment uses N=40. Only resolutions originating from snapshots frozen under FSE-PHASE-1.0 count. Older FSE v2 snapshots remain in the durable ledger but receive no credit for the new hypotheses.
+
+### 9.8 Promotion
+
+The public promotion_gate may only reach:
+
+- NOT_ELIGIBLE,
+- READY_FOR_MANUAL_REVIEW.
+
+automatic_promotion=false.
+
+Even after a positive HSE2 verdict, an explicit per-engine bridge and the owning engine's promotion gate are required. FSE cannot create a global risk or probability actuator.
