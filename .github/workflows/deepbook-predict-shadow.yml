@@ -8,6 +8,9 @@ on:
       - "scripts/deepbook_predict_shadow.mjs"
       - "tests/test_deepbook_predict_shadow.py"
       - "package.json"
+      - "scripts/update_weekly_live_prices_fast.py"
+      - "scripts/investments_weekly_v5.py"
+      - "scripts/audit_intraday_risk_exits.py"
   schedule:
     - cron: "*/5 * * * *"
 permissions:
@@ -29,6 +32,23 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Execute atomic WES live price ENTRY SL TP
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts
+          NO_RETROACTIVE_EXECUTION: "1"
+        run: |
+          set -euo pipefail
+          export NO_RETROACTIVE_RUN_STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          python scripts/update_weekly_live_prices_fast.py
+          git config user.name "briefrooms-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/investments/live_prices.json data/investments/weekly data/investments/intraday_risk_audit.json data/investments/multi_instrument_exposure_state_v5.json data/investments/multi_instrument_exposure_report_v5.json
+          if ! git diff --cached --quiet; then
+            python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
+            git commit -m "Execute WES live ENTRY SL TP"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
       - run: npm install --no-audit --no-fund --no-package-lock
       - name: Collect live DeepBook Predict mainnet probabilities
         run: node scripts/deepbook_predict_shadow.mjs
