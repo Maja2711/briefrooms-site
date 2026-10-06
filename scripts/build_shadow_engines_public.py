@@ -99,7 +99,7 @@ SPECS = [
     },
     {
         "id": "fse-v2",
-        "name": "FSE v2 Deep Fractal Memory",
+        "name": "FSE Phase & Cross-Scale Engine",
         "workflows": ["fse-v2-deep-fractal-memory.yml"],
         "source": "data/investments/fse_v2_public.json",
         "domain": "/pl/inwestycje/decision-lab.html",
