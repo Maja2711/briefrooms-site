@@ -9,6 +9,10 @@ from belief_market_data_adapter import Bar, MarketSnapshot
 
 EURUSD_SYMBOL = "EURUSD=X"
 BTC_SYMBOL = "BTC-USD"
+USD_INTRADAY_SYMBOL = "DX-Y.NYB"
+US2Y_FUTURES_SYMBOL = "ZT=F"
+US10Y_FUTURES_SYMBOL = "ZN=F"
+INTRADAY_MAX_LAG_SECONDS = 90 * 60
 
 WES_ASSET_BELIEFS: Tuple[BeliefDefinition, ...] = (
     BeliefDefinition(
@@ -113,7 +117,13 @@ def coverage_report() -> Dict[str, Any]:
         "eurusd": {
             "status": "partial_market_macro_proxy_coverage",
             "beliefs": [x for x in WES_ASSET_BELIEF_IDS if x.startswith("eurusd.")],
-            "covered": ["price_trend", "broad_usd_environment", "us_rates_pressure_proxy"],
+            "covered": [
+                "price_trend",
+                "broad_usd_environment",
+                "us_rates_pressure_proxy",
+                "intraday_usd_index_24x5",
+                "intraday_us_treasury_futures_24x5",
+            ],
             "not_covered": ["ecb_policy_state", "eur_us_rate_differential", "euro_area_macro_surprise"],
             "rate_differential_claimed": False,
         },
@@ -136,6 +146,20 @@ def _safe_return(snapshot: MarketSnapshot, symbol: str, bars: int) -> Optional[f
 
 def _mean(values: Sequence[float]) -> float:
     return sum(values) / len(values) if values else 0.0
+
+
+def _fresh_relative(
+    snapshot: MarketSnapshot,
+    symbol: str,
+    anchor_symbol: str = EURUSD_SYMBOL,
+    max_lag_seconds: int = INTRADAY_MAX_LAG_SECONDS,
+) -> bool:
+    if symbol not in snapshot.bars or anchor_symbol not in snapshot.bars:
+        return False
+    if not snapshot.bars[symbol] or not snapshot.bars[anchor_symbol]:
+        return False
+    lag = abs((snapshot.observed_at(anchor_symbol) - snapshot.observed_at(symbol)).total_seconds())
+    return lag <= float(max_lag_seconds)
 
 
 def _rvol(rows: Sequence[Bar], lookback: int) -> Optional[float]:
@@ -164,7 +188,7 @@ def _trend_score(snapshot: MarketSnapshot, symbol: str, scales: Tuple[float, flo
 
 class WESAssetEvidenceAdapter:
     name = "wes_asset_evidence"
-    version = "1.0.0"
+    version = "1.1.0"
 
     def _observation(
         self,
@@ -232,6 +256,46 @@ class WESAssetEvidenceAdapter:
                     evidence.append(self._evidence(obs, "eurusd.usd_environment.supportive", usd, "usd_environment",
                         f"Inverse UUP momentum support for EUR/USD={usd:.3f}"))
 
+            # European-session USD liveness: ICE USDX is active for roughly
+            # 21 hours/day. Keep it in a separate independence cluster from UUP
+            # so a closed US ETF cannot be the sole freshness source for Daily.
+            if _fresh_relative(snapshot, USD_INTRADAY_SYMBOL):
+                d1 = _safe_return(snapshot, USD_INTRADAY_SYMBOL, 13)
+                d5 = _safe_return(snapshot, USD_INTRADAY_SYMBOL, 65)
+                if d1 is not None and d5 is not None:
+                    usd_24x5 = clamp(
+                        -(
+                            .45 * clamp(d1 / .0045, -1, 1)
+                            + .55 * clamp(d5 / .0120, -1, 1)
+                        ),
+                        -1,
+                        1,
+                    )
+                    dxy_observed_at = iso_z(snapshot.observed_at(USD_INTRADAY_SYMBOL))
+                    obs = self._observation(
+                        metric="broad_usd_intraday_support_for_eurusd",
+                        entity="EURUSD",
+                        observed_at=dxy_observed_at,
+                        value=usd_24x5,
+                        cluster="derived:USD:environment:24x5_dxy",
+                        metadata={
+                            "proxy": USD_INTRADAY_SYMBOL,
+                            "venue": "ICE_USDX",
+                            "cash_etf_reference": "UUP",
+                            "ecb_coverage": False,
+                            "timestamp_source": USD_INTRADAY_SYMBOL,
+                            "intraday_freshness_max_lag_seconds": INTRADAY_MAX_LAG_SECONDS,
+                        },
+                    )
+                    observations.append(obs)
+                    evidence.append(self._evidence(
+                        obs,
+                        "eurusd.usd_environment.supportive",
+                        usd_24x5,
+                        "usd_environment_intraday",
+                        f"Inverse ICE USDX momentum support for EUR/USD={usd_24x5:.3f}",
+                    ))
+
             if "TLT" in snapshot.bars:
                 t1, t5 = _safe_return(snapshot, "TLT", 13), _safe_return(snapshot, "TLT", 65)
                 if t1 is not None and t5 is not None:
@@ -242,6 +306,61 @@ class WESAssetEvidenceAdapter:
                     observations.append(obs)
                     evidence.append(self._evidence(obs, "eurusd.us_rates_pressure.supportive", rates, "rates_proxy",
                         f"TLT-based US rates-pressure support proxy={rates:.3f}; not an EUR/USD rate differential"))
+
+            # European-session rates liveness: CBOT 2Y/10Y Treasury futures
+            # trade outside US cash hours. Higher futures prices imply easing
+            # yield pressure, which is directionally supportive for EUR/USD.
+            if (
+                _fresh_relative(snapshot, US2Y_FUTURES_SYMBOL)
+                and _fresh_relative(snapshot, US10Y_FUTURES_SYMBOL)
+            ):
+                zt1 = _safe_return(snapshot, US2Y_FUTURES_SYMBOL, 13)
+                zt5 = _safe_return(snapshot, US2Y_FUTURES_SYMBOL, 65)
+                zn1 = _safe_return(snapshot, US10Y_FUTURES_SYMBOL, 13)
+                zn5 = _safe_return(snapshot, US10Y_FUTURES_SYMBOL, 65)
+                if None not in {zt1, zt5, zn1, zn5}:
+                    front_end = clamp(
+                        .45 * clamp(float(zt1) / .0015, -1, 1)
+                        + .55 * clamp(float(zt5) / .0045, -1, 1),
+                        -1,
+                        1,
+                    )
+                    ten_year = clamp(
+                        .45 * clamp(float(zn1) / .0040, -1, 1)
+                        + .55 * clamp(float(zn5) / .0120, -1, 1),
+                        -1,
+                        1,
+                    )
+                    rates_24x5 = clamp(.60 * front_end + .40 * ten_year, -1, 1)
+                    rates_observed_at = iso_z(min(
+                        snapshot.observed_at(US2Y_FUTURES_SYMBOL),
+                        snapshot.observed_at(US10Y_FUTURES_SYMBOL),
+                    ))
+                    obs = self._observation(
+                        metric="us_rates_intraday_futures_support_for_eurusd",
+                        entity="EURUSD",
+                        observed_at=rates_observed_at,
+                        value=rates_24x5,
+                        cluster="derived:US_RATES:intraday_treasury_futures",
+                        metadata={
+                            "proxies": [US2Y_FUTURES_SYMBOL, US10Y_FUTURES_SYMBOL],
+                            "weights": {"2Y": .60, "10Y": .40},
+                            "cash_etf_reference": "TLT",
+                            "price_direction": "higher_futures_price_means_easing_yield_pressure",
+                            "rate_differential": False,
+                            "ecb_coverage": False,
+                            "timestamp_source": "oldest_leg",
+                            "intraday_freshness_max_lag_seconds": INTRADAY_MAX_LAG_SECONDS,
+                        },
+                    )
+                    observations.append(obs)
+                    evidence.append(self._evidence(
+                        obs,
+                        "eurusd.us_rates_pressure.supportive",
+                        rates_24x5,
+                        "rates_proxy_intraday",
+                        f"2Y/10Y Treasury-futures US rates support proxy={rates_24x5:.3f}; not an EUR/USD rate differential",
+                    ))
 
         if BTC_SYMBOL in snapshot.bars:
             observed_at = iso_z(snapshot.observed_at(BTC_SYMBOL))
