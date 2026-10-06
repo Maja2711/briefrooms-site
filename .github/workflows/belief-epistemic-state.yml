@@ -2,6 +2,8 @@ name: Belief Epistemic State Projection
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "11,41 * * * *"
   workflow_run:
     workflows:
       - "Belief Core Live Shadow Collection"
@@ -30,7 +32,7 @@ on:
 
 permissions:
   contents: read
-  actions: read
+  actions: write
 
 concurrency:
   group: belief-epistemic-state-${{ github.event.workflow_run.id || github.run_id }}
@@ -45,7 +47,7 @@ jobs:
       PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
     steps:
       - name: Checkout authoritative main code after live run
-        if: github.event_name == 'workflow_run'
+        if: github.event_name != 'pull_request'
         uses: actions/checkout@v4
         with:
           ref: main
@@ -78,7 +80,7 @@ jobs:
             tests.test_epistemic_consumer_interface -v
 
       - name: Restore triggering Belief Core state
-        if: github.event_name == 'workflow_run'
+        if: github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ github.event.workflow_run.id }}
@@ -111,8 +113,55 @@ jobs:
           tar -xzf "$RUNNER_TEMP/belief-state-artifact/belief-core-state.tgz" -C "$RUNNER_TEMP/belief_core_state"
           echo "STATE_DIR=$RUNNER_TEMP/belief_core_state" >> "$GITHUB_ENV"
 
+      - name: Restore latest fresh Belief Core state for scheduled or manual recovery
+        if: github.event_name != 'workflow_run' && github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BELIEF_INPUT_MAX_AGE_MINUTES: "45"
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/belief-state-artifact" "$RUNNER_TEMP/belief_core_state"
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=belief-core-shadow-state&per_page=100"
+          curl -fsSL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "$api" > "$RUNNER_TEMP/artifacts.json"
+          python - "$RUNNER_TEMP/artifacts.json" "$BELIEF_INPUT_MAX_AGE_MINUTES" > "$RUNNER_TEMP/belief-artifact-selection.txt" <<'PY'
+          import json, sys
+          from datetime import datetime, timezone
+          from pathlib import Path
+          payload=json.loads(Path(sys.argv[1]).read_text())
+          max_age=float(sys.argv[2])
+          rows=[x for x in payload.get('artifacts', []) if not x.get('expired') and x.get('name') == 'belief-core-shadow-state']
+          rows.sort(key=lambda x:x.get('created_at',''), reverse=True)
+          if not rows:
+              raise SystemExit('No fresh Belief Core artifact available for Epistemic recovery')
+          row=rows[0]
+          created=datetime.fromisoformat(str(row.get('created_at') or '').replace('Z','+00:00'))
+          age=(datetime.now(timezone.utc)-created.astimezone(timezone.utc)).total_seconds()/60.0
+          if age < -2 or age > max_age:
+              raise SystemExit(f'Latest Belief Core artifact is stale: age={age:.2f}m max={max_age:.2f}m')
+          print(row['id'])
+          print(f'{age:.3f}')
+          PY
+          artifact_id=$(sed -n '1p' "$RUNNER_TEMP/belief-artifact-selection.txt")
+          artifact_age=$(sed -n '2p' "$RUNNER_TEMP/belief-artifact-selection.txt")
+          echo "Using Belief Core artifact id=$artifact_id age_minutes=$artifact_age"
+          curl -fsSL -L \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" \
+            -o "$RUNNER_TEMP/belief-state.zip"
+          unzip -q "$RUNNER_TEMP/belief-state.zip" -d "$RUNNER_TEMP/belief-state-artifact"
+          test -f "$RUNNER_TEMP/belief-state-artifact/belief-core-state.tgz"
+          tar -xzf "$RUNNER_TEMP/belief-state-artifact/belief-core-state.tgz" -C "$RUNNER_TEMP/belief_core_state"
+          test -s "$RUNNER_TEMP/belief_core_state/state.json"
+          echo "STATE_DIR=$RUNNER_TEMP/belief_core_state" >> "$GITHUB_ENV"
+
       - name: Restore cumulative prior Epistemic State history
-        if: github.event_name == 'workflow_run'
+        if: github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -154,7 +203,7 @@ jobs:
           done
 
       - name: Build authoritative Epistemic State projection
-        if: github.event_name == 'workflow_run'
+        if: github.event_name != 'pull_request'
         run: |
           set -euo pipefail
           python scripts/belief_epistemic_live.py --state-dir "$STATE_DIR" --print-summary
@@ -178,7 +227,7 @@ jobs:
           PY
 
       - name: Build PR32A canonical EpistemicState
-        if: github.event_name == 'workflow_run'
+        if: github.event_name != 'pull_request'
         run: |
           set -euo pipefail
           python scripts/canonical_epistemic_state_builder.py --state-dir "$STATE_DIR" --print-summary
@@ -201,7 +250,7 @@ jobs:
           PY
 
       - name: Build PR32B prospective verification targets
-        if: github.event_name == 'workflow_run'
+        if: github.event_name != 'pull_request'
         run: |
           set -euo pipefail
           python scripts/canonical_epistemic_verification_builder.py --state-dir "$STATE_DIR" --print-summary
@@ -225,7 +274,7 @@ jobs:
           PY
 
       - name: Pack cumulative Epistemic State runtime artifact
-        if: github.event_name == 'workflow_run'
+        if: github.event_name != 'pull_request'
         run: |
           set -euo pipefail
           tar -czf "$RUNNER_TEMP/belief-epistemic-state.tgz" -C "$STATE_DIR" \
@@ -237,7 +286,7 @@ jobs:
             canonical_epistemic_verifications.jsonl
 
       - name: Store cumulative Epistemic State outside repository
-        if: github.event_name == 'workflow_run'
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: belief-epistemic-state
@@ -245,3 +294,17 @@ jobs:
           if-no-files-found: error
           retention-days: 30
           compression-level: 0
+
+      - name: Dispatch Daily EURUSD after fresh Epistemic State
+        if: github.event_name != 'pull_request' && success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          curl -fsSL -X POST \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/daily-eurusd-monitor.yml/dispatches" \
+            -d '{"ref":"main"}'
+          echo "DAILY_EURUSD_DISPATCHED_FROM_FRESH_EPISTEMIC_STATE"
