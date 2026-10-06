@@ -21,6 +21,42 @@ class GovernedWeeklyModelTests(unittest.TestCase):
         return {"instruments": [{"id": "x", "enabled_for_new_positions": enabled,
                                   "validation_gate_reason": "failed_validation"}]}
 
+    def test_canonical_live_short_limit_is_immediately_marketable(self):
+        now = datetime(2026, 10, 6, 14, 6, 50, tzinfo=v5.legacy.TZ)
+        pending = {"decision": {"direction": "short"}, "entry_price_plan": {
+            "instrument_id": "eurusd", "direction": "short", "execution_mode": "limit_pullback",
+            "target_price": 1.12656,
+            "entry_not_before": (now - timedelta(minutes=5)).isoformat(),
+            "expires_at": (now + timedelta(minutes=10)).isoformat(),
+        }}
+        live = {"prices": {"eurusd": {
+            "price": 1.12701,
+            "timestamp": (now - timedelta(seconds=3)).isoformat(),
+            "source": "canonical-test",
+        }}}
+        with patch.object(v5, "read", return_value=live):
+            point = v5._canonical_live_entry_point(pending, now)
+        self.assertIsNotNone(point)
+        self.assertEqual(1.12656, point["price"])
+        self.assertEqual(1.12701, point["canonical_live_price"])
+
+    def test_canonical_live_price_triggers_short_stop_loss(self):
+        now = datetime(2026, 10, 6, 14, 6, 50, tzinfo=v5.legacy.TZ)
+        live = {"prices": {"eurusd": {
+            "price": 1.13000,
+            "timestamp": (now - timedelta(seconds=3)).isoformat(),
+            "source": "canonical-test",
+        }}}
+        with patch.object(risk_market, "read_json", return_value=live):
+            hit = risk_market.canonical_live_risk_hit(
+                "eurusd", "short", 1.12900, 1.12000,
+                (now - timedelta(minutes=20)).astimezone(risk_market.UTC),
+                now.astimezone(risk_market.UTC),
+            )
+        self.assertIsNotNone(hit)
+        self.assertEqual("stop_loss", hit[0])
+        self.assertEqual(1.12900, hit[1])
+
     def test_finalizer_preserves_active_runtime_version(self):
         self.assertEqual(finalize.VERSION, v5.VERSION)
 
