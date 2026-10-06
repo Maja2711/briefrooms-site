@@ -2,30 +2,30 @@
   "arms": {
     "A": {
       "dominant_error": "FOLLOW_THROUGH_FAILURE",
-      "episode_count": 50,
-      "error_recurrence_rate": 0.565217,
-      "hit_rate": 0.54,
+      "episode_count": 52,
+      "error_recurrence_rate": 0.6,
+      "hit_rate": 0.519231,
       "lesson_candidate": {
-        "confidence": null,
-        "eligible": false,
-        "error_pattern": null,
+        "confidence": 0.6,
+        "eligible": true,
+        "error_pattern": "FOLLOW_THROUGH_FAILURE",
         "policy_change_applied": false,
-        "policy_change_proposed": false,
-        "proposed_action": null
+        "policy_change_proposed": true,
+        "proposed_action": "test follow-through confirmation before entry; do not change policy automatically"
       },
-      "losses": 23,
-      "mean_mae_r": -0.545363,
-      "mean_mfe_r": 0.847355,
-      "mean_r": 0.263888,
+      "losses": 25,
+      "mean_mae_r": -0.56588,
+      "mean_mfe_r": 0.834733,
+      "mean_r": 0.21538,
       "policy_stability": 1.0,
-      "recent_vs_prior_mean_r_delta": -0.87367,
+      "recent_vs_prior_mean_r_delta": -0.818206,
       "wins": 27
     },
     "B": {
       "dominant_error": "FOLLOW_THROUGH_FAILURE",
-      "episode_count": 48,
-      "error_recurrence_rate": 0.571429,
-      "hit_rate": 0.5625,
+      "episode_count": 49,
+      "error_recurrence_rate": 0.590909,
+      "hit_rate": 0.55102,
       "lesson_candidate": {
         "confidence": null,
         "eligible": false,
@@ -34,44 +34,103 @@
         "policy_change_proposed": false,
         "proposed_action": null
       },
-      "losses": 21,
-      "mean_mae_r": -0.482734,
-      "mean_mfe_r": 0.842778,
-      "mean_r": 0.325012,
+      "losses": 22,
+      "mean_mae_r": -0.493252,
+      "mean_mfe_r": 0.837456,
+      "mean_r": 0.298026,
       "policy_stability": 1.0,
-      "recent_vs_prior_mean_r_delta": -0.943529,
+      "recent_vs_prior_mean_r_delta": -0.912396,
       "wins": 27
     },
     "C": {
       "dominant_error": "FOLLOW_THROUGH_FAILURE",
-      "episode_count": 45,
-      "error_recurrence_rate": 0.571429,
-      "hit_rate": 0.533333,
+      "episode_count": 47,
+      "error_recurrence_rate": 0.608696,
+      "hit_rate": 0.510638,
       "lesson_candidate": {
-        "confidence": null,
-        "eligible": false,
-        "error_pattern": null,
+        "confidence": 0.6087,
+        "eligible": true,
+        "error_pattern": "FOLLOW_THROUGH_FAILURE",
         "policy_change_applied": false,
-        "policy_change_proposed": false,
-        "proposed_action": null
+        "policy_change_proposed": true,
+        "proposed_action": "test follow-through confirmation before entry; do not change policy automatically"
       },
-      "losses": 21,
-      "mean_mae_r": -0.5619,
-      "mean_mfe_r": 0.843282,
-      "mean_r": 0.266672,
+      "losses": 23,
+      "mean_mae_r": -0.583896,
+      "mean_mfe_r": 0.82949,
+      "mean_r": 0.212886,
       "policy_stability": 1.0,
-      "recent_vs_prior_mean_r_delta": -0.88525,
+      "recent_vs_prior_mean_r_delta": -0.822798,
       "wins": 24
     }
   },
   "automatic_challenger_creation": true,
   "automatic_policy_mutation": false,
-  "challenger_count": 0,
-  "challengers": [],
+  "challenger_count": 2,
+  "challengers": [
+    {
+      "arm_id": "A",
+      "challenger_id": "abc-ch-9db7c5c001f1707405e3",
+      "created_at": "2026-10-06T11:52:41.702999Z",
+      "frozen_baseline": {
+        "episode_count": 52,
+        "hit_rate": 0.519231,
+        "mean_r": 0.21538
+      },
+      "lesson_confidence": 0.6,
+      "proposed_action": "test follow-through confirmation before entry; do not change policy automatically",
+      "prospective_evidence": {
+        "challenger_observations": 0,
+        "starts_after_episode_count": 52,
+        "status": "AWAITING_EXECUTABLE_SHADOW"
+      },
+      "shadow_contract": {
+        "automatic_creation": true,
+        "automatic_policy_mutation": false,
+        "automatic_promotion": false,
+        "decision_influence": false,
+        "executable_rule_status": "AWAITING_EXPLICIT_RULE_COMPILATION",
+        "historical_backfill": false,
+        "production_execution": false,
+        "prospective_only": true
+      },
+      "source_error_pattern": "FOLLOW_THROUGH_FAILURE",
+      "status": "SHADOW_CANDIDATE"
+    },
+    {
+      "arm_id": "C",
+      "challenger_id": "abc-ch-3a5256b7120aefb34bd2",
+      "created_at": "2026-10-06T11:52:41.702999Z",
+      "frozen_baseline": {
+        "episode_count": 47,
+        "hit_rate": 0.510638,
+        "mean_r": 0.212886
+      },
+      "lesson_confidence": 0.6087,
+      "proposed_action": "test follow-through confirmation before entry; do not change policy automatically",
+      "prospective_evidence": {
+        "challenger_observations": 0,
+        "starts_after_episode_count": 47,
+        "status": "AWAITING_EXECUTABLE_SHADOW"
+      },
+      "shadow_contract": {
+        "automatic_creation": true,
+        "automatic_policy_mutation": false,
+        "automatic_promotion": false,
+        "decision_influence": false,
+        "executable_rule_status": "AWAITING_EXPLICIT_RULE_COMPILATION",
+        "historical_backfill": false,
+        "production_execution": false,
+        "prospective_only": true
+      },
+      "source_error_pattern": "FOLLOW_THROUGH_FAILURE",
+      "status": "SHADOW_CANDIDATE"
+    }
+  ],
   "cross_arm_writeback": false,
   "decision_influence": false,
-  "episode_count": 143,
-  "evidence_revision": 143,
+  "episode_count": 148,
+  "evidence_revision": 148,
   "experiment_id": "eurusd-abc-live-shadow",
   "governance": {
     "human_or_promotion_gate_required_before_policy_application": true,
