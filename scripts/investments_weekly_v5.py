@@ -240,6 +240,64 @@ def wes_authorization_matches(
     return True, "authorized"
 
 
+def refresh_expired_authorization_for_live_decision(
+    item: Dict[str, Any],
+    decision: Dict[str, Any],
+    now: datetime,
+    policy: Dict[str, Any],
+) -> bool:
+    """Re-authorize a still-valid live WES thesis after an execution window was missed.
+
+    This never backfills an old fill. It creates a new authorization timestamp and
+    therefore a new prospective MARKET/LIMIT execution contract from fresh evidence.
+    """
+    cfg = policy.get("directional_admission") or {}
+    if not cfg.get("require_for_all_new_entries", True):
+        return False
+    auth = item.get("wes_entry_authorization") if isinstance(item.get("wes_entry_authorization"), dict) else {}
+    expires = parse_dt(auth.get("expires_at"))
+    if expires is not None and now < expires:
+        return False
+    admission = decision.get("directional_admission") if isinstance(decision.get("directional_admission"), dict) else {}
+    direction = str(decision.get("direction") or "")
+    strategy_id = str(decision.get("strategy_id") or "")
+    if direction not in {"long", "short"} or not strategy_id:
+        return False
+    if admission.get("passed") is not True:
+        return False
+    if str(decision.get("execution_authority") or "") != "champion_execution":
+        return False
+    ttl = max(5, int(cfg.get("authorization_ttl_minutes") or 60))
+    item["wes_entry_authorization"] = {
+        "authorized_at": now.isoformat(timespec="seconds"),
+        "expires_at": (now + timedelta(minutes=ttl)).isoformat(timespec="seconds"),
+        "authorization_type": "live_reauthorization_after_missed_execution_window",
+        "directional_admission_passed": True,
+        "candidate": {
+            "direction": direction,
+            "strategy_id": strategy_id,
+            "raw_score": abs(float(decision.get("raw_score") or 0.0)),
+            "utility": float(decision.get("utility") or 0.0),
+            "confirmations": int(admission.get("confirmations") or 0),
+            "confirmation_sources": list(admission.get("confirmation_sources") or []),
+            "execution_authority": "champion_execution",
+            "directional_admission": dict(admission),
+        },
+        "required": {
+            "allowed": True,
+            "raw": float((cfg.get("initial_weekly_profile") or {}).get("raw") or 0.0),
+            "utility": float((cfg.get("initial_weekly_profile") or {}).get("utility") or 0.0),
+            "confirmations": int(cfg.get("minimum_confirmations") or 2),
+        },
+        "source_exit_at": None,
+        "source_exit_reason": None,
+        "prospective_only": True,
+        "no_retroactive_execution": True,
+    }
+    item["wes_status"] = "directional_entry_pending_execution"
+    return True
+
+
 def abstain(item: Dict[str, Any], decision: Dict[str, Any]) -> None:
     item.update(pending_entry_decision=None, next_entry_status="no_trade", no_trade_decision=decision,
                 no_trade_reason=",".join(decision.get("reason_codes", [])), continuous_exposure_active=False,
@@ -1329,6 +1387,18 @@ def ensure_all() -> Dict[str, Any]:
             abstain(item, decision); changed = True
             report["actions"].append({"instrument_id": iid, "action": "no_trade", "reason_codes": decision.get("reason_codes")}); continue
         authorized, authorization_reason = wes_authorization_matches(item, decision, now, policy)
+        if not authorized and authorization_reason in {"wes_entry_authorization_expired", "wes_entry_authorization_missing"}:
+            if refresh_expired_authorization_for_live_decision(item, decision, now, policy):
+                changed = True
+                authorized, authorization_reason = wes_authorization_matches(item, decision, now, policy)
+                report["actions"].append({
+                    "instrument_id": iid,
+                    "action": "live_reauthorize_after_missed_execution_window",
+                    "direction": decision.get("direction"),
+                    "strategy_id": decision.get("strategy_id"),
+                    "authorized_at": (item.get("wes_entry_authorization") or {}).get("authorized_at"),
+                    "expires_at": (item.get("wes_entry_authorization") or {}).get("expires_at"),
+                })
         if not authorized:
             blocked = {
                 "strategy_id": "no_trade",
