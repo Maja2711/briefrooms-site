@@ -663,5 +663,21 @@
   <!-- Cloudflare Web Analytics --><script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token":"9adde99e330a4b0d991627986ac34246"}'></script><!-- End Cloudflare Web Analytics -->
 <script src="/scripts/gse-lab-entry.js?v=4" defer></script>
 <script src="/scripts/gse-lab-entry.js?v=2" defer></script>
+<script>
+  (() => {
+    const list = document.querySelector('.library .tiles');
+    if (!list) return;
+    const items = Array.from(list.querySelectorAll(':scope > .tile'));
+    const publishedAt = (item) => {
+      const raw = item.querySelector('time[datetime]')?.getAttribute('datetime') || '';
+      if (/^\d{4}$/.test(raw)) return Date.parse(raw + '-01-01T00:00:00Z');
+      const parsed = Date.parse(raw);
+      return Number.isFinite(parsed) ? parsed : -Infinity;
+    };
+    items
+      .sort((a, b) => publishedAt(b) - publishedAt(a))
+      .forEach((item) => list.appendChild(item));
+  })();
+</script>
 </body>
 </html>
