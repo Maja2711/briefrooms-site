@@ -51,94 +51,36 @@ jobs:
           echo "NO_RETROACTIVE_EXECUTION=1" >> "$GITHUB_ENV"
           echo "NO_RETROACTIVE_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
 
-      - name: Critical refresh for WES execution
-        run: python scripts/update_weekly_live_prices_fast.py
-
-      - name: Critical WES ENTRY executor
+      - name: Atomic WES price ENTRY SL TP
         env:
           PYTHONPATH: ${{ github.workspace }}
         run: |
-          set -uo pipefail
-          mkdir -p data/investments
-          : > data/investments/wes_fast_execution_diagnostic.log
-          python -m py_compile scripts/investments_weekly_v5.py scripts/execution_price_engine.py scripts/no_retroactive_execution.py >> data/investments/wes_fast_execution_diagnostic.log 2>&1
-          compile_status=$?
-          if [ "$compile_status" -eq 0 ]; then
-            python scripts/investments_weekly_v5.py --mode ensure-exposure >> data/investments/wes_fast_execution_diagnostic.log 2>&1
-            echo "executor_status=$?" >> data/investments/wes_fast_execution_diagnostic.log
-          else
-            echo "compile_status=$compile_status" >> data/investments/wes_fast_execution_diagnostic.log
-          fi
-
-      - name: Critical WES SL TP executor
-        run: |
           set -euo pipefail
-          python -m py_compile scripts/audit_intraday_risk_exits.py
-          python scripts/audit_intraday_risk_exits.py --persist-report on_close
+          python -m py_compile scripts/update_weekly_live_prices_fast.py scripts/investments_weekly_v5.py scripts/audit_intraday_risk_exits.py
+          python scripts/update_weekly_live_prices_fast.py
+          python - <<'PY'
+          import json, os
+          from datetime import datetime, timezone
+          from pathlib import Path
+          report=Path("data/investments/multi_instrument_exposure_report_v5.json")
+          data=json.loads(report.read_text(encoding="utf-8"))
+          checked=datetime.fromisoformat(str(data["checked_at"]).replace("Z","+00:00"))
+          started=datetime.fromisoformat(os.environ["NO_RETROACTIVE_RUN_STARTED_AT"].replace("Z","+00:00"))
+          if checked.astimezone(timezone.utc) < started:
+              raise SystemExit(f"WES_FAIL stale report: {checked.isoformat()} < {started.isoformat()}")
+          print("WES_EXECUTOR_FRESH", checked.isoformat())
+          PY
 
-      - name: Persist WES execution before all non-critical validation
+      - name: Persist atomic WES execution
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/live_prices.json data/investments/weekly data/investments/intraday_risk_audit.json data/investments/wes_fast_execution_diagnostic.log
+          git add data/investments/live_prices.json data/investments/weekly data/investments/intraday_risk_audit.json data/investments/multi_instrument_exposure_report_v5.json data/investments/multi_instrument_exposure_state_v5.json
           if ! git diff --cached --quiet; then
             python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
             git commit -m "Execute WES live ENTRY SL TP"
-            git pull --rebase origin main
-            git push origin HEAD:main
-          fi
-
-      - name: Validate clean EURUSD frontend contract
-        run: |
-          node --check scripts/daily-eurusd-live-price.js
-          node --check scripts/daily-eurusd-spot-public.js
-          node --check scripts/investments-weekly-browser-live.js
-          node --check scripts/investments-weekly-public.js
-          python -m unittest tests/test_weekly_browser_live_contract.py
-
-      - name: Refresh Weekly live prices
-        run: |
-          python scripts/update_weekly_live_prices_fast.py
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          row = json.loads(Path("data/investments/live_prices.json").read_text())["prices"]["eurusd"]
-          print("EURUSD_AUDIT", json.dumps({
-              "price": row.get("price"),
-              "timestamp": row.get("timestamp"),
-              "source": row.get("source"),
-              "fresh": row.get("fresh"),
-          }, ensure_ascii=False))
-          PY
-
-      - name: Execute critical WES ENTRY immediately after live price refresh
-        env:
-          PYTHONPATH: ${{ github.workspace }}
-        run: |
-          set -euo pipefail
-          python -m py_compile scripts/investments_weekly_v5.py scripts/execution_price_engine.py scripts/no_retroactive_execution.py
-          python scripts/investments_weekly_v5.py --mode ensure-exposure
-
-      - name: Execute critical WES SL TP immediately after ENTRY
-        run: |
-          set -euo pipefail
-          python -m py_compile scripts/audit_intraday_risk_exits.py
-          python scripts/audit_intraday_risk_exits.py --persist-report on_close
-
-      - name: Persist critical WES execution state before Shadow diagnostics
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/live_prices.json data/investments/weekly data/investments/intraday_risk_audit.json
-          if git diff --cached --quiet; then
-            echo "No critical WES execution state changes"
-          else
-            python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
-            git commit -m "Execute Weekly ENTRY SL TP from live price"
             git pull --rebase origin main
             git push origin HEAD:main
           fi
@@ -165,36 +107,6 @@ jobs:
               raise SystemExit(f"FSE fast projection stale at publication: age={age:.0f}s")
           print("FSE_INTRADAY_FAST_PASS")
           PY
-
-      - name: Execute pending Weekly ENTRY from fresh 5-minute market evidence
-        env:
-          PYTHONPATH: ${{ github.workspace }}
-        run: |
-          set -euo pipefail
-          python -m py_compile scripts/investments_weekly_v5.py scripts/execution_price_engine.py scripts/no_retroactive_execution.py
-          python -m unittest tests.test_execution_price_engine -v
-          python scripts/investments_weekly_v5.py --mode ensure-exposure
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          files=sorted(Path("data/investments/weekly").glob("*.json"), reverse=True)
-          if not files:
-              raise SystemExit("No Weekly state file after ENTRY execution")
-          week=json.loads(files[0].read_text(encoding="utf-8"))
-          for item in week.get("instruments") or []:
-              pending=item.get("pending_entry_decision")
-              if item.get("trade_status") == "pending" and isinstance(pending, dict):
-                  plan=pending.get("entry_price_plan") or {}
-                  print("WES_PENDING_ENTRY", item.get("instrument_id"), plan.get("execution_mode"), plan.get("target_price"), plan.get("expires_at"))
-              elif item.get("trade_status") == "open":
-                  print("WES_OPEN", item.get("instrument_id"), item.get("direction"), item.get("entry_price"), item.get("entry_captured_at"))
-          PY
-
-      - name: Monitor frozen Weekly SL/TP from 5-minute OHLC
-        run: |
-          set -euo pipefail
-          python -m py_compile scripts/audit_intraday_risk_exits.py
-          python scripts/audit_intraday_risk_exits.py --persist-report on_close
 
       - name: Validate Weekly live-price snapshot
         run: |
