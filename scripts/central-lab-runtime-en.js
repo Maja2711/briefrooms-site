@@ -141,10 +141,6 @@ async function fse(){
   }catch(e){
     root.innerHTML='<div class="central-error">FSE is temporarily unavailable.</div>';
   }
-}. Generated '+shadowWhen(r.generated_at)+'.</p></article>';
-  }catch(e){
-    root.innerHTML='<div class="central-error">FSE is temporarily unavailable.</div>';
-  }
 }
 
 async function shadows(){
