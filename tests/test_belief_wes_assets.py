@@ -32,6 +32,7 @@ from scripts.belief_wes_assets_adapter import (
     USD_INTRADAY_SYMBOL,
     US2Y_FUTURES_SYMBOL,
     US10Y_FUTURES_SYMBOL,
+    FED_FUNDS_FUTURES_SYMBOL,
     WES_ASSET_BELIEF_IDS,
     WESAssetEvidenceAdapter,
     coverage_report,
@@ -56,6 +57,7 @@ def make_snapshot(now: datetime) -> MarketSnapshot:
         USD_INTRADAY_SYMBOL: 101.0,
         US2Y_FUTURES_SYMBOL: 102.0,
         US10Y_FUTURES_SYMBOL: 106.0,
+        FED_FUNDS_FUTURES_SYMBOL: 96.0,
     }
     steps = {
         "SPY": .10,
@@ -71,6 +73,7 @@ def make_snapshot(now: datetime) -> MarketSnapshot:
         USD_INTRADAY_SYMBOL: .0020,
         US2Y_FUTURES_SYMBOL: .0010,
         US10Y_FUTURES_SYMBOL: .0030,
+        FED_FUNDS_FUTURES_SYMBOL: .0005,
     }
     bars = {}
     end = now.astimezone(NY).replace(minute=0, second=0, microsecond=0)
@@ -89,7 +92,7 @@ class OptionalMarketCoverageTests(unittest.TestCase):
         self.assertTrue(set(CORE_SYMBOLS) < set(DEFAULT_SYMBOLS))
         self.assertEqual(
             tuple(OPTIONAL_WES_ASSET_SYMBOLS),
-            (EURUSD_SYMBOL, BTC_SYMBOL, USD_INTRADAY_SYMBOL, US2Y_FUTURES_SYMBOL, US10Y_FUTURES_SYMBOL),
+            (EURUSD_SYMBOL, BTC_SYMBOL, USD_INTRADAY_SYMBOL, US2Y_FUTURES_SYMBOL, US10Y_FUTURES_SYMBOL, FED_FUNDS_FUTURES_SYMBOL),
         )
 
     def test_optional_fetch_failure_does_not_take_down_spx_snapshot(self):
@@ -122,7 +125,7 @@ class WESAssetAdapterTests(unittest.TestCase):
 
     def test_adapter_emits_all_seven_evidence_with_explicit_proxies(self):
         result = WESAssetEvidenceAdapter().run(self.snapshot)
-        self.assertEqual(len(result.evidence), 9)
+        self.assertEqual(len(result.evidence), 10)
         self.assertEqual({x.belief_id for x in result.evidence}, set(WES_ASSET_BELIEF_IDS))
         self.assertTrue(all(x.source_type == "derived" for x in result.evidence))
         self.assertTrue(all(x.derived_from for x in result.evidence))
@@ -193,10 +196,18 @@ class WESAssetAdapterTests(unittest.TestCase):
         self.assertEqual(usd.metadata["cash_etf_reference"], "UUP")
         self.assertEqual(rates.metadata["cash_etf_reference"], "TLT")
         self.assertFalse(rates.metadata["rate_differential"])
+        fed_funds = next(
+            x for x in result.evidence
+            if x.belief_id == "eurusd.us_rates_pressure.supportive"
+            and x.metadata.get("proxy") == FED_FUNDS_FUTURES_SYMBOL
+        )
+        self.assertEqual(fed_funds.observed_at, expected)
+        self.assertTrue(fed_funds.metadata["policy_rate_expectations"])
+        self.assertFalse(fed_funds.metadata["rate_differential"])
 
     def test_stale_intraday_proxies_are_not_admitted_as_fresh_evidence(self):
         bars = dict(self.snapshot.bars)
-        for symbol in (USD_INTRADAY_SYMBOL, US2Y_FUTURES_SYMBOL, US10Y_FUTURES_SYMBOL):
+        for symbol in (USD_INTRADAY_SYMBOL, US2Y_FUTURES_SYMBOL, US10Y_FUTURES_SYMBOL, FED_FUNDS_FUTURES_SYMBOL):
             bars[symbol] = [
                 Bar(
                     timestamp=row.timestamp - timedelta(hours=2),
@@ -215,6 +226,9 @@ class WESAssetAdapterTests(unittest.TestCase):
         self.assertFalse(any(
             x.metadata.get("proxies") == [US2Y_FUTURES_SYMBOL, US10Y_FUTURES_SYMBOL]
             for x in result.evidence
+        ))
+        self.assertFalse(any(
+            x.metadata.get("proxy") == FED_FUNDS_FUTURES_SYMBOL for x in result.evidence
         ))
 
     def test_coverage_report_does_not_claim_ecb_or_onchain(self):
