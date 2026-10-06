@@ -1,54 +1,12 @@
 {
   "layer_version": "5.9.1-experimental",
-  "checked_at": "2026-10-06T22:22:56+02:00",
+  "checked_at": "2026-10-06T22:29:21+02:00",
   "actions": [
     {
       "instrument_id": "eurusd",
-      "action": "wait_for_market_entry",
-      "direction": "short",
-      "target_price": 1.12899655,
-      "reference_price": 1.12625301,
-      "order_type": "market",
-      "expires_at": "2026-10-06T22:32:33+02:00",
-      "overextension_score": 0.605713,
-      "market_entry_diagnostics": {
-        "version": "WES-1.3.1",
-        "scoring_model": "weekly_primary_daily_confirmation_modifier",
-        "direction": "short",
-        "daily_score": -74.0,
-        "weekly_score": -63.0,
-        "selected_utility": 13.8114,
-        "confirmations": 4,
-        "ret5_pct": -0.9686,
-        "ret20_pct": -3.14,
-        "overextension_score": 0.605713,
-        "daily_aligned": true,
-        "weekly_aligned": true,
-        "daily_opposed": false,
-        "weekly_opposed": false,
-        "momentum_aligned": true,
-        "momentum_opposed": false,
-        "primary_score_components": {
-          "weekly": 1.0,
-          "utility": 0.9865,
-          "confirmations": 1.0,
-          "momentum": 1.0
-        },
-        "primary_market_score": 0.9966,
-        "overextension_penalty": 0.1211,
-        "score_before_daily_modifier": 0.8755,
-        "daily_confirmation_modifier": 0.08,
-        "daily_confirmation_state": "aligned_bonus",
-        "daily_modifier_bounds": {
-          "aligned_bonus_max": 0.08,
-          "opposed_penalty_max": 0.1,
-          "strong_opposition_veto_abs_score": 55.0
-        },
-        "market_score": 0.9555,
-        "minimum_market_score": 0.7,
-        "eligible": true,
-        "reasons": []
-      }
+      "action": "reject_unverified_market_entry",
+      "reason": "missing_canonical_live_target_contract",
+      "target_price": 1.12899655
     },
     {
       "instrument_id": "sp500_futures",
