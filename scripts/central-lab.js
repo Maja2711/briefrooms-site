@@ -101,7 +101,12 @@ function fseRegime(value){
 }
 function fseTrackLabel(m){
   const kind=String(m?.details?.kind||'');
-  if(kind==='risk_calibration')return 'Structural Riskasync function fse(){
+  if(kind==='risk_calibration')return 'Structural Risk';
+  if(kind==='phase_memory')return 'Phase Fractal Memory';
+  if(kind==='p_calibration_regime_phase')return 'P Calibration Challenger';
+  return 'Fractal Memory';
+}
+async function fse(){
   const root=document.querySelector('#central-fse-lab');
   if(!root)return;
   try{
@@ -159,10 +164,6 @@ function fseTrackLabel(m){
       (phaseRows?'<h3 class="central-subtitle">Fractal Phase Map · Intrabar Formation</h3><div class="central-table-wrap"><table class="central-table fse-phase-table"><thead><tr><th>Instrument</th><th>TF</th><th>Structure</th><th>Phase</th><th>Progress</th><th>Similarity</th><th>P UP remaining</th><th>Intrabar</th><th>Analogi</th></tr></thead><tbody>'+phaseRows+'</tbody></table></div>':'')+
       '<h3 class="central-subtitle">Prospective learning · Brier · HSE2</h3><div class="central-table-wrap"><table class="central-table fse-validation-table"><thead><tr><th>Instrument</th><th>Tor</th><th>Forward N</th><th>Brier / Δ</th><th>Edge</th><th>HSE2 status</th><th>Freeze / evidence</th></tr></thead><tbody>'+validationRows+'</tbody></table></div>'+
       '<p class="central-note">FSE-PHASE nie dostaje credit za historię. Phase Memory i P Calibration Challenger zaczynają formalne N dopiero od snapshotów zamrożonych pod metodologią FSE-PHASE-1.0. Challenger ma twardy limit korekty ±6 pp i nie może pisać do produkcji. Wygenerowano '+shadowWhen(v2.generated_at||r.generated_at)+'.</p></article>';
-  }catch(e){
-    root.innerHTML='<div class="central-error">FSE jest chwilowo niedostępny.</div>';
-  }
-}Wygenerowano '+shadowWhen(r.generated_at)+'.</p></article>';
   }catch(e){
     root.innerHTML='<div class="central-error">FSE jest chwilowo niedostępny.</div>';
   }

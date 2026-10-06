@@ -51,6 +51,9 @@ jobs:
           set -euo pipefail
           python -m py_compile scripts/fractal_structure_engine_v2.py
           python -m unittest tests.test_fractal_structure_engine_v2 -v
+          python -m unittest tests.test_decision_lab_fse_frontend -v
+          node --check scripts/central-lab.js
+          node --check scripts/central-lab-runtime-en.js
           python scripts/validate_architecture_bootstrap.py
 
   shadow:
