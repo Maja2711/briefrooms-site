@@ -107,7 +107,7 @@ function fseTrackLabel(m){
   return 'Fractal Memory';
 }
 
-const FSE_TREND_TFS=['1m','5m','15m','1h','4h','1d','1w'];
+const FSE_TREND_TFS=['5m','15m','1h','4h','1d','1w'];
 const FSE_TREND_WEIGHTS={ '1m':1,'5m':1.25,'15m':1.5,'1h':2,'4h':2.5,'1d':3,'1w':3.5 };
 function fseDirectionValue(value){
   const key=String(value||'').toUpperCase();
@@ -148,7 +148,7 @@ function fseFractalTrendCard(x){
   const map=x.phase_map||{},a=x.cross_scale_alignment||{},fm=x._fast_meta||{};
   const score=fseTrendScore(map);
   const trend=fseTrendLabel(score);
-  const lower=fseBiasLabel(fseTrendScore(map,['1m','5m','15m']));
+  const lower=fseBiasLabel(fseTrendScore(map,['5m','15m']));
   const higher=fseBiasLabel(fseTrendScore(map,['1h','4h','1d','1w']));
   const ribbon=FSE_TREND_TFS.map(tf=>fseDirectionChip(tf,map[tf],a.dominant_scale)).join('');
   const freshness=fm.available
@@ -215,7 +215,7 @@ async function fse(){
     }).join('');
     const phaseRows=v2Instruments.flatMap(x=>{
       const formation=x.intrabar_formation||{};
-      return ['1m','5m','15m','1h','4h','1d','1w'].map(tf=>{
+      return ['5m','15m','1h','4h','1d','1w'].map(tf=>{
         const p=x?.phase_map?.[tf]||{},pm=p.phase_memory||{},ib=formation[tf]||{};
         return '<tr><td><strong>'+esc(fseInstrumentLabel(x.instrument))+'</strong></td><td><b>'+esc(tf)+'</b></td><td>'+esc(p.structure_id||'—')+'</td><td>'+esc(p.phase||'—')+'</td><td><b>'+esc(String(p.direction||'FLAT').toUpperCase())+'</b></td><td>'+pct(pm.phase_progress,1)+'</td><td>'+pct(pm.top_similarity,1)+'</td><td>'+pct(pm.p_up_remaining,1)+'</td><td>'+(ib.available?pct(ib.formation_progress,1):'—')+'</td><td>'+num(pm.analogues_n)+'</td></tr>';
       });

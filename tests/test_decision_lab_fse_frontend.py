@@ -26,6 +26,12 @@ class DecisionLabFSEFrontendTests(unittest.TestCase):
             self.assertIn("P Calibration Challenger", text, rel)
             self.assertIn("Fractal Trend", text, rel)
             self.assertIn("FSE_TREND_TFS", text, rel)
+            self.assertIn("const FSE_TREND_TFS=['5m','15m','1h','4h','1d','1w']", text, rel)
+            self.assertIn("fseTrendScore(map,['5m','15m'])", text, rel)
+            self.assertIn("return ['5m','15m','1h','4h','1d','1w'].map(tf=>", text, rel)
+            self.assertNotIn("const FSE_TREND_TFS=['1m'", text, rel)
+            self.assertNotIn("fseTrendScore(map,['1m','5m','15m'])", text, rel)
+            self.assertNotIn("return ['1m','5m','15m','1h','4h','1d','1w'].map(tf=>", text, rel)
             self.assertIn("fseFractalTrendCard", text, rel)
             self.assertIn("Lower TF", text, rel)
             self.assertIn("Higher TF", text, rel)
@@ -63,10 +69,10 @@ class DecisionLabFSEFrontendTests(unittest.TestCase):
     def test_fse_trend_assets_are_cache_busted(self):
         pl = (ROOT / "pl/inwestycje/decision-lab.html").read_text(encoding="utf-8")
         en = (ROOT / "en/investing/decision-lab.html").read_text(encoding="utf-8")
-        self.assertIn("/assets/decision-lab.css?v=20261006-2", pl)
-        self.assertIn("/assets/decision-lab.css?v=20261006-2", en)
-        self.assertIn("/scripts/central-lab.js?v=20261006-3", pl)
-        self.assertIn("/scripts/central-lab-runtime-en.js?v=20261006-3", en)
+        self.assertIn("/assets/decision-lab.css?v=20261006-3", pl)
+        self.assertIn("/assets/decision-lab.css?v=20261006-3", en)
+        self.assertIn("/scripts/central-lab.js?v=20261006-4", pl)
+        self.assertIn("/scripts/central-lab-runtime-en.js?v=20261006-4", en)
 
 
 if __name__ == "__main__":
