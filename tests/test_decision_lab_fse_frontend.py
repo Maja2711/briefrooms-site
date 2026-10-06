@@ -23,6 +23,12 @@ class DecisionLabFSEFrontendTests(unittest.TestCase):
             self.assertIn("FSE-PHASE", text, rel)
             self.assertIn("Cross-Scale Alignment", text, rel)
             self.assertIn("P Calibration Challenger", text, rel)
+            self.assertIn("Fractal Trend", text, rel)
+            self.assertIn("FSE_TREND_TFS", text, rel)
+            self.assertIn("fseFractalTrendCard", text, rel)
+            self.assertIn("Lower TF", text, rel)
+            self.assertIn("Higher TF", text, rel)
+            self.assertIn("direction", text, rel)
             self.assertIn("x.source_engine==='FSE'", text, rel)
             self.assertIn("Brier", text, rel)
             self.assertIn("fse();shadows()", text, rel)
@@ -42,6 +48,19 @@ class DecisionLabFSEFrontendTests(unittest.TestCase):
         self.assertIn(".lab-glass-tabs .tab-fse", css)
         self.assertIn(".fse-memory-grid", css)
         self.assertIn(".fse-validation-table", css)
+        self.assertIn(".fse-trend-grid", css)
+        self.assertIn(".fse-trend-card", css)
+        self.assertIn(".fse-tf-ribbon", css)
+        self.assertIn(".fse-tf-direction", css)
+
+
+    def test_fse_trend_assets_are_cache_busted(self):
+        pl = (ROOT / "pl/inwestycje/decision-lab.html").read_text(encoding="utf-8")
+        en = (ROOT / "en/investing/decision-lab.html").read_text(encoding="utf-8")
+        self.assertIn("/assets/decision-lab.css?v=20261006-1", pl)
+        self.assertIn("/assets/decision-lab.css?v=20261006-1", en)
+        self.assertIn("/scripts/central-lab.js?v=20261006-2", pl)
+        self.assertIn("/scripts/central-lab-runtime-en.js?v=20261006-2", en)
 
 
 if __name__ == "__main__":
