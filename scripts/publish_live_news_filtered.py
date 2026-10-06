@@ -156,6 +156,16 @@ SPORT_LIVE_RE = re.compile(
     r"(?:relacja-live|wynik-na-zywo|wyniki-na-zywo|liveblog)",
     re.IGNORECASE,
 )
+SPORT_RESULT_RE = re.compile(
+    r"\b(?:wynik(?:i)?|result|final score|full[- ]time|FT\b|pokonał|pokonala|pokonała|"
+    r"wygrał|wygrala|wygrała|przegrał|przegrala|przegrała|remis|zwycięst|"
+    r"awansował|awansowala|awansowała|odpadł|odpadla|odpadła|"
+    r"match report|mecz zakończony|mecz zakonczony)\b",
+    re.IGNORECASE,
+)
+SPORT_LIVE_MAX_SOURCE_AGE = timedelta(hours=12)
+
+
 SPORT_FUTURE_RE = re.compile(
     r"\b(?:jutro|pojutrze|kiedy gra|kiedy zagra|o której|o ktorej|"
     r"gdzie oglądać|gdzie ogladac|gdzie obejrzeć|gdzie obejrzec|"
@@ -285,6 +295,20 @@ def _story_text(story: dict[str, Any]) -> str:
 
 def _is_live_sport(story: dict[str, Any]) -> bool:
     return bool(SPORT_LIVE_RE.search(_story_text(story)))
+
+
+def _is_stale_live_sport(story: dict[str, Any], now: datetime) -> bool:
+    """Reject an old live-blog card once it is no longer credible as a live event."""
+    if not _is_live_sport(story):
+        return False
+    text = _story_text(story)
+    if SPORT_RESULT_RE.search(text):
+        return False
+    published = _published_at(story)
+    if published is None:
+        return True
+    age = now.astimezone(timezone.utc) - published
+    return age > SPORT_LIVE_MAX_SOURCE_AGE
 
 
 def _is_future_sport(story: dict[str, Any]) -> bool:
@@ -571,8 +595,15 @@ def select_sections(
                 if not AI_CRYPTO_RE.search(_story_text(story))
             ]
 
-        sport_mode = pl_mode and section_id == "sport"
+        sport_mode = section_id == "sport"
         if sport_mode:
+            # A live-blog headline is a transient state, not evergreen sports news.
+            # Once it is old enough that the event should have finished, drop it;
+            # a later result/match report from the same event can then win ranking.
+            source_candidates = [
+                story for story in source_candidates
+                if not _is_stale_live_sport(story, now)
+            ]
             support = _sport_entity_support(source_candidates)
             candidates = sorted(
                 source_candidates,
