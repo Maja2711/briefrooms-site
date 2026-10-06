@@ -145,27 +145,55 @@ function fseDirectionChip(tf,row,dominant){
   return '<span class="fse-tf-direction '+key+(String(dominant||'').toLowerCase()===tf?' dominant':'')+'"><small>'+esc(tf)+'</small><b>'+arrow+' '+esc(dir)+'</b></span>';
 }
 function fseFractalTrendCard(x){
-  const map=x.phase_map||{},a=x.cross_scale_alignment||{};
+  const map=x.phase_map||{},a=x.cross_scale_alignment||{},fm=x._fast_meta||{};
   const score=fseTrendScore(map);
   const trend=fseTrendLabel(score);
   const lower=fseBiasLabel(fseTrendScore(map,['1m','5m','15m']));
   const higher=fseBiasLabel(fseTrendScore(map,['1h','4h','1d','1w']));
   const ribbon=FSE_TREND_TFS.map(tf=>fseDirectionChip(tf,map[tf],a.dominant_scale)).join('');
-  return '<section class="fse-trend-card '+trend.key+'"><div class="fse-trend-head"><div><strong>'+esc(fseInstrumentLabel(x.instrument))+'</strong><small>Fractal Trend · FSE-PHASE</small></div><span class="fse-trend-badge '+trend.key+'">'+esc(trend.label)+'</span></div>'+
+  const freshness=fm.available
+    ? '<span class="fse-fast-state '+(fm.fresh?'fresh':'stale')+'">'+(fm.fresh?'FAST 5M':'STALE')+'</span>'
+    : '<span class="fse-fast-state stale">NO FAST</span>';
+  const sourceAge=finite(fm.source_age_minutes)?(num(fm.source_age_minutes,0)+' min'):'—';
+  return '<section class="fse-trend-card '+trend.key+'"><div class="fse-trend-head"><div><strong>'+esc(fseInstrumentLabel(x.instrument))+'</strong><small>Fractal Trend · FSE-PHASE</small></div><div class="fse-trend-badges">'+freshness+'<span class="fse-trend-badge '+trend.key+'">'+esc(trend.label)+'</span></div></div>'+
     '<div class="fse-trend-meta"><span>Lower TF <b>'+esc(lower)+'</b></span><span>Higher TF <b>'+esc(higher)+'</b></span><span>Alignment <b>'+pct(a.alignment_score,1)+'</b></span><span>Cascade <b>'+esc(a.cascade_state||'—')+'</b></span></div>'+
+    '<div class="fse-fast-meta"><span>Fast run <b>'+esc(fm.generated_at?shadowWhen(fm.generated_at):'—')+'</b></span><span>Ostatnia świeca <b>'+esc(fm.latest_fast_observed_at?shadowWhen(fm.latest_fast_observed_at):'—')+'</b></span><span>Wiek źródła <b>'+esc(sourceAge)+'</b></span></div>'+
     '<div class="fse-tf-ribbon">'+ribbon+'</div></section>';
 }
 async function fse(){
   const root=document.querySelector('#central-fse-lab');
   if(!root)return;
   try{
-    const [r,hse,v2]=await Promise.all([
+    const [r,hse,v2,fast]=await Promise.all([
       get('/data/investments/fse_public.json'),
       get('/data/investments/hypothesis_shadow_engine_v2_public.json').catch(()=>({})),
-      get('/data/investments/fse_v2_public.json').catch(()=>({}))
+      get('/data/investments/fse_v2_public.json').catch(()=>({})),
+      get('/data/investments/fse_intraday_public.json').catch(()=>({}))
     ]);
     const instruments=Array.isArray(r.instruments)?r.instruments:[];
-    const v2Instruments=Array.isArray(v2.instruments)?v2.instruments:[];
+    const fastRows=Array.isArray(fast.instruments)?fast.instruments:[];
+    const fastBy=new Map(fastRows.map(x=>[String(x.instrument||''),x]));
+    const fastRunAt=Date.parse(String(fast.generated_at||''));
+    const fastRunAge=Number.isFinite(fastRunAt)?Math.max(0,(Date.now()-fastRunAt)/60000):Infinity;
+    const fastFresh=fastRunAge<=Number(fast.stale_after_minutes||12);
+    const v2Instruments=(Array.isArray(v2.instruments)?v2.instruments:[]).map(x=>{
+      const fx=fastBy.get(String(x.instrument||'')),sourceAt=Date.parse(String(fx?.latest_fast_observed_at||''));
+      const sourceAge=Number.isFinite(sourceAt)?Math.max(0,(Date.now()-sourceAt)/60000):Infinity;
+      if(!fx)return {...x,_fast_meta:{available:false,fresh:false}};
+      return {
+        ...x,
+        phase_map:fx.phase_map||x.phase_map,
+        cross_scale_alignment:fx.cross_scale_alignment||x.cross_scale_alignment,
+        _fast_meta:{
+          available:true,
+          fresh:fastFresh,
+          generated_at:fast.generated_at,
+          latest_fast_observed_at:fx.latest_fast_observed_at,
+          source_age_minutes:sourceAge,
+          cadence_minutes:fast.cadence_minutes||5
+        }
+      };
+    });
     const measurements=Array.isArray(r.hse_measurements)?r.hse_measurements:[];
     const phaseMeasurements=Array.isArray(v2.hse_measurements)?v2.hse_measurements:[];
     const allMeasurements=[...measurements,...phaseMeasurements];
@@ -253,4 +281,8 @@ async function shadows(){
     root.innerHTML='<div class="central-error">Shadow Engines Observatory jest chwilowo niedostępny.</div>';
   }
 }
-function start(){strategy();brace();fse();shadows();registry()}document.readyState==='loading'?document.addEventListener('DOMContentLoaded',start,{once:true}):start();})();
+function start(){
+  strategy();brace();fse();shadows();registry();
+  window.setInterval(()=>{if(document.querySelector('#tab-fse.active'))fse()},60000);
+}
+document.readyState==='loading'?document.addEventListener('DOMContentLoaded',start,{once:true}):start();})();
