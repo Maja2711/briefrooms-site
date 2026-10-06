@@ -101,7 +101,12 @@ function fseRegime(value){
 }
 function fseTrackLabel(m){
   const kind=String(m?.details?.kind||'');
-  if(kind==='risk_calibration')return 'Structural Riskasync function fse(){
+  if(kind==='risk_calibration')return 'Structural Risk';
+  if(kind==='phase_memory')return 'Phase Fractal Memory';
+  if(kind==='p_calibration_regime_phase')return 'P Calibration Challenger';
+  return 'Fractal Memory';
+}
+async function fse(){
   const root=document.querySelector('#central-fse-lab');
   if(!root)return;
   try{
