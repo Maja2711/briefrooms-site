@@ -1,9 +1,9 @@
 {
   "instrument": "EUR/USD",
-  "timestamp": "2026-10-06T16:44:48Z",
+  "timestamp": "2026-10-06T18:31:50Z",
   "direction": "FLAT",
-  "score": 54.87,
-  "confidence": 0.3394,
+  "score": 50.0,
+  "confidence": 0.0,
   "entry": null,
   "stop": null,
   "target": null,
@@ -35,7 +35,7 @@
         "NATIVE_DAILY_EURUSD_FINAL_DECISION"
       ],
       "consumer_contract": "epistemic-consumer-interface-v1",
-      "consumer_available": true,
+      "consumer_available": false,
       "raw_market_direction_before_belief": false,
       "final_decision_after_belief": true,
       "missing_data_is_neutral_vote": false
@@ -46,63 +46,42 @@
       "decision_source": "NATIVE_BELIEF_FIRST",
       "epistemic_source": "BELIEF_CORE_CF07",
       "direction": "FLAT",
-      "score": 54.87,
-      "confidence": 0.3394,
+      "score": 50.0,
+      "confidence": 0.0,
       "thresholds": {
         "long": 60.0,
         "short": 40.0
       },
-      "coverage_weight": 0.75,
+      "coverage_weight": 0.0,
       "minimum_coverage_weight": 0.45,
       "required_anchor_belief": "eurusd.trend.bullish",
-      "used_beliefs": [
+      "used_beliefs": [],
+      "unavailable_beliefs": [
         {
           "belief_id": "eurusd.trend.bullish",
-          "probability": 0.581315,
-          "confidence": 0.430435,
-          "directional_support": 0.16263,
-          "effective_support": 0.070002,
-          "weight": 0.45,
-          "observed_at": "2026-10-06T09:49:52.968081Z",
-          "age_hours": 6.9153
+          "reason": "missing_belief"
         },
         {
           "belief_id": "eurusd.usd_environment.supportive",
-          "probability": 0.61351,
-          "confidence": 0.459052,
-          "directional_support": 0.22702,
-          "effective_support": 0.104214,
-          "weight": 0.3,
-          "observed_at": "2026-10-05T18:42:03.755012Z",
-          "age_hours": 22.0456
+          "reason": "missing_belief"
         },
         {
           "belief_id": "eurusd.us_rates_pressure.supportive",
-          "probability": 0.663601,
-          "confidence": 0.505867,
-          "directional_support": 0.327202,
-          "effective_support": 0.165521,
-          "weight": 0.15,
-          "observed_at": "2026-10-05T19:00:05.940096Z",
-          "age_hours": 21.745
-        }
-      ],
-      "unavailable_beliefs": [
+          "reason": "missing_belief"
+        },
         {
           "belief_id": "eurusd.macro_surprise.supportive",
-          "reason": "stale_or_future_evidence",
-          "age_hours": 1200.0,
-          "max_age_hours": 12.0
+          "reason": "missing_belief"
         },
         {
           "belief_id": "eurusd.policy_differential.supportive",
-          "reason": "stale_or_future_evidence",
-          "age_hours": 1800.0,
-          "max_age_hours": 18.0
+          "reason": "missing_belief"
         }
       ],
       "reasons": [
-        "belief_score_neutral"
+        "belief_state_unavailable",
+        "required_eurusd_trend_belief_unavailable",
+        "insufficient_belief_coverage"
       ],
       "routing": [
         "RAW_SOURCES",
@@ -114,39 +93,26 @@
       ],
       "legacy_raw_score_direction_authority": false,
       "shadow_engine_direction_authority": false,
-      "epistemic_aggregate_authoritative": true,
+      "epistemic_aggregate_authoritative": false,
       "epistemic_consumer": {
         "contract": "epistemic-consumer-interface-v1",
-        "source_contract": "belief-epistemic-state-v1",
         "consumer": "DAILY_EURUSD",
-        "available": true,
-        "reason": "authoritative_daily_eurusd_epistemic_projection",
-        "source_created_at": "2026-10-06T16:02:33.109849Z",
-        "age_hours": 0.704136,
-        "source_sha256": "d18e150b5292684b24bf8d8974dfa4f1dde4ea97b9e9943af14332b31badce90",
-        "aggregate_authoritative": true,
-        "consumer_may_override_probability": false,
-        "belief_core_writeback_enabled": false,
-        "state_count": 5,
-        "aggregate_probability": 0.548663,
-        "aggregate_confidence": 0.339409,
-        "coverage_weight": 0.75,
-        "qualified_state_count": 3,
-        "qualified_belief_ids": [
-          "eurusd.trend.bullish",
-          "eurusd.usd_environment.supportive",
-          "eurusd.us_rates_pressure.supportive"
-        ]
+        "available": false,
+        "reason": "insufficient_fresh_eurusd_epistemic_coverage",
+        "source_created_at": "2026-10-06T18:31:33.645575Z",
+        "age_hours": 0.004543
       }
     },
     "candidate": {
       "source": "NATIVE",
       "direction": "FLAT",
-      "score": 54.87,
-      "confidence": 0.3394,
+      "score": 50.0,
+      "confidence": 0.0,
       "accepted": false,
       "gate_reasons": [
-        "belief_score_neutral"
+        "belief_state_unavailable",
+        "required_eurusd_trend_belief_unavailable",
+        "insufficient_belief_coverage"
       ]
     },
     "direction_authority": {
@@ -257,28 +223,28 @@
     "belief_macro": {
       "enabled": true,
       "available": true,
-      "score": 0.9733,
+      "score": 0.9331,
       "direction": "long",
       "beliefs": [
         {
           "belief_id": "eurusd.trend.bullish",
-          "probability": 0.581315,
-          "confidence": 0.430435,
-          "age_hours": 7.633,
-          "updated_at": "2026-10-06T09:06:48Z"
+          "probability": 0.577276,
+          "confidence": 0.458647,
+          "age_hours": 2.501,
+          "updated_at": "2026-10-06T16:01:47Z"
         },
         {
           "belief_id": "eurusd.usd_environment.supportive",
-          "probability": 0.61351,
-          "confidence": 0.459052,
-          "age_hours": 0.885,
+          "probability": 0.606563,
+          "confidence": 0.453411,
+          "age_hours": 2.669,
           "updated_at": "2026-10-06T15:51:42Z"
         },
         {
           "belief_id": "eurusd.us_rates_pressure.supportive",
-          "probability": 0.663601,
-          "confidence": 0.505867,
-          "age_hours": 1.639,
+          "probability": 0.65395,
+          "confidence": 0.499967,
+          "age_hours": 3.423,
           "updated_at": "2026-10-06T15:06:28Z"
         }
       ],
