@@ -1,0 +1,75 @@
+name: WES Live Execution
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/wes-live-execution.yml"
+      - "scripts/investments_weekly_v5.py"
+      - "scripts/update_weekly_live_prices_fast.py"
+      - "scripts/audit_intraday_risk_exits.py"
+      - "scripts/execution_price_engine.py"
+      - "scripts/no_retroactive_execution.py"
+      - "scripts/verify_no_retroactive_execution.py"
+  schedule:
+    - cron: "*/5 * * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wes-live-execution
+  cancel-in-progress: false
+
+jobs:
+  execute:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Start immutable execution clock
+        run: |
+          echo "NO_RETROACTIVE_EXECUTION=1" >> "$GITHUB_ENV"
+          echo "NO_RETROACTIVE_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+      - name: Refresh canonical WES live price
+        run: python scripts/update_weekly_live_prices_fast.py
+      - name: Execute pending WES ENTRY
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/investments_weekly_v5.py scripts/execution_price_engine.py scripts/no_retroactive_execution.py
+          python scripts/investments_weekly_v5.py --mode ensure-exposure
+      - name: Execute WES SL TP
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/audit_intraday_risk_exits.py
+          python scripts/audit_intraday_risk_exits.py --persist-report on_close
+      - name: Persist execution state
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/investments/live_prices.json data/investments/weekly data/investments/intraday_risk_audit.json
+          if git diff --cached --quiet; then
+            echo "No WES execution state changes"
+            exit 0
+          fi
+          python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
+          git commit -m "Execute WES live ENTRY SL TP"
+          for attempt in 1 2 3 4 5; do
+            if git pull --rebase origin main && git push origin HEAD:main; then
+              exit 0
+            fi
+            git rebase --abort || true
+            sleep $((attempt * 2))
+          done
+          exit 1
