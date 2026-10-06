@@ -214,6 +214,12 @@ require(daily_cycle_watchdog, "DEFAULT_MAX_AGE_MINUTES = 15", "Daily EURUSD 15-m
 require(daily_cycle_watchdog, "EXPECTED_ENGINE_VERSION = \"eurusd-daily-spot-v1.9.0\"", "Daily EURUSD watchdog engine-version contract")
 require(daily_cycle_watchdog_workflow, "scripts/daily_eurusd_cycle_watchdog.py", "Daily EURUSD cycle watchdog")
 require(daily_cycle_watchdog_workflow, "actions/workflows/daily-eurusd-monitor.yml/dispatches", "Daily EURUSD automatic recovery dispatch")
+require(daily_cycle_watchdog_workflow, "belief-core-shadow-live.yml", "Daily EURUSD upstream Belief recovery dispatch")
+require(investment_quotes_workflow, "belief-core-shadow-live.yml/dispatches", "Quotes-to-Belief explicit dispatch")
+require(belief_live_workflow, "belief-epistemic-state.yml/dispatches", "Belief-live-to-Epistemic explicit dispatch")
+require(belief_events_workflow, "belief-epistemic-state.yml/dispatches", "Belief-macro-to-Epistemic explicit dispatch")
+require(epistemic_projection_workflow, 'BELIEF_INPUT_MAX_AGE_MINUTES: "45"', "Epistemic recovery fresh Belief input ceiling")
+require(epistemic_projection_workflow, "daily-eurusd-monitor.yml/dispatches", "Epistemic-to-Daily explicit dispatch")
 weekly_live_prices_workflow = read(".github/workflows/weekly-live-prices.yml")
 stock_v2_workflow = read(".github/workflows/stock-trading-v2-production.yml")
 stock_portfolio_workflow = read(".github/workflows/stock-trading-portfolio.yml")
@@ -221,7 +227,10 @@ event_intelligence_workflow = read(".github/workflows/investment-event-intellige
 push_sync_script = read("scripts/sync_trading_push_commit.sh")
 daily_fast_lifecycle = read("scripts/daily_eurusd_fast_lifecycle.py")
 trading_push_worker = read("workers/trading-push/src/index.js")
+investment_quotes_workflow = read(".github/workflows/investment-room-quotes.yml")
 belief_live_workflow = read(".github/workflows/belief-core-shadow-live.yml")
+belief_events_workflow = read(".github/workflows/belief-core-events-live.yml")
+epistemic_projection_workflow = read(".github/workflows/belief-epistemic-state.yml")
 epistemic_consumer = read("scripts/epistemic_consumer_interface.py")
 for token in (
     "Daily EUR/USD v1.9 — Belief-first final decision",
