@@ -29,6 +29,7 @@ from zoneinfo import ZoneInfo
 ROOT = Path(__file__).resolve().parents[1]
 WEEKLY_DIR = ROOT / "data" / "investments" / "weekly"
 AUDIT_PATH = ROOT / "data" / "investments" / "intraday_risk_audit.json"
+LIVE_PRICES_PATH = ROOT / "data" / "investments" / "live_prices.json"
 WARSAW = ZoneInfo("Europe/Warsaw")
 UTC = timezone.utc
 BAR = timedelta(minutes=5)
@@ -310,6 +311,29 @@ def apply_exit(
     set_result(item, level)
 
 
+def canonical_live_risk_hit(
+    instrument_id: str,
+    side: str,
+    sl: float,
+    tp: float,
+    after: datetime,
+    checked_at: datetime,
+) -> Optional[tuple[str, float, datetime, str, str]]:
+    """Primary SL/TP trigger from the exact public WES 'Cena teraz' snapshot."""
+    live = read_json(LIVE_PRICES_PATH)
+    rec = (live.get("prices") or {}).get(instrument_id) if isinstance(live.get("prices"), dict) else None
+    if not isinstance(rec, dict):
+        return None
+    price = sf(rec.get("price"))
+    stamp = parse_dt(rec.get("current_price_updated_at") or rec.get("timestamp"))
+    if price is None or price <= 0 or stamp is None or stamp <= after:
+        return None
+    if stamp > checked_at + timedelta(seconds=30) or checked_at - stamp > timedelta(minutes=6):
+        return None
+    source = str(rec.get("source") or "WES canonical live price") + ":canonical_live_risk"
+    return ticker_hit(PricePoint(ts=stamp, price=price, source=source), side, sl, tp, after)
+
+
 def _btc_evidence(
     start: datetime,
     end: datetime,
@@ -409,7 +433,10 @@ def audit(
             report["kept"].append({"instrument_id": iid, "reason": "risk_plan_not_yet_active"})
             continue
 
-        if iid == "btcusd":
+        hit = canonical_live_risk_hit(iid, side, sl, tp, active_after, checked_at)
+        if hit is not None:
+            errors, authority = [], "canonical_wes_live_price_primary"
+        elif iid == "btcusd":
             hit, errors, authority = _btc_evidence(active_after, checked_at, side, sl, tp)
         else:
             symbol = str(item.get("symbol") or "")
