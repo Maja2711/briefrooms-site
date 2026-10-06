@@ -7,6 +7,8 @@ on:
     branches: [main]
     paths:
       - "scripts/update_weekly_live_prices_fast.py"
+      - "scripts/fse_intraday_fast.py"
+      - "tests/test_fse_intraday_fast.py"
       - "scripts/audit_intraday_risk_exits.py"
       - "scripts/sync_trading_push_commit.sh"
       - "scripts/no_retroactive_execution.py"
@@ -70,6 +72,29 @@ jobs:
           }, ensure_ascii=False))
           PY
 
+      - name: Refresh FSE intraday fast projection
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/fse_intraday_fast.py
+          python -m unittest tests.test_fse_intraday_fast -v
+          python scripts/fse_intraday_fast.py --root . --public data/investments/fse_intraday_public.json
+          python - <<'PY'
+          import json
+          from datetime import datetime, timezone
+          from pathlib import Path
+          p=json.loads(Path("data/investments/fse_intraday_public.json").read_text())
+          assert p["mode"]=="SHADOW_ONLY"
+          assert p["production_impact"] is False
+          assert p["cadence_minutes"]==5
+          assert all(v is False for v in p["authority"].values())
+          age=(datetime.now(timezone.utc)-datetime.fromisoformat(p["generated_at"].replace("Z","+00:00"))).total_seconds()
+          if age < -60 or age > 8*60:
+              raise SystemExit(f"FSE fast projection stale at publication: age={age:.0f}s")
+          print("FSE_INTRADAY_FAST_PASS")
+          PY
+
       - name: Monitor frozen Weekly SL/TP from 5-minute OHLC
         run: |
           set -euo pipefail
@@ -129,14 +154,14 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/live_prices.json data/investments/weekly data/investments/intraday_risk_audit.json
+          git add data/investments/live_prices.json data/investments/weekly data/investments/intraday_risk_audit.json data/investments/fse_intraday_public.json
           if git diff --cached --quiet; then
-            echo "No Weekly live-price or SL/TP state changes"
+            echo "No Weekly live-price, FSE fast, or SL/TP state changes"
             echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
-          git commit -m "Update Weekly prices and 5m risk exits"
+          git commit -m "Update Weekly prices, FSE fast view and 5m risk exits"
 
           for attempt in 1 2 3 4 5; do
             if git pull --rebase origin main; then

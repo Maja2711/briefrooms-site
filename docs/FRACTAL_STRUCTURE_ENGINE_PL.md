@@ -298,3 +298,20 @@ Publiczny promotion_gate może osiągnąć tylko:
 automatic_promotion=false.
 
 Nawet po pozytywnym HSE2 potrzebny jest jawny, per-engine bridge i promotion gate właściciela danego silnika. FSE nie może utworzyć globalnego risk/probability actuatora.
+
+## 10. FSE Intraday Fast Projection
+
+Krótki horyzont FSE ma osobną, lekką ścieżkę prezentacyjną uruchamianą na wspólnym 5-minutowym zegarze rynku.
+
+Pipeline:
+
+Yahoo 1m / 7d -> 1m -> resample 5m / 15m / 1h -> Phase descriptor -> merge z ostatnim pełnym kontekstem 4h/1d/1w -> Cross-Scale Alignment -> `data/investments/fse_intraday_public.json`.
+
+Zasady:
+- cadence: 5 minut, przez istniejący workflow `weekly-live-prices.yml`;
+- 1m/5m/15m/1h są odświeżane z jednego wspólnego 1-minutowego feedu;
+- 4h/1d/1w pozostają z pełnego godzinowego FSE-PHASE;
+- ścieżka nie tworzy snapshotów/resolution i nie zasila HSE2;
+- zero production authority;
+- frontend odświeża aktywną zakładkę FSE co 60 s;
+- snapshot jest oznaczany STALE po 12 minutach lub gdy ostatnia świeca źródłowa ma >12 minut.
