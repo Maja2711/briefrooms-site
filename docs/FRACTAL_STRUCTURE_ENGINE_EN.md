@@ -298,3 +298,20 @@ The public promotion_gate may only reach:
 automatic_promotion=false.
 
 Even after a positive HSE2 verdict, an explicit per-engine bridge and the owning engine's promotion gate are required. FSE cannot create a global risk or probability actuator.
+
+## 10. FSE Intraday Fast Projection
+
+Short-horizon FSE has a separate lightweight presentation path driven by the shared 5-minute market clock.
+
+Pipeline:
+
+Yahoo 1m / 7d -> 1m -> resample 5m / 15m / 1h -> Phase descriptor -> merge with latest full 4h/1d/1w context -> Cross-Scale Alignment -> `data/investments/fse_intraday_public.json`.
+
+Rules:
+- cadence: 5 minutes, through the existing `weekly-live-prices.yml` workflow;
+- 1m/5m/15m/1h are refreshed from one common 1-minute feed;
+- 4h/1d/1w remain sourced from the full hourly FSE-PHASE;
+- the fast path creates no durable snapshots/resolutions and does not feed HSE2;
+- zero production authority;
+- the frontend refreshes the active FSE tab every 60 s;
+- the snapshot is marked STALE after 12 minutes or when the latest source bar is older than 12 minutes.
