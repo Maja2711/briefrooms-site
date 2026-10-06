@@ -107,7 +107,7 @@ function fseTrackLabel(m){
   return 'Fractal Memory';
 }
 
-const FSE_TREND_TFS=['1m','5m','15m','1h','4h','1d','1w'];
+const FSE_TREND_TFS=['5m','15m','1h','4h','1d','1w'];
 const FSE_TREND_WEIGHTS={ '1m':1,'5m':1.25,'15m':1.5,'1h':2,'4h':2.5,'1d':3,'1w':3.5 };
 function fseDirectionValue(value){
   const key=String(value||'').toUpperCase();
@@ -148,7 +148,7 @@ function fseFractalTrendCard(x){
   const map=x.phase_map||{},a=x.cross_scale_alignment||{},fm=x._fast_meta||{};
   const score=fseTrendScore(map);
   const trend=fseTrendLabel(score);
-  const lower=fseBiasLabel(fseTrendScore(map,['1m','5m','15m']));
+  const lower=fseBiasLabel(fseTrendScore(map,['5m','15m']));
   const higher=fseBiasLabel(fseTrendScore(map,['1h','4h','1d','1w']));
   const ribbon=FSE_TREND_TFS.map(tf=>fseDirectionChip(tf,map[tf],a.dominant_scale)).join('');
   const freshness=fm.available
