@@ -321,12 +321,20 @@ def metadata(engine_id: str, data: Mapping[str, Any]) -> dict[str, Any]:
         }
     if engine_id == "deepbook":
         snapshots = data.get("snapshots") if isinstance(data.get("snapshots"), list) else []
+        validation = data.get("validation") if isinstance(data.get("validation"), Mapping) else {}
+        n = int(validation.get("n") or 0)
+        acc = validation.get("accuracy")
+        br = validation.get("brier")
+        label = "DeepBook Predict"
+        if n:
+            label += f" · n={n} · acc={float(acc):.1%} · Brier={float(br):.3f}"
         return {
-            "observations": len(snapshots),
-            "observation_label": "snapshots",
-            "champion": "—",
-            "challenger": "DeepBook Predict",
-            "data_at": data.get("updated_at") or data.get("generated_at"),
+            "observations": n if n else len(snapshots),
+            "observation_label": "resolved predictions" if n else "snapshots",
+            "champion": "50/50 benchmark",
+            "challenger": label,
+            "data_at": data.get("validation_updated_at") or data.get("updated_at") or data.get("generated_at"),
+            "quality": validation,
         }
     return {"observations": None, "observation_label": "obserwacje", "champion": None, "challenger": None, "data_at": None}
 
