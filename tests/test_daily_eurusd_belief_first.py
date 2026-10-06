@@ -18,6 +18,7 @@ from belief_news_event_adapter import parse_rss
 import daily_eurusd_belief_decision as decision
 import daily_eurusd_spot as base
 import daily_eurusd_spot_v19 as v19
+import daily_eurusd_spot_v18 as v18
 
 UTC = timezone.utc
 
@@ -220,6 +221,29 @@ class BeliefDecisionTest(unittest.TestCase):
         self.assertEqual(output.decision_mode, "WITH")
         self.assertEqual(output.metadata["direction_authority"]["owner"], "NATIVE_DAILY_EURUSD_BELIEF_FIRST_DECISION_ENGINE")
         self.assertEqual(output.metadata["final_decision"]["decision_source"], "NATIVE_BELIEF_FIRST")
+
+    def test_flat_runtime_clone_used_by_v18_cycle_stays_v19(self):
+        now = datetime(2026, 10, 6, 7, 0, tzinfo=UTC)
+        candidate = v19.DailyEngineOutput(
+            instrument="EUR/USD",
+            timestamp=now.isoformat().replace("+00:00", "Z"),
+            direction="FLAT",
+            score=50.0,
+            confidence=0.0,
+            entry=None,
+            stop=None,
+            target=None,
+            horizon="intraday_to_27h",
+            engine_version=v19.ENGINE_VERSION,
+            status="NO_TRADE",
+            decision_mode="WITH",
+            metadata={"candidate": {"direction": "FLAT", "accepted": False}},
+        ).validate()
+        projected = v18._clone(candidate)
+        self.assertEqual(projected.engine_version, v19.ENGINE_VERSION)
+        self.assertEqual(projected.decision_mode, "WITH")
+        self.assertEqual(projected.direction, "FLAT")
+        self.assertEqual(projected.status, "NO_TRADE")
 
     def test_open_and_closed_runtime_projection_stays_v19_with_mode(self):
         now = datetime(2026, 10, 2, 18, 0, tzinfo=UTC)
