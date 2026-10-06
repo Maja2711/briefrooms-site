@@ -20,7 +20,7 @@ on:
       - "tests/test_stock_trading_portfolio.py"
       - "tests/test_stock_trading_v2_production_bridge.py"
   schedule:
-    - cron: "*/10 7-21 * * 1-5"
+    - cron: "*/5 7-21 * * 1-5"
 
 permissions:
   contents: write
@@ -51,6 +51,24 @@ jobs:
         run: |
           echo "NO_RETROACTIVE_EXECUTION=1" >> "$GITHUB_ENV"
           echo "NO_RETROACTIVE_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+
+      - name: WES live execution hook
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          python scripts/update_weekly_live_prices_fast.py
+          python scripts/investments_weekly_v5.py --mode ensure-exposure
+          python scripts/audit_intraday_risk_exits.py --persist-report on_close
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/investments/live_prices.json data/investments/weekly data/investments/intraday_risk_audit.json
+          if ! git diff --cached --quiet; then
+            python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
+            git commit -m "Execute WES live ENTRY SL TP"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
 
       - name: Fetch latest v2 opportunity frontier
         run: |
