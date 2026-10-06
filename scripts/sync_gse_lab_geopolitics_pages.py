@@ -12,7 +12,7 @@ PAGES = {
 BLOCK = re.compile(r"\s*<!-- BR_GSE_LAB_ENTRY_START -->[\s\S]*?<!-- BR_GSE_LAB_ENTRY_END -->\s*", re.I)
 STYLE = '<link rel="stylesheet" href="/assets/gse-lab-entry.css?v=1" />'
 SCRIPT = '<script src="/scripts/gse-lab-entry.js?v=5" defer></script>'
-SCRIPT_RE = re.compile(r'<script src="/scripts/gse-lab-entry\\.js\\?v=\\d+" defer></script>\\s*', re.I)
+SCRIPT_RE = re.compile(r'<script src="/scripts/gse-lab-entry\.js\?v=\d+" defer></script>\s*', re.I)
 
 
 def block(lang: str) -> str:
