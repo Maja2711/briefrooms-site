@@ -1,3 +1,4 @@
+# Fast WES execution trigger: live price refresh and ENTRY/SL/TP share the same scheduled cycle.
 #!/usr/bin/env python3
 from __future__ import annotations
 
