@@ -12,6 +12,7 @@ BTC_SYMBOL = "BTC-USD"
 USD_INTRADAY_SYMBOL = "DX-Y.NYB"
 US2Y_FUTURES_SYMBOL = "ZT=F"
 US10Y_FUTURES_SYMBOL = "ZN=F"
+FED_FUNDS_FUTURES_SYMBOL = "ZQ=F"
 INTRADAY_MAX_LAG_SECONDS = 90 * 60
 
 WES_ASSET_BELIEFS: Tuple[BeliefDefinition, ...] = (
@@ -123,6 +124,7 @@ def coverage_report() -> Dict[str, Any]:
                 "us_rates_pressure_proxy",
                 "intraday_usd_index_24x5",
                 "intraday_us_treasury_futures_24x5",
+                "intraday_fed_funds_futures_24x5",
             ],
             "not_covered": ["ecb_policy_state", "eur_us_rate_differential", "euro_area_macro_surprise"],
             "rate_differential_claimed": False,
@@ -360,6 +362,43 @@ class WESAssetEvidenceAdapter:
                         rates_24x5,
                         "rates_proxy_intraday",
                         f"2Y/10Y Treasury-futures US rates support proxy={rates_24x5:.3f}; not an EUR/USD rate differential",
+                    ))
+
+            if _fresh_relative(snapshot, FED_FUNDS_FUTURES_SYMBOL):
+                zq1 = _safe_return(snapshot, FED_FUNDS_FUTURES_SYMBOL, 13)
+                zq5 = _safe_return(snapshot, FED_FUNDS_FUTURES_SYMBOL, 65)
+                if zq1 is not None and zq5 is not None:
+                    fed_funds = clamp(
+                        .45 * clamp(zq1 / .0005, -1, 1)
+                        + .55 * clamp(zq5 / .0015, -1, 1),
+                        -1,
+                        1,
+                    )
+                    zq_observed_at = iso_z(snapshot.observed_at(FED_FUNDS_FUTURES_SYMBOL))
+                    obs = self._observation(
+                        metric="fed_funds_intraday_support_for_eurusd",
+                        entity="EURUSD",
+                        observed_at=zq_observed_at,
+                        value=fed_funds,
+                        cluster="derived:US_RATES:intraday_fed_funds_futures",
+                        metadata={
+                            "proxy": FED_FUNDS_FUTURES_SYMBOL,
+                            "venue": "CBOT",
+                            "policy_rate_expectations": True,
+                            "price_direction": "higher_futures_price_means_lower_implied_fed_funds_rate",
+                            "rate_differential": False,
+                            "ecb_coverage": False,
+                            "timestamp_source": FED_FUNDS_FUTURES_SYMBOL,
+                            "intraday_freshness_max_lag_seconds": INTRADAY_MAX_LAG_SECONDS,
+                        },
+                    )
+                    observations.append(obs)
+                    evidence.append(self._evidence(
+                        obs,
+                        "eurusd.us_rates_pressure.supportive",
+                        fed_funds,
+                        "fed_funds_policy_expectations_intraday",
+                        f"Fed Funds futures policy-rate support proxy={fed_funds:.3f}; not an EUR/USD rate differential",
                     ))
 
         if BTC_SYMBOL in snapshot.bars:
