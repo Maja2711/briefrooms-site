@@ -728,9 +728,9 @@ def run_cycle(state_dir: Path, now: datetime, client: YahooChartClient) -> Dict[
     }
 
     # Daily EUR/USD is a 24x5 consumer. Outside the US cash-session collection
-    # window, refresh only its dedicated market/cross-asset adapter. UUP/TLT
-    # retain their own source timestamps, so closed US markets decay naturally
-    # instead of being falsely refreshed by a new EUR/USD timestamp.
+    # window, refresh its dedicated market/cross-asset adapter with EUR/USD plus
+    # ICE USDX and CBOT Treasury futures. UUP/TLT remain cash-market references
+    # and retain their own timestamps; they are never falsely refreshed.
     if in_fx_window(local) and not in_market_window(local):
         eurusd_liveness["attempted"] = True
 
@@ -752,7 +752,7 @@ def run_cycle(state_dir: Path, now: datetime, client: YahooChartClient) -> Dict[
             }
 
         asset_bars: Dict[str, List[Bar]] = {}
-        for symbol in ("EURUSD=X", "UUP", "TLT"):
+        for symbol in ("EURUSD=X", "DX-Y.NYB", "ZT=F", "ZN=F", "UUP", "TLT"):
             try:
                 rows = list(client.bars(symbol, "10d", "30m"))
             except Exception:
