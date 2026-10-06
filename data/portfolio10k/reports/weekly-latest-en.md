@@ -7,6 +7,6 @@
 - **Remaining promotion gates:** daily rotation limit, weekly change limit, weekly turnover limit, new position limit, minimum confidence, transaction cost buffer applied, cooldown applied, material advantage required
 - **Risk state:** WITHIN_LIMITS / safe mode: False
 - **10% annual target:** TARGET_NOT_CURRENTLY_JUSTIFIED
-- **Pending decisions:** 0
+- **Pending decisions:** 1
 
 **Note:** BRACE operates only on a model portfolio and does not connect to a broker.
