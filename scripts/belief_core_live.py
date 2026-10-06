@@ -752,7 +752,7 @@ def run_cycle(state_dir: Path, now: datetime, client: YahooChartClient) -> Dict[
             }
 
         asset_bars: Dict[str, List[Bar]] = {}
-        for symbol in ("EURUSD=X", "DX-Y.NYB", "ZT=F", "ZN=F", "UUP", "TLT"):
+        for symbol in ("EURUSD=X", "DX-Y.NYB", "ZT=F", "ZN=F", "ZQ=F", "UUP", "TLT"):
             try:
                 rows = list(client.bars(symbol, "10d", "30m"))
             except Exception:
