@@ -100,9 +100,8 @@ function fseRegime(value){
   return '<span class="fse-regime '+key.toLowerCase().replaceAll('_','-')+'">'+esc(key)+'</span>';
 }
 function fseTrackLabel(m){
-  return String(m?.details?.kind||'')==='risk_calibration'?'Structural Risk':'Fractal Memory';
-}
-async function fse(){
+  const kind=String(m?.details?.kind||'');
+  if(kind==='risk_calibration')return 'Structural Riskasync function fse(){
   const root=document.querySelector('#central-fse-lab');
   if(!root)return;
   try{
@@ -112,71 +111,58 @@ async function fse(){
       get('/data/investments/fse_v2_public.json').catch(()=>({}))
     ]);
     const instruments=Array.isArray(r.instruments)?r.instruments:[];
+    const v2Instruments=Array.isArray(v2.instruments)?v2.instruments:[];
     const measurements=Array.isArray(r.hse_measurements)?r.hse_measurements:[];
+    const phaseMeasurements=Array.isArray(v2.hse_measurements)?v2.hse_measurements:[];
+    const allMeasurements=[...measurements,...phaseMeasurements];
     const experiments=Array.isArray(hse.experiments)?hse.experiments.filter(x=>x.source_engine==='FSE'):[];
     const available=Number(r?.source_status?.available||instruments.length);
     const configured=Number(r?.source_status?.configured||instruments.length);
     const overviewRows=instruments.map(x=>{
       const m=x.fractal_memory||{};
-      return '<tr>'+
-        '<td><strong>'+esc(fseInstrumentLabel(x.instrument))+'</strong><small>'+shadowWhen(x.observed_at)+'</small></td>'+
-        '<td>'+fseRegime(x.regime)+'</td>'+
-        '<td><b>'+pct(x.risk_score,1)+'</b></td>'+
-        '<td><b>'+pct(m.p_up_4h,1)+'</b></td>'+
-        '<td>'+num(m.analogues_n)+'</td>'+
-        '<td>'+pct(m.top_similarity,1)+'</td>'+
-        '<td>'+fseSignedPct(m.median_forward_return,2)+'</td>'+
-        '<td>'+fseMae(m.median_adverse_excursion,2)+'</td>'+
-      '</tr>';
+      return '<tr><td><strong>'+esc(fseInstrumentLabel(x.instrument))+'</strong><small>'+shadowWhen(x.observed_at)+'</small></td><td>'+fseRegime(x.regime)+'</td><td><b>'+pct(x.risk_score,1)+'</b></td><td><b>'+pct(m.p_up_4h,1)+'</b></td><td>'+num(m.analogues_n)+'</td><td>'+pct(m.top_similarity,1)+'</td><td>'+fseSignedPct(m.median_forward_return,2)+'</td><td>'+fseMae(m.median_adverse_excursion,2)+'</td></tr>';
     }).join('');
     const memoryCards=instruments.map(x=>{
       const m=x.fractal_memory||{},g=x.research_risk_geometry||{};
-      return '<div class="fse-memory-card">'+
-        '<div class="fse-card-head"><div><strong>'+esc(fseInstrumentLabel(x.instrument))+'</strong><small>'+esc(m.source||'—')+'</small></div>'+fseRegime(x.regime)+'</div>'+
-        '<div class="fse-card-prob"><span>P UP</span><b>'+pct(m.p_up_4h,1)+'</b><em>'+esc(m.forecast||'—')+'</em></div>'+
-        '<div class="fse-card-grid">'+
-          '<span><small>Top similarity</small><b>'+pct(m.top_similarity,1)+'</b></span>'+
-          '<span><small>Mean similarity</small><b>'+pct(m.mean_similarity,1)+'</b></span>'+
-          '<span><small>Analogi</small><b>'+num(m.analogues_n)+'</b></span>'+
-          '<span><small>Median +4h</small><b>'+fseSignedPct(m.median_forward_return,2)+'</b></span>'+
-          '<span><small>MAE</small><b>'+fseMae(m.median_adverse_excursion,2)+'</b></span>'+
-          '<span><small>Risk</small><b>'+pct(x.risk_score,1)+'</b></span>'+
-        '</div>'+
-        '<div class="fse-risk-geometry"><span>Research sizing ×'+num(g.position_size_multiplier,2)+'</span><span>SL distance ×'+num(g.stop_distance_multiplier,2)+'</span><b>PRODUCTION OFF</b></div>'+
-      '</div>';
+      return '<div class="fse-memory-card"><div class="fse-card-head"><div><strong>'+esc(fseInstrumentLabel(x.instrument))+'</strong><small>'+esc(m.source||'—')+'</small></div>'+fseRegime(x.regime)+'</div><div class="fse-card-prob"><span>P UP</span><b>'+pct(m.p_up_4h,1)+'</b><em>'+esc(m.forecast||'—')+'</em></div><div class="fse-card-grid"><span><small>Top similarity</small><b>'+pct(m.top_similarity,1)+'</b></span><span><small>Mean similarity</small><b>'+pct(m.mean_similarity,1)+'</b></span><span><small>Analogi</small><b>'+num(m.analogues_n)+'</b></span><span><small>Median +4h</small><b>'+fseSignedPct(m.median_forward_return,2)+'</b></span><span><small>MAE</small><b>'+fseMae(m.median_adverse_excursion,2)+'</b></span><span><small>Risk</small><b>'+pct(x.risk_score,1)+'</b></span></div><div class="fse-risk-geometry"><span>Research sizing ×'+num(g.position_size_multiplier,2)+'</span><span>SL distance ×'+num(g.stop_distance_multiplier,2)+'</span><b>PRODUCTION OFF</b></div></div>';
     }).join('');
-    const validationRows=measurements.map(m=>{
-      const instrument=String(m?.details?.instrument||'');
-      const counter=Number(m.counter||0),total=Number(m.total||0);
-      const edge=counter>0?total/counter:null;
-      const brier=edge==null?null:.25-edge;
+    const phaseSummary=v2Instruments.map(x=>{
+      const a=x.cross_scale_alignment||{},c=x.p_calibration_challenger||{},p1=x?.phase_map?.['1h']||{},pm=p1.phase_memory||{};
+      return '<tr><td><strong>'+esc(fseInstrumentLabel(x.instrument))+'</strong></td><td><b>'+esc(a.cascade_state||'—')+'</b></td><td>'+pct(a.alignment_score,1)+'</td><td>'+esc(a.dominant_scale||'—')+'</td><td>'+pct(c.p_base,1)+'</td><td>'+pct(pm.p_up_remaining,1)+'</td><td><b>'+pct(c.p_challenger,1)+'</b></td><td>'+(finite(c.shift_pp)?num(c.shift_pp,1)+' pp':'—')+'</td><td>'+esc(x.regime||'—')+'</td></tr>';
+    }).join('');
+    const phaseRows=v2Instruments.flatMap(x=>{
+      const formation=x.intrabar_formation||{};
+      return ['1m','5m','15m','1h','4h','1d','1w'].map(tf=>{
+        const p=x?.phase_map?.[tf]||{},pm=p.phase_memory||{},ib=formation[tf]||{};
+        return '<tr><td><strong>'+esc(fseInstrumentLabel(x.instrument))+'</strong></td><td><b>'+esc(tf)+'</b></td><td>'+esc(p.structure_id||'—')+'</td><td>'+esc(p.phase||'—')+'</td><td>'+pct(pm.phase_progress,1)+'</td><td>'+pct(pm.top_similarity,1)+'</td><td>'+pct(pm.p_up_remaining,1)+'</td><td>'+(ib.available?pct(ib.formation_progress,1):'—')+'</td><td>'+num(pm.analogues_n)+'</td></tr>';
+      });
+    }).join('');
+    const validationRows=allMeasurements.map(m=>{
+      const instrument=String(m?.details?.instrument||''),kind=String(m?.details?.kind||'');
+      const counter=Number(m.counter||0),total=Number(m.total||0),edge=counter>0?total/counter:null;
       const exp=experiments.find(x=>x.metric_name===m.metric_name&&String(x.claim||'').includes(instrument));
-      return '<tr>'+
-        '<td><strong>'+esc(fseInstrumentLabel(instrument))+'</strong></td>'+
-        '<td>'+esc(fseTrackLabel(m))+'</td>'+
-        '<td>'+num(counter)+' / '+num(m.target_n)+'</td>'+
-        '<td>'+(brier==null?'—':num(brier,4))+'</td>'+
-        '<td>'+(edge==null?'—':fseSignedPct(edge,2))+'</td>'+
-        '<td>'+shadowStatus(exp?.status||'RUNNING_SHADOW')+'</td>'+
-        '<td>'+shadowWhen(exp?.last_evidence_at||exp?.frozen_at)+'</td>'+
-      '</tr>';
+      const brierText=kind==='p_calibration_regime_phase'
+        ? (edge==null?'—':'Δ '+num(edge,4))
+        : (edge==null?'—':num(.25-edge,4));
+      return '<tr><td><strong>'+esc(fseInstrumentLabel(instrument))+'</strong></td><td>'+esc(fseTrackLabel(m))+'</td><td>'+num(counter)+' / '+num(m.target_n)+'</td><td>'+brierText+'</td><td>'+(edge==null?'—':fseSignedPct(edge,2))+'</td><td>'+shadowStatus(exp?.status||'RUNNING_SHADOW')+'</td><td>'+shadowWhen(exp?.last_evidence_at||exp?.frozen_at)+'</td></tr>';
     }).join('');
     const forwardN=experiments.reduce((sum,x)=>sum+Number(x.prospective_n||0),0);
     const targetN=experiments.reduce((sum,x)=>sum+Number(x.target_n||0),0);
     const terminal=experiments.filter(x=>['SUPPORTED','REJECTED','INCONCLUSIVE'].includes(String(x.status||'').toUpperCase())).length;
     root.innerHTML=
-      '<article class="panel central-head fse-panel"><header><div><h2>FSE — Fractal Structure Engine</h2><p>Wieloskalowa struktura rynku: regime detector, structural risk i Fractal Memory. Widok jest read-only; FSE nie zmienia pozycji, sizingu ani SL.</p></div>'+chip(r.mode||'SHADOW_ONLY')+'</header>'+
-      '<div class="central-stats fse-summary"><div><small>Źródła</small><strong>'+num(available)+' / '+num(configured)+'</strong></div><div><small>Instrumenty</small><strong>'+num(instruments.length)+'</strong></div><div><small>HSE2 forward N</small><strong>'+num(forwardN)+' / '+num(targetN)+'</strong></div><div><small>Formalne wyniki</small><strong>'+num(terminal)+'</strong></div></div>'+
-      '<h3 class="central-subtitle">Aktualna struktura rynku</h3>'+
-      '<div class="central-table-wrap"><table class="central-table fse-overview-table"><thead><tr><th>Instrument</th><th>Regime</th><th>Risk</th><th>P UP</th><th>Analogów</th><th>Similarity</th><th>Median +4h</th><th>MAE</th></tr></thead><tbody>'+overviewRows+'</tbody></table></div>'+
+      '<article class="panel central-head fse-panel"><header><div><h2>FSE — Fractal Structure Engine</h2><p>Wieloskalowa struktura rynku: regime, Fractal Memory oraz FSE-PHASE. Phase Engine śledzi etap formowania wzorca na różnych skalach, bez wpływu na produkcyjny trading.</p></div>'+chip(v2?.methodology_version||r.mode||'SHADOW_ONLY')+'</header>'+
+      '<div class="central-stats fse-summary"><div><small>Źródła</small><strong>'+num(available)+' / '+num(configured)+'</strong></div><div><small>Instrumenty</small><strong>'+num(instruments.length)+'</strong></div><div><small>HSE2 forward N</small><strong>'+num(forwardN)+' / '+num(targetN)+'</strong></div><div><small>Promotion gate</small><strong>'+esc(v2?.promotion_gate?.status||'NOT ELIGIBLE')+'</strong></div></div>'+
+      '<h3 class="central-subtitle">Aktualna struktura rynku</h3><div class="central-table-wrap"><table class="central-table fse-overview-table"><thead><tr><th>Instrument</th><th>Regime</th><th>Risk</th><th>P UP</th><th>Analogów</th><th>Similarity</th><th>Median +4h</th><th>MAE</th></tr></thead><tbody>'+overviewRows+'</tbody></table></div>'+
       '<h3 class="central-subtitle">Fractal Memory</h3><div class="fse-memory-grid">'+memoryCards+'</div>'+
-      '<h3 class="central-subtitle">FSE v1 vs FSE v2 · Deep Fractal Memory</h3>'+
-      (v2?.engine?'<div class="central-table-wrap"><table class="central-table"><thead><tr><th>Instrument</th><th>v1 P UP</th><th>v2 P UP</th><th>v2 analogi</th><th>Przeszukane struktury</th><th>Efektywne analogi</th><th>Historia 1h</th><th>Historia 1D</th><th>v2 Brier</th><th>v2 edge</th></tr></thead><tbody>'+
-      (v2.instruments||[]).map(x=>{const old=instruments.find(y=>y.instrument===x.instrument)||{},m=x.memory||{},vm=(v2.measurements||[]).find(y=>y.instrument===x.instrument)||{};return '<tr><td><strong>'+esc(fseInstrumentLabel(x.instrument))+'</strong></td><td>'+pct(old?.fractal_memory?.p_up_4h,1)+'</td><td><b>'+pct(m.p_up,1)+'</b></td><td>'+num(m.analogues_n)+'</td><td>'+num(m.history_candidates)+'</td><td>'+num(m.effective_analogues,1)+'</td><td>'+num(m.hourly_history_bars)+'</td><td>'+num(m.daily_history_bars)+'</td><td>'+num(vm.mean_brier,4)+'</td><td>'+(finite(vm.mean_edge)?fseSignedPct(vm.mean_edge,2):'—')+'</td></tr>'}).join('')+
-      '</tbody></table></div><p class="central-note">FSE v2 jest niezależnym challengerem SHADOW_ONLY. v1 pozostaje zamrożony metodologicznie; v2 przeszukuje pełną dostępną pamięć źródła i nie ma żadnego writebacku do tradingu.</p>':'<p class="central-note">FSE v2 czeka na pierwszy pełny cykl shadow.</p>')+
-      '<h3 class="central-subtitle">Prospective learning · Brier · HSE2</h3>'+
-      '<div class="central-table-wrap"><table class="central-table fse-validation-table"><thead><tr><th>Instrument</th><th>Tor</th><th>Forward N</th><th>Brier</th><th>Edge vs 50/50</th><th>HSE2 status</th><th>Freeze / evidence</th></tr></thead><tbody>'+validationRows+'</tbody></table></div>'+
-      '<p class="central-note">Brier i edge pojawią się dopiero po rozliczeniu prospektywnych snapshotów. Historical bootstrap służy do inicjalizacji Fractal Memory, ale nie jest zaliczany jako formalny evidence HSE2. Wygenerowano '+shadowWhen(r.generated_at)+'.</p></article>';
+      '<h3 class="central-subtitle">FSE-PHASE · Cross-Scale Alignment + P Challenger</h3>'+
+      (v2?.methodology_version?'<div class="central-table-wrap"><table class="central-table fse-phase-summary"><thead><tr><th>Instrument</th><th>Cascade</th><th>Alignment</th><th>Dominant TF</th><th>P base</th><th>P phase 1H</th><th>P challenger</th><th>Shift</th><th>Regime</th></tr></thead><tbody>'+phaseSummary+'</tbody></table></div>':'<p class="central-note">FSE-PHASE czeka na pierwszy cykl po wdrożeniu.</p>')+
+      (phaseRows?'<h3 class="central-subtitle">Fractal Phase Map · Intrabar Formation</h3><div class="central-table-wrap"><table class="central-table fse-phase-table"><thead><tr><th>Instrument</th><th>TF</th><th>Structure</th><th>Phase</th><th>Progress</th><th>Similarity</th><th>P UP remaining</th><th>Intrabar</th><th>Analogi</th></tr></thead><tbody>'+phaseRows+'</tbody></table></div>':'')+
+      '<h3 class="central-subtitle">Prospective learning · Brier · HSE2</h3><div class="central-table-wrap"><table class="central-table fse-validation-table"><thead><tr><th>Instrument</th><th>Tor</th><th>Forward N</th><th>Brier / Δ</th><th>Edge</th><th>HSE2 status</th><th>Freeze / evidence</th></tr></thead><tbody>'+validationRows+'</tbody></table></div>'+
+      '<p class="central-note">FSE-PHASE nie dostaje credit za historię. Phase Memory i P Calibration Challenger zaczynają formalne N dopiero od snapshotów zamrożonych pod metodologią FSE-PHASE-1.0. Challenger ma twardy limit korekty ±6 pp i nie może pisać do produkcji. Wygenerowano '+shadowWhen(v2.generated_at||r.generated_at)+'.</p></article>';
+  }catch(e){
+    root.innerHTML='<div class="central-error">FSE jest chwilowo niedostępny.</div>';
+  }
+}Wygenerowano '+shadowWhen(r.generated_at)+'.</p></article>';
   }catch(e){
     root.innerHTML='<div class="central-error">FSE jest chwilowo niedostępny.</div>';
   }

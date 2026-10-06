@@ -66,6 +66,22 @@ class HSE2Tests(unittest.TestCase):
                  "details":{"instrument":"EURUSD","kind":"risk_calibration"}}
             ]
         })
+        write(root,"data/investments/fse_v2_public.json",{
+            "generated_at":"2026-10-06T05:00:00Z","module_id":"IN-09","component_id":"FSE-PHASE",
+            "mode":"SHADOW_ONLY","production_impact":False,
+            "hse_measurements":[
+                {"proposal_key":"fse-phase-memory-eurusd-4h-brier","claim":"FSE Phase Fractal Memory improves Brier.",
+                 "champion":"50/50 directional baseline","challenger":"FSE Phase Fractal Memory",
+                 "metric_name":"phase_brier_improvement_vs_0_5","target_n":40,
+                 "success_mean_edge":0.0025,"reject_mean_edge":-0.0025,"counter":0,"total":0.0,
+                 "details":{"instrument":"EURUSD","kind":"phase_memory","methodology_version":"FSE-PHASE-1.0"}},
+                {"proposal_key":"fse-regime-phase-calibration-eurusd-4h-brier","claim":"FSE Regime-Phase calibration improves Brier.",
+                 "champion":"FSE v2 Deep Fractal Memory P","challenger":"FSE Regime-Phase P Calibration Challenger",
+                 "metric_name":"calibration_brier_improvement_vs_fse_v2_base","target_n":40,
+                 "success_mean_edge":0.0025,"reject_mean_edge":-0.0025,"counter":0,"total":0.0,
+                 "details":{"instrument":"EURUSD","kind":"p_calibration_regime_phase","methodology_version":"FSE-PHASE-1.0"}}
+            ]
+        })
 
     def test_all_seven_sources_register_without_backfill(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -73,7 +89,9 @@ class HSE2Tests(unittest.TestCase):
             self.populate_sources(root)
             out=run_cycle(root,state,public,"2026-09-28T10:10:00Z")
             self.assertEqual(out["summary"]["sources_available"],7)
-            self.assertGreaterEqual(out["summary"]["experiments_total"],8)
+            self.assertGreaterEqual(out["summary"]["experiments_total"],10)
+            self.assertEqual(out["sources"]["FSE"]["proposal_count"],4)
+            self.assertEqual(out["sources"]["FSE"]["supplemental_path"],"data/investments/fse_v2_public.json")
             self.assertEqual(out["summary"]["prospective_evidence_n"],0)
             self.assertEqual(out["authority"],ZERO_AUTHORITY)
             self.assertTrue(verify(state)["zero_authority"])
@@ -109,6 +127,28 @@ class HSE2Tests(unittest.TestCase):
             wes3=[x for x in third["experiments"] if x["source_engine"]=="WES"][0]
             self.assertEqual(wes3["status"],"SUPPORTED")
             self.assertEqual(len([x for x in third["recent_results"] if x["experiment_id"]==wes["experiment_id"]]),1)
+
+
+    def test_fse_phase_evidence_is_only_counted_after_hse_freeze(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); state=root/"state"; public=root/"public.json"
+            self.populate_sources(root)
+            first=run_cycle(root,state,public,"2026-10-06T05:10:00Z")
+            phase=next(x for x in first["experiments"] if x["metric_name"]=="phase_brier_improvement_vs_0_5")
+            self.assertEqual(phase["prospective_n"],0)
+
+            data=json.loads((root/"data/investments/fse_v2_public.json").read_text())
+            for row in data["hse_measurements"]:
+                row["counter"]=3
+                row["total"]=0.03
+            data["generated_at"]="2026-10-06T09:00:00Z"
+            write(root,"data/investments/fse_v2_public.json",data)
+            second=run_cycle(root,state,public,"2026-10-06T09:05:00Z")
+            phase2=next(x for x in second["experiments"] if x["metric_name"]=="phase_brier_improvement_vs_0_5")
+            calibration=next(x for x in second["experiments"] if x["metric_name"]=="calibration_brier_improvement_vs_fse_v2_base")
+            self.assertEqual(phase2["prospective_n"],3)
+            self.assertEqual(calibration["prospective_n"],3)
+            self.assertEqual(phase2["status"],"RUNNING_SHADOW")
 
     def test_missing_source_does_not_create_fake_hypothesis(self):
         with tempfile.TemporaryDirectory() as tmp:

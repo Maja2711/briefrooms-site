@@ -99,7 +99,7 @@ SPECS = [
     },
     {
         "id": "fse-v2",
-        "name": "FSE v2 Deep Fractal Memory",
+        "name": "FSE Phase & Cross-Scale Engine",
         "workflows": ["fse-v2-deep-fractal-memory.yml"],
         "source": "data/investments/fse_v2_public.json",
         "domain": "/pl/inwestycje/decision-lab.html",
@@ -284,6 +284,28 @@ def metadata(engine_id: str, data: Mapping[str, Any]) -> dict[str, Any]:
             "champion": "50/50 validation baselines",
             "challenger": "FSE structure + memory" + (f" · {', '.join(regimes)}" if regimes else ""),
             "data_at": data.get("generated_at"),
+        }
+    if engine_id == "fse-v2":
+        instruments = data.get("instruments") if isinstance(data.get("instruments"), list) else []
+        measurements = data.get("hse_measurements") if isinstance(data.get("hse_measurements"), list) else []
+        phase_rows = [
+            row for row in measurements
+            if isinstance(row, Mapping) and (row.get("details") or {}).get("kind") == "phase_memory"
+        ]
+        observations = sum(int(row.get("counter") or 0) for row in phase_rows)
+        cascades = sorted({
+            str((row.get("cross_scale_alignment") or {}).get("cascade_state"))
+            for row in instruments
+            if isinstance(row, Mapping) and (row.get("cross_scale_alignment") or {}).get("cascade_state")
+        })
+        gate = data.get("promotion_gate") if isinstance(data.get("promotion_gate"), Mapping) else {}
+        return {
+            "observations": observations,
+            "observation_label": "resolved FSE-PHASE snapshots",
+            "champion": "FSE v2 Deep Fractal Memory P",
+            "challenger": "Regime-Phase calibration" + (f" · {', '.join(cascades)}" if cascades else ""),
+            "data_at": data.get("generated_at"),
+            "promotion_gate": gate.get("status"),
         }
     if engine_id == "hypothesis-shadow":
         summary = data.get("summary") if isinstance(data.get("summary"), Mapping) else {}

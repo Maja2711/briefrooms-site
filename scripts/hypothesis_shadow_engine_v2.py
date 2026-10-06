@@ -54,6 +54,7 @@ SOURCE_PATHS = {
     "STRATEGY_RESEARCH": "data/investments/research_lab_report.json",
     "FSE": "data/investments/fse_public.json",
 }
+FSE_SUPPLEMENTAL_PATH = "data/investments/fse_v2_public.json"
 
 
 def canonical(value: Any) -> str:
@@ -394,6 +395,7 @@ def proposals_fse(data: Mapping[str, Any], source_path: str, source_sha256: str 
                 **dict(details),
                 "fse_module_id": data.get("module_id"),
                 "fse_mode": data.get("mode"),
+                "fse_components": data.get("components"),
                 "production_impact": data.get("production_impact"),
             },
         ))
@@ -419,6 +421,37 @@ def collect_proposals(root: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]
         data = load_json(path)
         digest = file_sha(path)
         adapter = ADAPTERS[source_engine]
+
+        if source_engine == "FSE":
+            supplemental_path = root / FSE_SUPPLEMENTAL_PATH
+            supplemental = load_json(supplemental_path)
+            supplemental_digest = file_sha(supplemental_path)
+            primary_rows = data.get("hse_measurements") if isinstance(data.get("hse_measurements"), list) else []
+            phase_rows = supplemental.get("hse_measurements") if isinstance(supplemental.get("hse_measurements"), list) else []
+            merged = dict(data or supplemental)
+            merged["module_id"] = "IN-09"
+            merged["mode"] = "SHADOW_ONLY"
+            merged["production_impact"] = False
+            merged["components"] = ["FSE-CORE", "FSE-PHASE"]
+            merged["hse_measurements"] = [*primary_rows, *phase_rows]
+            generated = [str(x) for x in (data.get("generated_at"), supplemental.get("generated_at")) if x]
+            merged["generated_at"] = max(generated) if generated else None
+            combined_digest = sha({"core": digest, "phase": supplemental_digest})
+            source_ref = rel + " + " + FSE_SUPPLEMENTAL_PATH
+            rows = adapter(merged, source_ref, combined_digest) if merged["hse_measurements"] else []
+            available = bool(data or supplemental)
+            proposals.extend(rows)
+            source_status[source_engine] = {
+                "path": rel,
+                "supplemental_path": FSE_SUPPLEMENTAL_PATH,
+                "available": available,
+                "proposal_count": len(rows),
+                "source_sha256": combined_digest,
+                "core_sha256": digest,
+                "phase_sha256": supplemental_digest,
+            }
+            continue
+
         rows = adapter(data, rel, digest) if data else []
         proposals.extend(rows)
         source_status[source_engine] = {
