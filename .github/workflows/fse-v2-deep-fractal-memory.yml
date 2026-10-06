@@ -1,45 +1,66 @@
 name: FSE v2 Deep Fractal Memory Shadow
+
 on:
   workflow_dispatch:
   schedule:
     - cron: "37 * * * *"
+  workflow_run:
+    workflows:
+      - "FSE Fractal Structure Engine Shadow"
+    types: [completed]
+  pull_request:
+    paths:
+      - "scripts/fractal_structure_engine_v2.py"
+      - "tests/test_fractal_structure_engine_v2.py"
+      - "docs/FRACTAL_STRUCTURE_ENGINE_PL.md"
+      - "docs/FRACTAL_STRUCTURE_ENGINE_EN.md"
+      - ".github/workflows/fse-v2-deep-fractal-memory.yml"
   push:
     branches: [main]
     paths:
       - "scripts/fractal_structure_engine_v2.py"
       - "tests/test_fractal_structure_engine_v2.py"
       - ".github/workflows/fse-v2-deep-fractal-memory.yml"
+
 permissions:
   contents: write
   actions: read
+
 concurrency:
   group: fse-v2-deep-fractal-memory
   cancel-in-progress: false
+
 env:
   STATE_ARTIFACT: fse-v2-deep-memory-state
   STATE_ARCHIVE: fse-v2-deep-memory-state.tgz
   PUBLIC_PATH: data/investments/fse_v2_public.json
+
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Validate FSE v2
+      - name: Validate FSE phase stack
         env:
           PYTHONPATH: ${{ github.workspace }}
         run: |
           set -euo pipefail
           python -m py_compile scripts/fractal_structure_engine_v2.py
           python -m unittest tests.test_fractal_structure_engine_v2 -v
+          python scripts/validate_architecture_bootstrap.py
+
   shadow:
-    if: github.event_name != 'pull_request'
+    if: >-
+      github.event_name != 'pull_request' &&
+      (github.event_name != 'workflow_run' ||
+       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'))
     needs: test
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     env:
       GH_TOKEN: ${{ github.token }}
       PYTHONPATH: ${{ github.workspace }}
@@ -51,6 +72,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
+      - name: Start immutable shadow publication clock
+        run: |
+          echo "NO_RETROACTIVE_EXECUTION=1" >> "$GITHUB_ENV"
+          echo "NO_RETROACTIVE_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+
       - name: Restore durable v2 state
         run: |
           set -euo pipefail
@@ -64,7 +91,8 @@ jobs:
             archive="$RUNNER_TEMP/fse-v2-artifact/$STATE_ARCHIVE"
             [[ -s "$archive" ]] && tar -xzf "$archive" -C "$FSE_V2_STATE_DIR"
           fi
-      - name: Run independent v2 challenger
+
+      - name: Run FSE phase and cross-scale challenger
         run: |
           set -euo pipefail
           python scripts/fractal_structure_engine_v2.py --root . --state-dir "$FSE_V2_STATE_DIR" --public "$PUBLIC_PATH"
@@ -73,18 +101,32 @@ jobs:
           import json
           p=json.load(open("data/investments/fse_v2_public.json"))
           assert p["mode"]=="SHADOW_ONLY" and p["production_impact"] is False
+          assert p["module_id"]=="IN-09" and p["component_id"]=="FSE-PHASE"
+          assert p["methodology_version"]=="FSE-PHASE-1.0"
           assert all(v is False for v in p["authority"].values())
-          print("FSE_V2_ZERO_AUTHORITY_PASS")
+          assert len(p["hse_measurements"]) == 2 * len(p["instruments"])
+          assert p["promotion_gate"]["automatic_promotion"] is False
+          for row in p["instruments"]:
+              assert "phase_map" in row
+              assert "intrabar_formation" in row
+              assert "cross_scale_alignment" in row
+              assert "p_calibration_challenger" in row
+          print("FSE_PHASE_ZERO_AUTHORITY_PASS")
           PY
+
       - name: Store private v2 state
         run: |
+          set -euo pipefail
           tar -czf "$RUNNER_TEMP/$STATE_ARCHIVE" -C "$FSE_V2_STATE_DIR" .
+          test -s "$RUNNER_TEMP/$STATE_ARCHIVE"
+
       - uses: actions/upload-artifact@v4
         with:
           name: fse-v2-deep-memory-state
           path: ${{ runner.temp }}/fse-v2-deep-memory-state.tgz
           retention-days: 90
           compression-level: 0
+
       - name: Publish read-only v2 projection
         run: |
           set -euo pipefail
@@ -92,7 +134,8 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add "$PUBLIC_PATH"
           git diff --cached --quiet && exit 0
-          git commit -m "Refresh FSE v2 Deep Fractal Memory shadow"
+          python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
+          git commit -m "Refresh FSE Phase & Cross-Scale shadow"
           for attempt in 1 2 3 4 5; do
             git fetch origin main
             git rebase origin/main || { git rebase --abort || true; sleep $((attempt*2)); continue; }
