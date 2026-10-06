@@ -894,7 +894,7 @@ def _canonical_live_entry_point(
     target = sf(plan.get("target_price"))
     start = parse_dt(plan.get("entry_not_before") or pending.get("entry_not_before"))
     expires = parse_dt(plan.get("expires_at"))
-    if not iid or direction not in {"long", "short"} or start is None or expires is None:
+    if not iid or direction not in {"long", "short"} or start is None:
         return None
     live = read(ROOT / "data/investments/live_prices.json", {})
     rec = (live.get("prices") or {}).get(iid) if isinstance(live.get("prices"), dict) else None
@@ -904,22 +904,19 @@ def _canonical_live_entry_point(
     stamp = parse_dt(rec.get("current_price_updated_at") or rec.get("timestamp"))
     if price is None or price <= 0 or stamp is None:
         return None
-    if stamp < start or stamp > min(expires, checked_at):
+    # The public target remains executable until it is filled or explicitly
+    # replaced/cancelled. A stale scheduler expiry must never leave a visible
+    # target that cannot execute.
+    if stamp < start or stamp > checked_at:
         return None
     max_age = timedelta(minutes=6)
     if checked_at - stamp > max_age or stamp - checked_at > timedelta(seconds=30):
         return None
     source = str(rec.get("source") or "WES canonical live price")
-    if mode == "market_now":
-        return {
-            "price": price,
-            "timestamp": stamp.astimezone(legacy.TZ).isoformat(timespec="seconds"),
-            "source": f"{source}:canonical_live_market",
-            "observed_high": price,
-            "observed_low": price,
-        }
     if target is None or target <= 0:
         return None
+    # Simple public contract: the exact displayed target is authoritative.
+    # LONG opens when Cena teraz <= target; SHORT opens when Cena teraz >= target.
     marketable = price <= target if direction == "long" else price >= target
     if not marketable:
         return None
@@ -954,13 +951,13 @@ def entry_point(
     # window; LIMIT mode may recover a recent frozen-target touch.
     replay_floor = checked_at - no_retro.MAX_LIVE_MARKET_DATA_LAG
     start = max(start, replay_floor)
-    end = min(checked_at, expires)
-    if end < start:
-        return None
-
     canonical = _canonical_live_entry_point(pending, checked_at)
     if canonical is not None:
         return canonical
+
+    end = min(checked_at, expires)
+    if end < start:
+        return None
 
     if execution_mode == "market_now":
         return _yahoo_market_entry(symbol, start, end, checked_at)
