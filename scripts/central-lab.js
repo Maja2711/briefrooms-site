@@ -189,7 +189,7 @@ async function fse(){
       const formation=x.intrabar_formation||{};
       return ['1m','5m','15m','1h','4h','1d','1w'].map(tf=>{
         const p=x?.phase_map?.[tf]||{},pm=p.phase_memory||{},ib=formation[tf]||{};
-        return '<tr><td><strong>'+esc(fseInstrumentLabel(x.instrument))+'</strong></td><td><b>'+esc(tf)+'</b></td><td>'+esc(p.structure_id||'—')+'</td><td>'+esc(p.phase||'—')+'</td><td>'+pct(pm.phase_progress,1)+'</td><td>'+pct(pm.top_similarity,1)+'</td><td>'+pct(pm.p_up_remaining,1)+'</td><td>'+(ib.available?pct(ib.formation_progress,1):'—')+'</td><td>'+num(pm.analogues_n)+'</td></tr>';
+        return '<tr><td><strong>'+esc(fseInstrumentLabel(x.instrument))+'</strong></td><td><b>'+esc(tf)+'</b></td><td>'+esc(p.structure_id||'—')+'</td><td>'+esc(p.phase||'—')+'</td><td><b>'+esc(String(p.direction||'FLAT').toUpperCase())+'</b></td><td>'+pct(pm.phase_progress,1)+'</td><td>'+pct(pm.top_similarity,1)+'</td><td>'+pct(pm.p_up_remaining,1)+'</td><td>'+(ib.available?pct(ib.formation_progress,1):'—')+'</td><td>'+num(pm.analogues_n)+'</td></tr>';
       });
     }).join('');
     const validationRows=allMeasurements.map(m=>{
@@ -212,7 +212,7 @@ async function fse(){
       '<h3 class="central-subtitle">Fractal Memory</h3><div class="fse-memory-grid">'+memoryCards+'</div>'+
       '<h3 class="central-subtitle">FSE-PHASE · Cross-Scale Alignment + P Challenger</h3>'+
       (v2?.methodology_version?'<div class="central-table-wrap"><table class="central-table fse-phase-summary"><thead><tr><th>Instrument</th><th>Cascade</th><th>Alignment</th><th>Dominant TF</th><th>P base</th><th>P phase 1H</th><th>P challenger</th><th>Shift</th><th>Regime</th></tr></thead><tbody>'+phaseSummary+'</tbody></table></div>':'<p class="central-note">FSE-PHASE czeka na pierwszy cykl po wdrożeniu.</p>')+
-      (phaseRows?'<h3 class="central-subtitle">Fractal Phase Map · Intrabar Formation</h3><div class="central-table-wrap"><table class="central-table fse-phase-table"><thead><tr><th>Instrument</th><th>TF</th><th>Structure</th><th>Phase</th><th>Progress</th><th>Similarity</th><th>P UP remaining</th><th>Intrabar</th><th>Analogi</th></tr></thead><tbody>'+phaseRows+'</tbody></table></div>':'')+
+      (phaseRows?'<h3 class="central-subtitle">Fractal Phase Map · Intrabar Formation</h3><div class="central-table-wrap"><table class="central-table fse-phase-table"><thead><tr><th>Instrument</th><th>TF</th><th>Structure</th><th>Phase</th><th>Direction</th><th>Progress</th><th>Similarity</th><th>P UP remaining</th><th>Intrabar</th><th>Analogi</th></tr></thead><tbody>'+phaseRows+'</tbody></table></div>':'')+
       '<h3 class="central-subtitle">Prospective learning · Brier · HSE2</h3><div class="central-table-wrap"><table class="central-table fse-validation-table"><thead><tr><th>Instrument</th><th>Tor</th><th>Forward N</th><th>Brier / Δ</th><th>Edge</th><th>HSE2 status</th><th>Freeze / evidence</th></tr></thead><tbody>'+validationRows+'</tbody></table></div>'+
       '<p class="central-note">FSE-PHASE nie dostaje credit za historię. Phase Memory i P Calibration Challenger zaczynają formalne N dopiero od snapshotów zamrożonych pod metodologią FSE-PHASE-1.0. Challenger ma twardy limit korekty ±6 pp i nie może pisać do produkcji. Wygenerowano '+shadowWhen(v2.generated_at||r.generated_at)+'.</p></article>';
   }catch(e){
