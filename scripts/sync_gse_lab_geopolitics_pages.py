@@ -11,7 +11,8 @@ PAGES = {
 }
 BLOCK = re.compile(r"\s*<!-- BR_GSE_LAB_ENTRY_START -->[\s\S]*?<!-- BR_GSE_LAB_ENTRY_END -->\s*", re.I)
 STYLE = '<link rel="stylesheet" href="/assets/gse-lab-entry.css?v=1" />'
-SCRIPT = '<script src="/scripts/gse-lab-entry.js?v=2" defer></script>'
+SCRIPT = '<script src="/scripts/gse-lab-entry.js?v=5" defer></script>'
+SCRIPT_RE = re.compile(r'<script src="/scripts/gse-lab-entry\\.js\\?v=\\d+" defer></script>\\s*', re.I)
 
 
 def block(lang: str) -> str:
@@ -69,9 +70,9 @@ def patch(path: Path, lang: str) -> bool:
     cleaned = BLOCK.sub("\n", source)
     if STYLE not in cleaned:
         cleaned = cleaned.replace("</head>", STYLE + "\n</head>", 1)
-    cleaned = re.sub(r'<script src="/scripts/gse-lab-entry\\.js\\?v=\\d+" defer></script>', SCRIPT, cleaned)
-    if SCRIPT not in cleaned:
-        cleaned = cleaned.replace("</body>", SCRIPT + "\n</body>", 1)
+    # Normalize all historical GSE runtime references to exactly one current script.
+    cleaned = SCRIPT_RE.sub("", cleaned)
+    cleaned = cleaned.replace("</body>", SCRIPT + "\n</body>", 1)
     marker = re.search(r"<main(?:\s[^>]*)?>", cleaned, re.I)
     if not marker:
         raise RuntimeError(f"Missing <main> in {path}")
@@ -91,6 +92,8 @@ def check() -> None:
                 raise RuntimeError(f"Missing {marker!r} in {path}")
         if source.count("<!-- BR_GSE_LAB_ENTRY_START -->") != 1:
             raise RuntimeError(f"Duplicate GSE Lab entry in {path}")
+        if len(SCRIPT_RE.findall(source)) != 1:
+            raise RuntimeError(f"Expected exactly one GSE runtime script in {path}")
 
 
 def main() -> None:
