@@ -60,12 +60,25 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}
         run: |
           set -euo pipefail
+          # Atomic contract: price refresh executes WES ENTRY + SL/TP itself.
           python scripts/update_weekly_live_prices_fast.py
-          python scripts/investments_weekly_v5.py --mode ensure-exposure
-          python scripts/audit_intraday_risk_exits.py --persist-report on_close
+          python - <<'PY'
+          import json, os
+          from datetime import datetime, timezone
+          from pathlib import Path
+          report = Path("data/investments/multi_instrument_exposure_report_v5.json")
+          if not report.exists():
+              raise SystemExit("WES_FAIL: exposure report missing")
+          data = json.loads(report.read_text(encoding="utf-8"))
+          checked = datetime.fromisoformat(str(data["checked_at"]).replace("Z", "+00:00"))
+          started = datetime.fromisoformat(os.environ["NO_RETROACTIVE_RUN_STARTED_AT"].replace("Z", "+00:00"))
+          if checked.astimezone(timezone.utc) < started:
+              raise SystemExit(f"WES_FAIL: stale executor report {checked.isoformat()} < run {started.isoformat()}")
+          print("WES_EXECUTOR_FRESH", checked.isoformat())
+          PY
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/live_prices.json data/investments/weekly data/investments/intraday_risk_audit.json
+          git add data/investments/live_prices.json data/investments/weekly data/investments/intraday_risk_audit.json data/investments/multi_instrument_exposure_report_v5.json data/investments/multi_instrument_exposure_state_v5.json
           if ! git diff --cached --quiet; then
             python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
             git commit -m "Execute WES live ENTRY SL TP"
