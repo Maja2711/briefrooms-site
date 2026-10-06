@@ -46,14 +46,14 @@ jobs:
     env:
       PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
     steps:
-      - name: Checkout authoritative main code after live run
+      - name: Checkout authoritative main code after live run or recovery
         if: github.event_name != 'pull_request'
         uses: actions/checkout@v4
         with:
           ref: main
 
-      - name: Checkout PR or manual ref
-        if: github.event_name != 'workflow_run'
+      - name: Checkout PR ref
+        if: github.event_name == 'pull_request'
         uses: actions/checkout@v4
 
       - name: Set up Python
@@ -80,7 +80,7 @@ jobs:
             tests.test_epistemic_consumer_interface -v
 
       - name: Restore triggering Belief Core state
-        if: github.event_name != 'pull_request'
+        if: github.event_name == 'workflow_run'
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ github.event.workflow_run.id }}
