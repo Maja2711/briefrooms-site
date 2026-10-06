@@ -51,6 +51,37 @@ jobs:
           echo "NO_RETROACTIVE_EXECUTION=1" >> "$GITHUB_ENV"
           echo "NO_RETROACTIVE_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
 
+      - name: Critical refresh for WES execution
+        run: python scripts/update_weekly_live_prices_fast.py
+
+      - name: Critical WES ENTRY executor
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/investments_weekly_v5.py scripts/execution_price_engine.py scripts/no_retroactive_execution.py
+          python scripts/investments_weekly_v5.py --mode ensure-exposure
+
+      - name: Critical WES SL TP executor
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/audit_intraday_risk_exits.py
+          python scripts/audit_intraday_risk_exits.py --persist-report on_close
+
+      - name: Persist WES execution before all non-critical validation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/investments/live_prices.json data/investments/weekly data/investments/intraday_risk_audit.json
+          if ! git diff --cached --quiet; then
+            python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
+            git commit -m "Execute WES live ENTRY SL TP"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
+
       - name: Validate clean EURUSD frontend contract
         run: |
           node --check scripts/daily-eurusd-live-price.js
