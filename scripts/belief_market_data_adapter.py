@@ -16,7 +16,7 @@ NY = ZoneInfo("America/New_York")
 YAHOO_BASE = "https://query1.finance.yahoo.com/v8/finance/chart"
 USER_AGENT = "BriefRooms-BeliefCore/2.1 (+shadow-research)"
 CORE_SYMBOLS = ("SPY", "RSP", "IWM", "^VIX", "HYG", "LQD", "TLT", "UUP")
-OPTIONAL_WES_ASSET_SYMBOLS = ("EURUSD=X", "BTC-USD", "DX-Y.NYB", "ZT=F", "ZN=F")
+OPTIONAL_WES_ASSET_SYMBOLS = ("EURUSD=X", "BTC-USD", "DX-Y.NYB", "ZT=F", "ZN=F", "ZQ=F")
 DEFAULT_SYMBOLS = CORE_SYMBOLS + OPTIONAL_WES_ASSET_SYMBOLS
 
 
