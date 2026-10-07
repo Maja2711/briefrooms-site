@@ -13,7 +13,11 @@ from belief_adapter_contract import AdapterResult, Observation
 from belief_core import iso_z
 
 NY = ZoneInfo("America/New_York")
-YAHOO_BASE = "https://query1.finance.yahoo.com/v8/finance/chart"
+YAHOO_BASES = (
+    "https://query1.finance.yahoo.com/v8/finance/chart",
+    "https://query2.finance.yahoo.com/v8/finance/chart",
+)
+YAHOO_BASE = YAHOO_BASES[0]
 USER_AGENT = "BriefRooms-BeliefCore/2.1 (+shadow-research)"
 CORE_SYMBOLS = ("SPY", "RSP", "IWM", "^VIX", "HYG", "LQD", "TLT", "UUP")
 OPTIONAL_WES_ASSET_SYMBOLS = ("EURUSD=X", "BTC-USD", "DX-Y.NYB", "ZT=F", "ZN=F", "ZQ=F")
@@ -36,10 +40,23 @@ class YahooChartClient:
 
     def bars(self, symbol: str, range_: str = "10d", interval: str = "30m") -> List[Bar]:
         encoded = urllib.parse.quote(symbol, safe="")
-        url = f"{YAHOO_BASE}/{encoded}?range={range_}&interval={interval}&includePrePost=false&events=div%2Csplits"
-        req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept": "application/json"})
-        with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-            payload = json.load(resp)
+        payload = None
+        errors: List[str] = []
+        for base in YAHOO_BASES:
+            url = f"{base}/{encoded}?range={range_}&interval={interval}&includePrePost=false&events=div%2Csplits"
+            req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept": "application/json"})
+            try:
+                with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                    candidate = json.load(resp)
+                result = ((candidate.get("chart") or {}).get("result") or [None])[0]
+                if result:
+                    payload = candidate
+                    break
+                errors.append(f"{base}:empty_result")
+            except Exception as exc:
+                errors.append(f"{base}:{type(exc).__name__}")
+        if payload is None:
+            raise RuntimeError(f"Yahoo chart unavailable for {symbol}: {'|'.join(errors)}")
         result = ((payload.get("chart") or {}).get("result") or [None])[0]
         if not result:
             raise RuntimeError(f"Yahoo returned no chart result for {symbol}")
