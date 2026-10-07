@@ -913,8 +913,9 @@ def _canonical_live_entry_point(
     if checked_at - stamp > max_age or stamp - checked_at > timedelta(seconds=30):
         return None
     source = str(rec.get("source") or "WES canonical live price")
-    if mode == "market_now":
-        # An expired MARKET authorization is not recoverable. Return no point so
+    if mode == "market_now" and iid == "eurusd":
+        # EURUSD aggressive MARKET override only. An expired MARKET authorization
+        # is not recoverable. Return no point so
         # ensure_all() can re-authorize the still-valid thesis prospectively and
         # freeze a new MARKET plan instead of getting trapped on an old plan.
         if expires is None or stamp > expires:
@@ -1051,9 +1052,10 @@ def epe_verified_entry_point(
     plan = pending.get("entry_price_plan") if isinstance(pending.get("entry_price_plan"), dict) else {}
     direction = str(plan.get("direction") or (pending.get("decision") or {}).get("direction") or "neutral")
     execution_mode = str(plan.get("execution_mode") or "limit_pullback")
+    iid = str(plan.get("instrument_id") or "")
     stamp = parse_dt(point.get("timestamp"))
 
-    if execution_mode == "market_now":
+    if execution_mode == "market_now" and iid == "eurusd":
         price = sf(point.get("price"))
         start = parse_dt(plan.get("entry_not_before") or pending.get("entry_not_before"))
         expires = parse_dt(plan.get("expires_at"))
