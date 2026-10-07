@@ -637,7 +637,103 @@ function testNotificationPayload(lang) {
   });
 }
 
-function notificationPayload(event, lang, publicBaseUrl = "") {
+const DELIVERY_STATUS = Object.freeze({
+  UNSENT: "UNSENT",
+  SENDING: "SENDING",
+  SENT_TO_PUSH: "SENT_TO_PUSH",
+  ACKED: "ACKED",
+  EXPIRED: "EXPIRED",
+});
+const SENDING_STALE_MS = 2 * 60_000;
+const ACK_TIMEOUT_MS = 5 * 60_000;
+const MAX_RETRY_MS = 15 * 60_000;
+
+function deliveryId(eventIdValue, subscriberId) {
+  return `${String(eventIdValue)}:${String(subscriberId)}`;
+}
+
+function deliveryStorageKey(eventIdValue, subscriberId) {
+  return `delivery:${deliveryId(eventIdValue, subscriberId)}`;
+}
+
+function immutableEventCore(event) {
+  return {
+    event_id: String(event?.event_id || ""),
+    engine: String(event?.engine || ""),
+    event_type: String(event?.event_type || ""),
+    position_id: String(event?.position_id || ""),
+    instrument: event?.instrument ?? null,
+    market: event?.market ?? null,
+    direction: event?.direction ?? null,
+    entry: finiteNumber(event?.entry),
+    opened_at: event?.opened_at ?? null,
+    exit_reason: event?.exit_reason ?? null,
+    exit_price: finiteNumber(event?.exit_price),
+    closed_at: event?.closed_at ?? null,
+    r_multiple: finiteNumber(event?.r_multiple),
+  };
+}
+
+function sameImmutableEvent(a, b) {
+  return JSON.stringify(immutableEventCore(a)) === JSON.stringify(immutableEventCore(b));
+}
+
+function newDeliveryRecord(eventIdValue, subscriberId, ackToken, at = new Date().toISOString()) {
+  return {
+    delivery_id: deliveryId(eventIdValue, subscriberId),
+    event_id: String(eventIdValue),
+    subscriber_id: String(subscriberId),
+    status: DELIVERY_STATUS.UNSENT,
+    attempts: 0,
+    created_at: at,
+    updated_at: at,
+    sending_at: null,
+    sent_to_push_at: null,
+    acked_at: null,
+    next_retry_at: null,
+    ack_token: String(ackToken),
+    last_error: null,
+    provider_status: null,
+  };
+}
+
+function transitionDelivery(record, status, at = new Date().toISOString(), patch = {}) {
+  const current = String(record?.status || DELIVERY_STATUS.UNSENT);
+  const allowed = {
+    [DELIVERY_STATUS.UNSENT]: new Set([DELIVERY_STATUS.UNSENT, DELIVERY_STATUS.SENDING, DELIVERY_STATUS.EXPIRED]),
+    [DELIVERY_STATUS.SENDING]: new Set([DELIVERY_STATUS.SENDING, DELIVERY_STATUS.SENT_TO_PUSH, DELIVERY_STATUS.UNSENT, DELIVERY_STATUS.ACKED, DELIVERY_STATUS.EXPIRED]),
+    [DELIVERY_STATUS.SENT_TO_PUSH]: new Set([DELIVERY_STATUS.SENT_TO_PUSH, DELIVERY_STATUS.SENDING, DELIVERY_STATUS.ACKED, DELIVERY_STATUS.EXPIRED]),
+    [DELIVERY_STATUS.ACKED]: new Set([DELIVERY_STATUS.ACKED]),
+    [DELIVERY_STATUS.EXPIRED]: new Set([DELIVERY_STATUS.EXPIRED]),
+  };
+  if (!allowed[current]?.has(status)) {
+    throw new Error(`invalid_delivery_transition:${current}->${status}`);
+  }
+  return { ...record, ...patch, status, updated_at: at };
+}
+
+function retryDelayMs(attempts) {
+  return Math.min(MAX_RETRY_MS, 30_000 * (2 ** Math.max(0, Number(attempts || 1) - 1)));
+}
+
+function deliveryReadyForRetry(record, nowMs = Date.now()) {
+  const status = String(record?.status || "");
+  if ([DELIVERY_STATUS.ACKED, DELIVERY_STATUS.EXPIRED].includes(status)) return false;
+  const nextRetryMs = Date.parse(String(record?.next_retry_at || ""));
+  if (Number.isFinite(nextRetryMs) && nextRetryMs > nowMs) return false;
+  if (status === DELIVERY_STATUS.UNSENT) return true;
+  const updatedMs = Date.parse(String(record?.updated_at || ""));
+  const sentMs = Date.parse(String(record?.sent_to_push_at || record?.updated_at || ""));
+  if (status === DELIVERY_STATUS.SENDING) {
+    return !Number.isFinite(updatedMs) || nowMs - updatedMs >= SENDING_STALE_MS;
+  }
+  if (status === DELIVERY_STATUS.SENT_TO_PUSH) {
+    return !Number.isFinite(sentMs) || nowMs - sentMs >= ACK_TIMEOUT_MS;
+  }
+  return false;
+}
+
+function notificationPayload(event, lang, publicBaseUrl = "", delivery = null) {
   const pl = String(lang || "pl").toLowerCase().startsWith("pl");
   const engine = event.engine === "daily" ? "Daily Trading" : event.engine === "weekly" ? "Weekly Trading" : "Stock Trading";
   const reason = String(event.exit_reason || "").toUpperCase();
@@ -647,10 +743,14 @@ function notificationPayload(event, lang, publicBaseUrl = "") {
   const direction = event.direction ? ` · ${event.direction}` : "";
   const priceValue = event.event_type === "CLOSE" && event.exit_price != null ? event.exit_price : event.entry;
   const price = priceValue != null ? ` @ ${priceValue}` : "";
+  const base = String(publicBaseUrl || "").replace(/\/$/, "");
   return JSON.stringify({
     title: `BriefRooms · ${engine}`,
     body: `${action} · ${event.instrument || ""}${direction}${price}`,
     event_id: event.event_id,
+    delivery_id: delivery?.delivery_id || null,
+    ack_token: delivery?.ack_token || null,
+    ack_url: delivery ? `${base}/ack` : null,
     sent_at: new Date().toISOString(),
     url: notificationUrl(event, lang),
     data: {
@@ -658,7 +758,10 @@ function notificationPayload(event, lang, publicBaseUrl = "") {
       event_type: event.event_type,
       position_id: event.position_id,
       exit_reason: event.exit_reason || null,
-      analytics_url: `${String(publicBaseUrl || "").replace(/\/$/, "")}/analytics/click`,
+      analytics_url: `${base}/analytics/click`,
+      delivery_id: delivery?.delivery_id || null,
+      ack_token: delivery?.ack_token || null,
+      ack_url: delivery ? `${base}/ack` : null,
     },
   });
 }
@@ -669,37 +772,75 @@ export class PushHub {
     this.env = env;
   }
 
-  async dispatchEvents(events, { seedIfUninitialized = false } = {}) {
-    const initialized = Boolean(await this.ctx.storage.get("feed_initialized"));
-    if (!initialized && seedIfUninitialized) {
-      for (const event of events) {
-        if (!event?.event_id) continue;
-        await this.ctx.storage.put(`event-complete:${event.event_id}`, true);
+  async persistImmutableEvent(event) {
+    if (!event?.event_id) throw new Error("event_id_required");
+    const key = `event:${event.event_id}`;
+    const existing = await this.ctx.storage.get(key);
+    if (existing?.event) {
+      if (!sameImmutableEvent(existing.event, event)) {
+        throw new Error(`immutable_event_conflict:${event.event_id}`);
       }
-      await this.ctx.storage.put("feed_initialized", true);
-      await this.ctx.storage.put("delivery_v2_initialized", true);
-      return { ok: true, seeded: events.length, sent: 0, failed: 0, expired: 0, pending: 0 };
+      return existing.event;
     }
-    if (!initialized) await this.ctx.storage.put("feed_initialized", true);
+    const canonical = { ...event };
+    await this.ctx.storage.put(key, {
+      schema_version: "briefrooms-durable-notification-event-v1",
+      event: canonical,
+      stored_at: new Date().toISOString(),
+    });
+    return canonical;
+  }
 
-    // One-time migration: legacy seen:* keys represented globally consumed events.
-    // Convert them to event-complete:* once, then never consult seen:* again.
-    if (!await this.ctx.storage.get("delivery_v2_initialized")) {
-      const legacySeen = await this.ctx.storage.list({ prefix: "seen:" });
-      for (const [key] of legacySeen.entries()) {
-        const eventIdValue = key.slice("seen:".length);
-        if (eventIdValue) await this.ctx.storage.put(`event-complete:${eventIdValue}`, true);
-      }
-      await this.ctx.storage.put("delivery_v2_initialized", true);
+  async initializeRecipients(event) {
+    const markerKey = `recipients:${event.event_id}`;
+    const existingMarker = await this.ctx.storage.get(markerKey);
+    if (existingMarker) return Number(existingMarker.count || 0);
+
+    // Migration safety: anything completed by the old delivery engine is retained
+    // in Inbox but is never replayed as a fresh push after this deployment.
+    if (await this.ctx.storage.get(`event-complete:${event.event_id}`)) {
+      await this.ctx.storage.put(markerKey, {
+        initialized_at: new Date().toISOString(),
+        count: 0,
+        migrated_from_legacy_complete: true,
+      });
+      return 0;
     }
 
-    let sent = 0;
-    let failed = 0;
-    let expired = 0;
-    let pending = 0;
-    const failedStatuses = {};
     const subscriptions = await this.ctx.storage.list({ prefix: "sub:" });
+    const now = new Date().toISOString();
+    let count = 0;
+    for (const [key, record] of subscriptions.entries()) {
+      if (!accepts(record, event)) continue;
+      const subId = key.startsWith("sub:") ? key.slice(4) : key;
+      const dKey = deliveryStorageKey(event.event_id, subId);
+      if (await this.ctx.storage.get(dKey)) continue;
+      const token = crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
+      await this.ctx.storage.put(dKey, newDeliveryRecord(event.event_id, subId, token, now));
+      count += 1;
+    }
+    await this.ctx.storage.put(markerKey, { initialized_at: now, count });
+    if (count === 0) await this.ctx.storage.put(`event-complete:${event.event_id}`, true);
+    return count;
+  }
 
+  async refreshEventCompletion(eventIdValue) {
+    const rows = await this.ctx.storage.list({ prefix: `delivery:${eventIdValue}:` });
+    const deliveries = [...rows.values()];
+    if (!deliveries.length) {
+      const marker = await this.ctx.storage.get(`recipients:${eventIdValue}`);
+      if (marker) await this.ctx.storage.put(`event-complete:${eventIdValue}`, true);
+      return true;
+    }
+    const complete = deliveries.every((row) =>
+      [DELIVERY_STATUS.ACKED, DELIVERY_STATUS.EXPIRED].includes(String(row?.status || ""))
+    );
+    if (complete) await this.ctx.storage.put(`event-complete:${eventIdValue}`, true);
+    else await this.ctx.storage.delete(`event-complete:${eventIdValue}`);
+    return complete;
+  }
+
+  async deliverPending({ eventIds = null } = {}) {
     if (this.env.VAPID_PUBLIC_KEY && this.env.VAPID_PRIVATE_KEY) {
       webpush.setVapidDetails(
         this.env.VAPID_SUBJECT || "https://briefrooms.com",
@@ -708,52 +849,100 @@ export class PushHub {
       );
     }
 
-    for (const event of events) {
-      if (!event?.event_id) continue;
-      const eventCompleteKey = `event-complete:${event.event_id}`;
-      if (await this.ctx.storage.get(eventCompleteKey)) continue;
+    const filter = eventIds ? new Set(eventIds.map(String)) : null;
+    const rows = await this.ctx.storage.list({ prefix: "delivery:" });
+    let sent = 0;
+    let failed = 0;
+    let expired = 0;
+    let acked = 0;
+    const touchedEvents = new Set();
+    const failedStatuses = {};
 
-      let eventFailed = 0;
-      let eventEligible = 0;
+    for (const [key, original] of rows.entries()) {
+      if (!original?.event_id || (filter && !filter.has(String(original.event_id)))) continue;
+      if (!deliveryReadyForRetry(original)) {
+        if (original.status === DELIVERY_STATUS.ACKED) acked += 1;
+        continue;
+      }
+      touchedEvents.add(String(original.event_id));
 
-      for (const [key, record] of subscriptions.entries()) {
-        if (!accepts(record, event)) continue;
-        eventEligible += 1;
+      const eventRecord = await this.ctx.storage.get(`event:${original.event_id}`);
+      const event = eventRecord?.event;
+      const subKey = `sub:${original.subscriber_id}`;
+      const subscriber = await this.ctx.storage.get(subKey);
+      if (!event || !subscriber?.subscription || !accepts(subscriber, event)) {
+        const terminal = transitionDelivery(original, DELIVERY_STATUS.EXPIRED, new Date().toISOString(), {
+          last_error: !event ? "immutable_event_missing" : "subscription_missing_or_preference_disabled",
+        });
+        await this.ctx.storage.put(key, terminal);
+        expired += 1;
+        continue;
+      }
 
-        const subId = key.startsWith("sub:") ? key.slice(4) : key;
-        const deliveredKey = `delivered:${event.event_id}:${subId}`;
-        if (await this.ctx.storage.get(deliveredKey)) continue;
+      const sendingAt = new Date().toISOString();
+      const attempt = Number(original.attempts || 0) + 1;
+      const sending = transitionDelivery(original, DELIVERY_STATUS.SENDING, sendingAt, {
+        attempts: attempt,
+        sending_at: sendingAt,
+        next_retry_at: null,
+        last_error: null,
+      });
+      await this.ctx.storage.put(key, sending);
 
-        try {
-          await webpush.sendNotification(
-            record.subscription,
-            notificationPayload(event, record.language, this.env.PUBLIC_BASE_URL),
-            { TTL: 120, urgency: "high" },
-          );
-          await this.ctx.storage.put(deliveredKey, true);
-          sent += 1;
-        } catch (error) {
-          const status = Number(error?.statusCode || 0);
-          if (status === 403 || status === 404 || status === 410) {
-            await this.ctx.storage.delete(key);
-            await this.ctx.storage.put(deliveredKey, true);
-            expired += 1;
-          } else {
-            failed += 1;
-            eventFailed += 1;
-            const statusKey = String(status || "unknown");
-            failedStatuses[statusKey] = Number(failedStatuses[statusKey] || 0) + 1;
-          }
+      try {
+        const response = await webpush.sendNotification(
+          subscriber.subscription,
+          notificationPayload(event, subscriber.language, this.env.PUBLIC_BASE_URL, sending),
+          { TTL: 600, urgency: "high" },
+        );
+        const now = new Date().toISOString();
+        const latest = (await this.ctx.storage.get(key)) || sending;
+        if (latest.status !== DELIVERY_STATUS.ACKED) {
+          await this.ctx.storage.put(key, transitionDelivery(latest, DELIVERY_STATUS.SENT_TO_PUSH, now, {
+            sent_to_push_at: now,
+            provider_status: Number(response?.statusCode || 201) || 201,
+            next_retry_at: new Date(Date.now() + ACK_TIMEOUT_MS).toISOString(),
+          }));
+        }
+        sent += 1;
+      } catch (error) {
+        const status = Number(error?.statusCode || 0);
+        const now = new Date().toISOString();
+        const latest = (await this.ctx.storage.get(key)) || sending;
+        if (latest.status === DELIVERY_STATUS.ACKED) {
+          acked += 1;
+          continue;
+        }
+        if (status === 403 || status === 404 || status === 410) {
+          await this.ctx.storage.delete(subKey);
+          await this.ctx.storage.put(key, transitionDelivery(latest, DELIVERY_STATUS.EXPIRED, now, {
+            provider_status: status || null,
+            last_error: `push_subscription_expired:${status || "unknown"}`,
+          }));
+          expired += 1;
+        } else {
+          const nextRetry = new Date(Date.now() + retryDelayMs(attempt)).toISOString();
+          await this.ctx.storage.put(key, transitionDelivery(latest, DELIVERY_STATUS.UNSENT, now, {
+            provider_status: status || null,
+            last_error: String(error?.message || error || "push_failed").slice(0, 500),
+            next_retry_at: nextRetry,
+          }));
+          failed += 1;
+          const statusKey = String(status || "unknown");
+          failedStatuses[statusKey] = Number(failedStatuses[statusKey] || 0) + 1;
         }
       }
-
-      if (eventFailed === 0) {
-        await this.ctx.storage.put(eventCompleteKey, true);
-      } else {
-        pending += 1;
-      }
-
     }
+
+    for (const eventIdValue of touchedEvents) await this.refreshEventCompletion(eventIdValue);
+
+    const allDeliveries = await this.ctx.storage.list({ prefix: "delivery:" });
+    const stateCounts = { UNSENT: 0, SENDING: 0, SENT_TO_PUSH: 0, ACKED: 0, EXPIRED: 0 };
+    for (const row of allDeliveries.values()) {
+      const status = String(row?.status || "");
+      if (Object.hasOwn(stateCounts, status)) stateCounts[status] += 1;
+    }
+    const pending = stateCounts.UNSENT + stateCounts.SENDING + stateCounts.SENT_TO_PUSH;
 
     const stats = (await this.ctx.storage.get("stats")) || {};
     stats.sent = Number(stats.sent || 0) + sent;
@@ -765,9 +954,86 @@ export class PushHub {
     stats.last_dispatch_failed = failed;
     stats.last_dispatch_expired = expired;
     stats.last_dispatch_pending = pending;
+    stats.delivery_states = stateCounts;
     stats.last_dispatch_at = new Date().toISOString();
     await this.ctx.storage.put("stats", stats);
-    return { ok: failed === 0, sent, failed, expired, pending };
+
+    return { ok: failed === 0, sent, failed, expired, acked, pending, delivery_states: stateCounts };
+  }
+
+  async dispatchEvents(events, { seedIfUninitialized = false } = {}) {
+    const initialized = Boolean(await this.ctx.storage.get("feed_initialized"));
+
+    if (!initialized && seedIfUninitialized) {
+      for (const event of events) {
+        if (!event?.event_id) continue;
+        const canonical = await this.persistImmutableEvent(event);
+        await this.ctx.storage.put(`recipients:${canonical.event_id}`, {
+          initialized_at: new Date().toISOString(),
+          count: 0,
+          seeded_without_delivery: true,
+        });
+        await this.ctx.storage.put(`event-complete:${canonical.event_id}`, true);
+      }
+      await this.ctx.storage.put("feed_initialized", true);
+      await this.ctx.storage.put("durable_delivery_v1_initialized", true);
+      return { ok: true, seeded: events.length, sent: 0, failed: 0, expired: 0, acked: 0, pending: 0 };
+    }
+    if (!initialized) await this.ctx.storage.put("feed_initialized", true);
+
+    const eventIds = [];
+    for (const rawEvent of events) {
+      if (!rawEvent?.event_id) continue;
+      const event = await this.persistImmutableEvent(rawEvent);
+      await this.initializeRecipients(event);
+      eventIds.push(String(event.event_id));
+    }
+    await this.ctx.storage.put("durable_delivery_v1_initialized", true);
+    if (!eventIds.length) {
+      return { ok: true, sent: 0, failed: 0, expired: 0, acked: 0, pending: 0 };
+    }
+    return this.deliverPending({ eventIds });
+  }
+
+  async acknowledgeDelivery(payload) {
+    const id = String(payload?.delivery_id || "");
+    const token = String(payload?.ack_token || "");
+    if (!id || !token) return { ok: false, status: 400, error: "delivery_id_and_ack_token_required" };
+    const key = `delivery:${id}`;
+    const record = await this.ctx.storage.get(key);
+    if (!record) return { ok: false, status: 404, error: "delivery_not_found" };
+    if (String(record.ack_token || "") !== token) return { ok: false, status: 403, error: "ack_token_invalid" };
+    if (record.status === DELIVERY_STATUS.EXPIRED) return { ok: false, status: 409, error: "delivery_expired" };
+    if (record.status !== DELIVERY_STATUS.ACKED) {
+      const now = new Date().toISOString();
+      await this.ctx.storage.put(key, transitionDelivery(record, DELIVERY_STATUS.ACKED, now, {
+        acked_at: now,
+        next_retry_at: null,
+        last_error: null,
+      }));
+      const stats = (await this.ctx.storage.get("stats")) || {};
+      stats.acked = Number(stats.acked || 0) + 1;
+      stats.last_acked_at = now;
+      await this.ctx.storage.put("stats", stats);
+      await this.refreshEventCompletion(record.event_id);
+    }
+    return { ok: true, status: 200, delivery_id: id, event_id: record.event_id, delivery_status: DELIVERY_STATUS.ACKED };
+  }
+
+  async inbox(limit = 50) {
+    const safeLimit = Math.max(1, Math.min(200, Number(limit || 50)));
+    const rows = await this.ctx.storage.list({ prefix: "event:" });
+    const values = [...rows.values()]
+      .filter((row) => row?.event?.event_id)
+      .sort((a, b) => {
+        const time = (row) => Date.parse(String(
+          row?.event?.closed_at || row?.event?.observed_at || row?.event?.opened_at || row?.stored_at || ""
+        )) || 0;
+        return time(b) - time(a);
+      })
+      .slice(0, safeLimit)
+      .map((row) => ({ ...row.event, inbox_stored_at: row.stored_at || null }));
+    return { ok: true, schema_version: "briefrooms-notification-inbox-v1", events: values };
   }
 
   async recordFastDailyError(error) {
