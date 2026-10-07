@@ -1388,6 +1388,7 @@ def archive_leg_with_contextual_outcomes(
     policy_row: Dict[str, Any],
     *,
     week_id: str,
+    manifest_path: Optional[Path] = None,
 ) -> bool:
     """Archive, enrich and immutably seal a closed governed position leg."""
     archived = v4.archive_leg(item, policy_row)
@@ -1396,11 +1397,20 @@ def archive_leg_with_contextual_outcomes(
         legs = item.get("position_legs") if isinstance(item.get("position_legs"), list) else []
         if not legs or not isinstance(legs[-1], dict):
             raise history_seal.WesHistorySealError("archived WES v5 leg missing after archive")
-        history_seal.seal_closed_leg(str(week_id or ""), legs[-1])
+        history_seal.seal_closed_leg(
+            str(week_id or ""),
+            legs[-1],
+            manifest_path=manifest_path or history_seal.MANIFEST_PATH,
+        )
     return archived
 
 
-def archive_closed_learning_samples(week: Dict[str, Any], policy: Dict[str, Any]) -> int:
+def archive_closed_learning_samples(
+    week: Dict[str, Any],
+    policy: Dict[str, Any],
+    *,
+    manifest_path: Optional[Path] = None,
+) -> int:
     """Archive and seal every newly closed governed leg before any early return."""
     items = {str(x.get("instrument_id")): x for x in week.get("instruments", []) if isinstance(x, dict)}
     archived = 0
@@ -1408,7 +1418,7 @@ def archive_closed_learning_samples(week: Dict[str, Any], policy: Dict[str, Any]
     for p_cfg in v4.policy_instruments(policy):
         iid = str(p_cfg.get("instrument_id"))
         item = items.get(iid)
-        if item is not None and closed_position(item) and archive_leg_with_contextual_outcomes(item, p_cfg, week_id=week_id):
+        if item is not None and closed_position(item) and archive_leg_with_contextual_outcomes(item, p_cfg, week_id=week_id, manifest_path=manifest_path):
             archived += 1
     return archived
 
