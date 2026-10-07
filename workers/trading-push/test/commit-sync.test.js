@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  dailyCommitSnapshot,
   weeklyCommitSnapshot,
   stockCommitSnapshot,
   transitionDescriptors,
@@ -203,4 +204,68 @@ test("Commit snapshot fallback round-trips canonical OPEN state without inventin
 
 test("ISO week fallback resolves the active WES week", () => {
   assert.equal(isoWeekId(new Date("2026-10-07T12:00:00Z")), "2026-W41");
+});
+
+
+test("Daily commit diff emits OPEN from persisted v1.9 position", () => {
+  const before = dailyCommitSnapshot({
+    status: "NO_TRADE",
+    metadata: {},
+  });
+  const after = dailyCommitSnapshot({
+    status: "OPEN",
+    metadata: {
+      position: {
+        trade_id: "eurusd:20261007T180000Z:SHORT",
+        status: "OPEN",
+        direction: "SHORT",
+        opened_at: "2026-10-07T18:00:00Z",
+        entry: 1.1185,
+      },
+    },
+  });
+  const events = transitionDescriptors("daily", before, after, "2026-10-07T18:00:01Z");
+  assert.equal(events.length, 1);
+  assert.equal(events[0].event_type, "OPEN");
+  assert.equal(events[0].position_id, "eurusd:20261007T180000Z:SHORT");
+  assert.equal(events[0].instrument, "EUR/USD");
+  assert.equal(events[0].direction, "SHORT");
+  assert.equal(events[0].entry, 1.1185);
+});
+
+test("Daily commit diff emits CLOSE only from persisted last_trade metadata", () => {
+  const before = dailyCommitSnapshot({
+    status: "OPEN",
+    metadata: {
+      position: {
+        trade_id: "eurusd:20261007T180000Z:SHORT",
+        status: "OPEN",
+        direction: "SHORT",
+        opened_at: "2026-10-07T18:00:00Z",
+        entry: 1.1185,
+      },
+    },
+  });
+  const after = dailyCommitSnapshot({
+    status: "CLOSED_TP",
+    metadata: {
+      position: null,
+      last_trade: {
+        trade_id: "eurusd:20261007T180000Z:SHORT",
+        direction: "SHORT",
+        opened_at: "2026-10-07T18:00:00Z",
+        entry: 1.1185,
+        exit_reason: "TAKE_PROFIT",
+        exit_price: 1.1120,
+        closed_at: "2026-10-07T19:00:00Z",
+        r_multiple: 1.8,
+      },
+    },
+  });
+  const events = transitionDescriptors("daily", before, after, "2026-10-07T19:00:01Z");
+  assert.equal(events.length, 1);
+  assert.equal(events[0].event_type, "CLOSE");
+  assert.equal(events[0].exit_reason, "TAKE_PROFIT");
+  assert.equal(events[0].exit_price, 1.1120);
+  assert.equal(events[0].closed_at, "2026-10-07T19:00:00Z");
 });
