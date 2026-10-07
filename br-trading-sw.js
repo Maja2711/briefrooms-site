@@ -52,7 +52,23 @@ self.addEventListener("push", (event) => {
     timestamp: payload.sent_at ? Date.parse(payload.sent_at) : Date.now(),
     data: { url: payload.url || "/pl/inwestycje/daily-trading.html", event_id: payload.event_id || null, sent_at: payload.sent_at || null, ...(payload.data || {}) },
   };
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil((async () => {
+    await self.registration.showNotification(title, options);
+    const ackUrl = payload.ack_url || payload?.data?.ack_url;
+    const deliveryId = payload.delivery_id || payload?.data?.delivery_id;
+    const ackToken = payload.ack_token || payload?.data?.ack_token;
+    if (!ackUrl || !deliveryId || !ackToken) return;
+    try {
+      await fetch(ackUrl, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ delivery_id: deliveryId, ack_token: ackToken }),
+      });
+    } catch (_) {
+      // Do not hide a successfully shown notification when ACK transport fails.
+      // PushHub keeps SENT_TO_PUSH pending and retries after the ACK timeout.
+    }
+  })());
 });
 
 self.addEventListener("notificationclick", (event) => {

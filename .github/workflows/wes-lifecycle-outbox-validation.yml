@@ -11,6 +11,9 @@ on:
       - "scripts/daily_position_review.py"
       - "scripts/build_trading_notification_events.py"
       - "workers/trading-push/**"
+      - "scripts/trading-notifications.js"
+      - "assets/trading-notifications.css"
+      - "br-trading-sw.js"
       - "tests/test_wes_notification_outbox.py"
       - "tests/test_trading_notification_events.py"
       - ".github/workflows/wes-lifecycle-outbox-validation.yml"
@@ -24,6 +27,9 @@ on:
       - "scripts/daily_position_review.py"
       - "scripts/build_trading_notification_events.py"
       - "workers/trading-push/**"
+      - "scripts/trading-notifications.js"
+      - "assets/trading-notifications.css"
+      - "br-trading-sw.js"
       - "tests/test_wes_notification_outbox.py"
       - "tests/test_trading_notification_events.py"
       - ".github/workflows/wes-lifecycle-outbox-validation.yml"
@@ -50,9 +56,11 @@ jobs:
           python -m py_compile             scripts/wes_notification_outbox.py             scripts/investments_weekly_v5.py             scripts/investments_weekly_v2.py             scripts/audit_intraday_risk_exits.py             scripts/daily_position_review.py             scripts/build_trading_notification_events.py
           python -m unittest             tests.test_wes_notification_outbox             tests.test_trading_notification_events -v
 
-      - name: Validate push outbox consumer
-        working-directory: workers/trading-push
+      - name: Validate durable push outbox and client ACK/Inbox
         run: |
           set -euo pipefail
+          node --check scripts/trading-notifications.js
+          node --check br-trading-sw.js
+          cd workers/trading-push
           npm install --no-audit --no-fund
           npm run check

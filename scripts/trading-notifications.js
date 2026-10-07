@@ -3,6 +3,7 @@
 
   const PREF_KEY = "brTradingNotificationsV1";
   const CURSOR_KEY = "brTradingNotificationsCursorV1";
+  const INBOX_SEEN_KEY = "brTradingInboxSeenV1";
   const CONFIG_URL = "/data/notifications/trading-notification-config.json";
   const EVENTS_URL = "/data/notifications/trading-events.json";
   const SW_URL = "/br-trading-sw.js";
@@ -16,6 +17,9 @@
     test: "Wyślij",
     cancel: "Anuluj",
     settingsTitle: "Ustawienia powiadomień",
+    inbox: "Inbox",
+    inboxTitle: "BRs Inbox",
+    inboxEmpty: "Brak zdarzeń tradingowych.",
     daily: "Daily Trading",
     weekly: "Weekly Trading",
     stock: "Stock Trading",
@@ -40,6 +44,9 @@
     test: "Send",
     cancel: "Cancel",
     settingsTitle: "Notification settings",
+    inbox: "Inbox",
+    inboxTitle: "BRs Inbox",
+    inboxEmpty: "No trading events yet.",
     daily: "Daily Trading",
     weekly: "Weekly Trading",
     stock: "Stock Trading",
@@ -238,6 +245,70 @@
     return engine === "daily" ? t.daily : engine === "weekly" ? t.weekly : t.stock;
   }
 
+  function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
+    })[ch]);
+  }
+
+  async function fetchInboxEvents(config) {
+    const push = config?.background_push || {};
+    if (push.enabled && push.api_base) {
+      try {
+        const response = await fetch(push.api_base.replace(/\/$/, "") + "/inbox?limit=50", { cache: "no-store" });
+        if (response.ok) {
+          const payload = await response.json();
+          return Array.isArray(payload.events) ? payload.events : [];
+        }
+      } catch (_) {}
+    }
+    try {
+      const response = await fetch(EVENTS_URL + "?v=" + Date.now(), { cache: "no-store" });
+      if (!response.ok) return [];
+      const payload = await response.json();
+      return Array.isArray(payload.events) ? [...payload.events].reverse() : [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function inboxRow(event) {
+    const reason = String(event.exit_reason || "").toUpperCase();
+    let action = event.event_type === "OPEN" ? t.openLabel : t.closeLabel;
+    if (event.event_type === "CLOSE" && reason === "TAKE_PROFIT") action = lang === "pl" ? "TP OSIĄGNIĘTY" : "TAKE PROFIT";
+    if (event.event_type === "CLOSE" && reason === "STOP_LOSS") action = "STOP LOSS";
+    const priceValue = event.event_type === "CLOSE" && event.exit_price != null ? event.exit_price : event.entry;
+    const when = event.closed_at || event.observed_at || event.opened_at || event.inbox_stored_at || "";
+    const stamp = when ? new Date(when) : null;
+    const timeText = stamp && !Number.isNaN(stamp.getTime())
+      ? stamp.toLocaleString(lang === "pl" ? "pl-PL" : "en-GB")
+      : "";
+    return `
+      <article class="brn-inbox-row" data-event-id="${escapeHtml(event.event_id || "")}">
+        <div class="brn-inbox-row-head">
+          <strong>${escapeHtml(action)} · ${escapeHtml(event.instrument || "")}</strong>
+          <span>${escapeHtml(timeText)}</span>
+        </div>
+        <div class="brn-inbox-row-body">
+          <span>${escapeHtml(engineName(event.engine))}</span>
+          ${event.direction ? `<span>${escapeHtml(event.direction)}</span>` : ""}
+          ${priceValue != null ? `<span>@ ${escapeHtml(priceValue)}</span>` : ""}
+          ${reason ? `<span>${escapeHtml(reason.replaceAll("_", " "))}</span>` : ""}
+        </div>
+      </article>`;
+  }
+
+  function unseenInboxCount(events) {
+    if (!events.length) return 0;
+    const seen = localStorage.getItem(INBOX_SEEN_KEY);
+    if (!seen) {
+      localStorage.setItem(INBOX_SEEN_KEY, String(events[0]?.event_id || ""));
+      return 0;
+    }
+    const index = events.findIndex((event) => String(event.event_id || "") === seen);
+    return index < 0 ? events.length : index;
+  }
+
   function notificationText(event) {
     const action = event.event_type === "OPEN" ? t.openLabel : t.closeLabel;
     const dir = event.direction ? " · " + event.direction : "";
@@ -269,14 +340,12 @@
     return !!prefs.enabled && !!prefs.channels[channel] && !!prefs.events[type];
   }
 
-  async function pollEvents() {
+  async function pollEvents(config) {
     const prefs = loadPrefs();
     if (!prefs.enabled || Notification.permission !== "granted") return;
     try {
-      const response = await fetch(EVENTS_URL + "?v=" + Date.now(), { cache: "no-store" });
-      if (!response.ok) return;
-      const payload = await response.json();
-      const events = Array.isArray(payload.events) ? payload.events : [];
+      const newestFirst = await fetchInboxEvents(config);
+      const events = [...newestFirst].reverse();
       if (!events.length) return;
 
       const cursor = localStorage.getItem(CURSOR_KEY);
@@ -306,7 +375,10 @@
 
     const launcher = document.createElement("div");
     launcher.className = "brn-launcher";
-    launcher.innerHTML = `<button type="button" class="brn-open" data-brn-action="open">${t.enable}</button>`;
+    launcher.innerHTML = `
+      <button type="button" class="brn-open" data-brn-action="open">${prefs.enabled ? t.settingsTitle : t.enable}</button>
+      <button type="button" class="brn-inbox-open" data-brn-action="inbox">${t.inbox}<span class="brn-inbox-badge" data-brn-inbox-badge hidden>0</span></button>
+    `;
 
     const modal = document.createElement("div");
     modal.className = "brn-modal";
@@ -342,6 +414,39 @@
     if (target.parentNode) target.parentNode.insertBefore(launcher, target.nextSibling);
     document.body.appendChild(modal);
 
+    const inboxModal = document.createElement("div");
+    inboxModal.className = "brn-modal";
+    inboxModal.hidden = true;
+    inboxModal.innerHTML = `
+      <div class="brn-backdrop" data-brn-inbox-action="close"></div>
+      <section class="brn-dialog brn-inbox-dialog" role="dialog" aria-modal="true" aria-labelledby="brn-inbox-title">
+        <button type="button" class="brn-close" data-brn-inbox-action="close" aria-label="${t.cancel}">×</button>
+        <span class="brn-kicker">BriefRooms Alerts</span>
+        <h2 id="brn-inbox-title">${t.inboxTitle}</h2>
+        <div class="brn-inbox-list" data-brn-inbox-list><p class="brn-inbox-empty">${t.inboxEmpty}</p></div>
+      </section>
+    `;
+    document.body.appendChild(inboxModal);
+
+    const inboxList = inboxModal.querySelector("[data-brn-inbox-list]");
+    const inboxBadge = launcher.querySelector("[data-brn-inbox-badge]");
+
+    async function refreshInbox({ markSeen = false } = {}) {
+      const events = await fetchInboxEvents(config);
+      if (inboxList) {
+        inboxList.innerHTML = events.length ? events.map(inboxRow).join("") : `<p class="brn-inbox-empty">${t.inboxEmpty}</p>`;
+      }
+      if (markSeen && events.length) {
+        localStorage.setItem(INBOX_SEEN_KEY, String(events[0].event_id || ""));
+      }
+      const count = markSeen ? 0 : unseenInboxCount(events);
+      if (inboxBadge) {
+        inboxBadge.textContent = String(Math.min(99, count));
+        inboxBadge.hidden = count === 0;
+      }
+      return events;
+    }
+
     const status = modal.querySelector("[data-brn-status]");
     const sendButton = modal.querySelector('[data-brn-action="send"]');
     const disableButton = modal.querySelector('[data-brn-action="disable"]');
@@ -367,9 +472,22 @@
     }
 
     launcher.querySelector('[data-brn-action="open"]').addEventListener("click", openModal);
+    launcher.querySelector('[data-brn-action="inbox"]').addEventListener("click", async () => {
+      await refreshInbox({ markSeen: true });
+      inboxModal.hidden = false;
+      document.documentElement.classList.add("brn-modal-open");
+    });
     modal.querySelectorAll('[data-brn-action="close"]').forEach((el) => el.addEventListener("click", closeModal));
+    inboxModal.querySelectorAll('[data-brn-inbox-action="close"]').forEach((el) => el.addEventListener("click", () => {
+      inboxModal.hidden = true;
+      document.documentElement.classList.remove("brn-modal-open");
+    }));
     document.addEventListener("keydown", (ev) => {
       if (ev.key === "Escape" && !modal.hidden) closeModal();
+      if (ev.key === "Escape" && !inboxModal.hidden) {
+        inboxModal.hidden = true;
+        document.documentElement.classList.remove("brn-modal-open");
+      }
     });
 
     sendButton.addEventListener("click", async () => {
@@ -399,7 +517,7 @@
         if (!subscription) throw new Error("subscription_missing");
         await testBackgroundSubscription(config, subscription);
         status.textContent = t.allowed;
-        await pollEvents();
+        await pollEvents(config);
         closeModal();
       } catch (error) {
         const providerStatus = Number(error?.pushStatus || error?.status || 0);
@@ -414,7 +532,7 @@
             if (!repaired) throw new Error("subscription_repair_failed");
             await testBackgroundSubscription(config, repaired);
             status.textContent = t.allowed;
-            await pollEvents();
+            await pollEvents(config);
             closeModal();
             return;
           } catch (_) {}
@@ -442,9 +560,11 @@
       await getRegistration();
       if (prefs.enabled) await syncBackgroundSubscription(config, prefs);
     } catch (_) {}
-    await pollEvents();
+    await pollEvents(config);
+    await refreshInbox();
     const interval = Math.max(30, Number(config.poll_interval_seconds || 60)) * 1000;
-    window.setInterval(pollEvents, interval);
+    window.setInterval(() => pollEvents(config), interval);
+    window.setInterval(() => refreshInbox(), interval);
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mount);
