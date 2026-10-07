@@ -8,6 +8,7 @@ import {
   notificationPayload,
   storedCommitSnapshot,
   persistableCommitSnapshot,
+  sameCommitSnapshot,
   isoWeekId,
 } from "../src/index.js";
 
@@ -268,4 +269,25 @@ test("Daily commit diff emits CLOSE only from persisted last_trade metadata", ()
   assert.equal(events[0].exit_reason, "TAKE_PROFIT");
   assert.equal(events[0].exit_price, 1.1120);
   assert.equal(events[0].closed_at, "2026-10-07T19:00:00Z");
+});
+
+
+test("Fallback snapshot guard ignores timestamps but rejects stale trading state", () => {
+  const flatA = dailyCommitSnapshot({ timestamp: "2026-10-07T18:00:00Z", metadata: {} });
+  const flatB = dailyCommitSnapshot({ timestamp: "2026-10-07T18:00:05Z", metadata: {} });
+  assert.equal(sameCommitSnapshot(flatA, flatB), true);
+
+  const opened = dailyCommitSnapshot({
+    timestamp: "2026-10-07T18:00:05Z",
+    metadata: {
+      position: {
+        trade_id: "eurusd:20261007T180005Z:SHORT",
+        status: "OPEN",
+        direction: "SHORT",
+        opened_at: "2026-10-07T18:00:05Z",
+        entry: 1.1185,
+      },
+    },
+  });
+  assert.equal(sameCommitSnapshot(flatA, opened), false);
 });
