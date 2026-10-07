@@ -7,7 +7,7 @@
   "automatic_tuning": false,
   "automatic_promotion": false,
   "promotion_policy": "v3_candidates_manual; probability_recalibration_closed_loop_governed",
-  "generated_at": "2026-10-07T07:18:26.172765Z",
+  "generated_at": "2026-10-07T08:31:50.645722Z",
   "evolution_controller": {
     "authority": {
       "belief_evidence_mutation": false,
@@ -650,7 +650,7 @@
     {
       "instrument": "BTC/USD",
       "trend_belief_id": "btc.trend.bullish",
-      "calculated_at": "2026-10-07T07:18:26.172765Z",
+      "calculated_at": "2026-10-07T08:31:50.645722Z",
       "as_of": "2026-10-06T18:34:49.403961Z",
       "target_at": "2026-10-07T18:34:49.403961Z",
       "horizon_label": "24H",
@@ -676,7 +676,7 @@
     {
       "instrument": "EUR/USD",
       "trend_belief_id": "eurusd.trend.bullish",
-      "calculated_at": "2026-10-07T07:18:26.172765Z",
+      "calculated_at": "2026-10-07T08:31:50.645722Z",
       "as_of": "2026-10-06T18:34:49.403961Z",
       "target_at": "2026-10-07T18:34:49.403961Z",
       "horizon_label": "24H",
@@ -691,9 +691,9 @@
       "probability_change": 0.0,
       "probability_movement": "stable",
       "quality": {
-        "n": 83,
-        "mean_brier": 0.268577,
-        "skill_vs_base_rate": -0.11058,
+        "n": 84,
+        "mean_brier": 0.269335,
+        "skill_vs_base_rate": -0.117899,
         "sample_sufficient": true
       },
       "method": "deterministic_briefrooms_beliefs_v1",
@@ -702,7 +702,7 @@
     {
       "instrument": "S&P 500",
       "trend_belief_id": "spx.trend.bullish",
-      "calculated_at": "2026-10-07T07:18:26.172765Z",
+      "calculated_at": "2026-10-07T08:31:50.645722Z",
       "as_of": "2026-10-06T18:34:49.403961Z",
       "target_at": "2026-10-06T20:00:00Z",
       "horizon_label": "1H",
@@ -2278,9 +2278,9 @@
           "horizon_hours": 12.0,
           "horizon_label": "12H",
           "regime": "neutral",
-          "status": "OPEN",
-          "outcome": null,
-          "brier_score": null,
+          "status": "RESOLVED",
+          "outcome": false,
+          "brier_score": 0.332269,
           "forecast_contract_version": "decision-lab-forecast-contract-v2",
           "model_freeze_version": "belief-core-v2-shadow-2026-09-27",
           "t0_at": "2026-10-06T18:34:49.403961Z",
@@ -2296,8 +2296,10 @@
           "elapsed_nominal_target_at": "2026-10-07T06:34:49.403961Z",
           "session_equivalent_count": null,
           "calibration_horizon_bucket": "12H",
-          "t1_values": null,
-          "settled_at": null,
+          "t1_values": {
+            "EURUSD=X": 1.1228384971618652
+          },
+          "settled_at": "2026-10-07T08:31:44.655649Z",
           "production_write_authority": false,
           "automatic_promotion": false
         },
@@ -9776,8 +9778,8 @@
     },
     {
       "horizon": "12H",
-      "n": 71,
-      "mean_brier": 0.23035
+      "n": 72,
+      "mean_brier": 0.231766
     },
     {
       "horizon": "24H",
@@ -10572,19 +10574,19 @@
       "status": "miscalibrated"
     },
     "eurusd.trend.bullish": {
-      "accuracy_at_50": 0.578313,
-      "base_rate_yes": 0.409639,
+      "accuracy_at_50": 0.571429,
+      "base_rate_yes": 0.404762,
       "belief_id": "eurusd.trend.bullish",
       "benchmark_brier_50_50": 0.25,
-      "benchmark_brier_base_rate": 0.241835,
+      "benchmark_brier_base_rate": 0.24093,
       "brier_decomposition": {
-        "reconstructed_brier": 0.267552,
-        "reliability": 0.080901,
-        "resolution": 0.055183,
-        "uncertainty": 0.241835
+        "reconstructed_brier": 0.268054,
+        "reliability": 0.081509,
+        "resolution": 0.054384,
+        "uncertainty": 0.24093
       },
-      "brier_skill_score_vs_50_50": -0.074308,
-      "brier_skill_score_vs_base_rate": -0.11058,
+      "brier_skill_score_vs_50_50": -0.07734,
+      "brier_skill_score_vs_base_rate": -0.117899,
       "by_horizon": {
         "1-3d": {
           "accuracy_at_50": 1.0,
@@ -10608,23 +10610,23 @@
           "status": "insufficient_sample"
         },
         "12H": {
-          "accuracy_at_50": 0.444444,
+          "accuracy_at_50": 0.4,
           "benchmark_brier_50_50": 0.25,
           "brier_decomposition": {
-            "reconstructed_brier": 0.300398,
-            "reliability": 0.15225,
-            "resolution": 0.098765,
-            "uncertainty": 0.246914
+            "reconstructed_brier": 0.303583,
+            "reliability": 0.170249,
+            "resolution": 0.106667,
+            "uncertainty": 0.24
           },
-          "brier_skill_score_vs_50_50": -0.20454,
-          "calibration_bias": -0.015623,
-          "count": 9,
-          "ece": 0.291818,
+          "brier_skill_score_vs_50_50": -0.216992,
+          "calibration_bias": 0.043582,
+          "count": 10,
+          "ece": 0.320279,
           "mce": 0.70015,
-          "mean_brier": 0.301135,
-          "mean_log_loss": 0.801499,
-          "mean_predicted": 0.428821,
-          "observed_rate": 0.444444,
+          "mean_brier": 0.304248,
+          "mean_log_loss": 0.807252,
+          "mean_predicted": 0.443582,
+          "observed_rate": 0.4,
           "sample_sufficient": false,
           "status": "insufficient_sample"
         },
@@ -10755,16 +10757,16 @@
           "status": "well_calibrated"
         }
       },
-      "calibration_bias": 0.036605,
-      "count": 83,
-      "direction_accuracy": 0.578313,
-      "ece": 0.217882,
+      "calibration_bias": 0.043032,
+      "count": 84,
+      "direction_accuracy": 0.571429,
+      "ece": 0.22215,
       "interpretation": "legacy history may mix target horizons; use controlled horizon slices for like-for-like conclusions",
       "mce": 0.70015,
-      "mean_brier": 0.268577,
-      "mean_log_loss": 0.73352,
-      "mean_predicted": 0.446244,
-      "observed_rate": 0.409639,
+      "mean_brier": 0.269335,
+      "mean_log_loss": 0.735014,
+      "mean_predicted": 0.447794,
+      "observed_rate": 0.404762,
       "period_end": "2026-10-06T18:34:49.403961Z",
       "period_start": "2026-08-20T14:41:44.979995Z",
       "sample_sufficient": true,
@@ -12143,19 +12145,19 @@
       "status": "miscalibrated"
     },
     "eurusd.trend.bullish": {
-      "accuracy_at_50": 0.578313,
-      "base_rate_yes": 0.409639,
+      "accuracy_at_50": 0.571429,
+      "base_rate_yes": 0.404762,
       "belief_id": "eurusd.trend.bullish",
       "benchmark_brier_50_50": 0.25,
-      "benchmark_brier_base_rate": 0.241835,
+      "benchmark_brier_base_rate": 0.24093,
       "brier_decomposition": {
-        "reconstructed_brier": 0.267552,
-        "reliability": 0.080901,
-        "resolution": 0.055183,
-        "uncertainty": 0.241835
+        "reconstructed_brier": 0.268054,
+        "reliability": 0.081509,
+        "resolution": 0.054384,
+        "uncertainty": 0.24093
       },
-      "brier_skill_score_vs_50_50": -0.074308,
-      "brier_skill_score_vs_base_rate": -0.11058,
+      "brier_skill_score_vs_50_50": -0.07734,
+      "brier_skill_score_vs_base_rate": -0.117899,
       "by_horizon": {
         "1-3d": {
           "accuracy_at_50": 1.0,
@@ -12179,23 +12181,23 @@
           "status": "insufficient_sample"
         },
         "12H": {
-          "accuracy_at_50": 0.444444,
+          "accuracy_at_50": 0.4,
           "benchmark_brier_50_50": 0.25,
           "brier_decomposition": {
-            "reconstructed_brier": 0.300398,
-            "reliability": 0.15225,
-            "resolution": 0.098765,
-            "uncertainty": 0.246914
+            "reconstructed_brier": 0.303583,
+            "reliability": 0.170249,
+            "resolution": 0.106667,
+            "uncertainty": 0.24
           },
-          "brier_skill_score_vs_50_50": -0.20454,
-          "calibration_bias": -0.015623,
-          "count": 9,
-          "ece": 0.291818,
+          "brier_skill_score_vs_50_50": -0.216992,
+          "calibration_bias": 0.043582,
+          "count": 10,
+          "ece": 0.320279,
           "mce": 0.70015,
-          "mean_brier": 0.301135,
-          "mean_log_loss": 0.801499,
-          "mean_predicted": 0.428821,
-          "observed_rate": 0.444444,
+          "mean_brier": 0.304248,
+          "mean_log_loss": 0.807252,
+          "mean_predicted": 0.443582,
+          "observed_rate": 0.4,
           "sample_sufficient": false,
           "status": "insufficient_sample"
         },
@@ -12326,16 +12328,16 @@
           "status": "well_calibrated"
         }
       },
-      "calibration_bias": 0.036605,
-      "count": 83,
-      "direction_accuracy": 0.578313,
-      "ece": 0.217882,
+      "calibration_bias": 0.043032,
+      "count": 84,
+      "direction_accuracy": 0.571429,
+      "ece": 0.22215,
       "interpretation": "legacy history may mix target horizons; use controlled horizon slices for like-for-like conclusions",
       "mce": 0.70015,
-      "mean_brier": 0.268577,
-      "mean_log_loss": 0.73352,
-      "mean_predicted": 0.446244,
-      "observed_rate": 0.409639,
+      "mean_brier": 0.269335,
+      "mean_log_loss": 0.735014,
+      "mean_predicted": 0.447794,
+      "observed_rate": 0.404762,
       "period_end": "2026-10-06T18:34:49.403961Z",
       "period_start": "2026-08-20T14:41:44.979995Z",
       "sample_sufficient": true,
@@ -12960,13 +12962,13 @@
   },
   "metrics": {
     "forecast_count": 855,
-    "resolved_count": 740,
-    "calibration_eligible": 740,
-    "brier_score": 0.237647,
-    "ece": 0.105763,
-    "log_loss": 0.671373,
+    "resolved_count": 741,
+    "calibration_eligible": 741,
+    "brier_score": 0.237775,
+    "ece": 0.106398,
+    "log_loss": 0.671626,
     "calibration_status": "watch",
-    "brier_skill": 0.049411,
+    "brier_skill": 0.0489,
     "max_calibration_gap_pp": 24.954
   },
   "calibration_analytics": {
@@ -12982,10 +12984,10 @@
       "brier": 0.25
     },
     "overall": {
-      "n": 740,
-      "brier": 0.237647,
-      "ece": 0.105763,
-      "brier_skill_vs_50_50": 0.049411
+      "n": 741,
+      "brier": 0.237775,
+      "ece": 0.106398,
+      "brier_skill_vs_50_50": 0.0489
     },
     "curve": [
       {
@@ -13025,10 +13027,10 @@
       },
       {
         "range": "50–60%",
-        "n": 133,
-        "mean_predicted": 0.560979,
-        "observed_rate": 0.406015,
-        "calibration_gap_pp": -15.496
+        "n": 134,
+        "mean_predicted": 0.561094,
+        "observed_rate": 0.402985,
+        "calibration_gap_pp": -15.811
       },
       {
         "range": "60–70%",
@@ -13070,10 +13072,10 @@
         },
         {
           "segment": "EUR/USD",
-          "n": 238,
-          "brier": 0.236497,
-          "ece": 0.123169,
-          "brier_skill_vs_50_50": 0.054013
+          "n": 239,
+          "brier": 0.236898,
+          "ece": 0.120242,
+          "brier_skill_vs_50_50": 0.05241
         },
         {
           "segment": "S&P 500",
@@ -13107,10 +13109,10 @@
         },
         {
           "segment": "12H",
-          "n": 71,
-          "brier": 0.23035,
-          "ece": 0.086295,
-          "brier_skill_vs_50_50": 0.078599
+          "n": 72,
+          "brier": 0.231766,
+          "ece": 0.093102,
+          "brier_skill_vs_50_50": 0.072936
         },
         {
           "segment": "3D",
@@ -13193,10 +13195,10 @@
         },
         {
           "segment": "eurusd.trend.bullish",
-          "n": 83,
-          "brier": 0.268577,
-          "ece": 0.217882,
-          "brier_skill_vs_50_50": -0.074309
+          "n": 84,
+          "brier": 0.269335,
+          "ece": 0.222151,
+          "brier_skill_vs_50_50": -0.077342
         },
         {
           "segment": "eurusd.usd_environment.supportive",
@@ -18102,6 +18104,13 @@
           "n": 50,
           "brier": 0.279378,
           "ece": 0.17982
+        },
+        {
+          "index": 741,
+          "as_of": "2026-10-06T18:34:49.403961Z",
+          "n": 50,
+          "brier": 0.278754,
+          "ece": 0.17929
         }
       ]
     }
@@ -18426,7 +18435,7 @@
     "mode": "research_shadow",
     "causal_status": "ASSOCIATION_ONLY",
     "sample": {
-      "eligible_verified_forecasts": 740,
+      "eligible_verified_forecasts": 741,
       "eligible_groups": 31,
       "groups_mined": 26,
       "patterns_published": 0,
