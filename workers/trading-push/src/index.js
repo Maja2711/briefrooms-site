@@ -1198,7 +1198,9 @@ export class PushHub {
         for (const descriptor of descriptors) {
           const expected = await eventId("weekly", descriptor.event_type, descriptor.position_id);
           if (expected !== descriptor.event_id) throw new Error(`wes_outbox_event_id_mismatch:${descriptor.event_id}`);
-          if (await this.ctx.storage.get(`event-complete:${descriptor.event_id}`)) continue;
+          // Only ingest events not yet present in the durable event store.
+          // Older pending deliveries are retried independently by /retry-pending.
+          if (await this.ctx.storage.get(`event:${descriptor.event_id}`)) continue;
           events.push(descriptor);
           pendingDescriptors += 1;
         }
@@ -1415,6 +1417,11 @@ export class PushHub {
         last_dispatch_failed: Number(stats.last_dispatch_failed || 0),
         last_dispatch_expired: Number(stats.last_dispatch_expired || 0),
         last_dispatch_pending: Number(stats.last_dispatch_pending || 0),
+        delivery_states: stats.delivery_states || { UNSENT: 0, SENDING: 0, SENT_TO_PUSH: 0, ACKED: 0, EXPIRED: 0 },
+        acked: Number(stats.acked || 0),
+        last_acked_at: stats.last_acked_at || null,
+        durable_outbox: true,
+        inbox: true,
         last_dispatch_at: stats.last_dispatch_at || null,
         last_commit_sync_at: stats.last_commit_sync_at || null,
         last_commit_sync_sha: stats.last_commit_sync_sha || null,
@@ -1451,6 +1458,10 @@ export class PushHub {
         await this.recordFastDailyError(error);
         return json({ ok: false, error: String(error?.message || error) }, 500);
       }
+    }
+
+    if (url.hostname === "internal" && path === "/retry-pending" && request.method === "POST") {
+      return json(await this.deliverPending());
     }
 
 
@@ -1536,6 +1547,15 @@ export class PushHub {
 
     if (origin === null) return json({ error: "origin_not_allowed" }, 403);
 
+    if (path === "/ack" && request.method === "POST") {
+      const result = await this.acknowledgeDelivery(await bodyJson(request));
+      return json(result.ok ? result : { error: result.error }, result.status || (result.ok ? 200 : 400), cors(origin));
+    }
+
+    if (path === "/inbox" && request.method === "GET") {
+      return json(await this.inbox(url.searchParams.get("limit") || 50), 200, cors(origin));
+    }
+
     if (path === "/subscription-status" && request.method === "POST") {
       const payload = await bodyJson(request);
       if (!payload.endpoint) return json({ error: "endpoint_required" }, 400, cors(origin));
@@ -1571,7 +1591,7 @@ export class PushHub {
       if (!existing) stats.subscribed_total = Number(stats.subscribed_total || 0) + 1;
       stats.active_subscriptions = (await this.ctx.storage.list({ prefix: "sub:" })).size;
       await this.ctx.storage.put("stats", stats);
-      return json({ ok: true, id }, 200, cors(origin));
+      return json({ ok: true, id, subscriber_id: id }, 200, cors(origin));
     }
 
     if (path === "/test-subscription" && request.method === "POST") {
@@ -1766,6 +1786,11 @@ export default {
         }
       }
 
+      const retryResponse = await h.fetch("https://internal/retry-pending", { method: "POST" });
+      if (!retryResponse.ok) {
+        throw new Error(`durable_retry_http_${retryResponse.status}`);
+      }
+
       if (!fastWatchOk) {
         throw lastFastError || new Error("fast_daily_watch_failed_after_retries");
       }
@@ -1773,4 +1798,4 @@ export default {
   }
 };
 
-export { finiteNumber, yahooMinuteBars, dailyCommitSnapshot, weeklyCommitSnapshot, stockCommitSnapshot, transitionDescriptors, persistedOutboxEvents, diffPersistedOutboxEvents, notificationPayload, storedCommitSnapshot, persistableCommitSnapshot, comparableCommitSnapshot, sameCommitSnapshot, isoWeekId };
+export { finiteNumber, yahooMinuteBars, dailyCommitSnapshot, weeklyCommitSnapshot, stockCommitSnapshot, transitionDescriptors, persistedOutboxEvents, diffPersistedOutboxEvents, notificationPayload, storedCommitSnapshot, persistableCommitSnapshot, comparableCommitSnapshot, sameCommitSnapshot, isoWeekId, DELIVERY_STATUS, deliveryId, deliveryStorageKey, immutableEventCore, sameImmutableEvent, newDeliveryRecord, transitionDelivery, retryDelayMs, deliveryReadyForRetry };
