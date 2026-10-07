@@ -134,7 +134,7 @@ class LiveNewsPublisherTests(unittest.TestCase):
     def test_default_section_target_and_pl_ai_buffer(self) -> None:
         self.assertEqual(TARGET, 9)
         self.assertEqual(MIN_SECTION, TARGET)
-        self.assertEqual(base.PL_SECTION_TARGETS, {"ai-technologia-krypto": 12})
+        self.assertEqual(source_v3.base.PL_SECTION_TARGETS, {"ai-technologia-krypto": 12})
 
     def test_pl_publication_minimums_match_editorial_contract(self) -> None:
         self.assertEqual(
