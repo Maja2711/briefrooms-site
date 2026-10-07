@@ -152,19 +152,36 @@ class EpistemicConsumerInterface:
                 source_created_at=source_created_at, source_sha256=_sha(self.payload),
             )
         if consumer == "DAILY_EURUSD":
+            # Daily EURUSD uses continuous freshness-weighted coverage rather
+            # than a binary per-belief freshness cliff. A partially fresh,
+            # non-critical belief contributes proportionally to both readiness
+            # and the authoritative aggregate. The required trend anchor keeps
+            # its hard freshness floor so direction can never be manufactured
+            # from secondary context alone.
             total_weight = sum(EURUSD_PROFILE_WEIGHTS.values())
-            qualified = [
-                x for x in selected
-                if float(x.get("freshness", 0.0)) >= EURUSD_MIN_FRESHNESS
-                and str(x.get("audit_status") or "").lower() != "critical"
-            ]
-            qualified_ids = {
-                str((x.get("member_belief_ids") or [None])[0])
-                for x in qualified
-            }
-            used_weight = sum(EURUSD_PROFILE_WEIGHTS.get(bid, 0.0) for bid in qualified_ids)
+            contribution_rows = []
+            anchor_ready = False
+            for x in selected:
+                bid = str((x.get("member_belief_ids") or [None])[0])
+                if bid not in EURUSD_PROFILE_WEIGHTS:
+                    continue
+                audit_status = str(x.get("audit_status") or "").lower()
+                try:
+                    freshness = max(0.0, min(1.0, float(x.get("freshness", 0.0))))
+                except (TypeError, ValueError):
+                    freshness = 0.0
+                if bid == EURUSD_REQUIRED_ANCHOR:
+                    anchor_ready = audit_status != "critical" and freshness >= EURUSD_MIN_FRESHNESS
+                if audit_status == "critical" or freshness <= 0.0:
+                    continue
+                base_weight = EURUSD_PROFILE_WEIGHTS[bid]
+                effective_weight = base_weight * freshness
+                if effective_weight <= 0.0:
+                    continue
+                contribution_rows.append((x, bid, freshness, effective_weight))
+
+            used_weight = sum(row[3] for row in contribution_rows)
             coverage_weight = 0.0 if total_weight <= 0 else used_weight / total_weight
-            anchor_ready = EURUSD_REQUIRED_ANCHOR in qualified_ids
             if coverage_weight < EURUSD_MIN_COVERAGE_WEIGHT or not anchor_ready:
                 return ConsumerEnvelope(
                     consumer=consumer, available=False,
@@ -178,21 +195,20 @@ class EpistemicConsumerInterface:
                     drilldown_reasons=(), states=tuple(selected), source_contract_version=EPISTEMIC_CONTRACT,
                     source_created_at=source_created_at, source_sha256=_sha(self.payload),
                     coverage_weight=round(coverage_weight, 6),
-                    qualified_state_count=len(qualified),
+                    qualified_state_count=len(contribution_rows),
                 )
+
             weighted_signal = 0.0
             weighted_confidence = 0.0
-            for x in qualified:
-                bid = str((x.get("member_belief_ids") or [None])[0])
-                weight = EURUSD_PROFILE_WEIGHTS[bid]
+            for x, _bid, _freshness, effective_weight in contribution_rows:
                 probability = max(0.0, min(1.0, float(x.get("probability", 0.5))))
                 confidence = max(0.0, min(1.0, float(x.get("confidence", 0.0))))
-                weighted_signal += weight * ((probability - 0.5) * 2.0) * confidence
-                weighted_confidence += weight * confidence
+                weighted_signal += effective_weight * ((probability - 0.5) * 2.0) * confidence
+                weighted_confidence += effective_weight * confidence
             normalized = max(-1.0, min(1.0, weighted_signal / used_weight))
             p = 0.5 + 0.5 * normalized
             aggregate_confidence = (weighted_confidence / used_weight) * coverage_weight
-            aggregate_states = qualified
+            aggregate_states = [row[0] for row in contribution_rows]
         else:
             p = fmean(float(x.get("probability", 0.5)) for x in selected)
             aggregate_confidence = fmean(float(x.get("confidence", 0.0)) for x in selected)
