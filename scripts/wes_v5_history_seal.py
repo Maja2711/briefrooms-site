@@ -379,6 +379,23 @@ def seal_closed_leg(
 
     leg_artifact_id = f"position_leg:{week_id}:{instrument_id}:{leg_id}"
     existing_leg_seal = leg.get("position_leg_seal") if isinstance(leg.get("position_leg_seal"), dict) else {}
+    leg_hash = sha256(position_leg_payload(leg))
+    if existing_leg_seal and (
+        existing_leg_seal.get("artifact_id") != leg_artifact_id
+        or existing_leg_seal.get("payload_hash") != leg_hash
+    ):
+        raise WesHistorySealError(f"position_leg changed after seal: {leg_artifact_id}")
+
+    leg_record = _append_record(
+        artifact_type="position_leg",
+        artifact_id=leg_artifact_id,
+        week_id=week_id,
+        instrument_id=instrument_id,
+        payload_hash=leg_hash,
+        sealed_at=sealed_at,
+        path=manifest_path,
+    )
+    leg["position_leg_seal"] = _seal_ref(leg_record)
     if not existing_leg_seal and not isinstance(leg.get("provenance"), Mapping):
         native_at = sealed_at or datetime.now(TZ).isoformat(timespec="seconds")
         decision_id = leg.get("entry_decision_id") or leg.get("decision_id")
@@ -407,23 +424,6 @@ def seal_closed_leg(
         )
         leg.clear()
         leg.update(leg_payload)
-    leg_hash = sha256(position_leg_payload(leg))
-    if existing_leg_seal and (
-        existing_leg_seal.get("artifact_id") != leg_artifact_id
-        or existing_leg_seal.get("payload_hash") != leg_hash
-    ):
-        raise WesHistorySealError(f"position_leg changed after seal: {leg_artifact_id}")
-
-    leg_record = _append_record(
-        artifact_type="position_leg",
-        artifact_id=leg_artifact_id,
-        week_id=week_id,
-        instrument_id=instrument_id,
-        payload_hash=leg_hash,
-        sealed_at=sealed_at,
-        path=manifest_path,
-    )
-    leg["position_leg_seal"] = _seal_ref(leg_record)
     return leg["position_leg_seal"], leg["settlement_seal"]
 
 
