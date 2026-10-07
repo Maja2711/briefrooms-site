@@ -301,17 +301,17 @@ Even after a positive HSE2 verdict, an explicit per-engine bridge and the owning
 
 ## 10. FSE Intraday Fast Projection
 
-Short-horizon FSE has a separate lightweight presentation path driven by an independent 15-minute workflow.
+Short-horizon FSE has a separate lightweight presentation path driven by an independent 5-minute workflow.
 
 Pipeline:
 
 Yahoo 1m / 7d -> 1m -> resample 5m / 15m / 1h -> Phase descriptor -> merge with latest full 4h/1d/1w context -> Cross-Scale Alignment -> `data/investments/fse_intraday_public.json`.
 
 Rules:
-- cadence: 15 minutes, through dedicated `fse-intraday-fast.yml` scheduled at minutes 02/17/32/47; WES/Weekly failures cannot block the FSE fast path, and a new cycle does not cancel an in-progress publication;
+- cadence: 5 minutes, through dedicated `fse-intraday-fast.yml` scheduled at minutes 02/07/12/17/22/27/32/37/42/47/52/57; WES/Weekly failures cannot block the FSE fast path, and a new cycle does not cancel an in-progress publication;
 - 1m/5m/15m/1h are refreshed from one common 1-minute feed;
 - 4h/1d/1w remain sourced from the full hourly FSE-PHASE;
 - the fast path creates no durable snapshots/resolutions and does not feed HSE2;
 - zero production authority;
 - the frontend refreshes the active FSE tab every 60 s;
-- the snapshot is marked STALE after 25 minutes or when the latest source bar is older than 25 minutes, providing 10 minutes of tolerance beyond the nominal 15-minute cadence.
+- the snapshot is marked STALE after 12 minutes or when the latest source bar is older than 12 minutes, providing a buffer beyond the nominal five-minute cadence.
