@@ -36,7 +36,7 @@ class DecisionLabFSEFrontendTests(unittest.TestCase):
             self.assertIn("Lower TF", text, rel)
             self.assertIn("Higher TF", text, rel)
             self.assertIn("direction", text, rel)
-            self.assertIn("fm.cadence_minutes||15", text, rel)
+            self.assertIn("fm.cadence_minutes||5", text, rel)
             self.assertNotIn("FAST 5M", text, rel)
             self.assertIn("function fseBarClock", text, rel)
             self.assertIn("row?.observed_at", text, rel)
