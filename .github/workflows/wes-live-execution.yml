@@ -8,6 +8,8 @@ on:
       - ".github/workflows/wes-live-execution.yml"
       - "scripts/investments_weekly_v5.py"
       - "scripts/update_weekly_live_prices_fast.py"
+      - "scripts/audit_provenance.py"
+      - "scripts/provenance_contract.py"
       - "scripts/audit_intraday_risk_exits.py"
       - "scripts/wes_notification_outbox.py"
       - "scripts/wes_decision_ledger.py"
@@ -65,6 +67,13 @@ jobs:
           set -euo pipefail
           python -m py_compile scripts/audit_intraday_risk_exits.py scripts/wes_notification_outbox.py
           python scripts/audit_intraday_risk_exits.py --persist-report on_close
+      - name: Enforce native provenance before WES persistence
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python scripts/audit_provenance.py \
+            --profile wes \
+            --file data/investments/weekly
+
       - name: Persist execution state
         id: commit
         shell: bash
