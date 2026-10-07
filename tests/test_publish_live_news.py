@@ -146,6 +146,27 @@ class LiveNewsPublisherTests(unittest.TestCase):
         self.assertIsNotNone(filtered_news.AI_CRYPTO_RE.search("Bitcoin rośnie po decyzji rynku"))
         self.assertIsNone(filtered_news.AI_CRYPTO_RE.search("Inflacja bazowa spadła w sierpniu"))
 
+    def test_pl_ai_localization_contract_preserves_source_copy(self) -> None:
+        story = {
+            "title": "New artificial intelligence model will help doctors",
+            "summary": "The new artificial intelligence system will help doctors with diagnosis.",
+            "source": "Example",
+            "link": "https://example.com/ai",
+        }
+        original = filtered_news._get_pl_ai_translator
+        filtered_news._get_pl_ai_translator = lambda: (
+            lambda text, **kwargs: [{"translation_text": "Polski: " + text}]
+        )
+        try:
+            localized = filtered_news._localize_pl_ai_story(story)
+        finally:
+            filtered_news._get_pl_ai_translator = original
+        self.assertEqual(localized["source_title"], story["title"])
+        self.assertEqual(localized["source_summary"], story["summary"])
+        self.assertTrue(localized["title"].startswith("Polski:"))
+        self.assertTrue(localized["summary"].startswith("Polski:"))
+        self.assertEqual(localized["pl_localization"], "local-en-pl-title-summary-v1")
+
     def test_parse_entry_time_uses_feed_timestamp(self) -> None:
         entry = SimpleNamespace(published_parsed=(2026, 8, 3, 6, 30, 0, 0, 0, 0))
         value = parse_entry_time(entry)
