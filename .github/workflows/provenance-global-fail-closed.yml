@@ -1,0 +1,52 @@
+name: Global Provenance Fail-Closed
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: global-provenance-fail-closed-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile provenance gate
+        run: |
+          python -m py_compile scripts/provenance_contract.py scripts/audit_provenance.py
+
+      - name: Run fail-closed unit tests
+        run: |
+          PYTHONPATH=. python -m unittest \
+            tests.test_provenance_contract \
+            tests.test_provenance_global_audit \
+            tests.test_native_provenance_write_time \
+            -v
+
+      - name: Audit current governed repository artifacts
+        run: |
+          PYTHONPATH=. python scripts/audit_provenance.py \
+            --profile repo \
+            --repo-root . \
+            --report "$RUNNER_TEMP/provenance-global-audit.json"
+
+      - name: Store audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: provenance-global-audit
+          path: ${{ runner.temp }}/provenance-global-audit.json
+          if-no-files-found: warn
+          retention-days: 30
