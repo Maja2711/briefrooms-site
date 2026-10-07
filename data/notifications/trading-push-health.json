@@ -13,34 +13,47 @@
   "last_dispatch_failed": 0,
   "last_dispatch_expired": 0,
   "last_dispatch_pending": 0,
-  "last_dispatch_at": "2026-10-07T19:26:32.781Z",
-  "last_commit_sync_at": "2026-10-07T19:27:01.470Z",
-  "last_commit_sync_sha": "92805ed2cfb06db50f9f446291b81f1c40825f79",
-  "last_commit_sync_head_sha": "92805ed2cfb06db50f9f446291b81f1c40825f79",
+  "delivery_states": {
+    "UNSENT": 0,
+    "SENDING": 0,
+    "SENT_TO_PUSH": 0,
+    "ACKED": 0,
+    "EXPIRED": 0
+  },
+  "acked": 0,
+  "last_acked_at": null,
+  "durable_outbox": true,
+  "durable_retry": true,
+  "delivery_ack_required": true,
+  "delivery_unique_key": "(event_id,subscriber_id)",
+  "inbox": true,
+  "last_dispatch_at": "2026-10-07T19:41:33.013Z",
+  "last_commit_sync_at": "2026-10-07T19:42:15.222Z",
+  "last_commit_sync_sha": "f25c442b81a97891e56f12c28fceb65f505504e4",
+  "last_commit_sync_head_sha": null,
   "last_commit_sync_engines": [
     "daily",
     "weekly",
     "stock"
   ],
   "last_commit_sync_event_count": 0,
-  "last_commit_sync_status": "NO_TRANSITION",
+  "last_commit_sync_status": "NO_TRANSITION_FALLBACK",
   "last_commit_sync_engine_status": {
     "daily": {
       "transitions": 0,
       "open_after": 0,
-      "source": "commit_bound",
+      "source": "canonical_main_snapshot_fallback",
       "seeded": false
     },
     "weekly": {
       "transitions": 0,
-      "open_after": 1,
-      "source": "commit_bound",
+      "source": "wes_lifecycle_outbox_fallback",
       "seeded": false
     },
     "stock": {
       "transitions": 0,
       "open_after": 6,
-      "source": "commit_bound",
+      "source": "canonical_main_snapshot_fallback",
       "seeded": false
     }
   },
@@ -50,10 +63,10 @@
   "fast_daily_failures": 0,
   "last_fast_daily_error_at": null,
   "last_fast_daily_error": null,
-  "last_fast_daily_check_at": "2026-10-07T19:26:32.529Z",
+  "last_fast_daily_check_at": "2026-10-07T19:41:32.531Z",
   "last_fast_daily_status": "FLAT",
   "last_fast_daily_market_source": "persisted_daily_state_only",
   "last_fast_daily_market_errors": [],
   "last_fast_daily_quote": null,
-  "snapshot_at": "2026-10-07T19:27:02.907Z"
+  "snapshot_at": "2026-10-07T19:42:17.071Z"
 }
