@@ -85,6 +85,7 @@ class FSETests(unittest.TestCase):
             out=fse.run_cycle(root,state,public,instruments={"EURUSD":"EURUSD=X"},client=FakeClient(),at="2026-09-29T09:00:00Z")
             self.assertEqual(out["schema_version"],fse.PUBLIC_SCHEMA)
             self.assertEqual(out["module_id"],"IN-09")
+            self.assertEqual(out["methodology_version"],fse.METHODOLOGY_VERSION)
             self.assertEqual(out["mode"],"SHADOW_ONLY")
             self.assertFalse(out["production_impact"])
             self.assertEqual(out["authority"],fse.ZERO_AUTHORITY)
