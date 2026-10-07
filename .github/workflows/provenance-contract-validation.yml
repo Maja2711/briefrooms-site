@@ -5,6 +5,16 @@ on:
     paths:
       - "scripts/provenance_contract.py"
       - "scripts/provenance_compat.py"
+      - "scripts/belief_core.py"
+      - "scripts/l3a_research_executor.py"
+      - "scripts/l3a_settlement.py"
+      - "scripts/daily_eurusd_belief_decision.py"
+      - "scripts/brace_company_entity_framework.py"
+      - "scripts/stock_trading_v2_production_bridge.py"
+      - "scripts/build_shadow_engines_public.py"
+      - "scripts/wes_decision_ledger.py"
+      - "scripts/wes_v5_history_seal.py"
+      - "tests/test_native_provenance_write_time.py"
       - "tests/test_provenance_contract.py"
       - "docs/BRIEFROOMS_PROVENANCE_CONTRACT_V1.md"
       - ".github/workflows/provenance-contract-validation.yml"
@@ -14,6 +24,16 @@ on:
     paths:
       - "scripts/provenance_contract.py"
       - "scripts/provenance_compat.py"
+      - "scripts/belief_core.py"
+      - "scripts/l3a_research_executor.py"
+      - "scripts/l3a_settlement.py"
+      - "scripts/daily_eurusd_belief_decision.py"
+      - "scripts/brace_company_entity_framework.py"
+      - "scripts/stock_trading_v2_production_bridge.py"
+      - "scripts/build_shadow_engines_public.py"
+      - "scripts/wes_decision_ledger.py"
+      - "scripts/wes_v5_history_seal.py"
+      - "tests/test_native_provenance_write_time.py"
       - "tests/test_provenance_contract.py"
       - "docs/BRIEFROOMS_PROVENANCE_CONTRACT_V1.md"
       - ".github/workflows/provenance-contract-validation.yml"
@@ -31,9 +51,32 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Compile contract and adapters
+      - name: Compile contract and native emitters
         run: |
-          python -m py_compile scripts/provenance_contract.py scripts/provenance_compat.py
-      - name: Run provenance contract tests
+          python -m py_compile \
+            scripts/provenance_contract.py \
+            scripts/provenance_compat.py \
+            scripts/belief_core.py \
+            scripts/l3a_research_executor.py \
+            scripts/l3a_settlement.py \
+            scripts/daily_eurusd_belief_decision.py \
+            scripts/brace_company_entity_framework.py \
+            scripts/stock_trading_v2_production_bridge.py \
+            scripts/build_shadow_engines_public.py \
+            scripts/wes_decision_ledger.py \
+            scripts/wes_v5_history_seal.py
+      - name: Run provenance and engine regression tests
         run: |
-          python -m unittest tests.test_provenance_contract -v
+          python -m unittest \
+            tests.test_provenance_contract \
+            tests.test_native_provenance_write_time \
+            tests.test_belief_core \
+            tests.test_daily_eurusd_belief_first \
+            tests.test_brace_company_entity_framework \
+            tests.test_stock_trading_v2_production_bridge \
+            tests.test_shadow_engines_public \
+            tests.test_l3a_executor_e2e \
+            tests.test_wes_decision_ledger \
+            tests.test_wes_v5_history_seal \
+            tests.test_wes_v5_audit_seal \
+            -v

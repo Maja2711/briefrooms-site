@@ -211,6 +211,47 @@ def validate_envelope(
     return dict(envelope)
 
 
+def attach_native(
+    payload: Mapping[str, Any],
+    *,
+    artifact_id: str,
+    artifact_type: str,
+    engine_id: str,
+    created_at: str,
+    authority: str,
+    engine_version: str | None = None,
+    parent_artifact_ids: Sequence[Any] | None = None,
+    source_ids: Sequence[Any] | None = None,
+    evidence_ids: Sequence[Any] | None = None,
+    belief_ids: Sequence[Any] | None = None,
+    decision_id: Any = None,
+    forecast_id: Any = None,
+    verification_id: Any = None,
+    prospective: bool = True,
+    domain_provenance: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Create and attach v1 provenance at artifact write-time."""
+    envelope = build_envelope(
+        artifact_id=artifact_id,
+        artifact_type=artifact_type,
+        engine_id=engine_id,
+        engine_version=engine_version,
+        created_at=created_at,
+        parent_artifact_ids=parent_artifact_ids,
+        source_ids=source_ids,
+        evidence_ids=evidence_ids,
+        belief_ids=belief_ids,
+        decision_id=decision_id,
+        forecast_id=forecast_id,
+        verification_id=verification_id,
+        authority=authority,
+        prospective=prospective,
+        source_payload=payload,
+        domain_provenance=domain_provenance,
+    )
+    return attach_provenance(payload, envelope)
+
+
 def attach_provenance(
     payload: Mapping[str, Any],
     envelope: Mapping[str, Any],

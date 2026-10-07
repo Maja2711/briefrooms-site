@@ -19,6 +19,11 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Mapping, Optional
 
+try:
+    import provenance_contract as provenance
+except ImportError:
+    from scripts import provenance_contract as provenance
+
 from epistemic_consumer_interface import (
     EURUSD_MIN_COVERAGE_WEIGHT,
     EURUSD_PROFILE_WEIGHTS,
@@ -378,7 +383,7 @@ def synthesize(
         direction = "FLAT"
         reasons.append("belief_score_neutral")
 
-    return {
+    result = {
         "schema_version": "daily-eurusd-belief-decision-v1",
         "owner": "NATIVE_DAILY_EURUSD_BELIEF_FIRST_DECISION_ENGINE",
         "decision_source": "NATIVE_BELIEF_FIRST",
@@ -405,6 +410,33 @@ def synthesize(
         "shadow_engine_direction_authority": False,
         "epistemic_aggregate_authoritative": consumer_authoritative,
     }
+    belief_ids = [str(row["belief_id"]) for row in used if row.get("belief_id")]
+    evidence_ids = sorted({
+        str(evidence_id)
+        for belief_id in belief_ids
+        for evidence_id in (beliefs.get(belief_id, {}).get("representative_evidence_ids") or [])
+        if evidence_id
+    })
+    artifact_id = "daily-eurusd-decision:" + provenance.payload_hash(result)[:24]
+    return provenance.attach_native(
+        result,
+        artifact_id=artifact_id,
+        artifact_type="decision",
+        engine_id="daily_eurusd",
+        engine_version="belief-first-v1.9",
+        created_at=now.isoformat().replace("+00:00", "Z"),
+        authority="decision",
+        parent_artifact_ids=evidence_ids,
+        source_ids=["NATIVE_BELIEF_FIRST", "BELIEF_CORE_CF07"],
+        evidence_ids=evidence_ids,
+        belief_ids=belief_ids,
+        decision_id=artifact_id,
+        domain_provenance={
+            "epistemic_consumer_contract": (authoritative_consumer or {}).get("contract"),
+            "aggregate_authoritative": consumer_authoritative,
+            "native_write_time": True,
+        },
+    )
 
 
 def calendar_safety(

@@ -23,6 +23,11 @@ from pathlib import Path
 from typing import Any, Mapping, Optional
 from zoneinfo import ZoneInfo
 
+try:
+    import provenance_contract as provenance
+except ImportError:
+    from scripts import provenance_contract as provenance
+
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_PATH = ROOT / "data" / "investments" / "wes_v5_history_seal_manifest.json"
 TZ = ZoneInfo("Europe/Warsaw")
@@ -42,7 +47,11 @@ def canonical_json(value: Any) -> str:
 
 
 def sha256(value: Any) -> str:
-    return hashlib.sha256(canonical_json(value).encode("utf-8")).hexdigest()
+    # Canonical provenance is metadata and must never change an existing WES
+    # economic/history seal. Historical artifacts without provenance hash exactly
+    # as before; new native envelopes are excluded recursively.
+    economic = provenance.economic_payload(value)
+    return hashlib.sha256(canonical_json(economic).encode("utf-8")).hexdigest()
 
 
 def _atomic_write(path: Path, payload: Mapping[str, Any]) -> None:
@@ -237,9 +246,28 @@ def seal_forecast(
 
     existing_snapshot = week.get("frozen_forecast")
     snapshot = copy.deepcopy(existing_snapshot) if isinstance(existing_snapshot, dict) else build_frozen_forecast(week)
-    digest = sha256(snapshot)
     artifact_id = f"forecast:{week_id}"
     existing_seal = week.get("frozen_forecast_seal") if isinstance(week.get("frozen_forecast_seal"), dict) else {}
+    # Never retrofit provenance onto an already sealed historical forecast.
+    if not existing_seal and not isinstance(snapshot.get("provenance"), Mapping):
+        native_at = sealed_at or datetime.now(TZ).isoformat(timespec="seconds")
+        snapshot = provenance.attach_native(
+            snapshot,
+            artifact_id=artifact_id,
+            artifact_type="frozen_forecast",
+            engine_id="wes",
+            engine_version=str(week.get("method_version") or week.get("base_method_version") or "v5"),
+            created_at=native_at,
+            authority="forecast",
+            forecast_id=artifact_id,
+            prospective=True,
+            domain_provenance={
+                "week_id": week_id,
+                "native_write_time": True,
+                "historical_backfill": False,
+            },
+        )
+    digest = sha256(snapshot)
 
     if existing_seal:
         if existing_seal.get("artifact_id") != artifact_id or existing_seal.get("payload_hash") != digest:
@@ -300,15 +328,37 @@ def seal_closed_leg(
     derived_settlement = build_settlement(leg)
     existing_settlement = leg.get("settlement")
     if isinstance(existing_settlement, dict):
-        if existing_settlement != derived_settlement:
+        if provenance.economic_payload(existing_settlement) != provenance.economic_payload(derived_settlement):
             raise WesHistorySealError(f"settlement payload differs from closed leg: {week_id}:{leg_id}")
         settlement = copy.deepcopy(existing_settlement)
     else:
         settlement = derived_settlement
 
-    settlement_hash = sha256(settlement)
     settlement_id = f"settlement:{week_id}:{instrument_id}:{leg_id}"
     existing_settlement_seal = leg.get("settlement_seal") if isinstance(leg.get("settlement_seal"), dict) else {}
+    # Native provenance is added only for newly created settlements. Already
+    # sealed historical rows remain byte-semantically untouched.
+    if not existing_settlement_seal and not isinstance(settlement.get("provenance"), Mapping):
+        native_at = sealed_at or datetime.now(TZ).isoformat(timespec="seconds")
+        settlement = provenance.attach_native(
+            settlement,
+            artifact_id=settlement_id,
+            artifact_type="settlement",
+            engine_id="wes",
+            engine_version="v5",
+            created_at=native_at,
+            authority="settlement",
+            parent_artifact_ids=[f"position_leg:{week_id}:{instrument_id}:{leg_id}"],
+            prospective=True,
+            domain_provenance={
+                "week_id": week_id,
+                "instrument_id": instrument_id,
+                "leg_id": leg_id,
+                "native_write_time": True,
+                "historical_backfill": False,
+            },
+        )
+    settlement_hash = sha256(settlement)
     if existing_settlement_seal and (
         existing_settlement_seal.get("artifact_id") != settlement_id
         or existing_settlement_seal.get("payload_hash") != settlement_hash
@@ -327,9 +377,9 @@ def seal_closed_leg(
     leg["settlement"] = settlement
     leg["settlement_seal"] = _seal_ref(settlement_record)
 
-    leg_hash = sha256(position_leg_payload(leg))
     leg_artifact_id = f"position_leg:{week_id}:{instrument_id}:{leg_id}"
     existing_leg_seal = leg.get("position_leg_seal") if isinstance(leg.get("position_leg_seal"), dict) else {}
+    leg_hash = sha256(position_leg_payload(leg))
     if existing_leg_seal and (
         existing_leg_seal.get("artifact_id") != leg_artifact_id
         or existing_leg_seal.get("payload_hash") != leg_hash
@@ -346,6 +396,34 @@ def seal_closed_leg(
         path=manifest_path,
     )
     leg["position_leg_seal"] = _seal_ref(leg_record)
+    if not existing_leg_seal and not isinstance(leg.get("provenance"), Mapping):
+        native_at = sealed_at or datetime.now(TZ).isoformat(timespec="seconds")
+        decision_id = leg.get("entry_decision_id") or leg.get("decision_id")
+        leg_payload = provenance.attach_native(
+            leg,
+            artifact_id=leg_artifact_id,
+            artifact_type="position_leg",
+            engine_id="wes",
+            engine_version="v5",
+            created_at=native_at,
+            authority="execution",
+            parent_artifact_ids=[
+                str(value)
+                for value in (decision_id, settlement_id)
+                if value
+            ],
+            decision_id=decision_id,
+            prospective=True,
+            domain_provenance={
+                "week_id": week_id,
+                "instrument_id": instrument_id,
+                "leg_id": leg_id,
+                "native_write_time": True,
+                "historical_backfill": False,
+            },
+        )
+        leg.clear()
+        leg.update(leg_payload)
     return leg["position_leg_seal"], leg["settlement_seal"]
 
 
@@ -433,7 +511,7 @@ def week_seal_violations(
                 issues.append({"error": "missing_settlement_seal", "artifact_id": settlement_id})
             else:
                 derived = build_settlement(leg)
-                if settlement != derived:
+                if provenance.economic_payload(settlement) != provenance.economic_payload(derived):
                     issues.append({"error": "settlement_payload_differs_from_leg", "artifact_id": settlement_id})
                 digest = sha256(settlement)
                 code = _verify_seal_ref(
@@ -469,6 +547,7 @@ _INTEGRITY_KEYS = {
     "settlement",
     "settlement_seal",
     "wes_history_seal",
+    "provenance",
 }
 
 

@@ -27,6 +27,10 @@ from belief_core_live import (
     required_symbols,
 )
 from l3a_experience_lineage import attribution, forecast_metadata
+try:
+    import provenance_contract as provenance
+except ImportError:
+    from scripts import provenance_contract as provenance
 from learning_ledger import append_event
 
 SCHEMA = "briefrooms-l3a-executor-v1"
@@ -84,25 +88,50 @@ def _save_json(path: Path, payload: Mapping[str,Any]) -> None:
     os.replace(tmp,path)
 
 def _record_attempt(state_dir: Path, record: Mapping[str,Any]) -> None:
+    raw=dict(record)
+    raw.pop("provenance",None)
+    key=str(raw["attempt_id"])
+    stored=provenance.attach_native(
+        raw,
+        artifact_id=key,
+        artifact_type="l3a_research_attempt",
+        engine_id="l3a",
+        engine_version=SCHEMA,
+        created_at=str(raw["attempted_at"]),
+        authority="research",
+        parent_artifact_ids=[
+            str(value)
+            for value in (raw.get("question_id"),raw.get("intent_id"),raw.get("attribution_id"))
+            if value
+        ],
+        source_ids=[str(raw.get("route"))] if raw.get("route") else [],
+        evidence_ids=list(raw.get("evidence_ids") or []),
+        belief_ids=[str(raw.get("belief_id"))] if raw.get("belief_id") else [],
+        forecast_id=raw.get("forecast_id"),
+        prospective=True,
+        domain_provenance={
+            "research_result_status":raw.get("research_result_status"),
+            "native_write_time":True,
+        },
+    )
     path=state_dir/EXPERIENCE_FILE
     state=_experience_state(path)
     records=list(state.get("records") or [])
-    key=str(record["attempt_id"])
     existing={str(x.get("attempt_id")):i for i,x in enumerate(records) if isinstance(x,Mapping)}
     if key in existing:
-        records[existing[key]]=dict(record)
+        records[existing[key]]=stored
     else:
-        records.append(dict(record))
+        records.append(stored)
     state["records"]=records[-2000:]
-    state["updated_at"]=str(record.get("attempted_at") or "")
+    state["updated_at"]=str(stored.get("attempted_at") or "")
     _save_json(path,state)
     append_event(
         state_dir/LEDGER_FILE,
         event_type="learning_observation",
-        occurred_at=str(record["attempted_at"]),
-        subject_id=str(record.get("question_id") or record.get("intent_id")),
-        source_ref=str(record.get("intent_id") or ""),
-        payload=dict(record),
+        occurred_at=str(stored["attempted_at"]),
+        subject_id=str(stored.get("question_id") or stored.get("intent_id")),
+        source_ref=str(stored.get("intent_id") or ""),
+        payload=stored,
     )
 
 def execute(
