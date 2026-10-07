@@ -510,7 +510,7 @@ async function latestWeeklyPayloadAtCommit(sha) {
   );
   if (!Array.isArray(rows)) throw new Error("weekly_commit_directory_invalid");
   const candidates = rows
-    .filter((row) => row?.type === "file" && /^20\\d{2}-W\\d{2}\\.json$/.test(String(row?.name || "")))
+    .filter((row) => row?.type === "file" && /^20\d{2}-W\d{2}\.json$/.test(String(row?.name || "")))
     .sort((a, b) => String(a.name).localeCompare(String(b.name)));
   const latest = candidates[candidates.length - 1];
   if (!latest?.path) return null;
