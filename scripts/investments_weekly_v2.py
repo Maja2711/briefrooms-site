@@ -319,7 +319,7 @@ def make_forecast() -> Optional[Path]:
         "instruments": items,
     }
     data["forecast_hash"] = forecast_hash(data)
-    history_seal.seal_forecast(data)
+    history_seal.seal_forecast(data, manifest_path=WEEKLY_DIR.parent / "wes_v5_history_seal_manifest.json")
     write_json(path, data)
     return path
 
