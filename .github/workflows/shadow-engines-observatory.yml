@@ -8,7 +8,8 @@ on:
       - "Stock Trading v1 Shadow Challenger"
       - "BRACE-SPX Architecture 2 Shadow"
       - "Weekly Engine Star"
-      - "FSE v2 Deep Fractal Memory Shadow"
+      - "FSE Fractal Structure Engine Shadow"
+      - "FSE Phase & Cross-Scale Shadow"
       - "Hypothesis Shadow Engine 2.0"
     types: [completed]
   schedule:
@@ -18,8 +19,6 @@ on:
     paths:
       - "scripts/build_shadow_engines_public.py"
       - "tests/test_shadow_engines_public.py"
-      - "scripts/investments_weekly_v5.py"
-      - "scripts/audit_intraday_risk_exits.py"
       - ".github/workflows/shadow-engines-observatory.yml"
 
 permissions:
@@ -46,30 +45,10 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: WES live execution safety hook
-        env:
-          PYTHONPATH: ${{ github.workspace }}
-        run: |
-          set -euo pipefail
-          export NO_RETROACTIVE_EXECUTION=1
-          export NO_RETROACTIVE_RUN_STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          python scripts/update_weekly_live_prices_fast.py
-          python scripts/investments_weekly_v5.py --mode ensure-exposure
-          python scripts/audit_intraday_risk_exits.py --persist-report on_close
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/live_prices.json data/investments/weekly data/investments/intraday_risk_audit.json
-          if ! git diff --cached --quiet; then
-            python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
-            git commit -m "Execute WES live ENTRY SL TP"
-            git pull --rebase origin main
-            git push origin HEAD:main
-          fi
-
       - name: Validate shadow registry builder and LAB frontend
         run: |
           python -m py_compile scripts/build_shadow_engines_public.py
-          python -m unittest tests.test_shadow_engines_public -v
+          python -m unittest tests.test_shadow_engines_public tests.test_shadow_engines_observatory_workflow -v
           node --check scripts/central-lab.js
           grep -q 'data-tab="shadow"' pl/inwestycje/decision-lab.html
           grep -q 'central-shadow-engines' pl/inwestycje/decision-lab.html

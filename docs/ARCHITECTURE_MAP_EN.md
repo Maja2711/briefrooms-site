@@ -1,8 +1,8 @@
 # BriefRooms Canonical Architecture Map — EN
 
-**Map version:** 1.27  
+**Map version:** 1.28  
 **Snapshot date:** 2026-10-07  
-**Base `main` commit:** `f756493f63d594f796e8095e7f963e66c5e5c076`  
+**Base `main` commit:** `8087ee249864b67487d817f3e570af430ff07f33`  
 **Repository:** `Maja2711/briefrooms-site`
 
 ## 0. Purpose of this document
@@ -325,6 +325,8 @@ Every publicly visible news card — section pages `/pl/aktualnosci` / `/en/news
 - AI Tournament,
 - AXIOM Thought,
 - publication, freshness guardians and automation health.
+
+**Shadow Engines Observatory is a status/read-only observatory.** It may read workflow status and publish sanitized `shadow_engines_public.json`, but it must not run WES/Weekly execution, mutate positions, risk state, or any other engine-owned lifecycle. A failure in any executor must not block publication of the other shadow-engine statuses.
 
 ### State boundaries
 
