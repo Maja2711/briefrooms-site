@@ -75,6 +75,72 @@ class EpistemicConsumerInterfaceTests(unittest.TestCase):
         self.assertFalse(env.authority.consumer_may_override_probability)
         self.assertFalse(env.authority.decision_writeback_enabled)
 
+    def test_daily_eurusd_uses_continuous_freshness_weighted_coverage(self):
+        payload = sample_state()
+        freshness = {
+            "eurusd.trend.bullish": 0.849,
+            "eurusd.usd_environment.supportive": 0.347,
+            "eurusd.us_rates_pressure.supportive": 0.457,
+            "eurusd.macro_surprise.supportive": 0.0,
+            "eurusd.policy_differential.supportive": 0.0,
+        }
+        probabilities = {
+            "eurusd.trend.bullish": 0.450722,
+            "eurusd.usd_environment.supportive": 0.51054,
+            "eurusd.us_rates_pressure.supportive": 0.571753,
+            "eurusd.macro_surprise.supportive": 0.50,
+            "eurusd.policy_differential.supportive": 0.50,
+        }
+        for i, belief_id in enumerate(EURUSD_BELIEF_IDS):
+            payload["states"][belief_id] = {
+                "state_id": f"eur-weighted-{i}",
+                "topic": belief_id,
+                "probability": probabilities[belief_id],
+                "confidence": 0.50,
+                "delta_probability": 0.01,
+                "contradiction": 0.10,
+                "freshness": freshness[belief_id],
+                "audit_status": "clean",
+                "member_belief_ids": [belief_id],
+                "dominant_support_evidence_ids": [],
+                "dominant_opposition_evidence_ids": [],
+                "drilldown_required": False,
+                "drilldown_reasons": [],
+            }
+
+        env = EpistemicConsumerInterface(payload, {}).envelope("DAILY_EURUSD")
+
+        self.assertTrue(env.available)
+        self.assertAlmostEqual(env.coverage_weight, 0.46225, places=6)
+        self.assertEqual(env.qualified_state_count, 3)
+        self.assertIsNotNone(env.aggregate_probability)
+        self.assertIsNotNone(env.aggregate_confidence)
+
+    def test_daily_eurusd_keeps_hard_freshness_floor_for_required_trend_anchor(self):
+        payload = sample_state()
+        for i, belief_id in enumerate(EURUSD_BELIEF_IDS):
+            payload["states"][belief_id] = {
+                "state_id": f"eur-anchor-{i}",
+                "topic": belief_id,
+                "probability": 0.60,
+                "confidence": 0.70,
+                "delta_probability": 0.01,
+                "contradiction": 0.10,
+                "freshness": 0.49 if belief_id == "eurusd.trend.bullish" else 1.0,
+                "audit_status": "clean",
+                "member_belief_ids": [belief_id],
+                "dominant_support_evidence_ids": [],
+                "dominant_opposition_evidence_ids": [],
+                "drilldown_required": False,
+                "drilldown_reasons": [],
+            }
+
+        env = EpistemicConsumerInterface(payload, {}).envelope("DAILY_EURUSD")
+
+        self.assertFalse(env.available)
+        self.assertEqual(env.reason, "required_eurusd_trend_state_not_qualified")
+        self.assertGreater(env.coverage_weight, 0.45)
+
     def test_missing_state_fails_closed(self):
         payload = sample_state()
         payload["states"].pop(SPX_BELIEF_IDS[-1])
