@@ -350,10 +350,6 @@ def _entry_market_mode(
     weight: it is a bounded confirmation/timing modifier. A strongly opposed
     Daily signal may veto MARKET, but it never changes the Weekly thesis.
     """
-    if pending.get("decision_id") or pending.get("payload_hash"):
-        raise decision_ledger.WesDecisionLedgerError(
-            "sealed WES decision cannot be reaffirmed in place; append a successor decision"
-        )
     engine = policy.get("entry_price_engine") if isinstance(policy.get("entry_price_engine"), dict) else {}
     cfg = engine.get("market_entry") if isinstance(engine.get("market_entry"), dict) else {}
     scoring = cfg.get("scoring") if isinstance(cfg.get("scoring"), dict) else {}
@@ -554,6 +550,10 @@ def renew_persistent_entry_plan(
     thesis executable across repeated WES cycles while failing closed if WES
     itself stops running for too long.
     """
+    if pending.get("decision_id") or pending.get("payload_hash"):
+        raise decision_ledger.WesDecisionLedgerError(
+            "sealed WES decision cannot be reaffirmed in place; append a successor decision"
+        )
     engine = policy.get("entry_price_engine") if isinstance(policy.get("entry_price_engine"), dict) else {}
     cfg = engine.get("persistent_plan") if isinstance(engine.get("persistent_plan"), dict) else {}
     if not cfg.get("enabled", True):
@@ -1107,6 +1107,7 @@ def entry_point(
     now: Optional[datetime] = None,
 ) -> Optional[Dict[str, Any]]:
     """Execute the frozen WES 1.3 mode: strong-trend MARKET or pullback LIMIT."""
+    decision_ledger.assert_pending_integrity(pending)
     plan = pending.get("entry_price_plan") if isinstance(pending.get("entry_price_plan"), dict) else {}
     direction = str(plan.get("direction") or (pending.get("decision") or {}).get("direction") or "neutral")
     execution_mode = str(plan.get("execution_mode") or "limit_pullback")
