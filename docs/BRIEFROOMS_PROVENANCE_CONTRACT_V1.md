@@ -86,3 +86,12 @@ Compatibility adapters remain the historical bridge. They do not rewrite old art
 WES has an additional invariant: canonical provenance is metadata-only for WES history sealing. Existing economic payload hashes, decision-ledger payload hashes and previously sealed historical hashes are not recomputed merely because native provenance exists.
 
 The next governance step, after sufficient prospective coverage, may introduce a cross-engine provenance auditor/publication gate. That is intentionally separate from this write-time adoption and must not be enabled by silently backfilling history.
+
+
+## Global fail-closed audit
+
+Since 2026-10-07T21:35:18Z, newly created governed artifacts are subject to the global prospective provenance gate implemented in `scripts/audit_provenance.py`.
+
+The gate validates the common envelope and payload hash, native write-time marker, prospective status, engine/authority boundaries, duplicate artifact-id collisions, local parent cycles, and available temporal lineage checks. Historical artifacts created before the activation boundary are grandfathered and are not rewritten or backfilled.
+
+The same auditor runs globally in CI and is invoked before persistence/upload in the production workflows for Stock Trading v2, Daily EURUSD, WES, BRACE Company-Entity, Shadow Engines Observatory, Belief Core and L3-A settlement. A failed audit blocks the relevant write/upload step.
