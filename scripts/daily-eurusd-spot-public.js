@@ -16,10 +16,11 @@
     entry: "Entry", stop: "SL", target: "TP", mark: "Current", markFallback: "Last engine price", horizon: "Max horizon",
     result: "Result", pips: "P/L (pips)", r: "R multiple", exit: "Exit", opened: "Opened", closed: "Closed",
     history: "EUR/USD history", noHistory: "No closed EUR/USD positions yet.",
-    learning: "Method and outcome learning",
-    learningStats: "Learning state",
+    learning: "Decision method and learning diagnostics",
+    learningExplanation: "Daily EUR/USD v1.9 makes the current LONG/SHORT/FLAT decision from Belief Core through the authoritative Epistemic State. Historical outcome statistics, legacy components and adaptive weights below are learning diagnostics only; they do not override the production direction or its thresholds.",
+    learningStats: "Historical outcome statistics",
     trades: "closed", winRate: "win rate", avgR: "avg R", streak: "loss streak",
-    thresholds: "Belief decision thresholds",
+    thresholds: "Current Belief decision thresholds",
     candidate: "Current candidate",
     rejected: "Why no position",
     gate: {
@@ -36,8 +37,8 @@
       entry_disabled_this_cycle: "new entry disabled in the closing cycle"
     },
     reasons: "Why no entry",
-    components: "Components",
-    weights: "adaptive weights",
+    components: "Legacy components (diagnostics only)",
+    weights: "Legacy adaptive weights (no direction authority)",
     error: "Could not load Daily EUR/USD state."
   } : {
     engineWithBelief: "Daily Engine · WITH BELIEF",
@@ -51,10 +52,11 @@
     entry: "Wejście", stop: "SL", target: "TP", mark: "Cena teraz", markFallback: "Ostatnia cena silnika", horizon: "Maks. horyzont",
     result: "Wynik", pips: "Zysk (pips)", r: "Wynik R", exit: "Wyjście", opened: "Otwarcie", closed: "Zamknięcie",
     history: "Historia EUR/USD", noHistory: "Brak zamkniętych pozycji EUR/USD.",
-    learning: "Metoda i uczenie z wyników",
-    learningStats: "Stan uczenia",
+    learning: "Metoda decyzji i diagnostyka uczenia",
+    learningExplanation: "Daily EUR/USD v1.9 podejmuje bieżącą decyzję LONG/SHORT/FLAT na podstawie Belief Core przez autorytatywny Epistemic State. Poniższe statystyki wyników, legacy komponenty i wagi adaptacyjne są wyłącznie diagnostyką uczenia; nie zmieniają produkcyjnego kierunku ani jego progów.",
+    learningStats: "Historyczne statystyki wyników",
     trades: "zamkniętych", winRate: "skuteczność", avgR: "śr. R", streak: "seria strat",
-    thresholds: "Progi decyzji Belief",
+    thresholds: "Aktualne progi decyzji Belief",
     candidate: "Bieżący kandydat",
     rejected: "Dlaczego brak pozycji",
     gate: {
@@ -71,8 +73,8 @@
       entry_disabled_this_cycle: "nowe wejście wyłączone w cyklu zamykającym pozycję"
     },
     reasons: "Dlaczego bez wejścia",
-    components: "Komponenty",
-    weights: "wagi po uczeniu",
+    components: "Legacy komponenty (tylko diagnostyka)",
+    weights: "Legacy wagi adaptacyjne (bez wpływu na kierunek)",
     error: "Nie udało się wczytać stanu Daily EUR/USD."
   };
 
@@ -178,10 +180,11 @@
       <div class="brfx-head"><div><small>${esc(engineLabel)}</small><h3>EUR/USD Spot</h3></div><span class="brfx-stage">${esc(T.monitoring)}</span></div>
       ${main}
       <details><summary>${esc(T.learning)}</summary><div class="brfx-details">
+        <p><b>${esc(T.learningExplanation)}</b></p>
+        <p>${esc(T.thresholds)}: LONG ≥ <b>${esc(num(thresholds.long,1))}</b> · SHORT ≤ <b>${esc(num(thresholds.short,1))}</b>.</p>
+        <p>${esc(T.learningStats)}: ${Number(learning.total_closed || 0)} ${esc(T.trades)} · ${esc(T.winRate)} ${esc(winRate)} · ${esc(T.avgR)} ${esc(num(learning.average_r,2))} · ${esc(T.streak)} ${Number(learning.consecutive_losses || 0)}.</p>
         <p>${esc(T.components)}: trend <b>${num(components.trend,3)}</b> · USD <b>${num(components.broad_usd_environment,3)}</b> · rates <b>${num(components.us_rates_pressure_proxy,3)}</b>.</p>
         <p>${esc(T.weights)}: trend <b>${num((weights.trend || 0)*100,1)}%</b> · USD <b>${num((weights.broad_usd_environment || 0)*100,1)}%</b> · rates <b>${num((weights.us_rates_pressure_proxy || 0)*100,1)}%</b>.</p>
-        <p>${esc(T.learningStats)}: ${Number(learning.total_closed || 0)} ${esc(T.trades)} · ${esc(T.winRate)} ${esc(winRate)} · ${esc(T.avgR)} ${esc(num(learning.average_r,2))} · ${esc(T.streak)} ${Number(learning.consecutive_losses || 0)}.</p>
-        <p>${esc(T.thresholds)}: LONG ≥ <b>${esc(num(thresholds.long,1))}</b> · SHORT ≤ <b>${esc(num(thresholds.short,1))}</b> · confidence ≥ <b>${thresholds.min_confidence == null ? "—" : Math.round(Number(thresholds.min_confidence)*100)+"%"}</b>.</p>
       </div></details>
       <details class="brfx-history-details" ${trades.length ? "open" : ""}><summary>${esc(T.history)}</summary>${historyRows(trades)}</details>
       <p class="brfx-foot">${esc(payload.engine_version || "")} · ${esc(date(payload.timestamp))}</p>
