@@ -4,7 +4,7 @@ name: FSE Intraday Fast Shadow
 on:
   workflow_dispatch:
   schedule:
-    - cron: "2,17,32,47 * * * *"
+    - cron: "2,7,12,17,22,27,32,37,42,47,52,57 * * * *"
   pull_request:
     paths:
       - "scripts/fse_intraday_fast.py"
@@ -88,7 +88,7 @@ jobs:
           p=json.loads(Path("data/investments/fse_intraday_public.json").read_text())
           assert p["mode"]=="SHADOW_ONLY"
           assert p["production_impact"] is False
-          assert p["cadence_minutes"]==15
+          assert p["cadence_minutes"]==5
           assert all(v is False for v in p["authority"].values())
 
           now=datetime.now(timezone.utc)
