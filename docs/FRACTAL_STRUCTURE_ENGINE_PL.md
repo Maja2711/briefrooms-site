@@ -308,7 +308,7 @@ Pipeline:
 Yahoo 1m / 7d -> 1m -> resample 5m / 15m / 1h -> Phase descriptor -> merge z ostatnim pełnym kontekstem 4h/1d/1w -> Cross-Scale Alignment -> `data/investments/fse_intraday_public.json`.
 
 Zasady:
-- cadence: 5 minut, przez dedykowany workflow `fse-intraday-fast.yml` uruchamiany w minutach 02/07/12/17/22/27/32/37/42/47/52/57; awaria WES/Weekly nie może zatrzymać FSE fast, a nowy cykl nie kasuje poprzedniego w trakcie publikacji;
+- docelowa świeżość: 5 minut; źródłem pierwszego wyboru dla LAB jest niezależny Cloudflare Worker `briefrooms-fse-fast` z własnym cronem `*/5 * * * *` i on-demand compute/cache, a `fse-intraday-fast.yml` + `data/investments/fse_intraday_public.json` pozostają fallbackiem statycznym; awaria GitHub `schedule` nie może już sama zatrzymać prezentacyjnej ścieżki FSE fast;
 - 1m/5m/15m/1h są odświeżane z jednego wspólnego 1-minutowego feedu;
 - 4h/1d/1w pozostają z pełnego godzinowego FSE-PHASE;
 - ścieżka nie tworzy snapshotów/resolution i nie zasila HSE2;
