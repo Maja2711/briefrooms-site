@@ -7,7 +7,7 @@
   "automatic_tuning": false,
   "automatic_promotion": false,
   "promotion_policy": "v3_candidates_manual; probability_recalibration_closed_loop_governed",
-  "generated_at": "2026-10-07T21:06:02.407891Z",
+  "generated_at": "2026-10-07T21:21:25.312963Z",
   "evolution_controller": {
     "authority": {
       "belief_evidence_mutation": false,
@@ -635,7 +635,7 @@
       "promotion_brier_relative_improvement": 0.05,
       "stability_blocks_required": "3_of_4"
     },
-    "generated_at": "2026-10-07T21:06:03.861707Z",
+    "generated_at": "2026-10-07T21:21:26.574270Z",
     "global_control_metrics": {
       "accuracy": 0.60396,
       "brier": 0.239261,
@@ -650,7 +650,7 @@
     {
       "instrument": "BTC/USD",
       "trend_belief_id": "btc.trend.bullish",
-      "calculated_at": "2026-10-07T21:06:02.407891Z",
+      "calculated_at": "2026-10-07T21:21:25.312963Z",
       "as_of": "2026-10-07T19:06:18.100688Z",
       "target_at": "2026-10-08T19:06:18.100688Z",
       "horizon_label": "24H",
@@ -676,7 +676,7 @@
     {
       "instrument": "EUR/USD",
       "trend_belief_id": "eurusd.trend.bullish",
-      "calculated_at": "2026-10-07T21:06:02.407891Z",
+      "calculated_at": "2026-10-07T21:21:25.312963Z",
       "as_of": "2026-10-07T19:06:18.100688Z",
       "target_at": "2026-10-08T19:06:18.100688Z",
       "horizon_label": "24H",
@@ -702,7 +702,7 @@
     {
       "instrument": "S&P 500",
       "trend_belief_id": "spx.trend.bullish",
-      "calculated_at": "2026-10-07T21:06:02.407891Z",
+      "calculated_at": "2026-10-07T21:21:25.312963Z",
       "as_of": "2026-10-07T19:06:18.100688Z",
       "target_at": "2026-10-07T20:00:00Z",
       "horizon_label": "1H",
@@ -712,7 +712,7 @@
       "evidence_confidence": 0.656375,
       "sentiment": "negative",
       "sentiment_label": "NEGATYWNE",
-      "environment_score": 0.359853,
+      "environment_score": 0.359681,
       "environment_components": 4,
       "probability_change": 0.020477,
       "probability_movement": "rising",
@@ -739,6 +739,41 @@
     }
   },
   "forecasts": [
+    {
+      "forecast_id": "l3af-976708c1df2f61cf00fda545",
+      "entity": "SPX",
+      "belief_id": "spx.volatility.benign",
+      "claim": "Equity volatility remains contained into the target horizon",
+      "probability": 0.495134,
+      "confidence": 0.439525,
+      "forecast_at": "2026-10-07T21:09:10.865828Z",
+      "target_at": "2026-10-08T20:00:00Z",
+      "horizon_hours": 22.846982,
+      "horizon_label": "1S",
+      "regime": "l3a_research",
+      "status": "OPEN",
+      "outcome": null,
+      "brier_score": null,
+      "forecast_contract_version": null,
+      "model_freeze_version": null,
+      "t0_at": "2026-10-07T21:09:10.865828Z",
+      "t0_values": {
+        "^VIX": 15.079999923706055
+      },
+      "t0_source": "frozen_outcome_spec_reference",
+      "nominal_target_at": null,
+      "settlement_rule": null,
+      "settlement_max_delay_hours": null,
+      "market_calendar": null,
+      "horizon_basis": "US_REGULAR_SESSION_EQUIVALENT",
+      "elapsed_nominal_target_at": "2026-10-08T21:09:10.865828Z",
+      "session_equivalent_count": 1.0,
+      "calibration_horizon_bucket": "1S_US_SESSION",
+      "t1_values": null,
+      "settled_at": null,
+      "production_write_authority": false,
+      "automatic_promotion": false
+    },
     {
       "forecast_id": "l3af-fdae53b6619d6944424776c7",
       "entity": "SPX",
@@ -2165,47 +2200,6 @@
         "EURUSD=X": 1.1200717687606812
       },
       "settled_at": "2026-10-07T19:06:18.100688Z",
-      "production_write_authority": false,
-      "automatic_promotion": false
-    },
-    {
-      "forecast_id": "forecast-0407c5939dfe400dde46",
-      "entity": "US_MACRO",
-      "belief_id": "spx.financial_conditions.supportive",
-      "claim": "Rates/USD/credit financial conditions remain supportive into the target horizon",
-      "probability": 0.908878,
-      "confidence": 0.704486,
-      "forecast_at": "2026-10-06T18:34:49.403961Z",
-      "target_at": "2026-10-06T20:00:00Z",
-      "horizon_hours": 1.41961,
-      "horizon_label": "1H",
-      "regime": "neutral",
-      "status": "RESOLVED",
-      "outcome": true,
-      "brier_score": 0.008303,
-      "forecast_contract_version": "decision-lab-forecast-contract-v2",
-      "model_freeze_version": "belief-core-v2-shadow-2026-09-27",
-      "t0_at": "2026-10-06T18:34:49.403961Z",
-      "t0_values": {
-        "HYG": 77.26000213623047,
-        "TLT": 77.47000122070312,
-        "UUP": 28.909700393676758
-      },
-      "t0_source": "forecast_contract_v2",
-      "nominal_target_at": "2026-10-06T20:00:00Z",
-      "settlement_rule": "first_bar_at_or_after_nominal_target",
-      "settlement_max_delay_hours": 72,
-      "market_calendar": "tradable_session_first_available",
-      "horizon_basis": null,
-      "elapsed_nominal_target_at": null,
-      "session_equivalent_count": null,
-      "calibration_horizon_bucket": null,
-      "t1_values": {
-        "HYG": 77.2699966430664,
-        "TLT": 77.27999877929688,
-        "UUP": 28.899999618530273
-      },
-      "settled_at": "2026-10-06T20:55:59.840436Z",
       "production_write_authority": false,
       "automatic_promotion": false
     }
@@ -13134,7 +13128,7 @@
     }
   },
   "metrics": {
-    "forecast_count": 941,
+    "forecast_count": 942,
     "resolved_count": 808,
     "calibration_eligible": 808,
     "brier_score": 0.239261,
