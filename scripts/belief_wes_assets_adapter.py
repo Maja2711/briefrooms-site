@@ -215,7 +215,7 @@ class WESAssetEvidenceAdapter:
             reliability=.74,
             independence_cluster=cluster,
             tags=("WES", "cross_asset", self.version),
-            metadata=dict(metadata or {}),
+            metadata={"serial_state_snapshot": True, **dict(metadata or {})},
         )
 
     @staticmethod
