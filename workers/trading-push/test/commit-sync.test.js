@@ -467,7 +467,8 @@ test("PushHub ACK is authenticated and idempotent", async () => {
   const storage = new FakeStorage();
   const hub = new PushHub({ storage }, {});
   const delivery = newDeliveryRecord("evt-2", "sub-a", "ack-secret", "2026-10-07T10:00:00.000Z");
-  await storage.put("delivery:evt-2:sub-a", transitionDelivery(delivery, DELIVERY_STATUS.SENT_TO_PUSH, "2026-10-07T10:00:01.000Z", {
+  const sending = transitionDelivery(delivery, DELIVERY_STATUS.SENDING, "2026-10-07T10:00:00.500Z", { attempts: 1 });
+  await storage.put("delivery:evt-2:sub-a", transitionDelivery(sending, DELIVERY_STATUS.SENT_TO_PUSH, "2026-10-07T10:00:01.000Z", {
     sent_to_push_at: "2026-10-07T10:00:01.000Z",
   }));
   await storage.put("recipients:evt-2", { initialized_at: "2026-10-07T10:00:00.000Z", count: 1 });
