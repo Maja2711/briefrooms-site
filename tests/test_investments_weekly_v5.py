@@ -243,6 +243,67 @@ class GovernedWeeklyModelTests(unittest.TestCase):
         self.assertEqual(64, len(pending["payload_hash"]))
         self.assertTrue(v5.decision_ledger.assert_pending_integrity(pending))
 
+    def test_sealed_reaffirmation_creates_successor_without_mutating_predecessor(self):
+        now = datetime(2026, 10, 7, 10, 0, tzinfo=v5.legacy.TZ)
+        item = {
+            "instrument_id": "btcusd",
+            "validation_gate": "enabled_for_paper_trading",
+            "wes_entry_authorization": {
+                "authorized_at": now.isoformat(timespec="seconds"),
+                "directional_admission_passed": True,
+                "candidate": {
+                    "strategy_id": "base_v2",
+                    "direction": "long",
+                    "execution_authority": "champion_execution",
+                },
+            },
+        }
+        decision = {"strategy_id": "base_v2", "direction": "long", "raw_score": 45.0, "utility": 7.0}
+        fresh = {"score": 45.0, "signals": {
+            "last_close": 100.0, "atr14": 4.0, "ema20": 96.0,
+            "ret5_pct": 2.0, "ret20_pct": 4.0, "range55_position": 0.7,
+        }}
+        policy = {"entry_price_engine": {
+            "enabled": True, "require_for_all_new_entries": True, "version": "WES-1.3.1",
+            "max_wait_minutes": 60, "minimum_pullback_atr": 0.10, "base_pullback_atr": 0.12,
+            "overextension_extra_pullback_atr": 0.48, "maximum_pullback_atr": 0.75,
+            "ret5_full_scale_percent": 8.0, "ema_distance_full_scale_atr": 2.5,
+            "structural_ema20_buffer_atr": 0.25, "max_target_distance_percent": {"btcusd": 3.5},
+            "persistent_plan": {
+                "enabled": True,
+                "reaffirmation_extension_minutes": 60,
+                "max_reaffirmation_gap_minutes": 20,
+            },
+        }}
+        pending = v5.freeze_decision(
+            item, decision, fresh, {"score": 20.0}, now, policy, week_id="2026-W41"
+        )
+        original_id = pending["decision_id"]
+        original_hash = pending["payload_hash"]
+        original_target = pending["entry_price_plan"]["target_price"]
+        original_expiry = pending["entry_price_plan"]["expires_at"]
+
+        successor = v5.reaffirm_pending_decision(
+            item,
+            pending,
+            now + timedelta(minutes=50),
+            policy,
+            week_id="2026-W41",
+        )
+        self.assertIsNotNone(successor)
+        self.assertNotEqual(original_id, successor["decision_id"])
+        self.assertEqual(original_id, successor["predecessor_decision_id"])
+        self.assertEqual(original_hash, pending["payload_hash"])
+        self.assertEqual(original_target, pending["entry_price_plan"]["target_price"])
+        self.assertEqual(original_expiry, pending["entry_price_plan"]["expires_at"])
+        self.assertEqual(original_target, successor["entry_price_plan"]["target_price"])
+        self.assertGreater(
+            v5.parse_dt(successor["entry_price_plan"]["expires_at"]),
+            v5.parse_dt(original_expiry),
+        )
+        with self.assertRaises(v5.decision_ledger.WesDecisionLedgerError):
+            v5.renew_persistent_entry_plan(pending, now + timedelta(minutes=50), policy)
+
     def test_strong_aligned_trend_chooses_market_entry(self):
         now = datetime(2026, 10, 5, 8, 5, tzinfo=v5.legacy.TZ)
         item = {
