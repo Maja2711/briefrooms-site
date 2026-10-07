@@ -130,9 +130,9 @@ def emit_weekly_event(
     for existing in events:
         if not isinstance(existing, dict) or str(existing.get("event_id") or "") != event["event_id"]:
             continue
-        immutable_keys = ("engine", "event_type", "position_id", "week_id", "opened_at")
-        if any(existing.get(key) != event.get(key) for key in immutable_keys):
-            raise RuntimeError(f"WES event_id collision: {event['event_id']}")
+        # A retry may return the exact same immutable event, but never mutate it.
+        if existing != event:
+            raise RuntimeError(f"WES event_id already exists with different content: {event['event_id']}")
         return existing, False
     events.append(event)
     _atomic_write(target, {"schema_version": SCHEMA_VERSION, "events": events})
