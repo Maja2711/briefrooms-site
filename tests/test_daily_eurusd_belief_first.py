@@ -105,6 +105,45 @@ class BeliefDecisionTest(unittest.TestCase):
         self.assertEqual(result["epistemic_source"], "BELIEF_CORE_CF07")
         self.assertFalse(result["legacy_raw_score_direction_authority"])
 
+    def test_slightly_narrower_production_neutral_band_allows_qualified_43_74_short(self):
+        now = datetime(2026, 10, 7, 14, 7, 49, tzinfo=UTC)
+        state = _state(now, {
+            "eurusd.trend.bullish": (.37, .44),
+            "eurusd.usd_environment.supportive": (.32, .56),
+            "eurusd.us_rates_pressure.supportive": (.54, .37),
+        })
+        consumer = {
+            "available": True,
+            "contract": "epistemic-consumer-interface-v1",
+            "aggregate_authoritative": True,
+            "aggregate_probability": 0.4374,
+            "aggregate_confidence": 0.2502,
+            "coverage_weight": 0.533874,
+        }
+        result = decision.synthesize(state, observed_at=now, authoritative_consumer=consumer)
+        self.assertEqual(result["thresholds"], {"long": 56.0, "short": 44.0})
+        self.assertEqual(result["score"], 43.74)
+        self.assertEqual(result["direction"], "SHORT")
+
+    def test_45_score_remains_neutral_after_participation_change(self):
+        now = datetime(2026, 10, 7, 14, 7, 49, tzinfo=UTC)
+        state = _state(now, {
+            "eurusd.trend.bullish": (.45, .60),
+            "eurusd.usd_environment.supportive": (.45, .60),
+            "eurusd.us_rates_pressure.supportive": (.45, .60),
+        })
+        consumer = {
+            "available": True,
+            "contract": "epistemic-consumer-interface-v1",
+            "aggregate_authoritative": True,
+            "aggregate_probability": 0.45,
+            "aggregate_confidence": 0.30,
+            "coverage_weight": 0.60,
+        }
+        result = decision.synthesize(state, observed_at=now, authoritative_consumer=consumer)
+        self.assertEqual(result["direction"], "FLAT")
+        self.assertIn("belief_score_neutral", result["reasons"])
+
     def test_missing_belief_state_fails_closed(self):
         now = datetime(2026, 10, 2, 18, 0, tzinfo=UTC)
         result = decision.synthesize({}, observed_at=now)
