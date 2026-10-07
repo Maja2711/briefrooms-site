@@ -39,8 +39,8 @@ PL_EDITORIAL_EXTRA_FEEDS = {
         ("Spider's Web", "https://spidersweb.pl/?feed=mcfeed"),
     ),
     "ai-technologia-krypto": (
-        ("Benchmark.pl", "https://www.benchmark.pl/rss/aktualnosci.xml"),
-        ("Antyweb", "https://antyweb.pl/feed"),
+        ("Benchmark.pl", "https://www.benchmark.pl/rss/benchmark-pl.xml"),
+        ("Antyweb", "http://feeds2.feedburner.com/Antyweb"),
         ("CoinDesk", "https://www.coindesk.com/arc/outboundfeeds/rss/"),
         ("TechCrunch", "https://techcrunch.com/feed/"),
     ),
