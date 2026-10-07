@@ -42,7 +42,11 @@ persist_triggered_exit() {
     sha=$(git rev-parse HEAD)
 
     if git push origin HEAD:main; then
-      sync_push_commit "$sha"
+      if ! sync_push_commit "$sha"; then
+        echo "Daily close persisted at $sha but immediate Web Push sync failed." >&2
+        echo "The committed trading-events feed remains the recovery path; failing this run for visibility." >&2
+        return 3
+      fi
       echo "close_sha=$sha" >> "$GITHUB_OUTPUT"
       return 0
     fi
@@ -131,7 +135,14 @@ while [ "$(date +%s)" -lt "$handoff_end" ] && [ "$still_open" = "1" ]; do
   if python scripts/daily_eurusd_fast_lifecycle.py     --output data/investments/eurusd_daily_spot.json     --history data/investments/eurusd_daily_history.json     --probe-json "$RUNNER_TEMP/eurusd-realtime-handoff.json"; then
     read -r _ triggered <<<"$(probe_flags "$RUNNER_TEMP/eurusd-realtime-handoff.json")"
     if [ "$triggered" = "1" ]; then
-      persist_triggered_exit || true
+      set +e
+      persist_triggered_exit
+      rc=$?
+      set -e
+      if [ "$rc" -ne 0 ] && [ "$rc" -ne 2 ]; then
+        echo "Realtime handoff close/push failed with rc=$rc" >&2
+        exit "$rc"
+      fi
       break
     fi
   fi
