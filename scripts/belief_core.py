@@ -452,6 +452,17 @@ class BeliefCore:
 
     @staticmethod
     def _representative(items: Sequence[Evidence], as_of: str | datetime, half_life_hours: float) -> Evidence:
+        # Serial market-state snapshots are replacements inside one dependence
+        # cluster, not independent historical votes. A fresh weak reading must
+        # replace yesterday's stronger reading for current-state freshness and
+        # direction. Event/news evidence keeps the established source-rank +
+        # effective-mass semantics below.
+        serial = [
+            e for e in items
+            if bool((e.metadata or {}).get("serial_state_snapshot"))
+        ]
+        if serial:
+            return max(serial, key=lambda e: parse_time(e.observed_at).timestamp())
         rank = {"primary": 2, "secondary": 1, "derived": 0}
         return max(items, key=lambda e: (rank[e.source_type], e.effective_mass(as_of, half_life_hours), parse_time(e.observed_at).timestamp()))
 
