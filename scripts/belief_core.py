@@ -19,6 +19,11 @@ from typing import Any, Dict, Iterable, List, Mapping, MutableMapping, Optional,
 
 from belief_calibration import build_calibration_report
 
+try:
+    import provenance_contract as provenance
+except ImportError:
+    from scripts import provenance_contract as provenance
+
 SCHEMA_VERSION = 2
 MODE = "shadow"
 UPDATE_GAIN = 1.65
@@ -127,7 +132,24 @@ class Evidence:
         p = asdict(self)
         p["derived_from"] = list(self.derived_from)
         p["metadata"] = dict(self.metadata)
-        return p
+        return provenance.attach_native(
+            p,
+            artifact_id=self.evidence_id,
+            artifact_type="evidence",
+            engine_id="belief_core",
+            engine_version=str(SCHEMA_VERSION),
+            created_at=self.observed_at,
+            authority="evidence",
+            parent_artifact_ids=self.derived_from,
+            source_ids=[x for x in (self.source_ref, self.source) if x],
+            evidence_ids=[self.evidence_id],
+            belief_ids=[self.belief_id],
+            domain_provenance={
+                "source_type": self.source_type,
+                "evidence_type": self.evidence_type,
+                "native_write_time": True,
+            },
+        )
 
     @classmethod
     def from_dict(cls, p: Mapping[str, Any]) -> "Evidence":
@@ -199,7 +221,26 @@ class BeliefState:
     horizon_hours: float
     audit_status: str = "pending"
 
-    def to_dict(self) -> Dict[str, Any]: return asdict(self)
+    def to_dict(self) -> Dict[str, Any]:
+        p = asdict(self)
+        evidence_ids = sorted(set(
+            list(self.support_evidence_ids)
+            + list(self.opposing_evidence_ids)
+            + list(self.representative_evidence_ids)
+        ))
+        return provenance.attach_native(
+            p,
+            artifact_id=f"belief-state:{self.belief_id}:{self.last_updated}",
+            artifact_type="belief_state",
+            engine_id="belief_core",
+            engine_version=str(SCHEMA_VERSION),
+            created_at=self.last_updated,
+            authority="belief",
+            parent_artifact_ids=evidence_ids,
+            evidence_ids=evidence_ids,
+            belief_ids=[self.belief_id],
+            domain_provenance={"native_write_time": True},
+        )
 
     @classmethod
     def from_dict(cls, p: Mapping[str, Any]) -> "BeliefState":
@@ -252,7 +293,24 @@ class ForecastSnapshot:
         p["representative_evidence_ids"] = list(self.representative_evidence_ids)
         p["evidence_snapshot"] = [dict(x) for x in self.evidence_snapshot]
         p["metadata"] = dict(self.metadata)
-        return p
+        return provenance.attach_native(
+            p,
+            artifact_id=self.forecast_id,
+            artifact_type="frozen_forecast",
+            engine_id="belief_core",
+            engine_version=str(SCHEMA_VERSION),
+            created_at=self.forecast_at,
+            authority="forecast",
+            parent_artifact_ids=self.representative_evidence_ids,
+            evidence_ids=self.representative_evidence_ids,
+            belief_ids=[self.belief_id],
+            forecast_id=self.forecast_id,
+            domain_provenance={
+                "forecast_set_id": self.forecast_set_id,
+                "target_at": self.target_at,
+                "native_write_time": True,
+            },
+        )
 
     @classmethod
     def from_dict(cls, p: Mapping[str, Any]) -> "ForecastSnapshot":
@@ -297,7 +355,34 @@ class Verification:
     note: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
-        p = asdict(self); p["evidence_snapshot"] = [dict(x) for x in self.evidence_snapshot]; return p
+        p = asdict(self)
+        p["evidence_snapshot"] = [dict(x) for x in self.evidence_snapshot]
+        evidence_ids = sorted({
+            str(row.get("evidence_id"))
+            for row in self.evidence_snapshot
+            if isinstance(row, Mapping) and row.get("evidence_id")
+        })
+        return provenance.attach_native(
+            p,
+            artifact_id=self.verification_id,
+            artifact_type="verification",
+            engine_id="belief_core",
+            engine_version=str(SCHEMA_VERSION),
+            created_at=self.verified_at,
+            authority="verification",
+            parent_artifact_ids=[self.forecast_id] if self.forecast_id else [],
+            evidence_ids=evidence_ids,
+            belief_ids=[self.belief_id],
+            forecast_id=self.forecast_id,
+            verification_id=self.verification_id,
+            prospective=not self.legacy,
+            source_ids=[x for x in (self.outcome_ref, self.outcome_source) if x],
+            domain_provenance={
+                "forecast_set_id": self.forecast_set_id,
+                "target_at": self.target_at,
+                "native_write_time": True,
+            },
+        )
 
     @classmethod
     def from_dict(cls, p: Mapping[str, Any]) -> "Verification":
