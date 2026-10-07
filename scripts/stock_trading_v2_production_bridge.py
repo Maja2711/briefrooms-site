@@ -19,6 +19,11 @@ from pathlib import Path
 from typing import Any, Callable, Mapping
 
 try:
+    import provenance_contract as provenance
+except ImportError:
+    from scripts import provenance_contract as provenance
+
+try:
     from scripts import stock_trading_portfolio as portfolio
     from scripts import stock_trading_quote_enricher as quotes
 except ModuleNotFoundError:  # pragma: no cover
@@ -450,6 +455,46 @@ def run(opportunity_paths: Mapping[str, Path], *, now_utc: datetime | None = Non
         all_audits.extend(audits)
         if healthy:
             healthy_sessions.append(_market_session_key(market, now_utc))
+
+    enriched_audits: list[dict[str, Any]] = []
+    for index, action in enumerate(all_audits):
+        raw_action = dict(action)
+        action_type = str(raw_action.get("action") or "artifact")
+        position_id = raw_action.get("position_id")
+        artifact_id = (
+            f"stock-trading-v2:{action_type}:{position_id}"
+            if position_id
+            else f"stock-trading-v2:{action_type}:{provenance.payload_hash(raw_action)[:24]}"
+        )
+        execution = raw_action.get("execution_provenance") if isinstance(raw_action.get("execution_provenance"), Mapping) else {}
+        enriched_audits.append(provenance.attach_native(
+            raw_action,
+            artifact_id=artifact_id,
+            artifact_type=f"stock_{action_type}",
+            engine_id="stock_trading_v2",
+            engine_version="v2",
+            created_at=str(
+                raw_action.get("opened_at")
+                or raw_action.get("entry_decision_at")
+                or now_utc.isoformat().replace("+00:00", "Z")
+            ),
+            authority="execution" if action_type in {"open", "close"} else "decision",
+            source_ids=[
+                str(value)
+                for value in (raw_action.get("source_engine"), execution.get("source"))
+                if value
+            ],
+            decision_id=str(position_id) if position_id else artifact_id,
+            prospective=True,
+            domain_provenance={
+                "market": raw_action.get("market"),
+                "phase": raw_action.get("phase") or runtime.get("phase"),
+                "native_write_time": True,
+                "legacy_execution_provenance_preserved": bool(execution),
+                "audit_index": index,
+            },
+        ))
+    all_audits = enriched_audits
 
     maybe_promote(runtime, config, healthy_sessions, now_utc)
     verified = portfolio.verify_state(canonical, production_policy)
