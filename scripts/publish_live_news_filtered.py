@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import math
 import re
+import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -20,6 +21,50 @@ except ImportError:
     from news_quality import POLICY_VERSION, evaluate_story, public_policy
 
 ROOT = Path(__file__).resolve().parents[1]
+_PL_AI_TRANSLATOR = None
+ENGLISH_HINT_RE = re.compile(r"\b(?:the|and|with|from|for|will|new|says?|after|into|over|about|technology|artificial|intelligence|crypto|bitcoin)\b", re.IGNORECASE)
+POLISH_HINT_RE = re.compile(r"\b(?:oraz|jest|dla|który|która|nowy|nowa|sztuczna|inteligencja|technologia|krypto|wiadomości)\b", re.IGNORECASE)
+
+
+def _looks_english(text: str) -> bool:
+    sample = str(text or "")
+    return len(ENGLISH_HINT_RE.findall(sample)) >= 2 and len(POLISH_HINT_RE.findall(sample)) == 0
+
+
+def _get_pl_ai_translator():
+    global _PL_AI_TRANSLATOR
+    if _PL_AI_TRANSLATOR is None:
+        from transformers import pipeline
+        _PL_AI_TRANSLATOR = pipeline(
+            "translation",
+            model=os.environ.get("BR_PL_AI_TRANSLATION_MODEL", "Helsinki-NLP/opus-mt-en-pl"),
+            device=-1,
+        )
+    return _PL_AI_TRANSLATOR
+
+
+def _translate_pl_ai_text(text: str, max_length: int) -> str:
+    value = re.sub(r"<[^>]+>", " ", str(text or ""))
+    value = re.sub(r"\s+", " ", value).strip()
+    if not value or not _looks_english(value):
+        return value
+    translated = _get_pl_ai_translator()(value, max_length=max_length, truncation=True)
+    return str(translated[0].get("translation_text") or value).strip()
+
+
+def _localize_pl_ai_story(story: dict[str, Any]) -> dict[str, Any]:
+    title = str(story.get("title") or "")
+    summary = str(story.get("summary") or title)
+    if not (_looks_english(title) or _looks_english(summary)):
+        return story
+    localized = dict(story)
+    localized["source_title"] = title
+    localized["source_summary"] = summary
+    localized["title"] = _translate_pl_ai_text(title, 128)
+    localized["summary"] = _translate_pl_ai_text(summary, 220)
+    localized["pl_localization"] = "local-en-pl-title-summary-v1"
+    return localized
+
 
 _original_fetch_feed = base.fetch_feed
 _original_load_previous = base.load_previous
@@ -1037,6 +1082,8 @@ def fetch_feed(source: str, feed_url: str, section_id: str, now: Any) -> tuple[l
     else:
         stories, error = _original_fetch_feed(source, feed_url, section_id, now)
     accepted = _filter_stories(stories, f"fresh/{section_id}/{source}")
+    if section_id == "ai-technologia-krypto":
+        accepted = [_localize_pl_ai_story(story) for story in accepted]
     if section_id == "sport":
         # The base image pass is intentionally bounded. Make sure a live/high-profile
         # candidate cannot disappear only because its RSS item omitted a thumbnail.
