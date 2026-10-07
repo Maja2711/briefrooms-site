@@ -301,14 +301,14 @@ Nawet po pozytywnym HSE2 potrzebny jest jawny, per-engine bridge i promotion gat
 
 ## 10. FSE Intraday Fast Projection
 
-Krótki horyzont FSE ma osobną, lekką ścieżkę prezentacyjną uruchamianą na wspólnym 5-minutowym zegarze rynku.
+Krótki horyzont FSE ma osobną, lekką ścieżkę prezentacyjną uruchamianą przez niezależny workflow co 5 minut.
 
 Pipeline:
 
 Yahoo 1m / 7d -> 1m -> resample 5m / 15m / 1h -> Phase descriptor -> merge z ostatnim pełnym kontekstem 4h/1d/1w -> Cross-Scale Alignment -> `data/investments/fse_intraday_public.json`.
 
 Zasady:
-- cadence: 5 minut, przez istniejący workflow `weekly-live-prices.yml`;
+- cadence: 5 minut, przez dedykowany workflow `fse-intraday-fast.yml`; awaria WES/Weekly nie może zatrzymać FSE fast;
 - 1m/5m/15m/1h są odświeżane z jednego wspólnego 1-minutowego feedu;
 - 4h/1d/1w pozostają z pełnego godzinowego FSE-PHASE;
 - ścieżka nie tworzy snapshotów/resolution i nie zasila HSE2;
