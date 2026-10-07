@@ -10,6 +10,7 @@ import sys
 import tarfile
 import tempfile
 import urllib.request
+from urllib.parse import urlparse
 import zipfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -318,12 +319,28 @@ def _api_json(url: str, token: str) -> Any:
         return json.loads(response.read().decode("utf-8"))
 
 
+class _StripCrossHostAuthorization(urllib.request.HTTPRedirectHandler):
+    """Never forward GitHub API bearer credentials to artifact storage hosts."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        redirected = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if redirected is None:
+            return None
+        old_host = (urlparse(req.full_url).hostname or "").lower()
+        new_host = (urlparse(newurl).hostname or "").lower()
+        if old_host != new_host:
+            redirected.remove_header("Authorization")
+            redirected.remove_header("authorization")
+        return redirected
+
+
 def _download(url: str, token: str, destination: Path) -> None:
     req = urllib.request.Request(url, headers={
         "Authorization": f"Bearer {token}",
         "Accept": "application/vnd.github+json",
     })
-    with urllib.request.urlopen(req, timeout=90) as response, destination.open("wb") as fh:
+    opener = urllib.request.build_opener(_StripCrossHostAuthorization())
+    with opener.open(req, timeout=90) as response, destination.open("wb") as fh:
         shutil.copyfileobj(response, fh)
 
 

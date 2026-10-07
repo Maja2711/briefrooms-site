@@ -17,10 +17,12 @@ on:
       - "scripts/stock-trading-public.js"
       - "scripts/stock-trading-live-refresh.js"
       - "tests/test_stock_trading_portfolio.py"
+      - "tests/test_stock_trading_v2_workflow_decoupling.py"
       - "tests/test_stock_trading_r_multiple.py"
       - "tests/test_stock_trading_quote_enricher.py"
       - "tests/test_stock_trading_quote_enricher.py"
       - "tests/test_stock_trading_v2_production_bridge.py"
+      - "tests/test_stock_trading_v2_workflow_decoupling.py"
       - "docs/ARCHITECTURE_MAP_EN.md"
       - "docs/ARCHITECTURE_MAP_PL.md"
       - "docs/STOCK_TRADING_FIXED_NOTIONAL_EN.md"
@@ -61,7 +63,7 @@ jobs:
 
       - name: Compile fixed-notional runtime
         run: |
-          python -m py_compile             scripts/stock_trading_portfolio.py             scripts/stock_trading_quote_enricher.py             scripts/stock_trading_v2_production_bridge.py             scripts/audit_stock_trading_ui.py             tests/test_stock_trading_portfolio.py             tests/test_stock_trading_r_multiple.py             tests/test_stock_trading_quote_enricher.py             tests/test_stock_trading_v2_production_bridge.py
+          python -m py_compile             scripts/stock_trading_portfolio.py             scripts/stock_trading_quote_enricher.py             scripts/stock_trading_v2_production_bridge.py             scripts/audit_stock_trading_ui.py             tests/test_stock_trading_portfolio.py             tests/test_stock_trading_r_multiple.py             tests/test_stock_trading_quote_enricher.py             tests/test_stock_trading_v2_production_bridge.py             tests/test_stock_trading_v2_workflow_decoupling.py
           node --check scripts/stock-trading-public.js
           node --check scripts/stock-trading-live-refresh.js
 
@@ -112,7 +114,7 @@ jobs:
         env:
           PYTHONPATH: ${{ github.workspace }}
         run: |
-          python -m unittest             tests.test_stock_trading_portfolio             tests.test_stock_trading_r_multiple             tests.test_stock_trading_quote_enricher             tests.test_stock_trading_v2_production_bridge -v
+          python -m unittest             tests.test_stock_trading_portfolio             tests.test_stock_trading_r_multiple             tests.test_stock_trading_quote_enricher             tests.test_stock_trading_v2_production_bridge             tests.test_stock_trading_v2_workflow_decoupling -v
 
       - name: Install Chromium for laptop UI audit
         run: |
