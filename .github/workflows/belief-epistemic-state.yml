@@ -226,6 +226,25 @@ jobs:
           print('Epistemic history rows:', len(history))
           PY
 
+      - name: Validate Daily EURUSD epistemic readiness
+        id: daily_ready
+        if: github.event_name != 'pull_request'
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          from epistemic_consumer_interface import EpistemicConsumerInterface
+          root=Path(os.environ['STATE_DIR'])
+          payload=json.loads((root/'epistemic_state.json').read_text(encoding='utf-8'))
+          envelope=EpistemicConsumerInterface(payload).envelope('DAILY_EURUSD')
+          ready=envelope.available is True
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as handle:
+              handle.write(f"ready={'true' if ready else 'false'}\n")
+              handle.write(f"reason={envelope.reason}\n")
+          print('DAILY_EURUSD_EPISTEMIC_READY', ready, envelope.reason, envelope.coverage_weight, envelope.qualified_state_count)
+          PY
+
       - name: Build PR32A canonical EpistemicState
         if: github.event_name != 'pull_request'
         run: |
@@ -296,7 +315,7 @@ jobs:
           compression-level: 0
 
       - name: Dispatch Daily EURUSD after fresh Epistemic State
-        if: github.event_name != 'pull_request' && success()
+        if: github.event_name != 'pull_request' && success() && steps.daily_ready.outputs.ready == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
