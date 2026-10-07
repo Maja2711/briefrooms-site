@@ -78,6 +78,9 @@ jobs:
           set -euo pipefail
           python -m py_compile             scripts/wes_notification_outbox.py             scripts/wes_decision_ledger.py             scripts/wes_v5_history_seal.py             scripts/migrate_wes_pending_decisions.py             scripts/migrate_wes_v5_history_seals.py             scripts/audit_weekly_model.py             scripts/investments_weekly_v5.py             scripts/investments_weekly_v2.py             scripts/audit_intraday_risk_exits.py             scripts/daily_position_review.py             scripts/build_trading_notification_events.py
           python -m unittest             tests.test_wes_notification_outbox             tests.test_wes_decision_ledger             tests.test_wes_v5_history_seal             tests.test_wes_v5_audit_seal             tests.test_migrate_wes_pending_decisions             tests.test_trading_notification_events             tests.test_investments_weekly_v5 -v
+          python scripts/migrate_wes_v5_history_seals.py
+          python scripts/migrate_wes_v5_history_seals.py --check
+          python scripts/audit_weekly_model.py
 
       - name: Validate durable push outbox and client ACK/Inbox
         run: |
