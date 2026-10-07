@@ -189,6 +189,79 @@ class HSE2Tests(unittest.TestCase):
             self.assertEqual(calibration["prospective_n"],3)
             self.assertEqual(phase2["status"],"RUNNING_SHADOW")
 
+    def test_methodology_version_change_creates_fresh_experiment_without_inheriting_n(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); state=root/"state"; public=root/"public.json"
+            self.populate_sources(root)
+            first=run_cycle(root,state,public,"2026-10-06T05:10:00Z")
+            phase1=next(x for x in first["experiments"] if x["metric_name"]=="phase_brier_improvement_vs_0_5")
+            first_id=phase1["experiment_id"]
+
+            data=json.loads((root/"data/investments/fse_v2_public.json").read_text())
+            for row in data["hse_measurements"]:
+                row["details"]["methodology_version"]="FSE-PHASE-1.1"
+                row["counter"]=5
+                row["total"]=0.05
+            data["methodology_version"]="FSE-PHASE-1.1"
+            data["generated_at"]="2026-10-06T10:00:00Z"
+            write(root,"data/investments/fse_v2_public.json",data)
+
+            second=run_cycle(root,state,public,"2026-10-06T10:05:00Z")
+            phase_rows=[
+                x for x in second["experiments"]
+                if x["metric_name"]=="phase_brier_improvement_vs_0_5"
+            ]
+            self.assertEqual(len(phase_rows),2)
+            active=next(x for x in phase_rows if x["source_active"])
+            inactive=next(x for x in phase_rows if not x["source_active"])
+            self.assertNotEqual(active["experiment_id"],first_id)
+            self.assertEqual(inactive["experiment_id"],first_id)
+            self.assertEqual(active["prospective_n"],0)
+            self.assertEqual(inactive["prospective_n"],0)
+            self.assertEqual(active["frozen_at"],"2026-10-06T10:05:00Z")
+
+            registry=json.loads((state/REGISTRY_FILE).read_text())
+            active_reg=next(x for x in registry["experiments"] if x["experiment_id"]==active["experiment_id"])
+            old_reg=next(x for x in registry["experiments"] if x["experiment_id"]==first_id)
+            self.assertEqual(active_reg["methodology_version"],"FSE-PHASE-1.1")
+            self.assertEqual(old_reg["methodology_version"],"FSE-PHASE-1.0")
+
+            for row in data["hse_measurements"]:
+                row["counter"]=6
+                row["total"]=0.06
+            data["generated_at"]="2026-10-06T11:00:00Z"
+            write(root,"data/investments/fse_v2_public.json",data)
+            third=run_cycle(root,state,public,"2026-10-06T11:05:00Z")
+            active3=next(
+                x for x in third["experiments"]
+                if x["experiment_id"]==active["experiment_id"]
+            )
+            self.assertEqual(active3["prospective_n"],1)
+
+    def test_fse_v1_restore_is_fail_closed_when_public_state_exists(self):
+        workflow=(Path(__file__).resolve().parents[1]/".github/workflows/fse-fractal-structure-engine.yml").read_text(encoding="utf-8")
+        self.assertIn('/actions/artifacts?name=$STATE_ARTIFACT&per_page=100', workflow)
+        self.assertIn('select(.expired == false)', workflow)
+        self.assertIn('if [[ -s "$PUBLIC_PATH" ]]', workflow)
+        self.assertIn("FSE_STATE_RESTORE_FAIL", workflow)
+        self.assertIn("FSE_STATE_RESTORE_PASS", workflow)
+        self.assertNotIn(
+            'gh run list --workflow fse-fractal-structure-engine.yml --branch main --status success --limit 1',
+            workflow,
+        )
+
+    def test_hse2_restore_is_fail_closed_when_public_state_exists(self):
+        workflow=(Path(__file__).resolve().parents[1]/".github/workflows/hypothesis-shadow-engine-v2.yml").read_text(encoding="utf-8")
+        self.assertIn('/actions/artifacts?name=$STATE_ARTIFACT&per_page=100', workflow)
+        self.assertIn('select(.expired == false)', workflow)
+        self.assertIn('if [[ -s "$PUBLIC_PATH" ]]', workflow)
+        self.assertIn("HSE2_STATE_RESTORE_FAIL", workflow)
+        self.assertIn("HSE2_STATE_RESTORE_PASS", workflow)
+        self.assertNotIn(
+            'gh run list --workflow hypothesis-shadow-engine-v2.yml --branch main --status success --limit 1',
+            workflow,
+        )
+
     def test_missing_source_does_not_create_fake_hypothesis(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp); state=root/"state"; public=root/"public.json"
