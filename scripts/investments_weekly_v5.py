@@ -843,6 +843,32 @@ def freeze_decision(
     return pending
 
 
+def seal_legacy_pending_decision(
+    item: Dict[str, Any],
+    pending: Dict[str, Any],
+    *,
+    week_id: str,
+    ledger_path: Optional[Path] = None,
+) -> Dict[str, Any]:
+    """Seal a pre-ledger pending decision without changing its economic payload."""
+    if pending.get("decision_id") or pending.get("payload_hash"):
+        decision_ledger.assert_pending_integrity(pending)
+        return pending
+    payload = decision_ledger.payload_from_pending(pending)
+    sealed = decision_ledger.append_frozen_decision(
+        payload,
+        week_id=str(week_id or ""),
+        instrument_id=str(item.get("instrument_id") or (payload.get("entry_price_plan") or {}).get("instrument_id") or ""),
+        decision_kind="LEGACY_PENDING_SEAL",
+        path=ledger_path or decision_ledger.LEDGER_PATH,
+    )
+    item["pending_entry_decision"] = sealed
+    item["current_decision_id"] = sealed["decision_id"]
+    item["current_decision_payload_hash"] = sealed["payload_hash"]
+    item["decision_ledger_schema_version"] = sealed["ledger_schema_version"]
+    return sealed
+
+
 def _successor_pending(
     item: Dict[str, Any],
     pending: Dict[str, Any],
