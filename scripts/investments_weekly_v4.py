@@ -22,6 +22,7 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 import investments_weekly as legacy
 import investments_weekly_v2 as v2
 import investments_weekly_v3 as v3
+import wes_v5_history_seal as history_seal
 
 ROOT = Path(__file__).resolve().parents[1]
 POLICY_PATH = ROOT / "data" / "investments" / "multi_instrument_exposure_policy.json"
@@ -121,6 +122,7 @@ def emergency_current_week(now: datetime, method: Dict[str, Any]) -> Path:
         "forecast_timing_warning": "Created after the weekly window began; not treated as a pre-week frozen forecast.",
     }
     data["forecast_hash"] = v2.forecast_hash(data)
+    history_seal.seal_forecast(data, manifest_path=WEEKLY_DIR.parent / "wes_v5_history_seal_manifest.json")
     write(path, data)
     return path
 

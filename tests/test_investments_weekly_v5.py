@@ -25,8 +25,15 @@ class GovernedWeeklyModelTests(unittest.TestCase):
             Path(self._ledger_tmp.name) / "wes_decision_ledger.json",
         )
         self._ledger_patch.start()
+        self._history_seal_patch = patch.object(
+            v5.history_seal,
+            "MANIFEST_PATH",
+            Path(self._ledger_tmp.name) / "wes_v5_history_seal_manifest.json",
+        )
+        self._history_seal_patch.start()
 
     def tearDown(self):
+        self._history_seal_patch.stop()
         self._ledger_patch.stop()
         self._ledger_tmp.cleanup()
 

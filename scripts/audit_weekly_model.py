@@ -17,11 +17,17 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, Optional
 from zoneinfo import ZoneInfo
 
+try:
+    from scripts import wes_v5_history_seal as wes_history_seal
+except ModuleNotFoundError:  # direct scripts/ execution
+    import wes_v5_history_seal as wes_history_seal
+
 ROOT = Path(__file__).resolve().parents[1]
 WEEKLY = ROOT / "data" / "investments" / "weekly"
 MANIFEST = ROOT / "data" / "investments" / "closed_week_manifest.json"
 REPORT = ROOT / "data" / "investments" / "model_audit.json"
 QUARANTINE = ROOT / "data" / "investments" / "public_quarantine.json"
+WES_V5_MANIFEST = wes_history_seal.MANIFEST_PATH
 TZ = ZoneInfo("Europe/Warsaw")
 
 
@@ -274,6 +280,12 @@ def audit_paths(paths: Iterable[Path]) -> Dict[str, Any]:
     sealed = manifest.setdefault("sealed", {})
     quarantine = quarantine_index(read(QUARANTINE, {}))
     errors: list[Dict[str, Any]] = []
+    try:
+        wes_v5_manifest = wes_history_seal.verify_manifest(WES_V5_MANIFEST)
+        wes_v5_manifest_error = None
+    except Exception as exc:
+        wes_v5_manifest = {"schema_version": wes_history_seal.MANIFEST_SCHEMA, "records": [], "head_record_hash": None}
+        wes_v5_manifest_error = str(exc)
     warnings: list[Dict[str, Any]] = []
     quarantined: list[Dict[str, Any]] = []
     checked = 0
@@ -292,6 +304,22 @@ def audit_paths(paths: Iterable[Path]) -> Dict[str, Any]:
 
         if is_v2 and not data.get("forecast_hash"):
             errors.append({"week": week_id, "error": "missing_forecast_hash"})
+
+        if wes_history_seal.is_wes_v5_week(data):
+            if wes_v5_manifest_error:
+                errors.append({
+                    "week": week_id,
+                    "error": "wes_v5_seal_manifest_invalid",
+                    "detail": wes_v5_manifest_error,
+                })
+            else:
+                seal_issues = wes_history_seal.week_seal_violations(data, wes_v5_manifest)
+                if seal_issues:
+                    errors.append({
+                        "week": week_id,
+                        "error": "wes_v5_historical_payload_differs_from_seal",
+                        "violations": seal_issues,
+                    })
 
         target = parse((data.get("market_window") or {}).get("entry_target_local"))
         latest = parse((data.get("market_window") or {}).get("entry_latest_local"))
