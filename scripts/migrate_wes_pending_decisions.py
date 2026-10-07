@@ -14,7 +14,10 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-import wes_decision_ledger as ledger
+try:
+    from scripts import wes_decision_ledger as ledger
+except ModuleNotFoundError:  # direct scripts/ execution
+    import wes_decision_ledger as ledger
 
 ROOT = Path(__file__).resolve().parents[1]
 WEEKLY = ROOT / "data" / "investments" / "weekly"
