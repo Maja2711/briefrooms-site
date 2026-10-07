@@ -1001,98 +1001,13 @@ export class PushHub {
   }
 
   async syncDailyCommit(commitSha) {
-    const sha = String(commitSha || "").trim().toLowerCase();
-    if (!/^[0-9a-f]{40}$/.test(sha)) {
-      throw new Error("invalid_commit_sha");
-    }
-
-    const headResponse = await fetch(
-      `https://api.github.com/repos/Maja2711/briefrooms-site/commits/main?_=${Date.now()}`,
-      {
-        headers: {
-          "cache-control": "no-cache",
-          "accept": "application/vnd.github+json",
-          "user-agent": "BriefRooms-Trading-Push/1.0",
-        },
-      },
-    );
-    if (!headResponse.ok) throw new Error(`github_head_http_${headResponse.status}`);
-    const headPayload = await headResponse.json();
-    const headSha = String(headPayload?.sha || "").toLowerCase();
-    if (!headSha || headSha !== sha) {
-      throw new Error(`commit_not_current_main_head:${headSha || "unknown"}`);
-    }
-
-    const stateResponse = await fetch(
-      `https://raw.githubusercontent.com/Maja2711/briefrooms-site/${sha}/data/investments/eurusd_daily_spot.json?_=${Date.now()}`,
-      { headers: { "cache-control": "no-cache", "accept": "application/json" } },
-    );
-    if (!stateResponse.ok) throw new Error(`daily_commit_state_http_${stateResponse.status}`);
-    const state = await stateResponse.json();
-    const checkedAt = new Date().toISOString();
-
-    let event = null;
-    let status = "FLAT";
-    const position = openDailyPosition(state);
-    if (position) {
-      const positionId = String(position.trade_id || `daily:${position.opened_at}:${position.direction}`);
-      event = {
-        event_id: await eventId("daily", "OPEN", positionId),
-        engine: "daily",
-        event_type: "OPEN",
-        position_id: positionId,
-        instrument: "EUR/USD",
-        market: null,
-        direction: String(position.direction || "").toUpperCase(),
-        entry: finiteNumber(position.entry),
-        opened_at: position.opened_at || null,
-        observed_at: state.timestamp || checkedAt,
-        source: "persisted_daily_commit_sync",
-      };
-      status = "OPEN_PERSISTED";
-    } else {
-      const lastTrade = state?.metadata?.last_trade || null;
-      const positionId = String(lastTrade?.trade_id || "");
-      const direction = String(lastTrade?.direction || "").toUpperCase();
-      const closedAt = lastTrade?.closed_at || null;
-      if (positionId && closedAt && ["LONG", "SHORT"].includes(direction)) {
-        event = {
-          event_id: await eventId("daily", "CLOSE", positionId),
-          engine: "daily",
-          event_type: "CLOSE",
-          position_id: positionId,
-          instrument: "EUR/USD",
-          market: null,
-          direction,
-          entry: finiteNumber(lastTrade.entry),
-          opened_at: lastTrade.opened_at || null,
-          observed_at: state.timestamp || closedAt || checkedAt,
-          exit_reason: lastTrade.exit_reason || null,
-          exit_price: finiteNumber(lastTrade.exit_price),
-          closed_at: closedAt,
-          r_multiple: finiteNumber(lastTrade.r_multiple),
-          source: "persisted_daily_commit_sync",
-        };
-        status = "CLOSE_PERSISTED";
-      }
-    }
-
-    const dispatch = event
-      ? await this.dispatchEvents([event])
-      : { ok: true, sent: 0, failed: 0, expired: 0, pending: 0 };
-
-    const stats = (await this.ctx.storage.get("stats")) || {};
-    stats.last_commit_sync_at = checkedAt;
-    stats.last_commit_sync_sha = sha;
-    stats.last_commit_sync_status = status;
-    await this.ctx.storage.put("stats", stats);
-
+    // Legacy compatibility endpoint. Route through the same resilient commit-bound
+    // pipeline used by production Daily so GitHub API rate limits cannot create a
+    // second, weaker notification path.
+    const result = await this.syncTradingCommit(commitSha, ["daily"]);
     return {
-      ok: dispatch.ok === true,
-      sha,
-      status,
-      event_id: event?.event_id || null,
-      dispatch,
+      ...result,
+      event_id: Array.isArray(result.event_ids) && result.event_ids.length ? result.event_ids[0] : null,
     };
   }
 
