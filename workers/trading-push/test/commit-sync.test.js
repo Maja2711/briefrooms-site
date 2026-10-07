@@ -18,6 +18,7 @@ import {
   transitionDelivery,
   retryDelayMs,
   deliveryReadyForRetry,
+  PushHub,
 } from "../src/index.js";
 
 test("Persisted WES outbox preserves OPEN and CLOSE created in the same run", () => {
@@ -409,4 +410,74 @@ test("push payload carries delivery ACK contract", () => {
   assert.equal(payload.ack_token, "ack-secret");
   assert.equal(payload.ack_url, "https://push.example/ack");
   assert.equal(payload.data.delivery_id, "e1:sub-a");
+});
+
+
+class FakeStorage {
+  constructor() { this.map = new Map(); }
+  async get(key) { return this.map.get(key); }
+  async put(key, value) { this.map.set(key, structuredClone(value)); }
+  async delete(key) { this.map.delete(key); }
+  async list({ prefix = "" } = {}) {
+    return new Map([...this.map.entries()].filter(([key]) => String(key).startsWith(prefix)));
+  }
+}
+
+test("PushHub persists immutable events and creates one delivery per eligible subscriber", async () => {
+  const storage = new FakeStorage();
+  await storage.put("sub:sub-a", {
+    subscription: { endpoint: "https://push.example/a" },
+    preferences: { channels: { weekly: true }, events: { open: true } },
+    language: "pl",
+  });
+  await storage.put("sub:sub-b", {
+    subscription: { endpoint: "https://push.example/b" },
+    preferences: { channels: { weekly: true }, events: { open: true } },
+    language: "en",
+  });
+  const hub = new PushHub({ storage }, {});
+  const event = {
+    event_id: "evt-1",
+    engine: "weekly",
+    event_type: "OPEN",
+    position_id: "pos-1",
+    instrument: "EUR/USD",
+    direction: "SHORT",
+    entry: 1.12,
+    opened_at: "2026-10-07T10:00:00Z",
+  };
+
+  await hub.persistImmutableEvent(event);
+  await hub.initializeRecipients(event);
+  await hub.initializeRecipients(event);
+
+  const deliveries = await storage.list({ prefix: "delivery:evt-1:" });
+  assert.equal(deliveries.size, 2);
+  assert.ok(deliveries.has("delivery:evt-1:sub-a"));
+  assert.ok(deliveries.has("delivery:evt-1:sub-b"));
+
+  await hub.persistImmutableEvent({ ...event, source: "recovery" });
+  await assert.rejects(
+    () => hub.persistImmutableEvent({ ...event, entry: 1.13 }),
+    /immutable_event_conflict/,
+  );
+});
+
+test("PushHub ACK is authenticated and idempotent", async () => {
+  const storage = new FakeStorage();
+  const hub = new PushHub({ storage }, {});
+  const delivery = newDeliveryRecord("evt-2", "sub-a", "ack-secret", "2026-10-07T10:00:00.000Z");
+  await storage.put("delivery:evt-2:sub-a", transitionDelivery(delivery, DELIVERY_STATUS.SENT_TO_PUSH, "2026-10-07T10:00:01.000Z", {
+    sent_to_push_at: "2026-10-07T10:00:01.000Z",
+  }));
+  await storage.put("recipients:evt-2", { initialized_at: "2026-10-07T10:00:00.000Z", count: 1 });
+
+  const denied = await hub.acknowledgeDelivery({ delivery_id: "evt-2:sub-a", ack_token: "wrong" });
+  assert.equal(denied.status, 403);
+
+  const first = await hub.acknowledgeDelivery({ delivery_id: "evt-2:sub-a", ack_token: "ack-secret" });
+  const second = await hub.acknowledgeDelivery({ delivery_id: "evt-2:sub-a", ack_token: "ack-secret" });
+  assert.equal(first.delivery_status, DELIVERY_STATUS.ACKED);
+  assert.equal(second.delivery_status, DELIVERY_STATUS.ACKED);
+  assert.equal((await storage.get("delivery:evt-2:sub-a")).status, DELIVERY_STATUS.ACKED);
 });
