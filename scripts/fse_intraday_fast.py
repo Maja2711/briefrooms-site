@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Lightweight 15-minute FSE intraday projection.
+"""Lightweight 5-minute FSE intraday projection.
 
 This is a read-only / SHADOW_ONLY presentation refresh for IN-09.
 It does NOT create HSE2 evidence, does NOT mutate durable FSE state, and does
@@ -22,8 +22,8 @@ from scripts import fractal_structure_engine_v2 as v2
 
 SCHEMA = "briefrooms-fse-intraday-fast-v1"
 FAST_SCALES = ("1m", "5m", "15m", "1h")
-CADENCE_MINUTES = 15
-STALE_AFTER_MINUTES = 25
+CADENCE_MINUTES = 5
+STALE_AFTER_MINUTES = 12
 SOURCE_RANGE = "7d"
 SOURCE_INTERVAL = "1m"
 
