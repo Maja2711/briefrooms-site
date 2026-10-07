@@ -329,10 +329,21 @@ async function responseForSnapshot(env, ctx) {
   const cache=caches.default;
   const cached=await cache.match(CACHE_KEY);
   if (cached) {
-    const headers=new Headers(cached.headers);
-    Object.entries(JSON_HEADERS).forEach(([k,v])=>headers.set(k,v));
-    headers.set("x-fse-cache","HIT");
-    return new Response(cached.body,{status:cached.status,headers});
+    try {
+      const cachedPayload=await cached.clone().json();
+      const generatedMs=Date.parse(String(cachedPayload?.generated_at||""));
+      const ageMs=Number.isFinite(generatedMs)?Date.now()-generatedMs:Infinity;
+      if (ageMs>=-60_000 && ageMs<=5*60_000) {
+        const headers=new Headers(cached.headers);
+        Object.entries(JSON_HEADERS).forEach(([k,v])=>headers.set(k,v));
+        headers.set("x-fse-cache","HIT_FRESH");
+        headers.set("x-fse-age-seconds",String(Math.max(0,Math.round(ageMs/1000))));
+        return new Response(cached.body,{status:cached.status,headers});
+      }
+      await cache.delete(CACHE_KEY);
+    } catch {
+      await cache.delete(CACHE_KEY);
+    }
   }
   const snapshot=await buildSnapshot(env);
   const body=JSON.stringify(snapshot);
