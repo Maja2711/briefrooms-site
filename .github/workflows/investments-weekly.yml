@@ -20,7 +20,10 @@ on:
       - "scripts/ensure_current_week_forecast.py"
       - "scripts/daily_position_review.py"
       - "scripts/wes_notification_outbox.py"
+      - "scripts/wes_decision_ledger.py"
       - "tests/test_wes_notification_outbox.py"
+      - "tests/test_wes_decision_ledger.py"
+      - "data/investments/wes_decision_ledger.json"
       - "scripts/daily_review_completeness.py"
       - "scripts/apply_instrument_validation_gate.py"
       - "scripts/audit_weekly_model.py"
@@ -61,9 +64,9 @@ jobs:
         run: python -m pip install --upgrade pip yfinance pandas numpy
       - name: Validate Weekly code without mutating runtime state
         run: |
-          python -m py_compile             scripts/investments_weekly.py scripts/investments_weekly_v2.py scripts/investments_weekly_v3.py             scripts/investments_weekly_v4.py scripts/investments_weekly_v5.py scripts/investments_weekly_macro.py             scripts/investments_wes_lifecycle.py scripts/ensure_current_week_forecast.py scripts/daily_position_review.py             scripts/daily_review_completeness.py scripts/apply_instrument_validation_gate.py scripts/audit_weekly_model_runtime.py             scripts/render_simple_investments.py scripts/verify_weekly_close_deadline.py             scripts/wes_notification_outbox.py scripts/no_retroactive_execution.py scripts/verify_no_retroactive_execution.py
+          python -m py_compile             scripts/investments_weekly.py scripts/investments_weekly_v2.py scripts/investments_weekly_v3.py             scripts/investments_weekly_v4.py scripts/investments_weekly_v5.py scripts/investments_weekly_macro.py             scripts/investments_wes_lifecycle.py scripts/ensure_current_week_forecast.py scripts/daily_position_review.py             scripts/daily_review_completeness.py scripts/apply_instrument_validation_gate.py scripts/audit_weekly_model_runtime.py             scripts/render_simple_investments.py scripts/verify_weekly_close_deadline.py             scripts/wes_notification_outbox.py scripts/wes_decision_ledger.py scripts/no_retroactive_execution.py scripts/verify_no_retroactive_execution.py
           node --check scripts/investments-weekly-public.js
-          python -m unittest             tests/test_investments_weekly_v4.py tests/test_investments_weekly_v5.py tests/test_investments_weekly_macro.py             tests/test_daily_review_completeness.py tests/test_audit_weekly_integrity.py tests/test_verify_weekly_close_deadline.py             tests.test_audit_weekly_model_runtime tests.test_wes_lifecycle_expired_no_entry tests.test_wes_notification_outbox tests.test_no_retroactive_execution
+          python -m unittest             tests/test_investments_weekly_v4.py tests/test_investments_weekly_v5.py tests/test_investments_weekly_macro.py             tests/test_daily_review_completeness.py tests/test_audit_weekly_integrity.py tests/test_verify_weekly_close_deadline.py             tests.test_audit_weekly_model_runtime tests.test_wes_lifecycle_expired_no_entry tests.test_wes_notification_outbox tests.test_wes_decision_ledger tests.test_no_retroactive_execution
 
   maintain-weekly-positions:
     if: github.event_name != 'push'
@@ -93,14 +96,14 @@ jobs:
             scripts/investments_wes_lifecycle.py scripts/ensure_current_week_forecast.py scripts/daily_position_review.py \
             scripts/daily_review_completeness.py scripts/apply_instrument_validation_gate.py scripts/audit_weekly_model_runtime.py \
             scripts/render_simple_investments.py scripts/verify_weekly_close_deadline.py \
-            scripts/wes_notification_outbox.py scripts/no_retroactive_execution.py scripts/verify_no_retroactive_execution.py
+            scripts/wes_notification_outbox.py scripts/wes_decision_ledger.py scripts/no_retroactive_execution.py scripts/verify_no_retroactive_execution.py
           node --check scripts/investments-weekly-public.js
           node --check scripts/investments-weekly-governance.js
           node --test tests/test_investments_weekly_public.js
           python -m unittest \
             tests/test_investments_weekly_v4.py tests/test_investments_weekly_v5.py tests/test_investments_weekly_macro.py \
             tests/test_daily_review_completeness.py tests/test_audit_weekly_integrity.py tests/test_verify_weekly_close_deadline.py \
-            tests.test_audit_weekly_model_runtime tests.test_wes_lifecycle_expired_no_entry tests.test_wes_notification_outbox tests.test_no_retroactive_execution \
+            tests.test_audit_weekly_model_runtime tests.test_wes_lifecycle_expired_no_entry tests.test_wes_notification_outbox tests.test_wes_decision_ledger tests.test_no_retroactive_execution \
             tests.test_automation_workflow_ownership.AutomationWorkflowOwnershipTests.test_weekly_schedule_runs_full_lifecycle_and_blocks_weekend_exposure \
             tests.test_automation_workflow_ownership.AutomationWorkflowOwnershipTests.test_weekly_settlement_paths_are_independent_queued_and_fail_closed
       - name: Replace current-week placeholder with frozen model output
@@ -194,6 +197,7 @@ jobs:
                   data/investments/multi_instrument_exposure_state.json data/investments/multi_instrument_exposure_report.json \
                   data/investments/multi_instrument_exposure_state_v5.json data/investments/multi_instrument_exposure_report_v5.json \
                   data/investments/multi_instrument_validation_v4.json \
+                  data/investments/wes_decision_ledger.json \
                   data/notifications/wes-event-outbox.json \
                   pl/inwestycje.html pl/inwestycje/pozycje-tygodniowe.html pl/inwestycje/prognozy-tygodniowe.html \
                   en/investing.html en/investing/open-weekly-positions.html en/investing/weekly-forecasts.html

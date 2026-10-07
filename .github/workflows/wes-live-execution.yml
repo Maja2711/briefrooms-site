@@ -10,7 +10,10 @@ on:
       - "scripts/update_weekly_live_prices_fast.py"
       - "scripts/audit_intraday_risk_exits.py"
       - "scripts/wes_notification_outbox.py"
+      - "scripts/wes_decision_ledger.py"
       - "tests/test_wes_notification_outbox.py"
+      - "tests/test_wes_decision_ledger.py"
+      - "data/investments/wes_decision_ledger.json"
       - "scripts/execution_price_engine.py"
       - "scripts/no_retroactive_execution.py"
       - "scripts/verify_no_retroactive_execution.py"
@@ -51,8 +54,8 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}
         run: |
           set -euo pipefail
-          python -m py_compile scripts/investments_weekly_v5.py scripts/wes_notification_outbox.py scripts/execution_price_engine.py scripts/no_retroactive_execution.py
-          python -m unittest tests.test_wes_notification_outbox -v
+          python -m py_compile scripts/investments_weekly_v5.py scripts/wes_notification_outbox.py scripts/wes_decision_ledger.py scripts/execution_price_engine.py scripts/no_retroactive_execution.py
+          python -m unittest tests.test_wes_notification_outbox tests.test_wes_decision_ledger -v
           python scripts/investments_weekly_v5.py --mode ensure-exposure
       - name: Execute WES SL TP
         run: |
@@ -71,6 +74,7 @@ jobs:
                   data/investments/intraday_risk_audit.json \
                   data/investments/multi_instrument_exposure_state_v5.json \
                   data/investments/multi_instrument_exposure_report_v5.json \
+                  data/investments/wes_decision_ledger.json \
                   data/notifications/wes-event-outbox.json
           if git diff --cached --quiet; then
             echo "No WES execution state changes"
