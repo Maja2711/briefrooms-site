@@ -138,7 +138,7 @@ class LiveNewsPublisherTests(unittest.TestCase):
     def test_pl_publication_minimums_match_editorial_contract(self) -> None:
         self.assertEqual(
             filtered_news.PL_SECTION_MINIMUMS,
-            {"polityka": 9, "ekonomia": 9, "zdrowie": 6, "nauka": 6, "sport": 9},
+            {"polityka": 9, "ekonomia": 9, "zdrowie": 6, "nauka": 6, "sport": 9, "ai-technologia-krypto": 9},
         )
 
     def test_pl_economy_ai_crypto_detector(self) -> None:
