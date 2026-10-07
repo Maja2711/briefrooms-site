@@ -4,7 +4,6 @@ from __future__ import annotations
 import json
 import math
 import re
-import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -34,12 +33,12 @@ def _looks_english(text: str) -> bool:
 def _get_pl_ai_translator():
     global _PL_AI_TRANSLATOR
     if _PL_AI_TRANSLATOR is None:
-        from transformers import pipeline
-        _PL_AI_TRANSLATOR = pipeline(
-            "translation",
-            model=os.environ.get("BR_PL_AI_TRANSLATION_MODEL", "Helsinki-NLP/opus-mt-en-pl"),
-            device=-1,
-        )
+        from argostranslate import translate as argos_translate
+
+        def translate_en_pl(text: str, **_: Any) -> list[dict[str, str]]:
+            return [{"translation_text": argos_translate.translate(text, "en", "pl")}]
+
+        _PL_AI_TRANSLATOR = translate_en_pl
     return _PL_AI_TRANSLATOR
 
 
@@ -62,7 +61,7 @@ def _localize_pl_ai_story(story: dict[str, Any]) -> dict[str, Any]:
     localized["source_summary"] = summary
     localized["title"] = _translate_pl_ai_text(title, 128)
     localized["summary"] = _translate_pl_ai_text(summary, 220)
-    localized["pl_localization"] = "local-en-pl-title-summary-v1"
+    localized["pl_localization"] = "local-argos-en-pl-title-summary-v1"
     return localized
 
 
