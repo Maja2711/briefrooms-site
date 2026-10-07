@@ -5,6 +5,8 @@ on:
     paths:
       - "scripts/provenance_contract.py"
       - "scripts/provenance_compat.py"
+      - "scripts/audit_provenance.py"
+      - "tests/test_provenance_global_audit.py"
       - "scripts/belief_core.py"
       - "scripts/l3a_research_executor.py"
       - "scripts/l3a_settlement.py"
@@ -24,6 +26,8 @@ on:
     paths:
       - "scripts/provenance_contract.py"
       - "scripts/provenance_compat.py"
+      - "scripts/audit_provenance.py"
+      - "tests/test_provenance_global_audit.py"
       - "scripts/belief_core.py"
       - "scripts/l3a_research_executor.py"
       - "scripts/l3a_settlement.py"
@@ -56,6 +60,7 @@ jobs:
           python -m py_compile \
             scripts/provenance_contract.py \
             scripts/provenance_compat.py \
+            scripts/audit_provenance.py \
             scripts/belief_core.py \
             scripts/l3a_research_executor.py \
             scripts/l3a_settlement.py \
@@ -69,6 +74,7 @@ jobs:
         run: |
           python -m unittest \
             tests.test_provenance_contract \
+            tests.test_provenance_global_audit \
             tests.test_native_provenance_write_time \
             tests.test_belief_core \
             tests.test_daily_eurusd_belief_first \

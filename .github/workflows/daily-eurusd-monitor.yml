@@ -33,6 +33,8 @@ on:
       - "scripts/daily_eurusd_experiment_v12.py"
       - "scripts/no_retroactive_execution.py"
       - "scripts/verify_no_retroactive_execution.py"
+      - "scripts/audit_provenance.py"
+      - "scripts/provenance_contract.py"
       - "scripts/sync_trading_push_commit.sh"
       - "scripts/daily-eurusd-spot-public.js"
       - "scripts/daily-eurusd-live-price.js"
@@ -331,6 +333,13 @@ jobs:
           source=authority.get('source','NATIVE_BELIEF_FIRST')
           print('EURUSD_V19_BELIEF_FIRST_OK', payload.get('direction'), final_decision.get('direction'), candidate.get('accepted'), source, sorted(reasons), final_decision.get('coverage_weight'))
           PY
+
+      - name: Enforce native provenance before Daily persistence
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python scripts/audit_provenance.py \
+            --profile daily \
+            --file data/investments/eurusd_daily_spot.json
 
       - name: Build trading notification transition from canonical Daily state
         run: |

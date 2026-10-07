@@ -15,6 +15,8 @@ on:
       - "scripts/brace_entity_belief_shadow_bridge_semantic.py"
       - "scripts/belief_epistemic_causal_graph_semantic.py"
       - "scripts/research_state_durability.py"
+      - "scripts/audit_provenance.py"
+      - "scripts/provenance_contract.py"
       - "tests/test_brace_company_entity_framework.py"
       - "tests/test_entity_semantic_eligibility.py"
       - "tests/test_research_state_durability.py"
@@ -119,6 +121,13 @@ jobs:
       - name: Materialize current entity activation framework
         run: |
           PYTHONPATH=scripts python scripts/brace_company_entity_framework.py --state-dir "$STATE_DIR"
+
+      - name: Enforce native provenance before BRACE state seal
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python scripts/audit_provenance.py \
+            --profile brace \
+            --file "$STATE_DIR/BRACE_COMPANY_ENTITY_FRAMEWORK_REPORT.json"
 
       - name: Assert activation policy and zero influence
         run: |

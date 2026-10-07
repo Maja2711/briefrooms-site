@@ -105,6 +105,15 @@ jobs:
           print("L3-A real Verification settlement contract PASS")
           PY
 
+      - name: Enforce native provenance before L3-A artifact upload
+        run: |
+          set -euo pipefail
+          ARGS=(--profile belief_l3a --file "$STATE_DIR/state.json")
+          if [ -f "$STATE_DIR/L3A_EXPERIENCE_STATE.json" ]; then
+            ARGS+=(--file "$STATE_DIR/L3A_EXPERIENCE_STATE.json")
+          fi
+          PYTHONPATH=. python scripts/audit_provenance.py "${ARGS[@]}"
+
       - name: Pack settled cumulative state
         run: tar -czf "$RUNNER_TEMP/belief-core-state.tgz" -C "$STATE_DIR" .
 

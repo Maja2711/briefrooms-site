@@ -12,6 +12,8 @@ on:
       - "scripts/stock_trading_portfolio.py"
       - "scripts/no_retroactive_execution.py"
       - "scripts/verify_no_retroactive_execution.py"
+      - "scripts/audit_provenance.py"
+      - "scripts/provenance_contract.py"
       - "scripts/sync_trading_push_commit.sh"
       - "data/investments/stock_trading_v2_production_config.json"
       - "data/investments/stock_trading_policy.json"
@@ -109,6 +111,13 @@ jobs:
           python scripts/stock_trading_v2_production_bridge.py "${ARGS[@]}"
           python scripts/stock_trading_portfolio.py --mode verify
           python scripts/stock_trading_quote_enricher.py --market all --verify
+
+      - name: Enforce native provenance before Stock persistence
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python scripts/audit_provenance.py \
+            --profile stock \
+            --file data/investments/stock_trading_v2_production_state.json
 
       - name: Persist canonical v2 portfolio state through NO RETROACTIVE airlock
         id: commit

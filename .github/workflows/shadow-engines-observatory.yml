@@ -18,6 +18,8 @@ on:
     branches: [main]
     paths:
       - "scripts/build_shadow_engines_public.py"
+      - "scripts/audit_provenance.py"
+      - "scripts/provenance_contract.py"
       - "tests/test_shadow_engines_public.py"
       - ".github/workflows/shadow-engines-observatory.yml"
 
@@ -86,6 +88,13 @@ jobs:
         run: |
           python scripts/build_shadow_engines_public.py             --workflow-status /tmp/shadow-workflows.json             --output data/investments/shadow_engines_public.json
           python -m json.tool data/investments/shadow_engines_public.json >/dev/null
+
+      - name: Enforce native provenance before Shadow publication
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python scripts/audit_provenance.py \
+            --profile shadow \
+            --file data/investments/shadow_engines_public.json
 
       - name: Publish Shadow Engines snapshot
         run: |

@@ -7,6 +7,8 @@ on:
     paths:
       - ".github/workflows/belief-core-shadow-live.yml"
       - "scripts/belief_core_live.py"
+      - "scripts/audit_provenance.py"
+      - "scripts/provenance_contract.py"
       - "scripts/belief_closed_loop.py"
       - "data/investments/belief_core_production_overrides.json"
       - "tests/test_belief_closed_loop.py"
@@ -246,6 +248,13 @@ jobs:
           print('EURUSD_BELIEF_FRESHNESS', json.dumps(eurusd_rows, sort_keys=True))
           print('Geopolitical adapter status:', geo)
           PY
+
+      - name: Enforce native provenance before Belief artifact upload
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python scripts/audit_provenance.py \
+            --profile belief_l3a \
+            --file "$STATE_DIR/state.json"
 
       - name: Pack cumulative state
         run: |
