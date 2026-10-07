@@ -38,6 +38,12 @@ PL_EDITORIAL_EXTRA_FEEDS = {
     "ekonomia": (
         ("Spider's Web", "https://spidersweb.pl/?feed=mcfeed"),
     ),
+    "ai-technologia-krypto": (
+        ("Benchmark.pl", "https://www.benchmark.pl/rss/aktualnosci.xml"),
+        ("Antyweb", "https://antyweb.pl/feed"),
+        ("CoinDesk", "https://www.coindesk.com/arc/outboundfeeds/rss/"),
+        ("TechCrunch", "https://techcrunch.com/feed/"),
+    ),
     "polityka": (
         ("Rzeczpospolita", "https://www.rp.pl/rss_main"),
         # Dedicated international desk: keeps the PL candidate pool supplied with
@@ -81,13 +87,16 @@ PL_SECTION_MINIMUMS = {
     "zdrowie": 6,
     "nauka": 6,
     "sport": 9,
+    "ai-technologia-krypto": 9,
 }
 PL_SCIENCE_AI_TARGET = 0
 EN_SECTION_TARGETS = base.EN_SECTION_TARGETS
 AI_CRYPTO_RE = re.compile(
     r"\b(?:AI|sztuczn\w*\s+inteligencj\w*|artificial\s+intelligence|machine\s+learning|"
     r"generative\s+AI|genAI|LLM|large\s+language\s+model\w*|OpenAI|ChatGPT|Anthropic|Claude|"
-    r"Gemini|DeepMind|Nvidia|GPU\w*|bitcoin|BTC|ethereum|ETH|kryptowalut\w*|cryptocurrency\w*|"
+    r"Gemini|DeepMind|Nvidia|GPU\w*|robot\w*|automatyzacj\w*|cyberbezpiecze\w*|cybersecurity|"
+    r"technolog\w*|startup\w*|software|chip\w*|półprzewodnik\w*|semiconductor\w*|"
+    r"bitcoin|BTC|ethereum|ETH|kryptowalut\w*|cryptocurrency\w*|"
     r"crypto|blockchain|stablecoin\w*|tokeniz\w*|tokenis\w*|DeFi)\b",
     re.IGNORECASE,
 )
