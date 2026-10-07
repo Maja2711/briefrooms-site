@@ -1,8 +1,8 @@
 # Kanoniczna mapa architektury BriefRooms — PL
 
-**Wersja mapy:** 1.27  
+**Wersja mapy:** 1.28  
 **Stan na:** 2026-10-07  
-**Bazowy commit `main`:** `f756493f63d594f796e8095e7f963e66c5e5c076`  
+**Bazowy commit `main`:** `8087ee249864b67487d817f3e570af430ff07f33`  
 **Repozytorium:** `Maja2711/briefrooms-site`
 
 ## 0. Rola tego dokumentu
@@ -325,6 +325,8 @@ Każda karta wiadomości widoczna publicznie — zarówno w sekcjach `/pl/aktual
 - AI Tournament,
 - AXIOM Thought,
 - publication, freshness guardians i automation health.
+
+**Shadow Engines Observatory jest statusem/read-only observatory.** Może czytać workflow statusy i publikować sanitizowany `shadow_engines_public.json`, ale nie może uruchamiać WES/Weekly execution, zmieniać pozycji, risk state ani innego engine-owned lifecycle. Awaria dowolnego executora nie może blokować publikacji statusu innych shadow engines.
 
 ### State boundaries
 
