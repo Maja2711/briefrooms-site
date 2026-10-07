@@ -17,6 +17,19 @@ import investments_weekly_v5_finalize as finalize
 
 
 class GovernedWeeklyModelTests(unittest.TestCase):
+    def setUp(self):
+        self._ledger_tmp = tempfile.TemporaryDirectory()
+        self._ledger_patch = patch.object(
+            v5.decision_ledger,
+            "LEDGER_PATH",
+            Path(self._ledger_tmp.name) / "wes_decision_ledger.json",
+        )
+        self._ledger_patch.start()
+
+    def tearDown(self):
+        self._ledger_patch.stop()
+        self._ledger_tmp.cleanup()
+
     def method(self, enabled=True):
         return {"instruments": [{"id": "x", "enabled_for_new_positions": enabled,
                                   "validation_gate_reason": "failed_validation"}]}
@@ -226,6 +239,9 @@ class GovernedWeeklyModelTests(unittest.TestCase):
         self.assertEqual("long", pending["decision"]["direction"])
         self.assertEqual("buy_limit", pending["entry_price_plan"]["order_type"])
         self.assertLess(pending["entry_price_plan"]["target_price"], 100.0)
+        self.assertTrue(str(pending["decision_id"]).startswith("wes-dec-"))
+        self.assertEqual(64, len(pending["payload_hash"]))
+        self.assertTrue(v5.decision_ledger.assert_pending_integrity(pending))
 
     def test_strong_aligned_trend_chooses_market_entry(self):
         now = datetime(2026, 10, 5, 8, 5, tzinfo=v5.legacy.TZ)
@@ -595,15 +611,24 @@ class GovernedWeeklyModelTests(unittest.TestCase):
             "score": -72.0,
             "signals": {**weak_fresh["signals"], "ret5_pct": -1.3, "ret20_pct": -3.2},
         }
-        promoted = v5.maybe_promote_pending_to_market(
-            pending, strong_decision, strong_fresh,
-            {"score": -44.0, "data_quality": "passed"}, policy,
+        predecessor_id = pending["decision_id"]
+        promoted = v5.promote_pending_decision(
+            item,
+            pending,
+            strong_decision,
+            strong_fresh,
+            {"score": -44.0, "data_quality": "passed"},
+            policy,
             now + timedelta(minutes=20),
+            week_id="2026-W41",
         )
-        self.assertTrue(promoted)
-        self.assertEqual("market_now", pending["entry_price_plan"]["execution_mode"])
-        self.assertEqual(original_target, pending["entry_price_plan"]["original_target_price"])
-        self.assertIn("promoted_from_limit_at", pending["entry_price_plan"])
+        self.assertIsNotNone(promoted)
+        self.assertNotEqual(predecessor_id, promoted["decision_id"])
+        self.assertEqual(predecessor_id, promoted["predecessor_decision_id"])
+        self.assertEqual("limit_pullback", pending["entry_price_plan"]["execution_mode"])
+        self.assertEqual("market_now", promoted["entry_price_plan"]["execution_mode"])
+        self.assertEqual(original_target, promoted["entry_price_plan"]["original_target_price"])
+        self.assertIn("promoted_from_limit_at", promoted["entry_price_plan"])
 
     def test_market_entry_uses_freshest_completed_5m_bar_after_decision(self):
         now = datetime(2026, 10, 5, 9, 20, tzinfo=v5.legacy.TZ)
