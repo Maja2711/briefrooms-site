@@ -16,6 +16,7 @@ import no_retroactive_execution as no_retro
 import execution_price_engine as epe
 import wes_notification_outbox as wes_outbox
 import wes_decision_ledger as decision_ledger
+import wes_v5_history_seal as history_seal
 
 ROOT = Path(__file__).resolve().parents[1]
 METHOD = ROOT / "data/investments/methodology.json"
@@ -1382,21 +1383,32 @@ def _enrich_latest_archived_leg(item: Dict[str, Any]) -> None:
         leg["contextual_learning_schema"] = "2.0"
 
 
-def archive_leg_with_contextual_outcomes(item: Dict[str, Any], policy_row: Dict[str, Any]) -> bool:
+def archive_leg_with_contextual_outcomes(
+    item: Dict[str, Any],
+    policy_row: Dict[str, Any],
+    *,
+    week_id: str,
+) -> bool:
+    """Archive, enrich and immutably seal a closed governed position leg."""
     archived = v4.archive_leg(item, policy_row)
     if archived:
         _enrich_latest_archived_leg(item)
+        legs = item.get("position_legs") if isinstance(item.get("position_legs"), list) else []
+        if not legs or not isinstance(legs[-1], dict):
+            raise history_seal.WesHistorySealError("archived WES v5 leg missing after archive")
+        history_seal.seal_closed_leg(str(week_id or ""), legs[-1])
     return archived
 
 
 def archive_closed_learning_samples(week: Dict[str, Any], policy: Dict[str, Any]) -> int:
-    """Archive every newly closed governed leg before any time-window early return."""
+    """Archive and seal every newly closed governed leg before any early return."""
     items = {str(x.get("instrument_id")): x for x in week.get("instruments", []) if isinstance(x, dict)}
     archived = 0
+    week_id = str(week.get("week_id") or "")
     for p_cfg in v4.policy_instruments(policy):
         iid = str(p_cfg.get("instrument_id"))
         item = items.get(iid)
-        if item is not None and closed_position(item) and archive_leg_with_contextual_outcomes(item, p_cfg):
+        if item is not None and closed_position(item) and archive_leg_with_contextual_outcomes(item, p_cfg, week_id=week_id):
             archived += 1
     return archived
 
@@ -1573,7 +1585,7 @@ def ensure_all() -> Dict[str, Any]:
         iid = str(p_cfg.get("instrument_id")); cfg = v4.instrument_cfg(method, iid); item = items.get(iid)
         if not cfg or item is None:
             report["actions"].append({"instrument_id": iid, "action": "skip", "reason": "missing_config"}); continue
-        if closed_position(item) and archive_leg_with_contextual_outcomes(item, p_cfg): changed = True
+        if closed_position(item) and archive_leg_with_contextual_outcomes(item, p_cfg, week_id=str(week.get("week_id") or "")): changed = True
         allowed, c = gate(item, method, iid); changed |= c
         blocked, c = lock_reentry(item, week, now); changed |= c
         if not allowed or blocked:
