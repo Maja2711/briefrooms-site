@@ -5,6 +5,9 @@ import {
   stockCommitSnapshot,
   transitionDescriptors,
   notificationPayload,
+  storedCommitSnapshot,
+  persistableCommitSnapshot,
+  isoWeekId,
 } from "../src/index.js";
 
 test("Weekly commit diff emits exact OPEN/CLOSE transitions for EURUSD BTC and SPX", () => {
@@ -174,4 +177,30 @@ test("Weekly pending LIMIT plan never emits OPEN without a verified fill", () =>
   });
   assert.equal(after.open.size, 0);
   assert.deepEqual(transitionDescriptors("weekly", before, after, "2026-10-05T10:00:00Z"), []);
+});
+
+
+test("Commit snapshot fallback round-trips canonical OPEN state without inventing transitions", () => {
+  const original = weeklyCommitSnapshot({
+    week_id: "2026-W41",
+    instruments: [
+      {
+        instrument_id: "eurusd",
+        label_pl: "EUR/USD",
+        trade_status: "open",
+        direction: "short",
+        entry_price: 1.11906898,
+        entry_captured_at: "2026-10-07T16:35:50+02:00",
+      },
+    ],
+  });
+  const stored = persistableCommitSnapshot(original);
+  const restored = storedCommitSnapshot(stored);
+  assert.equal(restored.open.size, 1);
+  assert.equal(restored.open.values().next().value.instrument, "EUR/USD");
+  assert.deepEqual(transitionDescriptors("weekly", restored, original, "2026-10-07T16:36:00Z"), []);
+});
+
+test("ISO week fallback resolves the active WES week", () => {
+  assert.equal(isoWeekId(new Date("2026-10-07T12:00:00Z")), "2026-W41");
 });
