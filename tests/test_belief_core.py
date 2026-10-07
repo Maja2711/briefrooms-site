@@ -60,6 +60,23 @@ class BeliefCoreTest(unittest.TestCase):
         s = self.core.recompute(AS_OF)["trend"]
         self.assertEqual(s.representative_evidence_ids, ["primary"])
 
+    def test_latest_serial_state_snapshot_replaces_stronger_old_snapshot(self):
+        old = Evidence(
+            "old-market", "trend", "Derived market", "2026-08-17T10:00:00Z",
+            1, .95, .9, "derived:market:trend", source_type="derived",
+            metadata={"serial_state_snapshot": True},
+        )
+        fresh = Evidence(
+            "fresh-market", "trend", "Derived market", "2026-08-17T19:30:00Z",
+            -1, .10, .9, "derived:market:trend", source_type="derived",
+            metadata={"serial_state_snapshot": True},
+        )
+        self.core.ingest([old, fresh])
+        s = self.core.recompute(AS_OF)["trend"]
+        self.assertEqual(s.representative_evidence_ids, ["fresh-market"])
+        self.assertGreater(s.freshness_score, .98)
+
+
     def test_decay(self):
         self.core.ingest([ev("fresh")]); fresh = self.core.recompute(AS_OF)["trend"].probability
         t2 = tempfile.TemporaryDirectory(); c2 = BeliefCore(t2.name); c2.register_beliefs([BeliefDefinition("trend","t",.5,24)])
