@@ -29,6 +29,11 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, Mapping, MutableMapping, Optional, Sequence, Tuple
 
 try:
+    import provenance_contract as provenance
+except ImportError:
+    from scripts import provenance_contract as provenance
+
+try:
     from entity_semantic_eligibility import (
         BANK_SPECIFIC_DIMENSIONS,
         CONTRACT_VERSION as SEMANTIC_ELIGIBILITY_CONTRACT_VERSION,
@@ -439,7 +444,7 @@ def build_report(
 
     portfolio_active = sum("current_portfolio" in str(x.get("current_activation_source")) for x in active_rows)
     candidate_active = sum("candidate" in str(x.get("current_activation_source")) for x in active_rows)
-    return {
+    report = {
         "schema_version": SCHEMA_VERSION,
         "report_version": REPORT_VERSION,
         "generated_at": as_of.astimezone(timezone.utc).isoformat().replace("+00:00", "Z"),
@@ -516,6 +521,34 @@ def build_report(
             "No company belief may influence BRACE or be promoted on the basis of this framework report.",
         ],
     }
+    generated_at = str(report["generated_at"])
+    artifact_id = "brace-entity-report:" + provenance.payload_hash(report)[:24]
+    return provenance.attach_native(
+        report,
+        artifact_id=artifact_id,
+        artifact_type="brace_entity_report",
+        engine_id="brace",
+        engine_version=str(REPORT_VERSION),
+        created_at=generated_at,
+        authority="report",
+        parent_artifact_ids=[
+            str(row.get("entity_id"))
+            for row in active_rows + dormant_rows
+            if row.get("entity_id")
+        ],
+        source_ids=["data/portfolio10k/analysis.json:candidates"],
+        belief_ids=[
+            str(row.get("belief_id"))
+            for row in definitions
+            if row.get("belief_id")
+        ],
+        prospective=True,
+        domain_provenance={
+            "mode": MODE,
+            "active_decision_influence": False,
+            "native_write_time": True,
+        },
+    )
 
 
 def run(
