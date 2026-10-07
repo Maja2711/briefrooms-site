@@ -652,7 +652,7 @@ def register_and_collect(state_dir: Path, proposals: list[dict[str, Any]], at: s
                 ).strip() or None
                 if frozen_methodology in (None, methodology_version):
                     exp = legacy_exp
-                    if frozen_methodology is None:
+                    if not str(exp.get("methodology_version") or "").strip():
                         exp["methodology_version"] = methodology_version
                         exp["methodology_contract_sha256"] = sha(contract_for(p))
                         exp["identity_schema"] = "legacy-id-methodology-sealed-v2"
@@ -673,12 +673,19 @@ def register_and_collect(state_dir: Path, proposals: list[dict[str, Any]], at: s
         if exp.get("contract_sha256") == current_contract_sha:
             pass
         elif exp.get("contract_sha256") == legacy_contract_sha:
-            frozen_methodology = str(exp.get("methodology_version") or "").strip() or None
+            exp_details = exp.get("details")
+            frozen_methodology = str(
+                exp.get("methodology_version")
+                or (exp_details.get("methodology_version") if isinstance(exp_details, Mapping) else None)
+                or ""
+            ).strip() or None
             if methodology_version and frozen_methodology != methodology_version:
                 raise RuntimeError(f"immutable HSE2 methodology changed inside legacy epoch: {eid}")
             if methodology_version:
+                exp["methodology_version"] = methodology_version
                 exp["methodology_contract_sha256"] = current_contract_sha
                 exp.setdefault("identity_schema", "legacy-id-methodology-sealed-v2")
+                exp.setdefault("methodology_identity_migrated_at", at)
         else:
             raise RuntimeError(f"immutable HSE2 contract changed: {eid}")
         exp["source_active"] = True
