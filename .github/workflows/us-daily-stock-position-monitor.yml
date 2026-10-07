@@ -10,6 +10,7 @@ on:
       - "scripts/stock_trading_portfolio.py"
       - "scripts/no_retroactive_execution.py"
       - "scripts/verify_no_retroactive_execution.py"
+      - "scripts/sync_trading_push_commit.sh"
       - "data/investments/stock_trading_policy.json"
       - "tests/test_stock_trading_portfolio.py"
       - "tests/test_no_retroactive_execution.py"
@@ -62,6 +63,7 @@ jobs:
           python -m json.tool data/investments/stock_trading_portfolio.json >/dev/null
 
       - name: Persist canonical US portfolio state through NO RETROACTIVE airlock
+        id: commit
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -69,6 +71,7 @@ jobs:
           git add -- data/investments/stock_trading_portfolio.json
           if git diff --cached --quiet; then
             echo "No US Stock Trading portfolio state change"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
@@ -76,7 +79,11 @@ jobs:
           for attempt in 1 2 3 4 5; do
             if git pull --rebase origin main; then
               python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
-              if git push origin HEAD:main; then exit 0; fi
+              if git push origin HEAD:main; then
+                echo "changed=true" >> "$GITHUB_OUTPUT"
+                echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
             fi
             git rebase --abort 2>/dev/null || true
             git fetch origin main
@@ -85,3 +92,12 @@ jobs:
             sleep $((attempt*3))
           done
           exit 1
+
+      - name: Dispatch persisted US Stock Trading transition to Web Push immediately
+        if: steps.commit.outputs.changed == 'true'
+        env:
+          PUSH_API: https://briefrooms-trading-push.szczerbinski0577.workers.dev
+        run: |
+          set -euo pipefail
+          bash -n scripts/sync_trading_push_commit.sh
+          bash scripts/sync_trading_push_commit.sh "${{ steps.commit.outputs.sha }}" stock
