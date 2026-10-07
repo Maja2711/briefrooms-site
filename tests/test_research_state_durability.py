@@ -176,6 +176,41 @@ class ResearchStateDurabilityTests(unittest.TestCase):
             )
             mocked.assert_not_called()
 
+    def test_cross_host_artifact_redirect_strips_authorization(self) -> None:
+        handler = rsd._StripCrossHostAuthorization()
+        req = rsd.urllib.request.Request(
+            "https://api.github.com/repos/o/r/actions/artifacts/123/zip",
+            headers={"Authorization": "Bearer secret", "Accept": "application/vnd.github+json"},
+        )
+        redirected = handler.redirect_request(
+            req,
+            None,
+            302,
+            "Found",
+            {},
+            "https://productionresultssa0.blob.core.windows.net/actions-results/file.zip?sig=x",
+        )
+        self.assertIsNotNone(redirected)
+        self.assertNotIn("Authorization", redirected.headers)
+        self.assertNotIn("authorization", redirected.headers)
+
+    def test_same_host_redirect_keeps_authorization(self) -> None:
+        handler = rsd._StripCrossHostAuthorization()
+        req = rsd.urllib.request.Request(
+            "https://api.github.com/repos/o/r/actions/artifacts/123/zip",
+            headers={"Authorization": "Bearer secret"},
+        )
+        redirected = handler.redirect_request(
+            req,
+            None,
+            302,
+            "Found",
+            {},
+            "https://api.github.com/repos/o/r/actions/artifacts/123/archive",
+        )
+        self.assertIsNotNone(redirected)
+        self.assertEqual(redirected.get_header("Authorization"), "Bearer secret")
+
     def test_tar_path_traversal_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             archive = Path(tmp) / "bad.tgz"
