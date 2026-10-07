@@ -626,7 +626,7 @@ def select_sections(
     prior_exposure = _previous_exposure_by_identity(previous)
 
     for section_id, _, _ in config:
-        target = base.TARGET if pl_mode else EN_SECTION_TARGETS.get(section_id, base.TARGET)
+        target = base.PL_SECTION_TARGETS.get(section_id, base.TARGET) if pl_mode else EN_SECTION_TARGETS.get(section_id, base.TARGET)
         source_candidates = [
             story for story in (fetched.get(section_id) or [])
             if _time_sensitive_release_eligible(story, section_id, now)
