@@ -26,8 +26,13 @@ from epistemic_consumer_interface import (
     EpistemicConsumerInterface,
 )
 
-LONG_THRESHOLD = 60.0
-SHORT_THRESHOLD = 40.0
+# Production Daily v1.9 directional band.
+# Slightly narrower neutral zone than the original 40/60 contract: this raises
+# participation only when Belief Core already has authoritative coverage.
+# Missing/stale Belief, anchor failure, calendar safety, same-thesis guard and
+# EPE remain independent fail-closed gates.
+LONG_THRESHOLD = 56.0
+SHORT_THRESHOLD = 44.0
 
 # CF-07 owns the predeclared EUR/USD epistemic aggregation weights. The
 # decision engine consumes that authoritative aggregate rather than defining a
