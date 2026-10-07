@@ -2379,5 +2379,233 @@
     "immutable_decision_ledger": "data/investments/wes_decision_ledger.json",
     "immutable_decision_ledger_schema": "briefrooms-wes-decision-ledger-v1",
     "last_checked_at": "2026-10-07T22:36:09+02:00"
+  },
+  "frozen_forecast": {
+    "schema_version": "briefrooms-wes-v5-frozen-forecast-v1",
+    "week_id": "2026-W41",
+    "base_method_version": "2.0.0",
+    "forecast_created_at": "2026-10-04T00:24:03+02:00",
+    "forecast_locked_at": "2026-10-04T00:24:03+02:00",
+    "forecast_for_week_start": "2026-10-05",
+    "forecast_for_week_end": "2026-10-09",
+    "timezone": "Europe/Warsaw",
+    "market_window": {
+      "entry_target_local": "2026-10-05T08:00:00+02:00",
+      "entry_latest_local": "2026-10-05T10:00:00+02:00",
+      "exit_target_local": "2026-10-09T22:00:00+02:00"
+    },
+    "execution_assumptions": {
+      "entry": "first available 5-minute bar at or after Monday 08:00 Europe/Warsaw",
+      "scheduled_exit": "first available 5-minute bar at or after Friday 22:00 Europe/Warsaw",
+      "same_bar_sl_tp": "stop_loss_first_conservative",
+      "slippage": "not included in live paper log; validation report includes transaction-cost assumptions"
+    },
+    "legacy_forecast_hash": "6d2d1e90c6390a2bf3ac58645cb22b1276cc665b5b6b2ca28aa23552dd5bc97d",
+    "instruments": [
+      {
+        "instrument_id": "eurusd",
+        "symbol": "EURUSD=X",
+        "label_pl": "EUR/USD",
+        "label_en": "EUR/USD",
+        "direction": "neutral",
+        "score": 0,
+        "signal_strength": 0.73,
+        "confidence": 0.73,
+        "confidence_type": "heuristic_signal_strength_not_probability",
+        "data_quality": "passed",
+        "quality_reason": "at_least_260_closes_and_complete_volatility_inputs",
+        "signals": {
+          "last_close": 1.12574577,
+          "ema20": 1.14414844,
+          "ema50": 1.15000341,
+          "atr14": 0.00612788,
+          "ret5_pct": -1.0312,
+          "ret20_pct": -3.1892,
+          "vol20_annualized_pct": 3.5251,
+          "vol60_annualized_pct": 4.4593,
+          "volatility_regime_ratio": 0.7905,
+          "volatility_score_scale": 1.0,
+          "range55_position": 0.0,
+          "components": {
+            "trend_ema": -12.74,
+            "trend_price": -10.0,
+            "momentum5": -15.0,
+            "momentum20": -20.0,
+            "breakout": -15.0,
+            "macro_bias": 0.0,
+            "event_risk_penalty": 0.0
+          },
+          "agreement": {
+            "positive_groups": 0,
+            "negative_groups": 3,
+            "required": 2
+          }
+        },
+        "risk_distance": {
+          "source": "ATR14_sqrt5_frozen_at_forecast",
+          "stop_price_distance": 0.00836804,
+          "take_price_distance": 0.01369316,
+          "stop_units": 83.6804,
+          "take_units": 136.9316,
+          "reward_to_risk": 1.6364
+        },
+        "entry_thresholds": {
+          "long": 35.0,
+          "short": -35.0
+        },
+        "rationale_pl": [
+          "NO TRADE — obserwuję trigger do otwarcia pozycji. WES otworzy pozycję tylko po nowym, wystarczająco silnym i potwierdzonym sygnale; nic na siłę.",
+          "Model v2.0.0: short / spadek.",
+          "Score -73; progi: long 35, short -35.",
+          "Siła sygnału jest wskaźnikiem heurystycznym, a nie prawdopodobieństwem powodzenia.",
+          "Zmienność wpływa na score i poziomy ryzyka zapisane przed otwarciem."
+        ],
+        "rationale_en": [
+          "NO TRADE — monitoring for an entry trigger. WES will open only after a new, sufficiently strong and confirmed signal; no forced exposure.",
+          "Model v2.0.0: short / bearish.",
+          "Score -73; thresholds: long 35, short -35.",
+          "Signal strength is heuristic, not a probability of success.",
+          "Volatility affects the score and risk levels frozen before entry."
+        ]
+      },
+      {
+        "instrument_id": "sp500_futures",
+        "symbol": "ES=F",
+        "label_pl": "S&P 500 futures",
+        "label_en": "S&P 500 futures",
+        "direction": "neutral",
+        "score": 0,
+        "signal_strength": 0.25,
+        "confidence": 0.25,
+        "confidence_type": "heuristic_signal_strength_not_probability",
+        "data_quality": "passed",
+        "quality_reason": "at_least_260_closes_and_complete_volatility_inputs",
+        "signals": {
+          "last_close": 7777.25,
+          "ema20": 7722.814376,
+          "ema50": 7670.41777928,
+          "atr14": 84.06427874,
+          "ret5_pct": -0.3396,
+          "ret20_pct": 0.2901,
+          "vol20_annualized_pct": 11.879,
+          "vol60_annualized_pct": 11.5572,
+          "volatility_regime_ratio": 1.0278,
+          "volatility_score_scale": 1.0,
+          "range55_position": 0.8834,
+          "components": {
+            "trend_ema": 8.31,
+            "trend_price": 6.48,
+            "momentum5": -2.03,
+            "momentum20": 1.16,
+            "breakout": 11.5,
+            "macro_bias": 0.0,
+            "event_risk_penalty": 0.0
+          },
+          "agreement": {
+            "positive_groups": 2,
+            "negative_groups": 0,
+            "required": 2
+          }
+        },
+        "risk_distance": {
+          "source": "ATR14_sqrt5_frozen_at_forecast",
+          "stop_price_distance": 103.38539296,
+          "take_price_distance": 169.17609757,
+          "stop_units": 103.3854,
+          "take_units": 169.1761,
+          "reward_to_risk": 1.6364
+        },
+        "entry_thresholds": {
+          "long": 35.0,
+          "short": -42.0
+        },
+        "rationale_pl": [
+          "Model v2.0.0: neutralnie / obserwacja.",
+          "Score 25; progi: long 35, short -42.",
+          "Siła sygnału jest wskaźnikiem heurystycznym, a nie prawdopodobieństwem powodzenia.",
+          "Zmienność wpływa na score i poziomy ryzyka zapisane przed otwarciem."
+        ],
+        "rationale_en": [
+          "Model v2.0.0: neutral / observation.",
+          "Score 25; thresholds: long 35, short -42.",
+          "Signal strength is heuristic, not a probability of success.",
+          "Volatility affects the score and risk levels frozen before entry."
+        ]
+      },
+      {
+        "instrument_id": "btcusd",
+        "symbol": "BTC-USD",
+        "label_pl": "BTC/USD",
+        "label_en": "BTC/USD",
+        "direction": "neutral",
+        "score": 0,
+        "signal_strength": 0.59,
+        "confidence": 0.59,
+        "confidence_type": "heuristic_signal_strength_not_probability",
+        "data_quality": "passed",
+        "quality_reason": "at_least_260_closes_and_complete_volatility_inputs",
+        "signals": {
+          "last_close": 84762.546875,
+          "ema20": 82667.32788225,
+          "ema50": 78562.31402748,
+          "atr14": 2263.79241071,
+          "ret5_pct": 1.5089,
+          "ret20_pct": 10.3131,
+          "vol20_annualized_pct": 35.3157,
+          "vol60_annualized_pct": 34.7526,
+          "volatility_regime_ratio": 1.0162,
+          "volatility_score_scale": 1.0,
+          "range55_position": 0.9226,
+          "components": {
+            "trend_ema": 20.0,
+            "trend_price": 9.26,
+            "momentum5": 3.03,
+            "momentum20": 13.82,
+            "breakout": 12.68,
+            "macro_bias": 0.0,
+            "event_risk_penalty": 0.0
+          },
+          "agreement": {
+            "positive_groups": 3,
+            "negative_groups": 0,
+            "required": 2
+          }
+        },
+        "risk_distance": {
+          "source": "ATR14_sqrt5_frozen_at_forecast",
+          "stop_price_distance": 2966.68914063,
+          "take_price_distance": 4661.94007812,
+          "stop_units": 3.5,
+          "take_units": 5.5,
+          "reward_to_risk": 1.5714
+        },
+        "entry_thresholds": {
+          "long": 45.0,
+          "short": -45.0
+        },
+        "rationale_pl": [
+          "NO TRADE — obserwuję trigger do otwarcia pozycji. WES otworzy pozycję tylko po nowym, wystarczająco silnym i potwierdzonym sygnale; nic na siłę.",
+          "Model v2.0.0: long / wzrost.",
+          "Score 59; progi: long 45, short -45.",
+          "Siła sygnału jest wskaźnikiem heurystycznym, a nie prawdopodobieństwem powodzenia.",
+          "Zmienność wpływa na score i poziomy ryzyka zapisane przed otwarciem."
+        ],
+        "rationale_en": [
+          "NO TRADE — monitoring for an entry trigger. WES will open only after a new, sufficiently strong and confirmed signal; no forced exposure.",
+          "Model v2.0.0: long / bullish.",
+          "Score 59; thresholds: long 45, short -45.",
+          "Signal strength is heuristic, not a probability of success.",
+          "Volatility affects the score and risk levels frozen before entry."
+        ]
+      }
+    ]
+  },
+  "frozen_forecast_seal": {
+    "schema_version": "briefrooms-wes-v5-history-seal-v1",
+    "artifact_type": "frozen_forecast",
+    "artifact_id": "forecast:2026-W41",
+    "payload_hash": "2602ce80f4139b97d1d1490d547c5eaa561bd60176a79352341c45b639492be9",
+    "manifest_record_hash": "bc97b3138fbfd6806008b3095fa59c5e30aea651623a9974a166abc21d1e387c",
+    "sealed_at": "2026-10-07T22:38:57+02:00"
   }
 }

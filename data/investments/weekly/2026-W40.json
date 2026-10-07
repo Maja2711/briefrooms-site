@@ -1245,5 +1245,220 @@
     "checked_at": "2026-10-02T22:42:58+02:00",
     "default_weekly_target": "2026-10-02T22:00:00+02:00",
     "rolling_wes_deadlines_supported": true
+  },
+  "frozen_forecast": {
+    "schema_version": "briefrooms-wes-v5-frozen-forecast-v1",
+    "week_id": "2026-W40",
+    "base_method_version": "2.0.0",
+    "forecast_created_at": "2026-09-28T08:59:14+02:00",
+    "forecast_locked_at": "2026-09-28T08:59:14+02:00",
+    "forecast_for_week_start": "2026-09-28",
+    "forecast_for_week_end": "2026-10-02",
+    "timezone": "Europe/Warsaw",
+    "market_window": {
+      "entry_target_local": "2026-09-28T08:00:00+02:00",
+      "entry_latest_local": "2026-09-28T10:00:00+02:00",
+      "exit_target_local": "2026-10-02T22:00:00+02:00"
+    },
+    "execution_assumptions": {
+      "entry": "continuous exposure layer uses the first completed 5-minute bar available after recovery",
+      "scheduled_exit": "first available 5-minute bar at or after Friday 22:00 Europe/Warsaw",
+      "same_bar_sl_tp": "stop_loss_first_conservative"
+    },
+    "legacy_forecast_hash": "21e8b096a8a15ff5195255e24c988c3fae15b4966e209455c160242aae857985",
+    "instruments": [
+      {
+        "instrument_id": "eurusd",
+        "symbol": "EURUSD=X",
+        "label_pl": "EUR/USD",
+        "label_en": "EUR/USD",
+        "direction": "neutral",
+        "score": 0,
+        "signal_strength": 0.66,
+        "confidence": 0.66,
+        "confidence_type": "heuristic_signal_strength_not_probability",
+        "data_quality": "passed",
+        "quality_reason": "at_least_260_closes_and_complete_volatility_inputs",
+        "signals": {
+          "last_close": 1.13804483,
+          "ema20": 1.15015217,
+          "ema50": 1.15308974,
+          "atr14": 0.00539029,
+          "ret5_pct": -0.8649,
+          "ret20_pct": -1.7992,
+          "vol20_annualized_pct": 3.7573,
+          "vol60_annualized_pct": 4.3171,
+          "volatility_regime_ratio": 0.8703,
+          "volatility_score_scale": 1.0,
+          "range55_position": 0.0345,
+          "components": {
+            "trend_ema": -7.27,
+            "trend_price": -10.0,
+            "momentum5": -15.0,
+            "momentum20": -20.0,
+            "breakout": -13.96,
+            "macro_bias": 0.0,
+            "event_risk_penalty": 0.0
+          },
+          "agreement": {
+            "positive_groups": 0,
+            "negative_groups": 3,
+            "required": 2
+          }
+        },
+        "risk_distance": {
+          "source": "ATR14_sqrt5_frozen_at_forecast",
+          "stop_price_distance": 0.00662919,
+          "take_price_distance": 0.01084776,
+          "stop_units": 66.2919,
+          "take_units": 108.4776,
+          "reward_to_risk": 1.6364
+        },
+        "entry_thresholds": {
+          "long": 35.0,
+          "short": -35.0
+        },
+        "rationale_pl": [
+          "Prognoza awaryjna utworzona w bieżącym tygodniu, ponieważ brakowało pełnego przebiegu niedzielnego.",
+          "Warstwa ciągłej ekspozycji pozostaje wyłącznie eksperymentem paper-trading."
+        ],
+        "rationale_en": [
+          "Recovery forecast created during the current week because the full Sunday run was missing.",
+          "The continuous-exposure layer remains an experimental paper-trading exercise only."
+        ]
+      },
+      {
+        "instrument_id": "sp500_futures",
+        "symbol": "ES=F",
+        "label_pl": "S&P 500 futures",
+        "label_en": "S&P 500 futures",
+        "direction": "neutral",
+        "score": 0,
+        "signal_strength": 0.26,
+        "confidence": 0.26,
+        "confidence_type": "heuristic_signal_strength_not_probability",
+        "data_quality": "passed",
+        "quality_reason": "at_least_260_closes_and_complete_volatility_inputs",
+        "signals": {
+          "last_close": 7774.0,
+          "ema20": 7717.40451027,
+          "ema50": 7659.771917,
+          "atr14": 79.70713588,
+          "ret5_pct": -0.7596,
+          "ret20_pct": 0.6734,
+          "vol20_annualized_pct": 12.357,
+          "vol60_annualized_pct": 11.6808,
+          "volatility_regime_ratio": 1.0579,
+          "volatility_score_scale": 1.0,
+          "range55_position": 0.8766,
+          "components": {
+            "trend_ema": 9.64,
+            "trend_price": 7.1,
+            "momentum5": -4.36,
+            "momentum20": 2.58,
+            "breakout": 11.3,
+            "macro_bias": 0.0,
+            "event_risk_penalty": 0.0
+          },
+          "agreement": {
+            "positive_groups": 2,
+            "negative_groups": 0,
+            "required": 2
+          }
+        },
+        "risk_distance": {
+          "source": "ATR14_sqrt5_frozen_at_forecast",
+          "stop_price_distance": 98.02681577,
+          "take_price_distance": 160.40751671,
+          "stop_units": 98.0268,
+          "take_units": 160.4075,
+          "reward_to_risk": 1.6364
+        },
+        "entry_thresholds": {
+          "long": 35.0,
+          "short": -42.0
+        },
+        "rationale_pl": [
+          "NO TRADE — obserwuję trigger do otwarcia pozycji. WES otworzy pozycję tylko po nowym, wystarczająco silnym i potwierdzonym sygnale; nic na siłę.",
+          "Prognoza awaryjna utworzona w bieżącym tygodniu, ponieważ brakowało pełnego przebiegu niedzielnego.",
+          "Warstwa ciągłej ekspozycji pozostaje wyłącznie eksperymentem paper-trading."
+        ],
+        "rationale_en": [
+          "NO TRADE — monitoring for an entry trigger. WES will open only after a new, sufficiently strong and confirmed signal; no forced exposure.",
+          "Recovery forecast created during the current week because the full Sunday run was missing.",
+          "The continuous-exposure layer remains an experimental paper-trading exercise only."
+        ]
+      },
+      {
+        "instrument_id": "btcusd",
+        "symbol": "BTC-USD",
+        "label_pl": "BTC/USD",
+        "label_en": "BTC/USD",
+        "direction": "neutral",
+        "score": 0,
+        "signal_strength": 0.38,
+        "confidence": 0.38,
+        "confidence_type": "heuristic_signal_strength_not_probability",
+        "data_quality": "passed",
+        "quality_reason": "at_least_260_closes_and_complete_volatility_inputs",
+        "signals": {
+          "last_close": 83116.0625,
+          "ema20": 81264.59208752,
+          "ema50": 76989.47231441,
+          "atr14": 2518.52734375,
+          "ret5_pct": -3.5466,
+          "ret20_pct": 5.0561,
+          "vol20_annualized_pct": 36.8789,
+          "vol60_annualized_pct": 35.5266,
+          "volatility_regime_ratio": 1.0381,
+          "volatility_score_scale": 1.0,
+          "range55_position": 0.8534,
+          "components": {
+            "trend_ema": 20.0,
+            "trend_price": 7.35,
+            "momentum5": -6.83,
+            "momentum20": 6.49,
+            "breakout": 10.6,
+            "macro_bias": 0.0,
+            "event_risk_penalty": 0.0
+          },
+          "agreement": {
+            "positive_groups": 2,
+            "negative_groups": 0,
+            "required": 2
+          }
+        },
+        "risk_distance": {
+          "source": "ATR14_sqrt5_frozen_at_forecast",
+          "stop_price_distance": 3097.3790891,
+          "take_price_distance": 5068.43850944,
+          "stop_units": 3.7266,
+          "take_units": 6.098,
+          "reward_to_risk": 1.6364
+        },
+        "entry_thresholds": {
+          "long": 45.0,
+          "short": -45.0
+        },
+        "rationale_pl": [
+          "NO TRADE — obserwuję trigger do otwarcia pozycji. WES otworzy pozycję tylko po nowym, wystarczająco silnym i potwierdzonym sygnale; nic na siłę.",
+          "Prognoza awaryjna utworzona w bieżącym tygodniu, ponieważ brakowało pełnego przebiegu niedzielnego.",
+          "Warstwa ciągłej ekspozycji pozostaje wyłącznie eksperymentem paper-trading."
+        ],
+        "rationale_en": [
+          "NO TRADE — monitoring for an entry trigger. WES will open only after a new, sufficiently strong and confirmed signal; no forced exposure.",
+          "Recovery forecast created during the current week because the full Sunday run was missing.",
+          "The continuous-exposure layer remains an experimental paper-trading exercise only."
+        ]
+      }
+    ]
+  },
+  "frozen_forecast_seal": {
+    "schema_version": "briefrooms-wes-v5-history-seal-v1",
+    "artifact_type": "frozen_forecast",
+    "artifact_id": "forecast:2026-W40",
+    "payload_hash": "0d0557ba3990c8305de1b9fcecd16b8bdaf0d2bbc33d19a5d5420994121f024f",
+    "manifest_record_hash": "0aa13cc55e08ca15cb875f13f695d88261db4165117f0b516cd1f49529e284c8",
+    "sealed_at": "2026-10-07T22:38:57+02:00"
   }
 }
