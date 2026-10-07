@@ -75,23 +75,33 @@ jobs:
           export HSE2_STATE_DIR
           echo "HSE2_STATE_DIR=$HSE2_STATE_DIR" >> "$GITHUB_ENV"
           mkdir -p "$HSE2_STATE_DIR"
-          run_id="$(gh run list --workflow hypothesis-shadow-engine-v2.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')"
-          if [[ -z "$run_id" ]]; then
-            echo "No prior HSE2 state. First run will freeze T0 only; no historical data becomes formal evidence."
-            exit 0
+
+          artifact_meta="$(
+            gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts?name=$STATE_ARTIFACT&per_page=100" \
+              --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | reverse | .[0] // {}'
+          )"
+          artifact_id="$(jq -r '.id // empty' <<<"$artifact_meta")"
+          run_id="$(jq -r '.workflow_run.id // empty' <<<"$artifact_meta")"
+
+          if [[ -z "$artifact_id" || -z "$run_id" ]]; then
+            if [[ -s "$PUBLIC_PATH" ]]; then
+              echo "HSE2_STATE_RESTORE_FAIL: public HSE2 state exists but no non-expired durable artifact was found" >&2
+              exit 1
+            fi
+            echo "HSE2_STATE_BOOTSTRAP_EMPTY: no prior public state and no durable artifact"
+          else
+            artifact_dir="$RUNNER_TEMP/hse2-artifact"
+            rm -rf "$artifact_dir"
+            mkdir -p "$artifact_dir"
+            gh run download "$run_id" -n "$STATE_ARTIFACT" -D "$artifact_dir"
+            archive="$artifact_dir/$STATE_ARCHIVE"
+            if [[ ! -s "$archive" ]]; then
+              echo "HSE2_STATE_RESTORE_FAIL: artifact $artifact_id from run $run_id did not contain $STATE_ARCHIVE" >&2
+              exit 1
+            fi
+            tar -xzf "$archive" -C "$HSE2_STATE_DIR"
+            echo "HSE2_STATE_RESTORE_PASS run_id=$run_id artifact_id=$artifact_id"
           fi
-          rm -rf "$RUNNER_TEMP/hse2-artifact"
-          mkdir -p "$RUNNER_TEMP/hse2-artifact"
-          if ! gh run download "$run_id" -n "$STATE_ARTIFACT" -D "$RUNNER_TEMP/hse2-artifact"; then
-            echo "Prior successful run has no HSE2 state artifact; starting a new prospective epoch."
-            exit 0
-          fi
-          archive="$RUNNER_TEMP/hse2-artifact/$STATE_ARCHIVE"
-          if [[ ! -s "$archive" ]]; then
-            echo "No valid HSE2 archive; starting a new prospective epoch."
-            exit 0
-          fi
-          tar -xzf "$archive" -C "$HSE2_STATE_DIR"
 
       - name: Run seven-source prospective hypothesis cycle
         run: |
