@@ -310,7 +310,7 @@
     },
     "missing_atr_policy": "NO_ENTRY",
     "target_refresh_policy": "keep_limit_price_frozen_reaffirm_time_only_cancel_on_thesis_break_or_promote_same_thesis_to_market",
-    "fill_rule": "MARKET mode fills only on a fresh completed post-decision 5m bar verified by EPE. LIMIT mode fills only when the frozen target is touched. Persistent LIMIT reaffirmation may extend time but may never move the frozen target. No analytical or retroactive price may be fabricated.",
+    "fill_rule": "MARKET mode hits a fresh post-authorization canonical live price immediately when available, with the freshest completed 5m bar as bounded fallback, all verified by EPE. The archived LIMIT target never gates MARKET execution. LIMIT mode still fills only when the frozen target is touched. Persistent LIMIT reaffirmation may extend time but may never move the frozen target. No analytical or retroactive price may be fabricated.",
     "rule": "Direction and execution style are separate decisions. WES 1.3.1 uses a Weekly-primary execution score; Daily remains independent and can only modify MARKET timing within bounded limits. Persistent LIMIT plans keep their original price while the same thesis is reaffirmed, can promote one-way to MARKET when the Weekly-primary score plus bounded Daily modifier qualifies, and are cancelled when the thesis fails.",
     "market_entry": {
       "version": "WES-1.3.1",
@@ -322,8 +322,8 @@
       "maximum_overextension_score": 0.9,
       "block_immediate_market_after_stop": true,
       "allow_limit_to_market_promotion": true,
-      "execution_price": "freshest_completed_5m_close_after_authorization",
-      "rule": "MARKET vs LIMIT is Weekly-primary. A direction already admitted by WES may use MARKET at the more aggressive execution threshold when Weekly conviction, selected-candidate utility, independent confirmations and raw market momentum support immediate execution without excessive overextension. Daily remains an independent engine and contributes only a bounded confirmation/timing modifier; moderate opposition is a penalty, while strong opposed Daily evidence may veto MARKET. Daily never changes the Weekly thesis. Signals below the MARKET execution threshold keep the price-improving LIMIT path.",
+      "execution_price": "fresh_post_authorization_canonical_live_price_then_completed_5m_fallback",
+      "rule": "MARKET vs LIMIT is Weekly-primary. A direction already admitted by WES uses MARKET when Weekly conviction, selected-candidate utility, independent confirmations and raw market momentum support immediate execution without excessive overextension. MARKET means hit the first fresh post-authorization canonical live price (or bounded fresh completed-5m fallback), not wait for the archived LIMIT target. Daily remains an independent engine and contributes only a bounded confirmation/timing modifier; moderate opposition is a penalty, while strong opposed Daily evidence may veto MARKET. Daily never changes the Weekly thesis. Signals below the MARKET execution threshold keep the price-improving frozen-LIMIT path.",
       "block_opposed_momentum": true,
       "scoring": {
         "model": "weekly_primary_daily_confirmation_modifier",
