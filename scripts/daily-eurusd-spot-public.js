@@ -23,8 +23,13 @@
     thresholds: "Current Belief decision thresholds",
     candidate: "Current candidate",
     rejected: "Why no position",
+    dataUnavailable: "BELIEF DATA UNAVAILABLE",
+    decisionHeld: "Decision held — the engine is waiting for a qualified Epistemic State and is not treating 50/0 as a market-neutral signal.",
     gate: {
       belief_score_neutral: "Belief score is neutral — between LONG and SHORT thresholds",
+      belief_state_unavailable: "Belief Core state is unavailable for the production decision",
+      required_eurusd_trend_belief_unavailable: "required EUR/USD trend anchor is unavailable or insufficiently fresh",
+      insufficient_belief_coverage: "fresh Belief coverage is below the required minimum",
       raw_score_neutral: "score is neutral",
       score_below_adaptive_long_threshold: "LONG score below adaptive threshold",
       score_above_adaptive_short_threshold: "SHORT score above adaptive threshold",
@@ -59,8 +64,13 @@
     thresholds: "Aktualne progi decyzji Belief",
     candidate: "Bieżący kandydat",
     rejected: "Dlaczego brak pozycji",
+    dataUnavailable: "DANE BELIEF NIEDOSTĘPNE",
+    decisionHeld: "Decyzja wstrzymana — silnik czeka na kwalifikowany Epistemic State i nie traktuje awaryjnego 50/0 jako neutralnego sygnału rynkowego.",
     gate: {
       belief_score_neutral: "Belief score jest neutralny — pomiędzy progami LONG i SHORT",
+      belief_state_unavailable: "stan Belief Core jest niedostępny dla decyzji produkcyjnej",
+      required_eurusd_trend_belief_unavailable: "wymagany trend-anchor EUR/USD jest niedostępny lub niewystarczająco świeży",
+      insufficient_belief_coverage: "pokrycie świeżymi danymi Belief jest poniżej wymaganego minimum",
       raw_score_neutral: "score jest neutralny",
       score_below_adaptive_long_threshold: "score LONG poniżej adaptacyjnego progu",
       score_above_adaptive_short_threshold: "score SHORT powyżej adaptacyjnego progu",
@@ -169,9 +179,20 @@
       main = `<div class="brfx-signal"><strong class="${Number(lastTrade.result_percent) >= 0 ? "positive" : "negative"}">${esc(statusLabel(status))}</strong><span>${esc(lastTrade.direction)} · ${esc(T.result)} ${esc(pct(lastTrade.result_percent))} · ${esc(T.r)} ${esc(num(lastTrade.r_multiple,2))}R</span></div>
         <div class="brfx-plan"><div><span>${esc(T.entry)}</span><b>${px(lastTrade.entry)}</b></div><div><span>${esc(T.exit)}</span><b>${px(lastTrade.exit_price)}</b></div><div><span>${esc(T.closed)}</span><b class="brfx-small-value">${esc(date(lastTrade.closed_at))}</b></div></div>`;
     } else {
-      const reasons = (candidate.gate_reasons || []).map(reason => T.gate[reason] || reason);
-      main = `<div class="brfx-signal"><strong>${esc(T.noTrade)}</strong><span>${esc(T.candidate)}: ${esc(candidate.direction || "FLAT")} · score ${num(candidate.score ?? payload.score,1)}/100 · confidence ${Math.round(Number(candidate.confidence ?? payload.confidence ?? 0)*100)}%</span></div>
-        ${reasons.length ? `<div class="brfx-gates"><b>${esc(T.rejected)}</b><ul>${reasons.map(reason => `<li>${esc(reason)}</li>`).join("")}</ul></div>` : ""}`;
+      const rawReasons = candidate.gate_reasons || [];
+      const reasons = rawReasons.map(reason => T.gate[reason] || reason);
+      const epistemic = md?.final_decision?.epistemic_consumer || {};
+      const dataUnavailable = epistemic.available === false
+        || rawReasons.includes("belief_state_unavailable")
+        || rawReasons.includes("required_eurusd_trend_belief_unavailable")
+        || rawReasons.includes("insufficient_belief_coverage");
+      if (dataUnavailable) {
+        main = `<div class="brfx-signal"><strong class="brfx-data-hold">${esc(T.dataUnavailable)}</strong><span>${esc(T.decisionHeld)}</span></div>
+          ${reasons.length ? `<div class="brfx-gates"><b>${esc(T.rejected)}</b><ul>${reasons.map(reason => `<li>${esc(reason)}</li>`).join("")}</ul></div>` : ""}`;
+      } else {
+        main = `<div class="brfx-signal"><strong>${esc(T.noTrade)}</strong><span>${esc(T.candidate)}: ${esc(candidate.direction || "FLAT")} · score ${num(candidate.score ?? payload.score,1)}/100 · confidence ${Math.round(Number(candidate.confidence ?? payload.confidence ?? 0)*100)}%</span></div>
+          ${reasons.length ? `<div class="brfx-gates"><b>${esc(T.rejected)}</b><ul>${reasons.map(reason => `<li>${esc(reason)}</li>`).join("")}</ul></div>` : ""}`;
+      }
     }
 
     const thresholds = md?.final_decision?.thresholds || learning.entry_thresholds || {};
@@ -192,7 +213,7 @@
   }
 
   const style = document.createElement("style");
-  style.textContent = `.brfx-card{padding:18px;border:1px solid rgba(255,191,63,.28);border-radius:18px;background:linear-gradient(135deg,rgba(255,191,63,.08),rgba(255,255,255,.025));color:#eef7ff}.brfx-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}.brfx-head small{display:block;color:#8fa3b8;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.06em}.brfx-head h3{margin:5px 0 0;font-size:26px;letter-spacing:-.03em}.brfx-stage{padding:6px 9px;border-radius:999px;background:rgba(59,223,163,.12);color:#8ff0cc;font-size:11px;font-weight:950}.brfx-signal{display:flex;align-items:baseline;gap:12px;margin:18px 0;flex-wrap:wrap}.brfx-signal strong{font-size:27px}.brfx-signal span,.brfx-muted,.brfx-foot,.brfx-details{color:#96aabe;font-size:12px;line-height:1.5}.brfx-plan{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:14px 0}.brfx-plan-four{grid-template-columns:repeat(4,minmax(0,1fr))}.brfx-plan div{padding:10px;border:1px solid rgba(255,255,255,.09);border-radius:12px;background:rgba(0,0,0,.16)}.brfx-plan span{display:block;color:#7f95aa;font-size:10px;text-transform:uppercase}.brfx-plan b{display:block;margin-top:4px;font-size:16px}.brfx-plan small{display:block;margin-top:3px;font-size:11px}.brfx-small-value{font-size:13px!important}.brfx-card details{margin-top:14px}.brfx-card summary{cursor:pointer;color:#9ffff6;font-size:12px;font-weight:850}.brfx-foot{margin:14px 0 0}.brfx-gates{padding:12px;border:1px solid rgba(255,191,63,.18);border-radius:12px;background:rgba(255,191,63,.05);font-size:12px;color:#c7d4e1}.brfx-gates ul{margin:7px 0 0;padding-left:18px}.brfx-history-wrap{overflow:auto;margin-top:10px}.brfx-history{width:100%;border-collapse:collapse;font-size:12px}.brfx-history th,.brfx-history td{padding:8px 7px;border-bottom:1px solid rgba(255,255,255,.08);text-align:left;white-space:nowrap}.brfx-history th{color:#7f95aa;text-transform:uppercase;font-size:10px}.positive{color:#65e6a4!important}.negative{color:#ff8ca3!important}.brfx-error{padding:16px;border:1px solid rgba(255,77,109,.25);border-radius:14px;color:#ffafbd;background:rgba(255,77,109,.06)}@media(max-width:760px){.brfx-plan,.brfx-plan-four{grid-template-columns:1fr 1fr}}@media(max-width:480px){.brfx-plan,.brfx-plan-four{grid-template-columns:1fr}.brfx-signal{align-items:flex-start;flex-direction:column;gap:3px}}`;
+  style.textContent = `.brfx-card{padding:18px;border:1px solid rgba(255,191,63,.28);border-radius:18px;background:linear-gradient(135deg,rgba(255,191,63,.08),rgba(255,255,255,.025));color:#eef7ff}.brfx-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}.brfx-head small{display:block;color:#8fa3b8;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.06em}.brfx-head h3{margin:5px 0 0;font-size:26px;letter-spacing:-.03em}.brfx-stage{padding:6px 9px;border-radius:999px;background:rgba(59,223,163,.12);color:#8ff0cc;font-size:11px;font-weight:950}.brfx-signal{display:flex;align-items:baseline;gap:12px;margin:18px 0;flex-wrap:wrap}.brfx-signal strong{font-size:27px}.brfx-signal span,.brfx-muted,.brfx-foot,.brfx-details{color:#96aabe;font-size:12px;line-height:1.5}.brfx-plan{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:14px 0}.brfx-plan-four{grid-template-columns:repeat(4,minmax(0,1fr))}.brfx-plan div{padding:10px;border:1px solid rgba(255,255,255,.09);border-radius:12px;background:rgba(0,0,0,.16)}.brfx-plan span{display:block;color:#7f95aa;font-size:10px;text-transform:uppercase}.brfx-plan b{display:block;margin-top:4px;font-size:16px}.brfx-plan small{display:block;margin-top:3px;font-size:11px}.brfx-small-value{font-size:13px!important}.brfx-card details{margin-top:14px}.brfx-card summary{cursor:pointer;color:#9ffff6;font-size:12px;font-weight:850}.brfx-foot{margin:14px 0 0}.brfx-gates{padding:12px;border:1px solid rgba(255,191,63,.18);border-radius:12px;background:rgba(255,191,63,.05);font-size:12px;color:#c7d4e1}.brfx-gates ul{margin:7px 0 0;padding-left:18px}.brfx-history-wrap{overflow:auto;margin-top:10px}.brfx-history{width:100%;border-collapse:collapse;font-size:12px}.brfx-history th,.brfx-history td{padding:8px 7px;border-bottom:1px solid rgba(255,255,255,.08);text-align:left;white-space:nowrap}.brfx-history th{color:#7f95aa;text-transform:uppercase;font-size:10px}.positive{color:#65e6a4!important}.negative{color:#ff8ca3!important}.brfx-data-hold{color:#ffbf63!important}.brfx-error{padding:16px;border:1px solid rgba(255,77,109,.25);border-radius:14px;color:#ffafbd;background:rgba(255,77,109,.06)}@media(max-width:760px){.brfx-plan,.brfx-plan-four{grid-template-columns:1fr 1fr}}@media(max-width:480px){.brfx-plan,.brfx-plan-four{grid-template-columns:1fr}.brfx-signal{align-items:flex-start;flex-direction:column;gap:3px}}`;
   document.head.appendChild(style);
 
   Promise.all([
