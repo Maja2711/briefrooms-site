@@ -196,7 +196,7 @@ def _epistemic_projection_to_belief_state(
         "qualified_belief_ids": [
             str(row.get("belief_id"))
             for row in envelope.states
-            if float(row.get("freshness") or 0.0) >= 0.50
+            if float(row.get("freshness") or 0.0) > 0.0
             and str(row.get("audit_status") or "").lower() != "critical"
         ],
     }
