@@ -276,16 +276,6 @@ jobs:
               "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}"
           done < "$RUNNER_TEMP/delete-artifacts.txt"
 
-      - name: Dispatch fresh Belief state into Epistemic projection
-        if: success()
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          curl -fsSL -X POST \
-            -H "Authorization: Bearer ${GH_TOKEN}" \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/belief-epistemic-state.yml/dispatches" \
-            -d '{"ref":"main"}'
-          echo "EPISTEMIC_STATE_DISPATCHED_FROM_BELIEF_CORE"
+      # Epistemic projection is chained exactly once through workflow_run
+      # in belief-epistemic-state.yml. Do not also workflow_dispatch it here:
+      # duplicate runs race artifact selection and can fan out duplicate Daily runs.
