@@ -1645,10 +1645,7 @@ def ensure_all() -> Dict[str, Any]:
             frozen = pending["decision"]
             v4.open_leg(item, cfg, frozen, pending["fresh_signal"], pending["weekly_signal"], point, now)
             item.update(
-            entry_decision_at=pending["decided_at"],
-            entry_decision_id=pending.get("decision_id"),
-            entry_decision_payload_hash=pending.get("payload_hash"),
-            entry_decision_ledger_record_hash=pending.get("ledger_record_hash"),
+                entry_decision_at=pending["decided_at"],
                 entry_decision_id=pending.get("decision_id"),
                 entry_decision_payload_hash=pending.get("payload_hash"),
                 entry_decision_ledger_record_hash=pending.get("ledger_record_hash"),
@@ -1676,8 +1673,6 @@ def ensure_all() -> Dict[str, Any]:
                 "direction": frozen.get("direction"),
                 "target_price": entry_plan.get("target_price"),
                 "decision_at": item["entry_decision_at"],
-            "decision_id": item.get("entry_decision_id"),
-            "decision_payload_hash": item.get("entry_decision_payload_hash"),
                 "decision_id": item.get("entry_decision_id"),
                 "decision_payload_hash": item.get("entry_decision_payload_hash"),
                 "entry_at": item.get("entry_captured_at"),
@@ -1789,6 +1784,9 @@ def ensure_all() -> Dict[str, Any]:
         v4.open_leg(item, cfg, frozen, pending["fresh_signal"], pending["weekly_signal"], point, now)
         item.update(
             entry_decision_at=pending["decided_at"],
+            entry_decision_id=pending.get("decision_id"),
+            entry_decision_payload_hash=pending.get("payload_hash"),
+            entry_decision_ledger_record_hash=pending.get("ledger_record_hash"),
             entry_execution_rule=(
                 "epe_verified_wes_1_3_1_market_now_5m"
                 if execution_mode == "market_now"
@@ -1812,6 +1810,8 @@ def ensure_all() -> Dict[str, Any]:
             "direction": frozen.get("direction"),
             "target_price": entry_plan.get("target_price"),
             "decision_at": item["entry_decision_at"],
+            "decision_id": item.get("entry_decision_id"),
+            "decision_payload_hash": item.get("entry_decision_payload_hash"),
             "entry_at": item.get("entry_captured_at"),
             "entry_price": item.get("entry_price"),
             "macro_score": (pending.get("macro_context") or {}).get("score"),
