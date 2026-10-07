@@ -58,8 +58,11 @@ permissions:
 # Must match the market-data workflow group: both jobs mutate one cumulative
 # Belief Core state artifact and therefore must never write concurrently.
 concurrency:
+  # Market-data and News/Macro mutate one cumulative Belief artifact.
+  # They must serialize, never cancel each other: cancelling a market-data run
+  # can starve the required Daily EURUSD trend anchor while macro still looks fresh.
   group: belief-core-live-shadow
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
   ARTIFACT_NAME: belief-core-shadow-state
