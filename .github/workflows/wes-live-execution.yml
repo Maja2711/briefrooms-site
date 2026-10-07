@@ -12,6 +12,7 @@ on:
       - "scripts/execution_price_engine.py"
       - "scripts/no_retroactive_execution.py"
       - "scripts/verify_no_retroactive_execution.py"
+      - "scripts/sync_trading_push_commit.sh"
   schedule:
     - cron: "*/5 * * * *"
 
@@ -55,6 +56,7 @@ jobs:
           python -m py_compile scripts/audit_intraday_risk_exits.py
           python scripts/audit_intraday_risk_exits.py --persist-report on_close
       - name: Persist execution state
+        id: commit
         shell: bash
         run: |
           set -euo pipefail
@@ -67,15 +69,27 @@ jobs:
                   data/investments/multi_instrument_exposure_report_v5.json
           if git diff --cached --quiet; then
             echo "No WES execution state changes"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
           git commit -m "Execute WES live ENTRY SL TP"
           for attempt in 1 2 3 4 5; do
             if git pull --rebase origin main && git push origin HEAD:main; then
+              echo "changed=true" >> "$GITHUB_OUTPUT"
+              echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
               exit 0
             fi
             git rebase --abort || true
             sleep $((attempt * 2))
           done
           exit 1
+
+      - name: Dispatch persisted Weekly transition to Web Push immediately
+        if: steps.commit.outputs.changed == 'true'
+        env:
+          PUSH_API: https://briefrooms-trading-push.szczerbinski0577.workers.dev
+        run: |
+          set -euo pipefail
+          bash -n scripts/sync_trading_push_commit.sh
+          bash scripts/sync_trading_push_commit.sh "${{ steps.commit.outputs.sha }}" weekly
