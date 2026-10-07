@@ -5,7 +5,8 @@
 
   const isEn = document.documentElement.lang.toLowerCase().startsWith("en");
   const T = isEn ? {
-    engine: "Daily Engine · WITHOUT Belief",
+    engineWithBelief: "Daily Engine · WITH BELIEF",
+    engineWithoutBelief: "Daily Engine · WITHOUT BELIEF",
     monitoring: "MONITORING",
     open: "POSITION OPEN",
     closedSl: "STOP LOSS HIT",
@@ -18,10 +19,11 @@
     learning: "Method and outcome learning",
     learningStats: "Learning state",
     trades: "closed", winRate: "win rate", avgR: "avg R", streak: "loss streak",
-    thresholds: "Adaptive entry thresholds",
+    thresholds: "Belief decision thresholds",
     candidate: "Current candidate",
-    rejected: "Entry rejected by gates",
+    rejected: "Why no position",
     gate: {
+      belief_score_neutral: "Belief score is neutral — between LONG and SHORT thresholds",
       raw_score_neutral: "score is neutral",
       score_below_adaptive_long_threshold: "LONG score below adaptive threshold",
       score_above_adaptive_short_threshold: "SHORT score above adaptive threshold",
@@ -38,7 +40,8 @@
     weights: "adaptive weights",
     error: "Could not load Daily EUR/USD state."
   } : {
-    engine: "Daily Engine · WITHOUT Belief",
+    engineWithBelief: "Daily Engine · WITH BELIEF",
+    engineWithoutBelief: "Daily Engine · WITHOUT BELIEF",
     monitoring: "MONITORING",
     open: "POZYCJA OTWARTA",
     closedSl: "STOP LOSS OSIĄGNIĘTY",
@@ -51,10 +54,11 @@
     learning: "Metoda i uczenie z wyników",
     learningStats: "Stan uczenia",
     trades: "zamkniętych", winRate: "skuteczność", avgR: "śr. R", streak: "seria strat",
-    thresholds: "Adaptacyjne progi wejścia",
+    thresholds: "Progi decyzji Belief",
     candidate: "Bieżący kandydat",
-    rejected: "Wejście odrzucone przez filtry",
+    rejected: "Dlaczego brak pozycji",
     gate: {
+      belief_score_neutral: "Belief score jest neutralny — pomiędzy progami LONG i SHORT",
       raw_score_neutral: "score jest neutralny",
       score_below_adaptive_long_threshold: "score LONG poniżej adaptacyjnego progu",
       score_above_adaptive_short_threshold: "score SHORT powyżej adaptacyjnego progu",
@@ -145,6 +149,10 @@
     const components = md.components || {};
     const weights = md.weights || learning.adaptive_weights || {};
     const status = String(payload.status || "NO_TRADE").toUpperCase();
+    const beliefActive = String(payload.decision_mode || "").toUpperCase() === "WITH"
+      || md?.belief?.decision_influence === true
+      || md?.final_decision?.epistemic_consumer?.consumer === "DAILY_EURUSD";
+    const engineLabel = beliefActive ? T.engineWithBelief : T.engineWithoutBelief;
 
     let main = "";
     if (position) {
@@ -164,10 +172,10 @@
         ${reasons.length ? `<div class="brfx-gates"><b>${esc(T.rejected)}</b><ul>${reasons.map(reason => `<li>${esc(reason)}</li>`).join("")}</ul></div>` : ""}`;
     }
 
-    const thresholds = learning.entry_thresholds || {};
+    const thresholds = md?.final_decision?.thresholds || learning.entry_thresholds || {};
     const winRate = learning.win_rate_percent == null ? "—" : `${num(learning.win_rate_percent,1)}%`;
     root.innerHTML = `<article class="brfx-card">
-      <div class="brfx-head"><div><small>${esc(T.engine)}</small><h3>EUR/USD Spot</h3></div><span class="brfx-stage">${esc(T.monitoring)}</span></div>
+      <div class="brfx-head"><div><small>${esc(engineLabel)}</small><h3>EUR/USD Spot</h3></div><span class="brfx-stage">${esc(T.monitoring)}</span></div>
       ${main}
       <details><summary>${esc(T.learning)}</summary><div class="brfx-details">
         <p>${esc(T.components)}: trend <b>${num(components.trend,3)}</b> · USD <b>${num(components.broad_usd_environment,3)}</b> · rates <b>${num(components.us_rates_pressure_proxy,3)}</b>.</p>
