@@ -36,7 +36,8 @@ class DecisionLabFSEFrontendTests(unittest.TestCase):
             self.assertIn("Lower TF", text, rel)
             self.assertIn("Higher TF", text, rel)
             self.assertIn("direction", text, rel)
-            self.assertIn("FAST 5M", text, rel)
+            self.assertIn("fm.cadence_minutes||15", text, rel)
+            self.assertNotIn("FAST 5M", text, rel)
             self.assertIn("function fseBarClock", text, rel)
             self.assertIn("row?.observed_at", text, rel)
             self.assertIn("stale_after_minutes", text, rel)
@@ -74,8 +75,8 @@ class DecisionLabFSEFrontendTests(unittest.TestCase):
         en = (ROOT / "en/investing/decision-lab.html").read_text(encoding="utf-8")
         self.assertIn("/assets/decision-lab.css?v=20261007-1", pl)
         self.assertIn("/assets/decision-lab.css?v=20261007-1", en)
-        self.assertIn("/scripts/central-lab.js?v=20261007-1", pl)
-        self.assertIn("/scripts/central-lab-runtime-en.js?v=20261007-1", en)
+        self.assertIn("/scripts/central-lab.js?v=20261007-2", pl)
+        self.assertIn("/scripts/central-lab-runtime-en.js?v=20261007-2", en)
 
 
 if __name__ == "__main__":
