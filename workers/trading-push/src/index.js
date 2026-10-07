@@ -288,6 +288,36 @@ function emptyCommitSnapshot() {
   return { open: new Map(), closed: new Map(), observed_at: null };
 }
 
+function storedCommitSnapshot(payload) {
+  const out = emptyCommitSnapshot();
+  if (!payload || typeof payload !== "object") return out;
+  out.observed_at = payload.observed_at || null;
+  for (const row of Array.isArray(payload.open) ? payload.open : []) {
+    if (row?.position_id) out.open.set(String(row.position_id), row);
+  }
+  for (const row of Array.isArray(payload.closed) ? payload.closed : []) {
+    if (row?.position_id) out.closed.set(String(row.position_id), row);
+  }
+  return out;
+}
+
+function persistableCommitSnapshot(snapshot) {
+  return {
+    observed_at: snapshot?.observed_at || null,
+    open: snapshot?.open instanceof Map ? [...snapshot.open.values()] : [],
+    closed: snapshot?.closed instanceof Map ? [...snapshot.closed.values()] : [],
+  };
+}
+
+function isoWeekId(date = new Date()) {
+  const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const day = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const week = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  return `${d.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
+}
+
 function commitPosition({
   engine,
   positionId,
@@ -499,6 +529,25 @@ async function snapshotAtCommit(engine, sha) {
     return stockCommitSnapshot(await commitFileJson(sha, "data/investments/stock_trading_portfolio.json", { optional: true }));
   }
   throw new Error(`unsupported_commit_sync_engine:${engine}`);
+}
+
+async function currentMainSnapshot(engine) {
+  if (engine === "daily") {
+    return dailyCommitSnapshot(await commitFileJson("main", "data/investments/eurusd_daily_spot.json", { optional: true }));
+  }
+  if (engine === "weekly") {
+    const now = new Date();
+    const weekIds = [isoWeekId(now), isoWeekId(new Date(now.getTime() - 7 * 86400000))];
+    for (const weekId of weekIds) {
+      const payload = await commitFileJson("main", `data/investments/weekly/${weekId}.json`, { optional: true });
+      if (payload) return weeklyCommitSnapshot(payload);
+    }
+    return emptyCommitSnapshot();
+  }
+  if (engine === "stock") {
+    return stockCommitSnapshot(await commitFileJson("main", "data/investments/stock_trading_portfolio.json", { optional: true }));
+  }
+  throw new Error(`unsupported_current_sync_engine:${engine}`);
 }
 
 function normalizedPrefs(input = {}) {
@@ -813,6 +862,67 @@ export class PushHub {
     return { sha, head_sha: headSha, parent_sha: parentSha };
   }
 
+  async syncCurrentTrading(engines, { requestedSha = null, fallbackReason = null } = {}) {
+    const checkedAt = new Date().toISOString();
+    const events = [];
+    const engineStatus = {};
+    let seeded = 0;
+
+    for (const engine of engines) {
+      const key = `canonical-sync-snapshot:${engine}`;
+      const stored = await this.ctx.storage.get(key);
+      const before = storedCommitSnapshot(stored);
+      const after = await currentMainSnapshot(engine);
+      const descriptors = stored
+        ? transitionDescriptors(engine, before, after, checkedAt)
+        : [];
+      if (!stored) seeded += 1;
+      for (const descriptor of descriptors) {
+        descriptor.event_id = await eventId(engine, descriptor.event_type, descriptor.position_id);
+        events.push(descriptor);
+      }
+      await this.ctx.storage.put(key, persistableCommitSnapshot(after));
+      engineStatus[engine] = {
+        transitions: descriptors.length,
+        open_after: after.open.size,
+        source: "canonical_main_snapshot_fallback",
+        seeded: !stored,
+      };
+    }
+
+    const dispatch = events.length
+      ? await this.dispatchEvents(events)
+      : { ok: true, sent: 0, failed: 0, expired: 0, pending: 0 };
+
+    const status = events.length
+      ? "TRANSITIONS_DISPATCHED_FALLBACK"
+      : seeded ? "FALLBACK_SEEDED" : "NO_TRANSITION_FALLBACK";
+    const stats = (await this.ctx.storage.get("stats")) || {};
+    stats.last_commit_sync_at = checkedAt;
+    stats.last_commit_sync_sha = requestedSha;
+    stats.last_commit_sync_head_sha = null;
+    stats.last_commit_sync_engines = engines;
+    stats.last_commit_sync_event_count = events.length;
+    stats.last_commit_sync_status = status;
+    stats.last_commit_sync_engine_status = engineStatus;
+    stats.last_commit_sync_fallback_reason = fallbackReason;
+    await this.ctx.storage.put("stats", stats);
+
+    return {
+      ok: dispatch.ok === true,
+      sha: requestedSha,
+      head_sha: null,
+      engines,
+      status,
+      event_count: events.length,
+      event_ids: events.map((event) => event.event_id),
+      engine_status: engineStatus,
+      dispatch,
+      fallback: true,
+      fallback_reason: fallbackReason,
+    };
+  }
+
   async syncTradingCommit(commitSha, requestedEngines) {
     const engines = [...new Set(
       (Array.isArray(requestedEngines) ? requestedEngines : [requestedEngines])
@@ -824,7 +934,19 @@ export class PushHub {
       throw new Error("invalid_commit_sync_engine");
     }
 
-    const commit = await this.verifyRecentMainCommit(commitSha);
+    let commit;
+    try {
+      commit = await this.verifyRecentMainCommit(commitSha);
+    } catch (error) {
+      const message = String(error?.message || error || "");
+      if (message.startsWith("github_http_403:")) {
+        return this.syncCurrentTrading(engines, {
+          requestedSha: String(commitSha || "").trim().toLowerCase(),
+          fallbackReason: "github_api_403",
+        });
+      }
+      throw error;
+    }
     const checkedAt = new Date().toISOString();
     const events = [];
     const engineStatus = {};
@@ -842,7 +964,13 @@ export class PushHub {
       engineStatus[engine] = {
         transitions: descriptors.length,
         open_after: after.open.size,
+        source: "commit_bound",
+        seeded: false,
       };
+      await this.ctx.storage.put(
+        `canonical-sync-snapshot:${engine}`,
+        persistableCommitSnapshot(after),
+      );
     }
 
     const dispatch = events.length
@@ -1007,6 +1135,7 @@ export class PushHub {
         last_commit_sync_event_count: Number(stats.last_commit_sync_event_count || 0),
         last_commit_sync_status: stats.last_commit_sync_status || null,
         last_commit_sync_engine_status: stats.last_commit_sync_engine_status || {},
+        last_commit_sync_fallback_reason: stats.last_commit_sync_fallback_reason || null,
         recovery_ingest_internal_only: true,
         fast_daily_watcher: true,
         fast_daily_failures: Number(stats.fast_daily_failures || 0),
@@ -1338,4 +1467,4 @@ export default {
   }
 };
 
-export { finiteNumber, yahooMinuteBars, dailyCommitSnapshot, weeklyCommitSnapshot, stockCommitSnapshot, transitionDescriptors, notificationPayload };
+export { finiteNumber, yahooMinuteBars, dailyCommitSnapshot, weeklyCommitSnapshot, stockCommitSnapshot, transitionDescriptors, notificationPayload, storedCommitSnapshot, persistableCommitSnapshot, isoWeekId };
