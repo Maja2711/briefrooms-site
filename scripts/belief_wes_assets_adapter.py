@@ -190,7 +190,7 @@ def _trend_score(snapshot: MarketSnapshot, symbol: str, scales: Tuple[float, flo
 
 class WESAssetEvidenceAdapter:
     name = "wes_asset_evidence"
-    version = "1.1.0"
+    version = "1.2.0"
 
     def _observation(
         self,
