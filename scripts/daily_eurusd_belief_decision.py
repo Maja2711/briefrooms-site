@@ -267,6 +267,62 @@ def _latest_representative_evidence_at(
     return max(times) if times else None
 
 
+def attach_decision_provenance(
+    result: Mapping[str, Any],
+    state: Mapping[str, Any],
+    *,
+    observed_at: datetime,
+    authoritative_consumer: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Attach/reseal provenance after the final decision payload is complete.
+
+    Downstream Daily v1.9 may add consumer diagnostics or fail closed on missing
+    execution geometry. Those are legitimate parts of the final decision
+    artifact, so provenance must bind the payload *after* those additions.
+    """
+    payload = dict(result)
+    payload.pop("provenance", None)
+    beliefs = {
+        str(row.get("belief_id")): row
+        for row in (state.get("beliefs") or [])
+        if isinstance(row, Mapping) and row.get("belief_id")
+    }
+    belief_ids = [
+        str(row["belief_id"])
+        for row in (payload.get("used_beliefs") or [])
+        if isinstance(row, Mapping) and row.get("belief_id")
+    ]
+    evidence_ids = sorted({
+        str(evidence_id)
+        for belief_id in belief_ids
+        for evidence_id in (beliefs.get(belief_id, {}).get("representative_evidence_ids") or [])
+        if evidence_id
+    })
+    consumer = payload.get("epistemic_consumer")
+    if not isinstance(consumer, Mapping):
+        consumer = authoritative_consumer or {}
+    artifact_id = "daily-eurusd-decision:" + provenance.payload_hash(payload)[:24]
+    return provenance.attach_native(
+        payload,
+        artifact_id=artifact_id,
+        artifact_type="decision",
+        engine_id="daily_eurusd",
+        engine_version="belief-first-v1.9",
+        created_at=observed_at.astimezone(timezone.utc).isoformat().replace("+00:00", "Z"),
+        authority="decision",
+        parent_artifact_ids=evidence_ids,
+        source_ids=["NATIVE_BELIEF_FIRST", "BELIEF_CORE_CF07"],
+        evidence_ids=evidence_ids,
+        belief_ids=belief_ids,
+        decision_id=artifact_id,
+        domain_provenance={
+            "epistemic_consumer_contract": consumer.get("contract"),
+            "aggregate_authoritative": bool(payload.get("epistemic_aggregate_authoritative")),
+            "native_write_time": True,
+        },
+    )
+
+
 def synthesize(
     state: Mapping[str, Any],
     *,
@@ -410,32 +466,11 @@ def synthesize(
         "shadow_engine_direction_authority": False,
         "epistemic_aggregate_authoritative": consumer_authoritative,
     }
-    belief_ids = [str(row["belief_id"]) for row in used if row.get("belief_id")]
-    evidence_ids = sorted({
-        str(evidence_id)
-        for belief_id in belief_ids
-        for evidence_id in (beliefs.get(belief_id, {}).get("representative_evidence_ids") or [])
-        if evidence_id
-    })
-    artifact_id = "daily-eurusd-decision:" + provenance.payload_hash(result)[:24]
-    return provenance.attach_native(
+    return attach_decision_provenance(
         result,
-        artifact_id=artifact_id,
-        artifact_type="decision",
-        engine_id="daily_eurusd",
-        engine_version="belief-first-v1.9",
-        created_at=now.isoformat().replace("+00:00", "Z"),
-        authority="decision",
-        parent_artifact_ids=evidence_ids,
-        source_ids=["NATIVE_BELIEF_FIRST", "BELIEF_CORE_CF07"],
-        evidence_ids=evidence_ids,
-        belief_ids=belief_ids,
-        decision_id=artifact_id,
-        domain_provenance={
-            "epistemic_consumer_contract": (authoritative_consumer or {}).get("contract"),
-            "aggregate_authoritative": consumer_authoritative,
-            "native_write_time": True,
-        },
+        state,
+        observed_at=now,
+        authoritative_consumer=authoritative_consumer,
     )
 
 
