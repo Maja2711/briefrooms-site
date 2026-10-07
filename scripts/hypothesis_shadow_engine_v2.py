@@ -168,6 +168,8 @@ def proposal(
 ) -> dict[str, Any]:
     n = int(counter or 0)
     total_value = finite(total)
+    detail_map = dict(details or {})
+    methodology_version = str(detail_map.get("methodology_version") or "").strip() or None
     return {
         "source_engine": source_engine,
         "proposal_key": proposal_key,
@@ -183,7 +185,8 @@ def proposal(
         "source_at": source_at,
         "source_path": source_path,
         "source_sha256": source_sha256,
-        "details": dict(details or {}),
+        "methodology_version": methodology_version,
+        "details": detail_map,
     }
 
 
@@ -377,6 +380,12 @@ def proposals_fse(data: Mapping[str, Any], source_path: str, source_sha256: str 
         if not key:
             continue
         details = row.get("details") if isinstance(row.get("details"), Mapping) else {}
+        methodology_version = str(
+            details.get("methodology_version")
+            or data.get("methodology_version")
+            or data.get("schema_version")
+            or ""
+        ).strip() or None
         out.append(proposal(
             source_engine="FSE",
             proposal_key=key,
@@ -394,6 +403,7 @@ def proposals_fse(data: Mapping[str, Any], source_path: str, source_sha256: str 
             source_sha256=source_sha256,
             details={
                 **dict(details),
+                "methodology_version": methodology_version,
                 "fse_module_id": data.get("module_id"),
                 "fse_mode": data.get("mode"),
                 "fse_components": data.get("components"),
@@ -466,7 +476,16 @@ def collect_proposals(root: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]
     return proposals, source_status
 
 
-def contract_for(p: Mapping[str, Any]) -> dict[str, Any]:
+def methodology_version_for(p: Mapping[str, Any]) -> str | None:
+    value = p.get("methodology_version")
+    details = p.get("details")
+    if not value and isinstance(details, Mapping):
+        value = details.get("methodology_version")
+    text = str(value or "").strip()
+    return text or None
+
+
+def legacy_contract_for(p: Mapping[str, Any]) -> dict[str, Any]:
     return {
         "source_engine": p["source_engine"],
         "proposal_key": p["proposal_key"],
@@ -480,6 +499,14 @@ def contract_for(p: Mapping[str, Any]) -> dict[str, Any]:
         "reject_mean_edge": p["reject_mean_edge"],
         "source_path": p["source_path"],
     }
+
+
+def contract_for(p: Mapping[str, Any]) -> dict[str, Any]:
+    contract = legacy_contract_for(p)
+    methodology_version = methodology_version_for(p)
+    if methodology_version:
+        contract["methodology_version"] = methodology_version
+    return contract
 
 
 def load_registry(state_dir: Path) -> dict[str, Any]:
@@ -517,6 +544,8 @@ def freeze_new_experiment(state_dir: Path, p: Mapping[str, Any], at: str) -> dic
             "frozen_at": at,
             "contract_sha256": sha(contract),
             "source_snapshot_sha256": p.get("source_sha256"),
+            "methodology_version": methodology_version_for(p),
+            "identity_schema": "methodology-bound-v2",
             "prospective_only": True,
             "historical_backfill": False,
             "eligible_strictly_after_freeze": True,
@@ -545,6 +574,9 @@ def freeze_new_experiment(state_dir: Path, p: Mapping[str, Any], at: str) -> dic
         "frozen_at": at,
         "source_path": p["source_path"],
         "source_snapshot_sha256": p.get("source_sha256"),
+        "methodology_version": methodology_version_for(p),
+        "methodology_contract_sha256": sha(contract),
+        "identity_schema": "methodology-bound-v2",
         "last_counter": int(measurement.get("counter") or 0),
         "last_total": finite(measurement.get("total")),
         "prospective_n": 0,
@@ -600,16 +632,54 @@ def register_and_collect(state_dir: Path, proposals: list[dict[str, Any]], at: s
     evidence_added_n = 0
 
     for p in proposals:
-        eid = experiment_id(p)
-        seen.add(eid)
-        exp = by_id.get(eid)
+        requested_eid = experiment_id(p)
+        legacy_eid = stable_id("hse2exp", legacy_contract_for(p))
+        methodology_version = methodology_version_for(p)
+        exp = by_id.get(requested_eid)
+
+        # Migration bridge: preserve already-frozen legacy experiment IDs and
+        # their accumulated prospective N, but seal them to the methodology
+        # observed at migration. A later methodology version must create a
+        # fresh methodology-bound experiment and T0 boundary.
+        if exp is None and methodology_version and legacy_eid != requested_eid:
+            legacy_exp = by_id.get(legacy_eid)
+            if legacy_exp is not None:
+                legacy_details = legacy_exp.get("details")
+                frozen_methodology = str(
+                    legacy_exp.get("methodology_version")
+                    or (legacy_details.get("methodology_version") if isinstance(legacy_details, Mapping) else None)
+                    or ""
+                ).strip() or None
+                if frozen_methodology in (None, methodology_version):
+                    exp = legacy_exp
+                    if frozen_methodology is None:
+                        exp["methodology_version"] = methodology_version
+                        exp["methodology_contract_sha256"] = sha(contract_for(p))
+                        exp["identity_schema"] = "legacy-id-methodology-sealed-v2"
+                        exp["methodology_identity_migrated_at"] = at
+
         if exp is None:
             exp = freeze_new_experiment(state_dir, p, at)
             registry.setdefault("experiments", []).append(exp)
-            by_id[eid] = exp
+            by_id[str(exp["experiment_id"])] = exp
             new_experiments += 1
+            seen.add(str(exp["experiment_id"]))
             continue
-        if exp.get("contract_sha256") != sha(contract_for(p)):
+
+        eid = str(exp["experiment_id"])
+        seen.add(eid)
+        current_contract_sha = sha(contract_for(p))
+        legacy_contract_sha = sha(legacy_contract_for(p))
+        if exp.get("contract_sha256") == current_contract_sha:
+            pass
+        elif exp.get("contract_sha256") == legacy_contract_sha:
+            frozen_methodology = str(exp.get("methodology_version") or "").strip() or None
+            if methodology_version and frozen_methodology != methodology_version:
+                raise RuntimeError(f"immutable HSE2 methodology changed inside legacy epoch: {eid}")
+            if methodology_version:
+                exp["methodology_contract_sha256"] = current_contract_sha
+                exp.setdefault("identity_schema", "legacy-id-methodology-sealed-v2")
+        else:
             raise RuntimeError(f"immutable HSE2 contract changed: {eid}")
         exp["source_active"] = True
         if exp.get("status") != "RUNNING_SHADOW":
@@ -645,6 +715,7 @@ def register_and_collect(state_dir: Path, proposals: list[dict[str, Any]], at: s
                 "observed_at": at,
                 "source_at": p.get("source_at"),
                 "source_snapshot_sha256": p.get("source_sha256"),
+                "methodology_version": methodology_version,
                 "from_counter": last_n,
                 "to_counter": current_n,
                 "n": delta_n,
