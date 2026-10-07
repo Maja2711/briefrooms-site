@@ -48,7 +48,7 @@ class TestFSEIntradayFast(unittest.TestCase):
             self.assertEqual(out["mode"],"SHADOW_ONLY")
             self.assertFalse(out["production_impact"])
             self.assertTrue(all(v is False for v in out["authority"].values()))
-            self.assertEqual(out["cadence_minutes"],5)
+            self.assertEqual(out["cadence_minutes"],15)
             row=out["instruments"][0]
             for tf in ("1m","5m","15m","1h"):
                 self.assertTrue(row["phase_map"][tf]["fast_refreshed"])
@@ -60,8 +60,10 @@ class TestFSEIntradayFast(unittest.TestCase):
         fse_workflow=(ROOT/".github/workflows/fse-intraday-fast.yml").read_text(encoding="utf-8")
         weekly=(ROOT/".github/workflows/weekly-live-prices.yml").read_text(encoding="utf-8")
         self.assertIn('name: FSE Intraday Fast Shadow',fse_workflow)
-        self.assertIn('cron: "*/5 * * * *"',fse_workflow)
-        self.assertIn('cancel-in-progress: true',fse_workflow)
+        self.assertIn('cron: "2,17,32,47 * * * *"',fse_workflow)
+        self.assertIn('cancel-in-progress: false',fse_workflow)
+        self.assertIn("if: github.event_name != 'schedule'",fse_workflow)
+        self.assertIn("needs.test.result == 'skipped'",fse_workflow)
         self.assertIn('data/investments/fse_intraday_public.json',fse_workflow)
         self.assertNotIn('fse_intraday_fast.py',weekly)
         self.assertNotIn('fse_intraday_public.json',weekly)
@@ -74,7 +76,7 @@ class TestFSEIntradayFast(unittest.TestCase):
             fast.run(root,p,Fake(),"2026-10-06T11:20:00Z")
             data=json.loads(p.read_text())
             self.assertEqual(data["schema_version"],fast.SCHEMA)
-            self.assertEqual(data["stale_after_minutes"],12)
+            self.assertEqual(data["stale_after_minutes"],25)
 
 
 if __name__=="__main__":
