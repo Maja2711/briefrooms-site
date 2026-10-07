@@ -15,6 +15,7 @@ import investments_weekly_macro as macro
 import no_retroactive_execution as no_retro
 import execution_price_engine as epe
 import wes_notification_outbox as wes_outbox
+import wes_decision_ledger as decision_ledger
 
 ROOT = Path(__file__).resolve().parents[1]
 METHOD = ROOT / "data/investments/methodology.json"
@@ -772,7 +773,13 @@ def freeze_decision(
     weekly: Dict[str, Any],
     now: datetime,
     policy: Optional[Dict[str, Any]] = None,
+    *,
+    week_id: Optional[str] = None,
+    ledger_path: Optional[Path] = None,
+    decision_kind: str = "ENTRY_FREEZE",
+    predecessor_decision_id: Optional[str] = None,
 ) -> Dict[str, Any]:
+    """Create one immutable executable WES decision and append it to the ledger."""
     policy = policy if isinstance(policy, dict) else read(POLICY, {})
     frozen = dict(decision)
     frozen.update(decided_at=now.isoformat(timespec="seconds"), validation_gate=item.get("validation_gate"))
@@ -786,7 +793,7 @@ def freeze_decision(
             entry_plan = _promote_plan_to_market_now(entry_plan, diagnostics, now, policy)
     entry_not_before = (entry_plan or {}).get("entry_not_before") or frozen["decided_at"]
     auth = item.get("wes_entry_authorization") if isinstance(item.get("wes_entry_authorization"), dict) else {}
-    pending = {
+    payload = {
         "decided_at": frozen["decided_at"],
         "entry_not_before": entry_not_before,
         "decision": frozen,
@@ -806,14 +813,151 @@ def freeze_decision(
             else "execute_only_when_frozen_entry_target_is_touched_after_decision"
         ),
     }
+    target_ledger = ledger_path or decision_ledger.LEDGER_PATH
+    pending = decision_ledger.append_frozen_decision(
+        payload,
+        week_id=str(week_id or item.get("week_id") or ""),
+        instrument_id=str(item.get("instrument_id") or frozen.get("instrument_id") or ""),
+        decision_kind=decision_kind,
+        predecessor_decision_id=predecessor_decision_id,
+        path=target_ledger,
+    )
     market_mode = (entry_plan or {}).get("execution_mode") == "market_now"
     item.update(
         pending_entry_decision=pending,
+        current_decision_id=pending["decision_id"],
+        current_decision_payload_hash=pending["payload_hash"],
+        decision_ledger_schema_version=pending["ledger_schema_version"],
         trade_status="pending",
         next_entry_status="waiting_for_market_entry" if market_mode else "waiting_for_entry_target",
         entry_quality_status="wes_1_3_1_waiting_for_market_entry" if market_mode else "wes_1_3_1_waiting_for_frozen_entry_target",
     )
     return pending
+
+
+def _successor_pending(
+    item: Dict[str, Any],
+    pending: Dict[str, Any],
+    payload: Dict[str, Any],
+    *,
+    now: datetime,
+    week_id: str,
+    decision_kind: str,
+    ledger_path: Optional[Path] = None,
+) -> Dict[str, Any]:
+    decision_ledger.assert_pending_integrity(pending)
+    payload = dict(payload)
+    payload["decided_at"] = now.isoformat(timespec="seconds")
+    if isinstance(payload.get("decision"), dict):
+        payload["decision"] = dict(payload["decision"])
+        payload["decision"]["decided_at"] = payload["decided_at"]
+    successor = decision_ledger.successor_decision(
+        pending,
+        payload,
+        week_id=str(week_id or ""),
+        instrument_id=str(item.get("instrument_id") or (payload.get("entry_price_plan") or {}).get("instrument_id") or ""),
+        decision_kind=decision_kind,
+        path=ledger_path or decision_ledger.LEDGER_PATH,
+    )
+    item["pending_entry_decision"] = successor
+    item["current_decision_id"] = successor["decision_id"]
+    item["current_decision_payload_hash"] = successor["payload_hash"]
+    item["decision_ledger_schema_version"] = successor["ledger_schema_version"]
+    return successor
+
+
+def promote_pending_decision(
+    item: Dict[str, Any],
+    pending: Dict[str, Any],
+    decision: Dict[str, Any],
+    fresh: Dict[str, Any],
+    weekly: Dict[str, Any],
+    policy: Dict[str, Any],
+    now: datetime,
+    *,
+    week_id: str,
+    ledger_path: Optional[Path] = None,
+) -> Optional[Dict[str, Any]]:
+    """Append a successor decision for LIMIT -> MARKET; never mutate the predecessor."""
+    decision_ledger.assert_pending_integrity(pending)
+    plan = pending.get("entry_price_plan") if isinstance(pending.get("entry_price_plan"), dict) else {}
+    engine = policy.get("entry_price_engine") if isinstance(policy.get("entry_price_engine"), dict) else {}
+    cfg = engine.get("market_entry") if isinstance(engine.get("market_entry"), dict) else {}
+    if not cfg.get("allow_limit_to_market_promotion", True):
+        return None
+    if not plan or plan.get("execution_mode") == "market_now":
+        return None
+    eligible, diagnostics = _entry_market_mode(decision, fresh, weekly, policy, plan)
+    if not eligible:
+        return None
+
+    payload = decision_ledger.payload_from_pending(pending)
+    promoted_plan = _promote_plan_to_market_now(plan, diagnostics, now, policy, promotion=True)
+    payload["entry_price_plan"] = promoted_plan
+    payload["entry_not_before"] = promoted_plan["entry_not_before"]
+    payload["rule"] = "strong_trend_promoted_limit_to_market_on_first_fresh_completed_5m_bar"
+    updated_decision = dict(decision)
+    updated_decision["macro_context"] = decision.get("macro_context")
+    payload["decision"] = updated_decision
+    payload["fresh_signal"] = fresh
+    payload["weekly_signal"] = weekly
+    payload["macro_context"] = updated_decision.get("macro_context")
+    return _successor_pending(
+        item,
+        pending,
+        payload,
+        now=now,
+        week_id=week_id,
+        decision_kind="LIMIT_TO_MARKET_PROMOTION",
+        ledger_path=ledger_path,
+    )
+
+
+def reaffirm_pending_decision(
+    item: Dict[str, Any],
+    pending: Dict[str, Any],
+    now: datetime,
+    policy: Dict[str, Any],
+    *,
+    week_id: str,
+    ledger_path: Optional[Path] = None,
+) -> Optional[Dict[str, Any]]:
+    """Append a time-only successor decision without moving the frozen target."""
+    decision_ledger.assert_pending_integrity(pending)
+    engine = policy.get("entry_price_engine") if isinstance(policy.get("entry_price_engine"), dict) else {}
+    cfg = engine.get("persistent_plan") if isinstance(engine.get("persistent_plan"), dict) else {}
+    if not cfg.get("enabled", True):
+        return None
+    plan = pending.get("entry_price_plan") if isinstance(pending.get("entry_price_plan"), dict) else {}
+    if not plan or str(plan.get("execution_mode") or "limit_pullback") != "limit_pullback":
+        return None
+    expires = parse_dt(plan.get("expires_at"))
+    if expires is None:
+        return None
+    max_gap = max(5, int(cfg.get("max_reaffirmation_gap_minutes") or 20))
+    if now > expires + timedelta(minutes=max_gap):
+        return None
+
+    payload = decision_ledger.payload_from_pending(pending)
+    updated_plan = dict(plan)
+    extension = max(15, int(cfg.get("reaffirmation_extension_minutes") or 60))
+    desired_expiry = now + timedelta(minutes=extension)
+    if desired_expiry > expires:
+        updated_plan["expires_at"] = desired_expiry.isoformat(timespec="seconds")
+    updated_plan["last_reaffirmed_at"] = now.isoformat(timespec="seconds")
+    updated_plan["reaffirmation_count"] = int(updated_plan.get("reaffirmation_count") or 0) + 1
+    updated_plan["persistence_policy"] = "same_thesis_reaffirmation_extends_time_only_never_moves_frozen_target"
+    payload["entry_price_plan"] = updated_plan
+    payload["entry_not_before"] = updated_plan.get("entry_not_before") or payload.get("entry_not_before")
+    return _successor_pending(
+        item,
+        pending,
+        payload,
+        now=now,
+        week_id=week_id,
+        decision_kind="TIME_ONLY_REAFFIRMATION",
+        ledger_path=ledger_path,
+    )
 
 
 def _yahoo_entry_target_touch(
