@@ -1,0 +1,138 @@
+name: FSE Intraday Fast Shadow
+# NO RETROACTIVE EXECUTION
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/5 * * * *"
+  pull_request:
+    paths:
+      - "scripts/fse_intraday_fast.py"
+      - "tests/test_fse_intraday_fast.py"
+      - "scripts/central-lab.js"
+      - "scripts/central-lab-runtime-en.js"
+      - "assets/decision-lab.css"
+      - "pl/inwestycje/decision-lab.html"
+      - "en/investing/decision-lab.html"
+      - ".github/workflows/fse-intraday-fast.yml"
+      - ".github/workflows/weekly-live-prices.yml"
+      - "docs/FRACTAL_STRUCTURE_ENGINE_PL.md"
+      - "docs/FRACTAL_STRUCTURE_ENGINE_EN.md"
+      - "docs/ARCHITECTURE_MAP_PL.md"
+      - "docs/ARCHITECTURE_MAP_EN.md"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/fse_intraday_fast.py"
+      - "tests/test_fse_intraday_fast.py"
+      - ".github/workflows/fse-intraday-fast.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fse-intraday-fast
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate FSE intraday fast path
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/fse_intraday_fast.py
+          python -m unittest tests.test_fse_intraday_fast tests.test_decision_lab_fse_frontend -v
+          node --check scripts/central-lab.js
+          node --check scripts/central-lab-runtime-en.js
+          python scripts/validate_architecture_bootstrap.py
+
+  shadow:
+    if: github.event_name != 'pull_request'
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Start immutable shadow publication clock
+        run: |
+          echo "NO_RETROACTIVE_EXECUTION=1" >> "$GITHUB_ENV"
+          echo "NO_RETROACTIVE_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+
+      - name: Refresh independent FSE fast snapshot
+        run: |
+          set -euo pipefail
+          python scripts/fse_intraday_fast.py --root . --public data/investments/fse_intraday_public.json
+          python - <<'PY'
+          import json
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          p=json.loads(Path("data/investments/fse_intraday_public.json").read_text())
+          assert p["mode"]=="SHADOW_ONLY"
+          assert p["production_impact"] is False
+          assert p["cadence_minutes"]==5
+          assert all(v is False for v in p["authority"].values())
+
+          now=datetime.now(timezone.utc)
+          generated=datetime.fromisoformat(p["generated_at"].replace("Z","+00:00"))
+          generated_age=(now-generated).total_seconds()/60
+          if generated_age < -1 or generated_age > 8:
+              raise SystemExit(f"FSE_FAST_FAIL generated_age_minutes={generated_age:.1f}")
+
+          rows={x["instrument"]:x for x in p["instruments"]}
+          if "BTCUSD" not in rows or "EURUSD" not in rows:
+              raise SystemExit("FSE_FAST_FAIL missing BTCUSD/EURUSD")
+
+          def age_minutes(row, tf="5m"):
+              raw=(row.get("phase_map") or {}).get(tf,{}).get("observed_at")
+              if not raw:
+                  return 10**9
+              dt=datetime.fromisoformat(str(raw).replace("Z","+00:00"))
+              return (now-dt).total_seconds()/60
+
+          btc_age=age_minutes(rows["BTCUSD"])
+          if btc_age > 12:
+              raise SystemExit(f"FSE_FAST_FAIL BTCUSD 5m source stale: {btc_age:.1f}m")
+
+          # FX is expected live Monday-Thursday and most of Friday UTC.
+          fx_expected_open = now.weekday() in (0,1,2,3) or (now.weekday()==4 and now.hour < 21)
+          eur_age=age_minutes(rows["EURUSD"])
+          if fx_expected_open and eur_age > 12:
+              raise SystemExit(f"FSE_FAST_FAIL EURUSD 5m source stale: {eur_age:.1f}m")
+
+          print(f"FSE_INTRADAY_FAST_FRESH btc_5m={btc_age:.1f}m eurusd_5m={eur_age:.1f}m")
+          PY
+
+      - name: Publish independent FSE fast snapshot
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/investments/fse_intraday_public.json
+          git diff --cached --quiet && exit 0
+          python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
+          git commit -m "Refresh FSE intraday fast snapshot"
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            git rebase origin/main || { git rebase --abort || true; sleep $((attempt*2)); continue; }
+            git push origin HEAD:main && exit 0
+            sleep $((attempt*2))
+          done
+          exit 1
