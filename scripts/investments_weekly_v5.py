@@ -1608,6 +1608,21 @@ def ensure_all() -> Dict[str, Any]:
                                       "next_governed_review": "daily_review_23_00_europe_warsaw"})
             continue
 
+        legacy_pending = item.get("pending_entry_decision")
+        if isinstance(legacy_pending, dict) and legacy_pending.get("decided_at") and not legacy_pending.get("decision_id"):
+            sealed_pending = seal_legacy_pending_decision(
+                item,
+                legacy_pending,
+                week_id=str(week.get("week_id") or ""),
+            )
+            changed = True
+            report["actions"].append({
+                "instrument_id": iid,
+                "action": "seal_legacy_pending_decision",
+                "decision_id": sealed_pending.get("decision_id"),
+                "payload_hash": sealed_pending.get("payload_hash"),
+            })
+
         # Before changing/refreshing a pending thesis, settle any recent touch
         # of its already-frozen target. This closes the expiry-boundary gap
         # between two scheduler runs without allowing historical backfills.
