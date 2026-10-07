@@ -73,7 +73,7 @@ jobs:
           curl --fail --silent --show-error --retry 5 --retry-delay 2 https://briefrooms-trading-push.szczerbinski0577.workers.dev/health -o /tmp/push-health.json
           node -e 'const fs=require("fs"); const j=JSON.parse(fs.readFileSync("/tmp/push-health.json","utf8")); if(!j.ok || !j.ready) { console.error(j); process.exit(1); } console.log(j)'
 
-      - name: Verify commit-bound Daily sync endpoint
+      - name: Verify production Daily commit sync path
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -89,25 +89,27 @@ jobs:
               -o /tmp/sync-daily.json \
               -w "%{http_code}" \
               -H "content-type: application/json" \
-              --data "{\"sha\":\"$sha\"}" \
-              https://briefrooms-trading-push.szczerbinski0577.workers.dev/sync-daily || true)
+              --data "{\"sha\":\"$sha\",\"engines\":[\"daily\"]}" \
+              https://briefrooms-trading-push.szczerbinski0577.workers.dev/sync-trading || true)
             cat /tmp/sync-daily.json
             if [ "$code" = "200" ]; then
               node - <<'NODE'
           const fs=require("fs");
           const j=JSON.parse(fs.readFileSync("/tmp/sync-daily.json","utf8"));
           const d=j.dispatch || {};
-          if (j.ok !== true || Number(d.failed || 0) !== 0 || Number(d.pending || 0) !== 0) {
-            console.error("COMMIT_BOUND_DAILY_SYNC_NOT_READY", j);
+          const daily=j.engine_status?.daily || {};
+          if (j.ok !== true || Number(d.failed || 0) !== 0 || Number(d.pending || 0) !== 0 ||
+              !Array.isArray(j.engines) || !j.engines.includes("daily") || !Number.isFinite(Number(daily.open_after))) {
+            console.error("PRODUCTION_DAILY_SYNC_NOT_READY", j);
             process.exit(1);
           }
-          console.log("COMMIT_BOUND_DAILY_SYNC_OK", j.sha, j.status, j.event_id, d.sent || 0);
+          console.log("PRODUCTION_DAILY_SYNC_OK", j.sha, j.status, j.event_count || 0, daily.open_after, d.sent || 0);
           NODE
               exit 0
             fi
             sleep "$attempt"
           done
-          echo "Commit-bound Daily sync endpoint failed production verification" >&2
+          echo "Production Daily sync path failed verification" >&2
           exit 1
 
       - name: Verify commit-bound all-channel sync endpoint
