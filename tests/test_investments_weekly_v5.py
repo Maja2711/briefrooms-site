@@ -40,6 +40,53 @@ class GovernedWeeklyModelTests(unittest.TestCase):
         self.assertEqual(1.12656, point["price"])
         self.assertEqual(1.12701, point["canonical_live_price"])
 
+    def test_market_now_short_hits_fresh_live_price_even_below_archived_sell_limit(self):
+        now = datetime(2026, 10, 7, 14, 5, 1, tzinfo=v5.legacy.TZ)
+        start = now - timedelta(minutes=2)
+        pending = {"decision": {"direction": "short"}, "entry_price_plan": {
+            "instrument_id": "eurusd", "direction": "short", "execution_mode": "market_now",
+            "target_price": 1.12190247,
+            "entry_not_before": start.isoformat(),
+            "expires_at": (now + timedelta(minutes=12)).isoformat(),
+        }}
+        live = {"prices": {"eurusd": {
+            "price": 1.11894369,
+            "timestamp": (now - timedelta(seconds=3)).isoformat(),
+            "source": "canonical-test",
+        }}}
+        with patch.object(v5, "read", return_value=live):
+            point = v5._canonical_live_entry_point(pending, now)
+        self.assertIsNotNone(point)
+        self.assertEqual(1.11894369, point["price"])
+        self.assertEqual(1.11894369, point["canonical_live_price"])
+        verified, audit = v5.epe_verified_entry_point(pending, point, now)
+        self.assertIsNotNone(verified)
+        self.assertEqual(1.11894369, verified["price"])
+        self.assertEqual("MARKET_NOW", audit["mode"])
+        self.assertTrue(audit["verified"])
+
+    def test_market_now_epe_accepts_fresh_completed_bar_without_limit_touch(self):
+        now = datetime(2026, 10, 7, 14, 10, 0, tzinfo=v5.legacy.TZ)
+        start = now - timedelta(minutes=8)
+        pending = {"decision": {"direction": "short"}, "entry_price_plan": {
+            "instrument_id": "eurusd", "direction": "short", "execution_mode": "market_now",
+            "target_price": 1.12190247,
+            "entry_not_before": start.isoformat(),
+            "expires_at": (now + timedelta(minutes=7)).isoformat(),
+        }}
+        point = {
+            "price": 1.11880,
+            "timestamp": (now - timedelta(minutes=5)).isoformat(),
+            "source": "Yahoo Finance:EURUSD=X:5m:market_now_completed_bar",
+            "observed_high": 1.11910,
+            "observed_low": 1.11860,
+        }
+        verified, audit = v5.epe_verified_entry_point(pending, point, now)
+        self.assertIsNotNone(verified)
+        self.assertEqual(1.11880, verified["price"])
+        self.assertEqual("MARKET_NOW", audit["mode"])
+        self.assertTrue(audit["verified"])
+
     def test_canonical_live_price_triggers_short_stop_loss(self):
         now = datetime(2026, 10, 6, 14, 6, 50, tzinfo=v5.legacy.TZ)
         live = {"prices": {"eurusd": {
