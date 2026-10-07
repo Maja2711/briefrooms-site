@@ -13,7 +13,7 @@ SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
-from belief_core import BeliefCore  # noqa: E402
+from belief_core import BeliefCore, iso_z  # noqa: E402
 from belief_adapter_contract import AdapterResult, Observation  # noqa: E402
 from belief_core_live import (  # noqa: E402
     AUTOMATIC_TUNING_ENABLED,
