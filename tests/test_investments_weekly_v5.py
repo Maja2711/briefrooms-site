@@ -65,6 +65,26 @@ class GovernedWeeklyModelTests(unittest.TestCase):
         self.assertEqual("MARKET_NOW", audit["mode"])
         self.assertTrue(audit["verified"])
 
+    def test_expired_market_now_does_not_trap_recovery_on_new_live_price(self):
+        now = datetime(2026, 10, 7, 16, 29, 0, tzinfo=v5.legacy.TZ)
+        pending = {"decision": {"strategy_id": "base_v2", "direction": "short"}, "entry_price_plan": {
+            "instrument_id": "eurusd", "direction": "short", "execution_mode": "market_now",
+            "target_price": 1.12190247,
+            "entry_not_before": "2026-10-07T14:02:28+02:00",
+            "expires_at": "2026-10-07T14:17:28+02:00",
+        }, "authorization_basis": {
+            "strategy_id": "base_v2", "direction": "short", "directional_admission_passed": True,
+        }}
+        live = {"prices": {"eurusd": {
+            "price": 1.11750,
+            "timestamp": (now - timedelta(seconds=3)).isoformat(),
+            "source": "canonical-test",
+        }}}
+        with patch.object(v5, "read", return_value=live), \
+             patch.object(v5, "_yahoo_market_entry", return_value=None):
+            point = v5.entry_point("EURUSD=X", pending, now)
+        self.assertIsNone(point)
+
     def test_market_now_epe_accepts_fresh_completed_bar_without_limit_touch(self):
         now = datetime(2026, 10, 7, 14, 10, 0, tzinfo=v5.legacy.TZ)
         start = now - timedelta(minutes=8)
