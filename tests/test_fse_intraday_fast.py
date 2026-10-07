@@ -26,6 +26,9 @@ class Fake:
         return bars()
 
 
+ROOT = Path(__file__).resolve().parents[1]
+
+
 class TestFSEIntradayFast(unittest.TestCase):
     def test_builds_fast_projection_without_authority(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -52,6 +55,16 @@ class TestFSEIntradayFast(unittest.TestCase):
                 self.assertIn(row["phase_map"][tf]["direction"],{"UP","DOWN","FLAT"})
             self.assertFalse(row["phase_map"]["4h"]["fast_refreshed"])
             self.assertIn("alignment_score",row["cross_scale_alignment"])
+
+    def test_fast_workflow_is_independent_from_wes(self):
+        fse_workflow=(ROOT/".github/workflows/fse-intraday-fast.yml").read_text(encoding="utf-8")
+        weekly=(ROOT/".github/workflows/weekly-live-prices.yml").read_text(encoding="utf-8")
+        self.assertIn('name: FSE Intraday Fast Shadow',fse_workflow)
+        self.assertIn('cron: "*/5 * * * *"',fse_workflow)
+        self.assertIn('cancel-in-progress: true',fse_workflow)
+        self.assertIn('data/investments/fse_intraday_public.json',fse_workflow)
+        self.assertNotIn('fse_intraday_fast.py',weekly)
+        self.assertNotIn('fse_intraday_public.json',weekly)
 
     def test_output_is_json(self):
         with tempfile.TemporaryDirectory() as tmp:
