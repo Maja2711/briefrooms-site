@@ -13,6 +13,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
+try:
+    import provenance_contract as provenance
+except ImportError:
+    from scripts import provenance_contract as provenance
+
 SCHEMA = "briefrooms-shadow-engines-public-v1"
 
 SPECS = [
@@ -385,7 +390,7 @@ def build(root: Path, workflow_status: Mapping[str, Any], now: datetime | None =
         meta = metadata(spec["id"], data)
         latest = latest_workflow(spec, workflow_status)
         state, reason = status_for(latest, meta, float(spec["max_idle_hours"]), now)
-        engines.append({
+        row = {
             "id": spec["id"],
             "name": spec["name"],
             "status": state,
@@ -402,7 +407,33 @@ def build(root: Path, workflow_status: Mapping[str, Any], now: datetime | None =
             "domain": spec["domain"],
             "domain_label": spec["domain_label"],
             "source": spec.get("source"),
-        })
+        }
+        run_id = row.get("last_run_id")
+        artifact_id = (
+            f"shadow:{spec['id']}:run:{run_id}"
+            if run_id is not None
+            else f"shadow:{spec['id']}:{provenance.payload_hash(row)[:24]}"
+        )
+        engines.append(provenance.attach_native(
+            row,
+            artifact_id=artifact_id,
+            artifact_type="shadow_observation",
+            engine_id=f"shadow:{spec['id']}",
+            engine_version=str(row.get("champion") or "unknown"),
+            created_at=str(row.get("last_run_at") or meta.get("data_at") or now.isoformat().replace("+00:00", "Z")),
+            authority="shadow",
+            source_ids=[
+                str(value)
+                for value in (row.get("source"), row.get("workflow"))
+                if value
+            ],
+            prospective=True,
+            domain_provenance={
+                "production_authority": False,
+                "observatory_status": state,
+                "native_write_time": True,
+            },
+        ))
     counts = {state: sum(row["status"] == state for row in engines) for state in ("RUNNING", "IDLE", "ERROR", "NO DATA")}
     return {
         "schema_version": SCHEMA,
