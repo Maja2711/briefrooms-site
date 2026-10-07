@@ -913,9 +913,21 @@ def _canonical_live_entry_point(
     if checked_at - stamp > max_age or stamp - checked_at > timedelta(seconds=30):
         return None
     source = str(rec.get("source") or "WES canonical live price")
+    if mode == "market_now":
+        # MARKET means hit the fresh market after authorization. The old LIMIT
+        # target is retained only as audit metadata and must never gate a market
+        # fill; otherwise a strong SHORT can chase a falling market forever.
+        return {
+            "price": price,
+            "timestamp": stamp.astimezone(legacy.TZ).isoformat(timespec="seconds"),
+            "source": f"{source}:canonical_live_market_now",
+            "observed_high": price,
+            "observed_low": price,
+            "canonical_live_price": price,
+        }
     if target is None or target <= 0:
         return None
-    # Simple public contract: the exact displayed target is authoritative.
+    # LIMIT contract: the exact displayed frozen target remains authoritative.
     # LONG opens when Cena teraz <= target; SHORT opens when Cena teraz >= target.
     marketable = price <= target if direction == "long" else price >= target
     if not marketable:
@@ -1030,12 +1042,49 @@ def epe_verified_entry_point(
     point: Dict[str, Any],
     checked_at: datetime,
 ) -> Tuple[Optional[Dict[str, Any]], Dict[str, Any]]:
-    """Verify the simple public WES contract driven by the exact Cena teraz snapshot."""
+    """Verify WES MARKET and LIMIT execution as two distinct contracts."""
     plan = pending.get("entry_price_plan") if isinstance(pending.get("entry_price_plan"), dict) else {}
     direction = str(plan.get("direction") or (pending.get("decision") or {}).get("direction") or "neutral")
+    execution_mode = str(plan.get("execution_mode") or "limit_pullback")
+    stamp = parse_dt(point.get("timestamp"))
+
+    if execution_mode == "market_now":
+        price = sf(point.get("price"))
+        start = parse_dt(plan.get("entry_not_before") or pending.get("entry_not_before"))
+        expires = parse_dt(plan.get("expires_at"))
+        if direction not in {"long", "short"} or price is None or price <= 0 or stamp is None or start is None or expires is None:
+            verification = epe.blocked("missing_fresh_market_execution_contract", mode="MARKET_NOW", instrument="WES")
+            return None, verification
+        if stamp < start:
+            verification = epe.blocked("market_price_predates_authorization", mode="MARKET_NOW", instrument="WES")
+            return None, verification
+        if stamp > checked_at + timedelta(seconds=30):
+            verification = epe.blocked("market_price_from_future", mode="MARKET_NOW", instrument="WES")
+            return None, verification
+        if stamp > expires:
+            verification = epe.blocked("market_price_after_plan_expiry", mode="MARKET_NOW", instrument="WES")
+            return None, verification
+        if checked_at - stamp > no_retro.MAX_LIVE_MARKET_DATA_LAG:
+            verification = epe.blocked("market_price_outside_live_replay_window", mode="MARKET_NOW", instrument="WES")
+            return None, verification
+        verification = {
+            "verified": True,
+            "status": "VERIFIED",
+            "mode": "MARKET_NOW",
+            "instrument": "WES",
+            "direction": direction,
+            "execution_price": float(price),
+            "observed_at": stamp.isoformat(timespec="seconds"),
+            "checked_at": checked_at.isoformat(timespec="seconds"),
+            "rule": "Strong-conviction MARKET hits a fresh post-authorization market price; the archived LIMIT target does not gate execution.",
+        }
+        verified = dict(point)
+        verified["price"] = float(price)
+        verified["execution_price_engine"] = dict(verification)
+        return verified, verification
+
     target = sf(plan.get("target_price"))
     live_price = sf(point.get("canonical_live_price"))
-    stamp = parse_dt(point.get("timestamp"))
     if direction not in {"long", "short"} or target is None or live_price is None or stamp is None:
         verification = epe.blocked("missing_canonical_live_target_contract", mode="CANONICAL_LIVE_TARGET", instrument="WES")
         return None, verification
