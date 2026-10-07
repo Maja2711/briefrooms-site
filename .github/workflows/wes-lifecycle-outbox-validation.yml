@@ -56,11 +56,14 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Install WES validation dependencies
+        run: python -m pip install --upgrade pip yfinance pandas numpy
+
       - name: Validate Python lifecycle event path
         run: |
           set -euo pipefail
           python -m py_compile             scripts/wes_notification_outbox.py             scripts/wes_decision_ledger.py             scripts/investments_weekly_v5.py             scripts/investments_weekly_v2.py             scripts/audit_intraday_risk_exits.py             scripts/daily_position_review.py             scripts/build_trading_notification_events.py
-          python -m unittest             tests.test_wes_notification_outbox             tests.test_wes_decision_ledger             tests.test_trading_notification_events -v
+          python -m unittest             tests.test_wes_notification_outbox             tests.test_wes_decision_ledger             tests.test_trading_notification_events             tests.test_investments_weekly_v5 -v
 
       - name: Validate durable push outbox and client ACK/Inbox
         run: |
