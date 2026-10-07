@@ -531,23 +531,42 @@ async function snapshotAtCommit(engine, sha) {
   throw new Error(`unsupported_commit_sync_engine:${engine}`);
 }
 
-async function currentMainSnapshot(engine) {
+async function snapshotAtRawRef(engine, ref) {
   if (engine === "daily") {
-    return dailyCommitSnapshot(await commitFileJson("main", "data/investments/eurusd_daily_spot.json", { optional: true }));
+    return dailyCommitSnapshot(await commitFileJson(ref, "data/investments/eurusd_daily_spot.json", { optional: true }));
   }
   if (engine === "weekly") {
     const now = new Date();
     const weekIds = [isoWeekId(now), isoWeekId(new Date(now.getTime() - 7 * 86400000))];
     for (const weekId of weekIds) {
-      const payload = await commitFileJson("main", `data/investments/weekly/${weekId}.json`, { optional: true });
+      const payload = await commitFileJson(ref, `data/investments/weekly/${weekId}.json`, { optional: true });
       if (payload) return weeklyCommitSnapshot(payload);
     }
     return emptyCommitSnapshot();
   }
   if (engine === "stock") {
-    return stockCommitSnapshot(await commitFileJson("main", "data/investments/stock_trading_portfolio.json", { optional: true }));
+    return stockCommitSnapshot(await commitFileJson(ref, "data/investments/stock_trading_portfolio.json", { optional: true }));
   }
-  throw new Error(`unsupported_current_sync_engine:${engine}`);
+  throw new Error(`unsupported_raw_ref_sync_engine:${engine}`);
+}
+
+async function currentMainSnapshot(engine) {
+  return snapshotAtRawRef(engine, "main");
+}
+
+function comparableCommitSnapshot(snapshot) {
+  const payload = persistableCommitSnapshot(snapshot);
+  const sortRows = (rows) => [...rows].sort((a, b) =>
+    String(a?.position_id || "").localeCompare(String(b?.position_id || ""))
+  );
+  return JSON.stringify({
+    open: sortRows(payload.open || []),
+    closed: sortRows(payload.closed || []),
+  });
+}
+
+function sameCommitSnapshot(a, b) {
+  return comparableCommitSnapshot(a) === comparableCommitSnapshot(b);
 }
 
 function normalizedPrefs(input = {}) {
@@ -872,7 +891,20 @@ export class PushHub {
       const key = `canonical-sync-snapshot:${engine}`;
       const stored = await this.ctx.storage.get(key);
       const before = storedCommitSnapshot(stored);
-      const after = await currentMainSnapshot(engine);
+      const current = await currentMainSnapshot(engine);
+      let after = current;
+
+      if (requestedSha) {
+        const requested = await snapshotAtRawRef(engine, requestedSha);
+        if (!sameCommitSnapshot(requested, current)) {
+          // raw/main can briefly lag immediately after a successful Git push.
+          // Never turn that lag into a false NO_TRANSITION. The caller retries
+          // until main exposes the exact persisted trading state.
+          throw new Error(`fallback_requested_state_not_current:${engine}`);
+        }
+        after = requested;
+      }
+
       const descriptors = stored
         ? transitionDescriptors(engine, before, after, checkedAt)
         : [];
@@ -1382,4 +1414,4 @@ export default {
   }
 };
 
-export { finiteNumber, yahooMinuteBars, dailyCommitSnapshot, weeklyCommitSnapshot, stockCommitSnapshot, transitionDescriptors, notificationPayload, storedCommitSnapshot, persistableCommitSnapshot, isoWeekId };
+export { finiteNumber, yahooMinuteBars, dailyCommitSnapshot, weeklyCommitSnapshot, stockCommitSnapshot, transitionDescriptors, notificationPayload, storedCommitSnapshot, persistableCommitSnapshot, comparableCommitSnapshot, sameCommitSnapshot, isoWeekId };
