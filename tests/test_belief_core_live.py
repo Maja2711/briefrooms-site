@@ -250,6 +250,31 @@ class BeliefCoreLiveTest(unittest.TestCase):
         self.assertTrue(evaluate_spec(spec,{"TLT":101.0,"HYG":81.0,"UUP":26.0}))
         self.assertFalse(evaluate_spec(spec,{"TLT":99.0,"HYG":79.0,"UUP":24.0}))
 
+    def test_eurusd_belief_recomputes_immediately_during_us_cash_session(self) -> None:
+        now = datetime(2026, 10, 7, 15, 54, tzinfo=NY)
+
+        class SessionFxClient(FakeChartClient):
+            def __init__(self, current):
+                super().__init__(current)
+                rows = []
+                start = 1.1200
+                for i in range(90):
+                    ts = current - timedelta(minutes=30 * (89 - i))
+                    rows.append(Bar(
+                        timestamp=ts.astimezone(ZoneInfo("UTC")),
+                        close=start + .00002 * i,
+                    ))
+                self.rows["EURUSD=X"] = rows
+
+        with tempfile.TemporaryDirectory() as tmp:
+            state_dir = Path(tmp) / "core"
+            status = run_cycle(state_dir, now, SessionFxClient(now))
+            core = BeliefCore(state_dir)
+            trend = core.beliefs["eurusd.trend.bullish"]
+            self.assertGreaterEqual(trend.freshness_score, 0.95)
+            self.assertEqual(trend.last_updated, iso_z(now))
+            self.assertGreater(status["evidence_ingested"], 0)
+
     def test_eurusd_evidence_refreshes_outside_us_cash_session(self) -> None:
         now = datetime(2026, 10, 6, 3, 7, tzinfo=NY)
 
