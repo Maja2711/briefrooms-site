@@ -1,0 +1,39 @@
+name: Provenance Contract v1 Validation
+
+on:
+  pull_request:
+    paths:
+      - "scripts/provenance_contract.py"
+      - "scripts/provenance_compat.py"
+      - "tests/test_provenance_contract.py"
+      - "docs/BRIEFROOMS_PROVENANCE_CONTRACT_V1.md"
+      - ".github/workflows/provenance-contract-validation.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "scripts/provenance_contract.py"
+      - "scripts/provenance_compat.py"
+      - "tests/test_provenance_contract.py"
+      - "docs/BRIEFROOMS_PROVENANCE_CONTRACT_V1.md"
+      - ".github/workflows/provenance-contract-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Compile contract and adapters
+        run: |
+          python -m py_compile scripts/provenance_contract.py scripts/provenance_compat.py
+      - name: Run provenance contract tests
+        run: |
+          python -m unittest tests.test_provenance_contract -v
