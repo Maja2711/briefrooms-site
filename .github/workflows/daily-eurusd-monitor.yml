@@ -296,6 +296,16 @@ jobs:
               raise SystemExit(f'v1.9 output missing Belief-first pipeline contract: {pipeline}')
           authority=metadata.get('direction_authority') or {}
           final_decision=metadata.get('final_decision') or {}
+          epistemic_consumer=final_decision.get('epistemic_consumer') or {}
+          # A missing/unqualified Epistemic consumer is a data-quality incident,
+          # not a genuine market-neutral 50/0 decision. Never publish that state
+          # over the last canonical Daily snapshot. Existing-position lifecycle
+          # and terminal closes remain allowed so risk control cannot be blocked.
+          if not position and not terminal_close and epistemic_consumer.get('available') is not True:
+              raise SystemExit(
+                  'DAILY_EURUSD_EPISTEMIC_UNAVAILABLE_NO_PUBLICATION: '
+                  + str(epistemic_consumer.get('reason') or 'unknown')
+              )
           if authority.get('owner') != 'NATIVE_DAILY_EURUSD_BELIEF_FIRST_DECISION_ENGINE':
               raise SystemExit(f'unexpected v1.9 direction owner: {authority}')
           if authority.get('source') != 'NATIVE_BELIEF_FIRST':
