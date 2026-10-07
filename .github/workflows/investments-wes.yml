@@ -25,6 +25,8 @@ on:
       - "scripts/investments_wes_memory.py"
       - "scripts/investments_wes_spx_brace_bridge.py"
       - "scripts/investments_wes_counterfactual.py"
+      - "scripts/wes_notification_outbox.py"
+      - "tests/test_wes_notification_outbox.py"
       - "scripts/no_retroactive_execution.py"
       - "scripts/verify_no_retroactive_execution.py"
       - "scripts/sync_trading_push_commit.sh"
@@ -64,7 +66,7 @@ jobs:
         run: python -m pip install --upgrade pip yfinance pandas numpy
       - name: Validate WES without mutating runtime state
         run: |
-          python -m py_compile             scripts/instrument_registry.py scripts/investments_weekly_v2.py scripts/investments_weekly_v3.py             scripts/investments_weekly_v4.py scripts/investments_weekly_v5.py scripts/execution_price_engine.py scripts/investments_weekly_macro.py             scripts/investments_weekly_ma_structure.py scripts/investments_wes.py scripts/investments_wes_macro_belief.py scripts/investments_wes_runner.py             scripts/investments_wes_lifecycle.py scripts/investments_wes_memory.py scripts/investments_wes_spx_brace_bridge.py             scripts/investments_wes_counterfactual.py scripts/no_retroactive_execution.py scripts/verify_no_retroactive_execution.py
+          python -m py_compile             scripts/instrument_registry.py scripts/investments_weekly_v2.py scripts/investments_weekly_v3.py             scripts/investments_weekly_v4.py scripts/investments_weekly_v5.py scripts/execution_price_engine.py scripts/investments_weekly_macro.py             scripts/investments_weekly_ma_structure.py scripts/investments_wes.py scripts/investments_wes_macro_belief.py scripts/investments_wes_runner.py             scripts/investments_wes_lifecycle.py scripts/investments_wes_memory.py scripts/investments_wes_spx_brace_bridge.py             scripts/investments_wes_counterfactual.py scripts/wes_notification_outbox.py scripts/no_retroactive_execution.py scripts/verify_no_retroactive_execution.py
           python scripts/instrument_registry.py --validate-wes
           python -m unittest             tests/test_investments_wes.py tests/test_investments_wes_memory.py             tests/test_investments_wes_spx_brace_bridge.py tests/test_investments_wes_counterfactual.py             tests/test_investments_wes_counterfactual_deadline.py tests/test_investments_weekly_v5.py tests/test_execution_price_engine.py tests/test_no_retroactive_execution.py
 
@@ -135,6 +137,7 @@ jobs:
             scripts/investments_wes_memory.py \
             scripts/investments_wes_spx_brace_bridge.py \
             scripts/investments_wes_counterfactual.py \
+            scripts/wes_notification_outbox.py \
             scripts/no_retroactive_execution.py \
             scripts/verify_no_retroactive_execution.py
           python scripts/instrument_registry.py --validate-wes
@@ -149,6 +152,7 @@ jobs:
             tests/test_investments_wes_counterfactual.py \
             tests/test_investments_wes_counterfactual_deadline.py \
             tests/test_investments_weekly_v5.py \
+            tests/test_wes_notification_outbox.py \
             tests/test_execution_price_engine.py
       - name: WES preflight trigger gate
         run: python scripts/investments_wes_runner.py --mode preflight
@@ -206,6 +210,7 @@ jobs:
                   data/investments/wes_incremental_alpha_report.json \
                   data/investments/multi_instrument_exposure_state_v5.json \
                   data/investments/multi_instrument_exposure_report_v5.json \
+                  data/notifications/wes-event-outbox.json \
                   pl/inwestycje/pozycje-tygodniowe.html \
                   en/investing/open-weekly-positions.html \
                   pl/inwestycje/prognozy-tygodniowe.html \
