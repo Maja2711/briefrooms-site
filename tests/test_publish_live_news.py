@@ -146,6 +146,17 @@ class LiveNewsPublisherTests(unittest.TestCase):
         self.assertIsNotNone(filtered_news.AI_CRYPTO_RE.search("Bitcoin rośnie po decyzji rynku"))
         self.assertIsNone(filtered_news.AI_CRYPTO_RE.search("Inflacja bazowa spadła w sierpniu"))
 
+    def test_pl_ai_language_detector_catches_short_crypto_headlines(self) -> None:
+        self.assertTrue(filtered_news._looks_english(
+            "OKX looks to abstract blockchain mechanics to bring stablecoin balances to everyday consumers"
+        ))
+        self.assertTrue(filtered_news._looks_english(
+            "Liquidations jump to $547 million as oil rally hits crypto market"
+        ))
+        self.assertFalse(filtered_news._looks_english(
+            "Rząd USA przenosi ponad 100 milionów dolarów w BTC i BNB"
+        ))
+
     def test_pl_ai_localization_contract_preserves_source_copy(self) -> None:
         story = {
             "title": "New artificial intelligence model will help doctors",
