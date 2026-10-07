@@ -222,6 +222,27 @@ jobs:
           assert geo['policy_output_enabled'] is False
           print('Belief Core state validation: PASS')
           print('Last status:', scheduler['last_status'])
+          eurusd_ids={
+              'eurusd.trend.bullish',
+              'eurusd.usd_environment.supportive',
+              'eurusd.us_rates_pressure.supportive',
+              'eurusd.macro_surprise.supportive',
+              'eurusd.policy_differential.supportive',
+          }
+          eurusd_rows=[
+              {
+                  'belief_id': row.get('belief_id'),
+                  'probability': row.get('probability'),
+                  'confidence': row.get('confidence'),
+                  'freshness_score': row.get('freshness_score'),
+                  'last_updated': row.get('last_updated'),
+                  'audit_status': row.get('audit_status'),
+                  'representative_evidence_ids': row.get('representative_evidence_ids'),
+              }
+              for row in state.get('beliefs', [])
+              if row.get('belief_id') in eurusd_ids
+          ]
+          print('EURUSD_BELIEF_FRESHNESS', json.dumps(eurusd_rows, sort_keys=True))
           print('Geopolitical adapter status:', geo)
           PY
 
