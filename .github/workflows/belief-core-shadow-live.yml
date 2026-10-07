@@ -26,6 +26,7 @@ on:
   schedule:
     # Fallback scheduler. GitHub cron can be delayed, so the workflow is also
     # triggered by the successful quote-refresh workflow below.
+    # Daily EURUSD freshness is validated downstream before any production dispatch.
     - cron: "7,37 13-22 * * 1-5"
   workflow_run:
     workflows:
