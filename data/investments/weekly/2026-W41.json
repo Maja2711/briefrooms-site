@@ -255,29 +255,29 @@
             },
             "D1": {
               "bar_at": "2026-10-07T02:00:00+02:00",
-              "close": 1.119695,
-              "ma30": 1.148506,
-              "ma60": 1.150245,
-              "ma100": 1.15054,
-              "ma200": 1.16041,
+              "close": 1.119946,
+              "ma30": 1.148515,
+              "ma60": 1.150249,
+              "ma100": 1.150542,
+              "ma200": 1.160412,
               "slow_trend": -1,
               "price_vs_all": -1,
               "nearest_ma": "ma30",
-              "nearest_ma_distance_atr": 4.2343,
+              "nearest_ma_distance_atr": 4.5865,
               "support_hold_long": false,
               "resistance_hold_short": false
             },
             "H1": {
               "bar_at": "2026-10-07T23:00:00+02:00",
-              "close": 1.119695,
-              "ma30": 1.122317,
-              "ma60": 1.122536,
-              "ma100": 1.123133,
-              "ma200": 1.129179,
+              "close": 1.119946,
+              "ma30": 1.122326,
+              "ma60": 1.12254,
+              "ma100": 1.123135,
+              "ma200": 1.12918,
               "slow_trend": -1,
               "price_vs_all": -1,
               "nearest_ma": "ma30",
-              "nearest_ma_distance_atr": 2.035,
+              "nearest_ma_distance_atr": 1.8468,
               "support_hold_long": false,
               "resistance_hold_short": false
             }
@@ -286,7 +286,7 @@
             "d1_below_all_ma",
             "h1_below_all_ma_timing"
           ],
-          "evaluated_at": "2026-10-07T23:28:53+02:00",
+          "evaluated_at": "2026-10-07T23:58:10+02:00",
           "governance": "bounded_context_only_no_veto_no_standalone_trade_trigger"
         },
         "rule": "Context is recorded immediately; an open weekly position is changed only by the governed review rules."
@@ -1403,8 +1403,8 @@
         "source_exit_reason": null
       },
       "pending_entry_decision": {
-        "decided_at": "2026-10-07T23:28:53+02:00",
-        "entry_not_before": "2026-10-07T23:28:53+02:00",
+        "decided_at": "2026-10-07T23:58:07+02:00",
+        "entry_not_before": "2026-10-07T23:58:07+02:00",
         "decision": {
           "direction": "long",
           "raw_score": 76.0,
@@ -1662,7 +1662,7 @@
               }
             }
           },
-          "decided_at": "2026-10-07T23:28:53+02:00",
+          "decided_at": "2026-10-07T23:58:07+02:00",
           "validation_gate": "enabled_for_paper_trading"
         },
         "fresh_signal": {
@@ -1744,7 +1744,7 @@
         },
         "entry_price_plan": {
           "version": "WES-1.3.1",
-          "frozen_at": "2026-10-07T23:28:53+02:00",
+          "frozen_at": "2026-10-07T23:58:07+02:00",
           "instrument_id": "sp500_futures",
           "direction": "long",
           "execution_mode": "market_now",
@@ -1752,8 +1752,8 @@
           "target_price": 7819.90119497,
           "reference_price": 7850.25,
           "reference_source": "fresh_signal.signals.last_close",
-          "entry_not_before": "2026-10-07T23:28:53+02:00",
-          "expires_at": "2026-10-07T23:43:53+02:00",
+          "entry_not_before": "2026-10-07T23:58:07+02:00",
+          "expires_at": "2026-10-08T00:13:07+02:00",
           "execution_bar_interval_minutes": 5,
           "fill_rule": "For EURUSD Weekly only, MARKET mode hits a fresh post-authorization canonical live price immediately when available, with the freshest completed 5m bar as bounded fallback, all verified by EPE; the archived LIMIT target never gates that EURUSD MARKET execution. Other WES instruments retain their existing execution contract. LIMIT mode still fills only when the frozen target is touched. Persistent LIMIT reaffirmation may extend time but may never move the frozen target. No analytical or retroactive price may be fabricated.",
           "inputs": {
@@ -1820,12 +1820,40 @@
           "directional_admission_passed": true
         },
         "rule": "execute_market_now_on_first_fresh_completed_5m_bar_after_decision",
-        "decision_id": "wes-dec-70808b87aeac8ab6f697478cd67d",
-        "payload_hash": "d74f65970300b828d189a410ece8eb0adffd8cad2cb5ef640c9b277dd9044e7a",
+        "decision_id": "wes-dec-106b5a7298755861ad9d1fbb2366",
+        "payload_hash": "f0fe6528a0b8d1fc2945f4b3e5241b27a12d3133ce0a265b19155580466bdb61",
         "decision_kind": "ENTRY_FREEZE",
         "predecessor_decision_id": null,
-        "ledger_record_hash": "c31e831437a9bdc94e198104137dd133c17c1f1193ff016cf9097b5dd8d13ad9",
-        "ledger_schema_version": "briefrooms-wes-decision-ledger-v1"
+        "ledger_record_hash": "171ae94e65f0901a9d4b42c69ac35f939b2ae78cbfa96c69a3eab358722ead17",
+        "ledger_schema_version": "briefrooms-wes-decision-ledger-v1",
+        "provenance": {
+          "schema_version": "briefrooms-provenance-contract-v1",
+          "artifact_id": "wes-dec-106b5a7298755861ad9d1fbb2366",
+          "artifact_type": "wes_frozen_decision",
+          "engine_id": "wes",
+          "engine_version": "briefrooms-wes-frozen-decision-v1",
+          "created_at": "2026-10-07T23:58:07+02:00",
+          "parent_artifact_ids": [],
+          "source_ids": [
+            "ENTRY_FREEZE",
+            "champion_execution"
+          ],
+          "evidence_ids": [],
+          "belief_ids": [],
+          "decision_id": "wes-dec-106b5a7298755861ad9d1fbb2366",
+          "forecast_id": null,
+          "verification_id": null,
+          "payload_hash": "b2cfe711fc6d2a6d35f5dfd4d35dd68130085dc12647703e868e92ed61c66e23",
+          "authority": "decision",
+          "prospective": true,
+          "domain_provenance": {
+            "week_id": "2026-W41",
+            "instrument_id": "sp500_futures",
+            "decision_kind": "ENTRY_FREEZE",
+            "ledger_payload_hash": "f0fe6528a0b8d1fc2945f4b3e5241b27a12d3133ce0a265b19155580466bdb61",
+            "native_write_time": true
+          }
+        }
       },
       "next_entry_status": "waiting_for_market_entry",
       "no_trade_decision": {
@@ -1983,8 +2011,8 @@
         "reason": "missing_canonical_live_target_contract",
         "details": {}
       },
-      "current_decision_id": "wes-dec-70808b87aeac8ab6f697478cd67d",
-      "current_decision_payload_hash": "d74f65970300b828d189a410ece8eb0adffd8cad2cb5ef640c9b277dd9044e7a",
+      "current_decision_id": "wes-dec-106b5a7298755861ad9d1fbb2366",
+      "current_decision_payload_hash": "f0fe6528a0b8d1fc2945f4b3e5241b27a12d3133ce0a265b19155580466bdb61",
       "decision_ledger_schema_version": "briefrooms-wes-decision-ledger-v1"
     },
     {
@@ -2408,7 +2436,7 @@
     "execution_parity_report": "data/investments/weekly_execution_parity_v5.json",
     "immutable_decision_ledger": "data/investments/wes_decision_ledger.json",
     "immutable_decision_ledger_schema": "briefrooms-wes-decision-ledger-v1",
-    "last_checked_at": "2026-10-07T23:28:53+02:00"
+    "last_checked_at": "2026-10-07T23:58:10+02:00"
   },
   "frozen_forecast": {
     "schema_version": "briefrooms-wes-v5-frozen-forecast-v1",
