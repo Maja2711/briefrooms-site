@@ -14,6 +14,7 @@ import investments_weekly_v4 as v4
 import investments_weekly_macro as macro
 import no_retroactive_execution as no_retro
 import execution_price_engine as epe
+import wes_notification_outbox as wes_outbox
 
 ROOT = Path(__file__).resolve().parents[1]
 METHOD = ROOT / "data/investments/methodology.json"
@@ -1462,6 +1463,7 @@ def ensure_all() -> Dict[str, Any]:
                 pending_entry_decision=None,
                 next_entry_status="open",
             )
+            wes_outbox.emit_weekly_event(str(week.get("week_id") or ""), item, "OPEN")
             changed = True
             report["actions"].append({
                 "instrument_id": iid,
@@ -1578,6 +1580,7 @@ def ensure_all() -> Dict[str, Any]:
             pending_entry_decision=None,
             next_entry_status="open",
         )
+        wes_outbox.emit_weekly_event(str(week.get("week_id") or ""), item, "OPEN")
         report["actions"].append({
             "instrument_id": iid,
             "action": "open_at_market_now" if execution_mode == "market_now" else "open_at_frozen_entry_target",
