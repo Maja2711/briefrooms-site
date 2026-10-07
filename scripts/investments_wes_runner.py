@@ -108,6 +108,15 @@ def preflight():
         )
 
         existing_pending = item.get("pending_entry_decision") if isinstance(item.get("pending_entry_decision"), dict) else {}
+        if existing_pending and existing_pending.get("decided_at"):
+            sealed_pending = wes.v5.seal_legacy_pending_decision(
+                item,
+                existing_pending,
+                week_id=str(week.get("week_id") or ""),
+            )
+            if sealed_pending is not existing_pending or not existing_pending.get("decision_id"):
+                changed = True
+            existing_pending = sealed_pending
         existing_pending_decision = existing_pending.get("decision") if isinstance(existing_pending.get("decision"), dict) else {}
         same_pending_thesis = (
             bool(existing_pending)
@@ -115,10 +124,19 @@ def preflight():
             and str(existing_pending_decision.get("strategy_id") or "") == str(decision.get("strategy_id") or "")
             and base_thresholds_passed
         )
-        persistent_plan_reaffirmed = (
-            same_pending_thesis
-            and wes.v5.renew_persistent_entry_plan(existing_pending, now, policy)
+        reaffirmed_pending = (
+            wes.v5.reaffirm_pending_decision(
+                item,
+                existing_pending,
+                now,
+                policy,
+                week_id=str(week.get("week_id") or ""),
+            )
+            if same_pending_thesis else None
         )
+        persistent_plan_reaffirmed = reaffirmed_pending is not None
+        if reaffirmed_pending is not None:
+            existing_pending = reaffirmed_pending
 
         approved = base_thresholds_passed and (
             delta_passed
@@ -142,6 +160,8 @@ def preflight():
                 "passed": delta_passed,
                 "absolute_strength_bypass": bypass_diagnostics,
                 "persistent_plan_reaffirmed": persistent_plan_reaffirmed,
+                "decision_id": existing_pending.get("decision_id") if persistent_plan_reaffirmed else None,
+                "decision_payload_hash": existing_pending.get("payload_hash") if persistent_plan_reaffirmed else None,
             },
         }
 
@@ -152,6 +172,8 @@ def preflight():
         if approved:
             if persistent_plan_reaffirmed:
                 item["pending_entry_decision"] = existing_pending
+                item["current_decision_id"] = existing_pending.get("decision_id")
+                item["current_decision_payload_hash"] = existing_pending.get("payload_hash")
                 item["next_entry_status"] = (
                     "waiting_for_market_entry"
                     if str(((existing_pending.get("entry_price_plan") or {}).get("execution_mode") or "")) == "market_now"
