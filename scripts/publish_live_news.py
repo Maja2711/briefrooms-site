@@ -24,6 +24,7 @@ OUT = ROOT / "data" / "news"
 UA = "BriefRooms canonical news publisher/2.0"
 TARGET = 9
 MIN_SECTION = TARGET
+PL_SECTION_TARGETS = {"ai-technologia-krypto": 12}
 EN_SECTION_TARGETS = {"asia-pacific": 12, "europe": 15, "middle-east": 12}
 MAX_WORKERS = 10
 REQUEST_TIMEOUT = 12
@@ -522,7 +523,7 @@ def validate(max_age_minutes: int = 30) -> None:
         if set(data.get("sections", {})) != expected:
             raise RuntimeError(f"{lang} section set mismatch")
         for section_id, stories in data["sections"].items():
-            section_target = EN_SECTION_TARGETS.get(section_id, TARGET) if lang == "en" else TARGET
+            section_target = EN_SECTION_TARGETS.get(section_id, TARGET) if lang == "en" else PL_SECTION_TARGETS.get(section_id, TARGET)
             if len(stories) > section_target:
                 raise RuntimeError(f"{lang}/{section_id} exceeds target {section_target} with {len(stories)} stories")
             if any(not item.get("title") or not item.get("link") or not item.get("image") for item in stories):
