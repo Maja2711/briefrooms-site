@@ -16,6 +16,7 @@ if str(SCRIPTS) not in sys.path:
 from belief_market_data_adapter import Bar, MarketSnapshot
 from belief_news_event_adapter import parse_rss
 import daily_eurusd_belief_decision as decision
+import provenance_contract as provenance
 import daily_eurusd_spot as base
 import daily_eurusd_spot_v19 as v19
 import daily_eurusd_spot_v18 as v18
@@ -208,6 +209,11 @@ class BeliefDecisionTest(unittest.TestCase):
         self.assertTrue(consumer["available"])
         self.assertFalse(consumer["consumer_may_override_probability"])
         self.assertTrue(output.metadata["final_decision"]["epistemic_aggregate_authoritative"])
+        provenance.verify_attached(output.metadata["final_decision"])
+        self.assertEqual(
+            output.metadata["final_decision"]["provenance"]["domain_provenance"]["epistemic_consumer_contract"],
+            "epistemic-consumer-interface-v1",
+        )
         self.assertAlmostEqual(
             output.score,
             100.0 * float(consumer["aggregate_probability"]),
