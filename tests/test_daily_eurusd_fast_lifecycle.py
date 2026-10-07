@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 from scripts.belief_market_data_adapter import Bar
 from scripts.daily_eurusd_fast_lifecycle import evaluate_open_position, close_output
@@ -76,6 +77,13 @@ class DailyEurusdFastLifecycleTests(unittest.TestCase):
             Bar(timestamp=opened + timedelta(minutes=1), open=1.1250, high=1.1260, low=1.1245, close=1.1252),
         ]
         self.assertIsNone(evaluate_open_position(p, bars, bars[-1].timestamp))
+
+    def test_realtime_watcher_fails_closed_when_push_sync_fails(self):
+        script = (Path(__file__).resolve().parents[1] / "scripts" / "daily_eurusd_realtime_watch.sh").read_text(encoding="utf-8")
+        self.assertIn('if ! sync_push_commit "$sha"; then', script)
+        self.assertIn('return 3', script)
+        self.assertNotIn('persist_triggered_exit || true', script)
+        self.assertIn('exit "$rc"', script)
 
     def test_close_projection_removes_directional_geometry(self):
         p = payload("SHORT")
