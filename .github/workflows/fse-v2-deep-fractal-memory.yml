@@ -59,7 +59,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m py_compile scripts/fractal_structure_engine_v2.py scripts/fse_intraday_fast.py
-          python -m unittest tests.test_fractal_structure_engine_v2 tests.test_fse_intraday_fast -v
+          python -m unittest tests.test_fractal_structure_engine_v2 tests.test_fse_intraday_fast tests.test_fse_phase_workflow -v
           python -m unittest tests.test_decision_lab_fse_frontend -v
           node --check scripts/central-lab.js
           node --check scripts/central-lab-runtime-en.js
@@ -96,12 +96,31 @@ jobs:
           FSE_V2_STATE_DIR="$RUNNER_TEMP/fse-v2-state"
           echo "FSE_V2_STATE_DIR=$FSE_V2_STATE_DIR" >> "$GITHUB_ENV"
           mkdir -p "$FSE_V2_STATE_DIR"
-          run_id="$(gh run list --workflow fse-v2-deep-fractal-memory.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')"
-          if [[ -n "$run_id" ]]; then
-            mkdir -p "$RUNNER_TEMP/fse-v2-artifact"
-            gh run download "$run_id" -n "$STATE_ARTIFACT" -D "$RUNNER_TEMP/fse-v2-artifact" || true
-            archive="$RUNNER_TEMP/fse-v2-artifact/$STATE_ARCHIVE"
-            [[ -s "$archive" ]] && tar -xzf "$archive" -C "$FSE_V2_STATE_DIR"
+
+          artifact_meta="$(
+            gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts?name=$STATE_ARTIFACT&per_page=100"               --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | reverse | .[0] // {}'
+          )"
+          artifact_id="$(jq -r '.id // empty' <<<"$artifact_meta")"
+          run_id="$(jq -r '.workflow_run.id // empty' <<<"$artifact_meta")"
+
+          if [[ -z "$artifact_id" || -z "$run_id" ]]; then
+            if [[ -s "$PUBLIC_PATH" ]]; then
+              echo "FSE_STATE_RESTORE_FAIL: public FSE-PHASE state exists but no non-expired durable artifact was found" >&2
+              exit 1
+            fi
+            echo "FSE_STATE_BOOTSTRAP_EMPTY: no prior public state and no durable artifact"
+          else
+            artifact_dir="$RUNNER_TEMP/fse-v2-artifact"
+            rm -rf "$artifact_dir"
+            mkdir -p "$artifact_dir"
+            gh run download "$run_id" -n "$STATE_ARTIFACT" -D "$artifact_dir"
+            archive="$artifact_dir/$STATE_ARCHIVE"
+            if [[ ! -s "$archive" ]]; then
+              echo "FSE_STATE_RESTORE_FAIL: artifact $artifact_id from run $run_id did not contain $STATE_ARCHIVE" >&2
+              exit 1
+            fi
+            tar -xzf "$archive" -C "$FSE_V2_STATE_DIR"
+            echo "FSE_STATE_RESTORE_PASS run_id=$run_id artifact_id=$artifact_id"
           fi
 
       - name: Run FSE phase and cross-scale challenger
