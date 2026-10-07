@@ -1,6 +1,6 @@
 # BriefRooms Provenance Contract v1
 
-**Status:** P1 compatibility layer  
+**Status:** P1 native write-time + compatibility layer  
 **Schema:** `briefrooms-provenance-contract-v1`  
 **Authority:** metadata / lineage only — no decision, scoring, sizing, execution, promotion or policy-writeback authority.
 
@@ -12,7 +12,7 @@ Canonical covered families:
 
 `Belief/L3-A -> WES -> Daily -> BRACE -> Stock Trading -> Shadow Engines`
 
-The compatibility phase is deliberately read-only. Existing production artifacts are projected into the common contract as sidecars; they are not rewritten, resealed or backfilled.
+New governed artifacts now emit the common envelope natively at write-time. Existing historical artifacts remain untouched and are still projected through read-only compatibility adapters when a common view is needed. No historical provenance backfill or WES reseal is performed.
 
 ## Canonical envelope
 
@@ -69,13 +69,20 @@ P1 must not:
 
 If a legacy artifact lacks a timestamp required by the common contract, the adapter requires an explicit point-in-time timestamp from the caller and otherwise fails.
 
-## Migration sequence
+## Native write-time adoption
 
-P1 is only the common contract plus compatibility adapters. Native write-time adoption should happen prospectively per engine in later changes:
+The following new artifacts emit `briefrooms-provenance-contract-v1` at creation/finalization time:
 
-1. emit the same v1 envelope at artifact creation time;
-2. preserve the existing domain-specific metadata under its current fields and/or `domain_provenance`;
-3. validate the common envelope in the engine's own CI;
-4. only after prospective coverage is stable, consider stronger fail-closed publication gates.
+- Belief Core Evidence, BeliefState, frozen Forecast and Verification;
+- L3-A research attempts and experience settlements;
+- WES frozen decisions, newly sealed frozen forecasts, closed position legs and settlements;
+- Daily EURUSD final decisions;
+- BRACE company/entity framework reports;
+- Stock Trading v2 persisted audit/execution actions;
+- Shadow Engines observatory rows.
 
-Historical WES seals must never be rewritten merely to add v1 provenance.
+Compatibility adapters remain the historical bridge. They do not rewrite old artifacts.
+
+WES has an additional invariant: canonical provenance is metadata-only for WES history sealing. Existing economic payload hashes, decision-ledger payload hashes and previously sealed historical hashes are not recomputed merely because native provenance exists.
+
+The next governance step, after sufficient prospective coverage, may introduce a cross-engine provenance auditor/publication gate. That is intentionally separate from this write-time adoption and must not be enabled by silently backfilling history.
