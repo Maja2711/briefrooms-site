@@ -890,7 +890,10 @@ def select_sections(
                 if len(items) >= target:
                     break
 
-        selected[section_id] = items[:target]
+        selected_items = items[:target]
+        if pl_mode and section_id == "ai-technologia-krypto":
+            selected_items = [_localize_pl_ai_story(story) for story in selected_items]
+        selected[section_id] = selected_items
         if pl_mode:
             minimum = PL_SECTION_MINIMUMS.get(section_id, 0)
             if len(selected[section_id]) < minimum:
@@ -1090,8 +1093,6 @@ def fetch_feed(source: str, feed_url: str, section_id: str, now: Any) -> tuple[l
     else:
         stories, error = _original_fetch_feed(source, feed_url, section_id, now)
     accepted = _filter_stories(stories, f"fresh/{section_id}/{source}")
-    if section_id == "ai-technologia-krypto":
-        accepted = [_localize_pl_ai_story(story) for story in accepted]
     if section_id == "sport":
         # The base image pass is intentionally bounded. Make sure a live/high-profile
         # candidate cannot disappear only because its RSS item omitted a thumbnail.
