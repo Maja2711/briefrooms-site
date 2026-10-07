@@ -1,0 +1,58 @@
+name: Validate WES Lifecycle Outbox
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/wes_notification_outbox.py"
+      - "scripts/investments_weekly_v5.py"
+      - "scripts/investments_weekly_v2.py"
+      - "scripts/audit_intraday_risk_exits.py"
+      - "scripts/daily_position_review.py"
+      - "scripts/build_trading_notification_events.py"
+      - "workers/trading-push/**"
+      - "tests/test_wes_notification_outbox.py"
+      - "tests/test_trading_notification_events.py"
+      - ".github/workflows/wes-lifecycle-outbox-validation.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/wes_notification_outbox.py"
+      - "scripts/investments_weekly_v5.py"
+      - "scripts/investments_weekly_v2.py"
+      - "scripts/audit_intraday_risk_exits.py"
+      - "scripts/daily_position_review.py"
+      - "scripts/build_trading_notification_events.py"
+      - "workers/trading-push/**"
+      - "tests/test_wes_notification_outbox.py"
+      - "tests/test_trading_notification_events.py"
+      - ".github/workflows/wes-lifecycle-outbox-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Validate Python lifecycle event path
+        run: |
+          set -euo pipefail
+          python -m py_compile             scripts/wes_notification_outbox.py             scripts/investments_weekly_v5.py             scripts/investments_weekly_v2.py             scripts/audit_intraday_risk_exits.py             scripts/daily_position_review.py             scripts/build_trading_notification_events.py
+          python -m unittest             tests.test_wes_notification_outbox             tests.test_trading_notification_events -v
+
+      - name: Validate push outbox consumer
+        working-directory: workers/trading-push
+        run: |
+          set -euo pipefail
+          npm install --no-audit --no-fund
+          npm run check
