@@ -261,6 +261,8 @@ function fastExitHit(position, bars) {
 
 const COMMIT_SYNC_REPO = "Maja2711/briefrooms-site";
 const COMMIT_SYNC_ENGINES = new Set(["daily", "weekly", "stock"]);
+const WES_OUTBOX_PATH = "data/notifications/wes-event-outbox.json";
+const WES_OUTBOX_RAW_URL = `https://raw.githubusercontent.com/${COMMIT_SYNC_REPO}/main/${WES_OUTBOX_PATH}`;
 
 async function githubJson(url) {
   const response = await fetch(url, {
@@ -282,6 +284,31 @@ async function commitFileJson(sha, path, { optional = false } = {}) {
   if (optional && response.status === 404) return null;
   if (!response.ok) throw new Error(`commit_file_http_${response.status}:${path}`);
   return response.json();
+}
+
+function persistedOutboxEvents(payload, engine = null) {
+  const rows = Array.isArray(payload?.events) ? payload.events : [];
+  return rows.filter((event) => {
+    if (!event || typeof event !== "object") return false;
+    if (!event.event_id || !event.position_id) return false;
+    if (!["OPEN", "CLOSE"].includes(String(event.event_type || "").toUpperCase())) return false;
+    if (engine && String(event.engine || "").toLowerCase() !== engine) return false;
+    return true;
+  });
+}
+
+function diffPersistedOutboxEvents(beforePayload, afterPayload, engine = null) {
+  const beforeIds = new Set(persistedOutboxEvents(beforePayload, engine).map((event) => String(event.event_id)));
+  return persistedOutboxEvents(afterPayload, engine).filter((event) => !beforeIds.has(String(event.event_id)));
+}
+
+function samePersistedOutbox(beforePayload, afterPayload, engine = null) {
+  const ids = (payload) => persistedOutboxEvents(payload, engine).map((event) => String(event.event_id)).sort();
+  return JSON.stringify(ids(beforePayload)) === JSON.stringify(ids(afterPayload));
+}
+
+async function wesOutboxAtRef(ref) {
+  return (await commitFileJson(ref, WES_OUTBOX_PATH, { optional: true })) || { events: [] };
 }
 
 function emptyCommitSnapshot() {
@@ -888,6 +915,35 @@ export class PushHub {
     let seeded = 0;
 
     for (const engine of engines) {
+      if (engine === "weekly") {
+        const current = await wesOutboxAtRef("main");
+        let chosen = current;
+        if (requestedSha) {
+          const requested = await wesOutboxAtRef(requestedSha);
+          if (!samePersistedOutbox(requested, current, "weekly")) {
+            // raw/main can briefly lag after push. Fail so the caller retries;
+            // never replace a persisted WES lifecycle event with snapshot inference.
+            throw new Error("fallback_requested_outbox_not_current:weekly");
+          }
+          chosen = requested;
+        }
+        const descriptors = persistedOutboxEvents(chosen, "weekly");
+        let pendingDescriptors = 0;
+        for (const descriptor of descriptors) {
+          const expected = await eventId("weekly", descriptor.event_type, descriptor.position_id);
+          if (expected !== descriptor.event_id) throw new Error(`wes_outbox_event_id_mismatch:${descriptor.event_id}`);
+          if (await this.ctx.storage.get(`event-complete:${descriptor.event_id}`)) continue;
+          events.push(descriptor);
+          pendingDescriptors += 1;
+        }
+        engineStatus[engine] = {
+          transitions: pendingDescriptors,
+          source: "wes_lifecycle_outbox_fallback",
+          seeded: false,
+        };
+        continue;
+      }
+
       const key = `canonical-sync-snapshot:${engine}`;
       const stored = await this.ctx.storage.get(key);
       const before = storedCommitSnapshot(stored);
@@ -984,6 +1040,25 @@ export class PushHub {
     const engineStatus = {};
 
     for (const engine of engines) {
+      if (engine === "weekly") {
+        const [beforeOutbox, afterOutbox] = await Promise.all([
+          commit.parent_sha ? wesOutboxAtRef(commit.parent_sha) : Promise.resolve({ events: [] }),
+          wesOutboxAtRef(commit.sha),
+        ]);
+        const descriptors = diffPersistedOutboxEvents(beforeOutbox, afterOutbox, "weekly");
+        for (const descriptor of descriptors) {
+          const expected = await eventId("weekly", descriptor.event_type, descriptor.position_id);
+          if (expected !== descriptor.event_id) throw new Error(`wes_outbox_event_id_mismatch:${descriptor.event_id}`);
+          events.push(descriptor);
+        }
+        engineStatus[engine] = {
+          transitions: descriptors.length,
+          source: "wes_lifecycle_outbox_commit_bound",
+          seeded: false,
+        };
+        continue;
+      }
+
       const [before, after] = await Promise.all([
         snapshotAtCommit(engine, commit.parent_sha),
         snapshotAtCommit(engine, commit.sha),
@@ -1407,6 +1482,24 @@ export default {
         throw new Error(`event_ingest_http_${ingestResponse.status}`);
       }
 
+      // Weekly/WES recovery consumes the canonical lifecycle outbox directly.
+      // It must never infer OPEN/CLOSE from position snapshots.
+      const wesResponse = await fetch(env.WES_EVENT_FEED_URL || WES_OUTBOX_RAW_URL, {
+        headers: { "cache-control": "no-cache", "accept": "application/json" },
+      });
+      if (wesResponse.status !== 404) {
+        if (!wesResponse.ok) throw new Error(`wes_event_feed_http_${wesResponse.status}`);
+        const wesPayload = await wesResponse.json();
+        const wesIngestResponse = await h.fetch("https://internal/ingest", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ events: persistedOutboxEvents(wesPayload, "weekly") }),
+        });
+        if (!wesIngestResponse.ok) {
+          throw new Error(`wes_event_ingest_http_${wesIngestResponse.status}`);
+        }
+      }
+
       if (!fastWatchOk) {
         throw lastFastError || new Error("fast_daily_watch_failed_after_retries");
       }
@@ -1414,4 +1507,4 @@ export default {
   }
 };
 
-export { finiteNumber, yahooMinuteBars, dailyCommitSnapshot, weeklyCommitSnapshot, stockCommitSnapshot, transitionDescriptors, notificationPayload, storedCommitSnapshot, persistableCommitSnapshot, comparableCommitSnapshot, sameCommitSnapshot, isoWeekId };
+export { finiteNumber, yahooMinuteBars, dailyCommitSnapshot, weeklyCommitSnapshot, stockCommitSnapshot, transitionDescriptors, persistedOutboxEvents, diffPersistedOutboxEvents, notificationPayload, storedCommitSnapshot, persistableCommitSnapshot, comparableCommitSnapshot, sameCommitSnapshot, isoWeekId };
