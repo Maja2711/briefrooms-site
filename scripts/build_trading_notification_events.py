@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Build read-only OPEN/CLOSE notification events from canonical trading state.
+"""Build recovery OPEN/CLOSE events for Daily and Stock canonical state.
 
-This layer has no execution authority. It only observes persisted production/paper
-state after the owning engine has written it. First run seeds state and emits no
-historical notifications.
+Weekly/WES events are not reconstructed here. WES owns a durable lifecycle outbox
+and writes OPEN/CLOSE at the exact transition in the same commit as position state.
 """
 from __future__ import annotations
 
@@ -291,7 +290,8 @@ def build_events(previous: dict[str, Any], current: dict[str, Any]) -> list[dict
     if not previous.get("initialized"):
         return []
     events: list[dict[str, Any]] = []
-    for engine in ("daily", "weekly", "stock"):
+    # WES/Weekly is intentionally excluded: lifecycle code owns its canonical events.
+    for engine in ("daily", "stock"):
         before = index_positions(previous, engine)
         after = index_positions(current, engine)
         for pid in sorted(after.keys() - before.keys()):

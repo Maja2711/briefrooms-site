@@ -5,6 +5,7 @@ import {
   weeklyCommitSnapshot,
   stockCommitSnapshot,
   transitionDescriptors,
+  diffPersistedOutboxEvents,
   notificationPayload,
   storedCommitSnapshot,
   persistableCommitSnapshot,
@@ -12,7 +13,55 @@ import {
   isoWeekId,
 } from "../src/index.js";
 
-test("Weekly commit diff emits exact OPEN/CLOSE transitions for EURUSD BTC and SPX", () => {
+test("Persisted WES outbox preserves OPEN and CLOSE created in the same run", () => {
+  const before = { schema_version: "briefrooms-wes-notification-outbox-v1", events: [] };
+  const after = {
+    schema_version: "briefrooms-wes-notification-outbox-v1",
+    events: [
+      {
+        event_id: "open-event",
+        engine: "weekly",
+        event_type: "OPEN",
+        position_id: "2026-W41:eurusd:2026-10-07T16:35:50+02:00",
+        instrument: "EUR/USD",
+        direction: "SHORT",
+        entry: 1.12,
+        opened_at: "2026-10-07T16:35:50+02:00",
+        observed_at: "2026-10-07T16:35:50+02:00",
+      },
+      {
+        event_id: "close-event",
+        engine: "weekly",
+        event_type: "CLOSE",
+        position_id: "2026-W41:eurusd:2026-10-07T16:35:50+02:00",
+        instrument: "EUR/USD",
+        direction: "SHORT",
+        entry: 1.12,
+        opened_at: "2026-10-07T16:35:50+02:00",
+        exit_price: 1.124,
+        exit_reason: "stop_loss",
+        closed_at: "2026-10-07T16:39:50+02:00",
+        observed_at: "2026-10-07T16:39:50+02:00",
+      },
+    ],
+  };
+  assert.deepEqual(
+    diffPersistedOutboxEvents(before, after, "weekly").map((x) => x.event_type),
+    ["OPEN", "CLOSE"],
+  );
+});
+
+test("WES outbox retry does not redispatch event IDs already present in parent commit", () => {
+  const event = {
+    event_id: "same-event",
+    engine: "weekly",
+    event_type: "OPEN",
+    position_id: "p1",
+  };
+  assert.deepEqual(diffPersistedOutboxEvents({ events: [event] }, { events: [event] }, "weekly"), []);
+});
+
+test("Legacy snapshot transition helper remains covered for Daily/Stock compatibility", () => {
   const before = weeklyCommitSnapshot({
     week_id: "2026-W41",
     instruments: [

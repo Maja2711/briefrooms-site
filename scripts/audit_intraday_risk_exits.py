@@ -26,6 +26,8 @@ from pathlib import Path
 from typing import Any, Iterable, Optional
 from zoneinfo import ZoneInfo
 
+import wes_notification_outbox as wes_outbox
+
 ROOT = Path(__file__).resolve().parents[1]
 WEEKLY_DIR = ROOT / "data" / "investments" / "weekly"
 AUDIT_PATH = ROOT / "data" / "investments" / "intraday_risk_audit.json"
@@ -452,6 +454,8 @@ def audit(
             continue
 
         apply_exit(item, hit, checked_at)
+        if wes_outbox.is_wes_week(week):
+            wes_outbox.emit_weekly_event(str(week.get("week_id") or path.stem), item, "CLOSE")
         changed = True
         report["closed"].append(
             {

@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import investments_weekly as legacy
+import wes_notification_outbox as wes_outbox
 from instrument_registry import canonical_vendor_symbol
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -541,7 +542,10 @@ def close_due_weeks() -> bool:
             item["exit_price"] = point["price"]; item["exit_captured_at"] = point["timestamp"]; item["exit_source"] = point["source"]
             item["exit_reason"] = "scheduled_week_close"; item["exit_execution_model"] = "first_5m_bar_at_or_after_frozen_deadline"; item["close_quality_status"] = "valid_target_bar"; item["trade_status"] = "closed"
             mark_exposure_closed(item)
-            set_result(item, float(point["price"])); changed = True
+            set_result(item, float(point["price"]))
+            if wes_outbox.is_wes_week(week):
+                wes_outbox.emit_weekly_event(str(week.get("week_id") or path.stem), item, "CLOSE")
+            changed = True
         if changed:
             week["weekly_close_audit"] = {"status": "applied_without_current_price_fallback", "checked_at": now.isoformat(timespec="seconds"), "target": target.isoformat(timespec="seconds")}
             write_json(path, week); changed_any = True

@@ -110,6 +110,26 @@ class TradingNotificationEventsTest(unittest.TestCase):
             finally:
                 mod.DATA = original_data
 
+    def test_weekly_snapshot_transitions_are_not_reconstructed_anymore(self):
+        empty = {
+            "initialized": True,
+            "engines": {
+                "daily": {"open_positions": []},
+                "weekly": {"open_positions": []},
+                "stock": {"open_positions": []},
+            },
+        }
+        opened = json.loads(json.dumps(empty))
+        opened["engines"]["weekly"]["open_positions"] = [{
+            "engine": "weekly",
+            "position_id": "2026-W41:eurusd:2026-10-07T16:35:50+02:00",
+            "instrument": "EUR/USD",
+            "direction": "SHORT",
+            "opened_at": "2026-10-07T16:35:50+02:00",
+            "entry": 1.12,
+        }]
+        self.assertEqual(mod.build_events(empty, opened), [])
+
     def test_weekly_pending_price_plan_is_not_open_position(self):
         original_data = mod.DATA
         with tempfile.TemporaryDirectory() as td:

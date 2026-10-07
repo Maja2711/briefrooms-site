@@ -23,6 +23,7 @@ import investments_weekly as legacy
 import investments_weekly_v2 as model
 import investments_weekly_v3 as weekly_model
 import investments_weekly_macro as macro
+import wes_notification_outbox as wes_outbox
 
 ROOT = Path(__file__).resolve().parents[1]
 METHOD_PATH = ROOT / "data" / "investments" / "methodology.json"
@@ -319,6 +320,8 @@ def review() -> Dict[str, Any]:
                 item["trade_status"] = "closed"
                 item["risk_status"] = "closed_by_material_event_review" if request else "closed_by_daily_model_review"
                 model.set_result(item, float(point["price"]))
+                if wes_outbox.is_wes_week(week):
+                    wes_outbox.emit_weekly_event(week_id, item, "CLOSE")
                 review_row["exit_price"] = point["price"]
                 review_row["exit_captured_at"] = point["timestamp"]
                 review_row["exit_source"] = point["source"]
