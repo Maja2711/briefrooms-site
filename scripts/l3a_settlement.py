@@ -12,6 +12,10 @@ from belief_core import BeliefCore
 from l3a_experience_lineage import settle
 from learning_ledger import append_event
 from l3a_research_executor import EXPERIENCE_FILE, EXPERIENCE_SCHEMA, LEDGER_FILE
+try:
+    import provenance_contract as provenance
+except ImportError:
+    from scripts import provenance_contract as provenance
 
 SCHEMA="briefrooms-l3a-settlement-v1"
 
@@ -49,6 +53,31 @@ def settle_state(state_dir: Path) -> dict[str,Any]:
             if verification is not None:
                 current=settle(current,verification.to_dict())
                 current["research_result_status"]="SETTLED"
+                current.pop("provenance",None)
+                settlement_id=f"l3a-settlement:{current.get('attempt_id')}:{verification.verification_id}"
+                current=provenance.attach_native(
+                    current,
+                    artifact_id=settlement_id,
+                    artifact_type="l3a_experience_settlement",
+                    engine_id="l3a",
+                    engine_version=SCHEMA,
+                    created_at=verification.verified_at,
+                    authority="verification",
+                    parent_artifact_ids=[
+                        str(value)
+                        for value in (current.get("attempt_id"),current.get("attribution_id"),fid)
+                        if value
+                    ],
+                    evidence_ids=list(current.get("evidence_ids") or []),
+                    belief_ids=[str(current.get("belief_id"))] if current.get("belief_id") else [],
+                    forecast_id=fid,
+                    verification_id=verification.verification_id,
+                    prospective=True,
+                    domain_provenance={
+                        "experience_value_status":current.get("experience_value_status"),
+                        "native_write_time":True,
+                    },
+                )
                 append_event(
                     state_dir/LEDGER_FILE,
                     event_type="learning_observation",
