@@ -914,6 +914,11 @@ def _canonical_live_entry_point(
         return None
     source = str(rec.get("source") or "WES canonical live price")
     if mode == "market_now":
+        # An expired MARKET authorization is not recoverable. Return no point so
+        # ensure_all() can re-authorize the still-valid thesis prospectively and
+        # freeze a new MARKET plan instead of getting trapped on an old plan.
+        if expires is None or stamp > expires:
+            return None
         # MARKET means hit the fresh market after authorization. The old LIMIT
         # target is retained only as audit metadata and must never gate a market
         # fill; otherwise a strong SHORT can chase a falling market forever.
