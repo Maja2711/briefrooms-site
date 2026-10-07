@@ -21,6 +21,11 @@ import tempfile
 from pathlib import Path
 from typing import Any, Mapping, Optional
 
+try:
+    import provenance_contract as provenance
+except ImportError:
+    from scripts import provenance_contract as provenance
+
 ROOT = Path(__file__).resolve().parents[1]
 LEDGER_PATH = ROOT / "data" / "investments" / "wes_decision_ledger.json"
 SCHEMA_VERSION = "briefrooms-wes-decision-ledger-v1"
@@ -33,6 +38,7 @@ _METADATA_KEYS = {
     "predecessor_decision_id",
     "ledger_record_hash",
     "ledger_schema_version",
+    "provenance",
 }
 
 
@@ -215,6 +221,49 @@ def assert_pending_integrity(pending: Mapping[str, Any]) -> bool:
     return True
 
 
+def _with_native_provenance(
+    pending: Mapping[str, Any],
+    *,
+    week_id: str,
+    instrument_id: str,
+) -> dict[str, Any]:
+    raw=copy.deepcopy(dict(pending))
+    raw.pop("provenance",None)
+    decision=raw.get("decision") if isinstance(raw.get("decision"),Mapping) else {}
+    artifact_id=str(raw.get("decision_id") or "")
+    if not artifact_id:
+        raise WesDecisionLedgerError("native provenance requires decision_id")
+    source_ids=[
+        str(value)
+        for value in (
+            decision.get("decision_source"),
+            decision.get("execution_authority"),
+            raw.get("decision_kind"),
+        )
+        if value
+    ]
+    return provenance.attach_native(
+        raw,
+        artifact_id=artifact_id,
+        artifact_type="wes_frozen_decision",
+        engine_id="wes",
+        engine_version=str(decision.get("wes_methodology") or decision.get("method_version") or RECORD_VERSION),
+        created_at=str(raw.get("decided_at") or ""),
+        authority="decision",
+        parent_artifact_ids=[str(raw["predecessor_decision_id"])] if raw.get("predecessor_decision_id") else [],
+        source_ids=source_ids,
+        decision_id=artifact_id,
+        prospective=True,
+        domain_provenance={
+            "week_id":str(week_id or ""),
+            "instrument_id":str(instrument_id or ""),
+            "decision_kind":raw.get("decision_kind"),
+            "ledger_payload_hash":raw.get("payload_hash"),
+            "native_write_time":True,
+        },
+    )
+
+
 def append_frozen_decision(
     payload: Mapping[str, Any],
     *,
@@ -257,7 +306,7 @@ def append_frozen_decision(
             or existing.get("predecessor_decision_id") != predecessor_decision_id
         ):
             raise WesDecisionLedgerError(f"WES decision_id collision: {decision_id}")
-        return {
+        pending = {
             **copy.deepcopy(frozen_payload),
             "decision_id": decision_id,
             "payload_hash": digest,
@@ -266,6 +315,7 @@ def append_frozen_decision(
             "ledger_record_hash": existing.get("record_hash"),
             "ledger_schema_version": SCHEMA_VERSION,
         }
+        return _with_native_provenance(pending, week_id=week_id, instrument_id=instrument_id)
 
     if predecessor_decision_id and not any(
         row.get("decision_id") == predecessor_decision_id for row in records
@@ -297,7 +347,7 @@ def append_frozen_decision(
     verify_ledger_payload(updated)
     _atomic_write(path, updated)
 
-    return {
+    pending = {
         **copy.deepcopy(frozen_payload),
         "decision_id": decision_id,
         "payload_hash": digest,
@@ -306,6 +356,7 @@ def append_frozen_decision(
         "ledger_record_hash": record["record_hash"],
         "ledger_schema_version": SCHEMA_VERSION,
     }
+    return _with_native_provenance(pending, week_id=week_id, instrument_id=instrument_id)
 
 
 def successor_decision(
