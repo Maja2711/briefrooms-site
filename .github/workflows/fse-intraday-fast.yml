@@ -4,7 +4,7 @@ name: FSE Intraday Fast Shadow
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "2,17,32,47 * * * *"
   pull_request:
     paths:
       - "scripts/fse_intraday_fast.py"
@@ -32,10 +32,11 @@ permissions:
 
 concurrency:
   group: fse-intraday-fast
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   test:
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -55,7 +56,7 @@ jobs:
           python scripts/validate_architecture_bootstrap.py
 
   shadow:
-    if: github.event_name != 'pull_request'
+    if: always() && github.event_name != 'pull_request' && (needs.test.result == 'success' || needs.test.result == 'skipped')
     needs: test
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -87,7 +88,7 @@ jobs:
           p=json.loads(Path("data/investments/fse_intraday_public.json").read_text())
           assert p["mode"]=="SHADOW_ONLY"
           assert p["production_impact"] is False
-          assert p["cadence_minutes"]==5
+          assert p["cadence_minutes"]==15
           assert all(v is False for v in p["authority"].values())
 
           now=datetime.now(timezone.utc)
