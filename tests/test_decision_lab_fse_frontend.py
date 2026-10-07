@@ -19,7 +19,7 @@ class DecisionLabFSEFrontendTests(unittest.TestCase):
             self.assertIn("async function fse()", text, rel)
             self.assertIn("/data/investments/fse_public.json", text, rel)
             self.assertIn("/data/investments/fse_v2_public.json", text, rel)
-            self.assertIn("/data/investments/fse_intraday_public.json", text, rel)
+            self.assertIn("https://briefrooms-fse-fast.szczerbinski0577.workers.dev/fse-fast", text, rel)\n            self.assertIn("/data/investments/fse_intraday_public.json", text, rel)\n            self.assertLess(text.index("briefrooms-fse-fast.szczerbinski0577.workers.dev/fse-fast"), text.index("/data/investments/fse_intraday_public.json"), rel)
             self.assertIn("/data/investments/hypothesis_shadow_engine_v2_public.json", text, rel)
             self.assertIn("FSE-PHASE", text, rel)
             self.assertIn("Cross-Scale Alignment", text, rel)
@@ -75,8 +75,8 @@ class DecisionLabFSEFrontendTests(unittest.TestCase):
         en = (ROOT / "en/investing/decision-lab.html").read_text(encoding="utf-8")
         self.assertIn("/assets/decision-lab.css?v=20261007-1", pl)
         self.assertIn("/assets/decision-lab.css?v=20261007-1", en)
-        self.assertIn("/scripts/central-lab.js?v=20261007-2", pl)
-        self.assertIn("/scripts/central-lab-runtime-en.js?v=20261007-2", en)
+        self.assertIn("/scripts/central-lab.js?v=20261007-3", pl)
+        self.assertIn("/scripts/central-lab-runtime-en.js?v=20261007-3", en)
 
 
 if __name__ == "__main__":
