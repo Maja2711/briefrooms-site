@@ -429,6 +429,51 @@ def maybe_promote(runtime: dict[str, Any], config: Mapping[str, Any], healthy_se
     runtime["promoted_to_full_at"] = now_utc.isoformat().replace("+00:00", "Z")
 
 
+def _attach_audit_provenance(
+    action: Mapping[str, Any],
+    *,
+    now_utc: datetime,
+    phase: str | None,
+    index: int = 0,
+) -> dict[str, Any]:
+    raw_action = dict(action)
+    action_type = str(raw_action.get("action") or "artifact")
+    position_id = raw_action.get("position_id")
+    artifact_id = (
+        f"stock-trading-v2:{action_type}:{position_id}"
+        if position_id
+        else f"stock-trading-v2:{action_type}:{provenance.payload_hash(raw_action)[:24]}"
+    )
+    execution = raw_action.get("execution_provenance") if isinstance(raw_action.get("execution_provenance"), Mapping) else {}
+    return provenance.attach_native(
+        raw_action,
+        artifact_id=artifact_id,
+        artifact_type=f"stock_{action_type}",
+        engine_id="stock_trading_v2",
+        engine_version="v2",
+        created_at=str(
+            raw_action.get("opened_at")
+            or raw_action.get("entry_decision_at")
+            or now_utc.isoformat().replace("+00:00", "Z")
+        ),
+        authority="execution" if action_type in {"open", "close"} else "decision",
+        source_ids=[
+            str(value)
+            for value in (raw_action.get("source_engine"), execution.get("source"))
+            if value
+        ],
+        decision_id=str(position_id) if position_id else artifact_id,
+        prospective=True,
+        domain_provenance={
+            "market": raw_action.get("market"),
+            "phase": raw_action.get("phase") or phase,
+            "native_write_time": True,
+            "legacy_execution_provenance_preserved": bool(execution),
+            "audit_index": index,
+        },
+    )
+
+
 def run(opportunity_paths: Mapping[str, Path], *, now_utc: datetime | None = None) -> dict[str, Any]:
     now_utc = (now_utc or datetime.now(UTC)).astimezone(UTC)
     config = load_config()
@@ -456,45 +501,15 @@ def run(opportunity_paths: Mapping[str, Path], *, now_utc: datetime | None = Non
         if healthy:
             healthy_sessions.append(_market_session_key(market, now_utc))
 
-    enriched_audits: list[dict[str, Any]] = []
-    for index, action in enumerate(all_audits):
-        raw_action = dict(action)
-        action_type = str(raw_action.get("action") or "artifact")
-        position_id = raw_action.get("position_id")
-        artifact_id = (
-            f"stock-trading-v2:{action_type}:{position_id}"
-            if position_id
-            else f"stock-trading-v2:{action_type}:{provenance.payload_hash(raw_action)[:24]}"
+    all_audits = [
+        _attach_audit_provenance(
+            action,
+            now_utc=now_utc,
+            phase=str(runtime.get("phase") or ""),
+            index=index,
         )
-        execution = raw_action.get("execution_provenance") if isinstance(raw_action.get("execution_provenance"), Mapping) else {}
-        enriched_audits.append(provenance.attach_native(
-            raw_action,
-            artifact_id=artifact_id,
-            artifact_type=f"stock_{action_type}",
-            engine_id="stock_trading_v2",
-            engine_version="v2",
-            created_at=str(
-                raw_action.get("opened_at")
-                or raw_action.get("entry_decision_at")
-                or now_utc.isoformat().replace("+00:00", "Z")
-            ),
-            authority="execution" if action_type in {"open", "close"} else "decision",
-            source_ids=[
-                str(value)
-                for value in (raw_action.get("source_engine"), execution.get("source"))
-                if value
-            ],
-            decision_id=str(position_id) if position_id else artifact_id,
-            prospective=True,
-            domain_provenance={
-                "market": raw_action.get("market"),
-                "phase": raw_action.get("phase") or runtime.get("phase"),
-                "native_write_time": True,
-                "legacy_execution_provenance_preserved": bool(execution),
-                "audit_index": index,
-            },
-        ))
-    all_audits = enriched_audits
+        for index, action in enumerate(all_audits)
+    ]
 
     maybe_promote(runtime, config, healthy_sessions, now_utc)
     verified = portfolio.verify_state(canonical, production_policy)
