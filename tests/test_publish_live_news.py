@@ -165,7 +165,7 @@ class LiveNewsPublisherTests(unittest.TestCase):
         self.assertEqual(localized["source_summary"], story["summary"])
         self.assertTrue(localized["title"].startswith("Polski:"))
         self.assertTrue(localized["summary"].startswith("Polski:"))
-        self.assertEqual(localized["pl_localization"], "local-en-pl-title-summary-v1")
+        self.assertEqual(localized["pl_localization"], "local-argos-en-pl-title-summary-v1")
 
     def test_parse_entry_time_uses_feed_timestamp(self) -> None:
         entry = SimpleNamespace(published_parsed=(2026, 8, 3, 6, 30, 0, 0, 0, 0))
