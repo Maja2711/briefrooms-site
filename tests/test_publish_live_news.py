@@ -131,9 +131,10 @@ class LiveNewsPublisherTests(unittest.TestCase):
             filtered_news.PL_UKRAINE_RUSSIA_WAR_POLICY_VERSION,
         )
 
-    def test_every_section_targets_nine_cards(self) -> None:
+    def test_default_section_target_and_pl_ai_buffer(self) -> None:
         self.assertEqual(TARGET, 9)
         self.assertEqual(MIN_SECTION, TARGET)
+        self.assertEqual(base.PL_SECTION_TARGETS, {"ai-technologia-krypto": 12})
 
     def test_pl_publication_minimums_match_editorial_contract(self) -> None:
         self.assertEqual(
