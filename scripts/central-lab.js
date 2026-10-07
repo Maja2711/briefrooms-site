@@ -138,11 +138,19 @@ function fseBiasLabel(score){
   if(score<=-.20)return 'DOWN';
   return 'MIXED';
 }
+function fseBarClock(value){
+  if(!value)return '—';
+  const d=new Date(value);
+  if(Number.isNaN(d.valueOf()))return '—';
+  const age=Math.max(0,Date.now()-d.valueOf());
+  if(age>24*60*60*1000)return d.toLocaleString('pl-PL',{dateStyle:'short',timeStyle:'short'});
+  return d.toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit'});
+}
 function fseDirectionChip(tf,row,dominant){
   const dir=String(row?.direction||'FLAT').toUpperCase();
   const key=['UP','DOWN','FLAT'].includes(dir)?dir.toLowerCase():'flat';
   const arrow=dir==='UP'?'↑':(dir==='DOWN'?'↓':'→');
-  return '<span class="fse-tf-direction '+key+(String(dominant||'').toLowerCase()===tf?' dominant':'')+'"><small>'+esc(tf)+'</small><b>'+arrow+' '+esc(dir)+'</b></span>';
+  return '<span class="fse-tf-direction '+key+(String(dominant||'').toLowerCase()===tf?' dominant':'')+'"><small>'+esc(tf)+'</small><b>'+arrow+' '+esc(dir)+'</b><em>'+esc(fseBarClock(row?.observed_at))+'</em></span>';
 }
 function fseFractalTrendCard(x){
   const map=x.phase_map||{},a=x.cross_scale_alignment||{},fm=x._fast_meta||{};
