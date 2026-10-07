@@ -14,7 +14,10 @@ permissions:
   contents: write
 
 concurrency:
-  group: investment-weekly-positions
+  # Dedicated queue: this migration is metadata-only and already rebases/rechecks
+  # before push. Sharing the live WES writer group allowed unrelated jobs to
+  # cancel the seal before it even started.
+  group: wes-v5-history-seal
   cancel-in-progress: false
 
 jobs:
