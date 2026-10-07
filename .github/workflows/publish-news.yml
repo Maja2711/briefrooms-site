@@ -326,7 +326,7 @@ jobs:
                               break
                           approved.append(story)
                       for section_id, items in payload.get('sections', {}).items():
-                          section_target = news_base.EN_SECTION_TARGETS.get(section_id, news_base.TARGET) if path.endswith('/en.json') else news_base.TARGET
+                          section_target = news_base.EN_SECTION_TARGETS.get(section_id, news_base.TARGET) if path.endswith('/en.json') else news_base.PL_SECTION_TARGETS.get(section_id, news_base.TARGET)
                           if len(items) > section_target:
                               last.append(f'{path}/{section_id}: section exceeds target {section_target}, got {len(items)}')
                           counts = {}
