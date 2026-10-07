@@ -168,6 +168,16 @@ def build_output(
         direction = "FLAT"
         entry = stop = target = None
 
+    # synthesize() emits provenance for its own complete payload, but v1.9 adds
+    # authoritative consumer diagnostics and may fail closed on execution geometry.
+    # Re-seal only metadata after those additions; decision logic is unchanged.
+    decision = belief_decision.attach_decision_provenance(
+        decision,
+        state,
+        observed_at=observed_at,
+        authoritative_consumer=consumer_meta,
+    )
+
     legacy_learning = lifecycle.learning_state(list((history or {}).get("trades") or []))
     metadata: dict[str, Any] = {
         "market": "FX_SPOT",
