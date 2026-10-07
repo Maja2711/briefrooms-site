@@ -62,7 +62,7 @@ EMERGENCY_SECTION_CAP = 6
 TARGET_LANE_CAP = 3
 EMERGENCY_LANE_CAP = 4
 SPORT_HARD_CAP = 3
-PL_SECTION_MINIMUMS = {"polityka": 9, "ekonomia": 9, "zdrowie": 6, "nauka": 6, "sport": 9}
+PL_SECTION_MINIMUMS = {"polityka": 9, "ekonomia": 9, "zdrowie": 6, "nauka": 6, "sport": 9, "ai-technologia-krypto": 9}
 PL_AI_CRYPTO_RE = re.compile(
     r"\b(?:AI|sztuczn\w*\s+inteligencj\w*|artificial\s+intelligence|OpenAI|ChatGPT|"
     r"bitcoin|BTC|ethereum|ETH|kryptowalut\w*|crypto|blockchain|stablecoin\w*)\b",
@@ -636,7 +636,7 @@ def validate_files() -> None:
         for section_id, rows in (payload.get("sections") or {}).items():
             if not isinstance(rows, list):
                 raise RuntimeError(f"{lang}/{section_id} section payload is invalid")
-            section_target = base.EN_SECTION_TARGETS.get(section_id, base.TARGET) if lang == "en" else base.TARGET
+            section_target = base.EN_SECTION_TARGETS.get(section_id, base.TARGET) if lang == "en" else base.PL_SECTION_TARGETS.get(section_id, base.TARGET)
             if len(rows) > section_target:
                 raise RuntimeError(f"{lang}/{section_id} exceeds section target {section_target}")
             for story in rows:
