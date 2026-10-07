@@ -176,7 +176,7 @@ async function fse(){
       get('/data/investments/fse_public.json'),
       get('/data/investments/hypothesis_shadow_engine_v2_public.json').catch(()=>({})),
       get('/data/investments/fse_v2_public.json').catch(()=>({})),
-      get('/data/investments/fse_intraday_public.json').catch(()=>({}))
+      get('https://briefrooms-fse-fast.szczerbinski0577.workers.dev/fse-fast').catch(()=>get('/data/investments/fse_intraday_public.json').catch(()=>({})))
     ]);
     const instruments=Array.isArray(r.instruments)?r.instruments:[];
     const fastRows=Array.isArray(fast.instruments)?fast.instruments:[];
