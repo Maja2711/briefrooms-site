@@ -242,7 +242,18 @@ jobs:
           with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as handle:
               handle.write(f"ready={'true' if ready else 'false'}\n")
               handle.write(f"reason={envelope.reason}\n")
+          detail=[
+              {
+                  'belief_id': (row.get('member_belief_ids') or [None])[0],
+                  'freshness': row.get('freshness'),
+                  'probability': row.get('probability'),
+                  'confidence': row.get('confidence'),
+                  'audit_status': row.get('audit_status'),
+              }
+              for row in envelope.states
+          ]
           print('DAILY_EURUSD_EPISTEMIC_READY', ready, envelope.reason, envelope.coverage_weight, envelope.qualified_state_count)
+          print('DAILY_EURUSD_EPISTEMIC_STATES', json.dumps(detail, sort_keys=True))
           PY
 
       - name: Build PR32A canonical EpistemicState
