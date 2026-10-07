@@ -15,7 +15,6 @@ on:
       - "data/notifications/trading-notification-config.json"
       - "data/investments/eurusd_daily_spot.json"
       - "data/investments/eurusd_daily_history.json"
-      - "data/investments/weekly/**"
       - "data/investments/stock_trading_portfolio.json"
       - ".github/workflows/trading-notification-events.yml"
 
@@ -41,7 +40,7 @@ jobs:
         run: |
           echo "NO_RETROACTIVE_EXECUTION=1" >> "$GITHUB_ENV"
           echo "NO_RETROACTIVE_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
-      - name: Build read-only notification transitions
+      - name: Build Daily and Stock recovery notification transitions
         run: |
           python -m py_compile scripts/build_trading_notification_events.py
           node --check scripts/trading-notifications.js
