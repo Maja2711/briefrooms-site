@@ -122,7 +122,7 @@ def emergency_current_week(now: datetime, method: Dict[str, Any]) -> Path:
         "forecast_timing_warning": "Created after the weekly window began; not treated as a pre-week frozen forecast.",
     }
     data["forecast_hash"] = v2.forecast_hash(data)
-    history_seal.seal_forecast(data)
+    history_seal.seal_forecast(data, manifest_path=WEEKLY_DIR.parent / "wes_v5_history_seal_manifest.json")
     write(path, data)
     return path
 
