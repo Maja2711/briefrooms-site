@@ -28,6 +28,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import investments_weekly as legacy
 import wes_notification_outbox as wes_outbox
+import wes_v5_history_seal as history_seal
 from instrument_registry import canonical_vendor_symbol
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -318,6 +319,7 @@ def make_forecast() -> Optional[Path]:
         "instruments": items,
     }
     data["forecast_hash"] = forecast_hash(data)
+    history_seal.seal_forecast(data)
     write_json(path, data)
     return path
 
