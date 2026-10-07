@@ -26,7 +26,16 @@ POLISH_HINT_RE = re.compile(r"\b(?:oraz|jest|dla|który|która|nowy|nowa|sztuczn
 
 
 def _looks_english(text: str) -> bool:
-    sample = str(text or "")
+    sample = re.sub(r"\\s+", " ", str(text or "")).strip()
+    if not sample:
+        return False
+    try:
+        from langdetect import DetectorFactory, detect
+        DetectorFactory.seed = 0
+        if detect(sample) == "en":
+            return True
+    except Exception:
+        pass
     return len(ENGLISH_HINT_RE.findall(sample)) >= 2 and len(POLISH_HINT_RE.findall(sample)) == 0
 
 
