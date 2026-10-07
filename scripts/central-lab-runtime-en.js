@@ -160,7 +160,7 @@ function fseFractalTrendCard(x){
   const higher=fseBiasLabel(fseTrendScore(map,['1h','4h','1d','1w']));
   const ribbon=FSE_TREND_TFS.map(tf=>fseDirectionChip(tf,map[tf],a.dominant_scale)).join('');
   const freshness=fm.available
-    ? '<span class="fse-fast-state '+(fm.fresh?'fresh':'stale')+'">'+(fm.fresh?'FAST 5M':'STALE')+'</span>'
+    ? '<span class="fse-fast-state '+(fm.fresh?'fresh':'stale')+'">'+(fm.fresh?('FAST '+esc(String(fm.cadence_minutes||15))+'M'):'STALE')+'</span>'
     : '<span class="fse-fast-state stale">NO FAST</span>';
   const sourceAge=finite(fm.source_age_minutes)?(num(fm.source_age_minutes,0)+' min'):'—';
   return '<section class="fse-trend-card '+trend.key+'"><div class="fse-trend-head"><div><strong>'+esc(fseInstrumentLabel(x.instrument))+'</strong><small>Fractal Trend · FSE-PHASE</small></div><div class="fse-trend-badges">'+freshness+'<span class="fse-trend-badge '+trend.key+'">'+esc(trend.label)+'</span></div></div>'+
@@ -183,7 +183,7 @@ async function fse(){
     const fastBy=new Map(fastRows.map(x=>[String(x.instrument||''),x]));
     const fastRunAt=Date.parse(String(fast.generated_at||''));
     const fastRunAge=Number.isFinite(fastRunAt)?Math.max(0,(Date.now()-fastRunAt)/60000):Infinity;
-    const fastFresh=fastRunAge<=Number(fast.stale_after_minutes||12);
+    const fastFresh=fastRunAge<=Number(fast.stale_after_minutes||25);
     const v2Instruments=(Array.isArray(v2.instruments)?v2.instruments:[]).map(x=>{
       const fx=fastBy.get(String(x.instrument||'')),sourceAt=Date.parse(String(fx?.latest_fast_observed_at||''));
       const sourceAge=Number.isFinite(sourceAt)?Math.max(0,(Date.now()-sourceAt)/60000):Infinity;
@@ -194,11 +194,11 @@ async function fse(){
         cross_scale_alignment:fx.cross_scale_alignment||x.cross_scale_alignment,
         _fast_meta:{
           available:true,
-          fresh:fastFresh&&sourceAge<=Number(fast.stale_after_minutes||12),
+          fresh:fastFresh&&sourceAge<=Number(fast.stale_after_minutes||25),
           generated_at:fast.generated_at,
           latest_fast_observed_at:fx.latest_fast_observed_at,
           source_age_minutes:sourceAge,
-          cadence_minutes:fast.cadence_minutes||5
+          cadence_minutes:fast.cadence_minutes||15
         }
       };
     });
