@@ -18,6 +18,7 @@ from typing import Any, Mapping
 from zoneinfo import ZoneInfo
 
 from forecast_event_identity import identity
+from nyse_session_calendar import session_for
 from hypothesis_challenger_engine import (
     SCHEMA as CHALLENGER_SCHEMA, _settle, _gate,
     canon, sha, trusted_market_verification, utc, ts,
@@ -38,6 +39,7 @@ RECOVERY_ACTIONS = {
     "COLLECTOR_STALE_DURING_MARKET": "dispatch_belief_collector",
     "BASELINE_FORECAST_MISSING_AFTER_SLOT": "dispatch_belief_collector",
     "SOURCE_FORECASTS_MISSING_AFTER_CONFIRMED_SLOT": "dispatch_belief_collector",
+    "MARKET_SNAPSHOT_SLA_BREACHED": "dispatch_belief_collector",
 }
 
 
@@ -55,25 +57,52 @@ def _age_min(now: datetime, value: Any) -> float | None:
 
 def _market(now: datetime) -> dict[str, Any]:
     local = now.astimezone(NY)
-    session_day = local.weekday() < 5
-    active = session_day and time(9, 30) <= local.timetz().replace(tzinfo=None) <= time(16, 20)
-    # A completed slot is expected only AFTER the full collection grace.
-    completed_due_slots = []
-    if session_day:
+    calendar = session_for(local.date())
+    open_today = calendar["session_open"]
+    close_time = calendar["close_time"]
+    clock = local.timetz().replace(tzinfo=None)
+    # The collector allows 20 minutes after the NYSE closing auction to
+    # obtain its last regular-session bar, but an unfulfilled slot remains
+    # alarming after the market closes, through the rest of that NY day.
+    collection_end = (
+        datetime.combine(local.date(), close_time, tzinfo=NY)
+        + timedelta(minutes=20)
+        if close_time is not None else None
+    )
+    active = bool(open_today and collection_end and
+                  time(9, 30) <= clock <= collection_end.timetz().replace(tzinfo=None))
+    due = []
+    expected = []
+    if open_today:
         for label in SLOTS:
-            minute_clock = datetime.combine(local.date(), time(int(label[:2]), int(label[2:])), tzinfo=NY)
-            if local >= minute_clock + timedelta(minutes=SLOT_GRACE_MINUTES):
-                completed_due_slots.append(label)
+            planned_clock = time(int(label[:2]), int(label[2:]))
+            # The 16:00 close auction is an existing collector slot. On
+            # early-close sessions the 13:00 auction is NOT a valid collector
+            # slot because there is no post-close quote collection.
+            valid = (planned_clock < close_time or
+                     (planned_clock == close_time and not calendar["early_close"]))
+            if not valid:
+                continue
+            expected.append(label)
+            planned = datetime.combine(local.date(), planned_clock, tzinfo=NY)
+            if local >= planned + timedelta(minutes=SLOT_GRACE_MINUTES):
+                due.append(label)
     return {
         "session_date_ny": local.date().isoformat(),
         "weekday_ny": local.weekday(),
         "session_window": "US_EQUITY_SCHEDULED_COLLECTION",
-        "us_weekday": session_day,
+        "us_weekday": local.weekday() < 5,
         "market_window_active": active,
-        "due_slots": completed_due_slots,
-        "holiday_proof": "UNAVAILABLE_does_not_assume_weekday_equals_open_market",
+        "source_sla_window_active": bool(open_today and due),
+        "scheduled_slots": expected,
+        "due_slots": due,
+        "session_open": open_today,
+        "early_close": calendar["early_close"],
+        "nyse_close_time": close_time.isoformat(timespec="minutes") if close_time else None,
+        "calendar_status": calendar["calendar_status"],
+        "holiday_closed": calendar["holiday_closed"],
+        "holiday_proof": calendar["source"],
     }
-
 
 def _alert(code: str, severity: str, candidate_id: str | None, reason: str,
            *, count: int = 0) -> dict[str, Any]:
@@ -130,24 +159,37 @@ def assess(state: Mapping[str, Any], p2: Mapping[str, Any] | None,
     if collector_age is not None and collector_age < -clock_tolerance:
         alerts.append(_alert("COLLECTOR_CLOCK_IN_FUTURE", "CRITICAL", None,
                              "collector timestamp is later than watchdog clock"))
-    if (session["market_window_active"] and session["due_slots"] and
+    if (session["source_sla_window_active"] and
         (collector_age is None or collector_age > COLLECTOR_MAX_AGE_MINUTES)):
         alerts.append(_alert("COLLECTOR_STALE_DURING_MARKET", "CRITICAL", None,
                              "no recent Belief collector heartbeat after scheduled market slot"))
 
-    # The calendar is not a market holiday source. Trust actual completed slots,
-    # and classify missing market snapshots independently from missing baselines.
+    # The exchange calendar identifies actual scheduled sessions; never assume
+    # a weekday is open or invent a holiday from missing Yahoo candles.
+    if session["calendar_status"] == "UNVERIFIED" and session["us_weekday"]:
+        alerts.append(_alert("NYSE_CALENDAR_COVERAGE_UNKNOWN", "CRITICAL", None,
+                             "official NYSE schedule outside verified 2026-2028 horizon"))
+    # Check market snapshots independently from forecast generation.
     completed = scheduler.get("completed_slots") or {}
     if not isinstance(completed, dict):
         completed = {}
     collector_observations = (scheduler.get("last_status") or {}).get("observations_collected")
     collector_gaps = (scheduler.get("gaps") or [])[-8:]
-    if (session["market_window_active"] and session["due_slots"] and
-        collector_age is not None and collector_age <= COLLECTOR_MAX_AGE_MINUTES and
-        not any(str(k).startswith("wes-assets:"+session["session_date_ny"]) for k in completed)):
-        alerts.append(_alert("NO_CONFIRMED_MARKET_COLLECTION", "WARNING", None,
-                             "market slot due, but collector has no successful market slot; check source/holiday",
-                             count=len(session["due_slots"])))
+    # Heartbeats, successful workflow runs and observations from FX-only
+    # collection do not prove a successful US-market snapshot. The Belief
+    # collector records wes-assets:<NY-date>:<slot> only after confirming a
+    # current-session market snapshot. Enforce SLA *per matured slot*, even
+    # after the cash session has closed.
+    missing_snapshot_slots = []
+    for slot in session["due_slots"]:
+        key = "wes-assets:" + session["session_date_ny"] + ":" + slot
+        completed_at = _parse(completed.get(key))
+        if completed_at is None or completed_at > current + timedelta(minutes=clock_tolerance):
+            missing_snapshot_slots.append(key)
+    if missing_snapshot_slots:
+        alerts.append(_alert("MARKET_SNAPSHOT_SLA_BREACHED", "CRITICAL", None,
+                             "US market slot +55m passed with no independently confirmed current-session snapshot",
+                             count=len(missing_snapshot_slots)))
 
     forecasts = [f for f in state.get("forecasts", []) if isinstance(f, Mapping)]
     forecast_map = {str(f.get("forecast_id")): f for f in forecasts if f.get("forecast_id")}
@@ -159,7 +201,7 @@ def assess(state: Mapping[str, Any], p2: Mapping[str, Any] | None,
     source_missing_slots = []
     # Also audit the 16:00 NY close slot after the 16:20 collection window:
     # its 55-minute maturation occurs at 16:55, when the cash session is over.
-    if session["us_weekday"]:
+    if session["session_open"]:
         for slot in session["due_slots"]:
             key = "wes-assets:" + session["session_date_ny"] + ":" + slot
             completed_at = _parse(completed.get(key))
@@ -357,6 +399,13 @@ def assess(state: Mapping[str, Any], p2: Mapping[str, Any] | None,
             alerts.append(_alert("SETTLEMENT_BACKLOG", "CRITICAL", str(cid),
                                  "real Verification exists but candidate state has not settled it",
                                  count=len(backlog)))
+        # One source Verification is a single observation; never allow it
+        # to be double-counted under distinct settlement event IDs.
+        settlement_verification_ids = [str(v.get("source_verification_id"))
+                                       for v in settled.values() if v.get("source_verification_id")]
+        if len(set(settlement_verification_ids)) != len(settlement_verification_ids):
+            alerts.append(_alert("DUPLICATE_OOS_VERIFICATION", "CRITICAL", str(cid),
+                                 "same market Verification counted against multiple OOS events"))
         for eid, commit in commitments.items():
             if eid in settled and eid not in conflicts:
                 genuinely_verified += 1
@@ -434,13 +483,25 @@ def assess(state: Mapping[str, Any], p2: Mapping[str, Any] | None,
     prev_state = previous or {}
     if not isinstance(prev_state, Mapping):
         prev_state = {}
+    # Health PASS means only that no fault was detected; E2E PASS requires
+    # at least one genuinely market-verified, prospectively frozen P2 result.
+    e2e_status = ("PASS" if severity == "PASS" and
+                  any(x["verified_settlement_links"] > 0 for x in monitored)
+                  else "BLOCKED" if severity == "FAIL" else "PENDING")
     return {
         "schema_version": SCHEMA,
         "generated_at": ts(current),
+        "production_e2e_status": e2e_status,
         "status": severity,
         "mode": "external_read_only" if monitor else "canonical_calibration_watchdog",
         "readiness": readiness,
         "session": session,
+        "source_sla": {
+            "threshold_minutes_after_planned_slot": SLOT_GRACE_MINUTES,
+            "due_market_slots": len(session["due_slots"]),
+            "market_snapshot_sla_breaches": len(missing_snapshot_slots),
+            "missing_snapshot_slot_keys": missing_snapshot_slots,
+        },
         "source": {
             "canonical_market_verification_count": source_verification_count,
             "canonical_market_last_verified_at": ts(source_last_verified) if source_last_verified else None,
@@ -465,6 +526,7 @@ def assess(state: Mapping[str, Any], p2: Mapping[str, Any] | None,
             "real_settlement_backlog": sum(x["settlement_backlog"] for x in monitored),
             "alerts": len(alerts),
             "critical_alerts": sum(a["severity"] == "CRITICAL" for a in alerts),
+            "market_snapshot_sla_breaches": len(missing_snapshot_slots),
         },
         "candidates": monitored,
         "integrity_checkpoint": new_checkpoints,
@@ -488,7 +550,8 @@ def public_view(report: Mapping[str, Any] | None) -> dict[str, Any]:
     return {
         "schema_version": SCHEMA, "generated_at": report.get("generated_at"),
         "status": report.get("status"), "readiness": report.get("readiness"),
-        "session": report.get("session"),
+        "production_e2e_status": report.get("production_e2e_status", "PENDING"),
+        "session": report.get("session"), "source_sla": report.get("source_sla"),
         "summary": report.get("summary") or {},
         "canonical_market_verification_probe": {
             "verified": bool((report.get("source") or {}).get("canonical_market_verification_count")),
