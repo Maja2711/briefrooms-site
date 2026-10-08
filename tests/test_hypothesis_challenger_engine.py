@@ -47,6 +47,8 @@ def verification(f, outcome=False, suffix=""):
         "belief_id": f["belief_id"], "calibration_eligible": True,
         "verified_at": dt.isoformat().replace("+00:00", "Z"),
         "outcome": outcome,
+        "outcome_source": "Yahoo Finance chart",
+        "outcome_ref": "yahoo:^VIX:target=" + f["target_at"],
     }
 
 
