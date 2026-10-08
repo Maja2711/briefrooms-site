@@ -205,6 +205,20 @@ def same_topic(a: dict, b: dict) -> bool:
     if event_a and event_b and event_a == event_b:
         return True
 
+    # Same Nobel prize announcement can have radically different headlines:
+    # one about the discovery, another about its applications.
+    # Require the same prize discipline, publisher and publication window.
+    title_a = clean(str(a.get("title") or ""))
+    title_b = clean(str(b.get("title") or ""))
+    if (re.search(r"\\bnobel\\b|\\bnoblem\\b|\\bnobla\\b", title_a)
+            and re.search(r"\\bnobel\\b|\\bnoblem\\b|\\bnobla\\b", title_b)
+            and re.search(r"\\bchemi\\w*", title_a)
+            and re.search(r"\\bchemi\\w*", title_b)
+            and a.get("source") and a.get("source") == b.get("source")):
+        ta, tb = _published_epoch(a), _published_epoch(b)
+        if ta is not None and tb is not None and abs(ta - tb) <= 18 * 3600:
+            return True
+
     at, alower = topic_tokens(a)
     bt, blower = topic_tokens(b)
     if not at or not bt:
