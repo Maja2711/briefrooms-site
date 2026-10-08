@@ -111,6 +111,15 @@ class HypothesisUtilityP1Tests(unittest.TestCase):
         c["forecast_at"] = at(-2, 12)
         self.assertEqual(3, len({identity(f)["event_id"] for f in [a, b, c]}))
 
+    def test_model_freeze_release_not_an_hypothesis_version(self):
+        a = frozen(0, target=at(8, 20))
+        b = frozen(1, target=at(8, 20))
+        a["metadata"]["model_freeze_version"] = "belief-core-v2-shadow-2026-09-27"
+        b["metadata"]["model_freeze_version"] = "belief-core-v2-shadow-2026-10-08"
+        r = build(setup([a, b]))
+        self.assertEqual(1, r["source"]["independent_resolved_events"])
+        self.assertEqual(1, r["summary"]["hypothesis_versions"])
+
     def test_research_requires_real_settlement_and_no_cost_imputation(self):
         forecasts = [frozen(i, probability=.8) for i in range(12)]
         state = setup(forecasts)
