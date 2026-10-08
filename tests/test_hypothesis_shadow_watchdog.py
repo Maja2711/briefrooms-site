@@ -168,6 +168,59 @@ class P21WatchdogTests(unittest.TestCase):
                    now="2026-10-08T20:20:00Z")
         self.assertIn("SHADOW_SETTLEMENT_INTEGRITY_FAILURE", r["alert_codes"])
 
+    def test_append_only_checkpoint_detects_rewritten_shadow_prediction(self):
+        c = self._candidate()
+        f = live_at(THURSDAY)
+        state = {"forecasts": [f], "verifications": []}
+        frozen = run(state, utility(), state_with(c, THURSDAY),
+                     now=THURSDAY, discover=False)
+        original = assess(state, frozen, scheduler(now=THURSDAY), now=THURSDAY)
+        altered = copy.deepcopy(frozen)
+        commit = next(iter(altered["candidates"][c["candidate_id"]]["shadow_forecasts"].values()))
+        commit["challenger_probability"] = .999
+        later = assess(state, altered, scheduler(now=THURSDAY), now=THURSDAY,
+                       previous=original)
+        self.assertIn("SHADOW_APPEND_ONLY_INTEGRITY_FAILURE", later["alert_codes"])
+
+    def test_real_canonical_verification_does_not_fake_p2_oos_evidence(self):
+        c = self._candidate()
+        f = live_at(THURSDAY)
+        real = {
+            "verification_id": "from-belief-core",
+            "forecast_id": f["forecast_id"], "belief_id": f["belief_id"],
+            "outcome": False, "calibration_eligible": True,
+            "verified_at": "2026-10-08T20:15:00Z",
+            "outcome_source": "Yahoo Finance chart",
+            "outcome_ref": "yahoo:BTC-USD:target=" + f["target_at"],
+        }
+        observed = assess({"forecasts": [f], "verifications": [real]},
+                          state_with(c, "2026-10-08T20:20:00Z"),
+                          scheduler(now="2026-10-08T20:20:00Z"),
+                          now="2026-10-08T20:20:00Z")
+        self.assertEqual(1, observed["source"]["canonical_market_verification_count"])
+        self.assertEqual(0, observed["summary"]["real_settled_events"])
+        self.assertEqual("WAITING_FIRST_SHADOW_FREEZE", observed["readiness"])
+        pub = public_view(observed)
+        self.assertTrue(pub["canonical_market_verification_probe"]["verified"])
+        self.assertTrue(pub["canonical_market_verification_probe"]["not_p2_oos_proof"])
+
+    def test_manual_verified_outcome_cannot_settle_p2(self):
+        c = self._candidate()
+        f = live_at(THURSDAY)
+        state = {"forecasts": [f], "verifications": []}
+        frozen = run(state, utility(), state_with(c, THURSDAY),
+                     now=THURSDAY, discover=False)
+        state["verifications"].append({
+            "verification_id": "manual-test", "forecast_id": f["forecast_id"],
+            "belief_id": f["belief_id"], "outcome": False,
+            "verified_at": "2026-10-08T20:05:00Z",
+            "calibration_eligible": True,
+            "outcome_source": "manual",
+        })
+        out = run(state, utility(), frozen, now="2026-10-08T20:10:00Z",
+                  discover=False)
+        self.assertEqual(0, out["summary"]["settled_oos_events"])
+
     def test_timestamp_corruption_is_critical(self):
         c = self._candidate()
         r = assess({"forecasts": [], "verifications": []},
