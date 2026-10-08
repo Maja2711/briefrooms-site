@@ -18,8 +18,6 @@ def brier(p,y): return (float(p)-float(y))**2
 def iso_ms(ms): return datetime.fromtimestamp(ms/1000,timezone.utc).isoformat().replace("+00:00","Z")
 
 def coinbase_settlement(expiry_ms):
-    # Request the minute containing expiry and the following minute. Coinbase
-    # candle close is an independent observable proxy; source/rule are persisted.
     start=(expiry_ms//60_000)*60_000
     end=start+120_000
     qs=urllib.parse.urlencode({"start":iso_ms(start),"end":iso_ms(end),"granularity":60})
@@ -28,7 +26,6 @@ def coinbase_settlement(expiry_ms):
     with urllib.request.urlopen(req,timeout=20) as resp:
         rows=json.load(resp)
     candles=sorted((r for r in rows if isinstance(r,list) and len(r)>=5),key=lambda r:r[0])
-    # Candle timestamp is interval start; use the first candle ending at/after expiry.
     for r in candles:
         candle_start_ms=int(r[0])*1000
         candle_end_ms=candle_start_ms+60_000
@@ -80,23 +77,42 @@ def score(state):
             if px is None: continue
             p=float(q["up_probability"]); strike=float(q["strike"])
             y=int(float(px)>strike); predicted=int(p>=0.5)
-            out.append({"captured_at":captured,"market_id":q.get("market_id"),
+            row={"captured_at":captured,"market_id":q.get("market_id"),
                 "expiry_ms":q["expiry_ms"],"horizon_ms":q.get("horizon_ms"),
                 "strike":strike,"settlement_price":float(px),"p":p,"outcome":y,
-                "hit":predicted==y,"brier":brier(p,y)})
+                "hit":predicted==y,"brier":brier(p,y)}
+            comp=q.get("brs_same_contract") or {}
+            cp=comp.get("probability")
+            if comp.get("status")=="FROZEN_AT_T0" and cp is not None:
+                cp=float(cp)
+                row["brs_same_contract_probability"]=cp
+                row["brs_same_contract_hit"]=int(cp>=0.5)==y
+                row["brs_same_contract_brier"]=brier(cp,y)
+                row["brs_same_contract_methodology_version"]=comp.get("methodology_version")
+                row["brs_source_forecast_at"]=comp.get("source_forecast_at")
+                row["brs_source_age_ms"]=comp.get("source_age_ms")
+                # Frozen ex-ante blend; evaluated prospectively only.
+                bp=0.9*p+0.1*cp
+                row["blend_90_deepbook_10_brs_probability"]=bp
+                row["blend_90_deepbook_10_brs_hit"]=int(bp>=0.5)==y
+                row["blend_90_deepbook_10_brs_brier"]=brier(bp,y)
+            out.append(row)
     return out
 
-def summary(rows):
-    n=len(rows)
+def summary(rows,p_key="p",hit_key="hit",brier_key="brier"):
+    valid=[r for r in rows if r.get(p_key) is not None and r.get(hit_key) is not None and r.get(brier_key) is not None]
+    n=len(valid)
     if not n: return {"n":0,"accuracy":None,"brier":None,"baseline_50_brier":None,"brier_skill_vs_50":None}
-    mean=sum(x["brier"] for x in rows)/n
-    return {"n":n,"accuracy":sum(x["hit"] for x in rows)/n,"brier":mean,
+    mean=sum(float(x[brier_key]) for x in valid)/n
+    return {"n":n,"accuracy":sum(bool(x[hit_key]) for x in valid)/n,"brier":mean,
             "baseline_50_brier":0.25,"brier_skill_vs_50":1-mean/0.25}
 
 def main():
     s=json.loads(P.read_text()) if P.exists() else {}
     added=settle_due(s)
     rows=score(s); metrics=summary(rows)
+    brs_metrics=summary(rows,"brs_same_contract_probability","brs_same_contract_hit","brs_same_contract_brier")
+    blend_metrics=summary(rows,"blend_90_deepbook_10_brs_probability","blend_90_deepbook_10_brs_hit","blend_90_deepbook_10_brs_brier")
     s["scores"]=rows
     s["validation"]={
         **metrics,
@@ -105,13 +121,23 @@ def main():
         "settlement_rule":"first 1m candle close at/after expiry",
         "comparison":{
             "baseline_50_50":{"n":metrics["n"],"brier":0.25 if metrics["n"] else None},
-            "briefrooms_engines":{"status":"NO_MATCHED_HORIZON",
-              "reason":"DeepBook observations are minute-horizon BTC binaries; current BriefRooms scored BTC forecasts use materially longer horizons. No synthetic pairing is allowed."}
+            "briefrooms_same_contract_shadow":{
+              "status":"PROSPECTIVE" if brs_metrics["n"] else "AWAITING_NEW_FROZEN_OBSERVATIONS",
+              "methodology_version":"brs-btc-same-contract-v1",
+              "deepbook":metrics,
+              "brs":brs_metrics,
+              "blend_90_deepbook_10_brs":blend_metrics,
+              "same_contract":True,
+              "same_expiry":True,
+              "historical_backfill":False,
+              "frontend_visible":False
+            }
         },
         "learning":False,"writeback":False,"automatic_promotion":False
     }
     s["deepbook_brier_mean"]=metrics["brier"]
     s["validation_updated_at"]=datetime.now(timezone.utc).isoformat().replace("+00:00","Z")
     P.write_text(json.dumps(s,ensure_ascii=False,indent=2)+"\n")
-    print(json.dumps({"settlements_added":added,**metrics}))
-if __name__=="__main__": main()
+    print(json.dumps({"settlements_added":added,**metrics,"brs_same_contract":brs_metrics,"blend":blend_metrics}))
+if __name__=="__main__":
+    main()
