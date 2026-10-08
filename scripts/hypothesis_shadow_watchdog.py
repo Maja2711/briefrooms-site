@@ -225,7 +225,8 @@ def assess(state: Mapping[str, Any], p2: Mapping[str, Any] | None,
             missing_snapshot_slots.append(key)
     # Remember a previously detected outage after midnight so a missing
     # forecast cannot silently become green on the next NY trading day.
-    # Canonical calibration persists this checkpoint in its cumulative state.
+    # Canonical calibration and the separate read-only monitor checkpoint can
+    # both carry unresolved slot keys; no retrospective slot is fabricated.
     previous_unresolved = ((previous or {}).get("source_sla") or {}).get(
         "unresolved_missing_slot_keys") or []
     for key in previous_unresolved:
