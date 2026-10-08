@@ -38,6 +38,32 @@ self.addEventListener("fetch", (event) => {
   })());
 });
 
+// ACK proves that this service worker displayed the notification, not merely
+// that a push gateway accepted the payload. Retry transient ACK transport failures.
+async function acknowledgeShownTradingNotification(data) {
+  const ackUrl = data?.ack_url;
+  const deliveryId = data?.delivery_id;
+  const ackToken = data?.ack_token;
+  if (!ackUrl || !deliveryId || !ackToken) return false;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const response = await fetch(ackUrl, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ delivery_id: deliveryId, ack_token: ackToken }),
+        cache: "no-store",
+      });
+      if (response.ok) return true;
+      // Invalid or expired tokens cannot recover from retries.
+      if ([400, 403, 404, 409].includes(response.status)) return false;
+    } catch (_) {
+      // Offline/browser network errors are retried while the SW stays alive.
+    }
+    if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, (attempt + 1) * 750));
+  }
+  return false;
+}
+
 self.addEventListener("push", (event) => {
   let payload = {};
   try { payload = event.data ? event.data.json() : {}; } catch (_) {
@@ -50,24 +76,15 @@ self.addEventListener("push", (event) => {
     badge: "/assets/favicon.svg",
     tag: payload.event_id || payload.tag || undefined,
     timestamp: payload.sent_at ? Date.parse(payload.sent_at) : Date.now(),
-    data: { url: payload.url || "/pl/inwestycje/daily-trading.html", event_id: payload.event_id || null, sent_at: payload.sent_at || null, ...(payload.data || {}) },
+    data: { url: payload.url || "/pl/inwestycje/daily-trading.html", event_id: payload.event_id || null, sent_at: payload.sent_at || null, ...(payload.data || {}), ack_url: payload.ack_url || payload?.data?.ack_url || null, ack_token: payload.ack_token || payload?.data?.ack_token || null, delivery_id: payload.delivery_id || payload?.data?.delivery_id || null },
   };
   event.waitUntil((async () => {
     await self.registration.showNotification(title, options);
-    const ackUrl = payload.ack_url || payload?.data?.ack_url;
-    const deliveryId = payload.delivery_id || payload?.data?.delivery_id;
-    const ackToken = payload.ack_token || payload?.data?.ack_token;
-    if (!ackUrl || !deliveryId || !ackToken) return;
-    try {
-      await fetch(ackUrl, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ delivery_id: deliveryId, ack_token: ackToken }),
-      });
-    } catch (_) {
-      // Do not hide a successfully shown notification when ACK transport fails.
-      // PushHub keeps SENT_TO_PUSH pending and retries after the ACK timeout.
-    }
+    await acknowledgeShownTradingNotification({
+      ack_url: payload.ack_url || payload?.data?.ack_url,
+      delivery_id: payload.delivery_id || payload?.data?.delivery_id,
+      ack_token: payload.ack_token || payload?.data?.ack_token,
+    });
   })());
 });
 
@@ -76,6 +93,7 @@ self.addEventListener("notificationclick", (event) => {
   const data = event.notification?.data || {};
   const url = data.url || "/pl/inwestycje/daily-trading.html";
   event.waitUntil((async () => {
+    await acknowledgeShownTradingNotification(data);
     try {
       if (data.analytics_url) await fetch(data.analytics_url, {
         method: "POST",
