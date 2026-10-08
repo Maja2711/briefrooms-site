@@ -9,6 +9,7 @@ from pathlib import Path
 
 from evidence_pattern_discovery import build_pattern_report
 from forecast_event_identity import identity, canonical_event_rows
+from hypothesis_challenger_engine import public_view as challenger_public_view
 from belief_v3_candidate_library import V3_CANDIDATE_IDS, V3_GOVERNANCE, public_candidate_registry
 
 
@@ -126,7 +127,7 @@ def public_hypothesis_utility(source):
     }
 
 
-def build_payload(state, report, closed_loop=None, evolution_controller=None, hypothesis_utility=None):
+def build_payload(state, report, closed_loop=None, evolution_controller=None, hypothesis_utility=None, hypothesis_challengers=None):
     forecasts = records(state.get("forecasts"))
     candidate_ids = set(V3_CANDIDATE_IDS)
     candidate_forecasts = [f for f in forecasts if str(f.get("belief_id") or "") in candidate_ids]
@@ -436,6 +437,7 @@ def build_payload(state, report, closed_loop=None, evolution_controller=None, hy
         "hypothesis_brier": hypothesis_brier,
         "hypothesis_intelligence": hypothesis_brier,
         "hypothesis_utility": public_hypothesis_utility(hypothesis_utility),
+        "hypothesis_challengers": challenger_public_view(hypothesis_challengers or {}),
         "event_evaluation": {**event_evaluation, "all_beliefs": all_event_evaluation},
         "metrics": {
             "raw_resolved_forecasts": len(eligible_raw),
@@ -608,7 +610,8 @@ def main() -> int:
     closed_loop = load(root / "BELIEF_CLOSED_LOOP.json", {})
     evolution_controller = load(Path("data/investments/evolution_controller_public.json"), {})
     hypothesis_utility = load(root / "HYPOTHESIS_UTILITY_REPORT.json", {})
-    payload = build_payload(state, report, closed_loop, evolution_controller, hypothesis_utility)
+    hypothesis_challengers = load(root / "HYPOTHESIS_CHALLENGERS_STATE.json", {})
+    payload = build_payload(state, report, closed_loop, evolution_controller, hypothesis_utility, hypothesis_challengers)
 
     out = Path(args.output)
     out.parent.mkdir(parents=True, exist_ok=True)
