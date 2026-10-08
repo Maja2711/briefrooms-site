@@ -479,6 +479,29 @@ test("recovered CLOSE aliases cannot dispatch a second notification", async () =
   assert.equal((await storage.list({ prefix: "event:" })).size, 0);
 });
 
+test("pending legacy recovery event is expired rather than resent", async () => {
+  const storage = new FakeStorage();
+  await storage.put("sub:sub-a", {
+    subscription: { endpoint: "https://push.example/a" },
+    preferences: { channels: { daily: true }, events: { close: true } },
+    language: "pl",
+  });
+  const hub = new PushHub({ storage }, {});
+  const recovery = {
+    event_id: "abc123-r1", engine: "daily", event_type: "CLOSE",
+    position_id: "eurusd:1", instrument: "EUR/USD", direction: "SHORT",
+    closed_at: "2026-10-02T14:05:00Z", delivery_recovery: true,
+  };
+  await hub.persistImmutableEvent(recovery);
+  await hub.initializeRecipients(recovery);
+  const result = await hub.deliverPending({ eventIds: ["abc123-r1"] });
+  assert.equal(result.sent, 0);
+  assert.equal(result.duplicate_suppressed, 1);
+  const row = await storage.get("delivery:abc123-r1:sub-a");
+  assert.equal(row.status, DELIVERY_STATUS.EXPIRED);
+  assert.equal(row.last_error, "synthetic_recovery_replay_suppressed");
+});
+
 test("provider acceptance is terminal without browser ACK, also for old pending rows", async () => {
   const storage = new FakeStorage();
   const hub = new PushHub({ storage }, {});
