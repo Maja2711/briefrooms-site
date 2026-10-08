@@ -1,0 +1,109 @@
+/* Stock Trading: prevent Android PWA horizontal page drift.
+   Scope: stock-trading pages at tablet/phone widths only.
+   The top investment tabs and trade history intentionally retain their
+   own horizontal scrolling; the document viewport never pans sideways. */
+@media (max-width: 900px) {
+  html {
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
+  body.stock-trading-page {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: clip;
+    overscroll-behavior-x: none;
+  }
+
+  .stock-trading-page #site-header,
+  .stock-trading-page .stock-room-shell,
+  .stock-trading-page .stock-room-hero,
+  .stock-trading-page .stock-room-hero-copy,
+  .stock-trading-page #stock-trading-portfolio-root,
+  .stock-trading-page .str-market-overview,
+  .stock-trading-page .str-market-tabs,
+  .stock-trading-page .str-market-statuses,
+  .stock-trading-page .str-section,
+  .stock-trading-page .str-section-header,
+  .stock-trading-page .str-open-grid,
+  .stock-trading-page .str-market-ticket-panel,
+  .stock-trading-page .str-position-overview-grid,
+  .stock-trading-page .str-summary-grid,
+  .stock-trading-page .str-history-section {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  /* Grid tracks must be allowed to shrink below the min-content width
+     of a long instrument, price, or timestamp. */
+  .stock-trading-page .stock-room-hero,
+  .stock-trading-page .str-market-overview,
+  .stock-trading-page .str-open-grid,
+  .stock-trading-page .str-position-overview-grid,
+  .stock-trading-page .str-summary-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .stock-trading-page .stock-room-hero-switcher {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .stock-trading-page .stock-room-hero-switcher a {
+    min-width: 0 !important;
+    overflow: hidden;
+    text-overflow: clip;
+  }
+
+  .stock-trading-page .str-market-status,
+  .stock-trading-page .str-data-stamp,
+  .stock-trading-page .str-market-tab,
+  .stock-trading-page .str-summary-card,
+  .stock-trading-page .str-overview-position,
+  .stock-trading-page .str-overview-position-copy,
+  .stock-trading-page .str-overview-facts > div,
+  .stock-trading-page .str-position {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .stock-trading-page .str-market-status small {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  /* Keep the intentional tab-strip scrolling local to the strip. */
+  .stock-trading-page .investments-primary-nav {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Trading history can be wide, but only its own pane can scroll. */
+  .stock-trading-page .str-history-table {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@media (max-width: 620px) {
+  .stock-trading-page .str-overview-facts strong,
+  .stock-trading-page .str-metrics strong {
+    overflow-wrap: anywhere;
+    white-space: normal !important;
+  }
+
+  .stock-trading-page .str-company-name h3,
+  .stock-trading-page .str-section-heading h2 {
+    overflow-wrap: anywhere;
+  }
+}
