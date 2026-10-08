@@ -224,7 +224,7 @@ class P21WatchdogTests(unittest.TestCase):
             "outcome": False, "calibration_eligible": True,
             "verified_at": "2026-10-08T20:15:00Z",
             "outcome_source": "Yahoo Finance chart",
-            "outcome_ref": "yahoo:BTC-USD:target=" + f["target_at"],
+            "outcome_ref": "yahoo:^VIX:target=" + f["target_at"],
         }
         observed = assess({"forecasts": [f], "verifications": [real]},
                           state_with(c, "2026-10-08T20:20:00Z"),
@@ -236,6 +236,36 @@ class P21WatchdogTests(unittest.TestCase):
         pub = public_view(observed)
         self.assertTrue(pub["canonical_market_verification_probe"]["verified"])
         self.assertTrue(pub["canonical_market_verification_probe"]["not_p2_oos_proof"])
+
+    def test_yahoo_label_with_wrong_market_symbol_is_not_real_settlement(self):
+        c = self._candidate()
+        f = live_at(THURSDAY)
+        state = {"forecasts": [f], "verifications": []}
+        frozen = run(state, utility(), state_with(c, THURSDAY),
+                     now=THURSDAY, discover=False)
+        outcome_at = "2026-10-08T20:20:00Z"
+        state["verifications"] = [{
+            "verification_id": "ref-mismatch", "forecast_id": f["forecast_id"],
+            "belief_id": f["belief_id"], "outcome": False,
+            "verified_at": outcome_at, "calibration_eligible": True,
+            "outcome_source": "Yahoo Finance chart",
+            "outcome_ref": "yahoo:BTC-USD:target=" + f["target_at"],
+        }]
+        out = run(state, utility(), frozen, now=outcome_at, discover=False)
+        self.assertEqual(0, out["summary"]["settled_oos_events"])
+        r = assess(state, out, scheduler(now=outcome_at), now=outcome_at)
+        self.assertEqual(0, r["source"]["canonical_market_verification_count"])
+        self.assertEqual(0, r["summary"]["real_settled_events"])
+
+    def test_frozen_market_outcome_rule_mutation_invalidates_shadow(self):
+        c = self._candidate()
+        f = live_at(THURSDAY)
+        state = {"forecasts": [f], "verifications": []}
+        frozen = run(state, utility(), state_with(c, THURSDAY),
+                     now=THURSDAY, discover=False)
+        state["forecasts"][0]["metadata"]["outcome_spec"]["symbol"] = "BTC-USD"
+        r = assess(state, frozen, scheduler(now=THURSDAY), now=THURSDAY)
+        self.assertIn("SHADOW_FROZEN_SOURCE_INTEGRITY_FAILURE", r["alert_codes"])
 
     def test_manual_verified_outcome_cannot_settle_p2(self):
         c = self._candidate()
