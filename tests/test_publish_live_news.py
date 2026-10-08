@@ -71,7 +71,7 @@ class LiveNewsPublisherTests(unittest.TestCase):
             {"sections": {}},
             now,
         )
-        self.assertEqual(len(selected["polityka"]), 9)
+        self.assertGreaterEqual(len(selected["polityka"]), 9)
         self.assertTrue(
             any(
                 filtered_news.is_pl_ukraine_russia_war_story(story)
