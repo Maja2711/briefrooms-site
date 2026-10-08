@@ -219,10 +219,35 @@ def assess(state: Mapping[str, Any], p2: Mapping[str, Any] | None,
             completed_at = _parse(completed.get(key))
             if completed_at and completed_at > start and completed_at <= current:
                 due_completed_slots.append((slot, completed_at))
-        if due_completed_slots and not baseline and not commitments:
+        # Check *every* already completed, mature Belief collection slot
+        # since candidate activation, not just the current day. Source slot
+        # identity is embedded in immutable forecast.metadata.slot_key.
+        # A slot whose planned time precedes activation is NOT expected.
+        missing_slots = []
+        for key, completed_raw in completed.items():
+            if not str(key).startswith("wes-assets:"):
+                continue
+            parts = str(key).split(":")
+            if len(parts) != 3 or parts[2] not in SLOTS:
+                continue
+            try:
+                planned = datetime.combine(
+                    datetime.fromisoformat(parts[1]).date(),
+                    time(int(parts[2][:2]), int(parts[2][2:])), tzinfo=NY)
+                complete_at = utc(completed_raw)
+            except (ValueError, TypeError):
+                continue
+            if not (planned.astimezone(timezone.utc) > start and
+                    complete_at > start and complete_at <= current and
+                    planned + timedelta(minutes=SLOT_GRACE_MINUTES) <= current):
+                continue
+            if not any(str(f.get("metadata", {}).get("slot_key") or "") == key
+                       for f in baseline.values()):
+                missing_slots.append(key)
+        if missing_slots:
             alerts.append(_alert("BASELINE_FORECAST_MISSING_AFTER_SLOT", "CRITICAL", str(cid),
-                                 "collector confirms successful slot(s), yet candidate source has zero post-activation forecasts",
-                                 count=len(due_completed_slots)))
+                                 "Belief collector completed scheduled market slot(s), but forecast is missing for this hypothesis",
+                                 count=len(missing_slots)))
 
         # Settlements absent despite real verification are catch-up candidates.
         overdue = []
@@ -300,6 +325,7 @@ def assess(state: Mapping[str, Any], p2: Mapping[str, Any] | None,
             "unverified_after_target": len(waiting_real),
             "overdue_verification": len(overdue),
             "completed_due_market_slots": len(due_completed_slots),
+            "missing_completed_market_slots": len(missing_slots),
             "last_progress_at": ts(last_progress) if last_progress else None,
         })
 
