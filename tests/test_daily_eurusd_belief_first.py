@@ -126,12 +126,12 @@ class BeliefDecisionTest(unittest.TestCase):
         self.assertEqual(result["score"], 43.74)
         self.assertEqual(result["direction"], "SHORT")
 
-    def test_45_score_remains_neutral_after_participation_change(self):
+    def test_45_score_remains_neutral_when_alignment_is_too_weak(self):
         now = datetime(2026, 10, 7, 14, 7, 49, tzinfo=UTC)
         state = _state(now, {
-            "eurusd.trend.bullish": (.45, .60),
-            "eurusd.usd_environment.supportive": (.45, .60),
-            "eurusd.us_rates_pressure.supportive": (.45, .60),
+            "eurusd.trend.bullish": (.49, .60),
+            "eurusd.usd_environment.supportive": (.49, .60),
+            "eurusd.us_rates_pressure.supportive": (.49, .60),
         })
         consumer = {
             "available": True,
@@ -143,6 +143,56 @@ class BeliefDecisionTest(unittest.TestCase):
         }
         result = decision.synthesize(state, observed_at=now, authoritative_consumer=consumer)
         self.assertEqual(result["direction"], "FLAT")
+        self.assertIn("belief_score_neutral", result["reasons"])
+        self.assertFalse(result["aggressive_participation"]["short_ready"])
+
+    def test_aligned_46_74_state_uses_aggressive_daily_short_band(self):
+        now = datetime(2026, 10, 8, 6, 18, 49, tzinfo=UTC)
+        state = _state(now, {
+            "eurusd.trend.bullish": (.442669, .474205),
+            "eurusd.usd_environment.supportive": (.401861, .541386),
+            "eurusd.us_rates_pressure.supportive": (.458039, .427306),
+        })
+        consumer = {
+            "available": True,
+            "contract": "epistemic-consumer-interface-v1",
+            "aggregate_authoritative": True,
+            "aggregate_probability": 0.467441,
+            "aggregate_confidence": 0.287365,
+            "coverage_weight": 0.591994,
+        }
+        result = decision.synthesize(state, observed_at=now, authoritative_consumer=consumer)
+        self.assertEqual(result["score"], 46.74)
+        self.assertEqual(result["direction"], "SHORT")
+        self.assertEqual(result["aggressive_participation"]["threshold_mode"], "AGGRESSIVE_ALIGNED")
+        self.assertTrue(result["aggressive_participation"]["short_ready"])
+        self.assertEqual(
+            result["aggressive_participation"]["aligned_short_beliefs"],
+            [
+                "eurusd.trend.bullish",
+                "eurusd.us_rates_pressure.supportive",
+                "eurusd.usd_environment.supportive",
+            ],
+        )
+
+    def test_aggressive_band_does_not_bypass_low_confidence(self):
+        now = datetime(2026, 10, 8, 6, 18, 49, tzinfo=UTC)
+        state = _state(now, {
+            "eurusd.trend.bullish": (.44, .20),
+            "eurusd.usd_environment.supportive": (.40, .20),
+            "eurusd.us_rates_pressure.supportive": (.45, .20),
+        })
+        consumer = {
+            "available": True,
+            "contract": "epistemic-consumer-interface-v1",
+            "aggregate_authoritative": True,
+            "aggregate_probability": 0.467,
+            "aggregate_confidence": 0.20,
+            "coverage_weight": 0.60,
+        }
+        result = decision.synthesize(state, observed_at=now, authoritative_consumer=consumer)
+        self.assertEqual(result["direction"], "FLAT")
+        self.assertFalse(result["aggressive_participation"]["short_ready"])
         self.assertIn("belief_score_neutral", result["reasons"])
 
     def test_missing_belief_state_fails_closed(self):
