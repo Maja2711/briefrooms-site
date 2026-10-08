@@ -283,6 +283,7 @@ def _freeze(candidate: dict[str, Any], state: Mapping[str, Any], now: datetime) 
                 "forecast_at": ts(at),
                 "target_at": ts(target),
                 "raw_probability": round(p, 12),
+                "outcome_spec_sha256": sha((f.get("metadata") or {}).get("outcome_spec")),
             }),
             "transform_sha256": candidate["proposed_change_sha256"],
             "horizon_bucket": str((f.get("metadata") or {}).get("calibration_horizon_bucket") or "unknown"),
@@ -292,13 +293,34 @@ def _freeze(candidate: dict[str, Any], state: Mapping[str, Any], now: datetime) 
     return frozen_count
 
 
-def trusted_market_verification(v: Mapping[str, Any], target_at: str) -> bool:
-    """P2 real-market OOS uses deterministic source-linked Verification only."""
-    return (
-        v.get("outcome_source") == "Yahoo Finance chart"
-        and str(v.get("outcome_ref") or "").startswith("yahoo:")
-        and str(v.get("outcome_ref") or "").endswith(":target=" + str(target_at))
-    )
+def trusted_market_verification(v: Mapping[str, Any], target_at: str,
+                                forecast: Mapping[str, Any]) -> bool:
+    """Fail closed unless the source, exact market symbols and target all match.
+
+    Yahoo's human-readable provenance label alone does not prove the outcome:
+    compare to the deterministic outcome_ref produced by Belief Core for the
+    immutable source forecast's outcome_spec.
+    """
+    spec = (forecast.get("metadata") or {}).get("outcome_spec") or {}
+    try:
+        kind = str(spec["kind"])
+        if kind in {"price_above", "value_below", "value_above", "absolute_return_below"}:
+            symbols = [str(spec["symbol"])]
+        elif kind == "ratio_above":
+            symbols = [str(spec["numerator"]), str(spec["denominator"])]
+        elif kind == "majority_supportive":
+            symbols = ["TLT", "HYG", "UUP"]
+        elif kind == "credit_duration_supportive":
+            symbols = ["HYG", "LQD", "TLT"]
+        else:
+            return False
+        if any(not symbol or symbol == "None" for symbol in symbols):
+            return False
+        expected = "yahoo:" + ",".join(symbols) + ":target=" + str(target_at)
+    except (ValueError, KeyError, TypeError, AttributeError):
+        return False
+    return (v.get("outcome_source") == "Yahoo Finance chart" and
+            v.get("outcome_ref") == expected)
 
 
 def _settle(candidate: dict[str, Any], state: Mapping[str, Any], now: datetime) -> tuple[int, list[str]]:
@@ -328,6 +350,7 @@ def _settle(candidate: dict[str, Any], state: Mapping[str, Any], now: datetime) 
                     "forecast_at": commitment["forecast_at"],
                     "target_at": commitment["target_at"],
                     "raw_probability": round(_float(source_now["predicted_probability"]), 12),
+                    "outcome_spec_sha256": sha((source_now.get("metadata") or {}).get("outcome_spec")),
                 })
                 if current_hash != commitment["source_snapshot_sha256"]:
                     conflicts.append(eid)
@@ -344,7 +367,7 @@ def _settle(candidate: dict[str, Any], state: Mapping[str, Any], now: datetime) 
                         utc(commitment["target_at"]) <= verified_at <= now and
                         utc(commitment["frozen_at"]) < verified_at and
                         str(v.get("belief_id")) == candidate["hypothesis_id"] and
-                        trusted_market_verification(v, commitment["target_at"])):
+                        trusted_market_verification(v, commitment["target_at"], source_now)):
                         trusted.append(v)
                 except (TypeError, ValueError, KeyError, OverflowError):
                     continue
@@ -367,6 +390,7 @@ def _settle(candidate: dict[str, Any], state: Mapping[str, Any], now: datetime) 
                 "forecast_id": commitment["forecast_id"], "event_id": eid,
                 "forecast_at": commitment["forecast_at"], "target_at": commitment["target_at"],
                 "raw_probability": round(source_p, 12),
+                "outcome_spec_sha256": sha((source.get("metadata") or {}).get("outcome_spec")),
             })
             if expected_hash != commitment["source_snapshot_sha256"] or identity(source)["event_id"] != eid:
                 conflicts.append(eid)
@@ -392,7 +416,7 @@ def _settle(candidate: dict[str, Any], state: Mapping[str, Any], now: datetime) 
                     not isinstance(v.get("outcome"), bool) or
                     not target <= verified <= now or verified <= shadow_at):
                     continue
-                if str(v.get("belief_id")) != candidate["hypothesis_id"] or not trusted_market_verification(v, commitment["target_at"]):
+                if str(v.get("belief_id")) != candidate["hypothesis_id"] or not trusted_market_verification(v, commitment["target_at"], source):
                     continue
                 eligible.append(v)
             except (TypeError, ValueError, KeyError, OverflowError):
