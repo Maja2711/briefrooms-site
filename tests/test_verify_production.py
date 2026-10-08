@@ -17,6 +17,9 @@ class ProductionParityCoverageTests(unittest.TestCase):
         }
         self.assertTrue(required.issubset(set(verify.PARITY_PATHS)))
 
+    def test_pwa_install_badge_script_is_protected_by_production_parity(self) -> None:
+        self.assertIn("scripts/pwa.js", verify.PARITY_PATHS)
+
     def test_long_view_assets_are_protected_by_production_parity(self) -> None:
         required = {
             "pl/inwestycje/long-view.html",
