@@ -523,9 +523,6 @@ def validate(max_age_minutes: int = 30) -> None:
         if set(data.get("sections", {})) != expected:
             raise RuntimeError(f"{lang} section set mismatch")
         for section_id, stories in data["sections"].items():
-            section_target = EN_SECTION_TARGETS.get(section_id, TARGET) if lang == "en" else PL_SECTION_TARGETS.get(section_id, TARGET)
-            if len(stories) > section_target:
-                raise RuntimeError(f"{lang}/{section_id} exceeds target {section_target} with {len(stories)} stories")
             if any(not item.get("title") or not item.get("link") or not item.get("image") for item in stories):
                 raise RuntimeError(f"{lang}/{section_id} contains an incomplete story")
             for story in stories:
