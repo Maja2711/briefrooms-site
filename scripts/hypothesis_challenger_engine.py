@@ -304,7 +304,33 @@ def _settle(candidate: dict[str, Any], state: Mapping[str, Any], now: datetime) 
     new = 0
     conflicts = []
     for eid, commitment in candidate["shadow_forecasts"].items():
+        # A later contradicting real Verification must invalidate even an
+        # already-passed gate. Never treat an earlier PASS as irreversible.
         if eid in candidate["settlements"]:
+            old = candidate["settlements"][eid]
+            source_now = forecast_by_id.get(commitment["forecast_id"])
+            if source_now is None or identity(source_now)["event_id"] != eid:
+                conflicts.append(eid)
+                continue
+            try:
+                current_hash = sha({
+                    "forecast_id": commitment["forecast_id"], "event_id": eid,
+                    "forecast_at": commitment["forecast_at"],
+                    "target_at": commitment["target_at"],
+                    "raw_probability": round(_float(source_now["predicted_probability"]), 12),
+                })
+                if current_hash != commitment["source_snapshot_sha256"]:
+                    conflicts.append(eid)
+                    continue
+            except (TypeError, ValueError, KeyError):
+                conflicts.append(eid)
+                continue
+            for v in verified_by_event.get(eid, []):
+                if (bool(v.get("calibration_eligible", False)) and
+                    isinstance(v.get("outcome"), bool) and
+                    v["outcome"] != old["outcome"]):
+                    conflicts.append(eid)
+                    break
             continue
         source = forecast_by_id.get(commitment["forecast_id"])
         if source is None:
