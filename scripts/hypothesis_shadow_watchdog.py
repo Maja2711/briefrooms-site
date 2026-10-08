@@ -20,7 +20,7 @@ from zoneinfo import ZoneInfo
 from forecast_event_identity import identity
 from hypothesis_challenger_engine import (
     SCHEMA as CHALLENGER_SCHEMA, _settle, _gate,
-    canon, utc, ts,
+    canon, sha, trusted_market_verification, utc, ts,
 )
 
 SCHEMA = "briefrooms-p2-shadow-watchdog-v1"
@@ -157,6 +157,27 @@ def assess(state: Mapping[str, Any], p2: Mapping[str, Any] | None,
         if f:
             verification_by_event[identity(f)["event_id"]].append(v)
 
+    # Proof that canonical market source produces real Verifications is
+    # separate from proof that a particular *P2* candidate settled OOS.
+    source_verification_count = 0
+    source_last_verified = None
+    for v in verifications:
+        f = forecast_map.get(str(v.get("forecast_id") or ""))
+        if not f or not isinstance(v.get("outcome"), bool):
+            continue
+        stamp = _parse(v.get("verified_at"))
+        forecast_at = _parse(f.get("forecast_at"))
+        target_at = _parse(f.get("target_at"))
+        if (not stamp or not forecast_at or not target_at or
+            not forecast_at < target_at <= stamp <= current or
+            str(v.get("belief_id") or "") != str(f.get("belief_id") or "") or
+            not trusted_market_verification(v, f.get("target_at"))):
+            continue
+        source_verification_count += 1
+        if source_last_verified is None or stamp > source_last_verified:
+            source_last_verified = stamp
+    previous_checkpoints = ((previous or {}).get("integrity_checkpoint") or {})
+    new_checkpoints: dict[str, Any] = {}
     monitored: list[dict[str, Any]] = []
     for cid, c in sorted(candidates.items()):
         if not isinstance(c, Mapping) or c.get("status") not in {
@@ -174,6 +195,46 @@ def assess(state: Mapping[str, Any], p2: Mapping[str, Any] | None,
             alerts.append(_alert("SHADOW_STATE_INVALID", "CRITICAL", str(cid),
                                  "commitments or settlements are not maps"))
             continue
+        prior_hashes = previous_checkpoints.get(str(cid)) or {}
+        frozen_hashes = {str(k): sha(v) for k,v in commitments.items()}
+        settled_hashes = {str(k): sha(v) for k,v in settled.items()}
+        changed = sum(current.get(eid) != digest
+                      for name,current in (("frozen", frozen_hashes), ("settled", settled_hashes))
+                      for eid,digest in (prior_hashes.get(name) or {}).items())
+        if changed:
+            alerts.append(_alert("SHADOW_APPEND_ONLY_INTEGRITY_FAILURE", "CRITICAL", str(cid),
+                                 "previous frozen Shadow or settlement content changed/disappeared",
+                                 count=changed))
+        new_checkpoints[str(cid)] = {
+            "frozen": {**frozen_hashes, **(prior_hashes.get("frozen") or {})},
+            "settled": {**settled_hashes, **(prior_hashes.get("settled") or {})},
+        }
+        active_corruption = 0
+        for event_id, commit in commitments.items():
+            source = forecast_map.get(str(commit.get("forecast_id") or ""))
+            try:
+                if source is None or identity(source)["event_id"] != event_id:
+                    raise ValueError("source missing or event drift")
+                at, frozen_at, target = (
+                    utc(commit["forecast_at"]), utc(commit["frozen_at"]), utc(commit["target_at"]))
+                if not start < at <= frozen_at < target or frozen_at > current:
+                    raise ValueError("invalid freeze lineage")
+                expected = sha({
+                    "forecast_id": commit["forecast_id"], "event_id": event_id,
+                    "forecast_at": commit["forecast_at"],
+                    "target_at": commit["target_at"],
+                    "raw_probability": round(float(source["predicted_probability"]), 12),
+                })
+                if expected != commit["source_snapshot_sha256"]:
+                    raise ValueError("frozen source mutated")
+                if sha((c.get("proposed_change") or {}).get("transform")) != commit["transform_sha256"]:
+                    raise ValueError("challenger transform mutated")
+            except (ValueError, TypeError, KeyError, OverflowError):
+                active_corruption += 1
+        if active_corruption:
+            alerts.append(_alert("SHADOW_FROZEN_SOURCE_INTEGRITY_FAILURE", "CRITICAL", str(cid),
+                                 "committed source or transform no longer matches immutably frozen data",
+                                 count=active_corruption))
         baseline: dict[str, Mapping[str, Any]] = {}
         first_baseline_at = None
         last_baseline_at = None
@@ -353,6 +414,8 @@ def assess(state: Mapping[str, Any], p2: Mapping[str, Any] | None,
         "readiness": readiness,
         "session": session,
         "source": {
+            "canonical_market_verification_count": source_verification_count,
+            "canonical_market_last_verified_at": ts(source_last_verified) if source_last_verified else None,
             "collector_age_minutes": collector_age,
             "calibration_age_minutes": calibration_age,
             "collector_last_run_at": scheduler.get("last_run_at"),
@@ -375,6 +438,7 @@ def assess(state: Mapping[str, Any], p2: Mapping[str, Any] | None,
             "critical_alerts": sum(a["severity"] == "CRITICAL" for a in alerts),
         },
         "candidates": monitored,
+        "integrity_checkpoint": new_checkpoints,
         "alerts": alerts,
         "alert_codes": alert_codes,
         "recovery_dispatch_at": prev_state.get("recovery_dispatch_at"),
@@ -397,6 +461,12 @@ def public_view(report: Mapping[str, Any] | None) -> dict[str, Any]:
         "status": report.get("status"), "readiness": report.get("readiness"),
         "session": report.get("session"),
         "summary": report.get("summary") or {},
+        "canonical_market_verification_probe": {
+            "verified": bool((report.get("source") or {}).get("canonical_market_verification_count")),
+            "verified_count": (report.get("source") or {}).get("canonical_market_verification_count", 0),
+            "last_verified_at": (report.get("source") or {}).get("canonical_market_last_verified_at"),
+            "not_p2_oos_proof": True,
+        },
         "alerts": [
             {"code": a.get("code"), "severity": a.get("severity"),
              "candidate_id": a.get("candidate_id"), "count": a.get("count")}
@@ -430,7 +500,7 @@ def main() -> int:
     state = load(root / "state.json", {})
     p2 = load(root / "HYPOTHESIS_CHALLENGERS_STATE.json", {})
     scheduler = load(root / "scheduler.json", {})
-    prev = load(args.output, {})
+    prev = load(args.output, load(root / "P2_SHADOW_WATCHDOG.json", {}))
     result = assess(state, p2, scheduler, now=args.now, previous=prev,
                     monitor=args.monitor)
     args.output.parent.mkdir(parents=True, exist_ok=True)
