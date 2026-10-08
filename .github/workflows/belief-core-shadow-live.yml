@@ -27,12 +27,16 @@ on:
       - "docs/BELIEF_GSE_GEOPOLITICAL_ADAPTER.md"
   schedule:
     # Fallback scheduler. GitHub cron can be delayed, so the workflow is also
-    # triggered by the successful quote-refresh workflow below.
-    # Daily EURUSD freshness is validated downstream before any production dispatch.
+    # triggered by successful quote and Weekly live-execution/price heartbeats below.
+    # This gives Daily EURUSD multiple independent market clocks instead of relying
+    # on one delayed GitHub schedule. Freshness is still validated downstream before
+    # any production dispatch.
     - cron: "7,37 13-22 * * 1-5"
   workflow_run:
     workflows:
       - "Update Investment Room Quotes"
+      - "WES Live Execution"
+      - "Update Weekly Live Prices"
     types: [completed]
 
 permissions:
