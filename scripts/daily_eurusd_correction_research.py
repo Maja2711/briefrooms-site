@@ -133,7 +133,7 @@ def scan_swings(bars: Sequence[Mapping[str, Any]], cutoff: datetime) -> tuple[li
                 "pivot_high_at": _iso(peak_at),
                 "trough_at": _iso(low_at),
                 "confirmed_at": _iso(moment),
-                "known_at": _iso(moment),
+                "known_at": _iso(moment + timedelta(minutes=1)),
                 "pivot_high": round(peak, 8),
                 "trough": round(low, 8),
                 "confirmed_price": round(price, 8),
@@ -210,7 +210,7 @@ def current_context(bars: Sequence[Mapping[str, Any]], cutoff: datetime,
     relevant = [r for r in bars if r["time"] <= cutoff]
     events, state = scan_swings(relevant, cutoff)
     all_events = merge_events(historical_events, events)
-    stats = summarize_events([e for e in all_events if e.get("confirmed_at") <= _iso(cutoff)])
+    stats = summarize_events([e for e in all_events if e.get("known_at", e["confirmed_at"]) <= _iso(cutoff)])
     warning = {
         "downmove_at_least_10p": (state.get("decline_from_high_pips") or 0) >= 10,
         "downmove_at_least_20p": (state.get("decline_from_high_pips") or 0) >= 20,
@@ -248,7 +248,9 @@ def journal_study(old: Mapping[str, Any] | None, fx: Sequence[Mapping[str, Any]]
     """Store only completed research episodes; never fabricate a live alert."""
     prior = list((old or {}).get("events") or [])
     recent, _ = scan_swings(fx, cutoff)
-    events = merge_events(prior, recent)
+    # One-minute bar close cannot be known before the bar is finished.
+    mature = [e for e in recent if e.get("known_at", e["confirmed_at"]) <= _iso(cutoff)]
+    events = merge_events(prior, mature)
     return {
         "schema_version": SCHEMA,
         "research_only": True, "exit_authority": False,
