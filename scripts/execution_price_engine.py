@@ -463,6 +463,130 @@ def verify_live_mid_quotes(
     }
 
 
+# Daily-only current-price policy. WES and legacy consensus validators stay unchanged.
+DAILY_PRIMARY_PRICE_FILE = "data/investments/live_prices.json"
+DAILY_ENTRY_BUFFER_PIPS = 1.5
+DAILY_REFERENCE_WARNING_PIPS = 1.5
+DAILY_REFERENCE_HARD_LIMIT_PIPS = 10.0
+
+
+def verify_daily_current_price(
+    direction: str,
+    primary: Quote,
+    reference_quotes: list[Quote],
+    *,
+    now: Optional[datetime] = None,
+) -> dict[str, Any]:
+    """Paper fill from the public 'Cena teraz' MID; independent feeds check quality.
+
+    1.5 pips is a conservative per-side execution penalty, NOT evidence of a
+    real broker fill. Moderate feed differences are reported, not traded away.
+    """
+    current = (now or utc_now()).astimezone(timezone.utc)
+    side = str(direction or "").upper()
+    if side not in {"LONG", "SHORT"}:
+        return blocked("invalid_direction", mode="MARKET_NOW")
+    valid_primary, rejected_primary = _fresh_quote_candidates([primary], now=current)
+    if not valid_primary:
+        return blocked("daily_primary_stale_or_invalid", mode="MARKET_NOW",
+                       details={"rejected_primary": rejected_primary})
+    p = valid_primary[0]
+    if not str(p.source).startswith("Yahoo Finance:EURUSD=X:"):
+        return blocked("daily_primary_unexpected_source", mode="MARKET_NOW",
+                       details={"primary_quote": _quote_payload(p, current)})
+    valid_refs, rejected_refs = _fresh_quote_candidates(reference_quotes, now=current)
+    valid_refs = [q for q in valid_refs if _source_identity(q.source) != _source_identity(p.source)]
+    details = {
+        "primary_quote": _quote_payload(p, current),
+        "reference_quotes": [_quote_payload(q, current) for q in valid_refs],
+        "rejected_reference_quotes": rejected_refs,
+        "reference_warning_pips": DAILY_REFERENCE_WARNING_PIPS,
+        "reference_hard_limit_pips": DAILY_REFERENCE_HARD_LIMIT_PIPS,
+    }
+    if not valid_refs:
+        return blocked("daily_independent_quality_check_unavailable", mode="MARKET_NOW", details=details)
+    differences = [abs(float(p.price) - float(q.price)) / EURUSD_PIP for q in valid_refs]
+    # An outlier reference cannot veto a validated primary when another
+    # independent reference agrees; use the nearest independent comparison.
+    nearest = min(differences)
+    details["nearest_reference_difference_pips"] = round(nearest, 3)
+    details["cross_feed_warning"] = nearest > DAILY_REFERENCE_WARNING_PIPS
+    if nearest > DAILY_REFERENCE_HARD_LIMIT_PIPS:
+        return blocked("daily_primary_reference_extreme_divergence", mode="MARKET_NOW", details=details)
+    buffer = Decimal("0.00015")
+    mid = Decimal(str(p.price))
+    fill = fx_price_5(mid + buffer if side == "LONG" else mid - buffer)
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "engine_version": ENGINE_VERSION,
+        "instrument": "EUR/USD",
+        "mode": "MARKET_NOW",
+        "status": "VERIFIED_FILL",
+        "verified": True,
+        "direction": side,
+        "selected_mid_price": round(float(p.price), 8),
+        "fill_price": fill,
+        "fill_side": "ASK" if side == "LONG" else "BID",
+        "price_type": "PUBLIC_CURRENT_MID_PLUS_CONSERVATIVE_BUFFER",
+        "verified_at": iso_z(current),
+        "selected_quote": _quote_payload(p, current),
+        "primary_quote": _quote_payload(p, current),
+        "reference_quotes": details["reference_quotes"],
+        "cross_feed_difference_pips": round(nearest, 3),
+        "cross_feed_warning": details["cross_feed_warning"],
+        "synthetic_entry_buffer_pips": DAILY_ENTRY_BUFFER_PIPS,
+        "synthetic_spread_pips": DAILY_ENTRY_BUFFER_PIPS * 2,
+        "synthetic_half_spread_pips": DAILY_ENTRY_BUFFER_PIPS,
+        "synthetic_bid": fx_price_5(mid - buffer),
+        "synthetic_ask": fx_price_5(mid + buffer),
+        "executable_bid_ask_available": False,
+        "paper_trading_only": True,
+        "policy": "daily_current_price_primary_buffer_1_5_pips_independent_quality_check",
+    }
+
+
+def fetch_daily_current_price_quote(*, path: Optional[str] = None) -> Quote:
+    from pathlib import Path
+    file_path = Path(path) if path is not None else Path(__file__).resolve().parents[1] / DAILY_PRIMARY_PRICE_FILE
+    with file_path.open("r", encoding="utf-8") as handle:
+        payload = json.load(handle)
+    row = (payload.get("prices") or {}).get("eurusd") or {}
+    price = _finite_price(row.get("price"), low=EURUSD_MIN, high=EURUSD_MAX)
+    stamp = parse_time(row.get("current_price_updated_at") or row.get("timestamp"))
+    source = str(row.get("source") or "")
+    if price is None or stamp is None or row.get("fresh") is not True or not source:
+        raise ValueError("public EUR/USD current price invalid or not marked fresh")
+    return Quote(price=price, timestamp=stamp, source=source)
+
+
+def daily_eurusd_market_fill(direction: str, *, now: Optional[datetime] = None,
+                             primary_fetcher: Optional[Callable[[], Quote]] = None,
+                             reference_fetchers: Optional[list[Callable[[], Quote]]] = None) -> dict[str, Any]:
+    current = (now or utc_now()).astimezone(timezone.utc)
+    try:
+        primary = (primary_fetcher or fetch_daily_current_price_quote)()
+    except Exception as exc:
+        return blocked("daily_primary_unavailable", mode="MARKET_NOW",
+                       details={"error_type": type(exc).__name__})
+    references = reference_fetchers if reference_fetchers is not None else [
+        fetch_stooq_eurusd_quote,
+        fetch_fxapi_eurusd_quote,
+        fetch_currency_exchange_tool_eurusd_quote,
+    ]
+    quotes = []
+    errors = []
+    for fetcher in references:
+        try:
+            quotes.append(fetcher())
+        except Exception as exc:
+            errors.append({"provider": getattr(fetcher, "__name__", "provider"),
+                           "error_type": type(exc).__name__})
+    result = verify_daily_current_price(direction, primary, quotes, now=current)
+    if errors:
+        result = {**result, "provider_errors": errors}
+    return result
+
+
 def _http_text(url: str, timeout: int = 8) -> str:
     req = urllib.request.Request(
         url,
