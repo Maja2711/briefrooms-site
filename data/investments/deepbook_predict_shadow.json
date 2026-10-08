@@ -972,9 +972,13 @@
     {
       "captured_at": "2026-10-08T16:48:29.631Z",
       "quotes": []
+    },
+    {
+      "captured_at": "2026-10-08T19:33:45.084Z",
+      "quotes": []
     }
   ],
-  "updated_at": "2026-10-08T16:48:29.631Z",
+  "updated_at": "2026-10-08T19:33:45.084Z",
   "settlements": {
     "1790603160000": {
       "price": 83754.53,
@@ -1648,9 +1652,34 @@
         "n": 37,
         "brier": 0.25
       },
-      "briefrooms_engines": {
-        "status": "NO_MATCHED_HORIZON",
-        "reason": "DeepBook observations are minute-horizon BTC binaries; current BriefRooms scored BTC forecasts use materially longer horizons. No synthetic pairing is allowed."
+      "briefrooms_same_contract_shadow": {
+        "status": "AWAITING_NEW_FROZEN_OBSERVATIONS",
+        "methodology_version": "brs-btc-same-contract-v1",
+        "deepbook": {
+          "n": 37,
+          "accuracy": 0.5135135135135135,
+          "brier": 0.3011366701872876,
+          "baseline_50_brier": 0.25,
+          "brier_skill_vs_50": -0.2045466807491505
+        },
+        "brs": {
+          "n": 0,
+          "accuracy": null,
+          "brier": null,
+          "baseline_50_brier": null,
+          "brier_skill_vs_50": null
+        },
+        "blend_90_deepbook_10_brs": {
+          "n": 0,
+          "accuracy": null,
+          "brier": null,
+          "baseline_50_brier": null,
+          "brier_skill_vs_50": null
+        },
+        "same_contract": true,
+        "same_expiry": true,
+        "historical_backfill": false,
+        "frontend_visible": false
       }
     },
     "learning": false,
@@ -1658,5 +1687,12 @@
     "automatic_promotion": false
   },
   "deepbook_brier_mean": 0.3011366701872876,
-  "validation_updated_at": "2026-10-08T16:48:30.491803Z"
+  "validation_updated_at": "2026-10-08T19:33:45.242738Z",
+  "same_contract_shadow": {
+    "enabled": true,
+    "methodology_version": "brs-btc-same-contract-v1",
+    "frontend_visible": false,
+    "extra_network_calls": 0,
+    "note": "BRs comparator reuses local Decision LAB BTC beliefs only; no additional market/API fetches."
+  }
 }
