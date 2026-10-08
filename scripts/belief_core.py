@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, MutableMapping, Optional, Sequence, Tuple
 
 from belief_calibration import build_calibration_report
+from forecast_event_identity import identity, canonical_event_rows
 
 try:
     import provenance_contract as provenance
@@ -132,6 +133,7 @@ class Evidence:
         p = asdict(self)
         p["derived_from"] = list(self.derived_from)
         p["metadata"] = dict(self.metadata)
+        p.update(identity(p))
         return provenance.attach_native(
             p,
             artifact_id=self.evidence_id,
@@ -350,6 +352,10 @@ class Verification:
     brier_score: float
     log_loss: float
     evidence_snapshot: Tuple[Mapping[str, Any], ...]
+    event_id: Optional[str] = None
+    hypothesis_id: Optional[str] = None
+    forecast_revision_id: Optional[str] = None
+    hypothesis_version: Optional[str] = None
     calibration_eligible: bool = True
     legacy: bool = False
     note: str = ""
@@ -402,6 +408,8 @@ class Verification:
             brier_score=float(p.get("brier_score", (prob - (1.0 if outcome else 0.0)) ** 2)),
             log_loss=float(p.get("log_loss", _log_loss(prob, outcome))),
             evidence_snapshot=tuple(dict(x) for x in (p.get("evidence_snapshot") or ())),
+            event_id=p.get("event_id"), hypothesis_id=p.get("hypothesis_id"),
+            forecast_revision_id=p.get("forecast_revision_id"), hypothesis_version=p.get("hypothesis_version"),
             calibration_eligible=bool(p.get("calibration_eligible", False if p.get("forecast_id") is None else True)),
             legacy=bool(p.get("legacy", p.get("forecast_id") is None)), note=str(p.get("note", "")),
         )
@@ -704,8 +712,10 @@ class BeliefCore:
         vid = verification_id or _stable_id("verify", forecast_id)
         p = f.predicted_probability; y = 1.0 if outcome else 0.0
         calibration_horizon_bucket = str((f.metadata or {}).get("calibration_horizon_bucket") or horizon_bucket(f.horizon_hours))
+        ids = identity(f.to_dict())
         v = Verification(
             verification_id=vid, forecast_id=f.forecast_id, forecast_set_id=f.forecast_set_id,
+            **ids,
             belief_id=f.belief_id, predicted_probability=p,
             forecast_confidence=f.forecast_confidence, outcome=bool(outcome), forecast_at=f.forecast_at, target_at=f.target_at,
             verified_at=iso_z(verified_dt), horizon_hours=f.horizon_hours, horizon_bucket=calibration_horizon_bucket,
@@ -780,7 +790,18 @@ class BeliefCore:
                                      outcome_source=outcome_source, outcome_ref=outcome_ref) for f in rows]
 
     def calibration_summary(self) -> Dict[str, Any]:
-        return build_calibration_report([v.to_dict() for v in self.verifications.values()])
+        rows = []
+        for v in self.verifications.values():
+            row = v.to_dict()
+            f = self.forecasts.get(v.forecast_id) if v.forecast_id else None
+            if f is not None:
+                row.update(identity(f.to_dict()))
+            rows.append(row)
+        eligible = [r for r in rows if r.get("calibration_eligible", False)]
+        selected, diagnostics = canonical_event_rows(eligible)
+        report = build_calibration_report(selected + [r for r in rows if not r.get("calibration_eligible", False)])
+        report["event_evaluation"] = diagnostics
+        return report
 
     def trajectory_diagnostics(self) -> Dict[str, Any]:
         out: Dict[str, Any] = {}
