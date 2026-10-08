@@ -71,7 +71,7 @@ jobs:
         run: |
           set -euo pipefail
           curl --fail --silent --show-error --retry 5 --retry-delay 2 https://briefrooms-trading-push.szczerbinski0577.workers.dev/health -o /tmp/push-health.json
-          node -e 'const fs=require("fs"); const j=JSON.parse(fs.readFileSync("/tmp/push-health.json","utf8")); if(!j.ok || !j.ready || j.durable_outbox !== true || j.durable_retry !== true || j.delivery_ack_required !== false || j.delivery_ack_optional !== true || j.provider_acceptance_terminal !== true || j.inbox !== true || !j.delivery_states) { console.error(j); process.exit(1); } console.log(j)'
+          node -e 'const fs=require("fs"); const j=JSON.parse(fs.readFileSync("/tmp/push-health.json","utf8")); if(!j.ok || !j.ready || j.durable_outbox !== true || j.durable_retry !== true || j.delivery_ack_required !== true || j.delivery_ack_optional !== false || j.provider_acceptance_terminal !== false || j.device_render_ack_retry !== true || j.max_delivery_attempts !== 5 || j.inbox !== true || !j.delivery_states) { console.error(j); process.exit(1); } console.log(j)'
           curl --fail --silent --show-error --retry 5 --retry-delay 2 \
             "https://briefrooms-trading-push.szczerbinski0577.workers.dev/inbox?limit=1" \
             -o /tmp/push-inbox.json
