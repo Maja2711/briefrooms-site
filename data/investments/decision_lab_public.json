@@ -7,7 +7,7 @@
   "automatic_tuning": false,
   "automatic_promotion": false,
   "promotion_policy": "v3_candidates_manual; probability_recalibration_closed_loop_governed",
-  "generated_at": "2026-10-08T12:50:56.265692Z",
+  "generated_at": "2026-10-08T13:05:14.763581Z",
   "evolution_controller": {
     "authority": {
       "belief_evidence_mutation": false,
@@ -533,11 +533,11 @@
       }
     ],
     "delegated_actions": [],
-    "generated_at": "2026-10-08T12:25:24.724829Z",
+    "generated_at": "2026-10-08T13:04:42.941527Z",
     "hypotheses": [
       {
         "claim": "gpw LONG decisions in regime unknown show recurring adverse outcomes and warrant a bounded challenger",
-        "created_at": "2026-10-08T12:25:24.724829Z",
+        "created_at": "2026-10-08T13:04:42.941527Z",
         "evidence": {
           "action": "LONG",
           "engine": "gpw",
@@ -869,7 +869,7 @@
             ]
           }
         },
-        "source_generated_at": "2026-10-08T12:24:49.702943Z"
+        "source_generated_at": "2026-10-08T12:50:59.895814Z"
       },
       "belief_v3": {
         "available": true,
@@ -881,7 +881,7 @@
       },
       "experience_store": {
         "available": true,
-        "settled": 61
+        "settled": 62
       },
       "hypothesis_challengers": {
         "available": true,
@@ -1409,7 +1409,7 @@
     {
       "instrument": "BTC/USD",
       "trend_belief_id": "btc.trend.bullish",
-      "calculated_at": "2026-10-08T12:50:56.265692Z",
+      "calculated_at": "2026-10-08T13:05:14.763581Z",
       "as_of": "2026-10-07T19:06:18.100688Z",
       "target_at": "2026-10-08T19:06:18.100688Z",
       "horizon_label": "24H",
@@ -1435,7 +1435,7 @@
     {
       "instrument": "EUR/USD",
       "trend_belief_id": "eurusd.trend.bullish",
-      "calculated_at": "2026-10-08T12:50:56.265692Z",
+      "calculated_at": "2026-10-08T13:05:14.763581Z",
       "as_of": "2026-10-07T19:06:18.100688Z",
       "target_at": "2026-10-08T19:06:18.100688Z",
       "horizon_label": "24H",
@@ -1461,7 +1461,7 @@
     {
       "instrument": "S&P 500",
       "trend_belief_id": "spx.trend.bullish",
-      "calculated_at": "2026-10-08T12:50:56.265692Z",
+      "calculated_at": "2026-10-08T13:05:14.763581Z",
       "as_of": "2026-10-07T19:06:18.100688Z",
       "target_at": "2026-10-07T20:00:00Z",
       "horizon_label": "1H",
@@ -16069,7 +16069,7 @@
   },
   "hypothesis_challengers": {
     "schema_version": "briefrooms-hypothesis-challenger-v1",
-    "generated_at": "2026-10-08T12:50:58.993795Z",
+    "generated_at": "2026-10-08T13:04:49.231913Z",
     "status": "SHADOW_OOS_GOVERNED",
     "summary": {
       "candidates_total": 1,
@@ -16136,17 +16136,36 @@
   },
   "p2_shadow_watchdog": {
     "schema_version": "briefrooms-p2-shadow-watchdog-v1",
-    "generated_at": "2026-10-08T12:50:59.360445Z",
+    "generated_at": "2026-10-08T13:04:49.538740Z",
     "status": "PASS",
     "readiness": "WAITING_FIRST_SHADOW_FREEZE",
+    "production_e2e_status": "PENDING",
     "session": {
+      "calendar_status": "VERIFIED",
       "due_slots": [],
-      "holiday_proof": "UNAVAILABLE_does_not_assume_weekday_equals_open_market",
+      "early_close": false,
+      "holiday_closed": false,
+      "holiday_proof": "NYSE_OFFICIAL_2026_2028",
       "market_window_active": false,
+      "nyse_close_time": "16:00",
+      "scheduled_slots": [
+        "1000",
+        "1300",
+        "1600"
+      ],
       "session_date_ny": "2026-10-08",
+      "session_open": true,
       "session_window": "US_EQUITY_SCHEDULED_COLLECTION",
+      "source_sla_window_active": false,
       "us_weekday": true,
       "weekday_ny": 3
+    },
+    "source_sla": {
+      "due_market_slots": 0,
+      "market_snapshot_sla_breaches": 0,
+      "missing_snapshot_slot_keys": [],
+      "threshold_minutes_after_planned_slot": 55,
+      "unresolved_missing_slot_keys": []
     },
     "summary": {
       "active_challengers": 1,
@@ -16155,6 +16174,7 @@
       "critical_alerts": 0,
       "frozen_shadow_forecasts": 0,
       "irrecoverable_missed_freezes": 0,
+      "market_snapshot_sla_breaches": 0,
       "real_settled_events": 0,
       "real_settlement_backlog": 0,
       "recoverable_freeze_gaps": 0,
