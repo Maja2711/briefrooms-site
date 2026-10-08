@@ -511,7 +511,7 @@ def _gate(candidate: dict[str, Any], conflict_events: list[str], now: datetime) 
 
 def run(state: Mapping[str, Any], utility: Mapping[str, Any],
         previous: Mapping[str, Any] | None = None, *,
-        now: str | None = None) -> dict[str, Any]:
+        now: str | None = None, discover: bool = True) -> dict[str, Any]:
     at = utc(now) if now else datetime.now(timezone.utc)
     if utility.get("schema_version") != "briefrooms-hypothesis-utility-v1":
         raise ValueError("P1 HUE required")
@@ -567,7 +567,7 @@ def run(state: Mapping[str, Any], utility: Mapping[str, Any],
     slots = max(0, MAX_ACTIVE - sum(c.get("status") in {"OOS_RUNNING", "HOLD", "PROMOTION_ELIGIBLE"}
                                      for c in candidates.values()))
     created = 0
-    for bid, h in sorted((utility.get("hypotheses") or {}).items()):
+    for bid, h in sorted((utility.get("hypotheses") or {}).items()) if discover else []:
         if created >= MAX_NEW_PER_RUN or slots <= 0:
             break
         if not isinstance(h, Mapping) or h.get("lifecycle_status") != "CHALLENGER":
@@ -697,13 +697,35 @@ def main() -> int:
     p.add_argument("--state-dir", type=Path, required=True)
     p.add_argument("--output", type=Path)
     p.add_argument("--now")
+    p.add_argument("--advance-only", action="store_true",
+                   help="Belief collector bridge: freeze/settle existing candidates only, no discovery")
     args = p.parse_args()
     base = args.state_dir
     state = json.loads((base / "state.json").read_text(encoding="utf-8"))
-    utility = json.loads((base / "HYPOTHESIS_UTILITY_REPORT.json").read_text(encoding="utf-8"))
     output = args.output or base / "HYPOTHESIS_CHALLENGERS_STATE.json"
+    if args.advance_only and not output.exists():
+        print("P2_BRIDGE_NO_ACTIVE_STATE: calibration creates candidates; no bootstrap in collector")
+        return 0
+    utility_path = base / "HYPOTHESIS_UTILITY_REPORT.json"
+    if args.advance_only:
+        utility = {"schema_version": "briefrooms-hypothesis-utility-v1", "hypotheses": {}}
+    else:
+        utility = json.loads(utility_path.read_text(encoding="utf-8"))
     previous = json.loads(output.read_text(encoding="utf-8")) if output.exists() else None
-    result = run(state, utility, previous, now=args.now)
+    result = run(state, utility, previous, now=args.now, discover=not args.advance_only)
+    if args.advance_only:
+        result["bridge_telemetry"] = {
+            "last_collector_bridge_at": result["generated_at"],
+            "last_collector_bridge_events": len(result["events_this_run"]),
+            "last_collector_bridge_freezes": sum(
+                int(e.get("newly_frozen") or 0) for e in result["events_this_run"]
+                if e.get("event") == "SHADOW_FORECASTS_FROZEN"
+            ),
+            "last_collector_bridge_settlements": sum(
+                int(e.get("newly_settled") or 0) for e in result["events_this_run"]
+                if e.get("event") == "SHADOW_VERIFICATION_SETTLED"
+            ),
+        }
     output.parent.mkdir(parents=True, exist_ok=True)
     tmp = output.with_suffix(output.suffix + ".tmp")
     tmp.write_text(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
