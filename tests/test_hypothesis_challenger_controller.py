@@ -7,7 +7,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from briefrooms_evolution_controller import _default_state, _ingest_hypothesis_challengers
 from hypothesis_challenger_engine import run, SCHEMA
-from test_hypothesis_challenger_engine import candidate, registry, utility, forecast, verification, stamp
+from tests.test_hypothesis_challenger_engine import candidate, registry, utility, forecast, verification, stamp
 
 
 def full_pass():
