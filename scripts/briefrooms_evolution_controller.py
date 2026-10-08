@@ -386,6 +386,16 @@ def _ingest_belief_calibration(
         frozen_at = str(raw.get("frozen_at") or raw.get("created_at") or now)
         identity = {"scope": scope, "frozen_at": frozen_at, "transform": raw["transform"]}
         cid = stable_id("evo-belief", identity)
+        # Identity and model parameters are frozen; the closed-loop source
+        # object later gains prospective metrics. Never fingerprint mutable
+        # scoring telemetry as the candidate's immutable source identity.
+        # Preserve an already-persisted legacy fingerprint, avoiding a
+        # destructive rewrite of historical candidate lineage.
+        legacy = state["candidates"].get(cid) or {}
+        proposal = {"scope": scope, "transform": dict(raw["transform"])}
+        if legacy and dict(legacy.get("proposed_change") or {}) != proposal:
+            raise RuntimeError("legacy calibration candidate proposal drift: " + cid)
+        pinned_source_sha = str(legacy.get("source_sha256") or sha256(identity))
         candidate_status = "PROMOTION_ELIGIBLE" if status == "ready_for_evolution_controller" else "OOS_RUNNING"
         candidate = EvolutionCandidate(
             candidate_id=cid,
@@ -400,9 +410,9 @@ def _ingest_belief_calibration(
             promotion_route="belief_core_probability_overlay",
             baseline_version="belief-core-v2-raw",
             challenger_version=f"cal:{sha256(raw['transform'])[:12]}",
-            proposed_change={"scope": scope, "transform": dict(raw["transform"])},
+            proposed_change=proposal,
             source_ref=f"belief-closed-loop://{scope}/{frozen_at}",
-            source_sha256=sha256(raw),
+            source_sha256=pinned_source_sha,
             metrics={"discovery": dict(raw.get("discovery") or {}), "prospective": dict(raw.get("prospective") or {})},
             automatic_promotion_allowed=True,
             trade_execution_authority=False,
