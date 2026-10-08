@@ -1,10 +1,138 @@
 {
   "model_version": "2.0.0",
-  "reviewed_at": "2026-10-08T21:33:06+02:00",
+  "reviewed_at": "2026-10-08T23:18:15+02:00",
   "review_date": "2026-10-08",
   "review_hour_local": 23,
   "closed": [],
-  "kept": [],
-  "skipped": [],
-  "status": "skipped_before_daily_review_time"
+  "kept": [
+    {
+      "instrument_id": "eurusd",
+      "review_date": "2026-10-08",
+      "reviewed_at": "2026-10-08T23:18:15+02:00",
+      "review_trigger": "scheduled_daily_model_review",
+      "position_review_key": "2026-W41:eurusd:2026-10-07T16:35:50+02:00",
+      "observation_mode": "LIVE",
+      "formal_learning_eligible": false,
+      "missing_review_is_hold": false,
+      "original_direction": "short",
+      "fresh_direction": "short",
+      "fresh_score": -77,
+      "fresh_signal_strength": 0.77,
+      "weekly_score": -69,
+      "weekly_regime": "trend_down:vol_normal",
+      "macro_context": {
+        "enabled": true,
+        "instrument_id": "eurusd",
+        "data_quality": "passed",
+        "direction": "long",
+        "score": 2.4614,
+        "score_cap": 30.0,
+        "components": {
+          "oil_1w": 2.2748,
+          "oil_4w": 2.7566,
+          "us10y_1w": 0.3,
+          "us10y_4w": -2.87
+        },
+        "observations": {
+          "oil_1w_percent": -1.8198,
+          "oil_4w_percent": -11.0265,
+          "us10y_1w_bps": -0.6,
+          "us10y_4w_bps": 28.7
+        },
+        "sources": {
+          "oil": {
+            "instrument_id": "wti_futures",
+            "symbol": "CL=F",
+            "as_of": "2026-10-08T00:00:00",
+            "error": null
+          },
+          "us10y": {
+            "instrument_id": "us10y_yield",
+            "symbol": "^TNX",
+            "as_of": "2026-10-08T00:00:00",
+            "error": null
+          }
+        },
+        "as_of": "2026-10-08T00:00:00",
+        "evaluated_at": "2026-10-08T23:18:15+02:00",
+        "interpretation": "positive_supports_eurusd_long_negative_supports_eurusd_short",
+        "rule": "Oil and US10Y are context inputs, not standalone trade triggers.",
+        "ma_structure": {
+          "enabled": true,
+          "instrument_id": "eurusd",
+          "data_quality": "passed",
+          "score": -1.0,
+          "score_cap": 4.0,
+          "direction": "short",
+          "components": {
+            "W1": {
+              "bar_at": "2026-10-02T00:00:00+02:00",
+              "close": 1.124986,
+              "ma30": 1.155613,
+              "ma60": 1.162383,
+              "ma100": 1.13601,
+              "ma200": 1.109803,
+              "slow_trend": 1,
+              "price_vs_all": 0,
+              "nearest_ma": "ma100",
+              "nearest_ma_distance_atr": 0.9641,
+              "support_hold_long": false,
+              "resistance_hold_short": false
+            },
+            "D1": {
+              "bar_at": "2026-10-08T02:00:00+02:00",
+              "close": 1.121453,
+              "ma30": 1.147227,
+              "ma60": 1.149913,
+              "ma100": 1.150185,
+              "ma200": 1.160172,
+              "slow_trend": -1,
+              "price_vs_all": -1,
+              "nearest_ma": "ma30",
+              "nearest_ma_distance_atr": 3.6681,
+              "support_hold_long": false,
+              "resistance_hold_short": false
+            },
+            "H1": {
+              "bar_at": "2026-10-08T23:00:00+02:00",
+              "close": 1.121453,
+              "ma30": 1.120135,
+              "ma60": 1.121825,
+              "ma100": 1.121934,
+              "ma200": 1.12692,
+              "slow_trend": -1,
+              "price_vs_all": 0,
+              "nearest_ma": "ma60",
+              "nearest_ma_distance_atr": 0.2546,
+              "support_hold_long": false,
+              "resistance_hold_short": false
+            }
+          },
+          "reasons": [
+            "d1_below_all_ma"
+          ],
+          "evaluated_at": "2026-10-08T23:18:15+02:00",
+          "governance": "bounded_context_only_no_veto_no_standalone_trade_trigger"
+        }
+      },
+      "combined_review_score": -61.4193,
+      "positive_groups": 0,
+      "negative_groups": 3,
+      "data_quality": "passed",
+      "decision": "keep",
+      "reason": "keep_original_thesis_not_invalidated"
+    }
+  ],
+  "skipped": [
+    {
+      "instrument_id": "sp500_futures",
+      "reason": "no_open_directional_position"
+    },
+    {
+      "instrument_id": "btcusd",
+      "reason": "no_open_directional_position"
+    }
+  ],
+  "status": "completed",
+  "week_id": "2026-W41"
 }
