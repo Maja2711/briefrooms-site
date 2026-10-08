@@ -2,6 +2,11 @@ name: Monitor Daily EURUSD
 # NO RETROACTIVE EXECUTION
 
 on:
+  pull_request:
+    paths:
+      - "scripts/daily_eurusd_exit_intelligence_v2.py"
+      - "tests/test_daily_eurusd_exit_intelligence_v2.py"
+      - ".github/workflows/daily-eurusd-monitor.yml"
   workflow_dispatch:
   push:
     branches: [main]
@@ -73,7 +78,7 @@ concurrency:
 
 jobs:
   validate-on-push:
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
@@ -127,7 +132,7 @@ jobs:
           echo "PUSH_VALIDATION_ONLY_NO_TRADING_STATE_MUTATION"
 
   reconcile-eurusd:
-    if: github.event_name != 'push'
+    if: github.event_name != 'push' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
