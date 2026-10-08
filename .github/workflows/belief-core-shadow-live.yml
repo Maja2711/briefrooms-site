@@ -11,6 +11,7 @@ on:
       - "scripts/provenance_contract.py"
       - "scripts/belief_closed_loop.py"
       - "scripts/hypothesis_challenger_engine.py"
+      - "scripts/hypothesis_shadow_watchdog.py"
       - "data/investments/belief_core_production_overrides.json"
       - "tests/test_belief_closed_loop.py"
       - "scripts/belief_market_data_adapter.py"
@@ -224,6 +225,18 @@ jobs:
           else:
               print("P2_COLLECTOR_BRIDGE_NOT_INITIALIZED")
           PY
+
+      - name: P2.1 collector-side Shadow health and settlement audit
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts
+        run: |
+          set -euo pipefail
+          if [[ -s "$STATE_DIR/HYPOTHESIS_CHALLENGERS_STATE.json" ]]; then
+            python scripts/hypothesis_shadow_watchdog.py \
+              --state-dir "$STATE_DIR" --output "$STATE_DIR/P2_SHADOW_WATCHDOG.json"
+          else
+            echo "P2_WATCHDOG_COLLECTOR: awaiting first P2 candidate from calibration"
+          fi
 
       - name: Validate persisted shadow state
         run: |
