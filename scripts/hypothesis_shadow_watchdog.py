@@ -159,7 +159,7 @@ def assess(state: Mapping[str, Any], p2: Mapping[str, Any] | None,
     if collector_age is not None and collector_age < -clock_tolerance:
         alerts.append(_alert("COLLECTOR_CLOCK_IN_FUTURE", "CRITICAL", None,
                              "collector timestamp is later than watchdog clock"))
-    if (session["source_sla_window_active"] and
+    if (session["market_window_active"] and session["due_slots"] and
         (collector_age is None or collector_age > COLLECTOR_MAX_AGE_MINUTES)):
         alerts.append(_alert("COLLECTOR_STALE_DURING_MARKET", "CRITICAL", None,
                              "no recent Belief collector heartbeat after scheduled market slot"))
@@ -185,6 +185,15 @@ def assess(state: Mapping[str, Any], p2: Mapping[str, Any] | None,
         key = "wes-assets:" + session["session_date_ny"] + ":" + slot
         completed_at = _parse(completed.get(key))
         if completed_at is None or completed_at > current + timedelta(minutes=clock_tolerance):
+            missing_snapshot_slots.append(key)
+    # Remember a previously detected outage after midnight so a missing
+    # forecast cannot silently become green on the next NY trading day.
+    # Canonical calibration persists this checkpoint in its cumulative state.
+    previous_unresolved = ((previous or {}).get("source_sla") or {}).get(
+        "unresolved_missing_slot_keys") or []
+    for key in previous_unresolved:
+        if (isinstance(key, str) and key.startswith("wes-assets:") and
+            _parse(completed.get(key)) is None and key not in missing_snapshot_slots):
             missing_snapshot_slots.append(key)
     if missing_snapshot_slots:
         alerts.append(_alert("MARKET_SNAPSHOT_SLA_BREACHED", "CRITICAL", None,
@@ -446,6 +455,29 @@ def assess(state: Mapping[str, Any], p2: Mapping[str, Any] | None,
             alerts.append(_alert("SHADOW_NO_PROGRESS_TWO_SLOTS", "CRITICAL", str(cid),
                                  "two confirmed market collection slots elapsed without Shadow freeze"))
 
+        # A source-linked proof is constructed from the committed Shadow and
+        # persisted settlement; future target, mutable source or forged
+        # Verification cannot reach this branch without a critical alert.
+        first_freeze = next(iter(sorted(
+            commitments.values(), key=lambda v: str(v.get("frozen_at") or ""))), None)
+        first_settlement_proof = None
+        for eid, outcome in sorted(settled.items()):
+            if eid in conflicts or eid not in commitments:
+                continue
+            commit = commitments[eid]
+            first_settlement_proof = {
+                "event_id": eid,
+                "shadow_forecast_id": commit.get("shadow_forecast_id"),
+                "forecast_id": commit.get("forecast_id"),
+                "source_verification_id": outcome.get("source_verification_id"),
+                "frozen_at": commit.get("frozen_at"),
+                "target_at": commit.get("target_at"),
+                "verified_at": outcome.get("verified_at"),
+                "control_brier": outcome.get("control_brier"),
+                "challenger_brier": outcome.get("challenger_brier"),
+                "source_snapshot_sha256": commit.get("source_snapshot_sha256"),
+            }
+            break
         monitored.append({
             "candidate_id": str(cid),
             "hypothesis_id": c.get("hypothesis_id"),
@@ -465,6 +497,16 @@ def assess(state: Mapping[str, Any], p2: Mapping[str, Any] | None,
             "completed_due_market_slots": len(due_completed_slots),
             "missing_completed_market_slots": len(missing_slots),
             "last_progress_at": ts(last_progress) if last_progress else None,
+            "first_shadow_freeze_proof": ({
+                "event_id": first_freeze.get("event_id"),
+                "forecast_id": first_freeze.get("forecast_id"),
+                "shadow_forecast_id": first_freeze.get("shadow_forecast_id"),
+                "forecast_at": first_freeze.get("forecast_at"),
+                "frozen_at": first_freeze.get("frozen_at"),
+                "target_at": first_freeze.get("target_at"),
+                "source_snapshot_sha256": first_freeze.get("source_snapshot_sha256"),
+            } if first_freeze else None),
+            "first_real_oos_settlement_proof": first_settlement_proof,
         })
 
     alert_codes = sorted(set(x["code"] for x in alerts))
@@ -486,12 +528,17 @@ def assess(state: Mapping[str, Any], p2: Mapping[str, Any] | None,
     # Health PASS means only that no fault was detected; E2E PASS requires
     # at least one genuinely market-verified, prospectively frozen P2 result.
     e2e_status = ("PASS" if severity == "PASS" and
-                  any(x["verified_settlement_links"] > 0 for x in monitored)
+                  any(x["first_real_oos_settlement_proof"] is not None for x in monitored)
                   else "BLOCKED" if severity == "FAIL" else "PENDING")
     return {
         "schema_version": SCHEMA,
         "generated_at": ts(current),
         "production_e2e_status": e2e_status,
+        "production_e2e_proof": (next((
+            {"candidate_id": x["candidate_id"],
+             **x["first_real_oos_settlement_proof"]}
+            for x in monitored if x["first_real_oos_settlement_proof"]
+        ), None) if e2e_status == "PASS" else None),
         "status": severity,
         "mode": "external_read_only" if monitor else "canonical_calibration_watchdog",
         "readiness": readiness,
@@ -500,6 +547,7 @@ def assess(state: Mapping[str, Any], p2: Mapping[str, Any] | None,
             "threshold_minutes_after_planned_slot": SLOT_GRACE_MINUTES,
             "due_market_slots": len(session["due_slots"]),
             "market_snapshot_sla_breaches": len(missing_snapshot_slots),
+            "unresolved_missing_slot_keys": missing_snapshot_slots,
             "missing_snapshot_slot_keys": missing_snapshot_slots,
         },
         "source": {
