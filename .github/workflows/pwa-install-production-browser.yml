@@ -1,0 +1,31 @@
+name: PWA Install Production Browser Check
+
+on:
+  workflow_run:
+    workflows: ["Deploy production from main"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browser-scroll-validation:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install headless browser driver
+        run: |
+          test -x "$(command -v google-chrome)"
+          npm install --prefix /tmp/briefrooms-pwa-browser --no-save --silent playwright-core@1.56.1
+      - name: Verify PL and EN live scrolling behavior
+        run: node tests/pwa_install_browser_check.mjs
