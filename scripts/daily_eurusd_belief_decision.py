@@ -39,6 +39,18 @@ from epistemic_consumer_interface import (
 LONG_THRESHOLD = 56.0
 SHORT_THRESHOLD = 44.0
 
+# Daily is intentionally more participation-oriented than Weekly, but only
+# when the epistemic evidence is coherent rather than merely close to 50.
+# This secondary band never bypasses missing-data, anchor, audit, calendar or
+# execution safety. It only narrows the neutral zone for an already-authoritative
+# and directionally aligned Belief state.
+AGGRESSIVE_LONG_THRESHOLD = 53.0
+AGGRESSIVE_SHORT_THRESHOLD = 47.0
+AGGRESSIVE_MIN_COVERAGE = 0.55
+AGGRESSIVE_MIN_CONFIDENCE = 0.25
+AGGRESSIVE_MIN_ALIGNED_BELIEFS = 3
+AGGRESSIVE_ALIGNMENT_MARGIN = 0.02
+
 # CF-07 owns the predeclared EUR/USD epistemic aggregation weights. The
 # decision engine consumes that authoritative aggregate rather than defining a
 # second, potentially divergent aggregation.
@@ -429,12 +441,45 @@ def synthesize(
     if coverage < MIN_COVERAGE_WEIGHT:
         reasons.append("insufficient_belief_coverage")
 
+    aligned_long = [
+        row for row in used
+        if float(row.get("probability", 0.5)) >= 0.5 + AGGRESSIVE_ALIGNMENT_MARGIN
+    ]
+    aligned_short = [
+        row for row in used
+        if float(row.get("probability", 0.5)) <= 0.5 - AGGRESSIVE_ALIGNMENT_MARGIN
+    ]
+    long_ids = {str(row.get("belief_id")) for row in aligned_long}
+    short_ids = {str(row.get("belief_id")) for row in aligned_short}
+    aggressive_base_ready = (
+        consumer_authoritative
+        and coverage >= AGGRESSIVE_MIN_COVERAGE
+        and confidence >= AGGRESSIVE_MIN_CONFIDENCE
+    )
+    aggressive_long_ready = (
+        aggressive_base_ready
+        and REQUIRED_ANCHOR_BELIEF in long_ids
+        and len(aligned_long) >= AGGRESSIVE_MIN_ALIGNED_BELIEFS
+    )
+    aggressive_short_ready = (
+        aggressive_base_ready
+        and REQUIRED_ANCHOR_BELIEF in short_ids
+        and len(aligned_short) >= AGGRESSIVE_MIN_ALIGNED_BELIEFS
+    )
+
+    threshold_mode = "CORE"
     if reasons:
         direction = "FLAT"
     elif score >= LONG_THRESHOLD:
         direction = "LONG"
     elif score <= SHORT_THRESHOLD:
         direction = "SHORT"
+    elif score >= AGGRESSIVE_LONG_THRESHOLD and aggressive_long_ready:
+        direction = "LONG"
+        threshold_mode = "AGGRESSIVE_ALIGNED"
+    elif score <= AGGRESSIVE_SHORT_THRESHOLD and aggressive_short_ready:
+        direction = "SHORT"
+        threshold_mode = "AGGRESSIVE_ALIGNED"
     else:
         direction = "FLAT"
         reasons.append("belief_score_neutral")
@@ -448,6 +493,21 @@ def synthesize(
         "score": score,
         "confidence": confidence,
         "thresholds": {"long": LONG_THRESHOLD, "short": SHORT_THRESHOLD},
+        "aggressive_participation": {
+            "enabled": True,
+            "threshold_mode": threshold_mode,
+            "long": AGGRESSIVE_LONG_THRESHOLD,
+            "short": AGGRESSIVE_SHORT_THRESHOLD,
+            "minimum_coverage_weight": AGGRESSIVE_MIN_COVERAGE,
+            "minimum_confidence": AGGRESSIVE_MIN_CONFIDENCE,
+            "minimum_aligned_beliefs": AGGRESSIVE_MIN_ALIGNED_BELIEFS,
+            "alignment_margin": AGGRESSIVE_ALIGNMENT_MARGIN,
+            "aligned_long_beliefs": sorted(long_ids),
+            "aligned_short_beliefs": sorted(short_ids),
+            "long_ready": aggressive_long_ready,
+            "short_ready": aggressive_short_ready,
+            "rule": "Narrower Daily participation band applies only to an authoritative, sufficiently covered/confident state with at least three aligned beliefs including the EURUSD trend anchor.",
+        },
         "coverage_weight": round(coverage, 6),
         "minimum_coverage_weight": MIN_COVERAGE_WEIGHT,
         "required_anchor_belief": REQUIRED_ANCHOR_BELIEF,
