@@ -130,7 +130,9 @@ class P21WatchdogTests(unittest.TestCase):
         backlog = assess(state, raw, scheduler(now=outcome_at), now=outcome_at)
         self.assertIn("SETTLEMENT_BACKLOG", backlog["alert_codes"])
         advanced = run(state, utility(), raw, now=outcome_at, discover=False)
-        complete = assess(state, advanced, scheduler(now=outcome_at), now=outcome_at)
+        complete = assess(state, advanced, scheduler(now=outcome_at, slots={
+            "wes-assets:2026-10-08:1000": "2026-10-08T14:35:00Z"
+        }), now=outcome_at)
         self.assertEqual("REAL_SETTLEMENT_VERIFIED", complete["readiness"])
         self.assertEqual(1, complete["summary"]["real_settled_events"])
         self.assertEqual(0, complete["summary"]["real_settlement_backlog"])
