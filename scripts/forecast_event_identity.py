@@ -54,7 +54,7 @@ def canonical_event_rows(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any
     groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for row in rows:
         f = row.get("f", row)
-        event = identity(f)["event_id"]
+        event = str(f.get("event_id") or identity(f)["event_id"])
         groups[event].append(row)
     chosen = []
     conflicts = []
