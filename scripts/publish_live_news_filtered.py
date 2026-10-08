@@ -626,7 +626,8 @@ def select_sections(
     prior_exposure = _previous_exposure_by_identity(previous)
 
     for section_id, _, _ in config:
-        target = base.PL_SECTION_TARGETS.get(section_id, base.TARGET) if pl_mode else EN_SECTION_TARGETS.get(section_id, base.TARGET)
+        # No publication count cap: editorial quality, freshness and deduplication decide.
+        target = float("inf")
         source_candidates = [
             story for story in (fetched.get(section_id) or [])
             if _time_sensitive_release_eligible(story, section_id, now)
@@ -851,22 +852,19 @@ def select_sections(
                 deferred_discipline.append(story)
             elif result == "source_cap":
                 deferred_source.append(story)
-            if len(items) >= target:
-                break
+
 
         if sport_mode and len(items) < target:
             for story in deferred_discipline:
                 result = try_add(story, discipline_cap=False, source_cap=preferred_source_cap)
                 if result == "source_cap":
                     deferred_source.append(story)
-                if len(items) >= target:
-                    break
+
 
         if len(items) < target and preferred_source_cap < MAX_SOURCE_SHARE:
             for story in deferred_source:
                 try_add(story, discipline_cap=False, source_cap=MAX_SOURCE_SHARE)
-                if len(items) >= target:
-                    break
+
 
         carried = forced_topic_carried
         if len(items) < target:
@@ -887,10 +885,9 @@ def select_sections(
                 carry_source_cap = MAX_SOURCE_SHARE if len(active_sources) >= 2 else target
                 if try_add(copy, discipline_cap=False, source_cap=carry_source_cap) == "added":
                     carried += 1
-                if len(items) >= target:
-                    break
 
-        selected_items = items[:target]
+
+        selected_items = items
         if pl_mode and section_id == "ai-technologia-krypto":
             selected_items = [_localize_pl_ai_story(story) for story in selected_items]
         selected[section_id] = selected_items
@@ -1200,11 +1197,6 @@ def validate(max_age_minutes: int = 30) -> None:
             if image_quality.get("scope") != "en_only" or image_quality.get("mode") != "article_og_image_preferred":
                 raise RuntimeError("en high-resolution image policy missing or outdated")
         for section_id, stories in payload.get("sections", {}).items():
-            section_max = (EN_SECTION_TARGETS if lang == "en" else base.PL_SECTION_TARGETS).get(section_id, base.TARGET)
-            if len(stories) > section_max:
-                raise RuntimeError(
-                    f"{lang}/{section_id} has {len(stories)} stories; maximum is {section_max}"
-                )
             if lang == "pl" and section_id == "sport":
                 athlete_counts: dict[str, int] = {}
                 for sport_story in stories:
