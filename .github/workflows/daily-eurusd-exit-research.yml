@@ -1,0 +1,104 @@
+name: Daily EURUSD Exit and Correction Research
+# Single-writer SHADOW observer, independent of live trading/execution.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "scripts/daily_eurusd_exit_intelligence_v2.py"
+      - "scripts/daily_eurusd_correction_research.py"
+      - "tests/test_daily_eurusd_exit_intelligence_v2.py"
+      - "tests/test_daily_eurusd_correction_research.py"
+      - ".github/workflows/daily-eurusd-exit-research.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/daily_eurusd_exit_intelligence_v2.py"
+      - "scripts/daily_eurusd_correction_research.py"
+      - ".github/workflows/daily-eurusd-exit-research.yml"
+  schedule:
+    - cron: "2,7,12,17,22,27,32,37,42,47,52,57 * * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-eurusd-exit-research
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PYTHONPATH: scripts:.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate research contracts
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/daily_eurusd_exit_intelligence_v2.py scripts/daily_eurusd_correction_research.py
+          python -m unittest tests.test_daily_eurusd_exit_intelligence_v2 tests.test_daily_eurusd_correction_research -v
+
+  observe:
+    needs: validate
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: scripts:.
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Capture and publish append-only research evidence
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2 3 4 5; do
+            python scripts/daily_eurusd_exit_intelligence_v2.py
+            python -m json.tool data/investments/eurusd_exit_signal_journal.json >/dev/null
+            python -m json.tool data/investments/eurusd_exit_intelligence_reviews.json >/dev/null
+            python - <<'PY'
+          import json
+          from pathlib import Path
+          journal = json.loads(Path("data/investments/eurusd_exit_signal_journal.json").read_text())
+          reviews = json.loads(Path("data/investments/eurusd_exit_intelligence_reviews.json").read_text())
+          study = journal.get("correction_study") or {}
+          assert journal["authority"] == "SHADOW_OBSERVATION_ONLY"
+          assert study.get("exit_authority") is False
+          assert reviews["trading_decision_influence"] is False
+          assert reviews["automatic_promotion"] is False
+          assert all(s.get("exit_authority") is False for s in journal.get("snapshots", []))
+          print("CORRECTION_RESEARCH_ZERO_EXECUTION_AUTHORITY_PASS",
+                len(journal.get("snapshots", [])), study.get("confirmed_events", 0))
+          PY
+            git add -- data/investments/eurusd_exit_signal_journal.json data/investments/eurusd_exit_intelligence_reviews.json
+            if git diff --cached --quiet; then
+              echo "No new research observations."
+              exit 0
+            fi
+            changed=$(git diff --cached --name-only)
+            while IFS= read -r filename; do
+              case "$filename" in
+                data/investments/eurusd_exit_signal_journal.json|data/investments/eurusd_exit_intelligence_reviews.json) ;;
+                *) echo "Disallowed research write: $filename" >&2; exit 1 ;;
+              esac
+            done <<< "$changed"
+            git commit -m "data(daily): publish correction and exit research evidence"
+            if git push origin HEAD:main; then
+              echo "Research evidence published; execution untouched."
+              exit 0
+            fi
+            git fetch origin main
+            git reset --hard origin/main
+            sleep "$attempt"
+          done
+          echo "Unable to persist Daily correction research after retries" >&2
+          exit 1
