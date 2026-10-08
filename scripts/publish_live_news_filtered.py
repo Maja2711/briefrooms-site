@@ -627,7 +627,7 @@ def select_sections(
 
     for section_id, _, _ in config:
         # No publication count cap: editorial quality, freshness and deduplication decide.
-        target = float("inf")
+        target = len(fetched.get(section_id) or []) + len(previous_sections.get(section_id) or [])
         source_candidates = [
             story for story in (fetched.get(section_id) or [])
             if _time_sensitive_release_eligible(story, section_id, now)
