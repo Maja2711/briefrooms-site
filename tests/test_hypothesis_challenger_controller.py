@@ -54,6 +54,7 @@ class EvolutionP2HandoffTests(unittest.TestCase):
         c = candidate()
         fake = registry(c)
         fake.update({"schema_version": SCHEMA,
+                     "generated_at": stamp(51, 12),
                      "authority": {"automatic_production_promotion": False,
                                    "frozen_forecast_mutation": False,
                                    "trade_execution": False}})
@@ -76,9 +77,21 @@ class EvolutionP2HandoffTests(unittest.TestCase):
         self.assertEqual("PARKED", evo["candidates"][cid]["status"])
         self.assertEqual(0, evo["source_status"]["hypothesis_challengers"]["gate_pass"])
 
+    def test_missing_p2_state_revokes_previous_gate(self):
+        state, raw, cid = full_pass()
+        evo = self._ingest(raw, state)
+        with tempfile.TemporaryDirectory() as tmp:
+            _ingest_hypothesis_challengers(evo, None, state, stamp(52, 12),
+                                           Path(tmp) / "audit.jsonl")
+        self.assertEqual("PARKED", evo["candidates"][cid]["status"])
+        self.assertEqual("HOLD", evo["promotion_gates"][cid]["status"])
+        self.assertEqual("p2_challenger_state_unavailable",
+                         evo["source_status"]["hypothesis_challengers"]["reason"])
+
     def test_unauthorized_auto_promotion_is_rejected(self):
         c = candidate()
         source = registry(c)
+        source["generated_at"] = stamp(51, 12)
         source["authority"] = {"automatic_production_promotion": True,
                                "frozen_forecast_mutation": False,
                                "trade_execution": False}
