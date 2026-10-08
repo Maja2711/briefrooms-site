@@ -255,20 +255,33 @@ def step(previous: Mapping[str, Any], history: Mapping[str, Any],
             new["challengers"][policy] = val
         existing[tid] = new
     rows = list(existing.values())[-MAX_REPLAY_TRADES:]
-    eligible = [
-        r for r in rows
-        if all(v.get("status") == "EARLIER_RESEARCH_EXIT" and v.get("epe_half_spread_recorded") is True
-               for v in r["challengers"].values())
-    ]
-    # Compare only like-for-like cohort, not cherry-picked individual wins.
+    # Include "no earlier trigger" as an intentional no-op with delta=0;
+    # otherwise the evaluator selects only trades where the challenger fired.
+    # STOP/TP path conflicts and incomplete observations remain excluded.
     summary = {}
     for policy in STRATEGIES:
-        values=[float(r["challengers"][policy]["vs_actual_r"]) for r in eligible]
-        summary[policy]={
-            "n_paired_comparable_trades":len(values),
-            "mean_incremental_r":round(sum(values)/len(values),6) if values else None,
-            "positive_delta_trades":sum(1 for v in values if v>0),
-            "status":"DESCRIPTIVE_ONLY" if values else "NO_PAIRED_EVIDENCE",
+        paired = [
+            (r, r["challengers"][policy]) for r in rows
+            if r["challengers"][policy].get("status")
+               in ("EARLIER_RESEARCH_EXIT", "NOT_TRIGGERED_BEFORE_BASELINE")
+            and r["challengers"][policy].get("epe_half_spread_recorded") is True
+        ]
+        values = [
+            float(v["vs_actual_r"]) if v["status"] == "EARLIER_RESEARCH_EXIT" else 0.0
+            for _, v in paired
+        ]
+        days = len({str(r["opened_at"])[:10] for r, _ in paired})
+        summary[policy] = {
+            "n_paired_comparable_trades": len(values),
+            "distinct_trade_days": days,
+            "earlier_exit_trades": sum(v["status"] == "EARLIER_RESEARCH_EXIT" for _, v in paired),
+            "no_early_exit_trades": sum(v["status"] == "NOT_TRIGGERED_BEFORE_BASELINE" for _, v in paired),
+            "mean_incremental_r": round(sum(values)/len(values),6) if values else None,
+            "positive_delta_trades": sum(1 for v in values if v>0),
+            "status": ("ELIGIBLE_FOR_RESEARCH_REVIEW" if len(values) >= REQUIRED_MIN_COMPARE_TRADES and
+                       days >= MIN_PERSISTENCE_DAYS else
+                       "DESCRIPTIVE_INSUFFICIENT_INDEPENDENT_EVIDENCE" if values else "NO_PAIRED_EVIDENCE"),
+            "promotion_allowed": False,
         }
     value = {
         "schema_version":SCHEMA,"instrument":"EUR/USD","authority":{
@@ -282,7 +295,7 @@ def step(previous: Mapping[str, Any], history: Mapping[str, Any],
         "retrospective_replay_not_a_live_observation":True,
         "min_comparable_trades_for_policy_review":REQUIRED_MIN_COMPARE_TRADES,
         "min_independent_days_for_policy_review":MIN_PERSISTENCE_DAYS,
-        "paired_comparable_trade_count":len(eligible),
+        "paired_comparable_trade_count":min((v["n_paired_comparable_trades"] for v in summary.values()), default=0),
         "scoreboard":summary,"comparisons":rows,
         "promotion_allowed":False,
     }
