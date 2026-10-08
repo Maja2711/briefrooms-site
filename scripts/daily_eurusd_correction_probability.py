@@ -97,7 +97,7 @@ def candidate(bars: Sequence[Mapping[str, Any]], now: datetime) -> dict | None:
     if drop + 1e-6 < MIN_IMPULSE_PIPS or bounce_pips > max(1.0, 0.10 * drop) + 1e-6:
         return None
     minutes = (recent[low_index]["time"] - recent[peak_at]["time"]).total_seconds() / 60
-    if not 3 <= minutes <= 85:
+    if not 3 <= minutes <= 89:
         return None
     when = recent[-1]["time"] + timedelta(minutes=1)
     threshold = max(3.0, 0.25 * drop)
