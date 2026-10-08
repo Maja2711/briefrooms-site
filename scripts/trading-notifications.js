@@ -32,6 +32,13 @@
     testBody: "Powiadomienia tradingowe działają na tym urządzeniu.",
     openLabel: "OTWARTO",
     closeLabel: "ZAMKNIĘTO",
+    checking: "Sprawdzam połączenie PUSH z tym urządzeniem…",
+    pushReady: "PUSH aktywny na tym urządzeniu. Dostawca nie gwarantuje wyświetlenia przez system.",
+    pushMissing: "Brak aktywnej subskrypcji PUSH na tym urządzeniu.",
+    pushRepairing: "Odnawiam subskrypcję PUSH…",
+    pushRepaired: "Subskrypcja PUSH odnowiona.",
+    pushUnverified: "Nie udało się potwierdzić połączenia z serwerem PUSH.",
+    pushDisabled: "Alerty wyłączone na tym urządzeniu.",
   } : {
     title: "Trading notifications",
     intro: "Choose which Trading Room areas should alert you when a position opens or closes.",
@@ -56,6 +63,13 @@
     testBody: "Trading notifications work on this device.",
     openLabel: "OPENED",
     closeLabel: "CLOSED",
+    checking: "Checking this device's push connection…",
+    pushReady: "Push subscription active on this device; OS display is not guaranteed.",
+    pushMissing: "No active push subscription on this device.",
+    pushRepairing: "Reconnecting push subscription…",
+    pushRepaired: "Push subscription restored.",
+    pushUnverified: "Could not verify the push server connection.",
+    pushDisabled: "Alerts are disabled on this device.",
   };
 
   const defaults = {
@@ -406,6 +420,48 @@
     const prefs = loadPrefs();
     const config = await loadConfig();
 
+    let lastVerifiedAt = 0;
+    let recoveryRunning = null;
+    let devicePushStatus = prefs.enabled ? t.checking : t.pushDisabled;
+
+    async function verifyDevicePush({ repair = true, force = false } = {}) {
+      const current = loadPrefs();
+      if (!current.enabled) { devicePushStatus = t.pushDisabled; return; }
+      if (Notification.permission !== "granted") { devicePushStatus = t.denied; return; }
+      if (recoveryRunning) return recoveryRunning;
+      if (!force && Date.now() - lastVerifiedAt < 5 * 60_000) return;
+      recoveryRunning = (async () => {
+        try {
+          const registration = await getRegistration();
+          const subscription = await registration?.pushManager?.getSubscription();
+          if (!subscription && !repair) {
+            devicePushStatus = t.pushMissing;
+            return;
+          }
+          const serverStatus = subscription
+            ? await backgroundSubscriptionStatus(config, subscription).catch(() => null) : null;
+          if (subscription && serverStatus?.registered === true) {
+            devicePushStatus = t.pushReady;
+          } else if (repair) {
+            devicePushStatus = t.pushRepairing;
+            const restored = await syncBackgroundSubscription(config, current);
+            if (!restored) throw new Error("subscription_missing");
+            const verified = await backgroundSubscriptionStatus(config, restored);
+            devicePushStatus = verified?.registered === true ? t.pushRepaired : t.pushUnverified;
+          } else {
+            devicePushStatus = serverStatus?.registered === false ? t.pushMissing : t.pushUnverified;
+          }
+        } catch (error) {
+          devicePushStatus = String(error?.message || t.pushUnverified);
+        } finally {
+          lastVerifiedAt = Date.now();
+          const el = modal.querySelector("[data-brn-device-status]");
+          if (el) el.textContent = devicePushStatus;
+        }
+      })().finally(() => { recoveryRunning = null; });
+      return recoveryRunning;
+    }
+
     const launcher = document.createElement("div");
     launcher.className = "brn-launcher";
     launcher.innerHTML = `
@@ -434,6 +490,7 @@
           </fieldset>
         </div>
         <p class="brn-note">${t.foregroundNote}</p>
+        <p class="brn-note" role="status" aria-live="polite" data-brn-device-status>${escapeHtml(devicePushStatus)}</p>
         <div class="brn-status" data-brn-status>${prefs.enabled ? t.allowed : ""}</div>
         <div class="brn-actions">
           ${prefs.enabled ? `<button type="button" class="brn-disable" data-brn-action="disable">${t.disable}</button>` : ""}
@@ -463,6 +520,7 @@
       modal.hidden = false;
       document.documentElement.classList.add("brn-modal-open");
       modal.querySelector(".brn-dialog")?.focus?.();
+      void verifyDevicePush({ repair: true, force: true });
     }
 
     function closeModal() {
@@ -503,6 +561,8 @@
         if (!subscription) throw new Error("subscription_missing");
         await testBackgroundSubscription(config, subscription);
         status.textContent = t.allowed;
+        lastVerifiedAt = 0;
+        await verifyDevicePush({ repair: false, force: true });
         await pollEvents(config);
         closeModal();
       } catch (error) {
@@ -542,13 +602,18 @@
       });
     }
 
-    try {
-      await getRegistration();
-      if (prefs.enabled) await syncBackgroundSubscription(config, prefs);
-    } catch (_) {}
+    await verifyDevicePush({ repair: true, force: true });
     await pollEvents(config);
     const interval = Math.max(30, Number(config.poll_interval_seconds || 60)) * 1000;
     window.setInterval(() => pollEvents(config), interval);
+    // Installed desktop PWA can stay open for days. Revalidate its formerly
+    // working endpoint on visibility/network return, without triggering a test
+    // notification or re-sending already accepted trade alerts.
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) void verifyDevicePush({ repair: true });
+    });
+    window.addEventListener("online", () => void verifyDevicePush({ repair: true, force: true }));
+    window.setInterval(() => void verifyDevicePush({ repair: true }), 15 * 60_000);
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mount);
