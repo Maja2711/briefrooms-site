@@ -1,61 +1,19 @@
 {
   "layer_version": "5.9.1-experimental",
-  "checked_at": "2026-10-08T11:42:36+02:00",
+  "checked_at": "2026-10-08T11:52:37+02:00",
   "actions": [
     {
       "instrument_id": "eurusd",
       "action": "keep_open",
       "direction": "short",
-      "macro_score": 0.7635,
+      "macro_score": 0.6522,
       "next_governed_review": "daily_review_23_00_europe_warsaw"
     },
     {
       "instrument_id": "sp500_futures",
-      "action": "wait_for_market_entry",
-      "direction": "long",
-      "target_price": 7794.89623927,
-      "reference_price": 7821.75,
-      "order_type": "market",
-      "expires_at": "2026-10-08T11:47:26+02:00",
-      "overextension_score": 0.452673,
-      "market_entry_diagnostics": {
-        "version": "WES-1.3.1",
-        "scoring_model": "weekly_primary_daily_confirmation_modifier",
-        "direction": "long",
-        "daily_score": 50.0,
-        "weekly_score": 72.0,
-        "selected_utility": 15.7771,
-        "confirmations": 2,
-        "ret5_pct": 1.2655,
-        "ret20_pct": 2.9381,
-        "overextension_score": 0.452673,
-        "daily_aligned": true,
-        "weekly_aligned": true,
-        "daily_opposed": false,
-        "weekly_opposed": false,
-        "momentum_aligned": true,
-        "momentum_opposed": false,
-        "primary_score_components": {
-          "weekly": 1.0,
-          "utility": 1.0,
-          "confirmations": 0.5,
-          "momentum": 1.0
-        },
-        "primary_market_score": 0.925,
-        "overextension_penalty": 0.0905,
-        "score_before_daily_modifier": 0.8345,
-        "daily_confirmation_modifier": 0.0727,
-        "daily_confirmation_state": "aligned_bonus",
-        "daily_modifier_bounds": {
-          "aligned_bonus_max": 0.08,
-          "opposed_penalty_max": 0.1,
-          "strong_opposition_veto_abs_score": 55.0
-        },
-        "market_score": 0.9072,
-        "minimum_market_score": 0.6,
-        "eligible": true,
-        "reasons": []
-      }
+      "action": "reject_unverified_market_entry",
+      "reason": "missing_canonical_live_target_contract",
+      "target_price": 7794.89623927
     },
     {
       "instrument_id": "btcusd",
