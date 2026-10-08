@@ -1,0 +1,89 @@
+/* Glass 3D Premium — GPW / USA market selector only.
+   No changes to grid tracks, dimensions, padding or typography. */
+.stock-trading-page .str-market-tabs{
+  position:relative;
+  isolation:isolate;
+  border-color:rgba(135,200,226,.40);
+  background:linear-gradient(170deg,rgba(22,51,73,.80),rgba(5,24,39,.96));
+  box-shadow:
+    0 11px 27px rgba(0,4,15,.34),
+    0 2px 5px rgba(0,0,0,.30),
+    inset 0 1px 0 rgba(232,250,255,.25),
+    inset 0 -2px 6px rgba(0,0,0,.38);
+}
+.stock-trading-page .str-market-tab{
+  isolation:isolate;
+  background:
+    radial-gradient(ellipse 95% 80% at 50% -12%,rgba(167,230,255,.20),transparent 76%),
+    linear-gradient(180deg,rgba(45,81,103,.83) 0%,rgba(17,49,72,.92) 37%,rgba(5,22,38,.97) 100%);
+  color:#f0f8ff;
+  text-shadow:0 2px 6px rgba(0,6,18,.70);
+  box-shadow:
+    inset 0 2px 0 rgba(242,252,255,.30),
+    inset 0 -7px 12px rgba(0,5,18,.52),
+    inset 2px 0 8px rgba(180,226,247,.08),
+    0 3px 10px rgba(0,0,0,.25);
+  transition:background .2s ease,box-shadow .2s ease,filter .2s ease;
+}
+.stock-trading-page .str-market-tab::before{
+  content:"";
+  position:absolute;
+  pointer-events:none;
+  z-index:-1;
+  top:4px;
+  left:12px;
+  right:12px;
+  height:35%;
+  border-radius:50% 50% 42% 42% / 70% 70% 35% 35%;
+  background:linear-gradient(180deg,rgba(243,252,255,.29),rgba(190,234,255,.09) 68%,transparent);
+  opacity:.95;
+}
+.stock-trading-page .str-market-tab::after{
+  content:"";
+  position:absolute;
+  pointer-events:none;
+  z-index:-1;
+  inset:1px;
+  border-radius:inherit;
+  background:linear-gradient(92deg,rgba(226,249,255,.07),transparent 22%,transparent 80%,rgba(0,7,18,.22));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.12);
+}
+.stock-trading-page .str-market-tab:hover{
+  background:
+    radial-gradient(ellipse 95% 80% at 50% -12%,rgba(179,241,255,.28),transparent 76%),
+    linear-gradient(180deg,rgba(50,98,123,.89),rgba(18,55,79,.96) 45%,rgba(7,27,44,.98));
+  filter:brightness(1.05);
+}
+.stock-trading-page .str-market-tab.is-active{
+  color:#fff;
+  background:
+    radial-gradient(ellipse 88% 75% at 50% 0%,rgba(172,255,252,.32),transparent 78%),
+    linear-gradient(180deg,rgba(47,137,145,.94) 0%,rgba(21,97,110,.96) 39%,rgba(5,57,72,.98) 100%);
+  box-shadow:
+    inset 0 2px 0 rgba(237,255,255,.48),
+    inset 0 0 0 1px rgba(76,247,237,.62),
+    inset 0 -9px 15px rgba(0,25,40,.53),
+    0 5px 15px rgba(0,0,0,.29),
+    0 0 20px rgba(35,235,227,.17);
+}
+.stock-trading-page .str-market-tab.is-active::before{
+  background:linear-gradient(180deg,rgba(240,255,255,.39),rgba(178,255,247,.10) 72%,transparent);
+}
+.stock-trading-page .str-market-tab-title{
+  position:relative;
+  z-index:1;
+  font-weight:800;
+}
+.stock-trading-page .str-market-tab small{
+  position:relative;
+  z-index:1;
+  color:#bed1de;
+}
+.stock-trading-page .str-market-tab.is-active small{color:#e4fffc}
+.stock-trading-page .str-market-tab:focus-visible{
+  outline:2px solid #abfffa;
+  outline-offset:-3px;
+}
+@media(prefers-reduced-motion:reduce){
+  .stock-trading-page .str-market-tab{transition:none}
+}
