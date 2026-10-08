@@ -225,6 +225,16 @@ class TradingNotificationEventsTest(unittest.TestCase):
             finally:
                 mod.DATA = original_data
 
+    def test_pwa_and_foreground_share_once_only_delivery_identity(self):
+        worker = (ROOT / "br-trading-sw.js").read_text(encoding="utf-8")
+        foreground = (ROOT / "scripts/trading-notifications.js").read_text(encoding="utf-8")
+        self.assertIn('briefrooms-trading-push-seen-v1', worker)
+        self.assertIn('briefrooms-trading-push-seen-v1', foreground)
+        self.assertIn('renotify: false', worker)
+        self.assertIn('renotify: false', foreground)
+        self.assertIn('tradingNotificationIdentity(payload)', worker)
+        self.assertIn('logicalEventId(event)', foreground)
+
     def test_ui_is_enabled_on_all_trading_pages(self):
         pages = [
             "pl/inwestycje/daily-trading.html",
