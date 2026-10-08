@@ -115,7 +115,8 @@ jobs:
           p=json.loads((Path(os.environ["RUNNER_TEMP"])/"P2_MONITOR.json").read_text())
           codes=set(p["alert_codes"])
           raise SystemExit(0 if codes & {
-              "COLLECTOR_STALE_DURING_MARKET", "BASELINE_FORECAST_MISSING_AFTER_SLOT"
+              "COLLECTOR_STALE_DURING_MARKET", "BASELINE_FORECAST_MISSING_AFTER_SLOT",
+              "SOURCE_FORECASTS_MISSING_AFTER_CONFIRMED_SLOT"
           } else 1)
           PY
           then exit 0; fi
