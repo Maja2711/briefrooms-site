@@ -50,6 +50,13 @@ class P0EventIdentityTests(unittest.TestCase):
         b["metadata"]["hypothesis_version"] = "2"
         self.assertNotEqual(identity(a)["event_id"], identity(b)["event_id"])
 
+    def test_model_freeze_version_is_not_hypothesis_version(self):
+        a, b = frozen(0), frozen(1)
+        a["metadata"]["model_freeze_version"] = "belief-core-v2-shadow-2026-09-27"
+        b["metadata"]["model_freeze_version"] = "belief-core-v2-shadow-2026-10-08"
+        self.assertEqual("1", identity(a)["hypothesis_version"])
+        self.assertEqual(identity(a)["event_id"], identity(b)["event_id"])
+
     def test_legacy_missing_contract_does_not_merge_on_same_target(self):
         a, b = frozen(0), frozen(1)
         a["metadata"].pop("outcome_spec")
