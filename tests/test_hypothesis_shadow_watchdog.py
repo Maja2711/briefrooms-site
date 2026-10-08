@@ -1,6 +1,9 @@
 """P2.1 active-session watchdog, frozen-source lineage and alert policy tests."""
 import copy
+import json
+import subprocess
 import sys
+import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -128,6 +131,87 @@ class P21WatchdogTests(unittest.TestCase):
         r = assess({"forecasts": [live_at(THURSDAY)], "verifications": []},
                    state_with(c), scheduler(slots=done), now=THURSDAY)
         self.assertNotIn("MARKET_SNAPSHOT_SLA_BREACHED", r["alert_codes"])
+
+    def test_receipt_outside_slot_phase_does_not_prove_snapshot(self):
+        c = self._candidate()
+        for when in ("2026-10-08T13:00:00Z",  # 09:00 NY, before slot
+                     "2026-10-08T18:30:00Z",  # 14:30 NY, after next slot
+                     "2026-10-09T14:32:00Z"):  # next day, retrospective
+            with self.subTest(receipt=when):
+                done = {"wes-assets:2026-10-08:1000": when}
+                result = assess(
+                    {"forecasts": [live_at(THURSDAY)], "verifications": []},
+                    state_with(c), scheduler(slots=done), now=THURSDAY)
+                self.assertIn("MARKET_SNAPSHOT_SLA_BREACHED", result["alert_codes"])
+                self.assertEqual("FAIL", result["status"])
+
+    def test_late_receipt_is_not_accepted_after_the_collection_phase(self):
+        now = "2026-10-08T20:58:00Z"  # 16:58 NY
+        c = self._candidate()
+        done = {"wes-assets:2026-10-08:1000": "2026-10-08T18:30:00Z",
+                "wes-assets:2026-10-08:1300": "2026-10-08T17:31:00Z",
+                "wes-assets:2026-10-08:1600": "2026-10-08T20:11:00Z"}
+        result = assess({"forecasts": [], "verifications": []},
+                        state_with(c, now), scheduler(now=now, slots=done),
+                        now=now)
+        self.assertIn("MARKET_SNAPSHOT_SLA_BREACHED", result["alert_codes"])
+        self.assertEqual(["wes-assets:2026-10-08:1000"],
+                         result["source_sla"]["unresolved_missing_slot_keys"])
+
+    def test_breached_slot_carries_across_weekend_and_holiday(self):
+        c = self._candidate()
+        # Wednesday closing slot is still an incident after Thanksgiving,
+        # the shortened Friday session and the weekend, unless proved.
+        now = "2026-11-30T12:00:00Z"  # Monday 07:00 NY, before new slots
+        checkpoint = {"source_sla": {
+            "unresolved_missing_slot_keys": ["wes-assets:2026-11-25:1600"]}}
+        result = assess({"forecasts": [], "verifications": []},
+                        state_with(c, now), scheduler(now=now), now=now,
+                        previous=checkpoint)
+        self.assertFalse(result["session"]["market_window_active"])
+        self.assertEqual([], result["session"]["due_slots"])
+        self.assertEqual("FAIL", result["status"])
+        self.assertIn("MARKET_SNAPSHOT_SLA_BREACHED", result["alert_codes"])
+        self.assertEqual(1, result["source_sla"]["market_snapshot_sla_breaches"])
+
+        # A real timestamp from the original collection window resolves it;
+        # merely running a new collector does not.
+        done = {"wes-assets:2026-11-25:1600": "2026-11-25T21:12:00Z"}
+        resolved = assess({"forecasts": [], "verifications": []},
+                          state_with(c, now), scheduler(now=now, slots=done),
+                          now=now, previous=checkpoint)
+        self.assertNotIn("MARKET_SNAPSHOT_SLA_BREACHED", resolved["alert_codes"])
+        self.assertEqual([], resolved["source_sla"]["unresolved_missing_slot_keys"])
+
+    def test_independent_checkpoint_is_loaded_by_cli(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            now = "2026-11-30T12:00:00Z"  # NYSE premarket; prior SLA must persist
+            (root / "state.json").write_text(
+                json.dumps({"forecasts": [], "verifications": []}), encoding="utf-8")
+            (root / "HYPOTHESIS_CHALLENGERS_STATE.json").write_text(
+                json.dumps({"schema_version": SCHEMA, "generated_at": now,
+                            "candidates": {}}), encoding="utf-8")
+            (root / "scheduler.json").write_text(
+                json.dumps(scheduler(now=now)), encoding="utf-8")
+            checkpoint = root / "prior.json"
+            checkpoint.write_text(json.dumps({
+                "schema_version": "briefrooms-p2-snapshot-sla-checkpoint-v1",
+                "generated_at": "2026-11-25T22:00:00Z",
+                "unresolved_missing_slot_keys": ["wes-assets:2026-11-25:1600"],
+            }), encoding="utf-8")
+            output = root / "monitor.json"
+            cmd = [sys.executable,
+                   str(Path(__file__).resolve().parents[1] /
+                       "scripts/hypothesis_shadow_watchdog.py"),
+                   "--monitor", "--state-dir", str(root), "--output", str(output),
+                   "--sla-checkpoint", str(checkpoint), "--now", now]
+            run_result = subprocess.run(cmd, text=True, capture_output=True)
+            self.assertEqual(0, run_result.returncode, run_result.stderr)
+            report = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual("FAIL", report["status"])
+            self.assertEqual(["wes-assets:2026-11-25:1600"],
+                             report["source_sla"]["unresolved_missing_slot_keys"])
 
     def test_official_nyse_holiday_has_no_false_snapshot_sla(self):
         c = self._candidate()

@@ -12,7 +12,7 @@ import argparse
 import json
 import os
 from collections import defaultdict
-from datetime import datetime, timedelta, time, timezone
+from datetime import date, datetime, timedelta, time, timezone
 from pathlib import Path
 from typing import Any, Mapping
 from zoneinfo import ZoneInfo
@@ -25,6 +25,7 @@ from hypothesis_challenger_engine import (
 )
 
 SCHEMA = "briefrooms-p2-shadow-watchdog-v1"
+SLA_CHECKPOINT_SCHEMA = "briefrooms-p2-snapshot-sla-checkpoint-v1"
 NY = ZoneInfo("America/New_York")
 SLOTS = ("1000", "1300", "1600")
 SLOT_GRACE_MINUTES = 55  # collection grace (45 min) + workflow start buffer
@@ -53,6 +54,43 @@ def _parse(value: Any) -> datetime | None:
 def _age_min(now: datetime, value: Any) -> float | None:
     then = _parse(value)
     return None if then is None else round((now - then).total_seconds() / 60, 2)
+
+
+def _slot_has_confirmed_market_snapshot(
+    key: str, completed: Mapping[str, Any], now: datetime,
+) -> bool:
+    """Only an in-session collector slot receipt is snapshot evidence.
+
+    A running collector, FX observations, malformed timestamps and a fabricated
+    or late completion timestamp cannot discharge a US snapshot SLA.
+    """
+    parts = key.split(":")
+    if len(parts) != 3 or parts[0] != "wes-assets" or parts[2] not in SLOTS:
+        return False
+    try:
+        session_date = date.fromisoformat(parts[1])
+    except ValueError:
+        return False
+    calendar = session_for(session_date)
+    if not calendar["session_open"]:
+        return False
+    planned = time(int(parts[2][:2]), int(parts[2][2:]))
+    close_time = calendar["close_time"]
+    if planned > close_time or (calendar["early_close"] and planned == close_time):
+        return False
+    completed_at = _parse(completed.get(key))
+    if completed_at is None or completed_at > now + timedelta(minutes=CLOCK_FUTURE_TOLERANCE_MINUTES):
+        return False
+    start = datetime.combine(session_date, planned, tzinfo=NY)
+    later = [time(int(slot[:2]), int(slot[2:])) for slot in SLOTS if slot > parts[2]]
+    # The source collector accepts a slot only before the next planned phase;
+    # its final 16:00 phase ends 20 minutes after the regular closing auction.
+    end = (datetime.combine(session_date, min(later), tzinfo=NY) if later
+           else datetime.combine(session_date, close_time, tzinfo=NY) + timedelta(minutes=20))
+    end = min(end, datetime.combine(session_date, close_time, tzinfo=NY) + timedelta(minutes=20))
+    receipt = completed_at.astimezone(NY)
+    skew = timedelta(minutes=CLOCK_FUTURE_TOLERANCE_MINUTES)
+    return start - skew <= receipt <= end + skew
 
 
 def _market(now: datetime) -> dict[str, Any]:
@@ -183,17 +221,18 @@ def assess(state: Mapping[str, Any], p2: Mapping[str, Any] | None,
     missing_snapshot_slots = []
     for slot in session["due_slots"]:
         key = "wes-assets:" + session["session_date_ny"] + ":" + slot
-        completed_at = _parse(completed.get(key))
-        if completed_at is None or completed_at > current + timedelta(minutes=clock_tolerance):
+        if not _slot_has_confirmed_market_snapshot(key, completed, current):
             missing_snapshot_slots.append(key)
     # Remember a previously detected outage after midnight so a missing
     # forecast cannot silently become green on the next NY trading day.
-    # Canonical calibration persists this checkpoint in its cumulative state.
+    # Canonical calibration and the separate read-only monitor checkpoint can
+    # both carry unresolved slot keys; no retrospective slot is fabricated.
     previous_unresolved = ((previous or {}).get("source_sla") or {}).get(
         "unresolved_missing_slot_keys") or []
     for key in previous_unresolved:
         if (isinstance(key, str) and key.startswith("wes-assets:") and
-            _parse(completed.get(key)) is None and key not in missing_snapshot_slots):
+            not _slot_has_confirmed_market_snapshot(key, completed, current) and
+            key not in missing_snapshot_slots):
             missing_snapshot_slots.append(key)
     if missing_snapshot_slots:
         alerts.append(_alert("MARKET_SNAPSHOT_SLA_BREACHED", "CRITICAL", None,
@@ -213,8 +252,7 @@ def assess(state: Mapping[str, Any], p2: Mapping[str, Any] | None,
     if session["session_open"]:
         for slot in session["due_slots"]:
             key = "wes-assets:" + session["session_date_ny"] + ":" + slot
-            completed_at = _parse(completed.get(key))
-            if (completed_at is not None and completed_at <= current and
+            if (_slot_has_confirmed_market_snapshot(key, completed, current) and
                 not any(
                     isinstance(f.get("metadata"), Mapping) and
                     str(f["metadata"].get("slot_key") or "") == key
@@ -632,6 +670,8 @@ def main() -> int:
     ap.add_argument("--output", type=Path, required=True)
     ap.add_argument("--now")
     ap.add_argument("--monitor", action="store_true", help="External read-only monitor")
+    ap.add_argument("--sla-checkpoint", type=Path,
+                    help="Optional previously persisted independent monitor SLA checkpoint")
     ap.add_argument("--strict", action="store_true", help="Nonzero on critical alert; write report first")
     args = ap.parse_args()
     root = args.state_dir
@@ -641,6 +681,19 @@ def main() -> int:
     p2 = load(root / "HYPOTHESIS_CHALLENGERS_STATE.json", {})
     scheduler = load(root / "scheduler.json", {})
     prev = load(args.output, load(root / "P2_SHADOW_WATCHDOG.json", {}))
+    if args.sla_checkpoint and args.sla_checkpoint.exists():
+        checkpoint = load(args.sla_checkpoint, {})
+        if (not isinstance(checkpoint, dict) or
+            checkpoint.get("schema_version") != SLA_CHECKPOINT_SCHEMA or
+            not isinstance(checkpoint.get("unresolved_missing_slot_keys"), list) or
+            not all(isinstance(k, str) for k in checkpoint["unresolved_missing_slot_keys"])):
+            raise ValueError("invalid independent source SLA checkpoint; refusing silent reset")
+        prev = dict(prev)
+        source_sla = dict(prev.get("source_sla") or {})
+        source_sla["unresolved_missing_slot_keys"] = list(dict.fromkeys(
+            list(source_sla.get("unresolved_missing_slot_keys") or []) +
+            checkpoint["unresolved_missing_slot_keys"]))
+        prev["source_sla"] = source_sla
     result = assess(state, p2, scheduler, now=args.now, previous=prev,
                     monitor=args.monitor)
     args.output.parent.mkdir(parents=True, exist_ok=True)
