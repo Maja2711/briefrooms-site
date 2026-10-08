@@ -343,6 +343,22 @@ class BeliefCoreLiveTest(unittest.TestCase):
             self.assertGreaterEqual(live["evidence"], 1)
             self.assertIn("EURUSD=X", live["symbols"])
 
+    def test_same_day_stale_market_bar_never_confirms_source_slot(self) -> None:
+        # The bar is dated today in New York, but three hours stale.
+        now = datetime(2026, 10, 8, 10, 7, tzinfo=NY)
+        old_market = FakeChartClient(now - timedelta(hours=3))
+        with tempfile.TemporaryDirectory() as tmp:
+            state_dir = Path(tmp) / "core"
+            status = run_cycle(state_dir, now, old_market)
+            self.assertEqual(0, status["shared_forecasts_frozen"])
+            self.assertEqual(0, status["wes_asset_forecasts_frozen"])
+            self.assertEqual(0, status["observations_collected"])
+            scheduler_state = json.loads((state_dir / "scheduler.json").read_text())
+            self.assertNotIn("wes-assets:2026-10-08:1000",
+                             scheduler_state["completed_slots"])
+            self.assertEqual("no_fresh_current_us_session_bar",
+                             scheduler_state["gaps"][-1]["reason"])
+
     def test_end_to_end_1007_shadow_cycle_is_retry_idempotent(self) -> None:
         now=datetime(2026,8,18,10,7,tzinfo=NY)
         with tempfile.TemporaryDirectory() as tmp:
