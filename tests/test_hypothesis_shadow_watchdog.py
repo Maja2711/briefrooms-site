@@ -1,0 +1,176 @@
+"""P2.1 active-session watchdog, frozen-source lineage and alert policy tests."""
+import copy
+import sys
+import unittest
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+
+from hypothesis_shadow_watchdog import assess, public_view
+from hypothesis_challenger_engine import run, SCHEMA
+from tests.test_hypothesis_challenger_engine import (
+    candidate, registry, utility, forecast, verification, stamp
+)
+
+# 2026-10-08 is a Thursday. New York is still on summer time (EDT).
+THURSDAY = "2026-10-08T14:58:00Z"  # 10:58 NY, after first slot grace
+FRIDAY = "2026-10-09T11:00:00Z"    # 07:00 NY, outside US session
+SATURDAY = "2026-10-10T15:00:00Z"
+
+
+def state_with(c, when=THURSDAY):
+    return {"schema_version": SCHEMA, "generated_at": when,
+            "candidates": {c["candidate_id"]: c},
+            "authority": {"production_writeback": False, "frozen_forecast_mutation": False,
+                          "automatic_production_promotion": False, "trade_execution": False}}
+
+
+def scheduler(now=THURSDAY, slots=None):
+    return {"last_run_at": now, "last_status": {"observations_collected": 30},
+            "completed_slots": slots or {}, "gaps": []}
+
+
+def live_at(time_str, ident="btc.volatility.benign", slot="1000", hour=14, minutes=30, target_hour=20):
+    return {
+        "forecast_id": "live-forecast-" + slot,
+        "belief_id": ident,
+        "forecast_at": "2026-10-08T%02d:%02d:00Z" % (hour, minutes),
+        "target_at": "2026-10-08T%02d:00:00Z" % target_hour,
+        "predicted_probability": .7,
+        "outcome_rule": "vix_below_dynamic_cap",
+        "metadata": {
+            "hypothesis_version": "1", "calibration_horizon_bucket": "1S_US_SESSION",
+            "slot_key": "wes-assets:2026-10-08:" + slot,
+            "outcome_spec": {"kind": "value_below", "symbol": "^VIX", "threshold": 20},
+        },
+    }
+
+
+class P21WatchdogTests(unittest.TestCase):
+    def _candidate(self, created_at="2026-10-08T11:29:00Z"):
+        c = candidate()
+        c["created_at"] = c["activation_boundary"] = created_at
+        c["hypothesis_id"] = "btc.volatility.benign"
+        c["horizon_bucket"] = "__ALL_HORIZONS__"
+        return c
+
+    def test_premarket_no_false_market_alert(self):
+        c = self._candidate()
+        when = "2026-10-08T12:00:00Z"
+        result = assess({"forecasts": [], "verifications": []},
+                        state_with(c, when), scheduler(now=when), now=when)
+        self.assertEqual("PASS", result["status"])
+        self.assertEqual("WAITING_FIRST_SHADOW_FREEZE", result["readiness"])
+        self.assertFalse(result["session"]["market_window_active"])
+
+    def test_weekend_no_false_collector_stale_alert(self):
+        c = self._candidate()
+        result = assess({"forecasts": [], "verifications": []},
+                        state_with(c, "2026-10-09T16:00:00Z"),
+                        scheduler(now="2026-10-09T16:00:00Z"), now=SATURDAY)
+        self.assertNotIn("COLLECTOR_STALE_DURING_MARKET", result["alert_codes"])
+        self.assertNotIn("BASELINE_FORECAST_MISSING_AFTER_SLOT", result["alert_codes"])
+
+    def test_successful_slot_without_candidate_base_forecast_is_critical(self):
+        c = self._candidate()
+        done = {"wes-assets:2026-10-08:1000": "2026-10-08T14:33:00Z"}
+        r = assess({"forecasts": [], "verifications": []}, state_with(c),
+                   scheduler(slots=done), now=THURSDAY)
+        self.assertEqual("FAIL", r["status"])
+        self.assertIn("BASELINE_FORECAST_MISSING_AFTER_SLOT", r["alert_codes"])
+        self.assertEqual(0, r["summary"]["frozen_shadow_forecasts"])
+
+    def test_open_source_forecast_missing_shadow_freeze_is_recoverable_alarm(self):
+        c = self._candidate()
+        f = live_at(THURSDAY)
+        r = assess({"forecasts": [f], "verifications": []}, state_with(c),
+                   scheduler(slots={"wes-assets:2026-10-08:1000": "2026-10-08T14:34:00Z"}),
+                   now=THURSDAY)
+        self.assertEqual("FAIL", r["status"])
+        self.assertIn("SHADOW_FREEZE_GAP_OPEN", r["alert_codes"])
+        self.assertEqual(1, r["summary"]["recoverable_freeze_gaps"])
+        self.assertEqual("rerun_p2_bridge", next(x["recovery"] for x in r["alerts"]
+                          if x["code"] == "SHADOW_FREEZE_GAP_OPEN"))
+
+    def test_late_source_forecast_irrecoverable_never_backfills(self):
+        c = self._candidate()
+        f = live_at(THURSDAY, target_hour=16)
+        r = assess({"forecasts": [f], "verifications": []},
+                   state_with(c, "2026-10-08T19:00:00Z"),
+                   scheduler(now="2026-10-08T19:00:00Z"),
+                   now="2026-10-08T19:00:00Z")
+        self.assertIn("SHADOW_FREEZE_MISSED_IRRECOVERABLE", r["alert_codes"])
+        self.assertEqual(1, r["summary"]["irrecoverable_missed_freezes"])
+
+    def test_collector_stale_after_due_slot(self):
+        c = self._candidate()
+        r = assess({"forecasts": [], "verifications": []}, state_with(c),
+                   scheduler(now="2026-10-08T12:00:00Z"), now=THURSDAY)
+        self.assertIn("COLLECTOR_STALE_DURING_MARKET", r["alert_codes"])
+
+    def test_full_prospective_path_from_bridge_then_real_verification(self):
+        c = self._candidate()
+        f = live_at(THURSDAY)
+        state = {"forecasts": [f], "verifications": []}
+        raw = run(state, utility(), state_with(c, THURSDAY), now=THURSDAY,
+                  discover=False)
+        self.assertEqual(1, raw["summary"]["frozen_shadow_forecasts"])
+        pre = assess(state, raw, scheduler(now=THURSDAY), now=THURSDAY)
+        self.assertEqual("WAITING_REAL_SETTLEMENT", pre["readiness"])
+        self.assertEqual(0, pre["summary"]["real_settled_events"])
+        # No forecast rewrite / no false outcome. Later append a Verification
+        # as the *actual* canonical record from the source pipeline would.
+        outcome_at = "2026-10-08T20:20:00Z"
+        state["verifications"].append({
+            "verification_id": "real-verification-1",
+            "forecast_id": f["forecast_id"], "belief_id": f["belief_id"],
+            "target_at": f["target_at"], "verified_at": outcome_at,
+            "outcome": False, "calibration_eligible": True
+        })
+        backlog = assess(state, raw, scheduler(now=outcome_at), now=outcome_at)
+        self.assertIn("SETTLEMENT_BACKLOG", backlog["alert_codes"])
+        advanced = run(state, utility(), raw, now=outcome_at, discover=False)
+        complete = assess(state, advanced, scheduler(now=outcome_at), now=outcome_at)
+        self.assertEqual("REAL_SETTLEMENT_VERIFIED", complete["readiness"])
+        self.assertEqual(1, complete["summary"]["real_settled_events"])
+        self.assertEqual(0, complete["summary"]["real_settlement_backlog"])
+        self.assertEqual("PASS", complete["status"])
+        self.assertFalse(complete["authority"]["retrospective_oos_backfill"])
+        public = public_view(complete)
+        self.assertNotIn("shadow_forecasts", public)
+        self.assertEqual("REAL_SETTLEMENT_VERIFIED", public["readiness"])
+
+    def test_collector_bridge_is_idempotent_and_does_not_discover(self):
+        c = self._candidate()
+        f = live_at(THURSDAY)
+        state = {"forecasts": [f], "verifications": []}
+        first = run(state, utility("CHALLENGER"), state_with(c, THURSDAY),
+                    now=THURSDAY, discover=False)
+        second = run(state, utility("CHALLENGER"), first, now=THURSDAY,
+                     discover=False)
+        self.assertEqual(1, second["summary"]["frozen_shadow_forecasts"])
+        self.assertEqual(1, second["summary"]["candidates_total"])
+        self.assertEqual([], second["events_this_run"])
+        self.assertEqual(0, second["summary"]["new_candidate_count"])
+
+    def test_source_fingerprint_conflict_is_red(self):
+        c = self._candidate()
+        f = live_at(THURSDAY)
+        state = {"forecasts": [f], "verifications": []}
+        frozen = run(state, utility(), state_with(c, THURSDAY), now=THURSDAY,
+                     discover=False)
+        state["forecasts"][0]["predicted_probability"] = .9
+        r = assess(state, frozen, scheduler(now="2026-10-08T20:20:00Z"),
+                   now="2026-10-08T20:20:00Z")
+        self.assertIn("SHADOW_SETTLEMENT_INTEGRITY_FAILURE", r["alert_codes"])
+
+    def test_timestamp_corruption_is_critical(self):
+        c = self._candidate()
+        r = assess({"forecasts": [], "verifications": []},
+                   state_with(c, "2026-10-08T19:00:00Z"),
+                   scheduler(now=THURSDAY), now=THURSDAY)
+        self.assertIn("P2_REPORT_TIMESTAMP_INVALID", r["alert_codes"])
+
+
+if __name__ == "__main__":
+    unittest.main()
