@@ -17,7 +17,10 @@ class FakeElement {
     this.parentElement = null;
     this.dataset = {};
     this.attributes = {};
+    this.style = { values: {}, setProperty(name, value) { this.values[name] = value; } };
   }
+
+  getBoundingClientRect() { return { right: 1389 }; }
 
   appendChild(child) {
     if (child.parentElement) {
@@ -72,6 +75,7 @@ function bootstrap({ mobile = false, homepage = true } = {}) {
   const navigator = { userAgent: 'Chrome', platform: 'Win32', maxTouchPoints: 0 };
   const window = {
     navigator,
+    innerWidth: 1648,
     matchMedia: query => ({ matches: query.includes('max-width: 680px') ? mobile : false }),
     addEventListener: (event, handler) => events.set(event, handler),
     dispatchEvent() {}
@@ -86,13 +90,12 @@ function bootstrap({ mobile = false, homepage = true } = {}) {
   return { installButton, body, labHead, eyebrow, style: head.children[0].textContent, events };
 }
 
-test('desktop homepage install badge is anchored to Lab and not fixed to viewport', () => {
-  const { installButton, labHead, eyebrow, style } = bootstrap();
-  assert.equal(installButton.parentElement, labHead);
-  assert.equal(installButton.nextElementSibling, eyebrow);
+test('desktop homepage install badge is fixed to viewport and aligned with Lab', () => {
+  const { installButton, body, style } = bootstrap();
+  assert.equal(installButton.parentElement, body);
   assert.equal(installButton.dataset.placement, 'home-lab-desktop');
-  assert.match(style, /\.home-lab__head\s*\{position:relative\}/);
-  assert.match(style, /\[data-placement="home-lab-desktop"\]\s*\{[^}]*position:absolute;[^}]*top:-22px;[^}]*right:0;/);
+  assert.equal(installButton.style.values['--br-pwa-home-right'], '259px');
+  assert.match(style, /\[data-placement="home-lab-desktop"\]\s*\{[^}]*position:fixed;[^}]*top:calc\([^}]*right:var\(--br-pwa-home-right/);
 });
 
 test('mobile homepage keeps the existing in-flow install badge', () => {
@@ -112,6 +115,6 @@ test('non-homepage fallback remains a viewport-fixed install badge', () => {
 test('homepages request the updated, cache-busted PWA script', () => {
   for (const lang of ['pl', 'en']) {
     const html = fs.readFileSync(path.join(root, lang, 'index.html'), 'utf8');
-    assert.match(html, /<script src="\/scripts\/pwa\.js\?v=7" defer><\/script>/);
+    assert.match(html, /<script src="\/scripts\/pwa\.js\?v=8" defer><\/script>/);
   }
 });
