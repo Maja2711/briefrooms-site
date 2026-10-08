@@ -377,14 +377,14 @@
         localStorage.setItem(CURSOR_KEY, String(events[events.length - 1].event_id || ""));
         return;
       }
-      const idx = events.findIndex((e) => String(e.event_id || "") === cursor);
-      const unseen = idx >= 0 ? events.slice(idx + 1) : [];
+      // Recover only recent events; a long-offline phone must never be
+      // flooded by weeks of accumulated historical trading notifications.
       const now = Date.now();
       const recent = events.filter((event) => {
         const t = Date.parse(String(event.closed_at || event.opened_at || event.observed_at || ""));
         return Number.isFinite(t) && now >= t && now - t <= 2 * 60 * 60_000;
       });
-      const candidates = [...new Map([...recent, ...unseen].map((event) => [logicalEventId(event), event])).values()];
+      const candidates = [...new Map(recent.map((event) => [logicalEventId(event), event])).values()];
       for (const event of candidates) {
         if (eventAllowed(event, prefs)
           && !event.delivery_recovery && event.source !== "delivery_recovery"
