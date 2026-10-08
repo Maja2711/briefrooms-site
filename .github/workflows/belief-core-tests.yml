@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - "scripts/belief_core.py"
+      - "scripts/forecast_event_identity.py"
+      - "tests/test_forecast_event_identity.py"
       - "scripts/belief_calibration.py"
       - "scripts/belief_calibration_foundation.py"
       - "scripts/belief_data_quality_adapter.py"
@@ -60,6 +62,7 @@ jobs:
         run: |
           python -m py_compile \
             scripts/belief_core.py \
+            scripts/forecast_event_identity.py \
             scripts/belief_calibration.py \
             scripts/belief_calibration_foundation.py \
             scripts/belief_data_quality_adapter.py \
@@ -83,6 +86,7 @@ jobs:
       - name: Run Belief Core unit tests
         run: |
           python -m unittest discover -s tests -p 'test_belief_core*.py' -v
+          PYTHONPATH=scripts python -m unittest discover -s tests -p 'test_forecast_event_identity.py' -v
           python -m unittest tests.test_decision_lab_live_refresh -v
           PYTHONPATH=scripts python -m unittest discover -s tests -p 'test_decision_lab_public_projection.py' -v
           python -m unittest tests.test_belief_geopolitical_forecast_adapter -v
