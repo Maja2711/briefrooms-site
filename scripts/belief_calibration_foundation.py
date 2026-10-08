@@ -232,7 +232,7 @@ def build_report(
         observation_parse_errors=int(observations_file["parse_errors"]),
         ledger_integrity=ledger_integrity,
     )
-    calibration = build_calibration_report(verifications)
+    calibration = core.calibration_summary()  # P0: one independent event per scored outcome
     gse = summarize_gse(gse_state_dir, now)
 
     source_health = {
