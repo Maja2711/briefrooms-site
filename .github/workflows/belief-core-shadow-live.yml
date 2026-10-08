@@ -10,6 +10,7 @@ on:
       - "scripts/audit_provenance.py"
       - "scripts/provenance_contract.py"
       - "scripts/belief_closed_loop.py"
+      - "scripts/hypothesis_challenger_engine.py"
       - "data/investments/belief_core_production_overrides.json"
       - "tests/test_belief_closed_loop.py"
       - "scripts/belief_market_data_adapter.py"
@@ -201,6 +202,28 @@ jobs:
 
       - name: Run 30-minute shadow collection cycle
         run: python scripts/belief_core_live.py --state-dir "$STATE_DIR"
+
+      - name: P2 collector-side freeze and verification bridge
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts
+        run: |
+          set -euo pipefail
+          python scripts/hypothesis_challenger_engine.py \
+            --advance-only --state-dir "$STATE_DIR" \
+            --output "$STATE_DIR/HYPOTHESIS_CHALLENGERS_STATE.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          f=Path(os.environ["STATE_DIR"]) / "HYPOTHESIS_CHALLENGERS_STATE.json"
+          if f.exists():
+              p=json.loads(f.read_text())
+              assert p["authority"]["production_writeback"] is False
+              assert p["authority"]["frozen_forecast_mutation"] is False
+              assert p["summary"]["production_promotions"] == 0
+              print("P2_COLLECTOR_BRIDGE_PASS", p.get("bridge_telemetry", {}))
+          else:
+              print("P2_COLLECTOR_BRIDGE_NOT_INITIALIZED")
+          PY
 
       - name: Validate persisted shadow state
         run: |
