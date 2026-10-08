@@ -1,0 +1,95 @@
+{
+  "authority": {
+    "automatic_promotion": false,
+    "belief_core_mutation": false,
+    "daily_exit_mutation": false,
+    "direction_decision_influence": false,
+    "same_day_training": false,
+    "trade_execution": false
+  },
+  "definition": {
+    "binary_target": "future_closed_1m_mid_above_observed_mid_by_max_3p_or_25pct_of_observed_downswing",
+    "censored_class": "missing_future_1m_close_or_gap",
+    "eligibility": "EMA20_below_EMA60;90_contiguous_1m_bars;8p_min_impulse;near_trough",
+    "features_source": "only_closed_1m_EURUSD_prices",
+    "forecast_horizons_minutes": [
+      5,
+      15,
+      30
+    ],
+    "negative_class": "full_contiguous_horizon_without_target",
+    "no_trade_selection_or_PnL_inputs": true,
+    "sampling": "max_one_eligible_asof_observation_per_30min_UTC_slot",
+    "train_uses_strictly_previous_UTC_dates": true
+  },
+  "horizons": {
+    "15": {
+      "forecast": {
+        "n": 29,
+        "p": null,
+        "status": "NO_FRESH_ELIGIBLE_DOWNSWING"
+      },
+      "frozen_prospective_oos": {
+        "n": 0,
+        "status": "NO_OOS_FORECASTS"
+      },
+      "live_resolved_episodes": 0,
+      "production_authority": false,
+      "replay_walk_forward": {
+        "n": 0,
+        "status": "NO_OOS_FORECASTS"
+      },
+      "research_release_gates_met": false
+    },
+    "30": {
+      "forecast": {
+        "n": 28,
+        "p": null,
+        "status": "NO_FRESH_ELIGIBLE_DOWNSWING"
+      },
+      "frozen_prospective_oos": {
+        "n": 0,
+        "status": "NO_OOS_FORECASTS"
+      },
+      "live_resolved_episodes": 0,
+      "production_authority": false,
+      "replay_walk_forward": {
+        "n": 0,
+        "status": "NO_OOS_FORECASTS"
+      },
+      "research_release_gates_met": false
+    },
+    "5": {
+      "forecast": {
+        "n": 29,
+        "p": null,
+        "status": "NO_FRESH_ELIGIBLE_DOWNSWING"
+      },
+      "frozen_prospective_oos": {
+        "n": 0,
+        "status": "NO_OOS_FORECASTS"
+      },
+      "live_resolved_episodes": 0,
+      "production_authority": false,
+      "replay_walk_forward": {
+        "n": 0,
+        "status": "NO_OOS_FORECASTS"
+      },
+      "research_release_gates_met": false
+    }
+  },
+  "instrument": "EUR/USD",
+  "latest_market_observation": null,
+  "mode": "PROSPECTIVE_PLUS_MARKET_REPLAY_SHADOW",
+  "prospective_episode_count": 0,
+  "prospective_episodes": [],
+  "replay_coverage": {
+    "dates": 5,
+    "first": "2026-10-02T00:30:00Z",
+    "last": "2026-10-08T16:00:00Z"
+  },
+  "replay_episode_count": 37,
+  "research_note": "NO calibrated probability or trading exit claim until prospective OOS, sufficient days and risk validation",
+  "schema_version": "eurusd-correction-probability-shadow-v1",
+  "updated_at": "2026-10-08T20:50:33Z"
+}
