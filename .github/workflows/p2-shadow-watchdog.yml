@@ -175,11 +175,20 @@ jobs:
           from pathlib import Path
           p=json.loads((Path(os.environ["RUNNER_TEMP"])/"P2_MONITOR.json").read_text())
           codes=set(p["alert_codes"])
-          raise SystemExit(0 if codes & {
+          always_recoverable = codes & {
               "COLLECTOR_STALE_DURING_MARKET", "BASELINE_FORECAST_MISSING_AFTER_SLOT",
               "SOURCE_FORECASTS_MISSING_AFTER_CONFIRMED_SLOT",
-              "MARKET_SNAPSHOT_SLA_BREACHED"
-          } else 1)
+          }
+          # A prior-day/after-close missing snapshot stays FAIL, but another
+          # FX-only collector run cannot retroactively satisfy its US slot.
+          current_prefix = "wes-assets:" + p["session"]["session_date_ny"] + ":"
+          active_snapshot_gap = (
+              "MARKET_SNAPSHOT_SLA_BREACHED" in codes
+              and p["session"]["market_window_active"]
+              and any(key.startswith(current_prefix)
+                      for key in p["source_sla"]["unresolved_missing_slot_keys"])
+          )
+          raise SystemExit(0 if always_recoverable or active_snapshot_gap else 1)
           PY
           then exit 0; fi
           # Rate-limit recovery: never duplicate a collector fired within 90m.
