@@ -966,7 +966,7 @@ export class PushHub {
       const status = String(row?.status || "");
       if (Object.hasOwn(stateCounts, status)) stateCounts[status] += 1;
     }
-    const pending = stateCounts.UNSENT + stateCounts.SENDING + stateCounts.SENT_TO_PUSH;
+    const pending = stateCounts.UNSENT + stateCounts.SENDING; // Provider-accepted pushes do not await ACK.
 
     const stats = (await this.ctx.storage.get("stats")) || {};
     stats.sent = Number(stats.sent || 0) + sent;
