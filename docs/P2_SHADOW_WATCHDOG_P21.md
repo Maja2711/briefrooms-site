@@ -47,6 +47,8 @@ Sanitized public:
 
 GitHub workflow `.github/workflows/p2-shadow-watchdog.yml`: read-only independent monitor, half-hour schedule, one deduplicated Issue titled **P2.1 Shadow Watchdog: collection or settlement stall**. A critical alarm fails the monitor workflow. Issue API failure cannot mask a failing Actions alarm.
 
+The monitor's GitHub Actions step summary explicitly shows the first `btc.volatility.benign` Shadow commitment after activation, including `forecast_id`, deterministic `shadow_forecast_id`, `event_id`, source hash and freeze/target chronology. It remains **PENDING** before the first real freeze; it never synthesizes proof from collector heartbeats. Only when the independent E2E gate is `PASS`, it additionally shows the real Yahoo-linked source Verification identifier and baseline/challenger Brier scores. These are audit metadata (no private probabilities, market prices, or authorization).
+
 ## Acceptance conditions
 
 1. No false missing-source alarm before US session, during weekends or before planned slot+55min.

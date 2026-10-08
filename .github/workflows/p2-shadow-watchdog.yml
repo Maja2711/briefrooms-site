@@ -133,6 +133,38 @@ jobs:
                   out.write("- " + k + ": **" + str(v) + "**\n")
               for alert in p["alerts"]:
                   out.write("- **" + alert["severity"] + " " + alert["code"] + "**: " + str(alert["count"]) + "\n")
+              target_candidate = next(
+                  (c for c in p.get("candidates", [])
+                   if c.get("hypothesis_id") == "btc.volatility.benign"), None)
+              if target_candidate is not None:
+                  out.write("\n### First BTC volatility Shadow freeze\n\n")
+                  freeze = target_candidate.get("first_shadow_freeze_proof")
+                  if freeze:
+                      from datetime import datetime
+                      def dt(value):
+                          return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+                      assert all(freeze.get(k) for k in (
+                          "forecast_id", "shadow_forecast_id", "event_id",
+                          "source_snapshot_sha256", "forecast_at", "frozen_at", "target_at"))
+                      assert dt(target_candidate["activation_boundary"]) < dt(freeze["forecast_at"])
+                      assert dt(freeze["forecast_at"]) <= dt(freeze["frozen_at"]) < dt(freeze["target_at"])
+                      out.write("- First freeze observed; watchdog status: **" + p["status"] + "**\n")
+                      for field in ("candidate_id", "hypothesis_id"):
+                          out.write("- " + field + ": `" + str(target_candidate[field]) + "`\n")
+                      for field in ("event_id", "forecast_id", "shadow_forecast_id",
+                                    "forecast_at", "frozen_at", "target_at", "source_snapshot_sha256"):
+                          out.write("- " + field + ": `" + str(freeze[field]) + "`\n")
+                  else:
+                      out.write("- **PENDING:** no immutable first-freeze proof yet\n")
+              if p["production_e2e_status"] == "PASS":
+                  proof = p["production_e2e_proof"]
+                  assert proof and proof["source_verification_id"] and proof["source_snapshot_sha256"]
+                  out.write("\n### Real Yahoo OOS settlement — E2E PASS\n\n")
+                  for field in ("candidate_id", "event_id", "forecast_id",
+                                "shadow_forecast_id", "source_verification_id",
+                                "frozen_at", "target_at", "verified_at",
+                                "control_brier", "challenger_brier", "source_snapshot_sha256"):
+                      out.write("- " + field + ": `" + str(proof[field]) + "`\n")
           PY
 
       - name: Write sanitized independent source SLA checkpoint
