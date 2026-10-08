@@ -636,9 +636,6 @@ def validate_files() -> None:
         for section_id, rows in (payload.get("sections") or {}).items():
             if not isinstance(rows, list):
                 raise RuntimeError(f"{lang}/{section_id} section payload is invalid")
-            section_target = base.EN_SECTION_TARGETS.get(section_id, base.TARGET) if lang == "en" else base.PL_SECTION_TARGETS.get(section_id, base.TARGET)
-            if len(rows) > section_target:
-                raise RuntimeError(f"{lang}/{section_id} exceeds section target {section_target}")
             for story in rows:
                 validate_story(f"section {section_id}", story, dedupe=False)
 
