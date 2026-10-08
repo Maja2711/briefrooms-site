@@ -18,6 +18,7 @@ import {
   transitionDelivery,
   retryDelayMs,
   deliveryReadyForRetry,
+  ackRetryDelayMs,
   isSyntheticRecoveryEvent,
   PushHub,
 } from "../src/index.js";
@@ -371,7 +372,7 @@ test("durable delivery follows UNSENT to SENDING to SENT_TO_PUSH to ACKED", () =
   assert.throws(() => transitionDelivery(acked, DELIVERY_STATUS.SENDING), /invalid_delivery_transition/);
 });
 
-test("accepted and ambiguous deliveries are never retried without ACK", () => {
+test("ACK-missing accepted pushes retry only within a bounded window", () => {
   const unsent = newDeliveryRecord("event-1", "sub-a", "secret", "2026-10-07T10:00:00.000Z");
   assert.equal(deliveryReadyForRetry(unsent, Date.parse("2026-10-07T10:00:01.000Z")), true);
 
@@ -383,7 +384,13 @@ test("accepted and ambiguous deliveries are never retried without ACK", () => {
     sent_to_push_at: "2026-10-07T10:00:00.000Z",
   });
   assert.equal(deliveryReadyForRetry(sent, Date.parse("2026-10-07T10:04:59.000Z")), false);
-  assert.equal(deliveryReadyForRetry(sent, Date.parse("2026-10-07T10:05:01.000Z")), false);
+  assert.equal(deliveryReadyForRetry(sent, Date.parse("2026-10-07T10:05:01.000Z")), true);
+  const maxed = { ...sent, attempts: 5 };
+  assert.equal(deliveryReadyForRetry(maxed, Date.parse("2026-10-07T10:05:01.000Z")), false);
+  assert.equal(deliveryReadyForRetry(sent, Date.parse("2026-10-07T12:05:01.000Z")), false);
+  assert.equal(ackRetryDelayMs(1), 300000);
+  assert.equal(ackRetryDelayMs(2), 600000);
+  assert.equal(ackRetryDelayMs(3), 1200000);
   assert.equal(retryDelayMs(1), 30000);
   assert.ok(retryDelayMs(99) <= 15 * 60 * 1000);
 });
@@ -502,7 +509,7 @@ test("pending legacy recovery event is expired rather than resent", async () => 
   assert.equal(row.last_error, "synthetic_recovery_replay_suppressed");
 });
 
-test("provider acceptance is terminal without browser ACK, also for old pending rows", async () => {
+test("legacy unconfirmed provider acceptance expires after retry age limit without stale replay", async () => {
   const storage = new FakeStorage();
   const hub = new PushHub({ storage }, {});
   const base = newDeliveryRecord("evt-accepted", "sub-a", "secret", "2026-10-07T10:00:00.000Z");
@@ -512,14 +519,16 @@ test("provider acceptance is terminal without browser ACK, also for old pending 
     next_retry_at: "2026-10-07T10:05:02.000Z",
   }));
   await storage.put("recipients:evt-accepted", { initialized_at: "2026-10-07T10:00:00.000Z", count: 1 });
-  assert.equal(await hub.refreshEventCompletion("evt-accepted"), true);
-  assert.equal(await storage.get("event-complete:evt-accepted"), true);
+  assert.equal(await hub.refreshEventCompletion("evt-accepted"), false);
   const result = await hub.deliverPending();
   assert.equal(result.sent, 0);
   assert.equal(result.pending, 0);
   const delivered = await storage.get("delivery:evt-accepted:sub-a");
+  assert.equal(delivered.status, DELIVERY_STATUS.EXPIRED);
   assert.equal(delivered.next_retry_at, null);
   assert.equal(delivered.attempts, 1);
+  assert.equal(delivered.last_error, "ack_not_received_after_bounded_retries");
+  assert.equal(await storage.get("event-complete:evt-accepted"), true);
 });
 
 test("stale SENDING gets closed as uncertain without repeating the push", async () => {
