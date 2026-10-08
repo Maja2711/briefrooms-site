@@ -196,7 +196,8 @@ def assess(state: Mapping[str, Any], p2: Mapping[str, Any] | None,
         if (not stamp or not forecast_at or not target_at or
             not forecast_at < target_at <= stamp <= current or
             str(v.get("belief_id") or "") != str(f.get("belief_id") or "") or
-            not trusted_market_verification(v, f.get("target_at"))):
+            not bool(v.get("calibration_eligible", False)) or
+            not trusted_market_verification(v, f.get("target_at"), f)):
             continue
         source_verification_count += 1
         if source_last_verified is None or stamp > source_last_verified:
@@ -249,6 +250,7 @@ def assess(state: Mapping[str, Any], p2: Mapping[str, Any] | None,
                     "forecast_at": commit["forecast_at"],
                     "target_at": commit["target_at"],
                     "raw_probability": round(float(source["predicted_probability"]), 12),
+                    "outcome_spec_sha256": sha((source.get("metadata") or {}).get("outcome_spec")),
                 })
                 if expected != commit["source_snapshot_sha256"]:
                     raise ValueError("frozen source mutated")
