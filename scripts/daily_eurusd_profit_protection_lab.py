@@ -151,7 +151,9 @@ def simulate(trade: Mapping[str, Any], bars: Sequence[dict], policy: str) -> dic
         return {"status": "NO_CANONICAL_BASELINE"}
     pending = None
     for index, bar in enumerate(path):
-        # The prior bar's decision can be filled at the next bar's OPEN.
+        # Deliberate latency: after a bar CLOSE makes a signal available,
+        # one entire bar must elapse before the simulated entry-side OPEN.
+        # This prevents an impossible zero-latency fill at the exact close.
         # Terminal STOP/TP precedence remains conservative.
         terminal = _intrabar_terminal(trade, bar, half)
         if terminal:
@@ -170,8 +172,12 @@ def simulate(trade: Mapping[str, Any], bars: Sequence[dict], policy: str) -> dic
                 "execution_proven": False,
             }
         if pending is not None:
-            # PENDING signal was known at previous completed bar's end.
-            # Next bar's OPEN is a simulated and unverified market fill.
+            signal_at = parse(pending["signal_at_bar_close"])
+            if signal_at is None or bar["time"] <= signal_at:
+                # Even if market opened at exactly the signal timestamp, it
+                # was not available early enough to guarantee a market fill.
+                continue
+            # Strictly later OPEN, with >=1m latency; NOT executable quote.
             fill = float(bar.get("open") if bar.get("open") is not None else bar["close"])
             pips, r = result_r(trade, fill, half)
             return {
@@ -182,6 +188,7 @@ def simulate(trade: Mapping[str, Any], bars: Sequence[dict], policy: str) -> dic
                 "vs_actual_r": round(r-float(baseline_r),6),
                 "cost_half_spread_pips": half, "epe_half_spread_recorded": epe_recorded,
                 "execution_proven": False, "signal_available_before_fill": True,
+                "latency_since_signal_seconds": round((bar["time"]-signal_at).total_seconds(),2),
             }
         pending = _asof_signal(path[:index+1], trade, policy)
     return {
