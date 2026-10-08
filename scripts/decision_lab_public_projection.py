@@ -68,7 +68,65 @@ def frozen_t0_projection(forecast):
     return None, meta.get("t0_at") or meta.get("market_observed_at") or forecast.get("forecast_at"), None
 
 
-def build_payload(state, report, closed_loop=None, evolution_controller=None):
+def public_hypothesis_utility(source):
+    """Only aggregate diagnostic measurements and bounded recommendations go public.
+
+    No question text, Evidence details, private research records or run payloads.
+    """
+    p = source or {}
+    if p.get("schema_version") != "briefrooms-hypothesis-utility-v1":
+        return {
+            "schema_version": "briefrooms-hypothesis-utility-v1",
+            "status": "NOT_AVAILABLE",
+            "hypotheses": {},
+            "summary": {"hypotheses": 0},
+            "authority": {"production_writeback": False, "automatic_retirement": False},
+        }
+    allowed_predictive = {
+        "independent_events", "distinct_target_dates", "status", "recommendation",
+        "reasons", "brier", "ece", "calibration_bias", "brier_skill_vs_50_50",
+        "brier_gain_vs_prequential_base_rate", "brier_gain_95pct_approx_interval",
+        "confidence_interval_caveat", "benchmark", "horizons",
+    }
+    allowed_research = {
+        "status", "research_attempts_observed", "attempts_with_evidence",
+        "evidence_gain_rate", "settled_independent_events", "unvalidated_settlement_records",
+        "mean_brier_gain_vs_pre_research", "measured_cost_usd", "cost_data_status",
+        "gain_per_usd", "attribution",
+    }
+    public = {}
+    for belief_id, row in (p.get("hypotheses") or {}).items():
+        if not isinstance(row, dict):
+            continue
+        public[str(belief_id)] = {
+            "hypothesis_id": row.get("hypothesis_id"),
+            "hypothesis_version": row.get("hypothesis_version"),
+            "lifecycle_status": row.get("lifecycle_status"),
+            "recommendation": row.get("recommendation"),
+            "reasons": row.get("reasons") or [],
+            "predictive_utility": {
+                k: v for k, v in (row.get("predictive_utility") or {}).items()
+                if k in allowed_predictive
+            },
+            "research_utility": {
+                k: v for k, v in (row.get("research_utility") or {}).items()
+                if k in allowed_research
+            },
+            "decision_authority": False,
+            "automatic_retirement": False,
+        }
+    return {
+        "schema_version": "briefrooms-hypothesis-utility-v1",
+        "generated_at": p.get("generated_at"),
+        "status": "SHADOW_READ_ONLY",
+        "authority": {"production_writeback": False, "automatic_retirement": False},
+        "summary": p.get("summary") or {},
+        "policy": p.get("policy") or {},
+        "hypotheses": public,
+    }
+
+
+def build_payload(state, report, closed_loop=None, evolution_controller=None, hypothesis_utility=None):
     forecasts = records(state.get("forecasts"))
     candidate_ids = set(V3_CANDIDATE_IDS)
     candidate_forecasts = [f for f in forecasts if str(f.get("belief_id") or "") in candidate_ids]
@@ -377,6 +435,7 @@ def build_payload(state, report, closed_loop=None, evolution_controller=None):
         "horizon_aggregate_min_sample": 30,
         "hypothesis_brier": hypothesis_brier,
         "hypothesis_intelligence": hypothesis_brier,
+        "hypothesis_utility": public_hypothesis_utility(hypothesis_utility),
         "event_evaluation": {**event_evaluation, "all_beliefs": all_event_evaluation},
         "metrics": {
             "raw_resolved_forecasts": len(eligible_raw),
@@ -548,7 +607,8 @@ def main() -> int:
     report = load(root / "BELIEF_CALIBRATION_REPORT.json", {})
     closed_loop = load(root / "BELIEF_CLOSED_LOOP.json", {})
     evolution_controller = load(Path("data/investments/evolution_controller_public.json"), {})
-    payload = build_payload(state, report, closed_loop, evolution_controller)
+    hypothesis_utility = load(root / "HYPOTHESIS_UTILITY_REPORT.json", {})
+    payload = build_payload(state, report, closed_loop, evolution_controller, hypothesis_utility)
 
     out = Path(args.output)
     out.parent.mkdir(parents=True, exist_ok=True)
