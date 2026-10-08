@@ -1,0 +1,192 @@
+name: P2 Shadow Watchdog
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "7,37 * * * *"
+  workflow_run:
+    workflows:
+      - "Belief Calibration Foundation"
+      - "Belief Core Live Shadow Collection"
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: write
+  issues: write
+
+concurrency:
+  group: p2-shadow-watchdog-readonly
+  cancel-in-progress: true
+
+jobs:
+  monitor:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ARTIFACT: belief-core-shadow-state
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Prepare independent watchdog
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts
+        run: |
+          set -euo pipefail
+          python -m unittest tests.test_hypothesis_shadow_watchdog \
+            tests.test_hypothesis_challenger_engine -q
+          echo "P2_STATE=$RUNNER_TEMP/p2-monitor" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/p2-monitor"
+
+      - name: Restore latest canonical Belief state read-only
+        run: |
+          set -euo pipefail
+          curl -fsSL -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts?name=$ARTIFACT&per_page=100" \
+            > "$RUNNER_TEMP/p2-artifacts.json"
+          aid=$(python - "$RUNNER_TEMP/p2-artifacts.json" <<'PY'
+          import json,sys
+          from pathlib import Path
+          rows=[x for x in json.loads(Path(sys.argv[1]).read_text()).get("artifacts",[])
+                if not x.get("expired")]
+          rows.sort(key=lambda x:x.get("created_at",""),reverse=True)
+          print(rows[0]["id"] if rows else "")
+          PY
+          )
+          [[ -n "$aid" ]] || { echo "::error::Canonical Belief artifact unavailable"; exit 2; }
+          curl -fsSL -L -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/$aid/zip" \
+            -o "$RUNNER_TEMP/p2-belief.zip"
+          mkdir -p "$RUNNER_TEMP/p2-extracted"
+          unzip -q "$RUNNER_TEMP/p2-belief.zip" -d "$RUNNER_TEMP/p2-extracted"
+          test -s "$RUNNER_TEMP/p2-extracted/belief-core-state.tgz"
+          tar -xzf "$RUNNER_TEMP/p2-extracted/belief-core-state.tgz" -C "$P2_STATE"
+          test -s "$P2_STATE/state.json"
+
+      - name: Run independent watchdog audit
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts
+        run: |
+          set -euo pipefail
+          python scripts/hypothesis_shadow_watchdog.py \
+            --monitor --state-dir "$P2_STATE" \
+            --output "$RUNNER_TEMP/P2_MONITOR.json"
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          p=json.loads((Path(os.environ["RUNNER_TEMP"])/"P2_MONITOR.json").read_text())
+          with Path(os.environ["GITHUB_STEP_SUMMARY"]).open("a") as out:
+              out.write("## P2.1 Shadow Watchdog\n\n")
+              out.write("**" + p["status"] + "** · " + p["readiness"] + "\n\n")
+              for k,v in p["summary"].items():
+                  out.write("- " + k + ": **" + str(v) + "**\n")
+              for alert in p["alerts"]:
+                  out.write("- **" + alert["severity"] + " " + alert["code"] + "**: " + str(alert["count"]) + "\n")
+          PY
+
+      - name: Dispatch collector recovery if source stopped
+        if: always()
+        run: |
+          set -euo pipefail
+          test -s "$RUNNER_TEMP/P2_MONITOR.json" || exit 0
+          if ! python - <<'PY'
+          import json,os
+          from pathlib import Path
+          p=json.loads((Path(os.environ["RUNNER_TEMP"])/"P2_MONITOR.json").read_text())
+          codes=set(p["alert_codes"])
+          raise SystemExit(0 if codes & {
+              "COLLECTOR_STALE_DURING_MARKET", "BASELINE_FORECAST_MISSING_AFTER_SLOT"
+          } else 1)
+          PY
+          then exit 0; fi
+          # Rate-limit recovery: never duplicate a collector fired within 90m.
+          if gh run list --workflow "Belief Core Live Shadow Collection" \
+             --json createdAt --limit 10 | python -c '
+          import json,sys
+          from datetime import datetime,timezone
+          now=datetime.now(timezone.utc)
+          rows=json.load(sys.stdin)
+          recent=any(
+              (now-datetime.fromisoformat(x["createdAt"].replace("Z","+00:00"))).total_seconds()<5400
+              for x in rows if x.get("createdAt")
+          )
+          sys.exit(0 if recent else 1)
+          '; then
+            echo "P2_RECOVERY_RATE_LIMIT: recent collector already running/recent"
+          else
+            echo "::warning title=P2 recovery::Dispatching Belief source collection"
+            gh workflow run belief-core-shadow-live.yml --ref main
+          fi
+
+      - name: Deduplicated critical alert and recovery resolution
+        if: always()
+        run: |
+          set -euo pipefail
+          file="$RUNNER_TEMP/P2_MONITOR.json"
+          [[ -s "$file" ]] || { echo "::error::P2 monitor report missing"; exit 2; }
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          p=json.loads((Path(os.environ["RUNNER_TEMP"])/"P2_MONITOR.json").read_text())
+          b=Path(os.environ["RUNNER_TEMP"])/"p2-issue.md"
+          lines=[
+              "# P2.1 Shadow Watchdog: collection or settlement stall",
+              "",
+              "Computed from the latest canonical cumulative Belief Core artifact.",
+              "- Generated at: "+p["generated_at"],
+              "- Status: "+p["status"],
+              "- Actual settlement proof: "+p["readiness"],
+              "- Active market-window: "+str(p["session"]["market_window_active"]),
+              "",
+              "## Counters",
+          ]
+          lines += ["- "+k+": "+str(v) for k,v in p["summary"].items()]
+          lines += ["", "## Alerts (sanitized)"]
+          lines += ["- "+a["severity"]+" "+a["code"]+" candidate="+str(a["candidate_id"])+
+                    " n="+str(a["count"])+" / "+a["reason"] for a in p["alerts"]]
+          lines += ["", "No historical Shadow freeze may be fabricated or backdated."]
+          b.write_text("\n".join(lines)+"\n")
+          PY
+          title="P2.1 Shadow Watchdog: collection or settlement stall"
+          issue=$(gh issue list --state open --limit 100 --json number,title \
+            --jq '.[] | select(.title=="P2.1 Shadow Watchdog: collection or settlement stall") | .number' \
+            2>/dev/null | head -n 1 || true)
+          health=$(python - <<'PY'
+          import json,os
+          from pathlib import Path
+          p=json.loads((Path(os.environ["RUNNER_TEMP"])/"P2_MONITOR.json").read_text())
+          print(p["status"])
+          PY
+          )
+          if [[ "$health" == "FAIL" ]]; then
+            if [[ -z "$issue" ]]; then
+              gh issue create --title "$title" --body-file "$RUNNER_TEMP/p2-issue.md" ||
+                echo "::warning::Issue API unavailable, Actions alarm still active"
+            else
+              echo "P2_ALERT_ALREADY_OPEN=$issue"
+            fi
+            echo "::error title=P2.1 Shadow Watchdog::Critical stale, missed freeze or Verification fault"
+            exit 2
+          fi
+          if [[ -n "$issue" ]]; then
+            gh issue close "$issue" --comment "P2 watchdog recovered ($health), verified by the latest independent run." ||
+              echo "::warning::Cannot close prior watchdog issue"
+          fi
+          if [[ "$health" == "WARN" ]]; then
+            echo "::warning title=P2.1 Shadow Watchdog::Noncritical market/source freshness warning"
+          else
+            echo "P2_SHADOW_INDEPENDENT_WATCHDOG_PASS"
+          fi
