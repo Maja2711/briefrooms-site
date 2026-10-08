@@ -8,7 +8,7 @@ import os
 import sys
 from datetime import datetime, time, timedelta, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 from zoneinfo import ZoneInfo
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -60,6 +60,29 @@ PRIMARY_RESEARCH_HORIZON_HOURS = 24
 CLOCK_HORIZON_LABELS = {3:"3H", 12:"12H", 24:"24H", 72:"3D", 120:"5D"}
 SESSION_HORIZON_LABELS = {3:"0.125S", 12:"0.5S", 24:"1S", 72:"3S", 120:"5S"}
 PRODUCTION_POLICY_PATH = SCRIPT_DIR.parent / "data" / "investments" / "belief_core_production_overrides.json"
+
+# Live market APIs can publish the current partial bar a second or two after the
+# workflow captures its cycle clock. Treat only that tiny same-cycle skew as
+# contemporaneous. Larger future timestamps remain untouched and are still
+# rejected by BeliefAuditor as look-ahead.
+LIVE_INGEST_CLOCK_SKEW_SECONDS = 5.0
+
+
+def bounded_live_recompute_time(cycle_now: datetime, evidence: Sequence[Any]) -> datetime:
+    base = parse_time(cycle_now)
+    out = base
+    for item in evidence:
+        raw = getattr(item, "observed_at", None)
+        if not raw:
+            continue
+        try:
+            stamp = parse_time(raw)
+        except (TypeError, ValueError):
+            continue
+        skew = (stamp - base).total_seconds()
+        if 0.0 < skew <= LIVE_INGEST_CLOCK_SKEW_SECONDS and stamp > out:
+            out = stamp
+    return out
 
 
 def load_production_policy() -> Dict[str, Any]:
@@ -765,6 +788,7 @@ def run_cycle(state_dir: Path, now: datetime, client: YahooChartClient) -> Dict[
             observation_count += append_observations(state_dir, asset_result.observations)
             if asset_result.evidence:
                 core.ingest(asset_result.evidence)
+                now = bounded_live_recompute_time(now, asset_result.evidence)
                 core.recompute(now)
                 core.save()
             evidence_count += len(asset_result.evidence)
@@ -794,6 +818,9 @@ def run_cycle(state_dir: Path, now: datetime, client: YahooChartClient) -> Dict[
             # on selected world/forecast slots, allowing Daily EURUSD to consume a
             # freshly packaged but stale belief projection and fall to artificial
             # 50/0 NO_TRADE. Recompute on every successful market ingest.
+            # Bound sub-five-second provider/runtime clock skew without weakening
+            # the auditor's rejection of genuinely future-dated evidence.
+            now = bounded_live_recompute_time(now, evidence)
             core.recompute(now)
             evidence_count = len(evidence)
             adapter_counts = payload["adapter_counts"]
