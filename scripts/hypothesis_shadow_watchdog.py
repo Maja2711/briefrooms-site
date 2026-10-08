@@ -150,6 +150,29 @@ def assess(state: Mapping[str, Any], p2: Mapping[str, Any] | None,
 
     forecasts = [f for f in state.get("forecasts", []) if isinstance(f, Mapping)]
     forecast_map = {str(f.get("forecast_id")): f for f in forecasts if f.get("forecast_id")}
+
+    # Independent SOURCE forecast liveness, even without an eligible P2 candidate.
+    # A completed, mature and confirmed WES-ASSET slot must leave at least one
+    # canonical source forecast. This check cannot be masked by candidate
+    # discovery status or a recently refreshed scheduler heartbeat.
+    source_missing_slots = []
+    if session["market_window_active"]:
+        for slot in session["due_slots"]:
+            key = "wes-assets:" + session["session_date_ny"] + ":" + slot
+            completed_at = _parse(completed.get(key))
+            if (completed_at is not None and completed_at <= current and
+                not any(
+                    isinstance(f.get("metadata"), Mapping) and
+                    str(f["metadata"].get("slot_key") or "") == key
+                    for f in forecasts
+                )):
+                source_missing_slots.append(key)
+    if source_missing_slots:
+        alerts.append(_alert("SOURCE_FORECASTS_MISSING_AFTER_CONFIRMED_SLOT",
+                             "CRITICAL", None,
+                             "collector completed an actual market slot with zero canonical asset forecasts",
+                             count=len(source_missing_slots)))
+
     verifications = [v for v in state.get("verifications", []) if isinstance(v, Mapping)]
     verification_by_event: dict[str, list[Mapping[str, Any]]] = defaultdict(list)
     for v in verifications:
@@ -428,6 +451,7 @@ def assess(state: Mapping[str, Any], p2: Mapping[str, Any] | None,
         },
         "summary": {
             "active_challengers": len(monitored),
+            "confirmed_slots_without_any_forecast": len(source_missing_slots),
             "source_baseline_events_since_activation": sum(x["source_baseline_events_since_activation"] for x in monitored),
             "frozen_shadow_forecasts": sum(x["frozen_shadow_forecasts"] for x in monitored),
             "real_settled_events": sum(x["verified_settlement_links"] for x in monitored),
