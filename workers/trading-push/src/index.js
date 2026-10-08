@@ -646,6 +646,19 @@ const DELIVERY_STATUS = Object.freeze({
 });
 const SENDING_STALE_MS = 2 * 60_000;
 const MAX_RETRY_MS = 15 * 60_000;
+const ACK_TIMEOUT_MS = 5 * 60_000;
+const MAX_DELIVERY_ATTEMPTS = 5;
+const MAX_DELIVERY_AGE_MS = 2 * 60 * 60_000;
+const ACK_RETRY_BASE_MS = 5 * 60_000;
+
+function ackRetryDelayMs(attempts) {
+  return Math.min(60 * 60_000, ACK_RETRY_BASE_MS * (2 ** Math.max(0, Number(attempts || 1) - 1)));
+}
+
+function deliveryAgeMs(record, nowMs = Date.now()) {
+  const startedMs = Date.parse(String(record?.created_at || ""));
+  return Number.isFinite(startedMs) ? nowMs - startedMs : Infinity;
+}
 
 function deliveryId(eventIdValue, subscriberId) {
   return `${String(eventIdValue)}:${String(subscriberId)}`;
@@ -716,9 +729,15 @@ function retryDelayMs(attempts) {
 }
 
 function deliveryReadyForRetry(record, nowMs = Date.now()) {
-  // An accepted push is final for transport. Missing browser ACK must
-  // never cause a second Android notification.
-  if (String(record?.status || "") !== DELIVERY_STATUS.UNSENT) return false;
+  const status = String(record?.status || "");
+  if (![DELIVERY_STATUS.UNSENT, DELIVERY_STATUS.SENT_TO_PUSH].includes(status)) return false;
+  if (status === DELIVERY_STATUS.SENT_TO_PUSH) {
+    if (Number(record.attempts || 0) >= MAX_DELIVERY_ATTEMPTS || deliveryAgeMs(record, nowMs) > MAX_DELIVERY_AGE_MS) return false;
+    const scheduled = Date.parse(String(record?.next_retry_at || ""));
+    const accepted = Date.parse(String(record?.sent_to_push_at || ""));
+    const readyAt = Number.isFinite(scheduled) ? scheduled : (Number.isFinite(accepted) ? accepted + ackRetryDelayMs(record.attempts) : Infinity);
+    return nowMs >= readyAt;
+  }
   const nextRetryMs = Date.parse(String(record?.next_retry_at || ""));
   return !Number.isFinite(nextRetryMs) || nextRetryMs <= nowMs;
 }
@@ -831,7 +850,7 @@ export class PushHub {
       return true;
     }
     const complete = deliveries.every((row) =>
-      [DELIVERY_STATUS.SENT_TO_PUSH, DELIVERY_STATUS.ACKED, DELIVERY_STATUS.EXPIRED].includes(String(row?.status || ""))
+      [DELIVERY_STATUS.ACKED, DELIVERY_STATUS.EXPIRED].includes(String(row?.status || ""))
     );
     if (complete) await this.ctx.storage.put(`event-complete:${eventIdValue}`, true);
     else await this.ctx.storage.delete(`event-complete:${eventIdValue}`);
@@ -860,12 +879,27 @@ export class PushHub {
     for (const [key, original] of rows.entries()) {
       if (!original?.event_id || (filter && !filter.has(String(original.event_id)))) continue;
       if (original.status === DELIVERY_STATUS.SENT_TO_PUSH) {
-        // Migrate existing accepted deliveries waiting indefinitely for ACK.
-        if (original.next_retry_at) {
-          await this.ctx.storage.put(key, transitionDelivery(original, DELIVERY_STATUS.SENT_TO_PUSH, new Date().toISOString(), { next_retry_at: null }));
-          touchedEvents.add(String(original.event_id));
+        // Accepted by the provider does NOT mean rendered on Android.
+        // Bound retries to the same immutable event/subscription; the service
+        // worker atomically displays the logical event once and ACKs repeats.
+        const nowMs = Date.now();
+        const limitReached = Number(original.attempts || 0) >= MAX_DELIVERY_ATTEMPTS
+          || deliveryAgeMs(original, nowMs) > MAX_DELIVERY_AGE_MS;
+        if (limitReached) {
+          const lastSent = Date.parse(String(original.sent_to_push_at || ""));
+          const nextDue = Date.parse(String(original.next_retry_at || ""));
+          const finishAt = Number.isFinite(nextDue) ? nextDue
+            : (Number.isFinite(lastSent) ? lastSent + ACK_TIMEOUT_MS : nowMs);
+          if (nowMs >= finishAt) {
+            await this.ctx.storage.put(key, transitionDelivery(original, DELIVERY_STATUS.EXPIRED, new Date().toISOString(), {
+              last_error: "ack_not_received_after_bounded_retries",
+              next_retry_at: null,
+            }));
+            touchedEvents.add(String(original.event_id));
+            expired += 1;
+          }
+          continue;
         }
-        continue;
       }
       if (original.status === DELIVERY_STATUS.SENDING) {
         // An interrupted send can have reached the provider; never blindly replay.
@@ -923,7 +957,7 @@ export class PushHub {
           await this.ctx.storage.put(key, transitionDelivery(latest, DELIVERY_STATUS.SENT_TO_PUSH, now, {
             sent_to_push_at: now,
             provider_status: Number(response?.statusCode || 201) || 201,
-            next_retry_at: null,
+            next_retry_at: new Date(Date.now() + ackRetryDelayMs(attempt)).toISOString(),
           }));
         }
         sent += 1;
@@ -966,7 +1000,10 @@ export class PushHub {
       const status = String(row?.status || "");
       if (Object.hasOwn(stateCounts, status)) stateCounts[status] += 1;
     }
-    const pending = stateCounts.UNSENT + stateCounts.SENDING; // Provider-accepted pushes do not await ACK.
+    // Dispatch API may return before device ACK, without failing workflows;
+    // health separately reports acknowledgments still outstanding.
+    const pending = stateCounts.UNSENT + stateCounts.SENDING;
+    const awaitingAck = stateCounts.SENT_TO_PUSH;
 
     const stats = (await this.ctx.storage.get("stats")) || {};
     stats.sent = Number(stats.sent || 0) + sent;
@@ -979,11 +1016,12 @@ export class PushHub {
     stats.last_dispatch_failed = failed;
     stats.last_dispatch_expired = expired;
     stats.last_dispatch_pending = pending;
+    stats.last_dispatch_awaiting_ack = awaitingAck;
     stats.delivery_states = stateCounts;
     stats.last_dispatch_at = new Date().toISOString();
     await this.ctx.storage.put("stats", stats);
 
-    return { ok: failed === 0, sent, failed, expired, acked, pending, duplicate_suppressed: duplicateSuppressed, delivery_states: stateCounts };
+    return { ok: failed === 0, sent, failed, expired, acked, pending, awaiting_ack: awaitingAck, duplicate_suppressed: duplicateSuppressed, delivery_states: stateCounts };
   }
 
   async dispatchEvents(events, { seedIfUninitialized = false } = {}) {
@@ -1447,9 +1485,12 @@ export class PushHub {
         last_acked_at: stats.last_acked_at || null,
         durable_outbox: true,
         durable_retry: true,
-        delivery_ack_required: false,
-        delivery_ack_optional: true,
-        provider_acceptance_terminal: true,
+        delivery_ack_required: true,
+        delivery_ack_optional: false,
+        provider_acceptance_terminal: false,
+        device_render_ack_retry: true,
+        max_delivery_attempts: MAX_DELIVERY_ATTEMPTS,
+        last_dispatch_awaiting_ack: Number(stats.last_dispatch_awaiting_ack || 0),
         duplicate_suppressed: Number(stats.duplicate_suppressed || 0),
         delivery_unique_key: "(event_id,subscriber_id)",
         inbox: true,
@@ -1829,4 +1870,4 @@ export default {
   }
 };
 
-export { finiteNumber, yahooMinuteBars, dailyCommitSnapshot, weeklyCommitSnapshot, stockCommitSnapshot, transitionDescriptors, persistedOutboxEvents, diffPersistedOutboxEvents, notificationPayload, storedCommitSnapshot, persistableCommitSnapshot, comparableCommitSnapshot, sameCommitSnapshot, isoWeekId, DELIVERY_STATUS, deliveryId, deliveryStorageKey, immutableEventCore, sameImmutableEvent, newDeliveryRecord, transitionDelivery, retryDelayMs, deliveryReadyForRetry, isSyntheticRecoveryEvent };
+export { finiteNumber, yahooMinuteBars, dailyCommitSnapshot, weeklyCommitSnapshot, stockCommitSnapshot, transitionDescriptors, persistedOutboxEvents, diffPersistedOutboxEvents, notificationPayload, storedCommitSnapshot, persistableCommitSnapshot, comparableCommitSnapshot, sameCommitSnapshot, isoWeekId, DELIVERY_STATUS, deliveryId, deliveryStorageKey, immutableEventCore, sameImmutableEvent, newDeliveryRecord, transitionDelivery, retryDelayMs, deliveryReadyForRetry, isSyntheticRecoveryEvent, ackRetryDelayMs };
