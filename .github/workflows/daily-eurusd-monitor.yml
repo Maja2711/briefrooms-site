@@ -529,37 +529,6 @@ jobs:
 
           echo "Realtime Daily EURUSD watcher dispatched."
 
-      - name: Capture as-of exit signals and review closed trades (research only)
-        # Operates AFTER canonical state persistence and Web Push dispatch.
-        # Writes only two shadow evidence artifacts; no trading-state mutation.
-        continue-on-error: true
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          for attempt in 1 2 3 4; do
-            python scripts/daily_eurusd_exit_intelligence_v2.py
-            python -m json.tool data/investments/eurusd_exit_signal_journal.json >/dev/null
-            python -m json.tool data/investments/eurusd_exit_intelligence_reviews.json >/dev/null
-            git add -- data/investments/eurusd_exit_signal_journal.json data/investments/eurusd_exit_intelligence_reviews.json
-            if git diff --cached --quiet; then
-              echo "Research evidence unchanged."
-              exit 0
-            fi
-            git commit -m "data(daily): capture as-of EURUSD exit evidence"
-            if git push origin HEAD:main; then
-              echo "Exit intelligence evidence persisted."
-              exit 0
-            fi
-            git fetch origin main
-            # On contention re-run analysis on latest state and research journal.
-            # NEVER blindly merge concurrent trading observations.
-            git reset --hard origin/main
-            sleep "$attempt"
-          done
-          echo "::warning::EURUSD exit intelligence evidence not persisted"
-          exit 1
-
       - name: Validate public frontend runtime after lifecycle persistence
         run: |
           set -euo pipefail
