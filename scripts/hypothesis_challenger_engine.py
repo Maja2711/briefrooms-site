@@ -292,6 +292,15 @@ def _freeze(candidate: dict[str, Any], state: Mapping[str, Any], now: datetime) 
     return frozen_count
 
 
+def trusted_market_verification(v: Mapping[str, Any], target_at: str) -> bool:
+    """P2 real-market OOS uses deterministic source-linked Verification only."""
+    return (
+        v.get("outcome_source") == "Yahoo Finance chart"
+        and str(v.get("outcome_ref") or "").startswith("yahoo:")
+        and str(v.get("outcome_ref") or "").endswith(":target=" + str(target_at))
+    )
+
+
 def _settle(candidate: dict[str, Any], state: Mapping[str, Any], now: datetime) -> tuple[int, list[str]]:
     forecast_by_id = {str(f.get("forecast_id")): f for f in state.get("forecasts", [])
                       if isinstance(f, Mapping) and f.get("forecast_id")}
@@ -334,7 +343,8 @@ def _settle(candidate: dict[str, Any], state: Mapping[str, Any], now: datetime) 
                         isinstance(v.get("outcome"), bool) and
                         utc(commitment["target_at"]) <= verified_at <= now and
                         utc(commitment["frozen_at"]) < verified_at and
-                        str(v.get("belief_id")) == candidate["hypothesis_id"]):
+                        str(v.get("belief_id")) == candidate["hypothesis_id"] and
+                        trusted_market_verification(v, commitment["target_at"])):
                         trusted.append(v)
                 except (TypeError, ValueError, KeyError, OverflowError):
                     continue
@@ -382,7 +392,7 @@ def _settle(candidate: dict[str, Any], state: Mapping[str, Any], now: datetime) 
                     not isinstance(v.get("outcome"), bool) or
                     not target <= verified <= now or verified <= shadow_at):
                     continue
-                if str(v.get("belief_id")) != candidate["hypothesis_id"]:
+                if str(v.get("belief_id")) != candidate["hypothesis_id"] or not trusted_market_verification(v, commitment["target_at"]):
                     continue
                 eligible.append(v)
             except (TypeError, ValueError, KeyError, OverflowError):
