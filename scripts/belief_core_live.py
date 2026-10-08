@@ -18,6 +18,7 @@ if str(SCRIPT_DIR) not in sys.path:
 from belief_adapter_contract import stable_id, strength_from_return
 from belief_core import BeliefCore, BeliefDefinition, iso_z, parse_time
 from belief_closed_loop import transform_probability
+from nyse_session_calendar import session_for
 from belief_liquidity_adapter import LiquidityEvidenceAdapter
 from belief_market_data_adapter import Bar, MarketDataAdapter, MarketSnapshot, YahooChartClient
 from belief_regime_adapter import RegimeCrossAssetAdapter
@@ -144,7 +145,12 @@ def floor_half_hour(dt: datetime) -> datetime:
 
 
 def in_market_window(local_dt: datetime) -> bool:
-    return local_dt.weekday() < 5 and MARKET_OPEN <= local_dt.time().replace(tzinfo=None) <= MARKET_CLOSE
+    session = session_for(local_dt.date())
+    if not session["session_open"]:
+        return False
+    close = datetime.combine(local_dt.date(), session["close_time"], tzinfo=NY)
+    end = (close + timedelta(minutes=20)).time()
+    return MARKET_OPEN <= local_dt.time().replace(tzinfo=None) <= end
 
 
 def in_fx_window(local_dt: datetime) -> bool:
@@ -850,7 +856,10 @@ def run_cycle(state_dir: Path, now: datetime, client: YahooChartClient) -> Dict[
                 completed[hour_key] = iso_z(now)
                 world_count = 1
 
+            calendar = session_for(local.date())
             for planned in FORECAST_SLOTS:
+                if calendar["early_close"] and planned >= calendar["close_time"]:
+                    continue  # no synthetic post-close slot on a 13:00 NYSE close
                 target = datetime.combine(local.date(), time(16, 0), tzinfo=NY) if planned.hour < 16 else next_weekday_close(local)
                 key = f"shared:{local.date().isoformat()}:{planned.hour:02d}{planned.minute:02d}"
                 if due_planned_slot(local, planned, key in completed):
