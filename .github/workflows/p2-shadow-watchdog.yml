@@ -98,6 +98,7 @@ jobs:
           with Path(os.environ["GITHUB_STEP_SUMMARY"]).open("a") as out:
               out.write("## P2.1 Shadow Watchdog\n\n")
               out.write("**" + p["status"] + "** · " + p["readiness"] + "\n\n")
+              out.write("**PRODUCTION E2E:** " + p["production_e2e_status"] + "\n\n")
               for k,v in p["summary"].items():
                   out.write("- " + k + ": **" + str(v) + "**\n")
               for alert in p["alerts"]:
@@ -116,7 +117,8 @@ jobs:
           codes=set(p["alert_codes"])
           raise SystemExit(0 if codes & {
               "COLLECTOR_STALE_DURING_MARKET", "BASELINE_FORECAST_MISSING_AFTER_SLOT",
-              "SOURCE_FORECASTS_MISSING_AFTER_CONFIRMED_SLOT"
+              "SOURCE_FORECASTS_MISSING_AFTER_CONFIRMED_SLOT",
+              "MARKET_SNAPSHOT_SLA_BREACHED"
           } else 1)
           PY
           then exit 0; fi
@@ -157,6 +159,9 @@ jobs:
               "- Generated at: "+p["generated_at"],
               "- Status: "+p["status"],
               "- Actual settlement proof: "+p["readiness"],
+              "- Production E2E: "+p["production_e2e_status"],
+              "- NYSE calendar: "+str(p["session"].get("holiday_proof")),
+              "- Scheduled slots due: "+str(p["session"].get("due_slots")),
               "- Active market-window: "+str(p["session"]["market_window_active"]),
               "",
               "## Counters",
@@ -193,6 +198,23 @@ jobs:
             gh issue close "$issue" --comment "P2 watchdog recovered ($health), verified by the latest independent run." ||
               echo "::warning::Cannot close prior watchdog issue"
           fi
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=json.loads((Path(os.environ["RUNNER_TEMP"])/"P2_MONITOR.json").read_text())
+          if p["production_e2e_status"] == "PASS":
+              proof = p["production_e2e_proof"]
+              assert proof and proof["source_verification_id"] and proof["source_snapshot_sha256"]
+              print("P2.1 PRODUCTION E2E PASS: immutable prospective Shadow to real market Verification",
+                    "candidate=", proof["candidate_id"],
+                    "frozen_at=", proof["frozen_at"], "target_at=", proof["target_at"],
+                    "verified_at=", proof["verified_at"],
+                    "control_brier=", proof["control_brier"],
+                    "challenger_brier=", proof["challenger_brier"])
+          else:
+              print("P2.1 PRODUCTION E2E", p["production_e2e_status"],
+                    p["readiness"], "no prospective live settlement proof")
+          PY
           if [[ "$health" == "WARN" ]]; then
             echo "::warning title=P2.1 Shadow Watchdog::Noncritical market/source freshness warning"
           else
