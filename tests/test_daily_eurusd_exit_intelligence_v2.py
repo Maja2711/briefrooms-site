@@ -98,6 +98,31 @@ class ExitIntelligenceTests(unittest.TestCase):
         self.assertEqual(next_reviews["trading_decision_influence"], False)
         self.assertEqual(next_reviews["automatic_promotion"], False)
 
+    def test_conservative_stop_precedes_tp_on_same_bar(self):
+        t = trade()
+        t["stop"], t["target"] = 1.12184, 1.11338
+        fx = x.normalize_bars([
+            bar(151, 1.119, high=1.122, low=1.113),
+            bar(152, 1.120)
+        ], T0 + timedelta(minutes=180))
+        simulated = x.hold_counterfactual(t, fx, T0 + timedelta(minutes=152))
+        self.assertEqual(simulated["status"], "SIMULATED_RISK_EXIT")
+        self.assertEqual(simulated["reason"], "STOP_LOSS")
+        self.assertFalse(simulated["execution_proven"])
+
+    def test_horizon_requires_contiguous_bars(self):
+        t = trade()
+        fx = x.normalize_bars([bar(210, 1.1184)], T0 + timedelta(hours=5))
+        result = x.hold_counterfactual(t, fx, T0 + timedelta(minutes=210))
+        self.assertEqual(result["status"], "INSUFFICIENT_CONTIGUOUS_PATH")
+
+    def test_journal_generated_at_does_not_change_when_idle(self):
+        now = T0 + timedelta(minutes=180)
+        j, r = x.step({}, {"trades": []}, {}, {}, [], [], now)
+        j2, r2 = x.step({}, {"trades": []}, j, r, [], [], now + timedelta(minutes=5))
+        self.assertEqual(j, j2)
+        self.assertEqual(r, r2)
+
     def test_stale_rates_are_unavailable(self):
         now = T0 + timedelta(minutes=30)
         pos = dict(trade(), status="OPEN")
