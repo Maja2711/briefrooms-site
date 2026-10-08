@@ -325,12 +325,26 @@ def _settle(candidate: dict[str, Any], state: Mapping[str, Any], now: datetime) 
             except (TypeError, ValueError, KeyError):
                 conflicts.append(eid)
                 continue
+            trusted = []
             for v in verified_by_event.get(eid, []):
-                if (bool(v.get("calibration_eligible", False)) and
-                    isinstance(v.get("outcome"), bool) and
-                    v["outcome"] != old["outcome"]):
-                    conflicts.append(eid)
-                    break
+                try:
+                    verified_at = utc(v["verified_at"])
+                    if (bool(v.get("calibration_eligible", False)) and
+                        isinstance(v.get("outcome"), bool) and
+                        utc(commitment["target_at"]) <= verified_at <= now and
+                        utc(commitment["frozen_at"]) < verified_at and
+                        str(v.get("belief_id")) == candidate["hypothesis_id"]):
+                        trusted.append(v)
+                except (TypeError, ValueError, KeyError, OverflowError):
+                    continue
+            if (not trusted or
+                any(v["outcome"] != old["outcome"] for v in trusted) or
+                old.get("source_verification_id") not in {v.get("verification_id") for v in trusted} or
+                abs(_float(old.get("control_brier")) -
+                    (commitment["raw_probability"] - int(old["outcome"]))**2) > 1e-8 or
+                abs(_float(old.get("challenger_brier")) -
+                    (commitment["challenger_probability"] - int(old["outcome"]))**2) > 1e-8):
+                conflicts.append(eid)
             continue
         source = forecast_by_id.get(commitment["forecast_id"])
         if source is None:
