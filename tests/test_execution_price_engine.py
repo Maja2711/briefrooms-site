@@ -28,12 +28,13 @@ class ExecutionPriceEngineTests(unittest.TestCase):
         )
 
     def test_yahoo_quote_prefers_latest_bar_inside_normal_future_tolerance(self) -> None:
+        now = self.now
+
         class Client:
             def bars(self, symbol, range_="1d", interval="1m"):
-                self_outer = self
                 return [
-                    Bar(timestamp=self_outer.now - timedelta(seconds=10), close=1.13400),
-                    Bar(timestamp=self_outer.now + timedelta(seconds=50), close=1.13408),
+                    Bar(timestamp=now - timedelta(seconds=10), close=1.13400),
+                    Bar(timestamp=now + timedelta(seconds=50), close=1.13408),
                 ]
 
         with patch("execution_price_engine.utc_now", return_value=self.now):
