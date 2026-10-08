@@ -1,0 +1,311 @@
+#!/usr/bin/env python3
+"""Daily EURUSD exit intelligence v2 (research only, NO execution authority).
+
+Capture time-stamped evidence while a position is open; examine closed trades
+without rewriting canonical history or claiming hindsight signals were live.
+All future-path counterfactuals are explicitly marked retrospective.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from typing import Any, Mapping, Sequence
+
+SCHEMA = "eurusd-exit-intelligence-v2"
+PIP = 0.0001
+MAX_BAR_AGE_SECONDS = 240
+MAX_TIME_MATCH_SECONDS = 180
+MAX_SNAPSHOTS = 3000
+MAX_REVIEWS = 250
+FUTURE_HOURS = (1, 3, 6, 24)
+ENTRY_DELAYS_MINUTES = (5, 15, 30)
+
+
+def parse_time(value: Any) -> datetime | None:
+    if isinstance(value, datetime):
+        return value.astimezone(timezone.utc)
+    try:
+        result = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        return result.replace(tzinfo=timezone.utc) if result.tzinfo is None else result.astimezone(timezone.utc)
+    except (ValueError, TypeError):
+        return None
+
+
+def iso(value: datetime) -> str:
+    return value.astimezone(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def load(path: Path, fallback: dict) -> dict:
+    try:
+        result = json.loads(path.read_text(encoding="utf-8"))
+        return result if isinstance(result, dict) else fallback
+    except (OSError, ValueError):
+        return fallback
+
+
+def save(path: Path, value: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    target = path.with_suffix(path.suffix + ".tmp")
+    target.write_text(json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    target.replace(path)
+
+
+def normalize_bars(raw: Sequence[Any], cutoff: datetime) -> list[dict]:
+    result = []
+    for b in raw:
+        if isinstance(b, Mapping):
+            time = parse_time(b.get("timestamp") or b.get("time"))
+            close, high, low = b.get("close"), b.get("high"), b.get("low")
+        else:
+            time = parse_time(getattr(b, "timestamp", None))
+            close, high, low = getattr(b, "close", None), getattr(b, "high", None), getattr(b, "low", None)
+        if time is None or time > cutoff or close is None:
+            continue
+        try:
+            close = float(close)
+            high = float(high if high is not None else close)
+            low = float(low if low is not None else close)
+            if close <= 0 or low > high:
+                continue
+            result.append({"time": time, "close": close, "high": high, "low": low})
+        except (ValueError, TypeError):
+            pass
+    return sorted({b["time"]: b for b in result}.values(), key=lambda b: b["time"])
+
+
+def at(bars: Sequence[dict], target: datetime, tolerance_seconds: int = MAX_TIME_MATCH_SECONDS) -> dict | None:
+    match = next((b for b in reversed(bars) if b["time"] <= target), None)
+    if match and 0 <= (target - match["time"]).total_seconds() <= tolerance_seconds:
+        return match
+    return None
+
+
+def pnl_pips(direction: str, entry: float, exit_mid: float, half_spread_pips: float = 0.75) -> float:
+    """Indicative exit using synthetic half spread; entry is already a fill."""
+    signed = 1.0 if direction == "LONG" else -1.0
+    return round((exit_mid - entry) * signed / PIP - half_spread_pips, 3)
+
+
+def _window_move(bars: Sequence[dict], target: datetime, minutes: int, direction: str) -> float | None:
+    now = at(bars, target)
+    earlier = at(bars, target - timedelta(minutes=minutes))
+    if not now or not earlier:
+        return None
+    signed = 1.0 if direction == "LONG" else -1.0
+    return round((now["close"] - earlier["close"]) * signed / PIP, 3)
+
+
+def capture(position: Mapping[str, Any], fx: Sequence[dict], rates: Sequence[dict], now: datetime) -> dict | None:
+    opened = parse_time(position.get("opened_at"))
+    if opened is None or not fx:
+        return None
+    latest = at(fx, now, MAX_BAR_AGE_SECONDS)
+    if latest is None or latest["time"] < opened:
+        return None
+    direction = str(position.get("direction") or "")
+    if direction not in {"LONG", "SHORT"}:
+        return None
+    entry = float(position["entry"])
+    prior = [b for b in fx if opened <= b["time"] <= latest["time"]]
+    if not prior:
+        return None
+    best = max(b["high"] for b in prior) if direction == "LONG" else min(b["low"] for b in prior)
+    best_pips_mid = round((best - entry) * (1 if direction == "LONG" else -1) / PIP, 3)
+    current_pips = pnl_pips(direction, entry, latest["close"])
+    giveback = round(max(0.0, best_pips_mid - current_pips), 3)
+    m5 = _window_move(fx, latest["time"], 5, direction)
+    m15 = _window_move(fx, latest["time"], 15, direction)
+    m30 = _window_move(fx, latest["time"], 30, direction)
+
+    # ^TNX is an INDEX PROXY: its points are ten times the annual yield in percent.
+    # A 0.1-index-point move ~= 1bp of 10Y yield, NOT a bond-price move.
+    rate = at(rates, now, MAX_BAR_AGE_SECONDS)
+    rate_past = at(rates, now - timedelta(minutes=15)) if rate else None
+    rate_delta_bp = round((rate["close"] - rate_past["close"]) * 10, 3) if rate and rate_past else None
+    signals = {
+        "profit_reached_8p": best_pips_mid >= 8,
+        "profit_reached_11p": best_pips_mid >= 11,
+        "momentum_5m_reversal": m5 is not None and m5 <= -1.5,
+        "momentum_5m_exhaustion": m5 is not None and m5 <= 0,
+        "momentum_15m_reversal": m15 is not None and m15 <= -2.5,
+        "peak_giveback_35pct_or_3p": best_pips_mid >= 5 and giveback >= max(3.0, 0.35 * best_pips_mid),
+        "us10y_yield_falling_15m": rate_delta_bp is not None and rate_delta_bp <= -1.0,
+        "us10y_yield_rising_15m": rate_delta_bp is not None and rate_delta_bp >= 1.0,
+    }
+    # Flags are observations / hypotheses; there is intentionally NO live exit.
+    return {
+        "trade_id": str(position.get("trade_id")),
+        "captured_at": iso(now),
+        "market_bar_at": iso(latest["time"]),
+        "market_bar_age_seconds": round((now-latest["time"]).total_seconds(), 2),
+        "mode": "LIVE_OBSERVATION_RESEARCH_ONLY",
+        "entry": entry, "direction": direction, "observed_mid": latest["close"],
+        "current_indicative_pips": current_pips, "best_favorable_mid_pips": best_pips_mid,
+        "giveback_pips": giveback, "signed_momentum_5m_pips": m5,
+        "signed_momentum_15m_pips": m15, "signed_momentum_30m_pips": m30,
+        "yield_10y_proxy": {
+            "status": "OBSERVED" if rate_delta_bp is not None else "UNAVAILABLE",
+            "symbol": "^TNX", "source": "Yahoo Finance 1m INDEX_PROXY",
+            "observed_at": iso(rate["time"]) if rate else None,
+            "delta_15m_bp": rate_delta_bp,
+            "directional_inference": "NOT_CAUSAL_NOT_ALONE_ACTIONABLE",
+        },
+        "signals": signals, "exit_authority": False,
+        "prices_are_executable_bid_ask": False,
+    }
+
+
+def review(trade: Mapping[str, Any], snapshots: list[dict], fx: Sequence[dict], now: datetime) -> dict:
+    trade_id = str(trade["trade_id"])
+    opened = parse_time(trade.get("opened_at"))
+    closed = parse_time(trade.get("closed_at"))
+    direction = str(trade.get("direction") or "")
+    entry = float(trade.get("entry") or 0)
+    exit_at = float(trade.get("exit_price") or 0)
+    related = sorted((
+        s for s in snapshots
+        if s.get("trade_id") == trade_id
+        and (t := parse_time(s.get("captured_at"))) is not None
+        and opened is not None and closed is not None and opened <= t <= closed
+        and parse_time(s.get("market_bar_at")) is not None
+        and parse_time(s.get("market_bar_at")) <= t
+    ), key=lambda x: x["captured_at"])
+    profit_snapshots = [s for s in related if s.get("best_favorable_mid_pips", -1e9) >= 8]
+    alert_at_profit = [{
+        "captured_at": s["captured_at"],
+        "observed_profit_pips": s.get("current_indicative_pips"),
+        "best_favorable_mid_pips": s.get("best_favorable_mid_pips"),
+        "triggered": sorted(k for k, v in s.get("signals", {}).items() if v),
+        "rate_data_status": (s.get("yield_10y_proxy") or {}).get("status"),
+    } for s in profit_snapshots]
+    observed_alerts = [s for s in alert_at_profit if any(
+        k in s["triggered"] for k in ("momentum_5m_reversal", "momentum_15m_reversal", "peak_giveback_35pct_or_3p")
+    )]
+    recorded_dynamic = ((trade.get("monitor") or {}).get("dynamic_exit") or {})
+    out = {
+        "trade_id": trade_id, "opened_at": trade.get("opened_at"), "closed_at": trade.get("closed_at"),
+        "direction": direction, "entry": entry, "exit_price": exit_at,
+        "actual_r": trade.get("r_multiple"), "actual_exit_reason": trade.get("exit_reason"),
+        "outcome": trade.get("outcome"), "research_only": True, "decision_mutation_allowed": False,
+        "data_audit": {
+            "snapshots_before_exit": len(related),
+            "profit_snapshots_at_least_8p": len(profit_snapshots),
+            "evidence_of_actionable_profit_alert": (
+                "OBSERVED_PRE_EXIT_HYPOTHESIS" if observed_alerts else
+                "NOT_OBSERVED_IN_CAPTURED_SNAPSHOTS" if profit_snapshots else
+                "UNKNOWN_NO_PRE_EXIT_PROFIT_SNAPSHOTS"
+            ),
+            "do_not_infer_no_signal_from_missing_data": True,
+        },
+        "profit_protection": {
+            "historic_max_favorable_pips": trade.get("mfe_pips"),
+            "historic_max_mfe_is_an_oracle_not_a_tradeable_exit": True,
+            "pre_exit_profit_alerts": alert_at_profit[-50:],
+            "dynamic_exit_at_close": recorded_dynamic,
+            "early_exit_proven": False,
+        },
+        "entry_timing": {}, "post_exit_path": {},
+        "counterfactual_status": "RESEARCH_ONLY_NOT_POLICY_AUTHORITY",
+    }
+    if not opened or not closed or direction not in {"LONG", "SHORT"} or entry <= 0:
+        out["counterfactual_status"] = "INCOMPLETE_TRADE_RECORD"
+        return out
+    for minutes in ENTRY_DELAYS_MINUTES:
+        target = opened + timedelta(minutes=minutes)
+        price = at(fx, target) if now >= target else None
+        if price and target < closed:
+            # Exit remains fixed to the actual close: diagnostic timing only,
+            # NOT proof a delayed order could have filled at this mid quote.
+            difference = (exit_at-price["close"]) * (1 if direction=="LONG" else -1) / PIP
+            out["entry_timing"][f"delay_{minutes}m"] = {
+                "status": "RETROSPECTIVE_MID_PROXY", "quote_at": iso(price["time"]),
+                "entry_mid": price["close"], "indicative_pips_to_actual_exit": round(difference, 3),
+                "warning": "not_a_fill_not_same_risk_geometry_or_execution_cost",
+            }
+        else:
+            out["entry_timing"][f"delay_{minutes}m"] = {"status": "NOT_OBSERVED"}
+    for hours in FUTURE_HOURS:
+        target = closed + timedelta(hours=hours)
+        price = at(fx, target) if now >= target else None
+        key = f"plus_{hours}h"
+        if price:
+            pnl = pnl_pips(direction, entry, price["close"])
+            actual_pnl = (exit_at-entry) * (1 if direction=="LONG" else -1) / PIP
+            out["post_exit_path"][key] = {
+                "status": "RETROSPECTIVE_MID_PROXY", "price_at": iso(price["time"]),
+                "exit_mid": price["close"], "indicative_hold_pips": pnl,
+                "indicative_hold_minus_actual_pips": round(pnl-actual_pnl, 3),
+                "warning": "hypothetical_uninterrupted_hold_ignores_intervening_SL_TP_and_slippage",
+            }
+        else:
+            out["post_exit_path"][key] = {"status": "PENDING" if now < target else "DATA_UNAVAILABLE"}
+    return out
+
+
+def step(spot: dict, history: dict, journal: dict, reviews: dict,
+         fx_raw: Sequence[Any], rates_raw: Sequence[Any], now: datetime) -> tuple[dict, dict]:
+    fx = normalize_bars(fx_raw, now)
+    rates = normalize_bars(rates_raw, now)
+    snapshots = list(journal.get("snapshots") or [])
+    position = ((spot.get("metadata") or {}).get("position") or {})
+    if position.get("status") == "OPEN":
+        snapshot = capture(position, fx, rates, now)
+        if snapshot and not any(s.get("trade_id")==snapshot["trade_id"] and s.get("market_bar_at")==snapshot["market_bar_at"] for s in snapshots):
+            snapshots.append(snapshot)
+    journal = {"schema_version": SCHEMA, "generated_at": iso(now),
+               "authority": "SHADOW_OBSERVATION_ONLY",
+               "snapshots": snapshots[-MAX_SNAPSHOTS:]}
+    known = {r["trade_id"]: r for r in (reviews.get("reviews") or [])}
+    closed_trades = [t for t in (history.get("trades") or []) if t.get("closed_at")]
+    for t in closed_trades[-MAX_REVIEWS:]:
+        closed = parse_time(t.get("closed_at"))
+        if closed is None or closed > now:
+            continue
+        # Never retroactively create evidence of a live alert. Existing reviews
+        # may progress only by adding retrospective observations after maturity.
+        known[str(t["trade_id"])] = review(t, snapshots, fx, now)
+    reviews = {"schema_version": SCHEMA, "generated_at": iso(now),
+               "authority": "SHADOW_RESEARCH_ONLY", "automatic_promotion": False,
+               "trading_decision_influence": False,
+               "reviews": list(known.values())[-MAX_REVIEWS:]}
+    return journal, reviews
+
+
+def main() -> int:
+    p = argparse.ArgumentParser()
+    p.add_argument("--spot", default="data/investments/eurusd_daily_spot.json")
+    p.add_argument("--history", default="data/investments/eurusd_daily_history.json")
+    p.add_argument("--journal", default="data/investments/eurusd_exit_signal_journal.json")
+    p.add_argument("--reviews", default="data/investments/eurusd_exit_intelligence_reviews.json")
+    args = p.parse_args()
+    now = datetime.now(timezone.utc)
+    spot, history = load(Path(args.spot), {}), load(Path(args.history), {})
+    journal = load(Path(args.journal), {})
+    reviews = load(Path(args.reviews), {})
+    fx, rates = [], []
+    try:
+        from belief_market_data_adapter import YahooChartClient
+        client = YahooChartClient(timeout=12)
+        fx = client.bars("EURUSD=X", "5d", "1m")
+    except Exception as exc:
+        print("FX_BARS_UNAVAILABLE", type(exc).__name__)
+    try:
+        from belief_market_data_adapter import YahooChartClient
+        rates = YahooChartClient(timeout=12).bars("^TNX", "5d", "1m")
+    except Exception as exc:
+        print("US10Y_INDEX_PROXY_UNAVAILABLE", type(exc).__name__)
+    journal, reviews = step(spot, history, journal, reviews, fx, rates, now)
+    save(Path(args.journal), journal)
+    save(Path(args.reviews), reviews)
+    print("EURUSD_EXIT_INTELLIGENCE", json.dumps({
+        "snapshots": len(journal["snapshots"]), "reviews": len(reviews["reviews"]),
+        "latest_trade": (reviews["reviews"][-1]["trade_id"] if reviews["reviews"] else None),
+        "execution_authority": False,
+    }, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
