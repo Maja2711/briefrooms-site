@@ -15,10 +15,12 @@ A **separate scheduled watchdog workflow** runs at minute 07 and 37 each hour; i
 ## Health contract
 
 - `PASS`: no established fault, **not** a claim that the P2 challenger has passed the OOS gate. Look at `readiness`.
-- `WARN`: no confirmed successful market snapshot despite an expected US weekday slot, or prolonged P2 age outside session. No invented holiday calendar.
-- `FAIL`: unrefreshed collector during market, missing candidate baseline after a confirmed successful market slot, eligible Shadow forecast not frozen, expired baseline missed irrecoverably, real verified settlement backlog, stale P2 report, source/transform fingerprint conflict, tampering of previously committed Shadow/settlement, or mature Verification overdue.
+- `WARN`: noncritical calibration age outside active session. An expected NYSE collection slot without a confirmed market snapshot is **not** merely a warning once its source SLA expires.
+- `FAIL`: a scheduled NYSE collection slot without a verified in-phase US snapshot **55 minutes after the slot**, even if collector heartbeat and FX-only observations are fresh; or unrefreshed collector during market, missing candidate baseline after a confirmed slot, missing freeze/settlement, stale in-session P2 report or integrity failure. Alerts stay active through market close, weekends and holidays until a valid original-session receipt is present.
 
-No holiday is inferred from mere weekday. Source-slot confirmation is taken from `scheduler.json:completed_slots` (with 55-minute slot completion grace), which limits false `missing forecast` claims to windows the collector actually processed.
+No holiday is inferred from mere weekday. The official NYSE 2026–2028 calendar defines full-day holidays and early closes. Source-slot confirmation is taken from `scheduler.json:completed_slots`, but only a timezone-valid receipt from the genuine slot collection phase counts. Slot due time is planned NY time +55 minutes, independent of the collector heartbeat. For the final regular-session 16:00 slot the SLA matures at 16:55, **after** the 16:20 collection window; this is a legitimate failure to report, not an off-hours false positive.
+
+The independent read-only watchdog uploads a **sanitized SLA checkpoint artifact** (`p2-shadow-source-sla-checkpoint`, 30-day retention) containing only unresolved source-slot keys and the checkpoint timestamp; it restores this on the next monitoring run. Thus missed current-session snapshots cannot silently clear at midnight or during weekend/holiday closures. This artifact is audit telemetry only: it never backdates a snapshot, mutates the canonical source or authorizes production trading. A lost/corrupt checkpoint causes watchdog failure rather than a false green outcome.
 
 The real Verification probe uses source-linked market settlement: `outcome_source="Yahoo Finance chart"` and a `yahoo:…:target=<target_at>` reference, with genuine forecast/target/verification ordering. An independent counter of real canonical Belief verifications is **explicitly not** a P2 OOS result.
 
@@ -27,7 +29,7 @@ The real Verification probe uses source-linked market settlement: `outcome_sourc
 ## Irreversible failures and recovery
 
 - `SHADOW_FREEZE_GAP_OPEN` and `SETTLEMENT_BACKLOG`: retry the collector bridge immediately if the underlying target is **still future** or a legitimate market Verification exists. A successful idempotent retry clears the alarm; no duplicate `event_id`.
-- `COLLECTOR_STALE_DURING_MARKET`, `BASELINE_FORECAST_MISSING_AFTER_SLOT` and `SOURCE_FORECASTS_MISSING_AFTER_CONFIRMED_SLOT`: the independent monitor can dispatch `belief-core-shadow-live.yml`; suppress duplicate dispatches if any collector run occurred within 90 minutes. This is a best-effort recovery attempt: a slot already recorded completed may require operator investigation and must never be backdated or fabricated. This recovery must not manipulate source prices or falsely create forecasts.
+- `COLLECTOR_STALE_DURING_MARKET`, `MARKET_SNAPSHOT_SLA_BREACHED`, `BASELINE_FORECAST_MISSING_AFTER_SLOT` and `SOURCE_FORECASTS_MISSING_AFTER_CONFIRMED_SLOT`: the independent monitor can dispatch `belief-core-shadow-live.yml`; suppress duplicate dispatches if any collector run occurred within 90 minutes. This is a best-effort recovery attempt: a slot already recorded completed may require operator investigation and must never be backdated or fabricated. This recovery must not manipulate source prices or falsely create forecasts.
 - `SHADOW_FREEZE_MISSED_IRRECOVERABLE`: **never** backdate the Shadow freeze or add a retrospective result into OOS; flag it for operator review and continue with legitimate future targets.
 - Tampering, contradictory outcome or source mismatch: FAIL/HOLD, never promotion.
 - Missing / stale P2 source also blocks Evolution Controller eligibility through its separate fail-closed gate.
