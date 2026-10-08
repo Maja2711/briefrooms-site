@@ -172,7 +172,7 @@ def review(trade: Mapping[str, Any], snapshots: list[dict], fx: Sequence[dict], 
         and parse_time(s.get("market_bar_at")) is not None
         and parse_time(s.get("market_bar_at")) <= t
     ), key=lambda x: x["captured_at"])
-    profit_snapshots = [s for s in related if s.get("best_favorable_mid_pips", -1e9) >= 8]
+    profit_snapshots = [s for s in related if s.get("current_indicative_pips", -1e9) >= 8]
     alert_at_profit = [{
         "captured_at": s["captured_at"],
         "observed_profit_pips": s.get("current_indicative_pips"),
@@ -254,7 +254,9 @@ def step(spot: dict, history: dict, journal: dict, reviews: dict,
         snapshot = capture(position, fx, rates, now)
         if snapshot and not any(s.get("trade_id")==snapshot["trade_id"] and s.get("market_bar_at")==snapshot["market_bar_at"] for s in snapshots):
             snapshots.append(snapshot)
-    journal = {"schema_version": SCHEMA, "generated_at": iso(now),
+    journal_changed = snapshots[-MAX_SNAPSHOTS:] != list(journal.get("snapshots") or [])
+    journal = {"schema_version": SCHEMA,
+               "generated_at": iso(now) if journal_changed else journal.get("generated_at", iso(now)),
                "authority": "SHADOW_OBSERVATION_ONLY",
                "snapshots": snapshots[-MAX_SNAPSHOTS:]}
     known = {r["trade_id"]: r for r in (reviews.get("reviews") or [])}
@@ -265,11 +267,26 @@ def step(spot: dict, history: dict, journal: dict, reviews: dict,
             continue
         # Never retroactively create evidence of a live alert. Existing reviews
         # may progress only by adding retrospective observations after maturity.
-        known[str(t["trade_id"])] = review(t, snapshots, fx, now)
-    reviews = {"schema_version": SCHEMA, "generated_at": iso(now),
+        key = str(t["trade_id"])
+        fresh = review(t, snapshots, fx, now)
+        old = known.get(key)
+        if old:
+            # Retain previously measured prices after the provider's 5-day
+            # minute-history retention window has elapsed. No evidence erasure.
+            for section in ("post_exit_path", "entry_timing"):
+                for point, value in (old.get(section) or {}).items():
+                    if value.get("status") == "RETROSPECTIVE_MID_PROXY" and fresh[section].get(point, {}).get("status") != "RETROSPECTIVE_MID_PROXY":
+                        fresh[section][point] = value
+            if old.get("data_audit", {}).get("snapshots_before_exit", 0) > fresh["data_audit"]["snapshots_before_exit"]:
+                fresh["data_audit"] = old["data_audit"]
+                fresh["profit_protection"]["pre_exit_profit_alerts"] = old.get("profit_protection", {}).get("pre_exit_profit_alerts", [])
+        known[key] = fresh
+    values = list(known.values())[-MAX_REVIEWS:]
+    changed = values != list(reviews.get("reviews") or [])
+    reviews = {"schema_version": SCHEMA,
+               "generated_at": iso(now) if changed else reviews.get("generated_at", iso(now)),
                "authority": "SHADOW_RESEARCH_ONLY", "automatic_promotion": False,
-               "trading_decision_influence": False,
-               "reviews": list(known.values())[-MAX_REVIEWS:]}
+               "trading_decision_influence": False, "reviews": values}
     return journal, reviews
 
 
