@@ -1,0 +1,43 @@
+name: Stock Trading Mobile Layout
+
+on:
+  pull_request:
+    paths:
+      - "assets/stock-trading-mobile-stability.css"
+      - "pl/inwestycje/stock-trading.html"
+      - "en/investing/stock-trading.html"
+      - "tests/stock_trading_mobile_layout.mjs"
+      - ".github/workflows/stock-trading-mobile-layout.yml"
+  push:
+    branches: [main]
+    paths:
+      - "assets/stock-trading-mobile-stability.css"
+      - "pl/inwestycje/stock-trading.html"
+      - "en/investing/stock-trading.html"
+      - "tests/stock_trading_mobile_layout.mjs"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mobile-viewport-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout site
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install installed-PWA browser driver
+        run: |
+          test -x "$(command -v google-chrome)"
+          npm install --prefix /tmp/briefrooms-mobile-browser --no-save --silent playwright-core@1.56.1
+      - name: Start local static site
+        run: |
+          nohup python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/briefrooms-mobile-http.log 2>&1 &
+          curl --retry 10 --retry-connrefused --retry-delay 1 --fail --silent --show-error http://127.0.0.1:8765/pl/inwestycje/stock-trading.html -o /dev/null
+      - name: Check Android-width layouts in PL and EN
+        run: node tests/stock_trading_mobile_layout.mjs
