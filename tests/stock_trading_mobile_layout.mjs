@@ -28,6 +28,28 @@ try {
         await page.goto(base + route, { waitUntil: "domcontentloaded", timeout: 40_000 });
         await page.locator(".stock-room-hero").waitFor();
         await page.waitForTimeout(350);
+        const glass = await page.evaluate(() => {
+          const nodes = [...document.querySelectorAll(".str-market-tab")];
+          return nodes.map(node => {
+            const css = getComputedStyle(node);
+            const shine = getComputedStyle(node, "::before");
+            return {
+              height: node.getBoundingClientRect().height,
+              background: css.backgroundImage,
+              shadows: css.boxShadow,
+              shine: shine.backgroundImage,
+            };
+          });
+        });
+        if (glass.length) {
+          assert.equal(glass.length, 2, `${lang}/${width}: expected GPW and USA market tabs`);
+          for (const btn of glass) {
+            assert.ok(btn.height >= 60, `${lang}/${width}: button size shrunk`);
+            assert.match(btn.background, /linear-gradient/, `${lang}/${width}: missing glass 3D gradient`);
+            assert.match(btn.shadows, /inset/, `${lang}/${width}: missing raised bevel`);
+            assert.match(btn.shine, /linear-gradient/, `${lang}/${width}: missing specular glass shine`);
+          }
+        }
         const sizes = await page.evaluate(() => {
           const history = document.querySelector(".str-history-table");
           if (!history) {
