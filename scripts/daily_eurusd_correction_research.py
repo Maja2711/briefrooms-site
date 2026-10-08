@@ -100,14 +100,16 @@ def scan_swings(bars: Sequence[Mapping[str, Any]], cutoff: datetime) -> tuple[li
     events: list[dict] = []
     peak = low = float(rows[0]["close"])
     peak_at = low_at = last_at = rows[0]["time"]
+    low_index = 0
     segment_start_at = peak_at
     segment_bars = 1
-    for r in rows[1:]:
+    for index, r in enumerate(rows[1:], start=1):
         moment = r["time"]
         price = float(r["close"])
         if (moment - last_at).total_seconds() > MAX_GAP_MINUTES * 60 or moment <= last_at:
             peak = low = price
             peak_at = low_at = segment_start_at = moment
+            low_index = index
             segment_bars = 1
             last_at = moment
             continue
@@ -116,9 +118,11 @@ def scan_swings(bars: Sequence[Mapping[str, Any]], cutoff: datetime) -> tuple[li
         if price > peak:
             peak = low = price
             peak_at = low_at = moment
+            low_index = index
             continue
         if price < low:
             low, low_at = price, moment
+            low_index = index
             continue
         drop = (peak - low) / PIP
         rebound = (price - low) / PIP
@@ -128,6 +132,10 @@ def scan_swings(bars: Sequence[Mapping[str, Any]], cutoff: datetime) -> tuple[li
             # If pivot was in initial warmup, the feed may omit the true high.
             # Preserve evidence but exclude from reliable statistics.
             truncated_start = (peak_at - segment_start_at).total_seconds() < 15 * 60
+            # Trend is classified on the *trough* using only observations
+            # timestamped at/before that trough; a later reversal never
+            # manufactures an earlier downtrend.
+            trough_trend = classify_1m_trend(rows[max(0, low_index - 59):low_index + 1])
             events.append({
                 "event_id": f"down-correction:{_iso(moment)}",
                 "pivot_high_at": _iso(peak_at),
@@ -144,6 +152,8 @@ def scan_swings(bars: Sequence[Mapping[str, Any]], cutoff: datetime) -> tuple[li
                 "retracement_fraction_at_confirmation": round(rebound / drop, 4),
                 "session_utc": _utc_group(low_at),
                 "size_bucket": _bucket(drop),
+                "local_trend_at_trough": trough_trend,
+                "local_downtrend_at_trough": trough_trend["local_downtrend"],
                 "source": "RETROSPECTIVE_CONFIRMED_CLOSE_BASED_OHLC",
                 "valid_for_statistics": not truncated_start,
                 "warning": "trough_at_known_only_after_correction_confirmation",
@@ -153,6 +163,7 @@ def scan_swings(bars: Sequence[Mapping[str, Any]], cutoff: datetime) -> tuple[li
             # confirmed close, preventing one correction being counted many times.
             peak = low = price
             peak_at = low_at = moment
+            low_index = index
     drop = (peak - low) / PIP
     last = rows[-1]
     bounce = (float(last["close"]) - low) / PIP
@@ -195,6 +206,15 @@ def summarize_events(events: Sequence[Mapping[str, Any]]) -> dict:
         }
     return {
         "all": describe(values),
+        "in_confirmed_local_downtrend": describe([
+            e for e in values if e.get("local_downtrend_at_trough") is True
+        ]),
+        "in_local_non_downtrend": describe([
+            e for e in values if e.get("local_downtrend_at_trough") is False
+        ]),
+        "local_trend_unknown_count": sum(
+            e.get("local_downtrend_at_trough") is None for e in values
+        ),
         "by_utc_session": {key: describe([x for x in values if x["session_utc"] == key])
                            for key in ("UTC_06_12", "UTC_12_20", "UTC_20_06")},
         "by_decline_bucket": {key: describe([x for x in values if x["size_bucket"] == key])
@@ -219,14 +239,25 @@ def current_context(bars: Sequence[Mapping[str, Any]], cutoff: datetime,
         "bounce_from_low_at_least_2p": state.get("significant_impulse") is True
                                       and (state.get("bounce_from_low_pips") or 0) >= 2,
     }
+    local_downtrend_now = (state.get("trend_1m") or {}).get("local_downtrend")
+    downtrend_reference = stats["in_confirmed_local_downtrend"] if local_downtrend_now is True else None
     return {
         "status": state.get("status"),
         "current_downswing": state,
         "research_warning_flags": warning,
         "confirmed_event_count_as_of": stats["all"]["confirmed_event_count"],
         "study_status": stats["all"]["status"],
-        "historical_median_fall_pips": stats["all"]["median_fall_pips"],
-        "historical_median_fall_duration_minutes": stats["all"]["median_fall_duration_minutes"],
+        "historical_median_fall_pips": (
+            downtrend_reference["median_fall_pips"] if downtrend_reference else None
+        ),
+        "historical_median_fall_duration_minutes": (
+            downtrend_reference["median_fall_duration_minutes"] if downtrend_reference else None
+        ),
+        "conditional_reference": "LOCAL_1M_DOWNTREND_ONLY",
+        "conditional_sample_count": (
+            downtrend_reference["confirmed_event_count"] if downtrend_reference else 0
+        ),
+        "higher_timeframe_daily_trend_confirmed": False,
         "no_predicted_correction_probability": True,
         "research_only": True,
     }
