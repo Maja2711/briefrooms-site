@@ -300,6 +300,11 @@ class P21WatchdogTests(unittest.TestCase):
         pre = assess(state, raw, scheduler(now=THURSDAY), now=THURSDAY)
         self.assertEqual("WAITING_REAL_SETTLEMENT", pre["readiness"])
         self.assertEqual(0, pre["summary"]["real_settled_events"])
+        first = pre["candidates"][0]["first_shadow_freeze_proof"]
+        self.assertEqual(f["forecast_id"], first["forecast_id"])
+        self.assertTrue(first["shadow_forecast_id"].startswith("hcf-"))
+        self.assertTrue(first["source_snapshot_sha256"])
+        self.assertLess(first["frozen_at"], first["target_at"])
         # No forecast rewrite / no false outcome. Later append a Verification
         # as the *actual* canonical record from the source pipeline would.
         outcome_at = "2026-10-08T17:20:00Z"
@@ -321,6 +326,14 @@ class P21WatchdogTests(unittest.TestCase):
         self.assertEqual(1, complete["summary"]["real_settled_events"])
         self.assertEqual(0, complete["summary"]["real_settlement_backlog"])
         self.assertEqual("PASS", complete["status"])
+        self.assertEqual("PASS", complete["production_e2e_status"])
+        evidence = complete["production_e2e_proof"]
+        self.assertEqual(first["shadow_forecast_id"], evidence["shadow_forecast_id"])
+        self.assertEqual("real-verification-1", evidence["source_verification_id"])
+        self.assertEqual(first["source_snapshot_sha256"], evidence["source_snapshot_sha256"])
+        self.assertEqual(complete["candidates"][0]["first_shadow_freeze_proof"], first)
+        self.assertLess(evidence["frozen_at"], evidence["target_at"])
+        self.assertLessEqual(evidence["target_at"], evidence["verified_at"])
         self.assertFalse(complete["authority"]["retrospective_oos_backfill"])
         public = public_view(complete)
         self.assertNotIn("shadow_forecasts", public)
