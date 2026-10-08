@@ -13,6 +13,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+import daily_eurusd_correction_research as corrections
+
 SCHEMA = "eurusd-exit-intelligence-v2"
 PIP = 0.0001
 MAX_BAR_AGE_SECONDS = 240
@@ -97,7 +99,8 @@ def _window_move(bars: Sequence[dict], target: datetime, minutes: int, direction
     return round((now["close"] - earlier["close"]) * signed / PIP, 3)
 
 
-def capture(position: Mapping[str, Any], fx: Sequence[dict], rates: Sequence[dict], now: datetime) -> dict | None:
+def capture(position: Mapping[str, Any], fx: Sequence[dict], rates: Sequence[dict], now: datetime,
+            historic_corrections: Sequence[Mapping[str, Any]] = ()) -> dict | None:
     opened = parse_time(position.get("opened_at"))
     if opened is None or not fx:
         return None
@@ -134,6 +137,13 @@ def capture(position: Mapping[str, Any], fx: Sequence[dict], rates: Sequence[dic
         "us10y_yield_falling_15m": rate_delta_bp is not None and rate_delta_bp <= -1.0,
         "us10y_yield_rising_15m": rate_delta_bp is not None and rate_delta_bp >= 1.0,
     }
+    # Only already COMPLETED 1m bars, never an as-yet unclosed candle.
+    correction_as_of = min(latest["time"], now - timedelta(minutes=1))
+    correction_context = corrections.current_context(fx, correction_as_of, historic_corrections)
+    # Hypotheses apply specifically to the short/downtrend risk, not LONG exits.
+    if direction == "SHORT":
+        signals.update({"correction_" + key: value for key, value in
+                        correction_context["research_warning_flags"].items()})
     # Flags are observations / hypotheses; there is intentionally NO live exit.
     return {
         "trade_id": str(position.get("trade_id")),
@@ -152,6 +162,7 @@ def capture(position: Mapping[str, Any], fx: Sequence[dict], rates: Sequence[dic
             "delta_15m_bp": rate_delta_bp,
             "directional_inference": "NOT_CAUSAL_NOT_ALONE_ACTIONABLE",
         },
+        "downswing_correction": correction_context,
         "signals": signals, "exit_authority": False,
         "prices_are_executable_bid_ask": False,
     }
@@ -225,6 +236,13 @@ def review(trade: Mapping[str, Any], snapshots: list[dict], fx: Sequence[dict], 
         "triggered": sorted(k for k, v in s.get("signals", {}).items() if v),
         "rate_data_status": (s.get("yield_10y_proxy") or {}).get("status"),
     } for s in profit_snapshots]
+    correction_live = [
+        {"captured_at": s["captured_at"], "signals": sorted(
+            k for k, v in (s.get("signals") or {}).items()
+            if k.startswith("correction_") and v),
+         "current_downswing": (s.get("downswing_correction") or {}).get("current_downswing")}
+        for s in profit_snapshots
+    ]
     observed_alerts = [s for s in alert_at_profit if any(
         k in s["triggered"] for k in ("momentum_5m_reversal", "momentum_15m_reversal", "peak_giveback_35pct_or_3p")
     )]
@@ -250,6 +268,8 @@ def review(trade: Mapping[str, Any], snapshots: list[dict], fx: Sequence[dict], 
             "pre_exit_profit_alerts": alert_at_profit[-50:],
             "dynamic_exit_at_close": recorded_dynamic,
             "early_exit_proven": False,
+            "downswing_correction_live_signals": correction_live[-50:],
+            "correction_signals_not_exit_proof": True,
         },
         "entry_timing": {}, "post_exit_path": {}, "risk_bounded_hold": {},
         "counterfactual_status": "RESEARCH_ONLY_NOT_POLICY_AUTHORITY",
@@ -298,16 +318,23 @@ def step(spot: dict, history: dict, journal: dict, reviews: dict,
     fx = normalize_bars(fx_raw, now)
     rates = normalize_bars(rates_raw, now)
     snapshots = list(journal.get("snapshots") or [])
+    study = corrections.journal_study(
+        journal.get("correction_study") or {}, fx, now - timedelta(minutes=1)
+    )
     position = ((spot.get("metadata") or {}).get("position") or {})
     if position.get("status") == "OPEN":
-        snapshot = capture(position, fx, rates, now)
+        snapshot = capture(position, fx, rates, now, study["events"])
         if snapshot and not any(s.get("trade_id")==snapshot["trade_id"] and s.get("market_bar_at")==snapshot["market_bar_at"] for s in snapshots):
             snapshots.append(snapshot)
-    journal_changed = snapshots[-MAX_SNAPSHOTS:] != list(journal.get("snapshots") or [])
+    journal_changed = (
+        snapshots[-MAX_SNAPSHOTS:] != list(journal.get("snapshots") or [])
+        or study != journal.get("correction_study")
+    )
     journal = {"schema_version": SCHEMA,
                "generated_at": iso(now) if journal_changed else journal.get("generated_at", iso(now)),
                "authority": "SHADOW_OBSERVATION_ONLY",
-               "snapshots": snapshots[-MAX_SNAPSHOTS:]}
+               "snapshots": snapshots[-MAX_SNAPSHOTS:],
+               "correction_study": study}
     known = {r["trade_id"]: r for r in (reviews.get("reviews") or [])}
     closed_trades = [t for t in (history.get("trades") or []) if t.get("closed_at")]
     for t in closed_trades[-MAX_REVIEWS:]:
