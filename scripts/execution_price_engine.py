@@ -46,6 +46,11 @@ SYNTHETIC_HALF_SPREAD_PRICE = SYNTHETIC_HALF_SPREAD_PIPS * EURUSD_PIP
 DEFAULT_PRIMARY_MAX_AGE_SECONDS = 180.0
 DEFAULT_SECONDARY_MAX_AGE_SECONDS = 180.0
 DEFAULT_FUTURE_TOLERANCE_SECONDS = 30.0
+# Yahoo's live 1m FX chart can label the current partial minute with the minute
+# boundary, which appears up to ~60s ahead of the workflow clock. Allow only
+# this named source a bounded 75s timestamp-granularity tolerance. The quote
+# still needs an independent second feed and cross-feed agreement.
+YAHOO_1M_FUTURE_TOLERANCE_SECONDS = 75.0
 DEFAULT_MAX_CROSS_FEED_PIPS = 1.5
 DEFAULT_QUOTE_MAX_AGE_SECONDS = 180.0
 
@@ -290,11 +295,18 @@ def _fresh_quote_candidates(
         if price is None:
             rejected.append({"source": quote.source, "reason": "invalid_price"})
             continue
-        if age < -float(future_tolerance_seconds) or age > float(max_age_seconds):
+        source_future_tolerance = float(future_tolerance_seconds)
+        if str(quote.source or "").startswith("Yahoo Finance:EURUSD=X:1m:"):
+            source_future_tolerance = max(
+                source_future_tolerance,
+                YAHOO_1M_FUTURE_TOLERANCE_SECONDS,
+            )
+        if age < -source_future_tolerance or age > float(max_age_seconds):
             rejected.append({
                 "source": quote.source,
                 "reason": "stale_or_future",
                 "age_seconds": round(age, 3),
+                "future_tolerance_seconds": source_future_tolerance,
             })
             continue
         normalized = Quote(price=price, timestamp=quote.timestamp, source=quote.source)
