@@ -13,6 +13,9 @@ on:
     branches: [main]
     paths:
       - "scripts/belief_calibration_foundation.py"
+      - "scripts/hypothesis_utility_engine.py"
+      - "tests/test_hypothesis_utility_engine.py"
+      - "tests/test_hypothesis_utility_projection.py"
       - "scripts/forecast_event_identity.py"
       - "tests/test_forecast_event_identity.py"
       - "scripts/belief_data_quality_adapter.py"
@@ -127,12 +130,15 @@ jobs:
           python -m py_compile \
             scripts/belief_calibration.py \
             scripts/forecast_event_identity.py \
+            scripts/hypothesis_utility_engine.py \
             scripts/belief_data_quality_adapter.py \
             scripts/belief_calibration_foundation.py \
             scripts/decision_lab_public_projection.py \
             scripts/decision_lab_learning.py \
             scripts/belief_closed_loop.py
           python -m unittest \
+            tests.test_hypothesis_utility_engine \
+            tests.test_hypothesis_utility_projection \
             tests.test_belief_core_calibration_foundation \
             tests.test_decision_lab_public_projection \
             tests.test_belief_closed_loop -v
@@ -146,18 +152,45 @@ jobs:
             --gse-state-dir "$GSE_STATE_DIR" \
             --output "$STATE_DIR/BELIEF_CALIBRATION_REPORT.json"
 
+      - name: Build independent-event L3 Hypothesis Utility Engine
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts
+        run: |
+          python scripts/hypothesis_utility_engine.py \
+            --state-dir "$STATE_DIR" \
+            --output "$STATE_DIR/HYPOTHESIS_UTILITY_REPORT.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root=Path(os.environ["STATE_DIR"])
+          hue=json.loads((root/"HYPOTHESIS_UTILITY_REPORT.json").read_text())
+          calibration=json.loads((root/"BELIEF_CALIBRATION_REPORT.json").read_text())
+          assert hue["schema_version"] == "briefrooms-hypothesis-utility-v1"
+          assert hue["mode"] == "shadow_read_only"
+          assert hue["authority"]["production_writeback"] is False
+          assert hue["authority"]["frozen_forecast_mutation"] is False
+          assert hue["authority"]["automatic_retirement"] is False
+          assert hue["authority"]["automatic_promotion"] is False
+          assert hue["source"]["independent_resolved_events"] == calibration["belief_calibration"]["count_calibration_eligible"], "P1/P0 independent event denominator mismatch"
+          assert hue["source"]["revision_diagnostics"]["conflict_event_count"] == 0, "conflicting outcomes require investigation"
+          print("HYPOTHESIS UTILITY E2E PASS:", hue["summary"])
+          PY
+
       - name: Build governed Decision LAB learning memory
         env:
           PYTHONPATH: ${{ github.workspace }}/scripts
         run: |
           python scripts/decision_lab_learning.py \
             --report "$STATE_DIR/BELIEF_CALIBRATION_REPORT.json" \
+            --hypothesis-utility "$STATE_DIR/HYPOTHESIS_UTILITY_REPORT.json" \
             --output "$STATE_DIR/DECISION_LAB_LEARNING.json"
           python - <<'PY'
           import json, os
           from pathlib import Path
           p=json.loads((Path(os.environ['STATE_DIR'])/'DECISION_LAB_LEARNING.json').read_text())
           assert p['automatic_tuning'] is False
+          assert p['hypothesis_utility']['status'] == 'SHADOW_READ_ONLY'
+          assert p['hypothesis_utility']['authority']['production_writeback'] is False
           assert p['production_write_authority'] is False
           print('Decision LAB learning memory: PASS; actions=', p['action_count'])
           PY
