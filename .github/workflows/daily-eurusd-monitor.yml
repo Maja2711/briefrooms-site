@@ -2,6 +2,11 @@ name: Monitor Daily EURUSD
 # NO RETROACTIVE EXECUTION
 
 on:
+  pull_request:
+    paths:
+      - "scripts/daily_eurusd_exit_intelligence_v2.py"
+      - "tests/test_daily_eurusd_exit_intelligence_v2.py"
+      - ".github/workflows/daily-eurusd-monitor.yml"
   workflow_dispatch:
   push:
     branches: [main]
@@ -19,6 +24,7 @@ on:
       - "scripts/daily_eurusd_spot_v17.py"
       - "scripts/daily_eurusd_spot_v18.py"
       - "scripts/daily_eurusd_spot_v19.py"
+      - "scripts/daily_eurusd_exit_intelligence_v2.py"
       - "scripts/daily_eurusd_belief_decision.py"
       - "scripts/belief_epistemic_state.py"
       - "scripts/epistemic_consumer_interface.py"
@@ -52,6 +58,7 @@ on:
       - "tests/test_execution_price_engine.py"
       - "tests/test_daily_eurusd_contextual_policy_learning.py"
       - "tests/test_daily_eurusd_contextual_production_policy.py"
+      - "tests/test_daily_eurusd_exit_intelligence_v2.py"
       - "tests/test_daily_eurusd_belief_first.py"
       - "tests/test_epistemic_consumer_interface.py"
       - "tests/test_belief_core_live.py"
@@ -71,7 +78,7 @@ concurrency:
 
 jobs:
   validate-on-push:
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
@@ -99,6 +106,7 @@ jobs:
             tests.test_execution_price_engine \
             tests.test_daily_eurusd_contextual_policy_learning \
             tests.test_daily_eurusd_contextual_production_policy \
+            tests.test_daily_eurusd_exit_intelligence_v2 \
             tests.test_daily_eurusd_belief_first \
             tests.test_epistemic_consumer_interface \
             tests.test_no_retroactive_execution -v
@@ -116,6 +124,7 @@ jobs:
             scripts/daily_eurusd_spot_v17.py \
             scripts/daily_eurusd_spot_v18.py \
             scripts/daily_eurusd_spot_v19.py \
+            scripts/daily_eurusd_exit_intelligence_v2.py \
             scripts/daily_eurusd_belief_decision.py \
             scripts/belief_epistemic_state.py \
             scripts/epistemic_consumer_interface.py \
@@ -123,7 +132,7 @@ jobs:
           echo "PUSH_VALIDATION_ONLY_NO_TRADING_STATE_MUTATION"
 
   reconcile-eurusd:
-    if: github.event_name != 'push'
+    if: github.event_name != 'push' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
@@ -216,6 +225,7 @@ jobs:
             tests.test_execution_price_engine \
             tests.test_daily_eurusd_contextual_policy_learning \
             tests.test_daily_eurusd_contextual_production_policy \
+            tests.test_daily_eurusd_exit_intelligence_v2 \
             tests.test_daily_eurusd_belief_first \
             tests.test_no_retroactive_execution -v
           python -m py_compile \
@@ -232,6 +242,7 @@ jobs:
             scripts/daily_eurusd_spot_v17.py \
             scripts/daily_eurusd_spot_v18.py \
             scripts/daily_eurusd_spot_v19.py \
+            scripts/daily_eurusd_exit_intelligence_v2.py \
             scripts/investments_wes_macro_belief.py \
             scripts/daily_eurusd_contextual_policy_learning.py \
             scripts/daily_eurusd_belief_decision.py \
@@ -509,6 +520,37 @@ jobs:
             -d '{"ref":"main"}'
 
           echo "Realtime Daily EURUSD watcher dispatched."
+
+      - name: Capture as-of exit signals and review closed trades (research only)
+        # Operates AFTER canonical state persistence and Web Push dispatch.
+        # Writes only two shadow evidence artifacts; no trading-state mutation.
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2 3 4; do
+            python scripts/daily_eurusd_exit_intelligence_v2.py
+            python -m json.tool data/investments/eurusd_exit_signal_journal.json >/dev/null
+            python -m json.tool data/investments/eurusd_exit_intelligence_reviews.json >/dev/null
+            git add -- data/investments/eurusd_exit_signal_journal.json data/investments/eurusd_exit_intelligence_reviews.json
+            if git diff --cached --quiet; then
+              echo "Research evidence unchanged."
+              exit 0
+            fi
+            git commit -m "data(daily): capture as-of EURUSD exit evidence"
+            if git push origin HEAD:main; then
+              echo "Exit intelligence evidence persisted."
+              exit 0
+            fi
+            git fetch origin main
+            # On contention re-run analysis on latest state and research journal.
+            # NEVER blindly merge concurrent trading observations.
+            git reset --hard origin/main
+            sleep "$attempt"
+          done
+          echo "::warning::EURUSD exit intelligence evidence not persisted"
+          exit 1
 
       - name: Validate public frontend runtime after lifecycle persistence
         run: |
