@@ -16,9 +16,10 @@ def bar(minutes, price):
 
 def falling_and_rebounding():
     # 20-minute warmup, downward impulse 12 pips, then ~4 pip correction.
-    rows = [bar(i, 1.12000) for i in range(20)]
+    rows = [bar(i, 1.11990) for i in range(20)]
+    rows += [bar(20, 1.12000)]
     rows += [bar(20+i, 1.12000-i*0.0001) for i in range(1,13)]
-    rows += [bar(32, 1.11910), bar(33, 1.11920)]
+    rows += [bar(33, 1.11910), bar(34, 1.11920)]
     return rows
 
 
@@ -42,7 +43,7 @@ class DowntrendCorrectionTests(unittest.TestCase):
         event = events[0]
         self.assertEqual(event["fall_pips"], 12)
         self.assertEqual(event["fall_duration_minutes"], 12)
-        self.assertEqual(event["confirmation_delay_minutes"], 2)
+        self.assertEqual(event["confirmation_delay_minutes"], 1)
         self.assertTrue(event["valid_for_statistics"])
         self.assertEqual(event["confirmed_at"], c._iso(T0 + timedelta(minutes=33)))
         self.assertEqual(event["known_at"], c._iso(T0 + timedelta(minutes=34)))
