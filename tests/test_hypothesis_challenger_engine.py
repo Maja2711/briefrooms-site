@@ -201,6 +201,31 @@ class HypothesisChallengerE2ETests(unittest.TestCase):
         self.assertEqual("FAIL", g["status"])
         self.assertIn("brier_relative_improvement_below_5pct", g["blockers"])
 
+    def test_pooled_horizons_cannot_hide_protected_segment_degradation(self):
+        c = candidate()
+        c["horizon_bucket"] = "__ALL_HORIZONS__"
+        c["shadow_forecasts"] = {}
+        c["settlements"] = {}
+        for i in range(1, 61):
+            f = forecast(i)
+            eid = identity(f)["event_id"]
+            risky = i > 50
+            c["shadow_forecasts"][eid] = {
+                "event_id": eid,
+                "target_at": f["target_at"],
+                "horizon_bucket": "3D" if risky else "1S",
+                "raw_probability": .7,
+                "challenger_probability": .2,
+            }
+            c["settlements"][eid] = {
+                "event_id": eid, "target_at": f["target_at"],
+                "outcome": risky,
+            }
+        gate = _gate(c, [], datetime.fromisoformat(stamp(70).replace("Z","+00:00")))
+        self.assertEqual("FAIL", gate["status"])
+        self.assertIn("protected_horizon_brier_degradation", gate["blockers"])
+        self.assertGreater(gate["metrics"]["brier_relative_improvement"], .05)
+
     def test_invalid_prior_schema_fails_closed(self):
         with self.assertRaises(ValueError):
             run({"forecasts": [], "verifications": []}, utility(),
