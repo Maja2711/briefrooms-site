@@ -157,6 +157,51 @@ def capture(position: Mapping[str, Any], fx: Sequence[dict], rates: Sequence[dic
     }
 
 
+
+def hold_counterfactual(trade: Mapping[str, Any], fx: Sequence[dict], end: datetime) -> dict:
+    """Hold AFTER the actual exit with ORIGINAL SL/TP and conservative bar ordering.
+
+    Without a continuous enough bar path we refuse to infer a historical fill.
+    This is a counterfactual research simulation, never an executable quote.
+    """
+    closed = parse_time(trade.get("closed_at"))
+    if closed is None:
+        return {"status": "MISSING_EXIT_TIMESTAMP"}
+    path = [b for b in fx if closed < b["time"] <= end]
+    if not path or (path[0]["time"] - closed).total_seconds() > 600:
+        return {"status": "INSUFFICIENT_CONTIGUOUS_PATH"}
+    direction = str(trade.get("direction") or "")
+    entry, stop, target = (float(trade.get(k) or 0) for k in ("entry", "stop", "target"))
+    if direction not in ("LONG", "SHORT") or min(entry, stop, target) <= 0:
+        return {"status": "INVALID_RISK_GEOMETRY"}
+    last_at = closed
+    spread_half = 0.75 * PIP
+    for candle in path:
+        if (candle["time"] - last_at).total_seconds() > 600:
+            return {"status": "INSUFFICIENT_CONTIGUOUS_PATH"}
+        last_at = candle["time"]
+        if direction == "SHORT":
+            hit_stop = candle["high"] + spread_half >= stop
+            hit_tp = candle["low"] + spread_half <= target
+        else:
+            hit_stop = candle["low"] - spread_half <= stop
+            hit_tp = candle["high"] - spread_half >= target
+        if hit_stop or hit_tp:
+            # STOP wins whenever both thresholds touched within one 1m bar.
+            reason = "STOP_LOSS" if hit_stop else "TAKE_PROFIT"
+            exit_price = stop if hit_stop else target
+            return {"status": "SIMULATED_RISK_EXIT", "reason": reason,
+                    "at": iso(candle["time"]), "simulated_exit": exit_price,
+                    "indicative_pips": round((exit_price-entry) * (1 if direction=="LONG" else -1)/PIP, 3),
+                    "same_bar_conservative": True, "execution_proven": False}
+    last = at(fx, end)
+    if last is None or last["time"] <= closed:
+        return {"status": "INSUFFICIENT_CONTIGUOUS_PATH"}
+    return {"status": "SIMULATED_HORIZON_EXIT", "at": iso(last["time"]),
+            "exit_mid": last["close"],
+            "indicative_pips": pnl_pips(direction, entry, last["close"]),
+            "execution_proven": False}
+
 def review(trade: Mapping[str, Any], snapshots: list[dict], fx: Sequence[dict], now: datetime) -> dict:
     trade_id = str(trade["trade_id"])
     opened = parse_time(trade.get("opened_at"))
@@ -206,7 +251,7 @@ def review(trade: Mapping[str, Any], snapshots: list[dict], fx: Sequence[dict], 
             "dynamic_exit_at_close": recorded_dynamic,
             "early_exit_proven": False,
         },
-        "entry_timing": {}, "post_exit_path": {},
+        "entry_timing": {}, "post_exit_path": {}, "risk_bounded_hold": {},
         "counterfactual_status": "RESEARCH_ONLY_NOT_POLICY_AUTHORITY",
     }
     if not opened or not closed or direction not in {"LONG", "SHORT"} or entry <= 0:
@@ -230,6 +275,10 @@ def review(trade: Mapping[str, Any], snapshots: list[dict], fx: Sequence[dict], 
         target = closed + timedelta(hours=hours)
         price = at(fx, target) if now >= target else None
         key = f"plus_{hours}h"
+        if price:
+            out["risk_bounded_hold"][key] = hold_counterfactual(trade, fx, target)
+        else:
+            out["risk_bounded_hold"][key] = {"status": "PENDING" if now < target else "DATA_UNAVAILABLE"}
         if price:
             pnl = pnl_pips(direction, entry, price["close"])
             actual_pnl = (exit_at-entry) * (1 if direction=="LONG" else -1) / PIP
@@ -273,7 +322,7 @@ def step(spot: dict, history: dict, journal: dict, reviews: dict,
         if old:
             # Retain previously measured prices after the provider's 5-day
             # minute-history retention window has elapsed. No evidence erasure.
-            for section in ("post_exit_path", "entry_timing"):
+            for section in ("post_exit_path", "entry_timing", "risk_bounded_hold"):
                 for point, value in (old.get(section) or {}).items():
                     if value.get("status") == "RETROSPECTIVE_MID_PROXY" and fresh[section].get(point, {}).get("status") != "RETROSPECTIVE_MID_PROXY":
                         fresh[section][point] = value
