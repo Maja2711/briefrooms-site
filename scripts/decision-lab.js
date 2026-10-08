@@ -394,7 +394,7 @@ function v3Candidates(payload){
     '<p class="muted">n = rozliczone forecasty. Gate: n≥'+esc(gov.minimum_sample_for_review||50)+' → kalibracja → incremental information → ręczna decyzja. Automatic promotion: OFF.</p>';
 }
 
-function closedLoopStatus(loop){
+function closedLoopStatus(loop,watchdog){
   const root=document.getElementById("closed-loop-status"); if(!root)return;
   const badge=document.getElementById("closed-loop-badge");
   const data=loop||{};
@@ -428,7 +428,12 @@ function closedLoopStatus(loop){
       return '<div class="loop-row"><div><b>'+esc(x.component_id||x.candidate_id)+'</b><small>'+esc(x.candidate_type||"candidate")+' · '+esc(x.source_module||"—")+' → '+esc(x.target_module||"—")+'</small></div><span class="loop-state '+esc(String(x.status||"").toLowerCase())+'">'+esc(statusLabel(x.status))+'</span><div class="loop-detail"><span>'+esc(detail.join(" · ")||"brak dodatkowych danych")+'</span></div></div>';
     }).join("");
     const scanRows=Object.entries(scans).map(([scope,x])=>'<div class="loop-row"><div><b>'+esc(scope==="__GLOBAL__"?"GLOBAL calibration":scope)+'</b><small>Belief calibration scan</small></div><span class="loop-state '+esc(String(x?.status||"").toLowerCase())+'">'+esc(statusLabel(x?.status||"—"))+'</span><div class="loop-detail"><span>discovery n: <b>'+esc(x?.last_discovery_n??"—")+'</b> · kolejna próba: <b>'+esc(x?.rediscovery_after_n??"—")+'</b> · prospective: <b>'+esc(x?.prospective_n??0)+'</b></span></div></div>').join("");
-    const lifecycleRows=candidateRows+scanRows;
+    const wd=watchdog||{}, ws=wd.summary||{}, wp=wd.canonical_market_verification_probe||{};
+    const wdState=String(wd.status||"NOT_AVAILABLE");
+    const watchdogRow='<div class="loop-row"><div><b>P2.1 Shadow Watchdog</b><small>Forecast → Shadow freeze → rzeczywiste Verification → OOS</small></div>'+
+      '<span class="loop-state '+esc(wdState.toLowerCase())+'">'+esc(wdState)+'</span>'+
+      '<div class="loop-detail"><span>Zamrożone: <b>'+esc(ws.frozen_shadow_forecasts??"—")+'</b> · Rozliczone OOS: <b>'+esc(ws.real_settled_events??"—")+'</b> · bazowe Verification: <b>'+esc(wp.verified_count??"—")+'</b> (nie OOS) · alarmy: <b>'+esc(ws.critical_alerts??"—")+'</b> · '+esc(wd.readiness||"BRAK DANYCH")+'</span></div></div>';
+    const lifecycleRows=watchdogRow+candidateRows+scanRows;
     root.innerHTML=
       '<div class="closed-loop-grid">'+cards.map(([k,v])=>'<div class="loop-card"><small>'+esc(k)+'</small><b>'+esc(v)+'</b></div>').join("")+'</div>'+
       '<div class="loop-governance"><b>Evolution Controller</b><span>prospective/OOS</span><span>segment safety</span><span>wersjonowanie</span><span>rollback + retirement</span><span>execution: OFF</span></div>'+
@@ -530,7 +535,7 @@ async function load(){
     metric("metrics",d.metrics||{});
     calibrationResults(d.calibration_analytics||{});
     v3Candidates(d.belief_core_v3_candidates||{});
-    closedLoopStatus((evolution&&evolution.schema_version)?evolution:((d.evolution_controller&&d.evolution_controller.schema_version)?d.evolution_controller:(d.closed_loop||{})));
+    closedLoopStatus((evolution&&evolution.schema_version)?evolution:((d.evolution_controller&&d.evolution_controller.schema_version)?d.evolution_controller:(d.closed_loop||{})),d.p2_shadow_watchdog||{});
     patterns(d.evidence_patterns||[],d.evidence_pattern_meta||{});
     HAS_LOADED=true;
   }catch(_){
