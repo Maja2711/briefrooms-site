@@ -20,6 +20,7 @@ from belief_core_live import (  # noqa: E402
     POLICY_OUTPUT_ENABLED,
     TRADE_EXECUTION_ENABLED,
     Bar,
+    bounded_live_recompute_time,
     advance_us_regular_session_equivalent,
     due_planned_slot,
     evaluate_spec,
@@ -80,6 +81,26 @@ class BeliefCoreLiveTest(unittest.TestCase):
         self.assertFalse(TRADE_EXECUTION_ENABLED)
         self.assertFalse(POLICY_OUTPUT_ENABLED)
         self.assertFalse(AUTOMATIC_TUNING_ENABLED)
+
+    def test_bounded_live_recompute_time_accepts_only_tiny_same_cycle_skew(self) -> None:
+        utc = ZoneInfo("UTC")
+        cycle = datetime(2026, 10, 8, 9, 28, 46, 925045, tzinfo=utc)
+
+        class E:
+            def __init__(self, observed_at):
+                self.observed_at = observed_at
+
+        tiny = E("2026-10-08T09:28:48Z")
+        far = E("2026-10-08T09:29:16Z")
+
+        adjusted = bounded_live_recompute_time(cycle, [tiny])
+        self.assertEqual(adjusted, datetime(2026, 10, 8, 9, 28, 48, tzinfo=utc))
+
+        protected = bounded_live_recompute_time(cycle, [far])
+        self.assertEqual(protected, cycle)
+
+        mixed = bounded_live_recompute_time(cycle, [tiny, far])
+        self.assertEqual(mixed, datetime(2026, 10, 8, 9, 28, 48, tzinfo=utc))
 
     def test_floor_half_hour(self) -> None:
         self.assertEqual(floor_half_hour(datetime(2026,8,18,10,7,tzinfo=NY)).time(), time(10,0))
