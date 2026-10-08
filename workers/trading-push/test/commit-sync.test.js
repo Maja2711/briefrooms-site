@@ -18,6 +18,7 @@ import {
   transitionDelivery,
   retryDelayMs,
   deliveryReadyForRetry,
+  isSyntheticRecoveryEvent,
   PushHub,
 } from "../src/index.js";
 
@@ -370,19 +371,19 @@ test("durable delivery follows UNSENT to SENDING to SENT_TO_PUSH to ACKED", () =
   assert.throws(() => transitionDelivery(acked, DELIVERY_STATUS.SENDING), /invalid_delivery_transition/);
 });
 
-test("SENDING and SENT_TO_PUSH become retryable only after their safety timeout", () => {
+test("accepted and ambiguous deliveries are never retried without ACK", () => {
   const unsent = newDeliveryRecord("event-1", "sub-a", "secret", "2026-10-07T10:00:00.000Z");
   assert.equal(deliveryReadyForRetry(unsent, Date.parse("2026-10-07T10:00:01.000Z")), true);
 
   const sending = transitionDelivery(unsent, DELIVERY_STATUS.SENDING, "2026-10-07T10:00:00.000Z", { attempts: 1 });
   assert.equal(deliveryReadyForRetry(sending, Date.parse("2026-10-07T10:01:00.000Z")), false);
-  assert.equal(deliveryReadyForRetry(sending, Date.parse("2026-10-07T10:02:01.000Z")), true);
+  assert.equal(deliveryReadyForRetry(sending, Date.parse("2026-10-07T10:02:01.000Z")), false);
 
   const sent = transitionDelivery(sending, DELIVERY_STATUS.SENT_TO_PUSH, "2026-10-07T10:00:00.000Z", {
     sent_to_push_at: "2026-10-07T10:00:00.000Z",
   });
   assert.equal(deliveryReadyForRetry(sent, Date.parse("2026-10-07T10:04:59.000Z")), false);
-  assert.equal(deliveryReadyForRetry(sent, Date.parse("2026-10-07T10:05:01.000Z")), true);
+  assert.equal(deliveryReadyForRetry(sent, Date.parse("2026-10-07T10:05:01.000Z")), false);
   assert.equal(retryDelayMs(1), 30000);
   assert.ok(retryDelayMs(99) <= 15 * 60 * 1000);
 });
@@ -461,6 +462,55 @@ test("PushHub persists immutable events and creates one delivery per eligible su
     () => hub.persistImmutableEvent({ ...event, entry: 1.13 }),
     /immutable_event_conflict/,
   );
+});
+
+test("recovered CLOSE aliases cannot dispatch a second notification", async () => {
+  const storage = new FakeStorage();
+  const hub = new PushHub({ storage }, {});
+  const original = {
+    event_id: "abc123", engine: "daily", event_type: "CLOSE",
+    position_id: "eurusd:1", instrument: "EUR/USD",
+    direction: "SHORT", closed_at: "2026-10-02T14:05:00Z",
+  };
+  assert.equal(isSyntheticRecoveryEvent(original), false);
+  assert.equal(isSyntheticRecoveryEvent({ ...original, event_id: "abc123-r1", delivery_recovery: true }), true);
+  const result = await hub.dispatchEvents([{ ...original, event_id: "abc123-r1", delivery_recovery: true }]);
+  assert.equal(result.sent, 0);
+  assert.equal((await storage.list({ prefix: "event:" })).size, 0);
+});
+
+test("provider acceptance is terminal without browser ACK, also for old pending rows", async () => {
+  const storage = new FakeStorage();
+  const hub = new PushHub({ storage }, {});
+  const base = newDeliveryRecord("evt-accepted", "sub-a", "secret", "2026-10-07T10:00:00.000Z");
+  const sending = transitionDelivery(base, DELIVERY_STATUS.SENDING, "2026-10-07T10:00:01.000Z", { attempts: 1 });
+  await storage.put("delivery:evt-accepted:sub-a", transitionDelivery(sending, DELIVERY_STATUS.SENT_TO_PUSH, "2026-10-07T10:00:02.000Z", {
+    sent_to_push_at: "2026-10-07T10:00:02.000Z",
+    next_retry_at: "2026-10-07T10:05:02.000Z",
+  }));
+  await storage.put("recipients:evt-accepted", { initialized_at: "2026-10-07T10:00:00.000Z", count: 1 });
+  assert.equal(await hub.refreshEventCompletion("evt-accepted"), true);
+  assert.equal(await storage.get("event-complete:evt-accepted"), true);
+  const result = await hub.deliverPending();
+  assert.equal(result.sent, 0);
+  assert.equal(result.pending, 0);
+  const delivered = await storage.get("delivery:evt-accepted:sub-a");
+  assert.equal(delivered.next_retry_at, null);
+  assert.equal(delivered.attempts, 1);
+});
+
+test("stale SENDING gets closed as uncertain without repeating the push", async () => {
+  const storage = new FakeStorage();
+  const hub = new PushHub({ storage }, {});
+  const base = newDeliveryRecord("evt-uncertain", "sub-a", "secret", "2026-10-07T10:00:00.000Z");
+  await storage.put("delivery:evt-uncertain:sub-a", transitionDelivery(base, DELIVERY_STATUS.SENDING, "2026-10-07T10:00:01.000Z", { attempts: 1 }));
+  const result = await hub.deliverPending();
+  assert.equal(result.pending, 0);
+  assert.equal(result.duplicate_suppressed, 1);
+  const item = await storage.get("delivery:evt-uncertain:sub-a");
+  assert.equal(item.status, DELIVERY_STATUS.EXPIRED);
+  assert.equal(item.attempts, 1);
+  assert.equal(item.last_error, "ambiguous_send_not_replayed");
 });
 
 test("PushHub ACK is authenticated and idempotent", async () => {
