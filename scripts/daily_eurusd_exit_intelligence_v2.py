@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 import daily_eurusd_correction_research as corrections
+import daily_eurusd_profit_protection_lab as protection
 
 SCHEMA = "eurusd-exit-intelligence-v2"
 PIP = 0.0001
@@ -60,9 +61,11 @@ def normalize_bars(raw: Sequence[Any], cutoff: datetime) -> list[dict]:
         if isinstance(b, Mapping):
             time = parse_time(b.get("timestamp") or b.get("time"))
             close, high, low = b.get("close"), b.get("high"), b.get("low")
+            opened = b.get("open")
         else:
             time = parse_time(getattr(b, "timestamp", None))
             close, high, low = getattr(b, "close", None), getattr(b, "high", None), getattr(b, "low", None)
+            opened = getattr(b, "open", None)
         if time is None or time > cutoff or close is None:
             continue
         try:
@@ -71,7 +74,7 @@ def normalize_bars(raw: Sequence[Any], cutoff: datetime) -> list[dict]:
             low = float(low if low is not None else close)
             if close <= 0 or low > high:
                 continue
-            result.append({"time": time, "close": close, "high": high, "low": low})
+            result.append({"time": time, "close": close, "open": float(opened if opened is not None else close), "high": high, "low": low})
         except (ValueError, TypeError):
             pass
     return sorted({b["time"]: b for b in result}.values(), key=lambda b: b["time"])
@@ -322,10 +325,47 @@ def step(spot: dict, history: dict, journal: dict, reviews: dict,
         journal.get("correction_study") or {}, fx, now - timedelta(minutes=1)
     )
     position = ((spot.get("metadata") or {}).get("position") or {})
+    monitor_health = {"status": "NO_OPEN_POSITION", "active_trade_id": None}
     if position.get("status") == "OPEN":
-        snapshot = capture(position, fx, rates, now, study["events"])
-        if snapshot and not any(s.get("trade_id")==snapshot["trade_id"] and s.get("market_bar_at")==snapshot["market_bar_at"] for s in snapshots):
-            snapshots.append(snapshot)
+        tid = str(position.get("trade_id") or "")
+        # Reconstruct at most the latest 10 complete one-minute market bars.
+        # Crucially, signal availability is FIRST-SEEN-AT-THE-RUN, not the old
+        # bar timestamp. No prior signal is invented as a timely live alert.
+        complete = [b for b in fx if b["time"] + timedelta(minutes=1) <= now
+                    and b["time"] >= (parse_time(position.get("opened_at")) or now)]
+        already = {(s.get("trade_id"),s.get("market_bar_at")) for s in snapshots}
+        added = 0
+        for row in complete[-10:]:
+            if (tid,iso(row["time"])) in already:
+                continue
+            asof = row["time"] + timedelta(minutes=1)
+            point_bars = [b for b in fx if b["time"] <= row["time"]]
+            sample = capture(position, point_bars, rates, asof, study["events"])
+            if not sample:
+                continue
+            latency = max(0.0,(now-asof).total_seconds())
+            sample["captured_at"] = iso(now)
+            sample["first_seen_at"] = iso(now)
+            sample["market_bar_closed_at"] = iso(asof)
+            sample["availability_latency_seconds"] = round(latency,2)
+            sample["timely_observation"] = latency <= 180
+            sample["mode"] = ("TIMELY_ASOF_OBSERVATION" if latency <= 180
+                              else "DELAYED_BATCH_RECONSTRUCTION")
+            sample["retrospective_bar_not_a_live_alert"] = latency > 180
+            sample["prices_are_executable_bid_ask"] = False
+            snapshots.append(sample)
+            already.add((tid,sample["market_bar_at"]))
+            added += 1
+        newest_close = complete[-1]["time"] + timedelta(minutes=1) if complete else None
+        market_age = (now-newest_close).total_seconds() if newest_close else None
+        monitor_health = {
+            "status": ("OK" if market_age is not None and 0 <= market_age <= 240
+                       else "STALE_OR_MISSING_FX_1M_BAR"),
+            "active_trade_id": tid, "new_1m_observations":added,
+            "latest_complete_bar_closed_at":iso(newest_close) if newest_close else None,
+            "age_of_latest_complete_bar_seconds":round(market_age,2) if market_age is not None else None,
+            "late_bars_do_not_count_as_timed_exit_alerts":True,
+        }
     journal_changed = (
         snapshots[-MAX_SNAPSHOTS:] != list(journal.get("snapshots") or [])
         or study != journal.get("correction_study")
@@ -333,6 +373,7 @@ def step(spot: dict, history: dict, journal: dict, reviews: dict,
     journal = {"schema_version": SCHEMA,
                "generated_at": iso(now) if journal_changed else journal.get("generated_at", iso(now)),
                "authority": "SHADOW_OBSERVATION_ONLY",
+               "monitor_health": monitor_health,
                "snapshots": snapshots[-MAX_SNAPSHOTS:],
                "correction_study": study}
     known = {r["trade_id"]: r for r in (reviews.get("reviews") or [])}
@@ -372,6 +413,7 @@ def main() -> int:
     p.add_argument("--history", default="data/investments/eurusd_daily_history.json")
     p.add_argument("--journal", default="data/investments/eurusd_exit_signal_journal.json")
     p.add_argument("--reviews", default="data/investments/eurusd_exit_intelligence_reviews.json")
+    p.add_argument("--protection", default="data/investments/eurusd_profit_protection_lab.json")
     args = p.parse_args()
     now = datetime.now(timezone.utc)
     spot, history = load(Path(args.spot), {}), load(Path(args.history), {})
@@ -390,10 +432,14 @@ def main() -> int:
     except Exception as exc:
         print("US10Y_INDEX_PROXY_UNAVAILABLE", type(exc).__name__)
     journal, reviews = step(spot, history, journal, reviews, fx, rates, now)
+    baseline_lab = protection.step(load(Path(args.protection), {}), history, journal, normalize_bars(fx, now), now)
+    save(Path(args.protection), baseline_lab)
     save(Path(args.journal), journal)
     save(Path(args.reviews), reviews)
     print("EURUSD_EXIT_INTELLIGENCE", json.dumps({
         "snapshots": len(journal["snapshots"]), "reviews": len(reviews["reviews"]),
+        "protection_comparisons": len(baseline_lab["comparisons"]),
+        "monitor_health": journal.get("monitor_health",{}).get("status"),
         "latest_trade": (reviews["reviews"][-1]["trade_id"] if reviews["reviews"] else None),
         "execution_authority": False,
     }, sort_keys=True))
