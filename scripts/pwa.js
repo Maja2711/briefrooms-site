@@ -47,14 +47,12 @@
         backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);cursor:pointer;
         white-space:nowrap;
       }
-      /* On the homepage desktop the install action belongs to the Lab header,
-         not to the viewport: it scrolls away with the content. */
-      .home-lab__head{position:relative}
-      .home-lab__head > .br-pwa-install[data-placement="home-lab-desktop"]{
-        position:absolute;
-        inset:auto;
-        top:-22px;
-        right:0;
+      /* Keep the desktop install button fixed in the viewport while
+         aligning its right edge with the BriefRooms Lab column. */
+      .br-pwa-install[data-placement="home-lab-desktop"]{
+        position:fixed;
+        top:calc(var(--br-site-header-height, 84px) + 20px);
+        right:var(--br-pwa-home-right, 18px);
       }
       .br-pwa-install:hover{border-color:#78e7f7;box-shadow:0 10px 28px rgba(0,0,0,.34),0 0 18px rgba(35,213,204,.12),inset 0 1px 0 rgba(255,255,255,.16)}
       .br-pwa-install:focus-visible{outline:2px solid #78e7f7;outline-offset:3px}
@@ -160,11 +158,24 @@
     const homeLabHead = document.querySelector(".home-lab__head");
     const homeLabEyebrow = homeLabHead?.querySelector(".home-lab__eyebrow");
 
-    if (homeLabHead && homeLabEyebrow) {
+    if (mobile && homeLabHead && homeLabEyebrow) {
       if (installButton.parentElement !== homeLabHead || installButton.nextElementSibling !== homeLabEyebrow) {
         homeLabHead.insertBefore(installButton, homeLabEyebrow);
       }
-      installButton.dataset.placement = mobile ? "home-lab-mobile" : "home-lab-desktop";
+      installButton.dataset.placement = "home-lab-mobile";
+      return;
+    }
+
+    if (!mobile && homeLabHead) {
+      // Attach to body to prevent transformed or positioned ancestors from
+      // converting the fixed element into a scrolling positioned element.
+      if (installButton.parentElement !== document.body) {
+        document.body.appendChild(installButton);
+      }
+      const labRight = homeLabHead.getBoundingClientRect().right;
+      const viewportRight = Math.max(14, Math.round(window.innerWidth - labRight));
+      installButton.style.setProperty("--br-pwa-home-right", `${viewportRight}px`);
+      installButton.dataset.placement = "home-lab-desktop";
       return;
     }
 
