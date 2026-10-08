@@ -49,7 +49,8 @@ class ProfitProtectionLabTests(unittest.TestCase):
         self.assertTrue(first["signal_available_before_fill"])
         signal=lab.parse(first["signal"]["signal_at_bar_close"])
         fill=lab.parse(first["simulated_exit_at"])
-        self.assertLessEqual(signal,fill)
+        self.assertLess(signal,fill)
+        self.assertGreaterEqual(first["latency_since_signal_seconds"],60)
         self.assertFalse(first["signal"]["future_used"])
         self.assertFalse(first["execution_proven"])
         later=bars+[b(43,1.5),b(44,1.6)]
@@ -65,6 +66,7 @@ class ProfitProtectionLabTests(unittest.TestCase):
             self.assertEqual(value["cost_half_spread_pips"],1.5)
             self.assertGreater(value["simulated_exit_at"],t["opened_at"])
             self.assertLess(value["simulated_exit_at"],t["closed_at"])
+            self.assertGreaterEqual(value["latency_since_signal_seconds"],60)
 
     def test_stop_prioritized_over_pending_next_open_and_tp(self):
         t=trade()
