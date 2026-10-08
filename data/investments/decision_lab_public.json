@@ -7,7 +7,7 @@
   "automatic_tuning": false,
   "automatic_promotion": false,
   "promotion_policy": "v3_candidates_manual; probability_recalibration_closed_loop_governed",
-  "generated_at": "2026-10-08T11:26:20.838927Z",
+  "generated_at": "2026-10-08T11:29:18.659640Z",
   "evolution_controller": {
     "authority": {
       "belief_evidence_mutation": false,
@@ -635,7 +635,7 @@
       "promotion_brier_relative_improvement": 0.05,
       "stability_blocks_required": "3_of_4"
     },
-    "generated_at": "2026-10-08T11:26:24.088990Z",
+    "generated_at": "2026-10-08T11:29:22.001840Z",
     "global_control_metrics": {
       "accuracy": 0.607099,
       "brier": 0.238419,
@@ -650,7 +650,7 @@
     {
       "instrument": "BTC/USD",
       "trend_belief_id": "btc.trend.bullish",
-      "calculated_at": "2026-10-08T11:26:20.838927Z",
+      "calculated_at": "2026-10-08T11:29:18.659640Z",
       "as_of": "2026-10-07T19:06:18.100688Z",
       "target_at": "2026-10-08T19:06:18.100688Z",
       "horizon_label": "24H",
@@ -676,7 +676,7 @@
     {
       "instrument": "EUR/USD",
       "trend_belief_id": "eurusd.trend.bullish",
-      "calculated_at": "2026-10-08T11:26:20.838927Z",
+      "calculated_at": "2026-10-08T11:29:18.659640Z",
       "as_of": "2026-10-07T19:06:18.100688Z",
       "target_at": "2026-10-08T19:06:18.100688Z",
       "horizon_label": "24H",
@@ -702,7 +702,7 @@
     {
       "instrument": "S&P 500",
       "trend_belief_id": "spx.trend.bullish",
-      "calculated_at": "2026-10-08T11:26:20.838927Z",
+      "calculated_at": "2026-10-08T11:29:18.659640Z",
       "as_of": "2026-10-07T19:06:18.100688Z",
       "target_at": "2026-10-07T20:00:00Z",
       "horizon_label": "1H",
@@ -14091,7 +14091,7 @@
   },
   "hypothesis_utility": {
     "schema_version": "briefrooms-hypothesis-utility-v1",
-    "generated_at": "2026-10-08T11:26:23.258295Z",
+    "generated_at": "2026-10-08T11:29:21.133947Z",
     "status": "SHADOW_READ_ONLY",
     "authority": {
       "production_writeback": false,
@@ -15310,16 +15310,16 @@
   },
   "hypothesis_challengers": {
     "schema_version": "briefrooms-hypothesis-challenger-v1",
-    "generated_at": "2026-10-08T11:26:23.610688Z",
+    "generated_at": "2026-10-08T11:29:21.503623Z",
     "status": "SHADOW_OOS_GOVERNED",
     "summary": {
-      "candidates_total": 0,
+      "candidates_total": 1,
       "frozen_shadow_forecasts": 0,
       "gate_failed": 0,
       "gate_pass": 0,
       "held": 0,
-      "new_candidate_count": 0,
-      "oos_running": 0,
+      "new_candidate_count": 1,
+      "oos_running": 1,
       "production_promotions": 0,
       "promotion_eligible": 0,
       "settled_oos_events": 0
@@ -15338,7 +15338,39 @@
       "automatic_production_promotion": false,
       "trade_execution": false
     },
-    "candidates": []
+    "candidates": [
+      {
+        "candidate_id": "hch-a26038a449bce120ddc5506f",
+        "candidate_type": "hypothesis_probability_methodology",
+        "hypothesis_id": "btc.volatility.benign",
+        "hypothesis_version": "1",
+        "horizon_bucket": "__ALL_HORIZONS__",
+        "status": "OOS_RUNNING",
+        "created_at": "2026-10-08T11:29:21.503623Z",
+        "activation_boundary": "2026-10-08T11:29:21.503623Z",
+        "discovery": {
+          "source_n": 92,
+          "discovery_n": 38,
+          "validation_n": 54,
+          "validation_brier_relative_improvement": 0.797399,
+          "validation_distinct_target_dates": 8
+        },
+        "gate": {
+          "status": "COLLECTING",
+          "observed_sample": 0,
+          "minimum_sample": 50,
+          "distinct_target_dates": null,
+          "frozen_shadow_predictions": null,
+          "blockers": [
+            "minimum_independent_oos_sample"
+          ],
+          "brier_relative_improvement": null,
+          "positive_chronological_blocks": 0,
+          "protected_horizon_checks": []
+        },
+        "automatic_promotion_allowed": false
+      }
+    ]
   },
   "event_evaluation": {
     "policy": "first_frozen_revision_per_event_v1",
