@@ -620,6 +620,10 @@ def run(state: Mapping[str, Any], utility: Mapping[str, Any],
         "frozen_shadow_forecasts": sum(len(x.get("shadow_forecasts") or {}) for x in candidates.values()),
         "settled_oos_events": sum(len(x.get("settlements") or {}) for x in candidates.values()),
         "new_candidate_count": created,
+        "discovery_scopes_attempted": len(attempts),
+        "discovery_scopes_no_validated_candidate": sum(
+            x.get("result") == "NO_DISCOVERY_HOLDOUT_LIFT" for x in attempts.values()
+        ),
         "production_promotions": 0,
     }
     return {
