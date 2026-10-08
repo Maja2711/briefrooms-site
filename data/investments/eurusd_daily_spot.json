@@ -1,9 +1,9 @@
 {
   "instrument": "EUR/USD",
-  "timestamp": "2026-10-08T14:05:49Z",
+  "timestamp": "2026-10-08T18:58:51Z",
   "direction": "FLAT",
-  "score": 50.29,
-  "confidence": 0.3018,
+  "score": 55.93,
+  "confidence": 0.3058,
   "entry": null,
   "stop": null,
   "target": null,
@@ -45,16 +45,16 @@
       "owner": "NATIVE_DAILY_EURUSD_BELIEF_FIRST_DECISION_ENGINE",
       "decision_source": "NATIVE_BELIEF_FIRST",
       "epistemic_source": "BELIEF_CORE_CF07",
-      "direction": "FLAT",
-      "score": 50.29,
-      "confidence": 0.3018,
+      "direction": "LONG",
+      "score": 55.93,
+      "confidence": 0.3058,
       "thresholds": {
         "long": 56.0,
         "short": 44.0
       },
       "aggressive_participation": {
         "enabled": true,
-        "threshold_mode": "CORE",
+        "threshold_mode": "AGGRESSIVE_ALIGNED",
         "long": 53.0,
         "short": 47.0,
         "minimum_coverage_weight": 0.55,
@@ -62,48 +62,48 @@
         "minimum_aligned_beliefs": 3,
         "alignment_margin": 0.02,
         "aligned_long_beliefs": [
-          "eurusd.trend.bullish"
-        ],
-        "aligned_short_beliefs": [
+          "eurusd.trend.bullish",
+          "eurusd.us_rates_pressure.supportive",
           "eurusd.usd_environment.supportive"
         ],
-        "long_ready": false,
+        "aligned_short_beliefs": [],
+        "long_ready": true,
         "short_ready": false,
         "rule": "Narrower Daily participation band applies only to an authoritative, sufficiently covered/confident state with at least three aligned beliefs including the EURUSD trend anchor."
       },
-      "coverage_weight": 0.624248,
+      "coverage_weight": 0.593104,
       "minimum_coverage_weight": 0.45,
       "required_anchor_belief": "eurusd.trend.bullish",
       "used_beliefs": [
         {
           "belief_id": "eurusd.trend.bullish",
-          "probability": 0.527698,
-          "confidence": 0.474227,
-          "directional_support": 0.055396,
-          "effective_support": 0.02627,
+          "probability": 0.566085,
+          "confidence": 0.464658,
+          "directional_support": 0.13217,
+          "effective_support": 0.061414,
           "weight": 0.45,
-          "observed_at": "2026-10-08T14:05:27.402092Z",
-          "age_hours": 0.006
+          "observed_at": "2026-10-08T17:36:50.898913Z",
+          "age_hours": 1.3667
         },
         {
           "belief_id": "eurusd.usd_environment.supportive",
-          "probability": 0.458222,
-          "confidence": 0.530933,
-          "directional_support": -0.083556,
-          "effective_support": -0.044363,
+          "probability": 0.63082,
+          "confidence": 0.591164,
+          "directional_support": 0.26164,
+          "effective_support": 0.154672,
           "weight": 0.3,
-          "observed_at": "2026-10-08T00:22:51.811403Z",
-          "age_hours": 13.7159
+          "observed_at": "2026-10-08T03:50:44.123582Z",
+          "age_hours": 15.1352
         },
         {
           "belief_id": "eurusd.us_rates_pressure.supportive",
-          "probability": 0.517897,
-          "confidence": 0.427694,
-          "directional_support": 0.035794,
-          "effective_support": 0.015309,
+          "probability": 0.761515,
+          "confidence": 0.5937,
+          "directional_support": 0.52303,
+          "effective_support": 0.310523,
           "weight": 0.15,
-          "observed_at": "2026-10-07T23:07:09.563150Z",
-          "age_hours": 14.9776
+          "observed_at": "2026-10-08T01:41:12.595778Z",
+          "age_hours": 17.294
         }
       ],
       "unavailable_beliefs": [
@@ -120,9 +120,7 @@
           "max_age_hours": 18.0
         }
       ],
-      "reasons": [
-        "belief_score_neutral"
-      ],
+      "reasons": [],
       "routing": [
         "RAW_SOURCES",
         "SPECIALIZED_ADAPTERS",
@@ -140,16 +138,16 @@
         "consumer": "DAILY_EURUSD",
         "available": true,
         "reason": "authoritative_daily_eurusd_epistemic_projection",
-        "source_created_at": "2026-10-08T14:05:50.243773Z",
-        "age_hours": -0.000345,
-        "source_sha256": "cced9d0fd584f314589119c6e541bee4476d48a6a21ef564e139712102c5f01e",
+        "source_created_at": "2026-10-08T18:58:30.112676Z",
+        "age_hours": 0.005802,
+        "source_sha256": "9839df9ba3e974ebf0c827c5f1901b2185c27d02f0421e6893405b5e39671449",
         "aggregate_authoritative": true,
         "consumer_may_override_probability": false,
         "belief_core_writeback_enabled": false,
         "state_count": 5,
-        "aggregate_probability": 0.502906,
-        "aggregate_confidence": 0.301801,
-        "coverage_weight": 0.624248,
+        "aggregate_probability": 0.559332,
+        "aggregate_confidence": 0.305806,
+        "coverage_weight": 0.593104,
         "qualified_state_count": 3,
         "qualified_belief_ids": [
           "eurusd.trend.bullish",
@@ -159,34 +157,34 @@
       },
       "provenance": {
         "schema_version": "briefrooms-provenance-contract-v1",
-        "artifact_id": "daily-eurusd-decision:8c13524a667e399089f43388",
+        "artifact_id": "daily-eurusd-decision:458449a08a0b321fba35ac66",
         "artifact_type": "decision",
         "engine_id": "daily_eurusd",
         "engine_version": "belief-first-v1.9",
-        "created_at": "2026-10-08T14:05:49Z",
+        "created_at": "2026-10-08T18:58:51Z",
         "parent_artifact_ids": [
-          "epistemic:estate-15e7125dedf2b5ea5973",
-          "epistemic:estate-1abf422fd5fdcccb563c",
-          "epistemic:estate-c48633b4da4decd8c56f"
+          "epistemic:estate-4284be959aadbe85acad",
+          "epistemic:estate-b7bd057f4d90c0ea0a37",
+          "epistemic:estate-ff5d3eb76ecc913899bb"
         ],
         "source_ids": [
           "BELIEF_CORE_CF07",
           "NATIVE_BELIEF_FIRST"
         ],
         "evidence_ids": [
-          "epistemic:estate-15e7125dedf2b5ea5973",
-          "epistemic:estate-1abf422fd5fdcccb563c",
-          "epistemic:estate-c48633b4da4decd8c56f"
+          "epistemic:estate-4284be959aadbe85acad",
+          "epistemic:estate-b7bd057f4d90c0ea0a37",
+          "epistemic:estate-ff5d3eb76ecc913899bb"
         ],
         "belief_ids": [
           "eurusd.trend.bullish",
           "eurusd.us_rates_pressure.supportive",
           "eurusd.usd_environment.supportive"
         ],
-        "decision_id": "daily-eurusd-decision:8c13524a667e399089f43388",
+        "decision_id": "daily-eurusd-decision:458449a08a0b321fba35ac66",
         "forecast_id": null,
         "verification_id": null,
-        "payload_hash": "8c13524a667e399089f433881d8da8b9747a51cc5b47bf34be737318b07323b2",
+        "payload_hash": "458449a08a0b321fba35ac666efb34462f1cfb79fd7ae2aecb6fc23d97ec5387",
         "authority": "decision",
         "prospective": true,
         "domain_provenance": {
@@ -198,12 +196,12 @@
     },
     "candidate": {
       "source": "NATIVE",
-      "direction": "FLAT",
-      "score": 50.29,
-      "confidence": 0.3018,
+      "direction": "LONG",
+      "score": 55.93,
+      "confidence": 0.3058,
       "accepted": false,
       "gate_reasons": [
-        "belief_score_neutral"
+        "epe_daily_primary_stale_or_invalid"
       ]
     },
     "direction_authority": {
@@ -211,7 +209,7 @@
       "single_owner": true,
       "source": "NATIVE_BELIEF_FIRST",
       "epistemic_input": "BELIEF_CORE_CF07",
-      "direction": "FLAT",
+      "direction": "LONG",
       "allowed": true,
       "rule": "Final LONG/SHORT/FLAT is synthesized only after Belief Core; no shadow/fallback may manufacture direction."
     },
@@ -246,10 +244,24 @@
     },
     "same_thesis_reentry_guard": {
       "enabled": true,
-      "evaluated": false,
+      "mode": "SAME_THESIS_REENTRY_GUARD",
+      "generic_loss_cooldown": false,
+      "window_hours": 12.0,
+      "min_loss_r": -0.15,
+      "evaluated": true,
       "blocked": false,
-      "reason": "no_directional_candidate",
-      "direction_mutation_allowed": false
+      "reason": "no_recent_meaningful_same_direction_loss",
+      "current_thesis": {
+        "schema_version": "eurusd-entry-thesis-v1",
+        "source": "NATIVE",
+        "source_family": "NATIVE_COMPONENTS",
+        "direction": "LONG",
+        "score": 55.93,
+        "directional_strength": 5.93,
+        "confidence": 0.3058,
+        "components": {},
+        "weights": {}
+      }
     },
     "learning": {
       "total_closed": 40,
@@ -314,29 +326,29 @@
     "belief_macro": {
       "enabled": true,
       "available": true,
-      "score": 0.009,
+      "score": 1.3402,
       "direction": "long",
       "beliefs": [
         {
           "belief_id": "eurusd.trend.bullish",
-          "probability": 0.527698,
-          "confidence": 0.474227,
-          "age_hours": 0.067,
-          "updated_at": "2026-10-08T14:01:49Z"
+          "probability": 0.566085,
+          "confidence": 0.464658,
+          "age_hours": 1.551,
+          "updated_at": "2026-10-08T17:25:49Z"
         },
         {
           "belief_id": "eurusd.usd_environment.supportive",
-          "probability": 0.458222,
-          "confidence": 0.530933,
-          "age_hours": 0.122,
-          "updated_at": "2026-10-08T13:58:29Z"
+          "probability": 0.63082,
+          "confidence": 0.591164,
+          "age_hours": 1.651,
+          "updated_at": "2026-10-08T17:19:47Z"
         },
         {
           "belief_id": "eurusd.us_rates_pressure.supportive",
-          "probability": 0.517897,
-          "confidence": 0.427694,
-          "age_hours": 0.062,
-          "updated_at": "2026-10-08T14:02:04Z"
+          "probability": 0.761515,
+          "confidence": 0.5937,
+          "age_hours": 1.536,
+          "updated_at": "2026-10-08T17:26:40Z"
         }
       ],
       "freshness_max_hours": 8.0,
@@ -350,12 +362,19 @@
           {
             "title": "FOMC meeting decision window — October 08-08",
             "event_at": "2026-10-08T18:00:00Z",
-            "hours_until": 3.903,
+            "hours_until": -0.981,
+            "source": "Federal Open Market Committee",
+            "source_ref": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm"
+          },
+          {
+            "title": "FOMC meeting decision window — October 09-09",
+            "event_at": "2026-10-09T18:00:00Z",
+            "hours_until": 23.019,
             "source": "Federal Open Market Committee",
             "source_ref": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm"
           }
         ],
-        "source": "belief_macro_calendar_adapter"
+        "source": "belief_macro_calendar_adapter+macro_fast_lane"
       },
       "release_context": {
         "recent_high_impact_event": null,
@@ -364,7 +383,84 @@
         "post_release_guard_minutes": 30,
         "fast_lane_post_release_ready": false
       },
-      "fast_context": {},
+      "fast_context": {
+        "schema_version": "daily-eurusd-macro-fast-v1",
+        "status": "PRE_RELEASE",
+        "event": {
+          "uid": "fomc:2026-10-08",
+          "title": "FOMC meeting decision window — October 08-08",
+          "event_at": "2026-10-08T18:00:00Z",
+          "hours_until_at_check": 0.6724,
+          "source": "Federal Open Market Committee",
+          "source_ref": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
+          "importance": "high"
+        },
+        "expectations": null,
+        "expectations_status": "MISSING",
+        "actuals": [],
+        "actuals_status": "NOT_APPLICABLE",
+        "llm_key": "{\"actuals\": [], \"event_uid\": \"fomc:2026-10-08\", \"expectation_fingerprint\": null, \"phase\": \"PRE_RELEASE\"}",
+        "llm": null,
+        "eurusd_score": 0.0,
+        "decision_influence": false,
+        "post_release_ready": false,
+        "calendar_coverage": {
+          "schema_version": "macro-calendar-coverage-v1",
+          "required_sources": [
+            "BLS",
+            "BEA",
+            "FOMC",
+            "EUROSTAT",
+            "ECB"
+          ],
+          "sources": {
+            "BLS": {
+              "status": "ok",
+              "source_ref": "https://www.bls.gov/schedule/news_release/bls.ics",
+              "event_count": 19
+            },
+            "BEA": {
+              "status": "ok",
+              "source_ref": "https://www.bea.gov/news/schedule",
+              "event_count": 7
+            },
+            "FOMC": {
+              "status": "ok",
+              "source_ref": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
+              "event_count": 23
+            },
+            "EUROSTAT": {
+              "status": "ok",
+              "source_ref": "https://ec.europa.eu/eurostat/news/release-calendar",
+              "event_count": 0
+            },
+            "ECB": {
+              "status": "ok",
+              "source_ref": "https://www.ecb.europa.eu/press/calendars/mgcgc/html/index.en.html",
+              "event_count": 0
+            }
+          },
+          "complete": true
+        },
+        "rules": {
+          "no_invented_consensus": true,
+          "eurusd_only_llm_beliefs": [
+            "eurusd.trend.bullish",
+            "eurusd.usd_environment.supportive",
+            "eurusd.us_rates_pressure.supportive",
+            "eurusd.macro_surprise.supportive",
+            "eurusd.policy_differential.supportive"
+          ],
+          "pre_event_expectations_require_sourced_bundle": true,
+          "missing_expectations_fail_closed": true,
+          "post_release_requires_official_actuals": true,
+          "official_actual_period_contract": "BLS_YYYY-MMM"
+        },
+        "generated_at": "2026-10-08T17:19:39.405622Z",
+        "checked_at": "2026-10-08T17:19:39.405622Z",
+        "hours_until": -0.9808,
+        "phase_now": "POST_RELEASE"
+      },
       "rule": "fresh bounded EURUSD beliefs with event fast lane; no standalone execution authority",
       "direction_decision_influence": false,
       "role": "OPEN_POSITION_RISK_ONLY"
@@ -383,6 +479,129 @@
         "remaining_r_to_target",
         "required_r_velocity_to_hard_horizon"
       ]
+    },
+    "execution_admission": {
+      "allowed": true,
+      "status": "ALLOWED",
+      "reasons": [],
+      "final_direction_preserved": "LONG",
+      "direction_mutation_allowed": false,
+      "belief_calendar_safety": {
+        "available": true,
+        "blocked": false,
+        "reason": "clear",
+        "imminent": false,
+        "post_release_evidence_pending": false,
+        "calendar_coverage": {
+          "complete": true,
+          "observed_at": "2026-10-08T18:47:49.082461Z",
+          "age_minutes": 11.032,
+          "source_status": {
+            "BEA": {
+              "event_count": 7,
+              "source_ref": "https://www.bea.gov/news/schedule",
+              "status": "ok"
+            },
+            "BLS": {
+              "event_count": 19,
+              "source_ref": "https://www.bls.gov/schedule/news_release/bls.ics",
+              "status": "ok"
+            },
+            "ECB": {
+              "event_count": 0,
+              "source_ref": "https://www.ecb.europa.eu/press/calendars/mgcgc/html/index.en.html",
+              "status": "ok"
+            },
+            "EUROSTAT": {
+              "event_count": 0,
+              "source_ref": "https://ec.europa.eu/eurostat/news/release-calendar",
+              "status": "ok"
+            },
+            "FOMC": {
+              "event_count": 22,
+              "source_ref": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
+              "status": "ok"
+            }
+          }
+        },
+        "events": [
+          {
+            "title": "FOMC meeting decision window — October 09-09",
+            "event_at": "2026-10-09T18:00:00Z",
+            "hours_until": 23.0192,
+            "source": "Federal Open Market Committee",
+            "source_ref": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
+            "region": null
+          }
+        ],
+        "source": "belief_macro_calendar_adapter",
+        "direction_mutation_allowed": false
+      },
+      "same_thesis_reentry_guard": {
+        "enabled": true,
+        "mode": "SAME_THESIS_REENTRY_GUARD",
+        "generic_loss_cooldown": false,
+        "window_hours": 12.0,
+        "min_loss_r": -0.15,
+        "evaluated": true,
+        "blocked": false,
+        "reason": "no_recent_meaningful_same_direction_loss",
+        "current_thesis": {
+          "schema_version": "eurusd-entry-thesis-v1",
+          "source": "NATIVE",
+          "source_family": "NATIVE_COMPONENTS",
+          "direction": "LONG",
+          "score": 55.93,
+          "directional_strength": 5.93,
+          "confidence": 0.3058,
+          "components": {},
+          "weights": {}
+        }
+      }
+    },
+    "execution_price_engine": {
+      "schema_version": "execution-price-engine-v1",
+      "engine_version": "EPE-1.3.0",
+      "instrument": "EUR/USD",
+      "mode": "MARKET_NOW",
+      "status": "NO_FILL",
+      "verified": false,
+      "reason": "daily_primary_stale_or_invalid",
+      "details": {
+        "rejected_primary": [
+          {
+            "source": "Yahoo Finance:EURUSD=X:chart:1d:1m",
+            "reason": "stale_or_future",
+            "age_seconds": 17891.144,
+            "future_tolerance_seconds": 30.0
+          }
+        ]
+      },
+      "provider_errors": [
+        {
+          "provider": "fetch_stooq_eurusd_quote",
+          "error_type": "RuntimeError"
+        },
+        {
+          "provider": "fetch_currency_exchange_tool_eurusd_quote",
+          "error_type": "HTTPError"
+        }
+      ]
+    },
+    "execution_guarded_candidate": {
+      "source": "NATIVE",
+      "direction": "LONG",
+      "score": 55.93,
+      "confidence": 0.3058,
+      "accepted": true,
+      "gate_reasons": [],
+      "effective_direction_before_execution": "LONG"
+    },
+    "execution_blocked_decision": {
+      "direction": "LONG",
+      "score": 55.93,
+      "confidence": 0.3058,
+      "preserved": true
     }
   },
   "schema_version": "daily-engine-output-v1"
