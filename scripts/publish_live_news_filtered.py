@@ -1200,7 +1200,7 @@ def validate(max_age_minutes: int = 30) -> None:
             if image_quality.get("scope") != "en_only" or image_quality.get("mode") != "article_og_image_preferred":
                 raise RuntimeError("en high-resolution image policy missing or outdated")
         for section_id, stories in payload.get("sections", {}).items():
-            section_max = EN_SECTION_TARGETS.get(section_id, base.TARGET) if lang == "en" else base.TARGET
+            section_max = (EN_SECTION_TARGETS if lang == "en" else base.PL_SECTION_TARGETS).get(section_id, base.TARGET)
             if len(stories) > section_max:
                 raise RuntimeError(
                     f"{lang}/{section_id} has {len(stories)} stories; maximum is {section_max}"
