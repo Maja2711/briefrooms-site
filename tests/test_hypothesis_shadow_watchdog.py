@@ -92,6 +92,18 @@ class P21WatchdogTests(unittest.TestCase):
         self.assertNotIn("SOURCE_FORECASTS_MISSING_AFTER_CONFIRMED_SLOT", r["alert_codes"])
         self.assertEqual("PASS", r["status"])
 
+    def test_us_close_slot_is_audited_after_cash_session_ends(self):
+        # Final 16:00 NY slot matures at 16:55, later than collection close.
+        now = "2026-10-08T20:58:00Z"  # 16:58 NY, market-window inactive
+        no_candidate_p2 = {"schema_version": SCHEMA, "generated_at": now,
+                           "candidates": {}}
+        done = {"wes-assets:2026-10-08:1600": "2026-10-08T20:09:00Z"}
+        r = assess({"forecasts": [], "verifications": []}, no_candidate_p2,
+                   scheduler(now=now, slots=done), now=now)
+        self.assertFalse(r["session"]["market_window_active"])
+        self.assertIn("SOURCE_FORECASTS_MISSING_AFTER_CONFIRMED_SLOT", r["alert_codes"])
+        self.assertEqual("FAIL", r["status"])
+
     def test_successful_slot_without_candidate_base_forecast_is_critical(self):
         c = self._candidate()
         done = {"wes-assets:2026-10-08:1000": "2026-10-08T14:33:00Z"}
