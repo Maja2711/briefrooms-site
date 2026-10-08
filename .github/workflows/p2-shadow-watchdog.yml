@@ -150,10 +150,10 @@ jobs:
                       assert dt(freeze["forecast_at"]) <= dt(freeze["frozen_at"]) < dt(freeze["target_at"])
                       out.write("- First freeze observed; watchdog status: **" + p["status"] + "**\n")
                       for field in ("candidate_id", "hypothesis_id"):
-                          out.write("- " + field + ": \`" + str(target_candidate[field]) + "\`\n")
+                          out.write("- " + field + ": `" + str(target_candidate[field]) + "`\n")
                       for field in ("event_id", "forecast_id", "shadow_forecast_id",
                                     "forecast_at", "frozen_at", "target_at", "source_snapshot_sha256"):
-                          out.write("- " + field + ": \`" + str(freeze[field]) + "\`\n")
+                          out.write("- " + field + ": `" + str(freeze[field]) + "`\n")
                   else:
                       out.write("- **PENDING:** no immutable first-freeze proof yet\n")
               if p["production_e2e_status"] == "PASS":
@@ -164,7 +164,7 @@ jobs:
                                 "shadow_forecast_id", "source_verification_id",
                                 "frozen_at", "target_at", "verified_at",
                                 "control_brier", "challenger_brier", "source_snapshot_sha256"):
-                      out.write("- " + field + ": \`" + str(proof[field]) + "\`\n")
+                      out.write("- " + field + ": `" + str(proof[field]) + "`\n")
           PY
 
       - name: Write sanitized independent source SLA checkpoint
