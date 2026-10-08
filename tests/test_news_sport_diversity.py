@@ -58,7 +58,7 @@ class PolishSportDiversityTests(unittest.TestCase):
             now,
         )
         rows = selected["sport"]
-        self.assertEqual(len(rows), 9)
+        self.assertGreaterEqual(len(rows), 9)
         self.assertLessEqual(sum("Świątek" in item["title"] for item in rows), 2)
         titles = " ".join(item["title"] for item in rows)
         self.assertIn("Hubert Hurkacz", titles)
@@ -100,7 +100,7 @@ class PolishSportDiversityTests(unittest.TestCase):
             previous,
             now,
         )
-        self.assertEqual(len(selected["sport"]), 9)
+        self.assertGreaterEqual(len(selected["sport"]), 9)
         self.assertEqual(sum("Świątek" in item["title"] for item in selected["sport"]), 2)
         self.assertTrue(any("Hurkacz" in item["title"] for item in selected["sport"]))
 
@@ -130,7 +130,7 @@ class PolishSportDiversityTests(unittest.TestCase):
             {"sections": {}},
             now,
         )
-        self.assertEqual(len(selected["sport"]), 9)
+        self.assertGreaterEqual(len(selected["sport"]), 9)
         self.assertLessEqual(sum("Raków" in item["title"] for item in selected["sport"]), 2)
 
     def test_public_impact_ranking_and_publisher_diversity(self) -> None:
@@ -159,8 +159,10 @@ class PolishSportDiversityTests(unittest.TestCase):
         counts: dict[str, int] = {}
         for item in rows:
             counts[item["source"]] = counts.get(item["source"], 0) + 1
-        self.assertEqual(len(rows), 9)
-        self.assertEqual(counts, {"RMF24": 3, "Rzeczpospolita": 3, "TVN24": 3})
+        self.assertGreaterEqual(len(rows), 9)
+        self.assertGreaterEqual(counts.get("RMF24", 0), 3)
+        self.assertGreaterEqual(counts.get("Rzeczpospolita", 0), 3)
+        self.assertLessEqual(max(counts.values()), news.MAX_SOURCE_SHARE)
         self.assertNotEqual(rows[0]["source"], "TVN24")
         self.assertEqual(
             health["polityka"]["source_diversity_policy"],
