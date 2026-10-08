@@ -156,7 +156,9 @@ def assess(state: Mapping[str, Any], p2: Mapping[str, Any] | None,
     # canonical source forecast. This check cannot be masked by candidate
     # discovery status or a recently refreshed scheduler heartbeat.
     source_missing_slots = []
-    if session["market_window_active"]:
+    # Also audit the 16:00 NY close slot after the 16:20 collection window:
+    # its 55-minute maturation occurs at 16:55, when the cash session is over.
+    if session["us_weekday"]:
         for slot in session["due_slots"]:
             key = "wes-assets:" + session["session_date_ny"] + ":" + slot
             completed_at = _parse(completed.get(key))
