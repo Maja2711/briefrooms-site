@@ -138,6 +138,21 @@ class TestFSEPhaseEngine(unittest.TestCase):
             self.assertEqual(hse[0]["counter"], 1)
             self.assertEqual(hse[1]["counter"], 1)
 
+
+    def test_challenger_performance_uses_only_same_cohort(self):
+        m=v2.METHODOLOGY_VERSION
+        snaps=[{"snapshot_id":"a","instrument":"EURUSD","prospective_only":True,"methodology_version":m,"base_p_up":.6,"challenger_p_up":.7},
+               {"snapshot_id":"b","instrument":"EURUSD","prospective_only":True,"methodology_version":"OLD","base_p_up":.7,"challenger_p_up":.8},
+               {"snapshot_id":"c","instrument":"EURUSD","prospective_only":True,"methodology_version":m,"base_p_up":.4,"challenger_p_up":None}]
+        results=[{"snapshot_id":"a","instrument":"EURUSD","prospective_only":True,"methodology_version":m,"outcome_up":True},
+                 {"snapshot_id":"b","instrument":"EURUSD","prospective_only":True,"methodology_version":"OLD","outcome_up":True},
+                 {"snapshot_id":"c","instrument":"EURUSD","prospective_only":True,"methodology_version":m,"outcome_up":False}]
+        challenger=v1.directional_performance(results,snaps,"EURUSD",probability_field="challenger_p_up",
+            methodology_version=m,paired_base_field="base_p_up")
+        self.assertEqual(challenger["resolved_n"],1)
+        self.assertEqual(challenger["signal_n"],1)
+        self.assertAlmostEqual(challenger["delta_brier_vs_base"],.16-.09)
+
     def test_shadow_cycle_exposes_full_pipeline_and_zero_authority(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -156,6 +171,8 @@ class TestFSEPhaseEngine(unittest.TestCase):
             self.assertIn("cross_scale_alignment", row)
             self.assertIn("p_calibration_challenger", row)
             self.assertEqual(len(out["hse_measurements"]), 2)
+            self.assertEqual(out["directional_performance"][0]["deep"]["resolved_n"],0)
+            self.assertEqual(out["directional_performance"][0]["challenger"]["resolved_n"],0)
             self.assertFalse(out["promotion_gate"]["automatic_promotion"])
             self.assertTrue(v2.verify(state)["zero_authority"])
 

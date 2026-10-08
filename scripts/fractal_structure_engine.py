@@ -285,12 +285,44 @@ def measurements(resolutions:Sequence[Mapping[str,Any]],instrument:str)->list[di
         {"proposal_key":f"fse-structural-risk-{instrument.lower()}-4h-brier","claim":f"FSE structural-risk probability for {instrument} improves prospective 4x1h-market-bar large-move Brier score versus a 50/50 baseline.","champion":"50/50 large-move baseline","challenger":"FSE Structural Risk","metric_name":"risk_brier_improvement_vs_0_5","target_n":40,"success_mean_edge":.0025,"reject_mean_edge":-.0025,"counter":len(re),"total":sum(re),"details":{"instrument":instrument,"horizon":"4x1h_market_bars","large_move_threshold":"0.75 * frozen ATR(1h)","kind":"risk_calibration"}},
     ]
 
-def public_projection(states,resolutions,at:str)->dict[str,Any]:
+def directional_performance(resolutions:Sequence[Mapping[str,Any]],snapshots:Sequence[Mapping[str,Any]],instrument:str,probability_field:str="p_up_4h",methodology_version:str|None=None,paired_base_field:str|None=None)->dict[str,Any]:
+    """Accuracy of frozen, settled LONG/SHORT; neutral counts only in Brier."""
+    snap_by={str(s.get("snapshot_id")):s for s in snapshots if s.get("instrument")==instrument and s.get("prospective_only") is True}
+    briers=[]; base_briers=[]; signals=correct=0; seen=set()
+    for outcome in resolutions:
+        sid=str(outcome.get("snapshot_id") or "")
+        s=snap_by.get(sid)
+        if not s or sid in seen or outcome.get("instrument")!=instrument or outcome.get("prospective_only") is not True:continue
+        if not isinstance(outcome.get("outcome_up"),bool):continue
+        if methodology_version is not None and (s.get("methodology_version")!=methodology_version or outcome.get("methodology_version")!=methodology_version):continue
+        p=finite(s.get(probability_field))
+        base=finite(s.get(paired_base_field)) if paired_base_field else None
+        if p is None or not 0<=p<=1:continue
+        if paired_base_field and (base is None or not 0<=base<=1):continue
+        seen.add(sid)
+        y=int(outcome["outcome_up"])
+        briers.append((p-y)**2)
+        if paired_base_field:base_briers.append((base-y)**2)
+        direction=True if p>=.55 else (False if p<=.45 else None)
+        if direction is not None:
+            signals+=1
+            correct+=int(direction==outcome["outcome_up"])
+    n=len(briers)
+    brier=sum(briers)/n if n else None
+    paired=sum(base_briers)/n if paired_base_field and n else None
+    return {"horizon":"4x1h_market_bars","resolved_n":n,"signal_n":signals,"correct_n":correct,
+            "accuracy":correct/signals if signals else None,
+            "mean_brier":brier,"baseline_brier":.25,
+            "brier_edge_vs_baseline":.25-brier if brier is not None else None,
+            "paired_base_brier":paired,"delta_brier_vs_base":paired-brier if paired is not None else None}
+
+def public_projection(states,resolutions,at:str,snapshots=None)->dict[str,Any]:
     inst=[]; ms=[]
+    perf=[{"instrument":str(s["instrument"]),**directional_performance(resolutions,snapshots or [],str(s["instrument"]))} for s in states]
     for s in states:
         ms += measurements(resolutions,str(s["instrument"])); risk=s["structural_risk"]; mem=s["fractal_memory"]
         inst.append({"instrument":s["instrument"],"symbol":s["symbol"],"observed_at":s["observed_at"],"reference_price":s["reference_price"],"regime":risk["regime"],"risk_score":risk["risk_score"],"risk_components":risk["components"],"persistence":risk["persistence"],"research_risk_geometry":risk["research_candidate"],"fractal_memory":{"source":mem.get("source"),"analogues_n":mem.get("analogues_n"),"p_up_4h":s["p_up_4h"],"forecast":s["forecast"],"top_similarity":mem.get("top_similarity"),"mean_similarity":mem.get("mean_similarity"),"median_forward_return":mem.get("median_forward_return"),"median_adverse_excursion":mem.get("median_adverse_excursion")},"scale_summary":{tf:{k:v.get(k) for k in ("bars","hurst_q2","multifractality_proxy","excess_kurtosis","tail_ratio_q95_median","atr_fraction")} for tf,v in s["scales"].items()}})
-    return {"schema_version":PUBLIC_SCHEMA,"methodology_version":METHODOLOGY_VERSION,"engine":"FSE — Fractal Structure Engine","module_id":"IN-09","mode":"SHADOW_ONLY","generated_at":at,"pipeline":"MULTISCALE MARKET GEOMETRY -> STRUCTURAL RISK + FRACTAL MEMORY -> PROSPECTIVE FREEZE -> FORWARD VERIFICATION","risk_definition":"Risk = f(scale, persistence, multifractality_proxy, tails)","memory_definition":"current state -> normalized structural fingerprint -> analogues -> forward distribution","instruments":inst,"hse_measurements":ms,"authority":dict(ZERO_AUTHORITY),"production_impact":False,"notes":["4h is resampled from 1h bars.","Multifractality is a generalized-Hurst spread proxy, not full MF-DFA.","Historical 1h analogues bootstrap the model; durable full-vector Fractal Memory takes over after enough prospective resolutions.","Sizing and stop multipliers are research candidates only."]}
+    return {"schema_version":PUBLIC_SCHEMA,"methodology_version":METHODOLOGY_VERSION,"engine":"FSE — Fractal Structure Engine","module_id":"IN-09","mode":"SHADOW_ONLY","generated_at":at,"pipeline":"MULTISCALE MARKET GEOMETRY -> STRUCTURAL RISK + FRACTAL MEMORY -> PROSPECTIVE FREEZE -> FORWARD VERIFICATION","risk_definition":"Risk = f(scale, persistence, multifractality_proxy, tails)","memory_definition":"current state -> normalized structural fingerprint -> analogues -> forward distribution","instruments":inst,"hse_measurements":ms,"directional_performance":perf,"authority":dict(ZERO_AUTHORITY),"production_impact":False,"notes":["4h is resampled from 1h bars.","Multifractality is a generalized-Hurst spread proxy, not full MF-DFA.","Historical 1h analogues bootstrap the model; durable full-vector Fractal Memory takes over after enough prospective resolutions.","Sizing and stop multipliers are research candidates only."]}
 
 def run_cycle(root:Path,state_dir:Path,public_path:Path,instruments:Mapping[str,str]|None=None,client:YahooChartClient|None=None,at:str|None=None)->dict[str,Any]:
     state_dir.mkdir(parents=True,exist_ok=True); instruments=dict(instruments or DEFAULT_INSTRUMENTS); client=client or YahooChartClient()
@@ -301,7 +333,7 @@ def run_cycle(root:Path,state_dir:Path,public_path:Path,instruments:Mapping[str,
     if not states:raise RuntimeError("FSE has no usable instruments: "+canonical(errors))
     resolve_snapshots(state_dir,{k:v["1h"] for k,v in fetched.items()}); res=read_jsonl(state_dir/RESOLUTIONS_FILE)
     for s in states:create_snapshot(state_dir,s)
-    verify(state_dir); out=public_projection(states,res,at or datetime.now(timezone.utc).isoformat().replace("+00:00","Z")); out["source_status"]={"configured":len(instruments),"available":len(states),"errors":errors}
+    verify(state_dir); out=public_projection(states,res,at or datetime.now(timezone.utc).isoformat().replace("+00:00","Z"),read_jsonl(state_dir/SNAPSHOTS_FILE)); out["source_status"]={"configured":len(instruments),"available":len(states),"errors":errors}
     public_path.parent.mkdir(parents=True,exist_ok=True); public_path.write_text(json.dumps(out,ensure_ascii=False,indent=2,sort_keys=True)+"\n",encoding="utf-8"); return out
 
 def main()->int:

@@ -79,6 +79,19 @@ class FSETests(unittest.TestCase):
             self.assertTrue(rows[0]["prospective_only"])
             self.assertTrue(fse.verify(state)["zero_authority"])
 
+
+    def test_directional_performance_scores_frozen_and_excludes_neutral(self):
+        snaps=[{"snapshot_id":"a","instrument":"EURUSD","prospective_only":True,"p_up_4h":.7},
+               {"snapshot_id":"b","instrument":"EURUSD","prospective_only":True,"p_up_4h":.35},
+               {"snapshot_id":"c","instrument":"EURUSD","prospective_only":True,"p_up_4h":.5}]
+        results=[{"snapshot_id":"a","instrument":"EURUSD","prospective_only":True,"outcome_up":True},
+                 {"snapshot_id":"b","instrument":"EURUSD","prospective_only":True,"outcome_up":True},
+                 {"snapshot_id":"c","instrument":"EURUSD","prospective_only":True,"outcome_up":False}]
+        score=fse.directional_performance(results,snaps,"EURUSD")
+        self.assertEqual((score["resolved_n"],score["signal_n"],score["correct_n"]),(3,2,1))
+        self.assertAlmostEqual(score["accuracy"],.5)
+        self.assertAlmostEqual(score["mean_brier"],(.09+.4225+.25)/3)
+
     def test_cycle_exports_hse_measurements(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp); state=root/"state"; public=root/"fse.json"
@@ -91,6 +104,7 @@ class FSETests(unittest.TestCase):
             self.assertEqual(out["authority"],fse.ZERO_AUTHORITY)
             self.assertEqual(len(out["instruments"]),1)
             self.assertEqual(len(out["hse_measurements"]),2)
+            self.assertEqual(out["directional_performance"][0]["resolved_n"],0)
             self.assertEqual(json.loads(public.read_text())["engine"],"FSE — Fractal Structure Engine")
 
 

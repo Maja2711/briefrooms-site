@@ -26,6 +26,14 @@ class DecisionLabFSEFrontendTests(unittest.TestCase):
             self.assertIn("FSE-PHASE", text, rel)
             self.assertIn("Cross-Scale Alignment", text, rel)
             self.assertIn("P Calibration Challenger", text, rel)
+            self.assertIn("Deep Fractal Memory v2", text, rel)
+            self.assertIn("v2 Calibration Challenger", text, rel)
+            self.assertIn("directional_performance", text, rel)
+            self.assertIn("fseModelCell(", text, rel)
+            self.assertIn("fseSignal(", text, rel)
+            self.assertIn("n>=.55?'long':n<=.45?'short':'neutral'", text, rel)
+            self.assertIn("delta_brier_vs_base", text, rel)
+            self.assertIn("comparisonRows", text, rel)
             self.assertIn("Fractal Trend", text, rel)
             self.assertIn("FSE_TREND_TFS", text, rel)
             self.assertIn("const FSE_TREND_TFS=['5m','15m','1h','4h','1d','1w']", text, rel)
@@ -62,6 +70,8 @@ class DecisionLabFSEFrontendTests(unittest.TestCase):
         css = (ROOT / "assets/decision-lab.css").read_text(encoding="utf-8")
         self.assertIn(".lab-glass-tabs .tab-fse", css)
         self.assertIn(".fse-memory-grid", css)
+        self.assertIn(".fse-comparison-table", css)
+        self.assertIn(".fse-signal", css)
         self.assertIn(".fse-validation-table", css)
         self.assertIn(".fse-trend-grid", css)
         self.assertIn(".fse-trend-card", css)
@@ -75,10 +85,10 @@ class DecisionLabFSEFrontendTests(unittest.TestCase):
     def test_fse_trend_assets_are_cache_busted(self):
         pl = (ROOT / "pl/inwestycje/decision-lab.html").read_text(encoding="utf-8")
         en = (ROOT / "en/investing/decision-lab.html").read_text(encoding="utf-8")
-        self.assertIn("/assets/decision-lab.css?v=20261007-1", pl)
-        self.assertIn("/assets/decision-lab.css?v=20261007-1", en)
-        self.assertIn("/scripts/central-lab.js?v=20261007-3", pl)
-        self.assertIn("/scripts/central-lab-runtime-en.js?v=20261007-3", en)
+        self.assertIn("/assets/decision-lab.css?v=20261008-1", pl)
+        self.assertIn("/assets/decision-lab.css?v=20261008-1", en)
+        self.assertIn("/scripts/central-lab.js?v=20261008-1", pl)
+        self.assertIn("/scripts/central-lab-runtime-en.js?v=20261008-1", en)
 
 
 if __name__ == "__main__":

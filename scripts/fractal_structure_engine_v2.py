@@ -851,6 +851,7 @@ def run_cycle(
         snapshot(state_dir, row)
     check = verify(state_dir)
     resolutions = read_jsonl(state_dir / RESOLUTIONS_FILE)
+    snapshots = read_jsonl(state_dir / SNAPSHOTS_FILE)
     generated = at or datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
     legacy = [metric(resolutions, i) for i in instruments]
@@ -858,6 +859,14 @@ def run_cycle(
     for i in instruments:
         hse.extend(hse_measurements(resolutions, i))
 
+    performance = [
+        {"instrument": iid,
+         "deep": v1.directional_performance(resolutions,snapshots,iid,probability_field="base_p_up"),
+         "challenger": v1.directional_performance(resolutions,snapshots,iid,
+             probability_field="challenger_p_up",methodology_version=METHODOLOGY_VERSION,
+             paired_base_field="base_p_up")}
+        for iid in instruments
+    ]
     public_rows = []
     for row in states:
         public_rows.append({
@@ -897,6 +906,7 @@ def run_cycle(
         "instruments": public_rows,
         "measurements": legacy,
         "hse_measurements": hse,
+        "directional_performance": performance,
         "promotion_gate": promotion_gate(hse),
         "state_verification": check,
         "errors": errors,

@@ -107,6 +107,22 @@ function fseTrackLabel(m){
   return 'Fractal Memory';
 }
 
+function fseSignal(p){
+  if(!finite(p)||Number(p)<0||Number(p)>1)return '<span class="fse-signal unavailable">—</span>';
+  const n=Number(p),direction=n>=.55?'long':n<=.45?'short':'neutral';
+  return '<span class="fse-signal '+direction+'">'+direction.toUpperCase()+'</span>';
+}
+function fseModelCell(p,score,fallback,kind){
+  const n=Number(score?.resolved_n??fallback?.n??0);
+  const brier=finite(score?.mean_brier)?Number(score.mean_brier):fallback?.brier;
+  const signals=Number(score?.signal_n||0),hits=Number(score?.correct_n||0);
+  const hit=signals>0&&finite(score?.accuracy)?pct(score.accuracy,1)+' ('+num(hits)+'/'+num(signals)+')':'—';
+  const delta=finite(score?.delta_brier_vs_base)?Number(score.delta_brier_vs_base):fallback?.delta;
+  const diff=kind==='challenger'&&finite(delta)?'<small class="fse-comparison-delta '+(delta>=0?'better':'worse')+'">ΔBrier vs Deep v2: '+(delta>0?'+':'')+num(delta,4)+'</small>':'';
+  return '<div class="fse-model-cell"><div class="fse-model-forecast">'+fseSignal(p)+'<b>P UP '+pct(p,1)+'</b></div>'+
+    '<small>Trafność kierunku: '+hit+'</small><small>Brier: '+(finite(brier)?num(brier,4):'—')+' · N='+num(n)+'</small>'+diff+'</div>';
+}
+
 const FSE_TREND_TFS=['5m','15m','1h','4h','1d','1w'];
 const FSE_TREND_WEIGHTS={ '1m':1,'5m':1.25,'15m':1.5,'1h':2,'4h':2.5,'1d':3,'1w':3.5 };
 function fseDirectionValue(value){
@@ -217,6 +233,24 @@ async function fse(){
       const m=x.fractal_memory||{},g=x.research_risk_geometry||{};
       return '<div class="fse-memory-card"><div class="fse-card-head"><div><strong>'+esc(fseInstrumentLabel(x.instrument))+'</strong><small>'+esc(m.source||'—')+'</small></div>'+fseRegime(x.regime)+'</div><div class="fse-card-prob"><span>P UP</span><b>'+pct(m.p_up_4h,1)+'</b><em>'+esc(m.forecast||'—')+'</em></div><div class="fse-card-grid"><span><small>Top similarity</small><b>'+pct(m.top_similarity,1)+'</b></span><span><small>Mean similarity</small><b>'+pct(m.mean_similarity,1)+'</b></span><span><small>Analogi</small><b>'+num(m.analogues_n)+'</b></span><span><small>Median +4h</small><b>'+fseSignedPct(m.median_forward_return,2)+'</b></span><span><small>MAE</small><b>'+fseMae(m.median_adverse_excursion,2)+'</b></span><span><small>Risk</small><b>'+pct(x.risk_score,1)+'</b></span></div><div class="fse-risk-geometry"><span>Research sizing ×'+num(g.position_size_multiplier,2)+'</span><span>SL distance ×'+num(g.stop_distance_multiplier,2)+'</span><b>PRODUCTION OFF</b></div></div>';
     }).join('');
+    const v1Performance=new Map((Array.isArray(r.directional_performance)?r.directional_performance:[]).map(x=>[String(x.instrument||''),x]));
+    const v2Performance=new Map((Array.isArray(v2.directional_performance)?v2.directional_performance:[]).map(x=>[String(x.instrument||''),x]));
+    const v2Models=new Map(v2Instruments.map(x=>[String(x.instrument||''),x]));
+    const v1Fallback=new Map(measurements.filter(x=>x?.details?.kind==='directional_memory').map(m=>{
+      const n=Number(m.counter||0);return [String(m.details.instrument||''),{n,brier:n>0?.25-Number(m.total||0)/n:null}];
+    }));
+    const deepFallback=new Map((Array.isArray(v2.measurements)?v2.measurements:[]).map(m=>[String(m.instrument||''),{n:Number(m.counter||0),brier:m.mean_brier}]));
+    const challengerFallback=new Map(phaseMeasurements.filter(x=>x?.details?.kind==='p_calibration_regime_phase').map(m=>{
+      const n=Number(m.counter||0);return [String(m.details.instrument||''),{n,delta:n>0?Number(m.total||0)/n:null}];
+    }));
+    const comparisonRows=instruments.map(x=>{
+      const id=String(x.instrument||''),deep=v2Models.get(id),cal=deep?.p_calibration_challenger||{},score=v2Performance.get(id)||{};
+      const calP=cal.active===true?cal.p_challenger:null;
+      return '<tr><td data-label="Instrument"><strong>'+esc(fseInstrumentLabel(id))+'</strong></td>'+
+        '<td data-label="Fractal Memory v1">'+fseModelCell(x.fractal_memory?.p_up_4h,v1Performance.get(id),v1Fallback.get(id),'legacy')+'</td>'+
+        '<td data-label="Deep Fractal Memory v2">'+fseModelCell(deep?.memory?.p_up,score.deep,deepFallback.get(id),'deep')+'</td>'+
+        '<td data-label="v2 Calibration Challenger">'+fseModelCell(calP,score.challenger,challengerFallback.get(id),'challenger')+'</td></tr>';
+    }).join('');
     const phaseSummary=v2Instruments.map(x=>{
       const a=x.cross_scale_alignment||{},c=x.p_calibration_challenger||{},p1=x?.phase_map?.['1h']||{},pm=p1.phase_memory||{};
       return '<tr><td><strong>'+esc(fseInstrumentLabel(x.instrument))+'</strong></td><td><b>'+esc(a.cascade_state||'—')+'</b></td><td>'+pct(a.alignment_score,1)+'</td><td>'+esc(a.dominant_scale||'—')+'</td><td>'+pct(c.p_base,1)+'</td><td>'+pct(pm.p_up_remaining,1)+'</td><td><b>'+pct(c.p_challenger,1)+'</b></td><td>'+(finite(c.shift_pp)?num(c.shift_pp,1)+' pp':'—')+'</td><td>'+esc(x.regime||'—')+'</td></tr>';
@@ -246,6 +280,9 @@ async function fse(){
       '<h3 class="central-subtitle fse-trend-title">Fractal Trend — kierunek ze struktur fraktalnych</h3>'+(fractalTrendCards?'<div class="fse-trend-grid">'+fractalTrendCards+'</div>':'<p class="central-note">Fractal Trend czeka na dane FSE-PHASE.</p>')+
       '<h3 class="central-subtitle">Aktualna struktura rynku</h3><div class="central-table-wrap"><table class="central-table fse-overview-table"><thead><tr><th>Instrument</th><th>Regime</th><th>Risk</th><th>P UP</th><th>Analogów</th><th>Similarity</th><th>Median +4h</th><th>MAE</th></tr></thead><tbody>'+overviewRows+'</tbody></table></div>'+
       '<h3 class="central-subtitle">Fractal Memory</h3><div class="fse-memory-grid">'+memoryCards+'</div>'+
+      '<h3 class="central-subtitle fse-comparison-title">Fractal Memory — kierunek i skuteczność</h3>'+
+      '<div class="central-table-wrap"><table class="central-table fse-comparison-table"><thead><tr><th>Instrument</th><th>Fractal Memory v1</th><th>Deep Fractal Memory v2</th><th>v2 Calibration Challenger</th></tr></thead><tbody>'+comparisonRows+'</tbody></table></div>'+
+      '<p class="central-note fse-comparison-note">Horyzont: 4 kolejne świece 1h. Trafność dotyczy tylko rozliczonych LONG/SHORT (bez NEUTRAL). Brier obejmuje również neutralne prognozy. N to liczba rozstrzygnięć. Wyniki SHADOW nie oznaczają skuteczności transakcji.</p>'+
       '<h3 class="central-subtitle">FSE-PHASE · Cross-Scale Alignment + P Challenger</h3>'+
       (v2?.methodology_version?'<div class="central-table-wrap"><table class="central-table fse-phase-summary"><thead><tr><th>Instrument</th><th>Cascade</th><th>Alignment</th><th>Dominant TF</th><th>P base</th><th>P phase 1H</th><th>P challenger</th><th>Shift</th><th>Regime</th></tr></thead><tbody>'+phaseSummary+'</tbody></table></div>':'<p class="central-note">FSE-PHASE czeka na pierwszy cykl po wdrożeniu.</p>')+
       (phaseRows?'<h3 class="central-subtitle">Fractal Phase Map · Intrabar Formation</h3><div class="central-table-wrap"><table class="central-table fse-phase-table"><thead><tr><th>Instrument</th><th>TF</th><th>Structure</th><th>Phase</th><th>Direction</th><th>Progress</th><th>Similarity</th><th>P UP remaining</th><th>Intrabar</th><th>Analogi</th></tr></thead><tbody>'+phaseRows+'</tbody></table></div>':'')+

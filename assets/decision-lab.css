@@ -420,3 +420,29 @@ html,body{width:100%;max-width:100%;overflow-x:hidden}
 @media(max-width:650px){.fse-trend-badges{justify-content:flex-start}.fse-fast-meta{display:grid;grid-template-columns:1fr}.fse-fast-meta span{min-width:0}}
 
 .fse-tf-direction em{display:block;margin-top:3px;color:#6f8799;font-size:7px;font-style:normal;line-height:1.2;white-space:normal}
+
+/* FSE prospective direction/performance comparison */
+.fse-comparison-title{margin-top:22px}
+.fse-comparison-table{width:100%;min-width:920px;table-layout:fixed}
+.fse-comparison-table th:first-child{width:17%}
+.fse-comparison-table th{vertical-align:top;white-space:normal}
+.fse-comparison-table td{vertical-align:top}
+.fse-model-cell{display:flex;flex-direction:column;gap:7px;min-width:0}
+.fse-model-forecast{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.fse-model-forecast b{font-size:13px;white-space:nowrap}
+.fse-model-cell>small{font-size:11px;color:#a6bccc;line-height:1.4}
+.fse-model-cell .fse-comparison-delta.better{color:#8de7bd}
+.fse-model-cell .fse-comparison-delta.worse{color:#ff9da9}
+.fse-signal{display:inline-flex;align-items:center;justify-content:center;padding:5px 8px;border:1px solid rgba(126,156,184,.22);border-radius:8px;font-size:10px;font-weight:900;letter-spacing:.035em}
+.fse-signal.long{background:rgba(55,196,132,.10);border-color:rgba(55,196,132,.25);color:#8de7bd}
+.fse-signal.short{background:rgba(236,87,109,.10);border-color:rgba(236,87,109,.25);color:#ff9da9}
+.fse-signal.neutral,.fse-signal.unavailable{background:rgba(126,156,184,.07);color:#b7c9d8}
+.fse-comparison-note{margin:8px 0 15px!important}
+@media(max-width:650px){
+  .fse-comparison-table{min-width:0!important;width:100%;display:block}
+  .fse-comparison-table td::before{content:attr(data-label);display:block;margin-bottom:5px;font-size:10px;font-weight:800;color:#7f9eb2}
+  .fse-comparison-table td:first-child::before{display:none}
+  .fse-comparison-table td:first-child strong{font-size:14px}
+  .fse-comparison-table tr{padding:13px 0}
+  .fse-comparison-table td{padding:9px 8px}
+}
