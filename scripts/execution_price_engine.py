@@ -486,7 +486,7 @@ def verify_daily_current_price(
     side = str(direction or "").upper()
     if side not in {"LONG", "SHORT"}:
         return blocked("invalid_direction", mode="MARKET_NOW")
-    valid_primary, rejected_primary = _fresh_quote_candidates([primary], now=current)
+    valid_primary, rejected_primary = _fresh_quote_candidates([primary], now=current, max_age_seconds=600.0)
     if not valid_primary:
         return blocked("daily_primary_stale_or_invalid", mode="MARKET_NOW",
                        details={"rejected_primary": rejected_primary})
