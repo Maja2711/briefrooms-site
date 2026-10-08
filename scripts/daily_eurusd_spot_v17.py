@@ -115,7 +115,7 @@ def _prepare_entry_candidate(candidate: DailyEngineOutput, monitor_bars: Any, ob
     if candidate.direction not in {"LONG", "SHORT"}:
         return candidate
 
-    execution = epe.eurusd_market_fill(candidate.direction)
+    execution = epe.daily_eurusd_market_fill(candidate.direction)
     if execution.get("verified") is not True or execution.get("status") != "VERIFIED_FILL":
         return _flat_with_execution_block(candidate, execution)
 
