@@ -20,8 +20,9 @@ def _digest(prefix: str, payload: Any) -> str:
 def identity(forecast: Mapping[str, Any]) -> dict[str, str]:
     meta = forecast.get("metadata") or {}
     hypothesis_id = str(forecast.get("hypothesis_id") or forecast.get("belief_id") or "")
-    version = str(forecast.get("hypothesis_version") or meta.get("hypothesis_version")
-                  or meta.get("model_freeze_version") or "1")
+    # A model-freeze build is not a change to the semantic hypothesis version.
+    # Keep model_freeze_version as separate telemetry, not an event boundary.
+    version = str(forecast.get("hypothesis_version") or meta.get("hypothesis_version") or "1")
     fid = str(forecast.get("forecast_id") or "")
     spec = meta.get("outcome_spec")
     rule = str(forecast.get("outcome_rule") or "")
