@@ -87,3 +87,46 @@
 @media(prefers-reduced-motion:reduce){
   .stock-trading-page .str-market-tab{transition:none}
 }
+
+/* v2: idle/unselected buttons are deliberately raised as well.
+   A subtle active-only sheen looked flat when no market was selected. */
+.stock-trading-page .str-market-tabs{
+  border:1px solid rgba(143,213,245,.66);
+  background:#061525;
+  box-shadow:0 13px 28px rgba(0,0,0,.46),inset 0 2px 1px rgba(220,248,255,.38),inset 0 -3px 7px rgba(0,0,0,.55);
+}
+.stock-trading-page .str-market-tab,
+.stock-trading-page .str-market-tab:not(.is-active){
+  border-color:rgba(112,196,233,.23);
+  background:
+    radial-gradient(ellipse 100% 60% at 50% 0,rgba(181,231,255,.34),transparent 85%),
+    linear-gradient(180deg,#375e79 0%,#244760 14%,#173952 37%,#0d273d 64%,#061a2c 100%);
+  box-shadow:
+    inset 0 3px 1px rgba(242,253,255,.65),
+    inset 0 0 0 1px rgba(153,213,244,.29),
+    inset 0 -11px 16px rgba(0,5,17,.62),
+    inset 3px 0 10px rgba(211,248,255,.13),
+    0 5px 11px rgba(0,0,0,.34);
+}
+.stock-trading-page .str-market-tab::before{
+  z-index:0;
+  top:3px;
+  left:9px;
+  right:9px;
+  height:42%;
+  border-radius:14px 14px 45% 45% / 12px 12px 42% 42%;
+  background:linear-gradient(180deg,rgba(255,255,255,.40) 0%,rgba(197,237,255,.17) 44%,transparent 100%);
+}
+.stock-trading-page .str-market-tab::after{
+  z-index:0;
+  inset:0;
+  background:linear-gradient(100deg,rgba(243,254,255,.11),transparent 24%,transparent 78%,rgba(0,4,14,.35));
+}
+.stock-trading-page .str-market-tab-title,
+.stock-trading-page .str-market-tab small{position:relative;z-index:2}
+.stock-trading-page .str-market-tab.is-active{
+  background:
+    radial-gradient(ellipse 100% 60% at 50% 0,rgba(184,255,247,.40),transparent 85%),
+    linear-gradient(180deg,#418f99 0%,#267581 17%,#105563 47%,#083343 75%,#041d2e 100%);
+  box-shadow:inset 0 3px 1px rgba(245,255,255,.72),inset 0 0 0 1px rgba(103,255,239,.70),inset 0 -12px 18px rgba(0,15,30,.62),0 5px 15px rgba(0,0,0,.38),0 0 19px rgba(39,225,216,.23);
+}
