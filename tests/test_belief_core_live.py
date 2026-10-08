@@ -106,6 +106,14 @@ class BeliefCoreLiveTest(unittest.TestCase):
         self.assertEqual(floor_half_hour(datetime(2026,8,18,10,7,tzinfo=NY)).time(), time(10,0))
         self.assertEqual(floor_half_hour(datetime(2026,8,18,10,37,tzinfo=NY)).time(), time(10,30))
 
+    def test_nyse_holiday_and_early_close_bound_us_collector(self) -> None:
+        from belief_core_live import in_market_window
+        self.assertFalse(in_market_window(datetime(2026, 11, 26, 10, 5, tzinfo=NY)))
+        self.assertTrue(in_market_window(datetime(2026, 11, 27, 10, 5, tzinfo=NY)))
+        self.assertTrue(in_market_window(datetime(2026, 11, 27, 13, 15, tzinfo=NY)))
+        self.assertFalse(in_market_window(datetime(2026, 11, 27, 13, 21, tzinfo=NY)))
+        self.assertFalse(in_market_window(datetime(2026, 11, 27, 16, 0, tzinfo=NY)))
+
     def test_fx_window_covers_sunday_open_through_friday_close(self) -> None:
         self.assertTrue(in_fx_window(datetime(2026, 10, 4, 17, 1, tzinfo=NY)))
         self.assertTrue(in_fx_window(datetime(2026, 10, 6, 3, 0, tzinfo=NY)))
