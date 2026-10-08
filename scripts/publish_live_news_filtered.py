@@ -622,12 +622,14 @@ def select_sections(
     health: dict[str, Any] = {}
     previous_sections = previous.get("sections") if isinstance(previous.get("sections"), dict) else {}
     global_seen: set[str] = set()
+    global_selected: list[dict[str, Any]] = []
     pl_mode = _is_pl_config(config)
     prior_exposure = _previous_exposure_by_identity(previous)
 
     for section_id, _, _ in config:
         # No publication count cap: editorial quality, freshness and deduplication decide.
         target = len(fetched.get(section_id) or []) + len(previous_sections.get(section_id) or [])
+        editorial_target = (base.PL_SECTION_TARGETS if pl_mode else EN_SECTION_TARGETS).get(section_id, base.TARGET)
         source_candidates = [
             story for story in (fetched.get(section_id) or [])
             if _time_sensitive_release_eligible(story, section_id, now)
@@ -692,7 +694,7 @@ def select_sections(
             if story.get("image") and str(story.get("source") or "").strip()
         }
         if len(active_sources) >= 3:
-            preferred_source_cap = max(3, math.ceil(target / len(active_sources)))
+            preferred_source_cap = max(3, math.ceil(editorial_target / len(active_sources)))
         elif len(active_sources) == 2:
             preferred_source_cap = MAX_SOURCE_SHARE
         else:
@@ -719,6 +721,9 @@ def select_sections(
                 or not story.get("image")
             ):
                 return "skip"
+            # Prevent the same event appearing in separate editorial sections.
+            if any(same_topic(story, previous_story) for previous_story in global_selected):
+                return "cross_section_topic_duplicate"
             # One reader-visible topic/event gets one card inside a section, even
             # when different publishers use different headlines and URLs.
             if any(same_topic(story, previous_story) for previous_story in items):
@@ -891,6 +896,7 @@ def select_sections(
         if pl_mode and section_id == "ai-technologia-krypto":
             selected_items = [_localize_pl_ai_story(story) for story in selected_items]
         selected[section_id] = selected_items
+        global_selected.extend(selected_items)
         if pl_mode:
             minimum = PL_SECTION_MINIMUMS.get(section_id, 0)
             if len(selected[section_id]) < minimum:
