@@ -140,7 +140,8 @@ self.addEventListener("push", (event) => {
   event.waitUntil((async () => {
     const identity = tradingNotificationIdentity(payload);
     let shown = false;
-    const existing = identity ? await self.registration.getNotifications({ tag: identity }) : [];
+    const existing = identity && typeof self.registration.getNotifications === "function"
+      ? await self.registration.getNotifications({ tag: identity }) : [];
     if (existing.length || !(await claimTradingNotification(identity))) {
       // Already shown by this origin, either in this session or previously.
       shown = true;
