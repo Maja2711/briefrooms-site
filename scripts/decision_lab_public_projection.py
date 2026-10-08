@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from evidence_pattern_discovery import build_pattern_report
+from forecast_event_identity import identity, canonical_event_rows
 from belief_v3_candidate_library import V3_CANDIDATE_IDS, V3_GOVERNANCE, public_candidate_registry
 
 
@@ -98,7 +99,7 @@ def build_payload(state, report, closed_loop=None, evolution_controller=None):
         v = verified.get(fid)
         t0_values, t0_at, t0_source = frozen_t0_projection(f)
         return {
-            "forecast_id": fid, "entity": f.get("entity"), "belief_id": f.get("belief_id"),
+            "forecast_id": fid, **identity(f), "entity": f.get("entity"), "belief_id": f.get("belief_id"),
             "claim": (state.get("definitions_by_id") or {}).get(str(f.get("belief_id")), {}).get("claim"),
             "probability": f.get("predicted_probability"), "confidence": f.get("forecast_confidence"),
             "forecast_at": f.get("forecast_at"), "target_at": f.get("target_at"),
@@ -172,7 +173,8 @@ def build_payload(state, report, closed_loop=None, evolution_controller=None):
         if not 0.0 <= prob <= 1.0:
             continue
         eligible_all.append({"f": f, "v": v, "p": prob, "y": outcome, "brier": (prob - outcome) ** 2})
-    eligible = [r for r in eligible_all if str(r["f"].get("belief_id") or "") not in candidate_ids]
+    eligible_raw = [r for r in eligible_all if str(r["f"].get("belief_id") or "") not in candidate_ids]
+    eligible, event_evaluation = canonical_event_rows(eligible_raw)
 
     def calibration_bins(rows, bins=10):
         out = []
@@ -374,7 +376,10 @@ def build_payload(state, report, closed_loop=None, evolution_controller=None):
         "horizon_aggregate_min_sample": 30,
         "hypothesis_brier": hypothesis_brier,
         "hypothesis_intelligence": hypothesis_brier,
+        "event_evaluation": event_evaluation,
         "metrics": {
+            "raw_resolved_forecasts": len(eligible_raw),
+            "independent_resolved_events": len(eligible),
             "forecast_count": len(control_forecasts),
             "resolved_count": len(eligible),
             "calibration_eligible": len(eligible),
@@ -475,6 +480,7 @@ def build_history_payload(state, *, now=None, window_days=30):
         t0_values, t0_at, t0_source = frozen_t0_projection(f)
         return {
             "forecast_id": fid,
+            **identity(f),
             "entity": f.get("entity"),
             "belief_id": f.get("belief_id"),
             "claim": definitions_by_id.get(str(f.get("belief_id")), {}).get("claim"),
