@@ -123,6 +123,17 @@ class ExitIntelligenceTests(unittest.TestCase):
         self.assertEqual(j, j2)
         self.assertEqual(r, r2)
 
+    def test_actual_epe_spread_overrides_generic_synthetic_cost(self):
+        t = trade()
+        t["execution_price_engine"] = {
+            "synthetic_spread_pips": 3,
+            "synthetic_half_spread_pips": 1.5,
+        }
+        self.assertEqual(x.recorded_half_spread_pips(t), 1.5)
+        self.assertEqual(x.pnl_pips("SHORT", t["entry"], 1.11867, x.recorded_half_spread_pips(t)), -1.5)
+        r = x.review(t, [], [], T0 + timedelta(minutes=180))
+        self.assertEqual(r["entry_epe_half_spread_pips"], 1.5)
+
     def test_stale_rates_are_unavailable(self):
         now = T0 + timedelta(minutes=30)
         pos = dict(trade(), status="OPEN")
