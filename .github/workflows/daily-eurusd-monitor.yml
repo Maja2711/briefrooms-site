@@ -391,15 +391,40 @@ jobs:
           python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
           git commit -m "Monitor Daily EURUSD position"
 
-          for attempt in 1 2 3; do
+          state_paths=(
+            data/investments/eurusd_daily_spot.json
+            data/investments/eurusd_daily_history.json
+            data/notifications/trading-state.json
+            data/notifications/trading-events.json
+          )
+
+          for attempt in 1 2 3 4 5 6; do
             if git push origin HEAD:main; then
               echo "changed=true" >> "$GITHUB_OUTPUT"
               echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
               exit 0
             fi
 
-            echo "Push attempt ${attempt} failed; refreshing canonical EURUSD state and recomputing"
+            echo "Push attempt ${attempt} failed; checking whether canonical Daily state changed remotely"
             git fetch origin main
+
+            # Most BriefRooms commits touch unrelated outputs. If none of the
+            # four canonical Daily/notification files changed since our parent,
+            # rebase the already-verified Daily commit and retry immediately.
+            # If any canonical file changed, fail closed to a fresh recompute
+            # from origin/main so concurrent Daily transitions are never merged.
+            if git diff --quiet HEAD^ origin/main -- "${state_paths[@]}"; then
+              echo "Only unrelated remote commits detected; rebasing Daily state commit"
+              if git rebase origin/main; then
+                python scripts/verify_no_retroactive_execution.py \
+                  --baseline-ref HEAD^ \
+                  --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
+                continue
+              fi
+              git rebase --abort || true
+            fi
+
+            echo "Canonical Daily state changed remotely; recomputing from latest main"
             git reset --hard origin/main
 
             python scripts/daily_eurusd_spot_v19.py \
@@ -411,11 +436,7 @@ jobs:
               --validate
             python scripts/build_trading_notification_events.py
 
-            git add -- \
-              data/investments/eurusd_daily_spot.json \
-              data/investments/eurusd_daily_history.json \
-              data/notifications/trading-state.json \
-              data/notifications/trading-events.json
+            git add -- "${state_paths[@]}"
 
             if git diff --cached --quiet; then
               echo "Remote main already contains an equivalent or fresher EURUSD state"
@@ -426,7 +447,7 @@ jobs:
 
             python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
             git commit -m "Monitor Daily EURUSD position"
-            sleep $((attempt * 3))
+            sleep $((attempt * 2))
           done
 
           echo "Unable to persist EURUSD state after retries" >&2
