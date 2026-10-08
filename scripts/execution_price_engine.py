@@ -583,7 +583,20 @@ def fetch_yahoo_eurusd_quote(client: YahooChartClient | None = None) -> Quote:
     bars = market.bars("EURUSD=X", "1d", "1m")
     if not bars:
         raise RuntimeError("Yahoo EUR/USD 1m quote unavailable")
-    last = bars[-1]
+
+    # Yahoo can expose the still-forming current minute stamped at the upcoming
+    # minute boundary. Prefer the newest bar that is not beyond the ordinary
+    # 30-second future tolerance; this keeps the quote current without relying
+    # on a provider clock that appears ahead of the workflow.
+    current = utc_now()
+    usable = [
+        bar for bar in bars
+        if (bar.timestamp.astimezone(timezone.utc) - current).total_seconds()
+        <= DEFAULT_FUTURE_TOLERANCE_SECONDS
+    ]
+    if not usable:
+        raise RuntimeError("Yahoo EUR/USD 1m quote has no non-future bar")
+    last = usable[-1]
     return Quote(price=float(last.close), timestamp=last.timestamp, source="Yahoo Finance:EURUSD=X:1m:mid-proxy")
 
 
