@@ -78,29 +78,48 @@ function tradingNotificationIdentity(payload) {
 async function claimTradingNotification(identity) {
   if (!identity || !self.indexedDB) return true;
   return new Promise((resolve) => {
-    let resolved = false;
-    const finish = (value) => { if (!resolved) { resolved = true; resolve(value); } };
+    let finished = false;
+    const finish = (value) => { if (!finished) { finished = true; resolve(value); } };
     try {
       const opening = self.indexedDB.open("briefrooms-trading-push-seen-v1", 1);
       opening.onupgradeneeded = () => opening.result.createObjectStore("events", { keyPath: "id" });
       opening.onerror = () => finish(true);
       opening.onsuccess = () => {
         const db = opening.result;
+        let alreadyClaimed = false;
         try {
           const tx = db.transaction("events", "readwrite");
           const write = tx.objectStore("events").add({ id: identity, seen_at: Date.now() });
-          write.onsuccess = () => finish(true);
-          write.onerror = (errorEvent) => {
+          write.onerror = (e) => {
             if (write.error?.name === "ConstraintError") {
-              errorEvent.preventDefault();
-              finish(false);
-            } else finish(true);
+              e.preventDefault();
+              e.stopPropagation();
+              alreadyClaimed = true;
+            }
           };
-          tx.oncomplete = () => db.close();
-          tx.onabort = () => db.close();
+          tx.oncomplete = () => { db.close(); finish(!alreadyClaimed); };
+          tx.onabort = () => { db.close(); finish(true); };
+          tx.onerror = () => { db.close(); finish(true); };
         } catch (_) { db.close(); finish(true); }
       };
     } catch (_) { finish(true); }
+  });
+}
+
+async function releaseTradingNotification(identity) {
+  if (!identity || !self.indexedDB) return;
+  return new Promise((resolve) => {
+    try {
+      const opening = self.indexedDB.open("briefrooms-trading-push-seen-v1", 1);
+      opening.onupgradeneeded = () => opening.result.createObjectStore("events", { keyPath: "id" });
+      opening.onerror = () => resolve();
+      opening.onsuccess = () => {
+        const db = opening.result;
+        const tx = db.transaction("events", "readwrite");
+        tx.objectStore("events").delete(identity);
+        tx.oncomplete = tx.onabort = tx.onerror = () => { db.close(); resolve(); };
+      };
+    } catch (_) { resolve(); }
   });
 }
 
@@ -119,11 +138,23 @@ self.addEventListener("push", (event) => {
     data: { url: payload.url || "/pl/inwestycje/daily-trading.html", event_id: payload.event_id || null, sent_at: payload.sent_at || null, ...(payload.data || {}), ack_url: payload.ack_url || payload?.data?.ack_url || null, ack_token: payload.ack_token || payload?.data?.ack_token || null, delivery_id: payload.delivery_id || payload?.data?.delivery_id || null },
   };
   event.waitUntil((async () => {
-    if (await claimTradingNotification(tradingNotificationIdentity(payload))) {
-      await self.registration.showNotification(title, options);
+    const identity = tradingNotificationIdentity(payload);
+    let shown = false;
+    const existing = identity ? await self.registration.getNotifications({ tag: identity }) : [];
+    if (existing.length || !(await claimTradingNotification(identity))) {
+      // Already shown by this origin, either in this session or previously.
+      shown = true;
+    } else {
+      try {
+        await self.registration.showNotification(title, options);
+        shown = true;
+      } catch (error) {
+        // The OS may have blocked the UI: do not ACK. Permit bounded retry.
+        await releaseTradingNotification(identity);
+        throw error;
+      }
     }
-    // ACK duplicate payloads too, to settle old workers still using ACK retries.
-    await acknowledgeShownTradingNotification({
+    if (shown) await acknowledgeShownTradingNotification({
       ack_url: payload.ack_url || payload?.data?.ack_url,
       delivery_id: payload.delivery_id || payload?.data?.delivery_id,
       ack_token: payload.ack_token || payload?.data?.ack_token,
