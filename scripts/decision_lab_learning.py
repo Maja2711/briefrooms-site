@@ -11,7 +11,7 @@ from pathlib import Path
 
 MIN_N = 30
 
-def build(report):
+def build(report, hypothesis_utility=None):
     cal = report.get("belief_calibration") or {}
     hypotheses = cal.get("hypothesis_intelligence") or {}
     actions = []
@@ -35,6 +35,27 @@ def build(report):
                 "calibration_bias": float(bias),
                 "instruction": "Evaluate recalibration out-of-sample; no automatic tuning."
             })
+    # P1 HUE findings are research proposals, not execution instructions.
+    # The downstream governed challenger / OOS gate remains authoritative.
+    for belief_id, row in sorted(((hypothesis_utility or {}).get("hypotheses") or {}).items()):
+        if not isinstance(row, dict):
+            continue
+        status = row.get("lifecycle_status")
+        if status not in {"REVIEW", "CHALLENGER"}:
+            continue
+        predictive = row.get("predictive_utility") or {}
+        if int(predictive.get("independent_events") or 0) < MIN_N:
+            continue
+        actions.append({
+            "belief_id": belief_id,
+            "hypothesis_version": row.get("hypothesis_version"),
+            "kind": "hypothesis_utility_challenger" if status == "CHALLENGER" else "hypothesis_utility_review",
+            "reason": list(row.get("reasons") or []),
+            "independent_event_n": int(predictive.get("independent_events") or 0),
+            "prequential_brier_gain": predictive.get("brier_gain_vs_prequential_base_rate"),
+            "source": "HYPOTHESIS_UTILITY_REPORT.json",
+            "instruction": "Evaluate an out-of-sample challenger in Shadow; no Evidence mutation, automatic retirement or production promotion.",
+        })
     drift = cal.get("drift") or {}
     if drift.get("status") == "deteriorating":
         actions.append({
@@ -56,9 +77,11 @@ def build(report):
 def main():
     ap=argparse.ArgumentParser()
     ap.add_argument("--report", required=True); ap.add_argument("--output", required=True)
+    ap.add_argument("--hypothesis-utility")
     a=ap.parse_args()
     report=json.loads(Path(a.report).read_text(encoding="utf-8"))
-    out=build(report)
+    utility=json.loads(Path(a.hypothesis_utility).read_text(encoding="utf-8")) if a.hypothesis_utility else None
+    out=build(report, utility)
     Path(a.output).write_text(json.dumps(out,ensure_ascii=False,indent=2,sort_keys=True)+"\n",encoding="utf-8")
     print(json.dumps({"action_count":out["action_count"],"automatic_tuning":False}))
 if __name__=="__main__": main()
