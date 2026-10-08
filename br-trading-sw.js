@@ -134,6 +134,7 @@ self.addEventListener("push", (event) => {
     icon: "/assets/briefrooms-app-icon-192-v2.svg",
     badge: "/assets/favicon.svg",
     tag: tradingNotificationIdentity(payload) || payload.tag || undefined,
+    renotify: false, // Never raise a second audible alert for the same trade.
     timestamp: payload.sent_at ? Date.parse(payload.sent_at) : Date.now(),
     data: { url: payload.url || "/pl/inwestycje/daily-trading.html", event_id: payload.event_id || null, sent_at: payload.sent_at || null, ...(payload.data || {}), ack_url: payload.ack_url || payload?.data?.ack_url || null, ack_token: payload.ack_token || payload?.data?.ack_token || null, delivery_id: payload.delivery_id || payload?.data?.delivery_id || null },
   };

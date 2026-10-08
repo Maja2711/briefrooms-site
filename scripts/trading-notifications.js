@@ -345,6 +345,7 @@
           icon: "/assets/favicon.svg",
           badge: "/assets/favicon.svg",
           tag: identity || data?.event_id || undefined,
+          renotify: false,
           data: { url: location.href, ...(data || {}) },
         });
       } else {

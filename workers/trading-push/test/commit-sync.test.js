@@ -19,7 +19,6 @@ import {
   transitionDelivery,
   retryDelayMs,
   deliveryReadyForRetry,
-  ackRetryDelayMs,
   isSyntheticRecoveryEvent,
   PushHub,
 } from "../src/index.js";
@@ -373,7 +372,7 @@ test("durable delivery follows UNSENT to SENDING to SENT_TO_PUSH to ACKED", () =
   assert.throws(() => transitionDelivery(acked, DELIVERY_STATUS.SENDING), /invalid_delivery_transition/);
 });
 
-test("ACK-missing accepted pushes retry only within a bounded window", () => {
+test("provider-accepted pushes cannot replay when browser ACK is absent", () => {
   const unsent = newDeliveryRecord("event-1", "sub-a", "secret", "2026-10-07T10:00:00.000Z");
   assert.equal(deliveryReadyForRetry(unsent, Date.parse("2026-10-07T10:00:01.000Z")), true);
 
@@ -385,13 +384,9 @@ test("ACK-missing accepted pushes retry only within a bounded window", () => {
     sent_to_push_at: "2026-10-07T10:00:00.000Z",
   });
   assert.equal(deliveryReadyForRetry(sent, Date.parse("2026-10-07T10:04:59.000Z")), false);
-  assert.equal(deliveryReadyForRetry(sent, Date.parse("2026-10-07T10:05:01.000Z")), true);
-  const maxed = { ...sent, attempts: 5 };
-  assert.equal(deliveryReadyForRetry(maxed, Date.parse("2026-10-07T10:05:01.000Z")), false);
+  assert.equal(deliveryReadyForRetry(sent, Date.parse("2026-10-07T10:05:01.000Z")), false);
   assert.equal(deliveryReadyForRetry(sent, Date.parse("2026-10-07T12:05:01.000Z")), false);
-  assert.equal(ackRetryDelayMs(1), 300000);
-  assert.equal(ackRetryDelayMs(2), 600000);
-  assert.equal(ackRetryDelayMs(3), 1200000);
+  assert.equal(deliveryReadyForRetry({ ...sent, next_retry_at: "2026-10-07T10:05:00.000Z" }, Date.parse("2026-10-07T12:05:01.000Z")), false);
   assert.equal(retryDelayMs(1), 30000);
   assert.ok(retryDelayMs(99) <= 15 * 60 * 1000);
 });
@@ -510,7 +505,7 @@ test("pending legacy recovery event is expired rather than resent", async () => 
   assert.equal(row.last_error, "synthetic_recovery_replay_suppressed");
 });
 
-test("legacy unconfirmed provider acceptance expires after retry age limit without stale replay", async () => {
+test("legacy accepted-but-unacknowledged push is completed and retry timer is cleared", async () => {
   const storage = new FakeStorage();
   const hub = new PushHub({ storage }, {});
   const base = newDeliveryRecord("evt-accepted", "sub-a", "secret", "2026-10-07T10:00:00.000Z");
@@ -520,19 +515,18 @@ test("legacy unconfirmed provider acceptance expires after retry age limit witho
     next_retry_at: "2026-10-07T10:05:02.000Z",
   }));
   await storage.put("recipients:evt-accepted", { initialized_at: "2026-10-07T10:00:00.000Z", count: 1 });
-  assert.equal(await hub.refreshEventCompletion("evt-accepted"), false);
+  assert.equal(await hub.refreshEventCompletion("evt-accepted"), true);
   const result = await hub.deliverPending();
   assert.equal(result.sent, 0);
   assert.equal(result.pending, 0);
   const delivered = await storage.get("delivery:evt-accepted:sub-a");
-  assert.equal(delivered.status, DELIVERY_STATUS.EXPIRED);
+  assert.equal(delivered.status, DELIVERY_STATUS.SENT_TO_PUSH);
   assert.equal(delivered.next_retry_at, null);
   assert.equal(delivered.attempts, 1);
-  assert.equal(delivered.last_error, "ack_not_received_after_bounded_retries");
   assert.equal(await storage.get("event-complete:evt-accepted"), true);
 });
 
-test("lost device ACK resends same delivery once, then ACK stops retry", async () => {
+test("lost device ACK cannot resend Allegro close even after retry deadline", async () => {
   const storage = new FakeStorage();
   const hub = new PushHub({ storage }, { PUBLIC_BASE_URL: "https://push.example" });
   const event = {
@@ -571,17 +565,18 @@ test("lost device ACK resends same delivery once, then ACK stops retry", async (
   };
   try {
     const first = await hub.deliverPending();
-    assert.equal(first.sent, 1);
+    assert.equal(first.sent, 0);
     assert.equal(first.awaiting_ack, 1);
-    assert.equal((await storage.get(key)).attempts, 2);
+    assert.equal((await storage.get(key)).attempts, 1);
+    assert.equal((await storage.get(key)).next_retry_at, null);
     assert.equal((await hub.deliverPending()).sent, 0);
-    assert.equal(pushes, 1);
+    assert.equal(pushes, 0);
     const ack = await hub.acknowledgeDelivery({
       delivery_id: "ale-close:samsung", ack_token: record.ack_token,
     });
     assert.equal(ack.delivery_status, DELIVERY_STATUS.ACKED);
     assert.equal((await hub.deliverPending()).sent, 0);
-    assert.equal(pushes, 1);
+    assert.equal(pushes, 0);
   } finally {
     webpush.sendNotification = originalPush;
   }
