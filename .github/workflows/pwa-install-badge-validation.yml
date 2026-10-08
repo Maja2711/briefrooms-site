@@ -1,0 +1,34 @@
+name: PWA Install Badge Placement
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/pwa.js"
+      - "pl/index.html"
+      - "en/index.html"
+      - "tests/test_pwa_install_placement.js"
+      - ".github/workflows/pwa-install-badge-validation.yml"
+  pull_request:
+    paths:
+      - "scripts/pwa.js"
+      - "pl/index.html"
+      - "en/index.html"
+      - "tests/test_pwa_install_placement.js"
+      - ".github/workflows/pwa-install-badge-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  pwa-install-placement:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Test PWA placement and homepage cache busting
+        run: node --test tests/test_pwa_install_placement.js
