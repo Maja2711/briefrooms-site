@@ -14,6 +14,8 @@ on:
     paths:
       - "scripts/belief_calibration_foundation.py"
       - "scripts/hypothesis_utility_engine.py"
+      - "scripts/hypothesis_challenger_engine.py"
+      - "tests/test_hypothesis_challenger_engine.py"
       - "tests/test_hypothesis_utility_engine.py"
       - "tests/test_hypothesis_utility_projection.py"
       - "scripts/forecast_event_identity.py"
@@ -131,6 +133,7 @@ jobs:
             scripts/belief_calibration.py \
             scripts/forecast_event_identity.py \
             scripts/hypothesis_utility_engine.py \
+            scripts/hypothesis_challenger_engine.py \
             scripts/belief_data_quality_adapter.py \
             scripts/belief_calibration_foundation.py \
             scripts/decision_lab_public_projection.py \
@@ -138,6 +141,7 @@ jobs:
             scripts/belief_closed_loop.py
           python -m unittest \
             tests.test_hypothesis_utility_engine \
+            tests.test_hypothesis_challenger_engine \
             tests.test_hypothesis_utility_projection \
             tests.test_belief_core_calibration_foundation \
             tests.test_decision_lab_public_projection \
@@ -174,6 +178,30 @@ jobs:
           assert hue["source"]["independent_resolved_events"] == calibration["belief_calibration"]["count_calibration_eligible"], "P1/P0 independent event denominator mismatch"
           assert hue["source"]["revision_diagnostics"]["conflict_event_count"] == 0, "conflicting outcomes require investigation"
           print("HYPOTHESIS UTILITY E2E PASS:", hue["summary"])
+          PY
+
+      - name: P2 autonomous hypothesis challenger freeze settle and gate
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts
+        run: |
+          python scripts/hypothesis_challenger_engine.py \
+            --state-dir "$STATE_DIR" \
+            --output "$STATE_DIR/HYPOTHESIS_CHALLENGERS_STATE.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root=Path(os.environ["STATE_DIR"])
+          p=json.loads((root/"HYPOTHESIS_CHALLENGERS_STATE.json").read_text())
+          assert p["schema_version"] == "briefrooms-hypothesis-challenger-v1"
+          assert p["mode"] == "shadow_oos_governed"
+          assert p["authority"]["automatic_production_promotion"] is False
+          assert p["authority"]["frozen_forecast_mutation"] is False
+          assert p["authority"]["source_evidence_mutation"] is False
+          assert p["authority"]["trade_execution"] is False
+          assert p["summary"]["production_promotions"] == 0
+          assert all(c["gate"]["status"] != "PASS" or c["gate"]["observed_sample"] >= 50
+                     for c in p["candidates"].values())
+          print("P2 SHADOW OOS GATE:", p["summary"])
           PY
 
       - name: Build governed Decision LAB learning memory
@@ -255,6 +283,8 @@ jobs:
           assert p['automatic_tuning'] is False
           assert p['hypothesis_utility']['status'] == 'SHADOW_READ_ONLY'
           assert p['hypothesis_utility']['authority']['production_writeback'] is False
+          assert p['hypothesis_challengers']['status'] == 'SHADOW_OOS_GOVERNED'
+          assert p['hypothesis_challengers']['authority']['automatic_production_promotion'] is False
           assert h['schema_version'] == 'briefrooms_decision_lab_history_v1'
           assert h['window_days'] == 30
           assert h['older_records_publicly_exposed'] is False
