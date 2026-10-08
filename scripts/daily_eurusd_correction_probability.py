@@ -25,7 +25,7 @@ HORIZONS_MINUTES = (5, 15, 30)
 PIP = 0.0001
 MIN_IMPULSE_PIPS = 8.0
 OBSERVATION_SPACING_MINUTES = 30
-MAX_GAP_SECONDS = 180
+MAX_GAP_SECONDS = 61
 MAX_HISTORY = 2800
 MIN_TRAINING = 40
 # Conservative *release gates*, NOT tuned to 8 October's trade.
@@ -143,11 +143,11 @@ def outcome(episode: Mapping[str, Any], bars: Sequence[Mapping[str, Any]],
     if not path:
         return {"status": "CENSORED_DATA_GAP"}
     # Require first minute and final minute of horizon, with max 1m slack.
-    if abs((path[0]["time"] - origin).total_seconds()) > 60:
+    if abs((path[0]["time"] - origin).total_seconds()) > 1:
         return {"status": "CENSORED_DATA_GAP"}
-    if abs((path[-1]["time"] + timedelta(minutes=1) - end).total_seconds()) > 60:
+    if abs((path[-1]["time"] + timedelta(minutes=1) - end).total_seconds()) > 1:
         return {"status": "CENSORED_DATA_GAP"}
-    if not valid_window(path):
+    if len(path) != horizon or not valid_window(path):
         return {"status": "CENSORED_DATA_GAP"}
     target_price = float(episode["spot_mid"]) + float(episode["target_rebound_pips"]) * PIP
     hit = next((b for b in path if float(b["close"]) + 1e-8 >= target_price), None)
@@ -185,11 +185,15 @@ def collect_historical(bars: Sequence[Mapping[str, Any]], now: datetime) -> list
 
 
 def resolved_for(episodes: Sequence[Mapping[str, Any]], horizon: int,
-                 before_day: str) -> list[dict]:
+                 forecast_at: datetime | str) -> list[dict]:
+    """Both day embargo and actual outcome maturity precede forecast instant."""
+    forecast_iso = iso(forecast_at) if isinstance(forecast_at, datetime) else str(forecast_at)
+    day = utc_day(forecast_iso)
     return [
         dict(e) for e in episodes
-        if e.get("date_utc", "9999") < before_day
+        if e.get("date_utc", "9999") < day
         and (e.get("outcomes") or {}).get(str(horizon), {}).get("status") == "RESOLVED"
+        and e["outcomes"][str(horizon)].get("known_at", "9999") <= forecast_iso
     ]
 
 
@@ -259,7 +263,7 @@ def replay_validation(episodes: Sequence[Mapping[str, Any]], horizon: int) -> di
                       key=lambda x: x["observed_at"])
     pred = []
     for row in resolved:
-        train = [e for e in resolved if e["date_utc"] < row["date_utc"]]
+        train = resolved_for(resolved, horizon, row["observed_at"])
         result = probability(row["features"], train, horizon)
         if result["p"] is None:
             continue
@@ -284,6 +288,10 @@ def step(previous: Mapping[str, Any], bars_raw: Sequence[Any], now: datetime) ->
         if not any(e.get("observation_slot") == slot for e in old_live.values()):
             current["cohort"] = "PROSPECTIVE_OBSERVED"
             current["observation_slot"] = slot
+            current["frozen_forecasts"] = {}
+            for h in HORIZONS_MINUTES:
+                past = resolved_for(replay + list(old_live.values()), h, current["observed_at"])
+                current["frozen_forecasts"][str(h)] = probability(current["features"], past, h)
             old_live[current["id"]] = current
     live = sorted(old_live.values(), key=lambda e:e["observed_at"])[-MAX_HISTORY:]
     for e in live:
@@ -303,12 +311,22 @@ def step(previous: Mapping[str, Any], bars_raw: Sequence[Any], now: datetime) ->
     point = current if current and current["observed_at"] >= iso(now - timedelta(minutes=4)) else None
     horizons: dict[str,dict] = {}
     for h in HORIZONS_MINUTES:
-        eligible = resolved_for(history, h, utc_day(now))
+        forecast_at = point["observed_at"] if point else iso(now)
+        eligible = resolved_for(history, h, forecast_at)
         estimate = probability(point["features"], eligible, h) if point else {
             "status": "NO_FRESH_ELIGIBLE_DOWNSWING", "n": len(eligible), "p": None
         }
         oos = replay_validation(replay, h)
         live_mature = [e for e in live if e["outcomes"][str(h)]["status"] == "RESOLVED"]
+        live_predictions = [
+            {"date_utc": e["date_utc"], "forecast": e["frozen_forecasts"][str(h)]["p"],
+             "train_baseline": (e["frozen_forecasts"][str(h)]["positive"] + 1)/
+                              (e["frozen_forecasts"][str(h)]["n"] + 2),
+             "actual": e["outcomes"][str(h)]["label"]}
+            for e in live_mature
+            if (e.get("frozen_forecasts") or {}).get(str(h), {}).get("p") is not None
+        ]
+        live_calibration = calibration(live_predictions)
         # No automatic promotion. Future governance might require BOTH
         # sufficiently independent live OOS forecasts and past-day records.
         ready = (
@@ -320,12 +338,18 @@ def step(previous: Mapping[str, Any], bars_raw: Sequence[Any], now: datetime) ->
             and oos.get("negative", 0) >= PROMOTION_MIN_CLASS_COUNT
             and oos.get("brier_improvement", -1) >= PROMOTION_BRIER_IMPROVEMENT
             and oos.get("ece_5_bin", 1) <= PROMOTION_MAX_ECE
-            and len({e["date_utc"] for e in live_mature}) >= PROMOTION_HOLDOUT_DAYS
+            and live_calibration.get("n", 0) >= PROMOTION_HOLDOUT_EPISODES
+            and live_calibration.get("days", 0) >= PROMOTION_HOLDOUT_DAYS
+            and live_calibration.get("positive", 0) >= PROMOTION_MIN_CLASS_COUNT
+            and live_calibration.get("negative", 0) >= PROMOTION_MIN_CLASS_COUNT
+            and live_calibration.get("brier_improvement", -1) >= PROMOTION_BRIER_IMPROVEMENT
+            and live_calibration.get("ece_5_bin", 1) <= PROMOTION_MAX_ECE
         )
         horizons[str(h)] = {
             "forecast": estimate,
             "replay_walk_forward": oos,
             "live_resolved_episodes": len(live_mature),
+            "frozen_prospective_oos": live_calibration,
             "research_release_gates_met": bool(ready),
             "production_authority": False,
         }
