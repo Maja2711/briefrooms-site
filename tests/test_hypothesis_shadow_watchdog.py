@@ -145,6 +145,19 @@ class P21WatchdogTests(unittest.TestCase):
                 self.assertIn("MARKET_SNAPSHOT_SLA_BREACHED", result["alert_codes"])
                 self.assertEqual("FAIL", result["status"])
 
+    def test_late_receipt_is_not_accepted_after_the_collection_phase(self):
+        now = "2026-10-08T20:58:00Z"  # 16:58 NY
+        c = self._candidate()
+        done = {"wes-assets:2026-10-08:1000": "2026-10-08T18:30:00Z",
+                "wes-assets:2026-10-08:1300": "2026-10-08T17:31:00Z",
+                "wes-assets:2026-10-08:1600": "2026-10-08T20:11:00Z"}
+        result = assess({"forecasts": [], "verifications": []},
+                        state_with(c, now), scheduler(now=now, slots=done),
+                        now=now)
+        self.assertIn("MARKET_SNAPSHOT_SLA_BREACHED", result["alert_codes"])
+        self.assertEqual(["wes-assets:2026-10-08:1000"],
+                         result["source_sla"]["unresolved_missing_slot_keys"])
+
     def test_breached_slot_carries_across_weekend_and_holiday(self):
         c = self._candidate()
         # Wednesday closing slot is still an incident after Thanksgiving,
