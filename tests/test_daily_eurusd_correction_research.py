@@ -124,6 +124,38 @@ class DowntrendCorrectionTests(unittest.TestCase):
         self.assertFalse(any(k.startswith("correction_") for k in snapshot["signals"]))
         self.assertFalse(snapshot["exit_authority"])
 
+    def test_downtrend_reference_requires_asof_downtrend_at_trough(self):
+        # A 70-minute sell-off after a high established beyond warmup.
+        bars = [bar(i, 1.13000) for i in range(65)]
+        bars += [bar(65, 1.13050)]
+        bars += [bar(65+i, 1.13050 - i * 0.00003) for i in range(1, 71)]
+        trough = T0 + timedelta(minutes=135)
+        before = c.current_context(bars, trough)
+        self.assertEqual(before["confirmed_event_count_as_of"], 0)
+        self.assertTrue(before["current_downswing"]["trend_1m"]["local_downtrend"])
+        # Correction 7 pips; 25% of 21-pip sell-off is 5.25 pips.
+        bars += [bar(136, 1.12910)]
+        events, _ = c.scan_swings(bars, T0 + timedelta(minutes=136))
+        self.assertEqual(len(events), 1)
+        self.assertTrue(events[0]["local_downtrend_at_trough"])
+        self.assertTrue(events[0]["valid_for_statistics"])
+        study = c.journal_study({}, bars, T0 + timedelta(minutes=137))
+        self.assertEqual(study["summary"]["in_confirmed_local_downtrend"]["confirmed_event_count"], 1)
+        self.assertEqual(study["summary"]["in_confirmed_local_downtrend"]["status"], "INSUFFICIENT_SAMPLE")
+        self.assertIsNone(study["summary"]["in_confirmed_local_downtrend"]["median_fall_pips"])
+        after = c.current_context(bars, T0 + timedelta(minutes=137), study["events"])
+        self.assertEqual(after["conditional_reference"], "LOCAL_1M_DOWNTREND_ONLY")
+        self.assertEqual(after["conditional_sample_count"], 0 if
+                         after["current_downswing"]["trend_1m"]["local_downtrend"] is not True else 1)
+        self.assertFalse(after["higher_timeframe_daily_trend_confirmed"])
+
+    def test_unknown_trend_is_not_used_as_downtrend_evidence(self):
+        bars = falling_and_rebounding()
+        study = c.journal_study({}, bars, T0 + timedelta(minutes=35))
+        self.assertEqual(study["confirmed_events"], 1)
+        self.assertEqual(study["summary"]["in_confirmed_local_downtrend"]["confirmed_event_count"], 0)
+        self.assertEqual(study["summary"]["local_trend_unknown_count"], 1)
+
     def test_no_false_correction_count_when_bars_missing(self):
         study = c.journal_study({}, [], T0)
         self.assertEqual(study["confirmed_events"], 0)
