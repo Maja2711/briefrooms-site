@@ -151,16 +151,16 @@ def build_payload(state, report, closed_loop=None, evolution_controller=None):
         if not v:
             continue
         label = horizon_label(f)
-        by_h.setdefault(label, []).append(float(v.get("brier_score")))
+        by_h.setdefault(label, []).append({"f": f, "y": 1.0 if bool(v.get("outcome")) else 0.0, "brier": float(v.get("brier_score"))})
     horizon_order = ("3H","12H","24H","3D","5D","0.125S","0.5S","1S","3S","5S")
     labels = [x for x in horizon_order if x in by_h] + sorted(x for x in by_h if x not in horizon_order)
     for label in labels:
-        vals = by_h.get(label, [])
-        horizon_stats.append({"horizon":label, "n":len(vals), "mean_brier":None if not vals else round(sum(vals)/len(vals),6)})
+        vals, _event_audit = canonical_event_rows(by_h.get(label, []))
+        horizon_stats.append({"horizon":label, "n":len(vals), "mean_brier":None if not vals else round(sum(x["brier"] for x in vals)/len(vals),6)})
 
     # Calibration analytics are computed only from prospectively frozen forecasts
     # that have a deterministic verification. They are descriptive SHADOW output.
-    eligible_all = []
+    eligible_all_raw = []
     for f in forecasts:
         v = verified.get(str(f.get("forecast_id", "")))
         if not v:
@@ -172,8 +172,9 @@ def build_payload(state, report, closed_loop=None, evolution_controller=None):
             continue
         if not 0.0 <= prob <= 1.0:
             continue
-        eligible_all.append({"f": f, "v": v, "p": prob, "y": outcome, "brier": (prob - outcome) ** 2})
-    eligible_raw = [r for r in eligible_all if str(r["f"].get("belief_id") or "") not in candidate_ids]
+        eligible_all_raw.append({"f": f, "v": v, "p": prob, "y": outcome, "brier": (prob - outcome) ** 2})
+    eligible_all, all_event_evaluation = canonical_event_rows(eligible_all_raw)
+    eligible_raw = [r for r in eligible_all_raw if str(r["f"].get("belief_id") or "") not in candidate_ids]
     eligible, event_evaluation = canonical_event_rows(eligible_raw)
 
     def calibration_bins(rows, bins=10):
@@ -376,7 +377,7 @@ def build_payload(state, report, closed_loop=None, evolution_controller=None):
         "horizon_aggregate_min_sample": 30,
         "hypothesis_brier": hypothesis_brier,
         "hypothesis_intelligence": hypothesis_brier,
-        "event_evaluation": event_evaluation,
+        "event_evaluation": {**event_evaluation, "all_beliefs": all_event_evaluation},
         "metrics": {
             "raw_resolved_forecasts": len(eligible_raw),
             "independent_resolved_events": len(eligible),
