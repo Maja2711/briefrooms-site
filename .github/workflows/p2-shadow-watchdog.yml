@@ -57,6 +57,34 @@ jobs:
           echo "P2_STATE=$RUNNER_TEMP/p2-monitor" >> "$GITHUB_ENV"
           mkdir -p "$RUNNER_TEMP/p2-monitor"
 
+      - name: Restore last independent source SLA checkpoint
+        run: |
+          set -euo pipefail
+          curl -fsSL -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts?name=p2-shadow-source-sla-checkpoint&per_page=100" \
+            > "$RUNNER_TEMP/p2-sla-artifacts.json"
+          aid=$(python - "$RUNNER_TEMP/p2-sla-artifacts.json" <<'PY'
+          import json,sys
+          from pathlib import Path
+          rows=[r for r in json.loads(Path(sys.argv[1]).read_text()).get("artifacts",[])
+                if not r.get("expired")]
+          rows.sort(key=lambda r:r.get("created_at",""), reverse=True)
+          print(rows[0]["id"] if rows else "")
+          PY
+          )
+          if [[ -n "$aid" ]]; then
+            curl -fsSL -L -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/artifacts/$aid/zip" \
+              -o "$RUNNER_TEMP/p2-sla-previous.zip"
+            unzip -p "$RUNNER_TEMP/p2-sla-previous.zip" P2_SLA_CHECKPOINT.json \
+              > "$RUNNER_TEMP/P2_SLA_PREVIOUS.json"
+            test -s "$RUNNER_TEMP/P2_SLA_PREVIOUS.json"
+          else
+            echo "No prior independent SLA checkpoint; checking the current US session."
+          fi
+
       - name: Restore latest canonical Belief state read-only
         run: |
           set -euo pipefail
@@ -91,6 +119,7 @@ jobs:
           set -euo pipefail
           python scripts/hypothesis_shadow_watchdog.py \
             --monitor --state-dir "$P2_STATE" \
+            --sla-checkpoint "$RUNNER_TEMP/P2_SLA_PREVIOUS.json" \
             --output "$RUNNER_TEMP/P2_MONITOR.json"
           python - <<'PY'
           import json,os
@@ -105,6 +134,36 @@ jobs:
               for alert in p["alerts"]:
                   out.write("- **" + alert["severity"] + " " + alert["code"] + "**: " + str(alert["count"]) + "\n")
           PY
+
+      - name: Write sanitized independent source SLA checkpoint
+        if: always()
+        run: |
+          set -euo pipefail
+          [[ -s "$RUNNER_TEMP/P2_MONITOR.json" ]] || exit 0
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          temp=Path(os.environ["RUNNER_TEMP"])
+          report=json.loads((temp/"P2_MONITOR.json").read_text(encoding="utf-8"))
+          checkpoint={
+              "schema_version": "briefrooms-p2-snapshot-sla-checkpoint-v1",
+              "generated_at": report["generated_at"],
+              "unresolved_missing_slot_keys":
+                  report["source_sla"]["unresolved_missing_slot_keys"],
+          }
+          (temp/"P2_SLA_CHECKPOINT.json").write_text(
+              json.dumps(checkpoint, sort_keys=True, indent=2)+"\n",
+              encoding="utf-8")
+          PY
+
+      - name: Persist independent source SLA checkpoint across sessions
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p2-shadow-source-sla-checkpoint
+          path: ${{ runner.temp }}/P2_SLA_CHECKPOINT.json
+          if-no-files-found: ignore
+          retention-days: 30
 
       - name: Dispatch collector recovery if source stopped
         if: always()
