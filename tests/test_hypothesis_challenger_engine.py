@@ -75,7 +75,7 @@ class HypothesisChallengerE2ETests(unittest.TestCase):
         c = candidate(DAY0)
         initial_frozen = copy.deepcopy(c["shadow_forecasts"])
         prior = registry(c)
-        for day in range(1, 52):
+        for day in range(1, 51):
             if day > 1:
                 state["verifications"].append(verification(state["forecasts"][-1]))
             state["forecasts"].append(forecast(day))
@@ -86,18 +86,18 @@ class HypothesisChallengerE2ETests(unittest.TestCase):
             self.assertEqual(day-1, len(current["settlements"]))
             self.assertEqual("OOS_RUNNING", current["status"])
         state["verifications"].append(verification(state["forecasts"][-1]))
-        output = run(state, utility(), prior, now=stamp(52, 12))
+        output = run(state, utility(), prior, now=stamp(51, 12))
         selected = output["candidates"][c["candidate_id"]]
         self.assertEqual("PROMOTION_ELIGIBLE", selected["status"])
         self.assertEqual("PASS", selected["gate"]["status"])
-        self.assertEqual(51, selected["gate"]["observed_sample"])
-        self.assertEqual(51, selected["gate"]["distinct_target_dates"])
-        self.assertEqual(51, len(selected["shadow_forecasts"]))
-        self.assertEqual(51, len(selected["settlements"]))
+        self.assertEqual(50, selected["gate"]["observed_sample"])
+        self.assertEqual(50, selected["gate"]["distinct_target_dates"])
+        self.assertEqual(50, len(selected["shadow_forecasts"]))
+        self.assertEqual(50, len(selected["settlements"]))
         self.assertFalse(output["authority"]["automatic_production_promotion"])
         self.assertEqual(0, output["summary"]["production_promotions"])
         # Re-run: commitments/results must not be overwritten or duplicated.
-        again = run(state, utility(), output, now=stamp(52, 12))
+        again = run(state, utility(), output, now=stamp(51, 12))
         actual = again["candidates"][c["candidate_id"]]
         self.assertEqual(actual["shadow_forecasts"], selected["shadow_forecasts"])
         self.assertEqual(actual["settlements"], selected["settlements"])
