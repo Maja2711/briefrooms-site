@@ -277,26 +277,65 @@
     return parts.every(Boolean) ? parts.join("|") : String(event?.event_id || "");
   }
 
-  async function hasActiveBackgroundPush(config) {
-    const push = config?.background_push || {};
-    if (!push.enabled || !push.api_base || !("serviceWorker" in navigator) || !("PushManager" in window)) return false;
-    try {
-      const registration = await navigator.serviceWorker.getRegistration("/");
-      return Boolean(await registration?.pushManager?.getSubscription());
-    } catch (_) { return false; }
+  // The foreground recovery path and background SW use the SAME IndexedDB
+  // event identity so a missed background push is recovered when the app opens,
+  // without two alerts for the same trade.
+  function claimOnDevice(identity) {
+    if (!identity || !window.indexedDB) return Promise.resolve(true);
+    return new Promise((resolve) => {
+      let finished = false;
+      const finish = (ok) => { if (!finished) { finished = true; resolve(ok); } };
+      try {
+        const req = indexedDB.open("briefrooms-trading-push-seen-v1", 1);
+        req.onupgradeneeded = () => req.result.createObjectStore("events", { keyPath: "id" });
+        req.onerror = () => finish(true);
+        req.onsuccess = () => {
+          const db = req.result;
+          let exists = false;
+          try {
+            const tx = db.transaction("events", "readwrite");
+            const add = tx.objectStore("events").add({ id: identity, seen_at: Date.now() });
+            add.onerror = (e) => {
+              if (add.error?.name === "ConstraintError") {
+                exists = true;
+                e.preventDefault();
+                e.stopPropagation();
+              }
+            };
+            tx.oncomplete = () => { db.close(); finish(!exists); };
+            tx.onabort = () => { db.close(); finish(true); };
+            tx.onerror = () => { db.close(); finish(true); };
+          } catch (_) { db.close(); finish(true); }
+        };
+      } catch (_) { finish(true); }
+    });
+  }
+
+  function releaseOnDevice(identity) {
+    if (!identity || !window.indexedDB) return Promise.resolve();
+    return new Promise((resolve) => {
+      try {
+        const req = indexedDB.open("briefrooms-trading-push-seen-v1", 1);
+        req.onerror = () => resolve();
+        req.onsuccess = () => {
+          const db = req.result;
+          const tx = db.transaction("events", "readwrite");
+          tx.objectStore("events").delete(identity);
+          tx.oncomplete = tx.onabort = tx.onerror = () => { db.close(); resolve(); };
+        };
+      } catch (_) { resolve(); }
+    });
   }
 
   async function showNative(title, body, data) {
     if (!("Notification" in window) || Notification.permission !== "granted") return;
-    // Atomic enough across normal browser tabs: claim before the first await.
     const identity = logicalEventId(data);
     if (identity) {
-      const key = "brTradingSeenEventV2:" + identity;
       try {
-        const last = Number(localStorage.getItem(key) || 0);
-        if (last && Date.now() - last < 90 * 24 * 60 * 60 * 1000) return;
-        localStorage.setItem(key, String(Date.now()));
+        const prev = Number(localStorage.getItem("brTradingSeenEventV2:" + identity) || 0);
+        if (prev && Date.now() - prev < 90 * 24 * 60 * 60 * 1000) return;
       } catch (_) {}
+      if (!(await claimOnDevice(identity))) return;
     }
     try {
       const registration = await navigator.serviceWorker?.getRegistration("/");
@@ -305,13 +344,18 @@
           body,
           icon: "/assets/favicon.svg",
           badge: "/assets/favicon.svg",
-          tag: data?.event_id || undefined,
+          tag: identity || data?.event_id || undefined,
           data: { url: location.href, ...(data || {}) },
         });
-        return;
+      } else {
+        new Notification(title, { body, icon: "/assets/favicon.svg", tag: identity || data?.event_id || undefined });
       }
-    } catch (_) {}
-    new Notification(title, { body, icon: "/assets/favicon.svg", tag: data?.event_id || undefined });
+      if (identity) {
+        try { localStorage.setItem("brTradingSeenEventV2:" + identity, String(Date.now())); } catch (_) {}
+      }
+    } catch (_) {
+      await releaseOnDevice(identity);
+    }
   }
 
   function eventAllowed(event, prefs) {
@@ -333,11 +377,16 @@
         localStorage.setItem(CURSOR_KEY, String(events[events.length - 1].event_id || ""));
         return;
       }
-      const idx = events.findIndex((e) => String(e.event_id || "") === cursor);
-      const unseen = idx >= 0 ? events.slice(idx + 1) : [];
-      const backgroundActive = await hasActiveBackgroundPush(config);
-      for (const event of unseen) {
-        if (eventAllowed(event, prefs) && !backgroundActive
+      // Recover only recent events; a long-offline phone must never be
+      // flooded by weeks of accumulated historical trading notifications.
+      const now = Date.now();
+      const recent = events.filter((event) => {
+        const t = Date.parse(String(event.closed_at || event.opened_at || event.observed_at || ""));
+        return Number.isFinite(t) && now >= t && now - t <= 2 * 60 * 60_000;
+      });
+      const candidates = [...new Map(recent.map((event) => [logicalEventId(event), event])).values()];
+      for (const event of candidates) {
+        if (eventAllowed(event, prefs)
           && !event.delivery_recovery && event.source !== "delivery_recovery"
           && !/-r[0-9]+$/i.test(String(event.event_id || ""))) {
           await showNative("BriefRooms · " + engineName(event.engine), notificationText(event), event);
