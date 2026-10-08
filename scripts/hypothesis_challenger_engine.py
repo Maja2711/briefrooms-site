@@ -239,7 +239,8 @@ def _freeze(candidate: dict[str, Any], state: Mapping[str, Any], now: datetime) 
         ids = identity(f)
         if ids["hypothesis_id"] != candidate["hypothesis_id"] or ids["hypothesis_version"] != candidate["hypothesis_version"]:
             continue
-        if str((f.get("metadata") or {}).get("calibration_horizon_bucket") or "unknown") != candidate["horizon_bucket"]:
+        if (candidate["horizon_bucket"] != "__ALL_HORIZONS__" and
+            str((f.get("metadata") or {}).get("calibration_horizon_bucket") or "unknown") != candidate["horizon_bucket"]):
             # For older records, only use the explicit default bucket when it is
             # the same as the one registered for the candidate.
             continue
@@ -284,7 +285,7 @@ def _freeze(candidate: dict[str, Any], state: Mapping[str, Any], now: datetime) 
                 "raw_probability": round(p, 12),
             }),
             "transform_sha256": candidate["proposed_change_sha256"],
-            "horizon_bucket": candidate["horizon_bucket"],
+            "horizon_bucket": str((f.get("metadata") or {}).get("calibration_horizon_bucket") or "unknown"),
         }
         frozen[eid] = commitment  # immutable; do not update after first write
         frozen_count += 1
@@ -434,7 +435,26 @@ def _gate(candidate: dict[str, Any], conflict_events: list[str], now: datetime) 
             cm = _score([(r["commit"]["raw_probability"], bool(r["outcome"])) for r in part])
             nm = _score([(r["commit"]["challenger_probability"], bool(r["outcome"])) for r in part])
             blocks.append(_improvement(nm, cm))
+    # A pooled probability adjustment MUST not conceal material degradation
+    # of a forecast horizon behind stronger aggregate performance.
+    slices: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for r in rows:
+        slices[str(r["commit"].get("horizon_bucket") or "unknown")].append(r)
+    horizon_checks = []
+    for horizon, segment in sorted(slices.items()):
+        c = _score([(x["commit"]["raw_probability"], bool(x["outcome"])) for x in segment])
+        q = _score([(x["commit"]["challenger_probability"], bool(x["outcome"])) for x in segment])
+        improvement = _improvement(q, c)
+        horizon_checks.append({
+            "horizon_bucket": horizon, "n": len(segment),
+            "brier_relative_improvement": None if improvement is None else round(improvement, 6),
+            "protected": len(segment) >= 10,
+        })
     blockers = []
+    if candidate["horizon_bucket"] == "__ALL_HORIZONS__":
+        if any(x["protected"] and (x["brier_relative_improvement"] is None or
+               x["brier_relative_improvement"] < -.05) for x in horizon_checks):
+            blockers.append("protected_horizon_brier_degradation")
     if conflict_events:
         blockers.append("identity_or_outcome_conflict")
     if n < MIN_OOS:
@@ -483,6 +503,7 @@ def _gate(candidate: dict[str, Any], conflict_events: list[str], now: datetime) 
             "control": base, "challenger": ch,
             "brier_relative_improvement": None if gain is None else round(gain, 6),
             "chronological_block_relative_improvements": [None if x is None else round(x, 6) for x in blocks],
+            "horizon_checks": horizon_checks,
         },
         "production_write_authority": False,
     }
@@ -542,6 +563,7 @@ def run(state: Mapping[str, Any], utility: Mapping[str, Any],
         ids = identity(row["f"])
         horizon = str((row["f"].get("metadata") or {}).get("calibration_horizon_bucket") or "unknown")
         by_scope[_candidate_key(ids["hypothesis_id"], ids["hypothesis_version"], horizon)].append(row)
+        by_scope[_candidate_key(ids["hypothesis_id"], ids["hypothesis_version"], "__ALL_HORIZONS__")].append(row)
     slots = max(0, MAX_ACTIVE - sum(c.get("status") in {"OOS_RUNNING", "HOLD", "PROMOTION_ELIGIBLE"}
                                      for c in candidates.values()))
     created = 0
@@ -650,6 +672,7 @@ def public_view(report: Mapping[str, Any]) -> dict[str, Any]:
                 "brier_relative_improvement": (g.get("metrics") or {}).get("brier_relative_improvement"),
                 "positive_chronological_blocks": sum((x is not None and x > 0)
                     for x in (g.get("metrics") or {}).get("chronological_block_relative_improvements", [])),
+                "protected_horizon_checks": list((g.get("metrics") or {}).get("horizon_checks") or []),
             },
             "automatic_promotion_allowed": False,
         })
