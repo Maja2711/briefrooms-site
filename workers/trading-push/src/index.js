@@ -889,12 +889,15 @@ export class PushHub {
       const event = eventRecord?.event;
       const subKey = `sub:${original.subscriber_id}`;
       const subscriber = await this.ctx.storage.get(subKey);
-      if (!event || !subscriber?.subscription || !accepts(subscriber, event)) {
+      if (!event || isSyntheticRecoveryEvent(event) || !subscriber?.subscription || !accepts(subscriber, event)) {
         const terminal = transitionDelivery(original, DELIVERY_STATUS.EXPIRED, new Date().toISOString(), {
-          last_error: !event ? "immutable_event_missing" : "subscription_missing_or_preference_disabled",
+          last_error: !event ? "immutable_event_missing"
+            : isSyntheticRecoveryEvent(event) ? "synthetic_recovery_replay_suppressed"
+            : "subscription_missing_or_preference_disabled",
         });
         await this.ctx.storage.put(key, terminal);
         expired += 1;
+        if (isSyntheticRecoveryEvent(event)) duplicateSuppressed += 1;
         continue;
       }
 
