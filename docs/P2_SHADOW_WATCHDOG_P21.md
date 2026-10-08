@@ -27,7 +27,7 @@ The real Verification probe uses source-linked market settlement: `outcome_sourc
 ## Irreversible failures and recovery
 
 - `SHADOW_FREEZE_GAP_OPEN` and `SETTLEMENT_BACKLOG`: retry the collector bridge immediately if the underlying target is **still future** or a legitimate market Verification exists. A successful idempotent retry clears the alarm; no duplicate `event_id`.
-- `COLLECTOR_STALE_DURING_MARKET` and `BASELINE_FORECAST_MISSING_AFTER_SLOT`: the independent monitor can dispatch `belief-core-shadow-live.yml`; suppress duplicate dispatches if any collector run occurred within 90 minutes. This recovery must not manipulate source prices or falsely create forecasts.
+- `COLLECTOR_STALE_DURING_MARKET`, `BASELINE_FORECAST_MISSING_AFTER_SLOT` and `SOURCE_FORECASTS_MISSING_AFTER_CONFIRMED_SLOT`: the independent monitor can dispatch `belief-core-shadow-live.yml`; suppress duplicate dispatches if any collector run occurred within 90 minutes. This is a best-effort recovery attempt: a slot already recorded completed may require operator investigation and must never be backdated or fabricated. This recovery must not manipulate source prices or falsely create forecasts.
 - `SHADOW_FREEZE_MISSED_IRRECOVERABLE`: **never** backdate the Shadow freeze or add a retrospective result into OOS; flag it for operator review and continue with legitimate future targets.
 - Tampering, contradictory outcome or source mismatch: FAIL/HOLD, never promotion.
 - Missing / stale P2 source also blocks Evolution Controller eligibility through its separate fail-closed gate.
