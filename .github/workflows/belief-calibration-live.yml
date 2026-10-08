@@ -189,8 +189,6 @@ jobs:
           from pathlib import Path
           p=json.loads((Path(os.environ['STATE_DIR'])/'DECISION_LAB_LEARNING.json').read_text())
           assert p['automatic_tuning'] is False
-          assert p['hypothesis_utility']['status'] == 'SHADOW_READ_ONLY'
-          assert p['hypothesis_utility']['authority']['production_writeback'] is False
           assert p['production_write_authority'] is False
           print('Decision LAB learning memory: PASS; actions=', p['action_count'])
           PY
@@ -255,6 +253,8 @@ jobs:
           assert p['execution_authority'] is False
           assert p['production_write_authority'] is False
           assert p['automatic_tuning'] is False
+          assert p['hypothesis_utility']['status'] == 'SHADOW_READ_ONLY'
+          assert p['hypothesis_utility']['authority']['production_writeback'] is False
           assert h['schema_version'] == 'briefrooms_decision_lab_history_v1'
           assert h['window_days'] == 30
           assert h['older_records_publicly_exposed'] is False
