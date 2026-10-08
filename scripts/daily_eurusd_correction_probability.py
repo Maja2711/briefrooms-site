@@ -12,6 +12,7 @@ No execution, no policy mutation, no automatic promotion.
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import math
 from datetime import datetime, timedelta, timezone
@@ -279,7 +280,7 @@ def step(previous: Mapping[str, Any], bars_raw: Sequence[Any], now: datetime) ->
     asof = now - timedelta(minutes=1)
     closed = [b for b in bars if b["time"] + timedelta(minutes=1) <= now]
     replay = collect_historical(closed, now)
-    old_live = {e["id"]: dict(e) for e in (previous.get("prospective_episodes") or [])}
+    old_live = {e["id"]: copy.deepcopy(e) for e in (previous.get("prospective_episodes") or [])}
     # Verify that a prospective episode is *actually observed now*, not replayed.
     current = candidate(closed, now) if closed else None
     if current and current["observed_at"] >= iso(now - timedelta(minutes=4)):
@@ -304,7 +305,7 @@ def step(previous: Mapping[str, Any], bars_raw: Sequence[Any], now: datetime) ->
                 e["outcomes"][key] = result
     # Replayed rows have no prospective-alert provenance and are always
     # separate from live observations, never counted twice.
-    history = replay
+    history = list(replay)
     past_live_ids = {e["observed_at"] for e in history}
     history += [e for e in live if e["observed_at"] not in past_live_ids]
     history.sort(key=lambda e:e["observed_at"])
