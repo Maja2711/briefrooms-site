@@ -6,14 +6,17 @@ on:
     paths:
       - "scripts/daily_eurusd_exit_intelligence_v2.py"
       - "scripts/daily_eurusd_correction_research.py"
+      - "scripts/daily_eurusd_correction_probability.py"
       - "tests/test_daily_eurusd_exit_intelligence_v2.py"
       - "tests/test_daily_eurusd_correction_research.py"
+      - "tests/test_daily_eurusd_correction_probability.py"
       - ".github/workflows/daily-eurusd-exit-research.yml"
   push:
     branches: [main]
     paths:
       - "scripts/daily_eurusd_exit_intelligence_v2.py"
       - "scripts/daily_eurusd_correction_research.py"
+      - "scripts/daily_eurusd_correction_probability.py"
       - ".github/workflows/daily-eurusd-exit-research.yml"
   schedule:
     - cron: "2,7,12,17,22,27,32,37,42,47,52,57 * * * *"
@@ -39,8 +42,8 @@ jobs:
       - name: Validate research contracts
         run: |
           set -euo pipefail
-          python -m py_compile scripts/daily_eurusd_exit_intelligence_v2.py scripts/daily_eurusd_correction_research.py
-          python -m unittest tests.test_daily_eurusd_exit_intelligence_v2 tests.test_daily_eurusd_correction_research -v
+          python -m py_compile scripts/daily_eurusd_exit_intelligence_v2.py scripts/daily_eurusd_correction_research.py scripts/daily_eurusd_correction_probability.py
+          python -m unittest tests.test_daily_eurusd_exit_intelligence_v2 tests.test_daily_eurusd_correction_research tests.test_daily_eurusd_correction_probability -v
 
   observe:
     needs: validate
@@ -63,14 +66,25 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           for attempt in 1 2 3 4 5; do
             python scripts/daily_eurusd_exit_intelligence_v2.py
+            python scripts/daily_eurusd_correction_probability.py
             python -m json.tool data/investments/eurusd_exit_signal_journal.json >/dev/null
             python -m json.tool data/investments/eurusd_exit_intelligence_reviews.json >/dev/null
+            python -m json.tool data/investments/eurusd_correction_probability_shadow.json >/dev/null
             python - <<'PY'
           import json
           from pathlib import Path
           journal = json.loads(Path("data/investments/eurusd_exit_signal_journal.json").read_text())
           reviews = json.loads(Path("data/investments/eurusd_exit_intelligence_reviews.json").read_text())
           study = journal.get("correction_study") or {}
+          model = json.loads(Path("data/investments/eurusd_correction_probability_shadow.json").read_text())
+          assert model["instrument"] == "EUR/USD"
+          assert model["authority"]["trade_execution"] is False
+          assert model["authority"]["daily_exit_mutation"] is False
+          assert model["authority"]["belief_core_mutation"] is False
+          assert model["authority"]["automatic_promotion"] is False
+          assert model["authority"]["same_day_training"] is False
+          assert all(h["production_authority"] is False for h in model["horizons"].values())
+          assert all(e["source"] == "YAHOO_EURUSD_1M_CLOSED_BAR" for e in model["prospective_episodes"])
           assert journal["authority"] == "SHADOW_OBSERVATION_ONLY"
           assert study.get("exit_authority") is False
           assert reviews["trading_decision_influence"] is False
@@ -79,7 +93,7 @@ jobs:
           print("CORRECTION_RESEARCH_ZERO_EXECUTION_AUTHORITY_PASS",
                 len(journal.get("snapshots", [])), study.get("confirmed_events", 0))
           PY
-            git add -- data/investments/eurusd_exit_signal_journal.json data/investments/eurusd_exit_intelligence_reviews.json
+            git add -- data/investments/eurusd_exit_signal_journal.json data/investments/eurusd_exit_intelligence_reviews.json data/investments/eurusd_correction_probability_shadow.json
             if git diff --cached --quiet; then
               echo "No new research observations."
               exit 0
@@ -87,7 +101,7 @@ jobs:
             changed=$(git diff --cached --name-only)
             while IFS= read -r filename; do
               case "$filename" in
-                data/investments/eurusd_exit_signal_journal.json|data/investments/eurusd_exit_intelligence_reviews.json) ;;
+                data/investments/eurusd_exit_signal_journal.json|data/investments/eurusd_exit_intelligence_reviews.json|data/investments/eurusd_correction_probability_shadow.json) ;;
                 *) echo "Disallowed research write: $filename" >&2; exit 1 ;;
               esac
             done <<< "$changed"
