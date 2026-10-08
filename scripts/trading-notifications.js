@@ -272,8 +272,32 @@
     return action + " · " + (event.instrument || "") + dir + entry;
   }
 
+  function logicalEventId(event) {
+    const parts = [event?.engine, event?.event_type, event?.position_id];
+    return parts.every(Boolean) ? parts.join("|") : String(event?.event_id || "");
+  }
+
+  async function hasActiveBackgroundPush(config) {
+    const push = config?.background_push || {};
+    if (!push.enabled || !push.api_base || !("serviceWorker" in navigator) || !("PushManager" in window)) return false;
+    try {
+      const registration = await navigator.serviceWorker.getRegistration("/");
+      return Boolean(await registration?.pushManager?.getSubscription());
+    } catch (_) { return false; }
+  }
+
   async function showNative(title, body, data) {
     if (!("Notification" in window) || Notification.permission !== "granted") return;
+    // Atomic enough across normal browser tabs: claim before the first await.
+    const identity = logicalEventId(data);
+    if (identity) {
+      const key = "brTradingSeenEventV2:" + identity;
+      try {
+        const last = Number(localStorage.getItem(key) || 0);
+        if (last && Date.now() - last < 90 * 24 * 60 * 60 * 1000) return;
+        localStorage.setItem(key, String(Date.now()));
+      } catch (_) {}
+    }
     try {
       const registration = await navigator.serviceWorker?.getRegistration("/");
       if (registration) {
@@ -311,8 +335,11 @@
       }
       const idx = events.findIndex((e) => String(e.event_id || "") === cursor);
       const unseen = idx >= 0 ? events.slice(idx + 1) : [];
+      const backgroundActive = await hasActiveBackgroundPush(config);
       for (const event of unseen) {
-        if (eventAllowed(event, prefs)) {
+        if (eventAllowed(event, prefs) && !backgroundActive
+          && !event.delivery_recovery && event.source !== "delivery_recovery"
+          && !/-r[0-9]+$/i.test(String(event.event_id || ""))) {
           await showNative("BriefRooms · " + engineName(event.engine), notificationText(event), event);
         }
       }

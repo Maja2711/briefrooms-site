@@ -645,7 +645,6 @@ const DELIVERY_STATUS = Object.freeze({
   EXPIRED: "EXPIRED",
 });
 const SENDING_STALE_MS = 2 * 60_000;
-const ACK_TIMEOUT_MS = 5 * 60_000;
 const MAX_RETRY_MS = 15 * 60_000;
 
 function deliveryId(eventIdValue, subscriberId) {
@@ -717,20 +716,18 @@ function retryDelayMs(attempts) {
 }
 
 function deliveryReadyForRetry(record, nowMs = Date.now()) {
-  const status = String(record?.status || "");
-  if ([DELIVERY_STATUS.ACKED, DELIVERY_STATUS.EXPIRED].includes(status)) return false;
+  // An accepted push is final for transport. Missing browser ACK must
+  // never cause a second Android notification.
+  if (String(record?.status || "") !== DELIVERY_STATUS.UNSENT) return false;
   const nextRetryMs = Date.parse(String(record?.next_retry_at || ""));
-  if (Number.isFinite(nextRetryMs) && nextRetryMs > nowMs) return false;
-  if (status === DELIVERY_STATUS.UNSENT) return true;
-  const updatedMs = Date.parse(String(record?.updated_at || ""));
-  const sentMs = Date.parse(String(record?.sent_to_push_at || record?.updated_at || ""));
-  if (status === DELIVERY_STATUS.SENDING) {
-    return !Number.isFinite(updatedMs) || nowMs - updatedMs >= SENDING_STALE_MS;
-  }
-  if (status === DELIVERY_STATUS.SENT_TO_PUSH) {
-    return !Number.isFinite(sentMs) || nowMs - sentMs >= ACK_TIMEOUT_MS;
-  }
-  return false;
+  return !Number.isFinite(nextRetryMs) || nextRetryMs <= nowMs;
+}
+
+function isSyntheticRecoveryEvent(event) {
+  // Recovery re-exports refer to an existing trade transition (e.g. hash-r1).
+  return event?.delivery_recovery === true
+    || event?.source === "delivery_recovery"
+    || /-r[0-9]+$/i.test(String(event?.event_id || ""));
 }
 
 function notificationPayload(event, lang, publicBaseUrl = "", delivery = null) {
@@ -757,6 +754,7 @@ function notificationPayload(event, lang, publicBaseUrl = "", delivery = null) {
       engine: event.engine,
       event_type: event.event_type,
       position_id: event.position_id,
+      logical_event_key: [event.engine, event.event_type, event.position_id].join("|"),
       exit_reason: event.exit_reason || null,
       analytics_url: `${base}/analytics/click`,
       delivery_id: delivery?.delivery_id || null,
@@ -833,7 +831,7 @@ export class PushHub {
       return true;
     }
     const complete = deliveries.every((row) =>
-      [DELIVERY_STATUS.ACKED, DELIVERY_STATUS.EXPIRED].includes(String(row?.status || ""))
+      [DELIVERY_STATUS.SENT_TO_PUSH, DELIVERY_STATUS.ACKED, DELIVERY_STATUS.EXPIRED].includes(String(row?.status || ""))
     );
     if (complete) await this.ctx.storage.put(`event-complete:${eventIdValue}`, true);
     else await this.ctx.storage.delete(`event-complete:${eventIdValue}`);
@@ -855,11 +853,32 @@ export class PushHub {
     let failed = 0;
     let expired = 0;
     let acked = 0;
+    let duplicateSuppressed = 0;
     const touchedEvents = new Set();
     const failedStatuses = {};
 
     for (const [key, original] of rows.entries()) {
       if (!original?.event_id || (filter && !filter.has(String(original.event_id)))) continue;
+      if (original.status === DELIVERY_STATUS.SENT_TO_PUSH) {
+        // Migrate existing accepted deliveries waiting indefinitely for ACK.
+        if (original.next_retry_at) {
+          await this.ctx.storage.put(key, transitionDelivery(original, DELIVERY_STATUS.SENT_TO_PUSH, new Date().toISOString(), { next_retry_at: null }));
+          touchedEvents.add(String(original.event_id));
+        }
+        continue;
+      }
+      if (original.status === DELIVERY_STATUS.SENDING) {
+        // An interrupted send can have reached the provider; never blindly replay.
+        const updatedMs = Date.parse(String(original.updated_at || ""));
+        if (!Number.isFinite(updatedMs) || Date.now() - updatedMs >= SENDING_STALE_MS) {
+          await this.ctx.storage.put(key, transitionDelivery(original, DELIVERY_STATUS.EXPIRED, new Date().toISOString(), {
+            last_error: "ambiguous_send_not_replayed", next_retry_at: null,
+          }));
+          duplicateSuppressed += 1;
+          touchedEvents.add(String(original.event_id));
+        }
+        continue;
+      }
       if (!deliveryReadyForRetry(original)) {
         if (original.status === DELIVERY_STATUS.ACKED) acked += 1;
         continue;
@@ -870,12 +889,15 @@ export class PushHub {
       const event = eventRecord?.event;
       const subKey = `sub:${original.subscriber_id}`;
       const subscriber = await this.ctx.storage.get(subKey);
-      if (!event || !subscriber?.subscription || !accepts(subscriber, event)) {
+      if (!event || isSyntheticRecoveryEvent(event) || !subscriber?.subscription || !accepts(subscriber, event)) {
         const terminal = transitionDelivery(original, DELIVERY_STATUS.EXPIRED, new Date().toISOString(), {
-          last_error: !event ? "immutable_event_missing" : "subscription_missing_or_preference_disabled",
+          last_error: !event ? "immutable_event_missing"
+            : isSyntheticRecoveryEvent(event) ? "synthetic_recovery_replay_suppressed"
+            : "subscription_missing_or_preference_disabled",
         });
         await this.ctx.storage.put(key, terminal);
         expired += 1;
+        if (isSyntheticRecoveryEvent(event)) duplicateSuppressed += 1;
         continue;
       }
 
@@ -901,7 +923,7 @@ export class PushHub {
           await this.ctx.storage.put(key, transitionDelivery(latest, DELIVERY_STATUS.SENT_TO_PUSH, now, {
             sent_to_push_at: now,
             provider_status: Number(response?.statusCode || 201) || 201,
-            next_retry_at: new Date(Date.now() + ACK_TIMEOUT_MS).toISOString(),
+            next_retry_at: null,
           }));
         }
         sent += 1;
@@ -915,20 +937,22 @@ export class PushHub {
         }
         if (status === 403 || status === 404 || status === 410) {
           await this.ctx.storage.delete(subKey);
-          await this.ctx.storage.put(key, transitionDelivery(latest, DELIVERY_STATUS.EXPIRED, now, {
-            provider_status: status || null,
-            last_error: `push_subscription_expired:${status || "unknown"}`,
-          }));
+        }
+        // Retry only if the provider explicitly rejected (429/5xx).
+        // A transport timeout is ambiguous: the phone may already have shown it.
+        const safeRetry = status === 429 || status >= 500;
+        await this.ctx.storage.put(key, transitionDelivery(latest, safeRetry ? DELIVERY_STATUS.UNSENT : DELIVERY_STATUS.EXPIRED, now, {
+          provider_status: status || null,
+          last_error: safeRetry ? String(error?.message || error || "push_failed").slice(0, 500)
+            : status ? `provider_rejected:${status}` : "ambiguous_push_error_not_replayed",
+          next_retry_at: safeRetry ? new Date(Date.now() + retryDelayMs(attempt)).toISOString() : null,
+        }));
+        if (!safeRetry) {
           expired += 1;
+          if (!status) duplicateSuppressed += 1;
         } else {
-          const nextRetry = new Date(Date.now() + retryDelayMs(attempt)).toISOString();
-          await this.ctx.storage.put(key, transitionDelivery(latest, DELIVERY_STATUS.UNSENT, now, {
-            provider_status: status || null,
-            last_error: String(error?.message || error || "push_failed").slice(0, 500),
-            next_retry_at: nextRetry,
-          }));
           failed += 1;
-          const statusKey = String(status || "unknown");
+          const statusKey = String(status);
           failedStatuses[statusKey] = Number(failedStatuses[statusKey] || 0) + 1;
         }
       }
@@ -942,12 +966,13 @@ export class PushHub {
       const status = String(row?.status || "");
       if (Object.hasOwn(stateCounts, status)) stateCounts[status] += 1;
     }
-    const pending = stateCounts.UNSENT + stateCounts.SENDING + stateCounts.SENT_TO_PUSH;
+    const pending = stateCounts.UNSENT + stateCounts.SENDING; // Provider-accepted pushes do not await ACK.
 
     const stats = (await this.ctx.storage.get("stats")) || {};
     stats.sent = Number(stats.sent || 0) + sent;
     stats.failed = Number(stats.failed || 0) + failed;
     stats.expired_removed = Number(stats.expired_removed || 0) + expired;
+    stats.duplicate_suppressed = Number(stats.duplicate_suppressed || 0) + duplicateSuppressed;
     stats.active_subscriptions = (await this.ctx.storage.list({ prefix: "sub:" })).size;
     stats.last_failed_statuses = failedStatuses;
     stats.last_dispatch_sent = sent;
@@ -958,7 +983,7 @@ export class PushHub {
     stats.last_dispatch_at = new Date().toISOString();
     await this.ctx.storage.put("stats", stats);
 
-    return { ok: failed === 0, sent, failed, expired, acked, pending, delivery_states: stateCounts };
+    return { ok: failed === 0, sent, failed, expired, acked, pending, duplicate_suppressed: duplicateSuppressed, delivery_states: stateCounts };
   }
 
   async dispatchEvents(events, { seedIfUninitialized = false } = {}) {
@@ -983,7 +1008,7 @@ export class PushHub {
 
     const eventIds = [];
     for (const rawEvent of events) {
-      if (!rawEvent?.event_id) continue;
+      if (!rawEvent?.event_id || isSyntheticRecoveryEvent(rawEvent)) continue;
       const event = await this.persistImmutableEvent(rawEvent);
       await this.initializeRecipients(event);
       eventIds.push(String(event.event_id));
@@ -1422,7 +1447,10 @@ export class PushHub {
         last_acked_at: stats.last_acked_at || null,
         durable_outbox: true,
         durable_retry: true,
-        delivery_ack_required: true,
+        delivery_ack_required: false,
+        delivery_ack_optional: true,
+        provider_acceptance_terminal: true,
+        duplicate_suppressed: Number(stats.duplicate_suppressed || 0),
         delivery_unique_key: "(event_id,subscriber_id)",
         inbox: true,
         last_dispatch_at: stats.last_dispatch_at || null,
@@ -1801,4 +1829,4 @@ export default {
   }
 };
 
-export { finiteNumber, yahooMinuteBars, dailyCommitSnapshot, weeklyCommitSnapshot, stockCommitSnapshot, transitionDescriptors, persistedOutboxEvents, diffPersistedOutboxEvents, notificationPayload, storedCommitSnapshot, persistableCommitSnapshot, comparableCommitSnapshot, sameCommitSnapshot, isoWeekId, DELIVERY_STATUS, deliveryId, deliveryStorageKey, immutableEventCore, sameImmutableEvent, newDeliveryRecord, transitionDelivery, retryDelayMs, deliveryReadyForRetry };
+export { finiteNumber, yahooMinuteBars, dailyCommitSnapshot, weeklyCommitSnapshot, stockCommitSnapshot, transitionDescriptors, persistedOutboxEvents, diffPersistedOutboxEvents, notificationPayload, storedCommitSnapshot, persistableCommitSnapshot, comparableCommitSnapshot, sameCommitSnapshot, isoWeekId, DELIVERY_STATUS, deliveryId, deliveryStorageKey, immutableEventCore, sameImmutableEvent, newDeliveryRecord, transitionDelivery, retryDelayMs, deliveryReadyForRetry, isSyntheticRecoveryEvent };

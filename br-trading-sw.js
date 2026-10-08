@@ -64,6 +64,46 @@ async function acknowledgeShownTradingNotification(data) {
   return false;
 }
 
+function tradingNotificationIdentity(payload) {
+  const data = payload?.data || {};
+  if (data.logical_event_key) return String(data.logical_event_key);
+  if (data.engine && data.event_type && data.position_id) {
+    return [data.engine, data.event_type, data.position_id].join("|");
+  }
+  return String(payload?.event_id || "");
+}
+
+// Persist the logical event key across service-worker restarts and multiple
+// subscriptions on the same Samsung/browser. IndexedDB add() is atomic.
+async function claimTradingNotification(identity) {
+  if (!identity || !self.indexedDB) return true;
+  return new Promise((resolve) => {
+    let resolved = false;
+    const finish = (value) => { if (!resolved) { resolved = true; resolve(value); } };
+    try {
+      const opening = self.indexedDB.open("briefrooms-trading-push-seen-v1", 1);
+      opening.onupgradeneeded = () => opening.result.createObjectStore("events", { keyPath: "id" });
+      opening.onerror = () => finish(true);
+      opening.onsuccess = () => {
+        const db = opening.result;
+        try {
+          const tx = db.transaction("events", "readwrite");
+          const write = tx.objectStore("events").add({ id: identity, seen_at: Date.now() });
+          write.onsuccess = () => finish(true);
+          write.onerror = (errorEvent) => {
+            if (write.error?.name === "ConstraintError") {
+              errorEvent.preventDefault();
+              finish(false);
+            } else finish(true);
+          };
+          tx.oncomplete = () => db.close();
+          tx.onabort = () => db.close();
+        } catch (_) { db.close(); finish(true); }
+      };
+    } catch (_) { finish(true); }
+  });
+}
+
 self.addEventListener("push", (event) => {
   let payload = {};
   try { payload = event.data ? event.data.json() : {}; } catch (_) {
@@ -74,12 +114,15 @@ self.addEventListener("push", (event) => {
     body: payload.body || "",
     icon: "/assets/briefrooms-app-icon-192-v2.svg",
     badge: "/assets/favicon.svg",
-    tag: payload.event_id || payload.tag || undefined,
+    tag: tradingNotificationIdentity(payload) || payload.tag || undefined,
     timestamp: payload.sent_at ? Date.parse(payload.sent_at) : Date.now(),
     data: { url: payload.url || "/pl/inwestycje/daily-trading.html", event_id: payload.event_id || null, sent_at: payload.sent_at || null, ...(payload.data || {}), ack_url: payload.ack_url || payload?.data?.ack_url || null, ack_token: payload.ack_token || payload?.data?.ack_token || null, delivery_id: payload.delivery_id || payload?.data?.delivery_id || null },
   };
   event.waitUntil((async () => {
-    await self.registration.showNotification(title, options);
+    if (await claimTradingNotification(tradingNotificationIdentity(payload))) {
+      await self.registration.showNotification(title, options);
+    }
+    // ACK duplicate payloads too, to settle old workers still using ACK retries.
     await acknowledgeShownTradingNotification({
       ack_url: payload.ack_url || payload?.data?.ack_url,
       delivery_id: payload.delivery_id || payload?.data?.delivery_id,
