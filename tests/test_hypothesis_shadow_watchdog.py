@@ -125,7 +125,9 @@ class P21WatchdogTests(unittest.TestCase):
             "verification_id": "real-verification-1",
             "forecast_id": f["forecast_id"], "belief_id": f["belief_id"],
             "target_at": f["target_at"], "verified_at": outcome_at,
-            "outcome": False, "calibration_eligible": True
+            "outcome": False, "calibration_eligible": True,
+            "outcome_source": "Yahoo Finance chart",
+            "outcome_ref": "yahoo:^VIX:target=" + f["target_at"]
         })
         backlog = assess(state, raw, scheduler(now=outcome_at), now=outcome_at)
         self.assertIn("SETTLEMENT_BACKLOG", backlog["alert_codes"])
