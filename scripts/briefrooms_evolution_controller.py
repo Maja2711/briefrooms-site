@@ -25,6 +25,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
+from hypothesis_challenger_engine import (
+    SCHEMA as HYPOTHESIS_CHALLENGER_SCHEMA,
+    _gate as hypothesis_challenger_gate,
+    _settle as hypothesis_challenger_settle,
+    utc as hypothesis_challenger_utc,
+)
 from briefrooms_evolution_contracts import (
     EvolutionCandidate,
     ProductionVersion,
@@ -790,6 +796,120 @@ def _hypothesis(state: dict[str, Any], payload: Mapping[str, Any]) -> dict[str, 
     return row
 
 
+def _ingest_hypothesis_challengers(
+    state: dict[str, Any], raw: Mapping[str, Any] | None,
+    belief_state: Mapping[str, Any], now: str, audit: Path,
+) -> None:
+    """Independent P2 OOS gate handoff. Never materializes any production change."""
+    if not isinstance(raw, Mapping) or raw.get("schema_version") != HYPOTHESIS_CHALLENGER_SCHEMA:
+        state["source_status"]["hypothesis_challengers"] = {"available": False}
+        return
+    authority = raw.get("authority") or {}
+    if (authority.get("automatic_production_promotion") is not False or
+        authority.get("frozen_forecast_mutation") is not False or
+        authority.get("trade_execution") is not False):
+        raise RuntimeError("P2 authority boundary violation")
+    candidates = raw.get("candidates") or {}
+    if not isinstance(candidates, Mapping):
+        raise ValueError("invalid HUE P2 challenger registry")
+    counters = {"available": True, "candidates": 0, "gate_pass": 0, "gate_hold": 0}
+    for cid, frozen in sorted(candidates.items()):
+        if not isinstance(frozen, Mapping) or str(frozen.get("candidate_id")) != str(cid):
+            raise ValueError("P2 candidate identity mismatch")
+        proposal = frozen.get("proposed_change") or {}
+        if proposal.get("type") != "probability_calibration_only":
+            raise ValueError("P2 unsupported methodology; cannot delegate")
+        transform = proposal.get("transform") or {}
+        if transform.get("type") != "logit_affine_v1":
+            raise ValueError("P2 unsupported probability transform")
+        if frozen.get("production_write_authority") is not False or frozen.get("auto_promotion") is not False:
+            raise RuntimeError("P2 candidate cannot authorize production")
+        validated = json.loads(canonical_json(frozen))
+        _, conflicts = hypothesis_challenger_settle(validated, belief_state, hypothesis_challenger_utc(now))
+        actual = hypothesis_challenger_gate(validated, conflicts, hypothesis_challenger_utc(now))
+        declared = frozen.get("gate") or {}
+        matching = (declared.get("status") == actual.get("status") and
+                    int(declared.get("observed_sample") or 0) == int(actual.get("observed_sample") or 0))
+        if not matching:
+            gate_status = "HOLD"
+            blockers = ["p2_oos_gate_reconciliation_mismatch"]
+        else:
+            gate_status = actual["status"]
+            blockers = list(actual.get("blockers") or [])
+        status = {
+            "PASS": "PROMOTION_ELIGIBLE",
+            "FAIL": "REJECTED",
+            "HOLD": "PARKED",
+            "COLLECTING": "OOS_RUNNING",
+        }[gate_status]
+        counters["candidates"] += 1
+        counters["gate_pass"] += int(gate_status == "PASS")
+        counters["gate_hold"] += int(gate_status == "HOLD")
+        candidate = EvolutionCandidate(
+            candidate_id=str(cid),
+            candidate_type="hypothesis_probability_methodology",
+            source_module="L3-P2",
+            target_module="EP-05",
+            component_id="belief_hypothesis:" + str(frozen.get("scope") or cid),
+            created_at=str(frozen["created_at"]),
+            activation_boundary=str(frozen["activation_boundary"]),
+            status=status,
+            evaluator_profile="hypothesis_shadow_oos_gate_v1",
+            promotion_route="manual_hypothesis_probability_review",
+            baseline_version="unchanged_belief_core",
+            challenger_version=str(cid),
+            proposed_change=dict(proposal),
+            source_ref="hypothesis-challenger://" + str(cid),
+            source_sha256=sha256(proposal),
+            metrics={"discovery": frozen.get("discovery") or {},
+                     "shadow_oos": actual.get("metrics") or {},
+                     "distinct_target_dates": actual.get("distinct_target_dates"),
+                     "outcome_conflicts": len(conflicts)},
+            automatic_promotion_allowed=False,
+            trade_execution_authority=False,
+            metadata={"hypothesis_id": frozen.get("hypothesis_id"),
+                      "hypothesis_version": frozen.get("hypothesis_version"),
+                      "horizon_bucket": frozen.get("horizon_bucket"),
+                      "production_write_authority": False},
+        )
+        previous = state["candidates"].get(str(cid)) or {}
+        _register_candidate(state, candidate)
+        p_gate = PromotionGate(
+            gate_id=str(actual["gate_id"]),
+            candidate_id=str(cid),
+            evaluated_at=now,
+            status=gate_status,
+            evaluator_profile="hypothesis_shadow_oos_gate_v1",
+            prospective_only=True,
+            minimum_sample=50,
+            observed_sample=int(actual.get("observed_sample") or 0),
+            criteria=actual["criteria"],
+            metrics=actual.get("metrics") or {},
+            segment_checks=tuple(
+                {"block": i+1, "brier_relative_improvement": value}
+                for i, value in enumerate((actual.get("metrics") or {}).get("chronological_block_relative_improvements") or [])
+            ),
+            blockers=tuple(blockers),
+            source_sha256=sha256({"candidate": cid, "gate": actual}),
+        )
+        _gate(state, p_gate)
+        if previous.get("status") != status:
+            _append_jsonl(audit, {"at": now, "event": "P2_GATE_LIFECYCLE",
+                                  "candidate_id": cid, "from": previous.get("status"), "to": status,
+                                  "status": gate_status})
+        if gate_status == "PASS":
+            if not any(a.get("candidate_id") == cid and a.get("action") == "REQUEST_OWNER_REVIEW_AND_CONTROLLED_PROMOTION"
+                       for a in state["delegated_actions"] if isinstance(a, Mapping)):
+                state["delegated_actions"].append({
+                    "at": now, "candidate_id": cid,
+                    "route": "Manual Reviewed Belief Probability Overlay",
+                    "action": "REQUEST_OWNER_REVIEW_AND_CONTROLLED_PROMOTION",
+                    "materialization_authority": False,
+                    "reason": "P2 prospective OOS gate PASS; implementation requires separate owner approval",
+                })
+    state["source_status"]["hypothesis_challengers"] = counters
+
+
 def _ingest_patterns(state: dict[str, Any], lab_public: Mapping[str, Any], now: str) -> None:
     patterns = lab_public.get("evidence_patterns") if isinstance(lab_public.get("evidence_patterns"), list) else []
     state["source_status"]["evidence_patterns"] = {"available": True, "patterns": len(patterns)}
@@ -1054,6 +1174,7 @@ def run(
     audit_path: Path,
     belief_state_path: Path | None = None,
     belief_closed_loop_path: Path | None = None,
+    hypothesis_challengers_path: Path | None = None,
     decision_lab_public_path: Path | None = None,
     experience_store_path: Path | None = None,
     trading_regret_path: Path | None = None,
@@ -1067,6 +1188,7 @@ def run(
     v3_registry = _v3_registry(v3_registry_path)
     belief_state = _read_json(belief_state_path, {}) if belief_state_path else {}
     closed_loop = _read_json(belief_closed_loop_path, {}) if belief_closed_loop_path else {}
+    hypothesis_challengers = _read_json(hypothesis_challengers_path, {}) if hypothesis_challengers_path else {}
     lab_public = _read_json(decision_lab_public_path, {}) if decision_lab_public_path else {}
     regret = _read_json(trading_regret_path, None) if trading_regret_path else None
 
@@ -1079,6 +1201,8 @@ def run(
     else:
         state["source_status"]["belief_calibration"] = {"available": False, "reason": "belief_state_missing"}
         state["source_status"]["belief_v3"] = {"available": False, "reason": "belief_state_missing"}
+
+    _ingest_hypothesis_challengers(state, hypothesis_challengers, belief_state, now, audit_path)
 
     if isinstance(lab_public, Mapping) and lab_public:
         _ingest_patterns(state, lab_public, now)
@@ -1108,6 +1232,7 @@ def main() -> int:
     ap.add_argument("--audit", type=Path, default=DEFAULT_AUDIT)
     ap.add_argument("--belief-state", type=Path)
     ap.add_argument("--belief-closed-loop", type=Path)
+    ap.add_argument("--hypothesis-challengers", type=Path)
     ap.add_argument("--decision-lab-public", type=Path, default=Path("data/investments/decision_lab_public.json"))
     ap.add_argument("--experience-store", type=Path)
     ap.add_argument("--trading-regret", type=Path)
@@ -1121,6 +1246,7 @@ def main() -> int:
         audit_path=args.audit,
         belief_state_path=args.belief_state,
         belief_closed_loop_path=args.belief_closed_loop,
+        hypothesis_challengers_path=args.hypothesis_challengers,
         decision_lab_public_path=args.decision_lab_public,
         experience_store_path=args.experience_store,
         trading_regret_path=args.trading_regret,
