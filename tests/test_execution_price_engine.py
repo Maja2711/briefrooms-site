@@ -263,6 +263,58 @@ class ExecutionPriceEngineTests(unittest.TestCase):
         self.assertEqual(result["status"], "NO_FILL")
         self.assertEqual(result["reason"], "no_fresh_eurusd_quote")
 
+    def test_daily_current_price_short_uses_full_one_point_five_pip_buffer(self) -> None:
+        result = epe.verify_daily_current_price(
+            "SHORT",
+            self.quote(1.11920, 45, "Yahoo Finance:EURUSD=X:chart:1d:1m"),
+            [self.quote(1.11884, 38, "fxapi.app:EUR/USD:mid")],
+            now=self.now,
+        )
+        self.assertTrue(result["verified"])
+        self.assertEqual(result["fill_price"], 1.11905)
+        self.assertEqual(result["selected_mid_price"], 1.11920)
+        self.assertTrue(result["cross_feed_warning"])
+        self.assertEqual(result["synthetic_entry_buffer_pips"], 1.5)
+
+    def test_daily_current_price_long_uses_full_one_point_five_pip_buffer(self) -> None:
+        result = epe.verify_daily_current_price(
+            "LONG",
+            self.quote(1.11920, 45, "Yahoo Finance:EURUSD=X:chart:1d:1m"),
+            [self.quote(1.11918, 38, "fxapi.app:EUR/USD:mid")],
+            now=self.now,
+        )
+        self.assertTrue(result["verified"])
+        self.assertEqual(result["fill_price"], 1.11935)
+
+    def test_daily_current_price_rejects_stale_and_extreme_disagreement(self) -> None:
+        self.assertEqual(
+            epe.verify_daily_current_price(
+                "SHORT",
+                self.quote(1.11920, 800, "Yahoo Finance:EURUSD=X:chart:1d:1m"),
+                [self.quote(1.11918, 2, "fxapi.app:EUR/USD:mid")],
+                now=self.now,
+            )["reason"],
+            "daily_primary_stale_or_invalid",
+        )
+        self.assertEqual(
+            epe.verify_daily_current_price(
+                "SHORT",
+                self.quote(1.11920, 8, "Yahoo Finance:EURUSD=X:chart:1d:1m"),
+                [self.quote(1.11700, 2, "fxapi.app:EUR/USD:mid")],
+                now=self.now,
+            )["reason"],
+            "daily_primary_reference_extreme_divergence",
+        )
+
+    def test_daily_current_price_requires_independent_reference(self) -> None:
+        result = epe.verify_daily_current_price(
+            "SHORT",
+            self.quote(1.11920, 10, "Yahoo Finance:EURUSD=X:chart:1d:1m"),
+            [],
+            now=self.now,
+        )
+        self.assertEqual(result["reason"], "daily_independent_quality_check_unavailable")
+
     def test_recenter_geometry_preserves_daily_risk_distances(self) -> None:
         geometry = epe.recenter_geometry(
             "SHORT",
@@ -480,7 +532,7 @@ class DailyEpeIntegrationTests(unittest.TestCase):
             },
         ).validate()
 
-    @patch("daily_eurusd_spot_v17.epe.eurusd_market_fill")
+    @patch("daily_eurusd_spot_v17.epe.daily_eurusd_market_fill")
     def test_daily_entry_is_repriced_to_verified_epe_fill(self, market_fill) -> None:
         market_fill.return_value = {
             "schema_version": epe.SCHEMA_VERSION,
@@ -510,7 +562,7 @@ class DailyEpeIntegrationTests(unittest.TestCase):
         self.assertTrue(output.metadata["execution_price_engine"]["verified"])
         self.assertTrue(output.metadata["risk"]["execution_geometry_recentered"])
 
-    @patch("daily_eurusd_spot_v17.epe.eurusd_market_fill")
+    @patch("daily_eurusd_spot_v17.epe.daily_eurusd_market_fill")
     def test_daily_position_persists_verified_epe_evidence(self, market_fill) -> None:
         market_fill.return_value = {
             "schema_version": epe.SCHEMA_VERSION,
@@ -553,7 +605,7 @@ class DailyEpeIntegrationTests(unittest.TestCase):
         self.assertTrue(trade["execution_price_engine"]["verified"])
         self.assertEqual(trade["execution_price_engine"]["fill_price"], 1.13400)
 
-    @patch("daily_eurusd_spot_v17.epe.eurusd_market_fill")
+    @patch("daily_eurusd_spot_v17.epe.daily_eurusd_market_fill")
     def test_daily_entry_fails_closed_when_epe_cannot_verify_price(self, market_fill) -> None:
         market_fill.return_value = epe.blocked(
             "cross_feed_divergence",
