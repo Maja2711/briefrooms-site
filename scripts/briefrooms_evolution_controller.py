@@ -812,7 +812,33 @@ def _ingest_hypothesis_challengers(
 ) -> None:
     """Independent P2 OOS gate handoff. Never materializes any production change."""
     if not isinstance(raw, Mapping) or raw.get("schema_version") != HYPOTHESIS_CHALLENGER_SCHEMA:
-        state["source_status"]["hypothesis_challengers"] = {"available": False}
+        reason = "p2_challenger_state_unavailable"
+    else:
+        try:
+            freshness_seconds = (hypothesis_challenger_utc(now) -
+                                 hypothesis_challenger_utc(raw["generated_at"])).total_seconds()
+            reason = ("p2_challenger_state_stale_or_future"
+                      if not -300 <= freshness_seconds <= 36 * 3600 else None)
+        except (ValueError, KeyError, TypeError, OverflowError):
+            reason = "p2_challenger_invalid_generated_at"
+    if reason:
+        # Never leave a historic PASS/ELIGIBLE badge green if its live P2
+        # source disappeared or aged out. Do not erase lineage/history.
+        for cid, existing in state["candidates"].items():
+            if not isinstance(existing, dict) or existing.get("candidate_type") != "hypothesis_probability_methodology":
+                continue
+            if existing.get("status") != "PARKED":
+                existing["status"] = "PARKED"
+                _append_jsonl(audit, {"at": now, "event": "P2_SOURCE_HOLD",
+                                      "candidate_id": cid, "reason": reason})
+            old = state["promotion_gates"].get(cid) or {}
+            state["promotion_gates"][cid] = {
+                **old, "candidate_id": cid, "status": "HOLD",
+                "evaluated_at": now, "blockers": [reason],
+            }
+        state["source_status"]["hypothesis_challengers"] = {
+            "available": False, "reason": reason
+        }
         return
     authority = raw.get("authority") or {}
     if (authority.get("automatic_production_promotion") is not False or
