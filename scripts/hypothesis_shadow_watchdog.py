@@ -37,6 +37,7 @@ RECOVERY_ACTIONS = {
     "SETTLEMENT_BACKLOG": "rerun_p2_bridge",
     "COLLECTOR_STALE_DURING_MARKET": "dispatch_belief_collector",
     "BASELINE_FORECAST_MISSING_AFTER_SLOT": "dispatch_belief_collector",
+    "SOURCE_FORECASTS_MISSING_AFTER_CONFIRMED_SLOT": "dispatch_belief_collector",
 }
 
 
