@@ -71,6 +71,27 @@ class P21WatchdogTests(unittest.TestCase):
         self.assertNotIn("COLLECTOR_STALE_DURING_MARKET", result["alert_codes"])
         self.assertNotIn("BASELINE_FORECAST_MISSING_AFTER_SLOT", result["alert_codes"])
 
+    def test_confirmed_slot_without_any_forecast_fails_even_without_challenger(self):
+        # Source liveness is independent of P2 candidate discovery/activation.
+        no_candidate_p2 = {"schema_version": SCHEMA, "generated_at": THURSDAY,
+                           "candidates": {}}
+        done = {"wes-assets:2026-10-08:1000": "2026-10-08T14:33:00Z"}
+        r = assess({"forecasts": [], "verifications": []}, no_candidate_p2,
+                   scheduler(slots=done), now=THURSDAY)
+        self.assertEqual("FAIL", r["status"])
+        self.assertEqual(1, r["summary"]["confirmed_slots_without_any_forecast"])
+        self.assertIn("SOURCE_FORECASTS_MISSING_AFTER_CONFIRMED_SLOT", r["alert_codes"])
+
+    def test_confirmed_slot_with_forecast_does_not_raise_global_source_alarm(self):
+        no_candidate_p2 = {"schema_version": SCHEMA, "generated_at": THURSDAY,
+                           "candidates": {}}
+        done = {"wes-assets:2026-10-08:1000": "2026-10-08T14:33:00Z"}
+        r = assess({"forecasts": [live_at(THURSDAY)], "verifications": []},
+                   no_candidate_p2, scheduler(slots=done), now=THURSDAY)
+        self.assertEqual(0, r["summary"]["confirmed_slots_without_any_forecast"])
+        self.assertNotIn("SOURCE_FORECASTS_MISSING_AFTER_CONFIRMED_SLOT", r["alert_codes"])
+        self.assertEqual("PASS", r["status"])
+
     def test_successful_slot_without_candidate_base_forecast_is_critical(self):
         c = self._candidate()
         done = {"wes-assets:2026-10-08:1000": "2026-10-08T14:33:00Z"}
