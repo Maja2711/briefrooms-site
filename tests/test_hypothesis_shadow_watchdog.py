@@ -104,6 +104,71 @@ class P21WatchdogTests(unittest.TestCase):
         self.assertIn("SOURCE_FORECASTS_MISSING_AFTER_CONFIRMED_SLOT", r["alert_codes"])
         self.assertEqual("FAIL", r["status"])
 
+    def test_market_snapshot_missing_escalates_after_sla_even_with_fresh_heartbeat(self):
+        c = self._candidate()
+        r = assess({"forecasts": [], "verifications": []}, state_with(c),
+                   scheduler(now=THURSDAY), now=THURSDAY)
+        self.assertEqual("FAIL", r["status"])
+        self.assertIn("MARKET_SNAPSHOT_SLA_BREACHED", r["alert_codes"])
+        self.assertEqual(1, r["summary"]["market_snapshot_sla_breaches"])
+        self.assertEqual("BLOCKED", r["production_e2e_status"])
+
+    def test_market_snapshot_before_55_minute_grace_not_critical(self):
+        c = self._candidate()
+        now = "2026-10-08T14:54:00Z"  # 10:54 NY
+        r = assess({"forecasts": [], "verifications": []},
+                   state_with(c, now), scheduler(now=now), now=now)
+        self.assertNotIn("MARKET_SNAPSHOT_SLA_BREACHED", r["alert_codes"])
+        self.assertEqual(0, r["summary"]["market_snapshot_sla_breaches"])
+        self.assertEqual("PASS", r["status"])
+
+    def test_confirmed_snapshot_avoids_sla_alert(self):
+        c = self._candidate()
+        done = {"wes-assets:2026-10-08:1000": "2026-10-08T14:33:00Z"}
+        r = assess({"forecasts": [live_at(THURSDAY)], "verifications": []},
+                   state_with(c), scheduler(slots=done), now=THURSDAY)
+        self.assertNotIn("MARKET_SNAPSHOT_SLA_BREACHED", r["alert_codes"])
+
+    def test_official_nyse_holiday_has_no_false_snapshot_sla(self):
+        c = self._candidate()
+        when = "2026-11-26T15:58:00Z"  # Thanksgiving, 10:58 NY
+        r = assess({"forecasts": [], "verifications": []},
+                   state_with(c, when), scheduler(now=when), now=when)
+        self.assertEqual("VERIFIED", r["session"]["calendar_status"])
+        self.assertTrue(r["session"]["holiday_closed"])
+        self.assertEqual([], r["session"]["due_slots"])
+        self.assertNotIn("MARKET_SNAPSHOT_SLA_BREACHED", r["alert_codes"])
+        self.assertEqual("PASS", r["status"])
+
+    def test_early_close_skips_afternoon_source_slots(self):
+        c = self._candidate()
+        when = "2026-11-27T20:58:00Z"  # 15:58 NY, day after Thanksgiving
+        r = assess({"forecasts": [], "verifications": []},
+                   state_with(c, when), scheduler(now=when), now=when)
+        self.assertTrue(r["session"]["early_close"])
+        self.assertEqual("13:00", r["session"]["nyse_close_time"])
+        self.assertEqual(["1000"], r["session"]["due_slots"])
+        self.assertEqual(1, r["summary"]["market_snapshot_sla_breaches"])
+
+    def test_close_auction_missing_snapshot_stays_critical_after_close(self):
+        c = self._candidate()
+        when = "2026-10-08T20:58:00Z"  # 16:58 NY
+        done = {"wes-assets:2026-10-08:1000": "2026-10-08T14:31:00Z",
+                "wes-assets:2026-10-08:1300": "2026-10-08T17:31:00Z"}
+        r = assess({"forecasts": [], "verifications": []},
+                   state_with(c, when), scheduler(now=when, slots=done), now=when)
+        self.assertFalse(r["session"]["market_window_active"])
+        self.assertIn("MARKET_SNAPSHOT_SLA_BREACHED", r["alert_codes"])
+        self.assertEqual(1, r["summary"]["market_snapshot_sla_breaches"])
+
+    def test_unknown_future_calendar_fails_closed(self):
+        when = "2029-10-08T15:58:00Z"
+        c = self._candidate()
+        r = assess({"forecasts": [], "verifications": []},
+                   state_with(c, when), scheduler(now=when), now=when)
+        self.assertIn("NYSE_CALENDAR_COVERAGE_UNKNOWN", r["alert_codes"])
+        self.assertEqual([], r["session"]["due_slots"])
+
     def test_successful_slot_without_candidate_base_forecast_is_critical(self):
         c = self._candidate()
         done = {"wes-assets:2026-10-08:1000": "2026-10-08T14:33:00Z"}
@@ -143,7 +208,7 @@ class P21WatchdogTests(unittest.TestCase):
 
     def test_full_prospective_path_from_bridge_then_real_verification(self):
         c = self._candidate()
-        f = live_at(THURSDAY)
+        f = live_at(THURSDAY, target_hour=17)
         state = {"forecasts": [f], "verifications": []}
         raw = run(state, utility(), state_with(c, THURSDAY), now=THURSDAY,
                   discover=False)
@@ -153,7 +218,7 @@ class P21WatchdogTests(unittest.TestCase):
         self.assertEqual(0, pre["summary"]["real_settled_events"])
         # No forecast rewrite / no false outcome. Later append a Verification
         # as the *actual* canonical record from the source pipeline would.
-        outcome_at = "2026-10-08T20:20:00Z"
+        outcome_at = "2026-10-08T17:20:00Z"
         state["verifications"].append({
             "verification_id": "real-verification-1",
             "forecast_id": f["forecast_id"], "belief_id": f["belief_id"],
