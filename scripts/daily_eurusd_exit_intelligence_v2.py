@@ -88,6 +88,25 @@ def pnl_pips(direction: str, entry: float, exit_mid: float, half_spread_pips: fl
     return round((exit_mid - entry) * signed / PIP - half_spread_pips, 3)
 
 
+
+def recorded_half_spread_pips(record: Mapping[str, Any]) -> float:
+    """Use the trade's EPE fill contract, never a generic spread if known."""
+    epe = record.get("execution_price_engine") or {}
+    if not isinstance(epe, Mapping):
+        epe = {}
+    raw = epe.get("synthetic_half_spread_pips")
+    if raw is None and epe.get("synthetic_spread_pips") is not None:
+        raw = float(epe["synthetic_spread_pips"]) / 2
+    try:
+        value = float(raw)
+        if 0 <= value <= 10:
+            return value
+    except (ValueError, TypeError):
+        pass
+    # Research-only assumption for older trades missing a recorded spread.
+    return 0.75
+
+
 def _window_move(bars: Sequence[dict], target: datetime, minutes: int, direction: str) -> float | None:
     now = at(bars, target)
     earlier = at(bars, target - timedelta(minutes=minutes))
@@ -113,7 +132,7 @@ def capture(position: Mapping[str, Any], fx: Sequence[dict], rates: Sequence[dic
         return None
     best = max(b["high"] for b in prior) if direction == "LONG" else min(b["low"] for b in prior)
     best_pips_mid = round((best - entry) * (1 if direction == "LONG" else -1) / PIP, 3)
-    current_pips = pnl_pips(direction, entry, latest["close"])
+    current_pips = pnl_pips(direction, entry, latest["close"], recorded_half_spread_pips(position))
     giveback = round(max(0.0, best_pips_mid - current_pips), 3)
     m5 = _window_move(fx, latest["time"], 5, direction)
     m15 = _window_move(fx, latest["time"], 15, direction)
@@ -143,6 +162,7 @@ def capture(position: Mapping[str, Any], fx: Sequence[dict], rates: Sequence[dic
         "mode": "LIVE_OBSERVATION_RESEARCH_ONLY",
         "entry": entry, "direction": direction, "observed_mid": latest["close"],
         "current_indicative_pips": current_pips, "best_favorable_mid_pips": best_pips_mid,
+        "exit_half_spread_assumption_pips": recorded_half_spread_pips(position),
         "giveback_pips": giveback, "signed_momentum_5m_pips": m5,
         "signed_momentum_15m_pips": m15, "signed_momentum_30m_pips": m30,
         "yield_10y_proxy": {
@@ -175,7 +195,7 @@ def hold_counterfactual(trade: Mapping[str, Any], fx: Sequence[dict], end: datet
     if direction not in ("LONG", "SHORT") or min(entry, stop, target) <= 0:
         return {"status": "INVALID_RISK_GEOMETRY"}
     last_at = closed
-    spread_half = 0.75 * PIP
+    spread_half = recorded_half_spread_pips(trade) * PIP
     for candle in path:
         if (candle["time"] - last_at).total_seconds() > 600:
             return {"status": "INSUFFICIENT_CONTIGUOUS_PATH"}
@@ -199,7 +219,7 @@ def hold_counterfactual(trade: Mapping[str, Any], fx: Sequence[dict], end: datet
         return {"status": "INSUFFICIENT_CONTIGUOUS_PATH"}
     return {"status": "SIMULATED_HORIZON_EXIT", "at": iso(last["time"]),
             "exit_mid": last["close"],
-            "indicative_pips": pnl_pips(direction, entry, last["close"]),
+            "indicative_pips": pnl_pips(direction, entry, last["close"], recorded_half_spread_pips(trade)),
             "execution_proven": False}
 
 def review(trade: Mapping[str, Any], snapshots: list[dict], fx: Sequence[dict], now: datetime) -> dict:
@@ -233,6 +253,9 @@ def review(trade: Mapping[str, Any], snapshots: list[dict], fx: Sequence[dict], 
         "trade_id": trade_id, "opened_at": trade.get("opened_at"), "closed_at": trade.get("closed_at"),
         "direction": direction, "entry": entry, "exit_price": exit_at,
         "actual_r": trade.get("r_multiple"), "actual_exit_reason": trade.get("exit_reason"),
+        "entry_epe_half_spread_pips": recorded_half_spread_pips(trade),
+        "recorded_exit_price_basis": ((trade.get("monitor") or {}).get("execution_price_basis")),
+        "cost_parity_note": "research_pnl_uses_recorded_EPE_entry_spread_when_available; historical_exit_is_not_rewritten",
         "outcome": trade.get("outcome"), "research_only": True, "decision_mutation_allowed": False,
         "data_audit": {
             "snapshots_before_exit": len(related),
@@ -280,7 +303,7 @@ def review(trade: Mapping[str, Any], snapshots: list[dict], fx: Sequence[dict], 
         else:
             out["risk_bounded_hold"][key] = {"status": "PENDING" if now < target else "DATA_UNAVAILABLE"}
         if price:
-            pnl = pnl_pips(direction, entry, price["close"])
+            pnl = pnl_pips(direction, entry, price["close"], recorded_half_spread_pips(trade))
             actual_pnl = (exit_at-entry) * (1 if direction=="LONG" else -1) / PIP
             out["post_exit_path"][key] = {
                 "status": "RETROSPECTIVE_MID_PROXY", "price_at": iso(price["time"]),
