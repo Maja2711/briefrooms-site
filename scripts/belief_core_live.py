@@ -552,12 +552,27 @@ def forecast_contract_metadata(snapshot: MarketSnapshot, market_symbol: str, spe
     }
 
 
+# Same-day Yahoo bars can still be stale by several hours. Do not treat them
+# as a confirmed source snapshot or freeze a prospective forecast from them.
+SOURCE_BAR_MAX_AGE_MINUTES = 60
+SOURCE_BAR_FUTURE_TOLERANCE_MINUTES = 3
+
+
+def source_bar_is_fresh(snapshot: MarketSnapshot, symbol: str, now: datetime) -> bool:
+    try:
+        age = (now - snapshot.observed_at(symbol)).total_seconds() / 60.0
+        return (-SOURCE_BAR_FUTURE_TOLERANCE_MINUTES <= age <=
+                SOURCE_BAR_MAX_AGE_MINUTES)
+    except (KeyError, ValueError, TypeError, OverflowError):
+        return False
+
+
 def freeze_set(core: BeliefCore, snapshot: MarketSnapshot, when: datetime, target: datetime,
                consumer: str, slot_key: str, regime: str) -> int:
     count = 0
     for belief_id in _belief_ids_for_consumer(core, consumer):
         market_symbol = belief_market_symbol(belief_id)
-        if market_symbol not in snapshot.bars:
+        if market_symbol not in snapshot.bars or not source_bar_is_fresh(snapshot, market_symbol, when):
             continue
         forecast_id = stable_id("forecast", consumer, slot_key, belief_id)
         if forecast_id in core.forecasts:
@@ -600,7 +615,7 @@ def freeze_multihorizon_set(core: BeliefCore, snapshot: MarketSnapshot, when: da
     count = 0
     for belief_id in _belief_ids_for_consumer(core, consumer):
         market_symbol = belief_market_symbol(belief_id)
-        if market_symbol not in snapshot.bars:
+        if market_symbol not in snapshot.bars or not source_bar_is_fresh(snapshot, market_symbol, when):
             continue
         try:
             spec = outcome_spec(belief_id, snapshot)
@@ -807,7 +822,8 @@ def run_cycle(state_dir: Path, now: datetime, client: YahooChartClient) -> Dict[
 
     if in_market_window(local):
         snapshot = fetch_snapshot(client)
-        if snapshot.is_current_session(now):
+        # The date-only condition is insufficient for US-market freshness.
+        if snapshot.is_current_session(now) and source_bar_is_fresh(snapshot, "SPY", now):
             payload = build_adapter_payload(snapshot)
             observations = payload["observations"]
             evidence = payload["evidence"]
@@ -860,7 +876,10 @@ def run_cycle(state_dir: Path, now: datetime, client: YahooChartClient) -> Dict[
                 wes_count += freeze_set(core, snapshot, now, weekly_target(local), "WES", wes_key, regime)
                 completed[wes_key] = iso_z(now)
         else:
-            scheduler.setdefault("gaps", []).append({"timestamp": iso_z(now), "reason": "no_current_us_session_bar"})
+            scheduler.setdefault("gaps", []).append({
+                "timestamp": iso_z(now), "reason": "no_fresh_current_us_session_bar",
+                "symbol": "SPY",
+            })
 
     verified = verify_due(core, client, now, snapshot)
     scheduler["schema_version"] = 2
