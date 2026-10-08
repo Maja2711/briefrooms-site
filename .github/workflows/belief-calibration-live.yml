@@ -15,6 +15,8 @@ on:
       - "scripts/belief_calibration_foundation.py"
       - "scripts/hypothesis_utility_engine.py"
       - "scripts/hypothesis_challenger_engine.py"
+      - "scripts/hypothesis_shadow_watchdog.py"
+      - "tests/test_hypothesis_shadow_watchdog.py"
       - "tests/test_hypothesis_challenger_engine.py"
       - "tests/test_hypothesis_utility_engine.py"
       - "tests/test_hypothesis_utility_projection.py"
@@ -134,6 +136,7 @@ jobs:
             scripts/forecast_event_identity.py \
             scripts/hypothesis_utility_engine.py \
             scripts/hypothesis_challenger_engine.py \
+            scripts/hypothesis_shadow_watchdog.py \
             scripts/belief_data_quality_adapter.py \
             scripts/belief_calibration_foundation.py \
             scripts/decision_lab_public_projection.py \
@@ -142,6 +145,7 @@ jobs:
           python -m unittest \
             tests.test_hypothesis_utility_engine \
             tests.test_hypothesis_challenger_engine \
+            tests.test_hypothesis_shadow_watchdog \
             tests.test_hypothesis_utility_projection \
             tests.test_belief_core_calibration_foundation \
             tests.test_decision_lab_public_projection \
@@ -202,6 +206,41 @@ jobs:
           assert all(c["gate"]["status"] != "PASS" or c["gate"]["observed_sample"] >= 50
                      for c in p["candidates"].values())
           print("P2 SHADOW OOS GATE:", p["summary"])
+          PY
+
+      - name: P2.1 watchdog and safe open-target recovery
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts
+        run: |
+          set -euo pipefail
+          python scripts/hypothesis_shadow_watchdog.py \
+            --state-dir "$STATE_DIR" --output "$STATE_DIR/P2_SHADOW_WATCHDOG.json"
+          # Catch up only genuinely still-open, originally frozen baseline
+          # forecasts and already-existing real settlement records.
+          if python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p=json.loads((Path(os.environ["STATE_DIR"])/"P2_SHADOW_WATCHDOG.json").read_text())
+          codes=set(p.get("alert_codes") or [])
+          raise SystemExit(0 if codes.intersection({"SHADOW_FREEZE_GAP_OPEN", "SETTLEMENT_BACKLOG"}) else 1)
+          PY
+          then
+            echo 'P2_RECOVERY: run idempotent Shadow bridge; no backdating or synthetic Verification'
+            python scripts/hypothesis_challenger_engine.py \
+              --advance-only --state-dir "$STATE_DIR" \
+              --output "$STATE_DIR/HYPOTHESIS_CHALLENGERS_STATE.json"
+            python scripts/hypothesis_shadow_watchdog.py \
+              --state-dir "$STATE_DIR" --output "$STATE_DIR/P2_SHADOW_WATCHDOG.json"
+          fi
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root=Path(os.environ["STATE_DIR"])
+          report=json.loads((root/"P2_SHADOW_WATCHDOG.json").read_text())
+          assert report["authority"]["retrospective_oos_backfill"] is False
+          assert report["authority"]["frozen_forecast_rewrite"] is False
+          assert report["authority"]["production_writeback"] is False
+          print("P2_WATCHDOG_HEALTH:", report["status"], report["summary"], report["alert_codes"])
           PY
 
       - name: Build governed Decision LAB learning memory
@@ -285,6 +324,8 @@ jobs:
           assert p['hypothesis_utility']['authority']['production_writeback'] is False
           assert p['hypothesis_challengers']['status'] == 'SHADOW_OOS_GOVERNED'
           assert p['hypothesis_challengers']['authority']['automatic_production_promotion'] is False
+          assert p['p2_shadow_watchdog']['schema_version'] == 'briefrooms-p2-shadow-watchdog-v1'
+          assert p['p2_shadow_watchdog']['authority']['retrospective_oos_backfill'] is False
           assert h['schema_version'] == 'briefrooms_decision_lab_history_v1'
           assert h['window_days'] == 30
           assert h['older_records_publicly_exposed'] is False
@@ -351,3 +392,23 @@ jobs:
             curl -fsSL -X DELETE -H "Authorization: Bearer ${GH_TOKEN}" -H "Accept: application/vnd.github+json" \
               "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}"
           done < "$RUNNER_TEMP/delete-artifacts.txt"
+
+      - name: P2.1 terminal watchdog alarm after cumulative artifact upload
+        if: always()
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts
+        run: |
+          set -euo pipefail
+          if [[ -f "$STATE_DIR/P2_SHADOW_WATCHDOG.json" ]]; then
+            python - <<'PY'
+          import json, os
+          from pathlib import Path
+          report=json.loads((Path(os.environ["STATE_DIR"])/"P2_SHADOW_WATCHDOG.json").read_text())
+          print("P2.1 watchdog persisted:", report["status"], report["summary"])
+          if report["status"] == "FAIL":
+              for a in report.get("alerts", []):
+                  if a.get("severity") == "CRITICAL":
+                      print("::error title=P2.1 " + str(a["code"]) + "::" + str(a.get("reason")))
+              raise SystemExit(2)
+          PY
+          fi
