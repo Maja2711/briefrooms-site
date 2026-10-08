@@ -105,7 +105,7 @@ def scan_swings(bars: Sequence[Mapping[str, Any]], cutoff: datetime) -> tuple[li
     for r in rows[1:]:
         moment = r["time"]
         price = float(r["close"])
-        if (moment - last_at).total_seconds() > MAX_GAP_MINUTES or moment <= last_at:
+        if (moment - last_at).total_seconds() > MAX_GAP_MINUTES * 60 or moment <= last_at:
             peak = low = price
             peak_at = low_at = segment_start_at = moment
             segment_bars = 1
@@ -122,7 +122,7 @@ def scan_swings(bars: Sequence[Mapping[str, Any]], cutoff: datetime) -> tuple[li
             continue
         drop = (peak - low) / PIP
         rebound = (price - low) / PIP
-        if drop >= MIN_IMPULSE_PIPS and rebound >= max(MIN_REBOUND_PIPS, MIN_RETRACE_FRACTION * drop):
+        if drop >= MIN_IMPULSE_PIPS and rebound + 1e-7 >= max(MIN_REBOUND_PIPS, MIN_RETRACE_FRACTION * drop):
             age = round((low_at - peak_at).total_seconds() / 60, 3)
             wait = round((moment - low_at).total_seconds() / 60, 3)
             # If pivot was in initial warmup, the feed may omit the true high.
