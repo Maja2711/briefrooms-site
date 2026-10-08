@@ -119,6 +119,55 @@ class ExecutionPriceEngineTests(unittest.TestCase):
         self.assertEqual(result["reason"], "insufficient_independent_quotes")
         self.assertEqual(result["details"]["fresh_source_count"], 1)
 
+    def test_yahoo_current_minute_boundary_within_75s_can_cross_check_daily_fill(self) -> None:
+        result = epe.verify_live_mid_quotes(
+            "SHORT",
+            [
+                self.quote(1.13400, 8, "fxapi.app:EUR/USD:mid"),
+                self.quote(1.13404, -50, "Yahoo Finance:EURUSD=X:1m:mid-proxy"),
+            ],
+            now=self.now,
+        )
+        self.assertTrue(result["verified"])
+        self.assertEqual(result["fresh_source_count"], 2)
+        self.assertEqual(result["verification_quality"], "CONSENSUS")
+
+    def test_non_yahoo_future_quote_keeps_default_30s_tolerance(self) -> None:
+        result = epe.verify_live_mid_quotes(
+            "SHORT",
+            [
+                self.quote(1.13400, 8, "fxapi.app:EUR/USD:mid"),
+                self.quote(1.13404, -50, "Currency Exchange Tool:EUR/USD:mid"),
+            ],
+            now=self.now,
+        )
+        self.assertFalse(result["verified"])
+        self.assertEqual(result["reason"], "insufficient_independent_quotes")
+        rejected = result["details"]["rejected_quotes"]
+        self.assertTrue(any(
+            row.get("source") == "Currency Exchange Tool:EUR/USD:mid"
+            and row.get("reason") == "stale_or_future"
+            for row in rejected
+        ))
+
+    def test_yahoo_more_than_75s_future_is_still_rejected(self) -> None:
+        result = epe.verify_live_mid_quotes(
+            "SHORT",
+            [
+                self.quote(1.13400, 8, "fxapi.app:EUR/USD:mid"),
+                self.quote(1.13404, -90, "Yahoo Finance:EURUSD=X:1m:mid-proxy"),
+            ],
+            now=self.now,
+        )
+        self.assertFalse(result["verified"])
+        self.assertEqual(result["reason"], "insufficient_independent_quotes")
+        rejected = result["details"]["rejected_quotes"]
+        self.assertTrue(any(
+            row.get("source") == "Yahoo Finance:EURUSD=X:1m:mid-proxy"
+            and row.get("reason") == "stale_or_future"
+            for row in rejected
+        ))
+
     def test_consensus_ignores_one_stale_vendor(self) -> None:
         result = epe.verify_live_mid_quotes(
             "LONG",
