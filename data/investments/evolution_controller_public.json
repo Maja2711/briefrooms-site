@@ -523,11 +523,11 @@
     }
   ],
   "delegated_actions": [],
-  "generated_at": "2026-10-08T11:30:10.525630Z",
+  "generated_at": "2026-10-08T11:31:35.420592Z",
   "hypotheses": [
     {
       "claim": "gpw LONG decisions in regime unknown show recurring adverse outcomes and warrant a bounded challenger",
-      "created_at": "2026-10-08T11:30:10.525630Z",
+      "created_at": "2026-10-08T11:31:35.420592Z",
       "evidence": {
         "action": "LONG",
         "engine": "gpw",
@@ -548,6 +548,35 @@
   ],
   "production_versions": {},
   "promotion_gates": [
+    {
+      "blockers": [
+        "minimum_prospective_sample"
+      ],
+      "candidate_id": "evo-belief-46cb5aad783d0308551bd4a8",
+      "minimum_sample": 50,
+      "observed_sample": 16,
+      "segment_checks": [
+        {
+          "brier_relative_improvement": 0.315495,
+          "challenger_brier": 0.099102,
+          "control_brier": 0.144779,
+          "ece_delta": -0.074063,
+          "n": 10,
+          "pass": true,
+          "segment": "horizon:6-24H"
+        },
+        {
+          "brier_relative_improvement": 0.424471,
+          "challenger_brier": 0.075026,
+          "control_brier": 0.13036,
+          "ece_delta": -0.140558,
+          "n": 16,
+          "pass": true,
+          "segment": "instrument:BTC"
+        }
+      ],
+      "status": "COLLECTING"
+    },
     {
       "blockers": [
         "brier_improvement_below_gate"
@@ -636,36 +665,6 @@
     {
       "blockers": [
         "minimum_prospective_sample",
-        "protected_slice_degradation:horizon:6-24H"
-      ],
-      "candidate_id": "evo-belief-b82c00cc54e2c56e166c8e6a",
-      "minimum_sample": 50,
-      "observed_sample": 16,
-      "segment_checks": [
-        {
-          "brier_relative_improvement": -0.122659,
-          "challenger_brier": 0.271487,
-          "control_brier": 0.241825,
-          "ece_delta": 0.079193,
-          "n": 10,
-          "pass": false,
-          "segment": "horizon:6-24H"
-        },
-        {
-          "brier_relative_improvement": -0.048669,
-          "challenger_brier": 0.269507,
-          "control_brier": 0.256999,
-          "ece_delta": 0.047983,
-          "n": 16,
-          "pass": true,
-          "segment": "instrument:BTC"
-        }
-      ],
-      "status": "COLLECTING"
-    },
-    {
-      "blockers": [
-        "minimum_prospective_sample",
         "protected_slice_degradation:instrument:BTC"
       ],
       "candidate_id": "evo-belief-9d601a8fb0294b9c1d6298fb",
@@ -686,26 +685,48 @@
     },
     {
       "blockers": [
-        "minimum_prospective_sample"
+        "minimum_prospective_sample",
+        "protected_slice_degradation:instrument:EURUSD"
       ],
-      "candidate_id": "evo-belief-46cb5aad783d0308551bd4a8",
+      "candidate_id": "evo-belief-ac964bdde8120422ddc2fbd0",
+      "minimum_sample": 50,
+      "observed_sample": 15,
+      "segment_checks": [
+        {
+          "brier_relative_improvement": -0.139211,
+          "challenger_brier": 0.397392,
+          "control_brier": 0.348831,
+          "ece_delta": 0.014551,
+          "n": 15,
+          "pass": false,
+          "segment": "instrument:EURUSD"
+        }
+      ],
+      "status": "COLLECTING"
+    },
+    {
+      "blockers": [
+        "minimum_prospective_sample",
+        "protected_slice_degradation:horizon:6-24H"
+      ],
+      "candidate_id": "evo-belief-b82c00cc54e2c56e166c8e6a",
       "minimum_sample": 50,
       "observed_sample": 16,
       "segment_checks": [
         {
-          "brier_relative_improvement": 0.315495,
-          "challenger_brier": 0.099102,
-          "control_brier": 0.144779,
-          "ece_delta": -0.074063,
+          "brier_relative_improvement": -0.122659,
+          "challenger_brier": 0.271487,
+          "control_brier": 0.241825,
+          "ece_delta": 0.079193,
           "n": 10,
-          "pass": true,
+          "pass": false,
           "segment": "horizon:6-24H"
         },
         {
-          "brier_relative_improvement": 0.424471,
-          "challenger_brier": 0.075026,
-          "control_brier": 0.13036,
-          "ece_delta": -0.140558,
+          "brier_relative_improvement": -0.048669,
+          "challenger_brier": 0.269507,
+          "control_brier": 0.256999,
+          "ece_delta": 0.047983,
           "n": 16,
           "pass": true,
           "segment": "instrument:BTC"
@@ -737,27 +758,6 @@
           "ece_delta": -0.103871,
           "n": 16,
           "pass": true,
-          "segment": "instrument:EURUSD"
-        }
-      ],
-      "status": "COLLECTING"
-    },
-    {
-      "blockers": [
-        "minimum_prospective_sample",
-        "protected_slice_degradation:instrument:EURUSD"
-      ],
-      "candidate_id": "evo-belief-ac964bdde8120422ddc2fbd0",
-      "minimum_sample": 50,
-      "observed_sample": 15,
-      "segment_checks": [
-        {
-          "brier_relative_improvement": -0.139211,
-          "challenger_brier": 0.397392,
-          "control_brier": 0.348831,
-          "ece_delta": 0.014551,
-          "n": 15,
-          "pass": false,
           "segment": "instrument:EURUSD"
         }
       ],
