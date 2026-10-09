@@ -7,8 +7,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from scripts import daily_eurusd_posttrade_audit as a
 
-NOW=datetime(2026,10,9,8,0,tzinfo=timezone.utc)
-START=NOW-timedelta(minutes=20)
+NOW=datetime(2026,10,9,8,0,45,tzinfo=timezone.utc)
+START=NOW-timedelta(minutes=20,seconds=45)
 
 
 def trade(tid="EURUSD:T1",direction="LONG"):
@@ -91,10 +91,10 @@ class TestPostTradeAudit(unittest.TestCase):
 
     def test_95_percent_timely_full_life_and_signals(self):
         # Complete bars START+1 ... START+19; closed exactly at START+20.
-        x=a.timeline_audit(trade(),[sample(i) for i in range(1,20)])
+        x=a.timeline_audit(trade(),[sample(i) for i in range(20)])
         self.assertEqual(x["status"],"NEAR_COMPLETE_TIMELY_LIVE_EVIDENCE")
-        self.assertEqual(x["expected_full_minutes"],19)
-        self.assertEqual(x["timely_minutes"],19)
+        self.assertEqual(x["expected_full_minutes"],20)
+        self.assertEqual(x["timely_minutes"],20)
         self.assertEqual(x["missing_or_late_minutes"],0)
         self.assertFalse(x["gap_alert"])
         self.assertEqual(x["signal_bearing_timely_minutes"],2)
@@ -107,7 +107,7 @@ class TestPostTradeAudit(unittest.TestCase):
         s[3]["first_seen_at"]=a.iso(START+timedelta(minutes=3))
         x=a.timeline_audit(trade(),s)
         self.assertEqual(x["status"],"PARTIAL_TIMELY_LIVE_EVIDENCE")
-        self.assertEqual(x["timely_minutes"],15)
+        self.assertEqual(x["timely_minutes"],16)
         self.assertEqual(x["missing_or_late_minutes"],4)
         self.assertEqual(x["late_sample_count"],1)
         self.assertEqual(x["postclose_backfill_count"],1)
@@ -118,7 +118,7 @@ class TestPostTradeAudit(unittest.TestCase):
         x=a.timeline_audit(trade(),[])
         self.assertEqual(x["status"],"MISSING_TIMELY_LIVE_EVIDENCE")
         self.assertEqual(x["timely_minutes"],0)
-        self.assertEqual(x["missing_or_late_minutes"],19)
+        self.assertEqual(x["missing_or_late_minutes"],20)
         self.assertTrue(x["gap_alert"])
 
     def test_comparison_includes_no_trigger_and_censored(self):
