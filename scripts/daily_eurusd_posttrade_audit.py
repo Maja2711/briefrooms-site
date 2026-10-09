@@ -463,7 +463,6 @@ def build_report(previous: Mapping[str,Any], history: Mapping[str,Any],
             for x in audits),
         "waiting_for_challengers":sum(
             x["shadow_challengers"]["status"]=="PENDING_SHADOW_COMPARISON" for x in audits),
-        "changed_audits_this_run":len(changed),
     }
     report={
         "schema_version":SCHEMA,
@@ -534,13 +533,15 @@ def main() -> int:
     target=Path(args.output)
     result=build_report(load(target),history,journal,lab,reviews,archived,now)
     previous=load(target)
+    old_audits={str(x.get("trade_id")):x for x in previous.get("audits") or []}
+    changed=sum(old_audits.get(a["trade_id"])!=a for a in result["audits"])
     if result != previous:
         target.parent.mkdir(parents=True,exist_ok=True)
         target.write_text(json.dumps(result,ensure_ascii=False,indent=2,sort_keys=True)+"\n",encoding="utf-8")
     latest=result.get("latest_trade_summary") or {}
     print("EURUSD_POSTTRADE_AUDIT",json.dumps({
         "audited":result["summary"]["audited_trades"],
-        "changed":result["summary"]["changed_audits_this_run"],
+        "changed":changed,
         "latest":result["latest_trade_id"],
         "latest_status":latest.get("audit_status"),
         "telemetry":latest.get("telemetry_status"),
