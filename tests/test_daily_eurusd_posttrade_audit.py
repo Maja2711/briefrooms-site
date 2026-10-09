@@ -90,7 +90,7 @@ class TestPostTradeAudit(unittest.TestCase):
         self.assertFalse(x["pricing_provenance"]["exit_is_executable_quote"])
 
     def test_95_percent_timely_full_life_and_signals(self):
-        # Complete bars START+1 ... START+19; closed exactly at START+20.
+        # Complete bars START+0 ... START+19; actual close is 45s into next minute.
         x=a.timeline_audit(trade(),[sample(i) for i in range(20)])
         self.assertEqual(x["status"],"NEAR_COMPLETE_TIMELY_LIVE_EVIDENCE")
         self.assertEqual(x["expected_full_minutes"],20)
@@ -100,11 +100,11 @@ class TestPostTradeAudit(unittest.TestCase):
         self.assertEqual(x["signal_bearing_timely_minutes"],2)
 
     def test_late_and_post_close_are_never_live_evidence(self):
-        s=[sample(i) for i in range(1,20)]
-        s[0]=sample(1,seen_lag=400) # late but first_seen during position
-        s[1]=sample(2,seen_lag=4000) # first_seen after actual close
-        s[2]=sample(3,with_first_seen=False)
-        s[3]["first_seen_at"]=a.iso(START+timedelta(minutes=3))
+        s=[sample(i) for i in range(20)]
+        s[0]=sample(0,seen_lag=400) # late but first_seen during position
+        s[1]=sample(1,seen_lag=4000) # first_seen after actual close
+        s[2]=sample(2,with_first_seen=False)
+        s[3]["first_seen_at"]=a.iso(START+timedelta(minutes=2))
         x=a.timeline_audit(trade(),s)
         self.assertEqual(x["status"],"PARTIAL_TIMELY_LIVE_EVIDENCE")
         self.assertEqual(x["timely_minutes"],16)
