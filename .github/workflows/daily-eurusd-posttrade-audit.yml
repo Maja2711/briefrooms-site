@@ -1,0 +1,112 @@
+name: EURUSD Daily Post-Trade Audit
+# SHADOW/read-only quality control. No execution, no policy promotion.
+# Trigger quickly after canonical closure, then self-heal every 15 minutes.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "7,22,37,52 * * * *"
+  pull_request:
+    paths:
+      - "scripts/daily_eurusd_posttrade_audit.py"
+      - "tests/test_daily_eurusd_posttrade_audit.py"
+      - ".github/workflows/daily-eurusd-posttrade-audit.yml"
+  push:
+    branches: [main]
+    paths:
+      - "data/investments/eurusd_daily_history.json"
+      - "data/investments/eurusd_profit_protection_lab.json"
+      - "data/investments/eurusd_exit_intelligence_reviews.json"
+      - "scripts/daily_eurusd_posttrade_audit.py"
+      - ".github/workflows/daily-eurusd-posttrade-audit.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-eurusd-posttrade-audit-single-writer
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PYTHONPATH: scripts:.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate EURUSD post-close audit contracts
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/daily_eurusd_posttrade_audit.py
+          python -m unittest tests.test_daily_eurusd_posttrade_audit -v
+
+  audit:
+    needs: validate
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: scripts:.
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Reconcile and publish post-trade audits only
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2 3 4 5; do
+            git fetch --quiet origin main
+            git reset --hard origin/main
+            python scripts/daily_eurusd_posttrade_audit.py
+            python -m json.tool data/investments/eurusd_posttrade_audits.json >/dev/null
+            python - <<'PY'
+          import json
+          from pathlib import Path
+          path=Path("data/investments/eurusd_posttrade_audits.json")
+          report=json.loads(path.read_text())
+          assert report["instrument"] == "EUR/USD"
+          assert report["engine"] == "EURUSD_DAILY"
+          assert report["authority"]["trade_execution"] is False
+          assert report["authority"]["canonical_history_write"] is False
+          assert report["authority"]["r_pace_v1_change"] is False
+          assert report["authority"]["belief_core_mutation"] is False
+          assert report["authority"]["automatic_promotion"] is False
+          trades=json.loads(Path("data/investments/eurusd_daily_history.json").read_text())["trades"]
+          closed={t["trade_id"] for t in trades if t.get("instrument")=="EUR/USD" and t.get("closed_at")}
+          assert all(x["trade_id"] in closed for x in report["audits"])
+          assert len({x["trade_id"] for x in report["audits"]}) == len(report["audits"])
+          assert report["summary"]["audited_trades"] == len(report["audits"])
+          latest=report.get("latest_trade_summary") or {}
+          print("EURUSD_POSTTRADE_AUDIT_ZERO_AUTHORITY_PASS",
+                report["summary"]["audited_trades"],
+                latest.get("audit_status"),
+                latest.get("telemetry_status"))
+          PY
+            git add -- data/investments/eurusd_posttrade_audits.json
+            if git diff --cached --quiet; then
+              echo "EURUSD post-close audits are already up-to-date."
+              exit 0
+            fi
+            changed=$(git diff --cached --name-only)
+            if [ "$changed" != "data/investments/eurusd_posttrade_audits.json" ]; then
+              echo "Disallowed post-close audit write: $changed" >&2
+              exit 1
+            fi
+            git commit -m "data(daily): audit canonical EURUSD closes and evidence gaps"
+            if git push origin HEAD:main; then
+              echo "Published EURUSD post-trade audit; no trading changes."
+              exit 0
+            fi
+            echo "Audit write conflict; rerun from fresh main (attempt $attempt)."
+            sleep "$attempt"
+          done
+          echo "Unable to publish EURUSD audit after five attempts" >&2
+          exit 1
