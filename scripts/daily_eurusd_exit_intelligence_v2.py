@@ -20,7 +20,7 @@ SCHEMA = "eurusd-exit-intelligence-v2"
 PIP = 0.0001
 MAX_BAR_AGE_SECONDS = 240
 MAX_TIME_MATCH_SECONDS = 180
-MAX_SNAPSHOTS = 3000
+MAX_SNAPSHOTS = 180  # Keep GitHub Contents API journal safely below 1 MB
 MAX_REVIEWS = 250
 FUTURE_HOURS = (1, 3, 6, 24)
 ENTRY_DELAYS_MINUTES = (5, 15, 30)
@@ -338,7 +338,8 @@ def review(trade: Mapping[str, Any], snapshots: list[dict], fx: Sequence[dict], 
 
 
 def step(spot: dict, history: dict, journal: dict, reviews: dict,
-         fx_raw: Sequence[Any], rates_raw: Sequence[Any], now: datetime) -> tuple[dict, dict]:
+         fx_raw: Sequence[Any], rates_raw: Sequence[Any], now: datetime,
+         archived_snapshots: Sequence[Mapping[str, Any]] = ()) -> tuple[dict, dict]:
     fx = normalize_bars(fx_raw, now)
     rates = normalize_bars(rates_raw, now)
     snapshots = list(journal.get("snapshots") or [])
@@ -414,7 +415,10 @@ def step(spot: dict, history: dict, journal: dict, reviews: dict,
         # Never retroactively create evidence of a live alert. Existing reviews
         # may progress only by adding retrospective observations after maturity.
         key = str(t["trade_id"])
-        fresh = review(t, snapshots, fx, now)
+        # Full trading-life research context includes immutable older shards.
+        # Only the last 180 observations remain in the hot journal.
+        review_snapshots = list(archived_snapshots) + snapshots
+        fresh = review(t, review_snapshots, fx, now)
         old = known.get(key)
         if old:
             # Retain previously measured prices after the provider's 5-day
@@ -436,6 +440,32 @@ def step(spot: dict, history: dict, journal: dict, reviews: dict,
     return journal, reviews
 
 
+def read_archived_snapshots(root: Path) -> list[dict]:
+    """Rehydrate older REAL first-seen observations from bounded 2h shards.
+
+    Archives are copied from the repo checkout; NEVER reconstruct a missing
+    live signal from historical OHLC or replace its first_seen_at.
+    """
+    if not root.is_dir():
+        return []
+    shards = sorted(root.glob("*/*.json"))
+    dedup: dict[tuple[str,str],dict] = {}
+    for path in shards:
+        payload = load(path,{})
+        if payload.get("authority") != "SHADOW_OBSERVATION_ONLY":
+            continue
+        for row in payload.get("snapshots") or []:
+            if not isinstance(row,dict) or not row.get("first_seen_at"):
+                continue
+            key = (str(row.get("trade_id") or ""),str(row.get("market_bar_at") or ""))
+            if not all(key):
+                continue
+            prior = dedup.get(key)
+            if not prior or str(row["first_seen_at"]) < str(prior["first_seen_at"]):
+                dedup[key] = row
+    return sorted(dedup.values(),key=lambda v:(v["market_bar_at"],v["trade_id"]))
+
+
 def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--spot", default="data/investments/eurusd_daily_spot.json")
@@ -443,6 +473,7 @@ def main() -> int:
     p.add_argument("--journal", default="data/investments/eurusd_exit_signal_journal.json")
     p.add_argument("--reviews", default="data/investments/eurusd_exit_intelligence_reviews.json")
     p.add_argument("--protection", default="data/investments/eurusd_profit_protection_lab.json")
+    p.add_argument("--archive-dir",default="data/investments/eurusd_live_signal_archive")
     args = p.parse_args()
     now = datetime.now(timezone.utc)
     spot, history = load(Path(args.spot), {}), load(Path(args.history), {})
@@ -460,8 +491,16 @@ def main() -> int:
         rates = YahooChartClient(timeout=12).bars("^TNX", "5d", "1m")
     except Exception as exc:
         print("US10Y_INDEX_PROXY_UNAVAILABLE", type(exc).__name__)
-    journal, reviews = step(spot, history, journal, reviews, fx, rates, now)
-    baseline_lab = protection.step(load(Path(args.protection), {}), history, journal, normalize_bars(fx, now), now)
+    archived = read_archived_snapshots(Path(args.archive_dir))
+    journal, reviews = step(spot, history, journal, reviews, fx, rates, now,
+                            archived_snapshots=archived)
+    lab_journal = dict(journal)
+    # This is an IN-MEMORY rehydrated view for research; do not inflate the
+    # persistently published <=180-snapshot live journal.
+    merged = {(x.get("trade_id"),x.get("market_bar_at")):x
+              for x in archived + journal.get("snapshots",[]) if isinstance(x,dict)}
+    lab_journal["snapshots"] = list(merged.values())
+    baseline_lab = protection.step(load(Path(args.protection), {}), history, lab_journal, normalize_bars(fx, now), now)
     save(Path(args.protection), baseline_lab)
     save(Path(args.journal), journal)
     save(Path(args.reviews), reviews)
