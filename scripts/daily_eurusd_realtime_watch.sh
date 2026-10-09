@@ -45,6 +45,7 @@ python scripts/daily_eurusd_live_evidence.py \
   --watch --spool "$evidence_spool" \
   --spot data/investments/eurusd_daily_spot.json &
 evidence_pid=$!
+next_evidence_watchdog=$((started + 75))
 
 sync_push_commit() {
   local sha="$1"
@@ -104,6 +105,20 @@ PY
 
 while [ "$(date +%s)" -lt "$deadline" ]; do
   now=$(date +%s)
+
+  # Research subprocess is not an execution dependency. If it crashed,
+  # independently restart it from the same durable local spool.
+  if [ "$now" -ge "$next_evidence_watchdog" ]; then
+    if ! kill -0 "$evidence_pid" 2>/dev/null; then
+      echo "::warning::EURUSD 1m evidence observer stopped; restarting (trade execution unaffected)." >&2
+      wait "$evidence_pid" 2>/dev/null || true
+      python scripts/daily_eurusd_live_evidence.py \
+        --watch --spool "$evidence_spool" \
+        --spot data/investments/eurusd_daily_spot.json &
+      evidence_pid=$!
+    fi
+    next_evidence_watchdog=$((now + 60))
+  fi
 
   if [ "$now" -ge "$next_repo_refresh" ]; then
     git fetch --quiet origin main || true
