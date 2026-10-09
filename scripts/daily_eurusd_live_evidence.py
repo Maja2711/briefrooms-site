@@ -40,6 +40,7 @@ POLL_SECONDS = 60
 FLUSH_SECONDS = 180
 TIMELY_SECONDS = 180
 MAX_CATCHUP_BARS = 180
+MAX_LOCAL_SPOOL_SNAPSHOTS = 2200  # 27h positions survive remote outages until backup artifact
 MAX_WAIT_FOR_BAR_SECONDS = 240
 MAX_HEARTBEATS = 50
 STOP = False
@@ -60,7 +61,8 @@ def _unique_key(row: Mapping[str, Any]) -> tuple[str, str]:
 
 
 def merge_snapshots(existing: Sequence[Mapping[str, Any]],
-                    arriving: Sequence[Mapping[str, Any]]) -> list[dict]:
+                    arriving: Sequence[Mapping[str, Any]],
+                    limit: int = MAX_SNAPSHOTS) -> list[dict]:
     """Earliest actual first-seen evidence wins, not retrospective reconstruction.
 
     If another research writer later observed the same historical bar, it
@@ -80,7 +82,7 @@ def merge_snapshots(existing: Sequence[Mapping[str, Any]],
             continue
         if previous is None or prev_ts is None or ts < prev_ts:
             grouped[key] = dict(row)
-    return sorted(grouped.values(), key=lambda x: (x.get("market_bar_at",""),x.get("trade_id","")))[-MAX_SNAPSHOTS:]
+    return sorted(grouped.values(), key=lambda x: (x.get("market_bar_at",""),x.get("trade_id","")))[-limit:]
 
 
 def collect(spool: Mapping[str, Any], spot: Mapping[str, Any],
@@ -141,7 +143,8 @@ def collect(spool: Mapping[str, Any], spot: Mapping[str, Any],
         })
         keys.add(key)
         new_rows.append(sample)
-    out["snapshots"] = merge_snapshots(out["snapshots"], new_rows)
+    out["snapshots"] = merge_snapshots(out["snapshots"], new_rows,
+                                        limit=MAX_LOCAL_SPOOL_SNAPSHOTS)
 
     active = [s for s in out["snapshots"] if s["trade_id"] == tid]
     timely = [s for s in active if s.get("timely_observation") is True]
