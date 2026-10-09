@@ -2,6 +2,7 @@
 import unittest
 from datetime import datetime, timedelta, timezone
 from scripts import daily_eurusd_live_evidence as live
+from scripts import daily_eurusd_exit_intelligence_v2 as observer
 
 START=datetime(2026,10,9,0,10,tzinfo=timezone.utc)
 
@@ -71,6 +72,19 @@ class LiveEvidenceTests(unittest.TestCase):
         self.assertEqual(output["correction_study"],remote["correction_study"])
         self.assertFalse(output["realtime_monitor_health"]["publication_pending"])
         self.assertFalse(output["realtime_monitor_health"]["exit_authority"])
+
+    def test_scheduled_research_does_not_erase_realtime_observer_health(self):
+        health={"status":"OK","timely_trade_snapshots":110,
+                "last_published_at":live.iso(START)}
+        journal={"authority":"SHADOW_OBSERVATION_ONLY",
+                 "realtime_monitor_health":health,
+                 "realtime_heartbeats":[{"at":live.iso(START),"status":"OK"}],
+                 "snapshots":[]}
+        after,_=observer.step({"metadata":{"position":None}},
+                              {"trades":[]},journal,{},[],[],START)
+        self.assertEqual(after["realtime_monitor_health"],health)
+        self.assertEqual(after["realtime_heartbeats"],journal["realtime_heartbeats"])
+        self.assertEqual(after["monitor_health"]["status"],"NO_OPEN_POSITION")
 
     def test_deny_outside_repo(self):
         with self.assertRaises(ValueError):
