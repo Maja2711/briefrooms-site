@@ -424,7 +424,9 @@ def build_report(previous: Mapping[str,Any], history: Mapping[str,Any],
                  reviews: Mapping[str,Any], archived: Sequence[Mapping[str,Any]],
                  now: datetime) -> dict:
     source=list(history.get("trades") or [])
-    trades=sorted((t for t in source if same_trade(t)),key=lambda t:t["closed_at"])
+    trades=sorted((t for t in source if same_trade(t)
+                   and parse_time(t.get("closed_at")) <= now),
+                  key=lambda t:t["closed_at"])
     recent=trades[-AUDIT_LIMIT:]
     # Prefer earliest true first-seen observation when hot journal/archive overlap.
     by: dict[tuple[str,str],dict] = {}
