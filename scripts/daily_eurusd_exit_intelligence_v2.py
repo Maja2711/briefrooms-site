@@ -370,12 +370,20 @@ def step(spot: dict, history: dict, journal: dict, reviews: dict,
         snapshots[-MAX_SNAPSHOTS:] != list(journal.get("snapshots") or [])
         or study != journal.get("correction_study")
     )
+    old_realtime_health = journal.get("realtime_monitor_health")
+    old_realtime_heartbeats = journal.get("realtime_heartbeats")
     journal = {"schema_version": SCHEMA,
                "generated_at": iso(now) if journal_changed else journal.get("generated_at", iso(now)),
                "authority": "SHADOW_OBSERVATION_ONLY",
                "monitor_health": monitor_health,
                "snapshots": snapshots[-MAX_SNAPSHOTS:],
                "correction_study": study}
+    # The scheduled legacy collector must NEVER erase status/heartbeats
+    # published by the independent 1m realtime watcher. Separate clocks.
+    if isinstance(old_realtime_health, dict):
+        journal["realtime_monitor_health"] = old_realtime_health
+    if isinstance(old_realtime_heartbeats, list):
+        journal["realtime_heartbeats"] = old_realtime_heartbeats[-50:]
     known = {r["trade_id"]: r for r in (reviews.get("reviews") or [])}
     closed_trades = [t for t in (history.get("trades") or []) if t.get("closed_at")]
     for t in closed_trades[-MAX_REVIEWS:]:
