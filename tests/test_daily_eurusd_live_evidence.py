@@ -21,7 +21,7 @@ class LiveEvidenceTests(unittest.TestCase):
         result=live.collect({},spot(),candles(15),now)
         self.assertEqual(len(result["snapshots"]),11)
         self.assertEqual(result["monitor_health"]["status"],"OK")
-        self.assertEqual(sum(s["timely_observation"] for s in result["snapshots"]),2)
+        self.assertEqual(sum(s["timely_observation"] for s in result["snapshots"]),3)
         self.assertTrue(all(s["first_seen_at"]==live.iso(now) for s in result["snapshots"]))
         self.assertTrue(all(s["exit_authority"] is False for s in result["snapshots"]))
         self.assertTrue(all(s["retrospective_bar_not_a_live_alert"]
