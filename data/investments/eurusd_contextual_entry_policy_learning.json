@@ -2434,12 +2434,12 @@
     "uncertainty_penalty": 1.0
   },
   "latest_context": {
-    "atr_30m": 0.00079765,
+    "atr_30m": 0.00049929,
     "belief_probability_curve": {
       "available": true,
-      "confidence": 0.47416,
-      "current_p_up": 0.561956,
-      "delta_p_up": 0.03757100000000002,
+      "confidence": 0.474239,
+      "current_p_up": 0.546158,
+      "delta_p_up": -8.000000000008e-06,
       "horizons": {
         "12": {
           "confidence": 0.474165,
@@ -2472,21 +2472,21 @@
           "target_at": "2026-10-11T17:26:41.328620Z"
         }
       },
-      "previous_p_up": 0.524385
+      "previous_p_up": 0.546166
     },
     "daily": {
       "candidate": {
-        "confidence": 0.312,
+        "confidence": 0.2984,
         "direction": "LONG",
-        "score": 53.4,
+        "score": 54.52,
         "source": "NATIVE"
       },
       "confidence": 0.312,
       "decision_source": "NATIVE",
-      "direction": "LONG",
+      "direction": "FLAT",
       "score": 53.4
     },
-    "ema20": 1.12180708,
+    "ema20": 1.12283763,
     "event": {
       "available": false,
       "confidence": null,
@@ -2495,51 +2495,101 @@
       "score_delta": null
     },
     "features": {
-      "belief_confidence": 0.47416,
-      "belief_macro_score": 1.1035,
+      "belief_confidence": 0.474239,
+      "belief_macro_score": 1.0311,
       "daily_confidence": 0.312,
       "daily_score_signed": 0.068,
-      "ema20_distance_atr": 1.135104,
-      "fse_analogue_median_return_atr": 0.283149,
-      "fse_hurst_q2": 0.474224,
-      "fse_p_up_4h": 0.63878,
-      "fse_risk_score": 0.439357,
-      "move_12h_atr": 0.94752,
-      "move_24h_atr": 1.736173,
-      "move_3h_atr": 1.420831,
+      "ema20_distance_atr": 1.012178,
+      "move_12h_atr": 3.532692,
+      "move_24h_atr": 6.551811,
+      "move_3h_atr": -0.75854,
       "p_up_12h": 0.569572,
       "p_up_24h": 0.569572,
       "p_up_3h": 0.569572,
-      "p_up_current": 0.561956,
-      "p_up_delta": 0.037571
+      "p_up_current": 0.546158,
+      "p_up_delta": -8e-06
     },
     "fse": {
-      "analogues_n": 40,
-      "available": true,
-      "mean_hurst_q2": 0.47422423878598474,
-      "mean_similarity": 0.8556752906146776,
-      "median_forward_return": 0.00022585289361498617,
-      "median_forward_return_atr": 0.2831486816419347,
-      "observed_at": "2026-10-08T22:09:49Z",
-      "p_up_4h": 0.6387797631006596,
-      "production_impact": false,
-      "regime": "STABLE",
-      "risk_score": 0.43935676480392594
+      "available": false,
+      "reason": "stale_or_future"
     },
-    "observed_at": "2026-10-09T02:09:49Z",
-    "reference_mid": 1.12271249
+    "observed_at": "2026-10-09T08:26:51Z",
+    "reference_mid": 1.12334299
   },
   "latest_recommendation": {
-    "authority_fraction": 0.0,
-    "authority_level": "SHADOW",
-    "automatic_rollback": true,
-    "decision_influence": false,
-    "evidence_confidence": 0.0,
-    "neighbors": 0,
-    "policy_stats": {},
+    "application_edge_hurdle_r": 0.18,
+    "authority_fraction": 0.6,
+    "authority_level": "MEDIUM",
+    "automatic_promotion": true,
+    "automatic_rollback": false,
+    "decision_influence": true,
+    "direction_mutation_allowed": false,
+    "edge_vs_second_r": 0.488264,
+    "evidence_components": {
+      "edge_strength": 1.0,
+      "sample_strength": 0.686409,
+      "stability": 0.85952
+    },
+    "evidence_confidence": 0.589983,
+    "expected_r": 1.550823,
+    "neighbors": 4,
+    "policy_stats": {
+      "CONTINUATION_NOW": {
+        "effective_neighbors": 3.479,
+        "expected_r": 1.550823,
+        "raw_neighbors": 4,
+        "uncertainty_penalized_r": 1.393032,
+        "weighted_mean_net_r": 1.550823,
+        "weighted_sd_r": 0.294326
+      },
+      "FLAT": {
+        "effective_neighbors": 3.479,
+        "expected_r": 0.0,
+        "raw_neighbors": 4,
+        "uncertainty_penalized_r": 0.0,
+        "weighted_mean_net_r": 0.0,
+        "weighted_sd_r": 0.0
+      },
+      "PULLBACK_20_ATR": {
+        "effective_neighbors": 3.479,
+        "expected_r": 1.22531,
+        "raw_neighbors": 4,
+        "uncertainty_penalized_r": 0.874651,
+        "weighted_mean_net_r": 1.22531,
+        "weighted_sd_r": 0.654084
+      },
+      "PULLBACK_35_ATR": {
+        "effective_neighbors": 3.479,
+        "expected_r": 1.245401,
+        "raw_neighbors": 4,
+        "uncertainty_penalized_r": 0.904768,
+        "weighted_mean_net_r": 1.245401,
+        "weighted_sd_r": 0.635383
+      },
+      "PULLBACK_50_ATR": {
+        "effective_neighbors": 3.479,
+        "expected_r": 0.684022,
+        "raw_neighbors": 4,
+        "uncertainty_penalized_r": 0.302833,
+        "weighted_mean_net_r": 0.684022,
+        "weighted_sd_r": 0.711033
+      },
+      "REVERSAL_NOW": {
+        "effective_neighbors": 3.479,
+        "expected_r": -1.023829,
+        "raw_neighbors": 4,
+        "uncertainty_penalized_r": -1.024375,
+        "weighted_mean_net_r": -1.023829,
+        "weighted_sd_r": 0.001019
+      }
+    },
+    "recommended_family": "CONTINUATION_NOW",
+    "recommended_policy_id": "CONTINUATION_NOW",
+    "research_best_policy_id": "CONTINUATION_NOW",
+    "research_reversal_is_non_authoritative": false,
     "resolved_episodes": 9,
-    "status": "INSUFFICIENT_SIMILAR_CONTEXT"
+    "status": "AUTONOMOUS_POLICY_EDGE"
   },
   "schema_version": "eurusd-contextual-entry-policy-learning-v2",
-  "updated_at": "2026-10-09T02:10:24Z"
+  "updated_at": "2026-10-09T08:27:40Z"
 }
