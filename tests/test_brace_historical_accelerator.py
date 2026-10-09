@@ -111,7 +111,7 @@ def test_historical_downloader_retries_missing_V_without_fabricating_prices(monk
     result = accelerator.download_verified_history(
         ["VT", "VBR", "V", "V"], "1995-01-01",
         fetcher=flaky, sleeper=slept.append,
-        now=pd.Timestamp("2024-07-01"),
+        now=pd.Timestamp("2024-08-12"),
     )
     assert list(result.columns) == ["VT", "VBR", "V"]
     assert result["V"].equals(history("V"))
@@ -137,7 +137,7 @@ def test_historical_downloader_never_silently_omits_missing_ticker(monkeypatch, 
     with pytest.raises(RuntimeError, match="BRACE_HISTORY_SOURCE_INCOMPLETE_NO_TRAINING.*V"):
         accelerator.download_verified_history(
             ["VT", "V"], "1995-01-01", fetcher=incomplete,
-            sleeper=lambda _: None, now=pd.Timestamp("2024-07-01"),
+            sleeper=lambda _: None, now=pd.Timestamp("2024-08-12"),
         )
     assert calls.count("V") == 3
 
@@ -147,13 +147,17 @@ def test_historical_downloader_rejects_missing_common_history_without_fill(monke
 
     monkeypatch.setattr(yf, "set_tz_cache_location", lambda p: None)
     monkeypatch.setenv("RUNNER_TEMP", str(tmp_path))
-    early = history("VT", periods=240, start="2016-01-01")
-    late = history("V", periods=240, start="2020-01-03")
+    early = history("VT", periods=250, start="2020-01-03")
+    late = history("V", periods=250, start="2020-01-03")
+    # Each ticker has >180 honest weeks and a recent final observation;
+    # they are unavailable on disjoint 45-week windows. Shared <180.
+    early.iloc[0:45] = np.nan
+    late.iloc[45:90] = np.nan
     with pytest.raises(RuntimeError, match="BRACE_HISTORY_COMMON_CALENDAR_INCOMPLETE_NO_TRAINING"):
         accelerator.download_verified_history(
             ["VT", "V"], "1995-01-01",
             fetcher=lambda s, _: early if s == "VT" else late,
-            sleeper=lambda _: None, now=pd.Timestamp("2024-07-01"),
+            sleeper=lambda _: None, now=pd.Timestamp(early.index[-1]) + pd.Timedelta(days=3),
         )
 
 
@@ -166,13 +170,13 @@ def test_historical_downloader_rejects_stale_and_short_history(monkeypatch, tmp_
         accelerator.download_verified_history(
             ["VT"], "1995-01-01",
             fetcher=lambda s, _: history(s, start="2010-01-01"),
-            sleeper=lambda _: None, now=pd.Timestamp("2024-07-01"),
+            sleeper=lambda _: None, now=pd.Timestamp("2024-08-12"),
         )
     with pytest.raises(RuntimeError, match="INSUFFICIENT_SYMBOL_HISTORY"):
         accelerator.download_verified_history(
             ["V"], "1995-01-01",
             fetcher=lambda s, _: history(s, periods=15, start="2024-04-05"),
-            sleeper=lambda _: None, now=pd.Timestamp("2024-07-01"),
+            sleeper=lambda _: None, now=pd.Timestamp("2024-08-12"),
         )
 
 
