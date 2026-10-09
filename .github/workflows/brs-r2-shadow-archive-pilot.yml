@@ -59,10 +59,10 @@ jobs:
     timeout-minutes: 12
     env:
       BRS_R2_PILOT_ENABLED: "true"
-      BRS_R2_ACCOUNT_ID: \${{ vars.BRS_R2_ACCOUNT_ID }}
-      BRS_R2_PILOT_BUCKET: \${{ vars.BRS_R2_PILOT_BUCKET }}
-      BRS_R2_ACCESS_KEY_ID: \${{ secrets.BRS_R2_ACCESS_KEY_ID }}
-      BRS_R2_SECRET_ACCESS_KEY: \${{ secrets.BRS_R2_SECRET_ACCESS_KEY }}
+      BRS_R2_ACCOUNT_ID: ${{ vars.BRS_R2_ACCOUNT_ID }}
+      BRS_R2_PILOT_BUCKET: ${{ vars.BRS_R2_PILOT_BUCKET }}
+      BRS_R2_ACCESS_KEY_ID: ${{ secrets.BRS_R2_ACCESS_KEY_ID }}
+      BRS_R2_SECRET_ACCESS_KEY: ${{ secrets.BRS_R2_SECRET_ACCESS_KEY }}
       AWS_EC2_METADATA_DISABLED: "true"
     steps:
       - uses: actions/checkout@v4
@@ -84,6 +84,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: brs-r2-shadow-pilot-verification
-          path: \${{ runner.temp }}/brs-r2-pilot-report.json
+          path: ${{ runner.temp }}/brs-r2-pilot-report.json
           if-no-files-found: ignore
           retention-days: 14
