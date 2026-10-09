@@ -5,6 +5,7 @@ on:
   pull_request:
     paths:
       - "scripts/daily_eurusd_exit_intelligence_v2.py"
+      - "scripts/daily_eurusd_live_evidence.py"
       - "scripts/daily_eurusd_profit_protection_lab.py"
       - "scripts/daily_eurusd_correction_research.py"
       - "scripts/daily_eurusd_correction_probability.py"
@@ -12,11 +13,13 @@ on:
       - "tests/test_daily_eurusd_correction_research.py"
       - "tests/test_daily_eurusd_correction_probability.py"
       - "tests/test_daily_eurusd_profit_protection_lab.py"
+      - "tests/test_daily_eurusd_live_evidence.py"
       - ".github/workflows/daily-eurusd-exit-research.yml"
   push:
     branches: [main]
     paths:
       - "scripts/daily_eurusd_exit_intelligence_v2.py"
+      - "scripts/daily_eurusd_live_evidence.py"
       - "scripts/daily_eurusd_profit_protection_lab.py"
       - "scripts/daily_eurusd_correction_research.py"
       - "scripts/daily_eurusd_correction_probability.py"
@@ -45,8 +48,8 @@ jobs:
       - name: Validate research contracts
         run: |
           set -euo pipefail
-          python -m py_compile scripts/daily_eurusd_exit_intelligence_v2.py scripts/daily_eurusd_correction_research.py scripts/daily_eurusd_correction_probability.py scripts/daily_eurusd_profit_protection_lab.py
-          python -m unittest tests.test_daily_eurusd_exit_intelligence_v2 tests.test_daily_eurusd_correction_research tests.test_daily_eurusd_correction_probability tests.test_daily_eurusd_profit_protection_lab -v
+          python -m py_compile scripts/daily_eurusd_exit_intelligence_v2.py scripts/daily_eurusd_correction_research.py scripts/daily_eurusd_correction_probability.py scripts/daily_eurusd_profit_protection_lab.py scripts/daily_eurusd_live_evidence.py
+          python -m unittest tests.test_daily_eurusd_exit_intelligence_v2 tests.test_daily_eurusd_correction_research tests.test_daily_eurusd_correction_probability tests.test_daily_eurusd_profit_protection_lab tests.test_daily_eurusd_live_evidence -v
 
   observe:
     needs: validate
