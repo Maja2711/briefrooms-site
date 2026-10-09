@@ -11,6 +11,8 @@ on:
     paths:
       - "scripts/daily_eurusd_fast_lifecycle.py"
       - "scripts/daily_eurusd_realtime_watch.sh"
+      - "scripts/daily_eurusd_live_evidence.py"
+      - "tests/test_daily_eurusd_live_evidence.py"
       - "scripts/sync_trading_push_commit.sh"
       - "tests/test_daily_eurusd_fast_lifecycle.py"
       - ".github/workflows/daily-eurusd-realtime-lifecycle.yml"
@@ -38,8 +40,8 @@ jobs:
       - name: Validate realtime lifecycle
         run: |
           set -euo pipefail
-          python -m py_compile scripts/daily_eurusd_fast_lifecycle.py scripts/build_trading_notification_events.py scripts/verify_no_retroactive_execution.py
-          python -m unittest tests.test_daily_eurusd_fast_lifecycle -v
+          python -m py_compile scripts/daily_eurusd_fast_lifecycle.py scripts/daily_eurusd_live_evidence.py scripts/build_trading_notification_events.py scripts/verify_no_retroactive_execution.py
+          python -m unittest tests.test_daily_eurusd_fast_lifecycle tests.test_daily_eurusd_live_evidence -v
           bash -n scripts/daily_eurusd_realtime_watch.sh
           bash -n scripts/sync_trading_push_commit.sh
 
@@ -61,8 +63,8 @@ jobs:
       - name: Validate exit-only authority
         run: |
           set -euo pipefail
-          python -m py_compile scripts/daily_eurusd_fast_lifecycle.py scripts/build_trading_notification_events.py scripts/verify_no_retroactive_execution.py
-          python -m unittest tests.test_daily_eurusd_fast_lifecycle -v
+          python -m py_compile scripts/daily_eurusd_fast_lifecycle.py scripts/daily_eurusd_live_evidence.py scripts/build_trading_notification_events.py scripts/verify_no_retroactive_execution.py
+          python -m unittest tests.test_daily_eurusd_fast_lifecycle tests.test_daily_eurusd_live_evidence -v
           bash -n scripts/daily_eurusd_realtime_watch.sh
           bash -n scripts/sync_trading_push_commit.sh
 
@@ -76,3 +78,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: bash scripts/daily_eurusd_realtime_watch.sh
+      - name: Preserve minute evidence spool for recovery
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eurusd-realtime-evidence-spool
+          path: ${{ runner.temp }}/eurusd-realtime-live-evidence.json
+          if-no-files-found: ignore
+          retention-days: 14

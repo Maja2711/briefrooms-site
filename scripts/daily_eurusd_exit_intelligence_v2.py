@@ -114,13 +114,30 @@ def capture(position: Mapping[str, Any], fx: Sequence[dict], rates: Sequence[dic
     if direction not in {"LONG", "SHORT"}:
         return None
     entry = float(position["entry"])
+    # Use this exact trade's synthetic EPE spread; never assume the old
+    # 1.5p total spread when the actual entry used 3p total.
+    epe = position.get("execution_price_engine") or {}
+    if not isinstance(epe, Mapping):
+        epe = {}
+    half_value = epe.get("synthetic_half_spread_pips")
+    if half_value is None and epe.get("synthetic_spread_pips") is not None:
+        half_value = float(epe["synthetic_spread_pips"]) / 2.0
+    try:
+        half = float(half_value)
+        recorded_spread = 0 <= half <= 10
+    except (ValueError,TypeError):
+        half = 0.75
+        recorded_spread = False
+    if not recorded_spread:
+        half = 0.75
     prior = [b for b in fx if opened <= b["time"] <= latest["time"]]
     if not prior:
         return None
     best = max(b["high"] for b in prior) if direction == "LONG" else min(b["low"] for b in prior)
     best_pips_mid = round((best - entry) * (1 if direction == "LONG" else -1) / PIP, 3)
-    current_pips = pnl_pips(direction, entry, latest["close"])
-    giveback = round(max(0.0, best_pips_mid - current_pips), 3)
+    current_pips = pnl_pips(direction, entry, latest["close"], half)
+    best_indicative_pips = round(best_pips_mid-half,3)
+    giveback = round(max(0.0, best_indicative_pips-current_pips), 3)
     m5 = _window_move(fx, latest["time"], 5, direction)
     m15 = _window_move(fx, latest["time"], 15, direction)
     m30 = _window_move(fx, latest["time"], 30, direction)
@@ -131,12 +148,12 @@ def capture(position: Mapping[str, Any], fx: Sequence[dict], rates: Sequence[dic
     rate_past = at(rates, now - timedelta(minutes=15)) if rate else None
     rate_delta_bp = round((rate["close"] - rate_past["close"]) * 10, 3) if rate and rate_past else None
     signals = {
-        "profit_reached_8p": best_pips_mid >= 8,
-        "profit_reached_11p": best_pips_mid >= 11,
+        "profit_reached_8p": best_indicative_pips >= 8,
+        "profit_reached_11p": best_indicative_pips >= 11,
         "momentum_5m_reversal": m5 is not None and m5 <= -1.5,
         "momentum_5m_exhaustion": m5 is not None and m5 <= 0,
         "momentum_15m_reversal": m15 is not None and m15 <= -2.5,
-        "peak_giveback_35pct_or_3p": best_pips_mid >= 5 and giveback >= max(3.0, 0.35 * best_pips_mid),
+        "peak_giveback_35pct_or_3p": best_indicative_pips >= 5 and giveback >= max(3.0, 0.35 * best_indicative_pips),
         "us10y_yield_falling_15m": rate_delta_bp is not None and rate_delta_bp <= -1.0,
         "us10y_yield_rising_15m": rate_delta_bp is not None and rate_delta_bp >= 1.0,
     }
@@ -155,7 +172,11 @@ def capture(position: Mapping[str, Any], fx: Sequence[dict], rates: Sequence[dic
         "market_bar_age_seconds": round((now-latest["time"]).total_seconds(), 2),
         "mode": "LIVE_OBSERVATION_RESEARCH_ONLY",
         "entry": entry, "direction": direction, "observed_mid": latest["close"],
-        "current_indicative_pips": current_pips, "best_favorable_mid_pips": best_pips_mid,
+        "current_indicative_pips": current_pips,
+        "best_favorable_mid_pips": best_pips_mid,
+        "best_favorable_indicative_net_pips": best_indicative_pips,
+        "epe_synthetic_half_spread_pips": half,
+        "epe_spread_from_recorded_entry": recorded_spread,
         "giveback_pips": giveback, "signed_momentum_5m_pips": m5,
         "signed_momentum_15m_pips": m15, "signed_momentum_30m_pips": m30,
         "yield_10y_proxy": {
@@ -370,12 +391,20 @@ def step(spot: dict, history: dict, journal: dict, reviews: dict,
         snapshots[-MAX_SNAPSHOTS:] != list(journal.get("snapshots") or [])
         or study != journal.get("correction_study")
     )
+    old_realtime_health = journal.get("realtime_monitor_health")
+    old_realtime_heartbeats = journal.get("realtime_heartbeats")
     journal = {"schema_version": SCHEMA,
                "generated_at": iso(now) if journal_changed else journal.get("generated_at", iso(now)),
                "authority": "SHADOW_OBSERVATION_ONLY",
                "monitor_health": monitor_health,
                "snapshots": snapshots[-MAX_SNAPSHOTS:],
                "correction_study": study}
+    # The scheduled legacy collector must NEVER erase status/heartbeats
+    # published by the independent 1m realtime watcher. Separate clocks.
+    if isinstance(old_realtime_health, dict):
+        journal["realtime_monitor_health"] = old_realtime_health
+    if isinstance(old_realtime_heartbeats, list):
+        journal["realtime_heartbeats"] = old_realtime_heartbeats[-50:]
     known = {r["trade_id"]: r for r in (reviews.get("reviews") or [])}
     closed_trades = [t for t in (history.get("trades") or []) if t.get("closed_at")]
     for t in closed_trades[-MAX_REVIEWS:]:
