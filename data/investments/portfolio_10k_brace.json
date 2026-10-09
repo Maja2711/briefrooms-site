@@ -4,8 +4,8 @@
   "model_version": "2.0.0",
   "mode": "challenger",
   "status": "live_shadow_learning",
-  "generated_at": "2026-10-04T14:06:17+00:00",
-  "review_date": "2026-10-04",
+  "generated_at": "2026-10-09T12:19:02+00:00",
+  "review_date": "2026-10-09",
   "source_portfolio_id": "briefrooms-xtb-10k",
   "source_portfolio_status": "active",
   "weights": {
@@ -33,20 +33,21 @@
     "human_approval_required": true
   },
   "market_context": {
-    "score": 74.65,
+    "score": 73.52,
     "regime": "risk_on",
-    "sp500_price": 7722.7202,
-    "sp500_ma200": 7225.8184,
-    "vix": 15.31,
-    "us_10y": 5.277,
-    "market_date": "2026-10-02"
+    "sp500_price": 7765.3599,
+    "sp500_ma200": 7245.9637,
+    "vix": 15.14,
+    "us_10y": 5.231,
+    "market_date": "2026-10-09"
   },
   "portfolio": {
-    "score": 70.71,
-    "confidence": 78.3,
+    "score": 69.65,
+    "confidence": 78.35,
     "decision_counts": {
-      "HOLD": 2,
-      "ADD_REVIEW": 5
+      "HOLD": 3,
+      "ADD_REVIEW": 3,
+      "WAIT_INVESTIGATE": 1
     },
     "positions_reviewed": 7
   },
@@ -57,29 +58,29 @@
       "label": "Invesco FTSE All-World UCITS ETF Acc",
       "asset_type": "ETF",
       "target_weight": 0.25,
-      "current_weight": 0.255017,
-      "market_price": 8.421,
+      "current_weight": 0.255677,
+      "market_price": 8.513,
       "market_currency": "EUR",
-      "market_date": "2026-10-02",
+      "market_date": "2026-10-09",
       "next_earnings_date": null,
-      "score": 67.48,
+      "score": 67.49,
       "confidence": 67.0,
       "pillar_scores": {
         "business_quality": 76.27,
         "results_revisions": 55.0,
         "attractiveness": 52.0,
-        "confirmation": 63.762,
-        "risk": 92.664,
-        "context": 74.65,
+        "confirmation": 64.765,
+        "risk": 92.438,
+        "context": 73.52,
         "events_information": 50.0
       },
       "weighted_contributions": {
         "business_quality": 15.254,
         "results_revisions": 11.0,
         "attractiveness": 7.8,
-        "confirmation": 9.5644,
-        "risk": 13.8997,
-        "context": 7.465,
+        "confirmation": 9.7148,
+        "risk": 13.8658,
+        "context": 7.352,
         "events_information": 2.5
       },
       "contradictions": [],
@@ -89,8 +90,8 @@
         "business_quality": 6.27,
         "results_revisions": 0.0,
         "attractiveness": 0.0,
-        "confirmation": 3.06,
-        "risk": 0.0,
+        "confirmation": 3.461,
+        "risk": 0.065,
         "context": 0.0,
         "events_information": 0.0
       },
@@ -108,9 +109,9 @@
       "next_catalyst_pl": "Kolejny przegląd tygodniowy",
       "next_catalyst_en": "Next weekly review",
       "thesis_clock": {
-        "quarters_elapsed": 0.83,
+        "quarters_elapsed": 0.89,
         "target_quarters": 8,
-        "progress": 0.104,
+        "progress": 0.1109,
         "status": "on_track",
         "milestones_met": 0,
         "milestones_total": 0
@@ -122,7 +123,7 @@
           "direction": 1,
           "strength": 0.55,
           "quality": 0.95,
-          "observed_at": "2026-10-04",
+          "observed_at": "2026-10-09",
           "half_life_days": 365,
           "source": "fund_structure",
           "description_pl": "Szeroka konstrukcja indeksowa ogranicza ryzyko pojedynczej spółki.",
@@ -133,8 +134,8 @@
           "adaptive_learning": {
             "source": "insufficient_sample",
             "context_key": "diversified_index_structure|ETF|risk_on",
-            "posterior_mean": 0.418878,
-            "effective_samples": 1.549314,
+            "posterior_mean": 0.410291,
+            "effective_samples": 1.749189,
             "active": false,
             "multiplier": 1.0
           },
@@ -144,25 +145,49 @@
           "code": "price_vs_ma200",
           "pillar": "confirmation",
           "direction": 1,
-          "strength": 0.35371522844028824,
+          "strength": 0.3845703292434983,
           "quality": 0.75,
-          "observed_at": "2026-10-02",
+          "observed_at": "2026-10-09",
           "half_life_days": 35,
           "source": "market_data",
-          "description_pl": "Cena jest +8.8% względem MA200.",
-          "description_en": "Price is +8.8% versus MA200.",
-          "decayed_weight": 0.254984,
+          "description_pl": "Cena jest +9.6% względem MA200.",
+          "description_en": "Price is +9.6% versus MA200.",
+          "decayed_weight": 0.288428,
           "adaptive_multiplier": 1.0,
           "adaptive_score_delta": 0.0,
           "adaptive_learning": {
             "source": "insufficient_sample",
             "context_key": "price_vs_ma200|ETF|risk_on",
-            "posterior_mean": 0.436616,
-            "effective_samples": 1.161375,
+            "posterior_mean": 0.430018,
+            "effective_samples": 1.301938,
             "active": false,
             "multiplier": 1.0
           },
           "evidence_id": "price_vs_ma200:1"
+        },
+        {
+          "code": "drawdown_52w",
+          "pillar": "risk",
+          "direction": 1,
+          "strength": 0.006766346367788796,
+          "quality": 0.8,
+          "observed_at": "2026-10-09",
+          "half_life_days": 40,
+          "source": "market_data",
+          "description_pl": "Obsunięcie od szczytu 52T: -0.3%.",
+          "description_en": "Drawdown from 52-week high: -0.3%.",
+          "decayed_weight": 0.005413,
+          "adaptive_multiplier": 1.0,
+          "adaptive_score_delta": 0.0,
+          "adaptive_learning": {
+            "source": "insufficient_sample",
+            "context_key": "drawdown_52w|ETF|risk_on",
+            "posterior_mean": 0.449808,
+            "effective_samples": 0.892687,
+            "active": false,
+            "multiplier": 1.0
+          },
+          "evidence_id": "drawdown_52w:2"
         },
         {
           "code": "relative_strength_6m",
@@ -170,52 +195,28 @@
           "direction": 1,
           "strength": 0.0,
           "quality": 0.75,
-          "observed_at": "2026-10-02",
+          "observed_at": "2026-10-09",
           "half_life_days": 45,
           "source": "market_data",
           "description_pl": "Relatywna stopa zwrotu 6M: +0.0 pp.",
           "description_en": "Six-month relative return: +0.0 pp.",
           "decayed_weight": 0.0,
-          "adaptive_multiplier": 1.0,
-          "adaptive_score_delta": 0.0,
+          "adaptive_multiplier": 0.999388,
+          "adaptive_score_delta": -0.0,
           "adaptive_learning": {
-            "source": "insufficient_sample",
+            "source": "global",
             "context_key": "relative_strength_6m|ETF|risk_on",
-            "posterior_mean": 0.455053,
-            "effective_samples": 0.915437,
-            "active": false,
-            "multiplier": 1.0
+            "posterior_mean": 0.457717,
+            "effective_samples": 8.289693,
+            "active": true,
+            "multiplier": 0.999388
           },
-          "evidence_id": "relative_strength_6m:2"
-        },
-        {
-          "code": "drawdown_52w",
-          "pillar": "risk",
-          "direction": 1,
-          "strength": 0.0,
-          "quality": 0.8,
-          "observed_at": "2026-10-02",
-          "half_life_days": 40,
-          "source": "market_data",
-          "description_pl": "Obsunięcie od szczytu 52T: 0.0%.",
-          "description_en": "Drawdown from 52-week high: 0.0%.",
-          "decayed_weight": 0.0,
-          "adaptive_multiplier": 1.0,
-          "adaptive_score_delta": 0.0,
-          "adaptive_learning": {
-            "source": "insufficient_sample",
-            "context_key": "drawdown_52w|ETF|risk_on",
-            "posterior_mean": 0.455046,
-            "effective_samples": 0.790312,
-            "active": false,
-            "multiplier": 1.0
-          },
-          "evidence_id": "drawdown_52w:3"
+          "evidence_id": "relative_strength_6m:3"
         }
       ],
       "adaptive_learning": {
         "signals_observed": 4,
-        "multipliers_applied": 0,
+        "multipliers_applied": 1,
         "counterfactuals_computed": 4,
         "learned_from_prior_outcomes": true
       }
@@ -226,29 +227,29 @@
       "label": "SPDR MSCI USA Small Cap Value Weighted UCITS ETF",
       "asset_type": "ETF",
       "target_weight": 0.1,
-      "current_weight": 0.095148,
-      "market_price": 79.739998,
+      "current_weight": 0.095284,
+      "market_price": 80.199997,
       "market_currency": "EUR",
-      "market_date": "2026-10-02",
+      "market_date": "2026-10-09",
       "next_earnings_date": null,
-      "score": 65.31,
+      "score": 65.64,
       "confidence": 67.0,
       "pillar_scores": {
         "business_quality": 76.27,
         "results_revisions": 55.0,
         "attractiveness": 52.0,
-        "confirmation": 48.932,
-        "risk": 92.982,
-        "context": 74.65,
+        "confirmation": 51.651,
+        "risk": 93.218,
+        "context": 73.52,
         "events_information": 50.0
       },
       "weighted_contributions": {
         "business_quality": 15.254,
         "results_revisions": 11.0,
         "attractiveness": 7.8,
-        "confirmation": 7.3399,
-        "risk": 13.9473,
-        "context": 7.465,
+        "confirmation": 7.7476,
+        "risk": 13.9827,
+        "context": 7.352,
         "events_information": 2.5
       },
       "contradictions": [],
@@ -258,8 +259,8 @@
         "business_quality": 6.27,
         "results_revisions": 0.0,
         "attractiveness": 0.0,
-        "confirmation": -1.218,
-        "risk": 0.881,
+        "confirmation": -0.352,
+        "risk": 0.794,
         "context": 0.0,
         "events_information": 0.0
       },
@@ -273,13 +274,13 @@
       },
       "decision_change": false,
       "strongest_argument": "Odporność na ryzyko / Risk resilience",
-      "largest_risk": "Potwierdzenie rynkowe / Market confirmation",
+      "largest_risk": "Wydarzenia i informacje / Events & information",
       "next_catalyst_pl": "Kolejny przegląd tygodniowy",
       "next_catalyst_en": "Next weekly review",
       "thesis_clock": {
-        "quarters_elapsed": 0.83,
+        "quarters_elapsed": 0.89,
         "target_quarters": 8,
-        "progress": 0.104,
+        "progress": 0.1109,
         "status": "on_track",
         "milestones_met": 0,
         "milestones_total": 0
@@ -291,7 +292,7 @@
           "direction": 1,
           "strength": 0.55,
           "quality": 0.95,
-          "observed_at": "2026-10-04",
+          "observed_at": "2026-10-09",
           "half_life_days": 365,
           "source": "fund_structure",
           "description_pl": "Szeroka konstrukcja indeksowa ogranicza ryzyko pojedynczej spółki.",
@@ -302,8 +303,8 @@
           "adaptive_learning": {
             "source": "insufficient_sample",
             "context_key": "diversified_index_structure|ETF|risk_on",
-            "posterior_mean": 0.418878,
-            "effective_samples": 1.549314,
+            "posterior_mean": 0.410291,
+            "effective_samples": 1.749189,
             "active": false,
             "multiplier": 1.0
           },
@@ -313,23 +314,23 @@
           "code": "relative_strength_6m",
           "pillar": "confirmation",
           "direction": -1,
-          "strength": 0.26107861285223577,
+          "strength": 0.19555294439494553,
           "quality": 0.75,
-          "observed_at": "2026-10-02",
+          "observed_at": "2026-10-09",
           "half_life_days": 45,
           "source": "market_data",
-          "description_pl": "Relatywna stopa zwrotu 6M: -5.2 pp.",
-          "description_en": "Six-month relative return: -5.2 pp.",
-          "decayed_weight": -0.256323,
-          "adaptive_multiplier": 1.0,
-          "adaptive_score_delta": -0.0,
+          "description_pl": "Relatywna stopa zwrotu 6M: -3.9 pp.",
+          "description_en": "Six-month relative return: -3.9 pp.",
+          "decayed_weight": -0.197997,
+          "adaptive_multiplier": 0.999388,
+          "adaptive_score_delta": 0.001454,
           "adaptive_learning": {
-            "source": "insufficient_sample",
+            "source": "global",
             "context_key": "relative_strength_6m|ETF|risk_on",
-            "posterior_mean": 0.455053,
-            "effective_samples": 0.915437,
-            "active": false,
-            "multiplier": 1.0
+            "posterior_mean": 0.457717,
+            "effective_samples": 8.289693,
+            "active": true,
+            "multiplier": 0.999388
           },
           "evidence_id": "relative_strength_6m:1"
         },
@@ -337,21 +338,21 @@
           "code": "price_vs_ma200",
           "pillar": "confirmation",
           "direction": 1,
-          "strength": 0.21473800092616457,
+          "strength": 0.22482981193622642,
           "quality": 0.75,
-          "observed_at": "2026-10-02",
+          "observed_at": "2026-10-09",
           "half_life_days": 35,
           "source": "market_data",
-          "description_pl": "Cena jest +5.4% względem MA200.",
-          "description_en": "Price is +5.4% versus MA200.",
-          "decayed_weight": 0.154799,
+          "description_pl": "Cena jest +5.6% względem MA200.",
+          "description_en": "Price is +5.6% versus MA200.",
+          "decayed_weight": 0.168622,
           "adaptive_multiplier": 1.0,
           "adaptive_score_delta": 0.0,
           "adaptive_learning": {
             "source": "insufficient_sample",
             "context_key": "price_vs_ma200|ETF|risk_on",
-            "posterior_mean": 0.436616,
-            "effective_samples": 1.161375,
+            "posterior_mean": 0.430018,
+            "effective_samples": 1.301938,
             "active": false,
             "multiplier": 1.0
           },
@@ -361,21 +362,21 @@
           "code": "drawdown_52w",
           "pillar": "risk",
           "direction": 1,
-          "strength": 0.0949714567844426,
+          "strength": 0.08269990636106685,
           "quality": 0.8,
-          "observed_at": "2026-10-02",
+          "observed_at": "2026-10-09",
           "half_life_days": 40,
           "source": "market_data",
-          "description_pl": "Obsunięcie od szczytu 52T: -4.3%.",
-          "description_en": "Drawdown from 52-week high: -4.3%.",
-          "decayed_weight": 0.073389,
+          "description_pl": "Obsunięcie od szczytu 52T: -3.7%.",
+          "description_en": "Drawdown from 52-week high: -3.7%.",
+          "decayed_weight": 0.06616,
           "adaptive_multiplier": 1.0,
           "adaptive_score_delta": 0.0,
           "adaptive_learning": {
             "source": "insufficient_sample",
             "context_key": "drawdown_52w|ETF|risk_on",
-            "posterior_mean": 0.455046,
-            "effective_samples": 0.790312,
+            "posterior_mean": 0.449808,
+            "effective_samples": 0.892687,
             "active": false,
             "multiplier": 1.0
           },
@@ -384,7 +385,7 @@
       ],
       "adaptive_learning": {
         "signals_observed": 4,
-        "multipliers_applied": 0,
+        "multipliers_applied": 1,
         "counterfactuals_computed": 4,
         "learned_from_prior_outcomes": true
       }
@@ -395,29 +396,29 @@
       "label": "Alphabet Class A",
       "asset_type": "Stock",
       "target_weight": 0.15,
-      "current_weight": 0.052041,
-      "market_price": 343.5,
+      "current_weight": 0.052601,
+      "market_price": 348.290009,
       "market_currency": "USD",
-      "market_date": "2026-10-02",
+      "market_date": "2026-10-08",
       "next_earnings_date": "2026-10-28",
-      "score": 78.25,
+      "score": 77.46,
       "confidence": 95.25,
       "pillar_scores": {
-        "business_quality": 93.328,
-        "results_revisions": 99.998,
-        "attractiveness": 62.208,
-        "confirmation": 53.744,
-        "risk": 81.528,
-        "context": 74.65,
+        "business_quality": 93.31,
+        "results_revisions": 99.994,
+        "attractiveness": 61.61,
+        "confirmation": 48.655,
+        "risk": 82.744,
+        "context": 73.52,
         "events_information": 50.0
       },
       "weighted_contributions": {
-        "business_quality": 18.6657,
+        "business_quality": 18.6628,
         "results_revisions": 20.0,
-        "attractiveness": 9.3312,
-        "confirmation": 8.0616,
-        "risk": 12.2292,
-        "context": 7.465,
+        "attractiveness": 9.2415,
+        "confirmation": 7.298,
+        "risk": 12.4115,
+        "context": 7.352,
         "events_information": 2.5
       },
       "contradictions": [],
@@ -427,7 +428,7 @@
         "business_quality": 9.293,
         "results_revisions": 19.2,
         "attractiveness": 0.0,
-        "confirmation": -0.09,
+        "confirmation": -2.077,
         "risk": 0.0,
         "context": 0.0,
         "events_information": 0.0
@@ -444,13 +445,13 @@
       },
       "decision_change": false,
       "strongest_argument": "Wyniki i rewizje / Results & revisions",
-      "largest_risk": "Wydarzenia i informacje / Events & information",
+      "largest_risk": "Potwierdzenie rynkowe / Market confirmation",
       "next_catalyst_pl": "Wyniki: 2026-10-28",
       "next_catalyst_en": "Earnings: 2026-10-28",
       "thesis_clock": {
-        "quarters_elapsed": 0.87,
+        "quarters_elapsed": 0.92,
         "target_quarters": 4,
-        "progress": 0.2163,
+        "progress": 0.23,
         "status": "on_track",
         "milestones_met": 0,
         "milestones_total": 0
@@ -462,7 +463,7 @@
           "direction": 1,
           "strength": 1.0,
           "quality": 0.85,
-          "observed_at": "2026-10-04",
+          "observed_at": "2026-10-09",
           "half_life_days": 70,
           "source": "earnings_history",
           "description_pl": "Średnia ostatnich niespodzianek wynikowych: 84.9%.",
@@ -473,8 +474,8 @@
           "adaptive_learning": {
             "source": "insufficient_sample",
             "context_key": "earnings_surprise|Stock|risk_on",
-            "posterior_mean": 0.474733,
-            "effective_samples": 4.3285,
+            "posterior_mean": 0.463095,
+            "effective_samples": 5.041875,
             "active": false,
             "multiplier": 1.0
           },
@@ -486,21 +487,21 @@
           "direction": 1,
           "strength": 0.968,
           "quality": 0.8,
-          "observed_at": "2026-10-04",
+          "observed_at": "2026-10-09",
           "half_life_days": 120,
           "source": "company_fundamentals",
           "description_pl": "Dynamika przychodów: 24.2%.",
           "description_en": "Revenue growth: 24.2%.",
           "decayed_weight": 0.7744,
-          "adaptive_multiplier": 0.999922,
-          "adaptive_score_delta": -0.000725,
+          "adaptive_multiplier": 0.999563,
+          "adaptive_score_delta": -0.004061,
           "adaptive_learning": {
             "source": "contextual",
             "context_key": "revenue_growth|Stock|risk_on",
-            "posterior_mean": 0.496098,
-            "effective_samples": 8.402001,
+            "posterior_mean": 0.491773,
+            "effective_samples": 9.061751,
             "active": true,
-            "multiplier": 0.999922
+            "multiplier": 0.999563
           },
           "evidence_id": "revenue_growth:1"
         },
@@ -510,21 +511,21 @@
           "direction": 1,
           "strength": 1.0,
           "quality": 0.75,
-          "observed_at": "2026-10-04",
+          "observed_at": "2026-10-09",
           "half_life_days": 100,
           "source": "company_fundamentals",
           "description_pl": "Dynamika zysku: 294.0%.",
           "description_en": "Earnings growth: 294.0%.",
           "decayed_weight": 0.75,
-          "adaptive_multiplier": 0.999815,
-          "adaptive_score_delta": -0.001665,
+          "adaptive_multiplier": 0.999372,
+          "adaptive_score_delta": -0.005652,
           "adaptive_learning": {
             "source": "contextual",
             "context_key": "earnings_growth|Stock|risk_on",
-            "posterior_mean": 0.494008,
-            "effective_samples": 8.616501,
+            "posterior_mean": 0.489966,
+            "effective_samples": 9.251064,
             "active": true,
-            "multiplier": 0.999815
+            "multiplier": 0.999372
           },
           "evidence_id": "earnings_growth:2"
         },
@@ -532,23 +533,23 @@
           "code": "relative_strength_6m",
           "pillar": "confirmation",
           "direction": -1,
-          "strength": 0.047361315046391406,
+          "strength": 0.24714510707735338,
           "quality": 0.75,
-          "observed_at": "2026-10-02",
+          "observed_at": "2026-10-08",
           "half_life_days": 45,
           "source": "market_data",
-          "description_pl": "Relatywna stopa zwrotu 6M: -0.9 pp.",
-          "description_en": "Six-month relative return: -0.9 pp.",
-          "decayed_weight": -0.046499,
-          "adaptive_multiplier": 1.0,
-          "adaptive_score_delta": -0.0,
+          "description_pl": "Relatywna stopa zwrotu 6M: -4.9 pp.",
+          "description_en": "Six-month relative return: -4.9 pp.",
+          "decayed_weight": -0.24641,
+          "adaptive_multiplier": 0.999388,
+          "adaptive_score_delta": 0.00181,
           "adaptive_learning": {
-            "source": "insufficient_sample",
+            "source": "global",
             "context_key": "relative_strength_6m|Stock|risk_on",
-            "posterior_mean": 0.504911,
-            "effective_samples": 6.35488,
-            "active": false,
-            "multiplier": 1.0
+            "posterior_mean": 0.457717,
+            "effective_samples": 8.289693,
+            "active": true,
+            "multiplier": 0.999388
           },
           "evidence_id": "relative_strength_6m:3"
         },
@@ -556,21 +557,21 @@
           "code": "price_vs_ma200",
           "pillar": "confirmation",
           "direction": 1,
-          "strength": 0.05407619029973798,
+          "strength": 0.09972045827693865,
           "quality": 0.75,
-          "observed_at": "2026-10-02",
+          "observed_at": "2026-10-08",
           "half_life_days": 35,
           "source": "market_data",
-          "description_pl": "Cena jest +1.4% względem MA200.",
-          "description_en": "Price is +1.4% versus MA200.",
-          "decayed_weight": 0.038982,
+          "description_pl": "Cena jest +2.5% względem MA200.",
+          "description_en": "Price is +2.5% versus MA200.",
+          "decayed_weight": 0.073324,
           "adaptive_multiplier": 1.0,
           "adaptive_score_delta": 0.0,
           "adaptive_learning": {
             "source": "insufficient_sample",
             "context_key": "price_vs_ma200|Stock|risk_on",
-            "posterior_mean": 0.472901,
-            "effective_samples": 5.12206,
+            "posterior_mean": 0.46938,
+            "effective_samples": 5.563248,
             "active": false,
             "multiplier": 1.0
           },
@@ -580,9 +581,9 @@
           "code": "free_cash_flow_yield",
           "pillar": "business_quality",
           "direction": 0,
-          "strength": 0.06743958166385625,
+          "strength": 0.06651208834219606,
           "quality": 0.75,
-          "observed_at": "2026-10-04",
+          "observed_at": "2026-10-09",
           "half_life_days": 120,
           "source": "company_fundamentals",
           "description_pl": "Rentowność wolnych przepływów: 0.5%.",
@@ -593,8 +594,8 @@
           "adaptive_learning": {
             "source": "insufficient_sample",
             "context_key": "free_cash_flow_yield|Stock|risk_on",
-            "posterior_mean": 0.555049,
-            "effective_samples": 3.314438,
+            "posterior_mean": 0.564432,
+            "effective_samples": 3.558188,
             "active": false,
             "multiplier": 1.0
           },
@@ -604,21 +605,21 @@
           "code": "forward_pe",
           "pillar": "attractiveness",
           "direction": 0,
-          "strength": 0.18602492857142852,
+          "strength": 0.1746742857142857,
           "quality": 0.65,
-          "observed_at": "2026-10-04",
+          "observed_at": "2026-10-09",
           "half_life_days": 45,
           "source": "market_valuation",
-          "description_pl": "Forward P/E: 22.8.",
-          "description_en": "Forward P/E: 22.8.",
+          "description_pl": "Forward P/E: 23.1.",
+          "description_en": "Forward P/E: 23.1.",
           "decayed_weight": 0.0,
           "adaptive_multiplier": 1.0,
           "adaptive_score_delta": 0.0,
           "adaptive_learning": {
             "source": "insufficient_sample",
             "context_key": "forward_pe|Stock|risk_on",
-            "posterior_mean": 0.528869,
-            "effective_samples": 1.525752,
+            "posterior_mean": 0.535017,
+            "effective_samples": 1.65169,
             "active": false,
             "multiplier": 1.0
           },
@@ -628,21 +629,21 @@
           "code": "drawdown_52w",
           "pillar": "risk",
           "direction": 0,
-          "strength": 0.32630710973220356,
+          "strength": 0.29986911966153773,
           "quality": 0.8,
-          "observed_at": "2026-10-02",
+          "observed_at": "2026-10-08",
           "half_life_days": 40,
           "source": "market_data",
-          "description_pl": "Obsunięcie od szczytu 52T: -14.7%.",
-          "description_en": "Drawdown from 52-week high: -14.7%.",
+          "description_pl": "Obsunięcie od szczytu 52T: -13.5%.",
+          "description_en": "Drawdown from 52-week high: -13.5%.",
           "decayed_weight": 0.0,
           "adaptive_multiplier": 1.0,
           "adaptive_score_delta": 0.0,
           "adaptive_learning": {
             "source": "insufficient_sample",
             "context_key": "drawdown_52w|Stock|risk_on",
-            "posterior_mean": 0.494878,
-            "effective_samples": 1.847624,
+            "posterior_mean": 0.483938,
+            "effective_samples": 2.07025,
             "active": false,
             "multiplier": 1.0
           },
@@ -651,7 +652,7 @@
       ],
       "adaptive_learning": {
         "signals_observed": 8,
-        "multipliers_applied": 2,
+        "multipliers_applied": 3,
         "counterfactuals_computed": 8,
         "learned_from_prior_outcomes": true
       }
@@ -662,29 +663,29 @@
       "label": "Amazon",
       "asset_type": "Stock",
       "target_weight": 0.15,
-      "current_weight": 0.150803,
-      "market_price": 251.520004,
+      "current_weight": 0.151913,
+      "market_price": 254.059998,
       "market_currency": "USD",
-      "market_date": "2026-10-02",
+      "market_date": "2026-10-08",
       "next_earnings_date": "2026-10-29",
-      "score": 74.47,
+      "score": 71.63,
       "confidence": 95.25,
       "pillar_scores": {
-        "business_quality": 70.995,
-        "results_revisions": 99.998,
-        "attractiveness": 66.384,
-        "confirmation": 60.348,
-        "risk": 75.321,
-        "context": 74.65,
+        "business_quality": 70.991,
+        "results_revisions": 99.994,
+        "attractiveness": 65.756,
+        "confirmation": 43.496,
+        "risk": 74.598,
+        "context": 73.52,
         "events_information": 50.0
       },
       "weighted_contributions": {
-        "business_quality": 14.1993,
+        "business_quality": 14.1988,
         "results_revisions": 20.0,
-        "attractiveness": 9.9577,
-        "confirmation": 9.0521,
-        "risk": 11.2982,
-        "context": 7.465,
+        "attractiveness": 9.8634,
+        "confirmation": 6.5239,
+        "risk": 11.1896,
+        "context": 7.352,
         "events_information": 2.5
       },
       "contradictions": [],
@@ -694,30 +695,28 @@
         "business_quality": 7.526,
         "results_revisions": 19.2,
         "attractiveness": 0.0,
-        "confirmation": 2.656,
+        "confirmation": -3.115,
         "risk": 0.0,
         "context": 0.0,
         "events_information": 0.0
       },
       "decision": {
-        "code": "ADD_REVIEW",
-        "urgency": "normal",
+        "code": "HOLD",
+        "urgency": "low",
         "reason_codes": [
-          "high_conviction",
-          "multi_pillar_confirmation",
-          "signal_persistence"
+          "positive_but_not_add_threshold"
         ],
         "max_position_weight": 0.22499999999999998
       },
       "decision_change": false,
       "strongest_argument": "Wyniki i rewizje / Results & revisions",
-      "largest_risk": "Wydarzenia i informacje / Events & information",
+      "largest_risk": "Potwierdzenie rynkowe / Market confirmation",
       "next_catalyst_pl": "Wyniki: 2026-10-29",
       "next_catalyst_en": "Earnings: 2026-10-29",
       "thesis_clock": {
-        "quarters_elapsed": 0.87,
+        "quarters_elapsed": 0.92,
         "target_quarters": 4,
-        "progress": 0.2163,
+        "progress": 0.23,
         "status": "on_track",
         "milestones_met": 0,
         "milestones_total": 0
@@ -729,7 +728,7 @@
           "direction": 1,
           "strength": 1.0,
           "quality": 0.85,
-          "observed_at": "2026-10-04",
+          "observed_at": "2026-10-09",
           "half_life_days": 70,
           "source": "earnings_history",
           "description_pl": "Średnia ostatnich niespodzianek wynikowych: 82.6%.",
@@ -740,8 +739,8 @@
           "adaptive_learning": {
             "source": "insufficient_sample",
             "context_key": "earnings_surprise|Stock|risk_on",
-            "posterior_mean": 0.474733,
-            "effective_samples": 4.3285,
+            "posterior_mean": 0.463095,
+            "effective_samples": 5.041875,
             "active": false,
             "multiplier": 1.0
           },
@@ -753,21 +752,21 @@
           "direction": 1,
           "strength": 1.0,
           "quality": 0.75,
-          "observed_at": "2026-10-04",
+          "observed_at": "2026-10-09",
           "half_life_days": 100,
           "source": "company_fundamentals",
           "description_pl": "Dynamika zysku: 242.3%.",
           "description_en": "Earnings growth: 242.3%.",
           "decayed_weight": 0.75,
-          "adaptive_multiplier": 0.999815,
-          "adaptive_score_delta": -0.001665,
+          "adaptive_multiplier": 0.999372,
+          "adaptive_score_delta": -0.005652,
           "adaptive_learning": {
             "source": "contextual",
             "context_key": "earnings_growth|Stock|risk_on",
-            "posterior_mean": 0.494008,
-            "effective_samples": 8.616501,
+            "posterior_mean": 0.489966,
+            "effective_samples": 9.251064,
             "active": true,
-            "multiplier": 0.999815
+            "multiplier": 0.999372
           },
           "evidence_id": "earnings_growth:1"
         },
@@ -777,79 +776,79 @@
           "direction": 1,
           "strength": 0.784,
           "quality": 0.8,
-          "observed_at": "2026-10-04",
+          "observed_at": "2026-10-09",
           "half_life_days": 120,
           "source": "company_fundamentals",
           "description_pl": "Dynamika przychodów: 19.6%.",
           "description_en": "Revenue growth: 19.6%.",
           "decayed_weight": 0.6272,
-          "adaptive_multiplier": 0.999922,
-          "adaptive_score_delta": -0.000587,
+          "adaptive_multiplier": 0.999563,
+          "adaptive_score_delta": -0.003289,
           "adaptive_learning": {
             "source": "contextual",
             "context_key": "revenue_growth|Stock|risk_on",
-            "posterior_mean": 0.496098,
-            "effective_samples": 8.402001,
+            "posterior_mean": 0.491773,
+            "effective_samples": 9.061751,
             "active": true,
-            "multiplier": 0.999922
+            "multiplier": 0.999563
           },
           "evidence_id": "revenue_growth:2"
+        },
+        {
+          "code": "relative_strength_6m",
+          "pillar": "confirmation",
+          "direction": -1,
+          "strength": 0.40763604725675195,
+          "quality": 0.75,
+          "observed_at": "2026-10-08",
+          "half_life_days": 45,
+          "source": "market_data",
+          "description_pl": "Relatywna stopa zwrotu 6M: -8.2 pp.",
+          "description_en": "Six-month relative return: -8.2 pp.",
+          "decayed_weight": -0.406423,
+          "adaptive_multiplier": 0.999388,
+          "adaptive_score_delta": 0.002985,
+          "adaptive_learning": {
+            "source": "global",
+            "context_key": "relative_strength_6m|Stock|risk_on",
+            "posterior_mean": 0.457717,
+            "effective_samples": 8.289693,
+            "active": true,
+            "multiplier": 0.999388
+          },
+          "evidence_id": "relative_strength_6m:3"
         },
         {
           "code": "price_vs_ma200",
           "pillar": "confirmation",
           "direction": 1,
-          "strength": 0.16832917308210948,
+          "strength": 0.19965898344580602,
           "quality": 0.75,
-          "observed_at": "2026-10-02",
+          "observed_at": "2026-10-08",
           "half_life_days": 35,
           "source": "market_data",
-          "description_pl": "Cena jest +4.2% względem MA200.",
-          "description_en": "Price is +4.2% versus MA200.",
-          "decayed_weight": 0.121344,
+          "description_pl": "Cena jest +5.0% względem MA200.",
+          "description_en": "Price is +5.0% versus MA200.",
+          "decayed_weight": 0.146808,
           "adaptive_multiplier": 1.0,
           "adaptive_score_delta": 0.0,
           "adaptive_learning": {
             "source": "insufficient_sample",
             "context_key": "price_vs_ma200|Stock|risk_on",
-            "posterior_mean": 0.472901,
-            "effective_samples": 5.12206,
+            "posterior_mean": 0.46938,
+            "effective_samples": 5.563248,
             "active": false,
             "multiplier": 1.0
           },
-          "evidence_id": "price_vs_ma200:3"
-        },
-        {
-          "code": "relative_strength_6m",
-          "pillar": "confirmation",
-          "direction": 1,
-          "strength": 0.13750010985446148,
-          "quality": 0.75,
-          "observed_at": "2026-10-02",
-          "half_life_days": 45,
-          "source": "market_data",
-          "description_pl": "Relatywna stopa zwrotu 6M: +2.8 pp.",
-          "description_en": "Six-month relative return: +2.8 pp.",
-          "decayed_weight": 0.099997,
-          "adaptive_multiplier": 1.0,
-          "adaptive_score_delta": 0.0,
-          "adaptive_learning": {
-            "source": "insufficient_sample",
-            "context_key": "relative_strength_6m|Stock|risk_on",
-            "posterior_mean": 0.504911,
-            "effective_samples": 6.35488,
-            "active": false,
-            "multiplier": 1.0
-          },
-          "evidence_id": "relative_strength_6m:4"
+          "evidence_id": "price_vs_ma200:4"
         },
         {
           "code": "free_cash_flow_yield",
           "pillar": "business_quality",
           "direction": 0,
-          "strength": 0.014832087675855235,
+          "strength": 0.014683802057226112,
           "quality": 0.75,
-          "observed_at": "2026-10-04",
+          "observed_at": "2026-10-09",
           "half_life_days": 120,
           "source": "company_fundamentals",
           "description_pl": "Rentowność wolnych przepływów: 0.1%.",
@@ -860,8 +859,8 @@
           "adaptive_learning": {
             "source": "insufficient_sample",
             "context_key": "free_cash_flow_yield|Stock|risk_on",
-            "posterior_mean": 0.555049,
-            "effective_samples": 3.314438,
+            "posterior_mean": 0.564432,
+            "effective_samples": 3.558188,
             "active": false,
             "multiplier": 1.0
           },
@@ -871,21 +870,21 @@
           "code": "forward_pe",
           "pillar": "attractiveness",
           "direction": 0,
-          "strength": 0.14250610714285714,
+          "strength": 0.13307864285714288,
           "quality": 0.65,
-          "observed_at": "2026-10-04",
+          "observed_at": "2026-10-09",
           "half_life_days": 45,
           "source": "market_valuation",
-          "description_pl": "Forward P/E: 24.0.",
-          "description_en": "Forward P/E: 24.0.",
+          "description_pl": "Forward P/E: 24.3.",
+          "description_en": "Forward P/E: 24.3.",
           "decayed_weight": 0.0,
           "adaptive_multiplier": 1.0,
           "adaptive_score_delta": 0.0,
           "adaptive_learning": {
             "source": "insufficient_sample",
             "context_key": "forward_pe|Stock|risk_on",
-            "posterior_mean": 0.528869,
-            "effective_samples": 1.525752,
+            "posterior_mean": 0.535017,
+            "effective_samples": 1.65169,
             "active": false,
             "multiplier": 1.0
           },
@@ -895,21 +894,21 @@
           "code": "drawdown_52w",
           "pillar": "risk",
           "direction": 0,
-          "strength": 0.2542855823796455,
+          "strength": 0.23441222929509242,
           "quality": 0.8,
-          "observed_at": "2026-10-02",
+          "observed_at": "2026-10-08",
           "half_life_days": 40,
           "source": "market_data",
-          "description_pl": "Obsunięcie od szczytu 52T: -11.4%.",
-          "description_en": "Drawdown from 52-week high: -11.4%.",
+          "description_pl": "Obsunięcie od szczytu 52T: -10.5%.",
+          "description_en": "Drawdown from 52-week high: -10.5%.",
           "decayed_weight": 0.0,
           "adaptive_multiplier": 1.0,
           "adaptive_score_delta": 0.0,
           "adaptive_learning": {
             "source": "insufficient_sample",
             "context_key": "drawdown_52w|Stock|risk_on",
-            "posterior_mean": 0.494878,
-            "effective_samples": 1.847624,
+            "posterior_mean": 0.483938,
+            "effective_samples": 2.07025,
             "active": false,
             "multiplier": 1.0
           },
@@ -918,7 +917,7 @@
       ],
       "adaptive_learning": {
         "signals_observed": 8,
-        "multipliers_applied": 2,
+        "multipliers_applied": 3,
         "counterfactuals_computed": 8,
         "learned_from_prior_outcomes": true
       }
@@ -929,40 +928,40 @@
       "label": "Taiwan Semiconductor Manufacturing ADR",
       "asset_type": "Stock",
       "target_weight": 0.12,
-      "current_weight": 0.139863,
-      "market_price": 472.779999,
+      "current_weight": 0.135075,
+      "market_price": 457.98999,
       "market_currency": "USD",
-      "market_date": "2026-10-02",
+      "market_date": "2026-10-08",
       "next_earnings_date": "2026-10-15",
-      "score": 90.08,
-      "confidence": 90.25,
+      "score": 88.1,
+      "confidence": 95.25,
       "pillar_scores": {
-        "business_quality": 99.999,
-        "results_revisions": 99.998,
-        "attractiveness": 88.238,
-        "confirmation": 100.0,
-        "risk": 79.19,
-        "context": 74.65,
+        "business_quality": 99.996,
+        "results_revisions": 99.994,
+        "attractiveness": 89.618,
+        "confirmation": 86.936,
+        "risk": 78.42,
+        "context": 73.52,
         "events_information": 50.0
       },
       "weighted_contributions": {
         "business_quality": 20.0,
         "results_revisions": 20.0,
-        "attractiveness": 13.2356,
-        "confirmation": 15.0,
-        "risk": 11.8784,
-        "context": 7.465,
+        "attractiveness": 13.4426,
+        "confirmation": 13.0407,
+        "risk": 11.763,
+        "context": 7.352,
         "events_information": 2.5
       },
       "contradictions": [],
       "contradiction_penalty": 0.0,
-      "data_completeness": 0.9025,
+      "data_completeness": 0.9525,
       "evidence_adjustments": {
         "business_quality": 18.6,
         "results_revisions": 14.496,
-        "attractiveness": 1.793,
-        "confirmation": 16.378,
-        "risk": 0.207,
+        "attractiveness": 1.981,
+        "confirmation": 9.972,
+        "risk": 1.2,
         "context": 0.0,
         "events_information": 0.0
       },
@@ -982,9 +981,9 @@
       "next_catalyst_pl": "Wyniki: 2026-10-15",
       "next_catalyst_en": "Earnings: 2026-10-15",
       "thesis_clock": {
-        "quarters_elapsed": 0.87,
+        "quarters_elapsed": 0.92,
         "target_quarters": 4,
-        "progress": 0.2163,
+        "progress": 0.23,
         "status": "on_track",
         "milestones_met": 0,
         "milestones_total": 0
@@ -996,21 +995,21 @@
           "direction": 1,
           "strength": 1.0,
           "quality": 0.8,
-          "observed_at": "2026-10-04",
+          "observed_at": "2026-10-09",
           "half_life_days": 120,
           "source": "company_fundamentals",
           "description_pl": "Dynamika przychodów: 36.0%.",
           "description_en": "Revenue growth: 36.0%.",
           "decayed_weight": 0.8,
-          "adaptive_multiplier": 0.999922,
-          "adaptive_score_delta": -0.000749,
+          "adaptive_multiplier": 0.999563,
+          "adaptive_score_delta": -0.004195,
           "adaptive_learning": {
             "source": "contextual",
             "context_key": "revenue_growth|Stock|risk_on",
-            "posterior_mean": 0.496098,
-            "effective_samples": 8.402001,
+            "posterior_mean": 0.491773,
+            "effective_samples": 9.061751,
             "active": true,
-            "multiplier": 0.999922
+            "multiplier": 0.999563
           },
           "evidence_id": "revenue_growth:0"
         },
@@ -1020,19 +1019,19 @@
           "direction": 1,
           "strength": 1.0,
           "quality": 0.75,
-          "observed_at": "2026-10-04",
+          "observed_at": "2026-10-09",
           "half_life_days": 120,
           "source": "company_fundamentals",
-          "description_pl": "Rentowność wolnych przepływów: 29.8%.",
-          "description_en": "Free-cash-flow yield: 29.8%.",
+          "description_pl": "Rentowność wolnych przepływów: 30.8%.",
+          "description_en": "Free-cash-flow yield: 30.8%.",
           "decayed_weight": 0.75,
           "adaptive_multiplier": 1.0,
           "adaptive_score_delta": 0.0,
           "adaptive_learning": {
             "source": "insufficient_sample",
             "context_key": "free_cash_flow_yield|Stock|risk_on",
-            "posterior_mean": 0.555049,
-            "effective_samples": 3.314438,
+            "posterior_mean": 0.564432,
+            "effective_samples": 3.558188,
             "active": false,
             "multiplier": 1.0
           },
@@ -1044,71 +1043,47 @@
           "direction": 1,
           "strength": 1.0,
           "quality": 0.75,
-          "observed_at": "2026-10-04",
+          "observed_at": "2026-10-09",
           "half_life_days": 100,
           "source": "company_fundamentals",
           "description_pl": "Dynamika zysku: 77.4%.",
           "description_en": "Earnings growth: 77.4%.",
           "decayed_weight": 0.75,
-          "adaptive_multiplier": 0.999815,
-          "adaptive_score_delta": -0.001665,
+          "adaptive_multiplier": 0.999372,
+          "adaptive_score_delta": -0.005652,
           "adaptive_learning": {
             "source": "contextual",
             "context_key": "earnings_growth|Stock|risk_on",
-            "posterior_mean": 0.494008,
-            "effective_samples": 8.616501,
+            "posterior_mean": 0.489966,
+            "effective_samples": 9.251064,
             "active": true,
-            "multiplier": 0.999815
+            "multiplier": 0.999372
           },
           "evidence_id": "earnings_growth:2"
-        },
-        {
-          "code": "relative_strength_6m",
-          "pillar": "confirmation",
-          "direction": 1,
-          "strength": 1.0,
-          "quality": 0.75,
-          "observed_at": "2026-10-02",
-          "half_life_days": 45,
-          "source": "market_data",
-          "description_pl": "Relatywna stopa zwrotu 6M: +22.9 pp.",
-          "description_en": "Six-month relative return: +22.9 pp.",
-          "decayed_weight": 0.727247,
-          "adaptive_multiplier": 1.0,
-          "adaptive_score_delta": 0.0,
-          "adaptive_learning": {
-            "source": "insufficient_sample",
-            "context_key": "relative_strength_6m|Stock|risk_on",
-            "posterior_mean": 0.504911,
-            "effective_samples": 6.35488,
-            "active": false,
-            "multiplier": 1.0
-          },
-          "evidence_id": "relative_strength_6m:3"
         },
         {
           "code": "price_vs_ma200",
           "pillar": "confirmation",
           "direction": 1,
-          "strength": 0.8845179126555172,
+          "strength": 0.6856755129346102,
           "quality": 0.75,
-          "observed_at": "2026-10-02",
+          "observed_at": "2026-10-08",
           "half_life_days": 35,
           "source": "market_data",
-          "description_pl": "Cena jest +22.1% względem MA200.",
-          "description_en": "Price is +22.1% versus MA200.",
-          "decayed_weight": 0.637626,
+          "description_pl": "Cena jest +17.1% względem MA200.",
+          "description_en": "Price is +17.1% versus MA200.",
+          "decayed_weight": 0.504172,
           "adaptive_multiplier": 1.0,
           "adaptive_score_delta": 0.0,
           "adaptive_learning": {
             "source": "insufficient_sample",
             "context_key": "price_vs_ma200|Stock|risk_on",
-            "posterior_mean": 0.472901,
-            "effective_samples": 5.12206,
+            "posterior_mean": 0.46938,
+            "effective_samples": 5.563248,
             "active": false,
             "multiplier": 1.0
           },
-          "evidence_id": "price_vs_ma200:4"
+          "evidence_id": "price_vs_ma200:3"
         },
         {
           "code": "earnings_surprise",
@@ -1116,7 +1091,7 @@
           "direction": 1,
           "strength": 0.5388333333333334,
           "quality": 0.85,
-          "observed_at": "2026-10-04",
+          "observed_at": "2026-10-09",
           "half_life_days": 70,
           "source": "earnings_history",
           "description_pl": "Średnia ostatnich niespodzianek wynikowych: 8.1%.",
@@ -1127,32 +1102,56 @@
           "adaptive_learning": {
             "source": "insufficient_sample",
             "context_key": "earnings_surprise|Stock|risk_on",
-            "posterior_mean": 0.474733,
-            "effective_samples": 4.3285,
+            "posterior_mean": 0.463095,
+            "effective_samples": 5.041875,
             "active": false,
             "multiplier": 1.0
           },
-          "evidence_id": "earnings_surprise:5"
+          "evidence_id": "earnings_surprise:4"
+        },
+        {
+          "code": "relative_strength_6m",
+          "pillar": "confirmation",
+          "direction": 1,
+          "strength": 0.4425112269422371,
+          "quality": 0.75,
+          "observed_at": "2026-10-08",
+          "half_life_days": 45,
+          "source": "market_data",
+          "description_pl": "Relatywna stopa zwrotu 6M: +8.9 pp.",
+          "description_en": "Six-month relative return: +8.9 pp.",
+          "decayed_weight": 0.326811,
+          "adaptive_multiplier": 0.999388,
+          "adaptive_score_delta": -0.0024,
+          "adaptive_learning": {
+            "source": "global",
+            "context_key": "relative_strength_6m|Stock|risk_on",
+            "posterior_mean": 0.457717,
+            "effective_samples": 8.289693,
+            "active": true,
+            "multiplier": 0.999388
+          },
+          "evidence_id": "relative_strength_6m:5"
         },
         {
           "code": "forward_pe",
           "pillar": "attractiveness",
           "direction": 1,
-          "strength": 0.22987807142857136,
+          "strength": 0.2539698571428572,
           "quality": 0.65,
-          "observed_at": "2026-10-04",
+          "observed_at": "2026-10-09",
           "half_life_days": 45,
           "source": "market_valuation",
-          "description_pl": "Forward P/E: 21.6.",
-          "description_en": "Forward P/E: 21.6.",
-          "decayed_weight": 0.149421,
+          "description_pl": "Forward P/E: 20.9.",
+          "description_en": "Forward P/E: 20.9.",
+          "decayed_weight": 0.16508,
           "adaptive_multiplier": 1.0,
           "adaptive_score_delta": 0.0,
           "adaptive_learning": {
             "source": "insufficient_sample",
             "context_key": "forward_pe|Stock|risk_on",
-            "posterior_mean": 0.528869,
-            "effective_samples": 1.525752,
+            "posterior_mean": 0.535017,
+            "effective_samples": 1.65169,
             "active": false,
             "multiplier": 1.0
           },
@@ -1162,21 +1161,21 @@
           "code": "drawdown_52w",
           "pillar": "risk",
           "direction": 1,
-          "strength": 0.0222888022068214,
+          "strength": 0.12721283682079834,
           "quality": 0.8,
-          "observed_at": "2026-10-02",
+          "observed_at": "2026-10-08",
           "half_life_days": 40,
           "source": "market_data",
-          "description_pl": "Obsunięcie od szczytu 52T: -1.0%.",
-          "description_en": "Drawdown from 52-week high: -1.0%.",
-          "decayed_weight": 0.017224,
+          "description_pl": "Obsunięcie od szczytu 52T: -5.7%.",
+          "description_en": "Drawdown from 52-week high: -5.7%.",
+          "decayed_weight": 0.100022,
           "adaptive_multiplier": 1.0,
           "adaptive_score_delta": 0.0,
           "adaptive_learning": {
             "source": "insufficient_sample",
             "context_key": "drawdown_52w|Stock|risk_on",
-            "posterior_mean": 0.494878,
-            "effective_samples": 1.847624,
+            "posterior_mean": 0.483938,
+            "effective_samples": 2.07025,
             "active": false,
             "multiplier": 1.0
           },
@@ -1185,7 +1184,7 @@
       ],
       "adaptive_learning": {
         "signals_observed": 8,
-        "multipliers_applied": 2,
+        "multipliers_applied": 3,
         "counterfactuals_computed": 8,
         "learned_from_prior_outcomes": true
       }
@@ -1196,40 +1195,40 @@
       "label": "Visa Class A",
       "asset_type": "Stock",
       "target_weight": 0.1,
-      "current_weight": 0.100241,
-      "market_price": 360.660004,
+      "current_weight": 0.103939,
+      "market_price": 375.100006,
       "market_currency": "USD",
-      "market_date": "2026-10-02",
+      "market_date": "2026-10-08",
       "next_earnings_date": "2026-10-27",
-      "score": 76.47,
+      "score": 77.37,
       "confidence": 95.25,
       "pillar_scores": {
-        "business_quality": 88.731,
-        "results_revisions": 91.609,
-        "attractiveness": 50.635,
-        "confirmation": 63.457,
-        "risk": 88.798,
-        "context": 74.65,
+        "business_quality": 85.107,
+        "results_revisions": 91.608,
+        "attractiveness": 49.066,
+        "confirmation": 77.356,
+        "risk": 88.111,
+        "context": 73.52,
         "events_information": 50.0
       },
       "weighted_contributions": {
-        "business_quality": 17.7463,
+        "business_quality": 17.0218,
         "results_revisions": 18.322,
-        "attractiveness": 7.5953,
-        "confirmation": 9.5185,
-        "risk": 13.3197,
-        "context": 7.465,
+        "attractiveness": 7.36,
+        "confirmation": 11.6037,
+        "risk": 13.2166,
+        "context": 7.352,
         "events_information": 2.5
       },
       "contradictions": [],
       "contradiction_penalty": 0.0,
       "data_completeness": 0.9525,
       "evidence_adjustments": {
-        "business_quality": 8.92,
+        "business_quality": 5.53,
         "results_revisions": 13.26,
         "attractiveness": 0.0,
-        "confirmation": 3.883,
-        "risk": 1.26,
+        "confirmation": 7.648,
+        "risk": 0.493,
         "context": 0.0,
         "events_information": 0.0
       },
@@ -1245,13 +1244,13 @@
       },
       "decision_change": false,
       "strongest_argument": "Wyniki i rewizje / Results & revisions",
-      "largest_risk": "Wydarzenia i informacje / Events & information",
+      "largest_risk": "Atrakcyjność wyceny / Valuation attractiveness",
       "next_catalyst_pl": "Wyniki: 2026-10-27",
       "next_catalyst_en": "Earnings: 2026-10-27",
       "thesis_clock": {
-        "quarters_elapsed": 0.87,
+        "quarters_elapsed": 0.92,
         "target_quarters": 4,
-        "progress": 0.2163,
+        "progress": 0.23,
         "status": "on_track",
         "milestones_met": 0,
         "milestones_total": 0
@@ -1263,7 +1262,7 @@
           "direction": 1,
           "strength": 1.0,
           "quality": 0.85,
-          "observed_at": "2026-10-04",
+          "observed_at": "2026-10-09",
           "half_life_days": 70,
           "source": "earnings_history",
           "description_pl": "Średnia ostatnich niespodzianek wynikowych: 31.4%.",
@@ -1274,8 +1273,8 @@
           "adaptive_learning": {
             "source": "insufficient_sample",
             "context_key": "earnings_surprise|Stock|risk_on",
-            "posterior_mean": 0.474733,
-            "effective_samples": 4.3285,
+            "posterior_mean": 0.463095,
+            "effective_samples": 5.041875,
             "active": false,
             "multiplier": 1.0
           },
@@ -1287,47 +1286,71 @@
           "direction": 1,
           "strength": 0.576,
           "quality": 0.8,
-          "observed_at": "2026-10-04",
+          "observed_at": "2026-10-09",
           "half_life_days": 120,
           "source": "company_fundamentals",
           "description_pl": "Dynamika przychodów: 14.4%.",
           "description_en": "Revenue growth: 14.4%.",
           "decayed_weight": 0.4608,
-          "adaptive_multiplier": 0.999922,
-          "adaptive_score_delta": -0.000431,
+          "adaptive_multiplier": 0.999563,
+          "adaptive_score_delta": -0.002416,
           "adaptive_learning": {
             "source": "contextual",
             "context_key": "revenue_growth|Stock|risk_on",
-            "posterior_mean": 0.496098,
-            "effective_samples": 8.402001,
+            "posterior_mean": 0.491773,
+            "effective_samples": 9.061751,
             "active": true,
-            "multiplier": 0.999922
+            "multiplier": 0.999563
           },
           "evidence_id": "revenue_growth:1"
         },
         {
-          "code": "free_cash_flow_yield",
-          "pillar": "business_quality",
+          "code": "price_vs_ma200",
+          "pillar": "confirmation",
           "direction": 1,
-          "strength": 0.37668723092675455,
+          "strength": 0.43929039231691913,
           "quality": 0.75,
-          "observed_at": "2026-10-04",
-          "half_life_days": 120,
-          "source": "company_fundamentals",
-          "description_pl": "Rentowność wolnych przepływów: 3.0%.",
-          "description_en": "Free-cash-flow yield: 3.0%.",
-          "decayed_weight": 0.282515,
+          "observed_at": "2026-10-08",
+          "half_life_days": 35,
+          "source": "market_data",
+          "description_pl": "Cena jest +11.0% względem MA200.",
+          "description_en": "Price is +11.0% versus MA200.",
+          "decayed_weight": 0.323007,
           "adaptive_multiplier": 1.0,
           "adaptive_score_delta": 0.0,
           "adaptive_learning": {
             "source": "insufficient_sample",
-            "context_key": "free_cash_flow_yield|Stock|risk_on",
-            "posterior_mean": 0.555049,
-            "effective_samples": 3.314438,
+            "context_key": "price_vs_ma200|Stock|risk_on",
+            "posterior_mean": 0.46938,
+            "effective_samples": 5.563248,
             "active": false,
             "multiplier": 1.0
           },
-          "evidence_id": "free_cash_flow_yield:2"
+          "evidence_id": "price_vs_ma200:2"
+        },
+        {
+          "code": "relative_strength_6m",
+          "pillar": "confirmation",
+          "direction": 1,
+          "strength": 0.425588516813018,
+          "quality": 0.75,
+          "observed_at": "2026-10-08",
+          "half_life_days": 45,
+          "source": "market_data",
+          "description_pl": "Relatywna stopa zwrotu 6M: +8.5 pp.",
+          "description_en": "Six-month relative return: +8.5 pp.",
+          "decayed_weight": 0.314312,
+          "adaptive_multiplier": 0.999388,
+          "adaptive_score_delta": -0.002308,
+          "adaptive_learning": {
+            "source": "global",
+            "context_key": "relative_strength_6m|Stock|risk_on",
+            "posterior_mean": 0.457717,
+            "effective_samples": 8.289693,
+            "active": true,
+            "multiplier": 0.999388
+          },
+          "evidence_id": "relative_strength_6m:3"
         },
         {
           "code": "earnings_growth",
@@ -1335,115 +1358,91 @@
           "direction": 1,
           "strength": 0.33999999999999997,
           "quality": 0.75,
-          "observed_at": "2026-10-04",
+          "observed_at": "2026-10-09",
           "half_life_days": 100,
           "source": "company_fundamentals",
           "description_pl": "Dynamika zysku: 10.2%.",
           "description_en": "Earnings growth: 10.2%.",
           "decayed_weight": 0.255,
-          "adaptive_multiplier": 0.999815,
-          "adaptive_score_delta": -0.000566,
+          "adaptive_multiplier": 0.999372,
+          "adaptive_score_delta": -0.001922,
           "adaptive_learning": {
             "source": "contextual",
             "context_key": "earnings_growth|Stock|risk_on",
-            "posterior_mean": 0.494008,
-            "effective_samples": 8.616501,
+            "posterior_mean": 0.489966,
+            "effective_samples": 9.251064,
             "active": true,
-            "multiplier": 0.999815
+            "multiplier": 0.999372
           },
-          "evidence_id": "earnings_growth:3"
-        },
-        {
-          "code": "price_vs_ma200",
-          "pillar": "confirmation",
-          "direction": 1,
-          "strength": 0.27489298722014954,
-          "quality": 0.75,
-          "observed_at": "2026-10-02",
-          "half_life_days": 35,
-          "source": "market_data",
-          "description_pl": "Cena jest +6.9% względem MA200.",
-          "description_en": "Price is +6.9% versus MA200.",
-          "decayed_weight": 0.198163,
-          "adaptive_multiplier": 1.0,
-          "adaptive_score_delta": 0.0,
-          "adaptive_learning": {
-            "source": "insufficient_sample",
-            "context_key": "price_vs_ma200|Stock|risk_on",
-            "posterior_mean": 0.472901,
-            "effective_samples": 5.12206,
-            "active": false,
-            "multiplier": 1.0
-          },
-          "evidence_id": "price_vs_ma200:4"
-        },
-        {
-          "code": "relative_strength_6m",
-          "pillar": "confirmation",
-          "direction": 1,
-          "strength": 0.17245836715265472,
-          "quality": 0.75,
-          "observed_at": "2026-10-02",
-          "half_life_days": 45,
-          "source": "market_data",
-          "description_pl": "Relatywna stopa zwrotu 6M: +3.4 pp.",
-          "description_en": "Six-month relative return: +3.4 pp.",
-          "decayed_weight": 0.12542,
-          "adaptive_multiplier": 1.0,
-          "adaptive_score_delta": 0.0,
-          "adaptive_learning": {
-            "source": "insufficient_sample",
-            "context_key": "relative_strength_6m|Stock|risk_on",
-            "posterior_mean": 0.504911,
-            "effective_samples": 6.35488,
-            "active": false,
-            "multiplier": 1.0
-          },
-          "evidence_id": "relative_strength_6m:5"
+          "evidence_id": "earnings_growth:4"
         },
         {
           "code": "drawdown_52w",
           "pillar": "risk",
           "direction": 1,
-          "strength": 0.1358301666114972,
+          "strength": 0.052295796094008716,
           "quality": 0.8,
-          "observed_at": "2026-10-02",
+          "observed_at": "2026-10-08",
           "half_life_days": 40,
           "source": "market_data",
-          "description_pl": "Obsunięcie od szczytu 52T: -6.1%.",
-          "description_en": "Drawdown from 52-week high: -6.1%.",
-          "decayed_weight": 0.104963,
+          "description_pl": "Obsunięcie od szczytu 52T: -2.4%.",
+          "description_en": "Drawdown from 52-week high: -2.4%.",
+          "decayed_weight": 0.041118,
           "adaptive_multiplier": 1.0,
           "adaptive_score_delta": 0.0,
           "adaptive_learning": {
             "source": "insufficient_sample",
             "context_key": "drawdown_52w|Stock|risk_on",
-            "posterior_mean": 0.494878,
-            "effective_samples": 1.847624,
+            "posterior_mean": 0.483938,
+            "effective_samples": 2.07025,
             "active": false,
             "multiplier": 1.0
           },
-          "evidence_id": "drawdown_52w:6"
+          "evidence_id": "drawdown_52w:5"
+        },
+        {
+          "code": "free_cash_flow_yield",
+          "pillar": "business_quality",
+          "direction": 0,
+          "strength": 0.362186117054087,
+          "quality": 0.75,
+          "observed_at": "2026-10-09",
+          "half_life_days": 120,
+          "source": "company_fundamentals",
+          "description_pl": "Rentowność wolnych przepływów: 2.9%.",
+          "description_en": "Free-cash-flow yield: 2.9%.",
+          "decayed_weight": 0.0,
+          "adaptive_multiplier": 1.0,
+          "adaptive_score_delta": 0.0,
+          "adaptive_learning": {
+            "source": "insufficient_sample",
+            "context_key": "free_cash_flow_yield|Stock|risk_on",
+            "posterior_mean": 0.564432,
+            "effective_samples": 3.558188,
+            "active": false,
+            "multiplier": 1.0
+          },
+          "evidence_id": "free_cash_flow_yield:6"
         },
         {
           "code": "forward_pe",
           "pillar": "attractiveness",
           "direction": 0,
-          "strength": 0.14153178571428576,
+          "strength": 0.10707199999999999,
           "quality": 0.65,
-          "observed_at": "2026-10-04",
+          "observed_at": "2026-10-09",
           "half_life_days": 45,
           "source": "market_valuation",
-          "description_pl": "Forward P/E: 24.0.",
-          "description_en": "Forward P/E: 24.0.",
+          "description_pl": "Forward P/E: 25.0.",
+          "description_en": "Forward P/E: 25.0.",
           "decayed_weight": 0.0,
           "adaptive_multiplier": 1.0,
           "adaptive_score_delta": 0.0,
           "adaptive_learning": {
             "source": "insufficient_sample",
             "context_key": "forward_pe|Stock|risk_on",
-            "posterior_mean": 0.528869,
-            "effective_samples": 1.525752,
+            "posterior_mean": 0.535017,
+            "effective_samples": 1.65169,
             "active": false,
             "multiplier": 1.0
           },
@@ -1452,7 +1451,7 @@
       ],
       "adaptive_learning": {
         "signals_observed": 8,
-        "multipliers_applied": 2,
+        "multipliers_applied": 3,
         "counterfactuals_computed": 8,
         "learned_from_prior_outcomes": true
       }
@@ -1463,50 +1462,51 @@
       "label": "JPMorgan Chase",
       "asset_type": "STOCK",
       "target_weight": 0.072855,
-      "current_weight": 0.067657,
-      "market_price": 332.380005,
+      "current_weight": 0.067272,
+      "market_price": 331.420013,
       "market_currency": "USD",
-      "market_date": "2026-10-02",
+      "market_date": "2026-10-08",
       "next_earnings_date": null,
-      "score": 81.59,
-      "confidence": 81.25,
+      "score": 76.12,
+      "confidence": 73.75,
       "pillar_scores": {
-        "business_quality": 93.199,
-        "results_revisions": 96.825,
-        "attractiveness": 90.375,
-        "confirmation": 47.634,
-        "risk": 86.101,
-        "context": 74.65,
+        "business_quality": 93.18,
+        "results_revisions": 96.502,
+        "attractiveness": 90.689,
+        "confirmation": 39.241,
+        "risk": 85.62,
+        "context": 73.52,
         "events_information": 50.0
       },
       "weighted_contributions": {
         "business_quality": 18.6417,
-        "results_revisions": 19.3674,
-        "attractiveness": 13.5562,
-        "confirmation": 7.1451,
-        "risk": 12.9152,
-        "context": 7.465,
+        "results_revisions": 19.3063,
+        "attractiveness": 13.6034,
+        "confirmation": 5.8857,
+        "risk": 12.843,
+        "context": 7.352,
         "events_information": 2.5
       },
-      "contradictions": [],
-      "contradiction_penalty": 0.0,
+      "contradictions": [
+        "fundamentals_vs_market"
+      ],
+      "contradiction_penalty": 4.0,
       "data_completeness": 0.8125,
       "evidence_adjustments": {
         "business_quality": 9.6,
         "results_revisions": 11.336,
-        "attractiveness": 4.099,
-        "confirmation": -0.597,
-        "risk": 1.851,
+        "attractiveness": 4.125,
+        "confirmation": -3.629,
+        "risk": 1.938,
         "context": 0.0,
         "events_information": 0.0
       },
       "decision": {
-        "code": "ADD_REVIEW",
+        "code": "WAIT_INVESTIGATE",
         "urgency": "normal",
         "reason_codes": [
-          "high_conviction",
-          "multi_pillar_confirmation",
-          "signal_persistence"
+          "contradictory_evidence",
+          "fundamentals_vs_market"
         ],
         "max_position_weight": 0.122855
       },
@@ -1516,9 +1516,9 @@
       "next_catalyst_pl": "Kolejny przegląd tygodniowy",
       "next_catalyst_en": "Next weekly review",
       "thesis_clock": {
-        "quarters_elapsed": 0.51,
+        "quarters_elapsed": 0.57,
         "target_quarters": 4,
-        "progress": 0.1287,
+        "progress": 0.1424,
         "status": "on_track",
         "milestones_met": 0,
         "milestones_total": 0
@@ -1530,21 +1530,21 @@
           "direction": 1,
           "strength": 1.0,
           "quality": 0.8,
-          "observed_at": "2026-10-04",
+          "observed_at": "2026-10-09",
           "half_life_days": 120,
           "source": "company_fundamentals",
           "description_pl": "Dynamika przychodów: 30.4%.",
           "description_en": "Revenue growth: 30.4%.",
           "decayed_weight": 0.8,
-          "adaptive_multiplier": 0.998916,
-          "adaptive_score_delta": -0.010406,
+          "adaptive_multiplier": 0.99695,
+          "adaptive_score_delta": -0.02928,
           "adaptive_learning": {
             "source": "global",
             "context_key": "revenue_growth|STOCK|risk_on",
-            "posterior_mean": 0.478464,
-            "effective_samples": 9.006501,
+            "posterior_mean": 0.468226,
+            "effective_samples": 9.919751,
             "active": true,
-            "multiplier": 0.998916
+            "multiplier": 0.99695
           },
           "evidence_id": "revenue_growth:0"
         },
@@ -1554,47 +1554,71 @@
           "direction": 1,
           "strength": 1.0,
           "quality": 0.75,
-          "observed_at": "2026-10-04",
+          "observed_at": "2026-10-09",
           "half_life_days": 100,
           "source": "company_fundamentals",
           "description_pl": "Dynamika zysku: 46.9%.",
           "description_en": "Earnings growth: 46.9%.",
           "decayed_weight": 0.75,
-          "adaptive_multiplier": 0.998641,
-          "adaptive_score_delta": -0.012231,
+          "adaptive_multiplier": 0.996637,
+          "adaptive_score_delta": -0.030267,
           "adaptive_learning": {
             "source": "global",
             "context_key": "earnings_growth|STOCK|risk_on",
-            "posterior_mean": 0.477312,
-            "effective_samples": 9.197751,
+            "posterior_mean": 0.467604,
+            "effective_samples": 10.076064,
             "active": true,
-            "multiplier": 0.998641
+            "multiplier": 0.996637
           },
           "evidence_id": "earnings_growth:1"
+        },
+        {
+          "code": "relative_strength_6m",
+          "pillar": "confirmation",
+          "direction": -1,
+          "strength": 0.38879577158796197,
+          "quality": 0.75,
+          "observed_at": "2026-10-08",
+          "half_life_days": 45,
+          "source": "market_data",
+          "description_pl": "Relatywna stopa zwrotu 6M: -7.8 pp.",
+          "description_en": "Six-month relative return: -7.8 pp.",
+          "decayed_weight": -0.387639,
+          "adaptive_multiplier": 0.999388,
+          "adaptive_score_delta": 0.002847,
+          "adaptive_learning": {
+            "source": "global",
+            "context_key": "relative_strength_6m|STOCK|risk_on",
+            "posterior_mean": 0.457717,
+            "effective_samples": 8.289693,
+            "active": true,
+            "multiplier": 0.999388
+          },
+          "evidence_id": "relative_strength_6m:2"
         },
         {
           "code": "forward_pe",
           "pillar": "attractiveness",
           "direction": 1,
-          "strength": 0.52549825,
+          "strength": 0.5288509285714286,
           "quality": 0.65,
-          "observed_at": "2026-10-04",
+          "observed_at": "2026-10-09",
           "half_life_days": 45,
           "source": "market_valuation",
-          "description_pl": "Forward P/E: 13.3.",
-          "description_en": "Forward P/E: 13.3.",
-          "decayed_weight": 0.341574,
+          "description_pl": "Forward P/E: 13.2.",
+          "description_en": "Forward P/E: 13.2.",
+          "decayed_weight": 0.343753,
           "adaptive_multiplier": 1.0,
           "adaptive_score_delta": 0.0,
           "adaptive_learning": {
             "source": "insufficient_sample",
             "context_key": "forward_pe|STOCK|risk_on",
-            "posterior_mean": 0.479293,
-            "effective_samples": 0.345625,
+            "posterior_mean": 0.471174,
+            "effective_samples": 0.489438,
             "active": false,
             "multiplier": 1.0
           },
-          "evidence_id": "forward_pe:2"
+          "evidence_id": "forward_pe:3"
         },
         {
           "code": "earnings_surprise",
@@ -1602,7 +1626,7 @@
           "direction": 1,
           "strength": 0.22900000000000004,
           "quality": 0.85,
-          "observed_at": "2026-10-04",
+          "observed_at": "2026-10-09",
           "half_life_days": 70,
           "source": "earnings_history",
           "description_pl": "Średnia ostatnich niespodzianek wynikowych: 3.4%.",
@@ -1613,80 +1637,56 @@
           "adaptive_learning": {
             "source": "insufficient_sample",
             "context_key": "earnings_surprise|STOCK|risk_on",
-            "posterior_mean": 0.480585,
-            "effective_samples": 0.323187,
+            "posterior_mean": 0.472876,
+            "effective_samples": 0.458874,
             "active": false,
             "multiplier": 1.0
           },
-          "evidence_id": "earnings_surprise:3"
+          "evidence_id": "earnings_surprise:4"
         },
         {
           "code": "drawdown_52w",
           "pillar": "risk",
           "direction": 1,
-          "strength": 0.1995970842435114,
+          "strength": 0.205438900299716,
           "quality": 0.8,
-          "observed_at": "2026-10-02",
+          "observed_at": "2026-10-08",
           "half_life_days": 40,
           "source": "market_data",
-          "description_pl": "Obsunięcie od szczytu 52T: -9.0%.",
-          "description_en": "Drawdown from 52-week high: -9.0%.",
-          "decayed_weight": 0.154238,
+          "description_pl": "Obsunięcie od szczytu 52T: -9.2%.",
+          "description_en": "Drawdown from 52-week high: -9.2%.",
+          "decayed_weight": 0.161528,
           "adaptive_multiplier": 1.0,
           "adaptive_score_delta": 0.0,
           "adaptive_learning": {
             "source": "insufficient_sample",
             "context_key": "drawdown_52w|STOCK|risk_on",
-            "posterior_mean": 0.484683,
-            "effective_samples": 0.252813,
+            "posterior_mean": 0.478744,
+            "effective_samples": 0.355188,
             "active": false,
             "multiplier": 1.0
           },
-          "evidence_id": "drawdown_52w:4"
-        },
-        {
-          "code": "relative_strength_6m",
-          "pillar": "confirmation",
-          "direction": -1,
-          "strength": 0.14757364505806558,
-          "quality": 0.75,
-          "observed_at": "2026-10-02",
-          "half_life_days": 45,
-          "source": "market_data",
-          "description_pl": "Relatywna stopa zwrotu 6M: -3.0 pp.",
-          "description_en": "Six-month relative return: -3.0 pp.",
-          "decayed_weight": -0.144885,
-          "adaptive_multiplier": 1.0,
-          "adaptive_score_delta": -0.0,
-          "adaptive_learning": {
-            "source": "insufficient_sample",
-            "context_key": "relative_strength_6m|STOCK|risk_on",
-            "posterior_mean": 0.480264,
-            "effective_samples": 0.32875,
-            "active": false,
-            "multiplier": 1.0
-          },
-          "evidence_id": "relative_strength_6m:5"
+          "evidence_id": "drawdown_52w:5"
         },
         {
           "code": "price_vs_ma200",
           "pillar": "confirmation",
           "direction": 1,
-          "strength": 0.13193274297286184,
+          "strength": 0.11591056078401696,
           "quality": 0.75,
-          "observed_at": "2026-10-02",
+          "observed_at": "2026-10-08",
           "half_life_days": 35,
           "source": "market_data",
-          "description_pl": "Cena jest +3.3% względem MA200.",
-          "description_en": "Price is +3.3% versus MA200.",
-          "decayed_weight": 0.095107,
+          "description_pl": "Cena jest +2.9% względem MA200.",
+          "description_en": "Price is +2.9% versus MA200.",
+          "decayed_weight": 0.085228,
           "adaptive_multiplier": 1.0,
           "adaptive_score_delta": 0.0,
           "adaptive_learning": {
             "source": "insufficient_sample",
             "context_key": "price_vs_ma200|STOCK|risk_on",
-            "posterior_mean": 0.479605,
-            "effective_samples": 0.340188,
+            "posterior_mean": 0.47107,
+            "effective_samples": 0.491313,
             "active": false,
             "multiplier": 1.0
           },
@@ -1695,7 +1695,7 @@
       ],
       "adaptive_learning": {
         "signals_observed": 7,
-        "multipliers_applied": 2,
+        "multipliers_applied": 3,
         "counterfactuals_computed": 7,
         "learned_from_prior_outcomes": true
       }
@@ -4028,6 +4028,14 @@
         "asset_return": -0.006296,
         "benchmark_return": -0.006296,
         "evaluated_at": "2026-09-13"
+      },
+      "outcome_30d": {
+        "outcome_correct": true,
+        "excess_return": 0.0,
+        "label": "positive_outcome",
+        "asset_return": 0.030754,
+        "benchmark_return": 0.030754,
+        "evaluated_at": "2026-10-09"
       }
     },
     {
@@ -4052,6 +4060,14 @@
         "asset_return": -0.022716,
         "benchmark_return": -0.006296,
         "evaluated_at": "2026-09-13"
+      },
+      "outcome_30d": {
+        "outcome_correct": false,
+        "excess_return": -0.051272,
+        "label": "negative_outcome",
+        "asset_return": -0.020518,
+        "benchmark_return": 0.030754,
+        "evaluated_at": "2026-10-09"
       }
     },
     {
@@ -4076,6 +4092,14 @@
         "asset_return": 0.000118,
         "benchmark_return": -0.006296,
         "evaluated_at": "2026-09-13"
+      },
+      "outcome_30d": {
+        "outcome_correct": false,
+        "excess_return": -0.001711,
+        "label": "negative_outcome",
+        "asset_return": 0.029043,
+        "benchmark_return": 0.030754,
+        "evaluated_at": "2026-10-09"
       }
     },
     {
@@ -4100,6 +4124,14 @@
         "asset_return": -0.006692,
         "benchmark_return": -0.006296,
         "evaluated_at": "2026-09-13"
+      },
+      "outcome_30d": {
+        "outcome_correct": false,
+        "excess_return": -0.047968,
+        "label": "negative_outcome",
+        "asset_return": -0.017214,
+        "benchmark_return": 0.030754,
+        "evaluated_at": "2026-10-09"
       }
     },
     {
@@ -4124,6 +4156,14 @@
         "asset_return": 0.010095,
         "benchmark_return": -0.006296,
         "evaluated_at": "2026-09-13"
+      },
+      "outcome_30d": {
+        "outcome_correct": true,
+        "excess_return": 0.037045,
+        "label": "positive_outcome",
+        "asset_return": 0.0678,
+        "benchmark_return": 0.030754,
+        "evaluated_at": "2026-10-09"
       }
     },
     {
@@ -4148,6 +4188,14 @@
         "asset_return": -0.012318,
         "benchmark_return": -0.006296,
         "evaluated_at": "2026-09-13"
+      },
+      "outcome_30d": {
+        "outcome_correct": false,
+        "excess_return": -0.030674,
+        "label": "negative_outcome",
+        "asset_return": 8e-05,
+        "benchmark_return": 0.030754,
+        "evaluated_at": "2026-10-09"
       }
     },
     {
@@ -4172,6 +4220,14 @@
         "asset_return": -0.00672,
         "benchmark_return": -0.006296,
         "evaluated_at": "2026-09-13"
+      },
+      "outcome_30d": {
+        "outcome_correct": false,
+        "excess_return": -0.106652,
+        "label": "negative_outcome",
+        "asset_return": -0.075898,
+        "benchmark_return": 0.030754,
+        "evaluated_at": "2026-10-09"
       }
     },
     {
@@ -4196,6 +4252,14 @@
         "asset_return": -0.006296,
         "benchmark_return": -0.006296,
         "evaluated_at": "2026-09-13"
+      },
+      "outcome_30d": {
+        "outcome_correct": true,
+        "excess_return": 0.0,
+        "label": "positive_outcome",
+        "asset_return": 0.030754,
+        "benchmark_return": 0.030754,
+        "evaluated_at": "2026-10-09"
       }
     },
     {
@@ -4220,6 +4284,14 @@
         "asset_return": -0.022716,
         "benchmark_return": -0.006296,
         "evaluated_at": "2026-09-13"
+      },
+      "outcome_30d": {
+        "outcome_correct": false,
+        "excess_return": -0.051272,
+        "label": "negative_outcome",
+        "asset_return": -0.020518,
+        "benchmark_return": 0.030754,
+        "evaluated_at": "2026-10-09"
       }
     },
     {
@@ -4244,6 +4316,14 @@
         "asset_return": 0.000118,
         "benchmark_return": -0.006296,
         "evaluated_at": "2026-09-13"
+      },
+      "outcome_30d": {
+        "outcome_correct": false,
+        "excess_return": -0.001711,
+        "label": "negative_outcome",
+        "asset_return": 0.029043,
+        "benchmark_return": 0.030754,
+        "evaluated_at": "2026-10-09"
       }
     },
     {
@@ -4268,6 +4348,14 @@
         "asset_return": -0.006692,
         "benchmark_return": -0.006296,
         "evaluated_at": "2026-09-13"
+      },
+      "outcome_30d": {
+        "outcome_correct": false,
+        "excess_return": -0.047968,
+        "label": "negative_outcome",
+        "asset_return": -0.017214,
+        "benchmark_return": 0.030754,
+        "evaluated_at": "2026-10-09"
       }
     },
     {
@@ -4292,6 +4380,14 @@
         "asset_return": 0.010095,
         "benchmark_return": -0.006296,
         "evaluated_at": "2026-09-13"
+      },
+      "outcome_30d": {
+        "outcome_correct": true,
+        "excess_return": 0.037045,
+        "label": "positive_outcome",
+        "asset_return": 0.0678,
+        "benchmark_return": 0.030754,
+        "evaluated_at": "2026-10-09"
       }
     },
     {
@@ -4316,6 +4412,14 @@
         "asset_return": -0.012318,
         "benchmark_return": -0.006296,
         "evaluated_at": "2026-09-13"
+      },
+      "outcome_30d": {
+        "outcome_correct": false,
+        "excess_return": -0.030674,
+        "label": "negative_outcome",
+        "asset_return": 8e-05,
+        "benchmark_return": 0.030754,
+        "evaluated_at": "2026-10-09"
       }
     },
     {
@@ -4340,6 +4444,14 @@
         "asset_return": -0.00672,
         "benchmark_return": -0.006296,
         "evaluated_at": "2026-09-13"
+      },
+      "outcome_30d": {
+        "outcome_correct": false,
+        "excess_return": -0.106652,
+        "label": "negative_outcome",
+        "asset_return": -0.075898,
+        "benchmark_return": 0.030754,
+        "evaluated_at": "2026-10-09"
       }
     },
     {
@@ -5461,6 +5573,230 @@
         "contradictions_disclosed": false,
         "immutable_record": true
       }
+    },
+    {
+      "week_id": "2026-W40",
+      "review_date": "2026-10-04",
+      "id": "fwia",
+      "broker_symbol": "FWIA.DE",
+      "decision": "HOLD",
+      "score": 67.48,
+      "confidence": 67.0,
+      "reference_price": 8.421,
+      "reference_benchmark_price": 8.421,
+      "decision_quality_at_publication": {
+        "transparent_rules_passed": true,
+        "contradictions_disclosed": false,
+        "immutable_record": true
+      }
+    },
+    {
+      "week_id": "2026-W40",
+      "review_date": "2026-10-04",
+      "id": "zprv",
+      "broker_symbol": "ZPRV.DE",
+      "decision": "HOLD",
+      "score": 65.31,
+      "confidence": 67.0,
+      "reference_price": 79.739998,
+      "reference_benchmark_price": 8.421,
+      "decision_quality_at_publication": {
+        "transparent_rules_passed": true,
+        "contradictions_disclosed": false,
+        "immutable_record": true
+      }
+    },
+    {
+      "week_id": "2026-W40",
+      "review_date": "2026-10-04",
+      "id": "googl",
+      "broker_symbol": "GOOGL.US",
+      "decision": "ADD_REVIEW",
+      "score": 78.25,
+      "confidence": 95.25,
+      "reference_price": 343.5,
+      "reference_benchmark_price": 8.421,
+      "decision_quality_at_publication": {
+        "transparent_rules_passed": true,
+        "contradictions_disclosed": false,
+        "immutable_record": true
+      }
+    },
+    {
+      "week_id": "2026-W40",
+      "review_date": "2026-10-04",
+      "id": "amzn",
+      "broker_symbol": "AMZN.US",
+      "decision": "ADD_REVIEW",
+      "score": 74.47,
+      "confidence": 95.25,
+      "reference_price": 251.520004,
+      "reference_benchmark_price": 8.421,
+      "decision_quality_at_publication": {
+        "transparent_rules_passed": true,
+        "contradictions_disclosed": false,
+        "immutable_record": true
+      }
+    },
+    {
+      "week_id": "2026-W40",
+      "review_date": "2026-10-04",
+      "id": "tsm",
+      "broker_symbol": "TSM.US",
+      "decision": "ADD_REVIEW",
+      "score": 90.08,
+      "confidence": 90.25,
+      "reference_price": 472.779999,
+      "reference_benchmark_price": 8.421,
+      "decision_quality_at_publication": {
+        "transparent_rules_passed": true,
+        "contradictions_disclosed": false,
+        "immutable_record": true
+      }
+    },
+    {
+      "week_id": "2026-W40",
+      "review_date": "2026-10-04",
+      "id": "visa",
+      "broker_symbol": "V.US",
+      "decision": "ADD_REVIEW",
+      "score": 76.47,
+      "confidence": 95.25,
+      "reference_price": 360.660004,
+      "reference_benchmark_price": 8.421,
+      "decision_quality_at_publication": {
+        "transparent_rules_passed": true,
+        "contradictions_disclosed": false,
+        "immutable_record": true
+      }
+    },
+    {
+      "week_id": "2026-W40",
+      "review_date": "2026-10-04",
+      "id": "jpm",
+      "broker_symbol": "JPM.US",
+      "decision": "ADD_REVIEW",
+      "score": 81.59,
+      "confidence": 81.25,
+      "reference_price": 332.380005,
+      "reference_benchmark_price": 8.421,
+      "decision_quality_at_publication": {
+        "transparent_rules_passed": true,
+        "contradictions_disclosed": false,
+        "immutable_record": true
+      }
+    },
+    {
+      "week_id": "2026-W41",
+      "review_date": "2026-10-09",
+      "id": "fwia",
+      "broker_symbol": "FWIA.DE",
+      "decision": "HOLD",
+      "score": 67.49,
+      "confidence": 67.0,
+      "reference_price": 8.513,
+      "reference_benchmark_price": 8.513,
+      "decision_quality_at_publication": {
+        "transparent_rules_passed": true,
+        "contradictions_disclosed": false,
+        "immutable_record": true
+      }
+    },
+    {
+      "week_id": "2026-W41",
+      "review_date": "2026-10-09",
+      "id": "zprv",
+      "broker_symbol": "ZPRV.DE",
+      "decision": "HOLD",
+      "score": 65.64,
+      "confidence": 67.0,
+      "reference_price": 80.199997,
+      "reference_benchmark_price": 8.513,
+      "decision_quality_at_publication": {
+        "transparent_rules_passed": true,
+        "contradictions_disclosed": false,
+        "immutable_record": true
+      }
+    },
+    {
+      "week_id": "2026-W41",
+      "review_date": "2026-10-09",
+      "id": "googl",
+      "broker_symbol": "GOOGL.US",
+      "decision": "ADD_REVIEW",
+      "score": 77.46,
+      "confidence": 95.25,
+      "reference_price": 348.290009,
+      "reference_benchmark_price": 8.513,
+      "decision_quality_at_publication": {
+        "transparent_rules_passed": true,
+        "contradictions_disclosed": false,
+        "immutable_record": true
+      }
+    },
+    {
+      "week_id": "2026-W41",
+      "review_date": "2026-10-09",
+      "id": "amzn",
+      "broker_symbol": "AMZN.US",
+      "decision": "HOLD",
+      "score": 71.63,
+      "confidence": 95.25,
+      "reference_price": 254.059998,
+      "reference_benchmark_price": 8.513,
+      "decision_quality_at_publication": {
+        "transparent_rules_passed": true,
+        "contradictions_disclosed": false,
+        "immutable_record": true
+      }
+    },
+    {
+      "week_id": "2026-W41",
+      "review_date": "2026-10-09",
+      "id": "tsm",
+      "broker_symbol": "TSM.US",
+      "decision": "ADD_REVIEW",
+      "score": 88.1,
+      "confidence": 95.25,
+      "reference_price": 457.98999,
+      "reference_benchmark_price": 8.513,
+      "decision_quality_at_publication": {
+        "transparent_rules_passed": true,
+        "contradictions_disclosed": false,
+        "immutable_record": true
+      }
+    },
+    {
+      "week_id": "2026-W41",
+      "review_date": "2026-10-09",
+      "id": "visa",
+      "broker_symbol": "V.US",
+      "decision": "ADD_REVIEW",
+      "score": 77.37,
+      "confidence": 95.25,
+      "reference_price": 375.100006,
+      "reference_benchmark_price": 8.513,
+      "decision_quality_at_publication": {
+        "transparent_rules_passed": true,
+        "contradictions_disclosed": false,
+        "immutable_record": true
+      }
+    },
+    {
+      "week_id": "2026-W41",
+      "review_date": "2026-10-09",
+      "id": "jpm",
+      "broker_symbol": "JPM.US",
+      "decision": "WAIT_INVESTIGATE",
+      "score": 76.12,
+      "confidence": 73.75,
+      "reference_price": 331.420013,
+      "reference_benchmark_price": 8.513,
+      "decision_quality_at_publication": {
+        "transparent_rules_passed": true,
+        "contradictions_disclosed": true,
+        "immutable_record": true
+      }
     }
   ],
   "backtest": {
@@ -5495,14 +5831,14 @@
   "learning": {
     "mode": "bounded_bayesian_adaptive_evidence",
     "status": "learning",
-    "decisions_stored": 139,
-    "outcome_events_stored": 192,
+    "decisions_stored": 153,
+    "outcome_events_stored": 206,
     "evaluated_horizons": {
       "7d": 128,
-      "30d": 64
+      "30d": 78
     },
     "signals_tracked": 10,
-    "active_multipliers": 2,
+    "active_multipliers": 3,
     "minimum_effective_samples": 8.0,
     "multiplier_bounds": [
       0.8,
@@ -5512,30 +5848,40 @@
     "top_reliable_signals": [
       {
         "code": "revenue_growth",
-        "alpha": 8.137001,
-        "beta": 8.8695,
-        "effective_samples": 9.006501,
-        "posterior_mean": 0.478464,
-        "maturity": 0.062906,
-        "multiplier": 0.998916,
+        "alpha": 8.390501,
+        "beta": 9.52925,
+        "effective_samples": 9.919751,
+        "posterior_mean": 0.468226,
+        "maturity": 0.119984,
+        "multiplier": 0.99695,
         "active": true
       },
       {
         "code": "earnings_growth",
-        "alpha": 8.208688,
-        "beta": 8.989063,
-        "effective_samples": 9.197751,
-        "posterior_mean": 0.477312,
-        "maturity": 0.074859,
-        "multiplier": 0.998641,
+        "alpha": 8.452438,
+        "beta": 9.623626,
+        "effective_samples": 10.076064,
+        "posterior_mean": 0.467604,
+        "maturity": 0.129754,
+        "multiplier": 0.996637,
+        "active": true
+      },
+      {
+        "code": "relative_strength_6m",
+        "alpha": 7.456065,
+        "beta": 8.833628,
+        "effective_samples": 8.289693,
+        "posterior_mean": 0.457717,
+        "maturity": 0.018106,
+        "multiplier": 0.999388,
         "active": true
       },
       {
         "code": "free_cash_flow_yield",
-        "alpha": 6.280063,
+        "alpha": 6.523813,
         "beta": 5.034375,
-        "effective_samples": 3.314438,
-        "posterior_mean": 0.555049,
+        "effective_samples": 3.558188,
+        "posterior_mean": 0.564432,
         "maturity": 0.0,
         "multiplier": 1.0,
         "active": false
@@ -5549,35 +5895,25 @@
         "maturity": 0.0,
         "multiplier": 1.0,
         "active": false
-      },
-      {
-        "code": "forward_pe",
-        "alpha": 5.037877,
-        "beta": 4.8335,
-        "effective_samples": 1.871377,
-        "posterior_mean": 0.510352,
-        "maturity": 0.0,
-        "multiplier": 1.0,
-        "active": false
       }
     ],
     "signals_needing_review": [
       {
         "code": "diversified_index_structure",
         "alpha": 4.0,
-        "beta": 5.549314,
-        "effective_samples": 1.549314,
-        "posterior_mean": 0.418878,
+        "beta": 5.749189,
+        "effective_samples": 1.749189,
+        "posterior_mean": 0.410291,
         "maturity": 0.0,
         "multiplier": 1.0,
         "active": false
       },
       {
         "code": "price_vs_ma200",
-        "alpha": 6.205437,
-        "beta": 8.418186,
-        "effective_samples": 6.623623,
-        "posterior_mean": 0.424343,
+        "alpha": 6.366312,
+        "beta": 8.990187,
+        "effective_samples": 7.356499,
+        "posterior_mean": 0.414568,
         "maturity": 0.0,
         "multiplier": 1.0,
         "active": false
@@ -5585,32 +5921,32 @@
       {
         "code": "drawdown_52w",
         "alpha": 4.873375,
-        "beta": 6.017374,
-        "effective_samples": 2.890749,
-        "posterior_mean": 0.447478,
+        "beta": 6.44475,
+        "effective_samples": 3.318125,
+        "posterior_mean": 0.430581,
         "maturity": 0.0,
         "multiplier": 1.0,
         "active": false
       },
       {
         "code": "earnings_surprise",
-        "alpha": 5.85275,
-        "beta": 6.798937,
-        "effective_samples": 4.651687,
-        "posterior_mean": 0.462606,
+        "alpha": 6.039625,
+        "beta": 7.461124,
+        "effective_samples": 5.500749,
+        "posterior_mean": 0.447355,
         "maturity": 0.0,
         "multiplier": 1.0,
         "active": false
       },
       {
         "code": "relative_strength_6m",
-        "alpha": 7.30494,
-        "beta": 8.294127,
-        "effective_samples": 7.599067,
-        "posterior_mean": 0.468293,
-        "maturity": 0.0,
-        "multiplier": 1.0,
-        "active": false
+        "alpha": 7.456065,
+        "beta": 8.833628,
+        "effective_samples": 8.289693,
+        "posterior_mean": 0.457717,
+        "maturity": 0.018106,
+        "multiplier": 0.999388,
+        "active": true
       }
     ],
     "objective": {
@@ -5627,13 +5963,13 @@
     },
     "governance_pl": "Współczynniki uczą się bayesowsko, lecz pozostają neutralne do czasu zebrania minimalnej próby. Są ograniczone do zakresu 0,80–1,20 i nie zmieniają samodzielnie wag filarów ani progów decyzji.",
     "governance_en": "Reliability coefficients update with Bayesian shrinkage but remain neutral until the minimum sample is reached. They are bounded to 0.80–1.20 and never self-modify pillar weights or decision thresholds.",
-    "new_outcomes_this_review": 28,
+    "new_outcomes_this_review": 14,
     "historical_training": {
-      "training_id": "brace-historical-1.0.0-2023-04-14",
-      "generated_at": "2026-10-04T14:06:11+00:00",
+      "training_id": "brace-historical-1.0.0-2023-04-21",
+      "generated_at": "2026-10-09T12:18:53+00:00",
       "status": "trained_plateau_no_activation",
       "activated": false,
-      "lessons_total": 50543,
+      "lessons_total": 50609,
       "selected": {
         "prior_strength": 32.0,
         "multiplier_cap": 0.03
@@ -5662,7 +5998,7 @@
       "calibrated_events": 0,
       "calibration_credit_cap": 24.0
     },
-    "historical_lessons": 50543,
+    "historical_lessons": 50609,
     "historical_training_status": "trained_plateau_no_activation",
     "historical_training_activated": false
   }
