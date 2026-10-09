@@ -1,0 +1,89 @@
+name: BRs R2 Shadow Archive Pilot
+# GitHub remains the only source of truth. R2 is an opt-in, private SHADOW copy.
+# No trading/execution, no GitHub writes and no automated cutover.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "13 0,6,12,18 * * *"
+  pull_request:
+    paths:
+      - "scripts/brs_r2_shadow_pilot.py"
+      - "tests/test_brs_r2_shadow_pilot.py"
+      - ".github/workflows/brs-r2-shadow-archive-pilot.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/brs_r2_shadow_pilot.py"
+      - "tests/test_brs_r2_shadow_pilot.py"
+      - ".github/workflows/brs-r2-shadow-archive-pilot.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: brs-r2-shadow-pilot
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run offline validation, local dry run and safety tests
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet pytest
+          python -m py_compile scripts/brs_r2_shadow_pilot.py
+          python -m pytest -q tests/test_brs_r2_shadow_pilot.py
+          python scripts/brs_r2_shadow_pilot.py --dry-run --report /tmp/brs-r2-dry-run.json
+          python - <<'PY'
+          import json
+          report = json.load(open('/tmp/brs-r2-dry-run.json'))
+          assert report['success'] is True
+          assert report['dry_run'] is True
+          assert len(report['objects']) == 4
+          assert all(obj['status'] == 'DRY_RUN_VALIDATED' for obj in report['objects'])
+          print('BRs R2 OFFLINE PILOT PASS: four source archives, zero external writes')
+          PY
+
+  mirror-to-r2:
+    needs: validate
+    if: >-
+      (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule')
+      && vars.BRS_R2_PILOT_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      BRS_R2_PILOT_ENABLED: "true"
+      BRS_R2_ACCOUNT_ID: \${{ vars.BRS_R2_ACCOUNT_ID }}
+      BRS_R2_PILOT_BUCKET: \${{ vars.BRS_R2_PILOT_BUCKET }}
+      BRS_R2_ACCESS_KEY_ID: \${{ secrets.BRS_R2_ACCESS_KEY_ID }}
+      BRS_R2_SECRET_ACCESS_KEY: \${{ secrets.BRS_R2_SECRET_ACCESS_KEY }}
+      AWS_EC2_METADATA_DISABLED: "true"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install only the standard S3-compatible SDK
+        run: python -m pip install --quiet "boto3>=1.35,<2"
+      - name: Mirror canonical snapshots and prove SHA256 readback from R2
+        run: |
+          set -euo pipefail
+          python scripts/brs_r2_shadow_pilot.py \
+            --report "$RUNNER_TEMP/brs-r2-pilot-report.json"
+      - name: Publish verification report as run artifact (not into GitHub main)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: brs-r2-shadow-pilot-verification
+          path: \${{ runner.temp }}/brs-r2-pilot-report.json
+          if-no-files-found: ignore
+          retention-days: 14
