@@ -417,7 +417,7 @@ def step(spot: dict, history: dict, journal: dict, reviews: dict,
         key = str(t["trade_id"])
         # Full trading-life research context includes immutable older shards.
         # Only the last 180 observations remain in the hot journal.
-        review_snapshots = list(archived_snapshots) + snapshots
+        review_snapshots = combine_complete_snapshots(archived_snapshots, snapshots)
         fresh = review(t, review_snapshots, fx, now)
         old = known.get(key)
         if old:
@@ -438,6 +438,26 @@ def step(spot: dict, history: dict, journal: dict, reviews: dict,
                "authority": "SHADOW_RESEARCH_ONLY", "automatic_promotion": False,
                "trading_decision_influence": False, "reviews": values}
     return journal, reviews
+
+
+def combine_complete_snapshots(archived: Sequence[Mapping[str, Any]],
+                               hot: Sequence[Mapping[str, Any]]) -> list[dict]:
+    """Deduplicate using the earliest actual first_seen_at, never arrival order."""
+    merged: dict[tuple[str,str],dict] = {}
+    for row in list(archived)+list(hot):
+        if not isinstance(row,Mapping):
+            continue
+        key=(str(row.get("trade_id") or ""),str(row.get("market_bar_at") or ""))
+        if not all(key):
+            continue
+        seen=parse_time(row.get("first_seen_at") or row.get("captured_at"))
+        if seen is None:
+            continue
+        old=merged.get(key)
+        former=parse_time(old.get("first_seen_at") or old.get("captured_at")) if old else None
+        if old is None or former is None or seen < former:
+            merged[key]=dict(row)
+    return sorted(merged.values(),key=lambda x:(x["market_bar_at"],x["trade_id"]))
 
 
 def read_archived_snapshots(root: Path) -> list[dict]:
@@ -497,9 +517,7 @@ def main() -> int:
     lab_journal = dict(journal)
     # This is an IN-MEMORY rehydrated view for research; do not inflate the
     # persistently published <=180-snapshot live journal.
-    merged = {(x.get("trade_id"),x.get("market_bar_at")):x
-              for x in archived + journal.get("snapshots",[]) if isinstance(x,dict)}
-    lab_journal["snapshots"] = list(merged.values())
+    lab_journal["snapshots"] = combine_complete_snapshots(archived, journal.get("snapshots",[]))
     baseline_lab = protection.step(load(Path(args.protection), {}), history, lab_journal, normalize_bars(fx, now), now)
     save(Path(args.protection), baseline_lab)
     save(Path(args.journal), journal)
