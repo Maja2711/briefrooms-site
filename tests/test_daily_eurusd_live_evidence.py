@@ -3,6 +3,8 @@ import unittest
 import base64
 import json
 import urllib.error
+import tempfile
+from pathlib import Path
 from unittest.mock import patch
 from datetime import datetime, timedelta, timezone
 from scripts import daily_eurusd_live_evidence as live
@@ -135,6 +137,58 @@ class LiveEvidenceTests(unittest.TestCase):
             done=live.publish(spool,"secret",live.REPO,START,request=fake_request)
         self.assertEqual(done["status"],"PUBLISHED")
         self.assertEqual(calls,["GET","PUT","GET","PUT"])
+
+    def test_two_hour_archives_are_small_and_preserve_full_lifetime(self):
+        rows=[{"trade_id":"EURUSD-T1",
+               "market_bar_at":live.iso(START+timedelta(minutes=i)),
+               "first_seen_at":live.iso(START+timedelta(minutes=i+1)),
+               "captured_at":live.iso(START+timedelta(minutes=i+1)),
+               "exit_authority":False} for i in range(360)]
+        shards=live.archive_shards({"snapshots":rows})
+        self.assertEqual(len(shards),4)  # 00-02, 02-04, 04-06, 06-08 UTC
+        self.assertTrue(all(len(v)<=120 for v in shards.values()))
+        self.assertEqual(sum(map(len,shards.values())),360)
+        hot=live.merge_snapshots([],rows)
+        spool=live.merge_snapshots([],rows,limit=live.MAX_LOCAL_SPOOL_SNAPSHOTS)
+        self.assertEqual(len(hot),180)
+        self.assertEqual(len(spool),360)
+        self.assertEqual(len(live.archive_shards({"snapshots":spool})),4)
+
+    def test_archive_payload_can_be_rehydrated_for_post_trade_review(self):
+        rows=[{"trade_id":"T","market_bar_at":live.iso(START),
+               "first_seen_at":live.iso(START+timedelta(minutes=1)),
+               "captured_at":live.iso(START+timedelta(minutes=1)),
+               "exit_authority":False}]
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)
+            shard=root/"20261009"/"00.json"
+            shard.parent.mkdir(parents=True)
+            shard.write_text(json.dumps({"authority":"SHADOW_OBSERVATION_ONLY",
+                                         "snapshots":rows}))
+            found=observer.read_archived_snapshots(root)
+            self.assertEqual(found,rows)
+            late=dict(rows[0],first_seen_at=live.iso(START+timedelta(minutes=20)),
+                      captured_at=live.iso(START+timedelta(minutes=20)))
+            self.assertEqual(observer.combine_complete_snapshots(found,[late]),rows)
+
+    def test_archive_create_is_constrained_to_fixed_utc_shard(self):
+        row={"trade_id":"T","market_bar_at":live.iso(START),
+             "first_seen_at":live.iso(START)}
+        spool={"snapshots":[row]}
+        seen=[]
+        def fake(url,token,method="GET",payload=None):
+            seen.append((url,method))
+            if method=="GET":
+                raise urllib.error.HTTPError(url,404,"not created",{},None)
+            content=json.loads(base64.b64decode(payload["content"]))
+            self.assertEqual(content["authority"],"SHADOW_OBSERVATION_ONLY")
+            self.assertEqual(content["snapshots"],[row])
+            self.assertIn("eurusd_live_signal_archive/20261009/00.json",url)
+            self.assertNotIn("sha",payload)
+            return {"content":{"sha":"written"}}
+        result=live.publish_archives(spool,"token",live.REPO,START,request=fake)
+        self.assertEqual(result["shards_verified"],1)
+        self.assertEqual([method for _,method in seen],["GET","PUT"])
 
     def test_deny_outside_repo(self):
         with self.assertRaises(ValueError):
