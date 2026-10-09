@@ -173,7 +173,7 @@ def test_memory_writer_compact_roundtrip_preserves_all_records_and_learning(monk
                     updated_at="2026-10-09T12:00:00+00:00")
     assert after == expected
     assert before == initial  # writer must not mutate input
-    assert raw.endswith(b"\\n")
+    assert raw.endswith(b"\n")
     assert b'  "decisions"' not in raw
     assert len(raw) < len(json.dumps(expected, ensure_ascii=False, indent=2).encode())
     assert len(after["decisions"]) == 139
@@ -184,7 +184,7 @@ def test_memory_writer_compact_roundtrip_preserves_all_records_and_learning(monk
 
 def test_memory_writer_fail_closed_keeps_original_and_never_truncates(monkeypatch, tmp_path):
     path = tmp_path / "portfolio_10k_brace_memory.json"
-    original = b'{"irreplaceable":true}\\n'
+    original = b'{"irreplaceable":true}\n'
     path.write_bytes(original)
     monkeypatch.setattr(learning, "MEMORY_HARD_LIMIT_BYTES", 200)
     memory = learning.new_memory()
@@ -197,7 +197,7 @@ def test_memory_writer_fail_closed_keeps_original_and_never_truncates(monkeypatc
 
 def test_memory_writer_detects_non_finite_numbers_without_overwriting(monkeypatch, tmp_path):
     path = tmp_path / "portfolio_10k_brace_memory.json"
-    path.write_text('{"old":true}\\n', encoding="utf-8")
+    path.write_text('{"old":true}\n', encoding="utf-8")
     memory = learning.new_memory()
     memory["decisions"].append({"decision_id": "bad", "score": float("nan")})
     with pytest.raises(ValueError):
