@@ -162,10 +162,18 @@ def collect(spool: Mapping[str, Any], spot: Mapping[str, Any],
                          for t in chron)
     missing = max(0, expected-seen_from_open)
     coverage = round(seen_from_open/expected,4) if expected else None
-    status = ("OK" if delay is not None and 0 <= delay <= MAX_WAIT_FOR_BAR_SECONDS
-              and timely else "STALE_OR_MISSING_FX_1M_BAR"
+    source_latest_timely = (
+        last_known is not None and any(
+            s.get("market_bar_at") == iso(last_known)
+            and s.get("timely_observation") is True for s in active
+        )
+    )
+    # Existing older timely samples cannot make an OLD current quote healthy.
+    status = ("OK" if delay is not None and 0 <= delay <= TIMELY_SECONDS
+              and source_latest_timely else
+              "STALE_OR_MISSING_FX_1M_BAR"
               if delay is None or delay > MAX_WAIT_FOR_BAR_SECONDS else
-              "NO_TIMELY_1M_OBSERVATIONS")
+              "DELAYED_SOURCE_1M_BAR")
     health = {
         "status":status,"sampled_at":iso(now),
         "active_trade_id":tid,"latest_source_bar_at":iso(last_known) if last_known else None,
@@ -180,7 +188,7 @@ def collect(spool: Mapping[str, Any], spot: Mapping[str, Any],
         "timely_1m_minutes_from_entry":seen_from_open,
         "missing_or_late_minutes_since_entry":missing,
         "timely_lifetime_coverage_ratio":coverage,
-        "whole_open_lifetime_continuity_proven":bool(expected and not missing),
+        "whole_open_lifetime_continuity_proven":bool(expected and not missing and status=="OK"),
         "publication_pending":True,
         "exit_authority":False,
     }
