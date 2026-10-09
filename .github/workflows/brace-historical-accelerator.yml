@@ -5,6 +5,12 @@ on:
   schedule:
     # Runs after the standard Sunday BRACE review.
     - cron: "20 8 * * 0"
+  pull_request:
+    paths:
+      - "scripts/portfolio_10k_brace_learning.py"
+      - "tests/test_portfolio_10k_brace_learning.py"
+      - "data/investments/portfolio_10k_brace_memory.json"
+      - ".github/workflows/brace-historical-accelerator.yml"
   push:
     branches: [main]
     paths:
@@ -23,7 +29,66 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  validate-compact-memory:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate compact writer and fail-closed guards
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet pytest
+          python -m py_compile scripts/portfolio_10k_brace_learning.py
+          python -m pytest -q tests/test_portfolio_10k_brace_learning.py
+      - name: Independently verify full backup, all records and unchanged learning
+        if: github.head_ref == 'fix/brace-memory-compact-lossless-20261009'
+        run: |
+          set -euo pipefail
+          git fetch --quiet origin refs/heads/backup/brace-memory-full-pre-compact-20261009:refs/remotes/origin/backup/brace-memory-full-pre-compact-20261009
+          python - <<'PY'
+          import copy
+          import hashlib
+          import json
+          import subprocess
+          import sys
+          from pathlib import Path
+
+          sys.path.insert(0, 'scripts')
+          import portfolio_10k_brace_learning as learning
+
+          memory_path = 'data/investments/portfolio_10k_brace_memory.json'
+          pinned = 'origin/backup/brace-memory-full-pre-compact-20261009'
+          blob = subprocess.check_output(['git', 'rev-parse', f'{pinned}:{memory_path}'], text=True).strip()
+          assert blob == 'b7857af184b380b9ed5a1dd1cc39cf5ee7cf3df4', blob
+          baseline_bytes = subprocess.check_output(['git', 'show', f'{pinned}:{memory_path}'])
+          current_bytes = Path(memory_path).read_bytes()
+          before, after = json.loads(baseline_bytes), json.loads(current_bytes)
+          assert before == after, 'BRACE original-vs-compacted semantic mismatch'
+          assert len(before['decisions']) == len(after['decisions']) == 139
+          assert len(before['outcome_events']) == len(after['outcome_events']) == 192
+          assert len(before['audit']) == len(after['audit']) == 20
+          assert before['reliability'] == after['reliability']
+          assert before['historical_training'] == after['historical_training']
+          assert len(current_bytes) < 1_000_000
+          learning._now = lambda: '2026-10-09T00:00:00+00:00'
+          old_recalculated, new_recalculated = copy.deepcopy(before), copy.deepcopy(after)
+          assert learning.rebuild_reliability(old_recalculated) == learning.rebuild_reliability(new_recalculated)
+          assert learning.learning_summary(old_recalculated) == learning.learning_summary(new_recalculated)
+          print('BRACE_MEMORY_BACKUP_SEMANTIC_PARITY_PASS')
+          print('original_bytes', len(baseline_bytes), 'compact_bytes', len(current_bytes))
+          print('sha256_original', hashlib.sha256(baseline_bytes).hexdigest())
+          print('sha256_compact', hashlib.sha256(current_bytes).hexdigest())
+          print('decisions', len(after['decisions']), 'outcomes', len(after['outcome_events']))
+          PY
+
   train-validate-and-apply:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 55
     steps:
