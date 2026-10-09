@@ -12,7 +12,10 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import sys
+import tempfile
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -347,11 +350,149 @@ def seed_events(stats: Mapping[str, Mapping[str, Any]], training_id: str) -> Lis
     return events
 
 
+
+# The backtest/training must never replace a missing ticker with a fabricated
+# price history or reduce the mandatory common-calendar validation threshold.
+# Yahoo sometimes returns a partly empty multi-ticker payload after a SQLite
+# timezone/cookie-cache lock; download each ticker independently with an
+# isolated per-run cache and retry failures before fitting any learning state.
+MIN_COMMON_WEEKLY_BARS = 180
+HISTORICAL_MAX_STALENESS_DAYS = 21
+HISTORICAL_DOWNLOAD_ATTEMPTS = 3
+
+
+def fetch_single_symbol_history(symbol: str, start: str) -> pd.Series:
+    """Fetch one adjusted close series; never interpolate missing dates/prices."""
+    import yfinance as yf
+
+    raw = yf.download(
+        symbol,
+        start=start,
+        auto_adjust=True,
+        progress=False,
+        group_by="column",
+        threads=False,
+        timeout=35,
+    )
+    if raw is None or raw.empty:
+        raise RuntimeError(f"EMPTY_YAHOO_HISTORY {symbol}")
+    if isinstance(raw.columns, pd.MultiIndex):
+        if "Close" in raw.columns.get_level_values(0):
+            close = raw["Close"]
+        elif "Close" in raw.columns.get_level_values(1):
+            close = raw.xs("Close", axis=1, level=1)
+        else:
+            raise RuntimeError(f"NO_CLOSE_COLUMN {symbol}")
+    else:
+        if "Close" not in raw.columns:
+            raise RuntimeError(f"NO_CLOSE_COLUMN {symbol}")
+        close = raw["Close"]
+    if isinstance(close, pd.DataFrame):
+        if symbol in close.columns:
+            close = close[symbol]
+        elif close.shape[1] == 1:
+            close = close.iloc[:, 0]
+        else:
+            raise RuntimeError(f"AMBIGUOUS_CLOSE_COLUMN {symbol}")
+    return close.rename(symbol)
+
+
+def normalize_historical_close(symbol: str, raw: pd.Series, start: str,
+                               now: pd.Timestamp) -> pd.Series:
+    """Reject incomplete/stale series, preserving real point-in-time prices."""
+    if not isinstance(raw, pd.Series) or raw.empty:
+        raise ValueError(f"EMPTY_SERIES {symbol}")
+    series = pd.to_numeric(raw, errors="coerce").copy()
+    series.index = pd.to_datetime(series.index, utc=True, errors="coerce").tz_localize(None)
+    series = series.loc[~series.index.isna()].sort_index()
+    series = series.loc[~series.index.duplicated(keep="last")]
+    series = series.loc[series.index >= pd.Timestamp(start)]
+    series = series.replace([np.inf, -np.inf], np.nan).where(lambda s: s > 0)
+    valid = series.dropna()
+    if valid.empty:
+        raise ValueError(f"NO_VALID_CLOSES {symbol}")
+    if len(bt.weekly_prices(valid.to_frame(symbol))) < MIN_COMMON_WEEKLY_BARS:
+        raise ValueError(f"INSUFFICIENT_SYMBOL_HISTORY {symbol}: weeks={len(bt.weekly_prices(valid.to_frame(symbol)))}")
+    days_old = (now.normalize() - valid.index.max().normalize()).days
+    if days_old > HISTORICAL_MAX_STALENESS_DAYS:
+        raise ValueError(f"STALE_SYMBOL_HISTORY {symbol}: age_days={days_old}")
+    if valid.index.max() > now + pd.Timedelta(days=1):
+        raise ValueError(f"FUTURE_DATED_HISTORY {symbol}")
+    return series.rename(symbol)
+
+
+def download_verified_history(
+    symbols: Iterable[str], start: str, *,
+    fetcher=None, sleeper=None, attempts: int = HISTORICAL_DOWNLOAD_ATTEMPTS,
+    now: pd.Timestamp | None = None,
+) -> pd.DataFrame:
+    """Fail closed unless EVERY declared asset and benchmark has usable history.
+
+    Each job isolates the entire yfinance SQLite timezone/cookie cache.
+    Retries are per symbol, not a replacement of the strategy's universe.
+    This function changes data acquisition only, not splits, gate or lessons.
+    """
+    import yfinance as yf
+
+    wanted = list(dict.fromkeys(str(item) for item in symbols))
+    if not wanted or attempts < 1:
+        raise ValueError("Expected >=1 symbol and >=1 download attempt")
+    asof = pd.Timestamp.now(tz="UTC").tz_localize(None) if now is None else pd.Timestamp(now)
+    if asof.tzinfo is not None:
+        asof = asof.tz_convert("UTC").tz_localize(None)
+    fetch = fetcher or fetch_single_symbol_history
+    pause = sleeper or time.sleep
+    retrieved: dict[str, pd.Series] = {}
+    failures: dict[str, str] = {}
+
+    with tempfile.TemporaryDirectory(prefix="brace-historical-yf-",
+                                     dir=os.environ.get("RUNNER_TEMP") or None) as directory:
+        # Official yfinance API redirects timezone, cookie and ISIN caches.
+        # Setting it BEFORE fetching prevents accidental reuse of the shared
+        # ~/.cache/py-yfinance SQLite files used by other concurrent jobs.
+        yf.set_tz_cache_location(directory)
+        for symbol in wanted:
+            for attempt in range(1, attempts + 1):
+                try:
+                    result = normalize_historical_close(symbol, fetch(symbol, start), start, asof)
+                    retrieved[symbol] = result
+                    failures.pop(symbol, None)
+                    print(f"BRACE_HISTORY_SOURCE_OK symbol={symbol} daily={result.notna().sum()} "
+                          f"last={result.dropna().index[-1].date()} attempt={attempt}")
+                    break
+                except (Exception) as error:
+                    failures[symbol] = f"{type(error).__name__}: {error}"
+                    print(f"::warning::BRACE_HISTORY_SOURCE_RETRY symbol={symbol} "
+                          f"attempt={attempt}/{attempts} reason={failures[symbol]}", file=sys.stderr)
+                    if attempt < attempts:
+                        pause(attempt * 2)
+
+    if failures:
+        raise RuntimeError(
+            "BRACE_HISTORY_SOURCE_INCOMPLETE_NO_TRAINING "
+            + json.dumps(failures, ensure_ascii=False, sort_keys=True)
+        )
+
+    daily = pd.concat([retrieved[symbol] for symbol in wanted], axis=1).sort_index()
+    # No ffill/bfill of prices. The original training uses this strict
+    # common investable weekly calendar; never silently drop a missing symbol.
+    common = bt.weekly_prices(daily)[wanted].dropna(how="any")
+    if len(common) < MIN_COMMON_WEEKLY_BARS:
+        raise RuntimeError(
+            f"BRACE_HISTORY_COMMON_CALENDAR_INCOMPLETE_NO_TRAINING "
+            f"weeks={len(common)} required={MIN_COMMON_WEEKLY_BARS} "
+            f"symbols={','.join(wanted)}"
+        )
+    print(f"BRACE_HISTORY_VERIFIED symbols={len(wanted)} "
+          f"common_weeks={len(common)} min_required={MIN_COMMON_WEEKLY_BARS}")
+    return daily
+
+
 def build_training(portfolio: Mapping[str, Any], start: str, patience: int = 6) -> Tuple[Dict[str, Any], Dict[str, Dict[str, Any]]]:
     target, proxy_map = bt.build_proxy_target(portfolio)
     live_benchmark = str(portfolio.get("benchmark", {}).get("market_symbol") or "FWIA.DE")
     benchmark_symbol = bt.historical_symbol(live_benchmark)
-    downloaded = bt.download_history([*target.index, benchmark_symbol], start)
+    downloaded = download_verified_history([*target.index, benchmark_symbol], start)
     weekly = bt.weekly_prices(downloaded)
     available = [symbol for symbol in target.index if symbol in weekly.columns]
     if len(available) < 2:
@@ -369,8 +510,8 @@ def build_training(portfolio: Mapping[str, Any], start: str, patience: int = 6) 
     benchmark = benchmark.reindex(prices.index)
     target = target.reindex(prices.columns).fillna(0.0)
     target = target / target.sum()
-    if len(prices.index) < 180:
-        raise RuntimeError("Insufficient common history for train/calibration/test split")
+    if len(prices.index) < MIN_COMMON_WEEKLY_BARS:
+        raise RuntimeError("BRACE_HISTORY_COMMON_CALENDAR_INCOMPLETE_NO_TRAINING")
 
     first_signal = 52
     usable = prices.index[first_signal + 1:]

@@ -7,6 +7,8 @@ on:
     - cron: "20 8 * * 0"
   pull_request:
     paths:
+      - "scripts/brace_historical_accelerator.py"
+      - "tests/test_brace_historical_accelerator.py"
       - "scripts/portfolio_10k_brace_learning.py"
       - "tests/test_portfolio_10k_brace_learning.py"
       - "data/investments/portfolio_10k_brace_memory.json"
@@ -40,12 +42,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Validate compact writer and fail-closed guards
+      - name: Validate BRACE historical data reliability and compact memory
         run: |
           set -euo pipefail
-          python -m pip install --quiet pytest
-          python -m py_compile scripts/portfolio_10k_brace_learning.py
-          python -m pytest -q tests/test_portfolio_10k_brace_learning.py
+          python -m pip install --quiet pytest pandas numpy yfinance
+          python -m py_compile scripts/portfolio_10k_brace_learning.py scripts/brace_historical_accelerator.py
+          python -m pytest -q tests/test_portfolio_10k_brace_learning.py tests/test_brace_historical_accelerator.py tests/test_brace_historical_seed_calibration.py
       - name: Independently verify full backup, all records and unchanged learning
         if: github.head_ref == 'fix/brace-memory-compact-lossless-20261009'
         run: |
