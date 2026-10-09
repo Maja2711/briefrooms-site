@@ -9,6 +9,9 @@ from __future__ import annotations
 
 import json
 import math
+import os
+import sys
+import tempfile
 from dataclasses import replace
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -26,6 +29,10 @@ FULL_MATURITY_SAMPLES = 24.0
 MIN_MULTIPLIER = 0.80
 MAX_MULTIPLIER = 1.20
 EXCESS_RETURN_DEADBAND = 0.005
+# Contents API begins limiting JSON object handling above 1 MB. Fail closed
+# before the next weekly learning update creates a risky oversized file.
+MEMORY_WARNING_BYTES = 850_000
+MEMORY_HARD_LIMIT_BYTES = 1_000_000
 
 
 def _date(value):
@@ -109,11 +116,56 @@ def load_memory(path: Path, legacy_snapshot=None):
 
 
 def write_memory(path: Path, memory):
+    """Persist exactly the same BRACE state, compactly and atomically.
+
+    Never trim decisions/outcomes. Check the decoded document BEFORE replacing
+    the canonical memory; a failed size or roundtrip assertion leaves the
+    original file untouched. No new format or codec is introduced.
+    """
     payload = dict(memory)
     payload["schema_version"] = SCHEMA_VERSION
     payload["updated_at"] = _now()
+
+    # Preserve all fields/values and their order. JSON whitespace is the only
+    # difference from the old indent=2 writer.
+    serialized = json.dumps(
+        payload, ensure_ascii=False, separators=(",", ":"), allow_nan=False
+    ) + "\n"
+    restored = json.loads(serialized)
+    if restored != payload:
+        raise ValueError("BRACE_MEMORY_LOSSLESS_ROUNDTRIP_FAILED")
+    for field in ("decisions", "outcome_events", "audit"):
+        if len(restored.get(field, [])) != len(payload.get(field, [])):
+            raise ValueError("BRACE_MEMORY_RECORD_COUNT_CHANGED: " + field)
+
+    size = len(serialized.encode("utf-8"))
+    if size >= MEMORY_HARD_LIMIT_BYTES:
+        raise ValueError(
+            f"BRACE_MEMORY_SIZE_FAIL_CLOSED: {size} bytes exceeds "
+            f"the safe limit {MEMORY_HARD_LIMIT_BYTES}; archive before writing"
+        )
+    if size >= MEMORY_WARNING_BYTES:
+        print(
+            f"::warning::BRACE_MEMORY_NEAR_SIZE_LIMIT bytes={size} "
+            f"limit={MEMORY_HARD_LIMIT_BYTES}",
+            file=sys.stderr,
+        )
+
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", newline="\n", dir=path.parent,
+            prefix=f".{path.name}.", suffix=".tmp", delete=False,
+        ) as output:
+            temporary = Path(output.name)
+            output.write(serialized)
+            output.flush()
+            os.fsync(output.fileno())
+        os.replace(temporary, path)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
 
 
 def _migrate_legacy(memory, snapshot):

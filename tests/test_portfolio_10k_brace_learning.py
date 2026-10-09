@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import sys
+import json
+import copy
+import pytest
 from datetime import date
 from pathlib import Path
 
@@ -151,3 +154,52 @@ def test_contextual_multiplier_preferred_when_mature():
     multiplier, meta = learning.multiplier_for(memory, "valuation", "Stock", "risk_off")
     assert multiplier > 1.0
     assert meta["source"] == "contextual"
+
+def test_memory_writer_compact_roundtrip_preserves_all_records_and_learning(monkeypatch, tmp_path):
+    monkeypatch.setattr(learning, "_now", lambda: "2026-10-09T12:00:00+00:00")
+    before = learning.new_memory("2026-10-01T00:00:00+00:00")
+    before["historical_training"] = {"status": "accepted", "selected": ["evidence_a"]}
+    before["decisions"] = [{"decision_id": f"d{n}", "week_id": f"w{n}", "evidence": []}
+                           for n in range(139)]
+    before["outcome_events"] = [outcome("growth", n % 3 == 0, n) for n in range(192)]
+    before["audit"] = [{"at": "2026-10-01", "event": "retained"}]
+    learning.rebuild_reliability(before)
+    initial = copy.deepcopy(before)
+    path = tmp_path / "portfolio_10k_brace_memory.json"
+    learning.write_memory(path, before)
+    raw = path.read_bytes()
+    after = learning.load_memory(path)
+    expected = dict(initial, schema_version=learning.SCHEMA_VERSION,
+                    updated_at="2026-10-09T12:00:00+00:00")
+    assert after == expected
+    assert before == initial  # writer must not mutate input
+    assert raw.endswith(b"\n")
+    assert b'  "decisions"' not in raw
+    assert len(raw) < len(json.dumps(expected, ensure_ascii=False, indent=2).encode())
+    assert len(after["decisions"]) == 139
+    assert len(after["outcome_events"]) == 192
+    assert after["historical_training"] == initial["historical_training"]
+    assert learning.learning_summary(after) == learning.learning_summary(initial)
+
+
+def test_memory_writer_fail_closed_keeps_original_and_never_truncates(monkeypatch, tmp_path):
+    path = tmp_path / "portfolio_10k_brace_memory.json"
+    original = b'{"irreplaceable":true}\n'
+    path.write_bytes(original)
+    monkeypatch.setattr(learning, "MEMORY_HARD_LIMIT_BYTES", 200)
+    memory = learning.new_memory()
+    memory["decisions"] = [{"decision_id": f"decision:{n}"} for n in range(5)]
+    with pytest.raises(ValueError, match="BRACE_MEMORY_SIZE_FAIL_CLOSED"):
+        learning.write_memory(path, memory)
+    assert path.read_bytes() == original
+    assert sorted(tmp_path.iterdir()) == [path]
+
+
+def test_memory_writer_detects_non_finite_numbers_without_overwriting(monkeypatch, tmp_path):
+    path = tmp_path / "portfolio_10k_brace_memory.json"
+    path.write_text('{"old":true}\n', encoding="utf-8")
+    memory = learning.new_memory()
+    memory["decisions"].append({"decision_id": "bad", "score": float("nan")})
+    with pytest.raises(ValueError):
+        learning.write_memory(path, memory)
+    assert json.loads(path.read_text()) == {"old": True}
