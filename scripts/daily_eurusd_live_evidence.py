@@ -40,6 +40,7 @@ POLL_SECONDS = 60
 FLUSH_SECONDS = 180
 TIMELY_SECONDS = 180
 MAX_CATCHUP_BARS = 180
+MAX_LOCAL_SPOOL_SNAPSHOTS = 2200  # 27h positions survive remote outages until backup artifact
 MAX_WAIT_FOR_BAR_SECONDS = 240
 MAX_HEARTBEATS = 50
 STOP = False
@@ -60,7 +61,8 @@ def _unique_key(row: Mapping[str, Any]) -> tuple[str, str]:
 
 
 def merge_snapshots(existing: Sequence[Mapping[str, Any]],
-                    arriving: Sequence[Mapping[str, Any]]) -> list[dict]:
+                    arriving: Sequence[Mapping[str, Any]],
+                    limit: int = MAX_SNAPSHOTS) -> list[dict]:
     """Earliest actual first-seen evidence wins, not retrospective reconstruction.
 
     If another research writer later observed the same historical bar, it
@@ -80,7 +82,7 @@ def merge_snapshots(existing: Sequence[Mapping[str, Any]],
             continue
         if previous is None or prev_ts is None or ts < prev_ts:
             grouped[key] = dict(row)
-    return sorted(grouped.values(), key=lambda x: (x.get("market_bar_at",""),x.get("trade_id","")))[-MAX_SNAPSHOTS:]
+    return sorted(grouped.values(), key=lambda x: (x.get("market_bar_at",""),x.get("trade_id","")))[-limit:]
 
 
 def collect(spool: Mapping[str, Any], spot: Mapping[str, Any],
@@ -141,7 +143,8 @@ def collect(spool: Mapping[str, Any], spot: Mapping[str, Any],
         })
         keys.add(key)
         new_rows.append(sample)
-    out["snapshots"] = merge_snapshots(out["snapshots"], new_rows)
+    out["snapshots"] = merge_snapshots(out["snapshots"], new_rows,
+                                        limit=MAX_LOCAL_SPOOL_SNAPSHOTS)
 
     active = [s for s in out["snapshots"] if s["trade_id"] == tid]
     timely = [s for s in active if s.get("timely_observation") is True]
@@ -267,6 +270,101 @@ def publish(spool: Mapping[str, Any], token: str, repository: str,
     raise RuntimeError("unable to CAS-persist evidence after retries") from last_error
 
 
+ARCHIVE_PREFIX = "data/investments/eurusd_live_signal_archive"
+
+
+def archive_path(row: Mapping[str, Any]) -> str:
+    """Fixed UTC two-hour slot: <=120 distinct 1m observations per shard."""
+    point = parse_time(row.get("market_bar_at"))
+    if point is None:
+        raise ValueError("archive bar timestamp missing")
+    hour = 2 * (point.hour // 2)
+    return f"{ARCHIVE_PREFIX}/{point:%Y%m%d}/{hour:02d}.json"
+
+
+def archive_shards(spool: Mapping[str, Any]) -> dict[str,list[dict]]:
+    groups: dict[str,list[dict]] = {}
+    for row in spool.get("snapshots") or []:
+        if not isinstance(row,Mapping) or not row.get("first_seen_at"):
+            continue
+        groups.setdefault(archive_path(row),[]).append(dict(row))
+    return groups
+
+
+def publish_archives(spool: Mapping[str, Any], token: str, repository: str,
+                     now: datetime, request=api_request) -> dict:
+    """Persist archives BEFORE compacting hot journal; CAS-merge each shard."""
+    if repository != REPO:
+        raise ValueError("unexpected GitHub repository")
+    if not token:
+        raise ValueError("missing GitHub token")
+    completed=0
+    for path, rows in sorted(archive_shards(spool).items()):
+        url=f"https://api.github.com/repos/{REPO}/contents/{path}"
+        success=False
+        for attempt in range(6):
+            try:
+                try:
+                    doc=request(url,token)
+                    if doc.get("type") != "file" or not doc.get("sha"):
+                        raise RuntimeError("archive content SHA missing")
+                    base=json.loads(base64.b64decode(doc["content"].replace("\n","")))
+                    sha=doc["sha"]
+                except urllib.error.HTTPError as error:
+                    if error.code != 404:
+                        raise
+                    base={}
+                    sha=None
+                if base and base.get("authority") != "SHADOW_OBSERVATION_ONLY":
+                    raise ValueError("unexpected archive authority")
+                old=list(base.get("snapshots") or [])
+                # Two-hour buckets have at most 120 EURUSD 1m timestamps.
+                merged=merge_snapshots(old,rows)
+                if len(merged)>120:
+                    raise ValueError("archive bucket contains >120 distinct 1m bars")
+                if old==merged:
+                    success=True
+                    break
+                value={
+                    "schema_version":"eurusd-first-seen-signal-archive-v1",
+                    "authority":"SHADOW_OBSERVATION_ONLY",
+                    "bucket_utc":path.removeprefix(ARCHIVE_PREFIX+"/"),
+                    "snapshots":merged,
+                    "generated_at":iso(now),
+                    "append_only_provenance":True,
+                }
+                put={
+                    "branch":"main",
+                    "message":"data(daily): archive EURUSD first-seen live 1m evidence",
+                    "content":base64.b64encode(
+                        (json.dumps(value,ensure_ascii=False,sort_keys=True,indent=2)+"\n").encode()
+                    ).decode(),
+                }
+                if sha:
+                    put["sha"]=sha
+                response=request(url,token,"PUT",put)
+                if not (response.get("content") or {}).get("sha"):
+                    raise RuntimeError("archive write confirmation missing")
+                success=True
+                break
+            except urllib.error.HTTPError as error:
+                if error.code not in (409,422):
+                    raise
+                if attempt < 5:
+                    time.sleep(min(2+attempt,7))
+        if not success:
+            raise RuntimeError("unable to CAS-archive EURUSD evidence at "+path)
+        completed+=1
+    return {"status":"ARCHIVED","shards_verified":completed}
+
+
+def publish_all(spool: Mapping[str, Any], token: str, repository: str,
+                now: datetime, request=api_request) -> dict:
+    archival=publish_archives(spool,token,repository,now,request=request)
+    hot=publish(spool,token,repository,now,request=request)
+    return {"archive":archival,"hot":hot}
+
+
 def _spool(path: Path) -> dict:
     return load(path,{"schema_version":SCHEMA,"snapshots":[],"heartbeats":[]})
 
@@ -319,7 +417,7 @@ def watch(path: Path,spot_path: Path,token: str,repository: str,
             break
         if time.monotonic()-last_flush>=flush_seconds:
             try:
-                result=publish(_spool(path),token,repository,datetime.now(timezone.utc))
+                result=publish_all(_spool(path),token,repository,datetime.now(timezone.utc))
                 last_flush=time.monotonic()
                 print("EURUSD_EVIDENCE_PUBLISH",result,flush=True)
             except Exception as exc:
@@ -333,7 +431,7 @@ def watch(path: Path,spot_path: Path,token: str,repository: str,
     if path.exists():
         try:
             print("EURUSD_EVIDENCE_FINAL_PUBLISH",
-                  publish(_spool(path),token,repository,datetime.now(timezone.utc)),
+                  publish_all(_spool(path),token,repository,datetime.now(timezone.utc)),
                   flush=True)
         except Exception as exc:
             print("::warning::EURUSD evidence final flush failed; spool preserved: "+
@@ -357,7 +455,7 @@ def main() -> int:
     if args.flush:
         if not path.exists():
             return 0
-        print(publish(_spool(path),token,repository,datetime.now(timezone.utc)))
+        print(publish_all(_spool(path),token,repository,datetime.now(timezone.utc)))
         return 0
     signal.signal(signal.SIGTERM,_stop)
     signal.signal(signal.SIGINT,_stop)
