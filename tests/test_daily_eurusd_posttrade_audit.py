@@ -181,6 +181,15 @@ class TestPostTradeAudit(unittest.TestCase):
         self.assertFalse(result["authority"]["canonical_history_write"])
         self.assertFalse(result["authority"]["automatic_promotion"])
 
+    def test_no_future_close_is_audited_before_actual_close_timestamp(self):
+        future=trade("EURUSD:FUTURE")
+        future["closed_at"]=a.iso(NOW+timedelta(minutes=2))
+        result=a.build_report({},{"trades":[future]}, {},{}, {},[],NOW)
+        self.assertEqual(result["summary"]["audited_trades"],0)
+        matured=a.build_report(result,{"trades":[future]},{},{},{},[],
+                               NOW+timedelta(minutes=3))
+        self.assertEqual(matured["summary"]["audited_trades"],1)
+
     def test_archive_and_hot_duplicates_prefer_earliest_seen(self):
         original=sample(5,seen_lag=35)
         newer=sample(5,seen_lag=140)
