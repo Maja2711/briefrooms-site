@@ -50,7 +50,7 @@
       },
       "family": "Geopolitics",
       "id": "gse-v2-learning-lab",
-      "last_updated": "2026-10-09T02:13:07.188667Z",
+      "last_updated": "2026-10-09T09:10:21.626269Z",
       "max_drawdown": null,
       "minimum_sample": 60,
       "name": "GSE v2 Learning Lab",
@@ -83,7 +83,7 @@
       },
       "family": "Weekly Investments",
       "id": "strategy-research-lab",
-      "last_updated": "2026-10-08T09:24:38+02:00",
+      "last_updated": "2026-10-09T09:23:17+02:00",
       "max_drawdown": null,
       "minimum_sample": 30,
       "name": "Autonomous Strategy Research Lab",
@@ -99,7 +99,7 @@
       },
       "production_impact": false,
       "purpose": "Autonomiczne generowanie i filtrowanie kandydatów strategii bez prawa do produkcyjnej aktywacji.",
-      "sample_count": 203,
+      "sample_count": 204,
       "sample_unit": "research_cycles",
       "source": "data/investments/research_lab_report.json",
       "stage": "SHADOW",
@@ -194,28 +194,45 @@
       "details": {
         "arms": {
           "A": {
-            "directional_accuracy_1h": 0.5641025641025641,
-            "mean_signed_return_bps_1h": -0.054948979591836734,
-            "resolved_1h": 39
+            "directional_accuracy_1h": 0.5789473684210527,
+            "mean_signed_return_bps_1h": 0.015400000000000004,
+            "resolved_1h": 38
           },
           "B": {
-            "directional_accuracy_1h": 0.5,
-            "mean_signed_return_bps_1h": -0.46317959183673474,
-            "resolved_1h": 40
+            "directional_accuracy_1h": 0.5121951219512195,
+            "mean_signed_return_bps_1h": -0.3723102040816327,
+            "resolved_1h": 41
           },
           "C": {
-            "directional_accuracy_1h": 0.5789473684210527,
-            "mean_signed_return_bps_1h": -0.05414489795918367,
-            "resolved_1h": 38
+            "directional_accuracy_1h": 0.5945945945945946,
+            "mean_signed_return_bps_1h": 0.016204081632653064,
+            "resolved_1h": 37
           }
         },
-        "captures": 164,
+        "captures": 165,
         "learning_loop": {
           "arms": {
             "A": {
               "dominant_error": "FOLLOW_THROUGH_FAILURE",
+              "episode_count": 55,
+              "error_recurrence_rate": 0.571429,
+              "hit_rate": 0.490909,
+              "lesson_candidate": {
+                "confidence": null,
+                "eligible": false,
+                "error_pattern": null,
+                "policy_change_applied": false,
+                "policy_change_proposed": false,
+                "proposed_action": null
+              },
+              "mean_r": 0.16055,
+              "policy_stability": 1.0,
+              "recent_vs_prior_mean_r_delta": -1.080869
+            },
+            "B": {
+              "dominant_error": "FOLLOW_THROUGH_FAILURE",
               "episode_count": 54,
-              "error_recurrence_rate": 0.592593,
+              "error_recurrence_rate": 0.518519,
               "hit_rate": 0.5,
               "lesson_candidate": {
                 "confidence": null,
@@ -225,15 +242,15 @@
                 "policy_change_proposed": false,
                 "proposed_action": null
               },
-              "mean_r": 0.170466,
+              "mean_r": 0.189514,
               "policy_stability": 1.0,
-              "recent_vs_prior_mean_r_delta": -1.261194
+              "recent_vs_prior_mean_r_delta": -1.11445
             },
-            "B": {
+            "C": {
               "dominant_error": "FOLLOW_THROUGH_FAILURE",
-              "episode_count": 53,
-              "error_recurrence_rate": 0.538462,
-              "hit_rate": 0.509434,
+              "episode_count": 50,
+              "error_recurrence_rate": 0.576923,
+              "hit_rate": 0.48,
               "lesson_candidate": {
                 "confidence": null,
                 "eligible": false,
@@ -242,26 +259,9 @@
                 "policy_change_proposed": false,
                 "proposed_action": null
               },
-              "mean_r": 0.200164,
+              "mean_r": 0.152722,
               "policy_stability": 1.0,
-              "recent_vs_prior_mean_r_delta": -1.296679
-            },
-            "C": {
-              "dominant_error": "FOLLOW_THROUGH_FAILURE",
-              "episode_count": 49,
-              "error_recurrence_rate": 0.6,
-              "hit_rate": 0.489796,
-              "lesson_candidate": {
-                "confidence": 0.6,
-                "eligible": true,
-                "error_pattern": "FOLLOW_THROUGH_FAILURE",
-                "policy_change_applied": false,
-                "policy_change_proposed": true,
-                "proposed_action": "test follow-through confirmation before entry; do not change policy automatically"
-              },
-              "mean_r": 0.16349,
-              "policy_stability": 1.0,
-              "recent_vs_prior_mean_r_delta": -1.263978
+              "recent_vs_prior_mean_r_delta": -1.080905
             }
           },
           "automatic_challenger_creation": true,
@@ -330,7 +330,7 @@
           ],
           "cross_arm_writeback": false,
           "decision_influence": false,
-          "episode_count": 156,
+          "episode_count": 159,
           "historical_backfill": false,
           "mode": "PROSPECTIVE_SHARED_LEARNING_LOOP",
           "prospective_only": true,
@@ -340,7 +340,7 @@
       },
       "family": "EURUSD",
       "id": "eurusd-abc-live-shadow",
-      "last_updated": "2026-10-08T18:50:30.413685Z",
+      "last_updated": "2026-10-09T11:53:30.544277Z",
       "max_drawdown": null,
       "minimum_sample": 40,
       "name": "EURUSD A/B/C Live Shadow",
@@ -354,11 +354,11 @@
         "interpretation": "Forecast skill; nie jest automatycznie formalną alpha ani wynikiem transakcyjnym po kosztach.",
         "label": "Najlepsza trafność kierunku 1h",
         "unit": "fraction",
-        "value": 0.5789473684210527
+        "value": 0.5945945945945946
       },
       "production_impact": false,
       "purpose": "Prospektywne porównanie trzech wariantów: technicznego, Belief-only i hybrydowego.",
-      "sample_count": 38,
+      "sample_count": 37,
       "sample_unit": "resolved_1h_comparisons_per_arm",
       "source": "data/investments/eurusd_abc_public_pl.json",
       "stage": "SHADOW",
@@ -373,9 +373,9 @@
       "category": "trading",
       "delta_vs_benchmark": null,
       "details": {
-        "brier": 0.273784,
+        "brier": 0.274272,
         "calibration_block_resolved": null,
-        "captures": 51,
+        "captures": 53,
         "challenger": "X-BELIEF",
         "champion": "X-BASE",
         "discovery_layer": null,
@@ -413,13 +413,13 @@
         },
         "hit_rate": 0.5,
         "mean_signed_return_bps": -1.2736,
-        "resolved": 50,
+        "resolved": 51,
         "rollback": null,
         "signal_n": 42
       },
       "family": "EURUSD",
       "id": "eurusd-x-adaptive-shadow",
-      "last_updated": "2026-10-09T02:12:04.696364Z",
+      "last_updated": "2026-10-09T11:53:57.107652Z",
       "max_drawdown": null,
       "minimum_sample": 30,
       "name": "EURUSD X Adaptive Shadow",
@@ -432,21 +432,21 @@
         "interpretation": "Niższy Brier jest lepszy; liczony na prospektywnie rozstrzygniętych prognozach Championa dla horyzontu 4h.",
         "label": "Brier Championa (4h)",
         "unit": "score",
-        "value": 0.273784
+        "value": 0.274272
       },
       "production_impact": false,
       "purpose": "Szybko kalibrowany EUR/USD shadow challenger ze stałym core technicznym, BRs Belief Core, wersjonowanymi eksperymentalnymi dodatkami i automatycznym rollbackiem do ostatniego Championa.",
-      "sample_count": 50,
+      "sample_count": 51,
       "sample_unit": "resolved_champion_4h_outcomes",
       "source": "data/investments/eurusd_x_public_pl.json",
       "stage": "SHADOW",
-      "started_at": "2026-10-09T02:12:04.696364Z",
+      "started_at": "2026-10-09T11:53:57.107652Z",
       "status": "RUNNING",
       "system_class": "LAB",
       "version": "eurusd-x-v1.0.0"
     }
   ],
-  "generated_at": "2026-10-09T02:13:07.188667Z",
+  "generated_at": "2026-10-09T11:53:57.107652Z",
   "schema_version": "briefrooms-experiment-registry-v1",
   "status_policy": {
     "allowed": [
