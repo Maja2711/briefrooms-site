@@ -190,6 +190,17 @@ class LiveEvidenceTests(unittest.TestCase):
         self.assertEqual(result["shards_verified"],1)
         self.assertEqual([method for _,method in seen],["GET","PUT"])
 
+    def test_old_good_samples_cannot_mask_current_stale_feed(self):
+        good_at=START+timedelta(minutes=11,seconds=30)
+        good=live.collect({},spot(),candles(11),good_at)
+        self.assertEqual(good["monitor_health"]["status"],"OK")
+        # Last provider candle was completed at +11m. At +14m20 it is
+        # 200s late: historical timely samples must NOT make it OK.
+        late=live.collect(good,spot(),candles(11),
+                          START+timedelta(minutes=14,seconds=20))
+        self.assertEqual(late["monitor_health"]["status"],"DELAYED_SOURCE_1M_BAR")
+        self.assertFalse(late["monitor_health"]["whole_open_lifetime_continuity_proven"])
+
     def test_deny_outside_repo(self):
         with self.assertRaises(ValueError):
             live.publish({},"token","wrong/repo",START)
