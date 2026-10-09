@@ -151,6 +151,14 @@ def collect(spool: Mapping[str, Any], spot: Mapping[str, Any],
         (parse_time(chron[i])-parse_time(chron[i-1])).total_seconds() > 61
         for i in range(1,len(chron))
     )
+    first_full_minute = opened.replace(second=0,microsecond=0)
+    if first_full_minute < opened:
+        first_full_minute += timedelta(minutes=1)
+    expected = max(0,int((last_known-first_full_minute).total_seconds()/60)+1) if last_known else 0
+    seen_from_open = sum((parse_time(t) or opened-timedelta(days=1)) >= first_full_minute
+                         for t in chron)
+    missing = max(0, expected-seen_from_open)
+    coverage = round(seen_from_open/expected,4) if expected else None
     status = ("OK" if delay is not None and 0 <= delay <= MAX_WAIT_FOR_BAR_SECONDS
               and timely else "STALE_OR_MISSING_FX_1M_BAR"
               if delay is None or delay > MAX_WAIT_FOR_BAR_SECONDS else
@@ -165,7 +173,11 @@ def collect(spool: Mapping[str, Any], spot: Mapping[str, Any],
         "late_trade_snapshots":len(active)-len(timely),
         "last_timely_bar_at":last_timely,
         "detected_gaps_among_timely_bars":late_gaps,
-        "whole_open_lifetime_continuity_proven":False,
+        "expected_full_minutes_since_entry":expected,
+        "timely_1m_minutes_from_entry":seen_from_open,
+        "missing_or_late_minutes_since_entry":missing,
+        "timely_lifetime_coverage_ratio":coverage,
+        "whole_open_lifetime_continuity_proven":bool(expected and not missing),
         "publication_pending":True,
         "exit_authority":False,
     }
