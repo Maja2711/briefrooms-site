@@ -1,5 +1,9 @@
 """Realtime EURUSD evidence: first-seen timestamps, gaps, immutable provenance."""
 import unittest
+import base64
+import json
+import urllib.error
+from unittest.mock import patch
 from datetime import datetime, timedelta, timezone
 from scripts import daily_eurusd_live_evidence as live
 from scripts import daily_eurusd_exit_intelligence_v2 as observer
@@ -99,6 +103,38 @@ class LiveEvidenceTests(unittest.TestCase):
             latest["best_favorable_indicative_net_pips"],
             latest["best_favorable_mid_pips"]-1.5,places=3)
         self.assertTrue(latest["prices_are_executable_bid_ask"] is False)
+
+    def test_conditional_api_conflict_reloads_remote_before_persisting(self):
+        t=live.iso(START)
+        stale={"authority":"SHADOW_OBSERVATION_ONLY","snapshots":[]}
+        fresher={"authority":"SHADOW_OBSERVATION_ONLY",
+                 "snapshots":[{"trade_id":"T","market_bar_at":t,
+                               "first_seen_at":t,"captured_at":t,"exit_authority":False}],
+                 "correction_study":{"evidence":"preserved"}}
+        spool={"snapshots":[{"trade_id":"T",
+                             "market_bar_at":live.iso(START+timedelta(minutes=1)),
+                             "first_seen_at":live.iso(START+timedelta(minutes=2)),
+                             "captured_at":live.iso(START+timedelta(minutes=2)),
+                             "exit_authority":False}]}
+        calls=[]
+        def fake_request(url,token,method="GET",payload=None):
+            calls.append(method)
+            if method=="GET":
+                is_latest=calls.count("GET")>1
+                doc=fresher if is_latest else stale
+                return {"type":"file","sha":"sha2" if is_latest else "sha1",
+                        "content":base64.b64encode(json.dumps(doc).encode()).decode()}
+            if calls.count("PUT")==1:
+                raise urllib.error.HTTPError(url,409,"conflict",{},None)
+            self.assertEqual(payload["sha"],"sha2")
+            merged=json.loads(base64.b64decode(payload["content"]))
+            self.assertEqual(len(merged["snapshots"]),2)
+            self.assertEqual(merged["correction_study"],fresher["correction_study"])
+            return {"content":{"sha":"saved"},"commit":{"sha":"commit"}}
+        with patch.object(live.time,"sleep",return_value=None):
+            done=live.publish(spool,"secret",live.REPO,START,request=fake_request)
+        self.assertEqual(done["status"],"PUBLISHED")
+        self.assertEqual(calls,["GET","PUT","GET","PUT"])
 
     def test_deny_outside_repo(self):
         with self.assertRaises(ValueError):
