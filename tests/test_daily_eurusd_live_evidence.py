@@ -86,6 +86,20 @@ class LiveEvidenceTests(unittest.TestCase):
         self.assertEqual(after["realtime_heartbeats"],journal["realtime_heartbeats"])
         self.assertEqual(after["monitor_health"]["status"],"NO_OPEN_POSITION")
 
+    def test_3pip_epe_spread_applies_to_live_position_net_profit(self):
+        state=spot()
+        state["metadata"]["position"]["execution_price_engine"]={
+            "synthetic_spread_pips":3,"synthetic_half_spread_pips":1.5}
+        now=START+timedelta(minutes=12)
+        journal=live.collect({},state,candles(14),now)
+        latest=journal["snapshots"][-1]
+        self.assertEqual(latest["epe_synthetic_half_spread_pips"],1.5)
+        self.assertTrue(latest["epe_spread_from_recorded_entry"])
+        self.assertAlmostEqual(
+            latest["best_favorable_indicative_net_pips"],
+            latest["best_favorable_mid_pips"]-1.5,places=3)
+        self.assertTrue(latest["prices_are_executable_bid_ask"] is False)
+
     def test_deny_outside_repo(self):
         with self.assertRaises(ValueError):
             live.publish({},"token","wrong/repo",START)
