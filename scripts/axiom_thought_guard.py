@@ -229,6 +229,9 @@ def validate(current: dict[str, Any], history: list[dict[str, Any]]) -> list[str
             r for r in history[:-1]
             if _valid_iso_date(r.get("date")) and date.fromisoformat(r["date"]) >= cutoff
         ]
+        # Textual duplication is prohibited against the *entire* append-only
+        # archive, including records outside the theme-rotation window.
+        all_previous = history[:-1]
 
         # A conceptual theme is exclusive for the full 365-day memory window.
         # This blocks a generator from rephrasing an old idea under the same theme.
@@ -241,16 +244,16 @@ def validate(current: dict[str, Any], history: list[dict[str, Any]]) -> list[str
         latest_pl = latest.get("pl")
         latest_en = latest.get("en")
         if isinstance(latest_pl, str):
-            for previous in protected_history:
+            for previous in all_previous:
                 previous_pl = previous.get("pl")
                 if not isinstance(previous_pl, str):
                     continue
                 sim = similarity(latest_pl, previous_pl)
                 if normalize_text(latest_pl) == normalize_text(previous_pl):
-                    errors.append(f"exact thought duplicate in protected history: {previous.get('date')}")
+                    errors.append(f"exact thought duplicate in full history: {previous.get('date')}")
                 elif sim.violates:
                     errors.append(
-                        "thought is too similar to protected history entry "
+                        "thought is too similar to full history entry "
                         f"{previous.get('date')}: sequence={sim.sequence:.2f}, "
                         f"jaccard={sim.jaccard:.2f}"
                     )
@@ -258,10 +261,10 @@ def validate(current: dict[str, Any], history: list[dict[str, Any]]) -> list[str
                 if isinstance(latest_en, str) and isinstance(previous_en, str):
                     en_sim = similarity(latest_en, previous_en)
                     if normalize_text(latest_en) == normalize_text(previous_en):
-                        errors.append(f"exact English thought duplicate in protected history: {previous.get('date')}")
+                        errors.append(f"exact English thought duplicate in full history: {previous.get('date')}")
                     elif en_sim.violates:
                         errors.append(
-                            "English thought is too similar to protected history entry "
+                            "English thought is too similar to full history entry "
                             f"{previous.get('date')}: sequence={en_sim.sequence:.2f}, "
                             f"jaccard={en_sim.jaccard:.2f}"
                         )
