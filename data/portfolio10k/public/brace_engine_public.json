@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-10-09T23:10:46+00:00",
+  "generated_at": "2026-10-10T00:17:22+00:00",
   "methodology_version": "3.1.0",
-  "data_freshness": "current",
+  "data_freshness": "unsafe",
   "source_metadata": {
     "publisher": "brace_portfolio_publish.py",
     "canonical_frontend_source": true,
@@ -26,11 +26,11 @@
     "executable": false
   },
   "analysis_liveness": {
-    "status": "CURRENT",
-    "overdue": false,
+    "status": "ANALYSIS_OVERDUE",
+    "overdue": true,
     "analysis_generated_at": "2026-10-09T02:20:35+00:00",
-    "analysis_age_hours": 17.327,
-    "latest_required_slot": "2026-10-08T22:30:00+00:00"
+    "analysis_age_hours": 21.947,
+    "latest_required_slot": "2026-10-09T22:30:00+00:00"
   },
   "position_recommendations": [
     {
@@ -209,9 +209,9 @@
     "status": "PROBATIONARY_CONTROL"
   },
   "promotion_progress": {
-    "passed": 10,
+    "passed": 8,
     "total": 18,
-    "percentage": 55.6,
+    "percentage": 44.4,
     "conditions": [
       {
         "group": "probation",
@@ -271,7 +271,7 @@
       {
         "group": "operational",
         "condition": "no_critical_data_errors",
-        "passed": true
+        "passed": false
       },
       {
         "group": "operational",
@@ -286,7 +286,7 @@
       {
         "group": "operational",
         "condition": "timestamps_complete",
-        "passed": true
+        "passed": false
       },
       {
         "group": "operational",
@@ -312,7 +312,9 @@
       "minimum_confidence",
       "transaction_cost_buffer_applied",
       "cooldown_applied",
-      "material_advantage_required"
+      "material_advantage_required",
+      "no_critical_data_errors",
+      "timestamps_complete"
     ],
     "reason": "No status change; promotion gates remain incomplete."
   },
@@ -330,8 +332,10 @@
     "expected_drawdown": 0.234232,
     "current_drawdown": null,
     "annual_turnover": 0.460263,
-    "safe_mode": false,
-    "safe_mode_reasons": []
+    "safe_mode": true,
+    "safe_mode_reasons": [
+      "ANALYSIS_OVERDUE"
+    ]
   },
   "target": {
     "target_annual_return": 0.1,
@@ -567,41 +571,7 @@
       "exclusion_reasons": null
     }
   ],
-  "pending_decisions": [
-    {
-      "decision_id": "cash-add-f8bdb71ca55034e8",
-      "generated_at": "2026-10-09T00:16:52+00:00",
-      "action": "ADD",
-      "instrument": "sxr8",
-      "replacement_instrument": null,
-      "current_weight": 0.0,
-      "proposed_weight": 0.1,
-      "expected_benefit": 0.129954,
-      "expected_risk": 0.233203,
-      "confidence": 1.0,
-      "rationale_pl": "Wolna gotówka osiągnęła 13.9% portfela. SXR8.DE jest najwyżej ocenionym świeżym kandydatem BRACE spełniającym bramki pewności, oczekiwanej stopy zwrotu, drawdown i limit nowej pozycji. Zlecenie pozostaje paper-only.",
-      "rationale_en": "Free cash reached 13.9% of the portfolio. SXR8.DE is the highest-ranked fresh BRACE candidate passing confidence, expected-return, drawdown and new-position-size gates. Execution remains paper-only.",
-      "data_timestamp": "2026-10-08T02:06:36+00:00",
-      "methodology_version": "brace-portfolio-v3.1.0",
-      "status": "PROPOSED",
-      "checks": {
-        "cash_funds_minimum_position": true,
-        "fresh_brace_analysis": true,
-        "candidate_eligible": true,
-        "confidence": true,
-        "expected_return": true,
-        "expected_drawdown": true,
-        "optimization_rules": true,
-        "paper_only": true
-      },
-      "transaction_cost_buffer": 0.01,
-      "source": "portfolio_10k_guardian_cash_deployment",
-      "execution_status": "PENDING",
-      "execution_reason": "market_closed",
-      "order_status": "WAITING_FOR_MARKET",
-      "executed_at": null
-    }
-  ],
+  "pending_decisions": [],
   "policy": {
     "target_annual_return": 0.1,
     "autonomy_mode": "PAPER_EXECUTION",
@@ -631,7 +601,7 @@
   },
   "disclaimer_pl": "To autonomiczny eksperyment analityczny i portfel modelowy. Nie jest to rachunek maklerski ani rekomendacja inwestycyjna.",
   "disclaimer_en": "This is an autonomous analytical experiment and a model portfolio. It is not a brokerage account or investment advice.",
-  "content_sha256": "4404b08a359be47479a8721ae4285fe3d93eec3877703403b45c7e9122b4e220",
+  "content_sha256": "c290bad6fe11afb49567356b44119f8d8ad04ac371c6b672450e46b7c621057b",
   "control_authorization": {
     "schema_version": "brace-control-authorization-v1",
     "enabled": true,
