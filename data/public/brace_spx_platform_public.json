@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-10-09T01:22:53+00:00",
+  "generated_at": "2026-10-10T01:10:53+00:00",
   "platform": {
     "id": "brace-spx",
     "name": "BRACE-SPX",
@@ -16,10 +16,10 @@
     "single_champion_authorized": false,
     "shadow_status": "warming_up",
     "shadow_start": "2026-08-03",
-    "latest_market_date": "2026-10-08",
-    "observations_collected": 49,
+    "latest_market_date": "2026-10-09",
+    "observations_collected": 50,
     "warmup_required": 70,
-    "observations_remaining": 21,
+    "observations_remaining": 20,
     "immutable": true,
     "parameter_mutation_allowed": false
   },
@@ -29,20 +29,29 @@
     "activated_at": "2026-09-13T13:19:00+00:00",
     "activation_market_date": "2026-09-11",
     "activation_observations": 30,
-    "research_cycles": 21,
+    "research_cycles": 22,
     "feature_ready": true,
-    "feature_eligible_rows": 28,
-    "active_challengers": 4,
-    "initial_challenger_prospective_n": 19,
-    "completed_checkpoints": [],
-    "next_checkpoint_n": 20,
-    "best_challenger": null,
-    "best_challenger_metrics": null,
+    "feature_eligible_rows": 29,
+    "active_challengers": 5,
+    "initial_challenger_prospective_n": 20,
+    "completed_checkpoints": [
+      20
+    ],
+    "next_checkpoint_n": 35,
+    "best_challenger": "G6-R-C03",
+    "best_challenger_metrics": {
+      "prospective_n": 20,
+      "active_n": 10,
+      "cumulative_return": 0.003792392142842216,
+      "sharpe_excess": 0.31687035602700053,
+      "max_drawdown": -0.005674644191866918,
+      "hit_rate_active": 0.5
+    },
     "family_information_coefficients": {
-      "price_trend": -0.20842834372163968,
-      "rates": -0.05337032785352368,
-      "liquidity": -0.09021779391282275,
-      "options_vix": -0.0406815476234097
+      "price_trend": -0.2587913365728676,
+      "rates": -0.026389993883609637,
+      "liquidity": -0.11740495994118164,
+      "options_vix": -0.07971748197373653
     },
     "challengers": [
       {
@@ -52,12 +61,12 @@
         "parent_candidate_id": null,
         "created_market_date": "2026-09-11",
         "status": "ACTIVE_RESEARCH",
-        "prospective_n": 19,
-        "active_n": 19,
-        "cumulative_return": -0.008996201122349445,
-        "sharpe_excess": -3.2157637966061468,
+        "prospective_n": 20,
+        "active_n": 20,
+        "cumulative_return": -0.006840100412245365,
+        "sharpe_excess": -2.558275149424272,
         "max_drawdown": -0.01685374590283395,
-        "hit_rate_active": 0.5789473684210527
+        "hit_rate_active": 0.6
       },
       {
         "candidate_id": "G6-R-C02",
@@ -66,9 +75,9 @@
         "parent_candidate_id": null,
         "created_market_date": "2026-09-11",
         "status": "ACTIVE_RESEARCH",
-        "prospective_n": 19,
+        "prospective_n": 20,
         "active_n": 0,
-        "cumulative_return": 0.002970021956396396,
+        "cumulative_return": 0.0031283152210248577,
         "sharpe_excess": null,
         "max_drawdown": 0.0,
         "hit_rate_active": null
@@ -80,12 +89,12 @@
         "parent_candidate_id": null,
         "created_market_date": "2026-09-11",
         "status": "ACTIVE_RESEARCH",
-        "prospective_n": 19,
-        "active_n": 9,
-        "cumulative_return": 0.005841887620801067,
-        "sharpe_excess": 1.4243956635665538,
+        "prospective_n": 20,
+        "active_n": 10,
+        "cumulative_return": 0.003792392142842216,
+        "sharpe_excess": 0.31687035602700053,
         "max_drawdown": -0.005674644191866918,
-        "hit_rate_active": 0.5555555555555556
+        "hit_rate_active": 0.5
       },
       {
         "candidate_id": "G6-R-C04",
@@ -94,24 +103,41 @@
         "parent_candidate_id": null,
         "created_market_date": "2026-09-11",
         "status": "ACTIVE_RESEARCH",
-        "prospective_n": 19,
+        "prospective_n": 20,
         "active_n": 0,
-        "cumulative_return": 0.002970021956396396,
+        "cumulative_return": 0.0031283152210248577,
         "sharpe_excess": null,
         "max_drawdown": 0.0,
+        "hit_rate_active": null
+      },
+      {
+        "candidate_id": "G6-R-C05",
+        "rule": "robust_family_median",
+        "origin": "adaptive_checkpoint_20",
+        "parent_candidate_id": "G6-R-C03",
+        "created_market_date": "2026-10-09",
+        "status": "ACTIVE_RESEARCH",
+        "prospective_n": 0,
+        "active_n": 0,
+        "cumulative_return": null,
+        "sharpe_excess": null,
+        "max_drawdown": null,
         "hit_rate_active": null
       }
     ],
     "last_learning_event": {
-      "event_id": "L0001",
-      "event_type": "INITIALIZED_FROM_G6_FAILURE_DIAGNOSTICS",
-      "at": "2026-09-13T13:19:00+00:00",
-      "market_date": "2026-09-11",
-      "evidence": {
-        "g6_strict_gate_passed": false,
-        "median_fold_rank_correlation": 0.047619,
-        "g6_best_sharpe": 0.099713,
-        "trend_200d_sharpe": 0.600896
+      "event_id": "L0002",
+      "event_type": "CHECKPOINT_CHALLENGER_CREATED",
+      "at": "2026-10-10T01:10:53+00:00",
+      "market_date": "2026-10-09",
+      "checkpoint_n": 20,
+      "parent_candidate_id": "G6-R-C03",
+      "new_candidate_id": "G6-R-C05",
+      "family_ic": {
+        "price_trend": -0.2587913365728676,
+        "rates": -0.026389993883609637,
+        "liquidity": -0.11740495994118164,
+        "options_vix": -0.07971748197373653
       }
     },
     "prospective_evidence_backfill_allowed": false
@@ -122,11 +148,19 @@
     "automatic_promotion": false,
     "human_approval_required": true,
     "minimum_prospective_n": 70,
-    "best_challenger": null,
+    "best_challenger": "G6-R-C03",
     "blockers": [
-      "NO_CHALLENGER_WITH_MINIMUM_PROSPECTIVE_EVIDENCE"
+      "PROSPECTIVE_N_BELOW_PROMOTION_MINIMUM",
+      "NO_RISK_ADJUSTED_EDGE_VS_BUY_HOLD"
     ],
-    "prospective_buy_hold": null,
+    "prospective_buy_hold": {
+      "prospective_n": 20,
+      "active_n": 20,
+      "cumulative_return": 0.01512755993082715,
+      "sharpe_excess": 1.5784495332549247,
+      "max_drawdown": -0.014052999505090646,
+      "hit_rate_active": 0.4
+    },
     "trend_200d_policy": "development_reference_only_until_clean_post_holdout_history_is_long_enough"
   },
   "governance": {
