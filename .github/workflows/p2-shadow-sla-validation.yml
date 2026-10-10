@@ -10,6 +10,7 @@ on:
       - "tests/test_hypothesis_shadow_watchdog.py"
       - "tests/test_hypothesis_challenger_engine.py"
       - ".github/workflows/p2-shadow-watchdog.yml"
+      - ".github/workflows/belief-core-shadow-live.yml"
       - ".github/workflows/p2-shadow-sla-validation.yml"
   workflow_dispatch:
 
@@ -32,3 +33,4 @@ jobs:
           set -euo pipefail
           python -m py_compile scripts/hypothesis_shadow_watchdog.py scripts/nyse_session_calendar.py
           python -m unittest tests.test_hypothesis_shadow_watchdog tests.test_hypothesis_challenger_engine -v
+

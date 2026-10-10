@@ -34,7 +34,10 @@ on:
     # This gives Daily EURUSD multiple independent market clocks instead of relying
     # on one delayed GitHub schedule. Freshness is still validated downstream before
     # any production dispatch.
-    - cron: "7,37 13-22 * * 1-5"
+    - cron: "7,37 13-19,22 * * 1-5"
+    # Cover the short 16:00-16:20 NY collection phase in both EDT and EST.
+    # Extra runs retain the same NYSE/phase/freshness gates and serialized writer.
+    - cron: "2,7,12,17,37 20,21 * * 1-5"
   workflow_run:
     workflows:
       - "Update Investment Room Quotes"
@@ -346,3 +349,4 @@ jobs:
       # in belief-epistemic-state.yml. Do not also workflow_dispatch it here:
       # duplicate runs race artifact selection and can fan out duplicate Daily runs.
       # Shared Belief writers serialize on belief-core-live-shadow without cancellation.
+

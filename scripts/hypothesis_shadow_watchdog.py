@@ -33,6 +33,9 @@ COLLECTOR_MAX_AGE_MINUTES = 105
 CALIBRATION_MAX_AGE_MINUTES = 185
 SETTLEMENT_GRACE_MINUTES = 180
 CLOCK_FUTURE_TOLERANCE_MINUTES = 5
+SOURCE_RECOVERY_DELAY_MINUTES = 2
+SOURCE_RECOVERY_MIN_REMAINING_MINUTES = 2
+SOURCE_RECOVERY_RETRY_MINUTES = 5
 REQUIRED_BASELINE_PROBABILITY = (0, 1)
 RECOVERY_ACTIONS = {
     "SHADOW_FREEZE_GAP_OPEN": "rerun_p2_bridge",
@@ -56,31 +59,22 @@ def _age_min(now: datetime, value: Any) -> float | None:
     return None if then is None else round((now - then).total_seconds() / 60, 2)
 
 
-def _slot_has_confirmed_market_snapshot(
-    key: str, completed: Mapping[str, Any], now: datetime,
-) -> bool:
-    """Only an in-session collector slot receipt is snapshot evidence.
-
-    A running collector, FX observations, malformed timestamps and a fabricated
-    or late completion timestamp cannot discharge a US snapshot SLA.
-    """
+def _slot_window(key: str) -> tuple[datetime, datetime] | None:
+    """The original NYSE collection phase, never a retrospective window."""
     parts = key.split(":")
     if len(parts) != 3 or parts[0] != "wes-assets" or parts[2] not in SLOTS:
-        return False
+        return None
     try:
         session_date = date.fromisoformat(parts[1])
     except ValueError:
-        return False
+        return None
     calendar = session_for(session_date)
     if not calendar["session_open"]:
-        return False
+        return None
     planned = time(int(parts[2][:2]), int(parts[2][2:]))
     close_time = calendar["close_time"]
     if planned > close_time or (calendar["early_close"] and planned == close_time):
-        return False
-    completed_at = _parse(completed.get(key))
-    if completed_at is None or completed_at > now + timedelta(minutes=CLOCK_FUTURE_TOLERANCE_MINUTES):
-        return False
+        return None
     start = datetime.combine(session_date, planned, tzinfo=NY)
     later = [time(int(slot[:2]), int(slot[2:])) for slot in SLOTS if slot > parts[2]]
     # The source collector accepts a slot only before the next planned phase;
@@ -88,6 +82,22 @@ def _slot_has_confirmed_market_snapshot(
     end = (datetime.combine(session_date, min(later), tzinfo=NY) if later
            else datetime.combine(session_date, close_time, tzinfo=NY) + timedelta(minutes=20))
     end = min(end, datetime.combine(session_date, close_time, tzinfo=NY) + timedelta(minutes=20))
+    return start, end
+
+
+def _slot_has_confirmed_market_snapshot(
+    key: str, completed: Mapping[str, Any], now: datetime,
+) -> bool:
+    """Only a timezone-valid receipt from the original phase is proof.
+
+    Heartbeats, FX observations and late/fabricated receipts do not discharge SLA.
+    """
+    window = _slot_window(key)
+    completed_at = _parse(completed.get(key))
+    if (window is None or completed_at is None or
+        completed_at > now + timedelta(minutes=CLOCK_FUTURE_TOLERANCE_MINUTES)):
+        return False
+    start, end = window
     receipt = completed_at.astimezone(NY)
     skew = timedelta(minutes=CLOCK_FUTURE_TOLERANCE_MINUTES)
     return start - skew <= receipt <= end + skew
@@ -141,6 +151,71 @@ def _market(now: datetime) -> dict[str, Any]:
         "holiday_closed": calendar["holiday_closed"],
         "holiday_proof": calendar["source"],
     }
+
+
+def _recoverable_missing_slot_keys(completed: Mapping[str, Any], now: datetime) -> list[str]:
+    """Find live, unrecorded source slots before their collection phase expires.
+
+    This is dispatch telemetry, not a critical alarm or snapshot proof. An
+    existing invalid receipt needs investigation: the collector cannot safely
+    overwrite a completed slot to repair it.
+    """
+    session = _market(now)
+    keys = []
+    for slot in session["scheduled_slots"]:
+        key = "wes-assets:" + session["session_date_ny"] + ":" + slot
+        start, end = _slot_window(key)
+        if (key not in completed and
+            start + timedelta(minutes=SOURCE_RECOVERY_DELAY_MINUTES) <= now <=
+            end - timedelta(minutes=SOURCE_RECOVERY_MIN_REMAINING_MINUTES)):
+            keys.append(key)
+    return keys
+
+
+def collector_recovery_plan(report: Mapping[str, Any], runs: list[Mapping[str, Any]],
+                            *, now: str | None = None) -> dict[str, Any]:
+    """Plan only a dispatch to the existing collector; never modify source state."""
+    current = utc(now) if now else datetime.now(timezone.utc)
+    plan = {"dispatch": False, "reason": "no_live_source_slot", "slot_keys": []}
+    generated = _parse(report.get("generated_at"))
+    if (report.get("schema_version") != SCHEMA or generated is None or
+        not -CLOCK_FUTURE_TOLERANCE_MINUTES <= (current - generated).total_seconds() / 60 <= 5):
+        return {**plan, "reason": "watchdog_report_stale_or_invalid"}
+    live_keys = _recoverable_missing_slot_keys({}, current)
+    reported_keys = (report.get("source_sla") or {}).get("recoverable_missing_slot_keys") or []
+    keys = [key for key in live_keys if key in reported_keys]
+    source_codes = set(report.get("alert_codes") or []) & {
+        "COLLECTOR_STALE_DURING_MARKET", "BASELINE_FORECAST_MISSING_AFTER_SLOT",
+        "SOURCE_FORECASTS_MISSING_AFTER_CONFIRMED_SLOT",
+    }
+    if not live_keys or (not keys and not source_codes):
+        return plan
+    # A live source fault may still warrant refresh after a recorded slot.
+    plan["slot_keys"] = keys or live_keys
+    if not isinstance(runs, list):
+        raise ValueError("invalid collector run inventory; refusing recovery dispatch")
+    recent_attempt = False
+    phase_start = min(_slot_window(key)[0] for key in plan["slot_keys"])
+    for run in runs:
+        if not isinstance(run, Mapping):
+            raise ValueError("invalid collector run; refusing recovery dispatch")
+        created = _parse(run.get("createdAt"))
+        status = run.get("status")
+        if (created is None or status not in {
+            "queued", "in_progress", "requested", "waiting", "pending", "completed",
+        } or created > current + timedelta(minutes=CLOCK_FUTURE_TOLERANCE_MINUTES)):
+            raise ValueError("invalid collector run clock/status; refusing recovery dispatch")
+        if status != "completed":
+            return {**plan, "reason": "collector_in_flight"}
+        # An earlier phase's heartbeat, failure or skipped job cannot veto the
+        # new slot. A same-phase attempt gets only a short retry cooldown.
+        if (created >= phase_start and
+            created > current - timedelta(minutes=SOURCE_RECOVERY_RETRY_MINUTES)):
+            recent_attempt = True
+    if recent_attempt:
+        return {**plan, "reason": "source_slot_retry_cooldown"}
+    return {**plan, "dispatch": True, "reason": "live_source_slot_recovery"}
+
 
 def _alert(code: str, severity: str, candidate_id: str | None, reason: str,
            *, count: int = 0) -> dict[str, Any]:
@@ -584,6 +659,7 @@ def assess(state: Mapping[str, Any], p2: Mapping[str, Any] | None,
         "source_sla": {
             "threshold_minutes_after_planned_slot": SLOT_GRACE_MINUTES,
             "due_market_slots": len(session["due_slots"]),
+            "recoverable_missing_slot_keys": _recoverable_missing_slot_keys(completed, current),
             "market_snapshot_sla_breaches": len(missing_snapshot_slots),
             "unresolved_missing_slot_keys": missing_snapshot_slots,
             "missing_snapshot_slot_keys": missing_snapshot_slots,
@@ -713,3 +789,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
