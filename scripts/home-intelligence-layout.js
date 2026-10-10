@@ -24,13 +24,8 @@
     thoughtLabel:'AXIOM thought'
   };
 
-  const fallbackThought={
-    pl:'„Przyszłość rzadko zaczyna się od wielkiego przełomu — częściej od jednej decyzji, której nikt poza tobą jeszcze nie rozumie.”',
-    en:'“The future rarely begins with a great breakthrough — more often, it begins with one decision that nobody but you understands yet.”',
-    author:'AXIOM',
-    brand:'BriefRooms'
-  };
-  let thought=fallbackThought;
+  // Only a verified publication for today's Warsaw date may be displayed.
+  let thought=null;
 
   function setText(node,value){
     if(node&&node.textContent!==value)node.textContent=value;
@@ -82,6 +77,10 @@
     const head=document.querySelector('.main-head');
     if(!head)return;
     let card=head.querySelector('.axiom-thought');
+    if(!thought){
+      if(card)card.remove();
+      return;
+    }
     if(!card){
       card=document.createElement('aside');
       card.className='axiom-thought';
@@ -98,7 +97,7 @@
       card.appendChild(quote);
       head.appendChild(card);
     }
-    setText(card.querySelector('.axiom-thought__quote'),thought[lang]||fallbackThought[lang]);
+    setText(card.querySelector('.axiom-thought__quote'),thought[lang]);
     setText(card.querySelector('.axiom-thought__signature strong'),thought.author||'AXIOM');
     setText(card.querySelector('.axiom-thought__signature small'),thought.brand||'BriefRooms');
   }
@@ -171,38 +170,21 @@
       const stamp=warsawDate();
       const response=await fetch(`/data/home/axiom-thought.json?v=${Date.now()}`,{cache:'no-store'});
       if(!response.ok)throw new Error('current thought unavailable');
-      let data=await response.json();
-
-      // Production fail-safe: GitHub Actions is not allowed to leave yesterday's
-      // thought on the homepage. If publication is stale, consume the next
-      // prevalidated reserve item client-side for display. The workflow remains
-      // responsible for canonical history/consumption when it recovers.
-      if(!data||data.date!==stamp){
-        const reserveResponse=await fetch(`/data/home/axiom-thought-reserve.json?v=${Date.now()}`,{cache:'no-store'});
-        if(reserveResponse.ok){
-          const reserve=await reserveResponse.json();
-          if(Array.isArray(reserve)&&reserve.length){
-            const base=Date.parse('2026-09-21T00:00:00Z');
-            const now=Date.parse(stamp+'T00:00:00Z');
-            const offset=Math.max(0,Math.floor((now-base)/86400000)-1);
-            const candidate=reserve[Math.min(offset,reserve.length-1)];
-            if(candidate)data={date:stamp,author:'AXIOM',brand:'BriefRooms',pl:candidate.pl,en:candidate.en};
-          }
-        }
+      const data=await response.json();
+      // Neither the embedded historical seed nor an uncommitted reserve entry
+      // is evidence of today's publication. Do not silently recycle them.
+      if(!data||data.date!==stamp
+          ||data.author!=='AXIOM'||data.brand!=='BriefRooms'
+          ||typeof data.pl!=='string'||!data.pl.trim()
+          ||typeof data.en!=='string'||!data.en.trim()){
+        throw new Error('unverified AXIOM thought');
       }
-
-      if(data&&typeof data==='object'){
-        thought={
-          pl:typeof data.pl==='string'&&data.pl.trim()?data.pl.trim():fallbackThought.pl,
-          en:typeof data.en==='string'&&data.en.trim()?data.en.trim():fallbackThought.en,
-          author:typeof data.author==='string'&&data.author.trim()?data.author.trim():'AXIOM',
-          brand:typeof data.brand==='string'&&data.brand.trim()?data.brand.trim():'BriefRooms'
-        };
-        applyThought();
-      }
+      thought={pl:data.pl.trim(),en:data.en.trim(),author:'AXIOM',brand:'BriefRooms'};
     }catch(_){
-      // Fail closed to the embedded thought; the rest of the homepage remains untouched.
+      // Fail closed: never display a known old motto as today's new thought.
+      thought=null;
     }
+    applyThought();
   }
 
   apply();
