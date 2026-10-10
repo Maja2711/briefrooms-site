@@ -5,7 +5,7 @@ import unittest
 from unittest.mock import patch
 
 from scripts.axiom_thought_guard import similarity, validate
-from scripts.publish_axiom_thought import candidate_validation_stamp, semantic_review, validate_candidate
+from scripts.publish_axiom_thought import candidate_validation_stamp, semantic_review, semantic_smoke, validate_candidate
 
 
 CURRENT = {
@@ -199,6 +199,25 @@ class AxiomThoughtGuardTests(unittest.TestCase):
                      "editor_note": "A different approach that should still be rejected because its English translation repeats a reserved line."}
         with self.assertRaisesRegex(ValueError, "too similar to reserve"):
             validate_candidate(candidate, [SEED], [LATEST])
+
+
+    def test_live_smoke_checks_rejected_paraphrase_and_unique_reserve_without_writing(self) -> None:
+        reserve = copy.deepcopy(LATEST)
+        reserve.pop("date")
+        mock_effects = [
+            ValueError("AXIOM_SEMANTIC_REVIEW_BLOCKED: DUPLICATE closest=2026-09-15"),
+            {"verdict": "UNIQUE"},
+        ]
+        with patch("scripts.publish_axiom_thought.semantic_review", side_effect=mock_effects) as review:
+            self.assertEqual(semantic_smoke([SEED], [reserve]), 0)
+        self.assertEqual(review.call_count, 2)
+
+    def test_live_smoke_fails_when_duplicate_is_approved(self) -> None:
+        reserve = copy.deepcopy(LATEST)
+        reserve.pop("date")
+        with patch("scripts.publish_axiom_thought.semantic_review", return_value={"verdict": "UNIQUE"}) as review:
+            self.assertEqual(semantic_smoke([SEED], [reserve]), 2)
+        review.assert_called_once()
 
 
 if __name__ == "__main__":
