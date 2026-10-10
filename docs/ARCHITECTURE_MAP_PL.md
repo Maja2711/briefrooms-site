@@ -1,8 +1,8 @@
 # Kanoniczna mapa architektury BriefRooms — PL
 
-**Wersja mapy:** 1.28  
-**Stan na:** 2026-10-07  
-**Bazowy commit `main`:** `8087ee249864b67487d817f3e570af430ff07f33`  
+**Wersja mapy:** 1.29  
+**Stan na:** 2026-10-10  
+**Bazowy commit `main`:** `a0d1be611726ef7cfe7616b74088e50f74431037`  
 **Repozytorium:** `Maja2711/briefrooms-site`
 
 ## 0. Rola tego dokumentu
@@ -328,6 +328,8 @@ Każda karta wiadomości widoczna publicznie — zarówno w sekcjach `/pl/aktual
 
 **Shadow Engines Observatory jest statusem/read-only observatory.** Może czytać workflow statusy i publikować sanitizowany `shadow_engines_public.json`, ale nie może uruchamiać WES/Weekly execution, zmieniać pozycji, risk state ani innego engine-owned lifecycle. Awaria dowolnego executora nie może blokować publikacji statusu innych shadow engines.
 
+**P2 source-slot recovery (`EP-05`, `EP-06`, `LE-06`, `LE-09`)**: niezależny read-only watchdog może wyłącznie zlecić istniejącemu collectorowi Belief zebranie bieżącego, niezapisanego slotu NYSE od planowanej godziny +2 min do końca oryginalnej fazy minus 2 min. Dla regularnego zamknięcia próby przypadają na 16:02/07/12/17 NY; alarm nadal dojrzewa po +55 min. Trwający/oczekujący collector blokuje duplikację, a zakończona próba z tej samej fazy ma 5-minutowy cooldown; starszy heartbeat nie blokuje nowego slotu. Monitor sprawdza także nieudane zakończenia workflow. Dodatkowe harmonogramy 20/21 UTC pokrywają EDT/EST, ale GitHub Actions nie gwarantuje twardego SLA. Jedynym writerem source/forecast pozostaje istniejący collector z własnymi gate'ami i lockiem. Historyczne luki pozostają `FAIL`; brak backdating, nadpisywania receipt, promotion, Belief writeback lub execution authority. Szczegóły: `docs/P2_SHADOW_WATCHDOG_P21.md`.
+
 ### State boundaries
 
 1. **Public repo state** — tylko dane przeznaczone do wersjonowania/publicznej projekcji.
@@ -497,3 +499,4 @@ Najważniejsze dokumenty szczegółowe użyte do budowy i utrzymania aktualnej m
 | `NT-01` | Trading Notifications | Read-only projekcja zmian stanu pozycji do eventów OPEN/CLOSE, preferencji per urządzenie i background Web Push | `scripts/build_trading_notification_events.py`, `scripts/trading-notifications.js`, `br-trading-sw.js`, `workers/trading-push/*`, `data/notifications/*`, `docs/TRADING_NOTIFICATIONS_PL.md` / `_EN.md`; **zero execution/decision/risk authority** |
 
 `NT-01` czyta wyłącznie już zapisane stany `TR-03`, `TR-04` i `TR-05`. Nie może wywoływać lifecycle, tworzyć filli, modyfikować pozycji ani wpływać na modele. Produkcyjna ścieżka Web Push jest commit-bound dla **wszystkich kanałów**: Daily EUR/USD, Weekly EUR/USD, Weekly BTC/USD, Weekly S&P 500 futures oraz Stock Trading GPW/USA. Każdy kanoniczny writer po udanym zapisie przekazuje przez wspólny `scripts/sync_trading_push_commit.sh` do `/sync-trading` wyłącznie dokładne SHA commita i kanał. Worker dopuszcza aktualny head lub niedawnego przodka aktualnego `main`, porównuje stan tego commita z jego bezpośrednim rodzicem i emituje tylko rzeczywiste przejścia `brak -> OPEN` / `OPEN -> CLOSED`. Weekly jest podpięty we wszystkich writerach mogących zmienić stan pozycji: WES, pełnym maintenance, freshness recovery, live-price/risk writerze, Event Intelligence i 5-minutowym risk path; Stock Trading w v2 production admission, canonical portfolio lifecycle i Event Intelligence overlay; Daily używa tej samej ścieżki także w realtime watcherze. Deterministyczne `event_id = engine + event_type + position_id` chroni przed duplikacją. Język i docelowy URL są wybierane per subskrypcja urządzenia (PL/EN). Publiczny `/ingest` jest wyłączony; internal-only ingest + kanoniczny feed pozostają wyłącznie recovery. Konfiguracja dostępu przewiduje `PUBLIC | AUTHENTICATED | PAID`. GitHub Pages pozostaje frontendem; background Web Push obsługuje odseparowany Cloudflare Worker z Durable Object, a prywatny VAPID pozostaje wyłącznie w Worker Secrets.
+

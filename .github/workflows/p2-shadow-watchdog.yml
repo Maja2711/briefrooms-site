@@ -12,6 +12,9 @@ on:
       - "tests/test_hypothesis_shadow_watchdog.py"
   schedule:
     - cron: "7,37 * * * *"
+    # Final-slot recovery must run before 16:20 NY, not its 16:55 SLA alarm.
+    # Cover EDT/EST; the official NYSE calendar and phase gates remain in Python.
+    - cron: "2,12,17 20,21 * * 1-5"
   workflow_run:
     workflows:
       - "Belief Calibration Foundation"
@@ -29,9 +32,6 @@ concurrency:
 
 jobs:
   monitor:
-    if: >-
-      github.event_name != 'workflow_run' ||
-      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 12
     env:
@@ -199,45 +199,48 @@ jobs:
 
       - name: Dispatch collector recovery if source stopped
         if: always()
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts
         run: |
           set -euo pipefail
           test -s "$RUNNER_TEMP/P2_MONITOR.json" || exit 0
           if ! python - <<'PY'
           import json,os
           from pathlib import Path
+          from hypothesis_shadow_watchdog import collector_recovery_plan
           p=json.loads((Path(os.environ["RUNNER_TEMP"])/"P2_MONITOR.json").read_text())
-          codes=set(p["alert_codes"])
-          always_recoverable = codes & {
-              "COLLECTOR_STALE_DURING_MARKET", "BASELINE_FORECAST_MISSING_AFTER_SLOT",
-              "SOURCE_FORECASTS_MISSING_AFTER_CONFIRMED_SLOT",
-          }
-          # A prior-day/after-close missing snapshot stays FAIL, but another
-          # FX-only collector run cannot retroactively satisfy its US slot.
-          current_prefix = "wes-assets:" + p["session"]["session_date_ny"] + ":"
-          active_snapshot_gap = (
-              "MARKET_SNAPSHOT_SLA_BREACHED" in codes
-              and p["session"]["market_window_active"]
-              and any(key.startswith(current_prefix)
-                      for key in p["source_sla"]["unresolved_missing_slot_keys"])
-          )
-          raise SystemExit(0 if always_recoverable or active_snapshot_gap else 1)
+          plan=collector_recovery_plan(p, [])
+          print("P2_RECOVERY_CHECK", json.dumps(plan, sort_keys=True))
+          raise SystemExit(0 if plan["dispatch"] else 1)
           PY
           then exit 0; fi
-          # Rate-limit recovery: never duplicate a collector fired within 90m.
+          # Inspect actual run status. An earlier heartbeat cannot veto a new
+          # slot; queued/running collection and a five-minute retry cooldown can.
           if gh run list --workflow "Belief Core Live Shadow Collection" \
-             --json createdAt --limit 10 | python -c '
-          import json,sys
-          from datetime import datetime,timezone
-          now=datetime.now(timezone.utc)
-          rows=json.load(sys.stdin)
-          recent=any(
-              (now-datetime.fromisoformat(x["createdAt"].replace("Z","+00:00"))).total_seconds()<5400
-              for x in rows if x.get("createdAt")
-          )
-          sys.exit(0 if recent else 1)
-          '; then
-            echo "P2_RECOVERY_RATE_LIMIT: recent collector already running/recent"
+             --branch main --json createdAt,status,conclusion --limit 20 \
+             > "$RUNNER_TEMP/p2-collector-runs.json"; then
+            python - <<'PY'
+          import json,os
+          from pathlib import Path
+          from hypothesis_shadow_watchdog import collector_recovery_plan
+          root=Path(os.environ["RUNNER_TEMP"])
+          p=json.loads((root/"P2_MONITOR.json").read_text())
+          rows=json.loads((root/"p2-collector-runs.json").read_text())
+          plan=collector_recovery_plan(p, rows)
+          (root/"P2_RECOVERY_PLAN.json").write_text(json.dumps(plan)+"\n")
+          print("P2_RECOVERY_PLAN", json.dumps(plan, sort_keys=True))
+          PY
           else
+            echo "::error::Cannot inspect collector runs; refusing duplicate recovery dispatch"
+            exit 2
+          fi
+          if python - <<'PY'
+          import json,os
+          from pathlib import Path
+          p=json.loads((Path(os.environ["RUNNER_TEMP"])/"P2_RECOVERY_PLAN.json").read_text())
+          raise SystemExit(0 if p["dispatch"] else 1)
+          PY
+          then
             echo "::warning title=P2 recovery::Dispatching Belief source collection"
             gh workflow run belief-core-shadow-live.yml --ref main
           fi
@@ -321,3 +324,4 @@ jobs:
           else
             echo "P2_SHADOW_INDEPENDENT_WATCHDOG_PASS"
           fi
+

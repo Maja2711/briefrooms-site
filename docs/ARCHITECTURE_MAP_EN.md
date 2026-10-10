@@ -1,8 +1,8 @@
 # BriefRooms Canonical Architecture Map — EN
 
-**Map version:** 1.28  
-**Snapshot date:** 2026-10-07  
-**Base `main` commit:** `8087ee249864b67487d817f3e570af430ff07f33`  
+**Map version:** 1.29  
+**Snapshot date:** 2026-10-10  
+**Base `main` commit:** `a0d1be611726ef7cfe7616b74088e50f74431037`  
 **Repository:** `Maja2711/briefrooms-site`
 
 ## 0. Purpose of this document
@@ -328,6 +328,8 @@ Every publicly visible news card — section pages `/pl/aktualnosci` / `/en/news
 
 **Shadow Engines Observatory is a status/read-only observatory.** It may read workflow status and publish sanitized `shadow_engines_public.json`, but it must not run WES/Weekly execution, mutate positions, risk state, or any other engine-owned lifecycle. A failure in any executor must not block publication of the other shadow-engine statuses.
 
+**P2 source-slot recovery (`EP-05`, `EP-06`, `LE-06`, `LE-09`)**: the independent read-only watchdog may only request the existing Belief collector to collect a live, unrecorded NYSE slot from planned time +2 minutes until two minutes before its original phase ends. For regular close, attempts occur at 16:02/07/12/17 NY; the alarm still matures after +55 minutes. Queued/running collection suppresses duplicates; a completed same-phase attempt has a five-minute cooldown, while an older heartbeat cannot block a new slot. The monitor also checks failed workflow completions. Additional 20/21 UTC schedules cover EDT/EST, but GitHub Actions cannot guarantee a hard SLA. The existing collector retains exclusive source/forecast writer ownership, gates and lock. Historical gaps remain `FAIL`; no backdating, receipt overwrite, promotion, Belief writeback or execution authority. Details: `docs/P2_SHADOW_WATCHDOG_P21.md`.
+
 ### State boundaries
 
 1. **Public repository state** — data intended for versioning/public projection only.
@@ -493,3 +495,4 @@ Primary detailed documents used to build and maintain the current map:
 | `NT-01` | Trading Notifications | Read-only projection of persisted position transitions into OPEN/CLOSE events, per-device preferences and background Web Push | `scripts/build_trading_notification_events.py`, `scripts/trading-notifications.js`, `br-trading-sw.js`, `workers/trading-push/*`, `data/notifications/*`, `docs/TRADING_NOTIFICATIONS_PL.md` / `_EN.md`; **zero execution/decision/risk authority** |
 
 `NT-01` only reads already persisted state owned by `TR-03`, `TR-04` and `TR-05`. It cannot invoke lifecycle logic, create fills, mutate positions or influence models. The production Web Push path is commit-bound for **every channel**: Daily EUR/USD, Weekly EUR/USD, Weekly BTC/USD, Weekly S&P 500 futures, and Stock Trading GPW/US. After a successful canonical write, every writer uses the shared `scripts/sync_trading_push_commit.sh` handoff to send only the exact commit SHA and channel to `/sync-trading`. The Worker accepts the current head or a recent ancestor of current `main`, compares that commit's state with its direct parent, and emits only real `absent -> OPEN` / `OPEN -> CLOSED` transitions. Weekly is wired at every writer that can mutate position state: WES, full maintenance, freshness recovery, the live-price/risk writer, Event Intelligence and the five-minute risk path; Stock Trading is wired at v2 production admission, canonical portfolio lifecycle and the Event Intelligence overlay; Daily uses the same path from its realtime watcher as well. Deterministic `event_id = engine + event_type + position_id` prevents duplicates. Language and destination URL are selected per device subscription (PL/EN). Public `/ingest` is disabled; internal-only ingest plus the canonical feed remain recovery-only. Access configuration supports `PUBLIC | AUTHENTICATED | PAID`. GitHub Pages remains the frontend; background Web Push is handled by an isolated Cloudflare Worker with a Durable Object, while private VAPID material remains only in Worker Secrets.
+

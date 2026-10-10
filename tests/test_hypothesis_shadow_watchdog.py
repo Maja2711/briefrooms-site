@@ -1,15 +1,17 @@
 """P2.1 active-session watchdog, frozen-source lineage and alert policy tests."""
 import copy
 import json
+import os
 import subprocess
 import sys
 import tempfile
+import textwrap
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
-from hypothesis_shadow_watchdog import assess, public_view
+from hypothesis_shadow_watchdog import assess, public_view, collector_recovery_plan, NY
 from hypothesis_challenger_engine import run, SCHEMA
 from tests.test_hypothesis_challenger_engine import (
     candidate, registry, utility, forecast, verification, stamp
@@ -47,6 +49,234 @@ def live_at(time_str, ident="btc.volatility.benign", slot="1000", hour=14, minut
             "outcome_spec": {"kind": "value_below", "symbol": "^VIX", "threshold": 20},
         },
     }
+
+
+class P21SourceRecoveryTests(unittest.TestCase):
+    def report(self, now="2026-10-08T20:07:00Z", *, close_receipt=None, previous=None):
+        current = datetime.fromisoformat(now.replace("Z", "+00:00"))
+        local = current.astimezone(NY)
+        day = local.date().isoformat()
+        done = {}
+        forecasts = []
+        for slot, hour in (("1000", 10), ("1300", 13)):
+            at = local.replace(hour=hour, minute=2, second=0, microsecond=0)
+            key = "wes-assets:" + day + ":" + slot
+            done[key] = at.isoformat()
+            forecasts.append({
+                "forecast_id": "source-" + slot, "belief_id": "spx.trend.bullish",
+                "forecast_at": at.isoformat(), "target_at": (at+timedelta(days=1)).isoformat(),
+                "predicted_probability": .6, "metadata": {"slot_key": key},
+            })
+        if close_receipt is not None:
+            done["wes-assets:" + day + ":1600"] = close_receipt
+        return assess({"forecasts": forecasts, "verifications": []},
+                      {"schema_version": SCHEMA, "generated_at": now, "candidates": {}},
+                      scheduler(now=now, slots=done), now=now, previous=previous, monitor=True)
+
+    def test_close_recovery_precedes_sla_without_creating_a_false_alarm(self):
+        for now in ("2026-10-08T20:02:00Z", "2026-10-08T20:07:00Z",
+                    "2026-10-08T20:12:00Z", "2026-10-08T20:17:00Z"):
+            with self.subTest(now=now):
+                report = self.report(now)
+                self.assertEqual("PASS", report["status"])
+                self.assertNotIn("MARKET_SNAPSHOT_SLA_BREACHED", report["alert_codes"])
+                self.assertEqual(["wes-assets:2026-10-08:1600"],
+                                 report["source_sla"]["recoverable_missing_slot_keys"])
+                plan = collector_recovery_plan(report, [], now=now)
+                self.assertTrue(plan["dispatch"])
+                self.assertEqual(["wes-assets:2026-10-08:1600"], plan["slot_keys"])
+
+    def test_prior_phase_heartbeat_failure_or_skipped_run_cannot_veto_close_slot(self):
+        for conclusion in ("success", "failure", "skipped"):
+            rows = [{"createdAt": "2026-10-08T19:59:00Z", "status": "completed",
+                     "conclusion": conclusion}]
+            self.assertTrue(collector_recovery_plan(
+                self.report("2026-10-08T20:02:00Z"), rows, now="2026-10-08T20:02:00Z")["dispatch"])
+
+    def test_in_flight_collector_is_not_duplicated(self):
+        for status in ("queued", "in_progress", "requested", "waiting", "pending"):
+            with self.subTest(status=status):
+                plan = collector_recovery_plan(self.report(), [
+                    {"createdAt": "2026-10-08T19:53:00Z", "status": status}
+                ], now="2026-10-08T20:07:00Z")
+                self.assertFalse(plan["dispatch"])
+                self.assertEqual("collector_in_flight", plan["reason"])
+
+    def test_failed_same_phase_attempt_can_retry_after_five_minutes(self):
+        rows = [{"createdAt": "2026-10-08T20:02:00Z", "status": "completed",
+                 "conclusion": "failure"}]
+        first = collector_recovery_plan(self.report("2026-10-08T20:06:59Z"),
+                                        rows, now="2026-10-08T20:06:59Z")
+        self.assertFalse(first["dispatch"])
+        self.assertEqual("source_slot_retry_cooldown", first["reason"])
+        self.assertTrue(collector_recovery_plan(self.report(), rows,
+                                              now="2026-10-08T20:07:00Z")["dispatch"])
+
+    def test_confirmed_close_slot_stops_recovery(self):
+        report = self.report(close_receipt="2026-10-08T20:03:00Z")
+        self.assertEqual([], report["source_sla"]["recoverable_missing_slot_keys"])
+        self.assertFalse(collector_recovery_plan(report, [], now=report["generated_at"])["dispatch"])
+
+    def test_invalid_recorded_receipt_is_not_overwritten_by_recovery(self):
+        report = self.report(close_receipt="not-a-timestamp")
+        self.assertEqual([], report["source_sla"]["recoverable_missing_slot_keys"])
+        self.assertFalse(collector_recovery_plan(report, [], now=report["generated_at"])["dispatch"])
+        expired = self.report("2026-10-08T20:55:00Z", close_receipt="not-a-timestamp")
+        self.assertEqual("FAIL", expired["status"])
+
+    def test_no_dispatch_before_slot_or_without_time_to_collect(self):
+        for now in ("2026-10-08T19:59:00Z", "2026-10-08T20:01:59Z",
+                    "2026-10-08T20:18:01Z", "2026-10-08T20:20:00Z",
+                    "2026-10-08T20:55:00Z"):
+            with self.subTest(now=now):
+                report = self.report(now)
+                self.assertFalse(collector_recovery_plan(report, [], now=now)["dispatch"])
+        self.assertEqual("BLOCKED", self.report("2026-10-08T20:55:00Z")["production_e2e_status"])
+
+    def test_delayed_dispatch_rechecks_the_actual_phase_deadline(self):
+        report = self.report("2026-10-08T20:17:00Z")
+        self.assertTrue(collector_recovery_plan(report, [], now=report["generated_at"])["dispatch"])
+        self.assertFalse(collector_recovery_plan(report, [], now="2026-10-08T20:20:00Z")["dispatch"])
+
+    def test_winter_timezone_uses_ny_close_not_fixed_utc_hour(self):
+        report = self.report("2026-11-30T21:07:00Z")
+        self.assertTrue(collector_recovery_plan(report, [], now=report["generated_at"])["dispatch"])
+        before = self.report("2026-11-30T20:07:00Z")
+        self.assertEqual([], before["source_sla"]["recoverable_missing_slot_keys"])
+
+    def test_closed_and_early_close_sessions_do_not_dispatch_a_synthetic_close_slot(self):
+        for now in (SATURDAY, "2026-11-26T21:07:00Z", "2026-11-27T21:07:00Z",
+                    "2029-10-08T20:07:00Z"):
+            with self.subTest(now=now):
+                report = self.report(now)
+                self.assertEqual([], report["source_sla"]["recoverable_missing_slot_keys"])
+                self.assertFalse(collector_recovery_plan(report, [], now=now)["dispatch"])
+
+    def test_history_stays_failed_while_a_new_live_slot_can_be_collected(self):
+        prior = {"source_sla": {"unresolved_missing_slot_keys": ["wes-assets:2026-10-08:1600"]}}
+        report = self.report("2026-10-09T20:07:00Z", previous=prior)
+        self.assertEqual("FAIL", report["status"])
+        self.assertEqual("BLOCKED", report["production_e2e_status"])
+        self.assertIn("wes-assets:2026-10-08:1600", report["source_sla"]["unresolved_missing_slot_keys"])
+        plan = collector_recovery_plan(report, [], now=report["generated_at"])
+        self.assertTrue(plan["dispatch"])
+        self.assertEqual(["wes-assets:2026-10-09:1600"], plan["slot_keys"])
+        self.assertTrue(all(value is False for value in report["authority"].values()))
+
+    def test_recovery_plan_is_read_only(self):
+        report = self.report()
+        rows = [{"createdAt": "2026-10-08T19:53:00Z", "status": "completed"}]
+        original_report, original_rows = copy.deepcopy(report), copy.deepcopy(rows)
+        self.assertTrue(collector_recovery_plan(report, rows, now=report["generated_at"])["dispatch"])
+        self.assertEqual(original_report, report)
+        self.assertEqual(original_rows, rows)
+
+    def test_stale_or_invalid_report_never_authorizes_dispatch(self):
+        report = self.report()
+        self.assertFalse(collector_recovery_plan(report, [], now="2026-10-08T20:13:00Z")["dispatch"])
+        report["generated_at"] = "invalid"
+        self.assertFalse(collector_recovery_plan(report, [], now="2026-10-08T20:07:00Z")["dispatch"])
+
+    def test_invalid_run_inventory_fails_closed(self):
+        for rows in ({}, [None], [{"createdAt": "bad", "status": "completed"}],
+                     [{"createdAt": "2026-10-08T20:13:00Z", "status": "completed"}],
+                     [{"createdAt": "2026-10-08T20:02:00Z", "status": "unknown"}]):
+            with self.subTest(rows=rows), self.assertRaises(ValueError):
+                collector_recovery_plan(self.report(), rows, now="2026-10-08T20:07:00Z")
+
+
+class P21RecoveryWorkflowTests(unittest.TestCase):
+    # Execute the actual workflow shell with a fake GH endpoint and a fixed
+    # clock. The recovery planner, phase checks and dispatch command are real.
+    report = P21SourceRecoveryTests.report
+
+    def workflow_step(self, report, rows, now, *, inventory_failure=False):
+        repo = Path(__file__).resolve().parents[1]
+        workflow = (repo/".github/workflows/p2-shadow-watchdog.yml").read_text()
+        block = workflow.split("      - name: Dispatch collector recovery if source stopped\n", 1)[1]
+        block = block.split("      - name: ", 1)[0]
+        shell = textwrap.dedent(block.split("        run: |\n", 1)[1])
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            report_path = root/"P2_MONITOR.json"
+            report_path.write_text(json.dumps(report))
+            before = report_path.read_bytes()
+            (root/"hypothesis_shadow_watchdog.py").write_text(
+                "import importlib.util, os\n"
+                "spec=importlib.util.spec_from_file_location('actual_watchdog', " +
+                repr(str(repo/"scripts/hypothesis_shadow_watchdog.py")) + ")\n"
+                "module=importlib.util.module_from_spec(spec)\n"
+                "spec.loader.exec_module(module)\n"
+                "def collector_recovery_plan(report, runs):\n"
+                "    return module.collector_recovery_plan(report, runs, now=os.environ['RECOVERY_TEST_NOW'])\n")
+            gh = root/"gh"
+            gh.write_text("#!" + sys.executable + "\n" + textwrap.dedent('''
+                import json, os, sys
+                from pathlib import Path
+                args = sys.argv[1:]
+                with (Path(os.environ['RUNNER_TEMP'])/'gh-calls.jsonl').open('a') as f:
+                    f.write(json.dumps(args)+'\\n')
+                if args[:2] == ['run', 'list']:
+                    if os.environ['INVENTORY_FAILURE'] == '1':
+                        raise SystemExit(1)
+                    print(os.environ['GH_RUN_INVENTORY'])
+                elif args == ['workflow', 'run', 'belief-core-shadow-live.yml', '--ref', 'main']:
+                    pass
+                else:
+                    raise SystemExit('Unexpected GitHub operation: '+repr(args))
+                '''))
+            gh.chmod(0o755)
+            env = {**os.environ, "RUNNER_TEMP": str(root),
+                   "PYTHONPATH": str(root)+os.pathsep+str(repo/"scripts"),
+                   "PATH": str(root)+os.pathsep+os.environ["PATH"],
+                   "RECOVERY_TEST_NOW": now, "GH_RUN_INVENTORY": json.dumps(rows),
+                   "INVENTORY_FAILURE": "1" if inventory_failure else "0"}
+            result = subprocess.run(["bash", "-c", shell], cwd=root, env=env,
+                                    text=True, capture_output=True, timeout=10)
+            calls_path = root/"gh-calls.jsonl"
+            calls = [json.loads(line) for line in calls_path.read_text().splitlines()] if calls_path.exists() else []
+            self.assertEqual(before, report_path.read_bytes())
+            return result, calls
+
+    def test_actual_workflow_dispatches_only_existing_collector_in_time(self):
+        report = self.report()
+        result, calls = self.workflow_step(report, [
+            {"createdAt": "2026-10-08T19:53:00Z", "status": "completed", "conclusion": "success"}
+        ], report["generated_at"])
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(["workflow", "run", "belief-core-shadow-live.yml", "--ref", "main"], calls[-1])
+        self.assertEqual(1, sum(call[:2] == ["workflow", "run"] for call in calls))
+
+    def test_actual_workflow_does_not_duplicate_queued_collection(self):
+        report = self.report()
+        result, calls = self.workflow_step(report, [
+            {"createdAt": "2026-10-08T20:02:00Z", "status": "queued"}
+        ], report["generated_at"])
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertFalse(any(call[:2] == ["workflow", "run"] for call in calls))
+
+    def test_actual_workflow_keeps_after_close_alarm_without_dispatch(self):
+        report = self.report("2026-10-08T20:55:00Z")
+        self.assertEqual("FAIL", report["status"])
+        result, calls = self.workflow_step(report, [], report["generated_at"])
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual([], calls)
+        self.assertEqual("BLOCKED", report["production_e2e_status"])
+
+    def test_actual_workflow_inventory_failure_cannot_dispatch(self):
+        report = self.report()
+        result, calls = self.workflow_step(report, [], report["generated_at"], inventory_failure=True)
+        self.assertEqual(2, result.returncode)
+        self.assertFalse(any(call[:2] == ["workflow", "run"] for call in calls))
+
+    def test_actual_workflow_recovers_new_slot_without_erasing_history(self):
+        previous = {"source_sla": {"unresolved_missing_slot_keys": ["wes-assets:2026-10-08:1600"]}}
+        report = self.report("2026-10-09T20:07:00Z", previous=previous)
+        result, calls = self.workflow_step(report, [], report["generated_at"])
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual(["workflow", "run", "belief-core-shadow-live.yml", "--ref", "main"], calls[-1])
+        self.assertEqual("FAIL", report["status"])
+        self.assertEqual(["wes-assets:2026-10-08:1600"], report["source_sla"]["unresolved_missing_slot_keys"])
 
 
 class P21WatchdogTests(unittest.TestCase):
@@ -456,3 +686,4 @@ class P21WatchdogTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
