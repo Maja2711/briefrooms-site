@@ -180,9 +180,9 @@ require(legacy_closed_loop, "contents: read", "legacy closed loop")
 forbid(legacy_closed_loop, "Apply statistically proven autonomous policy calibration", "legacy closed loop")
 forbid(legacy_closed_loop, "git push origin HEAD:main", "legacy closed loop")
 
-for token in ("**Wersja mapy:** 1.29", "IN-08", "EP-09", "LE-10", "LE-11", "L3-04", "PROBATIONARY_CONTROL", "NO_TRADE", "FULL", "WES 1.3.1"):
+for token in ("**Wersja mapy:** 1.30", "IN-08", "EP-09", "LE-10", "LE-11", "L3-04", "PROBATIONARY_CONTROL", "NO_TRADE", "FULL", "WES 1.3.1"):
     require(pl_map, token, "PL Architecture Map")
-for token in ("**Map version:** 1.29", "IN-08", "EP-09", "LE-10", "LE-11", "L3-04", "PROBATIONARY_CONTROL", "NO_TRADE", "FULL", "WES 1.3.1"):
+for token in ("**Map version:** 1.30", "IN-08", "EP-09", "LE-10", "LE-11", "L3-04", "PROBATIONARY_CONTROL", "NO_TRADE", "FULL", "WES 1.3.1"):
     require(en_map, token, "EN Architecture Map")
 require(stock_doc, "PRODUCTION CHAMPION — FULL", "Stock Trading architecture")
 require(stock_doc, "Market Relationship / Trigger", "Stock Trading architecture")
