@@ -18,7 +18,7 @@ Każdego dnia AXIOM:
 2. Wybiera temat różny od tematów użytych w co najmniej 3 ostatnich publikacjach.
 3. Tworzy minimum 5 realnie różnych kandydatów — różne idee, nie pięć parafraz tej samej tezy.
 4. Krytykuje kandydatów jak surowy redaktor: odrzuca banał, pustą motywację, znane klisze i myśli będące tylko ładnym sformułowaniem oczywistości.
-5. Porównuje najlepszych kandydatów z pełnym archiwum, także semantycznie — nie wolno powtarzać dawnej idei tylko innymi słowami.
+5. Porównuje najlepszych kandydatów z pełnym archiwum, także semantycznie — nie wolno powtarzać dawnej idei tylko innymi słowami. Po autorefleksji generatora wymagany jest **osobny werdykt modelu-weryfikatora** (UNIQUE); werdykt DUPLICATE, UNCERTAIN, brak odpowiedzi lub awaria API blokuje publikację. Rezerwa jest sprawdzana ponownie w dniu publikacji.
 6. Wybiera jedną myśl i przypisuje jej oceny: `depth`, `novelty`, `banality_risk`.
 7. Publikuje tylko wtedy, gdy `depth >= 8`, `novelty >= 8`, `banality_risk <= 2` i `silence_test = true`.
 8. Aktualizuje `data/home/axiom-thought.json` oraz dopisuje dokładnie jeden rekord do historii.
@@ -100,4 +100,4 @@ Ocenia odległość idei od całego dotychczasowego archiwum, nie tylko podobie�
 
 ## Archiwum jest pamięcią systemu
 
-`data/home/axiom-thoughts-history.jsonl` jest źródłem prawdy o wcześniejszych publikacjach. Nie usuwamy z niego starych myśli tylko dlatego, że później przestały nam się podobać. Dzięki temu system może naprawdę uczyć się własnych powtórzeń.
+`data/home/axiom-thoughts-history.jsonl` jest źródłem prawdy o wcześniejszych publikacjach. Nie usuwamy z niego starych myśli tylko dlatego, że później przestały nam się podobać. Dzięki temu system może naprawdę uczyć się własnych powtórzeń. **Historia nie wygasa dla wykrywania powtórek tekstu ani idei**. Odrębny limit 365 dni dotyczy ponownego użycia tego samego identyfikatora tematu. Weryfikacja AI zmniejsza ryzyko parafraz, ale nie jest nieomylnym dowodem oryginalności; bramka jest fail-closed.
