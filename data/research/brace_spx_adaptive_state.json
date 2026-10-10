@@ -7,8 +7,10 @@
   "activated_at": "2026-09-13T13:19:00+00:00",
   "activation_market_date": "2026-09-11",
   "activation_observations": 30,
-  "research_cycles": 21,
-  "completed_checkpoints": [],
+  "research_cycles": 22,
+  "completed_checkpoints": [
+    20
+  ],
   "challengers": [
     {
       "candidate_id": "G6-R-C01",
@@ -61,6 +63,20 @@
       "origin": "initial_g6_diagnostic_lessons",
       "created_market_date": "2026-09-11",
       "status": "ACTIVE_RESEARCH"
+    },
+    {
+      "candidate_id": "G6-R-C05",
+      "rule": "robust_family_median",
+      "weights": {
+        "price_trend": 0.21940577973464812,
+        "rates": 0.2708482253926751,
+        "liquidity": 0.25070190269373904,
+        "options_vix": 0.2590440921789377
+      },
+      "origin": "adaptive_checkpoint_20",
+      "parent_candidate_id": "G6-R-C03",
+      "created_market_date": "2026-10-09",
+      "status": "ACTIVE_RESEARCH"
     }
   ],
   "learning_events": [
@@ -75,6 +91,21 @@
         "g6_best_sharpe": 0.099713,
         "trend_200d_sharpe": 0.600896
       }
+    },
+    {
+      "event_id": "L0002",
+      "event_type": "CHECKPOINT_CHALLENGER_CREATED",
+      "at": "2026-10-10T01:10:53+00:00",
+      "market_date": "2026-10-09",
+      "checkpoint_n": 20,
+      "parent_candidate_id": "G6-R-C03",
+      "new_candidate_id": "G6-R-C05",
+      "family_ic": {
+        "price_trend": -0.2587913365728676,
+        "rates": -0.026389993883609637,
+        "liquidity": -0.11740495994118164,
+        "options_vix": -0.07971748197373653
+      }
     }
   ],
   "governance": {
@@ -85,7 +116,7 @@
     "trade_execution": false,
     "challenger_parameters_private": true
   },
-  "last_cycle_at": "2026-10-09T01:22:53+00:00",
-  "latest_market_date": "2026-10-08",
-  "post_holdout_observations": 49
+  "last_cycle_at": "2026-10-10T01:10:53+00:00",
+  "latest_market_date": "2026-10-09",
+  "post_holdout_observations": 50
 }
