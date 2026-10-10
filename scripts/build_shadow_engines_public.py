@@ -120,15 +120,6 @@ SPECS = [
         "domain_label": "BriefRooms LAB",
         "max_idle_hours": 48,
     },
-    {
-        "id": "deepbook",
-        "name": "DeepBook Predict Shadow",
-        "workflows": ["deepbook-predict-shadow.yml"],
-        "source": "data/investments/deepbook_predict_shadow.json",
-        "domain": "/pl/inwestycje/decision-lab.html",
-        "domain_label": "BriefRooms LAB",
-        "max_idle_hours": 1,
-    },
 ]
 
 # These contain "shadow" in the workflow path but are infrastructure/validation,
@@ -143,6 +134,8 @@ IGNORED_SHADOW_WORKFLOWS = {
     "shadow-alpha-experience-store.yml",
     "shadow-engines-observatory.yml",
     "hypothesis-shadow-experiments.yml",
+    # Retired external research experiment; workflow is manual archive verification only.
+    "deepbook-predict-shadow.yml",
 }
 
 
