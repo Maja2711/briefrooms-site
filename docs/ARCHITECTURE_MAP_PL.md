@@ -1,8 +1,8 @@
 # Kanoniczna mapa architektury BriefRooms — PL
 
-**Wersja mapy:** 1.29  
+**Wersja mapy:** 1.30  
 **Stan na:** 2026-10-10  
-**Bazowy commit `main`:** `a0d1be611726ef7cfe7616b74088e50f74431037`  
+**Bazowy commit `main`:** `39626cfd70694f6092d7e3dafb6dae02fb510fbe`  
 **Repozytorium:** `Maja2711/briefrooms-site`
 
 ## 0. Rola tego dokumentu
@@ -482,6 +482,7 @@ Najważniejsze dokumenty szczegółowe użyte do budowy i utrzymania aktualnej m
 - Legacy Autonomous Policy Closed Loop zachowuje research lineage, ale stockowe `automatic_materialization_enabled=false`.
 - 2026-09-21: `TR-05` otrzymał kanoniczny 5-minutowy, 24/7 risk safety path. Stary lifecycle deleguje do tego samego monitora; dla BTC primary execution evidence to Coinbase, a opóźniony run odzyskuje historyczne dotknięcie zamrożonego SL/TP z 5-minutowych danych zamiast polegać na bieżącym ticku.
 - 2026-09-21: WES 1.1 usunął arbitralny tie-break po `method_id`, wprowadził Directional Admission dla wszystkich wejść oraz rozdzielił Champion execution authority od Challenger/Shadow research; `inverse_v2` nie może otworzyć pozycji bez jawnej promocji.
+- 2026-10-10: zewnętrzny eksperyment **DeepBook Predict Shadow** został wycofany z aktywnej architektury (`DECOMMISSION ACTIVE / RETAIN RESEARCH EVIDENCE`). Usunięto automatyczny cron/push collection, wpis aktywnego Shadow Engine oraz dedykowane zależności `@mysten/deepbook-v3` / `@mysten/sui`. `data/investments/deepbook_predict_shadow.json` pozostaje zamrożonym artefaktem audytowym z historycznym wynikiem `n=37`; brak frontend, Belief Core, execution i promotion authority. Workflow o tej nazwie jest wyłącznie ręcznym verifierem archiwalnego evidence i nie pobiera live DeepBook.
 
 ---
 
