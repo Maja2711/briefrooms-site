@@ -1,14 +1,11 @@
 'use strict';
 
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const test = require('node:test');
-const vm = require('node:vm');
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import test from 'node:test';
+import vm from 'node:vm';
 
-const script = fs.readFileSync(
-  path.join(__dirname, '../scripts/home-intelligence-layout.js'), 'utf8'
-);
+const script = fs.readFileSync(new URL('../scripts/home-intelligence-layout.js', import.meta.url), 'utf8');
 
 function element(tag) {
   return {
