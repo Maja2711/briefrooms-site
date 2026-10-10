@@ -8,7 +8,6 @@ manifest back to 'verify'. Historical files are never rewritten by this tool.
 import argparse
 import hashlib
 import json
-import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -85,7 +84,7 @@ def main():
             print("SNAPSHOT_UNANCHORED", result["manifest_sha256"])
         else:
             n = verify(args.root, json.loads(args.manifest.read_text(encoding="utf-8")))
-            print("INTEGRITY_OK", n, "files; independent anchor authenticity must be validated by operator")
+            print("BYTES_MATCH_ANCHOR_UNVERIFIED", n, "files; external authenticity and WORM retention are NOT verified")
     except (ValueError, OSError, json.JSONDecodeError) as error:
         print("INTEGRITY_FAIL:", error, file=sys.stderr)
         return 2
