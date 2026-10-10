@@ -102,3 +102,24 @@ jobs:
             sleep $((n*5))
           done
           exit 1
+
+  semantic-smoke:
+    # Runs on authorized main pushes and manual dispatch; never on untrusted PRs.
+    # Read-only and independent of publication or history mutation.
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      AXIOM_THOUGHT_MODEL: gemini-3.6-flash
+      AXIOM_THOUGHT_FALLBACK_MODEL: gemini-3.5-flash-lite
+    steps:
+      - uses: actions/checkout@v4
+        with: {ref: main}
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      - run: pip install requests
+      - name: Live semantic veto E2E (no writes)
+        run: python scripts/publish_axiom_thought.py --mode smoke

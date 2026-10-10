@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import copy
 import unittest
+from unittest.mock import patch
 
 from scripts.axiom_thought_guard import similarity, validate
-from scripts.publish_axiom_thought import candidate_validation_stamp
+from scripts.publish_axiom_thought import candidate_validation_stamp, semantic_review, semantic_smoke, validate_candidate
 
 
 CURRENT = {
@@ -110,7 +111,7 @@ class AxiomThoughtGuardTests(unittest.TestCase):
             "en": current["en"],
         })
         errors = validate(current, [SEED, latest])
-        self.assertTrue(any("too similar to protected history" in e for e in errors))
+        self.assertTrue(any("too similar to full history" in e for e in errors))
 
     def test_reserve_validation_moves_past_already_published_date(self) -> None:
         rows = [
@@ -131,6 +132,92 @@ class AxiomThoughtGuardTests(unittest.TestCase):
         self.assertGreater(paraphrase_similarity.sequence, novel_similarity.sequence)
         self.assertGreater(paraphrase_similarity.jaccard, novel_similarity.jaccard)
         self.assertLess(novel_similarity.jaccard, 0.45)
+
+
+    def test_identical_text_is_blocked_even_after_retention_window(self) -> None:
+        current = copy.deepcopy(CURRENT)
+        current["date"] = "2027-09-17"
+        latest = copy.deepcopy(LATEST)
+        latest.update({"date": current["date"], "theme": "another-theme",
+                       "pl": SEED["pl"], "en": SEED["en"]})
+        current["pl"], current["en"] = latest["pl"], latest["en"]
+        errors = validate(current, [SEED, latest])
+        self.assertTrue(any("exact thought duplicate in full history" in e for e in errors), errors)
+
+    def test_semantic_veto_blocks_new_wording_of_old_thesis(self) -> None:
+        candidate = {"theme": "public-debate", "pl": "„Zgoda społeczna potrafi wyciszyć niewygodne pytania, nie nakazując nikomu milczenia.”",
+                     "en": "“Collective agreement can silence uncomfortable questions without ever ordering anyone to keep quiet.”"}
+        verdict = {"verdict": "DUPLICATE", "closest_ref": "2026-09-15",
+                   "shared_claim": "Both expressions describe the same social mechanism of suppression.",
+                   "material_difference": "No new mechanism is provided; only the imagery and vocabulary have changed."}
+        with patch("scripts.publish_axiom_thought.call", return_value=verdict) as mock_call:
+            with self.assertRaisesRegex(ValueError, "AXIOM_SEMANTIC_REVIEW_BLOCKED: DUPLICATE"):
+                semantic_review(candidate, [SEED])
+        mock_call.assert_called_once()
+
+    def test_semantic_unique_requires_a_real_archive_reference(self) -> None:
+        candidate = {"theme": "new-topic", "pl": CURRENT["pl"], "en": CURRENT["en"]}
+        verdict = {"verdict": "UNIQUE", "closest_ref": "2026-09-15",
+                   "shared_claim": "Both statements concern personal decisions and constraints in human knowledge.",
+                   "material_difference": "This candidate concerns cognitive blind spots rather than future-forming decisions."}
+        with patch("scripts.publish_axiom_thought.call", return_value=verdict) as mock_call:
+            self.assertEqual(semantic_review(candidate, [SEED]), verdict)
+        mock_call.assert_called_once()
+
+    def test_uncertain_semantic_verdict_fails_closed(self) -> None:
+        candidate = {"theme": "new-topic", "pl": CURRENT["pl"], "en": CURRENT["en"]}
+        verdict = {"verdict": "UNCERTAIN", "closest_ref": "2026-09-15",
+                   "shared_claim": "There appears to be overlap involving long-term decision consequences.",
+                   "material_difference": "The reviewer cannot confidently distinguish the claims as sufficiently different."}
+        with patch("scripts.publish_axiom_thought.call", return_value=verdict):
+            with self.assertRaisesRegex(ValueError, "AXIOM_SEMANTIC_REVIEW_BLOCKED: UNCERTAIN"):
+                semantic_review(candidate, [SEED])
+
+    def test_reviewer_outage_fails_closed_after_fallback(self) -> None:
+        candidate = {"theme": "new-topic", "pl": CURRENT["pl"], "en": CURRENT["en"]}
+        with patch("scripts.publish_axiom_thought.call", side_effect=RuntimeError("offline")) as mock_call:
+            with self.assertRaisesRegex(RuntimeError, "no valid review"):
+                semantic_review(candidate, [SEED])
+        self.assertEqual(mock_call.call_count, 2)
+
+    def test_reviewer_invalid_reference_falls_back(self) -> None:
+        candidate = {"theme": "new-topic", "pl": CURRENT["pl"], "en": CURRENT["en"]}
+        invalid = {"verdict": "UNIQUE", "closest_ref": "not-in-archive",
+                   "shared_claim": "Both discuss meaningful constraints on knowledge and decisions.",
+                   "material_difference": "Their distinct approaches address different mechanisms and results."}
+        valid = dict(invalid, closest_ref="2026-09-15")
+        with patch("scripts.publish_axiom_thought.call", side_effect=[invalid, valid]) as mock_call:
+            self.assertEqual(semantic_review(candidate, [SEED]), valid)
+        self.assertEqual(mock_call.call_count, 2)
+
+    def test_reserve_english_language_repeat_is_blocked(self) -> None:
+        candidate = {"theme": "different-topic",
+                     "pl": "„Zmiana perspektywy może odsłonić cechy systemu, których nie sposób dostrzec przy bezpośredniej obserwacji.”",
+                     "en": LATEST["en"], "candidates_considered": 10,
+                     "scores": {"depth": 9, "novelty": 9, "banality_risk": 1},
+                     "silence_test": True,
+                     "editor_note": "A different approach that should still be rejected because its English translation repeats a reserved line."}
+        with self.assertRaisesRegex(ValueError, "too similar to reserve"):
+            validate_candidate(candidate, [SEED], [LATEST])
+
+
+    def test_live_smoke_checks_rejected_paraphrase_and_unique_reserve_without_writing(self) -> None:
+        reserve = copy.deepcopy(LATEST)
+        reserve.pop("date")
+        mock_effects = [
+            ValueError("AXIOM_SEMANTIC_REVIEW_BLOCKED: DUPLICATE closest=2026-09-15"),
+            {"verdict": "UNIQUE"},
+        ]
+        with patch("scripts.publish_axiom_thought.semantic_review", side_effect=mock_effects) as review:
+            self.assertEqual(semantic_smoke([SEED], [reserve]), 0)
+        self.assertEqual(review.call_count, 2)
+
+    def test_live_smoke_fails_when_duplicate_is_approved(self) -> None:
+        reserve = copy.deepcopy(LATEST)
+        reserve.pop("date")
+        with patch("scripts.publish_axiom_thought.semantic_review", return_value={"verdict": "UNIQUE"}) as review:
+            self.assertEqual(semantic_smoke([SEED], [reserve]), 2)
+        review.assert_called_once()
 
 
 if __name__ == "__main__":

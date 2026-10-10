@@ -5,9 +5,12 @@ on:
     paths:
       - 'data/home/axiom-thought.json'
       - 'data/home/axiom-thoughts-history.jsonl'
+      - 'data/home/axiom-thought-reserve.json'
       - 'docs/axiom-thought-principles.md'
       - 'scripts/axiom_thought_guard.py'
       - 'scripts/publish_axiom_thought.py'
+      - 'scripts/home-intelligence-layout.js'
+      - 'tests/axiom_homepage_failclosed.test.js'
       - 'tests/test_axiom_thought_guard.py'
       - '.github/workflows/axiom-thought-validation.yml'
   push:
@@ -15,9 +18,12 @@ on:
     paths:
       - 'data/home/axiom-thought.json'
       - 'data/home/axiom-thoughts-history.jsonl'
+      - 'data/home/axiom-thought-reserve.json'
       - 'docs/axiom-thought-principles.md'
       - 'scripts/axiom_thought_guard.py'
       - 'scripts/publish_axiom_thought.py'
+      - 'scripts/home-intelligence-layout.js'
+      - 'tests/axiom_homepage_failclosed.test.js'
       - 'tests/test_axiom_thought_guard.py'
       - '.github/workflows/axiom-thought-validation.yml'
   workflow_dispatch:
@@ -44,5 +50,6 @@ jobs:
           python -m unittest tests.test_axiom_thought_guard -v
           python scripts/axiom_thought_guard.py
           python scripts/publish_axiom_thought.py --mode preflight
+          node --test tests/axiom_homepage_failclosed.test.js
           grep -F 'test ciszy' docs/axiom-thought-principles.md
           grep -F 'minimum 5' docs/axiom-thought-principles.md
