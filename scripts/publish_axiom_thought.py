@@ -182,9 +182,48 @@ def refill(rows,reserve):
         except Exception as e:
             failures+=1; print(f"reserve generation failure {failures}/3: {e}",file=sys.stderr)
     return len(reserve)>=RESERVE_TARGET
+def semantic_smoke(rows, reserve):
+    """Read-only production E2E of the *real* reviewer API.
+
+    The paraphrase intentionally recreates the 2026-09-15 concept while
+    changing its wording and topic slug. A lexical check alone is not enough.
+    No published thought, history record, or reserve file is mutated.
+    """
+    if not rows or not reserve:
+        print("AXIOM_SEMANTIC_SMOKE_BLOCKED: history or reserve missing", file=sys.stderr)
+        return 2
+    duplicate = {
+        "theme": "future-choices-smoke-only",
+        "pl": "„Nie spektakularny przełom, lecz jeden wybór niezrozumiały jeszcze dla innych najczęściej kształtuje to, co nadejdzie.”",
+        "en": "“What comes next is often shaped not by a spectacular breakthrough, but by one choice others cannot yet understand.”",
+    }
+    try:
+        semantic_review(duplicate, rows)
+    except ValueError as exc:
+        if "AXIOM_SEMANTIC_REVIEW_BLOCKED: DUPLICATE" not in str(exc):
+            print(f"AXIOM_SEMANTIC_SMOKE_BLOCKED: wrong negative verdict: {exc}", file=sys.stderr)
+            return 2
+        print("AXIOM_SEMANTIC_SMOKE_DUPLICATE_BLOCKED: PASS")
+    except Exception as exc:
+        print(f"AXIOM_SEMANTIC_SMOKE_BLOCKED: reviewer unavailable: {exc}", file=sys.stderr)
+        return 2
+    else:
+        print("AXIOM_SEMANTIC_SMOKE_BLOCKED: known paraphrase unexpectedly approved", file=sys.stderr)
+        return 2
+    try:
+        validate_candidate(reserve[0], rows, reserve[1:])
+        semantic_review(reserve[0], rows, reserve[1:])
+    except Exception as exc:
+        print(f"AXIOM_SEMANTIC_SMOKE_BLOCKED: reserve candidate not approved: {exc}", file=sys.stderr)
+        return 2
+    print("AXIOM_SEMANTIC_SMOKE_UNIQUE_APPROVED: PASS (no publication)")
+    return 0
+
+
 def main():
-    ap=argparse.ArgumentParser(); ap.add_argument("--mode",choices=["publish","refill","verify","preflight"],default="publish"); a=ap.parse_args()
+    ap=argparse.ArgumentParser(); ap.add_argument("--mode",choices=["publish","refill","verify","preflight","smoke"],default="publish"); a=ap.parse_args()
     rows=load_history(); reserve=load_reserve(); stamp=today()
+    if a.mode=="smoke": return semantic_smoke(rows,reserve)
     if a.mode=="verify":
         from axiom_thought_guard import validate
         cur=json.loads(CURRENT.read_text(encoding="utf-8"))
