@@ -17,6 +17,10 @@ class ProductionParityCoverageTests(unittest.TestCase):
         }
         self.assertTrue(required.issubset(set(verify.PARITY_PATHS)))
 
+    def test_axiom_homepage_thought_assets_are_protected_by_parity(self) -> None:
+        self.assertIn("scripts/home-intelligence-layout.js", verify.PARITY_PATHS)
+        self.assertIn("data/home/axiom-thought.json", verify.PARITY_PATHS)
+
     def test_pwa_install_badge_script_is_protected_by_production_parity(self) -> None:
         self.assertIn("scripts/pwa.js", verify.PARITY_PATHS)
 
