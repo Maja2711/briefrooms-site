@@ -48,5 +48,25 @@ class HistoryIntegrityGuardTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             snapshot(self.root, ["alias.jsonl"])
 
+
+    def test_real_wes_decision_ledger_snapshot_and_tamper(self):
+        """Integration: actual tracked WES ledger, copied read-only into isolation."""
+        import shutil
+        actual = Path(__file__).resolve().parents[1] / "data/investments/wes_decision_ledger.json"
+        self.assertTrue(actual.is_file(), "WES ledger missing: fail closed")
+        raw = actual.read_bytes()
+        payload = json.loads(raw)
+        self.assertEqual(payload.get("schema_version"), "briefrooms-wes-decision-ledger-v1")
+        self.assertIsInstance(payload.get("records"), list)
+        self.assertGreater(len(payload["records"]), 0, "WES ledger unexpectedly empty")
+        (self.root / "actual_wes_decision_ledger.json").write_bytes(raw)
+        manifest = snapshot(self.root, ["actual_wes_decision_ledger.json"])
+        self.assertEqual(verify(self.root, manifest), 1)
+        self.assertEqual(manifest["files"][0]["bytes"], len(raw))
+        # Byte-accurate tampering must be rejected; no production file is touched.
+        (self.root / "actual_wes_decision_ledger.json").write_bytes(raw + b" ")
+        with self.assertRaisesRegex(ValueError, "INTEGRITY_MISMATCH"):
+            verify(self.root, manifest)
+
 if __name__ == "__main__":
     unittest.main()
