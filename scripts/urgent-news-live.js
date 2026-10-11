@@ -131,6 +131,13 @@
     }
   }
   function start() {
+    if (!document.getElementById('briefrooms-urgent-css')) {
+      const stylesheet = document.createElement('link');
+      stylesheet.id = 'briefrooms-urgent-css';
+      stylesheet.rel = 'stylesheet';
+      stylesheet.href = '/scripts/urgent-news.css?v=1';
+      document.head.appendChild(stylesheet);
+    }
     refresh();
     setInterval(refresh, POLL_MS);
     document.addEventListener('visibilitychange', () => {
