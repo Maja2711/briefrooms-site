@@ -265,6 +265,16 @@ def _is_tv_program_promotion(headline: str, description: str) -> bool:
         and _TV_EPISODE_OR_LINEUP.search(description)
     ):
         return True
+    # Also reject unrecognized show names when the summary is explicitly a
+    # broadcast/episode/guest-listing description, not a standalone news report.
+    if (
+        _TV_PROGRAM_CONTEXT.search(description)
+        and (_TV_EPISODE_OR_LINEUP.search(description) or _TV_WATCH_OR_AIRTIME.search(description))
+        and not _SUBSTANTIVE_VERB.search(headline)
+        and not _POLITICAL_SUBSTANCE.search(headline)
+        and _word_count(headline) <= 10
+    ):
+        return True
     return False
 
 def _is_media_self_promotion(combined: str) -> bool:
