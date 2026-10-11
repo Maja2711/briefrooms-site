@@ -185,7 +185,7 @@
       const data=await response.json();
       // A dated canonical thought may serve as a visible archive backstop, but
       // it never counts as proof that today's fresh issue was published.
-      if(!data||!/^\\d{4}-\\d{2}-\\d{2}$/.test(data.date)
+      if(!data||!/^\d{4}-\d{2}-\d{2}$/.test(data.date)
           ||data.date>stamp
           ||data.author!=='AXIOM'||data.brand!=='BriefRooms'
           ||typeof data.pl!=='string'||!data.pl.trim()
