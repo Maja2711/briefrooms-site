@@ -69,9 +69,12 @@ class HomepageStaticFreshnessGuardTests(unittest.TestCase):
 
         live_url = '/scripts/news-live.js?v=8&rev=global24h'
         floor_url = '/scripts/home-card-floor.js?v=4'
+        urgent_url = '/scripts/urgent-news-live.js?v=1'
+        self.assertEqual(rendered.count(urgent_url), 1)
         self.assertEqual(rendered.count(live_url), 1)
         self.assertEqual(rendered.count(floor_url), 1)
         self.assertLess(rendered.index(live_url), rendered.index(floor_url))
+        self.assertLess(rendered.index(floor_url), rendered.index(urgent_url))
         self.assertNotIn('/scripts/home-intelligence-layout.js', rendered)
 
     def test_homepage_installer_adds_lab_and_intelligence_once(self) -> None:
@@ -94,6 +97,7 @@ class HomepageStaticFreshnessGuardTests(unittest.TestCase):
         live_url = '/scripts/news-live.js?v=8&rev=global24h'
         floor_url = '/scripts/home-card-floor.js?v=4'
         self.assertEqual(rendered.count(lab_url), 1)
+        self.assertEqual(rendered.count('/scripts/urgent-news-live.js?v=1'), 1)
         self.assertEqual(rendered.count(intelligence_url), 1)
         self.assertEqual(rendered.count(live_url), 1)
         self.assertEqual(rendered.count(floor_url), 1)

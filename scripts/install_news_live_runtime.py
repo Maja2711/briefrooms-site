@@ -21,9 +21,11 @@ LAB_VERSION = "1"
 INTELLIGENCE_VERSION = "1"
 TAG = f'<script src="/scripts/news-live.js?v={VERSION}&rev={RUNTIME_REVISION}" defer></script>'
 FLOOR_TAG = f'<script src="/scripts/home-card-floor.js?v={FLOOR_VERSION}" defer></script>'
+URGENT_TAG = '<script src="/scripts/urgent-news-live.js?v=1" defer></script>'
 LAB_TAG = f'<script src="/scripts/home-lab.js?v={LAB_VERSION}" defer></script>'
 INTELLIGENCE_TAG = f'<script src="/scripts/home-intelligence-layout.js?v={INTELLIGENCE_VERSION}" defer></script>'
 PATTERN = re.compile(r'\s*<script\s+src=["\']/scripts/news-live\.js(?:\?[^"\']*)?["\']\s+defer></script>', re.I)
+URGENT_PATTERN = re.compile(r'\s*<script\s+src=["\']/scripts/urgent-news-live\.js(?:\?[^"\']*)?["\']\s+defer></script>', re.I)
 FLOOR_PATTERN = re.compile(r'\s*<script\s+src=["\']/scripts/home-card-floor\.js(?:\?[^"\']*)?["\']\s+defer></script>', re.I)
 LAB_PATTERN = re.compile(r'\s*<script\s+src=["\']/scripts/home-lab\.js(?:\?[^"\']*)?["\']\s+defer></script>', re.I)
 INTELLIGENCE_PATTERN = re.compile(r'\s*<script\s+src=["\']/scripts/home-intelligence-layout\.js(?:\?[^"\']*)?["\']\s+defer></script>', re.I)
@@ -127,12 +129,13 @@ def apply_homepage_freshness(source: str, lang: str, now: datetime | None = None
 def install(path: Path) -> bool:
     old = path.read_text(encoding="utf-8")
     new = INTELLIGENCE_PATTERN.sub("", LAB_PATTERN.sub("", FLOOR_PATTERN.sub("", PATTERN.sub("", old))))
+    new = URGENT_PATTERN.sub("", new)
     is_homepage = path.name == "index.html" and path.parent.name in {"pl", "en"}
     if is_homepage:
         new = apply_homepage_freshness(new, path.parent.name)
     if "</body>" not in new:
         raise RuntimeError(f"closing body tag missing: {path}")
-    tags = [TAG, FLOOR_TAG]
+    tags = [TAG, FLOOR_TAG, URGENT_TAG]
     if is_homepage:
         # The canonical news publisher rewrites homepage HTML. Keep the
         # BriefRooms Lab and homepage intelligence presentation attached on

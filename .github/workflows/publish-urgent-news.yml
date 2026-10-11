@@ -1,0 +1,100 @@
+name: Publish Urgent News Fast Lane
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "2,17,32,47 * * * *"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/publish_urgent_news.py"
+      - "scripts/urgent-news-live.js"
+      - "tests/test_publish_urgent_news.py"
+      - ".github/workflows/publish-urgent-news.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: urgent-news-only
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install RSS dependencies
+        run: python -m pip install feedparser requests
+      - name: Validate urgent-only pipeline
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/publish_urgent_news.py
+          python -m unittest tests.test_publish_urgent_news -v
+          node --check scripts/urgent-news-live.js
+      - name: Collect verified urgent news
+        run: |
+          set -euo pipefail
+          python -m scripts.publish_urgent_news
+          python -m scripts.publish_urgent_news --validate
+      - name: Publish only urgent artifacts
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/news/urgent.json data/news/urgent_state.json
+          if git diff --cached --quiet; then
+            echo "::notice::No urgent payload change."
+            exit 0
+          fi
+          git commit -m "chore(news): refresh independent urgent fast lane"
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            if [[ "$(git rev-parse HEAD^)" != "$(git rev-parse origin/main)" ]]; then
+              git rebase origin/main
+            fi
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            sleep $((attempt * 4))
+          done
+          echo "::error::Urgent JSON push failed."
+          exit 1
+
+      - name: Verify fresh urgent JSON on the public site
+        run: |
+          python - <<'PY'
+          import json
+          import time
+          import urllib.request
+          from datetime import datetime, timezone
+          from pathlib import Path
+          from scripts.publish_urgent_news import validate
+          expected = json.loads(Path('data/news/urgent.json').read_text(encoding='utf-8'))['checked_at']
+          for attempt in range(22):
+              try:
+                  request = urllib.request.Request(
+                      'https://briefrooms.com/data/news/urgent.json?check='
+                      + str(__import__('os').environ.get('GITHUB_RUN_ID', 'run'))
+                      + '-' + str(attempt),
+                      headers={'User-Agent': 'BriefRooms urgent verifier/1.0', 'Cache-Control': 'no-cache'},
+                  )
+                  with urllib.request.urlopen(request, timeout=12) as response:
+                      actual = json.loads(response.read().decode('utf-8'))
+                  if actual.get('checked_at') == expected:
+                      validate(actual, datetime.now(timezone.utc))
+                      print('Validated production urgent payload:', expected)
+                      break
+              except Exception as error:
+                  print('Waiting for public urgent payload:', error)
+              time.sleep(8)
+          else:
+              raise SystemExit('Urgent production verification did not converge')
+          PY

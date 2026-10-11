@@ -305,6 +305,10 @@ Warstwa publikacyjna **nie może stać się ukrytym źródłem authority dla sil
 
 ### CT-01 — twardy invariant świeżości publicznych wiadomości
 
+**Pilne wiadomości — odrębna ścieżka co 15 minut:** `.github/workflows/publish-urgent-news.yml` uruchamia `scripts/publish_urgent_news.py` o minutach UTC 02/17/32/47. Pobiera tylko wskazane RSS PL/EN; stosuje redakcyjny filtr jakości, wymóg źródłowego czasu (nie starszego niż 75 minut), klasyfikację rzeczywistych wydarzeń i istniejące source lineage / Event Intelligence v4 / Claim Intelligence. Do publikacji potrzeba źródła pierwotnego instytucjonalnego albo co najmniej dwóch niezależnych ścieżek Evidence. Wyniki trafiają wyłącznie do `data/news/urgent.json` oraz ledgeru `data/news/urgent_state.json`. `scripts/urgent-news-live.js` pokazuje maksymalnie 3 pilne karty w osobnym pasie PL/EN, odpytywanym co 3 minuty, ważnym przy aktualnym heartbeat (do 45 min) i ekspozycji maksymalnie 90 min. Pas nie nadpisuje sekcji 6–15, homepage 12 kart, kanonicznego godzinowego publikatora ani Belief/trading. Brak zweryfikowanych zdarzeń daje pusty pas (fail-closed). Cron GitHub Actions to próba harmonogramowa, nie gwarantowany 15-minutowy SLA.
+
+
+
 **Wspólny kontrakt liczby kart w sekcjach PL i EN:** `scripts/news_section_limits.py` definiuje minimum redakcyjne **6** i twarde maksimum **15** kart na każdy dział aktualności. Generator, filtrowanie, publiczny guard, watchdog i produkcyjny weryfikator współdzielą te wartości; niedobór jest raportowany jako `underfilled/degraded` (bez dopisywania starych lub niesprawdzonych treści), maksimum jest egzekwowane. Oddzielne limity: **12** kart homepage oraz różnorodność źródeł.
 
 

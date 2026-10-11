@@ -305,6 +305,10 @@ The publication layer **must not become a hidden authority source for a decision
 
 ### CT-01 — hard public-news freshness invariant
 
+**Urgent news — isolated 15-minute lane:** `.github/workflows/publish-urgent-news.yml` runs `scripts/publish_urgent_news.py` at UTC minutes 02/17/32/47. Only selected PL/EN RSS feeds are sampled, applying the existing editorial quality gate, source timestamps no older than 75 minutes, material-event classification, lineage, Event Intelligence v4 and Claim Intelligence. Admission needs one direct primary institution or two independent evidence roots. Only `data/news/urgent.json` and `data/news/urgent_state.json` are updated. `scripts/urgent-news-live.js` renders up to three events in an independent rail, polled every three minutes with a 45-minute heartbeat and 90-minute exposure cap. It cannot alter the 6–15 section cards, 12-card homepage, canonical hourly publication or Belief/trading authority. No verified event means no urgent rail (fail-closed). GitHub Actions cron is best effort, not a hard 15-minute SLA.
+
+
+
 **Shared PL/EN section-card policy:** `scripts/news_section_limits.py` defines editorial minimum coverage of **6** and hard maximum of **15** cards for every news section. Publisher, filter, public-exposure guard, watchdog, and production verifier reuse these values. Underfill is observable as `underfilled/degraded` rather than padding with stale/unqualified stories; hard maximum is enforced. Separate **12**-card homepage and publisher-diversity caps remain independent.
 
 
