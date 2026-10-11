@@ -11,6 +11,7 @@ on:
       - "scripts/central-lab.js"
       - "scripts/central-lab-runtime-en.js"
       - "tests/test_fse_discovery_en_runtime.js"
+      - "tests/test_fse_discovery_match_visibility.js"
       - "assets/decision-lab.css"
       - ".github/workflows/fse-autonomous-structure-discovery.yml"
   push:
@@ -52,6 +53,7 @@ jobs:
           node --check scripts/central-lab.js
           node --check scripts/central-lab-runtime-en.js
           node tests/test_fse_discovery_en_runtime.js
+          node tests/test_fse_discovery_match_visibility.js
           python scripts/verify_trading_workflow_airlocks.py
           python scripts/validate_architecture_bootstrap.py
 

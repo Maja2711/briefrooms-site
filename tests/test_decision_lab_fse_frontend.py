@@ -81,6 +81,17 @@ class DecisionLabFSEFrontendTests(unittest.TestCase):
         self.assertIn("Application undetermined.", js)
         self.assertIn("fseDiscoveryShape(f)", js)
 
+    def test_unmatched_discovery_observations_remain_in_shadow(self):
+        for rel in ("scripts/central-lab.js", "scripts/central-lab-runtime-en.js"):
+            js = (ROOT / rel).read_text(encoding="utf-8")
+            self.assertIn("x.status==='FROZEN_MATCH'", js, rel)
+            self.assertIn("activeIds.has(x.family_id)", js, rel)
+            self.assertNotIn("x.family_id||'Nowa / niedopasowana struktura'", js, rel)
+            self.assertNotIn("x.family_id||'New/unmatched shape'", js, rel)
+        engine = (ROOT / "scripts/fse_autonomous_discovery.py").read_text(encoding="utf-8")
+        self.assertIn('"FROZEN_NOVEL_UNMATCHED"', engine)
+        self.assertIn('append_evidence(state, "snapshots", payload)', engine)
+
     def test_fse_ui_remains_read_only(self):
         for rel in ("scripts/central-lab.js", "scripts/central-lab-runtime-en.js"):
             text = (ROOT / rel).read_text(encoding="utf-8")
@@ -142,8 +153,8 @@ class DecisionLabFSEFrontendTests(unittest.TestCase):
         en = (ROOT / "en/investing/decision-lab.html").read_text(encoding="utf-8")
         self.assertIn("/assets/decision-lab.css?v=20261011-asd4", pl)
         self.assertIn("/assets/decision-lab.css?v=20261011-asd4", en)
-        self.assertIn("/scripts/central-lab.js?v=20261011-asd-lifecycle1", pl)
-        self.assertIn("/scripts/central-lab-runtime-en.js?v=20261011-asd-lifecycle1", en)
+        self.assertIn("/scripts/central-lab.js?v=20261011-asd-match2", pl)
+        self.assertIn("/scripts/central-lab-runtime-en.js?v=20261011-asd-match2", en)
 
 
 if __name__ == "__main__":
