@@ -204,6 +204,10 @@ class NativeProvenanceWriteTimeTests(unittest.TestCase):
             wes_seal.seal_closed_leg("2026-W41", leg, manifest_path=manifest, sealed_at=NOW_Z)
             self.assert_native(leg["settlement"], "wes")
             self.assert_native(leg, "wes")
+            self.assertIn(leg["provenance"]["artifact_id"],
+                          leg["settlement"]["provenance"]["parent_artifact_ids"])
+            self.assertNotIn(leg["settlement"]["provenance"]["artifact_id"],
+                             leg["provenance"]["parent_artifact_ids"])
 
             week["instruments"][0]["position_legs"] = [leg]
             self.assertEqual([], wes_seal.week_seal_violations(week, wes_seal.verify_manifest(manifest)))
