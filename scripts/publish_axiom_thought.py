@@ -12,7 +12,11 @@ GUARD=ROOT/"scripts/axiom_thought_guard.py"; WARSAW=ZoneInfo("Europe/Warsaw")
 MODEL=os.getenv("AXIOM_THOUGHT_MODEL","gemini-3.6-flash")
 FALLBACK=os.getenv("AXIOM_THOUGHT_FALLBACK_MODEL","gemini-3.5-flash-lite")
 MAX_ATTEMPTS=int(os.getenv("AXIOM_THOUGHT_MAX_ATTEMPTS","12"))
-RESERVE_TARGET=int(os.getenv("AXIOM_THOUGHT_RESERVE_TARGET","10"))
+RESERVE_TARGET=int(os.getenv("AXIOM_THOUGHT_RESERVE_TARGET","100"))
+REFILL_BATCH=max(1,int(os.getenv("AXIOM_THOUGHT_REFILL_BATCH","5")))
+LIVE_BATCH_SIZE=10
+LIVE_ROUNDS=max(1,int(os.getenv("AXIOM_THOUGHT_LIVE_ROUNDS","2")))
+LIVE_REVIEW_LIMIT=max(1,int(os.getenv("AXIOM_THOUGHT_LIVE_REVIEW_LIMIT","6")))
 # Semantic and exact-text history must not expire. The separate theme-rotation
 # limit in axiom_thought_guard.py remains 365 days.
 
@@ -23,6 +27,25 @@ def load_reserve():
     if not RESERVE.exists(): return []
     x=json.loads(RESERVE.read_text(encoding="utf-8")); return x if isinstance(x,list) else []
 def save_reserve(x): RESERVE.write_text(json.dumps(x,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+CANDIDATE_KEYS={"theme","pl","en","candidates_considered","scores","silence_test","editor_note"}
+RESERVE_PROOF_KEYS={"semantic_reviews","semantic_review_digest"}
+def core_candidate(candidate):
+    if not isinstance(candidate,dict): raise ValueError("candidate must be an object")
+    if set(candidate)-CANDIDATE_KEYS-RESERVE_PROOF_KEYS: raise ValueError("unrecognized candidate keys")
+    return {key:candidate[key] for key in CANDIDATE_KEYS if key in candidate}
+def evidence_valid(candidate,rows):
+    from axiom_thought_guard import review_evidence_errors
+    record={**candidate}
+    return not review_evidence_errors(record,{r["date"] for r in rows})
+def attach_review(candidate,rows,proof=None):
+    from axiom_thought_guard import review_digest,review_evidence_errors
+    base=core_candidate(candidate)
+    reviews=semantic_review(base,rows) if proof is None else proof
+    reviewed={**base,"semantic_reviews":reviews,"semantic_review_digest":review_digest(base)}
+    errs=review_evidence_errors(reviewed,{r["date"] for r in rows})
+    if errs: raise ValueError("invalid review receipts: "+"; ".join(errs))
+    return reviewed
+
 def extract_json(s):
     s=re.sub(r"^\x60\x60\x60(?:json)?\s*","",s.strip()); s=re.sub(r"\s*\x60\x60\x60$","",s)
     a,b=s.find("{"),s.rfind("}")
@@ -60,8 +83,8 @@ def candidate_validation_stamp(rows, base_stamp=None):
     return stamp
 
 def validate_candidate(c,rows,reserve=()):
-    required={"theme","pl","en","candidates_considered","scores","silence_test","editor_note"}
-    if set(c)!=required: raise ValueError("schema mismatch")
+    c=core_candidate(c)
+    if set(c)!=CANDIDATE_KEYS: raise ValueError("schema mismatch")
     # Reserve generation may run after today's thought has already been published.
     # Validate a reserve candidate against a synthetic next publication date so
     # the guard does not see today's already-published date twice.
@@ -162,6 +185,45 @@ def semantic_review(candidate, rows, reserve=()):
     return reviews
 
 
+def generate_ten(rows,reserve):
+    """Generate at least ten explicit, inspectable candidate ideas before selection."""
+    base=prompt(rows,reserve,"live")
+    instructions=base.split("Return ONLY JSON with exactly:")[0]
+    instructions+=(
+        "\nReturn JSON ONLY as {\\"candidates\\":[...]} with exactly 10 "
+        "genuinely distinct candidate objects. Every candidate must have "
+        "theme,pl,en,candidates_considered,scores,silence_test,editor_note "
+        "matching the constitution. Do not return variants of the same claim. "
+        "This is not a request for ten paraphrases."
+    )
+    problems=[]
+    for round_number in range(LIVE_ROUNDS):
+        try:
+            response=call(instructions+f"\nIndependent ideation round {round_number+1}.",MODEL if round_number==0 else FALLBACK)
+            candidates=response.get("candidates") if isinstance(response,dict) else None
+            if not isinstance(candidates,list) or len(candidates)!=LIVE_BATCH_SIZE:
+                raise ValueError("required exactly ten explicit candidates")
+            from axiom_thought_guard import normalize_text
+            themes=[c.get("theme") for c in candidates if isinstance(c,dict)]
+            claims=[normalize_text(c.get("pl","")) for c in candidates if isinstance(c,dict)]
+            if len(set(themes))!=LIVE_BATCH_SIZE or len(set(claims))!=LIVE_BATCH_SIZE:
+                raise ValueError("batch contains repeated themes or repeated texts")
+            print(f"AXIOM_LIVE_CANDIDATES={len(candidates)} round={round_number+1}",flush=True)
+            considered=0
+            for c in candidates:
+                try:
+                    validate_candidate(c,rows,reserve)
+                    considered+=1
+                    if considered>LIVE_REVIEW_LIMIT: break
+                    reviewed=attach_review(c,rows)
+                    return reviewed
+                except Exception as exc:
+                    problems.append(f"candidate veto: {type(exc).__name__}: {exc}")
+        except Exception as exc:
+            problems.append(f"batch failed: {type(exc).__name__}: {exc}")
+    raise RuntimeError("AXIOM_LIVE_EXHAUSTED: "+(problems[-1] if problems else "no accepted candidates"))
+
+
 def generate(rows,reserve,mode):
     errs=[]
     for n in range(1,MAX_ATTEMPTS+1):
@@ -178,10 +240,13 @@ def publish(c,rows,source):
     # Git publishes the two files together; rollback protects the working tree
     # against an interrupted/local invalid write.
     validate_candidate(c,rows)
-    reviews=semantic_review(c,rows)
-    from axiom_thought_guard import review_digest
+    # Pre-vetted reserve is usable even during a reviewer API outage; never
+    # invent proof for legacy bank items that lack it.
+    verified=attach_review(c,rows, c["semantic_reviews"] if evidence_valid(c,rows) else None) if (
+        "semantic_reviews" in c and evidence_valid(c,rows)
+    ) else attach_review(c,rows)
     stamp=today()
-    rec={"date":stamp,**c,"semantic_reviews":reviews,"semantic_review_digest":review_digest(c)}
+    rec={"date":stamp,**verified}
     current={"date":stamp,"author":"AXIOM","brand":"BriefRooms","pl":c["pl"],"en":c["en"]}
     from axiom_thought_guard import validate
     errors=validate(current,rows+[rec])
@@ -203,14 +268,41 @@ def publish(c,rows,source):
         raise
     print(f"PUBLISHED {stamp} source={source} theme={c['theme']}")
 def refill(rows,reserve):
+    """Incremental, independently scheduled 100-item reserve; never fake capacity."""
+    completed=0
     failures=0
-    while len(reserve)<RESERVE_TARGET and failures<3:
+    # First vet existing legacy entries to make old backlog usable during outages.
+    for index,candidate in enumerate(reserve):
+        if completed>=REFILL_BATCH: break
+        if evidence_valid(candidate,rows): continue
         try:
-            c=generate(rows,reserve,"reserve"); reserve.append(c); save_reserve(reserve); failures=0
-            print(f"RESERVE {len(reserve)}/{RESERVE_TARGET}")
-        except Exception as e:
-            failures+=1; print(f"reserve generation failure {failures}/3: {e}",file=sys.stderr)
-    return len(reserve)>=RESERVE_TARGET
+            validate_candidate(candidate,rows,[x for j,x in enumerate(reserve) if j!=index])
+            reserve[index]=attach_review(candidate,rows)
+            save_reserve(reserve)
+            completed+=1
+            print(f"RESERVE_VETTED {index+1}/{len(reserve)}")
+        except Exception as exc:
+            failures+=1
+            print(f"RESERVE_VETTING_FAILED index={index} reason={exc}",file=sys.stderr)
+    # Never label an unverified legacy candidate as verified.
+    if any(not evidence_valid(c,rows) for c in reserve):
+        print(f"RESERVE_NOT_READY vetted={sum(evidence_valid(c,rows) for c in reserve)} total={len(reserve)}",file=sys.stderr)
+        return False
+    while len(reserve)<RESERVE_TARGET and completed<REFILL_BATCH and failures<3:
+        try:
+            generated=generate(rows,reserve,"reserve")
+            candidate=attach_review(generated,rows)
+            reserve.append(candidate)
+            save_reserve(reserve)
+            completed+=1
+            print(f"RESERVE_READY {len(reserve)}/{RESERVE_TARGET}",flush=True)
+        except Exception as exc:
+            failures+=1
+            print(f"RESERVE_REFILL_FAILURE {failures}/3: {exc}",file=sys.stderr)
+    print(f"AXIOM_RESERVE_HEALTH ready={sum(evidence_valid(c,rows) for c in reserve)} target={RESERVE_TARGET}",flush=True)
+    # Partial progress is expected; the next independent worker resumes.
+    return True
+
 def semantic_smoke(rows, reserve):
     """Read-only production E2E of the *real* reviewer API.
 
@@ -282,23 +374,30 @@ def main():
             print("already published but invalid: " + "; ".join(errors),file=sys.stderr)
             return 2
         print("already published (guard passed)"); return 0
-    # Reserve candidates remain durable during model/transport outages.
-    # Only a definitive editorial veto removes an invalid candidate.
-    while reserve:
-        c=reserve[0]
+    # Step 1: 10 distinct freshly proposed ideas, scored by two reviewers.
+    # Step 2: walk the durable bank; only definitively rejected entries are
+    # removed. Transient reviewer outages never destroy an item.
+    try:
+        generated=generate_ten(rows,reserve)
+        publish(generated,rows,"live-batch")
+        return 0
+    except Exception as exc:
+        print(f"AXIOM_LIVE_TO_RESERVE: {exc}",file=sys.stderr)
+    for index,candidate in enumerate(list(reserve)):
         try:
-            publish(c,rows,"reserve")
-        except ValueError as e:
-            print(f"reserve candidate permanently rejected: {e}",file=sys.stderr)
-            reserve.pop(0)
+            publish(candidate,rows,"reserve-vetted" if evidence_valid(candidate,rows) else "reserve-live-reviewed")
+        except ValueError as exc:
+            print(f"AXIOM_RESERVE_VETO index={index}: {exc}",file=sys.stderr)
+            # A permanently rejected candidate can never be selected later.
+            reserve.remove(candidate)
             save_reserve(reserve)
             continue
-        except Exception as e:
-            print(f"publication temporarily blocked; reserve retained: {e}",file=sys.stderr)
-            return 2
-        reserve.pop(0)
+        except Exception as exc:
+            print(f"AXIOM_RESERVE_RETRY_LATER index={index}: {exc}",file=sys.stderr)
+            continue
+        reserve.remove(candidate)
         save_reserve(reserve)
         return 0
-    try: c=generate(rows,[],"live"); publish(c,rows,"live"); return 0
-    except Exception as e: print(f"publication failed: {e}",file=sys.stderr); return 2
+    print("AXIOM_CRITICAL_NO_ELIGIBLE_CANDIDATE: regenerate and refill required",file=sys.stderr)
+    return 2
 if __name__=="__main__": raise SystemExit(main())
