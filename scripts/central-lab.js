@@ -184,14 +184,37 @@ function fseFractalTrendCard(x){
     '<div class="fse-fast-meta"><span>Fast run <b>'+esc(fm.generated_at?shadowWhen(fm.generated_at):'—')+'</b></span><span>Ostatnia świeca <b>'+esc(fm.latest_fast_observed_at?shadowWhen(fm.latest_fast_observed_at):'—')+'</b></span><span>Wiek źródła <b>'+esc(sourceAge)+'</b></span></div>'+
     '<div class="fse-tf-ribbon">'+ribbon+'</div></section>';
 }
+function fseDiscoveryPanel(d){
+  if(!d||d.schema_version!=='FSE-ASD-1.0')return '<section class="fse-discovery"><h3 class="central-subtitle">Autonomous Structure Discovery</h3><p class="central-note">Brak katalogu Discovery. Oczekiwanie na pierwszy poprawny cykl danych rynkowych.</p></section>';
+  const sum=d.summary||{},families=Array.isArray(d.families)?d.families:[],current=Array.isArray(d.current_matches)?d.current_matches:[];
+  const freshAt=Date.parse(String(d.generated_at||'')),stale=!Number.isFinite(freshAt)||Date.now()-freshAt>180*60000;
+  const stats='<div class="fse-discovery-stats"><span>Rodziny struktur <b>'+num(sum.families||0)+'</b></span><span>Zamrożone obserwacje <b>'+num(sum.frozen_snapshots||0)+'</b></span><span>Rozliczone obserwacje <b>'+num(sum.prospective_resolutions||0)+'</b></span><span>Production <b>OFF</b></span></div>';
+  const matches=current.map(x=>'<span class="fse-discovery-match"><b>'+esc(fseInstrumentLabel(x.instrument))+'</b> '+esc(x.family_id||'Nowa / niedopasowana struktura')+'</span>').join('');
+  const cards=families.slice(0,12).map(f=>{
+    const applications=(Array.isArray(f.applications)?f.applications:[]).map(s=>'<li>'+esc(s)+'</li>').join('');
+    return '<article class="fse-discovery-card"><div class="fse-discovery-cardtop"><span>'+esc(f.family_id)+'</span><small>'+esc(f.evidence_status)+'</small></div>'+
+      '<h4>'+esc(f.name)+'</h4><p class="fse-discovery-meta">'+esc(fseInstrumentLabel(f.instrument))+' · '+num(f.window)+' × 1h · Analogie historyczne: '+num(f.historical_sample_n)+'</p>'+
+      '<p>'+esc(f.description)+'</p><div class="fse-discovery-metrics"><span>Wyniki prospektywne <b>N='+num(f.prospective_n)+'</b></span>'+
+      '<span>Prospektywny Brier <b>'+(finite(f.mean_brier)?num(f.mean_brier,4):'—')+'</b></span>'+
+      '<span>Poprawa Brier <b>'+(finite(f.incremental_brier)?num(f.incremental_brier,4):'—')+'</b></span></div>'+
+      '<details><summary>Możliwe zastosowania</summary><ul>'+applications+'</ul></details></article>';
+  }).join('');
+  return '<section class="fse-discovery"><div class="fse-discovery-head"><h3 class="central-subtitle">Autonomous Structure Discovery</h3><p>Samodzielne odkrywanie rodzin struktur cenowych, automatyczne nazwy, wnioski i hipotezy zastosowań. Bez prawa do transakcji.</p></div>'+
+    (stale?'<p class="central-note"><strong>STALE:</strong> '+esc(String(d.generated_at||'missing'))+'</p>':'')+stats+
+    (matches?'<div class="fse-discovery-matches"><strong>Aktualne dopasowanie:</strong>'+matches+'</div>':'')+
+    (cards?'<div class="fse-discovery-grid">'+cards+'</div>':'<p class="central-note">Brak katalogu Discovery. Oczekiwanie na pierwszy poprawny cykl danych rynkowych.</p>')+
+    '<p class="central-note">Metoda: klastry wyuczone z danych, bez katalogu formacji. Analogie historyczne to hipotezy, nie udowodniona przewaga. Liczymy tylko wyniki po zamrożonym snapshotcie i 4 zakończonych świecach 1h. Wyłącznie Shadow.</p></section>';
+}
+
 async function fse(){
   const root=document.querySelector('#central-fse-lab');
   if(!root)return;
   try{
-    const [r,hse,v2,fast]=await Promise.all([
+    const [r,hse,v2,discovery,fast]=await Promise.all([
       get('/data/investments/fse_public.json'),
       get('/data/investments/hypothesis_shadow_engine_v2_public.json').catch(()=>({})),
       get('/data/investments/fse_v2_public.json').catch(()=>({})),
+      get('/data/investments/fse_discovery_public.json').catch(()=>({})),
       get('https://briefrooms-fse-fast.szczerbinski0577.workers.dev/fse-fast').catch(()=>get('/data/investments/fse_intraday_public.json').catch(()=>({})))
     ]);
     const instruments=Array.isArray(r.instruments)?r.instruments:[];
@@ -277,7 +300,7 @@ async function fse(){
     root.innerHTML=
       '<article class="panel central-head fse-panel"><header><div><h2>FSE — Fractal Structure Engine</h2><p>Wieloskalowa struktura rynku: regime, Fractal Memory oraz FSE-PHASE. Phase Engine śledzi etap formowania wzorca na różnych skalach, bez wpływu na produkcyjny trading.</p></div>'+chip(v2?.methodology_version||r.mode||'SHADOW_ONLY')+'</header>'+
       '<div class="central-stats fse-summary"><div><small>Źródła</small><strong>'+num(available)+' / '+num(configured)+'</strong></div><div><small>Instrumenty</small><strong>'+num(instruments.length)+'</strong></div><div><small>HSE2 forward N</small><strong>'+num(forwardN)+' / '+num(targetN)+'</strong></div><div><small>Promotion gate</small><strong>'+esc(v2?.promotion_gate?.status||'NOT ELIGIBLE')+'</strong></div></div>'+
-      '<h3 class="central-subtitle fse-trend-title">Fractal Trend — kierunek ze struktur fraktalnych</h3>'+(fractalTrendCards?'<div class="fse-trend-grid">'+fractalTrendCards+'</div>':'<p class="central-note">Fractal Trend czeka na dane FSE-PHASE.</p>')+
+      fseDiscoveryPanel(discovery)+'<h3 class="central-subtitle fse-trend-title">Fractal Trend — kierunek ze struktur fraktalnych</h3>'+(fractalTrendCards?'<div class="fse-trend-grid">'+fractalTrendCards+'</div>':'<p class="central-note">Fractal Trend czeka na dane FSE-PHASE.</p>')+
       '<h3 class="central-subtitle">Aktualna struktura rynku</h3><div class="central-table-wrap"><table class="central-table fse-overview-table"><thead><tr><th>Instrument</th><th>Regime</th><th>Risk</th><th>P UP</th><th>Analogów</th><th>Similarity</th><th>Median +4h</th><th>MAE</th></tr></thead><tbody>'+overviewRows+'</tbody></table></div>'+
       '<h3 class="central-subtitle">Fractal Memory</h3><div class="fse-memory-grid">'+memoryCards+'</div>'+
       '<h3 class="central-subtitle fse-comparison-title">Fractal Memory — kierunek i skuteczność</h3>'+

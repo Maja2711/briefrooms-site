@@ -315,3 +315,29 @@ Zasady:
 - zero production authority;
 - frontend odświeża aktywną zakładkę FSE co 60 s;
 - snapshot jest oznaczany STALE po 12 minutach lub gdy ostatnia świeca źródłowa ma >12 minut; próg daje bufor ponad nominalny rytm 5-minutowy.
+
+
+## 10. Autonomous Structure Discovery (ASD-1.0) — nowy, niezależny moduł SHADOW
+
+**Cel:** odkrywać rodziny podobnych zachowań ceny bez katalogu nazwanych formacji giełdowych i bez przypisywania nowych struktur do sześciu etykiet FSE-PHASE. Dotychczasowy silnik Phase i Fractal Memory pozostają niezależnymi punktami odniesienia.
+
+### Rozpoznawanie bez szablonów
+- Analiza godzinowych świec EUR/USD (`EURUSD=X`), BTC (`BTC-USD`) i S&P 500 (`SPY`, **proxy, nie futures ES**); okna 32 i 64 świec.
+- Normalizacja kształtu logarytmicznej ścieżki cenowej, bez zależności od nominalnego poziomu ceny.
+- Nienadzorowane grupowanie z adaptacyjnym progiem odległości, łączeniem gęstych próbek i ponownym sprawdzeniem względem reprezentatywnego medoidu. Minimum sześć analogii historycznych do utworzenia rodziny.
+- Własny, niezmienny `ASD-XXXXXXXXXX`, automatyczna nazwa opisująca geometrię odkrytego prototypu, `description` oraz `applications` jako **hipotezy badawcze**. Żadne `Head & Shoulders`, `REVERSAL` ani inne wzorce nie są docelowymi klasami Discovery.
+- Rejestr maksymalnie 14 rodzin na instrument na pierwszy etap, bez automatycznej reklasyfikacji historycznych rodzin. Ograniczenie jest limitem kosztu i eksplozji hipotez, a nie listą struktur.
+
+### Rygor wyników
+- Historyczne analogie wolno wykorzystać do opisu i *wstępnej* częstości `P UP`. Nie są dowodem prospektywnym.
+- Przy nowej, zakończonej świecy 1h zapisuje się snapshot **przed** wynikiem z `family_id`, ceną i zamrożonym `p_up` oraz prawdopodobieństwem bazowym. Dopasowania bez znanej rodziny również zapisuje się jako `FROZEN_NOVEL_UNMATCHED`.
+- Dopiero po zamknięciu następnych czterech świec rynku można dopisać wynik do niezmiennego łańcucha SHA-256. Brak backdatingu i brak ponownego zaliczania tej samej obserwacji.
+- Raport rozdziela `historical_sample_n` od `prospective_n`. Status `REVIEW_CANDIDATE` nie wcześniej niż po 40 rozstrzygnięciach i statystycznie dodatniej przewadze Brier w porównaniu z **parowanym**, historycznie wyznaczonym punktem odniesienia. To nie jest automatyczny dowód opłacalności transakcji.
+- Nazwy i opisy są deterministycznie tworzone na podstawie danych; nie przypisujemy struktury do znanej formacji ani nie generujemy narracji językiem LLM bez evidence.
+
+### Przepływ danych i uprawnienia
+`FSE Autonomous Structure Discovery Shadow` — osobny, godzinny workflow z trwałym prywatnym stanem w GitHub Actions Artifact. Publiczny, tylko do odczytu `data/investments/fse_discovery_public.json` prezentuje katalog i evidence w zakładce FSE (PL/EN).
+
+Zapis wyłącznie artefaktu publicznego, automatyczna promocja, Belief Core writeback, egzekucja oraz zmiany polityki ryzyka są **wyłączone**. Gdy brak źródła rynku lub archiwum pamięci, proces fail-closed — bez nadpisywania poprzedniej wiarygodnej publikacji.
+
+**Ograniczenia:** aktualny silnik nie używa uczenia neuronowego ani semantycznego LLM do nazywania struktur. Jest to deterministyczne uczenie nienadzorowane. Nazwa opisuje wyuczoną geometrię, a możliwości zastosowania są automatycznie wytworzonymi, wymagającymi testowania hipotezami. Wyniki prospektywne mogą początkowo pozostawać zerowe.

@@ -56,6 +56,18 @@ class DecisionLabFSEFrontendTests(unittest.TestCase):
             self.assertIn("Brier", text, rel)
             self.assertIn("fse();shadows()", text, rel)
 
+    def test_autonomous_discovery_is_visible_and_read_only(self):
+        for rel in ("scripts/central-lab.js", "scripts/central-lab-runtime-en.js"):
+            text = (ROOT / rel).read_text(encoding="utf-8")
+            self.assertIn("function fseDiscoveryPanel(", text)
+            self.assertIn("/data/investments/fse_discovery_public.json", text)
+            self.assertIn("fseDiscoveryPanel(discovery)", text)
+            self.assertIn("f.evidence_status", text)
+            self.assertIn("f.applications", text)
+            self.assertIn("f.name", text)
+            self.assertIn("f.description", text)
+            self.assertIn("production", text.lower())
+
     def test_fse_ui_remains_read_only(self):
         for rel in ("scripts/central-lab.js", "scripts/central-lab-runtime-en.js"):
             text = (ROOT / rel).read_text(encoding="utf-8")
@@ -79,16 +91,18 @@ class DecisionLabFSEFrontendTests(unittest.TestCase):
         self.assertIn(".fse-tf-direction", css)
         self.assertIn(".fse-fast-state", css)
         self.assertIn(".fse-fast-meta", css)
+        self.assertIn(".fse-discovery-grid", css)
+        self.assertIn(".fse-discovery-card", css)
         self.assertIn(".fse-tf-direction em", css)
 
 
     def test_fse_trend_assets_are_cache_busted(self):
         pl = (ROOT / "pl/inwestycje/decision-lab.html").read_text(encoding="utf-8")
         en = (ROOT / "en/investing/decision-lab.html").read_text(encoding="utf-8")
-        self.assertIn("/assets/decision-lab.css?v=20261008-1", pl)
-        self.assertIn("/assets/decision-lab.css?v=20261008-1", en)
-        self.assertIn("/scripts/central-lab.js?v=20261008-1", pl)
-        self.assertIn("/scripts/central-lab-runtime-en.js?v=20261008-1", en)
+        self.assertIn("/assets/decision-lab.css?v=20261011-asd1", pl)
+        self.assertIn("/assets/decision-lab.css?v=20261011-asd1", en)
+        self.assertIn("/scripts/central-lab.js?v=20261011-asd1", pl)
+        self.assertIn("/scripts/central-lab-runtime-en.js?v=20261011-asd1", en)
 
 
 if __name__ == "__main__":
