@@ -12,6 +12,38 @@ from scripts.publish_source_expansion_v3 import homepage_ranked_select
 
 
 class LiveNewsPublisherTests(unittest.TestCase):
+    def test_tv_program_promotions_are_removed_from_all_source_pools(self) -> None:
+        examples = [
+            ("Polsat News", '"Śniadanie Rymanowskiego" w Polsat News i Interii', "polityka"),
+            ("TVP Sport", "Sportowy wieczór (10.10.2026)", "sport"),
+            ("CNN", "CNN Tonight: today's episode and guest lineup", "world-news"),
+            ("TVN24", "Wydanie programu telewizyjnego. Oglądaj o 20:00", "polityka"),
+        ]
+        for source, title, section_id in examples:
+            with self.subTest(source=source):
+                candidate = {
+                    "title": title,
+                    "summary": "Zapraszamy do programu. Goście w studiu.",
+                    "source": source,
+                    "image": "https://example.com/image.jpg",
+                    "link": "https://example.com/news/show",
+                    "published_at": "2026-10-11T08:00:00+00:00",
+                }
+                self.assertEqual(
+                    filtered_news._filter_stories([candidate], f"fresh/{section_id}/{source}"),
+                    [],
+                )
+                self.assertEqual(
+                    filtered_news._filter_stories([candidate], f"carried/pl/{section_id}"),
+                    [],
+                )
+        report = {
+            "title": "Rząd przyjął ustawę podatkową — podała stacja Polsat News",
+            "summary": "Nowe przepisy weszły w życie.",
+            "source": "Polsat News",
+        }
+        self.assertEqual(filtered_news._filter_stories([report], "fresh/polityka"), [report])
+
     def test_pl_politics_pool_includes_dedicated_rmf_world_feed(self) -> None:
         by_section = {
             section_id: feeds
