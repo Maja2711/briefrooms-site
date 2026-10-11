@@ -83,7 +83,7 @@ test('an explicitly marked archival quote is always visible while fresh data loa
   const { head, calls } = run(() => new Promise(() => {}));
   const card = head.querySelector('.axiom-thought');
   assert.ok(card);
-  assert.equal(card.querySelector('.axiom-thought__signature small').textContent, 'BriefRooms · Archiwum 2026-10-11');
+  assert.equal(card.querySelector('.axiom-thought__signature').children[1].textContent, 'BriefRooms · Archiwum 2026-10-11');
   assert.equal(calls.length, 1);
 });
 
@@ -103,7 +103,7 @@ test('stale canonical data is labeled archival, never presented as fresh', async
   const card = head.querySelector('.axiom-thought');
   assert.ok(card);
   assert.equal(card.querySelector('.axiom-thought__quote').textContent, stale.pl);
-  assert.equal(card.querySelector('.axiom-thought__signature small').textContent, 'BriefRooms · Archiwum 2026-09-15');
+  assert.equal(card.querySelector('.axiom-thought__signature').children[1].textContent, 'BriefRooms · Archiwum 2026-09-15');
   assert.equal(calls.length, 1);
   assert.ok(!calls[0].includes('reserve'));
 });
@@ -111,11 +111,11 @@ test('stale canonical data is labeled archival, never presented as fresh', async
 test('unavailable feed retains only an explicitly dated archival edition', async () => {
   const { head } = run(async () => { throw Error('offline'); });
   await flush();
-  assert.equal(head.querySelector('.axiom-thought__signature small').textContent, 'BriefRooms · Archiwum 2026-10-11');
+  assert.equal(head.querySelector('.axiom-thought__signature').children[1].textContent, 'BriefRooms · Archiwum 2026-10-11');
 });
 
 test('partial response never disguises a historical sentence as current', async () => {
   const { head } = run(async () => ({ ok: true, json: async () => ({ ...valid, en: '' }) }));
   await flush();
-  assert.equal(head.querySelector('.axiom-thought__signature small').textContent, 'BriefRooms · Archiwum 2026-10-11');
+  assert.equal(head.querySelector('.axiom-thought__signature').children[1].textContent, 'BriefRooms · Archiwum 2026-10-11');
 });
