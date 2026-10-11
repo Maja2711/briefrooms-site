@@ -21,7 +21,8 @@ def story(title: str, index: int, now: datetime, source: str | None = None) -> d
 
 class PolishSportDiversityTests(unittest.TestCase):
     def test_target_and_watchlist(self) -> None:
-        self.assertEqual(base.TARGET, 9)
+        self.assertEqual(base.TARGET, 15)
+        self.assertEqual(base.MIN_SECTION, 6)
         names = {item["name"] for item in news.TRACKED_ATHLETES}
         self.assertIn("Hubert Hurkacz", names)
         self.assertIn("Maja Chwalińska", names)
