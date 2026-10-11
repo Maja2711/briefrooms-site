@@ -226,8 +226,8 @@ class AxiomThoughtGuardTests(unittest.TestCase):
         with TemporaryDirectory() as directory:
             history_path = Path(directory) / "history.jsonl"
             current_path = Path(directory) / "thought.json"
-            original_history = '{"date":"2026-09-15"}\\n'
-            original_current = '{"date":"2026-09-15","author":"AXIOM"}\\n'
+            original_history = '{"date":"2026-09-15"}\n'
+            original_current = '{"date":"2026-09-15","author":"AXIOM"}\n'
             history_path.write_text(original_history, encoding="utf-8")
             current_path.write_text(original_current, encoding="utf-8")
             candidate = copy.deepcopy(LATEST)
@@ -285,7 +285,7 @@ class AxiomThoughtGuardTests(unittest.TestCase):
         self.assertIn("workflow_run:", workflow)
         self.assertIn('"Production Investment Event Intelligence"', workflow)
         self.assertIn('"BRs R2 Shadow Archive Pilot"', workflow)
-        self.assertIn("group: morning-axiom-daily\\n", workflow)
+        self.assertIn("group: morning-axiom-daily\n", workflow)
         self.assertIn("continue-on-error: true", workflow)
 
 
