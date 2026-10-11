@@ -105,11 +105,28 @@ class DecisionLabFSEFrontendTests(unittest.TestCase):
         self.assertIn(".fse-tf-direction em", css)
 
 
+    def test_asd_critical_contrast_is_inline_in_both_locales(self):
+        # External CSS can be cached at the CDN; HTML critical rules protect
+        # dynamically rendered dark-LAB cards without modifying other panels.
+        for rel in ("pl/inwestycje/decision-lab.html", "en/investing/decision-lab.html"):
+            html = (ROOT / rel).read_text(encoding="utf-8")
+            self.assertIn('id="fse-asd-critical-contrast"', html, rel)
+            self.assertEqual(html.count('id="fse-asd-critical-contrast"'), 1, rel)
+            self.assertIn('#central-fse-lab .fse-discovery .fse-discovery-card{', html, rel)
+            self.assertIn('background:#102237 !important', html, rel)
+            self.assertIn('background-image:linear-gradient(180deg,#142d43 0%,#0d1c2e 100%) !important', html, rel)
+            self.assertIn('color:#ffffff !important', html, rel)
+            self.assertIn('color:#dfecfa !important', html, rel)
+            self.assertIn('.fse-discovery-metrics span{', html, rel)
+            self.assertIn('color:#9fdbff !important', html, rel)
+            self.assertLess(html.index('id="fse-asd-critical-contrast"'), html.index('</head>'), rel)
+            self.assertNotIn('style="', html, rel)
+
     def test_fse_trend_assets_are_cache_busted(self):
         pl = (ROOT / "pl/inwestycje/decision-lab.html").read_text(encoding="utf-8")
         en = (ROOT / "en/investing/decision-lab.html").read_text(encoding="utf-8")
-        self.assertIn("/assets/decision-lab.css?v=20261011-asd2", pl)
-        self.assertIn("/assets/decision-lab.css?v=20261011-asd2", en)
+        self.assertIn("/assets/decision-lab.css?v=20261011-asd3", pl)
+        self.assertIn("/assets/decision-lab.css?v=20261011-asd3", en)
         self.assertIn("/scripts/central-lab.js?v=20261011-asd1", pl)
         self.assertIn("/scripts/central-lab-runtime-en.js?v=20261011-asd1", en)
 
