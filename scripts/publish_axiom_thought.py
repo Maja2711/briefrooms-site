@@ -286,10 +286,13 @@ def refill(rows,reserve):
             completed+=1
             print(f"RESERVE_VETTED {index+1}/{len(reserve)}")
         except ValueError as exc:
-            # Persist definitive veto, never advertise a rejected bank item.
+            failures+=1
+            if "UNCERTAIN" in str(exc) or "insufficient" in str(exc):
+                print(f"RESERVE_UNCERTAIN_RETAINED index={index} reason={exc}",file=sys.stderr)
+                continue
+            # Persist definitive veto; only a known duplicate is discarded.
             reserve.remove(candidate)
             save_reserve(reserve)
-            failures+=1
             print(f"RESERVE_REJECTED index={index} reason={exc}",file=sys.stderr)
         except Exception as exc:
             failures+=1
@@ -394,8 +397,11 @@ def main():
         try:
             publish(candidate,rows,"reserve-vetted" if evidence_valid(candidate,rows) else "reserve-live-reviewed")
         except ValueError as exc:
+            if "UNCERTAIN" in str(exc) or "insufficient" in str(exc):
+                print(f"AXIOM_RESERVE_UNCERTAIN_RETAINED index={index}: {exc}",file=sys.stderr)
+                continue
             print(f"AXIOM_RESERVE_VETO index={index}: {exc}",file=sys.stderr)
-            # A permanently rejected candidate can never be selected later.
+            # Permanently reject only a known duplicate or invalid candidate.
             reserve.remove(candidate)
             save_reserve(reserve)
             continue
