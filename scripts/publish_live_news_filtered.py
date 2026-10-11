@@ -134,14 +134,7 @@ base.PL = _extend_pl_feeds(base.PL)
 
 EDITORIAL_SELECTION_POLICY_VERSION = "public-impact-source-diversity-v2"
 MAX_SOURCE_SHARE = 5
-PL_SECTION_MINIMUMS = {
-    "polityka": 9,
-    "ekonomia": 9,
-    "zdrowie": 6,
-    "nauka": 6,
-    "sport": 9,
-    "ai-technologia-krypto": 9,
-}
+PL_SECTION_MINIMUMS = {section_id: base.MIN_SECTION for section_id, _, _ in base.PL}
 PL_SCIENCE_AI_TARGET = 0
 EN_SECTION_TARGETS = base.EN_SECTION_TARGETS
 AI_CRYPTO_RE = re.compile(
@@ -627,9 +620,9 @@ def select_sections(
     prior_exposure = _previous_exposure_by_identity(previous)
 
     for section_id, _, _ in config:
-        # No publication count cap: editorial quality, freshness and deduplication decide.
-        target = len(fetched.get(section_id) or []) + len(previous_sections.get(section_id) or [])
-        editorial_target = (base.PL_SECTION_TARGETS if pl_mode else EN_SECTION_TARGETS).get(section_id, base.TARGET)
+        # Shared hard limit independent of the number of available candidates.
+        target = base.TARGET
+        editorial_target = target
         source_candidates = [
             story for story in (fetched.get(section_id) or [])
             if _time_sensitive_release_eligible(story, section_id, now)
@@ -713,6 +706,8 @@ def select_sections(
             discipline_cap: bool,
             source_cap: int,
         ) -> str:
+            if len(items) >= target:
+                return "section_cap"
             identity = base.normalized_identity(story)
             if (
                 not identity
@@ -897,30 +892,15 @@ def select_sections(
             selected_items = [_localize_pl_ai_story(story) for story in selected_items]
         selected[section_id] = selected_items
         global_selected.extend(selected_items)
-        if pl_mode:
-            minimum = PL_SECTION_MINIMUMS.get(section_id, 0)
-            if len(selected[section_id]) < minimum:
-                raw = list(fetched.get(section_id) or [])
-                fresh = [story for story in raw if _fresh_for_pl_selection(story, now)]
-                with_image = [story for story in fresh if story.get("image")]
-                by_source: dict[str, dict[str, int]] = {}
-                for story in raw:
-                    source = str(story.get("source") or "unknown")
-                    stats = by_source.setdefault(source, {"raw": 0, "fresh": 0, "image": 0})
-                    stats["raw"] += 1
-                    if _fresh_for_pl_selection(story, now):
-                        stats["fresh"] += 1
-                        if story.get("image"):
-                            stats["image"] += 1
-                raise RuntimeError(
-                    f"PL section {section_id} underfilled after freshness/dedupe: "
-                    f"{len(selected[section_id])}/{minimum}; raw={len(raw)} "
-                    f"fresh={len(fresh)} fresh_with_image={len(with_image)} sources={by_source}"
-                )
+        minimum = base.MIN_SECTION
+        underfilled = len(selected[section_id]) < minimum
 
         times = [base.story_time(item) for item in items if base.story_time(item) > 0]
         section_health: dict[str, Any] = {
             "count": len(selected[section_id]),
+            "minimum": minimum,
+            "maximum": target,
+            "coverage": "underfilled" if underfilled else "ok",
             "fresh_count": len(selected[section_id]) - carried,
             "carried_count": carried,
             "newest_source_at": datetime.fromtimestamp(max(times), tz=timezone.utc).isoformat(timespec="seconds") if times else None,

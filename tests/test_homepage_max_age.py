@@ -26,6 +26,16 @@ class HomepageExposureCapTests(unittest.TestCase):
             "category": category,
         }
 
+    def test_public_section_hard_cap_is_fifteen(self) -> None:
+        now = datetime(2026, 10, 11, 7, 0, tzinfo=timezone.utc)
+        stories = [self._story(f"Unique bulletin {i}", now) for i in range(28)]
+        payload = {
+            "home": [], "home_reserve": [], "sections": {"health": stories},
+            "labels": {"health": "Health"}, "health": {},
+        }
+        result, _ = enforce_payload(payload, {}, now, lang="en")
+        self.assertEqual(len(result["sections"]["health"]), 15)
+
     def test_refreshed_source_timestamp_cannot_reset_first_display_clock(self) -> None:
         now = datetime(2026, 8, 26, 18, 0, tzinfo=timezone.utc)
         story = self._story("Resurfaced story", now - timedelta(minutes=5))

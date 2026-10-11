@@ -132,15 +132,56 @@ class LiveNewsPublisherTests(unittest.TestCase):
         )
 
     def test_default_section_target_and_pl_ai_buffer(self) -> None:
-        self.assertEqual(TARGET, 9)
-        self.assertEqual(MIN_SECTION, TARGET)
-        self.assertEqual(source_v3.base.PL_SECTION_TARGETS, {"ai-technologia-krypto": 12})
+        self.assertEqual(TARGET, 15)
+        self.assertEqual(MIN_SECTION, 6)
+        self.assertEqual(source_v3.base.PL_SECTION_TARGETS, {})
+        self.assertEqual(source_v3.base.EN_SECTION_TARGETS, {})
 
     def test_pl_publication_minimums_match_editorial_contract(self) -> None:
         self.assertEqual(
             filtered_news.PL_SECTION_MINIMUMS,
-            {"polityka": 9, "ekonomia": 9, "zdrowie": 6, "nauka": 6, "sport": 9, "ai-technologia-krypto": 9},
+            {section_id: 6 for section_id, _, _ in source_v3.base.PL},
         )
+
+    def test_filtered_selector_caps_all_sections_at_fifteen(self) -> None:
+        now = datetime(2026, 10, 11, 7, 0, tzinfo=timezone.utc)
+        rows = [
+            {
+                "source": f"Independent {i % 10}",
+                "title": f"Unique news event number {i}: new finding in a different region",
+                "summary": f"Regional announcement number {i} with separately verified details.",
+                "link": f"https://example.com/article-{i}",
+                "image": f"https://example.com/image-{i}.jpg",
+                "published_at": (now - timedelta(minutes=i)).isoformat(),
+                "published_at_basis": "source",
+            }
+            for i in range(35)
+        ]
+        for section_id in ("health", "polityka"):
+            selected, diagnostics = filtered_news.select_sections(
+                [(section_id, "Section", [])], {section_id: rows},
+                {"sections": {}}, now,
+            )
+            self.assertEqual(len(selected[section_id]), 15)
+            self.assertEqual(diagnostics[section_id]["maximum"], 15)
+            self.assertEqual(diagnostics[section_id]["minimum"], 6)
+
+    def test_qualified_underfill_is_diagnostic_not_global_failure(self) -> None:
+        now = datetime(2026, 10, 11, 7, 0, tzinfo=timezone.utc)
+        story = {
+            "source": "Independent",
+            "title": "Istotna zmiana polityki zdrowotnej",
+            "summary": "Ważna decyzja o nowym programie zdrowotnym.",
+            "link": "https://example.com/news-health",
+            "image": "https://example.com/news-health.jpg",
+            "published_at": now.isoformat(),
+        }
+        selected, diagnostics = filtered_news.select_sections(
+            [("zdrowie", "Zdrowie", [])], {"zdrowie": [story]},
+            {"sections": {}}, now,
+        )
+        self.assertEqual(len(selected["zdrowie"]), 1)
+        self.assertEqual(diagnostics["zdrowie"]["coverage"], "underfilled")
 
     def test_pl_economy_ai_crypto_detector(self) -> None:
         self.assertIsNotNone(filtered_news.AI_CRYPTO_RE.search("OpenAI rozwija nowy model AI"))

@@ -305,6 +305,10 @@ The publication layer **must not become a hidden authority source for a decision
 
 ### CT-01 — hard public-news freshness invariant
 
+**Shared PL/EN section-card policy:** `scripts/news_section_limits.py` defines editorial minimum coverage of **6** and hard maximum of **15** cards for every news section. Publisher, filter, public-exposure guard, watchdog, and production verifier reuse these values. Underfill is observable as `underfilled/degraded` rather than padding with stale/unqualified stories; hard maximum is enforced. Separate **12**-card homepage and publisher-diversity caps remain independent.
+
+
+
 Every publicly visible news card — section pages `/pl/aktualnosci` / `/en/news`, homepage, and homepage reserve — shares one exposure clock. Maximum public display time is **24 hours**. The source `published_at` must also be no older than 24 hours. Canonical fields are `news_first_seen_at` and `news_expires_at`; legacy homepage fields remain compatibility aliases only. After expiry a story is removed rather than retained to preserve card counts. **Freshness > fullness**: section/homepage underfill is allowed, stale backfill is forbidden. The guard runs server-side before static rendering and again in `news-live.js` so a failed subsequent refresh cannot keep an expired story visible in the browser.
 
 ## 9. Runtime / automation layer
