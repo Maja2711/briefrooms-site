@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import json
 import unittest
+from datetime import date
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -287,10 +288,10 @@ class AxiomThoughtGuardTests(unittest.TestCase):
         root = Path(__file__).resolve().parents[1]
         heartbeat = json.loads((root / "data/home/axiom-thought-heartbeat.json").read_text(encoding="utf-8"))
         self.assertEqual(set(heartbeat), {"date", "event", "run_id", "sha"})
-        self.assertRegex(heartbeat["date"], r"^\\d{4}-\\d{2}-\\d{2}$")
+        self.assertIsInstance(date.fromisoformat(heartbeat["date"]), date)
         workflow = (root / ".github/workflows/axiom-thought-daily.yml").read_text(encoding="utf-8")
         self.assertIn('json.dumps(data, ensure_ascii=False', workflow)
-        self.assertNotIn("printf '{\\\"date\\\"", workflow)
+        self.assertNotIn("printf ", workflow)
 
     def test_recovery_scheduler_is_independent_and_serialized(self) -> None:
         workflow = (Path(__file__).resolve().parents[1] / ".github/workflows/axiom-thought-daily.yml").read_text(encoding="utf-8")
