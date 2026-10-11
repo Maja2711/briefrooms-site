@@ -230,8 +230,12 @@ class FSEAutonomousDiscoveryTests(unittest.TestCase):
         f = state["families"][fid]
         old_group = {"centroid": f["centroid"], "radius": f["radius"],
                      "members": [{"return": 0.0}] * 8, "count": 8}
-        with patch.object(asd, "candidates", return_value=[{"vector": f["centroid"]}]*8),\
-             patch.object(asd, "learn_groups", return_value=[old_group]):
+        def candidate_rows(_bars, window):
+            return ([{"vector": f["centroid"]}]*8 if window == 32 else [])
+        def group_rows(rows):
+            return [old_group] if rows else []
+        with patch.object(asd, "candidates", side_effect=candidate_rows),\
+             patch.object(asd, "learn_groups", side_effect=group_rows):
             created = asd.discover(state, "BTCUSD", source, clock_after(source))
         self.assertEqual(created, 0)
         self.assertEqual(len(state["families"]), 1)
