@@ -8,7 +8,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
-from scripts.axiom_thought_guard import similarity, validate
+from scripts.axiom_thought_guard import similarity, validate, review_digest, review_evidence_errors
 from scripts.publish_axiom_thought import candidate_validation_stamp, semantic_review, semantic_smoke, validate_candidate, publish, main
 
 
@@ -165,8 +165,11 @@ class AxiomThoughtGuardTests(unittest.TestCase):
                    "shared_claim": "Both statements concern personal decisions and constraints in human knowledge.",
                    "material_difference": "This candidate concerns cognitive blind spots rather than future-forming decisions."}
         with patch("scripts.publish_axiom_thought.call", return_value=verdict) as mock_call:
-            self.assertEqual(semantic_review(candidate, [SEED]), verdict)
-        mock_call.assert_called_once()
+            receipts = semantic_review(candidate, [SEED])
+            self.assertEqual(len(receipts), 2)
+            self.assertEqual([r["model"] for r in receipts], ["gemini-3.6-flash", "gemini-3.5-flash-lite"])
+            self.assertTrue(all(r["closest_ref"] == "2026-09-15" for r in receipts))
+        self.assertEqual(mock_call.call_count, 2)
 
     def test_uncertain_semantic_verdict_fails_closed(self) -> None:
         candidate = {"theme": "new-topic", "pl": CURRENT["pl"], "en": CURRENT["en"]}
@@ -180,19 +183,74 @@ class AxiomThoughtGuardTests(unittest.TestCase):
     def test_reviewer_outage_fails_closed_after_fallback(self) -> None:
         candidate = {"theme": "new-topic", "pl": CURRENT["pl"], "en": CURRENT["en"]}
         with patch("scripts.publish_axiom_thought.call", side_effect=RuntimeError("offline")) as mock_call:
-            with self.assertRaisesRegex(RuntimeError, "no valid review"):
+            with self.assertRaisesRegex(RuntimeError, "unanimous two-model proof absent"):
                 semantic_review(candidate, [SEED])
         self.assertEqual(mock_call.call_count, 2)
 
-    def test_reviewer_invalid_reference_falls_back(self) -> None:
+    def test_reviewer_invalid_reference_blocks_even_when_other_model_approves(self) -> None:
         candidate = {"theme": "new-topic", "pl": CURRENT["pl"], "en": CURRENT["en"]}
         invalid = {"verdict": "UNIQUE", "closest_ref": "not-in-archive",
                    "shared_claim": "Both discuss meaningful constraints on knowledge and decisions.",
                    "material_difference": "Their distinct approaches address different mechanisms and results."}
         valid = dict(invalid, closest_ref="2026-09-15")
         with patch("scripts.publish_axiom_thought.call", side_effect=[invalid, valid]) as mock_call:
-            self.assertEqual(semantic_review(candidate, [SEED]), valid)
+            with self.assertRaisesRegex(RuntimeError, "unanimous two-model proof absent"):
+                semantic_review(candidate, [SEED])
         self.assertEqual(mock_call.call_count, 2)
+
+
+    def test_one_model_cannot_overrule_second_duplicate_verdict(self) -> None:
+        candidate = {"theme": "friction-and-reality",
+                     "pl": "„Usuwanie oporu może ukryć, czy nadal kontrolujemy rzeczywistość.”",
+                     "en": "“Removing resistance can hide whether we still control reality.”"}
+        earlier = dict(SEED, date="2026-09-20", theme="convenience-and-capability",
+                       pl="„Wygoda potrafi odebrać nam umiejętności, które tworzyły niezależność.”",
+                       en="“Convenience can remove the very skills that made us independent.”")
+        unique = {"verdict": "UNIQUE", "closest_ref": "2026-09-20",
+                  "shared_claim": "Both concern the hidden losses caused by removing everyday constraints.",
+                  "material_difference": "One refers to feedback while the other refers to learned independent abilities."}
+        veto = {"verdict": "DUPLICATE", "closest_ref": "2026-09-20",
+                "shared_claim": "Both portray convenience and removal of friction as hiding the cost of lost agency.",
+                "material_difference": "The same warning about dependence is restated through different metaphors."}
+        with patch("scripts.publish_axiom_thought.call", side_effect=[unique, veto]) as mock_call:
+            with self.assertRaisesRegex(ValueError, "DUPLICATE.*2026-09-20"):
+                semantic_review(candidate, [earlier])
+        self.assertEqual(mock_call.call_count, 2)
+
+    def test_publication_requires_two_bound_review_receipts_from_october_12(self) -> None:
+        prior_dates = {"2026-09-15", "2026-09-16"}
+        candidate = {"theme": "new-causal-insight",
+                     "pl": "„W nowych modelach przyczyna może być niewidoczna nawet wtedy, gdy skutek jest całkowicie przewidywalny.”",
+                     "en": "“In new models the cause may be invisible even when its effect is entirely predictable.”"}
+        approved = {"date": "2026-10-12", **candidate, "semantic_review_digest": review_digest(candidate),
+                    "semantic_reviews": [
+                        {"model": "reviewer-one", "verdict": "UNIQUE", "closest_ref": "2026-09-15",
+                         "shared_claim": "Both describe the limits of insight in future choices and decisions.",
+                         "material_difference": "This statement concerns causal identification rather than personal agency."},
+                        {"model": "reviewer-two", "verdict": "UNIQUE", "closest_ref": "2026-09-16",
+                         "shared_claim": "Both discuss limitations of knowledge in interpreting what seems understood.",
+                         "material_difference": "The new thesis is about prediction without a verified explanatory model."}
+                    ]}
+        self.assertEqual(review_evidence_errors(approved, prior_dates), [])
+        mutated = copy.deepcopy(approved)
+        mutated["pl"] += " Nowe zdanie."
+        self.assertTrue(any("not bound" in x for x in review_evidence_errors(mutated, prior_dates)))
+        no_review = copy.deepcopy(approved)
+        del no_review["semantic_reviews"]
+        self.assertTrue(any("two independent" in x for x in review_evidence_errors(no_review, prior_dates)))
+        same_model = copy.deepcopy(approved)
+        same_model["semantic_reviews"][1]["model"] = "reviewer-one"
+        self.assertTrue(any("distinct model" in x for x in review_evidence_errors(same_model, prior_dates)))
+        current = {"date": approved["date"], "author": "AXIOM", "brand": "BriefRooms",
+                   "pl": candidate["pl"], "en": candidate["en"]}
+        dated = [copy.deepcopy(SEED), copy.deepcopy(LATEST), {
+            **approved, "candidates_considered": 10, "scores": {"depth": 9, "novelty": 9, "banality_risk": 1},
+            "silence_test": True,
+            "editor_note": "A new causal thesis about observability and correct predictive models with a distinct epistemic mechanism.",
+        }]
+        self.assertEqual(validate(current, dated), [])
+        dated[-1].pop("semantic_reviews")
+        self.assertTrue(any("two independent semantic" in x for x in validate(current, dated)))
 
     def test_reserve_english_language_repeat_is_blocked(self) -> None:
         candidate = {"theme": "different-topic",
@@ -242,7 +300,7 @@ class AxiomThoughtGuardTests(unittest.TestCase):
                 patch("scripts.publish_axiom_thought.CURRENT", current_path),
                 patch("scripts.publish_axiom_thought.today", return_value="2026-09-17"),
                 patch("scripts.publish_axiom_thought.validate_candidate"),
-                patch("scripts.publish_axiom_thought.semantic_review"),
+                patch("scripts.publish_axiom_thought.semantic_review", return_value=[]),
                 patch("scripts.publish_axiom_thought.subprocess.run") as process,
             ):
                 process.return_value.returncode = 1
