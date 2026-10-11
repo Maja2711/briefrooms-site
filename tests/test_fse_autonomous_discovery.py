@@ -108,6 +108,21 @@ class FSEAutonomousDiscoveryTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             asd.verify(tampered)
 
+    def test_english_publication_is_read_only(self):
+        source = bars()
+        state = asd.blank_state()
+        fid = registered_family(state, source)
+        before = copy.deepcopy(state)
+        public = asd.publication(state, clock_after(source))
+        family = next(row for row in public["families"] if row["family_id"] == fid)
+        self.assertIn("name_en", family)
+        self.assertIn("description_en", family)
+        self.assertEqual(len(family["applications_en"]), 3)
+        self.assertIn("historical analogues", family["description_en"])
+        self.assertEqual(state, before)
+        asd.verify(state)
+        self.assertNotIn("name_en", state["families"][fid])
+
     def test_no_unfinished_bar_can_enter_snapshot(self):
         source = bars()
         state = asd.blank_state()

@@ -184,6 +184,38 @@ function fseFractalTrendCard(x){
     '<div class="fse-fast-meta"><span>Fast run <b>'+esc(fm.generated_at?shadowWhen(fm.generated_at):'—')+'</b></span><span>Latest bar <b>'+esc(fm.latest_fast_observed_at?shadowWhen(fm.latest_fast_observed_at):'—')+'</b></span><span>Source age <b>'+esc(sourceAge)+'</b></span></div>'+
     '<div class="fse-tf-ribbon">'+ribbon+'</div></section>';
 }
+function fseDiscoveryEnglishCopy(f){
+  // Backward-compatible with older ASD public artifacts that contain Polish
+  // fields only. Keep the immutable source record unchanged.
+  const known={ 
+    'Wielopulsowy':'Multi-pulse', 'Falowy':'Wave-like', 'Ciągły':'Continuous',
+    'wznoszący':'rising', 'opadający':'falling', 'boczny':'sideways',
+    'zwarty':'compact', 'poszarpany':'jagged', 'zmienny':'variable'
+  };
+  const original=String(f?.name||'');
+  const pieces=original.match(/^(Wielopulsowy|Falowy|Ciągły) ślad (wznoszący|opadający|boczny) · (zwarty|poszarpany|zmienny)$/);
+  const fallbackName=pieces
+    ? known[pieces[1]]+' '+known[pieces[2]]+' price trace · '+known[pieces[3]]
+    : 'Autonomously discovered price structure '+String(f?.family_id||'');
+  const n=Number(f?.historical_sample_n||0);
+  const p=Number(f?.historical_p_up);
+  const hasP=Number.isFinite(p)&&p>=0&&p<=1;
+  const pText=hasP?(p*100).toFixed(1)+'%':'not available';
+  const fallbackDescription='In '+n+' historical analogues, the exploratory, smoothed frequency of an upward move over the next four hourly market bars was '+pText+'. Historical similarity is not proof of prospective predictive performance.';
+  const fallbackApplications=[
+    'Research hypothesis: identify similar price regimes and investigate different entry conditions.',
+    hasP&&Math.abs(p-0.5)>=0.06
+      ? 'Research hypothesis: evaluate a four-hour directional-probability filter.'
+      : 'Research hypothesis: evaluate a direction-neutral filter without forcing LONG/SHORT.',
+    'Research hypothesis: assess movement risk and adverse excursions; forward validation required.'
+  ];
+  return {
+    name:typeof f?.name_en==='string'&&f.name_en.trim()?f.name_en:fallbackName,
+    description:typeof f?.description_en==='string'&&f.description_en.trim()?f.description_en:fallbackDescription,
+    applications:Array.isArray(f?.applications_en)&&f.applications_en.length?f.applications_en:fallbackApplications
+  };
+}
+
 function fseDiscoveryPanel(d){
   if(!d||d.schema_version!=='FSE-ASD-1.0')return '<section class="fse-discovery"><h3 class="central-subtitle">Autonomous Structure Discovery</h3><p class="central-note">No autonomous structure registry yet. Waiting for the first validated market-data cycle.</p></section>';
   const sum=d.summary||{},families=Array.isArray(d.families)?d.families:[],current=Array.isArray(d.current_matches)?d.current_matches:[];
@@ -191,10 +223,11 @@ function fseDiscoveryPanel(d){
   const stats='<div class="fse-discovery-stats"><span>Structure families <b>'+num(sum.families||0)+'</b></span><span>Frozen observations <b>'+num(sum.frozen_snapshots||0)+'</b></span><span>Forward resolutions <b>'+num(sum.prospective_resolutions||0)+'</b></span><span>Production <b>OFF</b></span></div>';
   const matches=current.map(x=>'<span class="fse-discovery-match"><b>'+esc(fseInstrumentLabel(x.instrument))+'</b> '+esc(x.family_id||'New/unmatched shape')+'</span>').join('');
   const cards=families.slice(0,12).map(f=>{
-    const applications=(Array.isArray(f.applications)?f.applications:[]).map(s=>'<li>'+esc(s)+'</li>').join('');
+    const english=fseDiscoveryEnglishCopy(f);
+    const applications=english.applications.map(s=>'<li>'+esc(s)+'</li>').join('');
     return '<article class="fse-discovery-card"><div class="fse-discovery-cardtop"><span>'+esc(f.family_id)+'</span><small>'+esc(f.evidence_status)+'</small></div>'+
-      '<h4>'+esc(f.name)+'</h4><p class="fse-discovery-meta">'+esc(fseInstrumentLabel(f.instrument))+' · '+num(f.window)+' × 1h · Historical analogues: '+num(f.historical_sample_n)+'</p>'+
-      '<p>'+esc(f.description)+'</p><div class="fse-discovery-metrics"><span>Prospective forward <b>N='+num(f.prospective_n)+'</b></span>'+
+      '<h4>'+esc(english.name)+'</h4><p class="fse-discovery-meta">'+esc(fseInstrumentLabel(f.instrument))+' · '+num(f.window)+' × 1h · Historical analogues: '+num(f.historical_sample_n)+'</p>'+
+      '<p>'+esc(english.description)+'</p><div class="fse-discovery-metrics"><span>Prospective forward <b>N='+num(f.prospective_n)+'</b></span>'+
       '<span>Prospective Brier <b>'+(finite(f.mean_brier)?num(f.mean_brier,4):'—')+'</b></span>'+
       '<span>Brier improvement <b>'+(finite(f.incremental_brier)?num(f.incremental_brier,4):'—')+'</b></span></div>'+
       '<details><summary>Potential applications</summary><ul>'+applications+'</ul></details></article>';
