@@ -223,7 +223,13 @@ function fseDiscoveryPanel(d){
   const sum=d.summary||{},families=Array.isArray(d.families)?d.families:[],current=Array.isArray(d.current_matches)?d.current_matches:[];
   const freshAt=Date.parse(String(d.generated_at||'')),stale=!Number.isFinite(freshAt)||Date.now()-freshAt>180*60000;
   const stats='<div class="fse-discovery-stats"><span>Structure families <b>'+num(sum.families||0)+'</b></span><span>Frozen observations <b>'+num(sum.frozen_snapshots||0)+'</b></span><span>Forward resolutions <b>'+num(sum.prospective_resolutions||0)+'</b></span><span>Production <b>OFF</b></span></div>';
-  const matches=current.map(x=>'<span class="fse-discovery-match"><b>'+esc(fseInstrumentLabel(x.instrument))+'</b> '+esc(x.family_id||'New/unmatched shape')+'</span>').join('');
+  // Noisy unknown/novel outcomes remain in the immutable Shadow evidence only.
+  // The LAB highlights verified associations with still-active discovered families.
+  const activeIds=new Set(families.map(f=>f.family_id).filter(Boolean));
+  const matches=current
+    .filter(x=>x&&x.status==='FROZEN_MATCH'&&typeof x.family_id==='string'&&activeIds.has(x.family_id))
+    .map(x=>'<span class="fse-discovery-match"><b>'+esc(fseInstrumentLabel(x.instrument))+'</b> '+esc(x.family_id)+'</span>')
+    .join('');
   const cards=families.slice(0,12).map(f=>{
     const english=fseDiscoveryEnglishCopy(f);
     const apps=f.application_status==='RESEARCH_CANDIDATE'?english.applications:[];
