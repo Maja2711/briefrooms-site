@@ -210,7 +210,7 @@ async function fse(){
   const root=document.querySelector('#central-fse-lab');
   if(!root)return;
   try{
-    const [r,hse,v2,fast,discovery]=await Promise.all([
+    const [r,hse,v2,discovery,fast]=await Promise.all([
       get('/data/investments/fse_public.json'),
       get('/data/investments/hypothesis_shadow_engine_v2_public.json').catch(()=>({})),
       get('/data/investments/fse_v2_public.json').catch(()=>({})),
