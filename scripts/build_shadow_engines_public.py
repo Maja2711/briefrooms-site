@@ -382,6 +382,12 @@ def build(root: Path, workflow_status: Mapping[str, Any], now: datetime | None =
         source = root / spec["source"] if spec.get("source") else None
         data = load(source)
         meta = metadata(spec["id"], data)
+        if spec["id"] == "wes":
+            independent = load(root / "data/investments/wes_independent_weekly_baseline_report.json")
+            if isinstance(independent.get("sample"), Mapping):
+                meta["pipeline"] = {**(meta.get("pipeline") or {}),
+                                    "independent_weekly": independent["sample"],
+                                    "independent_weekly_definition": independent.get("benchmark_definition")}
         latest = latest_workflow(spec, workflow_status)
         state, reason = status_for(latest, meta, float(spec["max_idle_hours"]), now)
         if spec["id"] == "wes" and state not in {"ERROR", "IDLE"}:
