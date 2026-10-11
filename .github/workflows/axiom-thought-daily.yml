@@ -2,6 +2,13 @@ name: Morning AXIOM Daily
 
 on:
   workflow_dispatch:
+  # Independent completed workflows act as a recovery clock when GitHub skips
+  # all cron slots for this workflow. Neither workflow receives AXIOM write access.
+  workflow_run:
+    workflows:
+      - "Production Investment Event Intelligence"
+      - "BRs R2 Shadow Archive Pilot"
+    types: [completed]
   push:
     branches: [main]
     paths:
@@ -9,6 +16,7 @@ on:
       - "scripts/publish_axiom_thought.py"
       - "scripts/axiom_thought_guard.py"
       - "data/home/axiom-thought-reserve.json"
+      - "tests/test_axiom_thought_guard.py"
   schedule:
     # Stagger away from :00/:30, where GitHub scheduled workflows are most prone
     # to queueing. Publisher is idempotent by Warsaw date, so recovery windows
@@ -25,13 +33,20 @@ permissions:
   contents: write
 
 concurrency:
-  group: morning-axiom-daily-${{ github.run_id }}
+  # One publisher at a time across schedule, dispatch, push and recovery.
+  group: morning-axiom-daily
   cancel-in-progress: false
 
 jobs:
   publish:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.event != 'pull_request')
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    outputs:
+      changed: ${{ steps.publication_change.outputs.changed }}
     env:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       AXIOM_THOUGHT_MODEL: gemini-3.6-flash
@@ -48,9 +63,23 @@ jobs:
         run: python scripts/publish_axiom_thought.py --mode publish
       - name: Verify today's publication
         run: python scripts/publish_axiom_thought.py --mode verify
+      - name: Report whether a new day was published
+        id: publication_change
+        shell: bash
+        run: |
+          if git diff --quiet -- data/home/axiom-thought.json; then
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+          else
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          fi
       - name: Persist scheduler heartbeat
         shell: bash
         run: |
+          # Avoid a new commit for every recovery event after today's publication.
+          if git diff --quiet -- data/home/axiom-thought.json; then
+            echo 'AXIOM unchanged; heartbeat remains attached to publication'
+            exit 0
+          fi
           printf '{"date":"%s","event":"%s","run_id":"%s","sha":"%s"}\\n' "$(TZ=Europe/Warsaw date +%F)" "$GITHUB_EVENT_NAME" "$GITHUB_RUN_ID" "$GITHUB_SHA" > data/home/axiom-thought-heartbeat.json
       - name: Commit publication atomically
         shell: bash
@@ -70,7 +99,10 @@ jobs:
 
   reserve:
     needs: publish
-    if: always() && needs.publish.result == 'success'
+    # Refill must never block deployment of a successfully published thought.
+    # Recovery runs only publish; they must not repeatedly call costly AI refill.
+    if: needs.publish.result == 'success' && (needs.publish.outputs.changed == 'true' || github.event_name == 'workflow_dispatch')
+    continue-on-error: true
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
@@ -104,9 +136,12 @@ jobs:
           exit 1
 
   semantic-smoke:
+    # Read-only live API health is advisory: it may raise an alarm, but must not
+    # block Pages deployment after the publisher itself has passed its guard.
+    continue-on-error: true
     # Runs on authorized main pushes and manual dispatch; never on untrusted PRs.
     # Read-only and independent of publication or history mutation.
-    if: github.event_name != 'schedule'
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 12
     permissions:

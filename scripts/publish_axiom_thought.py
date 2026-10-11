@@ -165,13 +165,32 @@ def generate(rows,reserve,mode):
         except Exception as e: errs.append(str(e)); time.sleep(2)
     raise RuntimeError("all generation attempts failed; last="+(errs[-1] if errs else "unknown"))
 def publish(c,rows,source):
+    # Validate both representations BEFORE changing either canonical file.
+    # Git publishes the two files together; rollback protects the working tree
+    # against an interrupted/local invalid write.
     validate_candidate(c,rows)
     semantic_review(c,rows)
-    stamp=today(); rec={"date":stamp,**c}
-    old=HISTORY.read_text(encoding="utf-8").rstrip()
-    HISTORY.write_text(old+"\n"+json.dumps(rec,ensure_ascii=False,separators=(",",":"))+"\n",encoding="utf-8")
-    CURRENT.write_text(json.dumps({"date":stamp,"author":"AXIOM","brand":"BriefRooms","pl":c["pl"],"en":c["en"]},ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
-    if subprocess.run([sys.executable,str(GUARD)],cwd=ROOT).returncode: raise RuntimeError("post-publication guard failed")
+    stamp=today()
+    rec={"date":stamp,**c}
+    current={"date":stamp,"author":"AXIOM","brand":"BriefRooms","pl":c["pl"],"en":c["en"]}
+    from axiom_thought_guard import validate
+    errors=validate(current,rows+[rec])
+    if errors: raise ValueError("pre-publication guard: "+"; ".join(errors))
+    prior_history=HISTORY.read_text(encoding="utf-8")
+    prior_current=CURRENT.read_text(encoding="utf-8")
+    next_history=prior_history.rstrip()+"\n"+json.dumps(rec,ensure_ascii=False,separators=(",",":"))+"\n"
+    next_current=json.dumps(current,ensure_ascii=False,indent=2)+"\n"
+    try:
+        HISTORY.write_text(next_history,encoding="utf-8")
+        CURRENT.write_text(next_current,encoding="utf-8")
+        if subprocess.run([sys.executable,str(GUARD)],cwd=ROOT).returncode:
+            raise RuntimeError("post-publication guard failed")
+    except Exception:
+        # Never allow an invalid half-publication to contaminate subsequent
+        # attempts in this runner. No repository push occurs before verification.
+        HISTORY.write_text(prior_history,encoding="utf-8")
+        CURRENT.write_text(prior_current,encoding="utf-8")
+        raise
     print(f"PUBLISHED {stamp} source={source} theme={c['theme']}")
 def refill(rows,reserve):
     failures=0
@@ -253,11 +272,23 @@ def main():
             print("already published but invalid: " + "; ".join(errors),file=sys.stderr)
             return 2
         print("already published (guard passed)"); return 0
-    # Fail-safe order is deliberate: prevalidated reserve first, live AI second.
+    # Reserve candidates remain durable during model/transport outages.
+    # Only a definitive editorial veto removes an invalid candidate.
     while reserve:
-        c=reserve.pop(0); save_reserve(reserve)
-        try: publish(c,rows,"reserve"); return 0
-        except Exception as e: print(f"reserve candidate rejected: {e}",file=sys.stderr)
+        c=reserve[0]
+        try:
+            publish(c,rows,"reserve")
+        except ValueError as e:
+            print(f"reserve candidate permanently rejected: {e}",file=sys.stderr)
+            reserve.pop(0)
+            save_reserve(reserve)
+            continue
+        except Exception as e:
+            print(f"publication temporarily blocked; reserve retained: {e}",file=sys.stderr)
+            return 2
+        reserve.pop(0)
+        save_reserve(reserve)
+        return 0
     try: c=generate(rows,[],"live"); publish(c,rows,"live"); return 0
     except Exception as e: print(f"publication failed: {e}",file=sys.stderr); return 2
 if __name__=="__main__": raise SystemExit(main())

@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import copy
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from scripts.axiom_thought_guard import similarity, validate
-from scripts.publish_axiom_thought import candidate_validation_stamp, semantic_review, semantic_smoke, validate_candidate
+from scripts.publish_axiom_thought import candidate_validation_stamp, semantic_review, semantic_smoke, validate_candidate, publish, main
 
 
 CURRENT = {
@@ -218,6 +220,75 @@ class AxiomThoughtGuardTests(unittest.TestCase):
         with patch("scripts.publish_axiom_thought.semantic_review", return_value={"verdict": "UNIQUE"}) as review:
             self.assertEqual(semantic_smoke([SEED], [reserve]), 2)
         review.assert_called_once()
+
+
+    def test_publisher_rolls_back_both_files_if_final_guard_fails(self) -> None:
+        with TemporaryDirectory() as directory:
+            history_path = Path(directory) / "history.jsonl"
+            current_path = Path(directory) / "thought.json"
+            original_history = '{"date":"2026-09-15"}\n'
+            original_current = '{"date":"2026-09-15","author":"AXIOM"}\n'
+            history_path.write_text(original_history, encoding="utf-8")
+            current_path.write_text(original_current, encoding="utf-8")
+            candidate = copy.deepcopy(LATEST)
+            candidate.pop("date")
+            candidate["theme"] = "predictability-and-surprise"
+            candidate["pl"] = "„Jeżeli maszyna potrafi przewidzieć wszystkie nasze ruchy, największą niewiadomą przestaje być przyszłość, a staje się to, czy jeszcze umiemy ją zaskoczyć.”"
+            candidate["en"] = "“If a machine can predict every move we make, the great unknown ceases to be the future and becomes whether we can still surprise it.”"
+            with (
+                patch("scripts.publish_axiom_thought.HISTORY", history_path),
+                patch("scripts.publish_axiom_thought.CURRENT", current_path),
+                patch("scripts.publish_axiom_thought.today", return_value="2026-09-17"),
+                patch("scripts.publish_axiom_thought.validate_candidate"),
+                patch("scripts.publish_axiom_thought.semantic_review"),
+                patch("scripts.publish_axiom_thought.subprocess.run") as process,
+            ):
+                process.return_value.returncode = 1
+                with self.assertRaisesRegex(RuntimeError, "post-publication guard failed"):
+                    publish(candidate, [SEED, LATEST], "reserve")
+            self.assertEqual(history_path.read_text(encoding="utf-8"), original_history)
+            self.assertEqual(current_path.read_text(encoding="utf-8"), original_current)
+
+    def test_publisher_never_changes_files_on_semantic_veto(self) -> None:
+        with TemporaryDirectory() as directory:
+            history_path = Path(directory) / "history.jsonl"
+            current_path = Path(directory) / "thought.json"
+            history_path.write_text("original history", encoding="utf-8")
+            current_path.write_text("original current", encoding="utf-8")
+            candidate = copy.deepcopy(LATEST)
+            candidate.pop("date")
+            with (
+                patch("scripts.publish_axiom_thought.HISTORY", history_path),
+                patch("scripts.publish_axiom_thought.CURRENT", current_path),
+                patch("scripts.publish_axiom_thought.validate_candidate"),
+                patch("scripts.publish_axiom_thought.semantic_review", side_effect=ValueError("DUPLICATE")),
+            ):
+                with self.assertRaisesRegex(ValueError, "DUPLICATE"):
+                    publish(candidate, [SEED, LATEST], "reserve")
+            self.assertEqual(history_path.read_text(encoding="utf-8"), "original history")
+            self.assertEqual(current_path.read_text(encoding="utf-8"), "original current")
+
+    def test_temporary_semantic_outage_keeps_reserved_candidate(self) -> None:
+        candidate = copy.deepcopy(LATEST)
+        candidate.pop("date")
+        with (
+            patch("sys.argv", ["publish_axiom_thought.py", "--mode", "publish"]),
+            patch("scripts.publish_axiom_thought.today", return_value="2026-09-17"),
+            patch("scripts.publish_axiom_thought.load_history", return_value=[SEED, LATEST]),
+            patch("scripts.publish_axiom_thought.load_reserve", return_value=[candidate]),
+            patch("scripts.publish_axiom_thought.publish", side_effect=RuntimeError("AI offline")),
+            patch("scripts.publish_axiom_thought.save_reserve") as save,
+        ):
+            self.assertEqual(main(), 2)
+        save.assert_not_called()
+
+    def test_recovery_scheduler_is_independent_and_serialized(self) -> None:
+        workflow = (Path(__file__).resolve().parents[1] / ".github/workflows/axiom-thought-daily.yml").read_text(encoding="utf-8")
+        self.assertIn("workflow_run:", workflow)
+        self.assertIn('"Production Investment Event Intelligence"', workflow)
+        self.assertIn('"BRs R2 Shadow Archive Pilot"', workflow)
+        self.assertIn("group: morning-axiom-daily\n", workflow)
+        self.assertIn("continue-on-error: true", workflow)
 
 
 if __name__ == "__main__":
