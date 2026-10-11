@@ -213,7 +213,10 @@ def evaluate(state: Mapping[str, Any], weeks: Mapping[str, Any], now: datetime,
         previous = row.get("outcome") or {}
         if previous.get("status") == "resolved" and previous.get("wes_comparison", {}).get("status") == "resolved":
             continue
-        if plan.get("direction") == "neutral":
+        if previous.get("status") == "resolved":
+            # An independently settled result is immutable; only append later WES comparison.
+            result = {k: deepcopy(v) for k, v in previous.items() if k != "wes_comparison"}
+        elif plan.get("direction") == "neutral":
             result = replay_weekly(plan, None, now)
         else:
             bars = (bars_by_week or {}).get(wid) if bars_by_week is not None else None
@@ -228,6 +231,10 @@ def evaluate(state: Mapping[str, Any], weeks: Mapping[str, Any], now: datetime,
         new_fill = result.get("virtual_fill")
         if prev_fill and new_fill and prev_fill != new_fill:
             row["outcome"] = {**previous, "status": "blocked", "reason": "virtual_entry_evidence_changed"}
+            continue
+        if prev_fill and not new_fill and result.get("status") != "resolved":
+            # Temporary source outage must not erase proof already observed.
+            row["outcome"] = {**previous, "observation_status": result.get("status")}
             continue
         if result.get("status") not in {"resolved", "pending", "pending_market_data"}:
             row["outcome"] = {**previous, **result}
