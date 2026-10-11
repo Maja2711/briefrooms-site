@@ -1,0 +1,38 @@
+name: WES LAB Evidence CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/investments_wes_counterfactual.py"
+      - "scripts/investments_wes_spx_brace_bridge.py"
+      - "scripts/build_shadow_engines_public.py"
+      - "scripts/central-lab.js"
+      - "tests/test_investments_wes_counterfactual.py"
+      - "tests/test_investments_wes_spx_brace_bridge.py"
+      - "tests/test_shadow_engines_public.py"
+      - ".github/workflows/shadow-engines-observatory.yml"
+      - ".github/workflows/wes-lab-evidence-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-evidence-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install read-only test dependencies
+        run: python -m pip install pandas numpy yfinance
+      - name: Compile evidence pipeline
+        run: |
+          python -m py_compile scripts/investments_wes_spx_brace_bridge.py scripts/investments_wes_counterfactual.py scripts/build_shadow_engines_public.py
+          node --check scripts/central-lab.js
+      - name: Run prospective evidence and observatory regression tests
+        run: |
+          python -m unittest -v tests.test_investments_wes_counterfactual tests.test_investments_wes_spx_brace_bridge tests.test_shadow_engines_public tests.test_shadow_engines_observatory_workflow
