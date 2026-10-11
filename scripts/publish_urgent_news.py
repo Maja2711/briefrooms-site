@@ -125,7 +125,7 @@ def sufficiently_verified(story: dict[str, Any]) -> bool:
     )
     independent = (
         len(roots) >= 2
-        and float(story.get("claim_adjusted_corroboration_score") or 0) >= 45
+        and float(story.get("claim_adjusted_corroboration_score") or 0) >= 40
     )
     return bool(first_party or independent)
 
