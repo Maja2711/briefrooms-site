@@ -305,6 +305,10 @@ Warstwa publikacyjna **nie może stać się ukrytym źródłem authority dla sil
 
 ### CT-01 — twardy invariant świeżości publicznych wiadomości
 
+**Wspólny kontrakt liczby kart w sekcjach PL i EN:** `scripts/news_section_limits.py` definiuje minimum redakcyjne **6** i twarde maksimum **15** kart na każdy dział aktualności. Generator, filtrowanie, publiczny guard, watchdog i produkcyjny weryfikator współdzielą te wartości; niedobór jest raportowany jako `underfilled/degraded` (bez dopisywania starych lub niesprawdzonych treści), maksimum jest egzekwowane. Oddzielne limity: **12** kart homepage oraz różnorodność źródeł.
+
+
+
 Każda karta wiadomości widoczna publicznie — zarówno w sekcjach `/pl/aktualnosci` / `/en/news`, jak i na homepage oraz w rezerwie homepage — podlega jednemu współdzielonemu zegarowi ekspozycji. Maksymalny czas publicznego wyświetlania wynosi **24 godziny**. Dodatkowo źródłowy `published_at` nie może być starszy niż 24 godziny. Kanoniczne pola to `news_first_seen_at` oraz `news_expires_at`; starsze pola homepage pozostają wyłącznie kompatybilnością. Po przekroczeniu limitu materiał jest usuwany, a nie utrzymywany w celu zachowania liczby kart. **Freshness > fullness**: underfill sekcji/homepage jest dozwolony, stale backfill jest zabroniony. Guard działa serwerowo przed statycznym renderem oraz ponownie w `news-live.js`, aby awaria kolejnego odświeżenia nie utrzymywała przeterminowanej wiadomości w przeglądarce.
 
 ## 9. Runtime / automation layer

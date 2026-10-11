@@ -62,7 +62,7 @@ EMERGENCY_SECTION_CAP = 6
 TARGET_LANE_CAP = 3
 EMERGENCY_LANE_CAP = 4
 SPORT_HARD_CAP = 3
-PL_SECTION_MINIMUMS = {"polityka": 9, "ekonomia": 9, "zdrowie": 6, "nauka": 6, "sport": 9, "ai-technologia-krypto": 9}
+PL_SECTION_MINIMUMS = {section_id: base.MIN_SECTION for section_id, _, _ in base.PL}
 PL_AI_CRYPTO_RE = re.compile(
     r"\b(?:AI|sztuczn\w*\s+inteligencj\w*|artificial\s+intelligence|OpenAI|ChatGPT|"
     r"bitcoin|BTC|ethereum|ETH|kryptowalut\w*|crypto|blockchain|stablecoin\w*)\b",
@@ -383,7 +383,8 @@ def enforce_payload(
                     fresh_rows.append(copy)
                 else:
                     record_rejection(story, reason)
-        filtered_sections[str(section_id)] = fresh_rows
+        # Defense in depth against an unbounded upstream payload.
+        filtered_sections[str(section_id)] = fresh_rows[:base.TARGET]
 
     payload["sections"] = filtered_sections
 

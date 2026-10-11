@@ -9,6 +9,8 @@ on:
     branches: [main]
     paths:
       - "scripts/publish_live_news.py"
+      - "scripts/news_section_limits.py"
+      - "scripts/validate_live_news_health.py"
       - "scripts/publish_live_news_filtered.py"
       - "scripts/publish_curated_news.py"
       - "scripts/publish_source_expansion_v3.py"
@@ -89,6 +91,8 @@ jobs:
           set -euo pipefail
           python -m py_compile \
             scripts/publish_live_news.py \
+            scripts/news_section_limits.py \
+            scripts/validate_live_news_health.py \
             scripts/publish_live_news_filtered.py \
             scripts/publish_curated_news.py \
             scripts/publish_source_expansion_v3.py \
@@ -104,6 +108,7 @@ jobs:
             scripts/install_news_live_runtime.py
           python -m unittest \
             tests.test_publish_live_news \
+            tests.test_validate_live_news_health \
             tests.test_news_sport_diversity \
             tests.test_news_source_architecture \
             tests.test_source_expansion_v3 \
@@ -189,6 +194,7 @@ jobs:
           from datetime import datetime, timedelta, timezone
           from scripts.dedupe_home_brief_stories import same_topic
           from scripts import publish_live_news as news_base
+          from scripts.news_section_limits import NEWS_SECTION_MINIMUM, NEWS_SECTION_MAXIMUM
           from scripts.publish_live_news_filtered import (
               PL_UKRAINE_RUSSIA_WAR_MINIMUM,
               PL_UKRAINE_RUSSIA_WAR_POLICY_VERSION,
@@ -326,9 +332,10 @@ jobs:
                               break
                           approved.append(story)
                       for section_id, items in payload.get('sections', {}).items():
-                          section_target = news_base.EN_SECTION_TARGETS.get(section_id, news_base.TARGET) if path.endswith('/en.json') else news_base.PL_SECTION_TARGETS.get(section_id, news_base.TARGET)
-                          if len(items) > section_target:
-                              last.append(f'{path}/{section_id}: section exceeds target {section_target}, got {len(items)}')
+                          if len(items) > NEWS_SECTION_MAXIMUM:
+                              last.append(f'{path}/{section_id}: section exceeds hard cap {NEWS_SECTION_MAXIMUM}, got {len(items)}')
+                          if len(items) < NEWS_SECTION_MINIMUM:
+                              print(f'::warning::{path}/{section_id}: qualified-news underfill {len(items)}/{NEWS_SECTION_MINIMUM}')
                           counts = {}
                           event_ids = set()
                           for story in items:

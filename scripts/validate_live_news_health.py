@@ -11,6 +11,11 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urljoin
 from urllib.request import Request, urlopen
 
+try:
+    from .news_section_limits import NEWS_SECTION_MINIMUM, NEWS_SECTION_MAXIMUM
+except ImportError:
+    from news_section_limits import NEWS_SECTION_MINIMUM, NEWS_SECTION_MAXIMUM
+
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = ROOT / "data" / "system" / "news_live_health.json"
 LANGUAGES = {
@@ -18,7 +23,7 @@ LANGUAGES = {
         "feed": Path("data/news/pl.json"),
         "news_page": Path("pl/aktualnosci.html"),
         "home_page": Path("pl/index.html"),
-        "sections": {"polityka", "ekonomia", "zdrowie", "nauka", "sport"},
+        "sections": {"polityka", "ekonomia", "zdrowie", "nauka", "sport", "ai-technologia-krypto"},
     },
     "en": {
         "feed": Path("data/news/en.json"),
@@ -26,14 +31,14 @@ LANGUAGES = {
         "home_page": Path("en/index.html"),
         "sections": {
             "world-news", "asia-pacific", "europe", "middle-east",
-            "business", "science", "health", "sport",
+            "business", "science", "health", "sport", "ai-technology-crypto",
         },
     },
 }
 RUNTIME = "/scripts/news-live.js?v=8"
 MARKER_META = 'name="briefrooms-live-news-marker" content="{}"'
 FUTURE_TOLERANCE = timedelta(minutes=10)
-TARGET_SECTION = 9
+TARGET_SECTION = NEWS_SECTION_MAXIMUM  # Compatibility alias for fixtures
 MAX_PUBLIC_DISPLAY_AGE = timedelta(hours=24)
 
 
@@ -131,9 +136,9 @@ def validate_local(root: Path, now: datetime, max_age_minutes: int) -> dict[str,
         for section_id in config["sections"]:
             stories = sections.get(section_id) if isinstance(sections.get(section_id), list) else []
             counts[section_id] = len(stories)
-            if len(stories) > TARGET_SECTION:
+            if len(stories) > NEWS_SECTION_MAXIMUM:
                 lang_reasons.append(f"section_too_large:{section_id}")
-            elif len(stories) < TARGET_SECTION:
+            elif len(stories) < NEWS_SECTION_MINIMUM:
                 lang_degraded.append(f"section_underfilled_freshness_first:{section_id}")
             if any(not story_complete(story) for story in stories):
                 lang_reasons.append(f"incomplete_story:{section_id}")

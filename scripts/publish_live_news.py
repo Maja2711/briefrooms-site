@@ -19,13 +19,19 @@ from urllib.parse import urlsplit, urlunsplit
 import feedparser
 import requests
 
+try:
+    from .news_section_limits import NEWS_SECTION_MINIMUM, NEWS_SECTION_MAXIMUM
+except ImportError:
+    from news_section_limits import NEWS_SECTION_MINIMUM, NEWS_SECTION_MAXIMUM
+
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "data" / "news"
 UA = "BriefRooms canonical news publisher/2.0"
-TARGET = 9
-MIN_SECTION = TARGET
-PL_SECTION_TARGETS = {"ai-technologia-krypto": 12}
-EN_SECTION_TARGETS = {"asia-pacific": 12, "europe": 15, "middle-east": 12}
+TARGET = NEWS_SECTION_MAXIMUM
+MIN_SECTION = NEWS_SECTION_MINIMUM
+# Compatibility for legacy readers: per-section overrides have been removed.
+PL_SECTION_TARGETS: dict[str, int] = {}
+EN_SECTION_TARGETS: dict[str, int] = {}
 MAX_WORKERS = 10
 REQUEST_TIMEOUT = 12
 MAX_CARRY_AGE = timedelta(hours=24)
@@ -399,8 +405,7 @@ def select_sections(config: list[tuple[str, str, list[tuple[str, str]]]], fetche
                 if len(items) >= TARGET:
                     break
 
-        if len(items) < MIN_SECTION:
-            raise RuntimeError(f"section {section_id} has only {len(items)} publishable stories; minimum is {MIN_SECTION}")
+        # Underfill is observable but must not freeze unrelated news sections.
         selected[section_id] = items[:TARGET]
         times = [story_time(item) for item in items if story_time(item) > 0]
         health[section_id] = {
@@ -463,7 +468,7 @@ def build_language(lang: str, config: list[tuple[str, str, list[tuple[str, str]]
     sections, section_health = select_sections(config, fetched, load_previous(lang), now)
     home = round_robin(sections, labels)
     newest = [story_time(item) for values in sections.values() for item in values if story_time(item) > 0]
-    healthy = not errors and all(item["carried_count"] == 0 for item in section_health.values())
+    healthy = not errors and all(item["carried_count"] == 0 and item["count"] >= MIN_SECTION for item in section_health.values())
     return {
         "schema_version": "news-live-v2",
         "language": lang,
