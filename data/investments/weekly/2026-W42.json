@@ -103,21 +103,21 @@
       "reentry_lock": {
         "active": false,
         "scope": "wes_directional_admission",
-        "released_at": "2026-10-12T00:21:29+02:00",
+        "released_at": "2026-10-12T00:35:36+02:00",
         "reason": "wes_1_3_1_directional_admission_qualified"
       },
-      "wes_status": "initial_directional_admission_authorized",
+      "wes_status": "trigger_qualified_waiting_governed_v5_entry",
       "wes_entry_authorization": {
-        "authorized_at": "2026-10-12T00:21:29+02:00",
-        "expires_at": "2026-10-12T01:21:29+02:00",
-        "authorization_type": "initial_weekly_entry",
+        "authorized_at": "2026-10-12T00:35:36+02:00",
+        "expires_at": "2026-10-12T01:35:36+02:00",
+        "authorization_type": "no_trade_trigger",
         "directional_admission_passed": true,
         "candidate": {
           "direction": "short",
           "strategy_id": "base_v2",
           "raw_score": 72.0,
-          "utility": 12.9959,
-          "signal_delta_from_initial": 72.0,
+          "utility": 13.0814,
+          "signal_delta_from_initial": 3.0,
           "confirmations": 4,
           "confirmation_sources": [
             "daily",
@@ -141,17 +141,17 @@
             "passed": true
           },
           "delta_gate": {
-            "delta": 72.0,
-            "required_delta": 0.0,
-            "passed": true,
+            "delta": 3.0,
+            "required_delta": 15.0,
+            "passed": false,
             "absolute_strength_bypass": {
               "version": "WES-1.3.1",
               "eligible": true,
               "raw": 72.0,
-              "required_raw": 53.3,
+              "required_raw": 65.0,
               "raw_multiplier": 1.3,
-              "utility": 12.9959,
-              "required_utility": 7.8,
+              "utility": 13.0814,
+              "required_utility": 9.75,
               "utility_multiplier": 1.3,
               "confirmations": 4,
               "required_confirmations": 2,
@@ -171,16 +171,16 @@
         },
         "required": {
           "allowed": true,
-          "raw": 41.0,
-          "utility": 6.0,
+          "raw": 50.0,
+          "utility": 7.5,
           "confirmations": 2,
-          "delta": 0.0,
-          "profile": "initial_weekly_entry",
+          "delta": 15.0,
           "learning_threshold_adjustment": 6.0
         },
         "source_exit_at": null,
         "source_exit_reason": null
-      }
+      },
+      "wes_initial_no_trade_score": 69.0
     },
     {
       "instrument_id": "sp500_futures",
@@ -266,21 +266,21 @@
       "reentry_lock": {
         "active": false,
         "scope": "wes_directional_admission",
-        "released_at": "2026-10-12T00:21:29+02:00",
+        "released_at": "2026-10-12T00:35:36+02:00",
         "reason": "wes_1_3_1_directional_admission_qualified"
       },
-      "wes_status": "initial_directional_admission_authorized",
+      "wes_status": "trigger_qualified_waiting_governed_v5_entry",
       "wes_entry_authorization": {
-        "authorized_at": "2026-10-12T00:21:29+02:00",
-        "expires_at": "2026-10-12T01:21:29+02:00",
-        "authorization_type": "initial_weekly_entry",
+        "authorized_at": "2026-10-12T00:35:36+02:00",
+        "expires_at": "2026-10-12T01:35:36+02:00",
+        "authorization_type": "no_trade_trigger",
         "directional_admission_passed": true,
         "candidate": {
           "direction": "long",
           "strategy_id": "weekly_trend",
-          "raw_score": 82.0,
-          "utility": 17.2771,
-          "signal_delta_from_initial": 82.0,
+          "raw_score": 81.0,
+          "utility": 17.1271,
+          "signal_delta_from_initial": 27.0,
           "confirmations": 2,
           "confirmation_sources": [
             "daily",
@@ -300,17 +300,17 @@
             "passed": true
           },
           "delta_gate": {
-            "delta": 82.0,
-            "required_delta": 0.0,
+            "delta": 27.0,
+            "required_delta": 15.0,
             "passed": true,
             "absolute_strength_bypass": {
               "version": "WES-1.3.1",
               "eligible": true,
-              "raw": 82.0,
-              "required_raw": 53.3,
+              "raw": 81.0,
+              "required_raw": 65.0,
               "raw_multiplier": 1.3,
-              "utility": 17.2771,
-              "required_utility": 7.8,
+              "utility": 17.1271,
+              "required_utility": 9.75,
               "utility_multiplier": 1.3,
               "confirmations": 2,
               "required_confirmations": 2,
@@ -328,16 +328,16 @@
         },
         "required": {
           "allowed": true,
-          "raw": 41.0,
-          "utility": 6.0,
+          "raw": 50.0,
+          "utility": 7.5,
           "confirmations": 2,
-          "delta": 0.0,
-          "profile": "initial_weekly_entry",
+          "delta": 15.0,
           "learning_threshold_adjustment": 6.0
         },
         "source_exit_at": null,
         "source_exit_reason": null
-      }
+      },
+      "wes_initial_no_trade_score": 54.0
     },
     {
       "instrument_id": "btcusd",
@@ -427,7 +427,7 @@
       "continuous_exposure_active": false,
       "continuous_exposure_status": "no_trade",
       "wes_status": "no_trade_monitoring_trigger",
-      "wes_last_review_at": "2026-10-12T00:21:29+02:00",
+      "wes_last_review_at": "2026-10-12T00:35:36+02:00",
       "wes_trigger_candidate": {
         "direction": "neutral",
         "strategy_id": "no_trade",
@@ -763,8 +763,8 @@
     "replacement_holding_days": 7,
     "replacement_weekend_carry": true,
     "material_event_reentry": false,
-    "last_preflight_at": "2026-10-12T00:21:29+02:00",
-    "last_postflight_at": "2026-10-12T00:21:34+02:00",
+    "last_preflight_at": "2026-10-12T00:35:36+02:00",
+    "last_postflight_at": "2026-10-12T00:35:43+02:00",
     "dynamic_risk": true,
     "learning_by_entry_class": true
   }
