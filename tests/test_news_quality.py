@@ -22,6 +22,42 @@ class NewsQualityTests(unittest.TestCase):
         self.assertFalse(decision.accepted)
         self.assertEqual(decision.reason, "interview_promo_without_substance")
 
+    def test_rejects_tv_program_only_titles_from_production(self) -> None:
+        examples = [
+            ('"Śniadanie Rymanowskiego" w Polsat News i Interii',
+             'Gośćmi Bogdana Rymanowskiego będą Adam Bielan, Dorota Łoboda i Bartosz Romowicz.'),
+            ("Sportowy wieczór (10.10.2026)",
+             "Magazyn Sportowy Wieczór: sobotnie wyniki i podsumowanie meczów. Program poprowadzi Jacek."),
+            ("Śniadanie u Rymanowskiego — zobacz niedzielne wydanie",
+             "Zapraszamy do programu telewizyjnego."),
+            ("CNN Tonight (October 10, 2026)",
+             "Latest episode with guest lineup."),
+            ("Meet the Press: Sunday guests and full episode",
+             "Watch the show on television."),
+            ("Today's episode of the political talk-show",
+             "The program airs tonight on a national television station."),
+            ("Watch tonight on CNN: our new political show",
+             "Join us for a special interview."),
+            ("TVP Sport: Sportowy wieczór — sobotnie wydanie",
+             "Magazyn omawia dzisiejsze wyniki."),
+        ]
+        for title, summary in examples:
+            with self.subTest(title=title):
+                decision = evaluate_story(title, summary)
+                self.assertFalse(decision.accepted)
+                self.assertEqual(decision.reason, "tv_program_promotion")
+
+    def test_preserves_genuine_news_even_when_reported_by_tv_station(self) -> None:
+        examples = [
+            "Rząd przyjął ustawę podatkową — informuje Polsat News",
+            "CNN i BBC potwierdziły, że Fed obniżył stopy procentowe",
+            "Minister finansów ogłosił zmianę podatku w wywiadzie dla TVN24",
+            "Finance minister announces new tax rules in CNN interview",
+        ]
+        for headline in examples:
+            with self.subTest(headline=headline):
+                self.assertTrue(evaluate_story(headline).accepted)
+
     def test_rejects_standalone_death_notice(self) -> None:
         decision = evaluate_story("Nie żyje znany aktor. Miał 74 lata")
         self.assertFalse(decision.accepted)
@@ -184,6 +220,7 @@ class NewsQualityTests(unittest.TestCase):
         self.assertEqual({item["id"] for item in policy["excluded"]}, {
             "death_notice",
             "interview_promo_without_substance",
+            "tv_program_promotion",
             "lottery_result_or_jackpot_promo",
             "betting_promotion",
             "media_self_promotion",
