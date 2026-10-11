@@ -407,11 +407,9 @@ def seal_closed_leg(
             engine_version="v5",
             created_at=native_at,
             authority="execution",
-            parent_artifact_ids=[
-                str(value)
-                for value in (decision_id, settlement_id)
-                if value
-            ],
+            # Settlement already has position_leg as its parent. Reversing
+            # the edge here creates a circular provenance graph.
+            parent_artifact_ids=[str(decision_id)] if decision_id else [],
             decision_id=decision_id,
             prospective=True,
             domain_provenance={
