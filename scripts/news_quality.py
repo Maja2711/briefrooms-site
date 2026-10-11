@@ -234,8 +234,7 @@ _TV_WATCH_OR_AIRTIME = re.compile(
 )
 _TV_SHOW_TEASER = re.compile(
     r"(?:^\s*(?:tonight|today|this\s+week)\s+on\s+\S+|"
-    r"^\s*(?:dziś|dzisiaj|jutro)\s+(?:w\s+(?:tv|telewizji|programie)|na\s+antenie)|"
-    r"\b(?:w\s+(?:polsat\s+news|tvn24|tvp\s+sport|cnn|bbc)\s+i\s+\S+)\b)",
+    r"^\s*(?:dziś|dzisiaj|jutro)\s+(?:w\s+(?:tv|telewizji|programie)|na\s+antenie))",
     re.IGNORECASE,
 )
 _TV_PROGRAM_CONTEXT = re.compile(
