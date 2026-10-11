@@ -140,10 +140,10 @@ class DecisionLabFSEFrontendTests(unittest.TestCase):
     def test_fse_trend_assets_are_cache_busted(self):
         pl = (ROOT / "pl/inwestycje/decision-lab.html").read_text(encoding="utf-8")
         en = (ROOT / "en/investing/decision-lab.html").read_text(encoding="utf-8")
-        self.assertIn("/assets/decision-lab.css?v=20261011-asd3", pl)
-        self.assertIn("/assets/decision-lab.css?v=20261011-asd3", en)
-        self.assertIn("/scripts/central-lab.js?v=20261011-asd1", pl)
-        self.assertIn("/scripts/central-lab-runtime-en.js?v=20261011-asd-en2", en)
+        self.assertIn("/assets/decision-lab.css?v=20261011-asd4", pl)
+        self.assertIn("/assets/decision-lab.css?v=20261011-asd4", en)
+        self.assertIn("/scripts/central-lab.js?v=20261011-asd-lifecycle1", pl)
+        self.assertIn("/scripts/central-lab-runtime-en.js?v=20261011-asd-lifecycle1", en)
 
 
 if __name__ == "__main__":
