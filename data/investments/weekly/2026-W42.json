@@ -96,7 +96,91 @@
         "Volatility affects the score and risk levels frozen before entry."
       ],
       "validation_gate": "enabled_for_paper_trading",
-      "validation_gate_reason": null
+      "validation_gate_reason": null,
+      "wes_methodology": "WES-1.3.1",
+      "wes_initial_admission_evaluated": true,
+      "wes_initial_admission_at": "2026-10-12T00:21:29+02:00",
+      "reentry_lock": {
+        "active": false,
+        "scope": "wes_directional_admission",
+        "released_at": "2026-10-12T00:21:29+02:00",
+        "reason": "wes_1_3_1_directional_admission_qualified"
+      },
+      "wes_status": "initial_directional_admission_authorized",
+      "wes_entry_authorization": {
+        "authorized_at": "2026-10-12T00:21:29+02:00",
+        "expires_at": "2026-10-12T01:21:29+02:00",
+        "authorization_type": "initial_weekly_entry",
+        "directional_admission_passed": true,
+        "candidate": {
+          "direction": "short",
+          "strategy_id": "base_v2",
+          "raw_score": 72.0,
+          "utility": 12.9959,
+          "signal_delta_from_initial": 72.0,
+          "confirmations": 4,
+          "confirmation_sources": [
+            "daily",
+            "ma_structure",
+            "macro",
+            "weekly"
+          ],
+          "entry_class": "monday_weekly",
+          "execution_authority": "champion_execution",
+          "directional_admission": {
+            "version": "WES-1.3.1",
+            "direction": "short",
+            "confirmations": 4,
+            "confirmation_sources": [
+              "daily",
+              "ma_structure",
+              "macro",
+              "weekly"
+            ],
+            "execution_authority": "champion_execution",
+            "passed": true
+          },
+          "delta_gate": {
+            "delta": 72.0,
+            "required_delta": 0.0,
+            "passed": true,
+            "absolute_strength_bypass": {
+              "version": "WES-1.3.1",
+              "eligible": true,
+              "raw": 72.0,
+              "required_raw": 53.3,
+              "raw_multiplier": 1.3,
+              "utility": 12.9959,
+              "required_utility": 7.8,
+              "utility_multiplier": 1.3,
+              "confirmations": 4,
+              "required_confirmations": 2,
+              "confirmation_sources": [
+                "daily",
+                "ma_structure",
+                "macro",
+                "weekly"
+              ],
+              "require_daily_weekly_confirmation": true,
+              "reasons": []
+            },
+            "persistent_plan_reaffirmed": false,
+            "decision_id": null,
+            "decision_payload_hash": null
+          }
+        },
+        "required": {
+          "allowed": true,
+          "raw": 41.0,
+          "utility": 6.0,
+          "confirmations": 2,
+          "delta": 0.0,
+          "profile": "initial_weekly_entry",
+          "learning_threshold_adjustment": 6.0
+        },
+        "source_exit_at": null,
+        "source_exit_reason": null
+      }
     },
     {
       "instrument_id": "sp500_futures",
@@ -175,7 +259,85 @@
         "Volatility affects the score and risk levels frozen before entry."
       ],
       "validation_gate": "enabled_for_paper_trading",
-      "validation_gate_reason": null
+      "validation_gate_reason": null,
+      "wes_methodology": "WES-1.3.1",
+      "wes_initial_admission_evaluated": true,
+      "wes_initial_admission_at": "2026-10-12T00:21:29+02:00",
+      "reentry_lock": {
+        "active": false,
+        "scope": "wes_directional_admission",
+        "released_at": "2026-10-12T00:21:29+02:00",
+        "reason": "wes_1_3_1_directional_admission_qualified"
+      },
+      "wes_status": "initial_directional_admission_authorized",
+      "wes_entry_authorization": {
+        "authorized_at": "2026-10-12T00:21:29+02:00",
+        "expires_at": "2026-10-12T01:21:29+02:00",
+        "authorization_type": "initial_weekly_entry",
+        "directional_admission_passed": true,
+        "candidate": {
+          "direction": "long",
+          "strategy_id": "weekly_trend",
+          "raw_score": 82.0,
+          "utility": 17.2771,
+          "signal_delta_from_initial": 82.0,
+          "confirmations": 2,
+          "confirmation_sources": [
+            "daily",
+            "weekly"
+          ],
+          "entry_class": "monday_weekly",
+          "execution_authority": "champion_execution",
+          "directional_admission": {
+            "version": "WES-1.3.1",
+            "direction": "long",
+            "confirmations": 2,
+            "confirmation_sources": [
+              "daily",
+              "weekly"
+            ],
+            "execution_authority": "champion_execution",
+            "passed": true
+          },
+          "delta_gate": {
+            "delta": 82.0,
+            "required_delta": 0.0,
+            "passed": true,
+            "absolute_strength_bypass": {
+              "version": "WES-1.3.1",
+              "eligible": true,
+              "raw": 82.0,
+              "required_raw": 53.3,
+              "raw_multiplier": 1.3,
+              "utility": 17.2771,
+              "required_utility": 7.8,
+              "utility_multiplier": 1.3,
+              "confirmations": 2,
+              "required_confirmations": 2,
+              "confirmation_sources": [
+                "daily",
+                "weekly"
+              ],
+              "require_daily_weekly_confirmation": true,
+              "reasons": []
+            },
+            "persistent_plan_reaffirmed": false,
+            "decision_id": null,
+            "decision_payload_hash": null
+          }
+        },
+        "required": {
+          "allowed": true,
+          "raw": 41.0,
+          "utility": 6.0,
+          "confirmations": 2,
+          "delta": 0.0,
+          "profile": "initial_weekly_entry",
+          "learning_threshold_adjustment": 6.0
+        },
+        "source_exit_at": null,
+        "source_exit_reason": null
+      }
     },
     {
       "instrument_id": "btcusd",
@@ -242,19 +404,95 @@
       "result_value": 0.0,
       "result_percent": 0.0,
       "rationale_pl": [
+        "NO TRADE — obserwuję trigger do otwarcia pozycji. WES otworzy pozycję tylko po nowym, wystarczająco silnym i potwierdzonym sygnale; nic na siłę.",
         "Model v2.0.0: neutralnie / obserwacja.",
         "Score 25; progi: long 45, short -45.",
         "Siła sygnału jest wskaźnikiem heurystycznym, a nie prawdopodobieństwem powodzenia.",
         "Zmienność wpływa na score i poziomy ryzyka zapisane przed otwarciem."
       ],
       "rationale_en": [
+        "NO TRADE — monitoring for an entry trigger. WES will open only after a new, sufficiently strong and confirmed signal; no forced exposure.",
         "Model v2.0.0: neutral / observation.",
         "Score 25; thresholds: long 45, short -45.",
         "Signal strength is heuristic, not a probability of success.",
         "Volatility affects the score and risk levels frozen before entry."
       ],
       "validation_gate": "enabled_for_paper_trading",
-      "validation_gate_reason": null
+      "validation_gate_reason": null,
+      "wes_methodology": "WES-1.3.1",
+      "wes_initial_no_trade_score": 25.0,
+      "pending_entry_decision": null,
+      "wes_entry_authorization": null,
+      "next_entry_status": "no_trade",
+      "continuous_exposure_active": false,
+      "continuous_exposure_status": "no_trade",
+      "wes_status": "no_trade_monitoring_trigger",
+      "wes_last_review_at": "2026-10-12T00:21:29+02:00",
+      "wes_trigger_candidate": {
+        "direction": "neutral",
+        "strategy_id": "no_trade",
+        "raw_score": 0.0,
+        "utility": 8.5538,
+        "signal_delta_from_initial": 0.0,
+        "confirmations": 0,
+        "confirmation_sources": [],
+        "entry_class": "monday_weekly",
+        "execution_authority": null,
+        "directional_admission": {
+          "version": "WES-1.3.1",
+          "direction": "long",
+          "confirmations": 1,
+          "confirmation_sources": [
+            "weekly"
+          ],
+          "execution_authority": "champion_execution",
+          "passed": false
+        },
+        "delta_gate": {
+          "delta": 0.0,
+          "required_delta": 15.0,
+          "passed": false,
+          "absolute_strength_bypass": {
+            "version": "WES-1.3.1",
+            "eligible": false,
+            "raw": 0.0,
+            "required_raw": 65.0,
+            "raw_multiplier": 1.3,
+            "utility": 8.5538,
+            "required_utility": 9.75,
+            "utility_multiplier": 1.3,
+            "confirmations": 0,
+            "required_confirmations": 2,
+            "confirmation_sources": [],
+            "require_daily_weekly_confirmation": true,
+            "reasons": [
+              "directional_admission_not_passed",
+              "raw_below_scaled_absolute_strength",
+              "utility_below_scaled_absolute_strength",
+              "insufficient_confirmations_for_absolute_strength",
+              "daily_weekly_confirmation_required"
+            ]
+          },
+          "persistent_plan_reaffirmed": false,
+          "decision_id": null,
+          "decision_payload_hash": null
+        }
+      },
+      "reentry_lock": {
+        "active": true,
+        "scope": "wes_no_trade_monitoring",
+        "until": "2026-10-16T22:00:00+02:00",
+        "reason": "wes_waiting_for_qualified_trigger",
+        "policy": "NO_TRADE remains active monitoring, not forced exposure"
+      },
+      "wes_required_trigger": {
+        "allowed": true,
+        "raw": 50.0,
+        "utility": 7.5,
+        "confirmations": 2,
+        "delta": 15.0,
+        "learning_threshold_adjustment": 6.0
+      }
     }
   ],
   "forecast_hash": "2cecb584fd1973cc82812855e1835cdce76efc58284a489c408c9668388f6031",
@@ -510,5 +748,24 @@
     "applied_at": "2026-10-11T00:29:48+02:00",
     "scope": "active_or_future_weeks_new_entries_only",
     "closed_history_rewritten": false
+  },
+  "wes": {
+    "version": "WES-1.3.1",
+    "objective": "maximize_total_net_profit_with_no_forced_trades",
+    "directional_admission_for_all_entries": true,
+    "champion_challenger_hardening": true,
+    "no_trade_is_active_monitoring": true,
+    "early_close_reentry": true,
+    "early_close_days": [
+      "monday",
+      "tuesday"
+    ],
+    "replacement_holding_days": 7,
+    "replacement_weekend_carry": true,
+    "material_event_reentry": false,
+    "last_preflight_at": "2026-10-12T00:21:29+02:00",
+    "last_postflight_at": "2026-10-12T00:21:34+02:00",
+    "dynamic_risk": true,
+    "learning_by_entry_class": true
   }
 }

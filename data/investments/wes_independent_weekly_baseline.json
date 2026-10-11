@@ -13,6 +13,47 @@
       "status": "not_eligible",
       "reason": "missing_forecast_or_capture_after_original_entry_target",
       "outcome": null
+    },
+    "2026-W42": {
+      "week_id": "2026-W42",
+      "capture_at": "2026-10-11T22:21:28.561824+00:00",
+      "source": "weekly.frozen_forecast",
+      "authority": "shadow",
+      "decision_influence": false,
+      "status": "captured",
+      "reason": "prospective_frozen_weekly_forecast",
+      "outcome": {
+        "status": "pending_market_data",
+        "reason": "no_5m_ohlc",
+        "wes_comparison": {
+          "status": "pending",
+          "reason": "wes_week_not_settled"
+        }
+      },
+      "plan": {
+        "direction": "long",
+        "score": 54.0,
+        "symbol": "ES=F",
+        "forecast_version": "2.0.0",
+        "forecast_locked_at": "2026-10-11T00:29:41+02:00",
+        "forecast_fingerprint": "8b5fd4c535b059d0753aecd2241c92de96dc205bcd4dc11473b8893916c6f178",
+        "entry_target": "2026-10-12T08:00:00+02:00",
+        "entry_latest": "2026-10-12T10:00:00+02:00",
+        "scheduled_exit": "2026-10-16T22:00:00+02:00",
+        "risk_distance": {
+          "source": "ATR14_sqrt5_frozen_at_forecast",
+          "stop_price_distance": 89.29497889,
+          "take_price_distance": 146.11905637,
+          "stop_units": 89.295,
+          "take_units": 146.1191,
+          "reward_to_risk": 1.6364
+        },
+        "round_trip_cost": 1.0,
+        "cost_unit": "points",
+        "virtual_fill_rule": "first_verified_completed_5m_bar_open_at_or_after_frozen_entry_target",
+        "same_bar_rule": "stop_loss_first_conservative"
+      },
+      "plan_sha256": "e6d361a84a981cd868ca5e68996b6ab09a2310babb52955efb496c9e420e84f1"
     }
   }
 }
