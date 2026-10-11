@@ -11,13 +11,14 @@ on:
     types: [completed]
   schedule:
     # Independently recover the bank even on days with no fresh publication.
-    - cron: "37 */2 * * *"
+    - cron: "37 * * * *"
 
 permissions:
   contents: write
 
 concurrency:
-  group: axiom-100-reserve-refill
+  # Serialized with the publisher to prevent races on the reserve file.
+  group: morning-axiom-daily
   cancel-in-progress: false
 
 jobs:
@@ -27,14 +28,14 @@ jobs:
       (github.event.workflow_run.head_branch == 'main' &&
        github.event.workflow_run.event != 'pull_request')
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
     env:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       AXIOM_THOUGHT_MODEL: gemini-3.6-flash
       AXIOM_THOUGHT_FALLBACK_MODEL: gemini-3.5-flash-lite
       AXIOM_THOUGHT_MAX_ATTEMPTS: "8"
       AXIOM_THOUGHT_RESERVE_TARGET: "100"
-      AXIOM_THOUGHT_REFILL_BATCH: "5"
+      AXIOM_THOUGHT_REFILL_BATCH: "10"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -44,7 +45,7 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install requests
-      - name: Build and independently review up to five reserve candidates
+      - name: Build and independently review up to ten reserve candidates
         run: python scripts/publish_axiom_thought.py --mode refill
       - name: Verify current bank integrity without falsely claiming 100 ready
         run: |
