@@ -203,6 +203,7 @@ def generate_ten(rows,reserve):
             candidates=response.get("candidates") if isinstance(response,dict) else None
             if not isinstance(candidates,list) or len(candidates)!=LIVE_BATCH_SIZE:
                 raise ValueError("required exactly ten explicit candidates")
+            sys.path.insert(0,str(ROOT/"scripts"))
             from axiom_thought_guard import normalize_text
             themes=[c.get("theme") for c in candidates if isinstance(c,dict)]
             claims=[normalize_text(c.get("pl","")) for c in candidates if isinstance(c,dict)]
