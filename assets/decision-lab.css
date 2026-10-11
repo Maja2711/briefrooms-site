@@ -448,22 +448,78 @@ html,body{width:100%;max-width:100%;overflow-x:hidden}
 }
 
 
-/* FSE autonomous discovery: research-only family registry */
-.fse-discovery{margin:18px 0 28px;padding:18px;border:1px solid var(--border,rgba(120,140,160,.24));border-radius:16px;background:linear-gradient(125deg,rgba(16,104,121,.075),transparent 62%)}
-.fse-discovery-head p{color:var(--muted,#789);margin:4px 0 12px;font-size:.91rem}
+/* FSE autonomous discovery: scoped high-contrast cards for the dark LAB theme */
+.fse-discovery{
+  margin:18px 0 28px;
+  padding:18px;
+  border:1px solid rgba(125,157,184,.30);
+  border-radius:16px;
+  background:linear-gradient(125deg,rgba(17,61,76,.45),rgba(8,23,38,.55) 62%);
+  color:#eaf3ff;
+  font-family:Inter,"Segoe UI",Arial,sans-serif;
+}
+.fse-discovery .fse-discovery-head h3{color:#f7fbff}
+.fse-discovery .fse-discovery-head p,
+.fse-discovery .central-note{color:#bdcee1;font-size:.91rem;line-height:1.55;margin:4px 0 12px}
 .fse-discovery-stats{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0 14px}
-.fse-discovery-stats span,.fse-discovery-match{display:inline-flex;align-items:center;gap:7px;border-radius:9px;background:rgba(100,126,160,.09);padding:8px 10px;font-size:.83rem}
-.fse-discovery-stats b{font-variant-numeric:tabular-nums}
+.fse-discovery .fse-discovery-stats span,
+.fse-discovery .fse-discovery-match{
+  display:inline-flex;align-items:center;gap:7px;
+  border:1px solid rgba(171,194,216,.17);
+  border-radius:9px;
+  background:rgba(160,188,218,.10);
+  padding:8px 10px;
+  color:#edf5ff;
+  font-size:.83rem;
+}
+.fse-discovery-stats b{color:#fff;font-weight:700;font-variant-numeric:tabular-nums}
 .fse-discovery-matches{display:flex;align-items:center;flex-wrap:wrap;gap:9px;margin-bottom:12px}
+.fse-discovery-matches strong{color:#f2f8ff}
 .fse-discovery-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-.fse-discovery-card{padding:15px;border:1px solid var(--border,rgba(120,140,160,.2));border-radius:12px;background:var(--surface,#fff);min-width:0}
-.fse-discovery-cardtop{display:flex;justify-content:space-between;gap:8px;color:var(--muted,#789);font-size:.72rem;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
-.fse-discovery-card h4{margin:8px 0 6px;font-size:1rem;line-height:1.35}
-.fse-discovery-card p{font-size:.84rem;line-height:1.5;margin:6px 0}
-.fse-discovery-card .fse-discovery-meta{color:var(--muted,#789)}
-.fse-discovery-metrics{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
-.fse-discovery-metrics span{font-size:.75rem;padding:6px 7px;background:rgba(100,126,160,.08);border-radius:7px}
-.fse-discovery-card details{margin-top:12px}
-.fse-discovery-card summary{cursor:pointer;font-weight:600;font-size:.86rem}
-.fse-discovery-card li{font-size:.82rem;margin:7px 0;line-height:1.4}
-@media(max-width:760px){.fse-discovery{padding:12px}.fse-discovery-grid{grid-template-columns:1fr}.fse-discovery-stats{gap:6px}}
+.fse-discovery .fse-discovery-card{
+  padding:16px;
+  border:1px solid #37516a;
+  border-radius:14px;
+  background:linear-gradient(180deg,#12273b,#0e1d2e);
+  color:#eaf3ff;
+  box-shadow:0 8px 24px rgba(0,0,0,.17);
+  min-width:0;
+}
+.fse-discovery .fse-discovery-cardtop{
+  display:flex;justify-content:space-between;gap:8px;
+  color:#b8cbdf;
+  font-size:.75rem;font-variant-numeric:tabular-nums;overflow-wrap:anywhere
+}
+.fse-discovery .fse-discovery-cardtop span,
+.fse-discovery .fse-discovery-cardtop small{color:#b8cbdf}
+.fse-discovery .fse-discovery-card h4{
+  margin:9px 0 8px;font-size:1.05rem;
+  line-height:1.4;font-weight:700;color:#fff;
+}
+.fse-discovery .fse-discovery-card p{
+  font-size:.9rem;line-height:1.6;margin:6px 0;
+  font-weight:400;color:#dfecfa;
+}
+.fse-discovery .fse-discovery-card .fse-discovery-meta{color:#b8cbdf}
+.fse-discovery-metrics{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.fse-discovery .fse-discovery-metrics span{
+  font-size:.79rem;padding:7px 9px;
+  border:1px solid rgba(171,194,216,.16);
+  border-radius:8px;background:#1c354d;color:#dceafb;
+}
+.fse-discovery .fse-discovery-metrics b{color:#fff;font-variant-numeric:tabular-nums}
+.fse-discovery .fse-discovery-card details{margin-top:12px}
+.fse-discovery .fse-discovery-card summary{
+  cursor:pointer;font-weight:650;font-size:.9rem;
+  line-height:1.5;color:#9fdbff;
+}
+.fse-discovery .fse-discovery-card summary:focus-visible{outline:2px solid #9fdbff;outline-offset:4px;border-radius:3px}
+.fse-discovery .fse-discovery-card li{
+  font-size:.85rem;margin:7px 0;
+  line-height:1.5;color:#dfecfa;
+}
+@media(max-width:760px){
+  .fse-discovery{padding:12px}
+  .fse-discovery-grid{grid-template-columns:1fr}
+  .fse-discovery-stats{gap:6px}
+}

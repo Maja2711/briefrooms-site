@@ -93,14 +93,23 @@ class DecisionLabFSEFrontendTests(unittest.TestCase):
         self.assertIn(".fse-fast-meta", css)
         self.assertIn(".fse-discovery-grid", css)
         self.assertIn(".fse-discovery-card", css)
+        # Dark LAB panels must not inherit a white surface with light text.
+        self.assertIn("background:linear-gradient(180deg,#12273b,#0e1d2e)", css)
+        self.assertIn("color:#eaf3ff", css)
+        self.assertIn(".fse-discovery .fse-discovery-card h4", css)
+        self.assertIn("color:#dfecfa", css)
+        self.assertIn(".fse-discovery .fse-discovery-card summary", css)
+        self.assertIn("summary:focus-visible", css)
+        self.assertNotIn(".fse-discovery-card{padding:15px", css)
+
         self.assertIn(".fse-tf-direction em", css)
 
 
     def test_fse_trend_assets_are_cache_busted(self):
         pl = (ROOT / "pl/inwestycje/decision-lab.html").read_text(encoding="utf-8")
         en = (ROOT / "en/investing/decision-lab.html").read_text(encoding="utf-8")
-        self.assertIn("/assets/decision-lab.css?v=20261011-asd1", pl)
-        self.assertIn("/assets/decision-lab.css?v=20261011-asd1", en)
+        self.assertIn("/assets/decision-lab.css?v=20261011-asd2", pl)
+        self.assertIn("/assets/decision-lab.css?v=20261011-asd2", en)
         self.assertIn("/scripts/central-lab.js?v=20261011-asd1", pl)
         self.assertIn("/scripts/central-lab-runtime-en.js?v=20261011-asd1", en)
 
