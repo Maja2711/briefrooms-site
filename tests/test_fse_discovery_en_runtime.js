@@ -1,7 +1,7 @@
 "use strict";
-const fs = require("node:fs");
-const vm = require("node:vm");
-const assert = require("node:assert/strict");
+import fs from "node:fs";
+import vm from "node:vm";
+import assert from "node:assert/strict";
 
 // Execute exactly the source helper used by EN LAB, not a duplicate translator.
 const source = fs.readFileSync("scripts/central-lab-runtime-en.js", "utf8");
