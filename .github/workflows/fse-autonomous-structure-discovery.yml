@@ -10,6 +10,7 @@ on:
       - "tests/test_fse_autonomous_discovery.py"
       - "scripts/central-lab.js"
       - "scripts/central-lab-runtime-en.js"
+      - "tests/test_fse_discovery_en_runtime.js"
       - "assets/decision-lab.css"
       - ".github/workflows/fse-autonomous-structure-discovery.yml"
   push:
@@ -50,6 +51,7 @@ jobs:
           python -m unittest tests.test_fse_autonomous_discovery tests.test_decision_lab_fse_frontend -v
           node --check scripts/central-lab.js
           node --check scripts/central-lab-runtime-en.js
+          node tests/test_fse_discovery_en_runtime.js
           python scripts/verify_trading_workflow_airlocks.py
           python scripts/validate_architecture_bootstrap.py
 
