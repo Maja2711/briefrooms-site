@@ -38,3 +38,8 @@ jobs:
       - name: Run prospective evidence and observatory regression tests
         run: |
           python -m unittest -v tests.test_investments_wes_counterfactual tests.test_wes_independent_weekly_baseline tests.test_investments_wes_spx_brace_bridge tests.test_shadow_engines_public tests.test_shadow_engines_observatory_workflow
+      - name: Verify global trading airlocks and provenance on merged PR tree
+        run: |
+          python scripts/verify_trading_workflow_airlocks.py
+          PYTHONPATH=. python scripts/audit_provenance.py --profile repo --repo-root . > "$RUNNER_TEMP/wes-lab-global-provenance.json"
+          python -c 'import json,os; p=json.load(open(os.environ["RUNNER_TEMP"]+"/wes-lab-global-provenance.json")); assert p["status"] == "passed"; print("PROVENANCE:",p["records_checked"],"records checked")'
