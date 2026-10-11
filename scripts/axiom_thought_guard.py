@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import difflib
+import hashlib
 import json
 import re
 import sys
@@ -13,6 +14,43 @@ from pathlib import Path
 from typing import Any, Iterable
 
 REQUIRED_CURRENT_KEYS = {"date", "author", "brand", "pl", "en"}
+REVIEW_REQUIRED_FROM = "2026-10-12"  # Historical records remain append-only.
+REVIEW_KEYS = {"model", "verdict", "closest_ref", "shared_claim", "material_difference"}
+
+
+def review_digest(candidate: dict[str, Any]) -> str:
+    # Bind both semantic approvals to the EXACT text and concept that ships.
+    payload = {key: candidate.get(key) for key in ("theme", "pl", "en")}
+    encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def review_evidence_errors(record: dict[str, Any], earlier_dates: set[str]) -> list[str]:
+    result: list[str] = []
+    receipts = record.get("semantic_reviews")
+    if not isinstance(receipts, list) or len(receipts) != 2:
+        return ["publication requires two independent semantic review receipts"]
+    models = set()
+    for index, receipt in enumerate(receipts, start=1):
+        if not isinstance(receipt, dict) or set(receipt) != REVIEW_KEYS:
+            result.append(f"review {index} has invalid evidence schema")
+            continue
+        model = receipt["model"]
+        if not isinstance(model, str) or not model.strip() or model in models:
+            result.append(f"review {index} must use a distinct model")
+        else:
+            models.add(model)
+        if receipt["verdict"] != "UNIQUE":
+            result.append(f"review {index} did not approve originality")
+        if receipt["closest_ref"] not in earlier_dates:
+            result.append(f"review {index} does not cite a previous published thought")
+        for key in ("shared_claim", "material_difference"):
+            if not isinstance(receipt[key], str) or len(receipt[key].strip()) < 30:
+                result.append(f"review {index} is missing substantive {key}")
+    if record.get("semantic_review_digest") != review_digest(record):
+        result.append("semantic review evidence is not bound to the exact published thought")
+    return result
+
 HISTORY_RETENTION_DAYS = 365
 MAX_SEQUENCE_SIMILARITY = 0.72
 MAX_TOKEN_JACCARD = 0.55
@@ -131,7 +169,7 @@ def _contains_banned(text: str, phrases: Iterable[str]) -> str | None:
     return None
 
 
-def validate(current: dict[str, Any], history: list[dict[str, Any]]) -> list[str]:
+def validate(current: dict[str, Any], history: list[dict[str, Any]], *, require_review_evidence: bool = True) -> list[str]:
     errors: list[str] = []
 
     if set(current.keys()) != REQUIRED_CURRENT_KEYS:
@@ -195,6 +233,11 @@ def validate(current: dict[str, Any], history: list[dict[str, Any]]) -> list[str
         note = record.get("editor_note")
         if not isinstance(note, str) or len(note.strip()) < 40:
             errors.append(f"history record {idx + 1} needs a substantive editor_note")
+
+        if (require_review_evidence and _valid_iso_date(stamp)
+                and stamp >= REVIEW_REQUIRED_FROM):
+            prior_dates = {r.get("date") for r in history[:idx]}
+            errors.extend(f"history record {idx + 1}: {msg}" for msg in review_evidence_errors(record, prior_dates))
 
         if not record.get("seed", False):
             candidates = record.get("candidates_considered")
