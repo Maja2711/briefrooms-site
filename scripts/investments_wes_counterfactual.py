@@ -109,7 +109,6 @@ def _cost_percent(entry_price: float, policy_row: Mapping[str, Any]) -> float:
 
 def _risk_plan_from_pre_wes_state(
     baseline: Mapping[str, Any],
-    item: Mapping[str, Any],
 ) -> tuple[Optional[dict[str, Any]], str]:
     existing = baseline.get("risk_plan")
     if isinstance(existing, Mapping):
@@ -120,7 +119,9 @@ def _risk_plan_from_pre_wes_state(
 
     entry = _finite(baseline.get("entry_price"))
     direction = str(baseline.get("direction") or "neutral")
-    distance = item.get("risk_distance") if isinstance(item.get("risk_distance"), Mapping) else {}
+    # Distance must have been frozen with the original pre-WES decision.
+    # Reading a later weekly snapshot here would be retrospective rewriting.
+    distance = baseline.get("frozen_risk_distance") if isinstance(baseline.get("frozen_risk_distance"), Mapping) else {}
     stop_distance = _finite(distance.get("stop_price_distance"))
     take_distance = _finite(distance.get("take_price_distance"))
     if (
@@ -167,21 +168,17 @@ def make_replay_contract(
             "contract": None,
         }
 
-    item = _find_spx(week)
-    if item is None:
-        return {"status": "not_replayable", "reason": "spx_week_item_missing", "contract": None}
-
     entry = _finite(baseline.get("entry_price"))
     entry_at = baseline.get("entry_captured_at")
     direction = str(baseline.get("direction") or "neutral")
-    scheduled_exit = (week.get("market_window") or {}).get("exit_target_local")
-    symbol = str(item.get("symbol") or "")
+    scheduled_exit = baseline.get("frozen_scheduled_exit")
+    symbol = str(baseline.get("frozen_symbol") or "")
     if entry is None or entry <= 0 or not entry_at or direction not in {"long", "short"}:
         return {"status": "not_replayable", "reason": "baseline_entry_incomplete", "contract": None}
     if not scheduled_exit or not symbol:
         return {"status": "not_replayable", "reason": "scheduled_exit_or_symbol_missing", "contract": None}
 
-    risk_plan, risk_source = _risk_plan_from_pre_wes_state(baseline, item)
+    risk_plan, risk_source = _risk_plan_from_pre_wes_state(baseline)
     if risk_plan is None:
         return {"status": "not_replayable", "reason": risk_source, "contract": None}
 
@@ -190,7 +187,10 @@ def make_replay_contract(
     if sl is None or tp is None:
         return {"status": "not_replayable", "reason": "risk_levels_missing", "contract": None}
 
-    cost = _cost_percent(entry, _policy_spx(policy))
+    frozen_cost = baseline.get("frozen_cost_policy")
+    if not isinstance(frozen_cost, Mapping) or _finite(frozen_cost.get("round_trip_cost")) is None or frozen_cost.get("cost_unit") not in {"points", "percent"}:
+        return {"status": "not_replayable", "reason": "missing_frozen_transaction_cost", "contract": None}
+    cost = _cost_percent(entry, frozen_cost)
     payload = {
         "schema_version": CONTRACT_VERSION,
         "baseline_scope": "frozen_pre_wes_v5_risk_plan",
@@ -229,7 +229,11 @@ def freeze_contracts(
         baseline = row.get("v5_counterfactual")
         if not isinstance(baseline, dict):
             continue
-        if baseline.get("replay_contract") or baseline.get("replay_contract_status") == "not_replayable":
+        if baseline.get("replay_contract") or baseline.get("replay_contract_status") in {"not_replayable", "not_applicable_no_verified_entry"}:
+            continue
+        if not baseline.get("entry_captured_at"):
+            baseline["replay_contract_status"] = "not_applicable_no_verified_entry"
+            baseline["replay_contract_reason"] = "no_baseline_fill_was_observed_at_freeze"
             continue
         week_id = str(row.get("week_id") or "")
         week = (weeks or {}).get(week_id) if weeks is not None else _read(_week_path(week_id), {})
@@ -487,6 +491,18 @@ def build_incremental_report(ledger: Mapping[str, Any]) -> dict[str, Any]:
             by_relationship.setdefault(str(relation.get("class") or "UNKNOWN"), []).append(row)
 
     n = len(resolved)
+    # Exhaustive evidence funnel: report waiting, ineligible and settled pairs
+    # separately. Historical missed captures never become eligible retroactively.
+    actual_closed = sum(_finite((row.get("outcome") or {}).get("wes_net_result_percent")) is not None for row in records)
+    prospective_baselines = sum((row.get("v5_counterfactual_capture") or {}).get("eligible") is True for row in records)
+    baseline_fills = sum(bool((row.get("v5_counterfactual") or {}).get("entry_captured_at")) for row in records)
+    frozen_contracts = sum(isinstance((row.get("v5_counterfactual") or {}).get("replay_contract"), Mapping) for row in records)
+    missing_capture = sum((row.get("v5_counterfactual_capture") or {}).get("status") == "missed_not_reconstructed" for row in records)
+    monitoring = sum(row.get("decision_type") in {"observation", "no_trade_monitoring"} for row in records)
+    no_verified_baseline_entry = sum((row.get("v5_counterfactual") or {}).get("replay_contract_status") == "not_applicable_no_verified_entry" for row in records)
+    unreplayable = sum((row.get("v5_counterfactual") or {}).get("replay_contract_status") == "not_replayable" for row in records)
+    waiting_v5 = sum(_finite((row.get("outcome") or {}).get("wes_net_result_percent")) is not None and _finite((row.get("v5_counterfactual") or {}).get("net_result_percent")) is None for row in records)
+    pending_pairs = sum(isinstance((row.get("v5_counterfactual") or {}).get("replay_contract"), Mapping) and _finite((row.get("outcome") or {}).get("incremental_wes_vs_v5_percent")) is None for row in records)
     readiness = (
         "collecting_prospective_pairs"
         if n == 0
@@ -505,6 +521,22 @@ def build_incremental_report(ledger: Mapping[str, Any]) -> dict[str, Any]:
         "by_entry_class": {key: _stats(rows) for key, rows in sorted(by_entry_class.items())},
         "agreement_conflict_incremental_alpha": {
             key: _stats(rows) for key, rows in sorted(by_relationship.items())
+        },
+        "generated_at": _now().isoformat(timespec="seconds"),
+        "source_ledger_updated_at": ledger.get("updated_at"),
+        "pipeline": {
+            "records_total": len(records),
+            "monitoring_observations": monitoring,
+            "prospective_baselines_captured": prospective_baselines,
+            "missed_historical_captures": missing_capture,
+            "verified_baseline_entries": baseline_fills,
+            "frozen_replay_contracts": frozen_contracts,
+            "no_verified_baseline_entry": no_verified_baseline_entry,
+            "unreplayable_baselines": unreplayable,
+            "actual_wes_outcomes": actual_closed,
+            "awaiting_v5_outcome": waiting_v5,
+            "pending_comparable_pairs": pending_pairs,
+            "resolved_comparable_pairs": n,
         },
         "sample": {
             "economic_decisions": n,
