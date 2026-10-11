@@ -184,6 +184,14 @@ function fseFractalTrendCard(x){
     '<div class="fse-fast-meta"><span>Fast run <b>'+esc(fm.generated_at?shadowWhen(fm.generated_at):'—')+'</b></span><span>Ostatnia świeca <b>'+esc(fm.latest_fast_observed_at?shadowWhen(fm.latest_fast_observed_at):'—')+'</b></span><span>Wiek źródła <b>'+esc(sourceAge)+'</b></span></div>'+
     '<div class="fse-tf-ribbon">'+ribbon+'</div></section>';
 }
+function fseDiscoveryShape(f){
+  const pts=Array.isArray(f?.shape_points)?f.shape_points.map(Number):[];
+  if(pts.length<3||pts.length>64||pts.some(v=>!Number.isFinite(v)))return '';
+  const low=Math.min(...pts), high=Math.max(...pts), span=Math.max(high-low,0.001);
+  const d=pts.map((v,i)=>(i===0?'M':'L')+(8+248*i/(pts.length-1)).toFixed(1)+' '+(58-47*(v-low)/span).toFixed(1)).join(' ');
+  return '<div class="fse-discovery-shape"><svg viewBox="0 0 264 66" role="img" aria-label="Znormalizowany prototyp odkrytej struktury" preserveAspectRatio="none"><path d="'+d+'" fill="none" stroke="#8cd7ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg><small>Odkryty medoid · znormalizowany kształt, nie prognoza ceny</small></div>';
+}
+
 function fseDiscoveryPanel(d){
   if(!d||d.schema_version!=='FSE-ASD-1.0')return '<section class="fse-discovery"><h3 class="central-subtitle">Autonomous Structure Discovery</h3><p class="central-note">Brak katalogu Discovery. Oczekiwanie na pierwszy poprawny cykl danych rynkowych.</p></section>';
   const sum=d.summary||{},families=Array.isArray(d.families)?d.families:[],current=Array.isArray(d.current_matches)?d.current_matches:[];
@@ -191,19 +199,22 @@ function fseDiscoveryPanel(d){
   const stats='<div class="fse-discovery-stats"><span>Rodziny struktur <b>'+num(sum.families||0)+'</b></span><span>Zamrożone obserwacje <b>'+num(sum.frozen_snapshots||0)+'</b></span><span>Rozliczone obserwacje <b>'+num(sum.prospective_resolutions||0)+'</b></span><span>Production <b>OFF</b></span></div>';
   const matches=current.map(x=>'<span class="fse-discovery-match"><b>'+esc(fseInstrumentLabel(x.instrument))+'</b> '+esc(x.family_id||'Nowa / niedopasowana struktura')+'</span>').join('');
   const cards=families.slice(0,12).map(f=>{
-    const applications=(Array.isArray(f.applications)?f.applications:[]).map(s=>'<li>'+esc(s)+'</li>').join('');
+    const apps=f.application_status==='RESEARCH_CANDIDATE'&&Array.isArray(f.applications)?f.applications:[];
+    const applications=apps.map(s=>'<li>'+esc(s)+'</li>').join('');
+    const use=apps.length?'<details><summary>Możliwe zastosowania (do weryfikacji)</summary><ul>'+applications+'</ul></details>':
+      '<p class="fse-discovery-no-use"><strong>Zastosowanie nieustalone.</strong> FSE zbiera niezależne wyniki; analogie historyczne nie dowodzą przydatności.</p>';
     return '<article class="fse-discovery-card"><div class="fse-discovery-cardtop"><span>'+esc(f.family_id)+'</span><small>'+esc(f.evidence_status)+'</small></div>'+
       '<h4>'+esc(f.name)+'</h4><p class="fse-discovery-meta">'+esc(fseInstrumentLabel(f.instrument))+' · '+num(f.window)+' × 1h · Analogie historyczne: '+num(f.historical_sample_n)+'</p>'+
-      '<p>'+esc(f.description)+'</p><div class="fse-discovery-metrics"><span>Wyniki prospektywne <b>N='+num(f.prospective_n)+'</b></span>'+
+      '<p>'+esc(f.description)+'</p>'+fseDiscoveryShape(f)+'<div class="fse-discovery-metrics"><span>Wyniki prospektywne <b>N='+num(f.prospective_n)+'</b></span>'+
       '<span>Prospektywny Brier <b>'+(finite(f.mean_brier)?num(f.mean_brier,4):'—')+'</b></span>'+
       '<span>Poprawa Brier <b>'+(finite(f.incremental_brier)?num(f.incremental_brier,4):'—')+'</b></span></div>'+
-      '<details><summary>Możliwe zastosowania</summary><ul>'+applications+'</ul></details></article>';
+      use+'</article>';
   }).join('');
   return '<section class="fse-discovery"><div class="fse-discovery-head"><h3 class="central-subtitle">Autonomous Structure Discovery</h3><p>Samodzielne odkrywanie rodzin struktur cenowych, automatyczne nazwy, wnioski i hipotezy zastosowań. Bez prawa do transakcji.</p></div>'+
     (stale?'<p class="central-note"><strong>STALE:</strong> '+esc(String(d.generated_at||'missing'))+'</p>':'')+stats+
     (matches?'<div class="fse-discovery-matches"><strong>Aktualne dopasowanie:</strong>'+matches+'</div>':'')+
     (cards?'<div class="fse-discovery-grid">'+cards+'</div>':'<p class="central-note">Brak katalogu Discovery. Oczekiwanie na pierwszy poprawny cykl danych rynkowych.</p>')+
-    '<p class="central-note">Metoda: klastry wyuczone z danych, bez katalogu formacji. Analogie historyczne to hipotezy, nie udowodniona przewaga. Liczymy tylko wyniki po zamrożonym snapshotcie i 4 zakończonych świecach 1h. Wyłącznie Shadow.</p></section>';
+    '<p class="central-note">Metoda: klastry wyuczone z danych, bez katalogu formacji. Brak szablonowych zastosowań. Po co najmniej 40 rzeczywistych wynikach: kandydat do przeglądu albo wycofanie z aktywnego katalogu (historia audytu pozostaje). Wyłącznie Shadow.</p></section>';
 }
 
 async function fse(){
