@@ -325,14 +325,14 @@ Zasady:
 - Analiza godzinowych świec EUR/USD (`EURUSD=X`), BTC (`BTC-USD`) i S&P 500 (`SPY`, **proxy, nie futures ES**); okna 32 i 64 świec.
 - Normalizacja kształtu logarytmicznej ścieżki cenowej, bez zależności od nominalnego poziomu ceny.
 - Nienadzorowane grupowanie z adaptacyjnym progiem odległości, łączeniem gęstych próbek i ponownym sprawdzeniem względem reprezentatywnego medoidu. Minimum sześć analogii historycznych do utworzenia rodziny.
-- Własny, niezmienny `ASD-XXXXXXXXXX`, automatyczna nazwa opisująca geometrię odkrytego prototypu, `description` oraz `applications` jako **hipotezy badawcze**. Żadne `Head & Shoulders`, `REVERSAL` ani inne wzorce nie są docelowymi klasami Discovery.
-- Rejestr maksymalnie 14 rodzin na instrument na pierwszy etap, bez automatycznej reklasyfikacji historycznych rodzin. Ograniczenie jest limitem kosztu i eksplozji hipotez, a nie listą struktur.
+- Własny, niezmienny `ASD-XXXXXXXXXX`, nazwa opisująca geometrię prototypu i neutralny opis eksploracyjny. **Zastosowanie nieustalone** aż do rzeczywistego prospektywnego potwierdzenia. Nazwy nie są klasami wzorców technicznych; medoid jest pokazywany na karcie jako znormalizowany wykres, nie prognoza ceny.
+- Nie ma trwałego limitu 14 rodzin na instrument. Co cykl można dodać maksymalnie cztery nowe rodziny na instrument, a kolejne cykle kontynuują odkrywanie. Bliskie duplikaty (również rodzin już odrzuconych) są tłumione; rozdzielne odmiany mogą mieć niezmienny `parent_family_id`, bez przepisywania historii rodzica.
 
 ### Rygor wyników
 - Historyczne analogie wolno wykorzystać do opisu i *wstępnej* częstości `P UP`. Nie są dowodem prospektywnym.
 - Przy nowej, zakończonej świecy 1h zapisuje się snapshot **przed** wynikiem z `family_id`, ceną i zamrożonym `p_up` oraz prawdopodobieństwem bazowym. Dopasowania bez znanej rodziny również zapisuje się jako `FROZEN_NOVEL_UNMATCHED`.
 - Dopiero po zamknięciu następnych czterech świec rynku można dopisać wynik do niezmiennego łańcucha SHA-256. Brak backdatingu i brak ponownego zaliczania tej samej obserwacji.
-- Raport rozdziela `historical_sample_n` od `prospective_n`. Status `REVIEW_CANDIDATE` nie wcześniej niż po 40 rozstrzygnięciach i statystycznie dodatniej przewadze Brier w porównaniu z **parowanym**, historycznie wyznaczonym punktem odniesienia. To nie jest automatyczny dowód opłacalności transakcji.
+- Raport rozdziela `historical_sample_n` od `prospective_n`. Badamy oddzielnie poprawę **Brier dla kierunku** oraz **MAE prognozy bezwzględnej wielkości ruchu** względem parowanych benchmarków zamrożonych przed rezultatem. Wyniki 4-godzinne nakładają się w czasie, więc test ma estymator błędu HAC (opóźnienia 1–3) i konserwatywny próg 2,58. Status `REVIEW_CANDIDATE` wymaga co najmniej 40 naprawdę rozliczonych wystąpień tej rodziny i dodatniego testu dla co najmniej jednego zastosowania. Nie jest to dowód opłacalności transakcji.
 - Nazwy i opisy są deterministycznie tworzone na podstawie danych; nie przypisujemy struktury do znanej formacji ani nie generujemy narracji językiem LLM bez evidence.
 
 ### Przepływ danych i uprawnienia
@@ -340,4 +340,4 @@ Zasady:
 
 Zapis wyłącznie artefaktu publicznego, automatyczna promocja, Belief Core writeback, egzekucja oraz zmiany polityki ryzyka są **wyłączone**. Gdy brak źródła rynku lub archiwum pamięci, proces fail-closed — bez nadpisywania poprzedniej wiarygodnej publikacji.
 
-**Ograniczenia:** aktualny silnik nie używa uczenia neuronowego ani semantycznego LLM do nazywania struktur. Jest to deterministyczne uczenie nienadzorowane. Nazwa opisuje wyuczoną geometrię, a możliwości zastosowania są automatycznie wytworzonymi, wymagającymi testowania hipotezami. Wyniki prospektywne mogą początkowo pozostawać zerowe.
+**Ograniczenia:** silnik nadal korzysta z deterministycznego uczenia nienadzorowanego, nie z modelu generatywnego. Nie tworzy szablonowych zastosowań; do czasu walidacji publikuje `application_status=UNDETERMINED` i puste `applications`. Po >=40 rozliczeniach bez dodatniego wyniku usuwa rodzinę z publicznego aktywnego katalogu i dopasowań oraz zapisuje `RETIRED / NO_PROVEN_EDGE_AFTER_40` w prywatnym append-only ledgerze `lifecycle_events`. Nie kasuje oryginalnych definicji i wyników, bo byłoby to wymazywaniem dowodów. Blokuje ponowne odkrycie tej samej odrzuconej geometrii pod nowym ID. `REVIEW_CANDIDATE` pozostaje wyłącznie kandydatem do niezależnego przeglądu; **brak automatycznej promocji**. Łączenie dotyczy zapobiegania duplikatom geometrycznym, a rozdzielanie tworzenia nowych, niezmiennych podrodzin — nie nadpisujemy wcześniej zamrożonych rodzin.
