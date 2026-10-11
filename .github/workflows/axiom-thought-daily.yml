@@ -45,6 +45,8 @@ jobs:
        github.event.workflow_run.event != 'pull_request')
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    outputs:
+      changed: ${{ steps.publication_change.outputs.changed }}
     env:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       AXIOM_THOUGHT_MODEL: gemini-3.6-flash
@@ -61,6 +63,15 @@ jobs:
         run: python scripts/publish_axiom_thought.py --mode publish
       - name: Verify today's publication
         run: python scripts/publish_axiom_thought.py --mode verify
+      - name: Report whether a new day was published
+        id: publication_change
+        shell: bash
+        run: |
+          if git diff --quiet -- data/home/axiom-thought.json; then
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+          else
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          fi
       - name: Persist scheduler heartbeat
         shell: bash
         run: |
@@ -90,7 +101,7 @@ jobs:
     needs: publish
     # Refill must never block deployment of a successfully published thought.
     # Recovery runs only publish; they must not repeatedly call costly AI refill.
-    if: needs.publish.result == 'success' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    if: needs.publish.result == 'success' && (needs.publish.outputs.changed == 'true' || github.event_name == 'workflow_dispatch')
     continue-on-error: true
     runs-on: ubuntu-latest
     timeout-minutes: 45
