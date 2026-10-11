@@ -1,0 +1,77 @@
+name: AXIOM 100 Thought Reserve Refill
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/axiom-reserve-100-refill.yml"
+  workflow_run:
+    workflows: ["Morning AXIOM Daily"]
+    types: [completed]
+  schedule:
+    # Independently recover the bank even on days with no fresh publication.
+    - cron: "37 */2 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: axiom-100-reserve-refill
+  cancel-in-progress: false
+
+jobs:
+  refill:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.event != 'pull_request')
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      AXIOM_THOUGHT_MODEL: gemini-3.6-flash
+      AXIOM_THOUGHT_FALLBACK_MODEL: gemini-3.5-flash-lite
+      AXIOM_THOUGHT_MAX_ATTEMPTS: "8"
+      AXIOM_THOUGHT_RESERVE_TARGET: "100"
+      AXIOM_THOUGHT_REFILL_BATCH: "5"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install requests
+      - name: Build and independently review up to five reserve candidates
+        run: python scripts/publish_axiom_thought.py --mode refill
+      - name: Verify current bank integrity without falsely claiming 100 ready
+        run: |
+          python - <<'PY'
+          import json
+          import sys
+          sys.path.insert(0, "scripts")
+          from publish_axiom_thought import evidence_valid, load_history
+          rows=load_history()
+          bank=json.load(open("data/home/axiom-thought-reserve.json",encoding="utf-8"))
+          assert isinstance(bank,list) and len(bank)<=100
+          ready=sum(evidence_valid(candidate,rows) for candidate in bank)
+          print(f"AXIOM_RESERVE_READY={ready}/100 stored={len(bank)}",flush=True)
+          if ready<100: print(f"::warning::AXIOM reserve readiness is {ready}/100",flush=True)
+          PY
+      - name: Commit bank increments without touching other publishers
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- data/home/axiom-thought-reserve.json; then exit 0; fi
+          git config user.name "briefrooms-bot"
+          git config user.email "briefrooms-bot@users.noreply.github.com"
+          git add data/home/axiom-thought-reserve.json
+          git commit -m "content: increment AXIOM verified 100 thought reserve"
+          for n in 1 2 3; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            git rebase --abort || true
+            sleep $((n*5))
+          done
+          exit 1
