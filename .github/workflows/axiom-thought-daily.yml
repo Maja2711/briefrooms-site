@@ -136,6 +136,9 @@ jobs:
           exit 1
 
   semantic-smoke:
+    # Read-only live API health is advisory: it may raise an alarm, but must not
+    # block Pages deployment after the publisher itself has passed its guard.
+    continue-on-error: true
     # Runs on authorized main pushes and manual dispatch; never on untrusted PRs.
     # Read-only and independent of publication or history mutation.
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
