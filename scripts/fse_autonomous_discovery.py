@@ -213,6 +213,50 @@ def describe(centroid: Sequence[float], sample: Sequence[Mapping[str, Any]]) -> 
             "historical_sample_n": count}
 
 
+
+def describe_english(family: Mapping[str, Any]) -> dict[str, Any]:
+    """Derive English presentation only; NEVER mutate immutable evidence/family IDs.
+
+    Existing families were frozen with Polish labels, therefore translate their
+    *source geometry and frozen exploratory metrics* at public projection time.
+    This changes no discovered structure or prospective observation.
+    """
+    centroid = family.get("centroid") or []
+    if len(centroid) < 12:
+        return {
+            "name_en": f"Autonomous price-path family {family['family_id']}",
+            "description_en": "A historical structure hypothesis. Prospective validation has not been established.",
+            "applications_en": [
+                "Research hypothesis: investigate price-path similarity using future, frozen observations."
+            ],
+        }
+    path = [float(x) for x in centroid[:12]]
+    magnitude = path[-1] - path[0]
+    moves = [b - a for a, b in zip(path, path[1:])]
+    turns = sum((a > 0) != (b > 0) for a, b in zip(moves, moves[1:]) if a != 0 and b != 0)
+    ratio = abs(magnitude) / max(sum(abs(x) for x in moves), 1e-12)
+    rhythm = "multi-pulse" if turns >= 5 else "wave-like" if turns >= 3 else "continuous"
+    direction = "rising" if magnitude > 0.2 else "falling" if magnitude < -0.2 else "sideways"
+    character = "compact" if ratio >= 0.65 else "jagged" if ratio < 0.32 else "variable"
+    n = int(family.get("historical_sample_n") or 0)
+    p = float(family.get("historical_p_up") or 0.5)
+    label = f"{rhythm.capitalize()} {direction} price trace · {character}"
+    conclusion = (
+        f"This family displays a recurring {rhythm}, {direction} price path with {character} "
+        f"geometry. Across {n} historical analogues, the exploratory, smoothed "
+        f"frequency of an upward move over the next four hourly market bars was {p:.1%}. "
+        "Historical similarity is not proof of prospective predictive performance."
+    )
+    applications = [
+        "Research hypothesis: identify similar price regimes and investigate different entry conditions.",
+        ("Research hypothesis: evaluate a four-hour directional-probability filter."
+         if abs(p - 0.5) >= 0.06 else
+         "Research hypothesis: evaluate a direction-neutral filter without forcing LONG/SHORT."),
+        "Research hypothesis: assess movement risk and adverse excursions; forward validation required.",
+    ]
+    return {"name_en": label, "description_en": conclusion, "applications_en": applications}
+
+
 def blank_state() -> dict[str, Any]:
     return {"schema_version": VERSION, "families": {}, "snapshots": [],
             "resolutions": [], "authority": dict(ZERO_AUTHORITY)}
@@ -374,7 +418,7 @@ def publication(state: Mapping[str, Any], clock: datetime, errors: Mapping[str, 
         rows.append({k: copy.deepcopy(f[k]) for k in (
             "family_id", "name", "instrument", "window", "discovered_at",
             "description", "applications", "historical_sample_n", "historical_p_up",
-            "historical_median_abs_return", "methodology")} | evidence)
+            "historical_median_abs_return", "methodology")} | describe_english(f) | evidence)
     rows.sort(key=lambda x: (x["evidence_status"] != "REVIEW_CANDIDATE",
                               -x["prospective_n"], -x["historical_sample_n"], x["family_id"]))
     return {"schema_version": VERSION, "mode": "SHADOW_ONLY", "generated_at": clock.isoformat(),
