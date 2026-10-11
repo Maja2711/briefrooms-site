@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import json
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -281,6 +282,15 @@ class AxiomThoughtGuardTests(unittest.TestCase):
         ):
             self.assertEqual(main(), 2)
         save.assert_not_called()
+
+    def test_heartbeat_is_parseable_json_and_generated_with_json_serializer(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        heartbeat = json.loads((root / "data/home/axiom-thought-heartbeat.json").read_text(encoding="utf-8"))
+        self.assertEqual(set(heartbeat), {"date", "event", "run_id", "sha"})
+        self.assertRegex(heartbeat["date"], r"^\\d{4}-\\d{2}-\\d{2}$")
+        workflow = (root / ".github/workflows/axiom-thought-daily.yml").read_text(encoding="utf-8")
+        self.assertIn('json.dumps(data, ensure_ascii=False', workflow)
+        self.assertNotIn("printf '{\\\"date\\\"", workflow)
 
     def test_recovery_scheduler_is_independent_and_serialized(self) -> None:
         workflow = (Path(__file__).resolve().parents[1] / ".github/workflows/axiom-thought-daily.yml").read_text(encoding="utf-8")
