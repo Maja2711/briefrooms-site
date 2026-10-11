@@ -68,6 +68,16 @@ class DecisionLabFSEFrontendTests(unittest.TestCase):
             self.assertIn("f.description", text)
             self.assertIn("production", text.lower())
 
+    def test_english_discovery_renders_localized_fields(self):
+        js = (ROOT / "scripts/central-lab-runtime-en.js").read_text(encoding="utf-8")
+        self.assertIn("function fseDiscoveryEnglishCopy(f)", js)
+        self.assertIn("f.name_en", js)
+        self.assertIn("f.description_en", js)
+        self.assertIn("f.applications_en", js)
+        self.assertIn("esc(english.name)", js)
+        self.assertIn("esc(english.description)", js)
+        self.assertIn("english.applications.map", js)
+
     def test_fse_ui_remains_read_only(self):
         for rel in ("scripts/central-lab.js", "scripts/central-lab-runtime-en.js"):
             text = (ROOT / rel).read_text(encoding="utf-8")
@@ -128,7 +138,7 @@ class DecisionLabFSEFrontendTests(unittest.TestCase):
         self.assertIn("/assets/decision-lab.css?v=20261011-asd3", pl)
         self.assertIn("/assets/decision-lab.css?v=20261011-asd3", en)
         self.assertIn("/scripts/central-lab.js?v=20261011-asd1", pl)
-        self.assertIn("/scripts/central-lab-runtime-en.js?v=20261011-asd1", en)
+        self.assertIn("/scripts/central-lab-runtime-en.js?v=20261011-asd-en2", en)
 
 
 if __name__ == "__main__":
