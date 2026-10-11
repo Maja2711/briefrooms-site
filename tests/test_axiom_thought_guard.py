@@ -232,13 +232,15 @@ class AxiomThoughtGuardTests(unittest.TestCase):
             current_path.write_text(original_current, encoding="utf-8")
             candidate = copy.deepcopy(LATEST)
             candidate.pop("date")
+            candidate["theme"] = "predictability-and-surprise"
+            candidate["pl"] = "„Jeżeli maszyna potrafi przewidzieć wszystkie nasze ruchy, największą niewiadomą przestaje być przyszłość, a staje się to, czy jeszcze umiemy ją zaskoczyć.”"
+            candidate["en"] = "“If a machine can predict every move we make, the great unknown ceases to be the future and becomes whether we can still surprise it.”"
             with (
                 patch("scripts.publish_axiom_thought.HISTORY", history_path),
                 patch("scripts.publish_axiom_thought.CURRENT", current_path),
                 patch("scripts.publish_axiom_thought.today", return_value="2026-09-17"),
                 patch("scripts.publish_axiom_thought.validate_candidate"),
                 patch("scripts.publish_axiom_thought.semantic_review"),
-                patch("scripts.axiom_thought_guard.validate", return_value=[]),
                 patch("scripts.publish_axiom_thought.subprocess.run") as process,
             ):
                 process.return_value.returncode = 1
