@@ -67,3 +67,34 @@ jobs:
           done
           echo "::error::Urgent JSON push failed."
           exit 1
+
+      - name: Verify fresh urgent JSON on the public site
+        run: |
+          python - <<'PY'
+          import json
+          import time
+          import urllib.request
+          from datetime import datetime, timezone
+          from pathlib import Path
+          from scripts.publish_urgent_news import validate
+          expected = json.loads(Path('data/news/urgent.json').read_text(encoding='utf-8'))['checked_at']
+          for attempt in range(22):
+              try:
+                  request = urllib.request.Request(
+                      'https://briefrooms.com/data/news/urgent.json?check='
+                      + str(__import__('os').environ.get('GITHUB_RUN_ID', 'run'))
+                      + '-' + str(attempt),
+                      headers={'User-Agent': 'BriefRooms urgent verifier/1.0', 'Cache-Control': 'no-cache'},
+                  )
+                  with urllib.request.urlopen(request, timeout=12) as response:
+                      actual = json.loads(response.read().decode('utf-8'))
+                  if actual.get('checked_at') == expected:
+                      validate(actual, datetime.now(timezone.utc))
+                      print('Validated production urgent payload:', expected)
+                      break
+              except Exception as error:
+                  print('Waiting for public urgent payload:', error)
+              time.sleep(8)
+          else:
+              raise SystemExit('Urgent production verification did not converge')
+          PY
