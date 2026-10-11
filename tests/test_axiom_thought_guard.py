@@ -9,7 +9,7 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from scripts.axiom_thought_guard import similarity, validate, review_digest, review_evidence_errors
-from scripts.publish_axiom_thought import candidate_validation_stamp, semantic_review, semantic_smoke, validate_candidate, publish, main
+from scripts.publish_axiom_thought import candidate_validation_stamp, semantic_review, semantic_smoke, validate_candidate, publish, main, generate_ten, refill, evidence_valid, attach_review, core_candidate
 
 
 CURRENT = {
@@ -341,6 +341,65 @@ class AxiomThoughtGuardTests(unittest.TestCase):
         ):
             self.assertEqual(main(), 2)
         save.assert_not_called()
+
+    def test_live_batch_has_ten_explicit_distinct_candidates_before_acceptance(self) -> None:
+        template = copy.deepcopy(LATEST)
+        template.pop("date")
+        candidates = [{**template,
+                       "theme": f"idea-{i}",
+                       "pl": f"„Odważna refleksja numer {i} odkrywa odmienny mechanizm poznawczy, którego przyczyny i skutki należy rozważyć.”"}
+                      for i in range(10)]
+        with (
+            patch("scripts.publish_axiom_thought.call", return_value={"candidates": candidates}) as api,
+            patch("scripts.publish_axiom_thought.validate_candidate"),
+            patch("scripts.publish_axiom_thought.attach_review", side_effect=lambda c, r: {"approved": c["theme"]}),
+        ):
+            chosen = generate_ten([SEED], [])
+        self.assertEqual(chosen, {"approved": "idea-0"})
+        api.assert_called_once()
+
+    def test_failed_live_batch_consumes_verified_reserve_without_blocking_day(self) -> None:
+        candidate = copy.deepcopy(LATEST)
+        candidate.pop("date")
+        with (
+            patch("sys.argv", ["publish_axiom_thought.py", "--mode", "publish"]),
+            patch("scripts.publish_axiom_thought.today", return_value="2026-09-17"),
+            patch("scripts.publish_axiom_thought.load_history", return_value=[SEED, LATEST]),
+            patch("scripts.publish_axiom_thought.load_reserve", return_value=[candidate]),
+            patch("scripts.publish_axiom_thought.generate_ten", side_effect=RuntimeError("all ten rejected")),
+            patch("scripts.publish_axiom_thought.evidence_valid", return_value=True),
+            patch("scripts.publish_axiom_thought.publish") as publish_mock,
+            patch("scripts.publish_axiom_thought.save_reserve") as saved,
+        ):
+            self.assertEqual(main(), 0)
+        self.assertEqual(publish_mock.call_count, 1)
+        self.assertEqual(publish_mock.call_args.args[-1], "reserve-vetted")
+        saved.assert_called_once_with([])
+
+    def test_reserve_capacity_is_100_and_fill_is_bounded_per_run(self) -> None:
+        from scripts import publish_axiom_thought as publisher
+        self.assertEqual(publisher.RESERVE_TARGET, 100)
+        rows = [SEED, LATEST]
+        stored = []
+        generated = copy.deepcopy(LATEST)
+        generated.pop("date")
+        with (
+            patch("scripts.publish_axiom_thought.REFILL_BATCH", 2),
+            patch("scripts.publish_axiom_thought.generate", return_value=generated) as gen,
+            patch("scripts.publish_axiom_thought.save_reserve", side_effect=lambda x: stored.append(len(x))),
+            patch("scripts.publish_axiom_thought.evidence_valid", return_value=True),
+        ):
+            pool = []
+            self.assertTrue(refill(rows, pool))
+        self.assertEqual(len(pool), 2)
+        self.assertEqual(gen.call_count, 2)
+        self.assertEqual(stored, [1, 2])
+
+    def test_unvetted_reserve_is_never_misrepresented_as_preapproved(self) -> None:
+        candidate = copy.deepcopy(LATEST)
+        candidate.pop("date")
+        self.assertFalse(evidence_valid(candidate, [SEED]))
+        self.assertEqual(core_candidate(candidate), candidate)
 
     def test_heartbeat_is_parseable_json_and_generated_with_json_serializer(self) -> None:
         root = Path(__file__).resolve().parents[1]
