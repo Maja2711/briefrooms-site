@@ -198,6 +198,76 @@ def has_substantive_headline(title: Any) -> bool:
     return False
 
 
+
+# Source-neutral broadcast-promotion filter. A show teaser/episode/guest schedule
+# is not an editorial news event, even when issued by a reputable news outlet.
+# Real policy announcements quoted in an interview remain eligible when their
+# headline is about the announcement rather than the TV programme.
+_TV_SHOW_TITLES = re.compile(
+    r"\b(?:śniadani(?:e|u)\s+(?:u\s+)?rymanowskiego|sportowy\s+wieczór|"
+    r"gość\s+wydarzeń|fakty\s+po\s+faktach|kropka\s+nad\s+i|"
+    r"cnn\s+tonight|cnn\s+newsroom|anderson\s+cooper\s+360|"
+    r"state\s+of\s+the\s+union|meet\s+the\s+press|the\s+situation\s+room|"
+    r"fareed\s+zakaria\s+gps)\b",
+    re.IGNORECASE,
+)
+_TV_EPISODE_OR_LINEUP = re.compile(
+    r"(?:\b(?:sportow\w*|informacyjn\w*|publicystyczn\w*)\s+magazyn\b|"
+    r"\b(?:magazyn|program)\s+(?:sportow\w*|publicystyczn\w*|telewizyjn\w*)\b|"
+    r"\b(?:nowy|najnowszy|pełny|cały|dzisiejszy)\s+odcinek\b|"
+    r"\b(?:goście|gośćmi|gościem)\s+(?:dzisiejszego|niedzielnego|wieczornego)?\s*(?:programu|wydania)\b|"
+    r"\b(?:lista|pełna\s+lista)\s+gości\b|"
+    r"\b(?:wydanie|odcinek)\s+(?:z\s+dnia|programu|magazynu)\b|"
+    r"\b(?:tonight'?s?|today'?s?)\s+(?:episode|show|lineup|guests)\b|"
+    r"\b(?:full|latest|new)\s+episode\b|"
+    r"\b(?:guest\s+lineup|tv\s+show|television\s+program(?:me)?|"
+    r"talk[\s-]?show|sports?\s+show)\b)",
+    re.IGNORECASE,
+)
+_TV_WATCH_OR_AIRTIME = re.compile(
+    r"\b(?:oglądaj|obejrzyj|zapraszamy|nie\s+przegap|"
+    r"na\s+antenie|o\s+godzinie\s+\d|transmisja\s+o\s+\d|"
+    r"watch\s+(?:live|tonight|today|the\s+show)|tune\s+in|"
+    r"join\s+us\s+(?:live|tonight)|airs?\s+(?:tonight|today|at\s+\d)|"
+    r"stream(?:ing)?\s+(?:live|tonight))\b",
+    re.IGNORECASE,
+)
+_TV_SHOW_TEASER = re.compile(
+    r"(?:^\s*(?:tonight|today|this\s+week)\s+on\s+\S+|"
+    r"^\s*(?:dziś|dzisiaj|jutro)\s+(?:w\s+(?:tv|telewizji|programie)|na\s+antenie)|"
+    r"\b(?:w\s+(?:polsat\s+news|tvn24|tvp\s+sport|cnn|bbc)\s+i\s+\S+)\b)",
+    re.IGNORECASE,
+)
+_TV_PROGRAM_CONTEXT = re.compile(
+    r"\b(?:program\w*|magazyn\w*|audycj\w*|telewizj\w*|"
+    r"odcink\w*|wydani\w*|emisj\w*|transmisj\w*|anten\w*|"
+    r"polsat\s+news|tvn24|tvp\s+sport|cnn|bbc|"
+    r"broadcast|episode|tv\s+show|television|on\s+air|"
+    r"live\s+on|tonight\s+on)\b",
+    re.IGNORECASE,
+)
+
+
+def _is_tv_program_promotion(headline: str, description: str) -> bool:
+    """Exclude TV/broadcast programme publicity regardless of its publisher."""
+    combined = f"{headline} {description[:320]}"
+    if _TV_SHOW_TITLES.search(headline):
+        return True
+    if _TV_EPISODE_OR_LINEUP.search(headline):
+        return True
+    if _TV_SHOW_TEASER.search(headline):
+        return True
+    if _TV_WATCH_OR_AIRTIME.search(headline) and _TV_PROGRAM_CONTEXT.search(combined):
+        return True
+    # A programme-only title may omit the format; the accompanying programme
+    # description reveals that it is a broadcast recap or viewing invitation.
+    if (
+        _TV_PROGRAM_CONTEXT.search(headline)
+        and _TV_EPISODE_OR_LINEUP.search(description)
+    ):
+        return True
+    return False
+
 def _is_media_self_promotion(combined: str) -> bool:
     """Reject audience/ratings PR unless the story has a real external consequence."""
     if _MEDIA_PUBLIC_INTEREST.search(combined):
@@ -224,6 +294,9 @@ def evaluate_story(title: Any, summary: Any = "") -> NewsQualityDecision:
         _INTERVIEW_META.search(headline) and not has_substantive_headline(headline)
     ):
         return NewsQualityDecision(False, "interview_promo_without_substance")
+
+    if _is_tv_program_promotion(headline, description):
+        return NewsQualityDecision(False, "tv_program_promotion")
 
     if _LOTTERY_TOPIC.search(combined):
         headline_is_result = bool(_LOTTERY_RESULT_PROMO.search(headline))
@@ -259,17 +332,18 @@ def public_policy() -> dict[str, Any]:
         "version": POLICY_VERSION,
         "purpose_pl": (
             "Wybór wiadomości o realnym znaczeniu publicznym, gospodarczym lub systemowym. "
-            "Filtr odrzuca autopromocję wydawców, jednostkowe incydenty, komunikaty personalne "
+            "Filtr odrzuca autopromocję wydawców, zapowiedzi i streszczenia programów TV, jednostkowe incydenty, komunikaty personalne "
             "i promocję hazardu, nawet gdy są świeże lub sensacyjne."
         ),
         "purpose_en": (
             "Select stories with real public, economic or systemic significance. "
-            "Publisher self-promotion, isolated incidents, personal notices and gambling promotion "
+            "Publisher self-promotion, television programme teasers and recaps, isolated incidents, personal notices and gambling promotion "
             "are rejected even when fresh or sensational."
         ),
         "excluded": [
             {"id": "death_notice", "description_pl": "Samodzielne nekrologi i informacje o śmierci konkretnej osoby.", "description_en": "Standalone obituaries and personal death notices."},
             {"id": "interview_promo_without_substance", "description_pl": "Zapowiedzi wywiadów i gości bez konkretnej tezy lub skutku.", "description_en": "Interview and guest promotion without a concrete claim or consequence."},
+            {"id": "tv_program_promotion", "description_pl": "Promowanie programów i magazynów TV: ramówki, odcinki, listy gości, zaproszenia do oglądania i materiały będące tylko streszczeniem audycji, niezależnie od nadawcy.", "description_en": "TV and broadcast programme promotion: episode listings, guest lineups, watch invitations and programme-only recaps, regardless of broadcaster."},
             {"id": "lottery_result_or_jackpot_promo", "description_pl": "Wyniki losowań, jackpoty i promocja kwot do wygrania.", "description_en": "Lottery results, jackpots and prize-pool promotion."},
             {"id": "betting_promotion", "description_pl": "Bonusy bukmacherskie i reklamy zakładów.", "description_en": "Betting bonuses and promotional offers."},
             {"id": "media_self_promotion", "description_pl": "Autopromocja mediów: oglądalność, zasięg, widownia i podobne wewnętrzne KPI bez skutku rynkowego lub regulacyjnego.", "description_en": "Media self-promotion: ratings, reach, audience and similar internal KPIs without market or regulatory consequence."},
