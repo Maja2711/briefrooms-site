@@ -290,7 +290,7 @@ class AxiomThoughtGuardTests(unittest.TestCase):
                 patch("scripts.publish_axiom_thought.CURRENT", current_path),
                 patch("scripts.publish_axiom_thought.today", return_value="2026-09-17"),
                 patch("scripts.publish_axiom_thought.validate_candidate"),
-                patch("scripts.publish_axiom_thought.semantic_review"),
+                patch("scripts.publish_axiom_thought.semantic_review", return_value=[]),
                 patch("scripts.publish_axiom_thought.subprocess.run") as process,
             ):
                 process.return_value.returncode = 1
