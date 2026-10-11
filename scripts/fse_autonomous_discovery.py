@@ -301,7 +301,7 @@ def discover(state: dict[str, Any], instrument: str, bars: Sequence[Any], clock:
                            for f in same_window), key=lambda pair: pair[0],
                           default=(math.inf, None))
             # Legacy families remain an exclusion zone after retirement.
-            if nearest[1] is not None and nearest[0] <= max(group["radius"], nearest[1]["radius"]):
+            if nearest[1] is not None and nearest[0] <= max(group["radius"], nearest[1]["radius"]) * (1.5 if nearest[1]["family_id"] in retired_ids(state) else 1.0):
                 continue
             centroid = group["centroid"]
             family_id = "ASD-" + digest({"instrument": instrument, "window": window,
@@ -432,12 +432,26 @@ def resolve(state: dict[str, Any], instrument: str,
 
 
 def statistically_positive_paired(values: Sequence[float], min_n: int = REQUIRED_FORWARD_N) -> bool:
-    """Conservative one-sided evidence gate; paired deltas, not historical hit rate."""
-    if len(values) < min_n:
+    """HAC-adjusted one-sided evidence test on strictly prospective paired deltas.
+
+    Adjacent hourly snapshots share a four-bar target and are not independent.
+    A lag-3 Newey-West estimate reduces spurious significance from overlap;
+    the conservative 2.58 threshold also covers the two measured endpoints.
+    This is a research-review gate, never proof of trading profitability.
+    """
+    n = len(values)
+    if n < min_n or not all(math.isfinite(float(x)) for x in values):
         return False
-    stderr = statistics.stdev(values) / math.sqrt(len(values)) if len(values) > 1 else math.inf
-    # 2.58≈99.5% one-sided; conservative for testing both direction & movement.
-    return mean(values) - 2.58 * stderr > 0
+    avg = mean(values)
+    deviations = [float(x) - avg for x in values]
+    gamma0 = sum(v * v for v in deviations) / n
+    variance = gamma0
+    max_lag = min(HORIZON - 1, n - 1)
+    for lag in range(1, max_lag + 1):
+        gamma = sum(deviations[i] * deviations[i-lag] for i in range(lag, n)) / n
+        variance += 2 * (1 - lag / (max_lag + 1)) * gamma
+    stderr = math.sqrt(max(0.0, variance) / n)
+    return avg - 2.58 * stderr > 0
 
 
 def family_evidence(state: Mapping[str, Any], family_id: str) -> dict[str, Any]:
