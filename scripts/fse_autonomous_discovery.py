@@ -27,7 +27,7 @@ VERSION = "FSE-ASD-1.0"
 HORIZON = 4
 WINDOWS = (32, 64)
 MIN_SUPPORT = 6
-MAX_FAMILIES_PER_INSTRUMENT = 14
+MAX_NEW_FAMILIES_PER_INSTRUMENT_CYCLE = 4  # rate limit only, no lifetime discovery cap
 MAX_CANDIDATES = 420
 REQUIRED_FORWARD_N = 40
 STATE_NAME = "autonomous_discovery_state.json"
@@ -200,13 +200,8 @@ def describe(centroid: Sequence[float], sample: Sequence[Mapping[str, Any]]) -> 
     conclusion = (f"Rodzina powtarza {rhythm} przebieg {direction} o {character} charakterze. "
                   f"W {count} historycznych analogiach zaobserwowano {direction_hypothesis} "
                   f"na czterech kolejnych świecach godzinowych; bez dowodu prospektywnego.")
-    applications = [
-        "Hipoteza badawcza: rozpoznawanie podobnego reżimu ceny i odmiennych warunków wejścia.",
-        ("Hipoteza badawcza: filtr prawdopodobieństwa kierunku w horyzoncie 4 świec 1h."
-         if abs(historical_p - 0.5) >= 0.06 else
-         "Hipoteza badawcza: filtr neutralności kierunkowej, bez wymuszania LONG/SHORT."),
-        "Hipoteza badawcza: ocena ryzyka ruchu i niekorzystnego odchylenia; wymaga walidacji forward.",
-    ]
+    # Meaning cannot be inferred from an in-sample clustering exercise.
+    applications: list[str] = []
     return {"name": name, "description": conclusion, "applications": applications,
             "historical_p_up": round(historical_p, 6),
             "historical_median_abs_return": round(forward_abs, 8),
@@ -226,9 +221,7 @@ def describe_english(family: Mapping[str, Any]) -> dict[str, Any]:
         return {
             "name_en": f"Autonomous price-path family {family['family_id']}",
             "description_en": "A historical structure hypothesis. Prospective validation has not been established.",
-            "applications_en": [
-                "Research hypothesis: investigate price-path similarity using future, frozen observations."
-            ],
+            "applications_en": [],
         }
     path = [float(x) for x in centroid[:12]]
     magnitude = path[-1] - path[0]
@@ -247,19 +240,13 @@ def describe_english(family: Mapping[str, Any]) -> dict[str, Any]:
         f"frequency of an upward move over the next four hourly market bars was {p:.1%}. "
         "Historical similarity is not proof of prospective predictive performance."
     )
-    applications = [
-        "Research hypothesis: identify similar price regimes and investigate different entry conditions.",
-        ("Research hypothesis: evaluate a four-hour directional-probability filter."
-         if abs(p - 0.5) >= 0.06 else
-         "Research hypothesis: evaluate a direction-neutral filter without forcing LONG/SHORT."),
-        "Research hypothesis: assess movement risk and adverse excursions; forward validation required.",
-    ]
+    applications: list[str] = []
     return {"name_en": label, "description_en": conclusion, "applications_en": applications}
 
 
 def blank_state() -> dict[str, Any]:
     return {"schema_version": VERSION, "families": {}, "snapshots": [],
-            "resolutions": [], "authority": dict(ZERO_AUTHORITY)}
+            "resolutions": [], "lifecycle_events": [], "authority": dict(ZERO_AUTHORITY)}
 
 
 def verify(state: Mapping[str, Any]) -> None:
@@ -269,37 +256,52 @@ def verify(state: Mapping[str, Any]) -> None:
         frozen = {k: v for k, v in family.items() if k != "definition_hash"}
         if family.get("family_id") != key or family.get("definition_hash") != digest(frozen):
             raise ValueError("Immutable family definition changed")
-    for section in ("snapshots", "resolutions"):
+    for section in ("snapshots", "resolutions", "lifecycle_events"):
         prior = "GENESIS"; seen: set[str] = set()
         for row in state.get(section, []):
             body = {k: v for k, v in row.items() if k != "event_hash"}
             if body.get("previous_hash") != prior or row.get("event_hash") != digest(body):
                 raise ValueError(f"Broken {section} evidence hash chain")
-            sid = row.get("snapshot_id")
+            sid = row.get("event_id") if section == "lifecycle_events" else row.get("snapshot_id")
             if not sid or sid in seen:
-                raise ValueError(f"Duplicate {section} snapshot id")
+                raise ValueError(f"Duplicate {section} evidence id")
+            if section == "lifecycle_events":
+                if row.get("family_id") not in state.get("families", {}):
+                    raise ValueError("Lifecycle event refers to an unknown family")
+                if row.get("reason") not in {"NO_PROVEN_EDGE_AFTER_40", "REDUNDANT_GEOMETRY"}:
+                    raise ValueError("Unrecognized lifecycle reason")
             seen.add(sid); prior = row["event_hash"]
 
 
 def append_evidence(state: dict[str, Any], section: str, entry: Mapping[str, Any]) -> None:
-    rows = state[section]
+    rows = state.setdefault(section, [])
     body = {**copy.deepcopy(dict(entry)),
             "previous_hash": rows[-1]["event_hash"] if rows else "GENESIS"}
     rows.append({**body, "event_hash": digest(body)})
 
 
+def retired_ids(state: Mapping[str, Any]) -> set[str]:
+    return {str(e["family_id"]) for e in state.get("lifecycle_events", [])
+            if e.get("action") == "RETIRED"}
+
+
 def discover(state: dict[str, Any], instrument: str, bars: Sequence[Any], clock: datetime) -> int:
+    # Keep the complete immutable memory, including rejected families. This
+    # suppresses rediscovery of an unsuccessful hypothesis under a new ID.
     existing = [f for f in state["families"].values() if f["instrument"] == instrument]
     created = 0
     for window in WINDOWS:
         sample = candidates(bars, window)
         groups = learn_groups(sample)
         for group in groups:
-            if len(existing) >= MAX_FAMILIES_PER_INSTRUMENT:
-                break
-            nearest = min((distance(group["centroid"], f["centroid"])
-                           for f in existing if f["window"] == window), default=math.inf)
-            if nearest <= group["radius"]:
+            if created >= MAX_NEW_FAMILIES_PER_INSTRUMENT_CYCLE:
+                return created
+            same_window = [f for f in existing if f["window"] == window]
+            nearest = min(((distance(group["centroid"], f["centroid"]), f)
+                           for f in same_window), key=lambda pair: pair[0],
+                          default=(math.inf, None))
+            # Legacy families remain an exclusion zone after retirement.
+            if nearest[1] is not None and nearest[0] <= max(group["radius"], nearest[1]["radius"]) * (1.5 if nearest[1]["family_id"] in retired_ids(state) else 1.0):
                 continue
             centroid = group["centroid"]
             family_id = "ASD-" + digest({"instrument": instrument, "window": window,
@@ -311,11 +313,46 @@ def discover(state: dict[str, Any], instrument: str, bars: Sequence[Any], clock:
                    "centroid": centroid, "radius": round(group["radius"], 6),
                    "methodology": "unsupervised_adaptive_density_medoid_no_named_pattern_templates",
                    **describe(centroid, group["members"])}
+            # A nearby but distinguishable mode becomes a new candidate branch,
+            # not an edit of its ancestor's definition or resolved evidence.
+            if nearest[1] is not None and nearest[0] <= 1.5 * max(group["radius"], nearest[1]["radius"]):
+                row["parent_family_id"] = nearest[1]["family_id"]
             row["definition_hash"] = digest(row)
             state["families"][family_id] = row
             existing.append(row)
             created += 1
     return created
+
+
+def retire_failed_families(state: dict[str, Any], clock: datetime) -> int:
+    """Remove falsified hypotheses from the active catalogue, NOT audit history.
+
+    All original family definitions and immutable forecast/outcome evidence
+    remain retained, including non-winning hypotheses, to prevent reset abuse.
+    """
+    retired = retired_ids(state)
+    count = 0
+    for family_id in sorted(state["families"]):
+        if family_id in retired:
+            continue
+        assessment = family_evidence(state, family_id)
+        if assessment["prospective_n"] < REQUIRED_FORWARD_N:
+            continue
+        if assessment["evidence_status"] == "REVIEW_CANDIDATE":
+            continue
+        append_evidence(state, "lifecycle_events", {
+            "event_id": "retirement:" + family_id,
+            "family_id": family_id,
+            "action": "RETIRED", "reason": "NO_PROVEN_EDGE_AFTER_40",
+            "at": clock.isoformat(),
+            "evaluated_n": assessment["prospective_n"],
+            "directional_improvement": assessment["incremental_brier"],
+            "absolute_move_improvement": assessment.get("incremental_abs_move_mae"),
+            "production_authority": False,
+        })
+        retired.add(family_id)
+        count += 1
+    return count
 
 
 def capture(state: dict[str, Any], instrument: str, bars: Sequence[Any],
@@ -330,10 +367,11 @@ def capture(state: dict[str, Any], instrument: str, bars: Sequence[Any],
     if any(r["snapshot_id"] == snapshot_id for r in state["snapshots"]):
         return False
     matches = []
+    retired = retired_ids(state)
     for window in WINDOWS:
         feature = fingerprint([float(b.close) for b in bars[-window:]])
         for family in state["families"].values():
-            if family["instrument"] != instrument or family["window"] != window or not feature:
+            if family["family_id"] in retired or family["instrument"] != instrument or family["window"] != window or not feature:
                 continue
             d = distance(feature, family["centroid"])
             if d <= family["radius"]:
@@ -342,13 +380,17 @@ def capture(state: dict[str, Any], instrument: str, bars: Sequence[Any],
     baseline = candidates(bars, 32)
     baseline_up = sum(r["return"] > 0 for r in baseline)
     baseline_p = (baseline_up + 2) / (len(baseline) + 4) if baseline else 0.5
+    baseline_abs = (statistics.median(abs(r["return"]) for r in baseline) if baseline else None)
     payload = {"snapshot_id": snapshot_id, "instrument": instrument,
                "observed_at": observed.isoformat(), "frozen_at": clock.isoformat(),
                "reference_close": float(current.close),
                "family_id": winner["family_id"] if winner else None,
                "status": "FROZEN_MATCH" if winner else "FROZEN_NOVEL_UNMATCHED",
                "p_up": winner["historical_p_up"] if winner else None,
-               "baseline_p_up": round(baseline_p, 6), "horizon_bars": HORIZON,
+               "baseline_p_up": round(baseline_p, 6),
+               "predicted_abs_move": winner["historical_median_abs_return"] if winner else None,
+               "baseline_abs_move": round(baseline_abs, 8) if baseline_abs is not None else None,
+               "horizon_bars": HORIZON,
                "prospective": True, "execution_authority": False}
     append_evidence(state, "snapshots", payload)
     return True
@@ -379,25 +421,59 @@ def resolve(state: dict[str, Any], instrument: str,
             "resolved_at": clock.isoformat(), "outcome_up": y, "forward_return": round(final / base - 1, 9),
             "brier": round((p - y) ** 2, 9) if p is not None else None,
             "baseline_brier": round((snap["baseline_p_up"] - y) ** 2, 9) if p is not None else None,
+            "abs_move_mae": (round(abs(abs(final / base - 1) - snap["predicted_abs_move"]), 9)
+                             if p is not None and snap.get("predicted_abs_move") is not None else None),
+            "baseline_abs_move_mae": (round(abs(abs(final / base - 1) - snap["baseline_abs_move"]), 9)
+                                      if p is not None and snap.get("baseline_abs_move") is not None else None),
             "prospective": True, "execution_authority": False,
         })
         outcomes.add(snap["snapshot_id"]); count += 1
     return count
 
 
+def statistically_positive_paired(values: Sequence[float], min_n: int = REQUIRED_FORWARD_N) -> bool:
+    """HAC-adjusted one-sided evidence test on strictly prospective paired deltas.
+
+    Adjacent hourly snapshots share a four-bar target and are not independent.
+    A lag-3 Newey-West estimate reduces spurious significance from overlap;
+    the conservative 2.58 threshold also covers the two measured endpoints.
+    This is a research-review gate, never proof of trading profitability.
+    """
+    n = len(values)
+    if n < min_n or not all(math.isfinite(float(x)) for x in values):
+        return False
+    avg = mean(values)
+    deviations = [float(x) - avg for x in values]
+    gamma0 = sum(v * v for v in deviations) / n
+    variance = gamma0
+    max_lag = min(HORIZON - 1, n - 1)
+    for lag in range(1, max_lag + 1):
+        gamma = sum(deviations[i] * deviations[i-lag] for i in range(lag, n)) / n
+        variance += 2 * (1 - lag / (max_lag + 1)) * gamma
+    stderr = math.sqrt(max(0.0, variance) / n)
+    return avg - 2.58 * stderr > 0
+
+
 def family_evidence(state: Mapping[str, Any], family_id: str) -> dict[str, Any]:
-    rows = [x for x in state["resolutions"] if x["family_id"] == family_id and x["brier"] is not None]
+    rows = [x for x in state["resolutions"] if x["family_id"] == family_id and
+            isinstance(x.get("brier"), (int, float)) and isinstance(x.get("baseline_brier"), (int, float))]
     n = len(rows)
     gains = [x["baseline_brier"] - x["brier"] for x in rows]
-    advantage = mean(gains) if n else None
-    stderr = statistics.stdev(gains) / math.sqrt(n) if n > 1 else math.inf
-    review = n >= REQUIRED_FORWARD_N and (advantage or 0) - 1.96 * stderr > 0
-    status = ("REVIEW_CANDIDATE" if review else
+    directional_pass = statistically_positive_paired(gains)
+    move_rows = [x for x in rows if isinstance(x.get("abs_move_mae"), (float, int))
+                 and isinstance(x.get("baseline_abs_move_mae"), (float, int))]
+    movement_gains = [x["baseline_abs_move_mae"] - x["abs_move_mae"] for x in move_rows]
+    movement_pass = statistically_positive_paired(movement_gains)
+    status = ("REVIEW_CANDIDATE" if directional_pass or movement_pass else
               "NO_PROVEN_EDGE" if n >= REQUIRED_FORWARD_N else
               "PROSPECTIVE_COLLECTION" if n else "HISTORICAL_DISCOVERY_ONLY")
-    return {"prospective_n": n, "mean_brier": round(mean([r["brier"] for r in rows]), 6) if n else None,
+    return {"prospective_n": n,
+            "mean_brier": round(mean([r["brier"] for r in rows]), 6) if n else None,
             "paired_baseline_brier": round(mean([r["baseline_brier"] for r in rows]), 6) if n else None,
-            "incremental_brier": round(advantage, 6) if n else None,
+            "incremental_brier": round(mean(gains), 6) if n else None,
+            "prospective_abs_move_n": len(move_rows),
+            "incremental_abs_move_mae": round(mean(movement_gains), 8) if movement_gains else None,
+            "directional_pass": directional_pass, "absolute_move_pass": movement_pass,
             "evidence_status": status, "review_only": True}
 
 
@@ -413,14 +489,36 @@ def publication(state: Mapping[str, Any], clock: datetime, errors: Mapping[str, 
                             "prospective": snap["snapshot_id"] in resolved,
                             "p_up": snap["p_up"]})
     rows = []
+    retired = retired_ids(state)
     for f in state["families"].values():
+        if f["family_id"] in retired:
+            continue
         evidence = family_evidence(state, f["family_id"])
+        # Meaning is unknown until prospective evidence beats a frozen baseline.
+        # Never publish legacy template applications even though preserved in history.
+        meaning_pl = []
+        meaning_en = []
+        if evidence["evidence_status"] == "REVIEW_CANDIDATE":
+            if evidence["directional_pass"]:
+                meaning_pl.append("Kandydat badawczy: filtr kierunku na horyzoncie 4 świec 1h; wymaga niezależnego przeglądu.")
+                meaning_en.append("Research candidate: four-hour direction filter; requires independent review.")
+            if evidence["absolute_move_pass"]:
+                meaning_pl.append("Kandydat badawczy: ocena bezwzględnego rozmiaru ruchu; wymaga niezależnego przeglądu.")
+                meaning_en.append("Research candidate: absolute movement size estimate; requires independent review.")
         rows.append({k: copy.deepcopy(f[k]) for k in (
             "family_id", "name", "instrument", "window", "discovered_at",
             "description", "applications", "historical_sample_n", "historical_p_up",
-            "historical_median_abs_return", "methodology")} | describe_english(f) | evidence)
+            "historical_median_abs_return", "methodology")} |
+                    describe_english(f) | evidence |
+                    {"applications": meaning_pl, "applications_en": meaning_en,
+                     "application_status": ("RESEARCH_CANDIDATE" if meaning_pl else "UNDETERMINED"),
+                     "shape_points": list(f["centroid"][:12]),
+                     "parent_family_id": f.get("parent_family_id")})
     rows.sort(key=lambda x: (x["evidence_status"] != "REVIEW_CANDIDATE",
                               -x["prospective_n"], -x["historical_sample_n"], x["family_id"]))
+    # Do not show a retired family as the current recommendation.
+    current = [dict(x, family_id=None, status="RETIRED_NOT_MATCHED")
+               if x["family_id"] in retired else x for x in current]
     return {"schema_version": VERSION, "mode": "SHADOW_ONLY", "generated_at": clock.isoformat(),
             "engine": "FSE Autonomous Structure Discovery", "authority": dict(ZERO_AUTHORITY),
             "automatic_promotion": False, "production_impact": False,
@@ -428,6 +526,7 @@ def publication(state: Mapping[str, Any], clock: datetime, errors: Mapping[str, 
             "evidence_definition": "Historical examples describe hypotheses only. Prospective 4x1h outcomes alone count as validation.",
             "minimum_forward_n": REQUIRED_FORWARD_N,
             "summary": {"families": len(rows),
+                        "retired_families": len(retired),
                         "historical_only": sum(x["prospective_n"] == 0 for x in rows),
                         "review_candidates": sum(x["evidence_status"] == "REVIEW_CANDIDATE" for x in rows),
                         "frozen_snapshots": len(state["snapshots"]),
@@ -445,6 +544,7 @@ def cycle(state: dict[str, Any], histories: Mapping[str, Sequence[Any]], clock: 
         # The current forecast is frozen against a catalog trained on historical
         # bars. Existing prospective evidence resolves independently afterward.
         resolve(state, instrument, bars, clock)
+        retire_failed_families(state, clock)
         discover(state, instrument, bars, clock)
         capture(state, instrument, bars, clock)
     verify(state)

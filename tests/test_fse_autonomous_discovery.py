@@ -66,7 +66,7 @@ class FSEAutonomousDiscoveryTests(unittest.TestCase):
         up = asd.describe([0, .1, .5, 1, .4, .2, 1.2, .8, 1.5, 2, 2.5, 3, 0, 0, 0], members)
         down = asd.describe([0, -.1, -.5, -1, -.4, -.2, -1.2, -.8, -1.5, -2, -2.5, -3, 0, 0, 0], members)
         self.assertNotEqual(up["name"], down["name"])
-        self.assertIn("hipoteza", " ".join(up["applications"]).lower())
+        self.assertEqual(up["applications"], [])
         self.assertIn("bez dowodu prospektywnego", up["description"])
 
     def test_freeze_separates_discovery_from_later_outcome(self):
@@ -117,11 +117,129 @@ class FSEAutonomousDiscoveryTests(unittest.TestCase):
         family = next(row for row in public["families"] if row["family_id"] == fid)
         self.assertIn("name_en", family)
         self.assertIn("description_en", family)
-        self.assertEqual(len(family["applications_en"]), 3)
+        self.assertEqual(family["applications_en"], [])
         self.assertIn("historical analogues", family["description_en"])
+        self.assertEqual(family["application_status"], "UNDETERMINED")
+        self.assertEqual(family["applications"], [])
+        self.assertEqual(len(family["shape_points"]), 12)
         self.assertEqual(state, before)
         asd.verify(state)
         self.assertNotIn("name_en", state["families"][fid])
+
+    @staticmethod
+    def add_prospective_results(state, family_id, n, brier, baseline,
+                                abs_move=None, baseline_abs=None):
+        for k in range(n):
+            asd.append_evidence(state, "resolutions", {
+                "snapshot_id": f"test:{family_id}:{k}",
+                "instrument": "BTCUSD", "family_id": family_id,
+                "outcome_observed_at": (datetime(2026, 10, 1, tzinfo=timezone.utc)
+                                        + timedelta(hours=k)).isoformat(),
+                "resolved_at": (datetime(2026, 10, 1, tzinfo=timezone.utc)
+                                + timedelta(hours=k+4)).isoformat(),
+                "outcome_up": 1, "forward_return": 0.005,
+                "brier": brier, "baseline_brier": baseline,
+                "abs_move_mae": abs_move, "baseline_abs_move_mae": baseline_abs,
+                "prospective": True, "execution_authority": False
+            })
+
+    def test_reject_at_40_without_positive_evidence_and_hide_from_frontend(self):
+        original = bars()
+        state = asd.blank_state()
+        fid = registered_family(state, original)
+        self.add_prospective_results(state, fid, 39, .27, .25)
+        t = clock_after(original)
+        self.assertEqual(asd.retire_failed_families(state, t), 0)
+        self.assertEqual(asd.publication(state, t)["summary"]["families"], 1)
+        asd.append_evidence(state, "resolutions", {
+            "snapshot_id": "test:40", "instrument": "BTCUSD", "family_id": fid,
+            "outcome_observed_at": t.isoformat(), "resolved_at": t.isoformat(),
+            "brier": .27, "baseline_brier": .25,
+            "prospective": True, "execution_authority": False
+        })
+        self.assertEqual(asd.family_evidence(state, fid)["evidence_status"], "NO_PROVEN_EDGE")
+        self.assertEqual(asd.retire_failed_families(state, t), 1)
+        self.assertEqual(asd.retire_failed_families(state, t), 0)
+        self.assertIn(fid, state["families"])
+        self.assertEqual(len(state["lifecycle_events"]), 1)
+        self.assertEqual(state["lifecycle_events"][0]["evaluated_n"], 40)
+        visible = asd.publication(state, t)
+        self.assertEqual(visible["families"], [])
+        self.assertEqual(visible["summary"]["retired_families"], 1)
+        self.assertFalse(asd.capture(state, "BTCUSD", [], t))
+        asd.verify(state)
+        tampered = copy.deepcopy(state)
+        tampered["lifecycle_events"][0]["reason"] = "REVIEW_CANDIDATE"
+        with self.assertRaises(ValueError):
+            asd.verify(tampered)
+
+    def test_positive_directional_gain_at_40_is_review_not_auto_promotion(self):
+        state = asd.blank_state()
+        fid = registered_family(state, bars())
+        self.add_prospective_results(state, fid, 40, .15, .25)
+        status = asd.family_evidence(state, fid)
+        self.assertTrue(status["directional_pass"])
+        self.assertEqual(status["evidence_status"], "REVIEW_CANDIDATE")
+        t = clock_after(bars())
+        self.assertEqual(asd.retire_failed_families(state, t), 0)
+        row = asd.publication(state, t)["families"][0]
+        self.assertEqual(row["application_status"], "RESEARCH_CANDIDATE")
+        self.assertEqual(len(row["applications"]), 1)
+        self.assertEqual(len(row["applications_en"]), 1)
+        self.assertFalse(asd.publication(state, t)["automatic_promotion"])
+
+    def test_positive_absolute_movement_gain_can_rescue_weak_direction(self):
+        state = asd.blank_state()
+        fid = registered_family(state, bars())
+        self.add_prospective_results(state, fid, 40, .27, .25, .002, .009)
+        status = asd.family_evidence(state, fid)
+        self.assertFalse(status["directional_pass"])
+        self.assertTrue(status["absolute_move_pass"])
+        self.assertEqual(status["evidence_status"], "REVIEW_CANDIDATE")
+        row = asd.publication(state, clock_after(bars()))["families"][0]
+        self.assertEqual(len(row["applications"]), 1)
+        self.assertIn("rozmiaru ruchu", row["applications"][0])
+
+    def test_growing_catalogue_has_no_14_family_lifetime_cap(self):
+        from unittest.mock import patch
+        state = asd.blank_state()
+        original = bars()
+        registered_family(state, original)
+        for i in range(20):
+            base = copy.deepcopy(state["families"]["ASD-TEST0001"])
+            base["family_id"] = f"ASD-ALREADY{i:04d}"
+            base["centroid"] = [float(i+2)] * 15
+            base["definition_hash"] = asd.digest({k:v for k,v in base.items() if k!="definition_hash"})
+            state["families"][base["family_id"]] = base
+        group = {"centroid": [200.0] * 15, "radius": .15,
+                 "members": [{"return": 0.02}] * 8, "count": 8}
+        with patch.object(asd, "candidates", return_value=[{"vector": [200.0] * 15}]*8),\
+             patch.object(asd, "learn_groups", return_value=[group]):
+            created = asd.discover(state, "BTCUSD", original, clock_after(original))
+        self.assertGreater(created, 0)
+        self.assertGreater(len(state["families"]), 21)
+        asd.verify(state)
+
+    def test_retired_family_cannot_reenter_with_identical_historical_shape(self):
+        from unittest.mock import patch
+        state = asd.blank_state()
+        source = bars()
+        fid = registered_family(state, source)
+        self.add_prospective_results(state, fid, 40, .28, .25)
+        asd.retire_failed_families(state, clock_after(source))
+        f = state["families"][fid]
+        old_group = {"centroid": f["centroid"], "radius": f["radius"],
+                     "members": [{"return": 0.0}] * 8, "count": 8}
+        def candidate_rows(_bars, window):
+            return ([{"vector": f["centroid"]}]*8 if window == 32 else [])
+        def group_rows(rows):
+            return [old_group] if rows else []
+        with patch.object(asd, "candidates", side_effect=candidate_rows),\
+             patch.object(asd, "learn_groups", side_effect=group_rows):
+            created = asd.discover(state, "BTCUSD", source, clock_after(source))
+        self.assertEqual(created, 0)
+        self.assertEqual(len(state["families"]), 1)
+        asd.verify(state)
 
     def test_no_unfinished_bar_can_enter_snapshot(self):
         source = bars()

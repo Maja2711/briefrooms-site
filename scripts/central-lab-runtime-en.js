@@ -202,18 +202,20 @@ function fseDiscoveryEnglishCopy(f){
   const hasP=Number.isFinite(p)&&p>=0&&p<=1;
   const pText=hasP?(p*100).toFixed(1)+'%':'not available';
   const fallbackDescription='In '+n+' historical analogues, the exploratory, smoothed frequency of an upward move over the next four hourly market bars was '+pText+'. Historical similarity is not proof of prospective predictive performance.';
-  const fallbackApplications=[
-    'Research hypothesis: identify similar price regimes and investigate different entry conditions.',
-    hasP&&Math.abs(p-0.5)>=0.06
-      ? 'Research hypothesis: evaluate a four-hour directional-probability filter.'
-      : 'Research hypothesis: evaluate a direction-neutral filter without forcing LONG/SHORT.',
-    'Research hypothesis: assess movement risk and adverse excursions; forward validation required.'
-  ];
+  const fallbackApplications=[];
   return {
     name:typeof f?.name_en==='string'&&f.name_en.trim()?f.name_en:fallbackName,
     description:typeof f?.description_en==='string'&&f.description_en.trim()?f.description_en:fallbackDescription,
-    applications:Array.isArray(f?.applications_en)&&f.applications_en.length?f.applications_en:fallbackApplications
+    applications:Array.isArray(f?.applications_en)?f.applications_en:fallbackApplications
   };
+}
+
+function fseDiscoveryShape(f){
+  const pts=Array.isArray(f?.shape_points)?f.shape_points.map(Number):[];
+  if(pts.length<3||pts.length>64||pts.some(v=>!Number.isFinite(v)))return '';
+  const low=Math.min(...pts), high=Math.max(...pts), span=Math.max(high-low,0.001);
+  const d=pts.map((v,i)=>(i===0?'M':'L')+(8+248*i/(pts.length-1)).toFixed(1)+' '+(58-47*(v-low)/span).toFixed(1)).join(' ');
+  return '<div class="fse-discovery-shape"><svg viewBox="0 0 264 66" role="img" aria-label="Normalized discovered price-shape prototype" preserveAspectRatio="none"><path d="'+d+'" fill="none" stroke="#8cd7ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg><small>Discovered medoid · normalized path, not a price forecast</small></div>';
 }
 
 function fseDiscoveryPanel(d){
@@ -224,19 +226,22 @@ function fseDiscoveryPanel(d){
   const matches=current.map(x=>'<span class="fse-discovery-match"><b>'+esc(fseInstrumentLabel(x.instrument))+'</b> '+esc(x.family_id||'New/unmatched shape')+'</span>').join('');
   const cards=families.slice(0,12).map(f=>{
     const english=fseDiscoveryEnglishCopy(f);
-    const applications=english.applications.map(s=>'<li>'+esc(s)+'</li>').join('');
+    const apps=f.application_status==='RESEARCH_CANDIDATE'?english.applications:[];
+    const applications=apps.map(s=>'<li>'+esc(s)+'</li>').join('');
+    const use=apps.length?'<details><summary>Potential uses (subject to validation)</summary><ul>'+applications+'</ul></details>':
+      '<p class="fse-discovery-no-use"><strong>Application undetermined.</strong> FSE is collecting independent outcomes; historical analogues do not prove utility.</p>';
     return '<article class="fse-discovery-card"><div class="fse-discovery-cardtop"><span>'+esc(f.family_id)+'</span><small>'+esc(f.evidence_status)+'</small></div>'+
       '<h4>'+esc(english.name)+'</h4><p class="fse-discovery-meta">'+esc(fseInstrumentLabel(f.instrument))+' · '+num(f.window)+' × 1h · Historical analogues: '+num(f.historical_sample_n)+'</p>'+
-      '<p>'+esc(english.description)+'</p><div class="fse-discovery-metrics"><span>Prospective forward <b>N='+num(f.prospective_n)+'</b></span>'+
+      '<p>'+esc(english.description)+'</p>'+fseDiscoveryShape(f)+'<div class="fse-discovery-metrics"><span>Prospective forward <b>N='+num(f.prospective_n)+'</b></span>'+
       '<span>Prospective Brier <b>'+(finite(f.mean_brier)?num(f.mean_brier,4):'—')+'</b></span>'+
       '<span>Brier improvement <b>'+(finite(f.incremental_brier)?num(f.incremental_brier,4):'—')+'</b></span></div>'+
-      '<details><summary>Potential applications</summary><ul>'+applications+'</ul></details></article>';
+      use+'</article>';
   }).join('');
   return '<section class="fse-discovery"><div class="fse-discovery-head"><h3 class="central-subtitle">Autonomous Structure Discovery</h3><p>Unsupervised families discovered from market prices; names and research hypotheses are generated automatically. These are not trading orders.</p></div>'+
     (stale?'<p class="central-note"><strong>STALE:</strong> '+esc(String(d.generated_at||'missing'))+'</p>':'')+stats+
     (matches?'<div class="fse-discovery-matches"><strong>Current match:</strong>'+matches+'</div>':'')+
     (cards?'<div class="fse-discovery-grid">'+cards+'</div>':'<p class="central-note">No autonomous structure registry yet. Waiting for the first validated market-data cycle.</p>')+
-    '<p class="central-note">Method: learned density clusters, not predefined market patterns. Historical analogues are exploration, not validated alpha. Forward evidence is acquired only after a frozen snapshot and 4 completed hourly bars. Research only; no production authority.</p></section>';
+    '<p class="central-note">Method: data-discovered clusters, not predefined chart formations. No template applications. After at least 40 genuine forward outcomes: research review candidate or removal from the active catalogue (audit history retained). Shadow only; no production authority.</p></section>';
 }
 
 async function fse(){

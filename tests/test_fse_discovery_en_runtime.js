@@ -26,6 +26,7 @@ for (const existing of data.families) {
          translated.name.startsWith("Autonomously discovered"), existing.family_id);
   assert(!polish.test(translated.name), "Polish name: "+translated.name);
   assert(!polish.test(translated.description), "Polish description: "+translated.description);
+  assert.equal(translated.applications.length, 0);
   for (const application of translated.applications) {
     assert(!polish.test(application), "Polish application: "+application);
   }
@@ -39,8 +40,11 @@ const customized = translate({...data.families[0],
 assert.equal(customized.name,"Research-defined family title");
 assert.equal(customized.description,"English research conclusion.");
 assert.deepEqual(Array.from(customized.applications),["English candidate use."]);
+// Only a prospective REVIEW_CANDIDATE may use this validated application; UI otherwise suppresses it.
 assert(source.includes("esc(english.name)") && source.includes("esc(english.description)"));
-assert(source.includes("english.applications.map"));
+assert(source.includes("const apps=f.application_status==='RESEARCH_CANDIDATE'"));
+assert(source.includes("Application undetermined."));
+assert(source.includes("fseDiscoveryShape(f)"));
 assert(!source.includes("'<h4>'+esc(f.name)") && !source.includes("'<p>'+esc(f.description)"));
 
 console.log("FSE_ASD_EN_LOCALE_PASS old Polish-only families:",data.families.length);

@@ -76,7 +76,10 @@ class DecisionLabFSEFrontendTests(unittest.TestCase):
         self.assertIn("f.applications_en", js)
         self.assertIn("esc(english.name)", js)
         self.assertIn("esc(english.description)", js)
-        self.assertIn("english.applications.map", js)
+        self.assertIn("const apps=f.application_status", js)
+        self.assertIn("apps.map", js)
+        self.assertIn("Application undetermined.", js)
+        self.assertIn("fseDiscoveryShape(f)", js)
 
     def test_fse_ui_remains_read_only(self):
         for rel in ("scripts/central-lab.js", "scripts/central-lab-runtime-en.js"):
@@ -103,6 +106,8 @@ class DecisionLabFSEFrontendTests(unittest.TestCase):
         self.assertIn(".fse-fast-meta", css)
         self.assertIn(".fse-discovery-grid", css)
         self.assertIn(".fse-discovery-card", css)
+        self.assertIn(".fse-discovery-shape", css)
+        self.assertIn(".fse-discovery-no-use", css)
         # Dark LAB panels must not inherit a white surface with light text.
         self.assertIn("background:linear-gradient(180deg,#12273b,#0e1d2e)", css)
         self.assertIn("color:#eaf3ff", css)
@@ -135,10 +140,10 @@ class DecisionLabFSEFrontendTests(unittest.TestCase):
     def test_fse_trend_assets_are_cache_busted(self):
         pl = (ROOT / "pl/inwestycje/decision-lab.html").read_text(encoding="utf-8")
         en = (ROOT / "en/investing/decision-lab.html").read_text(encoding="utf-8")
-        self.assertIn("/assets/decision-lab.css?v=20261011-asd3", pl)
-        self.assertIn("/assets/decision-lab.css?v=20261011-asd3", en)
-        self.assertIn("/scripts/central-lab.js?v=20261011-asd1", pl)
-        self.assertIn("/scripts/central-lab-runtime-en.js?v=20261011-asd-en2", en)
+        self.assertIn("/assets/decision-lab.css?v=20261011-asd4", pl)
+        self.assertIn("/assets/decision-lab.css?v=20261011-asd4", en)
+        self.assertIn("/scripts/central-lab.js?v=20261011-asd-lifecycle1", pl)
+        self.assertIn("/scripts/central-lab-runtime-en.js?v=20261011-asd-lifecycle1", en)
 
 
 if __name__ == "__main__":
