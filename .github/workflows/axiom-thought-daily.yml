@@ -80,7 +80,23 @@ jobs:
             echo 'AXIOM unchanged; heartbeat remains attached to publication'
             exit 0
           fi
-          printf '{"date":"%s","event":"%s","run_id":"%s","sha":"%s"}\\n' "$(TZ=Europe/Warsaw date +%F)" "$GITHUB_EVENT_NAME" "$GITHUB_RUN_ID" "$GITHUB_SHA" > data/home/axiom-thought-heartbeat.json
+          python - <<'PY'
+          import json
+          import os
+          from datetime import datetime
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+          data = {
+              "date": datetime.now(ZoneInfo("Europe/Warsaw")).date().isoformat(),
+              "event": os.environ["GITHUB_EVENT_NAME"],
+              "run_id": os.environ["GITHUB_RUN_ID"],
+              "sha": os.environ["GITHUB_SHA"],
+          }
+          Path("data/home/axiom-thought-heartbeat.json").write_text(
+              json.dumps(data, ensure_ascii=False, separators=(",", ":")) + "\\n",
+              encoding="utf-8",
+          )
+          PY
       - name: Commit publication atomically
         shell: bash
         run: |
