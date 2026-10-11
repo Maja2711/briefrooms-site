@@ -20,6 +20,11 @@ on:
       - "scripts/audit_provenance.py"
       - "scripts/provenance_contract.py"
       - "tests/test_shadow_engines_public.py"
+      - "tests/test_investments_wes_counterfactual.py"
+      - "tests/test_investments_wes_spx_brace_bridge.py"
+      - "scripts/investments_wes_counterfactual.py"
+      - "scripts/investments_wes_spx_brace_bridge.py"
+      - "scripts/central-lab.js"
       - ".github/workflows/shadow-engines-observatory.yml"
 
 permissions:
@@ -28,7 +33,8 @@ permissions:
 
 concurrency:
   group: shadow-engines-observatory
-  cancel-in-progress: true
+  # Do not cancel an in-flight publication with the next 5-minute schedule.
+  cancel-in-progress: false
 
 jobs:
   publish:
