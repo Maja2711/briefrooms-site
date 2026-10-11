@@ -52,7 +52,10 @@ jobs:
       AXIOM_THOUGHT_MODEL: gemini-3.6-flash
       AXIOM_THOUGHT_FALLBACK_MODEL: gemini-3.5-flash-lite
       AXIOM_THOUGHT_MAX_ATTEMPTS: "12"
-      AXIOM_THOUGHT_RESERVE_TARGET: "10"
+      AXIOM_THOUGHT_LIVE_ROUNDS: "2"
+      AXIOM_THOUGHT_LIVE_REVIEW_LIMIT: "6"
+      AXIOM_THOUGHT_REFILL_BATCH: "10"
+      AXIOM_THOUGHT_RESERVE_TARGET: "100"
     steps:
       - uses: actions/checkout@v4
         with: {ref: main, fetch-depth: 0}
@@ -126,7 +129,7 @@ jobs:
       AXIOM_THOUGHT_MODEL: gemini-3.6-flash
       AXIOM_THOUGHT_FALLBACK_MODEL: gemini-3.5-flash-lite
       AXIOM_THOUGHT_MAX_ATTEMPTS: "12"
-      AXIOM_THOUGHT_RESERVE_TARGET: "10"
+      AXIOM_THOUGHT_RESERVE_TARGET: "100"
     steps:
       - uses: actions/checkout@v4
         with: {ref: main, fetch-depth: 0}

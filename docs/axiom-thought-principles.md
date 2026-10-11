@@ -98,6 +98,15 @@ Ocenia odległość idei od całego dotychczasowego archiwum, nie tylko podobie�
 - Nie kopiujemy stylu konkretnego autora, filozofa ani publicysty.
 - Nie udajemy cytatu historycznego — każda myśl jest oryginalną wypowiedzią AXIOM-a.
 
+## Ciągłość publikacji i bank 100 myśli
+
+1. Każdego dnia generujemy **minimum 10 jawnych, różnych kandydatów**. Dwa modele osobno weryfikują każdą myśl rozważaną do publikacji.
+2. Każde odrzucenie, niepewność lub brak odpowiedzi powodują próbę z kolejnym kandydatem — nie należy uznawać całego dnia za nieudany z powodu jednego weta.
+3. Gdy kandydaci na dziś zawiodą, kolejno sprawdzamy **bank docelowo 100 nieopublikowanych myśli**. Każda oznaczona jako zweryfikowana musi mieć dwa rzeczywiste werdykty UNIQUE i odcisk SHA-256 zgodny z tekstem; nie tworzymy fikcyjnych potwierdzeń.
+4. Bank uzupełnia niezależny, godzinowy proces. Stan 100 jest **celem pojemności, a nie deklaracją**, że wszystkie 100 są już przygotowane; status należy ustalić, licząc poprawne dowody.
+5. Myśl z banku sprawdzana jest deterministycznie względem całej aktualnej historii przy publikacji. Zgłoszenie niepewności **nie usuwa** wpisu rezerwowego; udokumentowany duplikat jest odrzucany.
+6. W wyjątkowej awarii publikatora frontend nie pozostawia pustej przestrzeni: pokazuje wyraźnie oznaczoną *Archiwalną myśl AXIOM-a* z datą źródłową. **To nie jest nowa publikacja** i nie wolno zaliczyć jej do terminowych wydań. Gdy cała infrastruktura strony jest niedostępna, żadna aplikacja nie może bezwarunkowo zagwarantować ekspozycji.
+
 ## Archiwum jest pamięcią systemu
 
 **Granica pokrycia:** kanoniczna seria w `data/home/axiom-thoughts-history.jsonl` zaczyna się 15.09.2026. Nie wolno nazywać jej pełną historią wcześniejszych cytatów, jeżeli brak niezależnie odzyskanych publikacji sprzed tej daty. Test podobieństwa działa wyłącznie dla udokumentowanego korpusu; przy niepewnej oryginalności domyślnie nie publikujemy.

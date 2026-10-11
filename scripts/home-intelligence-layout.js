@@ -24,8 +24,15 @@
     thoughtLabel:'AXIOM thought'
   };
 
-  // Only a verified publication for today's Warsaw date may be displayed.
-  let thought=null;
+  // Transparent LAST-RESORT display only. This is a proven historical record,
+  // never masquerading as today's newly generated thought. Daily publisher
+  // should replace it immediately when the canonical current date is available.
+  const archivalSeed={
+    date:'2026-10-11',archived:true,author:'AXIOM',brand:'BriefRooms',
+    pl:'„Dążenie do całkowitego usunięcia tarcia daje złudzenie doskonałej sprawczości, dopóki nie zrozumiemy, że to właśnie opór był jedynym dowodem na to, że nasza decyzja dotknęła rzeczywistości.”',
+    en:'“The pursuit of eliminating all friction creates an illusion of pure agency, until we realize that resistance was the only proof that our decision had actually touched reality.”'
+  };
+  let thought={...archivalSeed};
 
   function setText(node,value){
     if(node&&node.textContent!==value)node.textContent=value;
@@ -99,7 +106,12 @@
     }
     setText(card.querySelector('.axiom-thought__quote'),thought[lang]);
     setText(card.querySelector('.axiom-thought__signature strong'),thought.author||'AXIOM');
-    setText(card.querySelector('.axiom-thought__signature small'),thought.brand||'BriefRooms');
+    const archiveNote=lang==='pl'?'Archiwum':'Archive';
+    const label=thought.archived
+      ? `${thought.brand||'BriefRooms'} · ${archiveNote} ${thought.date}`
+      : (thought.brand||'BriefRooms');
+    setText(card.querySelector('.axiom-thought__signature small'),label);
+    card.setAttribute('data-axiom-status',thought.archived?'archive':'today');
   }
 
   function applyLabTitle(){
@@ -171,18 +183,20 @@
       const response=await fetch(`/data/home/axiom-thought.json?v=${Date.now()}`,{cache:'no-store'});
       if(!response.ok)throw new Error('current thought unavailable');
       const data=await response.json();
-      // Neither the embedded historical seed nor an uncommitted reserve entry
-      // is evidence of today's publication. Do not silently recycle them.
-      if(!data||data.date!==stamp
+      // A dated canonical thought may serve as a visible archive backstop, but
+      // it never counts as proof that today's fresh issue was published.
+      if(!data||!/^\d{4}-\d{2}-\d{2}$/.test(data.date)
+          ||data.date>stamp
           ||data.author!=='AXIOM'||data.brand!=='BriefRooms'
           ||typeof data.pl!=='string'||!data.pl.trim()
           ||typeof data.en!=='string'||!data.en.trim()){
-        throw new Error('unverified AXIOM thought');
+        throw new Error('invalid AXIOM thought');
       }
-      thought={pl:data.pl.trim(),en:data.en.trim(),author:'AXIOM',brand:'BriefRooms'};
+      thought={pl:data.pl.trim(),en:data.en.trim(),date:data.date,
+               archived:data.date!==stamp,author:'AXIOM',brand:'BriefRooms'};
     }catch(_){
-      // Fail closed: never display a known old motto as today's new thought.
-      thought=null;
+      // Explicit archival date; this is NOT a new daily publication.
+      thought={...archivalSeed};
     }
     applyThought();
   }
