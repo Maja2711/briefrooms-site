@@ -28,9 +28,9 @@
   // never masquerading as today's newly generated thought. Daily publisher
   // should replace it immediately when the canonical current date is available.
   const archivalSeed={
-    date:'2026-10-11',archived:true,author:'AXIOM',brand:'BriefRooms',
-    pl:'„Dążenie do całkowitego usunięcia tarcia daje złudzenie doskonałej sprawczości, dopóki nie zrozumiemy, że to właśnie opór był jedynym dowodem na to, że nasza decyzja dotknęła rzeczywistości.”',
-    en:'“The pursuit of eliminating all friction creates an illusion of pure agency, until we realize that resistance was the only proof that our decision had actually touched reality.”'
+    date:'2026-09-24',archived:true,author:'AXIOM',brand:'BriefRooms',
+    pl:'„Najskuteczniejsza prognoza nie zawsze opisuje przyszłość; czasem zmienia zachowanie ludzi tak wcześnie, że przyszłość zaczyna przypominać samą prognozę.”',
+    en:'“The most effective forecast does not always describe the future; sometimes it changes behavior early enough that the future begins to resemble the forecast itself.”'
   };
   let thought={...archivalSeed};
 
