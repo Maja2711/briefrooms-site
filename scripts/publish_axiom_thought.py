@@ -190,7 +190,7 @@ def generate_ten(rows,reserve):
     base=prompt(rows,reserve,"live")
     instructions=base.split("Return ONLY JSON with exactly:")[0]
     instructions+=(
-        "\nReturn JSON ONLY as {\\"candidates\\":[...]} with exactly 10 "
+        "\nReturn JSON ONLY as {\"candidates\":[...]} with exactly 10 "
         "genuinely distinct candidate objects. Every candidate must have "
         "theme,pl,en,candidates_considered,scores,silence_test,editor_note "
         "matching the constitution. Do not return variants of the same claim. "
@@ -231,8 +231,8 @@ def generate(rows,reserve,mode):
         try:
             c=call(prompt(rows,reserve,mode)+f"\nAttempt {n}/{MAX_ATTEMPTS}; force a different conceptual domain.",model)
             validate_candidate(c,rows,reserve)
-            semantic_review(c,rows,reserve)
-            return c
+            reviews=semantic_review(c,rows,reserve)
+            return attach_review(c,rows,reviews)
         except Exception as e: errs.append(str(e)); time.sleep(2)
     raise RuntimeError("all generation attempts failed; last="+(errs[-1] if errs else "unknown"))
 def publish(c,rows,source):
@@ -271,27 +271,29 @@ def refill(rows,reserve):
     """Incremental, independently scheduled 100-item reserve; never fake capacity."""
     completed=0
     failures=0
-    # First vet existing legacy entries to make old backlog usable during outages.
-    for index,candidate in enumerate(reserve):
+    # First vet legacy entries in their existing order.
+    for candidate in list(reserve):
         if completed>=REFILL_BATCH: break
         if evidence_valid(candidate,rows): continue
+        index=reserve.index(candidate)
         try:
-            validate_candidate(candidate,rows,[x for j,x in enumerate(reserve) if j!=index])
+            validate_candidate(candidate,rows,[x for x in reserve if x is not candidate])
             reserve[index]=attach_review(candidate,rows)
             save_reserve(reserve)
             completed+=1
             print(f"RESERVE_VETTED {index+1}/{len(reserve)}")
+        except ValueError as exc:
+            # Persist definitive veto, never advertise a rejected bank item.
+            reserve.remove(candidate)
+            save_reserve(reserve)
+            failures+=1
+            print(f"RESERVE_REJECTED index={index} reason={exc}",file=sys.stderr)
         except Exception as exc:
             failures+=1
-            print(f"RESERVE_VETTING_FAILED index={index} reason={exc}",file=sys.stderr)
-    # Never label an unverified legacy candidate as verified.
-    if any(not evidence_valid(c,rows) for c in reserve):
-        print(f"RESERVE_NOT_READY vetted={sum(evidence_valid(c,rows) for c in reserve)} total={len(reserve)}",file=sys.stderr)
-        return False
+            print(f"RESERVE_VETTING_RETRY index={index} reason={exc}",file=sys.stderr)
     while len(reserve)<RESERVE_TARGET and completed<REFILL_BATCH and failures<3:
         try:
-            generated=generate(rows,reserve,"reserve")
-            candidate=attach_review(generated,rows)
+            candidate=generate(rows,reserve,"reserve")
             reserve.append(candidate)
             save_reserve(reserve)
             completed+=1
@@ -299,7 +301,9 @@ def refill(rows,reserve):
         except Exception as exc:
             failures+=1
             print(f"RESERVE_REFILL_FAILURE {failures}/3: {exc}",file=sys.stderr)
-    print(f"AXIOM_RESERVE_HEALTH ready={sum(evidence_valid(c,rows) for c in reserve)} target={RESERVE_TARGET}",flush=True)
+    ready=sum(evidence_valid(c,rows) for c in reserve)
+    print(f"AXIOM_RESERVE_HEALTH ready={ready} total={len(reserve)} target={RESERVE_TARGET}",flush=True)
+    if ready<RESERVE_TARGET: print(f"::warning::AXIOM reserve only {ready}/{RESERVE_TARGET} vetted thoughts",flush=True)
     # Partial progress is expected; the next independent worker resumes.
     return True
 
