@@ -241,6 +241,16 @@ class AxiomThoughtGuardTests(unittest.TestCase):
         same_model = copy.deepcopy(approved)
         same_model["semantic_reviews"][1]["model"] = "reviewer-one"
         self.assertTrue(any("distinct model" in x for x in review_evidence_errors(same_model, prior_dates)))
+        current = {"date": approved["date"], "author": "AXIOM", "brand": "BriefRooms",
+                   "pl": candidate["pl"], "en": candidate["en"]}
+        dated = [copy.deepcopy(SEED), copy.deepcopy(LATEST), {
+            **approved, "candidates_considered": 10, "scores": {"depth": 9, "novelty": 9, "banality_risk": 1},
+            "silence_test": True,
+            "editor_note": "A new causal thesis about observability and correct predictive models with a distinct epistemic mechanism.",
+        }]
+        self.assertEqual(validate(current, dated), [])
+        dated[-1].pop("semantic_reviews")
+        self.assertTrue(any("two independent semantic" in x for x in validate(current, dated)))
 
     def test_reserve_english_language_repeat_is_blocked(self) -> None:
         candidate = {"theme": "different-topic",
