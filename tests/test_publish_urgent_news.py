@@ -32,6 +32,16 @@ class UrgentNewsTests(unittest.TestCase):
         self.assertEqual(urgent.MAX_SOURCE_AGE, timedelta(minutes=75))
         self.assertEqual(urgent.MAX_DISPLAY, timedelta(minutes=90))
 
+    def test_tv_program_promotions_never_enter_urgent_fast_lane(self) -> None:
+        for title in (
+            '"Śniadanie Rymanowskiego" w Polsat News i Interii',
+            "Sportowy wieczór (10.10.2026)",
+            "CNN Tonight (October 10, 2026)",
+        ):
+            with self.subTest(title=title):
+                candidate = row("BBC News", title, 1)
+                self.assertFalse(urgent.fresh_candidate(candidate, NOW))
+
     def test_single_editorial_source_is_not_sufficient_for_breaking(self) -> None:
         stories, _ = urgent.build_lang(
             "en", [row("BBC News", "Russia launches missile attack on Ukraine", 1)],
