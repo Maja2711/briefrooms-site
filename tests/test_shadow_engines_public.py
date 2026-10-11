@@ -28,9 +28,51 @@ class ShadowEnginesPublicTests(unittest.TestCase):
             self.assertFalse(payload["production_authority"])
             self.assertTrue(payload["coverage"]["complete"])
             states={x["status"] for x in payload["engines"]}
-            self.assertTrue(states <= {"RUNNING","NO DATA"})
+            self.assertTrue(states <= {"RUNNING","NO DATA","STALE","COLLECTING"})
             self.assertIn("RUNNING", states)
             self.assertIn("NO DATA", states)
+
+    def test_wes_collects_without_fabricating_resolved_pairs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            source=root/"data/investments/wes_incremental_alpha_report.json"
+            source.parent.mkdir(parents=True)
+            source.write_text(json.dumps({
+                "generated_at":"2026-09-28T10:20:00Z",
+                "overall":{"resolved_pairs":0},
+                "pipeline":{
+                    "records_total":10, "actual_wes_outcomes":2,
+                    "missed_historical_captures":2,
+                    "resolved_comparable_pairs":0,
+                },
+            }), encoding="utf-8")
+            statuses={"investments-wes.yml":{
+                "databaseId":17, "status":"completed", "conclusion":"success",
+                "createdAt":"2026-09-28T10:20:00Z", "updatedAt":"2026-09-28T10:21:00Z",
+            }}
+            payload=build(root,statuses,now=datetime(2026,9,28,10,30,tzinfo=timezone.utc))
+            row=next(x for x in payload["engines"] if x["id"]=="wes")
+            self.assertEqual(row["status"],"COLLECTING")
+            self.assertEqual(row["pipeline"]["actual_wes_outcomes"],2)
+            self.assertEqual(row["observations"],0)
+            self.assertFalse(row["provenance"]["domain_provenance"]["production_authority"])
+
+    def test_wes_stale_source_does_not_look_healthy(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            source=root/"data/investments/wes_incremental_alpha_report.json"
+            source.parent.mkdir(parents=True)
+            source.write_text(json.dumps({
+                "generated_at":"2026-09-27T10:00:00Z",
+                "overall":{"resolved_pairs":0}, "pipeline":{},
+            }), encoding="utf-8")
+            statuses={"investments-wes.yml":{
+                "databaseId":18, "status":"completed", "conclusion":"success",
+                "createdAt":"2026-09-28T10:20:00Z", "updatedAt":"2026-09-28T10:21:00Z",
+            }}
+            payload=build(root,statuses,now=datetime(2026,9,28,10,30,tzinfo=timezone.utc))
+            row=next(x for x in payload["engines"] if x["id"]=="wes")
+            self.assertEqual(row["status"],"STALE")
 
     def test_failure_is_error_even_without_observations(self):
         with tempfile.TemporaryDirectory() as tmp:

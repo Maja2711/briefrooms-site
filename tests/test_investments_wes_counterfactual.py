@@ -76,6 +76,10 @@ def record(direction: str = "long", with_plan: bool = True) -> dict:
             "entry_price": 100.0,
             "entry_captured_at": "2026-08-24T08:00:00+00:00",
             "risk_plan": risk_plan,
+            "frozen_risk_distance": {"stop_price_distance": 10.0, "take_price_distance": 20.0},
+            "frozen_symbol": "ES=F",
+            "frozen_scheduled_exit": "2026-08-28T22:00:00+02:00",
+            "frozen_cost_policy": {"round_trip_cost": 1.0, "cost_unit": "points"},
             "net_result_percent": None,
         },
         "wes_actual": {
@@ -151,6 +155,37 @@ class WesCounterfactualTests(unittest.TestCase):
         self.assertEqual(c["risk_plan_source"], "derived_point_in_time_from_frozen_risk_distance")
         self.assertEqual(c["risk_plan"]["stop_loss_price"], 90.0)
         self.assertEqual(c["risk_plan"]["take_profit_price"], 120.0)
+
+    def test_late_week_changes_cannot_supply_missing_frozen_risk(self):
+        r = record(with_plan=False)
+        del r["v5_counterfactual"]["frozen_risk_distance"]
+        result = cf.make_replay_contract(r, week(), policy())
+        self.assertEqual(result["status"], "not_replayable")
+        self.assertEqual(result["reason"], "missing_pre_wes_risk_plan_and_frozen_risk_distance")
+
+    def test_replay_does_not_borrow_later_policy_or_weekly_deadline(self):
+        r = record()
+        changed_week = week()
+        changed_week["market_window"]["exit_target_local"] = "2027-01-01T01:00:00+00:00"
+        changed_week["instruments"][0]["symbol"] = "DIFFERENT"
+        altered_policy = {"instruments": [{"instrument_id": "sp500_futures", "round_trip_cost": 100, "cost_unit": "points"}]}
+        result = cf.make_replay_contract(r, changed_week, altered_policy)
+        self.assertEqual(result["status"], "frozen")
+        self.assertEqual(result["contract"]["symbol"], "ES=F")
+        self.assertEqual(result["contract"]["scheduled_exit"], "2026-08-28T22:00:00+02:00")
+        self.assertEqual(result["contract"]["round_trip_cost_percent"], 1.0)
+
+    def test_no_fill_is_not_counted_as_a_counterfactual_trade(self):
+        r = record()
+        r["v5_counterfactual"]["entry_price"] = None
+        r["v5_counterfactual"]["entry_captured_at"] = None
+        out = cf.freeze_contracts(
+            ledger(r), weeks={"2026-W35": week()}, policy=policy(),
+            frozen_at=datetime(2026, 8, 24, 8, 2, tzinfo=timezone.utc),
+        )
+        base = out["records"][0]["v5_counterfactual"]
+        self.assertEqual(base["replay_contract_status"], "not_applicable_no_verified_entry")
+        self.assertIsNone(base.get("replay_contract"))
 
     def test_no_prospective_baseline_is_never_reconstructed(self):
         r = record()
@@ -301,6 +336,8 @@ class WesCounterfactualTests(unittest.TestCase):
         self.assertEqual(report["agreement_conflict_incremental_alpha"]["STRONG_AGREEMENT"]["resolved_pairs"], 1)
         self.assertEqual(report["sample"]["status"], "warmup_insufficient_evidence")
         self.assertFalse(report["bounded_influence_enabled"])
+        self.assertEqual(report["pipeline"]["records_total"], 2)
+        self.assertEqual(report["pipeline"]["resolved_comparable_pairs"], 2)
 
 
 if __name__ == "__main__":

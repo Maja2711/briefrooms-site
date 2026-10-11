@@ -293,17 +293,37 @@ async function fse(){
   }
 }
 
+function wesSampleProgress(x){
+  if(x.id!=='wes'||!x.pipeline)return '';
+  const p=x.pipeline;
+  return '<small class="wes-shadow-pipeline">Rekordy: '+num(p.records_total)+
+    ' · WES zamknięte: '+num(p.actual_wes_outcomes)+
+    ' · Zamrożone V5: '+num(p.frozen_replay_contracts)+
+    ' · Pary oczekujące: '+num(p.pending_comparable_pairs)+
+    ' · Historyczne braki V5: '+num(p.missed_historical_captures)+
+    ' · Bez wejścia V5: '+num(p.no_verified_baseline_entry)+
+    ' · Nieodtwarzalne V5: '+num(p.unreplayable_baselines)+
+    '</small>'+(p.independent_weekly?
+    '<small class="wes-shadow-pipeline"><strong>Niezależny benchmark zamrożonej prognozy tygodniowej:</strong> '+
+    'zapisane przed wejściem '+num(p.independent_weekly.captured_prospectively)+
+    ' · wirtualne wejścia ze świec 5m '+num(p.independent_weekly.virtual_entries_verified)+
+    ' · rozliczone porównania tygodniowe '+num(p.independent_weekly.resolved_weekly_comparisons)+
+    '. Benchmark prognozy bazowej ≠ pełny silnik egzekucji V5.</small>':'');
+}
 async function shadows(){
   const root=document.querySelector('#central-shadow-engines');
   if(!root)return;
   try{
     const [r,hse]=await Promise.all([get('/data/investments/shadow_engines_public.json'),get('/data/investments/hypothesis_shadow_engine_v2_public.json').catch(()=>({}))]);
     const s=r.summary||{},coverage=r.coverage||{},engines=Array.isArray(r.engines)?r.engines:[];
+    const snapshotTime=Date.parse(String(r.generated_at||''));
+    const snapshotStale=!Number.isFinite(snapshotTime)||(Date.now()-snapshotTime)>45*60*1000;
+    const freshnessWarning=snapshotStale?'<p class="shadow-coverage-warning"><strong>ALARM: Nieaktualny Shadow Engines Observatory.</strong> Raport nie był publikowany przez ponad 45 minut lub brak daty. Statusy poniżej są wyłącznie ostatnim zapisanym stanem, a nie potwierdzeniem bieżącej pracy silników.</p>':'';
     const rows=engines.map(x=>'<tr>'+
       '<td><strong>'+esc(x.name)+'</strong><small>'+esc(x.workflow||'—')+'</small></td>'+
       '<td>'+shadowStatus(x.status)+'<small>'+esc(x.status_reason||'')+'</small></td>'+
       '<td>'+shadowWhen(x.last_run_at)+'</td>'+
-      '<td><b>'+num(x.observations)+'</b><small>'+esc(x.observation_label||'obserwacje')+'</small></td>'+
+      '<td><b>'+num(x.observations)+'</b><small>'+esc(x.observation_label||'obserwacje')+'</small>'+wesSampleProgress(x)+'</td>'+
       '<td><b>'+esc(x.champion||'—')+'</b></td>'+
       '<td><b>'+esc(x.challenger||'—')+'</b></td>'+
       '<td><a href="'+esc(x.domain||'#')+'">'+esc(x.domain_label||'Otwórz')+'</a></td>'+
@@ -318,7 +338,9 @@ async function shadows(){
         '<div><small>IDLE</small><strong>'+num(s.IDLE)+'</strong></div>'+
         '<div><small>ERROR</small><strong>'+num(s.ERROR)+'</strong></div>'+
         '<div><small>NO DATA</small><strong>'+num(s["NO DATA"])+'</strong></div>'+
-      '</div>'+unmapped+
+         '<div><small>COLLECTING</small><strong>'+num(s.COLLECTING)+'</strong></div>'+
+         '<div><small>STALE</small><strong>'+num(s.STALE)+'</strong></div>'+
+      '</div>'+unmapped+freshnessWarning+
       '<div class="central-table-wrap"><table class="central-table shadow-engine-table"><thead><tr><th>Shadow engine</th><th>Status</th><th>Ostatni run</th><th>Obserwacje</th><th>Champion</th><th>Challenger</th><th>Domena</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
       '<p class="central-note">Sekcja jest wyłącznie obserwatorium. Nie ma prawa do promocji, writebacku, zmiany parametrów ani wykonywania transakcji. Wygenerowano '+shadowWhen(r.generated_at)+'.</p></article>'+
       hsePanel(hse);

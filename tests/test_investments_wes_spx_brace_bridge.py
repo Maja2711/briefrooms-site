@@ -57,6 +57,8 @@ def warmup_shadow() -> dict:
 def week(risk_model: str = "v5-plan", closed: bool = False) -> dict:
     item = {
         "instrument_id": "sp500_futures",
+        "symbol": "ES=F",
+        "risk_distance": {"stop_price_distance": 100.0, "take_price_distance": 200.0},
         "direction": "long",
         "entry_price": 6500.0,
         "entry_captured_at": "2026-08-19T10:00:00+00:00",
@@ -83,6 +85,7 @@ def week(risk_model: str = "v5-plan", closed: bool = False) -> dict:
         ]
     return {
         "week_id": "2026-W34",
+        "market_window": {"exit_target_local": "2026-08-21T22:00:00+02:00"},
         "forecast_locked_at": "2026-08-17T01:24:18+00:00",
         "instruments": [item],
     }
@@ -146,6 +149,10 @@ class WesSpxBraceBridgeTests(unittest.TestCase):
         row = ledger["records"][0]
         self.assertEqual(row["v5_counterfactual_capture"]["status"], "frozen_point_in_time")
         self.assertEqual(row["v5_counterfactual"]["risk_plan"]["model_version"], "v5-plan")
+        self.assertEqual(row["v5_counterfactual"]["frozen_symbol"], "ES=F")
+        self.assertEqual(row["v5_counterfactual"]["frozen_scheduled_exit"], "2026-08-21T22:00:00+02:00")
+        self.assertEqual(row["v5_counterfactual"]["frozen_risk_distance"]["stop_price_distance"], 100.0)
+        self.assertEqual(row["v5_counterfactual"]["frozen_cost_policy"]["cost_unit"], "points")
         self.assertIsNone(row["wes_actual"])
         frozen_brace = row["brace_spx"]
 
@@ -160,6 +167,7 @@ class WesSpxBraceBridgeTests(unittest.TestCase):
         self.assertEqual(len(ledger2["records"]), 1)
         row2 = ledger2["records"][0]
         self.assertEqual(row2["v5_counterfactual"]["risk_plan"]["model_version"], "v5-plan")
+        self.assertEqual(row2["v5_counterfactual"]["frozen_risk_distance"]["stop_price_distance"], 100.0)
         self.assertEqual(row2["wes_actual"]["risk_plan"]["model_version"], "WES-1.0.0")
         self.assertEqual(row2["brace_spx"], frozen_brace)
         self.assertFalse(row2["active_decision_influence"])

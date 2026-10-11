@@ -25,6 +25,8 @@ on:
       - "scripts/investments_wes_memory.py"
       - "scripts/investments_wes_spx_brace_bridge.py"
       - "scripts/investments_wes_counterfactual.py"
+      - "scripts/wes_independent_weekly_baseline.py"
+      - "tests/test_wes_independent_weekly_baseline.py"
       - "scripts/wes_notification_outbox.py"
       - "scripts/wes_decision_ledger.py"
       - "scripts/wes_v5_history_seal.py"
@@ -73,7 +75,7 @@ jobs:
         run: python -m pip install --upgrade pip yfinance pandas numpy
       - name: Validate WES without mutating runtime state
         run: |
-          python -m py_compile             scripts/instrument_registry.py scripts/investments_weekly_v2.py scripts/investments_weekly_v3.py             scripts/investments_weekly_v4.py scripts/investments_weekly_v5.py scripts/execution_price_engine.py scripts/investments_weekly_macro.py             scripts/investments_weekly_ma_structure.py scripts/investments_wes.py scripts/investments_wes_macro_belief.py scripts/investments_wes_runner.py             scripts/investments_wes_lifecycle.py scripts/investments_wes_memory.py scripts/investments_wes_spx_brace_bridge.py             scripts/investments_wes_counterfactual.py scripts/wes_notification_outbox.py scripts/wes_decision_ledger.py scripts/wes_v5_history_seal.py scripts/no_retroactive_execution.py scripts/verify_no_retroactive_execution.py
+          python -m py_compile             scripts/instrument_registry.py scripts/investments_weekly_v2.py scripts/investments_weekly_v3.py             scripts/investments_weekly_v4.py scripts/investments_weekly_v5.py scripts/execution_price_engine.py scripts/investments_weekly_macro.py             scripts/investments_weekly_ma_structure.py scripts/investments_wes.py scripts/investments_wes_macro_belief.py scripts/investments_wes_runner.py             scripts/investments_wes_lifecycle.py scripts/investments_wes_memory.py scripts/investments_wes_spx_brace_bridge.py             scripts/investments_wes_counterfactual.py scripts/wes_independent_weekly_baseline.py scripts/wes_notification_outbox.py scripts/wes_decision_ledger.py scripts/wes_v5_history_seal.py scripts/no_retroactive_execution.py scripts/verify_no_retroactive_execution.py
           python scripts/instrument_registry.py --validate-wes
           python -m unittest             tests/test_investments_wes.py tests/test_investments_wes_memory.py             tests/test_investments_wes_spx_brace_bridge.py tests/test_investments_wes_counterfactual.py             tests/test_investments_wes_counterfactual_deadline.py tests/test_investments_weekly_v5.py tests/test_wes_decision_ledger.py tests/test_wes_v5_history_seal.py tests/test_wes_v5_audit_seal.py tests/test_execution_price_engine.py tests/test_no_retroactive_execution.py
 
@@ -144,6 +146,7 @@ jobs:
             scripts/investments_wes_memory.py \
             scripts/investments_wes_spx_brace_bridge.py \
             scripts/investments_wes_counterfactual.py \
+            scripts/wes_independent_weekly_baseline.py \
             scripts/wes_notification_outbox.py \
             scripts/wes_decision_ledger.py \
             scripts/wes_v5_history_seal.py \
@@ -159,6 +162,7 @@ jobs:
             tests/test_investments_wes_memory.py \
             tests/test_investments_wes_spx_brace_bridge.py \
             tests/test_investments_wes_counterfactual.py \
+            tests/test_wes_independent_weekly_baseline.py \
             tests/test_investments_wes_counterfactual_deadline.py \
             tests/test_investments_weekly_v5.py \
             tests/test_wes_notification_outbox.py \
@@ -166,6 +170,10 @@ jobs:
             tests/test_wes_v5_history_seal.py \
             tests/test_wes_v5_audit_seal.py \
             tests/test_execution_price_engine.py
+      - name: Capture independent weekly forecast baseline before WES admission
+        # Research-only. Capture failures must not authorize, block or reroute trading.
+        continue-on-error: true
+        run: python scripts/wes_independent_weekly_baseline.py --stage capture
       - name: WES preflight trigger gate
         run: python scripts/investments_wes_runner.py --mode preflight
       - name: Execute governed v5 decision after WES admission gate
@@ -197,6 +205,9 @@ jobs:
             --brace-shadow /tmp/brace_spx_generation6_shadow.json
       - name: Replay frozen V5 baseline and measure incremental alpha
         run: python scripts/investments_wes_counterfactual.py --stage evaluate
+      - name: Resolve independent weekly forecast evidence from later OHLC
+        continue-on-error: true
+        run: python scripts/wes_independent_weekly_baseline.py --stage evaluate
       - name: Refresh derived WES historical memory
         run: |
           python scripts/investments_wes_memory.py --write
@@ -220,6 +231,8 @@ jobs:
                   data/investments/wes_spx_brace_bridge.json \
                   data/investments/wes_spx_brace_alpha_report.json \
                   data/investments/wes_incremental_alpha_report.json \
+                  data/investments/wes_independent_weekly_baseline.json \
+                  data/investments/wes_independent_weekly_baseline_report.json \
                   data/investments/multi_instrument_exposure_state_v5.json \
                   data/investments/multi_instrument_exposure_report_v5.json \
                   data/investments/wes_decision_ledger.json \

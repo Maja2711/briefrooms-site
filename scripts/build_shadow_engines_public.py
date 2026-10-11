@@ -265,7 +265,8 @@ def metadata(engine_id: str, data: Mapping[str, Any]) -> dict[str, Any]:
             "observation_label": "resolved pairs",
             "champion": "WES current",
             "challenger": "Frozen V5 baseline",
-            "data_at": data.get("generated_at") or data.get("updated_at"),
+            "data_at": data.get("generated_at") or data.get("source_ledger_updated_at"),
+            "pipeline": data.get("pipeline") if isinstance(data.get("pipeline"), Mapping) else {},
         }
     if engine_id == "fse":
         instruments = data.get("instruments") if isinstance(data.get("instruments"), list) else []
@@ -381,8 +382,25 @@ def build(root: Path, workflow_status: Mapping[str, Any], now: datetime | None =
         source = root / spec["source"] if spec.get("source") else None
         data = load(source)
         meta = metadata(spec["id"], data)
+        if spec["id"] == "wes":
+            independent = load(root / "data/investments/wes_independent_weekly_baseline_report.json")
+            if isinstance(independent.get("sample"), Mapping):
+                meta["pipeline"] = {**(meta.get("pipeline") or {}),
+                                    "independent_weekly": independent["sample"],
+                                    "independent_weekly_definition": independent.get("benchmark_definition")}
         latest = latest_workflow(spec, workflow_status)
         state, reason = status_for(latest, meta, float(spec["max_idle_hours"]), now)
+        if spec["id"] == "wes" and state not in {"ERROR", "IDLE"}:
+            data_time = parse_time(meta.get("data_at"))
+            if data_time is None or (now - data_time).total_seconds() > 3 * 3600:
+                state, reason = "STALE", "raport WES nie był aktualizowany od ponad 3 godzin lub nie ma daty generacji"
+            elif state == "NO DATA":
+                p = meta.get("pipeline") or {}
+                state, reason = "COLLECTING", (
+                    f"trwa zbieranie próby: {int(p.get('resolved_comparable_pairs', 0))} par; "
+                    f"{int(p.get('actual_wes_outcomes', 0))} zamkniętych WES; "
+                    f"{int(p.get('missed_historical_captures', 0))} historycznych braków V5"
+                )
         row = {
             "id": spec["id"],
             "name": spec["name"],
@@ -394,6 +412,7 @@ def build(root: Path, workflow_status: Mapping[str, Any], now: datetime | None =
             "last_conclusion": latest.get("conclusion"),
             "observations": meta.get("observations"),
             "observation_label": meta.get("observation_label"),
+            "pipeline": meta.get("pipeline") if spec["id"] == "wes" else None,
             "champion": meta.get("champion"),
             "challenger": meta.get("challenger"),
             "data_at": meta.get("data_at"),
@@ -427,7 +446,7 @@ def build(root: Path, workflow_status: Mapping[str, Any], now: datetime | None =
                 "native_write_time": True,
             },
         ))
-    counts = {state: sum(row["status"] == state for row in engines) for state in ("RUNNING", "IDLE", "ERROR", "NO DATA")}
+    counts = {state: sum(row["status"] == state for row in engines) for state in ("RUNNING", "IDLE", "ERROR", "NO DATA", "COLLECTING", "STALE")}
     return {
         "schema_version": SCHEMA,
         "generated_at": now.isoformat().replace("+00:00", "Z"),
