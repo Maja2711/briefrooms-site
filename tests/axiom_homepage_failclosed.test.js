@@ -27,7 +27,7 @@ function element(tag) {
     },
     querySelector(selector) {
       if (selector.includes(' ')) {
-        const [parentSelector, childTag] = selector.split(/\\s+/);
+        const [parentSelector, childTag] = selector.split(/\s+/);
         const parent = this.querySelector(parentSelector);
         return parent?.children.find(child => child.tag === childTag) ?? null;
       }
