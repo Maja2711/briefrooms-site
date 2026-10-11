@@ -1,0 +1,151 @@
+name: FSE Autonomous Structure Discovery Shadow
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "57 * * * *"
+  pull_request:
+    paths:
+      - "scripts/fse_autonomous_discovery.py"
+      - "tests/test_fse_autonomous_discovery.py"
+      - "scripts/central-lab.js"
+      - "scripts/central-lab-runtime-en.js"
+      - "assets/decision-lab.css"
+      - ".github/workflows/fse-autonomous-structure-discovery.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/fse_autonomous_discovery.py"
+      - "tests/test_fse_autonomous_discovery.py"
+      - ".github/workflows/fse-autonomous-structure-discovery.yml"
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: fse-autonomous-discovery-single-writer
+  cancel-in-progress: false
+
+env:
+  STATE_ARTIFACT: fse-autonomous-discovery-state
+  STATE_ARCHIVE: fse-autonomous-discovery-state.tgz
+  PUBLIC_PATH: data/investments/fse_discovery_public.json
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      PYTHONPATH: scripts:.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify autonomous discovery and frontend contracts
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/fse_autonomous_discovery.py
+          python -m unittest tests.test_fse_autonomous_discovery tests.test_decision_lab_fse_frontend -v
+          node --check scripts/central-lab.js
+          node --check scripts/central-lab-runtime-en.js
+          python scripts/verify_trading_workflow_airlocks.py
+          python scripts/validate_architecture_bootstrap.py
+
+  discover:
+    needs: test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PYTHONPATH: scripts:.
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Freeze immutable shadow run clock
+        run: |
+          echo "NO_RETROACTIVE_EXECUTION=1" >> "$GITHUB_ENV"
+          echo "NO_RETROACTIVE_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+      - name: Restore immutable discovery registry and prospective evidence
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/asd-state"
+          echo "FSE_ASD_STATE_DIR=$RUNNER_TEMP/asd-state" >> "$GITHUB_ENV"
+          meta=$(gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts?name=$STATE_ARTIFACT&per_page=100" --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | reverse | .[0] // {}')
+          artifact_id=$(jq -r '.id // empty' <<<"$meta")
+          run_id=$(jq -r '.workflow_run.id // empty' <<<"$meta")
+          if [[ -n "$artifact_id" && -n "$run_id" ]]; then
+            mkdir -p "$RUNNER_TEMP/asd-artifact"
+            gh run download "$run_id" -n "$STATE_ARTIFACT" -D "$RUNNER_TEMP/asd-artifact"
+            test -s "$RUNNER_TEMP/asd-artifact/$STATE_ARCHIVE"
+            tar -xzf "$RUNNER_TEMP/asd-artifact/$STATE_ARCHIVE" -C "$RUNNER_TEMP/asd-state"
+            test -s "$RUNNER_TEMP/asd-state/autonomous_discovery_state.json"
+            echo "FSE_ASD_RESTORE_PASS artifact_id=$artifact_id"
+          elif [[ -s "$PUBLIC_PATH" ]]; then
+            echo "FSE_ASD_FAIL_CLOSED: public discoveries exist but durable state is missing" >&2
+            exit 1
+          else
+            echo "FSE_ASD_FIRST_PROSPECTIVE_BOOTSTRAP"
+          fi
+      - name: Discover structural families and settle later market outcomes
+        run: |
+          set -euo pipefail
+          python scripts/fse_autonomous_discovery.py --state-dir "$FSE_ASD_STATE_DIR" --public "$PUBLIC_PATH"
+          python scripts/fse_autonomous_discovery.py --state-dir "$FSE_ASD_STATE_DIR" --verify
+          python - <<'PY'
+          import json
+          p=json.load(open("data/investments/fse_discovery_public.json"))
+          assert p["mode"]=="SHADOW_ONLY" and p["production_impact"] is False
+          assert p["automatic_promotion"] is False
+          assert all(value is False for value in p["authority"].values())
+          assert all("applications" in f and "name" in f and "description" in f for f in p["families"])
+          print("FSE_ASD_ZERO_PRODUCTION_AUTHORITY_PASS",p["summary"])
+          PY
+          git diff --exit-code -- data/investments/weekly data/investments/stock_trading_v2_production_state.json data/investments/eurusd_daily_history.json
+      - name: Preserve durable prospective memory
+        run: |
+          set -euo pipefail
+          tar -czf "$RUNNER_TEMP/$STATE_ARCHIVE" -C "$FSE_ASD_STATE_DIR" .
+          test -s "$RUNNER_TEMP/$STATE_ARCHIVE"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fse-autonomous-discovery-state
+          path: ${{ runner.temp }}/fse-autonomous-discovery-state.tgz
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
+      - name: Publish read-only LAB discovery projection
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- "$PUBLIC_PATH"
+          if git diff --cached --quiet; then
+            echo "FSE ASD public projection unchanged."
+            exit 0
+          fi
+          python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
+          git commit -m "data(fse): publish autonomous shadow structure registry"
+          for attempt in 1 2 3 4 5; do
+            git fetch --quiet origin main
+            if ! git rebase origin/main; then
+              git rebase --abort || true
+              sleep "$attempt"
+              continue
+            fi
+            python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
+            if git push origin HEAD:main; then
+              echo "FSE_ASD_PUBLICATION_PASS"
+              exit 0
+            fi
+            sleep "$attempt"
+          done
+          echo "FSE_ASD_PUBLICATION_FAILED" >&2
+          exit 1
