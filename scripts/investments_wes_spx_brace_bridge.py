@@ -34,6 +34,7 @@ WES_REPORT = ROOT / "data" / "investments" / "wes_report.json"
 DEFAULT_BRACE_PUBLIC = ROOT / "data" / "public" / "brace_spx_generation6_public.json"
 LEDGER = ROOT / "data" / "investments" / "wes_spx_brace_bridge.json"
 ALPHA_REPORT = ROOT / "data" / "investments" / "wes_spx_brace_alpha_report.json"
+POLICY_PATH = ROOT / "data" / "investments" / "multi_instrument_exposure_policy.json"
 
 SCHEMA_VERSION = "wes-spx-brace-readonly-v1"
 REPORT_VERSION = "wes-spx-brace-alpha-v1"
@@ -418,7 +419,12 @@ def pre_wes_capture_status(
     }
 
 
-def _frozen_counterfactual(decision: Mapping[str, Any], item: Mapping[str, Any]) -> dict[str, Any]:
+def _frozen_counterfactual(decision: Mapping[str, Any], item: Mapping[str, Any], week: Mapping[str, Any]) -> dict[str, Any]:
+    # Freeze all replay inputs *now*, never reconstruct from a later week/policy.
+    policy = _read(POLICY_PATH, {})
+    spx_policy = next((x for x in (policy.get("instruments") or []) if isinstance(x, Mapping) and x.get("instrument_id") == SPX_ID), {})
+    cost = {key: spx_policy.get(key) for key in ("round_trip_cost", "cost_unit")}
+    frozen_distance = item.get("risk_distance")
     return {
         "counterfactual_only": True,
         "source": "governed_v5_state_before_wes_postflight",
@@ -428,6 +434,10 @@ def _frozen_counterfactual(decision: Mapping[str, Any], item: Mapping[str, Any])
         "entry_price": decision.get("entry_price"),
         "entry_captured_at": decision.get("entry_captured_at"),
         "risk_plan": _copy_risk_plan(item),
+        "frozen_risk_distance": deepcopy(frozen_distance) if isinstance(frozen_distance, Mapping) else None,
+        "frozen_symbol": item.get("symbol"),
+        "frozen_scheduled_exit": (week.get("market_window") or {}).get("exit_target_local"),
+        "frozen_cost_policy": cost,
         "outcome_status": "frozen_pending_counterfactual_evaluator",
         "net_result_percent": None,
     }
@@ -588,7 +598,7 @@ def capture(
         capture_status = pre_wes_capture_status(decision.get("decision_at"), now)
         existing["v5_counterfactual_capture"] = capture_status
         if capture_status["eligible"]:
-            existing["v5_counterfactual"] = _frozen_counterfactual(decision, item)
+            existing["v5_counterfactual"] = _frozen_counterfactual(decision, item, week)
             existing["pre_wes_frozen_at"] = now.isoformat(timespec="seconds")
 
     if stage == "post-wes":
