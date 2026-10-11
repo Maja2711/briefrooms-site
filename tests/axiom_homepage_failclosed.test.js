@@ -26,6 +26,11 @@ function element(tag) {
       this.parentNode = null;
     },
     querySelector(selector) {
+      if (selector.includes(' ')) {
+        const [parentSelector, childTag] = selector.split(/\\s+/);
+        const parent = this.querySelector(parentSelector);
+        return parent?.children.find(child => child.tag === childTag) ?? null;
+      }
       if (!selector.startsWith('.')) return null;
       const className = selector.slice(1);
       const descendants = [...this.children];
