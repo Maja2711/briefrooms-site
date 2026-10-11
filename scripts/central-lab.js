@@ -302,7 +302,13 @@ function wesSampleProgress(x){
     ' · Pary oczekujące: '+num(p.pending_comparable_pairs)+
     ' · Historyczne braki V5: '+num(p.missed_historical_captures)+
     ' · Bez wejścia V5: '+num(p.no_verified_baseline_entry)+
-    ' · Nieodtwarzalne V5: '+num(p.unreplayable_baselines)+'</small>';
+    ' · Nieodtwarzalne V5: '+num(p.unreplayable_baselines)+
+    '</small>'+(p.independent_weekly?
+    '<small class="wes-shadow-pipeline"><strong>Niezależny benchmark zamrożonej prognozy tygodniowej:</strong> '+
+    'zapisane przed wejściem '+num(p.independent_weekly.captured_prospectively)+
+    ' · wirtualne wejścia ze świec 5m '+num(p.independent_weekly.virtual_entries_verified)+
+    ' · rozliczone porównania tygodniowe '+num(p.independent_weekly.resolved_weekly_comparisons)+
+    '. Benchmark prognozy bazowej ≠ pełny silnik egzekucji V5.</small>':'');
 }
 async function shadows(){
   const root=document.querySelector('#central-shadow-engines');
