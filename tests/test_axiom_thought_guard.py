@@ -353,7 +353,7 @@ class AxiomThoughtGuardTests(unittest.TestCase):
         with (
             patch("scripts.publish_axiom_thought.call", return_value={"candidates": candidates}) as api,
             patch("scripts.publish_axiom_thought.validate_candidate"),
-            patch("scripts.publish_axiom_thought.attach_review", side_effect=lambda c, r: {"approved": c["theme"]}),
+            patch("scripts.publish_axiom_thought.attach_review", side_effect=lambda c, r, **kw: {"approved": c["theme"]}),
         ):
             chosen = generate_ten([SEED], [])
         self.assertEqual(chosen, {"approved": "idea-0"})
