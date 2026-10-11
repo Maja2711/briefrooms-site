@@ -19,7 +19,7 @@ from urllib.parse import urlsplit
 from scripts import publish_live_news as base
 from scripts.news_quality import evaluate_story
 from scripts.news_source_architecture import source_profile
-from scripts.news_source_expansion_v3 import deduplicate_dispatches
+from scripts.news_source_expansion_v3 import annotate_story_provenance
 from scripts.news_event_intelligence_v4 import cluster_events, same_event
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -169,10 +169,11 @@ def build_lang(
     now: datetime,
 ) -> tuple[list[dict[str, Any]], dict[str, str]]:
     candidates = [row for row in fetched if fresh_candidate(row, now)]
-    # Existing lineage clustering prevents Reuters copies being counted as
-    # independent confirmations; no new ungoverned scoring layer is introduced.
-    dispatches, _ = deduplicate_dispatches(candidates)
-    events, _ = cluster_events(dispatches)
+    # Event Intelligence deduplicates events while retaining all source roots:
+    # dropping same-title stories before event clustering could erase genuinely
+    # independent confirmation. Reuters republications still share one root.
+    annotated = [annotate_story_provenance(row) for row in candidates]
+    events, _ = cluster_events(annotated)
     valid = [
         e for e in events
         if material_event(e) and sufficiently_verified(e)
