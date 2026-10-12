@@ -1,7 +1,7 @@
 # Kanoniczna mapa architektury BriefRooms — PL
 
-**Wersja mapy:** 1.30  
-**Stan na:** 2026-10-10  
+**Wersja mapy:** 1.31  
+**Stan na:** 2026-10-12  
 **Bazowy commit `main`:** `39626cfd70694f6092d7e3dafb6dae02fb510fbe`  
 **Repozytorium:** `Maja2711/briefrooms-site`
 
@@ -334,7 +334,7 @@ Każda karta wiadomości widoczna publicznie — zarówno w sekcjach `/pl/aktual
 - AXIOM Thought,
 - publication, freshness guardians i automation health.
 
-**Shadow Engines Observatory jest statusem/read-only observatory.** Może czytać workflow statusy i publikować sanitizowany `shadow_engines_public.json`, ale nie może uruchamiać WES/Weekly execution, zmieniać pozycji, risk state ani innego engine-owned lifecycle. Awaria dowolnego executora nie może blokować publikacji statusu innych shadow engines.
+**Shadow Engines Observatory (`scripts/build_shadow_engines_public.py`, `.github/workflows/shadow-engines-observatory.yml`) jest statusem/read-only observatory.** Może czytać workflow statusy i publikować sanitizowany `shadow_engines_public.json`, ale nie może uruchamiać WES/Weekly execution, zmieniać pozycji, risk state ani innego engine-owned lifecycle. Brak wpisu w registry i niedostępny pojedynczy workflow są widocznie raportowane, lecz nie blokują publikacji pozostałych statusów. `scripts/publish_shadow_snapshot.py` publikuje wyłącznie plik `data/investments/shadow_engines_public.json` przez atomową aktualizację SHA z ochroną przed zastąpieniem nowszego raportu starszym. Niezależny logicznie workflow `.github/workflows/shadow-engines-watchdog.yml` co 5 minut czyta ten plik z `main` oraz historię GitHub Actions; po 20 minutach braku świeżej publikacji utrzymuje deduplikowane zgłoszenie GitHub Issue i zamyka je po odzyskaniu świeżości. Watchdog ma `contents: read`, `actions: read`, `issues: write`; nie ma prawa do wykonania transakcji ani modyfikowania stanów silników. Ponieważ oba workflow korzystają z GitHub Actions, nie jest to niezależny od GitHub zewnętrzny monitoring dostępności całej platformy.
 
 **P2 source-slot recovery (`EP-05`, `EP-06`, `LE-06`, `LE-09`)**: niezależny read-only watchdog może wyłącznie zlecić istniejącemu collectorowi Belief zebranie bieżącego, niezapisanego slotu NYSE od planowanej godziny +2 min do końca oryginalnej fazy minus 2 min. Dla regularnego zamknięcia próby przypadają na 16:02/07/12/17 NY; alarm nadal dojrzewa po +55 min. Trwający/oczekujący collector blokuje duplikację, a zakończona próba z tej samej fazy ma 5-minutowy cooldown; starszy heartbeat nie blokuje nowego slotu. Monitor sprawdza także nieudane zakończenia workflow. Dodatkowe harmonogramy 20/21 UTC pokrywają EDT/EST, ale GitHub Actions nie gwarantuje twardego SLA. Jedynym writerem source/forecast pozostaje istniejący collector z własnymi gate'ami i lockiem. Historyczne luki pozostają `FAIL`; brak backdating, nadpisywania receipt, promotion, Belief writeback lub execution authority. Szczegóły: `docs/P2_SHADOW_WATCHDOG_P21.md`.
 
