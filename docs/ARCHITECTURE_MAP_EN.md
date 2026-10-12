@@ -1,7 +1,7 @@
 # BriefRooms Canonical Architecture Map — EN
 
-**Map version:** 1.30  
-**Snapshot date:** 2026-10-10  
+**Map version:** 1.31  
+**Snapshot date:** 2026-10-12  
 **Base `main` commit:** `39626cfd70694f6092d7e3dafb6dae02fb510fbe`  
 **Repository:** `Maja2711/briefrooms-site`
 
@@ -334,7 +334,7 @@ Every publicly visible news card — section pages `/pl/aktualnosci` / `/en/news
 - AXIOM Thought,
 - publication, freshness guardians and automation health.
 
-**Shadow Engines Observatory is a status/read-only observatory.** It may read workflow status and publish sanitized `shadow_engines_public.json`, but it must not run WES/Weekly execution, mutate positions, risk state, or any other engine-owned lifecycle. A failure in any executor must not block publication of the other shadow-engine statuses.
+**Shadow Engines Observatory (`scripts/build_shadow_engines_public.py`, `.github/workflows/shadow-engines-observatory.yml`) is status-only/read-only.** It may read workflow statuses and publish the sanitized `shadow_engines_public.json` projection, but must never execute WES/Weekly, change positions, risk state or engine-owned lifecycle. An unmapped registry entry or one unavailable workflow is explicitly reported without blocking other shadow status rows. `scripts/publish_shadow_snapshot.py` writes only `data/investments/shadow_engines_public.json` with SHA-based single-file optimistic concurrency and never replaces a newer snapshot with an older one. The logically separate `.github/workflows/shadow-engines-watchdog.yml` reads remote `main` and GitHub Actions history every 5 minutes, opens a deduplicated GitHub Issue after 20 minutes of stale publication and closes it after a verified fresh report. The watchdog has `contents: read`, `actions: read`, `issues: write`; it has no execution, engine-state or promotion authority. Both workflows share GitHub Actions infrastructure, so this is not external monitoring of a total GitHub outage.
 
 **P2 source-slot recovery (`EP-05`, `EP-06`, `LE-06`, `LE-09`)**: the independent read-only watchdog may only request the existing Belief collector to collect a live, unrecorded NYSE slot from planned time +2 minutes until two minutes before its original phase ends. For regular close, attempts occur at 16:02/07/12/17 NY; the alarm still matures after +55 minutes. Queued/running collection suppresses duplicates; a completed same-phase attempt has a five-minute cooldown, while an older heartbeat cannot block a new slot. The monitor also checks failed workflow completions. Additional 20/21 UTC schedules cover EDT/EST, but GitHub Actions cannot guarantee a hard SLA. The existing collector retains exclusive source/forecast writer ownership, gates and lock. Historical gaps remain `FAIL`; no backdating, receipt overwrite, promotion, Belief writeback or execution authority. Details: `docs/P2_SHADOW_WATCHDOG_P21.md`.
 
