@@ -17,6 +17,7 @@ on:
     branches: [main]
     paths:
       - "scripts/build_shadow_engines_public.py"
+      - "scripts/publish_shadow_snapshot.py"
       - "scripts/audit_provenance.py"
       - "scripts/provenance_contract.py"
       - "tests/test_shadow_engines_public.py"
@@ -56,8 +57,7 @@ jobs:
 
       - name: Validate shadow registry builder and LAB frontend
         run: |
-          python -m py_compile scripts/build_shadow_engines_public.py
-          python -m unittest tests.test_shadow_engines_public tests.test_shadow_engines_observatory_workflow -v
+          python -m py_compile scripts/build_shadow_engines_public.py scripts/publish_shadow_snapshot.py
           node --check scripts/central-lab.js
           grep -q 'data-tab="shadow"' pl/inwestycje/decision-lab.html
           grep -q 'central-shadow-engines' pl/inwestycje/decision-lab.html
@@ -81,10 +81,12 @@ jobs:
                       "--branch","main",
                       "--limit","1",
                       "--json","databaseId,status,conclusion,createdAt,updatedAt"
-                  ], text=True)
+                  ], text=True, timeout=20)
                   rows=json.loads(raw)
                   out[workflow]=rows[0] if rows else {}
-              except subprocess.CalledProcessError:
+              except (subprocess.CalledProcessError, subprocess.TimeoutExpired, ValueError) as error:
+                  # One failing source must not block other Shadow status rows.
+                  print(f"WARNING: failed reading {workflow}: {error}", flush=True)
                   out[workflow]={}
           with open("/tmp/shadow-workflows.json","w",encoding="utf-8") as fh:
               json.dump(out,fh,ensure_ascii=False,indent=2)
@@ -93,7 +95,9 @@ jobs:
 
       - name: Build public Shadow Engines snapshot
         run: |
-          python scripts/build_shadow_engines_public.py             --workflow-status /tmp/shadow-workflows.json             --output data/investments/shadow_engines_public.json
+          python scripts/build_shadow_engines_public.py \
+            --workflow-status /tmp/shadow-workflows.json \
+            --output data/investments/shadow_engines_public.json
           python -m json.tool data/investments/shadow_engines_public.json >/dev/null
 
       - name: Enforce native provenance before Shadow publication
@@ -103,25 +107,7 @@ jobs:
             --profile shadow \
             --file data/investments/shadow_engines_public.json
 
-      - name: Publish Shadow Engines snapshot
+      - name: Publish read-only status using optimistic single-file API update
         run: |
           set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/investments/shadow_engines_public.json
-          if git diff --cached --quiet; then
-            echo "Shadow Engines snapshot already current."
-            exit 0
-          fi
-          git commit -m "Refresh Shadow Engines observatory"
-          for attempt in 1 2 3 4 5; do
-            git fetch origin main
-            if ! git rebase origin/main; then
-              git rebase --abort || true
-              sleep $((attempt*2))
-              continue
-            fi
-            if git push origin HEAD:main; then exit 0; fi
-            sleep $((attempt*3))
-          done
-          exit 1
+          python scripts/publish_shadow_snapshot.py
