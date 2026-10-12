@@ -7,7 +7,7 @@
   "automatic_tuning": false,
   "automatic_promotion": false,
   "promotion_policy": "v3_candidates_manual; probability_recalibration_closed_loop_governed",
-  "generated_at": "2026-10-12T19:51:53.538593Z",
+  "generated_at": "2026-10-12T21:27:37.530798Z",
   "evolution_controller": {
     "authority": {
       "belief_evidence_mutation": false,
@@ -1799,7 +1799,7 @@
       "promotion_brier_relative_improvement": 0.05,
       "stability_blocks_required": "3_of_4"
     },
-    "generated_at": "2026-10-12T19:51:58.556426Z",
+    "generated_at": "2026-10-12T21:27:42.486197Z",
     "global_control_metrics": {
       "accuracy": 0.603189,
       "brier": 0.238291,
@@ -1814,7 +1814,7 @@
     {
       "instrument": "BTC/USD",
       "trend_belief_id": "btc.trend.bullish",
-      "calculated_at": "2026-10-12T19:51:53.538593Z",
+      "calculated_at": "2026-10-12T21:27:37.530798Z",
       "as_of": "2026-10-12T17:43:50.119869Z",
       "target_at": "2026-10-13T17:43:50.119869Z",
       "horizon_label": "24H",
@@ -1840,7 +1840,7 @@
     {
       "instrument": "EUR/USD",
       "trend_belief_id": "eurusd.trend.bullish",
-      "calculated_at": "2026-10-12T19:51:53.538593Z",
+      "calculated_at": "2026-10-12T21:27:37.530798Z",
       "as_of": "2026-10-12T17:43:50.119869Z",
       "target_at": "2026-10-13T17:43:50.119869Z",
       "horizon_label": "24H",
@@ -1866,7 +1866,7 @@
     {
       "instrument": "S&P 500",
       "trend_belief_id": "spx.trend.bullish",
-      "calculated_at": "2026-10-12T19:51:53.538593Z",
+      "calculated_at": "2026-10-12T21:27:37.530798Z",
       "as_of": "2026-10-12T17:43:50.119869Z",
       "target_at": "2026-10-12T20:00:00Z",
       "horizon_label": "2H",
@@ -15345,7 +15345,7 @@
   },
   "hypothesis_utility": {
     "schema_version": "briefrooms-hypothesis-utility-v1",
-    "generated_at": "2026-10-12T19:51:56.833372Z",
+    "generated_at": "2026-10-12T21:27:40.815511Z",
     "status": "SHADOW_READ_ONLY",
     "authority": {
       "production_writeback": false,
@@ -16579,7 +16579,7 @@
   },
   "hypothesis_challengers": {
     "schema_version": "briefrooms-hypothesis-challenger-v1",
-    "generated_at": "2026-10-12T19:51:57.293962Z",
+    "generated_at": "2026-10-12T21:27:41.271623Z",
     "status": "SHADOW_OOS_GOVERNED",
     "summary": {
       "candidates_total": 2,
@@ -16703,7 +16703,7 @@
   },
   "p2_shadow_watchdog": {
     "schema_version": "briefrooms-p2-shadow-watchdog-v1",
-    "generated_at": "2026-10-12T19:51:57.852057Z",
+    "generated_at": "2026-10-12T21:27:41.810885Z",
     "status": "FAIL",
     "readiness": "REAL_SETTLEMENT_VERIFIED",
     "production_e2e_status": "BLOCKED",
@@ -16711,12 +16711,13 @@
       "calendar_status": "VERIFIED",
       "due_slots": [
         "1000",
-        "1300"
+        "1300",
+        "1600"
       ],
       "early_close": false,
       "holiday_closed": false,
       "holiday_proof": "NYSE_OFFICIAL_2026_2028",
-      "market_window_active": true,
+      "market_window_active": false,
       "nyse_close_time": "16:00",
       "scheduled_slots": [
         "1000",
@@ -16731,15 +16732,17 @@
       "weekday_ny": 0
     },
     "source_sla": {
-      "due_market_slots": 2,
-      "market_snapshot_sla_breaches": 2,
+      "due_market_slots": 3,
+      "market_snapshot_sla_breaches": 3,
       "missing_snapshot_slot_keys": [
+        "wes-assets:2026-10-12:1600",
         "wes-assets:2026-10-09:1600",
         "wes-assets:2026-10-08:1600"
       ],
       "recoverable_missing_slot_keys": [],
       "threshold_minutes_after_planned_slot": 55,
       "unresolved_missing_slot_keys": [
+        "wes-assets:2026-10-12:1600",
         "wes-assets:2026-10-09:1600",
         "wes-assets:2026-10-08:1600"
       ]
@@ -16751,7 +16754,7 @@
       "critical_alerts": 1,
       "frozen_shadow_forecasts": 30,
       "irrecoverable_missed_freezes": 0,
-      "market_snapshot_sla_breaches": 2,
+      "market_snapshot_sla_breaches": 3,
       "real_settled_events": 17,
       "real_settlement_backlog": 0,
       "recoverable_freeze_gaps": 0,
@@ -16768,7 +16771,7 @@
         "code": "MARKET_SNAPSHOT_SLA_BREACHED",
         "severity": "CRITICAL",
         "candidate_id": null,
-        "count": 2
+        "count": 3
       }
     ],
     "candidates": [
