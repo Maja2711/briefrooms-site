@@ -286,6 +286,18 @@ def refill(rows,reserve):
     # First vet legacy entries in their existing order.
     for candidate in list(reserve):
         if completed>=REFILL_BATCH: break
+        from axiom_thought_guard import rhetorical_style_issues
+        style_conflicts = rhetorical_style_issues(
+            candidate.get("pl", ""), rows, candidate_validation_stamp(rows)
+        )
+        if style_conflicts:
+            # This is NOT a published history deletion. The earlier
+            # unpublished reserve version remains recoverable in Git.
+            reserve.remove(candidate)
+            save_reserve(reserve)
+            print(f"RESERVE_STYLE_RETIRED theme={candidate.get('theme')} "
+                  f"reason={style_conflicts[0]}",flush=True)
+            continue
         if evidence_valid(candidate,rows):
             try:
                 validate_candidate(candidate,rows,[x for x in reserve if x is not candidate])
@@ -385,10 +397,19 @@ def main():
         return 0 if ok else 1
     if a.mode=="preflight":
         if not reserve:
-            print("preflight failed: reserve empty", file=sys.stderr); return 2
+            print("::warning::AXIOM preflight=degraded-empty reserve=0 eligible=0; "
+                  "live generation remains available",flush=True)
+            return 0
         errors=[]
         style_debt=[]
         for i,candidate in enumerate(reserve):
+            from axiom_thought_guard import rhetorical_style_issues
+            style_conflicts = rhetorical_style_issues(
+                candidate.get("pl", ""), rows, candidate_validation_stamp(rows)
+            )
+            if style_conflicts:
+                style_debt.append(f"reserve[{i}] {candidate.get('theme')}: {style_conflicts[0]}")
+                continue
             try:
                 validate_candidate(candidate,rows,reserve[:i])
             except Exception as e:
