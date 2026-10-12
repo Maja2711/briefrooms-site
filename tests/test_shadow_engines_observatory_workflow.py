@@ -14,6 +14,16 @@ class ShadowEnginesObservatoryWorkflowTests(unittest.TestCase):
         self.assertNotIn("audit_intraday_risk_exits.py --persist-report", text)
         self.assertNotIn("Execute WES live ENTRY SL TP", text)
 
+    def test_independent_watchdog_has_its_own_read_only_schedule(self):
+        text = (ROOT / ".github/workflows/shadow-engines-watchdog.yml").read_text(encoding="utf-8")
+        self.assertIn('cron: "*/5 * * * *"', text)
+        self.assertIn("issues: write", text)
+        self.assertIn("contents: read", text)
+        self.assertIn("actions: read", text)
+        self.assertNotIn("contents: write", text)
+        self.assertIn("scripts/shadow_engines_watchdog.py", text)
+        self.assertNotIn("investments_weekly_v5.py", text)
+
     def test_current_fse_workflow_names_trigger_observatory(self):
         text = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn('"FSE Fractal Structure Engine Shadow"', text)
@@ -24,7 +34,10 @@ class ShadowEnginesObservatoryWorkflowTests(unittest.TestCase):
         text = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("build_shadow_engines_public.py", text)
         self.assertIn("shadow_engines_public.json", text)
-        self.assertIn("tests.test_shadow_engines_public", text)
+        self.assertIn("scripts/publish_shadow_snapshot.py", text)
+        self.assertIn("scripts/audit_provenance.py", text)
+        self.assertNotIn("git rebase origin/main", text)
+        self.assertNotIn("git push origin HEAD:main", text)
 
 
 if __name__ == "__main__":
