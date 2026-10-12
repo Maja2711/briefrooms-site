@@ -133,6 +133,7 @@ IGNORED_SHADOW_WORKFLOWS = {
     "stock-trading-v2-shadow-ingest.yml",
     "shadow-alpha-experience-store.yml",
     "shadow-engines-observatory.yml",
+    "shadow-engines-watchdog.yml",
     "hypothesis-shadow-experiments.yml",
     # Retired external research experiment; workflow is manual archive verification only.
     "deepbook-predict-shadow.yml",
