@@ -286,7 +286,7 @@ def refill(rows,reserve):
     # First vet legacy entries in their existing order.
     for candidate in list(reserve):
         if completed>=REFILL_BATCH: break
-        from axiom_thought_guard import rhetorical_style_issues
+        from scripts.axiom_thought_guard import rhetorical_style_issues
         style_conflicts = rhetorical_style_issues(
             candidate.get("pl", ""), rows, candidate_validation_stamp(rows)
         )
@@ -403,7 +403,7 @@ def main():
         errors=[]
         style_debt=[]
         for i,candidate in enumerate(reserve):
-            from axiom_thought_guard import rhetorical_style_issues
+            from scripts.axiom_thought_guard import rhetorical_style_issues
             style_conflicts = rhetorical_style_issues(
                 candidate.get("pl", ""), rows, candidate_validation_stamp(rows)
             )
