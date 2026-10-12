@@ -6,6 +6,8 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 ROOT=Path(__file__).resolve().parents[1]
+# Support both CLI execution and imports from the unittest package.
+sys.path.insert(0,str(ROOT/"scripts"))
 CURRENT=ROOT/"data/home/axiom-thought.json"; HISTORY=ROOT/"data/home/axiom-thoughts-history.jsonl"
 RESERVE=ROOT/"data/home/axiom-thought-reserve.json"; PRINCIPLES=ROOT/"docs/axiom-thought-principles.md"
 GUARD=ROOT/"scripts/axiom_thought_guard.py"; WARSAW=ZoneInfo("Europe/Warsaw")
@@ -286,7 +288,7 @@ def refill(rows,reserve):
     # First vet legacy entries in their existing order.
     for candidate in list(reserve):
         if completed>=REFILL_BATCH: break
-        from scripts.axiom_thought_guard import rhetorical_style_issues
+        from axiom_thought_guard import rhetorical_style_issues
         style_conflicts = rhetorical_style_issues(
             candidate.get("pl", ""), rows, candidate_validation_stamp(rows)
         )
@@ -403,7 +405,7 @@ def main():
         errors=[]
         style_debt=[]
         for i,candidate in enumerate(reserve):
-            from scripts.axiom_thought_guard import rhetorical_style_issues
+            from axiom_thought_guard import rhetorical_style_issues
             style_conflicts = rhetorical_style_issues(
                 candidate.get("pl", ""), rows, candidate_validation_stamp(rows)
             )
