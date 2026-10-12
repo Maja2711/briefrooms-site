@@ -1,0 +1,40 @@
+name: Shadow Engines Observatory Freshness Watchdog
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/5 * * * *"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/shadow_engines_watchdog.py"
+      - ".github/workflows/shadow-engines-watchdog.yml"
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+concurrency:
+  group: shadow-engines-observatory-independent-watchdog
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check published snapshot from remote main and reconcile alarm
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/shadow_engines_watchdog.py
+          python scripts/shadow_engines_watchdog.py

@@ -357,8 +357,8 @@ async function shadows(){
     const [r,hse]=await Promise.all([get('/data/investments/shadow_engines_public.json'),get('/data/investments/hypothesis_shadow_engine_v2_public.json').catch(()=>({}))]);
     const s=r.summary||{},coverage=r.coverage||{},engines=Array.isArray(r.engines)?r.engines:[];
     const snapshotTime=Date.parse(String(r.generated_at||''));
-    const snapshotStale=!Number.isFinite(snapshotTime)||(Date.now()-snapshotTime)>45*60*1000;
-    const freshnessWarning=snapshotStale?'<p class="shadow-coverage-warning"><strong>ALARM: Nieaktualny Shadow Engines Observatory.</strong> Raport nie był publikowany przez ponad 45 minut lub brak daty. Statusy poniżej są wyłącznie ostatnim zapisanym stanem, a nie potwierdzeniem bieżącej pracy silników.</p>':'';
+    const snapshotStale=!Number.isFinite(snapshotTime)||(Date.now()-snapshotTime)>20*60*1000;
+    const freshnessWarning=snapshotStale?'<p class="shadow-coverage-warning"><strong>ALARM: Nieaktualny Shadow Engines Observatory.</strong> Raport nie był publikowany przez ponad 20 minut lub brak daty. Statusy poniżej są wyłącznie ostatnim zapisanym stanem, a nie potwierdzeniem bieżącej pracy silników.</p>':'';
     const rows=engines.map(x=>'<tr>'+
       '<td><strong>'+esc(x.name)+'</strong><small>'+esc(x.workflow||'—')+'</small></td>'+
       '<td>'+shadowStatus(x.status)+'<small>'+esc(x.status_reason||'')+'</small></td>'+

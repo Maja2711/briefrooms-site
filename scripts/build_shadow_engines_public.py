@@ -133,6 +133,8 @@ IGNORED_SHADOW_WORKFLOWS = {
     "stock-trading-v2-shadow-ingest.yml",
     "shadow-alpha-experience-store.yml",
     "shadow-engines-observatory.yml",
+    "shadow-engines-watchdog.yml",
+    "shadow-engines-observatory-validation.yml",
     "hypothesis-shadow-experiments.yml",
     # Retired external research experiment; workflow is manual archive verification only.
     "deepbook-predict-shadow.yml",
@@ -476,7 +478,11 @@ def main() -> int:
     output.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps(payload["summary"], ensure_ascii=False, sort_keys=True))
     if not payload["coverage"]["complete"]:
-        raise SystemExit("unmapped logical shadow workflows: " + ", ".join(payload["coverage"]["unmapped_shadow_workflows"]))
+        # A registry gap must be visible, but must never freeze the status of
+        # the other engines. Coverage remains explicitly incomplete in JSON.
+        print("WARNING: unmapped logical shadow workflows: " + ", ".join(
+            payload["coverage"]["unmapped_shadow_workflows"]
+        ))
     return 0
 
 
