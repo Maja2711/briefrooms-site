@@ -1,17 +1,122 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 from scripts.publish_live_news import MIN_SECTION, TARGET, normalized_identity, parse_entry_time, select_sections
 from scripts.dedupe_home_brief_stories import same_topic
 from scripts import publish_live_news_filtered as filtered_news
+from scripts import enforce_homepage_max_age as public_freshness
 from scripts import publish_source_expansion_v3 as source_v3
 from scripts.publish_source_expansion_v3 import homepage_ranked_select
 
 
 class LiveNewsPublisherTests(unittest.TestCase):
+    def test_expired_science_stories_do_not_occupy_the_ranked_slots(self) -> None:
+        # Regression: formerly the top 15 expired science cards were selected,
+        # then all were removed by the final guard despite six fresh alternatives.
+        now = datetime(2026, 10, 12, 17, 0, tzinfo=timezone.utc)
+
+        def story(index: int, category: str = "nauka") -> dict[str, str]:
+            return {
+                "title": f"Scientific discovery number {index}",
+                "summary": f"Verified scientific result number {index}",
+                "source": "Science Desk",
+                "image": f"https://example.org/image-{index}.jpg",
+                "link": f"https://example.org/science/{index}",
+                "published_at": now.isoformat(),
+                "category": category,
+            }
+
+        expired = [story(index) for index in range(15)]
+        fresh = [story(index) for index in range(15, 21)]
+        without_image = dict(story(21))
+        without_image["image"] = ""
+        exposure = {
+            normalized_identity(item): {
+                "first_seen_at": (now - timedelta(hours=25)).isoformat(),
+                "source": item["source"],
+                "title": item["title"],
+            }
+            for item in expired
+        }
+        exposure_before = {key: dict(value) for key, value in exposure.items()}
+        previous = {"sections": {"nauka": expired}}
+        config = [
+            ("polityka", "Politics", []),
+            ("nauka", "Science", []),
+        ]
+
+        def select_ranked(config, candidate_map, previous_map, selection_time):
+            self.assertEqual(selection_time, now)
+            self.assertEqual(previous_map["sections"]["nauka"], [])
+            self.assertEqual(len(candidate_map["nauka"]), 6)
+            return (
+                {section_id: list(candidate_map.get(section_id, []))[:15]
+                 for section_id, _, _ in config},
+                {section_id: {} for section_id, _, _ in config},
+            )
+
+        with (
+            patch.object(public_freshness, "_load_state", return_value={
+                "schema_version": public_freshness.EXPOSURE_SCHEMA_VERSION,
+                "languages": {"pl": exposure},
+            }),
+            patch.object(source_v3, "deduplicate_dispatches",
+                         side_effect=lambda rows: (rows, {})),
+            patch.object(source_v3, "cluster_events",
+                         side_effect=lambda rows: (rows, {})),
+            patch.object(source_v3, "_original_select_sections",
+                         side_effect=select_ranked),
+        ):
+            selected, health = source_v3.select_sections(
+                config,
+                {"polityka": [], "nauka": expired + fresh + [without_image]},
+                previous,
+                now,
+            )
+
+        self.assertEqual([item["link"] for item in selected["nauka"]],
+                         [item["link"] for item in fresh])
+        self.assertEqual(health["nauka"]["public_exposure_preselection_rejected"], 16)
+        self.assertEqual(health["nauka"]["public_exposure_preselection_version"],
+                         public_freshness.POLICY_VERSION)
+        # The early check must never start the clock for reserve candidates.
+        self.assertEqual(exposure, exposure_before)
+
+        # The final guard must agree with the early check, not discard six
+        # candidates the selector just admitted.
+        payload = {
+            "sections": {"nauka": expired + fresh + [without_image]},
+            "home": [],
+            "home_reserve": [],
+            "health": {},
+        }
+        guarded, _ = public_freshness.enforce_payload(
+            payload, {key: dict(value) for key, value in exposure.items()}, now, "pl",
+        )
+        self.assertEqual([item["link"] for item in guarded["sections"]["nauka"]],
+                         [item["link"] for item in fresh])
+
+    def test_science_shortfall_does_not_republish_expired_articles(self) -> None:
+        now = datetime(2026, 10, 12, 17, 0, tzinfo=timezone.utc)
+        previous = {
+            "title": "Old verified result",
+            "source": "Science Desk",
+            "link": "https://example.org/old-science",
+            "image": "https://example.org/old.jpg",
+        }
+        first_seen = (now - timedelta(hours=25)).isoformat()
+        state = {normalized_identity(previous): {"first_seen_at": first_seen}}
+        checked, reason = public_freshness.public_news_preselection_check(
+            previous, state, now, "pl",
+        )
+        self.assertIsNone(checked)
+        self.assertEqual(reason, "expired")
+        self.assertEqual(state[normalized_identity(previous)]["first_seen_at"], first_seen)
+
     def test_tv_program_promotions_are_removed_from_all_source_pools(self) -> None:
         examples = [
             ("Polsat News", '"Śniadanie Rymanowskiego" w Polsat News i Interii', "polityka"),

@@ -11,6 +11,7 @@ try:
     from . import publish_live_news as base
     from . import publish_live_news_filtered as filtered
     from . import publish_curated_news as curated
+    from . import enforce_homepage_max_age as public_freshness
     from .news_claim_intelligence import (
         CLAIM_INTELLIGENCE_VERSION,
         CONTRADICTION_DETECTION_VERSION,
@@ -42,6 +43,7 @@ except ImportError:
     import publish_live_news as base
     import publish_live_news_filtered as filtered
     import publish_curated_news as curated
+    import enforce_homepage_max_age as public_freshness
     from news_claim_intelligence import (
         CLAIM_INTELLIGENCE_VERSION,
         CONTRADICTION_DETECTION_VERSION,
@@ -183,18 +185,47 @@ def select_sections(
     canonical: dict[str, list[dict[str, Any]]] = {}
     dispatch_diagnostics: dict[str, dict[str, Any]] = {}
     event_diagnostics: dict[str, dict[str, Any]] = {}
+    preselection_rejected: dict[str, int] = {}
+
+    # The final public exposure guard is deliberately after editorial ranking.
+    # Check the SAME non-mutating rules before ranking so the best 15 slots
+    # cannot be consumed by stories the guard will immediately remove.
+    lang = "pl" if any(section_id == "polityka" for section_id, _, _ in config) else "en"
+    exposure_languages = public_freshness._load_state().get("languages", {})
+    stored = exposure_languages.get(lang, {}) if isinstance(exposure_languages, dict) else {}
+    state_lang = stored if isinstance(stored, dict) else {}
+
+    def eligible(story: dict[str, Any]) -> bool:
+        first_seen, _reason = public_freshness.public_news_preselection_check(
+            story, state_lang, now, lang,
+        )
+        return first_seen is not None
 
     for section_id, _, _ in config:
-        deduped, dispatch_diag = deduplicate_dispatches(fetched.get(section_id) or [])
+        raw = fetched.get(section_id) or []
+        eligible_rows = [story for story in raw if isinstance(story, dict) and eligible(story)]
+        preselection_rejected[section_id] = len(raw) - len(eligible_rows)
+        deduped, dispatch_diag = deduplicate_dispatches(eligible_rows)
         events, event_diag = cluster_events(deduped)
         canonical[section_id] = events
         dispatch_diagnostics[section_id] = dispatch_diag
         event_diagnostics[section_id] = event_diag
 
+    # Carried stories need exactly the same eligibility gate; otherwise they
+    # can refill a ranked section with identities whose exposure has expired.
+    eligible_previous = _prepare_previous(previous)
+    prior_sections = eligible_previous.get("sections", {})
+    if isinstance(prior_sections, dict):
+        eligible_previous["sections"] = {
+            section_id: [story for story in rows if isinstance(story, dict) and eligible(story)]
+            if isinstance(rows, list) else rows
+            for section_id, rows in prior_sections.items()
+        }
+
     selected, health = _original_select_sections(
         config,
         canonical,
-        _prepare_previous(previous),
+        eligible_previous,
         now,
     )
 
@@ -213,6 +244,8 @@ def select_sections(
         section_health.update(
             {
                 "source_expansion_version": SOURCE_EXPANSION_VERSION,
+                "public_exposure_preselection_rejected": preselection_rejected.get(section_id, 0),
+                "public_exposure_preselection_version": public_freshness.POLICY_VERSION,
                 "origin_detection_version": ORIGIN_DETECTION_VERSION,
                 "dispatch_dedupe_version": DISPATCH_DEDUPE_VERSION,
                 "origin_mix": origin_mix(rows),
