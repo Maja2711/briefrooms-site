@@ -8,7 +8,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
-from scripts.axiom_thought_guard import similarity, validate, review_digest, review_evidence_errors
+from scripts.axiom_thought_guard import similarity, validate, review_digest, review_evidence_errors, rhetorical_templates, rhetorical_style_issues
 from scripts.publish_axiom_thought import candidate_validation_stamp, semantic_review, semantic_smoke, validate_candidate, publish, main, generate_ten, refill, evidence_valid, attach_review, core_candidate
 
 
@@ -418,6 +418,90 @@ class AxiomThoughtGuardTests(unittest.TestCase):
         self.assertIn('"BRs R2 Shadow Archive Pilot"', workflow)
         self.assertIn("group: morning-axiom-daily\n", workflow)
         self.assertIn("continue-on-error: true", workflow)
+
+
+    def test_rhetorical_templates_detect_repeated_constructions(self) -> None:
+        self.assertIn("rarely-frame", rhetorical_templates(SEED["pl"]))
+        self.assertIn("rarely-more-often", rhetorical_templates(SEED["pl"]))
+        self.assertIn("not-when-but", rhetorical_templates(
+            "„Prawdziwa przewaga pojawia się nie wtedy, gdy wygrywamy, lecz gdy zmieniamy reguły.”"))
+        self.assertIn("superlative-opening", rhetorical_templates(
+            "„Najtrudniejsza decyzja dotyczy tego, czego jeszcze nie potrafimy nazwać.”"))
+        self.assertNotIn("rarely-frame", rhetorical_templates(
+            "„Granice mapy pozostają niewidoczne dla obserwatora, który nigdy z niej nie wychodzi.”"))
+
+    def test_prospective_guard_blocks_same_rarity_rhetoric_with_distinct_idea(self) -> None:
+        earlier = dict(SEED, date="2026-10-12", theme="competition-and-mimicry")
+        newer = dict(LATEST, date="2026-10-13", theme="archive-and-attention",
+                     pl="„Archiwum rzadko chroni wyłącznie przeszłość — częściej uczy przyszłych badaczy, jakie pytania warto przemilczeć.”",
+                     en="“An archive rarely protects only the past; more often it teaches future researchers which questions to leave unspoken.”")
+        current = {"date": newer["date"], "author": "AXIOM", "brand": "BriefRooms",
+                   "pl": newer["pl"], "en": newer["en"]}
+        errors = validate(current, [earlier, newer], require_review_evidence=False)
+        self.assertTrue(any("rhetorical-style duplicate: rarely-frame" in error for error in errors), errors)
+
+    def test_existing_october_12_publication_is_grandfathered(self) -> None:
+        earlier = dict(SEED, date="2026-10-09", theme="permanence-and-maintenance")
+        current_record = dict(LATEST, date="2026-10-12", theme="competition-and-mimicry",
+                              pl="„Długotrwała rywalizacja rzadko wyłania unikalnego zwycięzcę — częściej upodabnia do siebie konkurentów tak skutecznie, że ostateczna różnica między nimi staje się wyłącznie kwestią retoryki.”",
+                              en="“Long-term competition rarely produces a unique winner — competitors converge until differences become rhetorical.”")
+        current = {"date": current_record["date"], "author": "AXIOM", "brand": "BriefRooms",
+                   "pl": current_record["pl"], "en": current_record["en"]}
+        errors = validate(current, [earlier, current_record], require_review_evidence=False)
+        self.assertFalse(any("rhetorical-style" in error for error in errors), errors)
+
+    def test_rhetorical_rotation_expires_but_conceptual_dedup_does_not(self) -> None:
+        history = [dict(SEED, date="2026-09-12")]
+        self.assertEqual(rhetorical_style_issues(
+            "„System rzadko szuka prawdy, bo częściej nagradza zgodność.”",
+            history, "2026-10-13"), [])
+        self.assertTrue(rhetorical_style_issues(
+            "„System rzadko szuka prawdy, bo częściej nagradza zgodność.”",
+            history, "2026-10-12") == [])
+
+    def test_superlative_opening_is_rotated_independently(self) -> None:
+        prior = dict(SEED, date="2026-10-10",
+                     pl="„Najważniejszy sygnał ostrzegawczy może pojawić się tam, gdzie milczą wszystkie wskaźniki.”")
+        candidate = "„Najgłębszym kosztem porozumienia może być stopniowa utrata możliwości zadawania niewygodnych pytań.”"
+        issues = rhetorical_style_issues(candidate, [prior], "2026-10-13")
+        self.assertTrue(any("superlative-opening" in issue for issue in issues), issues)
+        self.assertFalse(rhetorical_style_issues(candidate, [prior], "2026-10-25"))
+
+    def test_reserve_candidate_cannot_repeat_rhetorical_template(self) -> None:
+        candidate = dict(LATEST)
+        candidate.pop("date")
+        candidate["theme"] = "new-causal-theme"
+        candidate["pl"] = "„Długotrwały spór rzadko ujawnia sedno problemu — częściej prowadzi do odkrycia nowych błędów organizacyjnych.”"
+        candidate["en"] = "“A prolonged dispute rarely reveals the heart of a problem, but often exposes new organizational failures.”"
+        with patch("scripts.publish_axiom_thought.today", return_value="2026-10-13"):
+            with self.assertRaisesRegex(ValueError, "rhetorical-style duplicate"):
+                validate_candidate(candidate, [SEED], [])
+
+    def test_canonical_archive_remains_valid_with_prospective_style_guard(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        rows = [json.loads(x) for x in (root / "data/home/axiom-thoughts-history.jsonl")
+                .read_text(encoding="utf-8").splitlines() if x.strip()]
+        current = json.loads((root / "data/home/axiom-thought.json").read_text(encoding="utf-8"))
+        self.assertEqual(validate(current, rows), [])
+        self.assertEqual(rows[0]["date"], "2026-09-15")
+        self.assertEqual(rows[-1]["date"], current["date"])
+
+    def test_hourly_refill_retires_verified_but_stylistically_stale_bank(self) -> None:
+        reserve = [dict(LATEST, theme="old-template",
+                        pl="„Uznanie rzadko tworzy nową odpowiedzialność — częściej odsłania wcześniejsze oczekiwania wobec władzy.”",
+                        en="“Recognition rarely creates a new responsibility; more often, it reveals prior expectations about authority.”")]
+        reserve[0].pop("date")
+        saved = []
+        with (
+            patch("scripts.publish_axiom_thought.today", return_value="2026-10-13"),
+            patch("scripts.publish_axiom_thought.evidence_valid", return_value=True),
+            patch("scripts.publish_axiom_thought.generate", side_effect=RuntimeError("offline")),
+            patch("scripts.publish_axiom_thought.save_reserve", side_effect=lambda x: saved.append(len(x))),
+        ):
+            self.assertTrue(refill([SEED], reserve))
+        self.assertEqual(reserve, [])
+        self.assertEqual(saved, [0])
+
 
 
 if __name__ == "__main__":

@@ -55,6 +55,17 @@ HISTORY_RETENTION_DAYS = 365
 MAX_SEQUENCE_SIMILARITY = 0.72
 MAX_TOKEN_JACCARD = 0.55
 
+# New editorial rule applies prospectively: never retroactively invalidate
+# published thoughts or rewrite the append-only historical record.
+RHETORICAL_GUARD_FROM = "2026-10-13"
+RHETORICAL_STYLE_WINDOWS = {
+    "rarely-frame": 30,
+    "rarely-more-often": 30,
+    "not-when-but": 21,
+    "not-but-contrast": 14,
+    "superlative-opening": 14,
+}
+
 BANNED_PHRASES_PL = (
     "uwierz w siebie",
     "nigdy się nie poddawaj",
@@ -94,7 +105,8 @@ class Similarity:
 
 
 def _deaccent(text: str) -> str:
-    normalized = unicodedata.normalize("NFKD", text)
+    # NFKD does not decompose Polish ł/Ł; normalize them explicitly.
+    normalized = unicodedata.normalize("NFKD", text.replace("ł", "l").replace("Ł", "L"))
     return "".join(ch for ch in normalized if not unicodedata.combining(ch))
 
 
@@ -117,6 +129,59 @@ def similarity(a: str, b: str) -> Similarity:
     union = ta | tb
     jac = len(ta & tb) / len(union) if union else 1.0
     return Similarity(sequence=seq, jaccard=jac)
+
+
+def rhetorical_templates(polish: str) -> set[str]:
+    """Deterministic, theme-agnostic Polish rhetoric signatures.
+
+    Distinguish repeated *sentence architecture* from repeated words or ideas.
+    Semantic uniqueness is still checked separately by two independent models.
+    """
+    if not isinstance(polish, str):
+        return set()
+    words = normalize_text(polish).split()
+    if not words:
+        return set()
+    text = " ".join(words)
+    result: set[str] = set()
+    if "rzadko" in words:
+        result.add("rarely-frame")
+        if "czesciej" in words:
+            result.add("rarely-more-often")
+    if re.search(r"\bnie wtedy\b", text) and re.search(r"\b(lecz|ale|gdy|kiedy)\b", text):
+        result.add("not-when-but")
+    if re.search(r"\bnie\b.{0,170}\b(lecz|ale)\b", text):
+        result.add("not-but-contrast")
+    if words[0].startswith("naj") and len(words[0]) >= 6:
+        result.add("superlative-opening")
+    return result
+
+
+def rhetorical_style_issues(candidate_pl: str, previous: list[dict[str, Any]], publication_date: str) -> list[str]:
+    """Block an already-used stylistic template inside its rolling lookback.
+
+    All earlier published thoughts remain valid, including the 12 Oct motto
+    that motivated this change. Invalid dates are reported by the main guard.
+    """
+    if not _valid_iso_date(publication_date) or publication_date < RHETORICAL_GUARD_FROM:
+        return []
+    stamp = date.fromisoformat(publication_date)
+    current_patterns = rhetorical_templates(candidate_pl)
+    findings: list[str] = []
+    for prior in previous:
+        prior_date = prior.get("date")
+        if not _valid_iso_date(prior_date):
+            continue
+        elapsed = (stamp - date.fromisoformat(prior_date)).days
+        if elapsed <= 0:
+            continue
+        for name in sorted(current_patterns & rhetorical_templates(prior.get("pl", ""))):
+            if elapsed <= RHETORICAL_STYLE_WINDOWS[name]:
+                findings.append(
+                    f"rhetorical-style duplicate: {name} (previous={prior_date}, "
+                    f"lookback={RHETORICAL_STYLE_WINDOWS[name]}d)"
+                )
+    return findings
 
 
 def read_json(path: Path) -> dict[str, Any]:
@@ -275,6 +340,8 @@ def validate(current: dict[str, Any], history: list[dict[str, Any]], *, require_
         # Textual duplication is prohibited against the *entire* append-only
         # archive, including records outside the theme-rotation window.
         all_previous = history[:-1]
+        if isinstance(latest.get("pl"), str):
+            errors.extend(rhetorical_style_issues(latest["pl"], all_previous, latest["date"]))
 
         # A conceptual theme is exclusive for the full 365-day memory window.
         # This blocks a generator from rephrasing an old idea under the same theme.

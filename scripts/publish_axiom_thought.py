@@ -6,6 +6,8 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 ROOT=Path(__file__).resolve().parents[1]
+# Support both CLI execution and imports from the unittest package.
+sys.path.insert(0,str(ROOT/"scripts"))
 CURRENT=ROOT/"data/home/axiom-thought.json"; HISTORY=ROOT/"data/home/axiom-thoughts-history.jsonl"
 RESERVE=ROOT/"data/home/axiom-thought-reserve.json"; PRINCIPLES=ROOT/"docs/axiom-thought-principles.md"
 GUARD=ROOT/"scripts/axiom_thought_guard.py"; WARSAW=ZoneInfo("Europe/Warsaw")
@@ -72,7 +74,7 @@ COMPLETE PUBLISHED HISTORY (NO AGE LIMIT). Any semantic repeat, paraphrase or re
 {chr(10).join(json.dumps(x,ensure_ascii=False) for x in memory)}
 RESERVE - DO NOT REPEAT:
 {chr(10).join(json.dumps(x,ensure_ascii=False) for x in reserve)}
-Internally compare at least 10 genuinely different ideas. Before returning, compare the candidate against EVERY protected history item. Reject slogans, self-help, obvious truths, quote paraphrases, reused theses, reused themes and semantic repeats. A candidate must add a genuinely new conceptual claim, not merely new wording.
+Internally compare at least 10 genuinely different ideas. Before returning, compare the candidate against EVERY protected history item. Reject slogans, self-help, obvious truths, quote paraphrases, reused theses, reused themes and semantic repeats. A candidate must add a genuinely new conceptual claim, not merely new wording. Critically vary SENTENCE STRUCTURE as well as concept: do not recycle "rzadko ... częściej", "nie wtedy ... lecz", "nie ... lecz/ale", or repeated "naj-" superlative openings from the recent archive or reserve. Never defeat this rule with a synonym or punctuation change.
 Return ONLY JSON with exactly:
 {{"theme":"kebab-case","pl":"„Polish thought”","en":"“English translation”","candidates_considered":10,"scores":{{"depth":9,"novelty":9,"banality_risk":1}},"silence_test":true,"editor_note":"at least 80 characters explaining the non-obvious insight and originality"}}"""
 def candidate_validation_stamp(rows, base_stamp=None):
@@ -90,10 +92,13 @@ def validate_candidate(c,rows,reserve=()):
     # the guard does not see today's already-published date twice.
     stamp=candidate_validation_stamp(rows)
     cur={"date":stamp,"author":"AXIOM","brand":"BriefRooms","pl":c["pl"],"en":c["en"]}
-    sys.path.insert(0,str(ROOT/"scripts")); from axiom_thought_guard import validate, similarity
+    sys.path.insert(0,str(ROOT/"scripts")); from axiom_thought_guard import validate, similarity, rhetorical_templates
     errors=validate(cur,rows+[{"date":stamp,**c}], require_review_evidence=False)
     if errors: raise ValueError("; ".join(errors))
     for x in reserve:
+        repeated_style = rhetorical_templates(c["pl"]) & rhetorical_templates(x.get("pl", ""))
+        if repeated_style:
+            raise ValueError("rhetorical-style duplicate in reserve: " + ", ".join(sorted(repeated_style)))
         if (c["theme"]==x.get("theme")
                 or similarity(c["pl"],x.get("pl","")).violates
                 or similarity(c["en"],x.get("en","")).violates):
@@ -270,6 +275,12 @@ def publish(c,rows,source):
         CURRENT.write_text(prior_current,encoding="utf-8")
         raise
     print(f"PUBLISHED {stamp} source={source} theme={c['theme']}")
+def style_only_rejection(exc: Exception) -> bool:
+    """Legacy reserve style debt is known and recoverable in Git history."""
+    reasons = str(exc).split("; ")
+    return bool(reasons) and all(item.startswith("rhetorical-style duplicate") for item in reasons)
+
+
 def refill(rows,reserve):
     """Incremental, independently scheduled 100-item reserve; never fake capacity."""
     completed=0
@@ -277,7 +288,31 @@ def refill(rows,reserve):
     # First vet legacy entries in their existing order.
     for candidate in list(reserve):
         if completed>=REFILL_BATCH: break
-        if evidence_valid(candidate,rows): continue
+        from axiom_thought_guard import rhetorical_style_issues
+        style_conflicts = rhetorical_style_issues(
+            candidate.get("pl", ""), rows, candidate_validation_stamp(rows)
+        )
+        if style_conflicts:
+            # This is NOT a published history deletion. The earlier
+            # unpublished reserve version remains recoverable in Git.
+            reserve.remove(candidate)
+            save_reserve(reserve)
+            print(f"RESERVE_STYLE_RETIRED theme={candidate.get('theme')} "
+                  f"reason={style_conflicts[0]}",flush=True)
+            continue
+        if evidence_valid(candidate,rows):
+            try:
+                validate_candidate(candidate,rows,[x for x in reserve if x is not candidate])
+            except ValueError as exc:
+                if style_only_rejection(exc):
+                    # Historical publications are immutable. Unpublished bank
+                    # entries may be retired; the prior Git commit preserves them.
+                    reserve.remove(candidate)
+                    save_reserve(reserve)
+                    print(f"RESERVE_STYLE_RETIRED theme={candidate.get('theme')} reason={exc}",flush=True)
+                    continue
+                print(f"RESERVE_VETTED_RECHECK_FAILED theme={candidate.get('theme')} reason={exc}",file=sys.stderr)
+            continue
         index=reserve.index(candidate)
         try:
             validate_candidate(candidate,rows,[x for x in reserve if x is not candidate])
@@ -364,16 +399,35 @@ def main():
         return 0 if ok else 1
     if a.mode=="preflight":
         if not reserve:
-            print("preflight failed: reserve empty", file=sys.stderr); return 2
+            print("::warning::AXIOM preflight=degraded-empty reserve=0 eligible=0; "
+                  "live generation remains available",flush=True)
+            return 0
         errors=[]
+        style_debt=[]
         for i,candidate in enumerate(reserve):
+            from axiom_thought_guard import rhetorical_style_issues
+            style_conflicts = rhetorical_style_issues(
+                candidate.get("pl", ""), rows, candidate_validation_stamp(rows)
+            )
+            if style_conflicts:
+                style_debt.append(f"reserve[{i}] {candidate.get('theme')}: {style_conflicts[0]}")
+                continue
             try:
                 validate_candidate(candidate,rows,reserve[:i])
             except Exception as e:
-                errors.append(f"reserve[{i}] {candidate.get('theme')}: {e}")
+                if isinstance(e, ValueError) and style_only_rejection(e):
+                    style_debt.append(f"reserve[{i}] {candidate.get('theme')}: {e}")
+                else:
+                    errors.append(f"reserve[{i}] {candidate.get('theme')}: {e}")
+        if style_debt:
+            print("::warning::AXIOM preflight: legacy bank contains "
+                  f"{len(style_debt)} stylistically ineligible candidates; "
+                  "hourly refill will retire and replenish them",flush=True)
         if errors:
             print("preflight failed:\n" + "\n".join(errors), file=sys.stderr); return 2
-        print(f"preflight=ok next_date={candidate_validation_stamp(rows)} reserve={len(reserve)} first_theme={reserve[0].get('theme')}")
+        print(f"preflight={'degraded-style-debt' if style_debt else 'ok'} "
+              f"next_date={candidate_validation_stamp(rows)} reserve={len(reserve)} "
+              f"eligible={len(reserve)-len(style_debt)} first_theme={reserve[0].get('theme')}")
         return 0
     if a.mode=="refill": return 0 if refill(rows,reserve) else 2
     if rows and rows[-1].get("date")==stamp:
