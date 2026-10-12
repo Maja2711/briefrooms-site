@@ -22,6 +22,7 @@ Każdego dnia AXIOM:
 6. Wybiera jedną myśl i przypisuje jej oceny: `depth`, `novelty`, `banality_risk`.
 7. Publikuje tylko wtedy, gdy `depth >= 8`, `novelty >= 8`, `banality_risk <= 2` i `silence_test = true`.
 8. Aktualizuje `data/home/axiom-thought.json` oraz dopisuje dokładnie jeden rekord do historii.
+9. Od 13.10.2026 wymaga także **odmienności schematu retorycznego**, niezależnie od unikalności idei. Bramka analizuje konstrukcję zdania po normalizacji polskich znaków, nie tylko dosłowne słowa.
 
 ## Czego nie publikujemy
 
@@ -34,7 +35,8 @@ Odrzucamy bez względu na brzmienie:
 - zdania, których sens można bez straty streścić jako „warto się starać”, „trzeba być odważnym” albo „czas jest cenny”;
 - parafrazy znanych cytatów, przysłów i sentencji;
 - sztuczną pompatyczność, metafory bez treści i słowa mające udawać głębię;
-- powtórzenie wcześniejszej tezy przy zmianie jedynie słownictwa.
+- powtórzenie wcześniejszej tezy przy zmianie jedynie słownictwa;
+- mechaniczne powtarzanie tych samych form zdania („rzadko… częściej”, „nie wtedy… lecz”, „nie… lecz/ale”, seryjne otwarcia „naj…”), nawet przy innej tezie.
 
 ## Co cenimy
 
@@ -47,6 +49,17 @@ Dobra myśl AXIOM-a zwykle ma przynajmniej jeden z tych elementów:
 - precyzyjne zdanie, z którego można wyprowadzić dalsze rozumowanie.
 
 Nie wymagamy, aby każda myśl była optymistyczna. Może być spokojna, niepokojąca, sceptyczna, ambitna lub melancholijna, jeśli jest uczciwa intelektualnie.
+
+## Rotacja konstrukcji retorycznych (od 13.10.2026)
+
+`axiom_thought_guard.py` niezależnie egzekwuje rotację **szablonu wypowiedzi**, a `publish_axiom_thought.py` odrzuca kandydatów również przed kosztowną recenzją semantyczną. Wstępna deterministyczna reguła obejmuje:
+
+- 30 dni od ostatniego motta zawierającego `rzadko` oraz 30 dni dla pary `rzadko… częściej`;
+- 21 dni dla struktury `nie wtedy… lecz/ale/gdy/kiedy`;
+- 14 dni dla kontrastu `nie… lecz/ale`;
+- 14 dni dla rozpoczęcia od formy superlatywnej `naj…`.
+
+To **minimalny zestaw rozpoznawalnych wzorców**, nie deklaracja wykrywania każdej możliwej konstrukcji językowej. Unikalność znaczenia nadal podlega oddzielnej kontroli dwóch modeli. Okna dotyczą nowych publikacji, a nie przepisywania istniejącej historii; pierwsza obowiązująca data to **13.10.2026**. Bank nieopublikowanych myśli może zachować zatwierdzenia semantyczne, które stały się stylistycznie nieaktualne: walidacja dzienna je odrzuca, a godzinowy refill usuwa z aktywnej rezerwy, pozostawiając pierwotny wpis w historii Git.
 
 ## Rotacja tematów
 
@@ -109,6 +122,6 @@ Ocenia odległość idei od całego dotychczasowego archiwum, nie tylko podobie�
 
 ## Archiwum jest pamięcią systemu
 
-**Granica pokrycia:** kanoniczna seria w `data/home/axiom-thoughts-history.jsonl` zaczyna się 15.09.2026. Nie wolno nazywać jej pełną historią wcześniejszych cytatów, jeżeli brak niezależnie odzyskanych publikacji sprzed tej daty. Test podobieństwa działa wyłącznie dla udokumentowanego korpusu; przy niepewnej oryginalności domyślnie nie publikujemy.
+**Granica pokrycia:** kanoniczna seria w `data/home/axiom-thoughts-history.jsonl` zaczyna się 15.09.2026. Sprawdzenie historii GitHub dla `data/home/axiom-thought.json` oraz `data/home/axiom-thoughts-history.jsonl` wykazało brak rewizji sprzed tej daty. Dodatkowo sprawdzony snapshot `pl/index.html` i `en/index.html` z 14.09.2026 nie zawierał modułu AXIOM. **Nie odzyskano potwierdzonych wcześniejszych publikacji i nie dopisano fikcyjnego backfillu.** Jeżeli kiedyś pojawi się wiarygodny wcześniejszy artefakt (z datą i źródłem), należy go zarchiwizować z provenance po weryfikacji; nigdy nie przypisywać mu fikcyjnego dnia publikacji. Test podobieństwa działa wyłącznie dla udokumentowanego korpusu; przy niepewnej oryginalności domyślnie nie publikujemy.
 
 `data/home/axiom-thoughts-history.jsonl` jest źródłem prawdy o wcześniejszych publikacjach. Nie usuwamy z niego starych myśli tylko dlatego, że później przestały nam się podobać. Dzięki temu system może naprawdę uczyć się własnych powtórzeń. **Historia nie wygasa dla wykrywania powtórek tekstu ani idei**. Odrębny limit 365 dni dotyczy ponownego użycia tego samego identyfikatora tematu. Weryfikacja AI zmniejsza ryzyko parafraz, ale nie jest nieomylnym dowodem oryginalności; bramka jest fail-closed.
