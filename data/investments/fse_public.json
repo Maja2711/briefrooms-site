@@ -10,17 +10,30 @@
   },
   "directional_performance": [
     {
-      "accuracy": 0.5384615384615384,
+      "accuracy": 0.5714285714285714,
       "baseline_brier": 0.25,
-      "brier_edge_vs_baseline": -0.004642893305996043,
-      "correct_n": 14,
+      "brier_edge_vs_baseline": 0.001454953598732156,
+      "correct_n": 16,
       "delta_brier_vs_base": null,
       "horizon": "4x1h_market_bars",
       "instrument": "EURUSD",
-      "mean_brier": 0.25464289330599604,
+      "mean_brier": 0.24854504640126784,
       "paired_base_brier": null,
-      "resolved_n": 46,
-      "signal_n": 26
+      "resolved_n": 48,
+      "signal_n": 28
+    },
+    {
+      "accuracy": 0.4489795918367347,
+      "baseline_brier": 0.25,
+      "brier_edge_vs_baseline": -0.012818275204210972,
+      "correct_n": 22,
+      "delta_brier_vs_base": null,
+      "horizon": "4x1h_market_bars",
+      "instrument": "BTCUSD",
+      "mean_brier": 0.26281827520421097,
+      "paired_base_brier": null,
+      "resolved_n": 73,
+      "signal_n": 49
     },
     {
       "accuracy": 0.7391304347826086,
@@ -37,13 +50,13 @@
     }
   ],
   "engine": "FSE — Fractal Structure Engine",
-  "generated_at": "2026-10-11T22:05:13.334631Z",
+  "generated_at": "2026-10-12T01:23:48.979498Z",
   "hse_measurements": [
     {
       "challenger": "FSE Fractal Memory",
       "champion": "50/50 directional baseline",
       "claim": "FSE Fractal Memory for EURUSD improves prospective 4x1h-market-bar directional Brier score versus a 50/50 baseline.",
-      "counter": 46,
+      "counter": 48,
       "details": {
         "horizon": "4x1h_market_bars",
         "instrument": "EURUSD",
@@ -54,13 +67,13 @@
       "reject_mean_edge": -0.0025,
       "success_mean_edge": 0.0025,
       "target_n": 40,
-      "total": -0.21357309207581954
+      "total": 0.06983777273914321
     },
     {
       "challenger": "FSE Structural Risk",
       "champion": "50/50 large-move baseline",
       "claim": "FSE structural-risk probability for EURUSD improves prospective 4x1h-market-bar large-move Brier score versus a 50/50 baseline.",
-      "counter": 46,
+      "counter": 48,
       "details": {
         "horizon": "4x1h_market_bars",
         "instrument": "EURUSD",
@@ -72,7 +85,42 @@
       "reject_mean_edge": -0.0025,
       "success_mean_edge": 0.0025,
       "target_n": 40,
-      "total": -0.4383157355291807
+      "total": -0.7014550361949793
+    },
+    {
+      "challenger": "FSE Fractal Memory",
+      "champion": "50/50 directional baseline",
+      "claim": "FSE Fractal Memory for BTCUSD improves prospective 4x1h-market-bar directional Brier score versus a 50/50 baseline.",
+      "counter": 73,
+      "details": {
+        "horizon": "4x1h_market_bars",
+        "instrument": "BTCUSD",
+        "kind": "directional_memory"
+      },
+      "metric_name": "brier_improvement_vs_0_5",
+      "proposal_key": "fse-fractal-memory-btcusd-4h-brier",
+      "reject_mean_edge": -0.0025,
+      "success_mean_edge": 0.0025,
+      "target_n": 40,
+      "total": -0.9357340899074028
+    },
+    {
+      "challenger": "FSE Structural Risk",
+      "champion": "50/50 large-move baseline",
+      "claim": "FSE structural-risk probability for BTCUSD improves prospective 4x1h-market-bar large-move Brier score versus a 50/50 baseline.",
+      "counter": 73,
+      "details": {
+        "horizon": "4x1h_market_bars",
+        "instrument": "BTCUSD",
+        "kind": "risk_calibration",
+        "large_move_threshold": "0.75 * frozen ATR(1h)"
+      },
+      "metric_name": "risk_brier_improvement_vs_0_5",
+      "proposal_key": "fse-structural-risk-btcusd-4h-brier",
+      "reject_mean_edge": -0.0025,
+      "success_mean_edge": 0.0025,
+      "target_n": 40,
+      "total": -0.4895015119117092
     },
     {
       "challenger": "FSE Fractal Memory",
@@ -115,20 +163,20 @@
       "fractal_memory": {
         "analogues_n": 40,
         "forecast": "UP",
-        "mean_similarity": 0.8458553130865727,
+        "mean_similarity": 0.8524034127036074,
         "median_adverse_excursion": -0.00011204573594147949,
-        "median_forward_return": 0.0002814915355637826,
-        "p_up_4h": 0.6839230126902506,
+        "median_forward_return": 0.00033809493438829996,
+        "p_up_4h": 0.7029026989700878,
         "source": "PROSPECTIVE_MEMORY",
-        "top_similarity": 0.9089531710682136
+        "top_similarity": 0.9343953512331153
       },
       "instrument": "EURUSD",
-      "observed_at": "2026-10-09T21:00:00Z",
+      "observed_at": "2026-10-12T01:23:25Z",
       "persistence": {
-        "dispersion": 0.0375830227633032,
-        "mean_hurst_q2": 0.4890083756956975
+        "dispersion": 0.014595918630743422,
+        "mean_hurst_q2": 0.45983571439554904
       },
-      "reference_price": 1.1205737590789795,
+      "reference_price": 1.1218308210372925,
       "regime": "STABLE",
       "research_risk_geometry": {
         "position_size_multiplier": 1,
@@ -136,55 +184,130 @@
         "stop_distance_multiplier": 1
       },
       "risk_components": {
-        "multifractality": 0.49751923200006826,
-        "persistence_extreme": 0.2587564995631605,
-        "scale_instability": 0.1205892565987245,
-        "tails": 0.5610887402980758
+        "multifractality": 0.49358458070920824,
+        "persistence_extreme": 0.2636533714031496,
+        "scale_instability": 0.1140111662119309,
+        "tails": 0.6191761781145626
       },
-      "risk_score": 0.36807239953845083,
+      "risk_score": 0.3835938861964864,
       "scale_summary": {
         "15m": {
-          "atr_fraction": 0.00021605600871023263,
+          "atr_fraction": 0.00024022616929589343,
           "bars": 256,
-          "excess_kurtosis": 2.988374957072626,
-          "hurst_q2": 0.4983527289499263,
-          "multifractality_proxy": 0.07340511969845753,
-          "tail_ratio_q95_median": 3.157009744986869
+          "excess_kurtosis": 1.8170892525988789,
+          "hurst_q2": 0.46713083058819077,
+          "multifractality_proxy": 0.0740031150151102,
+          "tail_ratio_q95_median": 3.008248659767276
         },
         "1d": {
-          "atr_fraction": 0.0062322504950885265,
+          "atr_fraction": 0.0062739252814281695,
           "bars": 256,
-          "excess_kurtosis": 1.3712101427442311,
-          "hurst_q2": 0.47779896484946166,
-          "multifractality_proxy": 0.08850049228795681,
+          "excess_kurtosis": 1.3706329777188735,
+          "hurst_q2": 0.47790399435998054,
+          "multifractality_proxy": 0.08895534196398397,
           "tail_ratio_q95_median": 3.832183707721686
         },
         "1h": {
-          "atr_fraction": 0.0007764101351745575,
+          "atr_fraction": 0.0006481141849273268,
           "bars": 256,
-          "excess_kurtosis": 7.75508997215511,
-          "hurst_q2": 0.4711579412570276,
-          "multifractality_proxy": 0.15738271096102618,
-          "tail_ratio_q95_median": 5.044406170467918
+          "excess_kurtosis": 7.7812077197916505,
+          "hurst_q2": 0.467267253223594,
+          "multifractality_proxy": 0.11667389616966645,
+          "tail_ratio_q95_median": 5.045376384413366
         },
         "4h": {
-          "atr_fraction": 0.0018571944832167192,
+          "atr_fraction": 0.0018416184938060804,
           "bars": 256,
-          "excess_kurtosis": 4.445114913082192,
-          "hurst_q2": 0.44257908124779866,
-          "multifractality_proxy": 0.15542100483497256,
-          "tail_ratio_q95_median": 4.1257758365892245
+          "excess_kurtosis": 7.00359814651406,
+          "hurst_q2": 0.45024049258171184,
+          "multifractality_proxy": 0.189507595267833,
+          "tail_ratio_q95_median": 5.243044793072922
         },
         "5m": {
-          "atr_fraction": 5.601121296705776e-05,
+          "atr_fraction": 0.00012019581118573251,
           "bars": 256,
-          "excess_kurtosis": 0.6840215103521134,
-          "hurst_q2": 0.5551531621742731,
-          "multifractality_proxy": 0.07256182741766193,
-          "tail_ratio_q95_median": 3.0056977474218836
+          "excess_kurtosis": 0.8562486738123591,
+          "hurst_q2": 0.4366360012242679,
+          "multifractality_proxy": 0.07380309036353544,
+          "tail_ratio_q95_median": 3.00387769913272
         }
       },
       "symbol": "EURUSD=X"
+    },
+    {
+      "fractal_memory": {
+        "analogues_n": 40,
+        "forecast": "NEUTRAL",
+        "mean_similarity": 0.8721887552537696,
+        "median_adverse_excursion": -0.0015178888316821348,
+        "median_forward_return": -0.0001992641929926542,
+        "p_up_4h": 0.4701694805427545,
+        "source": "PROSPECTIVE_MEMORY",
+        "top_similarity": 0.9248043228339966
+      },
+      "instrument": "BTCUSD",
+      "observed_at": "2026-10-12T01:23:44Z",
+      "persistence": {
+        "dispersion": 0.044918848495515334,
+        "mean_hurst_q2": 0.4537604329224078
+      },
+      "reference_price": 83818.5078125,
+      "regime": "TURBULENT",
+      "research_risk_geometry": {
+        "position_size_multiplier": 0.5,
+        "production_applied": false,
+        "stop_distance_multiplier": 1.25
+      },
+      "risk_components": {
+        "multifractality": 0.48771555031461616,
+        "persistence_extreme": 0.4597290086611103,
+        "scale_instability": 0.2709994012118199,
+        "tails": 1.0
+      },
+      "risk_score": 0.5756827859738174,
+      "scale_summary": {
+        "15m": {
+          "atr_fraction": 0.0017698444032639127,
+          "bars": 256,
+          "excess_kurtosis": 7.885912439034302,
+          "hurst_q2": 0.45252257449106953,
+          "multifractality_proxy": 0.08203640814910107,
+          "tail_ratio_q95_median": 4.540699971836956
+        },
+        "1d": {
+          "atr_fraction": 0.02361729301953237,
+          "bars": 256,
+          "excess_kurtosis": 7.817946815577686,
+          "hurst_q2": 0.5402874302066252,
+          "multifractality_proxy": 0.05222518479012894,
+          "tail_ratio_q95_median": 4.158795657384265
+        },
+        "1h": {
+          "atr_fraction": 0.0032743291257535225,
+          "bars": 256,
+          "excess_kurtosis": 9.080026746717838,
+          "hurst_q2": 0.4225876600561216,
+          "multifractality_proxy": 0.16675165764380645,
+          "tail_ratio_q95_median": 5.3447816851910535
+        },
+        "4h": {
+          "atr_fraction": 0.004756059564568559,
+          "bars": 256,
+          "excess_kurtosis": 4.367652824658073,
+          "hurst_q2": 0.43575843279845017,
+          "multifractality_proxy": 0.08727796699090251,
+          "tail_ratio_q95_median": 4.4008843853900395
+        },
+        "5m": {
+          "atr_fraction": 0.001183065862172584,
+          "bars": 256,
+          "excess_kurtosis": 17.614143982475753,
+          "hurst_q2": 0.4176460670597727,
+          "multifractality_proxy": 0.14819588777213877,
+          "tail_ratio_q95_median": 4.793194345884235
+        }
+      },
+      "symbol": "BTC-USD"
     },
     {
       "fractal_memory": {
@@ -277,10 +400,8 @@
   "risk_definition": "Risk = f(scale, persistence, multifractality_proxy, tails)",
   "schema_version": "briefrooms-fse-public-v1",
   "source_status": {
-    "available": 2,
+    "available": 3,
     "configured": 3,
-    "errors": {
-      "BTCUSD": "TimeoutError: The read operation timed out"
-    }
+    "errors": {}
   }
 }
