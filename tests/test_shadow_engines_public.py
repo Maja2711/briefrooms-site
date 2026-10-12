@@ -32,6 +32,28 @@ class ShadowEnginesPublicTests(unittest.TestCase):
             self.assertIn("RUNNING", states)
             self.assertIn("NO DATA", states)
 
+    def test_infrastructure_shadow_workflows_do_not_block_coverage(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            folder = root / ".github/workflows"
+            folder.mkdir(parents=True)
+            for name in ("brs-r2-shadow-archive-pilot.yml",
+                         "p2-shadow-watchdog.yml",
+                         "shadow-engines-watchdog.yml"):
+                (folder / name).write_text("name: test\\n", encoding="utf-8")
+            info = coverage(root)
+            self.assertTrue(info["complete"])
+            self.assertEqual(info["unmapped_shadow_workflows"], [])
+
+            # A genuinely new, unregistered shadow engine must still be detected.
+            (folder / "unknown-predictor-shadow.yml").write_text(
+                "name: test\\n", encoding="utf-8"
+            )
+            info = coverage(root)
+            self.assertFalse(info["complete"])
+            self.assertEqual(info["unmapped_shadow_workflows"],
+                             ["unknown-predictor-shadow.yml"])
+
     def test_wes_collects_without_fabricating_resolved_pairs(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp)
