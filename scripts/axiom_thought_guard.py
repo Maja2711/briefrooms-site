@@ -147,9 +147,9 @@ def rhetorical_templates(polish: str) -> set[str]:
         result.add("rarely-frame")
         if "czesciej" in words:
             result.add("rarely-more-often")
-    if re.search(r"\\bnie wtedy\\b", text) and re.search(r"\\b(lecz|ale|gdy|kiedy)\\b", text):
+    if re.search(r"\bnie wtedy\b", text) and re.search(r"\b(lecz|ale|gdy|kiedy)\b", text):
         result.add("not-when-but")
-    if re.search(r"\\bnie\\b.{0,170}\\b(lecz|ale)\\b", text):
+    if re.search(r"\bnie\b.{0,170}\b(lecz|ale)\b", text):
         result.add("not-but-contrast")
     if words[0].startswith("naj") and len(words[0]) >= 6:
         result.add("superlative-opening")
