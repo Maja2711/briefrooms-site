@@ -135,6 +135,9 @@ IGNORED_SHADOW_WORKFLOWS = {
     "shadow-engines-observatory.yml",
     "shadow-engines-watchdog.yml",
     "shadow-engines-observatory-validation.yml",
+    # Infrastructure / independent monitors are not predictive shadow engines.
+    "brs-r2-shadow-archive-pilot.yml",
+    "p2-shadow-watchdog.yml",
     "hypothesis-shadow-experiments.yml",
     # Retired external research experiment; workflow is manual archive verification only.
     "deepbook-predict-shadow.yml",
