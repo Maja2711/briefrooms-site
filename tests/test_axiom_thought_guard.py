@@ -487,7 +487,9 @@ class AxiomThoughtGuardTests(unittest.TestCase):
         self.assertEqual(rows[-1]["date"], current["date"])
 
     def test_hourly_refill_retires_verified_but_stylistically_stale_bank(self) -> None:
-        reserve = [dict(LATEST, theme="old-template", pl=SEED["pl"])]
+        reserve = [dict(LATEST, theme="old-template",
+                        pl="„Uznanie rzadko tworzy nową odpowiedzialność — częściej odsłania wcześniejsze oczekiwania wobec władzy.”",
+                        en="“Recognition rarely creates a new responsibility; more often, it reveals prior expectations about authority.”")]
         reserve[0].pop("date")
         saved = []
         with (
