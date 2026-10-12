@@ -105,7 +105,8 @@ class Similarity:
 
 
 def _deaccent(text: str) -> str:
-    normalized = unicodedata.normalize("NFKD", text)
+    # NFKD does not decompose Polish ł/Ł; normalize them explicitly.
+    normalized = unicodedata.normalize("NFKD", text.replace("ł", "l").replace("Ł", "L"))
     return "".join(ch for ch in normalized if not unicodedata.combining(ch))
 
 
