@@ -476,7 +476,11 @@ def main() -> int:
     output.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps(payload["summary"], ensure_ascii=False, sort_keys=True))
     if not payload["coverage"]["complete"]:
-        raise SystemExit("unmapped logical shadow workflows: " + ", ".join(payload["coverage"]["unmapped_shadow_workflows"]))
+        # A registry gap must be visible, but must never freeze the status of
+        # the other engines. Coverage remains explicitly incomplete in JSON.
+        print("WARNING: unmapped logical shadow workflows: " + ", ".join(
+            payload["coverage"]["unmapped_shadow_workflows"]
+        ))
     return 0
 
 
