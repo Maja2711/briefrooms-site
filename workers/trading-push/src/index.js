@@ -740,7 +740,10 @@ function notificationPayload(event, lang, publicBaseUrl = "", delivery = null) {
   if (event.event_type === "CLOSE" && reason === "STOP_LOSS") action = "STOP LOSS";
   const direction = event.direction ? ` · ${event.direction}` : "";
   const priceValue = event.event_type === "CLOSE" && event.exit_price != null ? event.exit_price : event.entry;
-  const price = priceValue != null ? ` @ ${priceValue}` : "";
+  const numericPrice = finiteNumber(priceValue);
+  const instrument = String(event.instrument || "").toUpperCase();
+  const digits = instrument.includes("JPY") ? 3 : instrument.includes("EUR") || instrument.includes("USD") && !instrument.includes("BTC") ? 5 : 2;
+  const price = numericPrice != null ? ` @ ${numericPrice.toFixed(digits)}` : "";
   const base = String(publicBaseUrl || "").replace(/\/$/, "");
   return JSON.stringify({
     title: `BriefRooms · ${engine}`,
