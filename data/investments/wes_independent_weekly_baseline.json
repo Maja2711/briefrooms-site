@@ -23,8 +23,25 @@
       "status": "captured",
       "reason": "prospective_frozen_weekly_forecast",
       "outcome": {
-        "status": "pending_market_data",
-        "reason": "no_5m_ohlc",
+        "virtual_fill": {
+          "entry_price": 7882.25,
+          "entry_at": "2026-10-12T06:00:00+00:00",
+          "rule": "first_verified_completed_5m_bar_open_at_or_after_frozen_entry_target"
+        },
+        "contract": {
+          "entry_captured_at": "2026-10-12T06:00:00+00:00",
+          "entry_price": 7882.25,
+          "scheduled_exit": "2026-10-16T20:00:00+00:00",
+          "direction": "long",
+          "risk_plan": {
+            "stop_loss_price": 7792.95502111,
+            "take_profit_price": 8028.36905637
+          },
+          "round_trip_cost_percent": 0.01268673284912303,
+          "contract_sha256": "3f1cbeb05aa86494b69c8741ba436a2ff4af080bf6d120fb0c6d74fc2194290d"
+        },
+        "status": "pending",
+        "reason": "no_frozen_level_hit_and_deadline_not_reached",
         "wes_comparison": {
           "status": "pending",
           "reason": "wes_week_not_settled"
