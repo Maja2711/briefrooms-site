@@ -285,6 +285,36 @@ def _first_seen(
     return now
 
 
+def public_news_preselection_check(
+    story: dict[str, Any],
+    state_lang: dict[str, Any],
+    now: datetime,
+    lang: str | None = None,
+) -> tuple[datetime | None, str]:
+    """Read-only publication eligibility shared by ranking and the final guard.
+
+    Never write an exposure clock for a candidate before actual publication.
+    The 24-hour clock belongs to the identity's first BriefRooms exposure.
+    """
+    if not _homepage_image_url(story):
+        return None, "image"
+    if not _primary_bulletin_is_current(story, now, lang):
+        return None, "primary_bulletin_stale"
+    identity = base.normalized_identity(story)
+    if not identity:
+        return None, "identity"
+    exposure = state_lang.get(identity)
+    first_seen = _first_seen(
+        story, exposure if isinstance(exposure, dict) else None, now,
+    )
+    if first_seen is None:
+        return None, "timestamp"
+    age = now.astimezone(timezone.utc) - first_seen
+    if age < -FUTURE_TOLERANCE or age > NEWS_MAX_AGE:
+        return None, "expired"
+    return first_seen, "ok"
+
+
 def enforce_payload(
     payload: dict[str, Any],
     state_lang: dict[str, Any],
@@ -319,36 +349,22 @@ def enforce_payload(
             merged["news_expires_at"] = cached.get("news_expires_at")
             return merged, reason
 
-        if not _homepage_image_url(story):
-            result = (None, "image")
-        elif not _primary_bulletin_is_current(story, current, lang):
-            result = (None, "primary_bulletin_stale")
-        elif not identity:
-            result = (None, "identity")
+        first_seen, reason = public_news_preselection_check(
+            story, state_lang, current, lang,
+        )
+        if first_seen is None:
+            result = (None, reason)
         else:
-            exposure = state_lang.get(identity)
-            first_seen = _first_seen(
-                story,
-                exposure if isinstance(exposure, dict) else None,
-                current,
-            )
-            if first_seen is None:
-                result = (None, "timestamp")
-            else:
-                age = current - first_seen
-                if age < -FUTURE_TOLERANCE or age > NEWS_MAX_AGE:
-                    result = (None, "expired")
-                else:
-                    if not isinstance(exposure, dict):
-                        state_lang[identity] = {
-                            "first_seen_at": _iso(first_seen),
-                            "source": str(story.get("source") or ""),
-                            "title": str(story.get("title") or ""),
-                        }
-                    copy = dict(story)
-                    copy["news_first_seen_at"] = _iso(first_seen)
-                    copy["news_expires_at"] = _iso(first_seen + NEWS_MAX_AGE)
-                    result = (copy, "ok")
+            if not isinstance(state_lang.get(identity), dict):
+                state_lang[identity] = {
+                    "first_seen_at": _iso(first_seen),
+                    "source": str(story.get("source") or ""),
+                    "title": str(story.get("title") or ""),
+                }
+            copy = dict(story)
+            copy["news_first_seen_at"] = _iso(first_seen)
+            copy["news_expires_at"] = _iso(first_seen + NEWS_MAX_AGE)
+            result = (copy, "ok")
 
         if identity:
             cached_story = dict(result[0]) if isinstance(result[0], dict) else None
