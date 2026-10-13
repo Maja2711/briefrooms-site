@@ -177,13 +177,13 @@
       "latest_macro_context": {
         "as_of": "2026-10-12T00:00:00",
         "data_quality": "passed",
-        "macro_score": -1.3226,
+        "macro_score": -1.6022,
         "macro_direction": "short",
         "position_direction": "short",
         "aligned": true,
         "observations": {
-          "oil_1w_percent": 3.4217,
-          "oil_4w_percent": -8.778,
+          "oil_1w_percent": 3.6118,
+          "oil_4w_percent": -8.6103,
           "us10y_1w_bps": -7.1,
           "us10y_4w_bps": 27.9
         },
@@ -211,29 +211,29 @@
             },
             "D1": {
               "bar_at": "2026-10-13T02:00:00+02:00",
-              "close": 1.117693,
-              "ma30": 1.144332,
-              "ma60": 1.149087,
-              "ma100": 1.149299,
-              "ma200": 1.159633,
+              "close": 1.117568,
+              "ma30": 1.144328,
+              "ma60": 1.149085,
+              "ma100": 1.149297,
+              "ma200": 1.159632,
               "slow_trend": -1,
               "price_vs_all": -1,
               "nearest_ma": "ma30",
-              "nearest_ma_distance_atr": 3.6601,
+              "nearest_ma_distance_atr": 3.6767,
               "support_hold_long": false,
               "resistance_hold_short": false
             },
             "H1": {
               "bar_at": "2026-10-13T05:00:00+02:00",
-              "close": 1.117693,
-              "ma30": 1.118405,
-              "ma60": 1.11988,
-              "ma100": 1.12016,
-              "ma200": 1.122761,
+              "close": 1.117568,
+              "ma30": 1.118401,
+              "ma60": 1.119878,
+              "ma100": 1.120159,
+              "ma200": 1.12276,
               "slow_trend": -1,
               "price_vs_all": -1,
               "nearest_ma": "ma30",
-              "nearest_ma_distance_atr": 0.9752,
+              "nearest_ma_distance_atr": 1.1268,
               "support_hold_long": false,
               "resistance_hold_short": false
             }
@@ -242,7 +242,7 @@
             "d1_below_all_ma",
             "h1_below_all_ma_timing"
           ],
-          "evaluated_at": "2026-10-13T05:32:13+02:00",
+          "evaluated_at": "2026-10-13T05:46:45+02:00",
           "governance": "bounded_context_only_no_veto_no_standalone_trade_trigger"
         },
         "rule": "Context is recorded immediately; an open weekly position is changed only by the governed review rules."
@@ -1061,25 +1061,27 @@
       "reentry_lock": {
         "active": false,
         "scope": "wes_directional_admission",
-        "released_at": "2026-10-13T02:31:52+02:00",
+        "released_at": "2026-10-13T05:46:43+02:00",
         "reason": "wes_1_3_1_directional_admission_qualified"
       },
       "wes_status": "directional_entry_pending_execution",
       "wes_entry_authorization": {
-        "authorized_at": "2026-10-13T05:32:07+02:00",
-        "expires_at": "2026-10-13T06:32:07+02:00",
-        "authorization_type": "live_reauthorization_after_missed_execution_window",
+        "authorized_at": "2026-10-13T05:46:43+02:00",
+        "expires_at": "2026-10-13T06:46:43+02:00",
+        "authorization_type": "no_trade_trigger",
         "directional_admission_passed": true,
         "candidate": {
           "direction": "long",
           "strategy_id": "weekly_trend",
-          "raw_score": 75.0,
-          "utility": 16.2271,
+          "raw_score": 76.0,
+          "utility": 16.3771,
+          "signal_delta_from_initial": 22.0,
           "confirmations": 2,
           "confirmation_sources": [
             "daily",
             "weekly"
           ],
+          "entry_class": "midweek_trigger",
           "execution_authority": "champion_execution",
           "directional_admission": {
             "version": "WES-1.3.1",
@@ -1091,18 +1093,44 @@
             ],
             "execution_authority": "champion_execution",
             "passed": true
+          },
+          "delta_gate": {
+            "delta": 22.0,
+            "required_delta": 15.0,
+            "passed": true,
+            "absolute_strength_bypass": {
+              "version": "WES-1.3.1",
+              "eligible": true,
+              "raw": 76.0,
+              "required_raw": 58.5,
+              "raw_multiplier": 1.3,
+              "utility": 16.3771,
+              "required_utility": 10.4,
+              "utility_multiplier": 1.3,
+              "confirmations": 2,
+              "required_confirmations": 2,
+              "confirmation_sources": [
+                "daily",
+                "weekly"
+              ],
+              "require_daily_weekly_confirmation": true,
+              "reasons": []
+            },
+            "persistent_plan_reaffirmed": false,
+            "decision_id": null,
+            "decision_payload_hash": null
           }
         },
         "required": {
           "allowed": true,
-          "raw": 35.0,
-          "utility": 6.0,
-          "confirmations": 2
+          "raw": 45.0,
+          "utility": 8.0,
+          "confirmations": 2,
+          "delta": 15.0,
+          "learning_threshold_adjustment": -3.0
         },
         "source_exit_at": null,
-        "source_exit_reason": null,
-        "prospective_only": true,
-        "no_retroactive_execution": true
+        "source_exit_reason": null
       },
       "wes_initial_no_trade_score": 54.0,
       "pending_entry_decision": {
@@ -1660,12 +1688,12 @@
       "continuous_exposure_active": false,
       "continuous_exposure_status": "no_trade",
       "wes_status": "no_trade_monitoring_trigger",
-      "wes_last_review_at": "2026-10-13T02:31:52+02:00",
+      "wes_last_review_at": "2026-10-13T05:46:43+02:00",
       "wes_trigger_candidate": {
         "direction": "neutral",
         "strategy_id": "no_trade",
         "raw_score": 0.0,
-        "utility": 6.1884,
+        "utility": 7.9538,
         "signal_delta_from_initial": 0.0,
         "confirmations": 0,
         "confirmation_sources": [],
@@ -1691,7 +1719,7 @@
             "raw": 0.0,
             "required_raw": 58.5,
             "raw_multiplier": 1.3,
-            "utility": 6.1884,
+            "utility": 7.9538,
             "required_utility": 10.4,
             "utility_multiplier": 1.3,
             "confirmations": 0,
@@ -2247,8 +2275,8 @@
     "replacement_holding_days": 7,
     "replacement_weekend_carry": true,
     "material_event_reentry": false,
-    "last_preflight_at": "2026-10-13T02:31:52+02:00",
-    "last_postflight_at": "2026-10-13T02:31:57+02:00",
+    "last_preflight_at": "2026-10-13T05:46:43+02:00",
+    "last_postflight_at": "2026-10-13T05:46:48+02:00",
     "dynamic_risk": true,
     "learning_by_entry_class": true
   },
@@ -2291,10 +2319,23 @@
     "enabled": true,
     "version": "5.9.1-experimental",
     "common_validation_gate": true,
+    "wes_1_3_1_directional_admission": true,
+    "price_aware_entry_engine": true,
+    "hybrid_market_or_frozen_limit_entry": true,
+    "champion_challenger_execution_authority": true,
     "retroactive_entries_forbidden": true,
     "same_week_reentry_block_after_invalidation": true,
     "no_trade_first_class": true,
+    "weekly_candles_used": true,
+    "eurusd_oil_us10y_context_used": true,
+    "contextual_momentum_learning": true,
+    "contextual_multidimensional_learning": true,
+    "counterfactual_candidate_learning": true,
+    "counterfactual_observations_reduce_exploration_only": true,
+    "learning_settlement_archive_before_window_exit": true,
     "execution_parity_report": "data/investments/weekly_execution_parity_v5.json",
-    "last_checked_at": "2026-10-13T05:32:15+02:00"
+    "immutable_decision_ledger": "data/investments/wes_decision_ledger.json",
+    "immutable_decision_ledger_schema": "briefrooms-wes-decision-ledger-v1",
+    "last_checked_at": "2026-10-13T05:46:45+02:00"
   }
 }
