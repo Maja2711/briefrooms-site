@@ -7,7 +7,7 @@
   "automatic_tuning": false,
   "automatic_promotion": false,
   "promotion_policy": "v3_candidates_manual; probability_recalibration_closed_loop_governed",
-  "generated_at": "2026-10-13T21:09:56.491280Z",
+  "generated_at": "2026-10-13T21:37:52.037593Z",
   "evolution_controller": {
     "authority": {
       "belief_evidence_mutation": false,
@@ -817,7 +817,7 @@
       }
     ],
     "delegated_actions": [],
-    "generated_at": "2026-10-13T20:50:11.856516Z",
+    "generated_at": "2026-10-13T21:13:59.547239Z",
     "hypotheses": [
       {
         "claim": "gpw LONG decisions in regime unknown show recurring adverse outcomes and warrant a bounded challenger",
@@ -861,7 +861,7 @@
       },
       {
         "claim": "gpw LONG decisions in regime unknown show recurring adverse outcomes and warrant a bounded challenger",
-        "created_at": "2026-10-13T20:50:11.856516Z",
+        "created_at": "2026-10-13T21:13:59.547239Z",
         "evidence": {
           "action": "LONG",
           "engine": "gpw",
@@ -1084,6 +1084,16 @@
           }
         ],
         "status": "FAIL"
+      },
+      {
+        "blockers": [
+          "minimum_prospective_sample"
+        ],
+        "candidate_id": "evo-belief-8afbd5b7308a27b2ff0006af",
+        "minimum_sample": 50,
+        "observed_sample": 0,
+        "segment_checks": [],
+        "status": "COLLECTING"
       },
       {
         "blockers": [
@@ -1359,16 +1369,6 @@
         "candidate_id": "hch-a26038a449bce120ddc5506f",
         "minimum_sample": 50,
         "observed_sample": 26,
-        "segment_checks": [],
-        "status": "COLLECTING"
-      },
-      {
-        "blockers": [
-          "minimum_prospective_sample"
-        ],
-        "candidate_id": "evo-belief-8afbd5b7308a27b2ff0006af",
-        "minimum_sample": 50,
-        "observed_sample": 0,
         "segment_checks": [],
         "status": "COLLECTING"
       }
@@ -2099,18 +2099,7 @@
         ]
       }
     },
-    "events_this_run": [
-      {
-        "at": "2026-10-13T20:46:43.465146Z",
-        "belief_id": "spx.liquidity.supportive",
-        "event": "CHALLENGER_FROZEN",
-        "transform": {
-          "intercept": -0.4,
-          "slope": 0.5,
-          "type": "logit_affine_v1"
-        }
-      }
-    ],
+    "events_this_run": [],
     "gates": {
       "global_discovery_minimum_n": 100,
       "max_accuracy_degradation": 0.03,
@@ -2121,7 +2110,7 @@
       "promotion_brier_relative_improvement": 0.05,
       "stability_blocks_required": "3_of_4"
     },
-    "generated_at": "2026-10-13T20:46:43.465146Z",
+    "generated_at": "2026-10-13T21:37:57.479730Z",
     "global_control_metrics": {
       "accuracy": 0.592561,
       "brier": 0.239722,
@@ -2136,7 +2125,7 @@
     {
       "instrument": "BTC/USD",
       "trend_belief_id": "btc.trend.bullish",
-      "calculated_at": "2026-10-13T21:09:56.491280Z",
+      "calculated_at": "2026-10-13T21:37:52.037593Z",
       "as_of": "2026-10-13T17:39:56Z",
       "target_at": "2026-10-14T17:39:56Z",
       "horizon_label": "24H",
@@ -2162,7 +2151,7 @@
     {
       "instrument": "EUR/USD",
       "trend_belief_id": "eurusd.trend.bullish",
-      "calculated_at": "2026-10-13T21:09:56.491280Z",
+      "calculated_at": "2026-10-13T21:37:52.037593Z",
       "as_of": "2026-10-13T17:39:56Z",
       "target_at": "2026-10-14T17:39:56Z",
       "horizon_label": "24H",
@@ -2188,7 +2177,7 @@
     {
       "instrument": "S&P 500",
       "trend_belief_id": "spx.trend.bullish",
-      "calculated_at": "2026-10-13T21:09:56.491280Z",
+      "calculated_at": "2026-10-13T21:37:52.037593Z",
       "as_of": "2026-10-13T17:39:56Z",
       "target_at": "2026-10-13T20:00:00Z",
       "horizon_label": "2H",
@@ -15678,7 +15667,7 @@
   },
   "hypothesis_utility": {
     "schema_version": "briefrooms-hypothesis-utility-v1",
-    "generated_at": "2026-10-13T20:46:41.566738Z",
+    "generated_at": "2026-10-13T21:37:55.706312Z",
     "status": "SHADOW_READ_ONLY",
     "authority": {
       "production_writeback": false,
@@ -16912,7 +16901,7 @@
   },
   "hypothesis_challengers": {
     "schema_version": "briefrooms-hypothesis-challenger-v1",
-    "generated_at": "2026-10-13T20:46:42.028890Z",
+    "generated_at": "2026-10-13T21:37:56.176923Z",
     "status": "SHADOW_OOS_GOVERNED",
     "summary": {
       "candidates_total": 2,
@@ -17055,7 +17044,7 @@
   },
   "p2_shadow_watchdog": {
     "schema_version": "briefrooms-p2-shadow-watchdog-v1",
-    "generated_at": "2026-10-13T20:46:42.571951Z",
+    "generated_at": "2026-10-13T21:37:56.785875Z",
     "status": "FAIL",
     "readiness": "REAL_SETTLEMENT_VERIFIED",
     "production_e2e_status": "BLOCKED",
@@ -17063,7 +17052,8 @@
       "calendar_status": "VERIFIED",
       "due_slots": [
         "1000",
-        "1300"
+        "1300",
+        "1600"
       ],
       "early_close": false,
       "holiday_closed": false,
@@ -17083,9 +17073,10 @@
       "weekday_ny": 1
     },
     "source_sla": {
-      "due_market_slots": 2,
-      "market_snapshot_sla_breaches": 3,
+      "due_market_slots": 3,
+      "market_snapshot_sla_breaches": 4,
       "missing_snapshot_slot_keys": [
+        "wes-assets:2026-10-13:1600",
         "wes-assets:2026-10-12:1600",
         "wes-assets:2026-10-09:1600",
         "wes-assets:2026-10-08:1600"
@@ -17093,6 +17084,7 @@
       "recoverable_missing_slot_keys": [],
       "threshold_minutes_after_planned_slot": 55,
       "unresolved_missing_slot_keys": [
+        "wes-assets:2026-10-13:1600",
         "wes-assets:2026-10-12:1600",
         "wes-assets:2026-10-09:1600",
         "wes-assets:2026-10-08:1600"
@@ -17105,7 +17097,7 @@
       "critical_alerts": 1,
       "frozen_shadow_forecasts": 50,
       "irrecoverable_missed_freezes": 0,
-      "market_snapshot_sla_breaches": 3,
+      "market_snapshot_sla_breaches": 4,
       "real_settled_events": 29,
       "real_settlement_backlog": 0,
       "recoverable_freeze_gaps": 0,
@@ -17122,7 +17114,7 @@
         "code": "MARKET_SNAPSHOT_SLA_BREACHED",
         "severity": "CRITICAL",
         "candidate_id": null,
-        "count": 3
+        "count": 4
       }
     ],
     "candidates": [
