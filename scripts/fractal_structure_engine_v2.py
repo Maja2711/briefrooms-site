@@ -52,6 +52,10 @@ NATIVE_FEEDS = {
     "1d": (DAILY_RANGE, "1d"),
 }
 P_CALIBRATION_MAX_SHIFT = 0.06
+ADAPTIVE_VERSION = "FSE-ADAPTIVE-1.0"
+ADAPTIVE_MIN_INDEPENDENT = 12
+RISK_CALIBRATION_MIN_N = 40
+
 
 
 def mean(xs: Sequence[float]) -> float:
@@ -614,6 +618,136 @@ def read_jsonl(path: Path) -> list[dict[str, Any]]:
 
 def append_chain(path: Path, schema: str, payload: Mapping[str, Any], id_key: str) -> dict[str, Any]:
     return v1.append_chain(path, schema, payload, id_key)
+
+
+def _settled_training_pairs(
+    snapshots: Sequence[Mapping[str, Any]],
+    resolutions: Sequence[Mapping[str, Any]],
+    instrument: str,
+    cutoff: str,
+) -> list[tuple[datetime, datetime, Mapping[str, Any], Mapping[str, Any]]]:
+    """Use only actual previously resolved prospective events, never current outcomes."""
+    boundary = v1.parse_time(cutoff)
+    snap_by_id = {
+        str(s.get("snapshot_id")): s for s in snapshots
+        if s.get("instrument") == instrument
+        and s.get("prospective_only") is True
+        and s.get("methodology_version") == METHODOLOGY_VERSION
+    }
+    pairs = []
+    seen = set()
+    for r in resolutions:
+        sid = str(r.get("snapshot_id") or "")
+        s = snap_by_id.get(sid)
+        if not s or sid in seen or r.get("instrument") != instrument or r.get("prospective_only") is not True:
+            continue
+        if r.get("methodology_version") != METHODOLOGY_VERSION or not isinstance(r.get("outcome_up"), bool):
+            continue
+        try:
+            observed = v1.parse_time(str(s["observed_at"]))
+            ended = v1.parse_time(str(r["resolved_at"]))
+        except (ValueError, KeyError, TypeError):
+            continue
+        if observed >= ended or ended >= boundary:
+            continue
+        seen.add(sid)
+        pairs.append((observed, ended, s, r))
+    return sorted(pairs, key=lambda x: (x[0], x[1]))
+
+
+def _nonoverlapping(pairs: Sequence[tuple]) -> list[tuple]:
+    """Do not count four-hour overlapping targets as independent learning blocks."""
+    selected = []
+    last_end = None
+    for item in pairs:
+        if last_end is None or item[0] >= last_end:
+            selected.append(item)
+            last_end = item[1]
+    return selected
+
+
+def adaptive_ensemble(
+    row: Mapping[str, Any],
+    snapshots: Sequence[Mapping[str, Any]],
+    resolutions: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
+    """Bounded research challenger; past frozen component forecasts only."""
+    base = v1.finite(row["memory"].get("p_up"))
+    phase = v1.finite(((row.get("phase_map") or {}).get("1h") or {}).get("phase_memory", {}).get("p_up_remaining"))
+    previous = row.get("p_calibration_challenger") or {}
+    challenger = v1.finite(previous.get("p_challenger")) if previous.get("active") else None
+    fallback = {"active": False, "methodology_version": ADAPTIVE_VERSION,
+                "reason": "insufficient independent settled forecasts",
+                "p_adaptive": None, "training_independent_n": 0,
+                "weights": None, "trained_through": None, "production_applied": False}
+    if base is None or phase is None or challenger is None or not all(0 <= v <= 1 for v in (base, phase, challenger)):
+        return dict(fallback, reason="component forecast missing or invalid")
+    past = _settled_training_pairs(snapshots, resolutions, str(row["instrument"]), str(row["observed_at"]))
+    keys = ("base_p_up", "phase_p_up", "challenger_p_up")
+    valid = [item for item in past
+             if all(v1.finite(item[2].get(k)) is not None and 0 <= float(item[2][k]) <= 1 for k in keys)]
+    blocks = _nonoverlapping(valid)[-64:]
+    if len(blocks) < ADAPTIVE_MIN_INDEPENDENT:
+        return dict(fallback, training_independent_n=len(blocks))
+    # Exponentially downweight old independent blocks; never optimize on future outcomes.
+    decays = [0.97 ** (len(blocks) - i - 1) for i in range(len(blocks))]
+    denom = sum(decays)
+    losses = [sum(w * (float(s[key]) - int(r["outcome_up"])) ** 2
+                  for w, (_, _, s, r) in zip(decays, blocks)) / denom for key in keys]
+    priors = (0.50, 0.25, 0.25)
+    raw = [prior * math.exp(-8.0 * (loss - min(losses))) for prior, loss in zip(priors, losses)]
+    scale = sum(raw)
+    weights = [0.2 * prior + 0.8 * value / scale for prior, value in zip(priors, raw)]
+    p = sum(w * score for w, score in zip(weights, (base, phase, challenger)))
+    p = clamp(base + clamp(p - base, -P_CALIBRATION_MAX_SHIFT, P_CALIBRATION_MAX_SHIFT), 0.01, 0.99)
+    return {"active": True, "methodology_version": ADAPTIVE_VERSION,
+            "p_adaptive": p, "p_base": base,
+            "weights": dict(zip(("deep", "phase", "regime_phase_challenger"), weights)),
+            "training_independent_n": len(blocks), "training_brier": dict(zip(("deep", "phase", "regime_phase_challenger"), losses)),
+            "trained_through": max(item[1] for item in blocks).isoformat(),
+            "max_abs_shift_pp": P_CALIBRATION_MAX_SHIFT * 100,
+            "production_applied": False}
+
+
+def adaptive_risk_calibrator(
+    row: Mapping[str, Any],
+    snapshots: Sequence[Mapping[str, Any]],
+    resolutions: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
+    """Fit conditional large-move probability, separate from structural-risk index."""
+    candidate_score = v1.finite((row.get("structural_risk") or {}).get("risk_score"))
+    fallback = {"active": False, "methodology_version": ADAPTIVE_VERSION,
+                "reason": "prospective risk outcomes collecting",
+                "p_large_move": None, "p_empirical_prior": None,
+                "training_n": 0, "training_independent_n": 0,
+                "trained_through": None, "production_applied": False}
+    if candidate_score is None or not 0 <= candidate_score <= 1:
+        return dict(fallback, reason="invalid structural risk score")
+    past = _settled_training_pairs(snapshots, resolutions, str(row["instrument"]), str(row["observed_at"]))
+    valid = [item for item in past if isinstance(item[3].get("large_move_event"), bool)
+             and v1.finite(item[2].get("risk_score")) is not None
+             and 0 <= float(item[2]["risk_score"]) <= 1]
+    blocks = _nonoverlapping(valid)
+    if len(valid) < RISK_CALIBRATION_MIN_N or len(blocks) < ADAPTIVE_MIN_INDEPENDENT:
+        return dict(fallback, training_n=len(valid), training_independent_n=len(blocks))
+    sample = blocks[-100:]
+    decays = [0.985 ** (len(sample) - i - 1) for i in range(len(sample))]
+    total = sum(decays)
+    scores = [float(item[2]["risk_score"]) for item in sample]
+    outcomes = [int(item[3]["large_move_event"]) for item in sample]
+    mean_score = sum(w * x for w, x in zip(decays, scores)) / total
+    event_rate = (sum(w * y for w, y in zip(decays, outcomes)) + 2.0) / (total + 4.0)
+    cov = sum(w * (x - mean_score) * (y - event_rate) for w, x, y in zip(decays, scores, outcomes))
+    variance = sum(w * (x - mean_score) ** 2 for w, x in zip(decays, scores))
+    # Positive slope only; ridge prevents fitting the noise in small samples.
+    slope = clamp(cov / (variance + 5.0), 0.0, 1.0)
+    calibrated = clamp(event_rate + slope * (candidate_score - mean_score), 0.01, 0.99)
+    return {"active": True, "methodology_version": ADAPTIVE_VERSION,
+            "p_large_move": calibrated, "p_empirical_prior": event_rate,
+            "risk_score": candidate_score, "slope": slope,
+            "training_n": len(valid), "training_independent_n": len(blocks),
+            "trained_through": max(item[1] for item in sample).isoformat(),
+            "production_applied": False}
 
 
 def build_instrument_state(instrument: str, symbol: str, scales: Mapping[str, Sequence[v1.Bar]]) -> dict[str, Any]:
