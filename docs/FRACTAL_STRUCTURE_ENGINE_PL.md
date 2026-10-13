@@ -350,6 +350,8 @@ Zapis wyłącznie artefaktu publicznego, automatyczna promocja, Belief Core writ
 
 **Osobny kalibrator ryzyka:** odróżnia structural risk index od P(dużego ruchu). Dopiero nowe snapshoty z risk index i zamrożonym ATR(1h) wyznaczają prawdziwe zdarzenie `abs(forward_return)>=0.75*frozen_atr_fraction`. Model estymuje historyczną częstość z wygładzaniem Beta i nieujemne, regularizowane nachylenie względem risk index. Aktywacja wymaga >=40 zweryfikowanych obserwacji oraz >=12 nienakładających się bloków; do tego czasu `p_large_move=null` (nie udaje skalibrowanego prawdopodobieństwa). Benchmarkiem jest **zamrożona empiryczna częstość dużego ruchu**, nie 50/50.
 
+**Zamknięcie świecy:** resolver nie uznaje ostatniej świecy godzinowej, dopóki nie minie jej czas zamknięcia (timestamp otwarcia + 1 godzina). Rozliczenia i trening respektują ten warunek; brak backdatingu.
+
 **Evidence:** oba dodatkowe pola P i oba benchmarki są zamrażane *przed* outcome. Resolver oblicza sparowane `Brier_baseline-Brier_adaptive` i `Brier_prior-Brier_risk` tylko z tych snapshotów. HSE2 rejestruje nowe, oddzielne hipotezy `FSE-ADAPTIVE-1.0` z własnym prospektywnym N=40 i nie dopisuje nowych wyników do historycznych hipotez FSE-PHASE. Wskaźniki w publikacji są read-only. `automatic_promotion=false`, wszystkie zero-authority flags pozostają bez zmian.
 
 **ASD:** niezależny godzinny proces nadal zbiera immutable prospective matched/unmatched. Nie zwiększamy N z historii, nie przypisujemy niedopasowanych rodzinom, nie zmieniamy promieni/medoidów przed osobnym eksperymentem. Uczenie cech i generowanie nowych metodologii są odroczone na późniejsze etapy.
