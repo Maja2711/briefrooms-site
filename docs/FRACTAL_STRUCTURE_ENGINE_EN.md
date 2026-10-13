@@ -324,6 +324,8 @@ Rules:
 
 **Separate structural-risk calibrator:** structural risk is an index, not itself P(large move). Newly frozen 1h ATR and risk-index fields make it possible to settle the actual event `abs(forward_return)>=0.75*frozen_atr_fraction`. A Beta-smoothed event-rate prior and a non-negative ridge-regularized risk-score slope yield a bounded, conditional probability only after >=40 prospective settlements and >=12 non-overlapping blocks. Until then, calibrated P is null (rather than fabricated). The comparison baseline is the **frozen empirical large-move rate**, not a 50/50 constant.
 
+**Completed hourly candles:** the resolver requires the final forward 1h bar's close time (its opening timestamp + 1 hour) before settlement, preventing partial-bar outcomes from training either model.
+
 **Evidence and authority:** both probabilities and their paired baselines are frozen before their outcomes and measured as paired Brier improvements; new `FSE-ADAPTIVE-1.0` hypotheses have separate N=40 HSE2 boundaries. The original FSE-PHASE metrics and contracts remain intact. `SHADOW_ONLY`; no trade, risk-policy, Belief, sizing/stop, or automatic promotion authority.
 
 **ASD remains independent:** the hourly immutable collector continues capturing matched and unmatched prospective outcomes; no synthetic sample inflation or unverified assignment of unmatched paths. Feature-importance learning and automatic methodology proposal are subsequent milestones, not part of v1.
