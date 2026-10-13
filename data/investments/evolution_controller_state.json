@@ -176,7 +176,7 @@
       "source_module": "EP-07",
       "source_ref": "belief-closed-loop://btc.volatility.benign/2026-10-02T18:26:30.254234Z",
       "source_sha256": "46cb5aad783d0308551bd4a8c42e6c97e159ec95b55243b55501b808fb900e7e",
-      "status": "PROMOTION_ELIGIBLE",
+      "status": "OOS_RUNNING",
       "target_module": "EP-05",
       "trade_execution_authority": false
     },
@@ -259,6 +259,84 @@
       "source_module": "EP-07",
       "source_ref": "belief-closed-loop://__GLOBAL__/2026-09-29T15:09:40.999850Z",
       "source_sha256": "446cba5a847e1bec2ca9bc492639afacef489a4cbed901d9e3e27ed98ff08067",
+      "status": "OOS_RUNNING",
+      "target_module": "EP-05",
+      "trade_execution_authority": false
+    },
+    "evo-belief-938c74f60b3937dbaae305a0": {
+      "activation_boundary": "2026-10-13T08:34:06.743972Z",
+      "automatic_promotion_allowed": true,
+      "baseline_version": "belief-core-v2-raw",
+      "candidate_id": "evo-belief-938c74f60b3937dbaae305a0",
+      "candidate_type": "probability_calibration",
+      "challenger_version": "cal:3f1a583594a7",
+      "component_id": "belief_probability:eurusd.trend.bullish",
+      "created_at": "2026-10-13T08:34:06.743972Z",
+      "evaluator_profile": "belief_calibration_v1",
+      "metadata": {
+        "trigger_reasons": [
+          "negative_skill_vs_base_rate",
+          "material_calibration_bias"
+        ]
+      },
+      "metrics": {
+        "discovery": {
+          "discovery_n": 88,
+          "validation_brier_relative_improvement": 0.10448,
+          "validation_challenger": {
+            "accuracy": 0.631579,
+            "brier": 0.246689,
+            "ece": 0.162229,
+            "log_loss": 0.687206,
+            "n": 38
+          },
+          "validation_control": {
+            "accuracy": 0.368421,
+            "brier": 0.27547,
+            "ece": 0.203939,
+            "log_loss": 0.744859,
+            "n": 38
+          },
+          "validation_n": 38
+        },
+        "prospective": {
+          "brier_relative_improvement": null,
+          "challenger": {
+            "accuracy": null,
+            "brier": null,
+            "ece": null,
+            "log_loss": null,
+            "n": 0
+          },
+          "control": {
+            "accuracy": null,
+            "brier": null,
+            "ece": null,
+            "log_loss": null,
+            "n": 0
+          },
+          "n": 0,
+          "pass": false,
+          "stability": {
+            "blocks": 0,
+            "improved": 0,
+            "worst_relative_degradation": null
+          }
+        }
+      },
+      "promotion_route": "belief_core_probability_overlay",
+      "proposed_change": {
+        "scope": "eurusd.trend.bullish",
+        "transform": {
+          "intercept": -0.35,
+          "slope": 0.5,
+          "type": "logit_affine_v1"
+        }
+      },
+      "protected_slices": [],
+      "source_module": "EP-07",
+      "source_ref": "belief-closed-loop://eurusd.trend.bullish/2026-10-13T08:34:06.743972Z",
+      "source_sha256": "938c74f60b3937dbaae305a0f68d21a7de31f34a977fdf5c62a0b641dbb64da6",
       "status": "OOS_RUNNING",
       "target_module": "EP-05",
       "trade_execution_authority": false
@@ -890,7 +968,7 @@
     },
     "hyp-exp-78c177905d7b46ede1d41b86": {
       "claim": "gpw LONG decisions in regime unknown show recurring adverse outcomes and warrant a bounded challenger",
-      "created_at": "2026-10-13T07:49:27.366731Z",
+      "created_at": "2026-10-13T08:34:28.301367Z",
       "evidence": {
         "action": "LONG",
         "engine": "gpw",
@@ -962,7 +1040,7 @@
         "protected_slice_max_brier_degradation": 0.1,
         "stability": "3_of_4"
       },
-      "evaluated_at": "2026-10-13T07:49:27.366731Z",
+      "evaluated_at": "2026-10-13T08:34:28.301367Z",
       "evaluator_profile": "belief_calibration_v1",
       "gate_id": "evo-gate-90c08beaae40b7e71f4b9935",
       "metrics": {
@@ -1021,7 +1099,7 @@
         "protected_slice_max_brier_degradation": 0.1,
         "stability": "3_of_4"
       },
-      "evaluated_at": "2026-10-13T07:49:27.366731Z",
+      "evaluated_at": "2026-10-13T08:34:28.301367Z",
       "evaluator_profile": "belief_calibration_v1",
       "gate_id": "evo-gate-2406896f6a30ed877a458aa4",
       "metrics": {
@@ -1109,7 +1187,7 @@
         "protected_slice_max_brier_degradation": 0.1,
         "stability": "3_of_4"
       },
-      "evaluated_at": "2026-10-13T07:49:27.366731Z",
+      "evaluated_at": "2026-10-13T08:34:28.301367Z",
       "evaluator_profile": "belief_calibration_v1",
       "gate_id": "evo-gate-086c1c8f1f057698c3b3cbd0",
       "metrics": {
@@ -1211,6 +1289,51 @@
       "source_sha256": "389b4e60e6482de8cbfed81b809bd9f0143d152c86cadff56e1e40018aaf537e",
       "status": "FAIL"
     },
+    "evo-belief-938c74f60b3937dbaae305a0": {
+      "blockers": [
+        "minimum_prospective_sample"
+      ],
+      "candidate_id": "evo-belief-938c74f60b3937dbaae305a0",
+      "criteria": {
+        "brier_relative_improvement_min": 0.05,
+        "log_loss_must_improve": true,
+        "max_accuracy_degradation": 0.03,
+        "max_ece_degradation": 0.01,
+        "protected_slice_max_brier_degradation": 0.1,
+        "stability": "3_of_4"
+      },
+      "evaluated_at": "2026-10-13T08:34:28.301367Z",
+      "evaluator_profile": "belief_calibration_v1",
+      "gate_id": "evo-gate-9ef4a27800cbd7e76b783685",
+      "metrics": {
+        "brier_relative_improvement": null,
+        "challenger": {
+          "accuracy": null,
+          "brier": null,
+          "ece": null,
+          "log_loss": null,
+          "n": 0
+        },
+        "control": {
+          "accuracy": null,
+          "brier": null,
+          "ece": null,
+          "log_loss": null,
+          "n": 0
+        },
+        "stability": {
+          "blocks": 0,
+          "improved": 0,
+          "worst_relative_degradation": null
+        }
+      },
+      "minimum_sample": 50,
+      "observed_sample": 0,
+      "prospective_only": true,
+      "segment_checks": [],
+      "source_sha256": "0335b7091113bc5c234ccb6fd24b5afa8f4f11bd180348e67451f08764ae4e6c",
+      "status": "COLLECTING"
+    },
     "evo-belief-9a40ee5c1cc4e9c76e05c9e5": {
       "blockers": [
         "minimum_prospective_sample"
@@ -1224,7 +1347,7 @@
         "protected_slice_max_brier_degradation": 0.1,
         "stability": "3_of_4"
       },
-      "evaluated_at": "2026-10-13T07:49:27.366731Z",
+      "evaluated_at": "2026-10-13T08:34:28.301367Z",
       "evaluator_profile": "belief_calibration_v1",
       "gate_id": "evo-gate-0b666f92760af7c75b0eca7b",
       "metrics": {
@@ -1304,7 +1427,7 @@
         "protected_slice_max_brier_degradation": 0.1,
         "stability": "3_of_4"
       },
-      "evaluated_at": "2026-10-13T07:49:27.366731Z",
+      "evaluated_at": "2026-10-13T08:34:28.301367Z",
       "evaluator_profile": "belief_calibration_v1",
       "gate_id": "evo-gate-7baa82a0f7bb9f280901d4dc",
       "metrics": {
@@ -1385,7 +1508,7 @@
         "protected_slice_max_brier_degradation": 0.1,
         "stability": "3_of_4"
       },
-      "evaluated_at": "2026-10-13T07:49:27.366731Z",
+      "evaluated_at": "2026-10-13T08:34:28.301367Z",
       "evaluator_profile": "belief_calibration_v1",
       "gate_id": "evo-gate-af14d608e747a8744439e01c",
       "metrics": {
@@ -1479,7 +1602,7 @@
         "protected_slice_max_brier_degradation": 0.1,
         "stability": "3_of_4"
       },
-      "evaluated_at": "2026-10-13T07:49:27.366731Z",
+      "evaluated_at": "2026-10-13T08:34:28.301367Z",
       "evaluator_profile": "belief_calibration_v1",
       "gate_id": "evo-gate-75aced41e2687fff367a1c77",
       "metrics": {
@@ -1658,7 +1781,7 @@
         "min_positive_chronological_blocks": 3,
         "min_target_dates": 20
       },
-      "evaluated_at": "2026-10-13T07:49:27.366731Z",
+      "evaluated_at": "2026-10-13T08:34:28.301367Z",
       "evaluator_profile": "hypothesis_shadow_oos_gate_v1",
       "gate_id": "hgate-868240abd1778ba476c8b612",
       "metrics": {
@@ -1684,7 +1807,7 @@
       "observed_sample": 0,
       "prospective_only": true,
       "segment_checks": [],
-      "source_sha256": "6f30eed5ef502000974f6c80bf577935b9091a313b998d539f8432f55bb8322a",
+      "source_sha256": "5461996241d833870d45ac11943d81f57c55bc8bb25d828c246aba32c74c4b39",
       "status": "COLLECTING"
     },
     "hch-a26038a449bce120ddc5506f": {
@@ -1703,7 +1826,7 @@
         "min_positive_chronological_blocks": 3,
         "min_target_dates": 20
       },
-      "evaluated_at": "2026-10-13T07:49:27.366731Z",
+      "evaluated_at": "2026-10-13T08:34:28.301367Z",
       "evaluator_profile": "hypothesis_shadow_oos_gate_v1",
       "gate_id": "hgate-66f88a8c7164f55f130e7b91",
       "metrics": {
@@ -1754,7 +1877,7 @@
       "observed_sample": 20,
       "prospective_only": true,
       "segment_checks": [],
-      "source_sha256": "f86aa1b8ea0e24dd275b6607af96b4e523afb0a6798959d0fc9bac3c79157dba",
+      "source_sha256": "74eb9204707df4c89ec4ecf67780906fe23c286d1032f0c5c9b34410fa6a1717",
       "status": "COLLECTING"
     }
   },
@@ -1808,7 +1931,7 @@
           "last_discovery_n": null,
           "prospective_n": 50,
           "rediscovery_after_n": null,
-          "status": "ready_for_evolution_controller",
+          "status": "promoted_by_evolution_controller",
           "trigger_reasons": [
             "negative_skill_vs_base_rate",
             "material_calibration_bias"
@@ -1816,11 +1939,12 @@
         },
         "eurusd.trend.bullish": {
           "last_discovery_n": null,
-          "prospective_n": 50,
+          "prospective_n": 0,
           "rediscovery_after_n": null,
-          "status": "ready_for_evolution_controller",
+          "status": "prospective_shadow",
           "trigger_reasons": [
-            "negative_skill_vs_base_rate"
+            "negative_skill_vs_base_rate",
+            "material_calibration_bias"
           ]
         },
         "eurusd.us_rates_pressure.supportive": {
@@ -1842,7 +1966,7 @@
           ]
         }
       },
-      "source_generated_at": "2026-10-13T07:14:55.962452Z"
+      "source_generated_at": "2026-10-13T08:34:06.743972Z"
     },
     "belief_v3": {
       "available": true,
@@ -1869,16 +1993,16 @@
   },
   "summary": {
     "active_production_versions": 1,
-    "candidates_total": 10,
+    "candidates_total": 11,
     "delegated_actions": 0,
     "gate_pass": 1,
     "hypotheses": 3,
-    "oos_running": 8,
+    "oos_running": 10,
     "promoted": 0,
-    "promotion_eligible": 2,
+    "promotion_eligible": 1,
     "retired_or_rolled_back": 0,
     "retirement_actions": 0,
     "rollback_events": 0
   },
-  "updated_at": "2026-10-13T07:49:27.366731Z"
+  "updated_at": "2026-10-13T08:34:28.301367Z"
 }
