@@ -184,43 +184,22 @@ function fseFractalTrendCard(x){
     '<div class="fse-fast-meta"><span>Fast run <b>'+esc(fm.generated_at?shadowWhen(fm.generated_at):'—')+'</b></span><span>Ostatnia świeca <b>'+esc(fm.latest_fast_observed_at?shadowWhen(fm.latest_fast_observed_at):'—')+'</b></span><span>Wiek źródła <b>'+esc(sourceAge)+'</b></span></div>'+
     '<div class="fse-tf-ribbon">'+ribbon+'</div></section>';
 }
-function fseDiscoveryShape(f){
-  const pts=Array.isArray(f?.shape_points)?f.shape_points.map(Number):[];
-  if(pts.length<3||pts.length>64||pts.some(v=>!Number.isFinite(v)))return '';
-  const low=Math.min(...pts), high=Math.max(...pts), span=Math.max(high-low,0.001);
-  const d=pts.map((v,i)=>(i===0?'M':'L')+(8+248*i/(pts.length-1)).toFixed(1)+' '+(58-47*(v-low)/span).toFixed(1)).join(' ');
-  return '<div class="fse-discovery-shape"><svg viewBox="0 0 264 66" role="img" aria-label="Znormalizowany prototyp odkrytej struktury" preserveAspectRatio="none"><path d="'+d+'" fill="none" stroke="#8cd7ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg><small>Odkryty medoid · znormalizowany kształt, nie prognoza ceny</small></div>';
-}
-
 function fseDiscoveryPanel(d){
-  if(!d||d.schema_version!=='FSE-ASD-1.0')return '<section class="fse-discovery"><h3 class="central-subtitle">Autonomous Structure Discovery</h3><p class="central-note">Brak katalogu Discovery. Oczekiwanie na pierwszy poprawny cykl danych rynkowych.</p></section>';
-  const sum=d.summary||{},families=Array.isArray(d.families)?d.families:[],current=Array.isArray(d.current_matches)?d.current_matches:[];
-  const freshAt=Date.parse(String(d.generated_at||'')),stale=!Number.isFinite(freshAt)||Date.now()-freshAt>180*60000;
-  const stats='<div class="fse-discovery-stats"><span>Rodziny struktur <b>'+num(sum.families||0)+'</b></span><span>Zamrożone obserwacje <b>'+num(sum.frozen_snapshots||0)+'</b></span><span>Rozliczone obserwacje <b>'+num(sum.prospective_resolutions||0)+'</b></span><span>Production <b>OFF</b></span></div>';
-  // Noisy unknown/novel outcomes remain in the immutable Shadow evidence only.
-  // The LAB highlights verified associations with still-active discovered families.
-  const activeIds=new Set(families.map(f=>f.family_id).filter(Boolean));
-  const matches=current
-    .filter(x=>x&&x.status==='FROZEN_MATCH'&&typeof x.family_id==='string'&&activeIds.has(x.family_id))
-    .map(x=>'<span class="fse-discovery-match"><b>'+esc(fseInstrumentLabel(x.instrument))+'</b> '+esc(x.family_id)+'</span>')
-    .join('');
-  const cards=families.slice(0,12).map(f=>{
-    const apps=f.application_status==='RESEARCH_CANDIDATE'&&Array.isArray(f.applications)?f.applications:[];
-    const applications=apps.map(s=>'<li>'+esc(s)+'</li>').join('');
-    const use=apps.length?'<details><summary>Możliwe zastosowania (do weryfikacji)</summary><ul>'+applications+'</ul></details>':
-      '<p class="fse-discovery-no-use"><strong>Zastosowanie nieustalone.</strong> FSE zbiera niezależne wyniki; analogie historyczne nie dowodzą przydatności.</p>';
-    return '<article class="fse-discovery-card"><div class="fse-discovery-cardtop"><span>'+esc(f.family_id)+'</span><small>'+esc(f.evidence_status)+'</small></div>'+
-      '<h4>'+esc(f.name)+'</h4><p class="fse-discovery-meta">'+esc(fseInstrumentLabel(f.instrument))+' · '+num(f.window)+' × 1h · Analogie historyczne: '+num(f.historical_sample_n)+'</p>'+
-      '<p>'+esc(f.description)+'</p>'+fseDiscoveryShape(f)+'<div class="fse-discovery-metrics"><span>Wyniki prospektywne <b>N='+num(f.prospective_n)+'</b></span>'+
-      '<span>Prospektywny Brier <b>'+(finite(f.mean_brier)?num(f.mean_brier,4):'—')+'</b></span>'+
-      '<span>Poprawa Brier <b>'+(finite(f.incremental_brier)?num(f.incremental_brier,4):'—')+'</b></span></div>'+
-      use+'</article>';
-  }).join('');
-  return '<section class="fse-discovery"><div class="fse-discovery-head"><h3 class="central-subtitle">Autonomous Structure Discovery</h3><p>Samodzielne odkrywanie rodzin struktur cenowych, automatyczne nazwy, wnioski i hipotezy zastosowań. Bez prawa do transakcji.</p></div>'+
-    (stale?'<p class="central-note"><strong>STALE:</strong> '+esc(String(d.generated_at||'missing'))+'</p>':'')+stats+
-    (matches?'<div class="fse-discovery-matches"><strong>Aktualne dopasowanie:</strong>'+matches+'</div>':'')+
-    (cards?'<div class="fse-discovery-grid">'+cards+'</div>':'<p class="central-note">Brak katalogu Discovery. Oczekiwanie na pierwszy poprawny cykl danych rynkowych.</p>')+
-    '<p class="central-note">Metoda: klastry wyuczone z danych, bez katalogu formacji. Brak szablonowych zastosowań. Po co najmniej 40 rzeczywistych wynikach: kandydat do przeglądu albo wycofanie z aktywnego katalogu (historia audytu pozostaje). Wyłącznie Shadow.</p></section>';
+  const heading='<h3 class="central-subtitle">Autonomous Structure Discovery</h3>';
+  if(!d||d.schema_version!=='FSE-ASD-1.0')return '<section class="fse-discovery">'+heading+'<p class="central-note">Brak aktualnego katalogu struktur FSE.</p></section>';
+  const families=Array.isArray(d.families)?d.families:[];
+  // Count actual, distinct published families; never hardcode a displayed sample limit.
+  const count=new Set(families.map(f=>f&&f.family_id).filter(id=>typeof id==='string'&&id.length>0)).size;
+  if(!count)return '<section class="fse-discovery">'+heading+'<p class="central-note">FSE oczekuje na odkrycie pierwszych struktur cenowych.</p></section>';
+  const freshAt=Date.parse(String(d.generated_at||''));
+  const stale=!Number.isFinite(freshAt)||Date.now()-freshAt>180*60000;
+  const teen=count%100>=12&&count%100<=14;
+  const form=count%10===1&&!teen?'strukturę rynkową':count%10>=2&&count%10<=4&&!teen?'struktury rynkowe':'struktur rynkowych';
+  const intro=stale?'Ostatni dostępny katalog FSE obejmuje ':'FSE analizuje obecnie ';
+  const note=stale?' Dane wymagają odświeżenia.':'';
+  return '<section class="fse-discovery"><div class="fse-discovery-head">'+heading+
+    '<p>'+intro+'<strong>'+num(count)+'</strong> '+form+
+    ', poszukując fraktali — powtarzających się, podobnych układów cenowych w danych historycznych i bieżących.'+note+'</p></div></section>';
 }
 
 async function fse(){
