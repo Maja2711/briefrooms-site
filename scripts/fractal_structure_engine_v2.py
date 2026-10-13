@@ -22,7 +22,7 @@ import hashlib
 import json
 import math
 import statistics
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
@@ -784,7 +784,8 @@ def build_instrument_state(instrument: str, symbol: str, scales: Mapping[str, Se
     }
 
 
-def resolve(state_dir: Path, hourly_by: Mapping[str, Sequence[v1.Bar]]) -> None:
+def resolve(state_dir: Path, hourly_by: Mapping[str, Sequence[v1.Bar]], as_of: str | None = None) -> None:
+    cutoff = v1.parse_time(as_of) if as_of else datetime.now(timezone.utc)
     done = {str(x.get("snapshot_id")) for x in read_jsonl(state_dir / RESOLUTIONS_FILE)}
     for s in read_jsonl(state_dir / SNAPSHOTS_FILE):
         sid = str(s.get("snapshot_id") or "")
@@ -794,6 +795,9 @@ def resolve(state_dir: Path, hourly_by: Mapping[str, Sequence[v1.Bar]]) -> None:
         if len(future) < HORIZON:
             continue
         path = future[:HORIZON]
+        # Yahoo 1h timestamps denote bar opens: reject partial last-hour outcomes.
+        if path[-1].timestamp + timedelta(hours=1) > cutoff:
+            continue
         ref = float(s["reference_price"])
         ret = path[-1].close / ref - 1
         y = 1 if ret > 0 else 0
@@ -1045,7 +1049,7 @@ def run_cycle(
     if not states:
         raise RuntimeError("FSE v2 has no usable instruments: " + v1.canonical(errors))
 
-    resolve(state_dir, raw_hourly)
+    resolve(state_dir, raw_hourly, as_of=at)
     resolved_history = read_jsonl(state_dir / RESOLUTIONS_FILE)
     frozen_history = read_jsonl(state_dir / SNAPSHOTS_FILE)
     # Fit from already-settled, independent observations strictly BEFORE this candle.
