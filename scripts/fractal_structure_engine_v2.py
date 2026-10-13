@@ -22,7 +22,7 @@ import hashlib
 import json
 import math
 import statistics
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
@@ -52,6 +52,10 @@ NATIVE_FEEDS = {
     "1d": (DAILY_RANGE, "1d"),
 }
 P_CALIBRATION_MAX_SHIFT = 0.06
+ADAPTIVE_VERSION = "FSE-ADAPTIVE-1.0"
+ADAPTIVE_MIN_INDEPENDENT = 12
+RISK_CALIBRATION_MIN_N = 40
+
 
 
 def mean(xs: Sequence[float]) -> float:
@@ -616,6 +620,136 @@ def append_chain(path: Path, schema: str, payload: Mapping[str, Any], id_key: st
     return v1.append_chain(path, schema, payload, id_key)
 
 
+def _settled_training_pairs(
+    snapshots: Sequence[Mapping[str, Any]],
+    resolutions: Sequence[Mapping[str, Any]],
+    instrument: str,
+    cutoff: str,
+) -> list[tuple[datetime, datetime, Mapping[str, Any], Mapping[str, Any]]]:
+    """Use only actual previously resolved prospective events, never current outcomes."""
+    boundary = v1.parse_time(cutoff)
+    snap_by_id = {
+        str(s.get("snapshot_id")): s for s in snapshots
+        if s.get("instrument") == instrument
+        and s.get("prospective_only") is True
+        and s.get("methodology_version") == METHODOLOGY_VERSION
+    }
+    pairs = []
+    seen = set()
+    for r in resolutions:
+        sid = str(r.get("snapshot_id") or "")
+        s = snap_by_id.get(sid)
+        if not s or sid in seen or r.get("instrument") != instrument or r.get("prospective_only") is not True:
+            continue
+        if r.get("methodology_version") != METHODOLOGY_VERSION or not isinstance(r.get("outcome_up"), bool):
+            continue
+        try:
+            observed = v1.parse_time(str(s["observed_at"]))
+            ended = v1.parse_time(str(r["resolved_at"]))
+        except (ValueError, KeyError, TypeError):
+            continue
+        if observed >= ended or ended >= boundary:
+            continue
+        seen.add(sid)
+        pairs.append((observed, ended, s, r))
+    return sorted(pairs, key=lambda x: (x[0], x[1]))
+
+
+def _nonoverlapping(pairs: Sequence[tuple]) -> list[tuple]:
+    """Do not count four-hour overlapping targets as independent learning blocks."""
+    selected = []
+    last_end = None
+    for item in pairs:
+        if last_end is None or item[0] >= last_end:
+            selected.append(item)
+            last_end = item[1]
+    return selected
+
+
+def adaptive_ensemble(
+    row: Mapping[str, Any],
+    snapshots: Sequence[Mapping[str, Any]],
+    resolutions: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
+    """Bounded research challenger; past frozen component forecasts only."""
+    base = v1.finite(row["memory"].get("p_up"))
+    phase = v1.finite(((row.get("phase_map") or {}).get("1h") or {}).get("phase_memory", {}).get("p_up_remaining"))
+    previous = row.get("p_calibration_challenger") or {}
+    challenger = v1.finite(previous.get("p_challenger")) if previous.get("active") else None
+    fallback = {"active": False, "methodology_version": ADAPTIVE_VERSION,
+                "reason": "insufficient independent settled forecasts",
+                "p_adaptive": None, "training_independent_n": 0,
+                "weights": None, "trained_through": None, "production_applied": False}
+    if base is None or phase is None or challenger is None or not all(0 <= v <= 1 for v in (base, phase, challenger)):
+        return dict(fallback, reason="component forecast missing or invalid")
+    past = _settled_training_pairs(snapshots, resolutions, str(row["instrument"]), str(row["observed_at"]))
+    keys = ("base_p_up", "phase_p_up", "challenger_p_up")
+    valid = [item for item in past
+             if all(v1.finite(item[2].get(k)) is not None and 0 <= float(item[2][k]) <= 1 for k in keys)]
+    blocks = _nonoverlapping(valid)[-64:]
+    if len(blocks) < ADAPTIVE_MIN_INDEPENDENT:
+        return dict(fallback, training_independent_n=len(blocks))
+    # Exponentially downweight old independent blocks; never optimize on future outcomes.
+    decays = [0.97 ** (len(blocks) - i - 1) for i in range(len(blocks))]
+    denom = sum(decays)
+    losses = [sum(w * (float(s[key]) - int(r["outcome_up"])) ** 2
+                  for w, (_, _, s, r) in zip(decays, blocks)) / denom for key in keys]
+    priors = (0.50, 0.25, 0.25)
+    raw = [prior * math.exp(-8.0 * (loss - min(losses))) for prior, loss in zip(priors, losses)]
+    scale = sum(raw)
+    weights = [0.2 * prior + 0.8 * value / scale for prior, value in zip(priors, raw)]
+    p = sum(w * score for w, score in zip(weights, (base, phase, challenger)))
+    p = clamp(base + clamp(p - base, -P_CALIBRATION_MAX_SHIFT, P_CALIBRATION_MAX_SHIFT), 0.01, 0.99)
+    return {"active": True, "methodology_version": ADAPTIVE_VERSION,
+            "p_adaptive": p, "p_base": base,
+            "weights": dict(zip(("deep", "phase", "regime_phase_challenger"), weights)),
+            "training_independent_n": len(blocks), "training_brier": dict(zip(("deep", "phase", "regime_phase_challenger"), losses)),
+            "trained_through": max(item[1] for item in blocks).isoformat(),
+            "max_abs_shift_pp": P_CALIBRATION_MAX_SHIFT * 100,
+            "production_applied": False}
+
+
+def adaptive_risk_calibrator(
+    row: Mapping[str, Any],
+    snapshots: Sequence[Mapping[str, Any]],
+    resolutions: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
+    """Fit conditional large-move probability, separate from structural-risk index."""
+    candidate_score = v1.finite((row.get("structural_risk") or {}).get("risk_score"))
+    fallback = {"active": False, "methodology_version": ADAPTIVE_VERSION,
+                "reason": "prospective risk outcomes collecting",
+                "p_large_move": None, "p_empirical_prior": None,
+                "training_n": 0, "training_independent_n": 0,
+                "trained_through": None, "production_applied": False}
+    if candidate_score is None or not 0 <= candidate_score <= 1:
+        return dict(fallback, reason="invalid structural risk score")
+    past = _settled_training_pairs(snapshots, resolutions, str(row["instrument"]), str(row["observed_at"]))
+    valid = [item for item in past if isinstance(item[3].get("large_move_event"), bool)
+             and v1.finite(item[2].get("risk_score")) is not None
+             and 0 <= float(item[2]["risk_score"]) <= 1]
+    blocks = _nonoverlapping(valid)
+    if len(valid) < RISK_CALIBRATION_MIN_N or len(blocks) < ADAPTIVE_MIN_INDEPENDENT:
+        return dict(fallback, training_n=len(valid), training_independent_n=len(blocks))
+    sample = blocks[-100:]
+    decays = [0.985 ** (len(sample) - i - 1) for i in range(len(sample))]
+    total = sum(decays)
+    scores = [float(item[2]["risk_score"]) for item in sample]
+    outcomes = [int(item[3]["large_move_event"]) for item in sample]
+    mean_score = sum(w * x for w, x in zip(decays, scores)) / total
+    event_rate = (sum(w * y for w, y in zip(decays, outcomes)) + 2.0) / (total + 4.0)
+    cov = sum(w * (x - mean_score) * (y - event_rate) for w, x, y in zip(decays, scores, outcomes))
+    variance = sum(w * (x - mean_score) ** 2 for w, x in zip(decays, scores))
+    # Positive slope only; ridge prevents fitting the noise in small samples.
+    slope = clamp(cov / (variance + 5.0), 0.0, 1.0)
+    calibrated = clamp(event_rate + slope * (candidate_score - mean_score), 0.01, 0.99)
+    return {"active": True, "methodology_version": ADAPTIVE_VERSION,
+            "p_large_move": calibrated, "p_empirical_prior": event_rate,
+            "risk_score": candidate_score, "slope": slope,
+            "training_n": len(valid), "training_independent_n": len(blocks),
+            "trained_through": max(item[1] for item in sample).isoformat(),
+            "production_applied": False}
+
+
 def build_instrument_state(instrument: str, symbol: str, scales: Mapping[str, Sequence[v1.Bar]]) -> dict[str, Any]:
     hourly, daily = list(scales["1h"]), list(scales["1d"])
     deep = deep_historical_analogues(hourly, daily)
@@ -629,6 +763,7 @@ def build_instrument_state(instrument: str, symbol: str, scales: Mapping[str, Se
         for tf in ("5m", "15m", "1h", "4h", "1d")
     }
     risk = v1.structural_risk(feature_scales)
+    risk["atr_1h_fraction"] = feature_scales["1h"].get("atr_fraction")
     base_p = clamp(float(deep.get("p_up", 0.5)))
     phase_mem = (phase_map.get("1h") or {}).get("phase_memory") or {}
     phase_p = clamp(float(phase_mem.get("p_up_remaining", 0.5)))
@@ -649,7 +784,8 @@ def build_instrument_state(instrument: str, symbol: str, scales: Mapping[str, Se
     }
 
 
-def resolve(state_dir: Path, hourly_by: Mapping[str, Sequence[v1.Bar]]) -> None:
+def resolve(state_dir: Path, hourly_by: Mapping[str, Sequence[v1.Bar]], as_of: str | None = None) -> None:
+    cutoff = v1.parse_time(as_of) if as_of else datetime.now(timezone.utc)
     done = {str(x.get("snapshot_id")) for x in read_jsonl(state_dir / RESOLUTIONS_FILE)}
     for s in read_jsonl(state_dir / SNAPSHOTS_FILE):
         sid = str(s.get("snapshot_id") or "")
@@ -659,6 +795,9 @@ def resolve(state_dir: Path, hourly_by: Mapping[str, Sequence[v1.Bar]]) -> None:
         if len(future) < HORIZON:
             continue
         path = future[:HORIZON]
+        # Yahoo 1h timestamps denote bar opens: reject partial last-hour outcomes.
+        if path[-1].timestamp + timedelta(hours=1) > cutoff:
+            continue
         ref = float(s["reference_price"])
         ret = path[-1].close / ref - 1
         y = 1 if ret > 0 else 0
@@ -668,6 +807,17 @@ def resolve(state_dir: Path, hourly_by: Mapping[str, Sequence[v1.Bar]]) -> None:
         challenger_p = v1.finite(s.get("challenger_p_up"))
         phase_brier = None if phase_p is None else (clamp(phase_p) - y) ** 2
         challenger_brier = None if challenger_p is None else (clamp(challenger_p) - y) ** 2
+        adaptive_p = v1.finite(s.get("adaptive_p_up"))
+        adaptive_brier = (adaptive_p - y) ** 2 if adaptive_p is not None and 0 <= adaptive_p <= 1 else None
+        risk_score = v1.finite(s.get("risk_score"))
+        atr_fraction = v1.finite(s.get("atr_1h_fraction"))
+        large_move = bool(abs(ret) >= 0.75 * atr_fraction) if atr_fraction is not None and atr_fraction > 0 else None
+        risk_p = v1.finite(s.get("adaptive_risk_p"))
+        risk_prior = v1.finite(s.get("adaptive_risk_prior"))
+        risk_brier = ((risk_p - int(large_move)) ** 2
+                      if isinstance(large_move, bool) and risk_p is not None and 0 <= risk_p <= 1 else None)
+        prior_brier = ((risk_prior - int(large_move)) ** 2
+                       if isinstance(large_move, bool) and risk_prior is not None and 0 <= risk_prior <= 1 else None)
         rid = "fsev2res-" + v1.sha({"snapshot_id": sid, "resolved_at": path[-1].timestamp.isoformat()})[:24]
         payload = {
             "resolution_id": rid,
@@ -684,6 +834,14 @@ def resolve(state_dir: Path, hourly_by: Mapping[str, Sequence[v1.Bar]]) -> None:
             "phase_edge_vs_0_5": None if phase_brier is None else 0.25 - phase_brier,
             "challenger_brier": challenger_brier,
             "calibration_brier_improvement_vs_base": None if challenger_brier is None else base_brier - challenger_brier,
+            "adaptive_version": s.get("adaptive_version"),
+            "adaptive_brier": adaptive_brier,
+            "adaptive_brier_improvement_vs_deep": None if adaptive_brier is None else base_brier - adaptive_brier,
+            "large_move_event": large_move,
+            "structural_risk_index": risk_score,
+            "adaptive_risk_brier": risk_brier,
+            "adaptive_risk_prior_brier": prior_brier,
+            "adaptive_risk_improvement_vs_prior": None if risk_brier is None or prior_brier is None else prior_brier - risk_brier,
             "mae_fraction": min(b.close / ref - 1 for b in path),
             "mfe_fraction": max(b.close / ref - 1 for b in path),
             "methodology_version": s.get("methodology_version"),
@@ -702,6 +860,9 @@ def snapshot(state_dir: Path, row: Mapping[str, Any]) -> None:
     phase_1h = row["phase_map"].get("1h") or {}
     phase_mem = phase_1h.get("phase_memory") or {}
     challenger = row["p_calibration_challenger"]
+    adaptive = row.get("adaptive_learning") or {}
+    ensemble = adaptive.get("ensemble") or {}
+    risk_cal = adaptive.get("risk") or {}
     append_chain(
         state_dir / SNAPSHOTS_FILE,
         SNAPSHOT_SCHEMA,
@@ -715,6 +876,15 @@ def snapshot(state_dir: Path, row: Mapping[str, Any]) -> None:
             "base_p_up": row["memory"]["p_up"],
             "phase_p_up": phase_mem.get("p_up_remaining"),
             "challenger_p_up": challenger.get("p_challenger") if challenger.get("active") else None,
+            "adaptive_version": ADAPTIVE_VERSION,
+            "adaptive_p_up": ensemble.get("p_adaptive") if ensemble.get("active") else None,
+            "adaptive_ensemble_weights": ensemble.get("weights"),
+            "adaptive_ensemble_trained_through": ensemble.get("trained_through"),
+            "adaptive_risk_p": risk_cal.get("p_large_move") if risk_cal.get("active") else None,
+            "adaptive_risk_prior": risk_cal.get("p_empirical_prior") if risk_cal.get("active") else None,
+            "adaptive_risk_trained_through": risk_cal.get("trained_through"),
+            "risk_score": row["structural_risk"].get("risk_score"),
+            "atr_1h_fraction": row["structural_risk"].get("atr_1h_fraction"),
             "forecast": row["forecast"],
             "analogue_n": row["memory"]["analogues_n"],
             "history_candidates": row["memory"]["history_candidates"],
@@ -740,6 +910,11 @@ def verify(state_dir: Path) -> dict[str, Any]:
     for row in read_jsonl(state_dir / SNAPSHOTS_FILE) + read_jsonl(state_dir / RESOLUTIONS_FILE):
         if row.get("authority") != ZERO_AUTHORITY:
             raise ValueError("FSE v2 authority violation")
+        if row.get("adaptive_version") == ADAPTIVE_VERSION and row.get("observed_at"):
+            for field in ("adaptive_ensemble_trained_through", "adaptive_risk_trained_through"):
+                trained_through = row.get(field)
+                if trained_through and v1.parse_time(str(trained_through)) >= v1.parse_time(str(row["observed_at"])):
+                    raise ValueError("FSE adaptive future leakage: " + field)
     return {"ok": True, "snapshots": a, "resolutions": b, "zero_authority": True}
 
 
@@ -766,6 +941,12 @@ def hse_measurements(resolutions: Sequence[Mapping[str, Any]], instrument: str) 
         for x in rows
         if v1.finite(x.get("calibration_brier_improvement_vs_base")) is not None
     ]
+    adaptive_edges = [float(x["adaptive_brier_improvement_vs_deep"]) for x in rows
+                      if x.get("adaptive_version") == ADAPTIVE_VERSION and
+                      v1.finite(x.get("adaptive_brier_improvement_vs_deep")) is not None]
+    risk_edges = [float(x["adaptive_risk_improvement_vs_prior"]) for x in rows
+                  if x.get("adaptive_version") == ADAPTIVE_VERSION and
+                  v1.finite(x.get("adaptive_risk_improvement_vs_prior")) is not None]
     return [
         {
             "proposal_key": f"fse-phase-memory-{instrument.lower()}-4h-brier",
@@ -803,6 +984,28 @@ def hse_measurements(resolutions: Sequence[Mapping[str, Any]], instrument: str) 
                 "max_abs_shift_pp": P_CALIBRATION_MAX_SHIFT * 100.0,
                 "methodology_version": METHODOLOGY_VERSION,
             },
+        },
+        {
+            "proposal_key": f"fse-adaptive-ensemble-{instrument.lower()}-4h-brier-v1",
+            "claim": f"FSE Adaptive Ensemble v1 improves frozen 4x1h Brier relative to frozen Deep Memory on prospective samples.",
+            "champion": "FSE v2 frozen Deep Fractal Memory",
+            "challenger": "FSE Adaptive Ensemble v1",
+            "metric_name": "adaptive_ensemble_brier_improvement_vs_deep",
+            "target_n": 40, "success_mean_edge": 0.0025, "reject_mean_edge": -0.0025,
+            "counter": len(adaptive_edges), "total": sum(adaptive_edges),
+            "details": {"instrument": instrument, "kind": "adaptive_ensemble",
+                        "methodology_version": ADAPTIVE_VERSION, "horizon": "4x1h_market_bars"},
+        },
+        {
+            "proposal_key": f"fse-adaptive-risk-{instrument.lower()}-4h-brier-v1",
+            "claim": f"FSE risk probability calibrator v1 improves 4x1h large-move Brier versus frozen empirical-event-rate prior.",
+            "champion": "Frozen empirical large-move frequency",
+            "challenger": "FSE Adaptive Risk Calibrator v1",
+            "metric_name": "adaptive_risk_brier_improvement_vs_prior",
+            "target_n": 40, "success_mean_edge": 0.0025, "reject_mean_edge": -0.0025,
+            "counter": len(risk_edges), "total": sum(risk_edges),
+            "details": {"instrument": instrument, "kind": "adaptive_risk",
+                        "methodology_version": ADAPTIVE_VERSION, "horizon": "4x1h_market_bars"},
         },
     ]
 
@@ -846,8 +1049,35 @@ def run_cycle(
     if not states:
         raise RuntimeError("FSE v2 has no usable instruments: " + v1.canonical(errors))
 
-    resolve(state_dir, raw_hourly)
+    resolve(state_dir, raw_hourly, as_of=at)
+    resolved_history = read_jsonl(state_dir / RESOLUTIONS_FILE)
+    frozen_history = read_jsonl(state_dir / SNAPSHOTS_FILE)
+    # Fit from already-settled, independent observations strictly BEFORE this candle.
+    # On a repeated market timestamp reuse its frozen prediction; never rewrite history.
     for row in states:
+        same = next((s for s in reversed(frozen_history)
+                     if s.get("instrument") == row["instrument"] and
+                     s.get("observed_at") == row["observed_at"]), None)
+        if same is None:
+            row["adaptive_learning"] = {
+                "ensemble": adaptive_ensemble(row, frozen_history, resolved_history),
+                "risk": adaptive_risk_calibrator(row, frozen_history, resolved_history),
+            }
+        else:
+            row["adaptive_learning"] = {
+                "ensemble": {"active": same.get("adaptive_p_up") is not None,
+                             "methodology_version": same.get("adaptive_version"),
+                             "p_adaptive": same.get("adaptive_p_up"),
+                             "weights": same.get("adaptive_ensemble_weights"),
+                             "trained_through": same.get("adaptive_ensemble_trained_through"),
+                             "reason": "reused immutable frozen snapshot", "production_applied": False},
+                "risk": {"active": same.get("adaptive_risk_p") is not None,
+                         "methodology_version": same.get("adaptive_version"),
+                         "p_large_move": same.get("adaptive_risk_p"),
+                         "p_empirical_prior": same.get("adaptive_risk_prior"),
+                         "trained_through": same.get("adaptive_risk_trained_through"),
+                         "reason": "reused immutable frozen snapshot", "production_applied": False},
+            }
         snapshot(state_dir, row)
     check = verify(state_dir)
     resolutions = read_jsonl(state_dir / RESOLUTIONS_FILE)
@@ -882,6 +1112,7 @@ def run_cycle(
             "intrabar_formation": row["intrabar_formation"],
             "cross_scale_alignment": row["cross_scale_alignment"],
             "p_calibration_challenger": row["p_calibration_challenger"],
+            "adaptive_learning": row["adaptive_learning"],
         })
 
     out = {
@@ -895,6 +1126,8 @@ def run_cycle(
         "generated_at": generated,
         "methodology_version": METHODOLOGY_VERSION,
         "methodology_frozen": True,
+        "adaptive_learning_version": ADAPTIVE_VERSION,
+        "adaptive_learning_authority": dict(ZERO_AUTHORITY),
         "pipeline": "FSE -> PHASE ENGINE -> INTRABAR FORMATION -> CROSS-SCALE ALIGNMENT -> PHASE FRACTAL MEMORY -> PROSPECTIVE HSE2 -> P CALIBRATION CHALLENGER -> MANUAL PROMOTION GATE",
         "source_policy": {
             "native_scales": {k: {"range": v[0], "interval": v[1]} for k, v in NATIVE_FEEDS.items()},
@@ -916,6 +1149,7 @@ def run_cycle(
             "Cross-scale alignment is descriptive research evidence; it does not itself create a trade.",
             "P Calibration Challenger is capped at +/-6 percentage points and remains shadow-only.",
             "No historical phase/calibration record is credited prospectively; only snapshots frozen under FSE-PHASE-1.0 count.",
+            "Adaptive Ensemble and Risk Calibrator use prior settled evidence only and are independent shadow hypotheses in existing HSE2.",
         ],
     }
     public.parent.mkdir(parents=True, exist_ok=True)

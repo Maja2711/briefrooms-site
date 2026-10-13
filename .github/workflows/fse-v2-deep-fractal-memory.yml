@@ -20,6 +20,7 @@ on:
       - "pl/inwestycje/decision-lab.html"
       - "en/investing/decision-lab.html"
       - "tests/test_fractal_structure_engine_v2.py"
+      - "tests/test_fse_adaptive_learning.py"
       - "tests/test_decision_lab_fse_frontend.py"
       - "docs/FRACTAL_STRUCTURE_ENGINE_PL.md"
       - "docs/FRACTAL_STRUCTURE_ENGINE_EN.md"
@@ -29,6 +30,7 @@ on:
     paths:
       - "scripts/fractal_structure_engine_v2.py"
       - "tests/test_fractal_structure_engine_v2.py"
+      - "tests/test_fse_adaptive_learning.py"
       - ".github/workflows/fse-v2-deep-fractal-memory.yml"
 
 permissions:
@@ -36,7 +38,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: fse-v2-deep-fractal-memory
+  group: ${{ github.event_name == 'pull_request' && format('fse-v2-pr-{0}', github.head_ref) || 'fse-v2-deep-fractal-memory' }}
   cancel-in-progress: false
 
 env:
@@ -59,7 +61,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m py_compile scripts/fractal_structure_engine_v2.py scripts/fse_intraday_fast.py
-          python -m unittest tests.test_fractal_structure_engine_v2 tests.test_fse_intraday_fast tests.test_fse_phase_workflow -v
+          python -m unittest tests.test_fractal_structure_engine_v2 tests.test_fse_adaptive_learning tests.test_fse_intraday_fast tests.test_fse_phase_workflow -v
           python -m unittest tests.test_decision_lab_fse_frontend -v
           node --check scripts/central-lab.js
           node --check scripts/central-lab-runtime-en.js
@@ -135,13 +137,18 @@ jobs:
           assert p["module_id"]=="IN-09" and p["component_id"]=="FSE-PHASE"
           assert p["methodology_version"]=="FSE-PHASE-1.0"
           assert all(v is False for v in p["authority"].values())
-          assert len(p["hse_measurements"]) == 2 * len(p["instruments"])
+          assert len(p["hse_measurements"]) == 4 * len(p["instruments"])
+          assert p["adaptive_learning_version"] == "FSE-ADAPTIVE-1.0"
+          assert p["adaptive_learning_authority"] == p["authority"]
           assert p["promotion_gate"]["automatic_promotion"] is False
           for row in p["instruments"]:
               assert "phase_map" in row
               assert "intrabar_formation" in row
               assert "cross_scale_alignment" in row
               assert "p_calibration_challenger" in row
+              assert "adaptive_learning" in row
+              assert row["adaptive_learning"]["ensemble"]["production_applied"] is False
+              assert row["adaptive_learning"]["risk"]["production_applied"] is False
           print("FSE_PHASE_ZERO_AUTHORITY_PASS")
           PY
 
