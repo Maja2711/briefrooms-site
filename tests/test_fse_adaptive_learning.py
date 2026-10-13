@@ -62,7 +62,7 @@ class TestFSEAdaptiveLearning(unittest.TestCase):
         self.assertAlmostEqual(sum(result["weights"].values()), 1.0)
         self.assertTrue(all(w > 0 for w in result["weights"].values()))
         self.assertLessEqual(abs(result["p_adaptive"] - current["memory"]["p_up"]), 0.06 + 1e-12)
-        self.assertLess(v1.parse_time(result["trained_through"]), current["observed_at"] and v1.parse_time(current["observed_at"]))
+        self.assertLess(v1.parse_time(result["trained_through"]), v1.parse_time(current["observed_at"]))
         self.assertFalse(result["production_applied"])
 
     def test_future_outcomes_and_current_candle_cannot_train(self):
@@ -127,6 +127,23 @@ class TestFSEAdaptiveLearning(unittest.TestCase):
             self.assertTrue(res[0]["large_move_event"])
             self.assertAlmostEqual(res[0]["adaptive_risk_prior_brier"], (0.25-1)**2)
             self.assertTrue(fse.verify(root)["zero_authority"])
+
+    def test_partial_hour_never_settles_a_future_outcome(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            observed = datetime(2026, 10, 1, tzinfo=timezone.utc)
+            row = current_row(observed)
+            row["adaptive_learning"] = {"ensemble": {"active": False},
+                                        "risk": {"active": False}}
+            fse.snapshot(root, row)
+            future = [v1.Bar(observed + timedelta(hours=i), 100.0 + i,
+                             100.0, 100.0 + i, 100.0, 1) for i in range(1, 5)]
+            fse.resolve(root, {"BTCUSD": future},
+                        as_of=(observed + timedelta(hours=4, minutes=30)).isoformat())
+            self.assertEqual(fse.read_jsonl(root / fse.RESOLUTIONS_FILE), [])
+            fse.resolve(root, {"BTCUSD": future},
+                        as_of=(observed + timedelta(hours=5)).isoformat())
+            self.assertEqual(len(fse.read_jsonl(root / fse.RESOLUTIONS_FILE)), 1)
 
     def test_hse2_gets_two_additive_hypotheses_without_changing_phase_contracts(self):
         rows = [{
