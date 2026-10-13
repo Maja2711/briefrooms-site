@@ -38,7 +38,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: fse-v2-deep-fractal-memory
+  group: ${{ github.event_name == 'pull_request' && format('fse-v2-pr-{0}', github.head_ref) || 'fse-v2-deep-fractal-memory' }}
   cancel-in-progress: false
 
 env:
