@@ -328,13 +328,16 @@ def run(*, now: datetime | None = None, state_path: Path = STATE_PATH,
         policy_path: Path = POLICY_PATH, production_path: Path = PRODUCTION_PATH,
         chart_fetcher: Any = None) -> dict[str, Any]:
     now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
-    state = _read(state_path, empty_state())
+    stored_state = _read(state_path)
+    state = stored_state if stored_state is not None else empty_state()
     if not isinstance(state, dict) or state.get("schema_version") != SCHEMA:
         raise ValueError("reentry learning state schema mismatch")
     policy = _read(policy_path)
     production = _read(production_path)
     if not isinstance(policy, dict) or not isinstance(production, dict):
         raise ValueError("missing production inputs")
+    original_policy = json.dumps(policy, sort_keys=True)
+    old_report = dict(state.get("last_report") or {})
     audits = (production.get("audit") or [])
     latest = audits[-1] if audits else {}
     captured = capture(state, latest.get("actions") or [])
@@ -361,11 +364,14 @@ def run(*, now: datetime | None = None, state_path: Path = STATE_PATH,
         for item in observations:
             resolved += bool(resolve_one(item, chart, now))
     report = update_rules(state, policy, now)
-    state["updated_at"] = now.isoformat()
-    state["last_report"] = {"captured": captured, "resolved": resolved, "markets": report}
-    _write(state_path, state)
-    _write(policy_path, policy)
-    return state["last_report"]
+    current_report = {"captured": captured, "resolved": resolved, "markets": report}
+    if stored_state is None or captured or resolved or old_report.get("markets") != report:
+        state["updated_at"] = now.isoformat()
+        state["last_report"] = current_report
+        _write(state_path, state)
+    if json.dumps(policy, sort_keys=True) != original_policy:
+        _write(policy_path, policy)
+    return current_report
 
 
 def main() -> None:
