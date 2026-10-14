@@ -93,7 +93,7 @@ class ReentryProductionLearningTests(unittest.TestCase):
         def example(day, positive, prefix):
             return {
                 "episode_id": f"{prefix}:{day}", "market": "GPW",
-                "symbol": f"STOCK{day % 7}.WA",
+                "symbol": f"STOCK{day.toordinal() % 7}.WA",
                 "observed_at": day.isoformat(),
                 "price": 100.0, "risk_fraction": .02,
                 "features": {
