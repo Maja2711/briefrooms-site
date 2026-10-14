@@ -54,7 +54,7 @@ class ReentryProductionLearningTests(unittest.TestCase):
             "observed_at": "2026-10-14T11:00:00+00:00", "price": 100.0,
             "risk_fraction": .02, "features": {}, "outcome": None})
         obs = state["observations"][0]
-        days = [datetime(2026, 10, 14 + i, 14, tzinfo=timezone.utc) for i in range(7)]
+        days = [datetime(2026, 10, d, 14, tzinfo=timezone.utc) for d in (14, 15, 16, 19, 20, 21, 22)]
         chart = {"timestamp": [int(d.timestamp()) for d in days],
                  "indicators": {"quote": [{"close": [200., 101., 102., 103., 104., 105., 106.]}]}}
         before = datetime(2026, 10, 19, 10, tzinfo=timezone.utc)
