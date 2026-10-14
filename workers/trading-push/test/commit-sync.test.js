@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import webpush from "web-push";
 import {
   dailyCommitSnapshot,
@@ -145,9 +146,9 @@ test("Background push copy and destination are localized for PL and EN", () => {
   };
   const pl = JSON.parse(notificationPayload(event, "pl", "https://push.example"));
   const en = JSON.parse(notificationPayload(event, "en", "https://push.example"));
-  assert.match(pl.body, /^TP OSIĄGNIĘTY/);
+  assert.equal(pl.body, "ZAMKNIĘTY LONG · BTC/USD @ 125000");
   assert.equal(pl.url, "/pl/inwestycje/pozycje-tygodniowe.html");
-  assert.match(en.body, /^TAKE PROFIT/);
+  assert.equal(en.body, "CLOSED LONG · BTC/USD @ 125000");
   assert.equal(en.url, "/en/investing/open-weekly-positions.html");
 });
 
@@ -158,22 +159,22 @@ test("PL and EN routes remain correct for Daily Weekly and Stock channels", () =
       event: { event_id: "d1", engine: "daily", event_type: "OPEN", position_id: "d", instrument: "EUR/USD", direction: "SHORT", entry: 1.12 },
       plUrl: "/pl/inwestycje/daily-trading.html",
       enUrl: "/en/investing/daily-trading.html",
-      plAction: "OTWARTO",
-      enAction: "OPENED",
+      plAction: "OTWARTY SHORT",
+      enAction: "OPENED SHORT",
     },
     {
       event: { event_id: "w1", engine: "weekly", event_type: "OPEN", position_id: "w", instrument: "S&P 500 futures", direction: "LONG", entry: 6800 },
       plUrl: "/pl/inwestycje/pozycje-tygodniowe.html",
       enUrl: "/en/investing/open-weekly-positions.html",
-      plAction: "OTWARTO",
-      enAction: "OPENED",
+      plAction: "OTWARTY LONG",
+      enAction: "OPENED LONG",
     },
     {
       event: { event_id: "s1", engine: "stock", event_type: "CLOSE", position_id: "s", instrument: "AAPL", direction: "LONG", entry: 250, exit_price: 255, exit_reason: "TIME_EXIT" },
       plUrl: "/pl/inwestycje/stock-trading.html",
       enUrl: "/en/investing/stock-trading.html",
-      plAction: "ZAMKNIĘTO",
-      enAction: "CLOSED",
+      plAction: "POZYCJA ZAMKNIĘTA",
+      enAction: "POSITION CLOSED",
     },
   ];
 
@@ -187,6 +188,60 @@ test("PL and EN routes remain correct for Daily Weekly and Stock channels", () =
   }
 });
 
+
+test("XP profit protected by a stop is labeled CLOSED, not STOP LOSS", () => {
+  const event = {
+    event_id: "xp-close", engine: "stock", event_type: "CLOSE",
+    position_id: "us:20261001T144705:XP", instrument: "XP",
+    direction: "LONG", entry: 21.19499969, exit_price: 30.9362493,
+    exit_reason: "stop_loss", r_multiple: 12.2127,
+  };
+  const pl = JSON.parse(notificationPayload(event, "pl"));
+  const en = JSON.parse(notificationPayload(event, "en"));
+  assert.equal(pl.body, "POZYCJA ZAMKNIĘTA · XP @ 30.9362493 · Wynik cenowy: +45,96%");
+  assert.equal(en.body, "POSITION CLOSED · XP @ 30.9362493 · Price return: +45.96%");
+  assert.equal(pl.data.exit_reason, "stop_loss");
+  assert.doesNotMatch(pl.body, /STOP LOSS|OTWARTY LONG|ZAMKNIĘTY LONG/);
+  assert.equal(pl.event_id, event.event_id);
+});
+
+test("Stock OPEN never advertises a LONG or SHORT lifecycle", () => {
+  const event = { event_id: "s-open", engine: "stock", event_type: "OPEN", position_id: "p", instrument: "XP", direction: "LONG", entry: 21.195 };
+  assert.equal(JSON.parse(notificationPayload(event, "pl")).body, "POZYCJA OTWARTA · XP @ 21.195");
+  assert.equal(JSON.parse(notificationPayload(event, "en")).body, "POSITION OPENED · XP @ 21.195");
+});
+
+test("Daily and Weekly directional close do not replace lifecycle by SL/TP", () => {
+  for (const [engine, instrument, direction, reason, label] of [
+    ["daily", "EUR/USD", "SHORT", "STOP_LOSS", "ZAMKNIĘTY SHORT"],
+    ["weekly", "BTC/USD", "LONG", "TAKE_PROFIT", "ZAMKNIĘTY LONG"],
+    ["weekly", "S&P 500 futures", "SHORT", "STOP_LOSS", "ZAMKNIĘTY SHORT"],
+  ]) {
+    const event = { event_id: "x", engine, event_type: "CLOSE", position_id: "p", instrument, direction, entry: 1, exit_price: 2, exit_reason: reason };
+    const push = JSON.parse(notificationPayload(event, "pl"));
+    assert.equal(push.body, `${label} · ${instrument} @ 2`);
+    assert.equal(push.data.exit_reason, reason);
+  }
+});
+
+test("Unknown direction and missing exit price never manufacture trade details", () => {
+  const event = { event_id: "unknown", engine: "weekly", event_type: "CLOSE", position_id: "u", instrument: "BTC/USD", entry: 100 };
+  assert.equal(JSON.parse(notificationPayload(event, "pl")).body, "POZYCJA ZAMKNIĘTA · BTC/USD");
+  const stock = { ...event, engine: "stock", instrument: "ABC", direction: "LONG" };
+  assert.equal(JSON.parse(notificationPayload(stock, "pl")).body, "POZYCJA ZAMKNIĘTA · ABC");
+  assert.equal(JSON.parse(notificationPayload({ ...stock, entry: 0, exit_price: 10 }, "pl")).body, "POZYCJA ZAMKNIĘTA · ABC @ 10");
+});
+
+test("Foreground and push formatters stay byte-equivalent ignoring indent", () => {
+  const backend = readFileSync(new URL("../src/index.js", import.meta.url), "utf8");
+  const foreground = readFileSync(new URL("../../../scripts/trading-notifications.js", import.meta.url), "utf8");
+  const extract = (source) => {
+    const match = source.match(/^([ \\t]*)function notificationText\\(event, language\\) \\{([\\s\\S]*?)^\\1\\}/m);
+    assert.ok(match, "notificationText function must exist in each delivery path");
+    return match[2].split("\\n").map((line) => line.trim()).join("\\n");
+  };
+  assert.equal(extract(backend), extract(foreground));
+});
 
 test("Commit-bound CLOSE requires an explicit persisted closed record", () => {
   const before = weeklyCommitSnapshot({
