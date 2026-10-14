@@ -141,7 +141,7 @@ def matches(rule: Mapping[str, Any], features: Mapping[str, Any]) -> bool:
         return False
     for key, (low, high) in allowed.items():
         threshold = _num(rule.get(key))
-        observed = _num(features.get(key))
+        observed = _num(features.get(key.removesuffix("_min")))
         if threshold is None or not low <= threshold <= high or observed is None or observed < threshold:
             return False
     return True
