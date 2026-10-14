@@ -135,7 +135,9 @@ self.addEventListener("push", (event) => {
     badge: "/assets/favicon.svg",
     tag: tradingNotificationIdentity(payload) || payload.tag || undefined,
     renotify: false, // Never raise a second audible alert for the same trade.
-    timestamp: payload.sent_at ? Date.parse(payload.sent_at) : Date.now(),
+    // Android notification age must reflect when the notification is shown, not when the provider accepted it.
+    // Preserve the provider timestamp separately in data for latency diagnostics.
+    timestamp: Date.now(),
     data: { url: payload.url || "/pl/inwestycje/daily-trading.html", event_id: payload.event_id || null, sent_at: payload.sent_at || null, ...(payload.data || {}), ack_url: payload.ack_url || payload?.data?.ack_url || null, ack_token: payload.ack_token || payload?.data?.ack_token || null, delivery_id: payload.delivery_id || payload?.data?.delivery_id || null },
   };
   event.waitUntil((async () => {
