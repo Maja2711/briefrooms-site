@@ -8,6 +8,8 @@ on:
     paths:
       - ".github/workflows/stock-trading-v2-production.yml"
       - "scripts/stock_trading_v2_production_bridge.py"
+      - "scripts/stock_trading_v2_reentry_learning.py"
+      - "tests/test_stock_trading_v2_reentry_learning.py"
       - "scripts/stock_trading_quote_enricher.py"
       - "scripts/stock_trading_portfolio.py"
       - "scripts/no_retroactive_execution.py"
@@ -76,10 +78,10 @@ jobs:
       - name: Validate v2 production boundary
         run: |
           set -euo pipefail
-          python -m py_compile scripts/stock_trading_v2_production_bridge.py scripts/stock_trading_portfolio.py scripts/stock_trading_quote_enricher.py scripts/no_retroactive_execution.py scripts/verify_no_retroactive_execution.py
+          python -m py_compile scripts/stock_trading_v2_production_bridge.py scripts/stock_trading_v2_reentry_learning.py scripts/stock_trading_portfolio.py scripts/stock_trading_quote_enricher.py scripts/no_retroactive_execution.py scripts/verify_no_retroactive_execution.py
           python -m json.tool data/investments/stock_trading_v2_production_config.json >/dev/null
           python -m json.tool data/investments/stock_trading_policy.json >/dev/null
-          python -m unittest tests.test_stock_trading_v2_production_bridge tests.test_stock_trading_portfolio tests.test_stock_trading_quote_enricher tests.test_no_retroactive_execution -v
+          python -m unittest tests.test_stock_trading_v2_reentry_learning tests.test_stock_trading_v2_production_bridge tests.test_stock_trading_portfolio tests.test_stock_trading_quote_enricher tests.test_no_retroactive_execution -v
           node --check scripts/stock-trading-public.js
           node --check scripts/stock-trading-live-refresh.js
           python - <<'PY'
@@ -116,6 +118,8 @@ jobs:
           [[ -f /tmp/v2-gpw-evidence.json ]] && ARGS+=(--gpw-evidence /tmp/v2-gpw-evidence.json)
           [[ -f /tmp/v2-us-evidence.json ]] && ARGS+=(--us-evidence /tmp/v2-us-evidence.json)
           python scripts/stock_trading_v2_production_bridge.py "${ARGS[@]}"
+          # Production-only outcome research; no shadow execution or historical fills.
+          python scripts/stock_trading_v2_reentry_learning.py
           python scripts/stock_trading_portfolio.py --mode verify
           python scripts/stock_trading_quote_enricher.py --market all --verify
 
@@ -135,6 +139,8 @@ jobs:
           git add \
             data/investments/stock_trading_portfolio.json \
             data/investments/stock_trading_v2_production_state.json \
+            data/investments/stock_trading_reentry_learning.json \
+            data/investments/stock_trading_policy.json \
             2>/dev/null || true
           if git diff --cached --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
