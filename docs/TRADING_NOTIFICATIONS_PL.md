@@ -15,6 +15,18 @@ Użytkownik może niezależnie wybrać:
 
 Powód zamknięcia nie jest osobną subskrypcją. CLOSE oznacza każde faktyczne przejście pozycji z OPEN do braku aktywnej pozycji / CLOSED niezależnie od TP, SL, time exit lub wcześniejszego wyjścia.
 
+## Standard treści powiadomień (PL/EN)
+
+Status otwarcia lub zamknięcia jest **zawsze informacją główną**. Powód techniczny wyjścia (`exit_reason`: stop-loss, take-profit, risk exit itd.) pozostaje w kanonicznym evencie i w `data.exit_reason` Web Push, ale **nie zastępuje statusu w treści alertu**.
+
+- **Stock Trading (GPW/USA):** `POZYCJA OTWARTA · XP @ 21.195` / `POZYCJA ZAMKNIĘTA · XP @ 30.9362493 · Wynik cenowy: +45,96%`. Bez etykiety LONG/SHORT w alertach akcyjnych. Wersja EN: `POSITION OPENED` / `POSITION CLOSED`.
+- **Daily EUR/USD oraz Weekly EUR/USD, BTC/USD, S&P 500 futures:** `OTWARTY LONG`, `ZAMKNIĘTY LONG`, `OTWARTY SHORT`, `ZAMKNIĘTY SHORT` + instrument i odpowiednia cena. Wersja EN: `OPENED LONG`, `CLOSED LONG` itd.
+- Jeżeli źródło nie zawiera poprawnej strony LONG/SHORT, alert stosuje status ogólny (bez dopowiadania kierunku).
+- Cena zamknięcia jest prezentowana tylko przy obecnym `exit_price`; nie wolno wyświetlić ceny wejścia jako ceny wyjścia.
+- `Wynik cenowy` dla zamkniętych akcji jest liczony z utrwalonych cen wejścia/wyjścia i kierunku: LONG = (`exit/entry − 1`) × 100%, SHORT = (`1 − exit/entry`) × 100%; nie uwzględnia prowizji, poślizgu ani finansowania i nie jest równoznaczny z wynikiem netto rachunku. Gdy wartości nie są wiarygodne, nie wyświetla się procentu.
+
+Ten sam formatter obowiązuje backend Web Push oraz przeglądarkowe powiadomienia recovery. Zmiana tekstu nie zmienia `event_id`, deduplikacji, subskrypcji ani mechaniki transakcyjnej.
+
 ## Źródło prawdy
 
 Warstwa notification czyta wyłącznie zapisany stan po wykonaniu przez silnik posiadający authority:

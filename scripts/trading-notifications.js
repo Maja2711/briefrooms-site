@@ -30,8 +30,6 @@
     foregroundNote: "Background Web Push może dostarczać alerty także po zamknięciu strony. Ustawienia są zapisywane dla tego urządzenia.",
     testTitle: "BriefRooms · test",
     testBody: "Powiadomienia tradingowe działają na tym urządzeniu.",
-    openLabel: "OTWARTO",
-    closeLabel: "ZAMKNIĘTO",
     checking: "Sprawdzam połączenie PUSH z tym urządzeniem…",
     pushReady: "PUSH aktywny na tym urządzeniu. Dostawca nie gwarantuje wyświetlenia przez system.",
     pushMissing: "Brak aktywnej subskrypcji PUSH na tym urządzeniu.",
@@ -61,8 +59,6 @@
     foregroundNote: "Background Web Push can deliver alerts even after the page is closed. Preferences are stored for this device.",
     testTitle: "BriefRooms · test",
     testBody: "Trading notifications work on this device.",
-    openLabel: "OPENED",
-    closeLabel: "CLOSED",
     checking: "Checking this device's push connection…",
     pushReady: "Push subscription active on this device; OS display is not guaranteed.",
     pushMissing: "No active push subscription on this device.",
@@ -279,11 +275,30 @@
     }
   }
 
-  function notificationText(event) {
-    const action = event.event_type === "OPEN" ? t.openLabel : t.closeLabel;
-    const dir = event.direction ? " · " + event.direction : "";
-    const entry = event.entry != null ? " @ " + event.entry : "";
-    return action + " · " + (event.instrument || "") + dir + entry;
+  function notificationText(event, language) {
+    const pl = String(language || "pl").toLowerCase().startsWith("pl");
+    const open = String(event.event_type || "").toUpperCase() === "OPEN";
+    const side = String(event.direction || "").toUpperCase();
+    const directional = event.engine !== "stock" && (side === "LONG" || side === "SHORT");
+    const action = directional
+      ? (pl ? (open ? "OTWARTY " : "ZAMKNIĘTY ") : (open ? "OPENED " : "CLOSED ")) + side
+      : (pl ? (open ? "POZYCJA OTWARTA" : "POZYCJA ZAMKNIĘTA") : (open ? "POSITION OPENED" : "POSITION CLOSED"));
+    // A CLOSE with no persisted exit price must not claim the entry was the exit.
+    const priceValue = open ? event.entry : event.exit_price;
+    const price = priceValue != null ? ` @ ${priceValue}` : "";
+    let result = "";
+    if (event.engine === "stock" && !open && event.entry != null && event.exit_price != null) {
+      const entry = Number(event.entry);
+      const exit = Number(event.exit_price);
+      if (Number.isFinite(entry) && Number.isFinite(exit) && entry > 0 && exit >= 0 && (side === "LONG" || side === "SHORT")) {
+        const change = ((exit - entry) / entry) * 100 * (side === "SHORT" ? -1 : 1);
+        const percent = new Intl.NumberFormat(pl ? "pl-PL" : "en-US", {
+          minimumFractionDigits: 2, maximumFractionDigits: 2, signDisplay: "always",
+        }).format(change);
+        result = ` · ${pl ? "Wynik cenowy" : "Price return"}: ${percent}%`;
+      }
+    }
+    return `${action} · ${event.instrument || ""}${price}${result}`;
   }
 
   function logicalEventId(event) {
@@ -404,7 +419,7 @@
         if (eventAllowed(event, prefs)
           && !event.delivery_recovery && event.source !== "delivery_recovery"
           && !/-r[0-9]+$/i.test(String(event.event_id || ""))) {
-          await showNative("BriefRooms · " + engineName(event.engine), notificationText(event), event);
+          await showNative("BriefRooms · " + engineName(event.engine), notificationText(event, lang), event);
         }
       }
       if (events.length) localStorage.setItem(CURSOR_KEY, String(events[events.length - 1].event_id || ""));
