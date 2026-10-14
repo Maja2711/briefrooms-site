@@ -86,6 +86,51 @@ class ReentryProductionLearningTests(unittest.TestCase):
         self.assertFalse(verdict["allowed"])
         self.assertEqual("reentry_material_change_required", verdict["reason"])
 
+    def test_production_rule_requires_new_observations_after_freeze(self):
+        state = learning.empty_state()
+        policy = portfolio.load_policy()
+
+        def example(day, positive, prefix):
+            return {
+                "episode_id": f"{prefix}:{day}", "market": "GPW",
+                "symbol": f"STOCK{day % 7}.WA",
+                "observed_at": day.isoformat(),
+                "price": 100.0, "risk_fraction": .02,
+                "features": {
+                    "drop_atr": 2.5 if positive else .1,
+                    "rebound_atr": .8 if positive else .05,
+                    "volume_ratio": 1.5 if positive else .7,
+                },
+                "outcome": {"net_research_r": 1.0 if positive else -.5},
+            }
+
+        start = datetime(2026, 8, 1, tzinfo=timezone.utc)
+        state["observations"] = [
+            example(start + timedelta(days=i), i < 15, "training") for i in range(25)
+        ]
+        frozen_at = self.now
+        initial = learning.update_rules(state, policy, frozen_at)
+        self.assertEqual("RULE_FROZEN_AWAITING_FUTURE_COHORT", initial["GPW"]["phase"])
+        self.assertEqual([], policy["markets"]["GPW"]["reentry_guard"]["learned_exception_rules"])
+        # Reusing the discovery cohort cannot promote the rule.
+        second = learning.update_rules(state, policy, frozen_at + timedelta(days=1))
+        self.assertEqual("FRESH_PRODUCTION_COHORT", second["GPW"]["phase"])
+        self.assertEqual([], policy["markets"]["GPW"]["reentry_guard"]["learned_exception_rules"])
+
+        future = frozen_at + timedelta(days=1)
+        state["observations"].extend([
+            example(future + timedelta(days=i), i < 12, "future") for i in range(24)
+        ])
+        third = learning.update_rules(state, policy, frozen_at + timedelta(days=30))
+        self.assertEqual("ACTIVATED", third["GPW"]["phase"])
+        active = policy["markets"]["GPW"]["reentry_guard"]["learned_exception_rules"][0]
+        self.assertEqual("ACTIVE", active["status"])
+        self.assertGreaterEqual(active["validation"]["n"], 12)
+        self.assertIsNotNone(learning.active_exception(
+            [active], {"drop_atr": 2.5, "rebound_atr": .8, "volume_ratio": 1.5},
+            now=frozen_at + timedelta(days=30),
+        ))
+
     def test_pending_rule_requires_future_independent_cohort(self):
         state = learning.empty_state()
         policy = portfolio.load_policy()
