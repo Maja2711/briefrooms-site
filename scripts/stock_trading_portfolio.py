@@ -541,6 +541,17 @@ def reentry_after_stop_loss(
     result["post_sl_drop_percent"] = round(actual_drop * 100, 4)
     result["required_drop_percent"] = round(required_drop * 100, 4)
     result["stop_losses_30d"] = losses_30d
+    # Freeze signal features at decision time; never infer a fill from this.
+    features = selection.get("reentry_research_features")
+    if selection.get("reentry_research_features_verified") is True and isinstance(features, Mapping):
+        result["reentry_probe"] = {
+            "episode_id": f"{market}:{last_stop.get('position_id')}",
+            "symbol": str(selection.get("symbol") or selection.get("ticker") or ""),
+            "observed_at": snapshot.get("observed_at"),
+            "price": price,
+            "risk_fraction": _float(selection.get("risk_percent")),
+            "features": dict(features),
+        }
     if actual_drop >= required_drop:
         result.update({"allowed": True, "reason": "reentry_material_post_sl_price_drop"})
         return result
@@ -583,6 +594,22 @@ def reentry_after_stop_loss(
         minimum_publishers = max(2, int(cfg.get("secondary_corroborating_publishers") or 2))
         if any(len(publishers) >= minimum_publishers for publishers in eligible_secondary.values()):
             result.update({"allowed": True, "reason": "reentry_corrob_new_material_news"})
+            return result
+    # New learned exceptions never override established portfolio/quote controls.
+    if selection.get("reentry_research_features_verified") is True and isinstance(features, Mapping):
+        try:
+            from scripts import stock_trading_v2_reentry_learning as reentry_learning
+        except ModuleNotFoundError:
+            import stock_trading_v2_reentry_learning as reentry_learning
+        matched = reentry_learning.active_exception(
+            cfg.get("learned_exception_rules"), features, now=now_local
+        )
+        if matched is not None:
+            result.update({
+                "allowed": True,
+                "reason": "reentry_learned_price_reversal",
+                "learned_rule": matched,
+            })
             return result
     return result
 
