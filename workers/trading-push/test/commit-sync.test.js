@@ -236,9 +236,12 @@ test("Foreground and push formatters stay byte-equivalent ignoring indent", () =
   const backend = readFileSync(new URL("../src/index.js", import.meta.url), "utf8");
   const foreground = readFileSync(new URL("../../../scripts/trading-notifications.js", import.meta.url), "utf8");
   const extract = (source) => {
-    const match = source.match(/^([ \\t]*)function notificationText\\(event, language\\) \\{([\\s\\S]*?)^\\1\\}/m);
-    assert.ok(match, "notificationText function must exist in each delivery path");
-    return match[2].split("\\n").map((line) => line.trim()).join("\\n");
+    const marker = "function notificationText(event, language) {";
+    const at = source.indexOf(marker);
+    assert.ok(at >= 0, "notificationText function must exist in each delivery path");
+    const LF = String.fromCharCode(10);
+    const code = source.slice(at).split(LF + LF)[0];
+    return code.split(LF).map((line) => line.trim()).join(LF);
   };
   assert.equal(extract(backend), extract(foreground));
 });
