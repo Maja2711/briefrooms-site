@@ -57,10 +57,10 @@ class ReentryProductionLearningTests(unittest.TestCase):
         days = [datetime(2026, 10, d, 14, tzinfo=timezone.utc) for d in (14, 15, 16, 19, 20, 21, 22)]
         chart = {"timestamp": [int(d.timestamp()) for d in days],
                  "indicators": {"quote": [{"close": [200., 101., 102., 103., 104., 105., 106.]}]}}
-        before = datetime(2026, 10, 19, 10, tzinfo=timezone.utc)
+        before = datetime(2026, 10, 21, 10, tzinfo=timezone.utc)
         self.assertFalse(learning.resolve_one(obs, chart, before))
-        self.assertTrue(learning.resolve_one(obs, chart, datetime(2026, 10, 21, 10, tzinfo=timezone.utc)))
-        self.assertEqual("2026-10-19", obs["outcome"]["end_day"])
+        self.assertTrue(learning.resolve_one(obs, chart, datetime(2026, 10, 23, 10, tzinfo=timezone.utc)))
+        self.assertEqual("2026-10-21", obs["outcome"]["end_day"])
         self.assertEqual(105.0, obs["outcome"]["close"])
         self.assertFalse(obs["outcome"]["execution_proof"])
 
