@@ -1,0 +1,34 @@
+name: Validate Trading Push Copy
+
+on:
+  pull_request:
+    paths:
+      - "workers/trading-push/**"
+      - "scripts/trading-notifications.js"
+      - ".github/workflows/trading-push-copy-validation.yml"
+  push:
+    branches: [main]
+    paths:
+      - "workers/trading-push/**"
+      - "scripts/trading-notifications.js"
+
+permissions:
+  contents: read
+
+jobs:
+  notification-copy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install Worker dependencies
+        working-directory: workers/trading-push
+        run: npm install --no-audit --no-fund
+      - name: Verify background and foreground JavaScript
+        run: node --check scripts/trading-notifications.js
+      - name: Run trading notification regression tests
+        working-directory: workers/trading-push
+        run: npm run check
