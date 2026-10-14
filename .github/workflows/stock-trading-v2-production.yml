@@ -60,13 +60,18 @@ jobs:
         run: |
           set -euo pipefail
           git fetch origin stock-trading-v2
-          rm -f /tmp/v2-gpw.json /tmp/v2-us.json
+          rm -f /tmp/v2-gpw.json /tmp/v2-us.json /tmp/v2-gpw-evidence.json /tmp/v2-us-evidence.json
           if git cat-file -e "origin/stock-trading-v2:data/investments/stock_trading_v2_opportunity/gpw.json" 2>/dev/null; then
             git show "origin/stock-trading-v2:data/investments/stock_trading_v2_opportunity/gpw.json" > /tmp/v2-gpw.json
           fi
           if git cat-file -e "origin/stock-trading-v2:data/investments/stock_trading_v2_opportunity/us.json" 2>/dev/null; then
             git show "origin/stock-trading-v2:data/investments/stock_trading_v2_opportunity/us.json" > /tmp/v2-us.json
           fi
+          for MARKET in gpw us; do
+            if git cat-file -e "origin/stock-trading-v2:data/investments/stock_trading_v2_evidence/${MARKET}.json" 2>/dev/null; then
+              git show "origin/stock-trading-v2:data/investments/stock_trading_v2_evidence/${MARKET}.json" > "/tmp/v2-${MARKET}-evidence.json"
+            fi
+          done
 
       - name: Validate v2 production boundary
         run: |
@@ -108,6 +113,8 @@ jobs:
           ARGS=()
           [[ -f /tmp/v2-gpw.json ]] && ARGS+=(--gpw-opportunity /tmp/v2-gpw.json)
           [[ -f /tmp/v2-us.json ]] && ARGS+=(--us-opportunity /tmp/v2-us.json)
+          [[ -f /tmp/v2-gpw-evidence.json ]] && ARGS+=(--gpw-evidence /tmp/v2-gpw-evidence.json)
+          [[ -f /tmp/v2-us-evidence.json ]] && ARGS+=(--us-evidence /tmp/v2-us-evidence.json)
           python scripts/stock_trading_v2_production_bridge.py "${ARGS[@]}"
           python scripts/stock_trading_portfolio.py --mode verify
           python scripts/stock_trading_quote_enricher.py --market all --verify

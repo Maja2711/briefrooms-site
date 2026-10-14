@@ -284,6 +284,43 @@ def _market_session_key(market: str, now_utc: datetime) -> str:
     return f"{market}:{now_utc.astimezone(portfolio.MARKET_TZ[market]).date().isoformat()}"
 
 
+
+def _reentry_evidence_by_symbol(
+    market: str, opportunity: Mapping[str, Any], evidence_path: Path | None
+) -> dict[str, list[dict[str, Any]]]:
+    """Accept only evidence whose native content hash matches the opportunity."""
+    if evidence_path is None:
+        return {}
+    evidence = _load(evidence_path, {})
+    if not isinstance(evidence, Mapping) or evidence.get("market") != market:
+        return {}
+    expected_sha = str(opportunity.get("source_evidence_sha256") or "")
+    reported_sha = str(evidence.get("evidence_sha256") or "")
+    if not expected_sha or expected_sha != reported_sha:
+        return {}
+    if evidence.get("generated_at") != opportunity.get("source_evidence_generated_at"):
+        return {}
+    try:
+        from scripts import stock_trading_v2_contracts as contracts
+    except ModuleNotFoundError:
+        import stock_trading_v2_contracts as contracts
+    body = dict(evidence)
+    body.pop("evidence_sha256", None)
+    if contracts.payload_sha256(body) != reported_sha:
+        return {}
+    bound: dict[str, list[dict[str, Any]]] = {}
+    for candidate in evidence.get("candidates") or []:
+        if not isinstance(candidate, Mapping):
+            continue
+        symbol = portfolio._reentry_symbol(candidate.get("market_data_symbol") or candidate.get("symbol"))
+        if not symbol or candidate.get("evidence_status") == "DATA_ERROR":
+            continue
+        items = candidate.get("evidence") or []
+        if isinstance(items, list):
+            bound[symbol] = [dict(item) for item in items if isinstance(item, Mapping)]
+    return bound
+
+
 def process_market(
     canonical: dict[str, Any],
     market: str,
@@ -293,6 +330,7 @@ def process_market(
     runtime: dict[str, Any],
     now_utc: datetime,
     quote_fetcher: Callable[..., dict[str, Any]] = quotes.execution_quote_for_symbol,
+    reentry_evidence_by_symbol: Mapping[str, list[dict[str, Any]]] | None = None,
 ) -> tuple[dict[str, Any], list[dict[str, Any]], bool]:
     market = market.upper()
     audits: list[dict[str, Any]] = []
@@ -366,6 +404,11 @@ def process_market(
                 audits.append({"market": market, "symbol": symbol, "action": "reject_continue", "reason": reason})
             continue
         healthy = True
+        selection["reentry_atr_fraction"] = (candidate.get("research_risk_plan") or {}).get("atr_fraction")
+        ticker_key = portfolio._reentry_symbol(symbol)
+        if reentry_evidence_by_symbol and ticker_key in reentry_evidence_by_symbol:
+            selection["reentry_evidence_verified"] = True
+            selection["reentry_evidence"] = reentry_evidence_by_symbol[ticker_key]
         payload = _candidate_payload(market, selection, opportunity, now_utc)
         canonical, action = portfolio.admit_candidate(
             canonical,
@@ -474,7 +517,7 @@ def _attach_audit_provenance(
     )
 
 
-def run(opportunity_paths: Mapping[str, Path], *, now_utc: datetime | None = None) -> dict[str, Any]:
+def run(opportunity_paths: Mapping[str, Path], *, now_utc: datetime | None = None, evidence_paths: Mapping[str, Path] | None = None) -> dict[str, Any]:
     now_utc = (now_utc or datetime.now(UTC)).astimezone(UTC)
     config = load_config()
     runtime = load_runtime(config)
@@ -496,6 +539,7 @@ def run(opportunity_paths: Mapping[str, Path], *, now_utc: datetime | None = Non
             config=config,
             runtime=runtime,
             now_utc=now_utc,
+            reentry_evidence_by_symbol=_reentry_evidence_by_symbol(market, opportunity, (evidence_paths or {}).get(market)),
         )
         all_audits.extend(audits)
         if healthy:
@@ -526,6 +570,8 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--gpw-opportunity", type=Path)
     parser.add_argument("--us-opportunity", type=Path)
+    parser.add_argument("--gpw-evidence", type=Path)
+    parser.add_argument("--us-evidence", type=Path)
     parser.add_argument("--verify", action="store_true")
     args = parser.parse_args()
     if args.verify:
@@ -533,7 +579,7 @@ def main() -> int:
         state = load_runtime(cfg)
         print(json.dumps({"status": "OK", "champion": "v2", "phase": state.get("phase")}, ensure_ascii=False))
         return 0
-    result = run({"GPW": args.gpw_opportunity, "US": args.us_opportunity})
+    result = run({"GPW": args.gpw_opportunity, "US": args.us_opportunity}, evidence_paths={"GPW": args.gpw_evidence, "US": args.us_evidence})
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0
 

@@ -43,7 +43,7 @@ DECISIONS = {"GPW": "TRANSAKCJA", "US": "TRADE"}
 POSITION_CURRENCY = {"GPW": "PLN", "US": "USD"}
 FIXED_NOTIONAL_POLICY_VERSION = "FIXED_NOTIONAL_V1"
 HISTORY_NOTIONAL_NORMALIZATION_VERSION = "FIXED_NOTIONAL_HISTORY_V1"
-RETRIABLE_POLICY_REJECTIONS = {"forced_daily_candidate_rejected", "entry_score_below_threshold"}
+RETRIABLE_POLICY_REJECTIONS = {"forced_daily_candidate_rejected", "entry_score_below_threshold", "reentry_material_change_required", "reentry_post_sl_quote_unverified", "reentry_price_provenance_missing"}
 
 
 def _load(path: Path, default: Any = None) -> Any:
@@ -472,6 +472,121 @@ def upgrade_open_position_geometry(position: Mapping[str, Any], market_cfg: Mapp
     return updated
 
 
+
+def _reentry_symbol(value: Any) -> str:
+    """Compare .WA and bare Warsaw tickers without cross-market aliasing."""
+    symbol = str(value or "").strip().upper()
+    return symbol[:-3] if symbol.endswith(".WA") else symbol
+
+
+def reentry_after_stop_loss(
+    state: Mapping[str, Any],
+    market: str,
+    selection: Mapping[str, Any],
+    *,
+    now: datetime,
+    policy: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Prospective production veto with evidence-based exceptions, not a fixed ban."""
+    cfg = (policy.get("markets") or {}).get(market, {}).get("reentry_guard") or {}
+    if cfg.get("enabled") is not True:
+        return {"allowed": True, "reason": "guard_not_configured"}
+    symbol = _reentry_symbol(selection.get("symbol") or selection.get("ticker"))
+    now_local = now.astimezone(MARKET_TZ[market])
+    closed = []
+    for item in market_state(state, market).get("closed_positions") or []:
+        if not isinstance(item, Mapping) or _reentry_symbol(item.get("symbol")) != symbol:
+            continue
+        if str(item.get("exit_reason") or "").lower() != "stop_loss":
+            continue
+        at = _market_datetime(item.get("closed_at"), market)
+        if at is not None and at <= now_local:
+            closed.append((at, item))
+    if not closed:
+        return {"allowed": True, "reason": "no_previous_stop_loss"}
+    closed.sort(key=lambda row: row[0], reverse=True)
+    stop_at, last_stop = closed[0]
+    window_days = float(cfg.get("window_days") or 7)
+    age_seconds = (now_local - stop_at).total_seconds()
+    if age_seconds > window_days * 86400:
+        return {"allowed": True, "reason": "stop_loss_window_expired"}
+
+    result = {
+        "allowed": False,
+        "reason": "reentry_material_change_required",
+        "symbol": symbol,
+        "last_stop_at": _iso(stop_at),
+        "last_stop_position_id": last_stop.get("position_id"),
+        "window_days": window_days,
+    }
+    snapshot = selection.get("market_snapshot") or {}
+    observed = _market_datetime(snapshot.get("observed_at"), market)
+    price = _float(snapshot.get("last"))
+    exit_price = _float(last_stop.get("exit_price"))
+    # An old, future-dated or pre-SL observation is not evidence of a new price regime.
+    if observed is None or observed <= stop_at or observed > now_local:
+        result["reason"] = "reentry_post_sl_quote_unverified"
+        return result
+    if price is None or price <= 0 or exit_price is None or exit_price <= 0:
+        result["reason"] = "reentry_price_provenance_missing"
+        return result
+
+    atr_fraction = _float(selection.get("reentry_atr_fraction")) or 0.0
+    losses_30d = sum(1 for at, _ in closed if (now_local - at).total_seconds() <= 30 * 86400)
+    floor = float(cfg.get("minimum_post_sl_drop_percent") or 0.05)
+    repeated_floor = float(cfg.get("three_stop_losses_drop_percent") or 0.075)
+    volatility_floor = float(cfg.get("atr_drop_multiple") or 2) * max(atr_fraction, 0.0)
+    required_drop = max(floor, volatility_floor, repeated_floor if losses_30d >= 3 else 0.0)
+    actual_drop = (exit_price - price) / exit_price
+    result["post_sl_drop_percent"] = round(actual_drop * 100, 4)
+    result["required_drop_percent"] = round(required_drop * 100, 4)
+    result["stop_losses_30d"] = losses_30d
+    if actual_drop >= required_drop:
+        result.update({"allowed": True, "reason": "reentry_material_post_sl_price_drop"})
+        return result
+
+    # Only source-bound, new, favourable, material issuer news can waive the window.
+    # Evidence must be tied to the same frozen opportunity snapshot in the v2 bridge.
+    if selection.get("reentry_evidence_verified") is True:
+        eligible_secondary: dict[str, set[str]] = {}
+        for item in selection.get("reentry_evidence") or []:
+            if not isinstance(item, Mapping):
+                continue
+            published = _market_datetime(item.get("published_at"), market)
+            if published is None or published <= stop_at or published > now_local:
+                continue
+            event_type = str(item.get("event_type") or "").lower()
+            approved_types = {"earnings", "guidance", "ma", "contract", "capital", "buyback", "dividend"}
+            if event_type not in approved_types:
+                continue
+            if int(_float(item.get("direction")) or 0) != 1:
+                continue
+            if (_float(item.get("materiality")) or 0) < float(cfg.get("minimum_news_materiality") or 4):
+                continue
+            url = str(item.get("url") or "")
+            if not url.startswith("https://") or not str(item.get("evidence_id") or ""):
+                continue
+            authority = str(item.get("authority") or "").lower()
+            kind = str(item.get("source_kind") or "").lower()
+            if authority == "primary" and kind in {"issuer_report", "regulatory_filing"}:
+                result.update({
+                    "allowed": True,
+                    "reason": "reentry_new_primary_material_evidence",
+                    "evidence_id": item.get("evidence_id"),
+                    "published_at": item.get("published_at"),
+                })
+                return result
+            if authority == "secondary" and (_float(item.get("materiality")) or 0) >= 5:
+                publisher = str(item.get("provider") or "").strip().casefold()
+                if publisher:
+                    eligible_secondary.setdefault(event_type, set()).add(publisher)
+        minimum_publishers = max(2, int(cfg.get("secondary_corroborating_publishers") or 2))
+        if any(len(publishers) >= minimum_publishers for publishers in eligible_secondary.values()):
+            result.update({"allowed": True, "reason": "reentry_corrob_new_material_news"})
+            return result
+    return result
+
+
 def admit_candidate(
     state: Mapping[str, Any],
     market: str,
@@ -512,7 +627,14 @@ def admit_candidate(
         return updated, {"action": "hold_existing_symbol", "market": market, "symbol": symbol}
     if available_slots(updated, market, policy) <= 0:
         return updated, {"action": "portfolio_full", "market": market, "reason": "market_cap_3"}
+    reentry = reentry_after_stop_loss(updated, market, selection, now=now, policy=policy)
+    if not reentry["allowed"]:
+        row["last_candidate_decision"] = "CASH"
+        row["last_candidate_reason"] = str(reentry["reason"])
+        return updated, {"action": "reentry_blocked", "market": market, **reentry}
     position = position_from_candidate(market, payload, now=now, market_cfg=policy["markets"][market])
+    if reentry.get("reason") not in {"no_previous_stop_loss", "guard_not_configured"}:
+        position["reentry_justification"] = dict(reentry)
     row["open_positions"] = open_positions(updated, market) + [position]
     return updated, {
         "action": "open",
@@ -523,6 +645,7 @@ def admit_candidate(
         "target_position_notional": position["target_position_notional"],
         "position_currency": position["position_currency"],
         "quantity": position["quantity"],
+        "reentry_justification": position.get("reentry_justification"),
     }
 
 
