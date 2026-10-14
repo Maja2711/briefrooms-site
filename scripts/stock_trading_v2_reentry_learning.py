@@ -122,7 +122,7 @@ def quote_features(
         except (ValueError, IndexError, TypeError, OSError):
             continue
         # Exclude the partly formed 15m bar and any pre-stop candle.
-        if start >= stopped.astimezone(timezone.utc) and start + timedelta(minutes=15) <= observed.astimezone(timezone.utc):
+        if start > stopped.astimezone(timezone.utc) and start + timedelta(minutes=15) <= observed.astimezone(timezone.utc):
             if low is not None and low > 0:
                 low_prices.append(low)
     if not low_prices:
