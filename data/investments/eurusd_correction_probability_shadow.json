@@ -25,9 +25,9 @@
   "horizons": {
     "15": {
       "forecast": {
-        "n": 25,
+        "n": 23,
         "p": null,
-        "status": "NO_FRESH_ELIGIBLE_DOWNSWING"
+        "status": "INSUFFICIENT_TRAINING_EVIDENCE"
       },
       "frozen_prospective_oos": {
         "n": 0,
@@ -43,9 +43,9 @@
     },
     "30": {
       "forecast": {
-        "n": 25,
+        "n": 23,
         "p": null,
-        "status": "NO_FRESH_ELIGIBLE_DOWNSWING"
+        "status": "INSUFFICIENT_TRAINING_EVIDENCE"
       },
       "frozen_prospective_oos": {
         "n": 0,
@@ -61,9 +61,9 @@
     },
     "5": {
       "forecast": {
-        "n": 25,
+        "n": 23,
         "p": null,
-        "status": "NO_FRESH_ELIGIBLE_DOWNSWING"
+        "status": "INSUFFICIENT_TRAINING_EVIDENCE"
       },
       "frozen_prospective_oos": {
         "n": 0,
@@ -79,9 +79,23 @@
     }
   },
   "instrument": "EUR/USD",
-  "latest_market_observation": null,
+  "latest_market_observation": {
+    "at": "2026-10-14T10:34:00Z",
+    "features": {
+      "bounce_from_low_pips": 0.0,
+      "ema20_minus_ema60_pips": -1.125724,
+      "impulse_minutes": 82.0,
+      "impulse_pips": 8.774996,
+      "momentum_5m_pips": -2.504587,
+      "realized_abs_change_1m_pips": 0.633872,
+      "time_since_low_min": 0.0,
+      "utc_session": "EUROPE"
+    },
+    "spot_mid": 1.119194,
+    "threshold_pips": 3.0
+  },
   "mode": "PROSPECTIVE_PLUS_MARKET_REPLAY_SHADOW",
-  "prospective_episode_count": 2,
+  "prospective_episode_count": 3,
   "prospective_episodes": [
     {
       "cohort": "PROSPECTIVE_OBSERVED",
@@ -228,15 +242,67 @@
       "source_bar_closed_at": "2026-10-09T13:44:00Z",
       "spot_mid": 1.11957,
       "target_rebound_pips": 3.136992
+    },
+    {
+      "cohort": "PROSPECTIVE_OBSERVED",
+      "date_utc": "2026-10-14",
+      "direction": "DOWNSWING",
+      "features": {
+        "bounce_from_low_pips": 0.0,
+        "ema20_minus_ema60_pips": -1.125724,
+        "impulse_minutes": 82.0,
+        "impulse_pips": 8.774996,
+        "momentum_5m_pips": -2.504587,
+        "realized_abs_change_1m_pips": 0.633872,
+        "time_since_low_min": 0.0,
+        "utc_session": "EUROPE"
+      },
+      "frozen_forecasts": {
+        "15": {
+          "n": 23,
+          "p": null,
+          "status": "INSUFFICIENT_TRAINING_EVIDENCE"
+        },
+        "30": {
+          "n": 23,
+          "p": null,
+          "status": "INSUFFICIENT_TRAINING_EVIDENCE"
+        },
+        "5": {
+          "n": 23,
+          "p": null,
+          "status": "INSUFFICIENT_TRAINING_EVIDENCE"
+        }
+      },
+      "id": "eurusd-correction:2026-10-14T10:34:00Z",
+      "observation_slot": "2026-10-14T10:30",
+      "observed_at": "2026-10-14T10:34:00Z",
+      "outcomes": {
+        "15": {
+          "status": "PENDING"
+        },
+        "30": {
+          "status": "PENDING"
+        },
+        "5": {
+          "status": "PENDING"
+        }
+      },
+      "signal_uses_future": false,
+      "source": "YAHOO_EURUSD_1M_CLOSED_BAR",
+      "source_bar_at": "2026-10-14T10:33:00Z",
+      "source_bar_closed_at": "2026-10-14T10:34:00Z",
+      "spot_mid": 1.119194,
+      "target_rebound_pips": 3.0
     }
   ],
   "replay_coverage": {
-    "dates": 4,
-    "first": "2026-10-08T03:00:00Z",
-    "last": "2026-10-13T14:00:00Z"
+    "dates": 5,
+    "first": "2026-10-08T06:00:00Z",
+    "last": "2026-10-14T09:30:00Z"
   },
-  "replay_episode_count": 23,
+  "replay_episode_count": 24,
   "research_note": "NO calibrated probability or trading exit claim until prospective OOS, sufficient days and risk validation",
   "schema_version": "eurusd-correction-probability-shadow-v1",
-  "updated_at": "2026-10-14T00:55:14Z"
+  "updated_at": "2026-10-14T10:34:53Z"
 }
