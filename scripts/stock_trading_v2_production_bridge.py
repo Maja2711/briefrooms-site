@@ -26,9 +26,11 @@ except ImportError:
 try:
     from scripts import stock_trading_portfolio as portfolio
     from scripts import stock_trading_quote_enricher as quotes
+    from scripts import stock_trading_v2_reentry_learning as reentry_learning
 except ModuleNotFoundError:  # pragma: no cover
     import stock_trading_portfolio as portfolio
     import stock_trading_quote_enricher as quotes
+    import stock_trading_v2_reentry_learning as reentry_learning
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = ROOT / "data/investments/stock_trading_v2_production_config.json"
@@ -287,7 +289,7 @@ def _market_session_key(market: str, now_utc: datetime) -> str:
 
 def _reentry_evidence_by_symbol(
     market: str, opportunity: Mapping[str, Any], evidence_path: Path | None
-) -> dict[str, list[dict[str, Any]]]:
+) -> dict[str, dict[str, Any]]:
     """Accept only evidence whose native content hash matches the opportunity."""
     if evidence_path is None:
         return {}
@@ -308,7 +310,7 @@ def _reentry_evidence_by_symbol(
     body.pop("evidence_sha256", None)
     if contracts.payload_sha256(body) != reported_sha:
         return {}
-    bound: dict[str, list[dict[str, Any]]] = {}
+    bound: dict[str, dict[str, Any]] = {}
     for candidate in evidence.get("candidates") or []:
         if not isinstance(candidate, Mapping):
             continue
@@ -317,7 +319,10 @@ def _reentry_evidence_by_symbol(
             continue
         items = candidate.get("evidence") or []
         if isinstance(items, list):
-            bound[symbol] = [dict(item) for item in items if isinstance(item, Mapping)]
+            bound[symbol] = {
+                "evidence": [dict(item) for item in items if isinstance(item, Mapping)],
+                "features": dict(candidate.get("features") or {}),
+            }
     return bound
 
 
@@ -330,7 +335,7 @@ def process_market(
     runtime: dict[str, Any],
     now_utc: datetime,
     quote_fetcher: Callable[..., dict[str, Any]] = quotes.execution_quote_for_symbol,
-    reentry_evidence_by_symbol: Mapping[str, list[dict[str, Any]]] | None = None,
+    reentry_evidence_by_symbol: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> tuple[dict[str, Any], list[dict[str, Any]], bool]:
     market = market.upper()
     audits: list[dict[str, Any]] = []
@@ -406,9 +411,23 @@ def process_market(
         healthy = True
         selection["reentry_atr_fraction"] = (candidate.get("research_risk_plan") or {}).get("atr_fraction")
         ticker_key = portfolio._reentry_symbol(symbol)
-        if reentry_evidence_by_symbol and ticker_key in reentry_evidence_by_symbol:
+        evidence_bundle = (reentry_evidence_by_symbol or {}).get(ticker_key) or {}
+        if evidence_bundle:
             selection["reentry_evidence_verified"] = True
-            selection["reentry_evidence"] = reentry_evidence_by_symbol[ticker_key]
+            selection["reentry_evidence"] = evidence_bundle.get("evidence") or []
+        stop = reentry_learning.recent_stop(canonical, market, symbol, now_utc)
+        if stop is not None and evidence_bundle:
+            risk_plan = candidate.get("research_risk_plan") or {}
+            market_features = evidence_bundle.get("features") or {}
+            # Candles are fetched only for candidates with a recent stop-loss.
+            learned_features = reentry_learning.quote_features(
+                market, symbol, stop, float(selection["execution_price"]),
+                str((quote or {}).get("observed_at") or ""),
+                risk_plan.get("atr_fraction"), market_features.get("volume_ratio_20d"),
+            )
+            if learned_features is not None:
+                selection["reentry_research_features_verified"] = True
+                selection["reentry_research_features"] = learned_features
         payload = _candidate_payload(market, selection, opportunity, now_utc)
         canonical, action = portfolio.admit_candidate(
             canonical,
