@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - "scripts/belief_fed_ecb_policy_adapter.py"
+      - "scripts/belief_fed_ecb_ois_adapter.py"
+      - "docs/EURUSD_OIS_FORWARD_FEED_CONTRACT.md"
       - "scripts/belief_core_live.py"
       - "scripts/epistemic_consumer_interface.py"
       - "tests/test_belief_fed_ecb_policy_adapter.py"
@@ -29,8 +31,8 @@ jobs:
       - name: Static and isolated integration tests
         run: |
           set -euo pipefail
-          python -m py_compile scripts/belief_fed_ecb_policy_adapter.py scripts/belief_core_live.py scripts/epistemic_consumer_interface.py
-          python -m unittest tests.test_belief_fed_ecb_policy_adapter tests.test_belief_core_live -v
+          python -m py_compile scripts/belief_fed_ecb_policy_adapter.py scripts/belief_core_live.py scripts/epistemic_consumer_interface.py scripts/belief_fed_ecb_ois_adapter.py
+          python -m unittest tests.test_belief_fed_ecb_policy_adapter tests.test_belief_fed_ecb_ois_adapter tests.test_belief_core_live -v
       - name: Check live official Fed ECB feed contract read-only
         env:
           PYTHONPATH: scripts
