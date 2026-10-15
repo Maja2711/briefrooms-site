@@ -46,6 +46,8 @@ def _fetch_csv(url: str) -> str:
 
 def _rates_csv(text: str, *, date_field: str, value_field: str, as_of: date) -> list[tuple[date, float]]:
     rows = csv.DictReader(io.StringIO(text))
+    if rows.fieldnames and date_field == "DATE" and "DATE" not in rows.fieldnames and "observation_date" in rows.fieldnames:
+        date_field = "observation_date"
     if not rows.fieldnames or date_field not in rows.fieldnames or value_field not in rows.fieldnames:
         raise ValueError("policy_rate_csv_schema_invalid")
     result: dict[date, float] = {}
@@ -167,7 +169,6 @@ class FedEcbPolicyDifferentialAdapter:
             return AdapterResult(self.name, (), ())
         if observation is None:
             return AdapterResult(self.name, (), ())
-        from belief_adapter_contract import EvidenceAssessment
         assessment = EvidenceAssessment(
             belief_id="eurusd.policy_differential.supportive",
             direction=1 if observation.value < 0 else -1,
