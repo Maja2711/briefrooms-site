@@ -147,7 +147,7 @@ test("Background push copy and destination are localized for PL and EN", () => {
   };
   const pl = JSON.parse(notificationPayload(event, "pl", "https://push.example"));
   const en = JSON.parse(notificationPayload(event, "en", "https://push.example"));
-  assert.equal(pl.body, "ZAMKNIĘTY LONG · BTC/USD @ 125000");
+  assert.equal(pl.body, "ZAMKNIĘTY LONG · BTC/USD @ 125000,00");
   assert.equal(pl.url, "/pl/inwestycje/pozycje-tygodniowe.html");
   assert.equal(en.body, "CLOSED LONG · BTC/USD @ 125000");
   assert.equal(en.url, "/en/investing/open-weekly-positions.html");
@@ -220,7 +220,7 @@ test("Daily and Weekly directional close do not replace lifecycle by SL/TP", () 
   ]) {
     const event = { event_id: "x", engine, event_type: "CLOSE", position_id: "p", instrument, direction, entry: 1, exit_price: 2, exit_reason: reason };
     const push = JSON.parse(notificationPayload(event, "pl"));
-    assert.equal(push.body, `${label} · ${instrument} @ 2`);
+    assert.equal(push.body, `${label} · ${instrument} @ 2,00`);
     assert.equal(push.data.exit_reason, reason);
   }
 });
