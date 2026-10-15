@@ -73,6 +73,7 @@ def _par_curve(row: Any, currency: str, now: datetime) -> dict[str, Any]:
     if not isinstance(points, list) or not points:
         raise ValueError(f"checkmyswap_{currency}_curve_missing")
     tenors: set[str] = set()
+    rates_by_tenor: dict[str, float] = {}
     counts = {"close": 0, "thin_close": 0, "derived": 0, "all_day": 0, "other": 0}
     total_records = 0
     for point in points:
@@ -82,6 +83,8 @@ def _par_curve(row: Any, currency: str, now: datetime) -> dict[str, Any]:
         if not re.fullmatch(r"(?:[1-9]|[12][0-9]|30)Y", tenor) or tenor in tenors:
             raise ValueError(f"checkmyswap_{currency}_unexpected_or_duplicate_tenor")
         tenors.add(tenor)
+        if point.get("date") is not None and point.get("date") != stamp.isoformat():
+            raise ValueError(f"checkmyswap_{currency}_point_date_mismatch")
         try:
             rate = float(point["rate"])
             trades = int(point.get("trades") or 0)
@@ -89,6 +92,7 @@ def _par_curve(row: Any, currency: str, now: datetime) -> dict[str, Any]:
             raise ValueError(f"checkmyswap_{currency}_invalid_rate_or_records") from exc
         if not math.isfinite(rate) or not -5 <= rate <= 40 or trades < 0:
             raise ValueError(f"checkmyswap_{currency}_invalid_rate_or_records")
+        rates_by_tenor[tenor] = rate
         method = str(point.get("method") or "").lower().replace("-", "_")
         if "thin" in method:
             counts["thin_close"] += 1
@@ -107,6 +111,8 @@ def _par_curve(row: Any, currency: str, now: datetime) -> dict[str, Any]:
             "source_ref": f"https://www.checkmyswap.com/api/curves/{currency}?date={stamp.isoformat()}",
             "tenors": sorted(tenors, key=lambda v: int(v[:-1])),
             "records": total_records, "method_counts": counts,
+            "par_slope_1y_to_2y_bps": (round((rates_by_tenor["2Y"] - rates_by_tenor["1Y"]) * 100, 4)
+                                        if "2Y" in rates_by_tenor else None),
             "contains_3m_6m_ois_discount_factors": False}
 
 
@@ -133,6 +139,10 @@ def evaluate_checkmyswap(payload: Mapping[str, Any], now: datetime) -> dict[str,
             "tenors_usd": usd["tenors"], "tenors_eur": eur["tenors"],
             "usd_accepted_records": usd["records"], "eur_accepted_records": eur["records"],
             "method_counts_usd": usd["method_counts"], "method_counts_eur": eur["method_counts"],
+            "relative_usd_minus_eur_par_slope_1y_2y_bps": (
+                round(usd["par_slope_1y_to_2y_bps"] - eur["par_slope_1y_to_2y_bps"], 4)
+                if usd["par_slope_1y_to_2y_bps"] is not None and eur["par_slope_1y_to_2y_bps"] is not None else None),
+            "research_metric_only_not_ois_forward": True,
             "source_refs": [usd["source_ref"], eur["source_ref"]],
             "status": "current_daily_archive" if age <= MAX_CHECKMYSWAP_AGE_DAYS else "stale_daily_archive",
             "research_usable": age <= MAX_CHECKMYSWAP_AGE_DAYS,
