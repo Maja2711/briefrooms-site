@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import webpush from "web-push";
 import {
   dailyCommitSnapshot,
@@ -146,9 +147,9 @@ test("Background push copy and destination are localized for PL and EN", () => {
   };
   const pl = JSON.parse(notificationPayload(event, "pl", "https://push.example"));
   const en = JSON.parse(notificationPayload(event, "en", "https://push.example"));
-  assert.equal(pl.body, "ZAMKNIĘTY LONG · BTC/USD @ 125000");
+  assert.equal(pl.body, "ZAMKNIĘTY LONG · BTC/USD @ 125000,00");
   assert.equal(pl.url, "/pl/inwestycje/pozycje-tygodniowe.html");
-  assert.equal(en.body, "CLOSED LONG · BTC/USD @ 125000");
+  assert.equal(en.body, "CLOSED LONG · BTC/USD @ 125000.00");
   assert.equal(en.url, "/en/investing/open-weekly-positions.html");
 });
 
@@ -219,7 +220,7 @@ test("Daily and Weekly directional close do not replace lifecycle by SL/TP", () 
   ]) {
     const event = { event_id: "x", engine, event_type: "CLOSE", position_id: "p", instrument, direction, entry: 1, exit_price: 2, exit_reason: reason };
     const push = JSON.parse(notificationPayload(event, "pl"));
-    assert.equal(push.body, `${label} · ${instrument} @ 2`);
+    assert.equal(push.body, `${label} · ${instrument} @ 2,00`);
     assert.equal(push.data.exit_reason, reason);
   }
 });
@@ -491,6 +492,51 @@ class FakeStorage {
     return new Map([...this.map.entries()].filter(([key]) => String(key).startsWith(prefix)));
   }
 }
+
+test("Daily OPEN and CLOSE already accepted by push provider are never re-sent on stale commit fallback", async () => {
+  for (const kind of ["OPEN", "CLOSE"]) {
+    const storage = new FakeStorage();
+    const hub = new PushHub({ storage }, {});
+    const pid = "eurusd:20261015T180754Z:LONG";
+    const at = "2026-10-15T18:07:54Z";
+    const pos = {
+      position_id: pid, direction: "LONG", opened_at: at, entry: 1.12178,
+      instrument: "EUR/USD", engine: "daily",
+      ...(kind === "CLOSE" ? {
+        closed_at: "2026-10-15T19:10:00Z", exit_reason: "TAKE_PROFIT",
+        exit_price: 1.12709, r_multiple: 1.67,
+      } : {}),
+    };
+    const snapshot = {
+      open: kind === "OPEN" ? new Map([[pid, pos]]) : new Map(),
+      closed: kind === "CLOSE" ? new Map([[pid, pos]]) : new Map(),
+    };
+    const id = createHash("sha256").update(`daily|${kind}|${pid}`).digest("hex").slice(0, 24);
+    assert.equal(await hub.confirmedDailyEventsAtSnapshot(snapshot), false);
+    await storage.put(`event:${id}`, { event: {
+      ...pos, event_id: id, event_type: kind,
+    } });
+    await storage.put(`recipients:${id}`, { count: 1 });
+    await storage.put(`delivery:${id}:sub-a`, {
+      status: DELIVERY_STATUS.SENT_TO_PUSH, event_id: id,
+    });
+    await storage.put(`event-complete:${id}`, true);
+    assert.equal(await hub.confirmedDailyEventsAtSnapshot(snapshot), true);
+    await storage.put(`delivery:${id}:sub-a`, { status: DELIVERY_STATUS.UNSENT });
+    assert.equal(await hub.confirmedDailyEventsAtSnapshot(snapshot), false);
+    await storage.put(`delivery:${id}:sub-a`, { status: DELIVERY_STATUS.ACKED });
+    assert.equal(await hub.confirmedDailyEventsAtSnapshot(snapshot), true);
+    await storage.put(`event:${id}`, { event: {
+      ...pos, event_id: id, event_type: kind, entry: 1.999,
+    } });
+    assert.equal(await hub.confirmedDailyEventsAtSnapshot(snapshot), false);
+  }
+});
+
+test("A missing Daily CLOSE record cannot be acknowledged from an OPEN push", async () => {
+  const hub = new PushHub({ storage: new FakeStorage() }, {});
+  assert.equal(await hub.confirmedDailyEventsAtSnapshot({ open: new Map(), closed: new Map() }), false);
+});
 
 test("PushHub persists immutable events and creates one delivery per eligible subscriber", async () => {
   const storage = new FakeStorage();

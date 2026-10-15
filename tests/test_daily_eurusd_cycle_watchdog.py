@@ -161,6 +161,92 @@ class DailyEURUSDCycleWatchdogTests(unittest.TestCase):
             self.assertEqual("NONE", result["recovery_stage"])
             self.assertFalse(result["auto_dispatch_recovery"])
 
+    def test_hard_15m_sla_exposed_even_when_belief_artifact_is_stale(self):
+        now = datetime(2026, 10, 15, 20, 15, tzinfo=TZ)
+        with tempfile.TemporaryDirectory() as tmp:
+            state = Path(tmp) / "state.json"
+            self._write(state, {
+                "instrument": "EUR/USD",
+                "timestamp": (now - timedelta(minutes=22)).isoformat(),
+                "engine_version": "eurusd-daily-spot-v1.9.0",
+                "status": "OPEN",
+            })
+            p = watchdog.evaluate_pipeline(
+                now, state_path=state,
+                belief_created_at=(now - timedelta(minutes=40)).isoformat(),
+                epistemic_created_at=(now - timedelta(minutes=22)).isoformat(),
+            )
+            self.assertEqual("BELIEF", p["recovery_stage"])
+            self.assertTrue(p["daily_sla"]["breached"])
+            self.assertEqual("UPSTREAM_DATA_STALE", p["daily_sla"]["incident_class"])
+            self.assertEqual(22, p["daily_sla"]["daily_age_minutes"])
+
+    def test_hard_15m_sla_distinguishes_recent_workflow_failure_from_data_stale(self):
+        now = datetime(2026, 10, 15, 20, 15, tzinfo=TZ)
+        with tempfile.TemporaryDirectory() as tmp:
+            state = Path(tmp) / "state.json"
+            ready = Path(tmp) / "ready.json"
+            health = Path(tmp) / "health.json"
+            self._write(state, {
+                "instrument": "EUR/USD",
+                "timestamp": (now - timedelta(minutes=18)).isoformat(),
+                "engine_version": "eurusd-daily-spot-v1.9.0",
+                "status": "NO_TRADE",
+            })
+            self._write(ready, {"ready": True})
+            self._write(health, {"workflows": {"daily-eurusd-monitor.yml": [{
+                "id": 12345, "status": "completed", "conclusion": "failure",
+                "created_at": (now - timedelta(minutes=8)).isoformat(),
+            }]}})
+            p = watchdog.evaluate_pipeline(
+                now, state_path=state,
+                belief_created_at=(now - timedelta(minutes=8)).isoformat(),
+                epistemic_created_at=(now - timedelta(minutes=7)).isoformat(),
+                epistemic_readiness_path=ready, workflow_health_path=health,
+            )
+            self.assertEqual("DAILY", p["recovery_stage"])
+            self.assertEqual("WORKFLOW_FAILURE", p["daily_sla"]["incident_class"])
+            self.assertEqual(12345, p["daily_sla"]["workflow_failure"]["run_id"])
+
+    def test_hard_15m_sla_classifies_slow_queued_run_and_does_not_trigger_on_fresh(self):
+        now = datetime(2026, 10, 15, 20, 15, tzinfo=TZ)
+        health = {"workflows": {"belief-core-shadow-live.yml": [{
+            "id": 333, "status": "in_progress", "conclusion": None,
+            "created_at": (now - timedelta(minutes=19)).isoformat(),
+        }]}}
+        stale = watchdog.classify_daily_sla(
+            now, {"status": "stale", "state_age_minutes": 20,
+                  "max_age_minutes": 15, "reasons": ["daily_state_stale"]},
+            recovery_stage="BELIEF", pipeline_status="stale", workflow_health=health,
+        )
+        self.assertEqual("WORKFLOW_DELAY", stale["incident_class"])
+        fresh = watchdog.classify_daily_sla(
+            now, {"status": "healthy", "state_age_minutes": 5,
+                  "max_age_minutes": 15, "reasons": []},
+            recovery_stage="NONE", pipeline_status="healthy", workflow_health=health,
+        )
+        self.assertFalse(fresh["breached"])
+        self.assertEqual("NONE", fresh["incident_class"])
+
+    def test_unqualified_epistemic_still_alarms_on_daily_sla_without_recovery_loop(self):
+        now = datetime(2026, 10, 15, 20, 15, tzinfo=TZ)
+        with tempfile.TemporaryDirectory() as tmp:
+            state, ready = Path(tmp) / "state.json", Path(tmp) / "ready.json"
+            self._write(state, {
+                "instrument": "EUR/USD", "timestamp": (now - timedelta(minutes=19)).isoformat(),
+                "engine_version": "eurusd-daily-spot-v1.9.0", "status": "NO_TRADE",
+            })
+            self._write(ready, {"ready": False, "reason": "insufficient_coverage"})
+            p = watchdog.evaluate_pipeline(
+                now, state_path=state,
+                belief_created_at=(now - timedelta(minutes=4)).isoformat(),
+                epistemic_created_at=(now - timedelta(minutes=4)).isoformat(),
+                epistemic_readiness_path=ready,
+            )
+            self.assertTrue(p["daily_sla"]["breached"])
+            self.assertEqual("EPISTEMIC_UNQUALIFIED", p["daily_sla"]["incident_class"])
+            self.assertFalse(p["auto_dispatch_recovery"])
+
     def test_missing_readiness_recovers_epistemic_not_daily(self):
         now = datetime(2026, 10, 5, 14, 0, tzinfo=TZ)
         with tempfile.TemporaryDirectory() as tmp:
