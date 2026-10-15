@@ -42,3 +42,33 @@ jobs:
                           if any(x in line for x in ("BELIEF_STAGE_TIMING {","BELIEF_CYCLE_TIMINGS {","BELIEF_VERIFICATION_DEFERRED {","eurusd_macro_calendar_coverage","EURUSD_BELIEF_FRESHNESS")) and not "\\x1b[36;1m" in line:
                               print("SLA_LOG",line[:3000],flush=True)
           PY
+      - name: Validate latest Belief calendar coverage in runtime artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import os,subprocess,urllib.request,json,tarfile,zipfile,io,tempfile
+          base="https://api.github.com/repos/"+os.environ["GITHUB_REPOSITORY"]
+          with urllib.request.urlopen(urllib.request.Request(base+"/actions/artifacts?name=belief-core-shadow-state&per_page=18",headers={"Authorization":"Bearer "+os.environ["GH_TOKEN"],"Accept":"application/vnd.github+json"}),timeout=20) as resp:
+              data=json.load(resp)
+          arts=[x for x in data.get("artifacts",[]) if not x.get("expired")]
+          arts.sort(key=lambda x:x.get("created_at",""),reverse=True)
+          artifact=arts[0]
+          print("CALENDAR_ARTIFACT",json.dumps({"id":artifact["id"],"created_at":artifact["created_at"],"workflow_run":artifact.get("workflow_run")}),flush=True)
+          with tempfile.NamedTemporaryFile(suffix=".zip") as tmp:
+              subprocess.run(["curl","-fsSL","-L","-H","Authorization: Bearer "+os.environ["GH_TOKEN"],base+"/actions/artifacts/"+str(artifact["id"])+"/zip","-o",tmp.name],check=True)
+              z=zipfile.ZipFile(tmp.name)
+              packed=next(n for n in z.namelist() if n.endswith("belief-core-state.tgz"))
+              t=tarfile.open(fileobj=io.BytesIO(z.read(packed)),mode="r:gz")
+              print("CALENDAR_FILES",t.getnames()[:25],flush=True)
+              obs=next(n for n in t.getmembers() if n.name.endswith("observations.jsonl"))
+              lines=t.extractfile(obs).read().decode().splitlines()
+              coverage=[json.loads(x) for x in lines if '"calendar_coverage"' in x]
+              coverage=[x for x in coverage if x.get("metric")=="calendar_coverage"]
+              for row in coverage[-3:]:
+                  meta=row.get("metadata") or {}
+                  print("CALENDAR_LIVE_COVERAGE",json.dumps({"observed_at":row.get("observed_at"),"complete":meta.get("complete"),"sources":meta.get("sources"),"error_type":meta.get("error_type")}),flush=True)
+              scheduler=next(n for n in t.getmembers() if n.name.endswith("scheduler.json"))
+              status=json.load(t.extractfile(scheduler)).get("last_status") or {}
+              print("CALENDAR_LIVE_STATUS",json.dumps({"calendar":status.get("eurusd_macro_calendar_coverage"),"timings":status.get("stage_timings_seconds")}),flush=True)
+          PY
