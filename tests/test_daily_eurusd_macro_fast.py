@@ -209,5 +209,41 @@ class DailyEURUSDMacroFastTests(unittest.TestCase):
         self.assertEqual(interpreter.calls, 0)
 
 
+    def test_empty_unverified_eurostat_cannot_claim_clear(self):
+        class Calendar(StaticAdapter):
+            def source_status(self):
+                return {"complete": False, "sources": {"EUROSTAT": {
+                    "status": "empty_calendar", "event_count": 0,
+                }}}
+
+        context = build_context(
+            datetime(2026, 10, 15, 16, tzinfo=UTC),
+            calendar=Calendar(()),
+            macro_data=StaticAdapter(()),
+            expectations=StaticAdapter(()),
+            interpreter=FakeInterpreter(),
+        )
+        self.assertEqual(context["status"], "CALENDAR_UNVERIFIED")
+        self.assertFalse(context["calendar_coverage_complete"])
+        self.assertFalse(context["decision_influence"])
+
+    def test_truly_complete_empty_calendar_can_be_clear(self):
+        class Calendar(StaticAdapter):
+            def source_status(self):
+                return {"complete": True, "sources": {"EUROSTAT": {
+                    "status": "ok", "event_count": 3,
+                }}}
+
+        context = build_context(
+            datetime(2026, 10, 15, 16, tzinfo=UTC),
+            calendar=Calendar(()),
+            macro_data=StaticAdapter(()),
+            expectations=StaticAdapter(()),
+            interpreter=FakeInterpreter(),
+        )
+        self.assertEqual(context["status"], "CLEAR")
+        self.assertTrue(context["calendar_coverage_complete"])
+
+
 if __name__ == "__main__":
     unittest.main()
