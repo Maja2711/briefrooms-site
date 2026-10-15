@@ -1,6 +1,11 @@
 name: Daily EURUSD Cycle Watchdog
 
 on:
+  pull_request:
+    paths:
+      - "scripts/daily_eurusd_cycle_watchdog.py"
+      - "tests/test_daily_eurusd_cycle_watchdog.py"
+      - ".github/workflows/daily-eurusd-cycle-watchdog.yml"
   workflow_dispatch:
   schedule:
     # GitHub cron is a fallback only. The independent Cloudflare heartbeat
@@ -23,7 +28,7 @@ concurrency:
 
 jobs:
   validate-watchdog:
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -40,7 +45,7 @@ jobs:
           python -m unittest tests/test_daily_eurusd_cycle_watchdog.py -v
 
   monitor-daily-eurusd-cycle:
-    if: github.event_name != 'push'
+    if: github.event_name != 'push' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 6
     steps:
