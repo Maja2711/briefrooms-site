@@ -1229,6 +1229,40 @@ export class PushHub {
     return { sha, head_sha: headSha, parent_sha: parentSha };
   }
 
+  async confirmedDailyEventsAtSnapshot(snapshot) {
+    // The periodic persisted-state watcher may already have sent this exact
+    // OPEN/CLOSE while GitHub's REST API was rate-limited and raw/main lagged.
+    // Only acknowledge an outdated commit when EVERY explicitly persisted
+    // lifecycle event is terminal at provider transport. Never resend or
+    // infer a close merely because an open position disappeared.
+    const positions = [
+      ...[...snapshot.open.values()].map((pos) => ({ ...pos, event_type: "OPEN" })),
+      ...[...snapshot.closed.values()].filter((pos) => pos.closed_at)
+        .map((pos) => ({ ...pos, event_type: "CLOSE" })),
+    ];
+    if (!positions.length) return false;
+    for (const pos of positions) {
+      const id = await eventId("daily", pos.event_type, pos.position_id);
+      const stored = await this.ctx.storage.get(`event:${id}`);
+      if (!stored?.event || !sameImmutableEvent(stored.event, {
+        ...stored.event, engine: "daily", event_type: pos.event_type,
+        position_id: pos.position_id, instrument: "EUR/USD",
+        direction: pos.direction, entry: pos.entry, opened_at: pos.opened_at,
+        exit_reason: pos.event_type === "CLOSE" ? pos.exit_reason : null,
+        exit_price: pos.event_type === "CLOSE" ? pos.exit_price : null,
+        closed_at: pos.event_type === "CLOSE" ? pos.closed_at : null,
+        r_multiple: pos.event_type === "CLOSE" ? pos.r_multiple : null,
+      })) return false;
+      if (!await this.ctx.storage.get(`event-complete:${id}`)) return false;
+      const recipients = await this.ctx.storage.get(`recipients:${id}`);
+      if (!recipients || Number(recipients.count || 0) === 0) return false;
+      const rows = await this.ctx.storage.list({ prefix: `delivery:${id}:` });
+      if (!rows.size || ![...rows.values()].every((row) =>
+        [DELIVERY_STATUS.SENT_TO_PUSH, DELIVERY_STATUS.ACKED].includes(row.status))) return false;
+    }
+    return true;
+  }
+
   async syncCurrentTrading(engines, { requestedSha = null, fallbackReason = null } = {}) {
     const checkedAt = new Date().toISOString();
     const events = [];
@@ -1276,9 +1310,19 @@ export class PushHub {
       if (requestedSha) {
         const requested = await snapshotAtRawRef(engine, requestedSha);
         if (!sameCommitSnapshot(requested, current)) {
-          // raw/main can briefly lag immediately after a successful Git push.
-          // Never turn that lag into a false NO_TRANSITION. The caller retries
-          // until main exposes the exact persisted trading state.
+          // A later Daily snapshot can legitimately supersede the commit while
+          // the independent watcher has ALREADY notified the subscriber.
+          // Accept only a cryptographically identical, fully provider-accepted
+          // event. This is a no-send response; never rewrite the newer snapshot.
+          if (engine === "daily" && await this.confirmedDailyEventsAtSnapshot(requested)) {
+            engineStatus[engine] = {
+              transitions: 0,
+              source: "already_delivered_verified_durable_outbox",
+              seeded: false,
+            };
+            continue;
+          }
+          // Unverified lifecycle changes remain fail-closed, never "NO_TRANSITION".
           throw new Error(`fallback_requested_state_not_current:${engine}`);
         }
         after = requested;
