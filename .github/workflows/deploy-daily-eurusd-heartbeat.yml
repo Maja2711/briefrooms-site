@@ -1,0 +1,79 @@
+name: Deploy Daily EURUSD Heartbeat
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "workers/daily-eurusd-heartbeat/**"
+      - ".github/workflows/deploy-daily-eurusd-heartbeat.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-daily-eurusd-heartbeat
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      DAILY_EURUSD_GITHUB_TOKEN: ${{ secrets.DAILY_EURUSD_GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Require deployment credentials
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "Missing CLOUDFLARE_API_TOKEN"; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "Missing CLOUDFLARE_ACCOUNT_ID"; exit 1; }
+          test -n "$DAILY_EURUSD_GITHUB_TOKEN" || {
+            echo "::error::Missing DAILY_EURUSD_GITHUB_TOKEN. Configure a repository-scoped GitHub token with Actions write permission for briefrooms-site."
+            exit 1
+          }
+
+      - name: Install and test heartbeat
+        working-directory: workers/daily-eurusd-heartbeat
+        run: |
+          npm install --no-audit --no-fund
+          npm run check
+
+      - name: Deploy heartbeat shell
+        working-directory: workers/daily-eurusd-heartbeat
+        run: npx wrangler deploy
+
+      - name: Install GitHub dispatch secret in Cloudflare
+        working-directory: workers/daily-eurusd-heartbeat
+        run: |
+          set -euo pipefail
+          printf '%s' "$DAILY_EURUSD_GITHUB_TOKEN" | npx wrangler secret put GITHUB_DISPATCH_TOKEN
+
+      - name: Redeploy heartbeat with secret
+        working-directory: workers/daily-eurusd-heartbeat
+        run: npx wrangler deploy
+
+      - name: Verify heartbeat health
+        run: |
+          set -euo pipefail
+          url="https://briefrooms-daily-eurusd-heartbeat.szczerbinski0577.workers.dev/health"
+          curl --fail --silent --show-error --retry 5 --retry-delay 2 "$url?_=$RANDOM" -o /tmp/daily-heartbeat.json
+          node - <<'NODE'
+          const fs=require("fs");
+          const j=JSON.parse(fs.readFileSync("/tmp/daily-heartbeat.json","utf8"));
+          if (j.ok !== true || j.module_id !== "TR-03" || j.role !== "heartbeat_only" ||
+              j.cadence_minutes !== 5 || j.github_configured !== true ||
+              j.trading_authority !== false || j.decision_authority !== false ||
+              j.execution_authority !== false) {
+            console.error("DAILY_EURUSD_HEARTBEAT_NOT_READY", j);
+            process.exit(1);
+          }
+          console.log("DAILY_EURUSD_HEARTBEAT_READY", j);
+          NODE
