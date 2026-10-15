@@ -1,0 +1,59 @@
+name: Research Free Feeds Discovery
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/research-free-feeds-discovery.yml"
+      - "scripts/research_free_feeds.py"
+      - "tests/test_research_free_feeds.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Fetch public CheckMySwap metadata only (no publication or trade)
+        run: |
+          python - <<'PY'
+          import urllib.request,json
+          for path in ("/api/curves/all","/api/curves/USD?date=2026-10-09","/api/curves/EUR?date=2026-10-09"):
+              url="https://www.checkmyswap.com"+path
+              try:
+                  req=urllib.request.Request(url,headers={"User-Agent":"BriefRooms-research-evaluation/1.0","Accept":"application/json"})
+                  with urllib.request.urlopen(req,timeout=12) as resp:
+                      raw=resp.read(512000)
+                      payload=json.loads(raw.decode())
+                  print("CHECKMYSWAP_PROBE",path,"type",type(payload).__name__,"top_keys",list(payload.keys())[:18] if isinstance(payload,dict) else "LIST")
+                  if isinstance(payload,dict):
+                      for k,v in list(payload.items())[:12]:
+                          if isinstance(v,dict):
+                              print("CHECKMYSWAP_NESTED",path,k,"keys",list(v.keys())[:18])
+                          elif isinstance(v,list):
+                              print("CHECKMYSWAP_LIST",path,k,"length",len(v),"first_type",type(v[0]).__name__ if v else "-","first_keys",list(v[0].keys())[:18] if v and isinstance(v[0],dict) else "-")
+                          elif k in ("date","currency","asOf","observationDate"):
+                              print("CHECKMYSWAP_META",path,k,repr(v)[:80])
+              except Exception as exc:
+                  print("CHECKMYSWAP_PROBE_UNAVAILABLE",path,type(exc).__name__,str(exc)[:120])
+          PY
+      - name: Confirm Twelve Data keyless endpoint requires authorization
+        run: |
+          python - <<'PY'
+          import urllib.request,urllib.error,json
+          u="https://api.twelvedata.com/time_series?symbol=EUR%2FUSD&interval=1min&outputsize=2&timezone=UTC"
+          try:
+              with urllib.request.urlopen(urllib.request.Request(u,headers={"Accept":"application/json"}),timeout=12) as r:
+                  p=json.load(r)
+                  print("TWELVEDATA_PUBLIC_AUTH",r.status,p.get("status"),p.get("code"),p.get("message","")[:120])
+          except urllib.error.HTTPError as exc:
+              print("TWELVEDATA_PUBLIC_AUTH",exc.code,"HTTPError")
+          except Exception as exc:
+              print("TWELVEDATA_PUBLIC_PROBE_UNAVAILABLE",type(exc).__name__)
+          PY
