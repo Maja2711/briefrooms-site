@@ -329,7 +329,7 @@ def _eu_event(
     delta = when.astimezone(BRUSSELS) - now.astimezone(BRUSSELS)
     if not (-timedelta(days=1) <= delta <= timedelta(days=horizon_days)):
         return None
-    if "ecb" in source.lower():
+    if "ecb" in source.lower() or "european central bank" in source.lower():
         lower = title.lower()
         # Non-monetary and General Council meetings are not rate decisions.
         if "non-monetary" in lower or not (
@@ -410,7 +410,7 @@ def parse_eu_calendar_text(
                              source_ref=source_ref, horizon_days=horizon_days)
     clean = _strip_html(text)
     events: List[CalendarEvent] = []
-    is_ecb = "ecb" in source.lower()
+    is_ecb = "ecb" in source.lower() or "european central bank" in source.lower()
     dates = (
         r"\d{4}-\d{2}-\d{2}|\d{1,2}/\d{1,2}/\d{4}|"
         r"\d{1,2}\s+(?:" + "|".join(MONTHS) + r")\s+\d{4}"
