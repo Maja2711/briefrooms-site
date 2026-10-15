@@ -149,7 +149,7 @@ test("Background push copy and destination are localized for PL and EN", () => {
   const en = JSON.parse(notificationPayload(event, "en", "https://push.example"));
   assert.equal(pl.body, "ZAMKNIĘTY LONG · BTC/USD @ 125000,00");
   assert.equal(pl.url, "/pl/inwestycje/pozycje-tygodniowe.html");
-  assert.equal(en.body, "CLOSED LONG · BTC/USD @ 125000");
+  assert.equal(en.body, "CLOSED LONG · BTC/USD @ 125000.00");
   assert.equal(en.url, "/en/investing/open-weekly-positions.html");
 });
 
