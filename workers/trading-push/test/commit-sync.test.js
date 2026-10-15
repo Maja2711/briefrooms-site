@@ -198,8 +198,8 @@ test("XP profit protected by a stop is labeled CLOSED, not STOP LOSS", () => {
   };
   const pl = JSON.parse(notificationPayload(event, "pl"));
   const en = JSON.parse(notificationPayload(event, "en"));
-  assert.equal(pl.body, "POZYCJA ZAMKNIĘTA · XP @ 30.9362493 · Wynik cenowy: +45,96%");
-  assert.equal(en.body, "POSITION CLOSED · XP @ 30.9362493 · Price return: +45.96%");
+  assert.equal(pl.body, "POZYCJA ZAMKNIĘTA · XP @ 30,94 · Wynik cenowy: +45,96%");
+  assert.equal(en.body, "POSITION CLOSED · XP @ 30.94 · Price return: +45.96%");
   assert.equal(pl.data.exit_reason, "stop_loss");
   assert.doesNotMatch(pl.body, /STOP LOSS|OTWARTY LONG|ZAMKNIĘTY LONG/);
   assert.equal(pl.event_id, event.event_id);
@@ -207,8 +207,8 @@ test("XP profit protected by a stop is labeled CLOSED, not STOP LOSS", () => {
 
 test("Stock OPEN never advertises a LONG or SHORT lifecycle", () => {
   const event = { event_id: "s-open", engine: "stock", event_type: "OPEN", position_id: "p", instrument: "XP", direction: "LONG", entry: 21.195 };
-  assert.equal(JSON.parse(notificationPayload(event, "pl")).body, "POZYCJA OTWARTA · XP @ 21.195");
-  assert.equal(JSON.parse(notificationPayload(event, "en")).body, "POSITION OPENED · XP @ 21.195");
+  assert.equal(JSON.parse(notificationPayload(event, "pl")).body, "POZYCJA OTWARTA · XP @ 21,20");
+  assert.equal(JSON.parse(notificationPayload(event, "en")).body, "POSITION OPENED · XP @ 21.20");
 });
 
 test("Daily and Weekly directional close do not replace lifecycle by SL/TP", () => {
@@ -224,12 +224,19 @@ test("Daily and Weekly directional close do not replace lifecycle by SL/TP", () 
   }
 });
 
+test("Push formats ASO price with two decimals without mutating event precision", () => {
+  const event = { event_id: "aso-open", engine: "stock", event_type: "OPEN", position_id: "aso", instrument: "ASO", direction: "LONG", entry: 58.26499939 };
+  assert.equal(JSON.parse(notificationPayload(event, "pl")).body, "POZYCJA OTWARTA · ASO @ 58,26");
+  assert.equal(JSON.parse(notificationPayload(event, "en")).body, "POSITION OPENED · ASO @ 58.26");
+  assert.equal(event.entry, 58.26499939);
+});
+
 test("Unknown direction and missing exit price never manufacture trade details", () => {
   const event = { event_id: "unknown", engine: "weekly", event_type: "CLOSE", position_id: "u", instrument: "BTC/USD", entry: 100 };
   assert.equal(JSON.parse(notificationPayload(event, "pl")).body, "POZYCJA ZAMKNIĘTA · BTC/USD");
   const stock = { ...event, engine: "stock", instrument: "ABC", direction: "LONG" };
   assert.equal(JSON.parse(notificationPayload(stock, "pl")).body, "POZYCJA ZAMKNIĘTA · ABC");
-  assert.equal(JSON.parse(notificationPayload({ ...stock, entry: 0, exit_price: 10 }, "pl")).body, "POZYCJA ZAMKNIĘTA · ABC @ 10");
+  assert.equal(JSON.parse(notificationPayload({ ...stock, entry: 0, exit_price: 10 }, "pl")).body, "POZYCJA ZAMKNIĘTA · ABC @ 10,00");
 });
 
 test("Foreground and push formatters stay byte-equivalent ignoring indent", () => {
