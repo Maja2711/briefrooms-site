@@ -111,7 +111,7 @@ class EpistemicConsumerInterfaceTests(unittest.TestCase):
         env = EpistemicConsumerInterface(payload, {}).envelope("DAILY_EURUSD")
 
         self.assertTrue(env.available)
-        self.assertAlmostEqual(env.coverage_weight, 0.46225, places=6)
+        self.assertAlmostEqual(env.coverage_weight, 0.482348, places=6)  # 5% optional policy differential
         self.assertEqual(env.qualified_state_count, 3)
         self.assertIsNotNone(env.aggregate_probability)
         self.assertIsNotNone(env.aggregate_confidence)
