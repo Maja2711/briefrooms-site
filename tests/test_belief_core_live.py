@@ -93,11 +93,11 @@ class BeliefCoreLiveTest(unittest.TestCase):
         self.addCleanup(self._calendar_patch.stop)
 
         class NoNetworkPolicy:
-            last_status = {"ready": True, "reason": "no_material_spread_change"}
+            last_status = {"ready": False, "reason": "ois_market_feed_not_configured"}
             def run(self, current):
-                return AdapterResult("fed_ecb_policy_differential", (), ())
+                return AdapterResult("fed_ecb_ois_forward", (), ())
 
-        self._policy_patch = patch("belief_core_live.FedEcbPolicyDifferentialAdapter", NoNetworkPolicy)
+        self._policy_patch = patch("belief_core_live.FedEcbOisForwardAdapter", NoNetworkPolicy)
         self._policy_patch.start()
         self.addCleanup(self._policy_patch.stop)
 
@@ -272,16 +272,36 @@ class BeliefCoreLiveTest(unittest.TestCase):
         self.assertEqual(btc_usd_proxy["settlement_max_delay_hours"],72)
         self.assertEqual(eurusd_price["market_calendar"],"fx_24x5")
 
-    def test_fed_ecb_policy_evidence_reaches_production_belief_without_shadow_execution(self) -> None:
-        from belief_fed_ecb_policy_adapter import FedEcbPolicyDifferentialAdapter
+    def test_ois_forward_market_data_reaches_belief_without_execution_authority(self) -> None:
+        import math
+        from belief_fed_ecb_ois_adapter import FedEcbOisForwardAdapter, CONTRACT
         now = datetime(2026, 10, 15, 10, 7, tzinfo=NY)
-        fed = "DATE,DFEDTARU\n2026-09-12,4.00\n2026-10-14,3.75\n"
-        ecb = "TIME_PERIOD,OBS_VALUE\n2026-08-01,2.50\n2026-10-01,2.50\n"
+        observed_at = "2026-10-15T14:04:00Z"
 
-        class ValidOfficialRates:
+        def curve(ccy):
+            rates = [(3, 4.00), (6, 3.70), (12, 3.40)] if ccy == "USD" else [
+                (3, 2.50), (6, 2.50), (12, 2.50)
+            ]
+            return {
+                "currency": ccy, "overnight_index": "SOFR" if ccy == "USD" else "ESTR",
+                "curve_type": "ois_discount_factors",
+                "construction": "bootstrapped_from_ois_swaps",
+                "market_observed_at": observed_at,
+                "source_ref": f"https://vendor.example.test/ois/{ccy}",
+                "instrument_id": f"TEST-{ccy}-OIS",
+                "discount_factors": [
+                    {"months": months, "df": math.exp(-rate * months / 1200)}
+                    for months, rate in rates
+                ],
+            }
+
+        feed = {"schema_version": CONTRACT, "provider": "Synthetic Test Provider",
+                "curves": {"USD": curve("USD"), "EUR": curve("EUR")}}
+
+        class ValidOIS:
             def __init__(self):
-                self.adapter = FedEcbPolicyDifferentialAdapter(
-                    fetcher=lambda url: fed if "fred.stlouisfed.org" in url else ecb
+                self.adapter = FedEcbOisForwardAdapter(
+                    url="https://vendor.example.test/feed", fetcher=lambda url, token: feed
                 )
             @property
             def last_status(self):
@@ -291,14 +311,12 @@ class BeliefCoreLiveTest(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp:
             state_dir = Path(tmp) / "core"
-            with patch("belief_core_live.FedEcbPolicyDifferentialAdapter", ValidOfficialRates):
+            with patch("belief_core_live.FedEcbOisForwardAdapter", ValidOIS):
                 status = run_cycle(state_dir, now, FakeChartClient(now))
             self.assertTrue(status["eurusd_fed_ecb_policy_differential"]["ready"])
-            self.assertEqual(status["adapter_counts"]["fed_ecb_policy_differential"]["evidence"], 1)
-            self.assertIn("eurusd_fed_ecb_policy_refresh", status["stage_timings_seconds"])
+            self.assertEqual(status["adapter_counts"]["fed_ecb_ois_forward"]["evidence"], 1)
+            self.assertIn("eurusd_ois_forward_fetch", status["stage_timings_seconds"])
             core = BeliefCore(state_dir)
-            self.assertTrue(any(e.belief_id == "eurusd.policy_differential.supportive"
-                                for e in core.evidence.values()))
             belief = core.beliefs["eurusd.policy_differential.supportive"]
             self.assertGreater(belief.probability, 0.5)
             self.assertTrue(belief.representative_evidence_ids)
