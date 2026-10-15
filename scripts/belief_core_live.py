@@ -917,7 +917,7 @@ def run_cycle(state_dir: Path, now: datetime, client: YahooChartClient) -> Dict[
                 payload = build_adapter_payload(snapshot)
                 observations = payload["observations"]
                 evidence = payload["evidence"]
-                observation_count = append_observations(state_dir, observations)
+                observation_count += append_observations(state_dir, observations)
                 core.ingest(evidence)
                 # Fresh observations are not usable by Epistemic consumers until the
                 # BeliefState projection is recomputed. Previously this happened only
@@ -928,8 +928,8 @@ def run_cycle(state_dir: Path, now: datetime, client: YahooChartClient) -> Dict[
                 # the auditor's rejection of genuinely future-dated evidence.
                 now = bounded_live_recompute_time(now, evidence)
                 core.recompute(now)
-                evidence_count = len(evidence)
-                adapter_counts = payload["adapter_counts"]
+                evidence_count += len(evidence)
+                adapter_counts.update(payload["adapter_counts"])
                 regime = payload["regime"]
 
             with timed_stage("us_forecast_freeze", timings):
