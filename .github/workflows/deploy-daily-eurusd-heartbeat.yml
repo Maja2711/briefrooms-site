@@ -30,6 +30,12 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Install and test heartbeat
+        working-directory: workers/daily-eurusd-heartbeat
+        run: |
+          npm install --no-audit --no-fund
+          npm run check
+
       - name: Require deployment credentials
         run: |
           set -euo pipefail
@@ -39,12 +45,6 @@ jobs:
             echo "::error::Missing DAILY_EURUSD_GITHUB_TOKEN. Configure a repository-scoped GitHub token with Actions write permission for briefrooms-site."
             exit 1
           }
-
-      - name: Install and test heartbeat
-        working-directory: workers/daily-eurusd-heartbeat
-        run: |
-          npm install --no-audit --no-fund
-          npm run check
 
       - name: Deploy heartbeat shell
         working-directory: workers/daily-eurusd-heartbeat
