@@ -848,14 +848,15 @@ def run_cycle(state_dir: Path, now: datetime, client: YahooChartClient) -> Dict[
     # This preserves the existing market-state and trading-authority boundaries.
     if in_fx_window(local) and not in_market_window(local):
         eurusd_liveness["attempted"] = True
-        asset_bars: Dict[str, List[Bar]] = {}
-        for symbol in ("EURUSD=X", "DX-Y.NYB", "ZT=F", "ZN=F", "ZQ=F", "UUP", "TLT"):
-            try:
-                rows = list(client.bars(symbol, "10d", "30m"))
-            except Exception:
-                rows = []
-            if rows:
-                asset_bars[symbol] = rows
+        with timed_stage("fx_asset_data_fetch", timings):
+            asset_bars: Dict[str, List[Bar]] = {}
+            for symbol in ("EURUSD=X", "DX-Y.NYB", "ZT=F", "ZN=F", "ZQ=F", "UUP", "TLT"):
+                try:
+                    rows = list(client.bars(symbol, "10d", "30m"))
+                except Exception:
+                    rows = []
+                if rows:
+                    asset_bars[symbol] = rows
         if asset_bars.get("EURUSD=X"):
             asset_snapshot = MarketSnapshot(asset_bars)
             asset_result = WESAssetEvidenceAdapter().run(asset_snapshot)
@@ -884,60 +885,62 @@ def run_cycle(state_dir: Path, now: datetime, client: YahooChartClient) -> Dict[
             snapshot = fetch_snapshot(client)
         # The date-only condition is insufficient for US-market freshness.
         if snapshot.is_current_session(now) and source_bar_is_fresh(snapshot, "SPY", now):
-            payload = build_adapter_payload(snapshot)
-            observations = payload["observations"]
-            evidence = payload["evidence"]
-            observation_count = append_observations(state_dir, observations)
-            core.ingest(evidence)
-            # Fresh observations are not usable by Epistemic consumers until the
-            # BeliefState projection is recomputed. Previously this happened only
-            # on selected world/forecast slots, allowing Daily EURUSD to consume a
-            # freshly packaged but stale belief projection and fall to artificial
-            # 50/0 NO_TRADE. Recompute on every successful market ingest.
-            # Bound sub-five-second provider/runtime clock skew without weakening
-            # the auditor's rejection of genuinely future-dated evidence.
-            now = bounded_live_recompute_time(now, evidence)
-            core.recompute(now)
-            evidence_count = len(evidence)
-            adapter_counts = payload["adapter_counts"]
-            regime = payload["regime"]
-
-            half_slot = floor_half_hour(local)
-            hour_key = f"world:{local.date().isoformat()}:{half_slot.hour:02d}"
-            if half_slot.minute == 0 and hour_key not in completed:
+            with timed_stage("us_evidence_ingest_recompute", timings):
+                payload = build_adapter_payload(snapshot)
+                observations = payload["observations"]
+                evidence = payload["evidence"]
+                observation_count = append_observations(state_dir, observations)
+                core.ingest(evidence)
+                # Fresh observations are not usable by Epistemic consumers until the
+                # BeliefState projection is recomputed. Previously this happened only
+                # on selected world/forecast slots, allowing Daily EURUSD to consume a
+                # freshly packaged but stale belief projection and fall to artificial
+                # 50/0 NO_TRADE. Recompute on every successful market ingest.
+                # Bound sub-five-second provider/runtime clock skew without weakening
+                # the auditor's rejection of genuinely future-dated evidence.
+                now = bounded_live_recompute_time(now, evidence)
                 core.recompute(now)
-                append_world_state(state_dir, core, now, regime)
-                completed[hour_key] = iso_z(now)
-                world_count = 1
+                evidence_count = len(evidence)
+                adapter_counts = payload["adapter_counts"]
+                regime = payload["regime"]
 
-            calendar = session_for(local.date())
-            for planned in FORECAST_SLOTS:
-                if calendar["early_close"] and planned >= calendar["close_time"]:
-                    continue  # no synthetic post-close slot on a 13:00 NYSE close
-                target = datetime.combine(local.date(), time(16, 0), tzinfo=NY) if planned.hour < 16 else next_weekday_close(local)
-                key = f"shared:{local.date().isoformat()}:{planned.hour:02d}{planned.minute:02d}"
-                if due_planned_slot(local, planned, key in completed):
+            with timed_stage("us_forecast_freeze", timings):
+                half_slot = floor_half_hour(local)
+                hour_key = f"world:{local.date().isoformat()}:{half_slot.hour:02d}"
+                if half_slot.minute == 0 and hour_key not in completed:
                     core.recompute(now)
-                    forecast_count += freeze_set(core, snapshot, now, target, "BRACE+BRACE-SPX", key, regime)
-                    completed[key] = iso_z(now)
+                    append_world_state(state_dir, core, now, regime)
+                    completed[hour_key] = iso_z(now)
+                    world_count = 1
 
-                asset_key = f"wes-assets:{local.date().isoformat()}:{planned.hour:02d}{planned.minute:02d}"
-                if due_planned_slot(local, planned, asset_key in completed):
+                calendar = session_for(local.date())
+                for planned in FORECAST_SLOTS:
+                    if calendar["early_close"] and planned >= calendar["close_time"]:
+                        continue  # no synthetic post-close slot on a 13:00 NYSE close
+                    target = datetime.combine(local.date(), time(16, 0), tzinfo=NY) if planned.hour < 16 else next_weekday_close(local)
+                    key = f"shared:{local.date().isoformat()}:{planned.hour:02d}{planned.minute:02d}"
+                    if due_planned_slot(local, planned, key in completed):
+                        core.recompute(now)
+                        forecast_count += freeze_set(core, snapshot, now, target, "BRACE+BRACE-SPX", key, regime)
+                        completed[key] = iso_z(now)
+
+                    asset_key = f"wes-assets:{local.date().isoformat()}:{planned.hour:02d}{planned.minute:02d}"
+                    if due_planned_slot(local, planned, asset_key in completed):
+                        core.recompute(now)
+                        wes_asset_count += freeze_multihorizon_set(core, snapshot, now, "WES-ASSET-SHADOW", asset_key, regime)
+                        completed[asset_key] = iso_z(now)
+
+                    candidate_key = f"v3-candidates:{local.date().isoformat()}:{planned.hour:02d}{planned.minute:02d}"
+                    if due_planned_slot(local, planned, candidate_key in completed):
+                        core.recompute(now)
+                        v3_candidate_count += freeze_v3_candidate_set(core, snapshot, now, candidate_key, regime)
+                        completed[candidate_key] = iso_z(now)
+
+                wes_key = f"wes:{local.date().isoformat()}:1600"
+                if local.weekday() == 4 and due_planned_slot(local, time(16, 0), wes_key in completed):
                     core.recompute(now)
-                    wes_asset_count += freeze_multihorizon_set(core, snapshot, now, "WES-ASSET-SHADOW", asset_key, regime)
-                    completed[asset_key] = iso_z(now)
-
-                candidate_key = f"v3-candidates:{local.date().isoformat()}:{planned.hour:02d}{planned.minute:02d}"
-                if due_planned_slot(local, planned, candidate_key in completed):
-                    core.recompute(now)
-                    v3_candidate_count += freeze_v3_candidate_set(core, snapshot, now, candidate_key, regime)
-                    completed[candidate_key] = iso_z(now)
-
-            wes_key = f"wes:{local.date().isoformat()}:1600"
-            if local.weekday() == 4 and due_planned_slot(local, time(16, 0), wes_key in completed):
-                core.recompute(now)
-                wes_count += freeze_set(core, snapshot, now, weekly_target(local), "WES", wes_key, regime)
-                completed[wes_key] = iso_z(now)
+                    wes_count += freeze_set(core, snapshot, now, weekly_target(local), "WES", wes_key, regime)
+                    completed[wes_key] = iso_z(now)
         else:
             scheduler.setdefault("gaps", []).append({
                 "timestamp": iso_z(now), "reason": "no_fresh_current_us_session_bar",
@@ -968,9 +971,9 @@ def run_cycle(state_dir: Path, now: datetime, client: YahooChartClient) -> Dict[
     }
     scheduler["gaps"] = scheduler.get("gaps", [])[-100:]
     with timed_stage("state_persist", timings):
-        save_scheduler(state_dir, scheduler)
         core.save(); core.write_dashboard(now)
     scheduler["last_status"]["stage_timings_seconds"] = dict(timings)
+    save_scheduler(state_dir, scheduler)
     print("BELIEF_CYCLE_TIMINGS", json.dumps(timings, sort_keys=True), flush=True)
     return scheduler["last_status"]
 
