@@ -19,11 +19,14 @@ BRUSSELS = ZoneInfo("Europe/Brussels")
 BLS_ICS = "https://www.bls.gov/schedule/news_release/bls.ics"
 BEA_SCHEDULE = "https://www.bea.gov/news/schedule"
 FOMC_CALENDAR = "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm"
-EUROSTAT_RELEASE_CALENDAR = "https://ec.europa.eu/eurostat/news/release-calendar"
+EUROSTAT_RELEASE_CALENDAR = "https://ec.europa.eu/eurostat/news/euro-indicators/release-calendar"
 ECB_CALENDAR = "https://www.ecb.europa.eu/press/calendars/mgcgc/html/index.en.html"
 
 HIGH_IMPACT_TERMS = (
     "consumer price index",
+    "gdp",
+    "flash estimate inflation",
+    "retail trade",
     "employment situation",
     "fomc",
     "federal open market committee",
@@ -304,39 +307,155 @@ def parse_fomc_calendar(text: str, *, now: datetime, horizon_days: int = 240) ->
 
 
 
-def parse_eu_calendar_text(text: str, *, now: datetime, source: str, source_ref: str, horizon_days: int = 90) -> List[CalendarEvent]:
-    """Conservative parser for official Eurostat/ECB calendar text.
+def _eu_date(raw: str) -> Optional[datetime]:
+    """Parse an explicit Eurostat/ECB release date. Never invent release times."""
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d %B %Y"):
+        try:
+            return datetime.strptime(raw.strip(), fmt).replace(tzinfo=BRUSSELS)
+        except ValueError:
+            pass
+    return None
 
-    Only rows carrying an explicit ISO/date token are promoted. Unknown times use
-    a date-only Brussels anchor and are never presented as sourced exact times.
+
+def _eu_event(
+    raw_date: str, title: str, *, now: datetime, source: str,
+    source_ref: str, horizon_days: int, uid: str = "",
+    event_at: Optional[datetime] = None, time_precision: str = "date_only",
+) -> Optional[CalendarEvent]:
+    title = html.unescape(" ".join(title.split())).strip(" -|:")
+    when = event_at or _eu_date(raw_date)
+    if not title or when is None:
+        return None
+    delta = when.astimezone(BRUSSELS) - now.astimezone(BRUSSELS)
+    if not (-timedelta(days=1) <= delta <= timedelta(days=horizon_days)):
+        return None
+    if "ecb" in source.lower():
+        lower = title.lower()
+        # Non-monetary and General Council meetings are not rate decisions.
+        if "non-monetary" in lower or not (
+            "monetary policy" in lower or "press conference" in lower
+        ):
+            return None
+    importance = _importance(title)
+    if importance == "low":
+        return None
+    key = uid or f"eu:{source}:{when.date().isoformat()}:{title[:80]}"
+    return CalendarEvent(
+        source, source_ref, key, title, when, time_precision, importance,
+        {"calendar_source": source_ref, "region": "EU", "currency": "EUR"},
+    )
+
+
+def _parse_eu_ics(
+    text: str, *, now: datetime, source: str, source_ref: str, horizon_days: int
+) -> List[CalendarEvent]:
+    """Handle Eurostat's documented ICS subscription format, if supplied."""
+    events: List[CalendarEvent] = []
+    current: Dict[str, str] = {}
+    inside = False
+    for line in _unfold_ics(text):
+        if line.upper() == "BEGIN:VEVENT":
+            current = {}
+            inside = True
+        elif line.upper() == "END:VEVENT":
+            if inside and current.get("STATUS", "").upper() != "CANCELLED":
+                raw = current.get("DTSTART", "")
+                tzid = current.get("DTSTART_TZID", "").lower()
+                when = None
+                if re.fullmatch(r"\d{8}", raw):
+                    when = datetime.strptime(raw, "%Y%m%d").replace(tzinfo=BRUSSELS)
+                elif re.fullmatch(r"\d{8}T\d{6}Z", raw):
+                    when = datetime.strptime(raw, "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
+                elif re.fullmatch(r"\d{8}T\d{6}", raw) and (
+                    not tzid or tzid in {"europe/luxembourg", "europe/brussels"}
+                ):
+                    when = datetime.strptime(raw, "%Y%m%dT%H%M%S").replace(tzinfo=BRUSSELS)
+                if when is not None:
+                    event = _eu_event(
+                        "", current.get("SUMMARY", "").replace(r"\,", ",").replace(r"\n", " "),
+                        now=now, source=source, source_ref=current.get("URL") or source_ref,
+                        horizon_days=horizon_days, uid=current.get("UID", ""),
+                        event_at=when,
+                        time_precision="date_only" if len(raw) == 8 else "exact",
+                    )
+                    if event:
+                        events.append(event)
+            inside = False
+        elif inside and ":" in line:
+            key, value = line.split(":", 1)
+            name = key.split(";", 1)[0].upper()
+            if name == "DTSTART":
+                current[name] = value.strip()
+                tzmatch = re.search(r"TZID=([^;:]+)", key, re.I)
+                if tzmatch:
+                    current["DTSTART_TZID"] = tzmatch.group(1)
+            elif name in {"UID", "SUMMARY", "URL", "STATUS"}:
+                current[name] = value.strip()
+    return events
+
+
+def parse_eu_calendar_text(
+    text: str, *, now: datetime, source: str, source_ref: str,
+    horizon_days: int = 90,
+) -> List[CalendarEvent]:
+    """Parse sourced EU events; never interpret arbitrary dates as releases.
+
+    ECB publishes DD/MM/YYYY followed by the meeting description.
+    Eurostat's indicator cards show the event title before DD Month YYYY.
+    The generic Eurostat landing page may omit dynamically loaded events;
+    callers MUST mark zero parsed events as incomplete rather than CLEAR.
     """
+    if "BEGIN:VCALENDAR" in text.upper():
+        return _parse_eu_ics(text, now=now, source=source,
+                             source_ref=source_ref, horizon_days=horizon_days)
     clean = _strip_html(text)
     events: List[CalendarEvent] = []
-    patterns = [
-        re.compile(r"(?P<date>\d{4}-\d{2}-\d{2})\s+(?P<title>.{4,180}?)(?=(?:\d{4}-\d{2}-\d{2})|$)"),
-        re.compile(r"(?P<date>\d{1,2}\s+(?:" + "|".join(MONTHS) + r")\s+\d{4})\s+(?P<title>.{4,180}?)(?=(?:\d{1,2}\s+(?:" + "|".join(MONTHS) + r")\s+\d{4})|$)", re.I),
-    ]
-    for pattern in patterns:
-        for match in pattern.finditer(clean):
-            raw_date = match.group("date")
-            title = " ".join(match.group("title").split()).strip(" -|:")
-            try:
-                day = datetime.strptime(raw_date, "%Y-%m-%d") if "-" in raw_date else datetime.strptime(raw_date, "%d %B %Y")
-            except ValueError:
-                continue
-            event_at = day.replace(hour=0, minute=0, tzinfo=BRUSSELS)
-            delta = event_at - now.astimezone(BRUSSELS)
-            if not (-timedelta(days=1) <= delta <= timedelta(days=horizon_days)):
-                continue
-            importance = _importance(title)
-            if importance == "low":
-                continue
-            uid = f"eu:{source}:{event_at.date().isoformat()}:{title[:80]}"
-            events.append(CalendarEvent(source, source_ref, uid, title, event_at, "date_only", importance,
-                                        {"calendar_source": source_ref, "region": "EU", "currency": "EUR"}))
-        if events:
-            break
-    return events
+    is_ecb = "ecb" in source.lower()
+    dates = (
+        r"\d{4}-\d{2}-\d{2}|\d{1,2}/\d{1,2}/\d{4}|"
+        r"\d{1,2}\s+(?:" + "|".join(MONTHS) + r")\s+\d{4}"
+    )
+    # ECB's live page is date -> meeting title; also accept the existing
+    # date-first Eurostat and ISO fixtures without assigning unsupported times.
+    date_first = re.compile(
+        rf"(?P<date>(?:{dates}))\s+(?P<title>.*?)(?=(?:{dates})|$)", re.I
+    )
+    for match in date_first.finditer(clean):
+        raw_date = match.group("date")
+        title = match.group("title")[:260]
+        if not is_ecb and (
+            "data release" in title.lower() or "euro indicators release" in title.lower()
+        ):
+            title = re.split(r"\b(?:Data release|Euro indicators release|Theme:)\b", title,
+                             maxsplit=1, flags=re.I)[0]
+        event = _eu_event(raw_date, title, now=now, source=source,
+                          source_ref=source_ref, horizon_days=horizon_days)
+        if event:
+            events.append(event)
+
+    if not is_ecb:
+        # Eurostat's cards commonly render "Inflation (HICP), September 2026"
+        # followed by "15 October 2026 Data release". A date-first-only
+        # parser silently dropped every such release.
+        titles = (
+            r"Flash estimate inflation|Inflation\s*\(HICP\)|Unemployment|"
+            r"Preliminary flash estimate GDP|GDP main aggregates|"
+            r"Economic Sentiment Indicator|Retail trade|Industrial production|"
+            r"International trade in goods|Interest rates\s*\(3 months\)"
+        )
+        title_first = re.compile(
+            rf"(?P<title>(?:{titles})[^<>]{{0,110}}?)\s+"
+            rf"(?P<date>\d{{1,2}}\s+(?:{'|'.join(MONTHS)})\s+\d{{4}})"
+            rf"\s*(?:Data release|Euro indicators release)", re.I
+        )
+        for match in title_first.finditer(clean):
+            event = _eu_event(
+                match.group("date"), match.group("title"), now=now,
+                source=source, source_ref=source_ref, horizon_days=horizon_days,
+            )
+            if event:
+                events.append(event)
+    return sorted({row.uid: row for row in events}.values(), key=lambda row: row.event_at)
 
 
 def calendar_event_to_observation(event: CalendarEvent, now: datetime) -> Observation:
@@ -383,7 +502,8 @@ def event_risk_evidence(primary: Observation, *, now: datetime):
     time_precision = str(primary.metadata.get("time_precision") or "")
     eligible = 0.0 <= hours <= 6.0
     if time_precision == "date_only":
-        eligible = event_at.astimezone(NY).date() == now.astimezone(NY).date()
+        zone = BRUSSELS if str(primary.metadata.get("region") or "").upper() == "EU" else NY
+        eligible = event_at.astimezone(zone).date() == now.astimezone(zone).date()
     if not eligible:
         return ()
 
@@ -446,6 +566,7 @@ class MacroEventCalendarAdapter:
         key: str,
         url: str,
         loader,
+        require_events: bool = False,
     ) -> List[CalendarEvent]:
         try:
             rows = list(loader(self.client.text(url)))
@@ -458,9 +579,10 @@ class MacroEventCalendarAdapter:
             }
             return []
         self._last_source_status[key] = {
-            "status": "ok",
+            "status": "empty_calendar" if require_events and not rows else "ok",
             "source_ref": url,
             "event_count": len(rows),
+            "error_type": "NoVerifiedUpcomingEvents" if require_events and not rows else None,
         }
         return rows
 
@@ -496,6 +618,7 @@ class MacroEventCalendarAdapter:
         events.extend(self._collect(
             key="EUROSTAT",
             url=EUROSTAT_RELEASE_CALENDAR,
+            require_events=True,
             loader=lambda text: parse_eu_calendar_text(
                 text,
                 now=now,
@@ -506,6 +629,7 @@ class MacroEventCalendarAdapter:
         events.extend(self._collect(
             key="ECB",
             url=ECB_CALENDAR,
+            require_events=True,
             loader=lambda text: parse_eu_calendar_text(
                 text,
                 now=now,
