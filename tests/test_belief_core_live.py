@@ -77,6 +77,21 @@ class FakeChartClient:
 
 
 class BeliefCoreLiveTest(unittest.TestCase):
+    def setUp(self) -> None:
+        # Other tests exercise adapters and research behavior, not live HTTP
+        # providers. Explicit integration cases override this with a fake
+        # that emits the exact calendar coverage contract.
+        class NoNetworkCalendar:
+            def run(self, current):
+                return AdapterResult("macro_event_calendar", (), ())
+
+            def source_status(self):
+                return {"complete": True, "sources": {}}
+
+        self._calendar_patch = patch("belief_core_live.MacroEventCalendarAdapter", NoNetworkCalendar)
+        self._calendar_patch.start()
+        self.addCleanup(self._calendar_patch.stop)
+
     def test_safety_flags_are_hard_off(self) -> None:
         self.assertFalse(TRADE_EXECUTION_ENABLED)
         self.assertFalse(POLICY_OUTPUT_ENABLED)
@@ -400,6 +415,100 @@ class BeliefCoreLiveTest(unittest.TestCase):
             dashboard=core.dashboard_snapshot(now)
             self.assertFalse(dashboard["controls"]["trade_execution_enabled"])
             self.assertFalse(dashboard["controls"]["policy_output_enabled"])
+
+    def test_calendar_refreshes_in_us_cash_session_and_respects_30m_slot(self) -> None:
+        now = datetime(2026, 10, 15, 10, 7, tzinfo=NY)
+        class ValidCalendar:
+            calls = 0
+            def run(self, current):
+                ValidCalendar.calls += 1
+                obs = Observation.make(
+                    adapter="macro_event_calendar", metric="calendar_coverage",
+                    entity="GLOBAL_MACRO", observed_at=iso_z(current),
+                    value={"complete": True}, unit="coverage_status",
+                    source="test", source_type="derived", source_ref="test://calendar",
+                    reliability=1.0, independence_cluster="test:calendar",
+                    metadata={"complete": True, "sources": {
+                        key: {"status": "ok", "event_count": 1}
+                        for key in ("BLS", "BEA", "FOMC", "ECB", "EUROSTAT")
+                    }},
+                )
+                return AdapterResult("macro_event_calendar", (obs,), ())
+
+            def source_status(self):
+                return {"complete": True, "sources": {
+                    key: {"status": "ok"} for key in ("BLS", "BEA", "FOMC", "ECB", "EUROSTAT")
+                }}
+
+        with tempfile.TemporaryDirectory() as tmp:
+            state_dir = Path(tmp) / "core"
+            with patch("belief_core_live.MacroEventCalendarAdapter", ValidCalendar):
+                status = run_cycle(state_dir, now, FakeChartClient(now))
+                again = run_cycle(state_dir, now, FakeChartClient(now))
+            self.assertTrue(status["eurusd_macro_calendar_coverage"]["complete"])
+            self.assertEqual(status["eurusd_macro_calendar_coverage"]["status"], "ok")
+            self.assertEqual(again["eurusd_macro_calendar_coverage"]["status"], "already_checked_this_slot")
+            self.assertEqual(ValidCalendar.calls, 1)
+            rows = [json.loads(x) for x in (state_dir / "observations.jsonl").read_text().splitlines()]
+            self.assertTrue(any(x["metric"] == "calendar_coverage" and x["metadata"]["complete"] for x in rows))
+            self.assertIn("eurusd_calendar_refresh", status["stage_timings_seconds"])
+            self.assertIn("forecast_settlement_verification", status["stage_timings_seconds"])
+            self.assertEqual(status["verification_budget_seconds"], 90)
+
+    def test_incomplete_us_session_calendar_fails_closed_and_retries(self) -> None:
+        now = datetime(2026, 10, 15, 10, 7, tzinfo=NY)
+        class RecoveryCalendar:
+            calls = 0
+            def run(self, current):
+                RecoveryCalendar.calls += 1
+                good = RecoveryCalendar.calls >= 2
+                obs = Observation.make(
+                    adapter="macro_event_calendar", metric="calendar_coverage",
+                    entity="GLOBAL_MACRO", observed_at=iso_z(current),
+                    value={"complete": good}, unit="coverage_status",
+                    source="test", source_type="derived", source_ref="test://calendar",
+                    reliability=1.0, independence_cluster="test:calendar",
+                    metadata={"complete": good, "sources": {
+                        "EUROSTAT": {"status": "ok" if good else "empty_calendar"}
+                    }},
+                )
+                return AdapterResult("macro_event_calendar", (obs,), ())
+
+            def source_status(self):
+                return {"complete": RecoveryCalendar.calls >= 2}
+
+        with tempfile.TemporaryDirectory() as tmp:
+            state_dir = Path(tmp) / "core"
+            with patch("belief_core_live.MacroEventCalendarAdapter", RecoveryCalendar):
+                first = run_cycle(state_dir, now, FakeChartClient(now))
+                second = run_cycle(state_dir, now + timedelta(minutes=5), FakeChartClient(now + timedelta(minutes=5)))
+            self.assertEqual(first["eurusd_macro_calendar_coverage"]["status"], "coverage_failed")
+            self.assertFalse(first["eurusd_macro_calendar_coverage"]["complete"])
+            self.assertEqual(second["eurusd_macro_calendar_coverage"]["status"], "ok")
+            self.assertEqual(RecoveryCalendar.calls, 2)
+            rows = [json.loads(x) for x in (state_dir / "observations.jsonl").read_text().splitlines()]
+            rows = [x for x in rows if x.get("metric") == "calendar_coverage"]
+            self.assertEqual([x["metadata"]["complete"] for x in rows], [False, True])
+
+    def test_calendar_adapter_exception_records_failure_not_green(self) -> None:
+        now = datetime(2026, 10, 15, 10, 7, tzinfo=NY)
+        class BrokenCalendar:
+            def run(self, current):
+                raise RuntimeError("official_feed_unavailable")
+            def source_status(self):
+                raise AssertionError("must not be called after failed run")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            state_dir = Path(tmp) / "core"
+            with patch("belief_core_live.MacroEventCalendarAdapter", BrokenCalendar):
+                state = run_cycle(state_dir, now, FakeChartClient(now))
+            self.assertEqual(state["eurusd_macro_calendar_coverage"]["status"], "coverage_failed")
+            self.assertFalse(state["eurusd_macro_calendar_coverage"]["complete"])
+            self.assertEqual(state["eurusd_macro_calendar_coverage"]["error_type"], "RuntimeError")
+            self.assertFalse(any(k.startswith("eurusd-calendar:") for k in
+                                 json.loads((state_dir / "scheduler.json").read_text())["completed_slots"]))
+            rows = [json.loads(x) for x in (state_dir / "observations.jsonl").read_text().splitlines()]
+            self.assertTrue(any(x["metric"] == "calendar_coverage" and not x["metadata"]["complete"] for x in rows))
 
     def test_fx_week_calendar_liveness_appends_fresh_coverage_when_enabled(self) -> None:
         now=datetime(2026,8,18,18,7,tzinfo=NY)
