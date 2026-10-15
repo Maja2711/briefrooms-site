@@ -1,0 +1,62 @@
+name: Eurostat official calendar feed diagnostics
+
+on:
+  push:
+    branches: [investigate/eurostat-calendar-feed-20261015]
+    paths:
+      - ".github/workflows/eurostat-calendar-feed-probe.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Inspect only Eurostat official publication pages
+        env:
+          PYTHONPATH: scripts
+        run: |
+          python - <<'PY'
+          import re, urllib.request, urllib.parse, datetime, json
+          from html.parser import HTMLParser
+          from belief_macro_calendar_adapter import parse_eu_calendar_text
+          class Links(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.refs=[]
+              def handle_starttag(self, tag, attrs):
+                  d=dict(attrs)
+                  if tag in ('a','script','link') and ('href' in d or 'src' in d):
+                      self.refs.append(d.get('href') or d.get('src'))
+          urls=[
+            "https://ec.europa.eu/eurostat/news/release-calendar/",
+            "https://ec.europa.eu/eurostat/news/euro-indicators/release-calendar",
+            "https://ec.europa.eu/eurostat/web/main/subscribe/ics.format"
+          ]
+          now=datetime.datetime.now(datetime.timezone.utc)
+          for url in urls:
+              try:
+                  req=urllib.request.Request(url,headers={'User-Agent':'BriefRooms-Eurostat-SourceDiagnostic/1.0 research https://briefrooms.com','Accept':'text/html,text/calendar,*/*'})
+                  with urllib.request.urlopen(req,timeout=25) as resp:
+                      raw=resp.read(1500000)
+                      content_type=resp.headers.get("Content-Type","")
+                      effective=resp.url
+                  text=raw.decode("utf-8",errors="replace")
+                  links=Links();links.feed(text)
+                  refs=[urllib.parse.urljoin(effective,a) for a in links.refs if a]
+                  calendar_refs=[a for a in refs if any(k in a.lower() for k in ('calendar','ical','.ics','release'))]
+                  pattern=r"(?i)(.ics|icalendar|subscribe|release.?calendar)"
+                  locations=[m.start() for m in re.finditer(pattern,text)]
+                  samples=[re.sub(r'\\s+',' ',text[max(0,p-90):p+150])[:240] for p in locations[:12]]
+                  entries=parse_eu_calendar_text(text,now=now,source="Eurostat",source_ref=effective)
+                  print("EUROSTAT_DIAG",json.dumps({'url':url,'effective':effective,'bytes':len(raw),'content_type':content_type,'starts_calendar':text.lstrip().startswith("BEGIN:VCALENDAR"),'events':len(entries),'example_titles':[x.title[:70] for x in entries[:8]],'links':calendar_refs[:20],'snippets':samples[:10]},ensure_ascii=False))
+              except Exception as e:
+                  print("EUROSTAT_DIAG",json.dumps({'url':url,'error_type':type(e).__name__,'error':str(e)[:200]}))
+          PY
