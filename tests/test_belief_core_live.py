@@ -275,8 +275,8 @@ class BeliefCoreLiveTest(unittest.TestCase):
     def test_fed_ecb_policy_evidence_reaches_production_belief_without_shadow_execution(self) -> None:
         from belief_fed_ecb_policy_adapter import FedEcbPolicyDifferentialAdapter
         now = datetime(2026, 10, 15, 10, 7, tzinfo=NY)
-        fed = "DATE,DFEDTARU\\n2026-09-12,4.00\\n2026-10-14,3.75\\n"
-        ecb = "TIME_PERIOD,OBS_VALUE\\n2026-08-01,2.50\\n2026-10-01,2.50\\n"
+        fed = "DATE,DFEDTARU\n2026-09-12,4.00\n2026-10-14,3.75\n"
+        ecb = "TIME_PERIOD,OBS_VALUE\n2026-08-01,2.50\n2026-10-01,2.50\n"
 
         class ValidOfficialRates:
             def __init__(self):
