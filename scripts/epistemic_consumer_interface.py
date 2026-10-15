@@ -38,7 +38,7 @@ EURUSD_PROFILE_WEIGHTS: Dict[str, float] = {
     "eurusd.usd_environment.supportive": 0.30,
     "eurusd.us_rates_pressure.supportive": 0.15,
     "eurusd.macro_surprise.supportive": 0.20,
-    "eurusd.policy_differential.supportive": 0.10,
+    "eurusd.policy_differential.supportive": 0.05,  # low-weight optional Fed/ECB official-rate spread impulse
 }
 EURUSD_MIN_FRESHNESS = 0.50
 EURUSD_MIN_COVERAGE_WEIGHT = 0.45
