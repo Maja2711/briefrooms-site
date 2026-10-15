@@ -77,5 +77,104 @@ class DailyEURUSDCycleWatchdogTests(unittest.TestCase):
         self.assertTrue(watchdog.fx_market_active(after_open))
 
 
+    def test_pipeline_recovers_belief_first(self):
+        now = datetime(2026, 10, 5, 14, 0, tzinfo=TZ)
+        with tempfile.TemporaryDirectory() as tmp:
+            state = Path(tmp) / "state.json"
+            ready = Path(tmp) / "ready.json"
+            self._write(state, {
+                "timestamp": (now - timedelta(minutes=4)).isoformat(),
+                "engine_version": "eurusd-daily-spot-v1.9.0",
+            })
+            self._write(ready, {"ready": True, "reason": "ok"})
+            result = watchdog.evaluate_pipeline(
+                now,
+                state_path=state,
+                belief_created_at=(now - timedelta(minutes=31)).isoformat(),
+                epistemic_created_at=(now - timedelta(minutes=5)).isoformat(),
+                epistemic_readiness_path=ready,
+            )
+            self.assertEqual("stale", result["status"])
+            self.assertEqual("BELIEF", result["recovery_stage"])
+
+    def test_pipeline_recovers_epistemic_after_fresh_belief(self):
+        now = datetime(2026, 10, 5, 14, 0, tzinfo=TZ)
+        with tempfile.TemporaryDirectory() as tmp:
+            state = Path(tmp) / "state.json"
+            ready = Path(tmp) / "ready.json"
+            self._write(state, {
+                "timestamp": (now - timedelta(minutes=4)).isoformat(),
+                "engine_version": "eurusd-daily-spot-v1.9.0",
+            })
+            self._write(ready, {"ready": True, "reason": "ok"})
+            result = watchdog.evaluate_pipeline(
+                now,
+                state_path=state,
+                belief_created_at=(now - timedelta(minutes=8)).isoformat(),
+                epistemic_created_at=(now - timedelta(minutes=21)).isoformat(),
+                epistemic_readiness_path=ready,
+            )
+            self.assertEqual("stale", result["status"])
+            self.assertEqual("EPISTEMIC", result["recovery_stage"])
+
+    def test_pipeline_recovers_daily_only_after_ready_epistemic(self):
+        now = datetime(2026, 10, 5, 14, 0, tzinfo=TZ)
+        with tempfile.TemporaryDirectory() as tmp:
+            state = Path(tmp) / "state.json"
+            ready = Path(tmp) / "ready.json"
+            self._write(state, {
+                "timestamp": (now - timedelta(minutes=16)).isoformat(),
+                "engine_version": "eurusd-daily-spot-v1.9.0",
+            })
+            self._write(ready, {"ready": True, "reason": "authoritative_daily_eurusd_epistemic_projection"})
+            result = watchdog.evaluate_pipeline(
+                now,
+                state_path=state,
+                belief_created_at=(now - timedelta(minutes=8)).isoformat(),
+                epistemic_created_at=(now - timedelta(minutes=7)).isoformat(),
+                epistemic_readiness_path=ready,
+            )
+            self.assertEqual("stale", result["status"])
+            self.assertEqual("DAILY", result["recovery_stage"])
+
+    def test_unqualified_fresh_epistemic_does_not_create_recovery_loop(self):
+        now = datetime(2026, 10, 5, 14, 0, tzinfo=TZ)
+        with tempfile.TemporaryDirectory() as tmp:
+            state = Path(tmp) / "state.json"
+            ready = Path(tmp) / "ready.json"
+            self._write(state, {
+                "timestamp": (now - timedelta(minutes=45)).isoformat(),
+                "engine_version": "eurusd-daily-spot-v1.9.0",
+            })
+            self._write(ready, {
+                "ready": False,
+                "reason": "insufficient_fresh_eurusd_epistemic_coverage",
+            })
+            result = watchdog.evaluate_pipeline(
+                now,
+                state_path=state,
+                belief_created_at=(now - timedelta(minutes=8)).isoformat(),
+                epistemic_created_at=(now - timedelta(minutes=7)).isoformat(),
+                epistemic_readiness_path=ready,
+            )
+            self.assertEqual("upstream_unqualified", result["status"])
+            self.assertEqual("NONE", result["recovery_stage"])
+            self.assertFalse(result["auto_dispatch_recovery"])
+
+    def test_missing_readiness_recovers_epistemic_not_daily(self):
+        now = datetime(2026, 10, 5, 14, 0, tzinfo=TZ)
+        with tempfile.TemporaryDirectory() as tmp:
+            state = Path(tmp) / "state.json"
+            result = watchdog.evaluate_pipeline(
+                now,
+                state_path=state,
+                belief_created_at=(now - timedelta(minutes=8)).isoformat(),
+                epistemic_created_at=(now - timedelta(minutes=7)).isoformat(),
+                epistemic_readiness_path=Path(tmp) / "missing.json",
+            )
+            self.assertEqual("stale", result["status"])
+            self.assertEqual("EPISTEMIC", result["recovery_stage"])
+
+
 if __name__ == "__main__":
     unittest.main()
