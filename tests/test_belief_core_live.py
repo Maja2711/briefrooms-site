@@ -486,8 +486,8 @@ class BeliefCoreLiveTest(unittest.TestCase):
             self.assertFalse(first["eurusd_macro_calendar_coverage"]["complete"])
             self.assertEqual(second["eurusd_macro_calendar_coverage"]["status"], "ok")
             self.assertEqual(RecoveryCalendar.calls, 2)
-            rows = [json.loads(x) for x in (state_dir / "observations.jsonl").read_text().splitlines()
-                    if '"metric": "calendar_coverage"' in x]
+            rows = [json.loads(x) for x in (state_dir / "observations.jsonl").read_text().splitlines()]
+            rows = [x for x in rows if x.get("metric") == "calendar_coverage"]
             self.assertEqual([x["metadata"]["complete"] for x in rows], [False, True])
 
     def test_calendar_adapter_exception_records_failure_not_green(self) -> None:
