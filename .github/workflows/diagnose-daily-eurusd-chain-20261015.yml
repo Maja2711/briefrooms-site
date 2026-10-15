@@ -1,0 +1,55 @@
+name: Diagnose Daily EURUSD chain (read only)
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/diagnose-daily-eurusd-chain-20261015.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Inspect recent Belief Epistemic Daily watchdog job metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import os,json,urllib.request,urllib.parse
+          base="https://api.github.com/repos/"+os.environ["GITHUB_REPOSITORY"]
+          headers={"Authorization":"Bearer "+os.environ["GH_TOKEN"],"Accept":"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28"}
+          def get(path):
+              req=urllib.request.Request(base+path,headers=headers)
+              with urllib.request.urlopen(req,timeout=24) as response:
+                  return json.load(response)
+          workflows=["belief-core-shadow-live.yml","belief-epistemic-state.yml","daily-eurusd-monitor.yml","daily-eurusd-cycle-watchdog.yml"]
+          for workflow in workflows:
+              try:
+                  api="/actions/workflows/"+workflow+"/runs?branch=main&per_page=18"
+                  runs=get(api).get("workflow_runs",[])
+                  print("CHAIN_WORKFLOW",workflow,"fetched",len(runs),flush=True)
+                  for run in runs:
+                      if run.get("created_at","") < "2026-10-15T16:55:00Z":
+                          continue
+                      info={k:run.get(k) for k in ("id","run_number","event","created_at","run_started_at","updated_at","status","conclusion","head_sha","html_url")}
+                      print("CHAIN_RUN",workflow,json.dumps(info),flush=True)
+                      # Look at recent failures, delays, and stage transitions, not just successful runs.
+                      if run.get("created_at","") >= "2026-10-15T17:10:00Z":
+                          jobs=get("/actions/runs/"+str(run["id"])+"/jobs?per_page=40").get("jobs",[])
+                          for job in jobs:
+                              result={k:job.get(k) for k in ("id","name","status","conclusion","started_at","completed_at")}
+                              result["steps"]=[{"name":s.get("name"),"conclusion":s.get("conclusion")} for s in (job.get("steps") or []) if s.get("conclusion") in ("failure","cancelled")]
+                              print("CHAIN_JOB",workflow,run["id"],json.dumps(result),flush=True)
+              except Exception as exc:
+                  print("CHAIN_DIAGNOSTIC_ERROR",workflow,type(exc).__name__,str(exc)[:200],flush=True)
+          for artifact_name in ("belief-core-shadow-state","belief-epistemic-state"):
+              try:
+                  args=urllib.parse.urlencode({"name":artifact_name,"per_page":12})
+                  data=get("/actions/artifacts?"+args)
+                  for item in data.get("artifacts",[])[:8]:
+                      print("CHAIN_ARTIFACT",artifact_name,json.dumps({k:item.get(k) for k in ("id","created_at","updated_at","expired","size_in_bytes","workflow_run")}),flush=True)
+              except Exception as exc:
+                  print("CHAIN_ARTIFACT_ERROR",artifact_name,type(exc).__name__,str(exc)[:200],flush=True)
+          PY
