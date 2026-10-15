@@ -623,6 +623,17 @@ class BeliefCore:
         fresh_score = sum(freshness) / len(freshness) if freshness else 0.0
         if d.belief_id == "eurusd.us_rates_pressure.supportive":
             fresh_score = self._eurusd_rates_freshness(reps, as_dt, d.half_life_hours)
+        if d.belief_id == "eurusd.policy_differential.supportive":
+            # Official policy series are polled each active FX hour. Missing
+            # source data must not keep yesterday's optional 5% macro modifier
+            # epistemically active just because its half-life was long.
+            fresh_poll = [
+                e.freshness(as_dt, d.half_life_hours) for e in reps
+                if e.evidence_type == "official_fed_ecb_policy_spread_change_30d"
+                and bool((e.metadata or {}).get("serial_state_snapshot"))
+                and 0 <= (as_dt - parse_time(e.observed_at)).total_seconds() <= 2 * 3600
+            ]
+            fresh_score = max(fresh_poll) if fresh_poll else 0.0
         quality = sum(reliabilities) / len(reliabilities) if reliabilities else 0.0
         diversity_n = len({e.source for e in reps}); diversity = min(1.0, diversity_n / 3.0)
         confidence = clamp((.35 * quality + .25 * fresh_score + .20 * coverage + .20 * diversity)

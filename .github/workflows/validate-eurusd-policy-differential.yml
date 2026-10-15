@@ -1,0 +1,50 @@
+name: Validate EURUSD Fed ECB Policy Differential
+
+on:
+  pull_request:
+    paths:
+      - "scripts/belief_fed_ecb_policy_adapter.py"
+      - "scripts/belief_core_live.py"
+      - "scripts/epistemic_consumer_interface.py"
+      - "tests/test_belief_fed_ecb_policy_adapter.py"
+      - "tests/test_belief_core_live.py"
+      - ".github/workflows/validate-eurusd-policy-differential.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/belief_fed_ecb_policy_adapter.py"
+      - "scripts/epistemic_consumer_interface.py"
+      - ".github/workflows/validate-eurusd-policy-differential.yml"
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Static and isolated integration tests
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/belief_fed_ecb_policy_adapter.py scripts/belief_core_live.py scripts/epistemic_consumer_interface.py
+          python -m unittest tests.test_belief_fed_ecb_policy_adapter tests.test_belief_core_live -v
+      - name: Check live official Fed ECB feed contract read-only
+        env:
+          PYTHONPATH: scripts
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime,timezone
+          from belief_fed_ecb_policy_adapter import FedEcbPolicyDifferentialAdapter
+          adapter=FedEcbPolicyDifferentialAdapter()
+          result=adapter.run(datetime.now(timezone.utc))
+          print("FED_ECB_POLICY_LIVE_SOURCE_CHECK",json.dumps(adapter.last_status,sort_keys=True))
+          print("FED_ECB_POLICY_LIVE_EVIDENCE_COUNT",len(result.evidence))
+          # Source outage is a fail-closed policy state, NOT a reason to
+          # fabricate evidence or authorize a trade.
+          assert adapter.last_status.get("ready") is True, "Official rate source contract not ready; production Belief stays safely inactive."
+          assert all(e.belief_id=="eurusd.policy_differential.supportive" for e in result.evidence)
+          PY
