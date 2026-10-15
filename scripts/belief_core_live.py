@@ -34,7 +34,7 @@ from belief_v3_candidate_adapter import (
 )
 from belief_macro_release_adapter import MACRO_BELIEFS
 from belief_macro_calendar_adapter import MacroEventCalendarAdapter
-from belief_fed_ecb_policy_adapter import FedEcbPolicyDifferentialAdapter
+from belief_fed_ecb_ois_adapter import FedEcbOisForwardAdapter
 from belief_wes_assets_adapter import (
     WES_ASSET_BELIEFS,
     WESAssetEvidenceAdapter,
@@ -845,32 +845,27 @@ def run_cycle(state_dir: Path, now: datetime, client: YahooChartClient) -> Dict[
                 "complete": None,
             }
 
-    # Small, separately sourced EUR/USD policy input. An official-rate gap or
-    # unchanged 30-day spread yields zero Evidence, never a fabricated neutral
-    # or directional vote. This is NOT the Fed/ECB market-implied OIS curve.
-    policy_status: Dict[str, Any] = {"ready": False, "reason": "not_due"}
+    # The optional 5% policy modifier consumes market-implied SOFR/€STR OIS
+    # forward-curve inputs ONLY. Historical realized Fed/ECB policy data
+    # continue to exist as archived research, not as a fallback vote.
+    ois_status: Dict[str, Any] = {"ready": False, "reason": "not_due"}
     if in_fx_window(local):
-        policy_key = f"eurusd-policy-spread:{local.date().isoformat()}:{local.hour:02d}"
-        if policy_key not in completed:
-            with timed_stage("eurusd_fed_ecb_policy_refresh", timings):
-                policy_adapter = FedEcbPolicyDifferentialAdapter()
-                policy_result = policy_adapter.run(now)
-                policy_status = dict(policy_adapter.last_status)
-                if policy_result.observations:
-                    observation_count += append_observations(state_dir, policy_result.observations)
-                if policy_result.evidence:
-                    core.ingest(policy_result.evidence)
-                    now = bounded_live_recompute_time(now, policy_result.evidence)
-                    core.recompute(now)
-                    evidence_count += len(policy_result.evidence)
-                    adapter_counts["fed_ecb_policy_differential"] = {
-                        "observations": len(policy_result.observations),
-                        "evidence": len(policy_result.evidence),
-                    }
-                if policy_status.get("ready") is True:
-                    completed[policy_key] = iso_z(now)
-        else:
-            policy_status = {"ready": None, "reason": "already_checked_this_hour"}
+        # Revisit every collection slot. A source's quote-time (not fetch-time)
+        # determines Evidence freshness; no synthetic clock advancement.
+        with timed_stage("eurusd_ois_forward_fetch", timings):
+            ois_adapter = FedEcbOisForwardAdapter()
+            ois_result = ois_adapter.run(now)
+            ois_status = dict(ois_adapter.last_status)
+            if ois_result.observations:
+                observation_count += append_observations(state_dir, ois_result.observations)
+            if ois_result.evidence:
+                core.ingest(ois_result.evidence)
+                core.recompute(now)
+                evidence_count += len(ois_result.evidence)
+                adapter_counts["fed_ecb_ois_forward"] = {
+                    "observations": len(ois_result.observations),
+                    "evidence": len(ois_result.evidence),
+                }
 
     # The dedicated EUR/USD cross-asset path remains outside US cash hours.
     # This preserves the existing market-state and trading-authority boundaries.
@@ -993,7 +988,7 @@ def run_cycle(state_dir: Path, now: datetime, client: YahooChartClient) -> Dict[
         "wes_asset_coverage": wes_asset_coverage_report(),
         "eurusd_24x5_liveness": eurusd_liveness,
         "eurusd_macro_calendar_coverage": eurusd_calendar_coverage,
-        "eurusd_fed_ecb_policy_differential": policy_status,
+        "eurusd_fed_ecb_policy_differential": ois_status,
         "stage_timings_seconds": timings,
         "verification_budget_seconds": VERIFY_LIVE_BUDGET_SECONDS,
         "mode": MODE,
