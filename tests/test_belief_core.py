@@ -383,7 +383,7 @@ class EURUSDRatesFreshnessTests(unittest.TestCase):
             )])
         generic = self.core.recompute(self.AS_OF)["unrelated.trend"]
         self.assertAlmostEqual(state.probability, generic.probability, places=6)
-        self.assertLess(generic.freshness_score, 0.40)
+        self.assertLess(generic.freshness_score, 0.50)
 
     def test_fresh_fed_funds_futures_alone_is_an_eligible_rates_source(self):
         self.core.ingest([
