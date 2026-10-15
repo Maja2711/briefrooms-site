@@ -119,6 +119,28 @@ jobs:
             fi
           fi
 
+      - name: Inspect actual recent Belief Epistemic Daily workflow runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json,os,urllib.request
+          base="https://api.github.com/repos/"+os.environ["GITHUB_REPOSITORY"]
+          headers={"Authorization":"Bearer "+os.environ["GH_TOKEN"],"Accept":"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28"}
+          result={"schema_version":"daily-eurusd-workflow-health-v1","workflows":{},"errors":[]}
+          for workflow in ("belief-core-shadow-live.yml","belief-epistemic-state.yml","daily-eurusd-monitor.yml"):
+              try:
+                  with urllib.request.urlopen(urllib.request.Request(base+"/actions/workflows/"+workflow+"/runs?branch=main&per_page=12",headers=headers),timeout=15) as response:
+                      runs=json.load(response).get("workflow_runs",[])
+                  result["workflows"][workflow]=[{key:run.get(key) for key in ("id","event","status","conclusion","created_at","run_started_at","updated_at","html_url")} for run in runs]
+              except Exception as exc:
+                  result["errors"].append({"workflow":workflow,"error_type":type(exc).__name__})
+          with open("/tmp/daily-eurusd-workflow-health.json","w",encoding="utf-8") as output:
+              json.dump(result,output)
+          print("DAILY_EURUSD_WORKFLOW_HEALTH",{k:[{"id":r.get("id"),"status":r.get("status"),"conclusion":r.get("conclusion")} for r in v[:3]] for k,v in result["workflows"].items()})
+          print("DAILY_EURUSD_WORKFLOW_TELEMETRY_ERRORS",result["errors"])
+          PY
+
       - name: Check staged Daily EURUSD pipeline freshness
         id: liveness
         shell: bash
@@ -136,6 +158,7 @@ jobs:
             --belief-created-at "$BELIEF_CREATED_AT"
             --epistemic-created-at "$EPISTEMIC_CREATED_AT"
             --epistemic-readiness /tmp/daily-eurusd-readiness.json
+            --workflow-health /tmp/daily-eurusd-workflow-health.json
           )
           python scripts/daily_eurusd_cycle_watchdog.py "${args[@]}" | tee /tmp/daily-eurusd-cycle-watchdog.json
           rc=${PIPESTATUS[0]}
@@ -149,7 +172,10 @@ jobs:
               h.write(f"status={p.get('status','unknown')}\n")
               h.write(f"recovery_stage={p.get('recovery_stage','NONE')}\n")
               h.write(f"stale={'true' if p.get('status') == 'stale' else 'false'}\n")
+              h.write(f"daily_sla_breached={'true' if p.get('daily_sla',{}).get('breached') else 'false'}\\n")
+              h.write(f"daily_sla_incident_class={p.get('daily_sla',{}).get('incident_class','UNKNOWN')}\\n")
           print("DAILY_EURUSD_PIPELINE", p.get("status"), p.get("recovery_stage"), p.get("reasons"))
+          print("DAILY_EURUSD_HARD_15M_SLA", p.get("daily_sla", {}))
           PY
 
           # A fresh but epistemically unqualified state is a legitimate no-trade
@@ -204,3 +230,11 @@ jobs:
         if: steps.liveness.outputs.status == 'upstream_unqualified'
         run: |
           echo "Daily EURUSD pipeline is alive; Epistemic profile is currently not qualified for a new Daily decision. No recovery loop is created."
+
+      - name: Raise hard Daily EURUSD 15-minute SLA alarm
+        if: always() && steps.liveness.outputs.daily_sla_breached == 'true'
+        env:
+          INCIDENT_CLASS: ${{ steps.liveness.outputs.daily_sla_incident_class }}
+        run: |
+          echo "::error title=DAILY EURUSD 15M SLA BREACH::Published Daily state exceeded 15 minutes. Incident class=$INCIDENT_CLASS. Check independent pipeline and GitHub workflow health logs."
+          exit 1
