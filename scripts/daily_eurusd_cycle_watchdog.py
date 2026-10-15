@@ -155,9 +155,18 @@ def classify_daily_sla(
     for name, runs in (workflow_health.get("workflows") or {}).items():
         if not isinstance(runs, list):
             continue
-        for row in runs:
-            if not isinstance(row, dict):
-                continue
+        # A successful later run resolves earlier failures for this workflow.
+        # Do not label an old, recovered failure as the cause of a new SLA breach.
+        valid = sorted(
+            (row for row in runs if isinstance(row, dict)),
+            key=lambda row: str(row.get("created_at") or ""), reverse=True,
+        )
+        most_recent_completed = next(
+            (row for row in valid if row.get("status") == "completed"), None
+        )
+        active = [row for row in valid if row.get("status") in {"in_progress", "queued"}]
+        candidates = active + ([most_recent_completed] if most_recent_completed else [])
+        for row in candidates:
             started = parse_dt(row.get("run_started_at") or row.get("created_at"))
             if started is None:
                 continue
