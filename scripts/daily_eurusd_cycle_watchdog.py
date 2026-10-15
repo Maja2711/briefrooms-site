@@ -14,6 +14,8 @@ TZ = ZoneInfo("Europe/Warsaw")
 STATE = ROOT / "data/investments/eurusd_daily_spot.json"
 EXPECTED_ENGINE_VERSION = "eurusd-daily-spot-v1.9.0"
 DEFAULT_MAX_AGE_MINUTES = 15
+DEFAULT_EPISTEMIC_MAX_AGE_MINUTES = 20
+DEFAULT_BELIEF_MAX_AGE_MINUTES = 30
 
 
 def read_json(path: Path) -> Dict[str, Any]:
@@ -111,13 +113,137 @@ def evaluate(
     return result
 
 
+
+def _age_minutes(now: datetime, value: Any) -> Optional[float]:
+    stamp = parse_dt(value)
+    if stamp is None:
+        return None
+    return (now.astimezone(TZ) - stamp).total_seconds() / 60.0
+
+
+def evaluate_pipeline(
+    now: Optional[datetime] = None,
+    *,
+    state_path: Path = STATE,
+    daily_max_age_minutes: int = DEFAULT_MAX_AGE_MINUTES,
+    belief_created_at: Any = None,
+    belief_max_age_minutes: int = DEFAULT_BELIEF_MAX_AGE_MINUTES,
+    epistemic_created_at: Any = None,
+    epistemic_max_age_minutes: int = DEFAULT_EPISTEMIC_MAX_AGE_MINUTES,
+    epistemic_readiness_path: Optional[Path] = None,
+) -> Dict[str, Any]:
+    """Evaluate TR-03 liveness and choose exactly one recovery stage.
+
+    Recovery is deliberately ordered:
+    BELIEF -> EPISTEMIC -> DAILY.
+    A fresh Epistemic projection that explicitly says DAILY_EURUSD is not
+    qualified is not an infrastructure failure and does not create a retry loop.
+    """
+    current = (now or datetime.now(TZ)).astimezone(TZ)
+    result: Dict[str, Any] = {
+        "checked_at": current.isoformat(timespec="seconds"),
+        "market_active": fx_market_active(current),
+        "status": "healthy",
+        "reasons": [],
+        "recovery_stage": "NONE",
+        "auto_dispatch_recovery": False,
+        "thresholds_minutes": {
+            "belief": max(1, int(belief_max_age_minutes)),
+            "epistemic": max(1, int(epistemic_max_age_minutes)),
+            "daily": max(1, int(daily_max_age_minutes)),
+        },
+    }
+    if not result["market_active"]:
+        result["status"] = "inactive_window"
+        return result
+
+    belief_age = _age_minutes(current, belief_created_at)
+    result["belief_created_at"] = belief_created_at
+    result["belief_age_minutes"] = None if belief_age is None else round(belief_age, 2)
+    if belief_age is None:
+        result["status"] = "stale"
+        result["reasons"].append("belief_runtime_missing")
+        result["recovery_stage"] = "BELIEF"
+    elif belief_age < -2.0 or belief_age > result["thresholds_minutes"]["belief"]:
+        result["status"] = "stale"
+        result["reasons"].append(
+            "belief_runtime_timestamp_in_future" if belief_age < -2.0 else "belief_runtime_stale"
+        )
+        result["recovery_stage"] = "BELIEF"
+
+    if result["recovery_stage"] == "NONE":
+        epistemic_age = _age_minutes(current, epistemic_created_at)
+        result["epistemic_created_at"] = epistemic_created_at
+        result["epistemic_age_minutes"] = None if epistemic_age is None else round(epistemic_age, 2)
+        if epistemic_age is None:
+            result["status"] = "stale"
+            result["reasons"].append("epistemic_runtime_missing")
+            result["recovery_stage"] = "EPISTEMIC"
+        elif epistemic_age < -2.0 or epistemic_age > result["thresholds_minutes"]["epistemic"]:
+            result["status"] = "stale"
+            result["reasons"].append(
+                "epistemic_runtime_timestamp_in_future"
+                if epistemic_age < -2.0
+                else "epistemic_runtime_stale"
+            )
+            result["recovery_stage"] = "EPISTEMIC"
+
+    readiness: Dict[str, Any] = {}
+    if result["recovery_stage"] == "NONE":
+        if epistemic_readiness_path is not None:
+            readiness = read_json(epistemic_readiness_path)
+        result["epistemic_daily_readiness"] = readiness
+        if not readiness:
+            result["status"] = "stale"
+            result["reasons"].append("epistemic_daily_readiness_missing")
+            result["recovery_stage"] = "EPISTEMIC"
+        elif readiness.get("ready") is not True:
+            result["status"] = "upstream_unqualified"
+            result["reasons"].append(
+                "epistemic_daily_not_ready:" + str(readiness.get("reason") or "unknown")
+            )
+            result["recovery_stage"] = "NONE"
+
+    if result["recovery_stage"] == "NONE" and result["status"] != "upstream_unqualified":
+        daily = evaluate(
+            current,
+            state_path=state_path,
+            max_age_minutes=daily_max_age_minutes,
+        )
+        result["daily"] = daily
+        if daily.get("status") == "stale":
+            result["status"] = "stale"
+            result["reasons"].extend(list(daily.get("reasons") or []))
+            result["recovery_stage"] = "DAILY"
+        else:
+            result["status"] = daily.get("status") or "healthy"
+
+    result["auto_dispatch_recovery"] = result["recovery_stage"] in {"BELIEF", "EPISTEMIC", "DAILY"}
+    return result
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", choices=["check", "print"], default="check")
     parser.add_argument("--max-age-minutes", type=int, default=DEFAULT_MAX_AGE_MINUTES)
+    parser.add_argument("--pipeline", action="store_true")
+    parser.add_argument("--belief-created-at")
+    parser.add_argument("--belief-max-age-minutes", type=int, default=DEFAULT_BELIEF_MAX_AGE_MINUTES)
+    parser.add_argument("--epistemic-created-at")
+    parser.add_argument("--epistemic-max-age-minutes", type=int, default=DEFAULT_EPISTEMIC_MAX_AGE_MINUTES)
+    parser.add_argument("--epistemic-readiness")
     args = parser.parse_args()
 
-    result = evaluate(max_age_minutes=args.max_age_minutes)
+    if args.pipeline:
+        result = evaluate_pipeline(
+            daily_max_age_minutes=args.max_age_minutes,
+            belief_created_at=args.belief_created_at,
+            belief_max_age_minutes=args.belief_max_age_minutes,
+            epistemic_created_at=args.epistemic_created_at,
+            epistemic_max_age_minutes=args.epistemic_max_age_minutes,
+            epistemic_readiness_path=Path(args.epistemic_readiness) if args.epistemic_readiness else None,
+        )
+    else:
+        result = evaluate(max_age_minutes=args.max_age_minutes)
     print(json.dumps(result, ensure_ascii=False, indent=2))
     if args.mode == "check" and result.get("status") == "stale":
         raise SystemExit(1)
