@@ -6,6 +6,8 @@ import argparse
 import json
 import os
 import sys
+import time as monotonic_time
+from contextlib import contextmanager
 from datetime import datetime, time, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
@@ -47,6 +49,21 @@ MODE = "shadow"
 TRADE_EXECUTION_ENABLED = False
 POLICY_OUTPUT_ENABLED = False
 AUTOMATIC_TUNING_ENABLED = False
+
+CALENDAR_REFRESH_MINUTES = 30  # always fresher than Daily's 90-minute calendar safety gate
+VERIFY_LIVE_BUDGET_SECONDS = 90  # verification is best-effort Shadow, never trade authority
+
+
+@contextmanager
+def timed_stage(name: str, durations: Dict[str, float]):
+    start = monotonic_time.perf_counter()
+    try:
+        yield
+    finally:
+        elapsed = round(monotonic_time.perf_counter() - start, 3)
+        durations[name] = round(durations.get(name, 0.0) + elapsed, 3)
+        print("BELIEF_STAGE_TIMING", json.dumps({"stage": name, "duration_seconds": elapsed}, sort_keys=True), flush=True)
+
 
 MARKET_OPEN = time(9, 30)
 MARKET_CLOSE = time(16, 20)
@@ -719,13 +736,18 @@ def freeze_v3_candidate_set(core: BeliefCore, snapshot: MarketSnapshot, when: da
 
 
 def verify_due(core: BeliefCore, client: YahooChartClient, now: datetime,
-               live_snapshot: Optional[MarketSnapshot]) -> int:
+               live_snapshot: Optional[MarketSnapshot], *, time_budget_seconds: float | None = None) -> int:
     verified_ids = {value.forecast_id for value in core.verifications.values() if value.forecast_id}
     count = 0
+    verify_started = monotonic_time.perf_counter()
     # One market-data fetch per symbol/period/interval per cycle. This prevents
     # duplicate Yahoo requests from causing partial settlement of one forecast batch.
     bars_cache: Dict[Tuple[str, str, str], Optional[List[Bar]]] = {}
     for forecast in sorted(core.forecasts.values(), key=lambda item: item.target_at):
+        if time_budget_seconds is not None and monotonic_time.perf_counter() - verify_started >= time_budget_seconds:
+            print("BELIEF_VERIFICATION_DEFERRED", json.dumps({"verified": count, "budget_seconds": time_budget_seconds}), flush=True)
+            break
+
         if forecast.forecast_id in verified_ids or parse_time(forecast.target_at) > now:
             continue
         spec = dict(forecast.metadata.get("outcome_spec") or {})
@@ -751,11 +773,13 @@ def verify_due(core: BeliefCore, client: YahooChartClient, now: datetime,
 def run_cycle(state_dir: Path, now: datetime, client: YahooChartClient) -> Dict[str, Any]:
     if TRADE_EXECUTION_ENABLED or POLICY_OUTPUT_ENABLED or AUTOMATIC_TUNING_ENABLED:
         raise RuntimeError("Belief Core live adapter safety invariant violated")
-    state_dir.mkdir(parents=True, exist_ok=True)
-    core = BeliefCore(state_dir)
-    core.register_beliefs(BELIEFS)
-    scheduler = load_scheduler(state_dir)
-    completed = scheduler.setdefault("completed_slots", {})
+    timings: Dict[str, float] = {}
+    with timed_stage("state_load", timings):
+        state_dir.mkdir(parents=True, exist_ok=True)
+        core = BeliefCore(state_dir)
+        core.register_beliefs(BELIEFS)
+        scheduler = load_scheduler(state_dir)
+        completed = scheduler.setdefault("completed_slots", {})
     local = now.astimezone(NY)
     snapshot: Optional[MarketSnapshot] = None
     evidence_count = observation_count = world_count = forecast_count = wes_count = wes_asset_count = v3_candidate_count = 0
@@ -771,30 +795,59 @@ def run_cycle(state_dir: Path, now: datetime, client: YahooChartClient) -> Dict[
         "complete": None,
     }
 
-    # Daily EUR/USD is a 24x5 consumer. Outside the US cash-session collection
-    # window, refresh its dedicated market/cross-asset adapter with EUR/USD plus
-    # ICE USDX and CBOT Treasury futures. UUP/TLT remain cash-market references
-    # and retain their own timestamps; they are never falsely refreshed.
-    if in_fx_window(local) and not in_market_window(local):
-        eurusd_liveness["attempted"] = True
-
-        calendar_key = f"eurusd-calendar:{local.date().isoformat()}:{local.hour:02d}"
+    # This independent EUR/USD safety feed runs during BOTH EU and US market
+    # hours. Do not let an equity-session branch suppress calendar coverage.
+    # An unsuccessful read is never marked complete: retry next collection and
+    # append incomplete coverage so Daily fails closed without trusting old data.
+    if in_fx_window(local):
+        slot_minute = (local.minute // CALENDAR_REFRESH_MINUTES) * CALENDAR_REFRESH_MINUTES
+        calendar_key = f"eurusd-calendar:{local.date().isoformat()}:{local.hour:02d}:{slot_minute:02d}"
         if calendar_key not in completed:
-            calendar = MacroEventCalendarAdapter()
-            calendar_result = calendar.run(now)
-            observation_count += append_observations(state_dir, calendar_result.observations)
-            coverage = calendar.source_status()
-            eurusd_calendar_coverage = {
-                "status": "ok" if coverage.get("complete") else "coverage_failed",
-                **coverage,
-            }
-            completed[calendar_key] = iso_z(now)
+            with timed_stage("eurusd_calendar_refresh", timings):
+                calendar = MacroEventCalendarAdapter()
+                try:
+                    calendar_result = calendar.run(now)
+                    coverage = calendar.source_status()
+                    if not isinstance(coverage, dict) or not isinstance(coverage.get("complete"), bool):
+                        raise ValueError("invalid_calendar_coverage_contract")
+                    observations = calendar_result.observations
+                except Exception as exc:
+                    # Persist an explicit source-health failure, not a fake event.
+                    coverage = {
+                        "schema_version": "macro-calendar-coverage-v1",
+                        "required_sources": ["BLS", "BEA", "FOMC", "EUROSTAT", "ECB"],
+                        "sources": {},
+                        "complete": False,
+                        "error_type": type(exc).__name__,
+                    }
+                    observations = (
+                        Observation.make(
+                            adapter="macro_event_calendar", metric="calendar_coverage",
+                            entity="GLOBAL_MACRO", observed_at=iso_z(now),
+                            value={"complete": False}, unit="coverage_status",
+                            source="BriefRooms calendar source-health audit",
+                            source_type="derived", source_ref="derived:macro-calendar-coverage",
+                            reliability=1.0, independence_cluster="derived:macro-calendar-coverage",
+                            metadata=coverage,
+                        ),
+                    )
+                observation_count += append_observations(state_dir, observations)
+                eurusd_calendar_coverage = {
+                    "status": "ok" if coverage["complete"] else "coverage_failed",
+                    **coverage,
+                }
+                if coverage["complete"]:
+                    completed[calendar_key] = iso_z(now)
         else:
             eurusd_calendar_coverage = {
-                "status": "already_checked_this_hour",
+                "status": "already_checked_this_slot",
                 "complete": None,
             }
 
+    # The dedicated EUR/USD cross-asset path remains outside US cash hours.
+    # This preserves the existing market-state and trading-authority boundaries.
+    if in_fx_window(local) and not in_market_window(local):
+        eurusd_liveness["attempted"] = True
         asset_bars: Dict[str, List[Bar]] = {}
         for symbol in ("EURUSD=X", "DX-Y.NYB", "ZT=F", "ZN=F", "ZQ=F", "UUP", "TLT"):
             try:
@@ -827,7 +880,8 @@ def run_cycle(state_dir: Path, now: datetime, client: YahooChartClient) -> Dict[
             eurusd_liveness["status"] = "eurusd_market_data_unavailable"
 
     if in_market_window(local):
-        snapshot = fetch_snapshot(client)
+        with timed_stage("us_market_snapshot_fetch", timings):
+            snapshot = fetch_snapshot(client)
         # The date-only condition is insufficient for US-market freshness.
         if snapshot.is_current_session(now) and source_bar_is_fresh(snapshot, "SPY", now):
             payload = build_adapter_payload(snapshot)
@@ -890,7 +944,8 @@ def run_cycle(state_dir: Path, now: datetime, client: YahooChartClient) -> Dict[
                 "symbol": "SPY",
             })
 
-    verified = verify_due(core, client, now, snapshot)
+    with timed_stage("forecast_settlement_verification", timings):
+        verified = verify_due(core, client, now, snapshot, time_budget_seconds=VERIFY_LIVE_BUDGET_SECONDS)
     scheduler["schema_version"] = 2
     scheduler["last_run_at"] = iso_z(now)
     scheduler["last_status"] = {
@@ -907,11 +962,16 @@ def run_cycle(state_dir: Path, now: datetime, client: YahooChartClient) -> Dict[
         "wes_asset_coverage": wes_asset_coverage_report(),
         "eurusd_24x5_liveness": eurusd_liveness,
         "eurusd_macro_calendar_coverage": eurusd_calendar_coverage,
+        "stage_timings_seconds": timings,
+        "verification_budget_seconds": VERIFY_LIVE_BUDGET_SECONDS,
         "mode": MODE,
     }
     scheduler["gaps"] = scheduler.get("gaps", [])[-100:]
-    save_scheduler(state_dir, scheduler)
-    core.save(); core.write_dashboard(now)
+    with timed_stage("state_persist", timings):
+        save_scheduler(state_dir, scheduler)
+        core.save(); core.write_dashboard(now)
+    scheduler["last_status"]["stage_timings_seconds"] = dict(timings)
+    print("BELIEF_CYCLE_TIMINGS", json.dumps(timings, sort_keys=True), flush=True)
     return scheduler["last_status"]
 
 
