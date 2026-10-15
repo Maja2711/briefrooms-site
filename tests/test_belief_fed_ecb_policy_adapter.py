@@ -55,12 +55,13 @@ class PolicyDifferentialTests(unittest.TestCase):
 
     def test_future_dated_fed_observation_does_not_enter_decision(self):
         future = "DATE,DFEDTARU\n2026-09-12,4.00\n2026-10-16,3.50\n"
-        result = FedEcbPolicyDifferentialAdapter(
+        adapter = FedEcbPolicyDifferentialAdapter(
             fetcher=lambda url: future if "fred.stlouisfed.org" in url else ECB
-        ).run(NOW)
+        )
+        result = adapter.run(NOW)
         self.assertEqual(len(result.evidence), 0)
-        self.assertFalse(result.last_status["ready"])
-        self.assertEqual(result.last_status["reason"], "fed_daily_rate_stale")
+        self.assertFalse(adapter.last_status["ready"])
+        self.assertEqual(adapter.last_status["reason"], "fed_daily_rate_stale")
 
     def test_stale_fed_or_empty_ecb_fails_closed(self):
         old = "DATE,DFEDTARU\n2026-09-12,4.00\n2026-10-10,3.75\n"
