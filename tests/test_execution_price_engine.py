@@ -263,6 +263,67 @@ class ExecutionPriceEngineTests(unittest.TestCase):
         self.assertEqual(result["status"], "NO_FILL")
         self.assertEqual(result["reason"], "no_fresh_eurusd_quote")
 
+    def test_daily_execution_fetches_live_providers_and_ignores_stale_cache(self) -> None:
+        with patch.object(
+            epe,
+            "fetch_daily_current_price_quote",
+            side_effect=AssertionError("Daily execution must not read live_prices.json"),
+        ) as cached, \
+                patch.object(epe, "fetch_stooq_eurusd_quote", side_effect=RuntimeError("vendor down")), \
+                patch.object(
+                    epe,
+                    "fetch_fxapi_eurusd_quote",
+                    return_value=self.quote(1.11920, 8, "fxapi.app:EUR/USD:mid"),
+                ), \
+                patch.object(
+                    epe,
+                    "fetch_currency_exchange_tool_eurusd_quote",
+                    return_value=self.quote(1.11918, 12, "Currency Exchange Tool:EUR/USD:mid"),
+                ), \
+                patch.object(
+                    epe,
+                    "fetch_yahoo_eurusd_quote",
+                    return_value=self.quote(1.11921, 5, "Yahoo Finance:EURUSD=X:1m:mid-proxy"),
+                ):
+            result = epe.daily_eurusd_market_fill("LONG", now=self.now)
+
+        cached.assert_not_called()
+        self.assertTrue(result["verified"])
+        self.assertEqual(result["status"], "VERIFIED_FILL")
+        self.assertEqual(result["selected_mid_price"], 1.11920)
+        self.assertEqual(result["fill_price"], 1.11935)
+        self.assertEqual(result["synthetic_entry_buffer_pips"], 1.5)
+        self.assertGreaterEqual(result["fresh_source_count"], 2)
+        self.assertFalse(result["live_prices_file_execution_dependency"])
+        self.assertEqual(len(result["provider_errors"]), 1)
+
+    def test_daily_direct_feed_fails_closed_with_only_one_fresh_provider(self) -> None:
+        result = epe.daily_eurusd_market_fill(
+            "SHORT",
+            now=self.now,
+            fetchers=[
+                lambda: self.quote(1.11920, 8, "fxapi.app:EUR/USD:mid"),
+                lambda: self.quote(1.11918, 500, "Currency Exchange Tool:EUR/USD:mid"),
+            ],
+        )
+        self.assertFalse(result["verified"])
+        self.assertEqual(result["reason"], "insufficient_independent_quotes")
+
+    def test_daily_direct_feed_uses_closest_pair_when_third_feed_is_outlier(self) -> None:
+        result = epe.verify_daily_live_quotes(
+            "SHORT",
+            [
+                self.quote(1.12500, 10, "Stooq:EURUSD:live"),
+                self.quote(1.11920, 8, "fxapi.app:EUR/USD:mid"),
+                self.quote(1.11922, 5, "Yahoo Finance:EURUSD=X:1m:mid-proxy"),
+            ],
+            now=self.now,
+        )
+        self.assertTrue(result["verified"])
+        self.assertEqual(result["selected_mid_price"], 1.11920)
+        self.assertEqual(result["fill_price"], 1.11905)
+        self.assertEqual(result["cross_feed_difference_pips"], 0.2)
+
     def test_daily_current_price_short_uses_full_one_point_five_pip_buffer(self) -> None:
         result = epe.verify_daily_current_price(
             "SHORT",
