@@ -216,7 +216,7 @@ Daily EURUSD Cycle Watchdog
         +-- BELIEF stale ------> Belief Core recovery
         |                           |
         |                           v
-        |                      Epistemic workflow_run
+        |                      Epistemic explicit workflow_dispatch after Belief SUCCESS
         |                           |
         |                           v
         |                      Daily EURUSD when READY
@@ -241,7 +241,7 @@ These are pipeline-liveness thresholds, not Evidence freshness limits. Individua
 
 Epistemic projection persists `daily_eurusd_readiness.json`. A fresh projection with `ready=false` is treated as a legitimate epistemic no-trade/unqualified state, not as an infrastructure failure, so the watchdog does not create an infinite recovery loop.
 
-Recovery is sequential, never parallel. The watchdog must not dispatch Belief Core and Daily at the same time. Downstream work is allowed only after the upstream stage succeeds. Before dispatching a recovery workflow, the watchdog checks whether the same workflow is already queued or in progress.
+Recovery is sequential, never parallel. The watchdog must not dispatch Belief Core and Daily at the same time. Downstream work is allowed only after the upstream stage succeeds. Belief Core explicitly dispatches the Epistemic projection after a successful refresh, and Epistemic explicitly dispatches Daily EUR/USD only when the `DAILY_EURUSD` envelope is ready. The Daily recovery path therefore does not depend on GitHub `workflow_run` delivery from Belief Core. Before dispatching a recovery workflow, the watchdog checks whether the same workflow is already queued or in progress.
 
 Runtime implementation:
 
