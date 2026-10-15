@@ -45,10 +45,20 @@ class ResearchFreeFeedsTests(unittest.TestCase):
         self.assertEqual(status["tenors_usd"], ["1Y", "2Y"])
         self.assertEqual(status["usd_accepted_records"], 140)
         self.assertEqual(status["method_counts_usd"]["thin_close"], 1)
+        self.assertEqual(status["relative_usd_minus_eur_par_slope_1y_2y_bps"], 0.0)
+        self.assertTrue(status["research_metric_only_not_ois_forward"])
         self.assertFalse(status["live_policy_evidence_authorized"])
         self.assertFalse(status["no_forward_curve_substitution"] is False)
         self.assertFalse(status["daily_epe_price_authority"])
         self.assertNotIn("rate", status)
+        self.assertNotIn("par_rates", status)
+
+    def test_relative_par_slope_is_research_only_not_forward_curve(self):
+        row = checkmy()
+        row["EUR"]["curve"][1]["rate"] = 3.75
+        status = evaluate_checkmyswap(row, NOW)
+        self.assertEqual(status["relative_usd_minus_eur_par_slope_1y_2y_bps"], -20.0)
+        self.assertFalse(status["live_policy_evidence_authorized"])
         self.assertNotIn("par_rates", status)
 
     def test_checkmyswap_older_snapshot_is_not_current(self):
