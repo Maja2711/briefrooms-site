@@ -32,7 +32,7 @@ from typing import Any, Callable, Mapping, Optional
 from belief_market_data_adapter import YahooChartClient
 
 SCHEMA_VERSION = "execution-price-engine-v1"
-ENGINE_VERSION = "EPE-1.3.0"
+ENGINE_VERSION = "EPE-1.3.1"
 EURUSD_PIP = 0.0001
 EURUSD_MIN = 0.8
 EURUSD_MAX = 1.5
@@ -463,7 +463,8 @@ def verify_live_mid_quotes(
     }
 
 
-# Daily-only current-price policy. WES and legacy consensus validators stay unchanged.
+# Daily-only execution policy. Runtime entry verification is direct-from-provider;
+# live_prices.json remains a display/cache artifact and is never an execution prerequisite.
 DAILY_PRIMARY_PRICE_FILE = "data/investments/live_prices.json"
 DAILY_ENTRY_BUFFER_PIPS = 1.5
 DAILY_REFERENCE_WARNING_PIPS = 1.5
@@ -559,29 +560,162 @@ def fetch_daily_current_price_quote(*, path: Optional[str] = None) -> Quote:
     return Quote(price=price, timestamp=stamp, source=source)
 
 
-def daily_eurusd_market_fill(direction: str, *, now: Optional[datetime] = None,
-                             primary_fetcher: Optional[Callable[[], Quote]] = None,
-                             reference_fetchers: Optional[list[Callable[[], Quote]]] = None) -> dict[str, Any]:
+def verify_daily_live_quotes(
+    direction: str,
+    quotes: list[Quote],
+    *,
+    now: Optional[datetime] = None,
+) -> dict[str, Any]:
+    """Verify a Daily EUR/USD fill directly from fresh independent providers.
+
+    The execution path deliberately does not depend on live_prices.json. At
+    least two distinct providers must be fresh. With three or more feeds, the
+    closest pair wins so one public-provider outlier cannot veto an otherwise
+    coherent market. The current Daily 1.5-pip per-side paper buffer is kept.
+    """
     current = (now or utc_now()).astimezone(timezone.utc)
-    try:
-        primary = (primary_fetcher or fetch_daily_current_price_quote)()
-    except Exception as exc:
-        return blocked("daily_primary_unavailable", mode="MARKET_NOW",
-                       details={"error_type": type(exc).__name__})
-    references = reference_fetchers if reference_fetchers is not None else [
-        fetch_stooq_eurusd_quote,
-        fetch_fxapi_eurusd_quote,
-        fetch_currency_exchange_tool_eurusd_quote,
-    ]
-    quotes = []
-    errors = []
-    for fetcher in references:
+    side = str(direction or "").upper()
+    if side not in {"LONG", "SHORT"}:
+        return blocked("invalid_direction", mode="MARKET_NOW")
+
+    valid, rejected = _fresh_quote_candidates(
+        list(quotes or []),
+        now=current,
+        max_age_seconds=DEFAULT_QUOTE_MAX_AGE_SECONDS,
+    )
+    if not valid:
+        return blocked(
+            "no_fresh_eurusd_quote",
+            mode="MARKET_NOW",
+            details={
+                "rejected_quotes": rejected,
+                "fresh_source_count": 0,
+                "required_fresh_sources": 2,
+                "max_age_seconds": DEFAULT_QUOTE_MAX_AGE_SECONDS,
+            },
+        )
+    if len(valid) < 2:
+        return blocked(
+            "insufficient_independent_quotes",
+            mode="MARKET_NOW",
+            details={
+                "fresh_quotes": [_quote_payload(q, current) for q in valid],
+                "rejected_quotes": rejected,
+                "fresh_source_count": len(valid),
+                "required_fresh_sources": 2,
+                "max_age_seconds": DEFAULT_QUOTE_MAX_AGE_SECONDS,
+            },
+        )
+
+    # Pick the closest independent pair. This is intentionally simple and
+    # availability-first: a third broken/outlier public feed cannot block two
+    # fresh feeds that agree with each other.
+    pairs: list[tuple[float, Quote, Quote]] = []
+    for index, left in enumerate(valid):
+        for right in valid[index + 1:]:
+            gap = abs(float(left.price) - float(right.price)) / EURUSD_PIP
+            pairs.append((gap, left, right))
+    nearest, left, right = min(pairs, key=lambda row: row[0])
+    if nearest > DAILY_REFERENCE_HARD_LIMIT_PIPS:
+        return blocked(
+            "daily_live_consensus_divergence",
+            mode="MARKET_NOW",
+            details={
+                "fresh_quotes": [_quote_payload(q, current) for q in valid],
+                "rejected_quotes": rejected,
+                "fresh_source_count": len(valid),
+                "nearest_reference_difference_pips": round(nearest, 3),
+                "reference_hard_limit_pips": DAILY_REFERENCE_HARD_LIMIT_PIPS,
+            },
+        )
+
+    selected = sorted(
+        [left, right],
+        key=lambda q: (_source_rank(q.source), _quote_age_seconds(q, current)),
+    )[0]
+    peer = right if selected is left else left
+    buffer = Decimal("0.00015")
+    mid = Decimal(str(selected.price))
+    fill = fx_price_5(mid + buffer if side == "LONG" else mid - buffer)
+    warning = nearest > DAILY_REFERENCE_WARNING_PIPS
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "engine_version": ENGINE_VERSION,
+        "instrument": "EUR/USD",
+        "mode": "MARKET_NOW",
+        "status": "VERIFIED_FILL",
+        "verified": True,
+        "direction": side,
+        "selected_mid_price": round(float(selected.price), 8),
+        "fill_price": fill,
+        "fill_side": "ASK" if side == "LONG" else "BID",
+        "price_type": "LIVE_CONSENSUS_MID_PLUS_CONSERVATIVE_BUFFER",
+        "verified_at": iso_z(current),
+        "verification_quality": "DIRECT_TWO_SOURCE_CONSENSUS",
+        "selected_quote": _quote_payload(selected, current),
+        "reference_quote": _quote_payload(peer, current),
+        "fresh_quotes": [_quote_payload(q, current) for q in valid],
+        "rejected_quotes": rejected,
+        "fresh_source_count": len(valid),
+        "cross_feed_difference_pips": round(nearest, 3),
+        "cross_feed_warning": warning,
+        "reference_warning_pips": DAILY_REFERENCE_WARNING_PIPS,
+        "reference_hard_limit_pips": DAILY_REFERENCE_HARD_LIMIT_PIPS,
+        "synthetic_entry_buffer_pips": DAILY_ENTRY_BUFFER_PIPS,
+        "synthetic_spread_pips": DAILY_ENTRY_BUFFER_PIPS * 2,
+        "synthetic_half_spread_pips": DAILY_ENTRY_BUFFER_PIPS,
+        "synthetic_bid": fx_price_5(mid - buffer),
+        "synthetic_ask": fx_price_5(mid + buffer),
+        "executable_bid_ask_available": False,
+        "paper_trading_only": True,
+        "policy": "daily_direct_two_source_consensus_plus_1_5_pip_per_side_buffer",
+        "live_prices_file_execution_dependency": False,
+    }
+
+
+def daily_eurusd_market_fill(
+    direction: str,
+    *,
+    now: Optional[datetime] = None,
+    fetchers: Optional[list[Callable[[], Quote]]] = None,
+    primary_fetcher: Optional[Callable[[], Quote]] = None,
+    reference_fetchers: Optional[list[Callable[[], Quote]]] = None,
+) -> dict[str, Any]:
+    """Fetch Daily EUR/USD execution quotes live at decision time.
+
+    Default production execution is independent of live_prices.json and WES.
+    The legacy primary/reference arguments remain only for deterministic tests
+    and compatibility; they are treated as one provider set and must still
+    satisfy the same two-source freshness check.
+    """
+    current = (now or utc_now()).astimezone(timezone.utc)
+    if fetchers is not None:
+        providers = list(fetchers)
+    elif primary_fetcher is not None or reference_fetchers is not None:
+        providers = []
+        if primary_fetcher is not None:
+            providers.append(primary_fetcher)
+        providers.extend(reference_fetchers or [])
+    else:
+        providers = [
+            fetch_stooq_eurusd_quote,
+            fetch_fxapi_eurusd_quote,
+            fetch_currency_exchange_tool_eurusd_quote,
+            fetch_yahoo_eurusd_quote,
+        ]
+
+    quotes: list[Quote] = []
+    errors: list[dict[str, str]] = []
+    for fetcher in providers:
         try:
             quotes.append(fetcher())
         except Exception as exc:
-            errors.append({"provider": getattr(fetcher, "__name__", "provider"),
-                           "error_type": type(exc).__name__})
-    result = verify_daily_current_price(direction, primary, quotes, now=current)
+            errors.append({
+                "provider": getattr(fetcher, "__name__", "provider"),
+                "error_type": type(exc).__name__,
+            })
+
+    result = verify_daily_live_quotes(direction, quotes, now=current)
     if errors:
         result = {**result, "provider_errors": errors}
     return result
