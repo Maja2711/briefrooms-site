@@ -285,7 +285,10 @@
       : (pl ? (open ? "POZYCJA OTWARTA" : "POZYCJA ZAMKNIĘTA") : (open ? "POSITION OPENED" : "POSITION CLOSED"));
     // A CLOSE with no persisted exit price must not claim the entry was the exit.
     const priceValue = open ? event.entry : event.exit_price;
-    const price = priceValue != null ? ` @ ${priceValue}` : "";
+    const numericPrice = priceValue == null ? null : Number(priceValue);
+    const price = numericPrice != null && Number.isFinite(numericPrice)
+      ? ` @ ${new Intl.NumberFormat(pl ? "pl-PL" : "en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: false }).format(numericPrice)}`
+      : "";
     let result = "";
     if (event.engine === "stock" && !open && event.entry != null && event.exit_price != null) {
       const entry = Number(event.entry);
