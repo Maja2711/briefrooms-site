@@ -172,8 +172,8 @@ jobs:
               h.write(f"status={p.get('status','unknown')}\n")
               h.write(f"recovery_stage={p.get('recovery_stage','NONE')}\n")
               h.write(f"stale={'true' if p.get('status') == 'stale' else 'false'}\n")
-              h.write(f"daily_sla_breached={'true' if p.get('daily_sla',{}).get('breached') else 'false'}\\n")
-              h.write(f"daily_sla_incident_class={p.get('daily_sla',{}).get('incident_class','UNKNOWN')}\\n")
+              h.write(f"daily_sla_breached={'true' if p.get('daily_sla',{}).get('breached') else 'false'}\n")
+              h.write(f"daily_sla_incident_class={p.get('daily_sla',{}).get('incident_class','UNKNOWN')}\n")
           print("DAILY_EURUSD_PIPELINE", p.get("status"), p.get("recovery_stage"), p.get("reasons"))
           print("DAILY_EURUSD_HARD_15M_SLA", p.get("daily_sla", {}))
           PY
