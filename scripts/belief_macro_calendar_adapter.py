@@ -19,7 +19,7 @@ BRUSSELS = ZoneInfo("Europe/Brussels")
 BLS_ICS = "https://www.bls.gov/schedule/news_release/bls.ics"
 BEA_SCHEDULE = "https://www.bea.gov/news/schedule"
 FOMC_CALENDAR = "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm"
-EUROSTAT_RELEASE_CALENDAR = "https://ec.europa.eu/eurostat/news/euro-indicators/release-calendar"
+EUROSTAT_RELEASE_CALENDAR = "https://ec.europa.eu/eurostat/o/calendars/eventsIcal?theme=&category="
 ECB_CALENDAR = "https://www.ecb.europa.eu/press/calendars/mgcgc/html/index.en.html"
 
 HIGH_IMPACT_TERMS = (
