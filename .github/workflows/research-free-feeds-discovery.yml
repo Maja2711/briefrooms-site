@@ -1,0 +1,74 @@
+name: Research Free Feeds Discovery
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/research-free-feeds-discovery.yml"
+      - "scripts/research_free_feeds.py"
+      - "tests/test_research_free_feeds.py"
+      - "docs/BR_FREE_MARKET_FEED_RESEARCH.md"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/research-free-feeds-discovery.yml"
+      - "scripts/research_free_feeds.py"
+      - "tests/test_research_free_feeds.py"
+  workflow_dispatch:
+  schedule:
+    # Lightweight research-health sampling, NOT a source for intraday trading.
+    - cron: "15 9,15 * * 1-5"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: free-market-feeds-research
+  cancel-in-progress: true
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      # Twelve Data Basic permits personal/internal testing, NOT commercial
+      # use or public redistribution. Require explicit purpose authorization.
+      TWELVE_DATA_RESEARCH_ALLOWED: ${{ github.event_name == 'pull_request' && '0' || vars.TWELVE_DATA_RESEARCH_ALLOWED }}
+      TWELVE_DATA_RESEARCH_API_KEY: ${{ github.event_name == 'pull_request' && '' || secrets.TWELVE_DATA_RESEARCH_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Test free feed contracts and trading-authority isolation
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/research_free_feeds.py
+          python -m unittest tests.test_research_free_feeds -v
+      - name: Read CheckMySwap public dated curves and optional Twelve Data private EURUSD research
+        run: |
+          set -euo pipefail
+          python scripts/research_free_feeds.py --output "$RUNNER_TEMP/free-feed-health.json"
+      - name: Ensure no trading or public-feed authority in artifact
+        run: |
+          python - <<'PY'
+          import json, os, pathlib
+          p=json.loads((pathlib.Path(os.environ["RUNNER_TEMP"])/"free-feed-health.json").read_text())
+          assert p["schema_version"] == "briefrooms-free-research-feed-health-v1"
+          assert p["authority"] == {
+              "mode": "RESEARCH_ONLY",
+              "production_trading": False,
+              "policy_differential_evidence": False,
+              "daily_epe": False,
+              "website_quote": False,
+          }
+          assert "close" not in p.get("twelvedata", {})
+          assert "rate" not in p.get("checkmyswap", {})
+          print("FREE_MARKET_FEED_NON_EXECUTION_GUARD_PASS")
+          PY
+      - name: Archive metadata only (no licensed market prices or API keys)
+        uses: actions/upload-artifact@v4
+        with:
+          name: free-market-feed-research-health
+          path: ${{ runner.temp }}/free-feed-health.json
+          if-no-files-found: error
+          retention-days: 7
