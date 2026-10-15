@@ -272,6 +272,38 @@ class BeliefCoreLiveTest(unittest.TestCase):
         self.assertEqual(btc_usd_proxy["settlement_max_delay_hours"],72)
         self.assertEqual(eurusd_price["market_calendar"],"fx_24x5")
 
+    def test_fed_ecb_policy_evidence_reaches_production_belief_without_shadow_execution(self) -> None:
+        from belief_fed_ecb_policy_adapter import FedEcbPolicyDifferentialAdapter
+        now = datetime(2026, 10, 15, 10, 7, tzinfo=NY)
+        fed = "DATE,DFEDTARU\\n2026-09-12,4.00\\n2026-10-14,3.75\\n"
+        ecb = "TIME_PERIOD,OBS_VALUE\\n2026-08-01,2.50\\n2026-10-01,2.50\\n"
+
+        class ValidOfficialRates:
+            def __init__(self):
+                self.adapter = FedEcbPolicyDifferentialAdapter(
+                    fetcher=lambda url: fed if "fred.stlouisfed.org" in url else ecb
+                )
+            @property
+            def last_status(self):
+                return self.adapter.last_status
+            def run(self, current):
+                return self.adapter.run(current)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            state_dir = Path(tmp) / "core"
+            with patch("belief_core_live.FedEcbPolicyDifferentialAdapter", ValidOfficialRates):
+                status = run_cycle(state_dir, now, FakeChartClient(now))
+            self.assertTrue(status["eurusd_fed_ecb_policy_differential"]["ready"])
+            self.assertEqual(status["adapter_counts"]["fed_ecb_policy_differential"]["evidence"], 1)
+            self.assertIn("eurusd_fed_ecb_policy_refresh", status["stage_timings_seconds"])
+            core = BeliefCore(state_dir)
+            self.assertTrue(any(e.belief_id == "eurusd.policy_differential.supportive"
+                                for e in core.evidence.values()))
+            belief = core.beliefs["eurusd.policy_differential.supportive"]
+            self.assertGreater(belief.probability, 0.5)
+            self.assertTrue(belief.representative_evidence_ids)
+            self.assertEqual(status["mode"], "shadow")
+
     def test_eurusd_macro_beliefs_use_canonical_price_outcome(self) -> None:
         snapshot = StubSnapshot({"EURUSD=X": 1.137})
         for belief_id in (
