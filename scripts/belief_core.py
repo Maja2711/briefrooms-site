@@ -566,6 +566,39 @@ class BeliefCore:
         for e in items: clusters.setdefault(e.independence_cluster, []).append(e)
         return [self._representative(v, as_dt, definition.half_life_hours) for v in clusters.values()]
 
+    @staticmethod
+    def _eurusd_rates_freshness(
+        reps: Sequence[Evidence], as_of: datetime, half_life_hours: float
+    ) -> float:
+        """Rate liveness is supplied by recent intraday futures, not closed-market TLT.
+
+        Only source-timestamped, serial observations from the established
+        Treasury (ZT/ZN) or Fed Funds (ZQ) adapters can own intraday liveness.
+        The 90-minute absolute-age limit is independent of Yahoo fetch time.
+        Stale/future/missing intraday observations fall back to the historical
+        equal-cluster freshness calculation (and NEVER renew it).
+        Probability/effective mass, contradiction and provenance are unchanged.
+        """
+        baseline = (
+            sum(e.freshness(as_of, half_life_hours) for e in reps) / len(reps)
+            if reps else 0.0
+        )
+        eligible_types = frozenset({
+            "rates_proxy_intraday",
+            "fed_funds_policy_expectations_intraday",
+        })
+        eligible = []
+        for evidence in reps:
+            if evidence.evidence_type not in eligible_types:
+                continue
+            metadata = evidence.metadata or {}
+            if not metadata.get("serial_state_snapshot"):
+                continue
+            age_hours = (as_of - parse_time(evidence.observed_at)).total_seconds() / 3600.0
+            if 0.0 <= age_hours <= 1.5 and evidence.reliability >= 0.6:
+                eligible.append(evidence.freshness(as_of, half_life_hours))
+        return max(eligible) if eligible else baseline
+
     def _compute_raw_state(self, d: BeliefDefinition, as_of: str | datetime) -> BeliefState:
         as_dt = parse_time(as_of)
         all_items = [e for e in self.evidence.values() if e.belief_id == d.belief_id and parse_time(e.observed_at) <= as_dt]
@@ -588,6 +621,8 @@ class BeliefCore:
         count = len(reps)
         coverage = 1.0 - math.exp(-count / 3.0) if count else 0.0
         fresh_score = sum(freshness) / len(freshness) if freshness else 0.0
+        if d.belief_id == "eurusd.us_rates_pressure.supportive":
+            fresh_score = self._eurusd_rates_freshness(reps, as_dt, d.half_life_hours)
         quality = sum(reliabilities) / len(reliabilities) if reliabilities else 0.0
         diversity_n = len({e.source for e in reps}); diversity = min(1.0, diversity_n / 3.0)
         confidence = clamp((.35 * quality + .25 * fresh_score + .20 * coverage + .20 * diversity)

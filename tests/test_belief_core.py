@@ -332,4 +332,92 @@ class BeliefCoreTest(unittest.TestCase):
         self.assertEqual(b["diagnosis"],"overconfident")
 
 
+
+class EURUSDRatesFreshnessTests(unittest.TestCase):
+    RATES_ID = "eurusd.us_rates_pressure.supportive"
+    AS_OF = "2026-10-15T16:00:00Z"
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.core = BeliefCore(self.tmp.name)
+        self.core.register_beliefs([
+            BeliefDefinition(self.RATES_ID, "US rates proxy", .5, 24, "EURUSD", "rates_proxy"),
+            BeliefDefinition("unrelated.trend", "Unrelated trend", .5, 24, "TEST", "trend"),
+        ])
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def make(self, eid, belief_id=None, observed_at="2026-10-15T15:30:00Z",
+             evidence_type="rates_proxy_intraday", cluster=None, reliable=.74):
+        return Evidence(
+            evidence_id=eid, belief_id=belief_id or self.RATES_ID,
+            source="Derived from Yahoo Finance OHLCV",
+            observed_at=observed_at, direction=1, strength=.35,
+            reliability=reliable, independence_cluster=cluster or eid,
+            source_type="derived", evidence_type=evidence_type,
+            metadata={"serial_state_snapshot": True},
+        )
+
+    def test_fresh_treasury_outranks_stale_tlt_for_liveness_only(self):
+        old_tlt = self.make("tlt", observed_at="2026-10-12T16:00:00Z",
+                            evidence_type="rates_proxy", cluster="rates:TLT")
+        treasury = self.make("zt-zn", cluster="rates:ZT-ZN")
+        old_fed = self.make("zq-old", observed_at="2026-10-12T16:00:00Z",
+                            evidence_type="fed_funds_policy_expectations_intraday",
+                            cluster="rates:ZQ")
+        self.core.ingest([old_tlt, treasury, old_fed])
+        state = self.core.recompute(self.AS_OF)[self.RATES_ID]
+        self.assertGreater(state.freshness_score, .98)
+        self.assertEqual(len(state.representative_evidence_ids), 3)
+        self.assertEqual(set(state.representative_evidence_ids), {"tlt", "zt-zn", "zq-old"})
+        self.assertGreater(state.probability, 0.5)  # all 3 still contribute, with time decay
+
+        # The rates-only change must not alter probability computation for the
+        # same source evidence, or the generic belief freshness model.
+        for row in (old_tlt, treasury, old_fed):
+            self.core.ingest([self.make(
+                "unrelated-" + row.evidence_id, belief_id="unrelated.trend",
+                observed_at=row.observed_at, evidence_type=row.evidence_type,
+                cluster="unrelated-" + row.independence_cluster,
+            )])
+        generic = self.core.recompute(self.AS_OF)["unrelated.trend"]
+        self.assertAlmostEqual(state.probability, generic.probability, places=6)
+        self.assertLess(generic.freshness_score, 0.50)
+
+    def test_fresh_fed_funds_futures_alone_is_an_eligible_rates_source(self):
+        self.core.ingest([
+            self.make("tlt", observed_at="2026-10-12T16:00:00Z", evidence_type="rates_proxy"),
+            self.make("zq", observed_at="2026-10-15T15:45:00Z",
+                      evidence_type="fed_funds_policy_expectations_intraday"),
+        ])
+        state = self.core.recompute(self.AS_OF)[self.RATES_ID]
+        self.assertGreater(state.freshness_score, .99)
+
+    def test_two_hour_old_futures_do_not_fake_liveness(self):
+        self.core.ingest([
+            self.make("tlt", observed_at="2026-10-12T16:00:00Z", evidence_type="rates_proxy"),
+            self.make("zt-zn", observed_at="2026-10-15T14:00:00Z"),
+        ])
+        state = self.core.recompute(self.AS_OF)[self.RATES_ID]
+        expected = (0.5 ** (72 / 24) + 0.5 ** (2 / 24)) / 2
+        self.assertAlmostEqual(state.freshness_score, expected, places=6)
+        self.assertLess(state.freshness_score, 0.55)
+
+    def test_future_dated_or_low_reliability_futures_do_not_refresh_rates(self):
+        self.core.ingest([
+            self.make("tlt", observed_at="2026-10-12T16:00:00Z", evidence_type="rates_proxy"),
+            self.make("future", observed_at="2026-10-15T16:03:00Z"),
+            self.make("untrusted", observed_at="2026-10-15T15:55:00Z", reliable=.25),
+        ])
+        state = self.core.recompute(self.AS_OF)[self.RATES_ID]
+        self.assertLess(state.freshness_score, 0.6)
+        self.assertNotIn("future", state.representative_evidence_ids)
+        self.assertEqual(state.audit_status, "critical")
+
+    def test_without_rates_evidence_zero_freshness_stays_zero(self):
+        state = self.core.recompute(self.AS_OF)[self.RATES_ID]
+        self.assertEqual(state.freshness_score, 0.0)
+
+
 if __name__ == "__main__": unittest.main()
