@@ -10,6 +10,7 @@ on:
       - "scripts/belief_core_live.py"
       - "scripts/belief_fed_ecb_policy_adapter.py"
       - "scripts/belief_fed_ecb_ois_adapter.py"
+      - "scripts/belief_lseg_ois_market_feed.py"
       - "scripts/epistemic_consumer_interface.py"
       - "scripts/nyse_session_calendar.py"
       - "scripts/audit_provenance.py"
@@ -28,6 +29,7 @@ on:
       - "tests/test_belief_core_live.py"
       - "tests/test_belief_fed_ecb_policy_adapter.py"
       - "tests/test_belief_fed_ecb_ois_adapter.py"
+      - "tests/test_belief_lseg_ois_market_feed.py"
       - "tests/test_belief_wes_assets.py"
       - "docs/BELIEF_WES_ASSET_COVERAGE.md"
       - "scripts/belief_geopolitical_forecast_adapter.py"
@@ -67,6 +69,10 @@ env:
   # provider licensed to publish BOTH SOFR and €STR OIS discount curves.
   BELIEF_EURUSD_OIS_CURVES_URL: ${{ vars.BELIEF_EURUSD_OIS_CURVES_URL }}
   BELIEF_EURUSD_OIS_CURVES_TOKEN: ${{ secrets.BELIEF_EURUSD_OIS_CURVES_TOKEN }}
+  # LSEG Data Platform v2 machine authorization (no desktop session).
+  # Empty secrets leave the optional OIS modifier in fail-closed no-feed mode.
+  LSEG_OIS_CLIENT_ID: ${{ secrets.LSEG_OIS_CLIENT_ID }}
+  LSEG_OIS_CLIENT_SECRET: ${{ secrets.LSEG_OIS_CLIENT_SECRET }}
 
 jobs:
   collect:
@@ -180,7 +186,8 @@ jobs:
             scripts/belief_geopolitical_live.py \
             scripts/belief_core_live.py \
             scripts/belief_fed_ecb_policy_adapter.py \
-            scripts/belief_fed_ecb_ois_adapter.py
+            scripts/belief_fed_ecb_ois_adapter.py \
+            scripts/belief_lseg_ois_market_feed.py
           python -m unittest \
             tests/test_belief_core.py \
             tests/test_belief_closed_loop.py \
@@ -188,6 +195,7 @@ jobs:
             tests/test_belief_core_live.py \
             tests/test_belief_fed_ecb_policy_adapter.py \
             tests/test_belief_fed_ecb_ois_adapter.py \
+            tests/test_belief_lseg_ois_market_feed.py \
             tests/test_belief_wes_assets.py \
             tests/test_belief_core_geopolitical_live.py \
             tests/test_belief_geopolitical_forecast_adapter.py -v
