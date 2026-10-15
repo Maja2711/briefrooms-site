@@ -147,7 +147,7 @@ END:VCALENDAR"""
         self.assertEqual(coverage.metadata["sources"]["EUROSTAT"]["event_count"], 2)
         self.assertEqual(coverage.metadata["sources"]["ECB"]["event_count"], 1)
         calendar_events = [row for row in audit.observations if row.metric == "scheduled_macro_event"]
-        self.assertTrue(any("flash estimate GDP" in row.metadata.get("title", "").lower()
+        self.assertTrue(any("flash estimate gdp" in row.metadata.get("title", "").lower()
                             for row in calendar_events))
 
     def test_empty_eurostat_is_not_a_green_calendar(self):
