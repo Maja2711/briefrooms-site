@@ -15,6 +15,57 @@ The ECB's EMMS dataset includes OIS market-implied forward *statistics*, but
 the relevant EMMS.H series are published half-yearly, not as live quote snapshots.
 A real-time Daily signal requires a separately sourced pair of market curves.
 
+## Preferred provider: LSEG Data Platform (former Refinitiv/Reuters)
+
+**Selected for BriefRooms:** LSEG Instrument Pricing Analytics (IPA) zero-coupon
+curves. LSEG publicly documents both USD **SOFR** and EUR **ESTR** under the
+same cloud API for OIS discounting:
+
+- LSEG developer: https://developers.lseg.com/en/article-catalog/article/instrument-pricing-analytics-zero-coupon-curves
+- LSEG guide: https://community.developers.lseg.com/discussion/72439/rdp-ipa-sonia-curve/p1
+- LSEG cloud API quick start: https://developers.lseg.com/en/api-catalog/lseg-data-platform/lseg-data-library-for-python/quick-start
+
+The script `scripts/belief_lseg_ois_market_feed.py` implements the direct
+OAuth 2.0 **client-credentials** flow for a licensed service account, then
+makes one POST for both indexed curves to the documented IPA endpoint
+`/data/quantitative-analytics-curves-and-surfaces/v1/curves/zc-curves`.
+
+### Activate after the LSEG contract is agreed
+
+1. Request an **LSEG Data Platform service account**, not an LSEG Workspace
+   Desktop or Bloomberg Terminal-only seat. Confirm *cloud-side, automated,
+   non-display* access to USD SOFR and EUR ESTR **IPA OIS ZC curves** at
+   market-compatible frequency and verify commercial rights for this
+   BriefRooms processing use.
+2. Configure these two **GitHub Actions repository secrets** (never expose
+   values in chats, commits, issues, or website artifacts):
+   - `LSEG_OIS_CLIENT_ID` — OAuth v2 Service ID
+   - `LSEG_OIS_CLIENT_SECRET` — OAuth v2 Client Secret
+3. The existing `belief-core-shadow-live.yml` workflow passes secrets to
+   the runtime. A complete pair takes priority over the legacy optional
+   feed URL, uses HTTPS and processes responses **in private runtime memory**.
+   It never commits raw vendor OIS prices.
+4. Confirm that the licensed IPA response returns TWO separate curve objects
+   with `indexName=SOFR, currency=USD` and `indexName=ESTR, currency=EUR`,
+   `discountingTenor=OIS`, a single OIS curve, and discount factors at
+   3M, 6M and 1Y, plus a market quote **time-of-day with timezone**.
+5. Inspect `eurusd_fed_ecb_policy_differential` in the private Belief runtime:
+   `access_route=lseg_ipa_oauth_v2` and `ready=true` prove the provider
+   pipeline was accepted. Inspect actual Daily `used_beliefs` for
+   final production influence, only when OIS slope exceeds 5bp.
+
+**Fail-closed caveat:** LSEG's IPA response may carry only a valuation date
+instead of a demonstrably current quote timestamp. A date-only
+`valuationDate` or `marketDataDate` does **not** prove intraday data
+freshness and is rejected; do not replace it with runtime `now()` or claim
+a live feed. Ask LSEG for their price-source timestamp field/entitlement
+or authorized timestamped dataset if necessary. Until then the 5% modifier
+stays unavailable without affecting the other Daily signals.
+
+LSEG access and fees are contract-specific. A bank's existing LSEG/Bloomberg
+license does not automatically authorize redistribution or private-project
+server use; obtain express licensing approval first.
+
 ## Repository configuration
 
 Set GitHub Actions **repository variable** `BELIEF_EURUSD_OIS_CURVES_URL` to an

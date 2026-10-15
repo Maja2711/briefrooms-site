@@ -16,6 +16,7 @@ from typing import Any, Callable, Mapping
 
 from belief_adapter_contract import AdapterResult, EvidenceAssessment, Observation, observation_to_evidence
 from belief_core import iso_z
+from belief_lseg_ois_market_feed import fetch_lseg_ois_curves
 
 FEED_URL_ENV = "BELIEF_EURUSD_OIS_CURVES_URL"
 FEED_TOKEN_ENV = "BELIEF_EURUSD_OIS_CURVES_TOKEN"
@@ -191,21 +192,34 @@ class FedEcbOisForwardAdapter:
     version = "1.0.0"
 
     def __init__(self, fetcher: Callable[..., Mapping[str, Any]] = fetch_ois_feed,
-                 url: str | None = None, token: str | None = None) -> None:
+                 url: str | None = None, token: str | None = None,
+                 lseg_fetcher: Callable[..., Mapping[str, Any]] = fetch_lseg_ois_curves,
+                 lseg_client_id: str | None = None,
+                 lseg_client_secret: str | None = None) -> None:
         self.fetcher = fetcher
         self.url = str(url if url is not None else os.environ.get(FEED_URL_ENV, "")).strip()
         self.token = str(token if token is not None else os.environ.get(FEED_TOKEN_ENV, "")).strip()
+        self.lseg_fetcher = lseg_fetcher
+        self.lseg_client_id = str(lseg_client_id if lseg_client_id is not None
+                                  else os.environ.get("LSEG_OIS_CLIENT_ID", "")).strip()
+        self.lseg_client_secret = str(lseg_client_secret if lseg_client_secret is not None
+                                      else os.environ.get("LSEG_OIS_CLIENT_SECRET", "")).strip()
         self.last_status: dict[str, Any] = {"ready": False, "reason": "not_checked"}
 
     def run(self, now: datetime) -> AdapterResult:
-        if not self.url:
+        use_lseg = bool(self.lseg_client_id and self.lseg_client_secret)
+        if not use_lseg and not self.url:
             self.last_status = {"ready": False, "reason": "ois_market_feed_not_configured",
-                                "expected_schema_version": CONTRACT}
+                                "expected_schema_version": CONTRACT,
+                                "lseg_service_credentials_complete": False}
             return AdapterResult(self.name, (), ())
         try:
-            payload = self.fetcher(self.url, self.token)
+            # A complete, entitled LSEG cloud service account takes priority.
+            # A desktop Workspace login never grants rights to cloud API data.
+            payload = (self.lseg_fetcher(self.lseg_client_id, self.lseg_client_secret)
+                       if use_lseg else self.fetcher(self.url, self.token))
             status, observation = calculate_policy_ois(payload, now)
-            self.last_status = status
+            self.last_status = {**status, "access_route": "lseg_ipa_oauth_v2" if use_lseg else "sourced_https_feed"}
         except Exception as exc:
             self.last_status = {"ready": False, "reason": "ois_market_feed_unavailable_or_invalid",
                                 "error_type": type(exc).__name__,
