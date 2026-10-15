@@ -103,6 +103,53 @@ END:VCALENDAR"""
         obs = calendar_event_to_observation(rows[0], datetime(2026, 10, 29, 11, tzinfo=UTC))
         self.assertTrue(event_risk_evidence(obs, now=datetime(2026, 10, 29, 11, tzinfo=UTC)))
 
+    def test_official_ics_is_connected_and_calendar_is_complete(self):
+        self.assertEqual(
+            EUROSTAT_RELEASE_CALENDAR,
+            "https://ec.europa.eu/eurostat/o/calendars/eventsIcal?theme=&category=",
+        )
+        now = datetime(2026, 10, 15, 12, tzinfo=UTC)
+        ics = """BEGIN:VCALENDAR
+PRODID:-//Eurostat//Release calendar//EN
+VERSION:2.0
+BEGIN:VTIMEZONE
+TZID:Europe/Luxembourg
+END:VTIMEZONE
+BEGIN:VEVENT
+DTSTAMP:20261015T170125Z
+DTSTART;VALUE=DATE:20261029
+SUMMARY:Preliminary flash estimate GDP - EU and euro area
+X-CATEGORY:Data release\\,Euro indicators release
+UID:eurostat-gdp-20261029
+END:VEVENT
+BEGIN:VEVENT
+DTSTAMP:20261015T170125Z
+DTSTART;TZID=Europe/Luxembourg:20261030T110000
+SUMMARY:Flash estimate inflation euro area
+X-CATEGORY:Euro indicators release
+UID:eurostat-hicp-20261030
+END:VEVENT
+END:VCALENDAR"""
+
+        class FakeClient:
+            def text(self, url):
+                if url == EUROSTAT_RELEASE_CALENDAR:
+                    return ics
+                if "ecb.europa.eu" in url:
+                    return ("28/10/2026 Governing Council of the ECB: "
+                            "monetary policy meeting in Frankfurt (Day 1)")
+                return ""
+
+        audit = MacroEventCalendarAdapter(client=FakeClient()).run(now)
+        coverage = next(row for row in audit.observations if row.metric == "calendar_coverage")
+        self.assertTrue(coverage.metadata["complete"])
+        self.assertEqual(coverage.metadata["sources"]["EUROSTAT"]["status"], "ok")
+        self.assertEqual(coverage.metadata["sources"]["EUROSTAT"]["event_count"], 2)
+        self.assertEqual(coverage.metadata["sources"]["ECB"]["event_count"], 1)
+        calendar_events = [row for row in audit.observations if row.metric == "scheduled_macro_event"]
+        self.assertTrue(any("flash estimate GDP" in row.metadata.get("title", "").lower()
+                            for row in calendar_events))
+
     def test_empty_eurostat_is_not_a_green_calendar(self):
         now = datetime(2026, 10, 15, 12, tzinfo=UTC)
 
