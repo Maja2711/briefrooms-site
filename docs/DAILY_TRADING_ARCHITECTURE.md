@@ -201,6 +201,58 @@ Runtime implementation:
 - `scripts/execution_price_engine.py`;
 - canonical Daily lifecycle.
 
+## Daily EUR/USD pipeline liveness and staged recovery
+
+TR-03 must remain operationally independent from the Weekly/WES trading engine family. WES workflow cadence is not a liveness prerequisite for Daily EUR/USD.
+
+The production refresh chain is:
+
+```text
+independent Cloudflare heartbeat (5m)
+        |
+        v
+Daily EURUSD Cycle Watchdog
+        |
+        +-- BELIEF stale ------> Belief Core recovery
+        |                           |
+        |                           v
+        |                      Epistemic workflow_run
+        |                           |
+        |                           v
+        |                      Daily EURUSD when READY
+        |
+        +-- Epistemic stale --> Epistemic recovery
+        |                           |
+        |                           v
+        |                      Daily EURUSD when READY
+        |
+        +-- Daily stale ------> Daily recovery
+```
+
+GitHub cron remains a fallback scheduler. The independent Cloudflare Worker only dispatches the watchdog and has no direction, position, risk, or execution authority.
+
+The watchdog evaluates pipeline liveness in dependency order and selects exactly one recovery stage:
+
+- Belief runtime target age: 30 minutes;
+- Epistemic projection target age: 20 minutes;
+- canonical Daily EUR/USD state target age: 15 minutes while the FX market is active.
+
+These are pipeline-liveness thresholds, not Evidence freshness limits. Individual Belief/Evidence TTLs remain governed by their own contracts.
+
+Epistemic projection persists `daily_eurusd_readiness.json`. A fresh projection with `ready=false` is treated as a legitimate epistemic no-trade/unqualified state, not as an infrastructure failure, so the watchdog does not create an infinite recovery loop.
+
+Recovery is sequential, never parallel. The watchdog must not dispatch Belief Core and Daily at the same time. Downstream work is allowed only after the upstream stage succeeds. Before dispatching a recovery workflow, the watchdog checks whether the same workflow is already queued or in progress.
+
+Runtime implementation:
+
+- `scripts/daily_eurusd_cycle_watchdog.py`;
+- `.github/workflows/daily-eurusd-cycle-watchdog.yml`;
+- `.github/workflows/belief-epistemic-state.yml`;
+- `workers/daily-eurusd-heartbeat/`;
+- `.github/workflows/deploy-daily-eurusd-heartbeat.yml`.
+
+The Cloudflare heartbeat requires a repository-scoped GitHub credential stored as the deployment secret `DAILY_EURUSD_GITHUB_TOKEN`; the Worker receives it only as `GITHUB_DISPATCH_TOKEN`. The token is used solely to dispatch the watchdog workflow.
+
 ## Daily EUR/USD high-impact macro risk
 
 Daily EUR/USD v1.9 makes the new-entry direction only through the Belief-first path above, while open-position risk remains independently event-aware.
