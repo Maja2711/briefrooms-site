@@ -271,7 +271,8 @@ def build_context(
     if not events:
         return {
             "schema_version": "daily-eurusd-macro-fast-v1",
-            "status": "CLEAR",
+            "status": ("CLEAR" if calendar_coverage.get("complete") is True
+                       else "CALENDAR_UNVERIFIED"),
             "event": None,
             "expectations": None,
             "expectations_status": "NOT_APPLICABLE",
@@ -280,6 +281,7 @@ def build_context(
             "llm": None,
             "eurusd_score": 0.0,
             "decision_influence": False,
+            "calendar_coverage_complete": calendar_coverage.get("complete") is True,
             "calendar_coverage": calendar_coverage,
         }
 
