@@ -92,6 +92,15 @@ class BeliefCoreLiveTest(unittest.TestCase):
         self._calendar_patch.start()
         self.addCleanup(self._calendar_patch.stop)
 
+        class NoNetworkPolicy:
+            last_status = {"ready": True, "reason": "no_material_spread_change"}
+            def run(self, current):
+                return AdapterResult("fed_ecb_policy_differential", (), ())
+
+        self._policy_patch = patch("belief_core_live.FedEcbPolicyDifferentialAdapter", NoNetworkPolicy)
+        self._policy_patch.start()
+        self.addCleanup(self._policy_patch.stop)
+
     def test_safety_flags_are_hard_off(self) -> None:
         self.assertFalse(TRADE_EXECUTION_ENABLED)
         self.assertFalse(POLICY_OUTPUT_ENABLED)
