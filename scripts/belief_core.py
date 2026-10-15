@@ -559,9 +559,21 @@ class BeliefCore:
         rank = {"primary": 2, "secondary": 1, "derived": 0}
         return max(items, key=lambda e: (rank[e.source_type], e.effective_mass(as_of, half_life_hours), parse_time(e.observed_at).timestamp()))
 
+    @staticmethod
+    def _policy_ois_evidence_only(belief_id: str, evidence: Sequence[Evidence]) -> List[Evidence]:
+        # Cut over Policy Differential from realized official-rate observations
+        # to live market OIS forward spreads, without deleting historical ledger.
+        # Historical official-rate evidence cannot influence the new OIS signal.
+        if belief_id != "eurusd.policy_differential.supportive":
+            return list(evidence)
+        return [e for e in evidence if e.evidence_type == "market_ois_forward_spread_3m6m_6m12m"]
+
     def _representatives(self, definition: BeliefDefinition, as_of: str | datetime) -> List[Evidence]:
         as_dt = parse_time(as_of)
-        items = [e for e in self.evidence.values() if e.belief_id == definition.belief_id and parse_time(e.observed_at) <= as_dt]
+        items = self._policy_ois_evidence_only(
+            definition.belief_id, [e for e in self.evidence.values()
+                if e.belief_id == definition.belief_id and parse_time(e.observed_at) <= as_dt]
+        )
         clusters: Dict[str, List[Evidence]] = {}
         for e in items: clusters.setdefault(e.independence_cluster, []).append(e)
         return [self._representative(v, as_dt, definition.half_life_hours) for v in clusters.values()]
@@ -601,7 +613,7 @@ class BeliefCore:
 
     def _compute_raw_state(self, d: BeliefDefinition, as_of: str | datetime) -> BeliefState:
         as_dt = parse_time(as_of)
-        all_items = [e for e in self.evidence.values() if e.belief_id == d.belief_id and parse_time(e.observed_at) <= as_dt]
+        all_items = self._policy_ois_evidence_only(d.belief_id, [e for e in self.evidence.values() if e.belief_id == d.belief_id and parse_time(e.observed_at) <= as_dt])
         reps = self._representatives(d, as_dt)
         cluster_rows: Dict[str, List[Evidence]] = {}
         for e in all_items: cluster_rows.setdefault(e.independence_cluster, []).append(e)
@@ -624,14 +636,13 @@ class BeliefCore:
         if d.belief_id == "eurusd.us_rates_pressure.supportive":
             fresh_score = self._eurusd_rates_freshness(reps, as_dt, d.half_life_hours)
         if d.belief_id == "eurusd.policy_differential.supportive":
-            # Official policy series are polled each active FX hour. Missing
-            # source data must not keep yesterday's optional 5% macro modifier
-            # epistemically active just because its half-life was long.
+            # Only genuinely market-implied two-leg OIS Evidence can renew the
+            # optional 5% policy modifier; older official-rate evidence is inert.
             fresh_poll = [
                 e.freshness(as_dt, d.half_life_hours) for e in reps
-                if e.evidence_type == "official_fed_ecb_policy_spread_change_30d"
+                if e.evidence_type == "market_ois_forward_spread_3m6m_6m12m"
                 and bool((e.metadata or {}).get("serial_state_snapshot"))
-                and 0 <= (as_dt - parse_time(e.observed_at)).total_seconds() <= 2 * 3600
+                and 0 <= (as_dt - parse_time(e.observed_at)).total_seconds() <= 75 * 60
             ]
             fresh_score = max(fresh_poll) if fresh_poll else 0.0
         quality = sum(reliabilities) / len(reliabilities) if reliabilities else 0.0
@@ -667,7 +678,7 @@ class BeliefCore:
         self._normalize_alternative_groups(states)
         for bid, state in states.items():
             d = self.definitions[bid]
-            items = [e for e in self.evidence.values() if e.belief_id == bid]
+            items = self._policy_ois_evidence_only(bid, [e for e in self.evidence.values() if e.belief_id == bid])
             findings = self.auditor.audit(d, state, items, as_dt)
             sev = {f.severity for f in findings}
             state.audit_status = "critical" if "critical" in sev else "warning" if "warning" in sev else "ok"

@@ -9,6 +9,7 @@ on:
       - "scripts/belief_core.py"
       - "scripts/belief_core_live.py"
       - "scripts/belief_fed_ecb_policy_adapter.py"
+      - "scripts/belief_fed_ecb_ois_adapter.py"
       - "scripts/epistemic_consumer_interface.py"
       - "scripts/nyse_session_calendar.py"
       - "scripts/audit_provenance.py"
@@ -26,6 +27,7 @@ on:
       - "tests/test_belief_core_adapters.py"
       - "tests/test_belief_core_live.py"
       - "tests/test_belief_fed_ecb_policy_adapter.py"
+      - "tests/test_belief_fed_ecb_ois_adapter.py"
       - "tests/test_belief_wes_assets.py"
       - "docs/BELIEF_WES_ASSET_COVERAGE.md"
       - "scripts/belief_geopolitical_forecast_adapter.py"
@@ -61,6 +63,10 @@ concurrency:
 env:
   ARTIFACT_NAME: belief-core-shadow-state
   GSE_ARTIFACT_NAME: gse-shadow-state
+  # Set these repository-level settings only after obtaining a market-data
+  # provider licensed to publish BOTH SOFR and €STR OIS discount curves.
+  BELIEF_EURUSD_OIS_CURVES_URL: ${{ vars.BELIEF_EURUSD_OIS_CURVES_URL }}
+  BELIEF_EURUSD_OIS_CURVES_TOKEN: ${{ secrets.BELIEF_EURUSD_OIS_CURVES_TOKEN }}
 
 jobs:
   collect:
@@ -173,13 +179,15 @@ jobs:
             scripts/belief_geopolitical_forecast_adapter.py \
             scripts/belief_geopolitical_live.py \
             scripts/belief_core_live.py \
-            scripts/belief_fed_ecb_policy_adapter.py
+            scripts/belief_fed_ecb_policy_adapter.py \
+            scripts/belief_fed_ecb_ois_adapter.py
           python -m unittest \
             tests/test_belief_core.py \
             tests/test_belief_closed_loop.py \
             tests/test_belief_core_adapters.py \
             tests/test_belief_core_live.py \
             tests/test_belief_fed_ecb_policy_adapter.py \
+            tests/test_belief_fed_ecb_ois_adapter.py \
             tests/test_belief_wes_assets.py \
             tests/test_belief_core_geopolitical_live.py \
             tests/test_belief_geopolitical_forecast_adapter.py -v
