@@ -59,6 +59,10 @@ jobs:
                   locations=[m.start() for m in re.finditer(pattern,text)]
                   samples=[re.sub(r'\\s+',' ',text[max(0,p-90):p+150])[:240] for p in locations[:12]]
                   entries=parse_eu_calendar_text(text,now=now,source="Eurostat",source_ref=effective)
+                  scripts=[a for a in refs if any(k in a.lower() for k in ('estat','calendar','frontend','main')) and ('js' in a.lower() or 'o/' in a.lower())]
+                  indicators=[m for m in re.finditer(r"(?i)(?:copy calendar url|ics[.]|[.]ics|icalendar|/o/[^'\" ]*calendar|calendar-service|subscription)",text)]
+                  deeper=[re.sub(r'\\s+',' ',text[max(0,m.start()-160):m.start()+250])[:360] for m in indicators[-16:]]
+                  print("EUROSTAT_DEEP",json.dumps({'url':url,'scripts':list(dict.fromkeys(scripts))[-35:],'match_count':len(indicators),'deeper':deeper},ensure_ascii=False))
                   print("EUROSTAT_DIAG",json.dumps({'url':url,'effective':effective,'bytes':len(raw),'content_type':content_type,'starts_calendar':text.lstrip().startswith("BEGIN:VCALENDAR"),'events':len(entries),'example_titles':[x.title[:70] for x in entries[:8]],'links':calendar_refs[:20],'snippets':samples[:10]},ensure_ascii=False))
               except Exception as e:
                   print("EUROSTAT_DIAG",json.dumps({'url':url,'error_type':type(e).__name__,'error':str(e)[:200]}))
