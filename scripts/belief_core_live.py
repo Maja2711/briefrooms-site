@@ -17,7 +17,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from belief_adapter_contract import stable_id, strength_from_return
+from belief_adapter_contract import Observation, stable_id, strength_from_return
 from belief_core import BeliefCore, BeliefDefinition, iso_z, parse_time
 from belief_closed_loop import transform_probability
 from nyse_session_calendar import session_for
