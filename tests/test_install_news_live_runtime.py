@@ -67,8 +67,8 @@ class HomepageStaticFreshnessGuardTests(unittest.TestCase):
             runtime.install(path)
             rendered = path.read_text(encoding='utf-8')
 
-        live_url = '/scripts/news-live.js?v=8&rev=global24h'
-        floor_url = '/scripts/home-card-floor.js?v=4'
+        live_url = '/scripts/news-live.js?v=9&rev=desk24h'
+        floor_url = '/scripts/home-card-floor.js?v=5'
         urgent_url = '/scripts/urgent-news-live.js?v=1'
         self.assertEqual(rendered.count(urgent_url), 1)
         self.assertEqual(rendered.count(live_url), 1)
@@ -94,8 +94,8 @@ class HomepageStaticFreshnessGuardTests(unittest.TestCase):
 
         lab_url = '/scripts/home-lab.js?v=1'
         intelligence_url = '/scripts/home-intelligence-layout.js?v=1'
-        live_url = '/scripts/news-live.js?v=8&rev=global24h'
-        floor_url = '/scripts/home-card-floor.js?v=4'
+        live_url = '/scripts/news-live.js?v=9&rev=desk24h'
+        floor_url = '/scripts/home-card-floor.js?v=5'
         self.assertEqual(rendered.count(lab_url), 1)
         self.assertEqual(rendered.count('/scripts/urgent-news-live.js?v=1'), 1)
         self.assertEqual(rendered.count(intelligence_url), 1)
