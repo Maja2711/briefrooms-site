@@ -195,6 +195,7 @@ jobs:
           from zoneinfo import ZoneInfo
           from scripts.dedupe_home_brief_stories import same_topic
           from scripts import publish_live_news as news_base
+          from scripts import enforce_homepage_max_age as freshness
           from scripts.news_section_limits import NEWS_SECTION_MINIMUM, NEWS_SECTION_MAXIMUM
           from scripts.publish_live_news_filtered import (
               PL_UKRAINE_RUSSIA_WAR_MINIMUM,
@@ -268,10 +269,21 @@ jobs:
                           last.append(f'{path}: 24h policy is not global')
                       if homepage_policy.get('max_display_hours') != 24:
                           last.append(f'{path}: public-news display cap is not 24h')
-                      if homepage_policy.get('source_age_limit_hours') != 24:
-                          last.append(f'{path}: source age must be capped at 24h')
-                      if homepage_policy.get('source_same_day_timezone') != ('Europe/Warsaw' if path.endswith('/pl.json') else None):
-                          last.append(f'{path}: same-day Warsaw publication policy mismatch')
+                      lang = 'pl' if path.endswith('/pl.json') else 'en'
+                      if homepage_policy.get('source_age_limit_hours') is not None:
+                          last.append(f'{path}: global source-age must be desk-specific')
+                      if homepage_policy.get('current_news_source_age_limit_hours') != 24:
+                          last.append(f'{path}: current-news source-age cap must be 24h')
+                      if homepage_policy.get('current_news_same_day_timezone') != ('Europe/Warsaw' if lang == 'pl' else None):
+                          last.append(f'{path}: same-day current-news calendar policy mismatch')
+                      if homepage_policy.get('editorial_exception_source_age_limit_hours') is not None:
+                          last.append(f'{path}: Science/Health/AI source age should be unrestricted')
+                      if homepage_policy.get('current_news_sections') != sorted(freshness.CURRENT_NEWS_SECTIONS[lang]):
+                          last.append(f'{path}: current-news desk list mismatch')
+                      if homepage_policy.get('editorial_exception_sections') != sorted(freshness.EDITORIAL_EXCEPTION_SECTIONS[lang]):
+                          last.append(f'{path}: older-source exception desk list mismatch')
+                      if homepage_policy.get('freshness_profile_version') != freshness.FRESHNESS_PROFILE_VERSION:
+                          last.append(f'{path}: freshness policy version mismatch')
                       if homepage_policy.get('clock') != 'first_known_briefrooms_display':
                           last.append(f'{path}: 24h clock is not based on first BriefRooms display')
                       freshness_policy = payload.get('health', {}).get('homepage_freshness', {})
@@ -355,27 +367,17 @@ jobs:
                               if check_now - first_seen > timedelta(hours=24):
                                   last.append(f'{path}/{section_id}: displayed story exceeds 24h')
                                   break
-                              try:
-                                  published = datetime.fromisoformat(str(story.get('published_at') or '').replace('Z', '+00:00'))
-                              except (ValueError, TypeError):
-                                  last.append(f'{path}/{section_id}: missing verifiable publication time')
+                              if not freshness._source_is_fresh(story, check_now, lang, section_id):
+                                  last.append(f'{path}/{section_id}: stale or missing source publication for this desk')
                                   break
-                              if published.tzinfo is None:
-                                  published = published.replace(tzinfo=timezone.utc)
-                              if not -timedelta(minutes=10) <= check_now - published <= timedelta(hours=24):
-                                  last.append(f'{path}/{section_id}: source publication outside 24h')
+                              expected_expiry = freshness._public_expiry(story, first_seen, lang, section_id)
+                              expected_profile = (
+                                  'current' if freshness._is_current_news(story, lang, section_id)
+                                  else 'editorial_exception'
+                              )
+                              if story.get('news_freshness_profile') != expected_profile:
+                                  last.append(f'{path}/{section_id}: wrong news freshness profile')
                                   break
-                              expected_expiry = min(first_seen + timedelta(hours=24), published + timedelta(hours=24))
-                              if path.endswith('/pl.json'):
-                                  warsaw = ZoneInfo('Europe/Warsaw')
-                                  if published.astimezone(warsaw).date() != check_now.astimezone(warsaw).date():
-                                      last.append(f'{path}/{section_id}: source article is not from today in Warsaw')
-                                      break
-                                  local_midnight = datetime.combine(
-                                      published.astimezone(warsaw).date() + timedelta(days=1),
-                                      datetime.min.time(), tzinfo=warsaw,
-                                  )
-                                  expected_expiry = min(expected_expiry, local_midnight.astimezone(timezone.utc))
                               if expires != expected_expiry or check_now > expires:
                                   last.append(f'{path}/{section_id}: invalid or elapsed source/display/day expiry')
                                   break
@@ -447,8 +449,16 @@ jobs:
                           if now - first_seen > timedelta(hours=24):
                               last.append(f'{path}: homepage/reserve story exceeds 24h display cap')
                               break
-                          if expires != first_seen + timedelta(hours=24):
-                              last.append(f'{path}: homepage/reserve invalid 24h expiry')
+                          if not freshness._source_is_fresh(story, now, lang):
+                              last.append(f'{path}: homepage/reserve contains stale source for current-news lane')
+                              break
+                          expected_expiry = freshness._public_expiry(story, first_seen, lang)
+                          expected_profile = 'current' if freshness._is_current_news(story, lang) else 'editorial_exception'
+                          if story.get('news_freshness_profile') != expected_profile:
+                              last.append(f'{path}: homepage/reserve freshness profile mismatch')
+                              break
+                          if expires != expected_expiry or now > expires:
+                              last.append(f'{path}: homepage/reserve invalid source/display/day expiry')
                               break
                   except Exception as exc:
                       last.append(f'{path}: {exc}')
