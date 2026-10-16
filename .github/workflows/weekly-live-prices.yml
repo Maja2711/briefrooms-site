@@ -73,18 +73,30 @@ jobs:
           PY
 
       - name: Persist atomic WES execution
+        id: atomic_commit
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          echo "changed=false" >> "$GITHUB_OUTPUT"
           git add data/investments/live_prices.json data/investments/weekly data/investments/intraday_risk_audit.json data/investments/multi_instrument_exposure_report_v5.json data/investments/multi_instrument_exposure_state_v5.json data/notifications/wes-event-outbox.json
           if ! git diff --cached --quiet; then
             python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
             git commit -m "Execute WES live ENTRY SL TP"
             git pull --rebase origin main
             git push origin HEAD:main
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           fi
+
+      # The atomic stage can commit the full SL/TP outbox already. The later
+      # price-only commit may then be a no-op; never gate lifecycle push on it.
+      - name: Dispatch atomic WES lifecycle transition to Web Push
+        if: steps.atomic_commit.outputs.changed == 'true'
+        env:
+          PUSH_API: https://briefrooms-trading-push.szczerbinski0577.workers.dev
+        run: bash scripts/sync_trading_push_commit.sh "${{ steps.atomic_commit.outputs.sha }}" weekly
 
       - name: Validate Weekly live-price snapshot
         run: |
