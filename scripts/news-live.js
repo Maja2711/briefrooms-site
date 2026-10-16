@@ -256,7 +256,9 @@
       const sourceFresh = isCurrentSource(card.dataset.homePublishedAt, strict, now);
       const expiresAt = timestamp(card.dataset.homeExpiresAt);
       const notExpired = Boolean(expiresAt && now <= expiresAt);
-      const exposureFresh = !card.dataset.homeFirstSeenAt || isFreshTimestamp(card.dataset.homeFirstSeenAt, now);
+      const firstSeen = timestamp(card.dataset.homeFirstSeenAt);
+      const exposureFresh = Boolean(firstSeen && isFreshTimestamp(firstSeen, now) &&
+        expiresAt && expiresAt <= firstSeen + HOME_MAX_AGE_MS);
       const image = card.querySelector('.thumb.has-image img');
       const imageEligible = Boolean(image && safeImage(image.getAttribute('src')));
       if (sourceFresh && exposureFresh && notExpired && imageEligible) {
