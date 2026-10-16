@@ -166,7 +166,8 @@
     if (!link || !image || !story.title || !publishedAt) return '';
     const firstSeenAttr = firstSeenAt ? ` data-home-first-seen-at="${esc(firstSeenAt)}"` : '';
     const expiresAttr = expiresAt ? ` data-home-expires-at="${esc(expiresAt)}"` : '';
-    return `<a class="brief-card" href="${esc(link)}" target="_blank" rel="noopener noreferrer external" data-home-published-at="${esc(publishedAt)}"${firstSeenAttr}${expiresAttr}><div class="thumb has-image"><img src="${esc(image)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-br-external-media="source-linked" data-br-source-url="${esc(link)}"><span class="media-source-badge">${text.source}: ${esc(story.source || '')}</span></div><div class="brief-body"><h3 class="brief-title">${esc(story.title)}</h3><p class="brief-desc">${esc(story.summary || story.title)}</p><span class="brief-source"><b>${esc(story.source || text.source)}</b><span class="brief-link">${text.read}</span></span></div></a>`;
+    const profile = story.news_freshness_profile === 'editorial_exception' ? 'editorial_exception' : 'current';
+    return `<a class="brief-card" href="${esc(link)}" target="_blank" rel="noopener noreferrer external" data-home-published-at="${esc(publishedAt)}" data-home-freshness-profile="${profile}"${firstSeenAttr}${expiresAttr}><div class="thumb has-image"><img src="${esc(image)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-br-external-media="source-linked" data-br-source-url="${esc(link)}"><span class="media-source-badge">${text.source}: ${esc(story.source || '')}</span></div><div class="brief-body"><h3 class="brief-title">${esc(story.title)}</h3><p class="brief-desc">${esc(story.summary || story.title)}</p><span class="brief-source"><b>${esc(story.source || text.source)}</b><span class="brief-link">${text.read}</span></span></div></a>`;
   }
 
   function formatTime(value) {
