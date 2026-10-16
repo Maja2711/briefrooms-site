@@ -195,15 +195,15 @@ def select_sections(
     stored = exposure_languages.get(lang, {}) if isinstance(exposure_languages, dict) else {}
     state_lang = stored if isinstance(stored, dict) else {}
 
-    def eligible(story: dict[str, Any]) -> bool:
+    def eligible(story: dict[str, Any], section_id: str) -> bool:
         first_seen, _reason = public_freshness.public_news_preselection_check(
-            story, state_lang, now, lang,
+            story, state_lang, now, lang, section_id,
         )
         return first_seen is not None
 
     for section_id, _, _ in config:
         raw = fetched.get(section_id) or []
-        eligible_rows = [story for story in raw if isinstance(story, dict) and eligible(story)]
+        eligible_rows = [story for story in raw if isinstance(story, dict) and eligible(story, section_id)]
         preselection_rejected[section_id] = len(raw) - len(eligible_rows)
         deduped, dispatch_diag = deduplicate_dispatches(eligible_rows)
         events, event_diag = cluster_events(deduped)
@@ -217,7 +217,7 @@ def select_sections(
     prior_sections = eligible_previous.get("sections", {})
     if isinstance(prior_sections, dict):
         eligible_previous["sections"] = {
-            section_id: [story for story in rows if isinstance(story, dict) and eligible(story)]
+            section_id: [story for story in rows if isinstance(story, dict) and eligible(story, section_id)]
             if isinstance(rows, list) else rows
             for section_id, rows in prior_sections.items()
         }
