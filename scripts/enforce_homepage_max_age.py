@@ -6,6 +6,7 @@ import json
 import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 from typing import Any, Iterable
 from urllib.parse import urlsplit
 
@@ -20,6 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 NEWS_DIR = ROOT / "data" / "news"
 STATE_PATH = NEWS_DIR / "homepage_exposure.json"
 NEWS_MAX_AGE = timedelta(hours=24)
+WARSAW = ZoneInfo("Europe/Warsaw")
 # Compatibility alias for older tests/importers. The policy is now global, not homepage-only.
 HOME_MAX_AGE = NEWS_MAX_AGE
 FUTURE_TOLERANCE = timedelta(minutes=10)
@@ -84,12 +86,33 @@ def _iso(value: datetime) -> str:
     return value.astimezone(timezone.utc).isoformat(timespec="seconds")
 
 
-def _source_is_fresh(story: dict[str, Any], now: datetime) -> bool:
+def _source_is_fresh(story: dict[str, Any], now: datetime, lang: str | None = None) -> bool:
+    """No original article may enter the public feed after its source window.
+
+    The Polish current-news room also requires today's Warsaw publication date.
+    A newly fetched or updated feed does not reset the source publication clock.
+    """
     published = _parse_time(story.get("published_at"))
     if published is None:
         return False
-    age = now - published
-    return -FUTURE_TOLERANCE <= age <= NEWS_MAX_AGE
+    age = now.astimezone(timezone.utc) - published
+    if not (-FUTURE_TOLERANCE <= age <= NEWS_MAX_AGE):
+        return False
+    if lang == "pl" and published.astimezone(WARSAW).date() != now.astimezone(WARSAW).date():
+        return False
+    return True
+
+
+def _public_expiry(story: dict[str, Any], first_seen: datetime, lang: str | None) -> datetime | None:
+    published = _parse_time(story.get("published_at"))
+    if published is None:
+        return None
+    expiry = min(first_seen.astimezone(timezone.utc) + NEWS_MAX_AGE, published + NEWS_MAX_AGE)
+    if lang == "pl":
+        tomorrow = published.astimezone(WARSAW).date() + timedelta(days=1)
+        midnight = datetime.combine(tomorrow, datetime.min.time(), tzinfo=WARSAW)
+        expiry = min(expiry, midnight.astimezone(timezone.utc))
+    return expiry
 
 
 def _is_primary_bulletin(story: dict[str, Any]) -> bool:
@@ -298,6 +321,8 @@ def public_news_preselection_check(
     """
     if not _homepage_image_url(story):
         return None, "image"
+    if not _source_is_fresh(story, now, lang):
+        return None, "source_stale"
     if not _primary_bulletin_is_current(story, now, lang):
         return None, "primary_bulletin_stale"
     identity = base.normalized_identity(story)
@@ -339,6 +364,9 @@ def enforce_payload(
     }
 
     def qualify(story: dict[str, Any]) -> tuple[dict[str, Any] | None, str]:
+        # The identity cache must not launder a stale timestamp in another surface.
+        if not _source_is_fresh(story, current, lang):
+            return None, "source_stale"
         identity = base.normalized_identity(story)
         if identity and identity in qualification_cache:
             cached, reason = qualification_cache[identity]
@@ -362,9 +390,13 @@ def enforce_payload(
                     "title": str(story.get("title") or ""),
                 }
             copy = dict(story)
-            copy["news_first_seen_at"] = _iso(first_seen)
-            copy["news_expires_at"] = _iso(first_seen + NEWS_MAX_AGE)
-            result = (copy, "ok")
+            expiry = _public_expiry(story, first_seen, lang)
+            if expiry is None or expiry < current:
+                result = (None, "source_stale")
+            else:
+                copy["news_first_seen_at"] = _iso(first_seen)
+                copy["news_expires_at"] = _iso(expiry)
+                result = (copy, "ok")
 
         if identity:
             cached_story = dict(result[0]) if isinstance(result[0], dict) else None
@@ -436,7 +468,8 @@ def enforce_payload(
         "scope": "all_public_news_surfaces",
         "max_display_hours": 24,
         "clock": "first_known_briefrooms_display",
-        "source_age_limit_hours": None,
+        "source_age_limit_hours": 24,
+        "source_same_day_timezone": "Europe/Warsaw" if lang == "pl" else None,
         "target_story_count": HOME_LIMIT,
         "minimum_story_count": 0,
         "underfill_allowed_when_needed_for_freshness": True,
@@ -581,7 +614,10 @@ def validate_files() -> None:
             raise RuntimeError(f"{lang} public-news freshness scope is incomplete")
         if int(policy.get("max_display_hours") or 0) != 24:
             raise RuntimeError(f"{lang} public-news display cap is not 24 hours")
+        if policy.get("source_age_limit_hours") != 24:
             raise RuntimeError(f"{lang} public-news source-age cap is not 24 hours")
+        if policy.get("source_same_day_timezone") != ("Europe/Warsaw" if lang == "pl" else None):
+            raise RuntimeError(f"{lang} public-news same-day calendar policy is invalid")
         if policy.get("target_story_count") != HOME_LIMIT:
             raise RuntimeError(f"{lang} homepage twelve-story target missing")
         if policy.get("underfill_allowed_when_needed_for_freshness") is not True:
@@ -618,6 +654,8 @@ def validate_files() -> None:
         approved: list[dict[str, Any]] = []
 
         def validate_story(scope: str, story: dict[str, Any], *, dedupe: bool) -> None:
+            if not _source_is_fresh(story, now, lang):
+                raise RuntimeError(f"{lang} {scope} contains stale source publication: {story.get('title')}")
             if not _primary_bulletin_is_current(story, now, lang):
                 raise RuntimeError(
                     f"{lang} {scope} contains stale same-day primary bulletin: {story.get('title')}"
@@ -645,9 +683,10 @@ def validate_files() -> None:
             expires = _parse_time(story.get("news_expires_at"))
             if first_seen is None or expires is None:
                 raise RuntimeError(f"{lang} {scope} is missing 24h exposure metadata: {story.get('title')}")
-            if expires != first_seen + NEWS_MAX_AGE:
-                raise RuntimeError(f"{lang} {scope} has invalid 24h expiry: {story.get('title')}")
-            if now - first_seen > NEWS_MAX_AGE:
+            expected_expiry = _public_expiry(story, first_seen, lang)
+            if expires != expected_expiry:
+                raise RuntimeError(f"{lang} {scope} has invalid source/display/day expiry: {story.get('title')}")
+            if now - first_seen > NEWS_MAX_AGE or now > expires:
                 raise RuntimeError(f"{lang} {scope} contains overexposed story: {story.get('title')}")
 
         for section_id, rows in (payload.get("sections") or {}).items():
