@@ -10,6 +10,7 @@ import {
   transitionDescriptors,
   diffPersistedOutboxEvents,
   notificationPayload,
+  eventToPushLatencyMs,
   storedCommitSnapshot,
   persistableCommitSnapshot,
   sameCommitSnapshot,
@@ -230,6 +231,18 @@ test("EUR/USD push uses four decimals in both languages and preserves original e
   assert.equal(JSON.parse(notificationPayload(event, "pl")).body, "OTWARTY LONG · EUR/USD @ 1,1235");
   assert.equal(JSON.parse(notificationPayload(event, "en")).body, "OPENED LONG · EUR/USD @ 1.1235");
   assert.equal(event.entry, 1.12345678);
+});
+
+test("Event-to-provider latency uses the persisted lifecycle timestamp", () => {
+  const now = Date.parse("2026-10-16T10:28:28.000Z");
+  assert.equal(eventToPushLatencyMs({
+    event_type: "CLOSE", closed_at: "2026-10-16T10:28:27.000Z",
+    observed_at: "2026-10-16T10:29:00.000Z",
+  }, now), 1000);
+  assert.equal(eventToPushLatencyMs({
+    event_type: "OPEN", opened_at: "2026-10-16T10:28:20.000Z",
+  }, now), 8000);
+  assert.equal(eventToPushLatencyMs({ event_type: "CLOSE" }, now), null);
 });
 
 test("Push formats ASO price with two decimals without mutating event precision", () => {
