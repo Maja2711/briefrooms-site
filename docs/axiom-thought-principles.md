@@ -22,7 +22,7 @@ Każdego dnia AXIOM:
 6. Wybiera jedną myśl i przypisuje jej oceny: `depth`, `novelty`, `banality_risk`.
 7. Publikuje tylko wtedy, gdy `depth >= 8`, `novelty >= 8`, `banality_risk <= 2` i `silence_test = true`.
 8. Aktualizuje `data/home/axiom-thought.json` oraz dopisuje dokładnie jeden rekord do historii.
-9. Od 13.10.2026 wymaga także **odmienności schematu retorycznego**, niezależnie od unikalności idei. Bramka analizuje konstrukcję zdania po normalizacji polskich znaków, nie tylko dosłowne słowa.
+9. Zwraca uwagę na **różnorodność stylu i konstrukcji retorycznych** jako wskazówkę redakcyjną. Powtarzanie formy zdania nie blokuje wartościowej i nowej koncepcyjnie myśli.
 
 ## Czego nie publikujemy
 
@@ -36,7 +36,7 @@ Odrzucamy bez względu na brzmienie:
 - parafrazy znanych cytatów, przysłów i sentencji;
 - sztuczną pompatyczność, metafory bez treści i słowa mające udawać głębię;
 - powtórzenie wcześniejszej tezy przy zmianie jedynie słownictwa;
-- mechaniczne powtarzanie tych samych form zdania („rzadko… częściej”, „nie wtedy… lecz”, „nie… lecz/ale”, seryjne otwarcia „naj…”), nawet przy innej tezie.
+- mechaniczny styl jest sygnałem do wyboru lepszej wersji, **nie automatycznym powodem odrzucenia** odrębnej idei.
 
 ## Co cenimy
 
@@ -50,18 +50,20 @@ Dobra myśl AXIOM-a zwykle ma przynajmniej jeden z tych elementów:
 
 Nie wymagamy, aby każda myśl była optymistyczna. Może być spokojna, niepokojąca, sceptyczna, ambitna lub melancholijna, jeśli jest uczciwa intelektualnie.
 
-## Rotacja konstrukcji retorycznych (od 13.10.2026)
+## Różnorodność retoryczna jako ocena pomocnicza
 
-`axiom_thought_guard.py` niezależnie egzekwuje rotację **szablonu wypowiedzi**, a `publish_axiom_thought.py` odrzuca kandydatów również przed kosztowną recenzją semantyczną. Wstępna deterministyczna reguła obejmuje:
+AXIOM wykrywa powtarzające się konstrukcje („rzadko… częściej”, „nie… lecz/ale”, otwarcia „naj…”). Daje im **miękką ocenę różnorodności (0–10)**; kandydaci o ciekawszej formie mogą być rozpatrywani wcześniej. **Sam schemat wypowiedzi nigdy nie blokuje publikacji ani nie usuwa rezerwy.**
 
-- 30 dni od ostatniego motta zawierającego `rzadko` oraz 30 dni dla pary `rzadko… częściej`;
-- 21 dni dla struktury `nie wtedy… lecz/ale/gdy/kiedy`;
-- 14 dni dla kontrastu `nie… lecz/ale`;
-- 14 dni dla rozpoczęcia od formy superlatywnej `naj…`.
+Kontrola powtórzeń **znaczenia** pozostaje niezależna i obowiązkowa: zgodność tematu w oknie pamięci, podobieństwo tekstu w całej historii oraz dwa rzeczywiste, niezależne zatwierdzenia semantyczne, zapisane i związane z treścią przez SHA-256. Awaria modeli lub brak tych dwóch dowodów nie może być zastąpiony sztucznymi potwierdzeniami.
 
-To **minimalny zestaw rozpoznawalnych wzorców**, nie deklaracja wykrywania każdej możliwej konstrukcji językowej. Unikalność znaczenia nadal podlega oddzielnej kontroli dwóch modeli. Okna dotyczą nowych publikacji, a nie przepisywania istniejącej historii; pierwsza obowiązująca data to **13.10.2026**. Bank nieopublikowanych myśli może zachować zatwierdzenia semantyczne, które stały się stylistycznie nieaktualne: walidacja dzienna je odrzuca, a godzinowy refill usuwa z aktywnej rezerwy, pozostawiając pierwotny wpis w historii Git.
+## Minimalny zdrowy bank: 10 potwierdzonych myśli
+
+Bank rezerwowy jest osobny od historii opublikowanych mott. **Dopiero minimum 10 nieopublikowanych myśli, z prawidłowymi dwoma dowodami semantycznymi i pozytywną aktualną walidacją, oznacza `SUCCESS` workflow refill.** Sam poprawny przebieg procesu nie oznacza sukcesu biznesowego. Kroki zapisu banku odbywają się *przed* końcową bramką 10/10, dlatego częściowy prawdziwy postęp nie ginie przy chwilowym błędzie API.
+
+Wartościowe, zweryfikowane myśli nie są kasowane za styl; podczas niedostępności Gemini ani nie dopisujemy pozornych opinii, ani nie usuwamy poprzedniej rezerwy. Historyczne wpisy opublikowane pozostają nienaruszalne. Docelowa pojemność banku wynosi 100, ale **10** stanowi minimalny próg zdrowia; poniżej 10 jest `FAIL/DEGRADED`, nigdy `SUCCESS`.
 
 ## Rotacja tematów
+
 
 Preferowany bank domen (nie jest zamknięty):
 
@@ -117,7 +119,7 @@ Ocenia odległość idei od całego dotychczasowego archiwum, nie tylko podobie�
 2. Każde odrzucenie, niepewność lub brak odpowiedzi powodują próbę z kolejnym kandydatem — nie należy uznawać całego dnia za nieudany z powodu jednego weta.
 3. Gdy kandydaci na dziś zawiodą, kolejno sprawdzamy **bank docelowo 100 nieopublikowanych myśli**. Każda oznaczona jako zweryfikowana musi mieć dwa rzeczywiste werdykty UNIQUE i odcisk SHA-256 zgodny z tekstem; nie tworzymy fikcyjnych potwierdzeń.
 4. Bank uzupełnia niezależny, godzinowy proces. Stan 100 jest **celem pojemności, a nie deklaracją**, że wszystkie 100 są już przygotowane; status należy ustalić, licząc poprawne dowody.
-5. Myśl z banku sprawdzana jest deterministycznie względem całej aktualnej historii przy publikacji. Zgłoszenie niepewności **nie usuwa** wpisu rezerwowego; udokumentowany duplikat jest odrzucany.
+5. Myśl z banku sprawdzana jest deterministycznie względem całej aktualnej historii przy publikacji. Zgłoszenie niepewności **nie usuwa** wpisu rezerwowego; jedynie jednoznacznie rozpoznany duplikat idei może być odrzucony.
 6. W wyjątkowej awarii publikatora frontend nie pozostawia pustej przestrzeni: pokazuje wyraźnie oznaczoną *Archiwalną myśl AXIOM-a* z datą źródłową. **To nie jest nowa publikacja** i nie wolno zaliczyć jej do terminowych wydań. Gdy cała infrastruktura strony jest niedostępna, żadna aplikacja nie może bezwarunkowo zagwarantować ekspozycji.
 
 ## Archiwum jest pamięcią systemu
