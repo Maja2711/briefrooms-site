@@ -392,17 +392,17 @@
       "challenger": "X-AUTO-03",
       "champion": "X-BASE",
       "claim": "EURUSD X challenger X-AUTO-03 has higher prospective signed return than champion X-BASE.",
-      "completed_at": null,
+      "completed_at": "2026-10-16T12:28:15.356181Z",
       "experiment_id": "hse2exp-6e3bf7d29955d4b937c175c0",
       "frozen_at": "2026-10-12T15:30:20.893892Z",
-      "last_evidence_at": "2026-10-16T07:13:06.120309Z",
-      "lesson_id": null,
+      "last_evidence_at": "2026-10-16T12:28:15.356181Z",
+      "lesson_id": "hse2lesson-0d34f627b8eb2fddf059d5f8",
       "metric_name": "challenger_minus_champion_signed_return_bps",
-      "prospective_n": 19,
-      "result_id": null,
+      "prospective_n": 20,
+      "result_id": "hse2res-556fc6bca8c4e9f2a9569717",
       "source_active": true,
       "source_engine": "EURUSD_X",
-      "status": "RUNNING_SHADOW",
+      "status": "REJECTED",
       "target_n": 20
     },
     {
@@ -508,7 +508,7 @@
       "target_n": 40
     }
   ],
-  "generated_at": "2026-10-16T12:24:47.221268Z",
+  "generated_at": "2026-10-16T12:28:15.356181Z",
   "mode": "SHADOW_ONLY",
   "pipeline": "SOURCE_HYPOTHESIS -> FREEZE -> FORWARD_EVIDENCE -> SUPPORTED/REJECTED/INCONCLUSIVE -> LESSON",
   "production_impact": false,
@@ -741,6 +741,29 @@
       "source_experiment_id": "hse2exp-8c640e516a5d3654c6d66b57",
       "source_result_id": "hse2res-7fe296d0cd20b934f0391fcf",
       "statement": "FSE hypothesis finished REJECTED at fixed N=40; mean forward edge=-0.00535451 (calibration_brier_improvement_vs_fse_v2_base).",
+      "verdict": "REJECTED"
+    },
+    {
+      "authority": {
+        "arbitrary_code_execution": false,
+        "automatic_promotion": false,
+        "production_policy_writeback": false,
+        "production_ranking_writeback": false,
+        "production_sizing_writeback": false,
+        "source_model_writeback": false,
+        "trade_execution": false
+      },
+      "derived_at": "2026-10-16T12:28:15.356181Z",
+      "event_hash": "f4a6378463cbeb25e65465ea81a867fed6c3d853debf324ebf7e5052863ef2a4",
+      "hypothesis_input_ready": true,
+      "lesson_id": "hse2lesson-0d34f627b8eb2fddf059d5f8",
+      "previous_hash": "d108acbd3fe702a47ac896b61c2f8d6bb50223c8814606b8cb08a9ebfc5e0e64",
+      "production_authority": false,
+      "schema_version": "briefrooms-hse2-lesson-v1",
+      "source_engine": "EURUSD_X",
+      "source_experiment_id": "hse2exp-6e3bf7d29955d4b937c175c0",
+      "source_result_id": "hse2res-556fc6bca8c4e9f2a9569717",
+      "statement": "EURUSD_X hypothesis finished REJECTED at fixed N=20; mean forward edge=-12.71807000 (challenger_minus_champion_signed_return_bps).",
       "verdict": "REJECTED"
     }
   ],
@@ -1054,6 +1077,37 @@
       "source_engine": "FSE",
       "success_mean_edge": 0.0025,
       "verdict": "REJECTED"
+    },
+    {
+      "authority": {
+        "arbitrary_code_execution": false,
+        "automatic_promotion": false,
+        "production_policy_writeback": false,
+        "production_ranking_writeback": false,
+        "production_sizing_writeback": false,
+        "source_model_writeback": false,
+        "trade_execution": false
+      },
+      "challenger": "X-AUTO-03",
+      "champion": "X-BASE",
+      "claim": "EURUSD X challenger X-AUTO-03 has higher prospective signed return than champion X-BASE.",
+      "completed_at": "2026-10-16T12:28:15.356181Z",
+      "epoch_id": "hse2epoch-460ae29681e211c3d12ec653",
+      "event_hash": "cf6663fb0a34f26edd234e4b97d0522cb1700faa699ff64f58f619667862febd",
+      "evidence_blocks": 7,
+      "experiment_id": "hse2exp-6e3bf7d29955d4b937c175c0",
+      "formal_evaluation_number": 1,
+      "mean_edge": -12.718070000000003,
+      "metric_name": "challenger_minus_champion_signed_return_bps",
+      "previous_hash": "e1aec83b0b423331ee2bd124e9d77c63e15257de994dac609c25a1837997b60d",
+      "reason": "preregistered_mean_edge_falsification_threshold_passed",
+      "reject_mean_edge": -0.25,
+      "result_id": "hse2res-556fc6bca8c4e9f2a9569717",
+      "sample_n": 20,
+      "schema_version": "briefrooms-hse2-result-v1",
+      "source_engine": "EURUSD_X",
+      "success_mean_edge": 0.25,
+      "verdict": "REJECTED"
     }
   ],
   "schema_version": "briefrooms-hse2-public-v1",
@@ -1081,9 +1135,9 @@
       "experiments_total": 3,
       "path": "data/investments/eurusd_x_public_pl.json",
       "proposal_count": 1,
-      "running_shadow": 2,
-      "source_sha256": "6dbf25119ba882e4d1bb440cc6e67eccf7cbc89ce3dd88d3d23c5f77f7f66875",
-      "terminal": 1
+      "running_shadow": 1,
+      "source_sha256": "8c382015003667748cbd7aa75b7d35e06dc1b5f44684603de218dba6a54359c0",
+      "terminal": 2
     },
     "FSE": {
       "available": true,
@@ -1138,10 +1192,10 @@
     "administrative_superseded_experiments": 0,
     "experiments_total": 29,
     "inconclusive": 3,
-    "lessons_total": 10,
-    "prospective_evidence_n": 646,
-    "rejected": 5,
-    "running_shadow": 19,
+    "lessons_total": 11,
+    "prospective_evidence_n": 647,
+    "rejected": 6,
+    "running_shadow": 18,
     "sources_available": 7,
     "sources_configured": 7,
     "supported": 2
