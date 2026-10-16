@@ -56,24 +56,46 @@
     return age >= -FUTURE_TOLERANCE_MS && age <= HOME_MAX_AGE_MS;
   }
 
-  function isCurrentSource(value, now = Date.now()) {
-    if (!isFreshTimestamp(value, now)) return false;
-    return lang !== 'pl' ||
-      WARSAW_DAY_FORMATTER.format(new Date(timestamp(value))) === WARSAW_DAY_FORMATTER.format(new Date(now));
+  const EDITORIAL_EXCEPTION_SECTIONS = new Set([
+    'nauka', 'zdrowie', 'ai-technologia-krypto',
+    'science', 'health', 'ai-technology-crypto'
+  ]);
+  const CURRENT_LANES = new Set(['polityka', 'geopolityka', 'ekonomia', 'sport']);
+
+  function isCurrentDesk(sectionId) {
+    return !EDITORIAL_EXCEPTION_SECTIONS.has(String(sectionId || '').toLowerCase());
   }
 
-  function isFreshNewsStory(story, now = Date.now()) {
-    if (!story || !isCurrentSource(story.published_at, now)) return false;
+  function isCurrentHomepageStory(story) {
+    if (story && story.news_freshness_profile === 'editorial_exception') return false;
+    if (story && story.news_freshness_profile === 'current') return true;
+    const lane = String(story && story.homepage_lane || '').toLowerCase();
+    // Unknown categories fail closed, instead of laundering an aged source.
+    return !lane || CURRENT_LANES.has(lane);
+  }
+
+  function isCurrentSource(value, strict, now = Date.now()) {
+    const published = timestamp(value);
+    if (!published || published > now + FUTURE_TOLERANCE_MS) return false;
+    if (!strict) return true;
+    if (!isFreshTimestamp(published, now)) return false;
+    return lang !== 'pl' ||
+      WARSAW_DAY_FORMATTER.format(new Date(published)) === WARSAW_DAY_FORMATTER.format(new Date(now));
+  }
+
+  function isFreshNewsStory(story, strict, now = Date.now()) {
+    if (!story || !isCurrentSource(story.published_at, strict, now)) return false;
     const firstSeen = timestamp(story.news_first_seen_at || story.homepage_first_seen_at);
     const expiresAt = timestamp(story.news_expires_at || story.homepage_expires_at);
-    if (!firstSeen) return false;
+    if (!firstSeen || !expiresAt) return false;
     if (firstSeen > now + FUTURE_TOLERANCE_MS) return false;
     if (now - firstSeen > HOME_MAX_AGE_MS) return false;
-    return !expiresAt || now <= expiresAt;
+    if (expiresAt > firstSeen + HOME_MAX_AGE_MS) return false;
+    return now <= expiresAt;
   }
 
   function isFreshHomepageStory(story, now = Date.now()) {
-    return isFreshNewsStory(story, now);
+    return isFreshNewsStory(story, isCurrentHomepageStory(story), now);
   }
 
   function normalizedCategory(value) {
@@ -188,7 +210,7 @@
       const list = document.querySelector(`section#${CSS.escape(sectionId)} ul.news`);
       if (!list || !Array.isArray(stories)) return;
       const cards = stories
-        .filter(story => isFreshNewsStory(story, now))
+        .filter(story => isFreshNewsStory(story, isCurrentDesk(sectionId), now))
         .map(newsCard)
         .filter(Boolean)
         .join('');
@@ -206,7 +228,8 @@
         item.remove();
         return;
       }
-      const sourceFresh = isCurrentSource(link.dataset.newsPublishedAt, now);
+      const sectionId = item.closest('section.card')?.id;
+      const sourceFresh = isCurrentSource(link.dataset.newsPublishedAt, isCurrentDesk(sectionId), now);
       const firstSeen = timestamp(link.dataset.newsFirstSeenAt);
       const expiresAt = timestamp(link.dataset.newsExpiresAt);
       const exposureFresh = Boolean(
@@ -214,7 +237,7 @@
         firstSeen <= now + FUTURE_TOLERANCE_MS &&
         now - firstSeen <= HOME_MAX_AGE_MS
       );
-      const notExpired = !expiresAt || now <= expiresAt;
+      const notExpired = Boolean(expiresAt && now <= expiresAt && expiresAt <= firstSeen + HOME_MAX_AGE_MS);
       const image = link.querySelector('.news-thumb.has-image img');
       const imageEligible = Boolean(image && safeImage(image.getAttribute('src')));
       if (sourceFresh && exposureFresh && notExpired && imageEligible) return;
@@ -228,11 +251,14 @@
     container.dataset.homeFreshnessPolicy = HOME_POLICY;
     container.dataset.homeImagePolicy = HOME_IMAGE_POLICY;
     container.querySelectorAll('.brief-card').forEach(card => {
-      const sourceFresh = isCurrentSource(card.dataset.homePublishedAt, now);
+      const strict = card.dataset.homeFreshnessProfile !== 'editorial_exception';
+      const sourceFresh = isCurrentSource(card.dataset.homePublishedAt, strict, now);
+      const expiresAt = timestamp(card.dataset.homeExpiresAt);
+      const notExpired = Boolean(expiresAt && now <= expiresAt);
       const exposureFresh = !card.dataset.homeFirstSeenAt || isFreshTimestamp(card.dataset.homeFirstSeenAt, now);
       const image = card.querySelector('.thumb.has-image img');
       const imageEligible = Boolean(image && safeImage(image.getAttribute('src')));
-      if (sourceFresh && exposureFresh && imageEligible) {
+      if (sourceFresh && exposureFresh && notExpired && imageEligible) {
         card.hidden = false;
         card.removeAttribute('aria-hidden');
         delete card.dataset.homeStale;
@@ -263,10 +289,13 @@
     const explicit = timestamp(node.dataset[expiresKey]);
     const firstSeen = timestamp(node.dataset[firstSeenKey]);
     const published = timestamp(node.dataset[publishedKey]);
+    const strict = publishedKey === 'newsPublishedAt'
+      ? isCurrentDesk(node.closest('section.card')?.id)
+      : node.dataset.homeFreshnessProfile !== 'editorial_exception';
     const deadlines = [
       explicit,
       firstSeen ? firstSeen + HOME_MAX_AGE_MS : 0,
-      published ? published + HOME_MAX_AGE_MS : 0,
+      strict && published ? published + HOME_MAX_AGE_MS : 0,
     ].filter(Boolean);
     return deadlines.length ? Math.min(...deadlines) : 0;
   }
@@ -347,7 +376,7 @@
       pruneStaticNewsPage();
       pruneStaticHomepage();
       removeLegacyHealthBanner();
-      console.warn('BriefRooms live news refresh failed; stale source dates and expired exposure windows are removed from public news.', error);
+      console.warn('BriefRooms news refresh failed: current-news desks require fresh source dates; Science, Health and AI obey 24h BRs exposure expiry.', error);
       scheduleNextExpiry();
       return false;
     }
