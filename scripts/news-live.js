@@ -8,6 +8,7 @@
   const HOME_LIMIT = 12;
   const HOME_POLICY = 'max-24h-public-news-display-v1';
   const HOME_IMAGE_POLICY = 'https-image-required-v1';
+  const WARSAW_DAY_FORMATTER = new Intl.DateTimeFormat('sv-SE', {timeZone: 'Europe/Warsaw', year: 'numeric', month: '2-digit', day: '2-digit'});
   let expiryTimer = null;
   const text = lang === 'pl' ? {
     source: 'Źródło',
@@ -55,8 +56,14 @@
     return age >= -FUTURE_TOLERANCE_MS && age <= HOME_MAX_AGE_MS;
   }
 
+  function isCurrentSource(value, now = Date.now()) {
+    if (!isFreshTimestamp(value, now)) return false;
+    return lang !== 'pl' ||
+      WARSAW_DAY_FORMATTER.format(new Date(timestamp(value))) === WARSAW_DAY_FORMATTER.format(new Date(now));
+  }
+
   function isFreshNewsStory(story, now = Date.now()) {
-    if (!story) return false;
+    if (!story || !isCurrentSource(story.published_at, now)) return false;
     const firstSeen = timestamp(story.news_first_seen_at || story.homepage_first_seen_at);
     const expiresAt = timestamp(story.news_expires_at || story.homepage_expires_at);
     if (!firstSeen) return false;
@@ -199,6 +206,7 @@
         item.remove();
         return;
       }
+      const sourceFresh = isCurrentSource(link.dataset.newsPublishedAt, now);
       const firstSeen = timestamp(link.dataset.newsFirstSeenAt);
       const expiresAt = timestamp(link.dataset.newsExpiresAt);
       const exposureFresh = Boolean(
@@ -209,7 +217,7 @@
       const notExpired = !expiresAt || now <= expiresAt;
       const image = link.querySelector('.news-thumb.has-image img');
       const imageEligible = Boolean(image && safeImage(image.getAttribute('src')));
-      if (exposureFresh && notExpired && imageEligible) return;
+      if (sourceFresh && exposureFresh && notExpired && imageEligible) return;
       item.remove();
     });
   }
@@ -220,7 +228,7 @@
     container.dataset.homeFreshnessPolicy = HOME_POLICY;
     container.dataset.homeImagePolicy = HOME_IMAGE_POLICY;
     container.querySelectorAll('.brief-card').forEach(card => {
-      const sourceFresh = isFreshTimestamp(card.dataset.homePublishedAt, now);
+      const sourceFresh = isCurrentSource(card.dataset.homePublishedAt, now);
       const exposureFresh = !card.dataset.homeFirstSeenAt || isFreshTimestamp(card.dataset.homeFirstSeenAt, now);
       const image = card.querySelector('.thumb.has-image img');
       const imageEligible = Boolean(image && safeImage(image.getAttribute('src')));
@@ -253,11 +261,27 @@
   function cardExpiryTimestamp(node, publishedKey, firstSeenKey, expiresKey) {
     if (!node || !node.dataset) return 0;
     const explicit = timestamp(node.dataset[expiresKey]);
-    if (explicit) return explicit;
     const firstSeen = timestamp(node.dataset[firstSeenKey]);
-    if (firstSeen) return firstSeen + HOME_MAX_AGE_MS;
     const published = timestamp(node.dataset[publishedKey]);
-    return published ? published + HOME_MAX_AGE_MS : 0;
+    const deadlines = [
+      explicit,
+      firstSeen ? firstSeen + HOME_MAX_AGE_MS : 0,
+      published ? published + HOME_MAX_AGE_MS : 0,
+    ].filter(Boolean);
+    return deadlines.length ? Math.min(...deadlines) : 0;
+  }
+
+  function nextWarsawMidnight(now) {
+    if (lang !== 'pl') return 0;
+    const today = WARSAW_DAY_FORMATTER.format(new Date(now));
+    let low = now;
+    let high = now + 27 * 60 * 60 * 1000;
+    while (high - low > 1000) {
+      const mid = Math.floor((low + high) / 2);
+      if (WARSAW_DAY_FORMATTER.format(new Date(mid)) === today) low = mid;
+      else high = mid;
+    }
+    return high;
   }
 
   function scheduleNextExpiry() {
@@ -267,6 +291,8 @@
     }
     const now = Date.now();
     const expiries = [];
+    const dayBoundary = nextWarsawMidnight(now);
+    if (dayBoundary) expiries.push(dayBoundary);
     document.querySelectorAll('a.news-main-link').forEach(link => {
       const expiry = cardExpiryTimestamp(
         link,
@@ -321,7 +347,7 @@
       pruneStaticNewsPage();
       pruneStaticHomepage();
       removeLegacyHealthBanner();
-      console.warn('BriefRooms live news refresh failed; public news keeps only stories within their <=24h BriefRooms exposure window and with HTTPS images.', error);
+      console.warn('BriefRooms live news refresh failed; stale source dates and expired exposure windows are removed from public news.', error);
       scheduleNextExpiry();
       return false;
     }
