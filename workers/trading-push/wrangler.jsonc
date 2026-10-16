@@ -3,10 +3,14 @@
   "name": "briefrooms-trading-push",
   "main": "src/index.js",
   "compatibility_date": "2026-10-01",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "workers_dev": true,
   "triggers": {
-    "crons": ["* * * * *"]
+    "crons": [
+      "* * * * *"
+    ]
   },
   "durable_objects": {
     "bindings": [
@@ -19,7 +23,9 @@
   "migrations": [
     {
       "tag": "v1",
-      "new_sqlite_classes": ["PushHub"]
+      "new_sqlite_classes": [
+        "PushHub"
+      ]
     }
   ],
   "vars": {
@@ -30,5 +36,9 @@
     "FXAPI_EURUSD_URL": "https://fxapi.app/api/EUR/USD.json",
     "ALLOWED_ORIGINS": "https://briefrooms.com,https://www.briefrooms.com",
     "PUBLIC_BASE_URL": "https://briefrooms-trading-push.szczerbinski0577.workers.dev"
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
   }
 }
