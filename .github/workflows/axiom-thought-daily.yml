@@ -121,7 +121,8 @@ jobs:
     # Refill must never block deployment of a successfully published thought.
     # Recovery runs only publish; they must not repeatedly call costly AI refill.
     if: needs.publish.result == 'success' && (needs.publish.outputs.changed == 'true' || github.event_name == 'workflow_dispatch')
-    continue-on-error: true
+    # A failed reserve-health check must not pretend the bank is ready.
+    # This separate job does not affect the publication's committed content.
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
@@ -153,6 +154,9 @@ jobs:
             sleep $((n*5))
           done
           exit 1
+
+      - name: Require at least 10 eligible independently reviewed reserve thoughts
+        run: python scripts/publish_axiom_thought.py --mode reserve-health
 
   semantic-smoke:
     # Read-only live API health is advisory: it may raise an alarm, but must not

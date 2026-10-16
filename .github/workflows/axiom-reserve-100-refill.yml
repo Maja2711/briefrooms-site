@@ -57,9 +57,11 @@ jobs:
           rows=load_history()
           bank=json.load(open("data/home/axiom-thought-reserve.json",encoding="utf-8"))
           assert isinstance(bank,list) and len(bank)<=100
-          ready=sum(evidence_valid(candidate,rows) for candidate in bank)
-          print(f"AXIOM_RESERVE_READY={ready}/100 stored={len(bank)}",flush=True)
-          if ready<100: print(f"::warning::AXIOM reserve readiness is {ready}/100",flush=True)
+          from publish_axiom_thought import eligible_reserve, RESERVE_SUCCESS_MINIMUM
+          ready=len(eligible_reserve(rows,bank))
+          print(f"AXIOM_RESERVE_STAGED={ready}/{RESERVE_SUCCESS_MINIMUM} stored={len(bank)}",flush=True)
+          if ready<RESERVE_SUCCESS_MINIMUM:
+              print(f"::warning::AXIOM reserve below verified minimum: {ready}/{RESERVE_SUCCESS_MINIMUM}",flush=True)
           PY
       - name: Commit bank increments without touching other publishers
         shell: bash
@@ -76,3 +78,6 @@ jobs:
             sleep $((n*5))
           done
           exit 1
+
+      - name: Require at least 10 eligible independently reviewed thoughts AFTER committing
+        run: python scripts/publish_axiom_thought.py --mode reserve-health

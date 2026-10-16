@@ -8,8 +8,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
-from scripts.axiom_thought_guard import similarity, validate, review_digest, review_evidence_errors, rhetorical_templates, rhetorical_style_issues
-from scripts.publish_axiom_thought import candidate_validation_stamp, semantic_review, semantic_smoke, validate_candidate, publish, main, generate_ten, refill, evidence_valid, attach_review, core_candidate
+from scripts.axiom_thought_guard import similarity, validate, review_digest, review_evidence_errors, rhetorical_templates, rhetorical_style_issues, rhetorical_diversity_score
+from scripts.publish_axiom_thought import candidate_validation_stamp, semantic_review, semantic_smoke, validate_candidate, publish, main, generate_ten, refill, evidence_valid, attach_review, core_candidate, eligible_reserve, reserve_status
 
 
 CURRENT = {
@@ -430,7 +430,7 @@ class AxiomThoughtGuardTests(unittest.TestCase):
         self.assertNotIn("rarely-frame", rhetorical_templates(
             "„Granice mapy pozostają niewidoczne dla obserwatora, który nigdy z niej nie wychodzi.”"))
 
-    def test_prospective_guard_blocks_same_rarity_rhetoric_with_distinct_idea(self) -> None:
+    def test_prospective_guard_softly_scores_same_rhetoric_without_rejecting_idea(self) -> None:
         earlier = dict(SEED, date="2026-10-12", theme="competition-and-mimicry")
         newer = dict(LATEST, date="2026-10-13", theme="archive-and-attention",
                      pl="„Archiwum rzadko chroni wyłącznie przeszłość — częściej uczy przyszłych badaczy, jakie pytania warto przemilczeć.”",
@@ -438,7 +438,8 @@ class AxiomThoughtGuardTests(unittest.TestCase):
         current = {"date": newer["date"], "author": "AXIOM", "brand": "BriefRooms",
                    "pl": newer["pl"], "en": newer["en"]}
         errors = validate(current, [earlier, newer], require_review_evidence=False)
-        self.assertTrue(any("rhetorical-style duplicate: rarely-frame" in error for error in errors), errors)
+        self.assertFalse(any("rhetorical-style" in error for error in errors), errors)
+        self.assertLess(rhetorical_diversity_score(newer["pl"], [earlier], "2026-10-13"), 10)
 
     def test_existing_october_12_publication_is_grandfathered(self) -> None:
         earlier = dict(SEED, date="2026-10-09", theme="permanence-and-maintenance")
@@ -467,15 +468,14 @@ class AxiomThoughtGuardTests(unittest.TestCase):
         self.assertTrue(any("superlative-opening" in issue for issue in issues), issues)
         self.assertFalse(rhetorical_style_issues(candidate, [prior], "2026-10-25"))
 
-    def test_reserve_candidate_cannot_repeat_rhetorical_template(self) -> None:
+    def test_reserve_candidate_may_repeat_rhetoric_with_new_idea(self) -> None:
         candidate = dict(LATEST)
         candidate.pop("date")
         candidate["theme"] = "new-causal-theme"
         candidate["pl"] = "„Długotrwały spór rzadko ujawnia sedno problemu — częściej prowadzi do odkrycia nowych błędów organizacyjnych.”"
         candidate["en"] = "“A prolonged dispute rarely reveals the heart of a problem, but often exposes new organizational failures.”"
         with patch("scripts.publish_axiom_thought.today", return_value="2026-10-13"):
-            with self.assertRaisesRegex(ValueError, "rhetorical-style duplicate"):
-                validate_candidate(candidate, [SEED], [])
+            validate_candidate(candidate, [SEED], [])
 
     def test_canonical_archive_remains_valid_with_prospective_style_guard(self) -> None:
         root = Path(__file__).resolve().parents[1]
@@ -486,7 +486,7 @@ class AxiomThoughtGuardTests(unittest.TestCase):
         self.assertEqual(rows[0]["date"], "2026-09-15")
         self.assertEqual(rows[-1]["date"], current["date"])
 
-    def test_hourly_refill_retires_verified_but_stylistically_stale_bank(self) -> None:
+    def test_hourly_refill_preserves_verified_bank_during_provider_outage(self) -> None:
         reserve = [dict(LATEST, theme="old-template",
                         pl="„Uznanie rzadko tworzy nową odpowiedzialność — częściej odsłania wcześniejsze oczekiwania wobec władzy.”",
                         en="“Recognition rarely creates a new responsibility; more often, it reveals prior expectations about authority.”")]
@@ -499,9 +499,43 @@ class AxiomThoughtGuardTests(unittest.TestCase):
             patch("scripts.publish_axiom_thought.save_reserve", side_effect=lambda x: saved.append(len(x))),
         ):
             self.assertTrue(refill([SEED], reserve))
-        self.assertEqual(reserve, [])
-        self.assertEqual(saved, [0])
+        self.assertEqual(len(reserve), 1)
+        self.assertEqual(saved, [])
 
+
+    def test_verified_reserve_health_requires_ten_real_distinct_candidates(self) -> None:
+        rows = [SEED]
+        candidates = [
+            {**LATEST, "theme": f"distinct-theme-{index}",
+             "pl": f"„Oryginalny koncept numer {index} zmienia sposób rozumienia systemu, a konsekwencja poznawcza jest istotna dla niezależnej decyzji.”"}
+            for index in range(10)
+        ]
+        for candidate in candidates:
+            candidate.pop("date", None)
+        with (patch("scripts.publish_axiom_thought.evidence_valid", return_value=True),
+              patch("scripts.publish_axiom_thought.validate_candidate")):
+            self.assertFalse(reserve_status(rows, candidates[:9]))
+            self.assertTrue(reserve_status(rows, candidates))
+            self.assertEqual(len(eligible_reserve(rows, candidates)), 10)
+        with patch("scripts.publish_axiom_thought.evidence_valid", return_value=False):
+            self.assertFalse(reserve_status(rows, candidates))
+
+    def test_repeat_theme_is_still_rejected_despite_soft_rhetoric(self) -> None:
+        candidate = copy.deepcopy(LATEST)
+        candidate.pop("date")
+        candidate["theme"] = SEED["theme"]
+        with patch("scripts.publish_axiom_thought.today", return_value="2026-10-16"):
+            with self.assertRaisesRegex(ValueError, "theme"):
+                validate_candidate(candidate, [SEED], [])
+
+    def test_canonical_recovered_reserve_only_counts_reviewed_original_items(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        bank = json.loads((root / "data/home/axiom-thought-reserve.json").read_text(encoding="utf-8"))
+        rows = [json.loads(row) for row in (root / "data/home/axiom-thoughts-history.jsonl")
+                .read_text(encoding="utf-8").splitlines() if row.strip()]
+        self.assertGreaterEqual(len(bank), 7)
+        self.assertTrue(all(evidence_valid(candidate, rows) for candidate in bank[:7]))
+        self.assertGreaterEqual(len(eligible_reserve(rows, bank)), 7)
 
 
 if __name__ == "__main__":
