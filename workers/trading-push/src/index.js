@@ -761,6 +761,18 @@ function notificationText(event, language) {
   return `${action} · ${event.instrument || ""}${price}${result}`;
 }
 
+// Diagnostics only: never round execution prices or expose subscriptions/tokens.
+function eventToPushLatencyMs(event, acceptedAtMs = Date.now()) {
+  const date = String(
+    String(event?.event_type || "").toUpperCase() === "CLOSE"
+      ? (event?.closed_at || event?.observed_at || "")
+      : (event?.opened_at || event?.observed_at || ""),
+  );
+  const eventMs = Date.parse(date);
+  return Number.isFinite(eventMs) && Number.isFinite(acceptedAtMs)
+    ? Math.max(0, acceptedAtMs - eventMs) : null;
+}
+
 function notificationPayload(event, lang, publicBaseUrl = "", delivery = null) {
   const engine = event.engine === "daily" ? "Daily Trading" : event.engine === "weekly" ? "Weekly Trading" : "Stock Trading";
   const base = String(publicBaseUrl || "").replace(/\/$/, "");
@@ -953,6 +965,14 @@ export class PushHub {
           }));
         }
         sent += 1;
+        console.info("BR_PUSH_PROVIDER_ACCEPTED", JSON.stringify({
+          event_id: event.event_id,
+          engine: event.engine,
+          event_type: event.event_type,
+          provider_status: Number(response?.statusCode || 201) || 201,
+          provider_accepted_at: now,
+          lifecycle_to_provider_ms: eventToPushLatencyMs(event, Date.parse(now)),
+        }));
       } catch (error) {
         const status = Number(error?.statusCode || 0);
         const now = new Date().toISOString();
@@ -1070,6 +1090,13 @@ export class PushHub {
       stats.acked = Number(stats.acked || 0) + 1;
       stats.last_acked_at = now;
       await this.ctx.storage.put("stats", stats);
+      const providerAtMs = Date.parse(String(record.sent_to_push_at || ""));
+      console.info("BR_PUSH_DEVICE_ACK", JSON.stringify({
+        event_id: record.event_id,
+        acked_at: now,
+        provider_to_device_ack_ms: Number.isFinite(providerAtMs)
+          ? Math.max(0, Date.parse(now) - providerAtMs) : null,
+      }));
       await this.refreshEventCompletion(record.event_id);
     }
     return { ok: true, status: 200, delivery_id: id, event_id: record.event_id, delivery_status: DELIVERY_STATUS.ACKED };
@@ -1577,9 +1604,24 @@ export class PushHub {
       try {
         const payload = await bodyJson(request);
         const result = await this.syncTradingCommit(payload.sha, payload.engines);
+        console.info("BR_PUSH_SYNC_RESULT", JSON.stringify({
+          sha: String(result.sha || "").slice(0, 12),
+          engines: result.engines,
+          status: result.status,
+          event_count: result.event_count,
+          event_ids: result.event_ids,
+          fallback: result.fallback === true,
+          fallback_reason: result.fallback_reason || null,
+          sent: result.dispatch?.sent || 0,
+          failed: result.dispatch?.failed || 0,
+          pending: result.dispatch?.pending || 0,
+        }));
         return json(result, result.ok ? 200 : 502, cors(origin));
       } catch (error) {
         const message = String(error?.message || error || "sync_trading_failed");
+        console.warn("BR_PUSH_SYNC_ERROR", JSON.stringify({
+          error: message.slice(0, 240),
+        }));
         const status = message.startsWith("commit_not_recent_main_ancestor:") ? 409
           : ["invalid_commit_sha", "commit_sync_engines_required", "invalid_commit_sync_engine"].includes(message) ? 400
           : 502;
@@ -1906,4 +1948,4 @@ export default {
   }
 };
 
-export { finiteNumber, yahooMinuteBars, dailyCommitSnapshot, weeklyCommitSnapshot, stockCommitSnapshot, transitionDescriptors, persistedOutboxEvents, diffPersistedOutboxEvents, notificationPayload, storedCommitSnapshot, persistableCommitSnapshot, comparableCommitSnapshot, sameCommitSnapshot, isoWeekId, DELIVERY_STATUS, deliveryId, deliveryStorageKey, immutableEventCore, sameImmutableEvent, newDeliveryRecord, transitionDelivery, retryDelayMs, deliveryReadyForRetry, isSyntheticRecoveryEvent };
+export { finiteNumber, yahooMinuteBars, dailyCommitSnapshot, weeklyCommitSnapshot, stockCommitSnapshot, transitionDescriptors, persistedOutboxEvents, diffPersistedOutboxEvents, notificationPayload, eventToPushLatencyMs, storedCommitSnapshot, persistableCommitSnapshot, comparableCommitSnapshot, sameCommitSnapshot, isoWeekId, DELIVERY_STATUS, deliveryId, deliveryStorageKey, immutableEventCore, sameImmutableEvent, newDeliveryRecord, transitionDelivery, retryDelayMs, deliveryReadyForRetry, isSyntheticRecoveryEvent };
