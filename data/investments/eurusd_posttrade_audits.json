@@ -5592,7 +5592,7 @@
       "trade_id": "eurusd:20261015T180754Z:LONG"
     },
     {
-      "audited_at": "2026-10-16T09:07:25Z",
+      "audited_at": "2026-10-16T13:55:51Z",
       "automation": {
         "after_close_only": true,
         "alter_r_pace_v1": false,
@@ -5644,16 +5644,13 @@
       "closed_at": "2026-10-16T07:44:25Z",
       "direction": "LONG",
       "existing_exit_review": {
-        "profit_snapshot_count": null,
+        "profit_snapshot_count": 69,
         "review_uses_hindsight_for_later_price_path": true,
-        "reviewed_actual_r": null,
-        "reviewed_exit_reason": null,
-        "status": "PENDING_OR_MISMATCHED"
+        "reviewed_actual_r": 0.4039,
+        "reviewed_exit_reason": "DYNAMIC_PROFIT_EXIT",
+        "status": "MATCHED_CANONICAL_CLOSE"
       },
-      "findings": [
-        "CHALLENGER_REPORT_PENDING",
-        "EXIT_INTELLIGENCE_REVIEW_PENDING_OR_STALE"
-      ],
+      "findings": [],
       "instrument": "EUR/USD",
       "live_telemetry": {
         "clock_invalid_count": 0,
@@ -5731,6 +5728,368 @@
         "timely_rule": "first_seen_at >= bar_close; <=180s; first_seen_at <= actual_closed_at"
       },
       "opened_at": "2026-10-16T05:16:20Z",
+      "overall_status": "AUDITED",
+      "schema_version": "eurusd-daily-posttrade-audit-v1",
+      "shadow_challengers": {
+        "canonical_trade_matched": true,
+        "claimed_winner": null,
+        "comparable_count": 3,
+        "no_auto_strategy_promotion": true,
+        "results": {
+          "CLOSE_TRAIL_035R": {
+            "earlier_simulated_exit_at": "2026-10-16T07:36:00Z",
+            "execution_proven": false,
+            "incremental_r_vs_canonical": 0.151563,
+            "signal_from_historical_replay_not_live_proof": true,
+            "simulated_r": 0.555463,
+            "simulation_status": "EARLIER_RESEARCH_EXIT",
+            "spread_from_recorded_epe": true,
+            "status": "RESEARCH_ONLY_EARLIER_EXIT"
+          },
+          "GIVEBACK_MOMENTUM": {
+            "earlier_simulated_exit_at": "2026-10-16T06:59:00Z",
+            "execution_proven": false,
+            "incremental_r_vs_canonical": -0.12663,
+            "signal_from_historical_replay_not_live_proof": true,
+            "simulated_r": 0.27727,
+            "simulation_status": "EARLIER_RESEARCH_EXIT",
+            "spread_from_recorded_epe": true,
+            "status": "RESEARCH_ONLY_EARLIER_EXIT"
+          },
+          "MOMENTUM_5_15": {
+            "earlier_simulated_exit_at": "2026-10-16T07:42:00Z",
+            "execution_proven": false,
+            "incremental_r_vs_canonical": -0.086894,
+            "signal_from_historical_replay_not_live_proof": true,
+            "simulated_r": 0.317006,
+            "simulation_status": "EARLIER_RESEARCH_EXIT",
+            "spread_from_recorded_epe": true,
+            "status": "RESEARCH_ONLY_EARLIER_EXIT"
+          }
+        },
+        "selection_note": "One observed trade cannot establish superior protection policy",
+        "status": "RESEARCH_COMPARISON_AVAILABLE"
+      },
+      "trade_id": "eurusd:20261016T051620Z:LONG"
+    },
+    {
+      "audited_at": "2026-10-16T13:55:51Z",
+      "automation": {
+        "after_close_only": true,
+        "alter_r_pace_v1": false,
+        "audited_not_executed": true,
+        "auto_promotion": false,
+        "belief_core_mutation": false,
+        "read_only": true,
+        "source": "CANONICAL_EURUSD_DAILY_HISTORY",
+        "trade_execution": false
+      },
+      "canonical_exit": {
+        "actual_pips": 23.9,
+        "actual_r": 0.7502,
+        "derived_r": 0.74922,
+        "direction": "LONG",
+        "entry_price": 1.12386,
+        "exit_category": "R_PACE_DYNAMIC",
+        "exit_price": 1.12625,
+        "exit_reason": "DYNAMIC_PROFIT_EXIT",
+        "exit_reason_valid": true,
+        "maximum_adverse_pips_retrospective": 2.41,
+        "maximum_favorable_pips_retrospective": 34.09,
+        "position_age_minutes": 193.07,
+        "pricing_provenance": {
+          "cross_feed_warning": true,
+          "entry_epe_verification": "VERIFIED_FILL",
+          "exit_is_executable_quote": false,
+          "exit_price_basis": "MID_PROXY",
+          "paper_trading_only": true
+        },
+        "r_reconciliation_difference": 0.000984,
+        "reconciles_to_entry_stop_exit": true,
+        "recorded_dynamic_exit": {
+          "current_r_at_close": 0.7502,
+          "giveback_r_at_close": 0.3184,
+          "hold_score": 0.747,
+          "mfe_r_at_close": 1.0685,
+          "policy": "R_PACE_V1",
+          "status": "OBSERVED_R_PACE_V1",
+          "tp_feasibility_ratio": 1.8019,
+          "velocity_1h_rph": 0.0,
+          "velocity_3h_rph": 0.198
+        },
+        "risk_pips": 31.9,
+        "status": "CONSISTENT_WITH_RECORDED_R",
+        "stop_price": 1.12067,
+        "take_profit_price": 1.12917
+      },
+      "closed_at": "2026-10-16T11:05:29Z",
+      "direction": "LONG",
+      "existing_exit_review": {
+        "profit_snapshot_count": 126,
+        "review_uses_hindsight_for_later_price_path": true,
+        "reviewed_actual_r": 0.7502,
+        "reviewed_exit_reason": "DYNAMIC_PROFIT_EXIT",
+        "status": "MATCHED_CANONICAL_CLOSE"
+      },
+      "findings": [],
+      "instrument": "EUR/USD",
+      "live_telemetry": {
+        "clock_invalid_count": 0,
+        "denominator_warning": "WALL_CLOCK_1M_MINUTES; holiday/weekend gaps may require session-aware denominator",
+        "does_not_reconstruct_live_signals_from_historical_prices": true,
+        "expected_full_minutes": 192,
+        "first_timely_bar_at": "2026-10-16T07:53:00Z",
+        "first_timely_signal_at": "2026-10-16T07:54:55Z",
+        "gap_after_last_timely_minutes": 1.0,
+        "gap_alert": false,
+        "gap_before_first_timely_minutes": 0.0,
+        "last_timely_bar_at": "2026-10-16T11:03:00Z",
+        "late_sample_count": 0,
+        "max_internal_missing_minutes": 0,
+        "missing_or_late_minutes": 1,
+        "number_of_internal_gaps": 0,
+        "postclose_backfill_count": 0,
+        "representative_first_alerts": [
+          {
+            "current_indicative_pips": 2.17,
+            "first_seen_at": "2026-10-16T07:54:55Z",
+            "latency_seconds": 55.0,
+            "market_bar_at": "2026-10-16T07:53:00Z",
+            "signals": [
+              "momentum_5m_exhaustion"
+            ]
+          },
+          {
+            "current_indicative_pips": 2.17,
+            "first_seen_at": "2026-10-16T07:55:55Z",
+            "latency_seconds": 55.0,
+            "market_bar_at": "2026-10-16T07:54:00Z",
+            "signals": [
+              "momentum_5m_exhaustion"
+            ]
+          },
+          {
+            "current_indicative_pips": 0.908,
+            "first_seen_at": "2026-10-16T07:56:55Z",
+            "latency_seconds": 55.0,
+            "market_bar_at": "2026-10-16T07:55:00Z",
+            "signals": [
+              "momentum_5m_exhaustion"
+            ]
+          },
+          {
+            "current_indicative_pips": 2.17,
+            "first_seen_at": "2026-10-16T07:57:55Z",
+            "latency_seconds": 55.0,
+            "market_bar_at": "2026-10-16T07:56:00Z",
+            "signals": [
+              "momentum_5m_exhaustion"
+            ]
+          },
+          {
+            "current_indicative_pips": 2.17,
+            "first_seen_at": "2026-10-16T07:58:55Z",
+            "latency_seconds": 55.0,
+            "market_bar_at": "2026-10-16T07:57:00Z",
+            "signals": [
+              "momentum_5m_exhaustion"
+            ]
+          }
+        ],
+        "samples_missing_first_seen": 0,
+        "signal_bearing_timely_minutes": 176,
+        "status": "NEAR_COMPLETE_TIMELY_LIVE_EVIDENCE",
+        "timely_coverage_fraction": 0.9948,
+        "timely_minutes": 191,
+        "timely_rule": "first_seen_at >= bar_close; <=180s; first_seen_at <= actual_closed_at"
+      },
+      "opened_at": "2026-10-16T07:52:25Z",
+      "overall_status": "AUDITED",
+      "schema_version": "eurusd-daily-posttrade-audit-v1",
+      "shadow_challengers": {
+        "canonical_trade_matched": true,
+        "claimed_winner": null,
+        "comparable_count": 3,
+        "no_auto_strategy_promotion": true,
+        "results": {
+          "CLOSE_TRAIL_035R": {
+            "earlier_simulated_exit_at": "2026-10-16T09:44:00Z",
+            "execution_proven": false,
+            "incremental_r_vs_canonical": -0.404578,
+            "signal_from_historical_replay_not_live_proof": true,
+            "simulated_r": 0.345622,
+            "simulation_status": "EARLIER_RESEARCH_EXIT",
+            "spread_from_recorded_epe": true,
+            "status": "RESEARCH_ONLY_EARLIER_EXIT"
+          },
+          "GIVEBACK_MOMENTUM": {
+            "earlier_simulated_exit_at": "2026-10-16T08:49:00Z",
+            "execution_proven": false,
+            "incremental_r_vs_canonical": -0.602899,
+            "signal_from_historical_replay_not_live_proof": true,
+            "simulated_r": 0.147301,
+            "simulation_status": "EARLIER_RESEARCH_EXIT",
+            "spread_from_recorded_epe": true,
+            "status": "RESEARCH_ONLY_EARLIER_EXIT"
+          },
+          "MOMENTUM_5_15": {
+            "earlier_simulated_exit_at": "2026-10-16T09:28:00Z",
+            "execution_proven": false,
+            "incremental_r_vs_canonical": -0.285481,
+            "signal_from_historical_replay_not_live_proof": true,
+            "simulated_r": 0.464719,
+            "simulation_status": "EARLIER_RESEARCH_EXIT",
+            "spread_from_recorded_epe": true,
+            "status": "RESEARCH_ONLY_EARLIER_EXIT"
+          }
+        },
+        "selection_note": "One observed trade cannot establish superior protection policy",
+        "status": "RESEARCH_COMPARISON_AVAILABLE"
+      },
+      "trade_id": "eurusd:20261016T075225Z:LONG"
+    },
+    {
+      "audited_at": "2026-10-16T13:55:51Z",
+      "automation": {
+        "after_close_only": true,
+        "alter_r_pace_v1": false,
+        "audited_not_executed": true,
+        "auto_promotion": false,
+        "belief_core_mutation": false,
+        "read_only": true,
+        "source": "CANONICAL_EURUSD_DAILY_HISTORY",
+        "trade_execution": false
+      },
+      "canonical_exit": {
+        "actual_pips": -11.7,
+        "actual_r": -0.3669,
+        "derived_r": -0.36677,
+        "direction": "LONG",
+        "entry_price": 1.12603,
+        "exit_category": "R_PACE_DYNAMIC",
+        "exit_price": 1.12486,
+        "exit_reason": "DYNAMIC_RISK_EXIT",
+        "exit_reason_valid": true,
+        "maximum_adverse_pips_retrospective": -11.71,
+        "maximum_favorable_pips_retrospective": 2.23,
+        "position_age_minutes": 93.1,
+        "pricing_provenance": {
+          "cross_feed_warning": true,
+          "entry_epe_verification": "VERIFIED_FILL",
+          "exit_is_executable_quote": false,
+          "exit_price_basis": "MID_PROXY",
+          "paper_trading_only": true
+        },
+        "r_reconciliation_difference": 0.000129,
+        "reconciles_to_entry_stop_exit": true,
+        "recorded_dynamic_exit": {
+          "current_r_at_close": -0.3669,
+          "giveback_r_at_close": 0.4369,
+          "hold_score": -0.8979,
+          "mfe_r_at_close": 0.0699,
+          "policy": "R_PACE_V1",
+          "status": "OBSERVED_R_PACE_V1",
+          "tp_feasibility_ratio": 0.0,
+          "velocity_1h_rph": -0.3942,
+          "velocity_3h_rph": -0.2578
+        },
+        "risk_pips": 31.9,
+        "status": "CONSISTENT_WITH_RECORDED_R",
+        "stop_price": 1.12284,
+        "take_profit_price": 1.13136
+      },
+      "closed_at": "2026-10-16T12:40:26Z",
+      "direction": "LONG",
+      "existing_exit_review": {
+        "profit_snapshot_count": null,
+        "review_uses_hindsight_for_later_price_path": true,
+        "reviewed_actual_r": null,
+        "reviewed_exit_reason": null,
+        "status": "PENDING_OR_MISMATCHED"
+      },
+      "findings": [
+        "CHALLENGER_REPORT_PENDING",
+        "EXIT_INTELLIGENCE_REVIEW_PENDING_OR_STALE"
+      ],
+      "instrument": "EUR/USD",
+      "live_telemetry": {
+        "clock_invalid_count": 0,
+        "denominator_warning": "WALL_CLOCK_1M_MINUTES; holiday/weekend gaps may require session-aware denominator",
+        "does_not_reconstruct_live_signals_from_historical_prices": true,
+        "expected_full_minutes": 92,
+        "first_timely_bar_at": "2026-10-16T11:08:00Z",
+        "first_timely_signal_at": "2026-10-16T11:09:45Z",
+        "gap_after_last_timely_minutes": 1.0,
+        "gap_alert": false,
+        "gap_before_first_timely_minutes": 0.0,
+        "last_timely_bar_at": "2026-10-16T12:38:00Z",
+        "late_sample_count": 0,
+        "max_internal_missing_minutes": 0,
+        "missing_or_late_minutes": 1,
+        "number_of_internal_gaps": 0,
+        "postclose_backfill_count": 0,
+        "representative_first_alerts": [
+          {
+            "current_indicative_pips": -0.538,
+            "first_seen_at": "2026-10-16T11:09:45Z",
+            "latency_seconds": 45.0,
+            "market_bar_at": "2026-10-16T11:08:00Z",
+            "signals": [
+              "momentum_15m_reversal",
+              "momentum_5m_exhaustion"
+            ]
+          },
+          {
+            "current_indicative_pips": -0.538,
+            "first_seen_at": "2026-10-16T11:10:45Z",
+            "latency_seconds": 45.0,
+            "market_bar_at": "2026-10-16T11:09:00Z",
+            "signals": [
+              "momentum_15m_reversal",
+              "momentum_5m_exhaustion"
+            ]
+          },
+          {
+            "current_indicative_pips": -1.807,
+            "first_seen_at": "2026-10-16T11:11:45Z",
+            "latency_seconds": 45.0,
+            "market_bar_at": "2026-10-16T11:10:00Z",
+            "signals": [
+              "momentum_15m_reversal",
+              "momentum_5m_exhaustion",
+              "momentum_5m_reversal"
+            ]
+          },
+          {
+            "current_indicative_pips": -3.074,
+            "first_seen_at": "2026-10-16T11:12:45Z",
+            "latency_seconds": 45.0,
+            "market_bar_at": "2026-10-16T11:11:00Z",
+            "signals": [
+              "momentum_15m_reversal",
+              "momentum_5m_exhaustion",
+              "momentum_5m_reversal"
+            ]
+          },
+          {
+            "current_indicative_pips": -1.807,
+            "first_seen_at": "2026-10-16T11:13:45Z",
+            "latency_seconds": 45.0,
+            "market_bar_at": "2026-10-16T11:12:00Z",
+            "signals": [
+              "momentum_5m_exhaustion",
+              "momentum_5m_reversal"
+            ]
+          }
+        ],
+        "samples_missing_first_seen": 0,
+        "signal_bearing_timely_minutes": 75,
+        "status": "NEAR_COMPLETE_TIMELY_LIVE_EVIDENCE",
+        "timely_coverage_fraction": 0.9891,
+        "timely_minutes": 91,
+        "timely_rule": "first_seen_at >= bar_close; <=180s; first_seen_at <= actual_closed_at"
+      },
+      "opened_at": "2026-10-16T11:07:20Z",
       "overall_status": "NEEDS_DATA_OR_REVIEW",
       "schema_version": "eurusd-daily-posttrade-audit-v1",
       "shadow_challengers": {
@@ -5739,7 +6098,7 @@
         "results": {},
         "status": "PENDING_SHADOW_COMPARISON"
       },
-      "trade_id": "eurusd:20261016T051620Z:LONG"
+      "trade_id": "eurusd:20261016T110720Z:LONG"
     }
   ],
   "authority": {
@@ -5759,13 +6118,13 @@
   },
   "engine": "EURUSD_DAILY",
   "instrument": "EUR/USD",
-  "latest_trade_id": "eurusd:20261016T051620Z:LONG",
+  "latest_trade_id": "eurusd:20261016T110720Z:LONG",
   "latest_trade_summary": {
-    "actual_pips": 12.8,
-    "actual_r": 0.4039,
+    "actual_pips": -11.7,
+    "actual_r": -0.3669,
     "audit_status": "NEEDS_DATA_OR_REVIEW",
-    "closed_at": "2026-10-16T07:44:25Z",
-    "exit_reason": "DYNAMIC_PROFIT_EXIT",
+    "closed_at": "2026-10-16T12:40:26Z",
+    "exit_reason": "DYNAMIC_RISK_EXIT",
     "findings": [
       "CHALLENGER_REPORT_PENDING",
       "EXIT_INTELLIGENCE_REVIEW_PENDING_OR_STALE"
@@ -5776,11 +6135,11 @@
   "mode": "READ_ONLY_POST_CLOSE_AUDIT",
   "schema_version": "eurusd-daily-posttrade-audit-v1",
   "summary": {
-    "audited_trades": 43,
+    "audited_trades": 45,
     "audits_with_findings": 43,
-    "canonical_closed_trades_in_scope": 43,
+    "canonical_closed_trades_in_scope": 45,
     "missing_or_partial_live_evidence": 42,
     "waiting_for_challengers": 1
   },
-  "updated_at": "2026-10-16T09:07:25Z"
+  "updated_at": "2026-10-16T13:55:51Z"
 }
