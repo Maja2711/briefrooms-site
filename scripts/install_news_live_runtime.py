@@ -14,9 +14,9 @@ PAGES = [
     ROOT / "pl" / "index.html",
     ROOT / "en" / "index.html",
 ]
-VERSION = "8"
-RUNTIME_REVISION = "global24h"
-FLOOR_VERSION = "4"
+VERSION = "9"
+RUNTIME_REVISION = "desk24h"
+FLOOR_VERSION = "5"
 LAB_VERSION = "1"
 INTELLIGENCE_VERSION = "1"
 TAG = f'<script src="/scripts/news-live.js?v={VERSION}&rev={RUNTIME_REVISION}" defer></script>'
