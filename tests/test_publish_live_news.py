@@ -107,6 +107,7 @@ class LiveNewsPublisherTests(unittest.TestCase):
             "source": "Science Desk",
             "link": "https://example.org/old-science",
             "image": "https://example.org/old.jpg",
+            "published_at": now.isoformat(),
         }
         first_seen = (now - timedelta(hours=25)).isoformat()
         state = {normalized_identity(previous): {"first_seen_at": first_seen}}
