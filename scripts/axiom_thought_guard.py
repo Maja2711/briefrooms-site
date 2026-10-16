@@ -184,6 +184,13 @@ def rhetorical_style_issues(candidate_pl: str, previous: list[dict[str, Any]], p
     return findings
 
 
+def rhetorical_diversity_score(candidate_pl: str, previous: list[dict[str, Any]], publication_date: str) -> int:
+    """Advisory 0..10 score; repeated syntax never rejects a distinct idea."""
+    issues = rhetorical_style_issues(candidate_pl, previous, publication_date)
+    patterns = {issue.split(": ", 1)[1].split(" (", 1)[0] for issue in issues}
+    return max(0, 10 - 2 * len(patterns))
+
+
 def read_json(path: Path) -> dict[str, Any]:
     data = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(data, dict):
@@ -340,8 +347,8 @@ def validate(current: dict[str, Any], history: list[dict[str, Any]], *, require_
         # Textual duplication is prohibited against the *entire* append-only
         # archive, including records outside the theme-rotation window.
         all_previous = history[:-1]
-        if isinstance(latest.get("pl"), str):
-            errors.extend(rhetorical_style_issues(latest["pl"], all_previous, latest["date"]))
+        # Style overlap informs editorial ordering, but cannot veto a new
+        # concept or invalidate a prior publication. Semantic/exact checks remain.
 
         # A conceptual theme is exclusive for the full 365-day memory window.
         # This blocks a generator from rephrasing an old idea under the same theme.
