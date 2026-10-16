@@ -53,7 +53,9 @@ test('legacy homepage renderer preserves feed editorial order', () => {
 });
 
 test('homepage accepts exactly 24 hours and rejects anything older or undated', () => {
-  const exact = item('pl', '1', 'Polityka', home.HOME_MAX_AGE_MS);
+  // An exact 24h source age is still valid for Science; a Politics card must
+  // instead satisfy the stricter current-calendar-day rule.
+  const exact = item('pl', '1', 'Nauka', home.HOME_MAX_AGE_MS);
   const stale = item('pl', '2', 'Ekonomia', home.HOME_MAX_AGE_MS + 1);
   const missing = item('pl', '3', 'Zdrowie', 1000);
   delete missing.published_at;
