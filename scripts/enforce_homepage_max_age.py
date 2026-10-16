@@ -113,7 +113,7 @@ def _is_current_news(story: dict[str, Any], lang: str | None, section_id: str | 
         return True
     inferred = _homepage_lane(story)
     if inferred == "nauka" and not any(
-        token in category for token in ("nauka", "science", "technolog", "technology")
+        token in category for token in ("nauka", "science", "technolog", "technology", "krypto", "crypto")
     ):
         return True  # The legacy lane helper defaults unknown categories to Science.
     return inferred in CURRENT_NEWS_LANES
