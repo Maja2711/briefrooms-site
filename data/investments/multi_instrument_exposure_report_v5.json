@@ -1,13 +1,68 @@
 {
   "layer_version": "5.9.1-experimental",
-  "checked_at": "2026-10-16T07:52:48+02:00",
+  "checked_at": "2026-10-16T11:29:23+02:00",
   "actions": [
     {
+      "action": "archive_closed_learning_samples",
+      "count": 1
+    },
+    {
       "instrument_id": "eurusd",
-      "action": "keep_open",
+      "action": "live_reauthorize_after_missed_execution_window",
       "direction": "short",
-      "macro_score": 1.426,
-      "next_governed_review": "daily_review_23_00_europe_warsaw"
+      "strategy_id": "weekly_trend",
+      "authorized_at": "2026-10-16T11:29:23+02:00",
+      "expires_at": "2026-10-16T12:29:23+02:00"
+    },
+    {
+      "instrument_id": "eurusd",
+      "action": "wait_for_entry_target",
+      "direction": "short",
+      "target_price": 1.12786567,
+      "reference_price": 1.12549245,
+      "order_type": "sell_limit",
+      "expires_at": "2026-10-16T12:29:23+02:00",
+      "overextension_score": 0.34393,
+      "market_entry_diagnostics": {
+        "version": "WES-1.3.1",
+        "scoring_model": "weekly_primary_daily_confirmation_modifier",
+        "direction": "short",
+        "daily_score": -48.0,
+        "weekly_score": -60.0,
+        "selected_utility": 9.7943,
+        "confirmations": 2,
+        "ret5_pct": 0.3737,
+        "ret20_pct": -1.9268,
+        "overextension_score": 0.34393,
+        "daily_aligned": true,
+        "weekly_aligned": true,
+        "daily_opposed": false,
+        "weekly_opposed": false,
+        "momentum_aligned": false,
+        "momentum_opposed": false,
+        "primary_score_components": {
+          "weekly": 1.0,
+          "utility": 0.6996,
+          "confirmations": 0.5,
+          "momentum": 0.5
+        },
+        "primary_market_score": 0.7749,
+        "overextension_penalty": 0.0688,
+        "score_before_daily_modifier": 0.7061,
+        "daily_confirmation_modifier": 0.0698,
+        "daily_confirmation_state": "aligned_bonus",
+        "daily_modifier_bounds": {
+          "aligned_bonus_max": 0.08,
+          "opposed_penalty_max": 0.1,
+          "strong_opposition_veto_abs_score": 55.0
+        },
+        "market_score": 0.7759,
+        "minimum_market_score": 0.6,
+        "eligible": false,
+        "reasons": [
+          "post_stop_reversal_requires_pullback"
+        ]
+      }
     },
     {
       "instrument_id": "sp500_futures",
