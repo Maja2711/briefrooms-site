@@ -220,7 +220,7 @@ test("Daily and Weekly directional close do not replace lifecycle by SL/TP", () 
   ]) {
     const event = { event_id: "x", engine, event_type: "CLOSE", position_id: "p", instrument, direction, entry: 1, exit_price: 2, exit_reason: reason };
     const push = JSON.parse(notificationPayload(event, "pl"));
-    assert.equal(push.body, `${label} · ${instrument} @ 2,00`);
+    assert.equal(push.body, `${label} · ${instrument} @ ${instrument === "EUR/USD" ? "2,0000" : "2,00"}`);
     assert.equal(push.data.exit_reason, reason);
   }
 });
