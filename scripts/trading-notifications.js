@@ -287,7 +287,7 @@
     const priceValue = open ? event.entry : event.exit_price;
     const numericPrice = priceValue == null ? null : Number(priceValue);
     const price = numericPrice != null && Number.isFinite(numericPrice)
-      ? ` @ ${new Intl.NumberFormat(pl ? "pl-PL" : "en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: false }).format(numericPrice)}`
+      ? ` @ ${new Intl.NumberFormat(pl ? "pl-PL" : "en-US", { minimumFractionDigits: /EUR\s*\/\s*USD|EURUSD/i.test(String(event.instrument || "")) ? 4 : 2, maximumFractionDigits: /EUR\s*\/\s*USD|EURUSD/i.test(String(event.instrument || "")) ? 4 : 2, useGrouping: false }).format(numericPrice)}`
       : "";
     let result = "";
     if (event.engine === "stock" && !open && event.entry != null && event.exit_price != null) {
