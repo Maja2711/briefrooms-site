@@ -109,12 +109,14 @@ class HomepageExposureCapTests(unittest.TestCase):
         self.assertEqual(result["home_reserve"], [])
         self.assertEqual(result["health"]["homepage_freshness"]["source_stale_rejected"], 1)
         self.assertEqual(state, {})
-        self.assertEqual(result["homepage_policy"]["source_age_limit_hours"], 24)
-        self.assertEqual(result["homepage_policy"]["source_same_day_timezone"], "Europe/Warsaw")
+        self.assertEqual(result["homepage_policy"]["source_age_limit_hours"], None)
+        self.assertEqual(result["homepage_policy"]["current_news_source_age_limit_hours"], 24)
+        self.assertEqual(result["homepage_policy"]["current_news_same_day_timezone"], "Europe/Warsaw")
+        self.assertEqual(result["homepage_policy"]["editorial_exception_source_age_limit_hours"], None)
 
     def test_polish_news_from_yesterday_is_rejected_even_if_under_24_hours_old(self) -> None:
         now = datetime(2026, 10, 15, 22, 15, tzinfo=timezone.utc)  # Oct 16 Warsaw
-        story = self._story("Yesterday local", datetime(2026, 10, 15, 21, 30, tzinfo=timezone.utc))
+        story = self._story("Yesterday local", datetime(2026, 10, 15, 21, 30, tzinfo=timezone.utc), "Sport")
         result, _ = enforce_payload(
             {"home": [story], "sections": {"health": [story]}, "health": {}},
             {}, now, lang="pl",
@@ -124,7 +126,7 @@ class HomepageExposureCapTests(unittest.TestCase):
 
     def test_polish_today_story_expires_at_warsaw_midnight(self) -> None:
         now = datetime(2026, 10, 16, 9, 0, tzinfo=timezone.utc)
-        story = self._story("Today science", now - timedelta(hours=1))
+        story = self._story("Today Sport", now - timedelta(hours=1), "Sport")
         result, state = enforce_payload(
             {"home": [story], "sections": {"health": [story]}, "health": {}},
             {}, now, lang="pl",
@@ -141,7 +143,7 @@ class HomepageExposureCapTests(unittest.TestCase):
 
     def test_en_source_age_expiry_shorter_than_first_display_window(self) -> None:
         now = datetime(2026, 10, 16, 9, 0, tzinfo=timezone.utc)
-        story = self._story("Older but within one day", now - timedelta(hours=23))
+        story = self._story("Older but within one day", now - timedelta(hours=23), "Business")
         result, _ = enforce_payload(
             {"home": [story], "sections": {"health": [story]}, "health": {}},
             {}, now, lang="en",
@@ -151,6 +153,68 @@ class HomepageExposureCapTests(unittest.TestCase):
             result["home"][0]["news_expires_at"],
             (now + timedelta(hours=1)).isoformat(timespec="seconds"),
         )
+
+    def test_science_health_ai_allow_old_sources_for_at_most_first_exposure_24h(self) -> None:
+        now = datetime(2026, 10, 16, 9, 0, tzinfo=timezone.utc)
+        section_names = ("nauka", "zdrowie", "ai-technologia-krypto")
+        for section in section_names:
+            with self.subTest(section=section):
+                story = self._story(f"Verified evergreen {section}", now - timedelta(days=30), "Science")
+                payload = {
+                    "sections": {section: [story]},
+                    "home": [], "home_reserve": [], "health": {},
+                }
+                exposed, state = enforce_payload(
+                    json.loads(json.dumps(payload)), {}, now, lang="pl",
+                )
+                self.assertEqual(len(exposed["sections"][section]), 1)
+                row = exposed["sections"][section][0]
+                self.assertEqual(row["news_freshness_profile"], "editorial_exception")
+                self.assertEqual(
+                    row["news_expires_at"], (now + timedelta(hours=24)).isoformat(timespec="seconds"),
+                )
+                after = now + timedelta(hours=24, seconds=1)
+                expired, _ = enforce_payload(
+                    json.loads(json.dumps(payload)), state, after, lang="pl",
+                )
+                self.assertEqual(expired["sections"][section], [])
+
+    def test_stale_source_is_rejected_in_all_current_news_sections(self) -> None:
+        now = datetime(2026, 10, 16, 9, 0, tzinfo=timezone.utc)
+        for section in ("polityka", "ekonomia", "sport"):
+            with self.subTest(section=section):
+                story = self._story(f"Old {section}", now - timedelta(days=4), "Health")
+                payload = {"sections": {section: [story]}, "home": [], "health": {}}
+                result, _ = enforce_payload(payload, {}, now, lang="pl")
+                self.assertEqual(result["sections"][section], [])
+
+    def test_english_science_health_ai_allow_old_source_not_old_exposure(self) -> None:
+        now = datetime(2026, 10, 16, 9, 0, tzinfo=timezone.utc)
+        for section in ("science", "health", "ai-technology-crypto"):
+            with self.subTest(section=section):
+                story = self._story(f"Old verified EN {section}", now - timedelta(days=5), "Science")
+                payload = {"sections": {section: [story]}, "home": [], "health": {}}
+                fresh, state = enforce_payload(payload, {}, now, lang="en")
+                self.assertEqual(len(fresh["sections"][section]), 1)
+                late, _ = enforce_payload(
+                    {"sections": {section: [story]}, "home": [], "health": {}},
+                    state, now + timedelta(days=1, seconds=1), lang="en",
+                )
+                self.assertEqual(late["sections"][section], [])
+
+    def test_homepage_editorial_exception_uses_first_exposure_not_source_timestamp(self) -> None:
+        now = datetime(2026, 10, 16, 9, 0, tzinfo=timezone.utc)
+        story = self._story("Important old science discovery", now - timedelta(days=10), "Science")
+        story["homepage_lane"] = "nauka"
+        payload = {"home": [story], "sections": {"nauka": [story]}, "health": {}}
+        result, state = enforce_payload(json.loads(json.dumps(payload)), {}, now, lang="pl")
+        self.assertEqual(len(result["home"]), 1)
+        self.assertEqual(result["home"][0]["news_freshness_profile"], "editorial_exception")
+        self.assertEqual(result["home"][0]["news_expires_at"], (now + HOME_MAX_AGE).isoformat(timespec="seconds"))
+        after, _ = enforce_payload(
+            json.loads(json.dumps(payload)), state, now + HOME_MAX_AGE + timedelta(seconds=1), lang="pl",
+        )
+        self.assertEqual(after["home"], [])
 
     def test_missing_source_timestamp_is_not_fresh(self) -> None:
         now = datetime(2026, 10, 16, 9, 0, tzinfo=timezone.utc)
