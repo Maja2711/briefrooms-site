@@ -225,6 +225,13 @@ test("Daily and Weekly directional close do not replace lifecycle by SL/TP", () 
   }
 });
 
+test("EUR/USD push uses four decimals in both languages and preserves original entry", () => {
+  const event = { event_id: "eur-open", engine: "daily", event_type: "OPEN", position_id: "eur", instrument: "EUR/USD", direction: "LONG", entry: 1.12345678 };
+  assert.equal(JSON.parse(notificationPayload(event, "pl")).body, "OTWARTY LONG · EUR/USD @ 1,1235");
+  assert.equal(JSON.parse(notificationPayload(event, "en")).body, "OPENED LONG · EUR/USD @ 1.1235");
+  assert.equal(event.entry, 1.12345678);
+});
+
 test("Push formats ASO price with two decimals without mutating event precision", () => {
   const event = { event_id: "aso-open", engine: "stock", event_type: "OPEN", position_id: "aso", instrument: "ASO", direction: "LONG", entry: 58.26499939 };
   assert.equal(JSON.parse(notificationPayload(event, "pl")).body, "POZYCJA OTWARTA · ASO @ 58,26");
