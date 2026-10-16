@@ -104,7 +104,19 @@ def _is_current_news(story: dict[str, Any], lang: str | None, section_id: str | 
             return False
         # Unknown sections fail closed as a current-news desk.
         return True
-    return _homepage_lane(story) in CURRENT_NEWS_LANES
+    lane = str(story.get("homepage_lane") or "").strip().casefold()
+    if lane:
+        # Only explicitly classified Science/Health/AI lanes receive exceptions.
+        return lane not in {"nauka", "zdrowie", "ai_technologia"}
+    category = str(story.get("category") or "").strip().casefold()
+    if not category:
+        return True
+    inferred = _homepage_lane(story)
+    if inferred == "nauka" and not any(
+        token in category for token in ("nauka", "science", "technolog", "technology")
+    ):
+        return True  # The legacy lane helper defaults unknown categories to Science.
+    return inferred in CURRENT_NEWS_LANES
 
 
 def _source_is_fresh(
