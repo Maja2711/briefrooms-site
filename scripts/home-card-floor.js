@@ -33,7 +33,7 @@
   }
 
   function isFresh(value, nowMs) {
-    var published = timestamp(value);
+    var published = typeof value === 'number' ? value : timestamp(value);
     if (!published) return false;
     var now = Number.isFinite(nowMs) ? nowMs : Date.now();
     var age = now - published;
