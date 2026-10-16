@@ -1,12 +1,11 @@
 'use strict';
 
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const test = require('node:test');
-const vm = require('node:vm');
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import test from 'node:test';
+import {runInNewContext} from 'node:vm';
 
-const source = fs.readFileSync(path.join(__dirname, '../scripts/news-live.js'), 'utf8');
+const source = readFileSync(new URL('../scripts/news-live.js', import.meta.url), 'utf8');
 const anchor = "  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, {once: true});";
 assert.ok(source.includes(anchor), 'news live runtime entrypoint changed; test hooks must be checked');
 const instrumented = source.replace(anchor,
@@ -26,7 +25,7 @@ function runtime(lang) {
     console,
     location: {href: 'https://briefrooms.com/' + lang + '/aktualnosci.html'},
   };
-  vm.runInNewContext(instrumented, sandbox, {filename: 'scripts/news-live.js'});
+  runInNewContext(instrumented, sandbox, {filename: 'scripts/news-live.js'});
   return sandbox.__NEWS_POLICY_TEST__;
 }
 
