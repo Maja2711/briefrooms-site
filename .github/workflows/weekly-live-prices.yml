@@ -44,6 +44,9 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Install WES market-data dependencies
+        run: python -m pip install --disable-pip-version-check yfinance pandas numpy
+
       - name: Start immutable LIVE execution clock
         run: |
           echo "NO_RETROACTIVE_EXECUTION=1" >> "$GITHUB_ENV"
