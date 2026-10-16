@@ -33,11 +33,33 @@
   }
 
   function isFresh(value, nowMs) {
-    var published = timestamp(value);
+    var published = typeof value === 'number' ? value : timestamp(value);
     if (!published) return false;
     var now = Number.isFinite(nowMs) ? nowMs : Date.now();
     var age = now - published;
     return age >= -FUTURE_TOLERANCE_MS && age <= HOME_MAX_AGE_MS;
+  }
+
+  var WARSAW_DAY = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'Europe/Warsaw', year: 'numeric', month: '2-digit', day: '2-digit'
+  });
+
+  function isEligibleStory(story, lang, nowMs) {
+    var now = Number.isFinite(nowMs) ? nowMs : Date.now();
+    var published = timestamp(story && story.published_at);
+    var firstSeen = timestamp(story && (story.news_first_seen_at || story.homepage_first_seen_at));
+    var expiresAt = timestamp(story && (story.news_expires_at || story.homepage_expires_at));
+    if (!published || published > now + FUTURE_TOLERANCE_MS ||
+        !firstSeen || !expiresAt || !isFresh(firstSeen, now) ||
+        expiresAt < now || expiresAt > firstSeen + HOME_MAX_AGE_MS) return false;
+
+    // The producer sets this only after per-desk policy validation.
+    // Absence of the marker must fail closed as a current-news desk.
+    var strict = story.news_freshness_profile !== 'editorial_exception';
+    if (!strict) return true;
+    if (!isFresh(published, now)) return false;
+    return lang !== 'pl' ||
+      WARSAW_DAY.format(new Date(published)) === WARSAW_DAY.format(new Date(now));
   }
 
   function safeHttpUrl(value) {
@@ -103,13 +125,15 @@
     var link = safeHttpUrl(story && story.link);
     var imageUrl = safeImageUrl(story && story.image);
     var published = String(story && story.published_at || '');
-    if (!link || !imageUrl || !story || !story.title || !isFresh(published, nowMs)) return null;
+    if (!link || !imageUrl || !story || !story.title || !isEligibleStory(story, lang, nowMs)) return null;
 
     var card = element(document, 'a', 'brief-card');
     card.href = link;
     card.target = '_blank';
     card.rel = 'noopener noreferrer external';
     card.dataset.homePublishedAt = published;
+    card.dataset.homeFreshnessProfile =
+      story.news_freshness_profile === 'editorial_exception' ? 'editorial_exception' : 'current';
     var firstSeen = story.news_first_seen_at || story.homepage_first_seen_at;
     if (firstSeen) card.dataset.homeFirstSeenAt = String(firstSeen);
     var expiresAt = story.news_expires_at || story.homepage_expires_at;
@@ -243,9 +267,7 @@
         var story = candidates[index];
         var identity = storyIdentity(story);
         if (!identity || identities.has(identity) || context.failedStoryIds.has(identity)) continue;
-        if (!isFresh(story.published_at, nowMs)) continue;
-        var firstSeen = story.news_first_seen_at || story.homepage_first_seen_at;
-        if (firstSeen && !isFresh(firstSeen, nowMs)) continue;
+        if (!isEligibleStory(story, context.lang, nowMs)) continue;
 
         var card = makeImageCard(context.document, story, context.lang, nowMs);
         if (!card) continue;
@@ -325,6 +347,7 @@
     candidateStories: candidateStories,
     ensureFloor: ensureFloor,
     isFresh: isFresh,
+    isEligibleStory: isEligibleStory,
     makeImageCard: makeImageCard,
     safeHttpUrl: safeHttpUrl,
     safeImageUrl: safeImageUrl,

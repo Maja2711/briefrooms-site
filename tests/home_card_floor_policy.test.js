@@ -65,3 +65,43 @@ test('runtime floor deduplicates identical stories across home and reserve', () 
 
   assert.deepEqual(Array.from(rows, item => item.link), [selected.link, reserve.link]);
 });
+
+test('floor honors evergreen publication older than 24h but only within first BRs exposure day', () => {
+  const now = Date.parse('2026-10-16T09:00:00Z');
+  const item = {
+    ...story('Important older science', 'older-science'),
+    published_at: '2026-10-02T09:00:00Z',
+    news_first_seen_at: '2026-10-16T08:00:00Z',
+    news_expires_at: '2026-10-17T08:00:00Z',
+    news_freshness_profile: 'editorial_exception'
+  };
+  assert.equal(floor.isEligibleStory(item, 'pl', now), true);
+  assert.equal(floor.isEligibleStory(item, 'pl', Date.parse('2026-10-17T08:00:01Z')), false);
+  assert.equal(floor.isEligibleStory({...item, news_freshness_profile: 'current'}, 'pl', now), false);
+});
+
+test('floor refuses previous-day Polish Sport and unknown freshness profile', () => {
+  const now = Date.parse('2026-10-15T22:15:00Z');
+  const item = {
+    ...story('Polski mecz w Wuhan', 'old-wuhan'),
+    published_at: '2026-10-15T21:30:00Z',
+    news_first_seen_at: '2026-10-15T22:00:00Z',
+    news_expires_at: '2026-10-16T22:00:00Z',
+    news_freshness_profile: 'current',
+  };
+  assert.equal(floor.isEligibleStory(item, 'pl', now), false);
+  assert.equal(floor.isEligibleStory({...item, news_freshness_profile: undefined}, 'pl', now), false);
+});
+
+test('floor does not accept missing or reset first-seen or overlong 24h exposure', () => {
+  const now = Date.parse('2026-10-16T09:00:00Z');
+  const item = {
+    ...story('Older AI research', 'ai-research'),
+    published_at: '2026-10-01T10:00:00Z',
+    news_first_seen_at: '2026-10-16T08:00:00Z',
+    news_expires_at: '2026-10-17T08:00:00Z',
+    news_freshness_profile: 'editorial_exception'
+  };
+  assert.equal(floor.isEligibleStory({...item, news_first_seen_at: undefined}, 'pl', now), false);
+  assert.equal(floor.isEligibleStory({...item, news_expires_at: '2026-10-18T08:00:00Z'}, 'pl', now), false);
+});

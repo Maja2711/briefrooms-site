@@ -53,7 +53,9 @@ test('legacy homepage renderer preserves feed editorial order', () => {
 });
 
 test('homepage accepts exactly 24 hours and rejects anything older or undated', () => {
-  const exact = item('pl', '1', 'Polityka', home.HOME_MAX_AGE_MS);
+  // An exact 24h source age is still valid for Science; a Politics card must
+  // instead satisfy the stricter current-calendar-day rule.
+  const exact = item('pl', '1', 'Nauka', home.HOME_MAX_AGE_MS);
   const stale = item('pl', '2', 'Ekonomia', home.HOME_MAX_AGE_MS + 1);
   const missing = item('pl', '3', 'Zdrowie', 1000);
   delete missing.published_at;
@@ -68,4 +70,19 @@ test('homepage accepts exactly 24 hours and rejects anything older or undated', 
 test('future timestamps beyond clock tolerance are not eligible', () => {
   const future = item('en', '1', 'Health', -(11 * 60 * 1000));
   assert.equal(home.selectApproved([future], 'en', NOW).length, 0);
+});
+
+test('legacy PL homepage never surfaces yesterday Politics Economy or Sport at Warsaw midnight', () => {
+  const at = Date.parse('2026-10-15T22:15:00Z'); // Oct 16 in Warsaw
+  for (const category of ['Polityka', 'Ekonomia', 'Sport']) {
+    const row = {
+      category,
+      published_at: '2026-10-15T21:30:00Z',
+    };
+    assert.equal(home.isFresh(row, at, 'pl'), false, category);
+  }
+  assert.equal(home.isFresh({
+    category: 'Nauka',
+    published_at: '2026-10-15T21:30:00Z',
+  }, at, 'pl'), true);
 });

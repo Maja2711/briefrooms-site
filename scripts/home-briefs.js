@@ -74,12 +74,28 @@
     return Number.isFinite(parsed) ? parsed : 0;
   }
 
-  function isFresh(item, nowMs) {
+  var WARSAW_DAY = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'Europe/Warsaw', year: 'numeric', month: '2-digit', day: '2-digit'
+  });
+
+  function isFresh(item, nowMs, lang) {
     var published = timestamp(item && item.published_at);
     if (!published) return false;
     var now = Number.isFinite(nowMs) ? nowMs : Date.now();
     var age = now - published;
-    return age >= -FUTURE_TOLERANCE_MS && age <= HOME_MAX_AGE_MS;
+    if (age < -FUTURE_TOLERANCE_MS || age > HOME_MAX_AGE_MS) return false;
+
+    // Legacy home_brief.json has no durable BRs first-display clock. Keep this
+    // feed conservative; source-age exceptions are served from news-live-v2,
+    // whose news_first_seen_at/news_expires_at provide proof of <=24h exposure.
+    if (lang === 'pl') {
+      var category = normalizedCategory(item && item.category);
+      var editorialException = /\b(nauka|science|zdrowie|health|medycyna|medicine|ai|technologia|technology|tech|krypto|crypto)\b/.test(category);
+      var strict = /\b(polityka|politics|geopolityka|geopolitics|ekonomia|gospodarka|business|economy|sport)\b/.test(category) ||
+        !editorialException;
+      if (strict && WARSAW_DAY.format(new Date(published)) !== WARSAW_DAY.format(new Date(now))) return false;
+    }
+    return true;
   }
 
   function normalizedCategory(value) {
@@ -120,7 +136,7 @@
   function selectApproved(items, lang, nowMs) {
     var seen = new Set();
     var fresh = (Array.isArray(items) ? items : []).filter(function (item) {
-      if (!isApproved(item) || !safePermalink(item.permalink, lang) || !isFresh(item, nowMs)) return false;
+      if (!isApproved(item) || !safePermalink(item.permalink, lang) || !isFresh(item, nowMs, lang)) return false;
       var identity = String(item.link || item.title || '');
       if (!identity || seen.has(identity)) return false;
       seen.add(identity);

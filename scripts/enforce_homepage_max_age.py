@@ -6,6 +6,7 @@ import json
 import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 from typing import Any, Iterable
 from urllib.parse import urlsplit
 
@@ -20,6 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 NEWS_DIR = ROOT / "data" / "news"
 STATE_PATH = NEWS_DIR / "homepage_exposure.json"
 NEWS_MAX_AGE = timedelta(hours=24)
+WARSAW = ZoneInfo("Europe/Warsaw")
 # Compatibility alias for older tests/importers. The policy is now global, not homepage-only.
 HOME_MAX_AGE = NEWS_MAX_AGE
 FUTURE_TOLERANCE = timedelta(minutes=10)
@@ -63,6 +65,16 @@ TARGET_LANE_CAP = 3
 EMERGENCY_LANE_CAP = 4
 SPORT_HARD_CAP = 3
 PL_SECTION_MINIMUMS = {section_id: base.MIN_SECTION for section_id, _, _ in base.PL}
+CURRENT_NEWS_SECTIONS = {
+    "pl": frozenset({"polityka", "ekonomia", "sport"}),
+    "en": frozenset({"world-news", "asia-pacific", "europe", "middle-east", "business", "sport"}),
+}
+EDITORIAL_EXCEPTION_SECTIONS = {
+    "pl": frozenset({"nauka", "zdrowie", "ai-technologia-krypto"}),
+    "en": frozenset({"science", "health", "ai-technology-crypto"}),
+}
+CURRENT_NEWS_LANES = frozenset({"polityka", "geopolityka", "ekonomia", "sport"})
+FRESHNESS_PROFILE_VERSION = "current-vs-editorial-exception-v1"
 PL_AI_CRYPTO_RE = re.compile(
     r"\b(?:AI|sztuczn\w*\s+inteligencj\w*|artificial\s+intelligence|OpenAI|ChatGPT|"
     r"bitcoin|BTC|ethereum|ETH|kryptowalut\w*|crypto|blockchain|stablecoin\w*)\b",
@@ -84,12 +96,70 @@ def _iso(value: datetime) -> str:
     return value.astimezone(timezone.utc).isoformat(timespec="seconds")
 
 
-def _source_is_fresh(story: dict[str, Any], now: datetime) -> bool:
+def _is_current_news(story: dict[str, Any], lang: str | None, section_id: str | None = None) -> bool:
+    """Only Science, Health and AI/Tech/Crypto may display older source material."""
+    if section_id is not None:
+        section = str(section_id).strip().casefold()
+        if section in EDITORIAL_EXCEPTION_SECTIONS.get(lang or "", ()):
+            return False
+        # Unknown sections fail closed as a current-news desk.
+        return True
+    lane = str(story.get("homepage_lane") or "").strip().casefold()
+    if lane:
+        # Only explicitly classified Science/Health/AI lanes receive exceptions.
+        return lane not in {"nauka", "zdrowie", "ai_technologia"}
+    category = str(story.get("category") or "").strip().casefold()
+    if not category:
+        return True
+    inferred = _homepage_lane(story)
+    if inferred == "nauka" and not any(
+        token in category for token in ("nauka", "science", "technolog", "technology", "krypto", "crypto")
+    ):
+        return True  # The legacy lane helper defaults unknown categories to Science.
+    return inferred in CURRENT_NEWS_LANES
+
+
+def _source_is_fresh(
+    story: dict[str, Any],
+    now: datetime,
+    lang: str | None = None,
+    section_id: str | None = None,
+) -> bool:
+    """For current desks require original source freshness, not a new fetch time."""
     published = _parse_time(story.get("published_at"))
     if published is None:
         return False
-    age = now - published
-    return -FUTURE_TOLERANCE <= age <= NEWS_MAX_AGE
+    age = now.astimezone(timezone.utc) - published
+    if age < -FUTURE_TOLERANCE:
+        return False
+    if not _is_current_news(story, lang, section_id):
+        return True  # Older verified source is allowed only until its BRs exposure expires.
+    if age > NEWS_MAX_AGE:
+        return False
+    if lang == "pl" and published.astimezone(WARSAW).date() != now.astimezone(WARSAW).date():
+        return False
+    return True
+
+
+def _public_expiry(
+    story: dict[str, Any],
+    first_seen: datetime,
+    lang: str | None,
+    section_id: str | None = None,
+) -> datetime | None:
+    """Exposure never lasts longer than 24h; current desks have extra limits."""
+    expiry = first_seen.astimezone(timezone.utc) + NEWS_MAX_AGE
+    if not _is_current_news(story, lang, section_id):
+        return expiry
+    published = _parse_time(story.get("published_at"))
+    if published is None:
+        return None
+    expiry = min(expiry, published + NEWS_MAX_AGE)
+    if lang == "pl":
+        tomorrow = published.astimezone(WARSAW).date() + timedelta(days=1)
+        midnight = datetime.combine(tomorrow, datetime.min.time(), tzinfo=WARSAW)
+        expiry = min(expiry, midnight.astimezone(timezone.utc))
+    return expiry
 
 
 def _is_primary_bulletin(story: dict[str, Any]) -> bool:
@@ -279,9 +349,8 @@ def _first_seen(
         if stored is not None:
             return stored
 
-    # The 24h display clock starts when BriefRooms first publishes the card, not
-    # when the source article was written. Source age is enforced separately by
-    # _source_is_fresh(), so an article can never enter BriefRooms if already >24h old.
+    # The persistent 24h exposure clock starts on first BRs publication.
+    # Current-news desks additionally enforce the source publication date.
     return now
 
 
@@ -290,6 +359,7 @@ def public_news_preselection_check(
     state_lang: dict[str, Any],
     now: datetime,
     lang: str | None = None,
+    section_id: str | None = None,
 ) -> tuple[datetime | None, str]:
     """Read-only publication eligibility shared by ranking and the final guard.
 
@@ -298,6 +368,8 @@ def public_news_preselection_check(
     """
     if not _homepage_image_url(story):
         return None, "image"
+    if not _source_is_fresh(story, now, lang, section_id):
+        return None, "source_stale"
     if not _primary_bulletin_is_current(story, now, lang):
         return None, "primary_bulletin_stale"
     identity = base.normalized_identity(story)
@@ -329,7 +401,7 @@ def enforce_payload(
     """
     current = now.astimezone(timezone.utc)
     raw_home_candidates = list(_candidate_sequence(payload))
-    qualification_cache: dict[str, tuple[dict[str, Any] | None, str]] = {}
+    qualification_cache: dict[tuple[str, str], tuple[dict[str, Any] | None, str]] = {}
     counted_rejections: set[str] = set()
     rejection_counts = {
         "expired": 0,
@@ -338,19 +410,25 @@ def enforce_payload(
         "primary_bulletin_stale": 0,
     }
 
-    def qualify(story: dict[str, Any]) -> tuple[dict[str, Any] | None, str]:
+    def qualify(story: dict[str, Any], section_id: str | None = None) -> tuple[dict[str, Any] | None, str]:
+        # Check original publication time independently on each surface/desk.
+        if not _source_is_fresh(story, current, lang, section_id):
+            return None, "source_stale"
         identity = base.normalized_identity(story)
-        if identity and identity in qualification_cache:
-            cached, reason = qualification_cache[identity]
+        profile = "current" if _is_current_news(story, lang, section_id) else "editorial_exception"
+        cache_key = (identity, profile)
+        if identity and cache_key in qualification_cache:
+            cached, reason = qualification_cache[cache_key]
             if not isinstance(cached, dict):
                 return None, reason
             merged = dict(story)
             merged["news_first_seen_at"] = cached.get("news_first_seen_at")
             merged["news_expires_at"] = cached.get("news_expires_at")
+            merged["news_freshness_profile"] = profile
             return merged, reason
 
         first_seen, reason = public_news_preselection_check(
-            story, state_lang, current, lang,
+            story, state_lang, current, lang, section_id,
         )
         if first_seen is None:
             result = (None, reason)
@@ -362,13 +440,18 @@ def enforce_payload(
                     "title": str(story.get("title") or ""),
                 }
             copy = dict(story)
-            copy["news_first_seen_at"] = _iso(first_seen)
-            copy["news_expires_at"] = _iso(first_seen + NEWS_MAX_AGE)
-            result = (copy, "ok")
+            expiry = _public_expiry(story, first_seen, lang, section_id)
+            if expiry is None or expiry < current:
+                result = (None, "source_stale")
+            else:
+                copy["news_first_seen_at"] = _iso(first_seen)
+                copy["news_expires_at"] = _iso(expiry)
+                copy["news_freshness_profile"] = profile
+                result = (copy, "ok")
 
         if identity:
             cached_story = dict(result[0]) if isinstance(result[0], dict) else None
-            qualification_cache[identity] = (cached_story, result[1])
+            qualification_cache[cache_key] = (cached_story, result[1])
         return result
 
     def record_rejection(story: dict[str, Any], reason: str) -> None:
@@ -389,7 +472,7 @@ def enforce_payload(
             for story in rows:
                 if not isinstance(story, dict):
                     continue
-                copy, reason = qualify(story)
+                copy, reason = qualify(story, str(section_id))
                 if copy is not None:
                     # Event/topic dedupe already runs in the canonical publisher
                     # before section selection. Do not run a second, broader fuzzy
@@ -436,7 +519,13 @@ def enforce_payload(
         "scope": "all_public_news_surfaces",
         "max_display_hours": 24,
         "clock": "first_known_briefrooms_display",
-        "source_age_limit_hours": None,
+        "source_age_limit_hours": None,  # No global source cap: rules are desk-specific.
+        "current_news_source_age_limit_hours": 24,
+        "current_news_same_day_timezone": "Europe/Warsaw" if lang == "pl" else None,
+        "current_news_sections": sorted(CURRENT_NEWS_SECTIONS.get(lang or "", ())),
+        "editorial_exception_sections": sorted(EDITORIAL_EXCEPTION_SECTIONS.get(lang or "", ())),
+        "editorial_exception_source_age_limit_hours": None,
+        "freshness_profile_version": FRESHNESS_PROFILE_VERSION,
         "target_story_count": HOME_LIMIT,
         "minimum_story_count": 0,
         "underfill_allowed_when_needed_for_freshness": True,
@@ -581,7 +670,20 @@ def validate_files() -> None:
             raise RuntimeError(f"{lang} public-news freshness scope is incomplete")
         if int(policy.get("max_display_hours") or 0) != 24:
             raise RuntimeError(f"{lang} public-news display cap is not 24 hours")
-            raise RuntimeError(f"{lang} public-news source-age cap is not 24 hours")
+        if policy.get("source_age_limit_hours") is not None:
+            raise RuntimeError(f"{lang} global source-age cap must remain desk-specific")
+        if policy.get("current_news_source_age_limit_hours") != 24:
+            raise RuntimeError(f"{lang} current-news source-age cap must be 24h")
+        if policy.get("current_news_same_day_timezone") != ("Europe/Warsaw" if lang == "pl" else None):
+            raise RuntimeError(f"{lang} current-news calendar policy is invalid")
+        if policy.get("current_news_sections") != sorted(CURRENT_NEWS_SECTIONS[lang]):
+            raise RuntimeError(f"{lang} current-news desk list is invalid")
+        if policy.get("editorial_exception_sections") != sorted(EDITORIAL_EXCEPTION_SECTIONS[lang]):
+            raise RuntimeError(f"{lang} editorial exception desk list is invalid")
+        if policy.get("editorial_exception_source_age_limit_hours") is not None:
+            raise RuntimeError(f"{lang} editorial exception source age must remain unlimited")
+        if policy.get("freshness_profile_version") != FRESHNESS_PROFILE_VERSION:
+            raise RuntimeError(f"{lang} freshness profile version is missing")
         if policy.get("target_story_count") != HOME_LIMIT:
             raise RuntimeError(f"{lang} homepage twelve-story target missing")
         if policy.get("underfill_allowed_when_needed_for_freshness") is not True:
@@ -617,7 +719,11 @@ def validate_files() -> None:
         identities: set[str] = set()
         approved: list[dict[str, Any]] = []
 
-        def validate_story(scope: str, story: dict[str, Any], *, dedupe: bool) -> None:
+        def validate_story(
+            scope: str, story: dict[str, Any], *, dedupe: bool, section_id: str | None = None,
+        ) -> None:
+            if not _source_is_fresh(story, now, lang, section_id):
+                raise RuntimeError(f"{lang} {scope} contains stale source publication: {story.get('title')}")
             if not _primary_bulletin_is_current(story, now, lang):
                 raise RuntimeError(
                     f"{lang} {scope} contains stale same-day primary bulletin: {story.get('title')}"
@@ -645,16 +751,20 @@ def validate_files() -> None:
             expires = _parse_time(story.get("news_expires_at"))
             if first_seen is None or expires is None:
                 raise RuntimeError(f"{lang} {scope} is missing 24h exposure metadata: {story.get('title')}")
-            if expires != first_seen + NEWS_MAX_AGE:
-                raise RuntimeError(f"{lang} {scope} has invalid 24h expiry: {story.get('title')}")
-            if now - first_seen > NEWS_MAX_AGE:
+            expected_expiry = _public_expiry(story, first_seen, lang, section_id)
+            expected_profile = "current" if _is_current_news(story, lang, section_id) else "editorial_exception"
+            if story.get("news_freshness_profile") != expected_profile:
+                raise RuntimeError(f"{lang} {scope} has incorrect news freshness profile: {story.get('title')}")
+            if expires != expected_expiry:
+                raise RuntimeError(f"{lang} {scope} has invalid source/display/day expiry: {story.get('title')}")
+            if now - first_seen > NEWS_MAX_AGE or now > expires:
                 raise RuntimeError(f"{lang} {scope} contains overexposed story: {story.get('title')}")
 
         for section_id, rows in (payload.get("sections") or {}).items():
             if not isinstance(rows, list):
                 raise RuntimeError(f"{lang}/{section_id} section payload is invalid")
             for story in rows:
-                validate_story(f"section {section_id}", story, dedupe=False)
+                validate_story(f"section {section_id}", story, dedupe=False, section_id=section_id)
 
         for scope, rows in (("homepage", home), ("homepage reserve", reserve)):
             for story in rows:
