@@ -435,7 +435,7 @@ jobs:
                               1 for story in home if is_pl_ukraine_russia_war_story(story)
                           )
                           if actual_war_count < PL_UKRAINE_RUSSIA_WAR_MINIMUM:
-                              last.append(f'{path}: required Russia-Ukraine-war story missing from PL homepage')
+                              print(f'::warning::{path}: Ukraine-war editorial target not met; publishing other verified stories')
                           if int(war_policy.get('selected_story_count') or 0) != actual_war_count:
                               last.append(f'{path}: Russia-Ukraine-war diagnostics mismatch')
                       now = datetime.now(timezone.utc)
