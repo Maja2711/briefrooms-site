@@ -13,17 +13,20 @@ NOW = datetime(2026, 8, 3, 8, 0, tzinfo=timezone.utc)
 MARKER = "test-marker"
 
 
-def story(index: int) -> dict:
+def story(index: int, lang: str = "en", section_id: str = "world-news") -> dict:
     published = NOW - timedelta(minutes=index)
-    return {
+    result = {
         "title": f"Story {index}",
         "link": f"https://example.com/{index}",
         "image": f"https://example.com/{index}.jpg",
         "source": "Example",
         "published_at": published.isoformat(),
         "news_first_seen_at": published.isoformat(),
-        "news_expires_at": (published + timedelta(hours=24)).isoformat(),
     }
+    result["news_expires_at"] = health.freshness._public_expiry(
+        result, published, lang, section_id
+    ).isoformat()
+    return result
 
 
 def write_fixture(root: Path, generated: datetime = NOW) -> None:
@@ -41,7 +44,7 @@ def write_fixture(root: Path, generated: datetime = NOW) -> None:
             "marker": MARKER,
             "generated_at": generated.isoformat(),
             "sections": {
-                section: [story(i) for i in range(health.TARGET_SECTION)]
+                section: [story(i, lang, section) for i in range(health.TARGET_SECTION)]
                 for section in config["sections"]
             },
             "health": {"status": "ok", "source_errors": []},
@@ -115,6 +118,40 @@ class LiveNewsHealthTests(unittest.TestCase):
         self.assertEqual("failed", report["status"])
         self.assertTrue(
             any("source_story_over_24h" in reason for reason in report["reasons"])
+        )
+
+    def test_editorial_exception_accepts_older_source_with_new_verified_exposure(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_fixture(root)
+            feed_path = root / health.LANGUAGES["pl"]["feed"]
+            payload = json.loads(feed_path.read_text(encoding="utf-8"))
+            article = payload["sections"]["nauka"][0]
+            article["published_at"] = (NOW - timedelta(days=5)).isoformat()
+            article["news_first_seen_at"] = (NOW - timedelta(minutes=30)).isoformat()
+            article["news_expires_at"] = (
+                NOW + timedelta(hours=23, minutes=30)
+            ).isoformat()
+            feed_path.write_text(json.dumps(payload), encoding="utf-8")
+            report = health.assess(root, now=NOW, max_age_minutes=120)
+        self.assertEqual("healthy", report["status"])
+        self.assertFalse(report["reasons"])
+
+    def test_previous_day_pl_politics_source_remains_blocked(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_fixture(root)
+            feed_path = root / health.LANGUAGES["pl"]["feed"]
+            payload = json.loads(feed_path.read_text(encoding="utf-8"))
+            article = payload["sections"]["polityka"][0]
+            article["published_at"] = (NOW - timedelta(hours=12)).isoformat()
+            article["news_first_seen_at"] = (NOW - timedelta(minutes=10)).isoformat()
+            article["news_expires_at"] = (NOW + timedelta(hours=12)).isoformat()
+            feed_path.write_text(json.dumps(payload), encoding="utf-8")
+            report = health.assess(root, now=NOW, max_age_minutes=120)
+        self.assertEqual("failed", report["status"])
+        self.assertIn(
+            "pl:source_story_stale_or_invalid:polityka", report["reasons"]
         )
 
     def test_stale_publication_fails_at_two_hours(self) -> None:
