@@ -50,7 +50,7 @@ DOMAINS = (
         "publish-news.yml",
         "data/news_publication_status.json",
         ("generated_at",),
-        480,
+        120,
     ),
     Domain(
         "investment_alert",
