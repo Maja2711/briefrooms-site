@@ -717,8 +717,10 @@ def build_language(lang: str, config: Any, marker: str, now: Any) -> dict[str, A
             "dedicated_source_status": "rmf24_world_feed_enabled",
         }
         if war_count < filtered.PL_UKRAINE_RUSSIA_WAR_MINIMUM:
-            raise RuntimeError(
-                "pl homepage is missing required Russia-Ukraine-war coverage"
+            # Editorial coverage is a target, never a global publication gate.
+            health["status"] = "degraded"
+            health.setdefault("editorial_warnings", []).append(
+                "pl_homepage_ukraine_war_coverage_underfilled"
             )
 
     selection = health.setdefault("editorial_selection", {})
