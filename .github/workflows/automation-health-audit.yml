@@ -15,7 +15,7 @@ on:
     - cron: "42 * * * *"
 
 permissions:
-  actions: read
+  actions: write
   contents: write
   issues: write
 
@@ -57,6 +57,37 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: python scripts/automation_health_audit.py --sync-issues
+
+      - name: Recover stalled hourly news publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import subprocess
+          from datetime import datetime, timedelta, timezone
+          from pathlib import Path
+
+          registry = json.loads(Path("data/system/automation_status.json").read_text(encoding="utf-8"))
+          newsroom = (registry.get("workflows") or {}).get("news_pl_en") or {}
+          status = newsroom.get("status")
+          active = newsroom.get("run_state") in {"queued", "in_progress", "pending", "waiting", "requested"}
+          if status not in {"failed", "stale"} or active:
+              print(f"News recovery not needed: status={status}, active={active}")
+          else:
+              # This hourly audit is an independent recovery lane. Its existing
+              # issue synchronization raises an incident; this re-dispatch
+              # attempts a fresh publication without modifying story timestamps.
+              print(f"::warning::Newsroom {status}; dispatching one recovery publication")
+              subprocess.run(
+                  ["gh", "workflow", "run", "publish-news.yml", "--ref", "main",
+                   "--repo", os.environ["GITHUB_REPOSITORY"]],
+                  check=True,
+              )
+          PY
 
       - name: Validate public registry
         run: python scripts/automation_health_audit.py --validate-only
