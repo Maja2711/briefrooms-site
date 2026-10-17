@@ -144,5 +144,21 @@ class CuratedSourceArchitectureTests(unittest.TestCase):
         self.assertEqual(health["world-news"]["source_diversity_status"], "emergency_fallback")
 
 
+    def test_single_publisher_shortage_never_breaks_all_sections(self) -> None:
+        # Regression: PL economy had 15 Business Insider stories and the
+        # downstream emergency-cap validator aborted the entire publication.
+        now = datetime(2026, 10, 17, 12, 0, tzinfo=timezone.utc)
+        candidates = [story("Business Insider Polska", i, now) for i in range(15)]
+        selected, health = curated.select_sections(
+            [("ekonomia", "Ekonomia / Biznes", [])],
+            {"ekonomia": candidates},
+            {"sections": {}},
+            now,
+        )
+        self.assertGreater(len(selected["ekonomia"]), 0)
+        self.assertLessEqual(len(selected["ekonomia"]), EMERGENCY_MAX_SOURCE_CARDS)
+        self.assertEqual(health["ekonomia"]["coverage"], "underfilled")
+        self.assertEqual(health["ekonomia"]["source_diversity_status"], "emergency_fallback")
+
 if __name__ == "__main__":
     unittest.main()
