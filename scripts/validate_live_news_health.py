@@ -13,8 +13,10 @@ from urllib.request import Request, urlopen
 
 try:
     from .news_section_limits import NEWS_SECTION_MINIMUM, NEWS_SECTION_MAXIMUM
+    from . import enforce_homepage_max_age as freshness
 except ImportError:
     from news_section_limits import NEWS_SECTION_MINIMUM, NEWS_SECTION_MAXIMUM
+    import enforce_homepage_max_age as freshness
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = ROOT / "data" / "system" / "news_live_health.json"
@@ -35,7 +37,7 @@ LANGUAGES = {
         },
     },
 }
-RUNTIME = "/scripts/news-live.js?v=8"
+RUNTIME = "/scripts/news-live.js?v=9"
 MARKER_META = 'name="briefrooms-live-news-marker" content="{}"'
 FUTURE_TOLERANCE = timedelta(minutes=10)
 TARGET_SECTION = NEWS_SECTION_MAXIMUM  # Compatibility alias for fixtures
@@ -152,13 +154,24 @@ def validate_local(root: Path, now: datetime, max_age_minutes: int) -> dict[str,
                 if published > now + FUTURE_TOLERANCE:
                     lang_reasons.append(f"future_story_timestamp:{section_id}")
                     break
-                if now - published > MAX_PUBLIC_DISPLAY_AGE:
-                    lang_reasons.append(f"source_story_over_24h:{section_id}")
+                # Respect the canonical current-news vs editorial-exception
+                # contract. PL politics/economy/sport expire at Warsaw midnight,
+                # while science/health/AI may cite older sources during their
+                # first verified 24h BriefRooms exposure. Never renew the clock.
+                if not freshness._source_is_fresh(story, now, lang, section_id):
+                    if freshness._is_current_news(story, lang, section_id) and now - published > MAX_PUBLIC_DISPLAY_AGE:
+                        lang_reasons.append(f"source_story_over_24h:{section_id}")
+                    else:
+                        lang_reasons.append(f"source_story_stale_or_invalid:{section_id}")
                     break
-                if now - first_seen > MAX_PUBLIC_DISPLAY_AGE:
+                if first_seen > now + FUTURE_TOLERANCE:
+                    lang_reasons.append(f"future_display_timestamp:{section_id}")
+                    break
+                if now - first_seen > MAX_PUBLIC_DISPLAY_AGE or now > expires:
                     lang_reasons.append(f"display_story_over_24h:{section_id}")
                     break
-                if expires != first_seen + MAX_PUBLIC_DISPLAY_AGE:
+                expected_expiry = freshness._public_expiry(story, first_seen, lang, section_id)
+                if expires != expected_expiry or expires > first_seen + MAX_PUBLIC_DISPLAY_AGE:
                     lang_reasons.append(f"invalid_24h_expiry:{section_id}")
                     break
 
