@@ -50,7 +50,7 @@ DOMAINS = (
         "publish-news.yml",
         "data/news_publication_status.json",
         ("generated_at",),
-        120,
+        80,  # A single missed hourly news cycle is actionable.
     ),
     Domain(
         "investment_alert",
