@@ -691,7 +691,9 @@ def select_sections(
         elif len(active_sources) == 2:
             preferred_source_cap = MAX_SOURCE_SHARE
         else:
-            preferred_source_cap = target
+            # A single available publisher may not monopolize the whole desk.
+            # Publish up to five verified stories and report an underfill instead.
+            preferred_source_cap = MAX_SOURCE_SHARE
         athlete_counts: dict[str, int] = {}
         entity_counts: dict[str, int] = {}
         discipline_counts: dict[str, int] = {}
@@ -842,7 +844,7 @@ def select_sections(
                     if try_add(
                         copy,
                         discipline_cap=False,
-                        source_cap=(MAX_SOURCE_SHARE if len(active_sources) >= 2 else target),
+                        source_cap=MAX_SOURCE_SHARE,
                     ) == "added":
                         forced_topic_carried = 1
 
@@ -882,7 +884,7 @@ def select_sections(
                     continue
                 copy = dict(old)
                 copy["carried_forward"] = True
-                carry_source_cap = MAX_SOURCE_SHARE if len(active_sources) >= 2 else target
+                carry_source_cap = MAX_SOURCE_SHARE
                 if try_add(copy, discipline_cap=False, source_cap=carry_source_cap) == "added":
                     carried += 1
 
@@ -907,7 +909,7 @@ def select_sections(
             "source_mix": source_counts,
             "source_diversity_policy": EDITORIAL_SELECTION_POLICY_VERSION,
             "preferred_source_cap": preferred_source_cap,
-            "hard_source_cap": MAX_SOURCE_SHARE if len(active_sources) >= 2 else target,
+            "hard_source_cap": MAX_SOURCE_SHARE,
         }
         if sport_mode:
             section_health["tracked_athletes"] = athlete_counts
@@ -1205,7 +1207,7 @@ def validate(max_age_minutes: int = 30) -> None:
                     raise RuntimeError(
                         f"{lang}/{section_id} contains blocked story ({decision.reason}): {story.get('title')}"
                     )
-            if len(source_counts) >= 2 and max(source_counts.values()) > MAX_SOURCE_SHARE:
+            if source_counts and max(source_counts.values()) > MAX_SOURCE_SHARE:
                 raise RuntimeError(
                     f"{lang}/{section_id} violates publisher share cap: {source_counts}"
                 )
