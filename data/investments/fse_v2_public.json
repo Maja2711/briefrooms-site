@@ -24,25 +24,25 @@
       "challenger": {
         "accuracy": 0.2972972972972973,
         "baseline_brier": 0.25,
-        "brier_edge_vs_baseline": -0.024114928276650516,
+        "brier_edge_vs_baseline": -0.024180114591703272,
         "correct_n": 11,
-        "delta_brier_vs_base": -0.003431875752179292,
+        "delta_brier_vs_base": -0.0034596502543086105,
         "horizon": "4x1h_market_bars",
-        "mean_brier": 0.2741149282766505,
-        "paired_base_brier": 0.2706830525244712,
-        "resolved_n": 86,
+        "mean_brier": 0.2741801145917033,
+        "paired_base_brier": 0.27072046433739466,
+        "resolved_n": 87,
         "signal_n": 37
       },
       "deep": {
         "accuracy": 0.38095238095238093,
         "baseline_brier": 0.25,
-        "brier_edge_vs_baseline": -0.020683052524471224,
+        "brier_edge_vs_baseline": -0.020720464337394662,
         "correct_n": 16,
         "delta_brier_vs_base": null,
         "horizon": "4x1h_market_bars",
-        "mean_brier": 0.2706830525244712,
+        "mean_brier": 0.27072046433739466,
         "paired_base_brier": null,
-        "resolved_n": 86,
+        "resolved_n": 87,
         "signal_n": 42
       },
       "instrument": "EURUSD"
@@ -104,13 +104,13 @@
   ],
   "engine": "FSE v2 — Phase & Cross-Scale Engine",
   "errors": {},
-  "generated_at": "2026-10-17T22:40:28.147300Z",
+  "generated_at": "2026-10-17T23:16:20.134868Z",
   "hse_measurements": [
     {
       "challenger": "FSE Phase Fractal Memory",
       "champion": "50/50 directional baseline",
       "claim": "FSE Phase Fractal Memory for EURUSD improves prospective 4x1h directional Brier versus 50/50.",
-      "counter": 86,
+      "counter": 87,
       "details": {
         "horizon": "4x1h_market_bars",
         "instrument": "EURUSD",
@@ -122,13 +122,13 @@
       "reject_mean_edge": -0.0025,
       "success_mean_edge": 0.0025,
       "target_n": 40,
-      "total": -3.8788352489246867
+      "total": -3.9505743503972255
     },
     {
       "challenger": "FSE Regime-Phase P Calibration Challenger",
       "champion": "FSE v2 Deep Fractal Memory P",
       "claim": "FSE Regime-Phase P Calibration Challenger for EURUSD improves prospective Brier versus the frozen FSE v2 base probability.",
-      "counter": 86,
+      "counter": 87,
       "details": {
         "horizon": "4x1h_market_bars",
         "instrument": "EURUSD",
@@ -141,13 +141,13 @@
       "reject_mean_edge": -0.0025,
       "success_mean_edge": 0.0025,
       "target_n": 40,
-      "total": -0.29514131468741756
+      "total": -0.3009895721248476
     },
     {
       "challenger": "FSE Adaptive Ensemble v1",
       "champion": "FSE v2 frozen Deep Fractal Memory",
       "claim": "FSE Adaptive Ensemble v1 improves frozen 4x1h Brier relative to frozen Deep Memory on prospective samples.",
-      "counter": 34,
+      "counter": 35,
       "details": {
         "horizon": "4x1h_market_bars",
         "instrument": "EURUSD",
@@ -159,7 +159,7 @@
       "reject_mean_edge": -0.0025,
       "success_mean_edge": 0.0025,
       "target_n": 40,
-      "total": -0.10328823419094554
+      "total": -0.11481738968745128
     },
     {
       "challenger": "FSE Adaptive Risk Calibrator v1",
@@ -331,11 +331,18 @@
       "adaptive_learning": {
         "ensemble": {
           "active": true,
+          "max_abs_shift_pp": 6.0,
           "methodology_version": "FSE-ADAPTIVE-1.0",
-          "p_adaptive": 0.4556296346467161,
+          "p_adaptive": 0.47370117683350454,
+          "p_base": 0.4674650651644958,
           "production_applied": false,
-          "reason": "reused immutable frozen snapshot",
           "trained_through": "2026-10-16T20:00:00+00:00",
+          "training_brier": {
+            "deep": 0.25860277735893666,
+            "phase": 0.28976967733836606,
+            "regime_phase_challenger": 0.2644116488883006
+          },
+          "training_independent_n": 37,
           "weights": {
             "deep": 0.5285051282747643,
             "phase": 0.21697103020458586,
@@ -348,44 +355,46 @@
           "p_empirical_prior": null,
           "p_large_move": null,
           "production_applied": false,
-          "reason": "reused immutable frozen snapshot",
-          "trained_through": null
+          "reason": "prospective risk outcomes collecting",
+          "trained_through": null,
+          "training_independent_n": 13,
+          "training_n": 34
         }
       },
       "cross_scale_alignment": {
-        "alignment_score": 0.5533252618094916,
+        "alignment_score": 0.5267237111140813,
         "cascade_state": "MIXED",
-        "dominant_scale": "15m",
+        "dominant_scale": "5m",
         "fast_scale_lead_score": 0.46710409060685487,
         "pairs": [
           {
-            "alignment": 0.6442489740453505,
+            "alignment": 0.5224310910557632,
             "fast": "1m",
-            "fast_lead": 0.25124308797174255,
+            "fast_lead": 0.3000377383466053,
             "slow": "5m"
           },
           {
-            "alignment": 0.5100325612540808,
+            "alignment": 0.48868350444767805,
             "fast": "5m",
-            "fast_lead": 0.5229636143298877,
+            "fast_lead": 0.5194425632239241,
             "slow": "15m"
           },
           {
-            "alignment": 0.47240186123566447,
+            "alignment": 0.4561989526809796,
             "fast": "15m",
-            "fast_lead": 0.5444595947701774,
+            "fast_lead": 0.5038463206409313,
             "slow": "1h"
           },
           {
-            "alignment": 0.592848581640919,
+            "alignment": 0.5922078920257872,
             "fast": "1h",
-            "fast_lead": 0.5149519027269964,
+            "fast_lead": 0.5181603552519903,
             "slow": "4h"
           },
           {
-            "alignment": 0.5433287636374442,
+            "alignment": 0.5437299974307898,
             "fast": "4h",
-            "fast_lead": 0.3565685638593989,
+            "fast_lead": 0.34869978619475184,
             "slow": "1d"
           },
           {
@@ -405,12 +414,12 @@
           "direction": "FLAT",
           "efficiency": 0.0,
           "expected_child_bars": 3,
-          "formation_progress": 1.0,
+          "formation_progress": 0.3333333333333333,
           "internal_position": 0.0,
-          "is_partial": false,
-          "observed_child_bars": 3,
+          "is_partial": true,
+          "observed_child_bars": 1,
           "parent_scale": "15m",
-          "parent_started_at": "2026-10-16T21:15:00Z",
+          "parent_started_at": "2026-10-16T22:59:00Z",
           "range_fraction": 0.0
         },
         "1d": {
@@ -424,12 +433,12 @@
           "direction": "FLAT",
           "efficiency": 0.0,
           "expected_child_bars": 4,
-          "formation_progress": 0.5,
+          "formation_progress": 0.25,
           "internal_position": 0.0,
           "is_partial": true,
-          "observed_child_bars": 2,
+          "observed_child_bars": 1,
           "parent_scale": "1h",
-          "parent_started_at": "2026-10-16T21:00:00Z",
+          "parent_started_at": "2026-10-16T22:59:00Z",
           "range_fraction": 0.0
         },
         "1w": {
@@ -450,12 +459,12 @@
           "available": true,
           "child_scale": "1h",
           "direction": "UP",
-          "efficiency": 1.0,
+          "efficiency": 1.0510870772553983e-13,
           "expected_child_bars": 4,
-          "formation_progress": 0.5,
-          "internal_position": 1.0,
+          "formation_progress": 0.75,
+          "internal_position": 0.7497641509433962,
           "is_partial": true,
-          "observed_child_bars": 2,
+          "observed_child_bars": 3,
           "parent_scale": "4h",
           "parent_started_at": "2026-10-16T20:00:00Z",
           "range_fraction": 0.00044959547011356527
@@ -466,12 +475,12 @@
           "direction": "FLAT",
           "efficiency": 0.0,
           "expected_child_bars": 5,
-          "formation_progress": 1.0,
+          "formation_progress": 0.2,
           "internal_position": 0.0,
-          "is_partial": false,
-          "observed_child_bars": 5,
+          "is_partial": true,
+          "observed_child_bars": 1,
           "parent_scale": "5m",
-          "parent_started_at": "2026-10-16T21:25:00Z",
+          "parent_started_at": "2026-10-16T22:59:00Z",
           "range_fraction": 0.0
         }
       },
@@ -479,53 +488,53 @@
         "analogues_n": 80,
         "daily_history_bars": 2603,
         "daily_history_start": "2016-10-16T23:00:00Z",
-        "effective_analogues": 79.4256237498848,
+        "effective_analogues": 79.46884567913064,
         "fingerprint_dimensions": 62,
         "history_candidates": 2933,
-        "history_end": "2026-10-16T21:00:00Z",
+        "history_end": "2026-10-16T22:59:00Z",
         "history_start": "2024-10-16T23:00:00Z",
-        "hourly_history_bars": 12253,
-        "mean_similarity": 0.37015863091530676,
-        "median_adverse_excursion": -0.0005787073958025135,
-        "median_favorable_excursion": 0.0005795348100299247,
+        "hourly_history_bars": 12254,
+        "mean_similarity": 0.3814201520207189,
+        "median_adverse_excursion": -0.0004651914305819904,
+        "median_favorable_excursion": 0.000580692698747054,
         "median_forward_return": 0.0,
         "method": "robust path + generalized Hurst + DFA + Haar + tails + entropy + box dimension + daily context",
-        "p_up": 0.4892789143993628,
+        "p_up": 0.4674650651644958,
         "source": "DEEP_HISTORY",
-        "top_similarity": 0.4049302538367535
+        "top_similarity": 0.4026672207919296
       },
-      "observed_at": "2026-10-16T21:00:00Z",
+      "observed_at": "2026-10-16T22:59:00Z",
       "p_calibration_challenger": {
         "active": true,
         "max_abs_shift_pp": 6.0,
         "method": "bounded blend of FSE deep-memory P with 1h Phase Memory, confidence governed by cross-scale alignment and regime",
-        "p_base": 0.4892789143993628,
-        "p_challenger": 0.4651933558892851,
-        "phase_p": 0.36244745956760077,
-        "phase_weight": 0.2383313154523729,
+        "p_base": 0.4674650651644958,
+        "p_challenger": 0.4760273682963803,
+        "phase_p": 0.48616249854899846,
+        "phase_weight": 0.23168092777852034,
         "production_applied": false,
         "regime_shrink": 0.85,
-        "shift_pp": -2.4085558510077654
+        "shift_pp": 0.8562303131884497
       },
       "phase_map": {
         "15m": {
           "available": true,
-          "bars": 2081,
-          "confidence": 0.43857351530639266,
-          "curvature": -0.18443426489287054,
+          "bars": 2082,
+          "confidence": 0.4760656319021931,
+          "curvature": -0.3094651145446796,
           "direction": "FLAT",
-          "efficiency": 0.06812038771114316,
-          "observed_at": "2026-10-16T21:15:00Z",
+          "efficiency": 0.06810566080640629,
+          "observed_at": "2026-10-16T22:59:00Z",
           "phase": "CONSOLIDATION",
           "phase_memory": {
             "analogues_n": 40,
             "history_candidates": 485,
-            "mean_similarity": 0.34436880946510046,
-            "median_remaining_bars": 43.0,
-            "median_remaining_return": -0.0006312967611963871,
+            "mean_similarity": 0.3449565500677919,
+            "median_remaining_bars": 50.5,
+            "median_remaining_return": -0.0006884904309478745,
             "method": "current partial path matched to historical motif prefixes at multiple completion stages",
-            "p_up_remaining": 0.318985123363702,
-            "phase_progress": 0.5806346381586959,
+            "p_up_remaining": 0.36372154156305714,
+            "phase_progress": 0.5444157587435765,
             "progress_grid": [
               0.4,
               0.55,
@@ -533,12 +542,12 @@
               0.85
             ],
             "source": "PHASE_MEMORY",
-            "top_similarity": 0.37597810679744903
+            "top_similarity": 0.3919561058392699
           },
-          "phase_progress": 0.5806346381586959,
-          "structure_id": "FS-5222E6C1",
-          "trend_z": 0.41621617919265746,
-          "volatility_ratio": 0.3819917939072343
+          "phase_progress": 0.5444157587435765,
+          "structure_id": "FS-B8356B44",
+          "trend_z": 0.41613048769394617,
+          "volatility_ratio": 0.30816952803983777
         },
         "1d": {
           "available": true,
@@ -574,22 +583,22 @@
         },
         "1h": {
           "available": true,
-          "bars": 12253,
-          "confidence": 0.2197961141240406,
-          "curvature": 0.07534779840964272,
+          "bars": 12254,
+          "confidence": 0.2333431133801651,
+          "curvature": 0.08549795550091047,
           "direction": "FLAT",
-          "efficiency": 0.06278044062583349,
-          "observed_at": "2026-10-16T21:00:00Z",
+          "efficiency": 0.07899589360644423,
+          "observed_at": "2026-10-16T22:59:00Z",
           "phase": "TRANSITION",
           "phase_memory": {
             "analogues_n": 40,
             "history_candidates": 772,
-            "mean_similarity": 0.3457278422736096,
+            "mean_similarity": 0.3734762122440817,
             "median_remaining_bars": 43.0,
-            "median_remaining_return": -0.0006341352388106181,
+            "median_remaining_return": 5.719971452233796e-05,
             "method": "current partial path matched to historical motif prefixes at multiple completion stages",
-            "p_up_remaining": 0.36244745956760077,
-            "phase_progress": 0.545066962342554,
+            "p_up_remaining": 0.48616249854899846,
+            "phase_progress": 0.5413387022308315,
             "progress_grid": [
               0.4,
               0.55,
@@ -597,30 +606,30 @@
               0.85
             ],
             "source": "PHASE_MEMORY",
-            "top_similarity": 0.38589029161243366
+            "top_similarity": 0.4106696521775553
           },
-          "phase_progress": 0.545066962342554,
+          "phase_progress": 0.5413387022308315,
           "structure_id": "FS-A72CEED7",
-          "trend_z": 0.32051153646754393,
-          "volatility_ratio": 1.3641644141421314
+          "trend_z": 0.398980775195599,
+          "volatility_ratio": 1.3477380481100723
         },
         "1m": {
           "available": true,
-          "bars": 9876,
-          "confidence": 0.39451005968476327,
-          "curvature": 0.00010730714835221953,
+          "bars": 9877,
+          "confidence": 0.3000000000001355,
+          "curvature": -1.0700470012041874e-13,
           "direction": "FLAT",
-          "efficiency": 0.11114660461556429,
-          "observed_at": "2026-10-16T21:29:00Z",
-          "phase": "CONSOLIDATION",
+          "efficiency": 1.218883571294667e-13,
+          "observed_at": "2026-10-16T22:59:00Z",
+          "phase": "TRANSITION",
           "phase_memory": {
             "analogues_n": 40,
             "history_candidates": 772,
-            "mean_similarity": 0.2555062001954741,
+            "mean_similarity": 0.2541170153254725,
             "median_remaining_bars": 58.0,
-            "median_remaining_return": -0.0001120642002406802,
+            "median_remaining_return": -5.60321001203401e-05,
             "method": "current partial path matched to historical motif prefixes at multiple completion stages",
-            "p_up_remaining": 0.343541073826781,
+            "p_up_remaining": 0.3511090998351372,
             "phase_progress": 0.4,
             "progress_grid": [
               0.4,
@@ -629,12 +638,12 @@
               0.85
             ],
             "source": "PHASE_MEMORY",
-            "top_similarity": 0.2898979485566356
+            "top_similarity": 0.25824569976124323
           },
           "phase_progress": 0.4,
-          "structure_id": "FS-F872ABE5",
-          "trend_z": 0.47238933770128794,
-          "volatility_ratio": 0.0
+          "structure_id": "FS-C472A915",
+          "trend_z": 5.171282963826113e-13,
+          "volatility_ratio": 28062075.191243052
         },
         "1w": {
           "available": true,
@@ -671,21 +680,21 @@
         "4h": {
           "available": true,
           "bars": 3159,
-          "confidence": 0.36538316691399253,
-          "curvature": 0.14684924476960481,
+          "confidence": 0.36634034610834726,
+          "curvature": 0.1449551971479935,
           "direction": "FLAT",
-          "efficiency": 0.020555243810095096,
+          "efficiency": 0.022055509187480924,
           "observed_at": "2026-10-16T20:00:00Z",
           "phase": "TRANSITION",
           "phase_memory": {
             "analogues_n": 40,
             "history_candidates": 754,
-            "mean_similarity": 0.3597914983578717,
+            "mean_similarity": 0.35996873753739034,
             "median_remaining_bars": 43.0,
-            "median_remaining_return": -0.0034076711376252455,
+            "median_remaining_return": -0.0035862735184125083,
             "method": "current partial path matched to historical motif prefixes at multiple completion stages",
-            "p_up_remaining": 0.3596926003860909,
-            "phase_progress": 0.5331054401609568,
+            "p_up_remaining": 0.3384722212591504,
+            "phase_progress": 0.5268104180292392,
             "progress_grid": [
               0.4,
               0.55,
@@ -693,31 +702,31 @@
               0.85
             ],
             "source": "PHASE_MEMORY",
-            "top_similarity": 0.3986736878507121
+            "top_similarity": 0.3985717005298758
           },
-          "phase_progress": 0.5331054401609568,
+          "phase_progress": 0.5268104180292392,
           "structure_id": "FS-8ABBAEE9",
-          "trend_z": -0.10664196741555565,
-          "volatility_ratio": 2.363882766725705
+          "trend_z": -0.11426893481974629,
+          "volatility_ratio": 2.364246114337028
         },
         "5m": {
           "available": true,
-          "bars": 6243,
-          "confidence": 0.28993357066675335,
-          "curvature": 0.00010995082378427642,
+          "bars": 6244,
+          "confidence": 0.36972820744635654,
+          "curvature": -0.07498944197791862,
           "direction": "UP",
-          "efficiency": 0.21442946342130992,
-          "observed_at": "2026-10-16T21:25:00Z",
+          "efficiency": 0.2364451146690219,
+          "observed_at": "2026-10-16T22:59:00Z",
           "phase": "DEVELOPMENT",
           "phase_memory": {
             "analogues_n": 40,
             "history_candidates": 772,
-            "mean_similarity": 0.4053629437550277,
+            "mean_similarity": 0.4280467883866062,
             "median_remaining_bars": 43.0,
-            "median_remaining_return": 0.0001123381413301594,
+            "median_remaining_return": 0.00016828638414834174,
             "method": "current partial path matched to historical motif prefixes at multiple completion stages",
-            "p_up_remaining": 0.5824518342405016,
-            "phase_progress": 0.599005529622606,
+            "p_up_remaining": 0.5475807041960611,
+            "phase_progress": 0.5599698093227158,
             "progress_grid": [
               0.4,
               0.55,
@@ -725,17 +734,17 @@
               0.85
             ],
             "source": "PHASE_MEMORY",
-            "top_similarity": 0.48890966621058524
+            "top_similarity": 0.5355286982532758
           },
-          "phase_progress": 0.599005529622606,
+          "phase_progress": 0.5599698093227158,
           "structure_id": "FS-14F6AEA2",
-          "trend_z": 1.15728268484528,
-          "volatility_ratio": 1.1461052398254554
+          "trend_z": 1.2735795580390223,
+          "volatility_ratio": 1.2409403192832906
         }
       },
-      "reference_price": 1.1243535280227661,
+      "reference_price": 1.1242270469665527,
       "regime": "TURBULENT",
-      "risk_score": 0.5884445703577272,
+      "risk_score": 0.5745426804041707,
       "symbol": "EURUSD=X"
     },
     {
@@ -744,8 +753,8 @@
           "active": true,
           "max_abs_shift_pp": 6.0,
           "methodology_version": "FSE-ADAPTIVE-1.0",
-          "p_adaptive": 0.6062138965608509,
-          "p_base": 0.5733795114116829,
+          "p_adaptive": 0.5371938327731549,
+          "p_base": 0.5271560982387506,
           "production_applied": false,
           "trained_through": "2026-10-17T18:00:00+00:00",
           "training_brier": {
@@ -766,7 +775,7 @@
           "p_empirical_prior": 0.2750909741176654,
           "p_large_move": 0.2750909741176654,
           "production_applied": false,
-          "risk_score": 0.4868716774755253,
+          "risk_score": 0.49755648387921764,
           "slope": 0.0,
           "trained_through": "2026-10-17T18:00:00+00:00",
           "training_independent_n": 18,
@@ -774,50 +783,50 @@
         }
       },
       "cross_scale_alignment": {
-        "alignment_score": 0.5615975414499734,
+        "alignment_score": 0.5488161952432399,
         "cascade_state": "MIXED",
         "dominant_scale": "1d",
-        "fast_scale_lead_score": 0.5312066108769665,
+        "fast_scale_lead_score": 0.5280600289962951,
         "pairs": [
           {
-            "alignment": 0.5749569547163971,
+            "alignment": 0.5520786499632369,
             "fast": "1m",
-            "fast_lead": 0.6081645520776785,
+            "fast_lead": 0.5239445663981706,
             "slow": "5m"
           },
           {
-            "alignment": 0.5027938303897934,
+            "alignment": 0.4538203445993297,
             "fast": "5m",
-            "fast_lead": 0.43585410917595735,
+            "fast_lead": 0.5368965578307463,
             "slow": "15m"
           },
           {
-            "alignment": 0.5534059587488916,
+            "alignment": 0.5477984587214655,
             "fast": "15m",
-            "fast_lead": 0.5642097462817254,
+            "fast_lead": 0.5692192471298554,
             "slow": "1h"
           },
           {
-            "alignment": 0.5613899768136971,
+            "alignment": 0.5622615698130589,
             "fast": "1h",
-            "fast_lead": 0.5920255899990051,
+            "fast_lead": 0.5562539550601838,
             "slow": "4h"
           },
           {
-            "alignment": 0.6287487300839518,
+            "alignment": 0.6286228895340098,
             "fast": "4h",
-            "fast_lead": 0.403961264133257,
+            "fast_lead": 0.39903311365933747,
             "slow": "1d"
           },
           {
-            "alignment": 0.5482897979471096,
+            "alignment": 0.5483152588283386,
             "fast": "1d",
-            "fast_lead": 0.5830244035941756,
+            "fast_lead": 0.5830127338994769,
             "slow": "1w"
           }
         ]
       },
-      "forecast": "UP",
+      "forecast": "NEUTRAL",
       "instrument": "BTCUSD",
       "intrabar_formation": {
         "15m": {
@@ -831,19 +840,19 @@
           "is_partial": true,
           "observed_child_bars": 1,
           "parent_scale": "15m",
-          "parent_started_at": "2026-10-17T22:37:54Z",
+          "parent_started_at": "2026-10-17T23:13:46Z",
           "range_fraction": 0.0
         },
         "1d": {
           "available": true,
           "child_scale": "1h",
           "direction": "DOWN",
-          "efficiency": 0.10112605177922072,
+          "efficiency": 0.09040560100775244,
           "expected_child_bars": 24,
           "formation_progress": 1.0,
-          "internal_position": 0.5327086412948162,
+          "internal_position": 0.5526770726329767,
           "is_partial": false,
-          "observed_child_bars": 24,
+          "observed_child_bars": 25,
           "parent_scale": "1d",
           "parent_started_at": "2026-10-17T00:00:00Z",
           "range_fraction": 0.011486068301524953
@@ -859,17 +868,17 @@
           "is_partial": true,
           "observed_child_bars": 1,
           "parent_scale": "1h",
-          "parent_started_at": "2026-10-17T22:37:54Z",
+          "parent_started_at": "2026-10-17T23:13:46Z",
           "range_fraction": 0.0
         },
         "1w": {
           "available": true,
           "child_scale": "1d",
           "direction": "DOWN",
-          "efficiency": 0.1256343997735846,
+          "efficiency": 0.1218354003626376,
           "expected_child_bars": 7,
           "formation_progress": 0.8571428571428571,
-          "internal_position": 0.3284623773173391,
+          "internal_position": 0.33260113205587577,
           "is_partial": true,
           "observed_child_bars": 6,
           "parent_scale": "1w",
@@ -880,82 +889,73 @@
           "available": true,
           "child_scale": "1h",
           "direction": "DOWN",
-          "efficiency": 0.47163243335661825,
+          "efficiency": 0.40923115097992563,
           "expected_child_bars": 4,
           "formation_progress": 1.0,
-          "internal_position": 0.5736770155052704,
+          "internal_position": 0.5951811346548188,
           "is_partial": false,
-          "observed_child_bars": 4,
+          "observed_child_bars": 5,
           "parent_scale": "4h",
           "parent_started_at": "2026-10-17T20:00:00Z",
           "range_fraction": 0.010653760172348918
         },
         "5m": {
-          "available": true,
+          "available": false,
           "child_scale": "1m",
-          "direction": "FLAT",
-          "efficiency": 0.0,
-          "expected_child_bars": 5,
-          "formation_progress": 0.2,
-          "internal_position": 0.0,
-          "is_partial": true,
-          "observed_child_bars": 1,
-          "parent_scale": "5m",
-          "parent_started_at": "2026-10-17T22:37:54Z",
-          "range_fraction": 0.0
+          "parent_scale": "5m"
         }
       },
       "memory": {
         "analogues_n": 80,
         "daily_history_bars": 3653,
         "daily_history_start": "2016-10-17T00:00:00Z",
-        "effective_analogues": 78.8162713181668,
+        "effective_analogues": 78.77609140456381,
         "fingerprint_dimensions": 62,
         "history_candidates": 4242,
-        "history_end": "2026-10-17T22:37:54Z",
-        "history_start": "2024-10-17T22:00:00Z",
+        "history_end": "2026-10-17T23:13:46Z",
+        "history_start": "2024-10-17T23:00:00Z",
         "hourly_history_bars": 17489,
-        "mean_similarity": 0.4328442996192562,
-        "median_adverse_excursion": -0.0009630549878383299,
-        "median_favorable_excursion": 0.0019519995571596338,
-        "median_forward_return": 0.001246682419582923,
+        "mean_similarity": 0.4272811901434016,
+        "median_adverse_excursion": -0.0014143691888851007,
+        "median_favorable_excursion": 0.0027954173091642165,
+        "median_forward_return": 0.0003568343724876799,
         "method": "robust path + generalized Hurst + DFA + Haar + tails + entropy + box dimension + daily context",
-        "p_up": 0.5733795114116829,
+        "p_up": 0.5271560982387506,
         "source": "DEEP_HISTORY",
-        "top_similarity": 0.4795562285092688
+        "top_similarity": 0.47587596714550184
       },
-      "observed_at": "2026-10-17T22:37:54Z",
+      "observed_at": "2026-10-17T23:13:46Z",
       "p_calibration_challenger": {
         "active": true,
         "max_abs_shift_pp": 6.0,
         "method": "bounded blend of FSE deep-memory P with 1h Phase Memory, confidence governed by cross-scale alignment and regime",
-        "p_base": 0.5733795114116829,
-        "p_challenger": 0.5863606583459835,
-        "phase_p": 0.690772752956163,
-        "phase_weight": 0.24039938536249336,
+        "p_base": 0.5271560982387506,
+        "p_challenger": 0.530454591530137,
+        "phase_p": 0.5637188509263851,
+        "phase_weight": 0.23720404881080998,
         "production_applied": false,
         "regime_shrink": 0.85,
-        "shift_pp": 1.2981146934300636
+        "shift_pp": 0.32984932913863174
       },
       "phase_map": {
         "15m": {
           "available": true,
           "bars": 2882,
-          "confidence": 0.4295468595131732,
-          "curvature": -0.0861417992836705,
+          "confidence": 0.41701971744351707,
+          "curvature": 0.024687793687273026,
           "direction": "FLAT",
-          "efficiency": 0.11945622911235446,
-          "observed_at": "2026-10-17T22:37:54Z",
+          "efficiency": 0.12254046511741337,
+          "observed_at": "2026-10-17T23:13:46Z",
           "phase": "TRANSITION",
           "phase_memory": {
             "analogues_n": 40,
             "history_candidates": 685,
-            "mean_similarity": 0.32439263223178516,
+            "mean_similarity": 0.32853272968376845,
             "median_remaining_bars": 43.0,
-            "median_remaining_return": -0.0005156281522563089,
+            "median_remaining_return": -0.0007387038512717825,
             "method": "current partial path matched to historical motif prefixes at multiple completion stages",
-            "p_up_remaining": 0.49874940861346667,
-            "phase_progress": 0.5858323673553003,
+            "p_up_remaining": 0.5097538917839949,
+            "phase_progress": 0.5572721748530682,
             "progress_grid": [
               0.4,
               0.55,
@@ -963,31 +963,31 @@
               0.85
             ],
             "source": "PHASE_MEMORY",
-            "top_similarity": 0.3431605005071101
+            "top_similarity": 0.34990929727085623
           },
-          "phase_progress": 0.5858323673553003,
+          "phase_progress": 0.5572721748530682,
           "structure_id": "FS-E3A97597",
-          "trend_z": -0.5185215986403601,
-          "volatility_ratio": 2.3137044508129088
+          "trend_z": -0.5480668966866759,
+          "volatility_ratio": 2.413722079882584
         },
         "1d": {
           "available": true,
           "bars": 3653,
-          "confidence": 0.5434373809148715,
-          "curvature": -0.1690793585448825,
+          "confidence": 0.5436432441415274,
+          "curvature": -0.16876426094529648,
           "direction": "UP",
-          "efficiency": 0.26971908825588287,
+          "efficiency": 0.2700296924076564,
           "observed_at": "2026-10-17T00:00:00Z",
           "phase": "REVERSAL",
           "phase_memory": {
             "analogues_n": 40,
             "history_candidates": 702,
-            "mean_similarity": 0.3503339522474036,
+            "mean_similarity": 0.35034098286509807,
             "median_remaining_bars": 50.5,
             "median_remaining_return": 0.017757951609992384,
             "method": "current partial path matched to historical motif prefixes at multiple completion stages",
-            "p_up_remaining": 0.5309384607799305,
-            "phase_progress": 0.5376750870241103,
+            "p_up_remaining": 0.5308912714094103,
+            "phase_progress": 0.5376671221735668,
             "progress_grid": [
               0.4,
               0.55,
@@ -995,31 +995,31 @@
               0.85
             ],
             "source": "PHASE_MEMORY",
-            "top_similarity": 0.38178531979701186
+            "top_similarity": 0.381910505819125
           },
-          "phase_progress": 0.5376750870241103,
+          "phase_progress": 0.5376671221735668,
           "structure_id": "FS-3FB321C5",
-          "trend_z": 1.4371204880185549,
-          "volatility_ratio": 0.6193970483792286
+          "trend_z": 1.4385020177793253,
+          "volatility_ratio": 0.6193622380291728
         },
         "1h": {
           "available": true,
           "bars": 17489,
-          "confidence": 0.07887225151505722,
-          "curvature": -0.009224647192013031,
+          "confidence": 0.07530853220159663,
+          "curvature": -0.0025627121713796826,
           "direction": "FLAT",
-          "efficiency": 0.004393498511813126,
-          "observed_at": "2026-10-17T22:37:54Z",
+          "efficiency": 0.006686317278076048,
+          "observed_at": "2026-10-17T23:13:46Z",
           "phase": "DEVELOPMENT",
           "phase_memory": {
             "analogues_n": 40,
             "history_candidates": 772,
-            "mean_similarity": 0.375562324594736,
-            "median_remaining_bars": 43.0,
-            "median_remaining_return": 0.008935514827707047,
+            "mean_similarity": 0.3664270269582179,
+            "median_remaining_bars": 58.0,
+            "median_remaining_return": 0.002538974857365983,
             "method": "current partial path matched to historical motif prefixes at multiple completion stages",
-            "p_up_remaining": 0.690772752956163,
-            "phase_progress": 0.53446457032992,
+            "p_up_remaining": 0.5637188509263851,
+            "phase_progress": 0.5018967771491839,
             "progress_grid": [
               0.4,
               0.55,
@@ -1027,31 +1027,31 @@
               0.85
             ],
             "source": "PHASE_MEMORY",
-            "top_similarity": 0.4611197733375788
+            "top_similarity": 0.41320090674520893
           },
-          "phase_progress": 0.53446457032992,
+          "phase_progress": 0.5018967771491839,
           "structure_id": "FS-A1603166",
-          "trend_z": -0.020631778578318955,
-          "volatility_ratio": 1.182877272681113
+          "trend_z": 0.031241983699626684,
+          "volatility_ratio": 1.1727441354799022
         },
         "1m": {
           "available": true,
-          "bars": 9995,
-          "confidence": 0.396158454379222,
-          "curvature": 0.005124867825295878,
+          "bars": 10031,
+          "confidence": 0.18465982149350862,
+          "curvature": -0.269363346804582,
           "direction": "FLAT",
-          "efficiency": 0.1192284311249705,
-          "observed_at": "2026-10-17T22:37:54Z",
-          "phase": "CONSOLIDATION",
+          "efficiency": 0.057730491924040755,
+          "observed_at": "2026-10-17T23:13:42Z",
+          "phase": "DEVELOPMENT",
           "phase_memory": {
             "analogues_n": 40,
             "history_candidates": 772,
-            "mean_similarity": 0.3806359057410834,
-            "median_remaining_bars": 36.0,
-            "median_remaining_return": -0.00042199629855133036,
+            "mean_similarity": 0.3619047735567874,
+            "median_remaining_bars": 43.0,
+            "median_remaining_return": 0.00014690301381103943,
             "method": "current partial path matched to historical motif prefixes at multiple completion stages",
-            "p_up_remaining": 0.43239173732109465,
-            "phase_progress": 0.621047296358209,
+            "p_up_remaining": 0.5875209993127288,
+            "phase_progress": 0.6059450742362017,
             "progress_grid": [
               0.4,
               0.55,
@@ -1059,31 +1059,31 @@
               0.85
             ],
             "source": "PHASE_MEMORY",
-            "top_similarity": 0.45609476224759
+            "top_similarity": 0.4295948589691148
           },
-          "phase_progress": 0.621047296358209,
-          "structure_id": "FS-12A9E3B1",
-          "trend_z": 0.7012676892440044,
-          "volatility_ratio": 0.5523772377334495
+          "phase_progress": 0.6059450742362017,
+          "structure_id": "FS-8426D401",
+          "trend_z": 0.32914773803738806,
+          "volatility_ratio": 1.0927705892899828
         },
         "1w": {
           "available": true,
           "bars": 522,
-          "confidence": 0.2724735587966031,
-          "curvature": 0.35413676830637875,
+          "confidence": 0.2723295549873147,
+          "curvature": 0.35425856138859546,
           "direction": "FLAT",
-          "efficiency": 0.123173477244787,
+          "efficiency": 0.12310062840068448,
           "observed_at": "2026-10-12T00:00:00Z",
           "phase": "DEVELOPMENT",
           "phase_memory": {
             "analogues_n": 40,
             "history_candidates": 95,
-            "mean_similarity": 0.30196346022171644,
+            "mean_similarity": 0.3019658352226013,
             "median_remaining_bars": 58.0,
             "median_remaining_return": 0.5424884508877889,
             "method": "current partial path matched to historical motif prefixes at multiple completion stages",
-            "p_up_remaining": 0.814716698903386,
-            "phase_progress": 0.47125556414876973,
+            "p_up_remaining": 0.8147353772704479,
+            "phase_progress": 0.4712569350539853,
             "progress_grid": [
               0.4,
               0.55,
@@ -1091,31 +1091,31 @@
               0.85
             ],
             "source": "PHASE_MEMORY",
-            "top_similarity": 0.36635883299910177
+            "top_similarity": 0.36637427538766515
           },
-          "phase_progress": 0.47125556414876973,
+          "phase_progress": 0.4712569350539853,
           "structure_id": "FS-361545EF",
-          "trend_z": -0.748617288155292,
-          "volatility_ratio": 1.039272724233835
+          "trend_z": -0.7481325528116995,
+          "volatility_ratio": 1.0390700294732815
         },
         "4h": {
           "available": true,
           "bars": 4375,
-          "confidence": 0.24382195019768269,
-          "curvature": -0.027843785176684906,
+          "confidence": 0.2431945744145646,
+          "curvature": -0.026755837541628216,
           "direction": "FLAT",
-          "efficiency": 0.10136982909958962,
+          "efficiency": 0.10067590642404196,
           "observed_at": "2026-10-17T20:00:00Z",
           "phase": "CONSOLIDATION",
           "phase_memory": {
             "analogues_n": 40,
             "history_candidates": 772,
-            "mean_similarity": 0.3595792971156476,
+            "mean_similarity": 0.35944317347310345,
             "median_remaining_bars": 58.0,
             "median_remaining_return": -0.003084942612647079,
             "method": "current partial path matched to historical motif prefixes at multiple completion stages",
-            "p_up_remaining": 0.44382891083565307,
-            "phase_progress": 0.4608440983307159,
+            "p_up_remaining": 0.443862498915646,
+            "phase_progress": 0.4568936131010368,
             "progress_grid": [
               0.4,
               0.55,
@@ -1123,31 +1123,31 @@
               0.85
             ],
             "source": "PHASE_MEMORY",
-            "top_similarity": 0.38482715004659446
+            "top_similarity": 0.38388031489983004
           },
-          "phase_progress": 0.4608440983307159,
+          "phase_progress": 0.4568936131010368,
           "structure_id": "FS-74029016",
-          "trend_z": -0.5615743731484563,
-          "volatility_ratio": 0.7502421984109066
+          "trend_z": -0.5574186439579227,
+          "volatility_ratio": 0.749314702487279
         },
         "5m": {
           "available": true,
           "bars": 8642,
-          "confidence": 0.19372599564549306,
-          "curvature": -0.3225490440117949,
+          "confidence": 0.37300284443892867,
+          "curvature": -0.20908352171833422,
           "direction": "FLAT",
-          "efficiency": 0.022245578601343543,
-          "observed_at": "2026-10-17T22:37:54Z",
+          "efficiency": 0.06460303467909058,
+          "observed_at": "2026-10-17T23:13:46Z",
           "phase": "CONSOLIDATION",
           "phase_memory": {
             "analogues_n": 40,
             "history_candidates": 772,
-            "mean_similarity": 0.3388415777203273,
+            "mean_similarity": 0.3447806989269272,
             "median_remaining_bars": 43.0,
-            "median_remaining_return": -0.000694147719355942,
+            "median_remaining_return": -3.315857240576703e-05,
             "method": "current partial path matched to historical motif prefixes at multiple completion stages",
-            "p_up_remaining": 0.4664557204597323,
-            "phase_progress": 0.5345156546960662,
+            "p_up_remaining": 0.5023187767855719,
+            "phase_progress": 0.5867894211176653,
             "progress_grid": [
               0.4,
               0.55,
@@ -1155,17 +1155,17 @@
               0.85
             ],
             "source": "PHASE_MEMORY",
-            "top_similarity": 0.3971039028751361
+            "top_similarity": 0.37891121595042027
           },
-          "phase_progress": 0.5345156546960662,
-          "structure_id": "FS-E57C6051",
-          "trend_z": 0.10984126015401098,
-          "volatility_ratio": 0.8394706724442214
+          "phase_progress": 0.5867894211176653,
+          "structure_id": "FS-61DCEFF6",
+          "trend_z": -0.32733315278156555,
+          "volatility_ratio": 0.5648325102286028
         }
       },
-      "reference_price": 81218.328125,
+      "reference_price": 81237.0078125,
       "regime": "TURBULENT",
-      "risk_score": 0.4868716774755253,
+      "risk_score": 0.49755648387921764,
       "symbol": "BTC-USD"
     },
     {
@@ -1592,13 +1592,13 @@
   "measurements": [
     {
       "baseline_brier": 0.25,
-      "counter": 90,
+      "counter": 91,
       "instrument": "EURUSD",
-      "mean_brier": 0.27239835716208355,
-      "mean_edge": -0.022398357162083556,
+      "mean_brier": 0.2724152749982014,
+      "mean_edge": -0.022415274998201402,
       "status": "READY_FOR_REVIEW",
       "target_n": 40,
-      "total_edge": -2.01585214458752
+      "total_edge": -2.0397900248363277
     },
     {
       "baseline_brier": 0.25,
@@ -1677,13 +1677,13 @@
   "state_verification": {
     "ok": true,
     "resolutions": {
-      "events": 252,
-      "head_hash": "f3839dd4d9c5a1e30c4e734efd9e416e33775c894b74060720e55edda7d7b274",
+      "events": 253,
+      "head_hash": "32adb8230a4ffbe3bed0b5ee7fcf0a37010aaaeefe16d4592b9a5107aadb03c1",
       "ok": true
     },
     "snapshots": {
-      "events": 261,
-      "head_hash": "f2fbaf1427abe9d25e4506df505788a306ed0a1b5d256d55f9f946ef924023a0",
+      "events": 263,
+      "head_hash": "f3e4279f862ad027b7963d52f383e28e3373cde58c48722ac10ea4f98d3594ed",
       "ok": true
     },
     "zero_authority": true
