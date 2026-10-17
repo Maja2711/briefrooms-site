@@ -107,8 +107,7 @@ class LiveNewsHealthTests(unittest.TestCase):
             write_fixture(root)
             feed_path = root / health.LANGUAGES["pl"]["feed"]
             payload = json.loads(feed_path.read_text(encoding="utf-8"))
-            first_section = next(iter(payload["sections"]))
-            old = payload["sections"][first_section][0]
+            old = payload["sections"]["polityka"][0]
             old_time = NOW - timedelta(hours=24, seconds=1)
             old["published_at"] = old_time.isoformat()
             old["news_first_seen_at"] = old_time.isoformat()
