@@ -150,6 +150,22 @@ class LiveNewsPublisherTests(unittest.TestCase):
         }
         self.assertEqual(filtered_news._filter_stories([report], "fresh/polityka"), [report])
 
+    def test_missing_war_story_is_degraded_not_a_publication_block(self) -> None:
+        now = datetime(2026, 10, 17, 12, 0, tzinfo=timezone.utc)
+        payload = {
+            "sections": {"polityka": []},
+            "home": [],
+            "health": {"status": "ok", "sections": {}},
+        }
+        with patch.object(source_v3, "_original_build_language", return_value=payload):
+            result = source_v3.build_language("pl", [], "test-marker", now)
+        self.assertEqual(result["health"]["pl_ukraine_russia_war"]["status"], "missing")
+        self.assertEqual(result["health"]["status"], "degraded")
+        self.assertIn(
+            "pl_homepage_ukraine_war_coverage_underfilled",
+            result["health"]["editorial_warnings"],
+        )
+
     def test_pl_politics_pool_includes_dedicated_rmf_world_feed(self) -> None:
         by_section = {
             section_id: feeds
