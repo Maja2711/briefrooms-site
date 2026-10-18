@@ -54,7 +54,7 @@ class RecoveryTests(unittest.TestCase):
             return FakeResponse({"content": base64.b64encode(json.dumps(payload).encode()).decode()})
         def fake_run(*args, **kwargs):
             calls.append((args, kwargs))
-        with patch("urllib.request.urlopen", side_effect=fake_open), patch("subprocess.run", side_effect=fake_run), redirect_stdout(io.StringIO()):
+        with patch.dict("os.environ", {"GH_REPO": "Maja2711/briefrooms-site", "GH_TOKEN": "offline-test"}), patch("urllib.request.urlopen", side_effect=fake_open), patch("subprocess.run", side_effect=fake_run), redirect_stdout(io.StringIO()):
             exec(compile(embedded_code(), str(WORKFLOW), "exec"), {"__name__": "__main__"})
         return calls
 
