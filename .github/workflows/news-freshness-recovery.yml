@@ -1,0 +1,57 @@
+name: News Freshness Recovery
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/15 * * * *"
+permissions:
+  contents: read
+  actions: write
+concurrency:
+  group: news-freshness-recovery
+  cancel-in-progress: false
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check published freshness and recover if needed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          python - <<'PY'
+          import json, os, subprocess, urllib.request, urllib.error
+          from datetime import datetime, timezone
+          repo = os.environ['GH_REPO']
+          headers = {'Accept':'application/vnd.github+json','Authorization':'Bearer '+os.environ['GH_TOKEN'],'User-Agent':'BriefRooms-news-recovery'}
+          def get(url):
+              with urllib.request.urlopen(urllib.request.Request(url,headers=headers),timeout=15) as response:
+                  return json.load(response)
+          status = get('https://api.github.com/repos/'+repo+'/contents/data/news/status.json')
+          import base64
+          status = json.loads(base64.b64decode(status['content']))
+          feeds = [json.loads(base64.b64decode(get('https://api.github.com/repos/'+repo+'/contents/data/news/'+lang+'.json')['content'])) for lang in ('pl','en')]
+          marker = status.get('marker')
+          if not marker or any(feed.get('marker') != marker for feed in feeds):
+              stale = True
+              print('::warning::News markers differ; recovery required')
+          else:
+              generated = [datetime.fromisoformat(str(x['generated_at']).replace('Z','+00:00')) for x in [status,*feeds]]
+              age = max((datetime.now(timezone.utc)-t).total_seconds()/60 for t in generated)
+              if any(t > datetime.now(timezone.utc) for t in generated):
+                  raise SystemExit('Invalid future publication timestamp')
+              stale = age > 70
+              print(f'News age: {age:.1f} minutes; recovery threshold: 70 minutes')
+          if not stale:
+              raise SystemExit(0)
+          runs = get('https://api.github.com/repos/'+repo+'/actions/workflows/publish-news.yml/runs?per_page=20')['workflow_runs']
+          if any(run['status'] in ('queued','in_progress','waiting','pending','requested') for run in runs):
+              print('Publisher already active; avoiding duplicate dispatch')
+              raise SystemExit(0)
+          recent = [run for run in runs if run.get('event') == 'workflow_dispatch' and (datetime.now(timezone.utc)-datetime.fromisoformat(run['created_at'].replace('Z','+00:00'))).total_seconds() < 1800]
+          if recent:
+              print('Recovery dispatch cooldown (30 minutes) active')
+              raise SystemExit(0)
+          print('Dispatching recovery publisher')
+          subprocess.run(['gh','workflow','run','publish-news.yml','--repo',repo,'--ref','main'],check=True)
+          PY

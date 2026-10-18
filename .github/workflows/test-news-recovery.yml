@@ -1,0 +1,21 @@
+name: Test News Recovery
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/news-freshness-recovery.yml'
+      - '.github/workflows/test-news-recovery.yml'
+      - 'tests/test_news_freshness_recovery.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test recovery scenarios without dispatching
+        run: python -m unittest tests.test_news_freshness_recovery -v
