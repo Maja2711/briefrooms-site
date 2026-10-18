@@ -79,8 +79,7 @@
     if (!published || published > now + FUTURE_TOLERANCE_MS) return false;
     if (!strict) return true;
     if (!isFreshTimestamp(published, now)) return false;
-    return lang !== 'pl' ||
-      WARSAW_DAY_FORMATTER.format(new Date(published)) === WARSAW_DAY_FORMATTER.format(new Date(now));
+    return true;
   }
 
   function isFreshNewsStory(story, strict, now = Date.now()) {

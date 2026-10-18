@@ -114,17 +114,17 @@ class HomepageExposureCapTests(unittest.TestCase):
         self.assertEqual(result["homepage_policy"]["current_news_same_day_timezone"], "Europe/Warsaw")
         self.assertEqual(result["homepage_policy"]["editorial_exception_source_age_limit_hours"], None)
 
-    def test_polish_news_from_yesterday_is_rejected_even_if_under_24_hours_old(self) -> None:
+    def test_polish_news_from_yesterday_remains_visible_within_24_hours(self) -> None:
         now = datetime(2026, 10, 15, 22, 15, tzinfo=timezone.utc)  # Oct 16 Warsaw
         story = self._story("Yesterday local", datetime(2026, 10, 15, 21, 30, tzinfo=timezone.utc), "Sport")
         result, _ = enforce_payload(
             {"home": [story], "sections": {"health": [story]}, "health": {}},
             {}, now, lang="pl",
         )
-        self.assertEqual(result["home"], [])
-        self.assertEqual(result["sections"]["health"], [])
+        self.assertEqual(len(result["home"]), 1)
+        self.assertEqual(len(result["sections"]["health"]), 1)
 
-    def test_polish_today_story_expires_at_warsaw_midnight(self) -> None:
+    def test_polish_today_story_expires_after_24_hours(self) -> None:
         now = datetime(2026, 10, 16, 9, 0, tzinfo=timezone.utc)
         story = self._story("Today Sport", now - timedelta(hours=1), "Sport")
         result, state = enforce_payload(
@@ -133,13 +133,13 @@ class HomepageExposureCapTests(unittest.TestCase):
         )
         self.assertEqual(len(result["home"]), 1)
         self.assertEqual(
-            result["home"][0]["news_expires_at"], "2026-10-16T22:00:00+00:00",
+            result["home"][0]["news_expires_at"], "2026-10-17T08:00:00+00:00",
         )
         after_midnight, _ = enforce_payload(
             {"home": [story], "sections": {"health": [story]}, "health": {}},
             state, datetime(2026, 10, 16, 22, 0, 1, tzinfo=timezone.utc), lang="pl",
         )
-        self.assertEqual(after_midnight["home"], [])
+        self.assertEqual(len(after_midnight["home"]), 1)
 
     def test_en_source_age_expiry_shorter_than_first_display_window(self) -> None:
         now = datetime(2026, 10, 16, 9, 0, tzinfo=timezone.utc)

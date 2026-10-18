@@ -80,7 +80,7 @@ test('floor honors evergreen publication older than 24h but only within first BR
   assert.equal(floor.isEligibleStory({...item, news_freshness_profile: 'current'}, 'pl', now), false);
 });
 
-test('floor refuses previous-day Polish Sport and unknown freshness profile', () => {
+test('floor keeps previous-day Polish news until actual 24h expiry', () => {
   const now = Date.parse('2026-10-15T22:15:00Z');
   const item = {
     ...story('Polski mecz w Wuhan', 'old-wuhan'),
@@ -89,8 +89,9 @@ test('floor refuses previous-day Polish Sport and unknown freshness profile', ()
     news_expires_at: '2026-10-16T22:00:00Z',
     news_freshness_profile: 'current',
   };
-  assert.equal(floor.isEligibleStory(item, 'pl', now), false);
-  assert.equal(floor.isEligibleStory({...item, news_freshness_profile: undefined}, 'pl', now), false);
+  assert.equal(floor.isEligibleStory(item, 'pl', now), true);
+  assert.equal(floor.isEligibleStory({...item, news_freshness_profile: undefined}, 'pl', now), true);
+  assert.equal(floor.isEligibleStory(item, 'pl', Date.parse('2026-10-16T22:00:01Z')), false);
 });
 
 test('floor does not accept missing or reset first-seen or overlong 24h exposure', () => {

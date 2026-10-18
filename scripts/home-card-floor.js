@@ -58,8 +58,7 @@
     var strict = story.news_freshness_profile !== 'editorial_exception';
     if (!strict) return true;
     if (!isFresh(published, now)) return false;
-    return lang !== 'pl' ||
-      WARSAW_DAY.format(new Date(published)) === WARSAW_DAY.format(new Date(now));
+    return true;
   }
 
   function safeHttpUrl(value) {

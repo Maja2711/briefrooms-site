@@ -58,7 +58,7 @@ test('12 October Sport article cannot appear on 16 October', () => {
   assert.equal(api.isFreshNewsStory(old, false, now), true);
 });
 
-test('PL current news rejects previous Warsaw calendar day even inside 24 hours', () => {
+test('PL current news remains eligible across midnight within 24 hours', () => {
   const api = runtime('pl');
   const instant = Date.parse('2026-10-15T22:15:00Z');
   const oldWarsawDay = '2026-10-15T21:30:00Z';
@@ -67,7 +67,7 @@ test('PL current news rejects previous Warsaw calendar day even inside 24 hours'
     firstSeen: instant - 600_000,
     expires: instant + 23 * 3600_000,
   });
-  assert.equal(api.isFreshNewsStory(row, true, instant), false);
+  assert.equal(api.isFreshNewsStory(row, true, instant), true);
   assert.equal(api.isFreshNewsStory(row, false, instant), true);
 });
 
