@@ -7,7 +7,7 @@
   "automatic_tuning": false,
   "automatic_promotion": false,
   "promotion_policy": "v3_candidates_manual; probability_recalibration_closed_loop_governed",
-  "generated_at": "2026-10-18T23:40:56.765253Z",
+  "generated_at": "2026-10-18T23:46:30.433710Z",
   "evolution_controller": {
     "authority": {
       "belief_evidence_mutation": false,
@@ -300,33 +300,33 @@
             "validation_n": 84
           },
           "prospective": {
-            "brier_relative_improvement": -0.005997,
+            "brier_relative_improvement": -0.005587,
             "challenger": {
-              "accuracy": 0.603933,
-              "brier": 0.244741,
-              "ece": 0.103812,
-              "log_loss": 0.686759,
-              "n": 1068
+              "accuracy": 0.603321,
+              "brier": 0.245153,
+              "ece": 0.104458,
+              "log_loss": 0.687566,
+              "n": 1084
             },
             "control": {
-              "accuracy": 0.582397,
-              "brier": 0.243282,
-              "ece": 0.112775,
-              "log_loss": 0.683057,
-              "n": 1068
+              "accuracy": 0.578413,
+              "brier": 0.243791,
+              "ece": 0.112582,
+              "log_loss": 0.684053,
+              "n": 1084
             },
-            "n": 1068,
+            "n": 1084,
             "pass": false,
             "stability": {
               "blocks": 4,
               "improved": 2,
               "relative_improvements": [
-                0.011394,
-                0.036815,
-                -0.025315,
-                -0.047271
+                0.013153,
+                0.033067,
+                -0.026361,
+                -0.041789
               ],
-              "worst_relative_degradation": 0.047271
+              "worst_relative_degradation": 0.041789
             }
           }
         },
@@ -620,33 +620,33 @@
             "validation_n": 38
           },
           "prospective": {
-            "brier_relative_improvement": -0.122725,
+            "brier_relative_improvement": -0.046278,
             "challenger": {
-              "accuracy": 0.2,
-              "brier": 0.333721,
-              "ece": 0.40452,
-              "log_loss": 0.865499,
-              "n": 25
+              "accuracy": 0.358974,
+              "brier": 0.301551,
+              "ece": 0.243355,
+              "log_loss": 0.799846,
+              "n": 39
             },
             "control": {
-              "accuracy": 0.4,
-              "brier": 0.297242,
-              "ece": 0.336978,
-              "log_loss": 0.791788,
-              "n": 25
+              "accuracy": 0.384615,
+              "brier": 0.288213,
+              "ece": 0.174665,
+              "log_loss": 0.772933,
+              "n": 39
             },
-            "n": 25,
+            "n": 39,
             "pass": false,
             "stability": {
               "blocks": 4,
-              "improved": 0,
+              "improved": 1,
               "relative_improvements": [
-                -0.125207,
-                -0.082417,
-                -0.157314,
-                -0.137545
+                -0.213045,
+                -0.046649,
+                -0.164362,
+                0.158929
               ],
-              "worst_relative_degradation": 0.157314
+              "worst_relative_degradation": 0.213045
             }
           }
         },
@@ -971,11 +971,11 @@
       }
     ],
     "delegated_actions": [],
-    "generated_at": "2026-10-18T23:40:26.461548Z",
+    "generated_at": "2026-10-18T23:45:31.416262Z",
     "hypotheses": [
       {
         "claim": "gpw LONG decisions in regime unknown show recurring adverse outcomes and warrant a bounded challenger",
-        "created_at": "2026-10-18T23:40:26.461548Z",
+        "created_at": "2026-10-18T23:45:31.416262Z",
         "evidence": {
           "action": "LONG",
           "engine": "gpw",
@@ -1224,7 +1224,7 @@
         ],
         "candidate_id": "evo-belief-72343f0df571e6243bf5f328",
         "minimum_sample": 50,
-        "observed_sample": 1068,
+        "observed_sample": 1084,
         "segment_checks": [
           {
             "brier_relative_improvement": -0.011735,
@@ -1236,11 +1236,11 @@
             "segment": "horizon:0-6H"
           },
           {
-            "brier_relative_improvement": 0.027438,
-            "challenger_brier": 0.213313,
-            "control_brier": 0.219331,
-            "ece_delta": -0.035237,
-            "n": 266,
+            "brier_relative_improvement": 0.026203,
+            "challenger_brier": 0.213835,
+            "control_brier": 0.219589,
+            "ece_delta": -0.035428,
+            "n": 269,
             "pass": true,
             "segment": "horizon:1-5D"
           },
@@ -1272,11 +1272,11 @@
             "segment": "instrument:BTC"
           },
           {
-            "brier_relative_improvement": 0.00192,
-            "challenger_brier": 0.269258,
-            "control_brier": 0.269776,
-            "ece_delta": 0.010404,
-            "n": 392,
+            "brier_relative_improvement": 0.00141,
+            "challenger_brier": 0.269188,
+            "control_brier": 0.269568,
+            "ece_delta": 0.010723,
+            "n": 395,
             "pass": true,
             "segment": "instrument:EURUSD"
           },
@@ -1304,11 +1304,12 @@
       },
       {
         "blockers": [
-          "minimum_prospective_sample"
+          "minimum_prospective_sample",
+          "protected_slice_degradation:instrument:EURUSD"
         ],
         "candidate_id": "evo-belief-938c74f60b3937dbaae305a0",
         "minimum_sample": 50,
-        "observed_sample": 25,
+        "observed_sample": 39,
         "segment_checks": [
           {
             "brier_relative_improvement": 0.005347,
@@ -1329,12 +1330,12 @@
             "segment": "horizon:6-24H"
           },
           {
-            "brier_relative_improvement": -0.038627,
-            "challenger_brier": 0.303305,
-            "control_brier": 0.292025,
-            "ece_delta": 0.042442,
-            "n": 36,
-            "pass": true,
+            "brier_relative_improvement": -0.046278,
+            "challenger_brier": 0.301551,
+            "control_brier": 0.288213,
+            "ece_delta": 0.06869,
+            "n": 39,
+            "pass": false,
             "segment": "instrument:EURUSD"
           }
         ],
@@ -1665,11 +1666,11 @@
     "source_status": {
       "belief_calibration": {
         "available": true,
-        "resolved_rows": 1593,
+        "resolved_rows": 1596,
         "scan_status": {
           "__GLOBAL__": {
             "last_discovery_n": null,
-            "prospective_n": 1068,
+            "prospective_n": 1084,
             "rediscovery_after_n": null,
             "status": "prospective_shadow",
             "trigger_reasons": [
@@ -1717,7 +1718,7 @@
           },
           "eurusd.trend.bullish": {
             "last_discovery_n": null,
-            "prospective_n": 25,
+            "prospective_n": 39,
             "rediscovery_after_n": null,
             "status": "prospective_shadow",
             "trigger_reasons": [
@@ -1782,7 +1783,7 @@
             ]
           }
         },
-        "source_generated_at": "2026-10-18T21:58:21.458551Z"
+        "source_generated_at": "2026-10-18T23:41:03.693384Z"
       },
       "belief_v3": {
         "available": true,
@@ -2533,7 +2534,7 @@
       "promotion_brier_relative_improvement": 0.05,
       "stability_blocks_required": "3_of_4"
     },
-    "generated_at": "2026-10-18T23:41:03.693384Z",
+    "generated_at": "2026-10-18T23:46:37.167109Z",
     "global_control_metrics": {
       "accuracy": 0.589286,
       "brier": 0.240995,
@@ -2548,7 +2549,7 @@
     {
       "instrument": "BTC/USD",
       "trend_belief_id": "btc.trend.bullish",
-      "calculated_at": "2026-10-18T23:40:56.765253Z",
+      "calculated_at": "2026-10-18T23:46:30.433710Z",
       "as_of": "2026-10-16T20:03:27Z",
       "target_at": "2026-10-17T20:03:27Z",
       "horizon_label": "24H",
@@ -2574,7 +2575,7 @@
     {
       "instrument": "EUR/USD",
       "trend_belief_id": "eurusd.trend.bullish",
-      "calculated_at": "2026-10-18T23:40:56.765253Z",
+      "calculated_at": "2026-10-18T23:46:30.433710Z",
       "as_of": "2026-10-16T20:03:27Z",
       "target_at": "2026-10-17T20:03:27Z",
       "horizon_label": "24H",
@@ -2600,7 +2601,7 @@
     {
       "instrument": "S&P 500",
       "trend_belief_id": "spx.trend.bullish",
-      "calculated_at": "2026-10-18T23:40:56.765253Z",
+      "calculated_at": "2026-10-18T23:46:30.433710Z",
       "as_of": "2026-10-16T20:03:27Z",
       "target_at": "2026-10-19T20:00:00Z",
       "horizon_label": "3D",
@@ -16073,7 +16074,7 @@
   },
   "hypothesis_utility": {
     "schema_version": "briefrooms-hypothesis-utility-v1",
-    "generated_at": "2026-10-18T23:41:01.514241Z",
+    "generated_at": "2026-10-18T23:46:35.015516Z",
     "status": "SHADOW_READ_ONLY",
     "authority": {
       "production_writeback": false,
@@ -17307,7 +17308,7 @@
   },
   "hypothesis_challengers": {
     "schema_version": "briefrooms-hypothesis-challenger-v1",
-    "generated_at": "2026-10-18T23:41:02.100899Z",
+    "generated_at": "2026-10-18T23:46:35.605767Z",
     "status": "SHADOW_OOS_GOVERNED",
     "summary": {
       "candidates_total": 3,
@@ -17500,7 +17501,7 @@
   },
   "p2_shadow_watchdog": {
     "schema_version": "briefrooms-p2-shadow-watchdog-v1",
-    "generated_at": "2026-10-18T23:41:02.827899Z",
+    "generated_at": "2026-10-18T23:46:36.325171Z",
     "status": "FAIL",
     "readiness": "REAL_SETTLEMENT_VERIFIED",
     "production_e2e_status": "BLOCKED",
