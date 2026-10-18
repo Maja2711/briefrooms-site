@@ -55,7 +55,11 @@ class RecoveryTests(unittest.TestCase):
         def fake_run(*args, **kwargs):
             calls.append((args, kwargs))
         with patch.dict("os.environ", {"GH_REPO": "Maja2711/briefrooms-site", "GH_TOKEN": "offline-test"}), patch("urllib.request.urlopen", side_effect=fake_open), patch("subprocess.run", side_effect=fake_run), redirect_stdout(io.StringIO()):
-            exec(compile(embedded_code(), str(WORKFLOW), "exec"), {"__name__": "__main__"})
+            try:
+                exec(compile(embedded_code(), str(WORKFLOW), "exec"), {"__name__": "__main__"})
+            except SystemExit as exc:
+                if exc.code not in (0, None):
+                    raise
         return calls
 
     def test_fresh_degraded_does_not_dispatch(self):
