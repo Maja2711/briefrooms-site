@@ -27,14 +27,14 @@ class FakeResponse:
     def __exit__(self, *args):
         pass
     def read(self):
-        return json.dumps(self.data).encode()
+        return self.data.encode() if isinstance(self.data, str) else json.dumps(self.data).encode()
 
 
 class RecoveryTests(unittest.TestCase):
     def test_python_compiles(self):
         ast.parse(embedded_code())
 
-    def execute(self, age, *, status="healthy", active=False, cooldown=False, mismatch=False):
+    def execute(self, age, *, status="healthy", active=False, cooldown=False, mismatch=False, failed=False, production_mismatch=False):
         timestamp = (datetime.now(timezone.utc) - timedelta(minutes=age)).isoformat()
         marker = "test-1"
         data = {"marker": marker, "generated_at": timestamp, "status": status}
@@ -47,7 +47,13 @@ class RecoveryTests(unittest.TestCase):
                     runs.append({"status": "in_progress", "event": "schedule", "created_at": timestamp})
                 if cooldown:
                     runs.append({"status": "completed", "event": "workflow_dispatch", "created_at": datetime.now(timezone.utc).isoformat()})
+                if failed:
+                    runs.append({"status": "completed", "conclusion": "failure", "event": "schedule", "created_at": timestamp})
                 return FakeResponse({"workflow_runs": runs})
+            if "briefrooms.com" in url:
+                if url.endswith(".html") or ".html?" in url:
+                    return FakeResponse("<html>briefrooms-live-news-marker "+("old" if production_mismatch else marker)+"</html>")
+                return FakeResponse({"marker": "old" if production_mismatch else marker})
             payload = dict(data)
             if mismatch and url.endswith("/en.json"):
                 payload["marker"] = "different"
@@ -64,6 +70,10 @@ class RecoveryTests(unittest.TestCase):
 
     def test_fresh_degraded_does_not_dispatch(self):
         self.assertEqual(self.execute(20, status="degraded"), [])
+    def test_failed_publisher_dispatches(self):
+        self.assertEqual(len(self.execute(20, failed=True)), 1)
+    def test_production_mismatch_dispatches(self):
+        self.assertEqual(len(self.execute(20, production_mismatch=True)), 1)
     def test_stale_dispatches(self):
         self.assertEqual(len(self.execute(100)), 1)
     def test_active_publisher_prevents_duplicate(self):
