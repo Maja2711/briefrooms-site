@@ -7,7 +7,7 @@
   "automatic_tuning": false,
   "automatic_promotion": false,
   "promotion_policy": "v3_candidates_manual; probability_recalibration_closed_loop_governed",
-  "generated_at": "2026-10-18T21:43:12.034119Z",
+  "generated_at": "2026-10-18T21:49:25.817621Z",
   "evolution_controller": {
     "authority": {
       "belief_evidence_mutation": false,
@@ -98,6 +98,102 @@
                 "brier_relative_improvement": 0.847498,
                 "horizon_bucket": "3S_US_SESSION",
                 "n": 2,
+                "protected": false
+              }
+            ]
+          }
+        },
+        "promotion_route": "manual_hypothesis_probability_review",
+        "source_module": "L3-P2",
+        "status": "OOS_RUNNING",
+        "target_module": "EP-05"
+      },
+      {
+        "activation_boundary": "2026-10-08T11:29:21.503623Z",
+        "automatic_promotion_allowed": false,
+        "candidate_id": "hch-a26038a449bce120ddc5506f",
+        "candidate_type": "hypothesis_probability_methodology",
+        "component_id": "belief_hypothesis:btc.volatility.benign@1#__ALL_HORIZONS__",
+        "created_at": "2026-10-08T11:29:21.503623Z",
+        "evaluator_profile": "hypothesis_shadow_oos_gate_v1",
+        "metrics": {
+          "discovery": {
+            "discovery_distinct_target_dates": 18,
+            "discovery_n": 38,
+            "source_event_ids_hash": "fb4897cad4a71729544986f0ec0707c2ee11a591009c6e304a2bd9ded0674e9c",
+            "source_n": 92,
+            "source_verified_cutoff_at": "2026-10-08T08:48:06.915267Z",
+            "validation_brier_relative_improvement": 0.797399,
+            "validation_challenger": {
+              "accuracy": 0.981481,
+              "brier": 0.02376,
+              "ece": 0.072838,
+              "log_loss": 0.138282,
+              "n": 54
+            },
+            "validation_control": {
+              "accuracy": 0.981481,
+              "brier": 0.117275,
+              "ece": 0.312561,
+              "log_loss": 0.416546,
+              "n": 54
+            },
+            "validation_distinct_target_dates": 8,
+            "validation_n": 54
+          },
+          "distinct_target_dates": 11,
+          "outcome_conflicts": 0,
+          "shadow_oos": {
+            "brier_relative_improvement": 0.789061,
+            "challenger": {
+              "accuracy": 0.985507,
+              "brier": 0.015727,
+              "ece": 0.059129,
+              "log_loss": 0.093965,
+              "n": 69
+            },
+            "chronological_block_relative_improvements": [
+              0.912404,
+              0.337068,
+              0.929042,
+              0.94593
+            ],
+            "control": {
+              "accuracy": 0.985507,
+              "brier": 0.074557,
+              "ece": 0.239388,
+              "log_loss": 0.304497,
+              "n": 69
+            },
+            "horizon_checks": [
+              {
+                "brier_relative_improvement": 0.929711,
+                "horizon_bucket": "12H",
+                "n": 16,
+                "protected": true
+              },
+              {
+                "brier_relative_improvement": 0.929711,
+                "horizon_bucket": "24H",
+                "n": 16,
+                "protected": true
+              },
+              {
+                "brier_relative_improvement": 0.296315,
+                "horizon_bucket": "3D",
+                "n": 13,
+                "protected": true
+              },
+              {
+                "brier_relative_improvement": 0.929711,
+                "horizon_bucket": "3H",
+                "n": 16,
+                "protected": true
+              },
+              {
+                "brier_relative_improvement": 0.921386,
+                "horizon_bucket": "5D",
+                "n": 8,
                 "protected": false
               }
             ]
@@ -204,33 +300,33 @@
             "validation_n": 84
           },
           "prospective": {
-            "brier_relative_improvement": -0.006056,
+            "brier_relative_improvement": -0.005997,
             "challenger": {
-              "accuracy": 0.603189,
-              "brier": 0.244879,
-              "ece": 0.10324,
-              "log_loss": 0.68705,
-              "n": 1066
+              "accuracy": 0.603933,
+              "brier": 0.244741,
+              "ece": 0.103812,
+              "log_loss": 0.686759,
+              "n": 1068
             },
             "control": {
-              "accuracy": 0.582552,
-              "brier": 0.243405,
-              "ece": 0.112229,
-              "log_loss": 0.68333,
-              "n": 1066
+              "accuracy": 0.582397,
+              "brier": 0.243282,
+              "ece": 0.112775,
+              "log_loss": 0.683057,
+              "n": 1068
             },
-            "n": 1066,
+            "n": 1068,
             "pass": false,
             "stability": {
               "blocks": 4,
               "improved": 2,
               "relative_improvements": [
-                0.010976,
-                0.036414,
-                -0.023204,
-                -0.048382
+                0.011394,
+                0.036815,
+                -0.025315,
+                -0.047271
               ],
-              "worst_relative_degradation": 0.048382
+              "worst_relative_degradation": 0.047271
             }
           }
         },
@@ -332,22 +428,22 @@
             "validation_n": 16
           },
           "prospective": {
-            "brier_relative_improvement": -0.012799,
+            "brier_relative_improvement": -0.014745,
             "challenger": {
-              "accuracy": 0.367347,
-              "brier": 0.268185,
-              "ece": 0.176686,
-              "log_loss": 0.729792,
-              "n": 98
+              "accuracy": 0.363636,
+              "brier": 0.268806,
+              "ece": 0.180701,
+              "log_loss": 0.731044,
+              "n": 99
             },
             "control": {
-              "accuracy": 0.44898,
-              "brier": 0.264796,
-              "ece": 0.125941,
-              "log_loss": 0.724278,
-              "n": 98
+              "accuracy": 0.444444,
+              "brier": 0.2649,
+              "ece": 0.129966,
+              "log_loss": 0.724469,
+              "n": 99
             },
-            "n": 98,
+            "n": 99,
             "pass": false,
             "stability": {
               "blocks": 4,
@@ -356,7 +452,7 @@
                 -0.135078,
                 0.077529,
                 -0.047427,
-                0.029616
+                0.021128
               ],
               "worst_relative_degradation": 0.135078
             }
@@ -810,102 +906,6 @@
         "target_module": "EP-05"
       },
       {
-        "activation_boundary": "2026-10-08T11:29:21.503623Z",
-        "automatic_promotion_allowed": false,
-        "candidate_id": "hch-a26038a449bce120ddc5506f",
-        "candidate_type": "hypothesis_probability_methodology",
-        "component_id": "belief_hypothesis:btc.volatility.benign@1#__ALL_HORIZONS__",
-        "created_at": "2026-10-08T11:29:21.503623Z",
-        "evaluator_profile": "hypothesis_shadow_oos_gate_v1",
-        "metrics": {
-          "discovery": {
-            "discovery_distinct_target_dates": 18,
-            "discovery_n": 38,
-            "source_event_ids_hash": "fb4897cad4a71729544986f0ec0707c2ee11a591009c6e304a2bd9ded0674e9c",
-            "source_n": 92,
-            "source_verified_cutoff_at": "2026-10-08T08:48:06.915267Z",
-            "validation_brier_relative_improvement": 0.797399,
-            "validation_challenger": {
-              "accuracy": 0.981481,
-              "brier": 0.02376,
-              "ece": 0.072838,
-              "log_loss": 0.138282,
-              "n": 54
-            },
-            "validation_control": {
-              "accuracy": 0.981481,
-              "brier": 0.117275,
-              "ece": 0.312561,
-              "log_loss": 0.416546,
-              "n": 54
-            },
-            "validation_distinct_target_dates": 8,
-            "validation_n": 54
-          },
-          "distinct_target_dates": 11,
-          "outcome_conflicts": 0,
-          "shadow_oos": {
-            "brier_relative_improvement": 0.789061,
-            "challenger": {
-              "accuracy": 0.985507,
-              "brier": 0.015727,
-              "ece": 0.059129,
-              "log_loss": 0.093965,
-              "n": 69
-            },
-            "chronological_block_relative_improvements": [
-              0.912404,
-              0.337068,
-              0.929042,
-              0.94593
-            ],
-            "control": {
-              "accuracy": 0.985507,
-              "brier": 0.074557,
-              "ece": 0.239388,
-              "log_loss": 0.304497,
-              "n": 69
-            },
-            "horizon_checks": [
-              {
-                "brier_relative_improvement": 0.929711,
-                "horizon_bucket": "12H",
-                "n": 16,
-                "protected": true
-              },
-              {
-                "brier_relative_improvement": 0.929711,
-                "horizon_bucket": "24H",
-                "n": 16,
-                "protected": true
-              },
-              {
-                "brier_relative_improvement": 0.296315,
-                "horizon_bucket": "3D",
-                "n": 13,
-                "protected": true
-              },
-              {
-                "brier_relative_improvement": 0.929711,
-                "horizon_bucket": "3H",
-                "n": 16,
-                "protected": true
-              },
-              {
-                "brier_relative_improvement": 0.921386,
-                "horizon_bucket": "5D",
-                "n": 8,
-                "protected": false
-              }
-            ]
-          }
-        },
-        "promotion_route": "manual_hypothesis_probability_review",
-        "source_module": "L3-P2",
-        "status": "PARKED",
-        "target_module": "EP-05"
-      },
-      {
         "activation_boundary": "2026-10-02T18:26:30.254234Z",
         "automatic_promotion_allowed": true,
         "candidate_id": "evo-belief-eb90fd9090a03d55f5558669",
@@ -971,11 +971,11 @@
       }
     ],
     "delegated_actions": [],
-    "generated_at": "2026-10-18T20:31:33.053849Z",
+    "generated_at": "2026-10-18T21:47:49.667307Z",
     "hypotheses": [
       {
         "claim": "gpw LONG decisions in regime unknown show recurring adverse outcomes and warrant a bounded challenger",
-        "created_at": "2026-10-18T20:31:33.053849Z",
+        "created_at": "2026-10-18T21:47:49.667307Z",
         "evidence": {
           "action": "LONG",
           "engine": "gpw",
@@ -1224,7 +1224,7 @@
         ],
         "candidate_id": "evo-belief-72343f0df571e6243bf5f328",
         "minimum_sample": 50,
-        "observed_sample": 1066,
+        "observed_sample": 1068,
         "segment_checks": [
           {
             "brier_relative_improvement": -0.012302,
@@ -1514,7 +1514,7 @@
         ],
         "candidate_id": "evo-belief-b82c00cc54e2c56e166c8e6a",
         "minimum_sample": 50,
-        "observed_sample": 98,
+        "observed_sample": 99,
         "segment_checks": [
           {
             "brier_relative_improvement": 0.04871,
@@ -1626,7 +1626,7 @@
       },
       {
         "blockers": [
-          "p2_oos_gate_reconciliation_mismatch"
+          "minimum_distinct_target_dates"
         ],
         "candidate_id": "hch-a26038a449bce120ddc5506f",
         "minimum_sample": 50,
@@ -1649,7 +1649,7 @@
             "brier_relative_improvement": 0.94593
           }
         ],
-        "status": "HOLD"
+        "status": "COLLECTING"
       }
     ],
     "retirement_actions": [],
@@ -1662,7 +1662,7 @@
         "scan_status": {
           "__GLOBAL__": {
             "last_discovery_n": null,
-            "prospective_n": 1066,
+            "prospective_n": 1068,
             "rediscovery_after_n": null,
             "status": "prospective_shadow",
             "trigger_reasons": [
@@ -1681,7 +1681,7 @@
           },
           "btc.trend.bullish": {
             "last_discovery_n": null,
-            "prospective_n": 98,
+            "prospective_n": 99,
             "rediscovery_after_n": null,
             "status": "prospective_shadow",
             "trigger_reasons": [
@@ -1775,7 +1775,7 @@
             ]
           }
         },
-        "source_generated_at": "2026-10-18T19:42:47.527287Z"
+        "source_generated_at": "2026-10-18T21:43:19.015988Z"
       },
       "belief_v3": {
         "available": true,
@@ -1792,7 +1792,7 @@
       "hypothesis_challengers": {
         "available": true,
         "candidates": 3,
-        "gate_hold": 1,
+        "gate_hold": 0,
         "gate_pass": 0
       },
       "trading_regret": {
@@ -1806,7 +1806,7 @@
       "delegated_actions": 0,
       "gate_pass": 2,
       "hypotheses": 5,
-      "oos_running": 12,
+      "oos_running": 13,
       "promoted": 0,
       "promotion_eligible": 1,
       "retired_or_rolled_back": 0,
@@ -2526,7 +2526,7 @@
       "promotion_brier_relative_improvement": 0.05,
       "stability_blocks_required": "3_of_4"
     },
-    "generated_at": "2026-10-18T21:43:19.015988Z",
+    "generated_at": "2026-10-18T21:49:32.936384Z",
     "global_control_metrics": {
       "accuracy": 0.592361,
       "brier": 0.240586,
@@ -2541,7 +2541,7 @@
     {
       "instrument": "BTC/USD",
       "trend_belief_id": "btc.trend.bullish",
-      "calculated_at": "2026-10-18T21:43:12.034119Z",
+      "calculated_at": "2026-10-18T21:49:25.817621Z",
       "as_of": "2026-10-16T20:03:27Z",
       "target_at": "2026-10-17T20:03:27Z",
       "horizon_label": "24H",
@@ -2567,7 +2567,7 @@
     {
       "instrument": "EUR/USD",
       "trend_belief_id": "eurusd.trend.bullish",
-      "calculated_at": "2026-10-18T21:43:12.034119Z",
+      "calculated_at": "2026-10-18T21:49:25.817621Z",
       "as_of": "2026-10-16T20:03:27Z",
       "target_at": "2026-10-17T20:03:27Z",
       "horizon_label": "24H",
@@ -2593,7 +2593,7 @@
     {
       "instrument": "S&P 500",
       "trend_belief_id": "spx.trend.bullish",
-      "calculated_at": "2026-10-18T21:43:12.034119Z",
+      "calculated_at": "2026-10-18T21:49:25.817621Z",
       "as_of": "2026-10-16T20:03:27Z",
       "target_at": "2026-10-19T20:00:00Z",
       "horizon_label": "3D",
@@ -16040,7 +16040,7 @@
   },
   "hypothesis_utility": {
     "schema_version": "briefrooms-hypothesis-utility-v1",
-    "generated_at": "2026-10-18T21:43:16.800684Z",
+    "generated_at": "2026-10-18T21:49:30.633295Z",
     "status": "SHADOW_READ_ONLY",
     "authority": {
       "production_writeback": false,
@@ -17274,7 +17274,7 @@
   },
   "hypothesis_challengers": {
     "schema_version": "briefrooms-hypothesis-challenger-v1",
-    "generated_at": "2026-10-18T21:43:17.370565Z",
+    "generated_at": "2026-10-18T21:49:31.218707Z",
     "status": "SHADOW_OOS_GOVERNED",
     "summary": {
       "candidates_total": 3,
@@ -17467,7 +17467,7 @@
   },
   "p2_shadow_watchdog": {
     "schema_version": "briefrooms-p2-shadow-watchdog-v1",
-    "generated_at": "2026-10-18T21:43:18.154964Z",
+    "generated_at": "2026-10-18T21:49:32.026428Z",
     "status": "FAIL",
     "readiness": "REAL_SETTLEMENT_VERIFIED",
     "production_e2e_status": "BLOCKED",
