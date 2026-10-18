@@ -136,8 +136,6 @@ def _source_is_fresh(
         return True  # Older verified source is allowed only until its BRs exposure expires.
     if age > NEWS_MAX_AGE:
         return False
-    if lang == "pl" and published.astimezone(WARSAW).date() != now.astimezone(WARSAW).date():
-        return False
     return True
 
 
@@ -155,10 +153,6 @@ def _public_expiry(
     if published is None:
         return None
     expiry = min(expiry, published + NEWS_MAX_AGE)
-    if lang == "pl":
-        tomorrow = published.astimezone(WARSAW).date() + timedelta(days=1)
-        midnight = datetime.combine(tomorrow, datetime.min.time(), tzinfo=WARSAW)
-        expiry = min(expiry, midnight.astimezone(timezone.utc))
     return expiry
 
 
