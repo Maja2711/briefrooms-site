@@ -42,9 +42,29 @@ jobs:
                   raise SystemExit('Invalid future publication timestamp')
               stale = age > 70
               print(f'News age: {age:.1f} minutes; recovery threshold: 70 minutes')
+          runs = get('https://api.github.com/repos/'+repo+'/actions/workflows/publish-news.yml/runs?per_page=20')['workflow_runs']
+          completed = [run for run in runs if run.get('status') == 'completed']
+          if completed and completed[0].get('conclusion') in ('failure', 'timed_out', 'cancelled'):
+              print('::warning::Latest completed publisher failed; recovery required')
+              stale = True
+          if not stale:
+              try:
+                  for lang, page in (('pl', 'pl/aktualnosci.html'), ('en', 'en/news.html')):
+                      live = get('https://briefrooms.com/data/news/'+lang+'.json?recovery_check='+str(int(datetime.now(timezone.utc).timestamp())))
+                      if live.get('marker') != marker:
+                          print('::warning::Production JSON mismatch')
+                          stale = True
+                      req = urllib.request.Request('https://briefrooms.com/'+page+'?recovery_check='+str(int(datetime.now(timezone.utc).timestamp())), headers={'User-Agent':'BriefRooms-news-recovery','Cache-Control':'no-cache'})
+                      with urllib.request.urlopen(req, timeout=15) as response:
+                          html = response.read().decode('utf-8')
+                      if marker not in html:
+                          print('::warning::Production HTML mismatch')
+                          stale = True
+              except (urllib.error.URLError, TimeoutError, ValueError) as exc:
+                  print('::error::Production check unavailable: '+str(exc))
+                  raise SystemExit(1)
           if not stale:
               raise SystemExit(0)
-          runs = get('https://api.github.com/repos/'+repo+'/actions/workflows/publish-news.yml/runs?per_page=20')['workflow_runs']
           if any(run['status'] in ('queued','in_progress','waiting','pending','requested') for run in runs):
               print('Publisher already active; avoiding duplicate dispatch')
               raise SystemExit(0)
