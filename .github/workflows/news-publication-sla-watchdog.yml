@@ -1,13 +1,26 @@
 name: News Publication SLA Watchdog
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/news-publication-sla-watchdog.yml'
+      - '.github/workflows/publish-news.yml'
+      - 'tests/test_news_publication_reliability.py'
   schedule:
     - cron: "43 * * * *"
 permissions:
   contents: read
   issues: read
 jobs:
+  regression:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test watchdog failure paths and publisher concurrency
+        run: python -m unittest -v tests.test_news_publication_reliability
   check:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
