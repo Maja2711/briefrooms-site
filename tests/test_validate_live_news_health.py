@@ -136,7 +136,7 @@ class LiveNewsHealthTests(unittest.TestCase):
         self.assertEqual("healthy", report["status"])
         self.assertFalse(report["reasons"])
 
-    def test_previous_day_pl_politics_source_remains_blocked(self) -> None:
+    def test_previous_day_pl_politics_source_within_24h_is_allowed(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             write_fixture(root)
@@ -148,10 +148,23 @@ class LiveNewsHealthTests(unittest.TestCase):
             article["news_expires_at"] = (NOW + timedelta(hours=12)).isoformat()
             feed_path.write_text(json.dumps(payload), encoding="utf-8")
             report = health.assess(root, now=NOW, max_age_minutes=120)
+        self.assertEqual("healthy", report["status"])
+        self.assertFalse(report["reasons"])
+
+    def test_previous_day_pl_politics_source_over_24h_is_blocked(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_fixture(root)
+            feed_path = root / health.LANGUAGES["pl"]["feed"]
+            payload = json.loads(feed_path.read_text(encoding="utf-8"))
+            article = payload["sections"]["polityka"][0]
+            article["published_at"] = (NOW - timedelta(hours=25)).isoformat()
+            article["news_first_seen_at"] = (NOW - timedelta(minutes=10)).isoformat()
+            article["news_expires_at"] = (NOW + timedelta(hours=12)).isoformat()
+            feed_path.write_text(json.dumps(payload), encoding="utf-8")
+            report = health.assess(root, now=NOW, max_age_minutes=120)
         self.assertEqual("failed", report["status"])
-        self.assertIn(
-            "pl:source_story_stale_or_invalid:polityka", report["reasons"]
-        )
+        self.assertIn("pl:source_story_over_24h:polityka", report["reasons"])
 
     def test_stale_publication_fails_at_two_hours(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
