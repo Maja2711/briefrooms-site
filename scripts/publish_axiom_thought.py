@@ -68,6 +68,8 @@ def prompt(rows,reserve,mode):
     memory=protected_history(rows)
     return f"""You are AXIOM, co-author of BriefRooms. Produce one original Morning AXIOM thought.
 MODE={mode}; DATE={today()}
+PHILOSOPHICAL INSPIRATION (EDITORIAL GUIDANCE, NOT A RIGID TEMPLATE):
+Draw broadly on the history of philosophy, from ancient to contemporary thinkers and across world traditions. Use their questions, disagreements, paradoxes and arguments as intellectual inspiration. Then DEVELOP YOUR OWN INDEPENDENT REFLECTION: derive a fresh insight, consequence or reinterpretation relevant to human life, knowledge, society, technology or the future. Think critically and creatively rather than summarizing schools or recycling familiar philosophical conclusions. Do not copy or closely paraphrase famous aphorisms, invent quotes or attributions, or imitate one philosopher's voice. The published thought should stand on its own: names of philosophers, quotations and academic references are optional, never required. Seek conceptual variety, not another mechanical "not X but Y" sentence.
 CONSTITUTION:
 {PRINCIPLES.read_text(encoding="utf-8")}
 COMPLETE PUBLISHED HISTORY (NO AGE LIMIT). Any semantic repeat, paraphrase or reused thesis is forbidden; exact theme reuse is independently restricted for 365 days:
@@ -128,7 +130,9 @@ def semantic_review(candidate, rows, reserve=()):
         "You are a skeptical, independent editorial veto reviewer, not the author. "
         "Review the UNDERLYING CAUSAL OR CONCEPTUAL CLAIM, not just shared keywords. "
         "Check against EVERY historical thought; novelty of wording, domain slug, "
-        "rhetoric or metaphor is NOT novelty of idea. Two similar statements about "
+        "rhetoric or metaphor is NOT novelty of idea. Drawing on philosophy is " 
+        "inspiration, not proof of an original insight: reject disguised " 
+        "paraphrases of famous philosophical theses. Two similar statements about "
         "the loss of information, autonomy, or ability through removing constraints "
         "should be treated as overlapping unless there is a clearly different "
         "causal mechanism. If conceptual originality is genuinely uncertain, "
