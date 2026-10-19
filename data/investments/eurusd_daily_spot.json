@@ -1,9 +1,9 @@
 {
   "instrument": "EUR/USD",
-  "timestamp": "2026-10-19T16:10:48Z",
+  "timestamp": "2026-10-19T16:16:48Z",
   "direction": "FLAT",
-  "score": 49.49,
-  "confidence": 0.3611,
+  "score": 46.67,
+  "confidence": 0.3464,
   "entry": null,
   "stop": null,
   "target": null,
@@ -45,66 +45,65 @@
       "owner": "NATIVE_DAILY_EURUSD_BELIEF_FIRST_DECISION_ENGINE",
       "decision_source": "NATIVE_BELIEF_FIRST",
       "epistemic_source": "BELIEF_CORE_CF07",
-      "direction": "FLAT",
-      "score": 49.49,
-      "confidence": 0.3611,
+      "direction": "SHORT",
+      "score": 46.67,
+      "confidence": 0.3464,
       "thresholds": {
         "long": 56.0,
         "short": 44.0
       },
       "aggressive_participation": {
         "enabled": true,
-        "threshold_mode": "CORE",
+        "threshold_mode": "AGGRESSIVE_ALIGNED",
         "long": 53.0,
         "short": 47.0,
         "minimum_coverage_weight": 0.55,
         "minimum_confidence": 0.25,
         "minimum_aligned_beliefs": 3,
         "alignment_margin": 0.02,
-        "aligned_long_beliefs": [
-          "eurusd.usd_environment.supportive"
-        ],
+        "aligned_long_beliefs": [],
         "aligned_short_beliefs": [
           "eurusd.trend.bullish",
-          "eurusd.us_rates_pressure.supportive"
+          "eurusd.us_rates_pressure.supportive",
+          "eurusd.usd_environment.supportive"
         ],
         "long_ready": false,
-        "short_ready": false,
+        "short_ready": true,
         "rule": "Narrower Daily participation band applies only to an authoritative, sufficiently covered/confident state with at least three aligned beliefs including the EURUSD trend anchor."
       },
-      "coverage_weight": 0.694401,
+      "coverage_weight": 0.694392,
       "minimum_coverage_weight": 0.45,
       "required_anchor_belief": "eurusd.trend.bullish",
       "used_beliefs": [
         {
           "belief_id": "eurusd.trend.bullish",
-          "probability": 0.475608,
-          "confidence": 0.474204,
-          "directional_support": -0.048784,
-          "effective_support": -0.023134,
+          "probability": 0.445869,
+          "confidence": 0.474208,
+          "directional_support": -0.108262,
+          "effective_support": -0.051339,
           "weight": 0.45,
-          "observed_at": "2026-10-19T16:10:14.993391Z",
-          "age_hours": 0.0092
+          "observed_at": "2026-10-19T16:16:16.957283Z",
+          "age_hours": 0.0086
         },
         {
           "belief_id": "eurusd.usd_environment.supportive",
-          "probability": 0.548552,
-          "confidence": 0.595103,
-          "directional_support": 0.097104,
-          "effective_support": 0.057787,
+          "probability": 0.468817,
+          "confidence": 0.43179,
+          "directional_support": -0.062366,
+          "effective_support": -0.026929,
           "weight": 0.3,
-          "observed_at": "2026-10-19T02:02:37.171120Z",
-          "age_hours": 14.1363
+          "observed_at": "2026-10-19T02:08:25.733149Z",
+          "age_hours": 14.1395
         },
         {
           "belief_id": "eurusd.us_rates_pressure.supportive",
-          "probability": 0.44432,
-          "confidence": 0.557456,
-          "directional_support": -0.11136,
-          "effective_support": -0.062078,
+          "probability": 0.375489,
+          "confidence": 0.662946,
+          "directional_support": -0.249022,
+          "effective_support": -0.165088,
           "weight": 0.15,
-          "observed_at": "2026-10-19T16:00:48.996444Z",
-          "age_hours": 0.1664
+          "observed_at": "2026-10-19T16:06:47.994446Z",
+          "age_hours": 0.1667
         }
       ],
       "unavailable_beliefs": [
@@ -121,9 +120,7 @@
           "max_age_hours": 18.0
         }
       ],
-      "reasons": [
-        "belief_score_neutral"
-      ],
+      "reasons": [],
       "routing": [
         "RAW_SOURCES",
         "SPECIALIZED_ADAPTERS",
@@ -141,16 +138,16 @@
         "consumer": "DAILY_EURUSD",
         "available": true,
         "reason": "authoritative_daily_eurusd_epistemic_projection",
-        "source_created_at": "2026-10-19T16:11:03.325644Z",
-        "age_hours": -0.004257,
-        "source_sha256": "3b5a32c94e6bf777e4e4491e8208304f179eee41318262759fdfd6edbc43ec80",
+        "source_created_at": "2026-10-19T16:17:08.947822Z",
+        "age_hours": -0.005819,
+        "source_sha256": "cf31e2531d83f971b8c846cd6351b790aaca98133bb0416d6a2a9b2b91a70472",
         "aggregate_authoritative": true,
         "consumer_may_override_probability": false,
         "belief_core_writeback_enabled": false,
         "state_count": 5,
-        "aggregate_probability": 0.494898,
-        "aggregate_confidence": 0.361062,
-        "coverage_weight": 0.694401,
+        "aggregate_probability": 0.466746,
+        "aggregate_confidence": 0.34643,
+        "coverage_weight": 0.694392,
         "qualified_state_count": 3,
         "qualified_belief_ids": [
           "eurusd.trend.bullish",
@@ -160,34 +157,34 @@
       },
       "provenance": {
         "schema_version": "briefrooms-provenance-contract-v1",
-        "artifact_id": "daily-eurusd-decision:88ffb9c88eac76aede46a301",
+        "artifact_id": "daily-eurusd-decision:40fd4c155298cf86148ce777",
         "artifact_type": "decision",
         "engine_id": "daily_eurusd",
         "engine_version": "belief-first-v1.9",
-        "created_at": "2026-10-19T16:10:48Z",
+        "created_at": "2026-10-19T16:16:48Z",
         "parent_artifact_ids": [
-          "epistemic:estate-4e3a872df2557d670691",
-          "epistemic:estate-ae7cfc1b909bf9d6bf47",
-          "epistemic:estate-d799da4bc7f43246eec1"
+          "epistemic:estate-8a85683a59f1046dafaf",
+          "epistemic:estate-b86c14c55a47c63bc4c6",
+          "epistemic:estate-d5d6a34c041507141199"
         ],
         "source_ids": [
           "BELIEF_CORE_CF07",
           "NATIVE_BELIEF_FIRST"
         ],
         "evidence_ids": [
-          "epistemic:estate-4e3a872df2557d670691",
-          "epistemic:estate-ae7cfc1b909bf9d6bf47",
-          "epistemic:estate-d799da4bc7f43246eec1"
+          "epistemic:estate-8a85683a59f1046dafaf",
+          "epistemic:estate-b86c14c55a47c63bc4c6",
+          "epistemic:estate-d5d6a34c041507141199"
         ],
         "belief_ids": [
           "eurusd.trend.bullish",
           "eurusd.us_rates_pressure.supportive",
           "eurusd.usd_environment.supportive"
         ],
-        "decision_id": "daily-eurusd-decision:88ffb9c88eac76aede46a301",
+        "decision_id": "daily-eurusd-decision:40fd4c155298cf86148ce777",
         "forecast_id": null,
         "verification_id": null,
-        "payload_hash": "88ffb9c88eac76aede46a301e990d5a529e32ff588a671740b97f90e0f6bd3f5",
+        "payload_hash": "40fd4c155298cf86148ce777f8d5aa2179b0d6aa61ead3b92b008bb9be89d44a",
         "authority": "decision",
         "prospective": true,
         "domain_provenance": {
@@ -199,20 +196,18 @@
     },
     "candidate": {
       "source": "NATIVE",
-      "direction": "FLAT",
-      "score": 49.49,
-      "confidence": 0.3611,
-      "accepted": false,
-      "gate_reasons": [
-        "belief_score_neutral"
-      ]
+      "direction": "SHORT",
+      "score": 46.67,
+      "confidence": 0.3464,
+      "accepted": true,
+      "gate_reasons": []
     },
     "direction_authority": {
       "owner": "NATIVE_DAILY_EURUSD_BELIEF_FIRST_DECISION_ENGINE",
       "single_owner": true,
       "source": "NATIVE_BELIEF_FIRST",
       "epistemic_input": "BELIEF_CORE_CF07",
-      "direction": "FLAT",
+      "direction": "SHORT",
       "allowed": true,
       "rule": "Final LONG/SHORT/FLAT is synthesized only after Belief Core; no shadow/fallback may manufacture direction."
     },
@@ -247,10 +242,24 @@
     },
     "same_thesis_reentry_guard": {
       "enabled": true,
-      "evaluated": false,
+      "mode": "SAME_THESIS_REENTRY_GUARD",
+      "generic_loss_cooldown": false,
+      "window_hours": 12.0,
+      "min_loss_r": -0.15,
+      "evaluated": true,
       "blocked": false,
-      "reason": "no_directional_candidate",
-      "direction_mutation_allowed": false
+      "reason": "no_recent_meaningful_same_direction_loss",
+      "current_thesis": {
+        "schema_version": "eurusd-entry-thesis-v1",
+        "source": "NATIVE",
+        "source_family": "NATIVE_COMPONENTS",
+        "direction": "SHORT",
+        "score": 46.67,
+        "directional_strength": 3.33,
+        "confidence": 0.3464,
+        "components": {},
+        "weights": {}
+      }
     },
     "learning": {
       "total_closed": 45,
@@ -315,29 +324,29 @@
     "belief_macro": {
       "enabled": true,
       "available": true,
-      "score": -0.0265,
+      "score": -0.6216,
       "direction": "short",
       "beliefs": [
         {
           "belief_id": "eurusd.trend.bullish",
-          "probability": 0.475608,
-          "confidence": 0.474204,
-          "age_hours": 0.484,
-          "updated_at": "2026-10-19T15:41:47Z"
+          "probability": 0.445869,
+          "confidence": 0.474208,
+          "age_hours": 0.017,
+          "updated_at": "2026-10-19T16:15:48Z"
         },
         {
           "belief_id": "eurusd.usd_environment.supportive",
-          "probability": 0.548552,
-          "confidence": 0.595103,
-          "age_hours": 0.503,
-          "updated_at": "2026-10-19T15:40:37Z"
+          "probability": 0.468817,
+          "confidence": 0.43179,
+          "age_hours": 0.043,
+          "updated_at": "2026-10-19T16:14:13Z"
         },
         {
           "belief_id": "eurusd.us_rates_pressure.supportive",
-          "probability": 0.44432,
-          "confidence": 0.557456,
-          "age_hours": 0.474,
-          "updated_at": "2026-10-19T15:42:20Z"
+          "probability": 0.375489,
+          "confidence": 0.662946,
+          "age_hours": 0.008,
+          "updated_at": "2026-10-19T16:16:19Z"
         }
       ],
       "freshness_max_hours": 8.0,
@@ -351,7 +360,7 @@
           {
             "title": "GDP main aggregates and employment - update",
             "event_at": "2026-10-19T22:00:00Z",
-            "hours_until": 5.82,
+            "hours_until": 5.72,
             "source": "Eurostat",
             "source_ref": "https://ec.europa.eu/eurostat/o/calendars/eventsIcal?theme=&category="
           }
@@ -384,6 +393,154 @@
         "remaining_r_to_target",
         "required_r_velocity_to_hard_horizon"
       ]
+    },
+    "execution_admission": {
+      "allowed": false,
+      "status": "BLOCKED",
+      "reasons": [
+        "belief_calendar_coverage_failed"
+      ],
+      "final_direction_preserved": "SHORT",
+      "direction_mutation_allowed": false,
+      "belief_calendar_safety": {
+        "available": true,
+        "blocked": true,
+        "reason": "belief_calendar_coverage_failed",
+        "imminent": false,
+        "post_release_evidence_pending": false,
+        "calendar_coverage": {
+          "complete": false,
+          "observed_at": "2026-10-19T16:16:15.765413Z",
+          "age_minutes": 0.537,
+          "source_status": {
+            "BEA": {
+              "error_type": null,
+              "event_count": 10,
+              "source_ref": "https://www.bea.gov/news/schedule",
+              "status": "ok"
+            },
+            "BLS": {
+              "error_type": "HTTPError",
+              "event_count": 0,
+              "source_ref": "https://www.bls.gov/schedule/news_release/bls.ics",
+              "status": "failed"
+            },
+            "ECB": {
+              "error_type": null,
+              "event_count": 5,
+              "source_ref": "https://www.ecb.europa.eu/press/calendars/mgcgc/html/index.en.html",
+              "status": "ok"
+            },
+            "EUROSTAT": {
+              "error_type": null,
+              "event_count": 24,
+              "source_ref": "https://ec.europa.eu/eurostat/o/calendars/eventsIcal?theme=&category=",
+              "status": "ok"
+            },
+            "FOMC": {
+              "error_type": null,
+              "event_count": 17,
+              "source_ref": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
+              "status": "ok"
+            }
+          }
+        },
+        "events": [
+          {
+            "title": "GDP main aggregates and employment - update",
+            "event_at": "2026-10-19T22:00:00Z",
+            "hours_until": 5.72,
+            "source": "Eurostat",
+            "source_ref": "https://ec.europa.eu/eurostat/o/calendars/eventsIcal?theme=&category=",
+            "region": "EU"
+          },
+          {
+            "title": "GDP main aggregates and employment - update",
+            "event_at": "2026-10-19T22:00:00Z",
+            "hours_until": 5.72,
+            "source": "Eurostat",
+            "source_ref": "https://ec.europa.eu/eurostat/o/calendars/eventsIcal?theme=&category=",
+            "region": "EU"
+          },
+          {
+            "title": "GDP main aggregates and employment - update",
+            "event_at": "2026-10-19T22:00:00Z",
+            "hours_until": 5.72,
+            "source": "Eurostat",
+            "source_ref": "https://ec.europa.eu/eurostat/o/calendars/eventsIcal?theme=&category=",
+            "region": "EU"
+          },
+          {
+            "title": "GDP main aggregates and employment - update",
+            "event_at": "2026-10-19T22:00:00Z",
+            "hours_until": 5.72,
+            "source": "Eurostat",
+            "source_ref": "https://ec.europa.eu/eurostat/o/calendars/eventsIcal?theme=&category=",
+            "region": "EU"
+          },
+          {
+            "title": "GDP main aggregates and employment - update",
+            "event_at": "2026-10-19T22:00:00Z",
+            "hours_until": 5.72,
+            "source": "Eurostat",
+            "source_ref": "https://ec.europa.eu/eurostat/o/calendars/eventsIcal?theme=&category=",
+            "region": "EU"
+          },
+          {
+            "title": "GDP main aggregates and employment - update",
+            "event_at": "2026-10-19T22:00:00Z",
+            "hours_until": 5.72,
+            "source": "Eurostat",
+            "source_ref": "https://ec.europa.eu/eurostat/o/calendars/eventsIcal?theme=&category=",
+            "region": "EU"
+          },
+          {
+            "title": "GDP main aggregates and employment - update",
+            "event_at": "2026-10-19T22:00:00Z",
+            "hours_until": 5.72,
+            "source": "Eurostat",
+            "source_ref": "https://ec.europa.eu/eurostat/o/calendars/eventsIcal?theme=&category=",
+            "region": "EU"
+          },
+          {
+            "title": "GDP main aggregates and employment - update",
+            "event_at": "2026-10-19T22:00:00Z",
+            "hours_until": 5.72,
+            "source": "Eurostat",
+            "source_ref": "https://ec.europa.eu/eurostat/o/calendars/eventsIcal?theme=&category=",
+            "region": "EU"
+          }
+        ],
+        "source": "belief_macro_calendar_adapter",
+        "direction_mutation_allowed": false
+      },
+      "same_thesis_reentry_guard": {
+        "enabled": true,
+        "mode": "SAME_THESIS_REENTRY_GUARD",
+        "generic_loss_cooldown": false,
+        "window_hours": 12.0,
+        "min_loss_r": -0.15,
+        "evaluated": true,
+        "blocked": false,
+        "reason": "no_recent_meaningful_same_direction_loss",
+        "current_thesis": {
+          "schema_version": "eurusd-entry-thesis-v1",
+          "source": "NATIVE",
+          "source_family": "NATIVE_COMPONENTS",
+          "direction": "SHORT",
+          "score": 46.67,
+          "directional_strength": 3.33,
+          "confidence": 0.3464,
+          "components": {},
+          "weights": {}
+        }
+      }
+    },
+    "execution_blocked_decision": {
+      "direction": "SHORT",
+      "score": 46.67,
+      "confidence": 0.3464,
+      "preserved": true
     }
   },
   "schema_version": "daily-engine-output-v1"
