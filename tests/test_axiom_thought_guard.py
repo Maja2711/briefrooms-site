@@ -9,7 +9,7 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from scripts.axiom_thought_guard import similarity, validate, review_digest, review_evidence_errors, rhetorical_templates, rhetorical_style_issues, rhetorical_diversity_score
-from scripts.publish_axiom_thought import candidate_validation_stamp, semantic_review, semantic_smoke, validate_candidate, publish, main, generate_ten, refill, evidence_valid, attach_review, core_candidate, eligible_reserve, reserve_status
+from scripts.publish_axiom_thought import candidate_validation_stamp, semantic_review, semantic_smoke, validate_candidate, publish, main, generate_ten, refill, evidence_valid, attach_review, core_candidate, eligible_reserve, reserve_status, prompt
 
 
 CURRENT = {
@@ -45,6 +45,19 @@ LATEST = {
 
 
 class AxiomThoughtGuardTests(unittest.TestCase):
+    def test_philosophical_inspiration_reaches_both_creation_modes(self) -> None:
+        for mode in ("live", "reserve"):
+            with self.subTest(mode=mode):
+                instructions = prompt([SEED], [], mode)
+                self.assertIn("PHILOSOPHICAL INSPIRATION", instructions)
+                self.assertIn("history of philosophy", instructions)
+                self.assertIn("DEVELOP YOUR OWN INDEPENDENT REFLECTION", instructions)
+                self.assertIn("Do not copy or closely paraphrase famous aphorisms", instructions)
+                self.assertIn("names of philosophers", instructions)
+                self.assertIn("COMPLETE PUBLISHED HISTORY", instructions)
+                self.assertIn(SEED["pl"], instructions)
+                self.assertIn("semantic repeat", instructions)
+
     def test_valid_publication_passes(self) -> None:
         self.assertEqual(validate(CURRENT, [SEED, LATEST]), [])
 
