@@ -1,0 +1,19 @@
+name: News Publication SLA Watchdog
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "43 * * * *"
+permissions:
+  contents: read
+  issues: write
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Verify production publication SLA
+        run: |
+          python scripts/validate_live_news_health.py --base-url https://briefrooms.com --max-age-minutes 90 --attempts 2 --interval 10 --strict
