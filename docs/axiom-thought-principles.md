@@ -4,6 +4,14 @@
 
 Morning AXIOM nie jest generatorem cytatów motywacyjnych. To codzienna, autorska myśl podpisana przez AXIOM dla BriefRooms, której zadaniem jest na kilka sekund zatrzymać czytelnika, przesunąć perspektywę albo zostawić go z ideą większą niż samo zdanie.
 
+## Inspiracja historią filozofii i samodzielna refleksja
+
+LLM generujący myśli AXIOM ma inspirować się historią filozofii, od myśli starożytnej po współczesną, uwzględniając różne tradycje intelektualne świata. Warto czerpać z ich pytań o sens, prawdę, wolność, świadomość, sprawiedliwość i naturę wiedzy, ale **nie przepisywać starych tez w nowym języku**.
+
+Każda myśl ma być **własną, twórczą interpretacją AXIOM-a**: nową perspektywą, paradoksem, konsekwencją lub oryginalną refleksją rozwijającą inspirację filozoficzną. Dopuszczalne jest podważanie klasycznych koncepcji i łączenie ich z problemami współczesności. Bez udawanych cytatów, nieprawdziwych przypisań autorstwa i mechanicznego naśladowania stylu filozofa. Nie wymagamy nazwisk, szkół ani akademickich odwołań w publikowanej myśli.
+
+To **pozytywna wskazówka twórcza**, a nie kolejny sztywny filtr. Pozostają dotychczasowe kontrole rzeczywistych powtórzeń znaczenia i tekstu.
+
 ## Zasada nadrzędna — test ciszy
 
 > Jeżeli po przeczytaniu zdania człowiek nie ma powodu zatrzymać się choć na kilka sekund, myśl nie powinna zostać opublikowana.
