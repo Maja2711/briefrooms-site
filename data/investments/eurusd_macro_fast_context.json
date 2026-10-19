@@ -1,15 +1,24 @@
 {
   "schema_version": "daily-eurusd-macro-fast-v1",
-  "status": "CLEAR",
-  "event": null,
+  "status": "PRE_RELEASE",
+  "event": {
+    "uid": "20271127T093412Z-1@palterot.cc.cec.eu.int",
+    "title": "GDP main aggregates and employment - update",
+    "event_at": "2026-10-19T22:00:00Z",
+    "hours_until_at_check": 0.6204,
+    "source": "Eurostat",
+    "source_ref": "https://ec.europa.eu/eurostat/o/calendars/eventsIcal?theme=&category=",
+    "importance": "high"
+  },
   "expectations": null,
-  "expectations_status": "NOT_APPLICABLE",
+  "expectations_status": "MISSING",
   "actuals": [],
   "actuals_status": "NOT_APPLICABLE",
+  "llm_key": "{\"actuals\": [], \"event_uid\": \"20271127T093412Z-1@palterot.cc.cec.eu.int\", \"expectation_fingerprint\": null, \"phase\": \"PRE_RELEASE\"}",
   "llm": null,
   "eurusd_score": 0.0,
   "decision_influence": false,
-  "calendar_coverage_complete": true,
+  "post_release_ready": false,
   "calendar_coverage": {
     "schema_version": "macro-calendar-coverage-v1",
     "required_sources": [
@@ -53,6 +62,20 @@
     },
     "complete": true
   },
-  "generated_at": "2026-10-19T16:53:52.659800Z",
-  "checked_at": "2026-10-19T16:53:52.659800Z"
+  "rules": {
+    "no_invented_consensus": true,
+    "eurusd_only_llm_beliefs": [
+      "eurusd.trend.bullish",
+      "eurusd.usd_environment.supportive",
+      "eurusd.us_rates_pressure.supportive",
+      "eurusd.macro_surprise.supportive",
+      "eurusd.policy_differential.supportive"
+    ],
+    "pre_event_expectations_require_sourced_bundle": true,
+    "missing_expectations_fail_closed": true,
+    "post_release_requires_official_actuals": true,
+    "official_actual_period_contract": "BLS_YYYY-MMM"
+  },
+  "generated_at": "2026-10-19T21:22:46.576073Z",
+  "checked_at": "2026-10-19T21:22:46.576073Z"
 }
