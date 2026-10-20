@@ -49,20 +49,24 @@
           "primary_sample": 40,
           "primary_source": "CANONICAL_ACTUAL_ONLY",
           "purge_hours": 27,
-          "runtime_binding": null
+          "runtime_binding": {
+            "bound_at": "2026-10-20T14:42:51.343923Z",
+            "case_id": "eurusd-case-a3edfa1f471a1108274b1b6e",
+            "runtime_code_sha256": "d778c9551504c6e89dc27893b47385de65a4410a1fcf9eaef96f97aa72cf6827"
+          }
         },
-        "evaluated_at": "2026-10-20T14:42:46.741243Z",
+        "evaluated_at": "2026-10-20T14:46:28.741687Z",
         "evaluator_profile": "eurusd_actual_paired_fixed_blocks_v1",
-        "gate_id": "eurusd-gate-273a0475bec7c1d5a00b06c6",
+        "gate_id": "eurusd-gate-459bdbac6f355494e8103f71",
         "metrics": {
           "resolved_n": 0,
-          "selected_n": 0
+          "selected_n": 1
         },
         "minimum_sample": 40,
         "observed_sample": 0,
         "prospective_only": true,
         "segment_checks": [],
-        "source_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "source_sha256": "b78ae1716704e0e7bd06f6df80b5c405d787ee8922cdbb6550c0798c5206d6a1",
         "status": "COLLECTING"
       },
       "metadata": {
@@ -1264,10 +1268,71 @@
         }
       },
       "frozen_sha256": "f8f94a8eac99904df55366db6679c5ffde57b2b09657921b4ce4a1d252c79dc4",
-      "last_coverage_at": "2026-10-20T14:42:51.373224Z",
+      "last_coverage_at": "2026-10-20T14:46:29.602809Z",
       "mode": "CANONICAL_REFERENCE_ONLY",
       "outcome": null,
       "runtime_position": {
+        "_belief_macro_context": {
+          "available": true,
+          "beliefs": [
+            {
+              "age_hours": 0.1,
+              "belief_id": "eurusd.trend.bullish",
+              "confidence": 0.474185,
+              "probability": 0.598908,
+              "updated_at": "2026-10-20T14:40:28Z"
+            },
+            {
+              "age_hours": 0.099,
+              "belief_id": "eurusd.usd_environment.supportive",
+              "confidence": 0.595137,
+              "probability": 0.682929,
+              "updated_at": "2026-10-20T14:40:31Z"
+            },
+            {
+              "age_hours": 0.089,
+              "belief_id": "eurusd.us_rates_pressure.supportive",
+              "confidence": 0.808323,
+              "probability": 0.702962,
+              "updated_at": "2026-10-20T14:41:09Z"
+            }
+          ],
+          "direction": "long",
+          "direction_decision_influence": false,
+          "enabled": true,
+          "fast_context": {},
+          "freshness_max_hours": 8.0,
+          "macro_calendar": {
+            "available": false,
+            "events": [],
+            "imminent": false,
+            "source": "belief_macro_calendar_adapter",
+            "status": "calendar_clear_or_not_imminent"
+          },
+          "release_context": {
+            "fast_lane_post_release_ready": false,
+            "latest_macro_evidence_at": null,
+            "post_release_guard_minutes": 30,
+            "post_release_macro_evidence_fresh": false,
+            "recent_high_impact_event": null
+          },
+          "role": "OPEN_POSITION_RISK_ONLY",
+          "rule": "fresh bounded EURUSD beliefs with event fast lane; no standalone execution authority",
+          "score": 1.7417,
+          "score_cap": 10.0,
+          "source": "belief_core"
+        },
+        "_management_asof": "2026-10-20T14:46:29.602809+00:00",
+        "_management_candidate": {
+          "accepted": false,
+          "confidence": 0.3936,
+          "direction": "LONG",
+          "gate_reasons": [
+            "entry_disabled_this_cycle"
+          ],
+          "score": 58.43,
+          "source": "NATIVE"
+        },
         "decision_manifest": {
           "decision_at": "2026-10-20T14:42:46.741243Z",
           "decision_id": "eurusd-production-decision:6996ae50ac0bd605fae5c402",
@@ -1897,7 +1962,7 @@
   "mode": "PROSPECTIVE_POLICY_EVIDENCE",
   "rollback_events": [],
   "schema_version": "eurusd-production-policy-state-v1",
-  "updated_at": "2026-10-20T14:42:51.373224Z",
+  "updated_at": "2026-10-20T14:46:29.602809Z",
   "versions": {
     "eurusd-policy-b36bdb62278edbd39faee3b9": {
       "activated_at": "2026-10-20T10:15:57.628497Z",
