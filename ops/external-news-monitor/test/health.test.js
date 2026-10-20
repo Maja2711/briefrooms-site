@@ -8,3 +8,5 @@ test("missed schedule",()=>assert.equal(assess([run(91)],now,90).reason,"schedul
 test("manual run does not mask missing schedule",()=>assert.equal(assess([run(120),run(2,"workflow_dispatch")],now,90).healthy,false));
 test("missing runs fail closed",()=>assert.equal(assess([],now,90).healthy,false));
 test("future timestamp fails closed",()=>assert.equal(assess([run(-1)],now,90).healthy,false));
+test("invalid timestamps ignored",()=>assert.equal(assess([{event:"schedule",run_started_at:"bad"}],now,90).reason,"no_scheduled_runs"));
+test("exact 90 minute boundary",()=>assert.equal(assess([run(90)],now,90).healthy,true));
