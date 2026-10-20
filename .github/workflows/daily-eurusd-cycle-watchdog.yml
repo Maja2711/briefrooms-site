@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "scripts/daily_eurusd_cycle_watchdog.py"
+      - "scripts/daily_eurusd_decision_record.py"
       - "tests/test_daily_eurusd_cycle_watchdog.py"
       - ".github/workflows/daily-eurusd-cycle-watchdog.yml"
   workflow_dispatch:
@@ -15,6 +16,7 @@ on:
     branches: [main]
     paths:
       - "scripts/daily_eurusd_cycle_watchdog.py"
+      - "scripts/daily_eurusd_decision_record.py"
       - "tests/test_daily_eurusd_cycle_watchdog.py"
       - ".github/workflows/daily-eurusd-cycle-watchdog.yml"
 
@@ -33,8 +35,6 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: main
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
