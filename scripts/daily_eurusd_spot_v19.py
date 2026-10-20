@@ -15,9 +15,12 @@ Belief-first decision semantics.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+import copy
+import json
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Mapping
+from zoneinfo import ZoneInfo
 
 from daily_engine_contract import DailyEngineOutput
 import daily_eurusd_belief_decision as belief_decision
@@ -27,11 +30,33 @@ import daily_eurusd_spot_v14 as v14
 import daily_eurusd_spot_v16 as v16
 import daily_eurusd_spot_v18 as v18
 import investments_wes_macro_belief as legacy_macro_context
+import daily_eurusd_decision_record as decision_record
+import daily_eurusd_production_policy as production_policy
 
-ENGINE_VERSION = "eurusd-daily-spot-v1.9.0"
+ENGINE_VERSION = decision_record.ENGINE_VERSION
 _epe_prepare = base.prepare_entry_candidate
 _v18_open_output = v18._open_output
 _v18_closed_output = v18._closed_output
+_cycle_context: dict[str, Any] | None = None
+
+
+def _policy_state(when: datetime) -> Mapping[str, Any]:
+    return (_cycle_context or {}).get("policy_state") or production_policy.default_state(when)
+
+
+def _decision_manifest(candidate: DailyEngineOutput) -> dict[str, Any]:
+    metadata = dict(candidate.metadata)
+    final = metadata.get("final_decision") or {}
+    when = belief_decision._parse_time((final.get("provenance") or {}).get("created_at") or candidate.timestamp)
+    if not metadata.get("production_policy"):
+        metadata["production_policy"] = production_policy.policy_context(
+            _policy_state(when), score=float(final.get("score", candidate.score)),
+            direction=str(final.get("direction", candidate.direction)), observed_at=when,
+        )
+    return decision_record.make_manifest(
+        {**candidate.to_dict(), "metadata": metadata},
+        snapshot_sha256=metadata["market_snapshot_sha256"],
+    )
 
 
 def _clone(
@@ -144,7 +169,10 @@ def build_output(
     rows = list((getattr(snapshot, "bars", {}) or {}).get(base.EURUSD) or [])
     if not rows:
         raise ValueError("EUR/USD market series is required for timestamp and risk geometry")
-    observed_at = rows[-1].timestamp.astimezone(timezone.utc)
+    # The bar carries market observation time; the decision has its own native
+    # creation time. A completed 30m bar must not backdate current Evidence.
+    observed_at = ((_cycle_context or {}).get("decision_at")
+                   or rows[-1].timestamp.astimezone(timezone.utc))
 
     state, consumer_meta = belief_decision.load_effective_state(observed_at=observed_at)
     decision = belief_decision.synthesize(
@@ -180,6 +208,7 @@ def build_output(
 
     legacy_learning = lifecycle.learning_state(list((history or {}).get("trades") or []))
     metadata: dict[str, Any] = {
+        "market_snapshot_sha256": decision_record.market_snapshot_hash(snapshot),
         "market": "FX_SPOT",
         "currency_pair": "EUR/USD",
         "rollout_stage": "paper",
@@ -253,6 +282,9 @@ def build_output(
             "note": "Legacy local adaptive weights remain audit history only; v1.9 direction consumes Belief Core.",
         },
         "risk": {
+            "market_observed_at": rows[-1].timestamp.isoformat().replace("+00:00", "Z"),
+            "market_reference_mid": float(rows[-1].close),
+            "atr_30m_at_decision": base._atr(rows),
             "atr_30m_window": 26,
             "atr_multiple": 1.35,
             "risk_floor_percent": 0.0027,
@@ -329,6 +361,13 @@ def _execution_blocked_output(candidate: DailyEngineOutput) -> DailyEngineOutput
         "confidence": final.get("confidence", candidate.confidence),
         "preserved": True,
     }
+    candidate_meta = dict(metadata.get("candidate") or {})
+    candidate_meta["accepted"] = False
+    candidate_meta["gate_reasons"] = list(dict.fromkeys([
+        *list(candidate_meta.get("gate_reasons") or []),
+        *list((metadata.get("execution_admission") or {}).get("reasons") or []),
+    ]))
+    metadata["candidate"] = candidate_meta
     return _clone(
         candidate,
         direction="FLAT",
@@ -361,7 +400,252 @@ def prepare_entry_candidate(
             "preserved": True,
         })
         return _clone(prepared, metadata=metadata)
-    return _clone(prepared)
+    prepared = _clone(prepared)
+    metadata = dict(prepared.metadata)
+    context = production_policy.policy_context(_policy_state(observed_at),
+        score=prepared.score, direction=prepared.direction,
+        observed_at=belief_decision._parse_time(prepared.timestamp))
+    metadata["production_policy"] = context
+    if context.get("allowed") is not True:
+        metadata["execution_admission"] = {
+            **dict(metadata.get("execution_admission") or {}),
+            "allowed": False, "status": "POLICY_FILTERED",
+            "reasons": ["production_admission_policy_margin"],
+        }
+    prepared = _clone(prepared, metadata=metadata)
+    manifest = _decision_manifest(prepared)
+    metadata["decision_manifest"] = manifest
+    prepared = _clone(prepared, metadata=metadata)
+    position = _create_position_v19(prepared.to_dict())
+    if _cycle_context is not None:
+        state, _case_id = production_policy.freeze_case(
+            _cycle_context["policy_state"], decision_manifest=manifest,
+            position=position, score=prepared.score,
+            now=(datetime.now(timezone.utc) if _cycle_context.get("live")
+                 else max(_cycle_context["decision_at"], belief_decision._parse_time(prepared.timestamp))),
+            slices={"session": _session(prepared.timestamp),
+                    "macro": "clear"},
+        )
+        _cycle_context["policy_state"] = state
+    if context.get("allowed") is not True:
+        # Freeze the final admission record as well as the already-frozen case.
+        # The case retains the pre-filter decision and independent policy votes.
+        metadata["decision_manifest"] = manifest
+        return _execution_blocked_output(_clone(prepared, metadata=metadata))
+    return prepared
+
+
+def _create_position_v19(payload: Mapping[str, Any]) -> dict[str, Any]:
+    # Construct explicitly instead of inheriting mutable global hook chains.
+    # Legacy isolated callers keep their own version/contract; they never gain
+    # new-policy eligibility or a reconstructed manifest.
+    position = v14.normalize_position(lifecycle.create_position(payload)) or {}
+    if payload.get("engine_version") != ENGINE_VERSION:
+        return position
+    position["engine_version"] = ENGINE_VERSION
+    metadata = payload.get("metadata") or {}
+    execution = metadata.get("execution_price_engine") or {}
+    if (execution.get("verified") is not True or execution.get("status") != "VERIFIED_FILL"
+            or execution.get("execution_cost_contract") != lifecycle.EXECUTION_COST_CONTRACT):
+        raise ValueError("verified EPE is required before production admission")
+    position["execution_price_engine"] = copy.deepcopy(execution)
+    position.update(decision_source="NATIVE", learning_eligible=True, learning_namespace="NATIVE")
+    position["entry_thesis"] = v16._entry_thesis_from_payload(payload)
+    manifest = metadata.get("decision_manifest")
+    if not isinstance(manifest, Mapping):
+        raise ValueError("native production manifest is required before admission")
+    decision_record.validate_manifest(manifest)
+    position["decision_manifest"] = copy.deepcopy(manifest)
+    thesis = dict(position.get("entry_thesis") or {})
+    thesis.update({"source_family": "NATIVE_BELIEF_FIRST", "decision_id": manifest["decision_id"],
+        "policy_version_id": manifest["policy_version_id"], "manifest_sha256": manifest["manifest_sha256"]})
+    position["entry_thesis"] = thesis
+    return position
+
+
+def _session(stamp: str) -> str:
+    hour = belief_decision._parse_time(stamp).hour
+    return "ASIA" if hour < 7 else "EUROPE" if hour < 13 else "US" if hour < 21 else "LATE"
+
+
+def _fx_open(stamp: datetime) -> bool:
+    local = stamp.astimezone(ZoneInfo("America/New_York"))
+    return (local.weekday() < 4 or (local.weekday() == 4 and local.hour < 17)
+            or (local.weekday() == 6 and local.hour >= 17))
+
+
+def _counterfactual_evaluator(bars: Any, metadata: Mapping[str, Any], now: datetime):
+    """Return a prospective, non-executable reference-lifecycle evaluator.
+
+    Only an admission frozen before its market path may enter this evaluator.
+    Historical retrieval resolves that frozen counterfactual; it never creates
+    a canonical fill or replaces a real trade outcome.
+    """
+    rows = sorted(bars, key=lambda bar: bar.timestamp)
+    def evaluate(position: Mapping[str, Any], case: Mapping[str, Any]) -> dict[str, Any]:
+        opened = belief_decision._parse_time(position.get("opened_at"))
+        if opened is None or not rows:
+            return {"coverage_complete": False, "reason": "missing_reference_path"}
+        first_minute = opened.replace(second=0, microsecond=0) + timedelta(minutes=1)
+        if now < first_minute:
+            return {"coverage_complete": True, "position": dict(position), "closed_trade": None,
+                    "reason": "awaiting_first_forward_observation"}
+        available = [bar for bar in rows if opened < bar.timestamp <= now]
+        if not available and not _fx_open(now):
+            return {"market_open": False, "coverage_complete": False}
+        if not available:
+            return {"coverage_complete": False, "reason": "reference_path_stale"}
+        stale = _fx_open(now) and (now - available[-1].timestamp).total_seconds() > 180
+        last_minute = min(now - timedelta(minutes=1), available[-1].timestamp).replace(second=0, microsecond=0)
+        observed_minutes = {bar.timestamp.replace(second=0, microsecond=0) for bar in available}
+        cursor = first_minute
+        missing_at = None
+        while cursor <= last_minute:
+            if _fx_open(cursor) and cursor not in observed_minutes:
+                missing_at = cursor
+                break
+            cursor += timedelta(minutes=1)
+        reference = copy.deepcopy(dict(position))
+        # Management information is usable only once it existed by the market
+        # timestamp being evaluated. Current metadata is retained for the next
+        # observation, rather than applied to an earlier candle retroactively.
+        if missing_at is not None:
+            available = [bar for bar in available if bar.timestamp < missing_at]
+        if not available:
+            return {"coverage_complete": False, "reason": "incomplete_reference_1m_path"}
+        management_at = belief_decision._parse_time(reference.get("_management_asof"))
+        if management_at is None or management_at > available[-1].timestamp:
+            reference.pop("_management_candidate", None)
+            reference.pop("_belief_macro_context", None)
+        trade = v18._evaluate_position(reference, available, available[-1].timestamp)
+        if trade is None and (missing_at is not None or stale):
+            return {"coverage_complete": False,
+                    "reason": "incomplete_reference_1m_path" if missing_at is not None else "reference_path_stale"}
+        updated = copy.deepcopy(dict(position))
+        candidate = metadata.get("candidate_at_refresh") or metadata.get("candidate")
+        if isinstance(candidate, Mapping):
+            updated["_management_candidate"] = dict(candidate)
+        if isinstance(metadata.get("belief_macro"), Mapping):
+            updated["_belief_macro_context"] = dict(metadata["belief_macro"])
+        updated["_management_asof"] = now.isoformat()
+        return {"position": updated, "closed_trade": trade,
+            "coverage_complete": True, "reason": "prospectively_frozen_reference_lifecycle",
+            "detected_at": now.isoformat()}
+    return evaluate
+
+
+class _CycleClient:
+    def __init__(self, source: Any, *, live: bool) -> None:
+        self.source = source
+        self._daily_live_client = live
+        self.cache: dict[tuple[str, str, str], Any] = {}
+
+    def bars(self, symbol: str, period: str, interval: str) -> Any:
+        key = (symbol, period, interval)
+        if key not in self.cache:
+            self.cache[key] = self.source.bars(symbol, period, interval)
+        return self.cache[key]
+
+
+def run_cycle(output_path: Path, history_path: Path, client: Any | None = None) -> DailyEngineOutput:
+    """Single production owner for decision records and bounded policy changes.
+
+    Realtime exits only append canonical history. This monitor binds those
+    outcomes to frozen admissions, evaluates policy, and writes all new state
+    in the same guarded Git persistence transaction as the Daily output.
+    """
+    global _cycle_context
+    live = client is None
+    cached = _CycleClient(client or base.YahooChartClient(timeout=15), live=live)
+    bars = cached.bars(base.EURUSD, "5d", "1m")
+    if not bars:
+        raise ValueError("EURUSD monitor has no market observations")
+    now = datetime.now(timezone.utc) if live else bars[-1].timestamp.astimezone(timezone.utc)
+    state_path = output_path.parent / "eurusd_production_policy_state.json"
+    ledger_path = output_path.parent / "eurusd_production_decisions.json"
+    history = lifecycle.load_history(history_path)
+    previous = base._load_json(output_path)
+    previous_metadata = (previous.get("metadata") or {}) if isinstance(previous, Mapping) else {}
+    try:
+        if state_path.exists() != ledger_path.exists():
+            raise ValueError("incomplete production policy/decision epoch")
+        prior_epoch = (previous_metadata.get("production_policy_loop")
+            or (previous_metadata.get("position") or {}).get("decision_manifest")
+            or any(row.get("decision_manifest") for row in history.get("trades") or []))
+        if not state_path.exists() and prior_epoch:
+            raise ValueError("production learning epoch missing for recorded admissions")
+        ledger = decision_record.load_ledger(ledger_path)
+        policy = production_policy.load_state(state_path, now)
+        for trade in history.get("trades") or []:
+            if isinstance(trade.get("decision_manifest"), Mapping):
+                decision_record.validate_trade_binding(trade)
+        policy = production_policy.bind_actual_history(policy, history, now)
+        production_policy.validate_history_bindings(policy, history)
+    except (ValueError, TypeError, KeyError) as exc:
+        # A corrupt learning record must stop new admissions/promotions, not
+        # the deterministic risk exit of an already persisted position.
+        position = (previous.get("metadata") or {}).get("position") or {}
+        if str(position.get("status") or "").upper() != "OPEN":
+            raise
+        previous_context = _cycle_context
+        _cycle_context = {"policy_state": production_policy.default_state(now), "decision_at": now, "live": live}
+        try:
+            output = v18.run_cycle(output_path, history_path, cached)
+            metadata = dict(output.metadata)
+            metadata["production_policy_loop"] = {
+                "status": "DEGRADED_EXIT_ONLY", "entry_authority": False,
+                "policy_changed": False, "reason": f"invalid_governance_state:{type(exc).__name__}",
+            }
+            output = _clone(output, metadata=metadata)
+            output_path.write_text(json.dumps(output.to_dict(), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            return output
+        finally:
+            _cycle_context = previous_context
+    policy = production_policy.advance_governance(policy, now,
+        runtime_code_sha256=decision_record.runtime_code_hash())
+    previous_context = _cycle_context
+    _cycle_context = {"policy_state": policy, "decision_at": now, "live": live}
+    try:
+        output = v18.run_cycle(output_path, history_path, cached)
+        metadata = dict(output.metadata)
+        manifest = metadata.get("decision_manifest")
+        if not isinstance(manifest, Mapping):
+            manifest = _decision_manifest(output)
+            metadata["decision_manifest"] = manifest
+        ledger = decision_record.append_manifest(ledger, manifest)
+        policy = _cycle_context["policy_state"]
+        completed_at = datetime.now(timezone.utc) if live else max(now, belief_decision._parse_time(output.timestamp))
+        policy = production_policy.bind_actual_history(policy, lifecycle.load_history(history_path), completed_at)
+        policy = production_policy.settle_cases(policy,
+            evaluator=_counterfactual_evaluator(bars, metadata, completed_at), now=completed_at)
+        # Governance is advanced once before the decision; a newly observed
+        # outcome cannot silently change the policy used by that same decision.
+        metadata["production_policy_loop"] = {
+            "schema_version": "eurusd-production-policy-runtime-v1",
+            "single_writer": "TR03_DAILY_MONITOR", "source_history_rewritten": False,
+            "policy_application": "FUTURE_ADMISSIONS_ONLY", "counterfactual_execution_authority": False,
+            "active_version_id": policy["active_version_id"],
+            "active_minimum_score_distance": policy["versions"][policy["active_version_id"]]["policy"]["minimum_score_distance"],
+            "candidates": [{"candidate_id": item["candidate_id"], "status": item["status"],
+                "selected_cases": len(item["evaluation_case_ids"]),
+                "resolved_cases": sum(policy["cases"][cid]["outcome"] is not None for cid in item["evaluation_case_ids"]),
+                "gate_status": (item.get("gate") or {}).get("status")}
+                for item in policy["candidates"].values()],
+            "rollback_count": len(policy["rollback_events"]),
+            "latest_rollback": policy["rollback_events"][-1] if policy["rollback_events"] else None,
+            "production_performance": decision_record.production_measurements(lifecycle.load_history(history_path)),
+        }
+        learning = dict(metadata.get("learning") or {})
+        learning["production_direction_learning_applied"] = False
+        learning["production_admission_learning"] = True
+        metadata["learning"] = learning
+        output = _clone(output, metadata=metadata)
+        production_policy.save_state(state_path, policy)
+        decision_record.save_ledger(ledger_path, ledger)
+        output_path.write_text(json.dumps(output.to_dict(), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        return output
+    finally:
+        _cycle_context = previous_context
 
 
 def _open_output_v19(
@@ -446,6 +730,7 @@ def _install() -> None:
     v18._original_prepare_entry_candidate = prepare_entry_candidate
     v18._open_output = _open_output_v19
     v18._closed_output = _closed_output_v19
+    v18._create_position = _create_position_v19
 
     base.ENGINE_VERSION = ENGINE_VERSION
     base.fetch_snapshot = fetch_snapshot
@@ -453,7 +738,8 @@ def _install() -> None:
     base.prepare_entry_candidate = prepare_entry_candidate
     base._open_output = _open_output_v19
     base._closed_output = _closed_output_v19
-    base.run_cycle = v18.run_cycle
+    base.create_position = _create_position_v19
+    base.run_cycle = run_cycle
 
 
 _install()

@@ -535,7 +535,7 @@ def _closed_output(candidate: DailyEngineOutput, trade: Mapping[str, Any], histo
 
 
 def run_cycle(output_path: Path, history_path: Path, client: Any | None = None) -> DailyEngineOutput:
-    injected_client = client is not None
+    injected_client = client is not None and not getattr(client, "_daily_live_client", False)
     client = client or base.YahooChartClient(timeout=15)
     snapshot = base.fetch_snapshot(client)
     monitor_bars = client.bars(base.EURUSD, "5d", "1m")

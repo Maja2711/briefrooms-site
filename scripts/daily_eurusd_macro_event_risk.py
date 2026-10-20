@@ -64,12 +64,13 @@ def _diagnostics(
     if risk <= 0:
         return None
 
-    current_r = _r_at_price(position, float(relevant[-1].close))
+    current_r = _r_at_price(position, lifecycle.execution_risk_price(position, float(relevant[-1].close)))
     target_r = sign * (target - entry) / risk
     if direction == "LONG":
         best = max(float(bar.high if bar.high is not None else bar.close) for bar in relevant)
     else:
         best = min(float(bar.low if bar.low is not None else bar.close) for bar in relevant)
+    best = lifecycle.execution_risk_price(position, best)
     mfe_r = sign * (best - entry) / risk
     giveback_r = max(0.0, mfe_r - current_r)
     remaining_reward_r = max(0.0, target_r - current_r)

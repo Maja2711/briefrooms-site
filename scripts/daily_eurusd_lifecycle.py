@@ -7,7 +7,9 @@ SL/TP/TIME exits, append-only outcomes and bounded learning from those outcomes.
 """
 from __future__ import annotations
 
+import copy
 import json
+import math
 from decimal import Decimal, ROUND_HALF_UP
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -27,6 +29,7 @@ BASE_SHORT_THRESHOLD = 34.0
 BASE_MIN_CONFIDENCE = 0.32
 LOSS_COOLDOWN_HOURS = 4
 MAX_ENTRIES_PER_UTC_DAY = 1
+EXECUTION_COST_CONTRACT = "DAILY_EURUSD_BID_ASK_V1"
 
 
 def iso_z(value: datetime) -> str:
@@ -60,11 +63,11 @@ def load_history(path: Path) -> dict[str, Any]:
         return empty_history()
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return empty_history()
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError("existing EURUSD history is unreadable; refusing to reset outcomes") from exc
     trades = payload.get("trades") if isinstance(payload, dict) else None
-    if payload.get("schema_version") != HISTORY_SCHEMA or not isinstance(trades, list):
-        return empty_history()
+    if not isinstance(payload, dict) or payload.get("schema_version") != HISTORY_SCHEMA or not isinstance(trades, list):
+        raise ValueError("existing EURUSD history has an invalid schema")
     payload["learning_state"] = learning_state(trades)
     return payload
 
@@ -89,13 +92,38 @@ def _synthetic_execution_config(position: Mapping[str, Any]) -> dict[str, float]
     execution = position.get("execution_price_engine") if isinstance(position.get("execution_price_engine"), Mapping) else None
     if not isinstance(execution, Mapping):
         return None
-    if str(execution.get("price_type") or "") != "MID_VERIFIED_SYNTHETIC_SPREAD":
+    contract = execution.get("execution_cost_contract")
+    versioned = contract == EXECUTION_COST_CONTRACT
+    if contract is not None and not versioned:
+        raise ValueError("unsupported Daily EUR/USD execution cost contract")
+    price_type = str(execution.get("price_type") or "")
+    supported = {
+        "MID_VERIFIED_SYNTHETIC_SPREAD",
+        "PUBLIC_CURRENT_MID_PLUS_CONSERVATIVE_BUFFER",
+        "LIVE_CONSENSUS_MID_PLUS_CONSERVATIVE_BUFFER",
+    }
+    if versioned and price_type not in supported:
+        raise ValueError("unsupported price type for Daily execution cost contract")
+    # An existing position keeps its entry-time accounting semantics. In
+    # particular, do not silently reinterpret pre-contract public-mid fills.
+    if not versioned and price_type != "MID_VERIFIED_SYNTHETIC_SPREAD":
         return None
     try:
         half_pips = float(execution.get("synthetic_half_spread_pips"))
         spread_pips = float(execution.get("synthetic_spread_pips"))
     except (TypeError, ValueError):
+        if versioned:
+            raise ValueError("Daily execution cost contract requires spread parameters")
         return None
+    if versioned and (
+        not math.isfinite(half_pips)
+        or not math.isfinite(spread_pips)
+        or half_pips <= 0
+        or spread_pips <= 0
+        or not math.isclose(spread_pips, 2.0 * half_pips, rel_tol=1e-9, abs_tol=1e-9)
+        or str(position.get("direction") or "").upper() not in {"LONG", "SHORT"}
+    ):
+        raise ValueError("invalid Daily execution cost contract parameters")
     if half_pips <= 0 or spread_pips <= 0:
         return None
     return {
@@ -126,6 +154,18 @@ def execution_exit_price(position: Mapping[str, Any], mid_price: float) -> float
     return mid
 
 
+def execution_risk_price(position: Mapping[str, Any], mid_price: float) -> float:
+    """Use the frozen execution basis for new risk diagnostics only.
+
+    Legacy dynamic/macro diagnostics used MID even when hard exits charged a
+    synthetic spread. Preserve that behavior for already-open legacy trades.
+    """
+    execution = position.get("execution_price_engine")
+    if isinstance(execution, Mapping) and execution.get("execution_cost_contract") is not None:
+        return execution_exit_price(position, mid_price)
+    return float(mid_price)
+
+
 def _execution_bar_values(position: Mapping[str, Any], bar: Bar) -> tuple[float, float, float]:
     mid_high = float(bar.high if bar.high is not None else bar.close)
     mid_low = float(bar.low if bar.low is not None else bar.close)
@@ -133,6 +173,9 @@ def _execution_bar_values(position: Mapping[str, Any], bar: Bar) -> tuple[float,
     config = _synthetic_execution_config(position)
     if config is None:
         return mid_high, mid_low, mid_close
+    execution = position.get("execution_price_engine") or {}
+    if execution.get("execution_cost_contract") == EXECUTION_COST_CONTRACT:
+        return tuple(execution_exit_price(position, price) for price in (mid_high, mid_low, mid_close))
     shift = -config["half_price"] if str(position.get("direction") or "").upper() == "LONG" else config["half_price"]
     return mid_high + shift, mid_low + shift, mid_close + shift
 
@@ -247,7 +290,15 @@ def _close_record(
         "entry_components": dict(position.get("entry_components") or {}),
         "entry_weights": dict(position.get("entry_weights") or BASE_WEIGHTS),
         "engine_version": str(position.get("engine_version") or ""),
+        **({"decision_manifest": copy.deepcopy(position["decision_manifest"])}
+           if isinstance(position.get("decision_manifest"), Mapping) else {}),
         "monitor": {
+            **({
+                "execution_cost_contract": EXECUTION_COST_CONTRACT,
+                "synthetic_exit_buffer_pips": _synthetic_execution_config(position)["half_pips"],
+            } if isinstance(position.get("execution_price_engine"), Mapping)
+               and position["execution_price_engine"].get("execution_cost_contract") == EXECUTION_COST_CONTRACT
+               else {}),
             "source": "Yahoo Finance EURUSD=X 1m OHLC",
             "conservative_same_bar": bool(conservative_same_bar),
             "bar_timestamp": iso_z(exit_bar.timestamp) if exit_bar else None,

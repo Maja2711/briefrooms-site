@@ -240,6 +240,8 @@ class EpistemicConsumerInterface:
             "drilldown_reasons": list(x.get("drilldown_reasons") or []),
             "dominant_support_evidence_ids": list(x.get("dominant_support_evidence_ids") or []),
             "dominant_opposition_evidence_ids": list(x.get("dominant_opposition_evidence_ids") or []),
+            **({"evidence_lineage": list((x.get("provenance_root") or {}).get("evidence_lineage") or [])}
+               if consumer == "DAILY_EURUSD" else {}),
         } for x in selected)
         return ConsumerEnvelope(
             consumer=consumer, available=True,

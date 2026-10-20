@@ -1,8 +1,11 @@
 # BriefRooms Canonical Architecture Map — EN
 
-**Map version:** 1.34  
-**Snapshot date:** 2026-10-15  
-**Base `main` commit:** `6f53e046b9a55a6dc9c36b9802d2c0c695f76c53`  
+**Map version:** 1.35
+
+**Snapshot date:** 2026-10-20
+
+**Base `main` commit:** `e39c9395518d134aae007e1cd307405813f91f23`
+
 **Repository:** `Maja2711/briefrooms-site`
 
 ## 0. Purpose of this document
@@ -193,6 +196,14 @@ Canonical L3-A loop: `Epistemic State -> Question Engine -> research intent -> a
 | `TR-06` | Portfolio 10K baseline | Long-horizon portfolio, historical champion/baseline | Preserved production baseline and BRACE fallback |
 | `TR-07` | BRACE Portfolio Engine | Portfolio research/control with optimizer, governance and separate model paper portfolio | **PROBATIONARY_CONTROL**; paper-only, deterministic controller, immutable Portfolio10K baseline as fallback; LLM cannot promote |
 | `TR-08` | BRACE-SPX / Long View | Read-only/forecast-oriented SPX long-view family | Uses its point-in-time state plus epistemic state; canonical DecisionEnvelope rollout incomplete |
+
+### TR-03 v1.9.1 — closed production admission-policy loop
+
+`TR-03` retains one Belief-first direction authority. `daily_eurusd_decision_record.py` freezes decision identity, native provenance, policy version/hash, code/data hashes, EPE and initial risk geometry. The manifest passes unchanged from OPEN into canonical history; legacy trades are never reconstructed. New entries use explicit `DAILY_EURUSD_BID_ASK_V1`, while Evidence freshness uses source time rather than projection refresh time.
+
+`daily_eurusd_production_policy.py` is an `LE-08` local learning component reusing existing `LE-11` contracts and shared statistics. It may only increase the minimum score distance from 50 within `3 -> 4 -> 5 -> 6`; it cannot change direction, risk or execution. Promotion requires the first 40 prospectively selected canonical actual admissions, purged by 27h and bound to the exact same runtime code. A fixed gate checks net results, uncertainty, slices and drawdown. Fixed subsequent windows of 20 observations monitor each promotion and can trigger automatic rollback. Code changes roll back incompatible policies before new admission; unresolved skipped opportunities from obsolete code become `CENSORED` with no fabricated result.
+
+Only the main monitor on `main` writes `eurusd_production_policy_state.json` and `eurusd_production_decisions.json`. Realtime exits cannot mutate these files. `validate_daily_eurusd_persistence.py` guards initial persistence, retries and rebases alike: append-only history/ledger, actual-result reconciliation, policy identity, and promotion/rollback event authorization. Unchanged corrupt learning data permits only management of an already persisted position, with no new admission. A/B/C, FSE and X do not participate. Measurement limits and implementation: [DAILY_EURUSD_PRODUCTION_LOOP.md](DAILY_EURUSD_PRODUCTION_LOOP.md).
 
 ### EURUSD X — adaptive shadow track
 

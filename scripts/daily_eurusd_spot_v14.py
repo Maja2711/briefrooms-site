@@ -123,7 +123,10 @@ def _velocity_r_per_hour(
     hours = (last.timestamp - earlier.timestamp).total_seconds() / 3600.0
     if hours <= 0:
         return 0.0
-    return (_r_at_price(position, float(last.close)) - _r_at_price(position, float(earlier.close))) / hours
+    return (
+        _r_at_price(position, lifecycle.execution_risk_price(position, float(last.close)))
+        - _r_at_price(position, lifecycle.execution_risk_price(position, float(earlier.close)))
+    ) / hours
 
 
 def dynamic_exit_diagnostics(
@@ -142,7 +145,8 @@ def dynamic_exit_diagnostics(
         return None
 
     last = relevant[-1]
-    current_r = _r_at_price(position, float(last.close))
+    mark_price = lifecycle.execution_risk_price(position, float(last.close))
+    current_r = _r_at_price(position, mark_price)
     direction = str(position["direction"]).upper()
     sign = _direction_sign(direction)
     entry = float(position["entry"])
@@ -155,6 +159,7 @@ def dynamic_exit_diagnostics(
         best_price = max(float(bar.high if bar.high is not None else bar.close) for bar in relevant)
     else:
         best_price = min(float(bar.low if bar.low is not None else bar.close) for bar in relevant)
+    best_price = lifecycle.execution_risk_price(position, best_price)
     mfe_r = sign * (best_price - entry) / risk if risk else 0.0
     giveback_r = max(0.0, mfe_r - current_r)
 
@@ -199,7 +204,7 @@ def dynamic_exit_diagnostics(
         "tp_feasibility_ratio": round(feasibility, 4),
         "projected_hours_to_target": None if projected_hours_to_target is None else round(projected_hours_to_target, 3),
         "hold_score": round(hold_score, 4),
-        "mark_price": round(float(last.close), 5),
+        "mark_price": round(mark_price, 5),
         "bar_timestamp": _iso(last.timestamp),
     }
 
@@ -216,7 +221,7 @@ def _dynamic_close(
     trade = lifecycle._close_record(
         position,
         exit_reason=reason,
-        exit_price=float(last.close),
+        exit_price=lifecycle.execution_risk_price(position, float(last.close)),
         exited_at=last.timestamp,
         exit_bar=last,
     )

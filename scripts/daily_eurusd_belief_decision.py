@@ -181,11 +181,24 @@ def _epistemic_projection_to_belief_state(
             equivalent_age = half_life * 100.0
         else:
             equivalent_age = max(0.0, -half_life * math.log(freshness, 2.0))
-        evidence_at = now - timedelta(hours=equivalent_age)
+        # Decay is measured at source_created_at. Advancing the consumer clock
+        # must never turn pre-release information into post-release Evidence.
+        evidence_at = source_at - timedelta(hours=equivalent_age)
         evidence_id = f"epistemic:{row.get('state_id') or belief_id}"
+        lineage = [dict(item) for item in row.get("evidence_lineage") or []
+                   if isinstance(item, Mapping)
+                   and _parse_time(item.get("observed_at")) is not None
+                   and _parse_time(item.get("observed_at")) <= min(now, source_at)]
+        # Original timestamps are authoritative where the upstream contract
+        # carries them. Older snapshots keep only a labelled freshness proxy;
+        # that proxy can never authorize a post-release admission.
+        if lineage:
+            evidence_at = max(_parse_time(item["observed_at"]) for item in lineage)
         evidence.append({
             "evidence_id": evidence_id,
             "observed_at": evidence_at.isoformat().replace("+00:00", "Z"),
+            "timestamp_basis": "SOURCE_EVIDENCE" if lineage else "SOURCE_SNAPSHOT_DECAY_PROXY",
+            "source_evidence": lineage,
         })
         beliefs.append({
             "belief_id": belief_id,
@@ -403,6 +416,12 @@ def synthesize(
             "weight": float(weight),
             "observed_at": updated.isoformat().replace("+00:00", "Z"),
             "age_hours": round(age_hours, 4),
+            "source_evidence": [dict(item)
+                for eid in row.get("representative_evidence_ids") or []
+                for item in (evidence.get(str(eid), {}).get("source_evidence") or [])
+                if isinstance(item, Mapping)],
+            "timestamp_basis": sorted({str(evidence.get(str(eid), {}).get("timestamp_basis", "RAW_SOURCE_EVIDENCE"))
+                for eid in row.get("representative_evidence_ids") or []}),
         })
 
     total_weight = sum(BELIEF_WEIGHTS.values())
@@ -586,6 +605,7 @@ def calendar_safety(
                     "source": row.get("source"),
                     "source_ref": row.get("source_ref"),
                     "region": meta.get("region"),
+                    "event_uid": meta.get("uid") or meta.get("event_uid"),
                 })
     except (OSError, json.JSONDecodeError):
         return {"available": False, "blocked": True, "reason": "belief_calendar_observations_unreadable"}
@@ -600,25 +620,39 @@ def calendar_safety(
         coverage_age_minutes = (now - latest_coverage_at).total_seconds() / 60.0
         coverage_complete = bool((latest_coverage or {}).get("complete")) and -5.0 <= coverage_age_minutes <= 90.0
 
-    latest_macro_at: Optional[datetime] = None
+    release_proofs: list[Mapping[str, Any]] = []
     for row in (decision or {}).get("used_beliefs") or []:
         if str(row.get("belief_id")) not in {
             "eurusd.macro_surprise.supportive",
             "eurusd.policy_differential.supportive",
         }:
             continue
-        stamp = _parse_time(row.get("observed_at"))
-        if stamp is not None and (latest_macro_at is None or stamp > latest_macro_at):
-            latest_macro_at = stamp
+        release_proofs.extend(item for item in row.get("source_evidence") or []
+                              if isinstance(item, Mapping))
 
     post_release_pending = False
-    recent_event = recent[-1] if recent else None
-    if recent_event is not None:
+    for recent_event in recent:
         event_at = _parse_time(recent_event.get("event_at"))
-        post_release_pending = bool(
-            event_at is not None
-            and (latest_macro_at is None or latest_macro_at < event_at)
-        )
+        def release_matches(item: Mapping[str, Any]) -> bool:
+            stamp = _parse_time(item.get("observed_at"))
+            release = item.get("release") or {}
+            release_at = _parse_time(release.get("event_at"))
+            try:
+                has_actuals = int(release.get("actual_count") or 0) > 0
+            except (TypeError, ValueError):
+                has_actuals = False
+            return bool(
+                event_at is not None and stamp is not None
+                and event_at <= stamp <= now
+                and release_at == event_at
+                and str(release.get("phase") or "").upper() == "POST_RELEASE"
+                and release.get("adapter") == "daily_eurusd_macro_fast"
+                and has_actuals and item.get("source_ref")
+                and recent_event.get("event_uid")
+                and release.get("event_uid") == recent_event.get("event_uid")
+            )
+        if not any(release_matches(item) for item in release_proofs):
+            post_release_pending = True
 
     coverage_failed = not coverage_complete
     blocked = bool(imminent or post_release_pending or coverage_failed)

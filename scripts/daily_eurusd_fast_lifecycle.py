@@ -20,6 +20,7 @@ import daily_eurusd_spot as base
 import daily_eurusd_spot_v14 as v14
 import daily_eurusd_spot_v16 as v16
 import daily_eurusd_spot_v18 as v18
+from daily_eurusd_decision_record import ENGINE_VERSION as PRODUCTION_ENGINE_VERSION
 
 DEFAULT_OUTPUT = Path("data/investments/eurusd_daily_spot.json")
 DEFAULT_HISTORY = Path("data/investments/eurusd_daily_history.json")
@@ -56,7 +57,7 @@ def _open_position(payload: Mapping[str, Any]) -> dict[str, Any] | None:
 
 def _enrich_trade(position: Mapping[str, Any], trade: Mapping[str, Any]) -> dict[str, Any]:
     enriched = dict(trade)
-    for key in ("entry_thesis", "execution_price_engine", "contextual_entry_policy_at_entry"):
+    for key in ("entry_thesis", "execution_price_engine", "contextual_entry_policy_at_entry", "decision_manifest"):
         value = position.get(key)
         if isinstance(value, Mapping):
             enriched[key] = dict(value)
@@ -109,6 +110,7 @@ def close_output(
     metadata["position"] = None
     metadata["last_trade"] = dict(trade)
     metadata["learning"] = lifecycle.learning_state(history.get("trades") or [])
+    metadata["learning"]["production_direction_learning_applied"] = False
     metadata["fast_lifecycle"] = {
         "schema_version": "daily-eurusd-fast-lifecycle-v1",
         "mode": "OPEN_POSITION_EXIT_ONLY",
@@ -122,7 +124,7 @@ def close_output(
     }
     runtime_projection = dict(metadata.get("runtime_projection") or {})
     runtime_projection.update({
-        "engine_version": "eurusd-daily-spot-v1.9.0",
+        "engine_version": PRODUCTION_ENGINE_VERSION,
         "decision_mode": "WITH",
         "historical_trade_rewritten": False,
         "realtime_lifecycle_exit": True,
@@ -139,7 +141,7 @@ def close_output(
         stop=None,
         target=None,
         horizon=str(previous.get("horizon") or "intraday_to_27h"),
-        engine_version="eurusd-daily-spot-v1.9.0",
+        engine_version=PRODUCTION_ENGINE_VERSION,
         status=_status_for_reason(str(trade.get("exit_reason") or "")),
         decision_mode="WITH",
         metadata=metadata,
