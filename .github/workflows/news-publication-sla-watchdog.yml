@@ -36,6 +36,8 @@ jobs:
         run: python -m pip install feedparser requests argostranslate langdetect
       - name: Verify completed publisher cycles (90-minute SLA)
         id: health
+        env:
+          GH_TOKEN: ${{ github.token }}
         continue-on-error: true
         run: |
           python scripts/validate_news_cycle_sla.py --max-age-minutes 90 --output /tmp/news-publication-sla.json
