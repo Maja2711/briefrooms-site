@@ -34,6 +34,7 @@ import daily_eurusd_decision_record as decision_record
 import daily_eurusd_production_policy as production_policy
 
 ENGINE_VERSION = decision_record.ENGINE_VERSION
+ENTRY_THESIS_SOURCE_FAMILY = "NATIVE_BELIEF_FIRST"
 _epe_prepare = base.prepare_entry_candidate
 _v18_open_output = v18._open_output
 _v18_closed_output = v18._closed_output
@@ -145,6 +146,7 @@ def _execution_admission(
     guarded = v16._apply_same_thesis_guard(
         _clone(candidate, metadata=guard_metadata),
         history,
+        source_family=ENTRY_THESIS_SOURCE_FAMILY,
     )
     guard_meta = (guarded.metadata or {}).get("same_thesis_reentry_guard") or {}
     details["same_thesis_reentry_guard"] = dict(guard_meta)
@@ -457,7 +459,7 @@ def _create_position_v19(payload: Mapping[str, Any]) -> dict[str, Any]:
     decision_record.validate_manifest(manifest)
     position["decision_manifest"] = copy.deepcopy(manifest)
     thesis = dict(position.get("entry_thesis") or {})
-    thesis.update({"source_family": "NATIVE_BELIEF_FIRST", "decision_id": manifest["decision_id"],
+    thesis.update({"source_family": ENTRY_THESIS_SOURCE_FAMILY, "decision_id": manifest["decision_id"],
         "policy_version_id": manifest["policy_version_id"], "manifest_sha256": manifest["manifest_sha256"]})
     position["entry_thesis"] = thesis
     return position

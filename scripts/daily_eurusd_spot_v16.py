@@ -460,6 +460,8 @@ def _apply_weekly_close_entry_guard(candidate: DailyEngineOutput) -> DailyEngine
 def _apply_same_thesis_guard(
     candidate: DailyEngineOutput,
     history: Mapping[str, Any] | None,
+    *,
+    source_family: str | None = None,
 ) -> DailyEngineOutput:
     metadata = dict(candidate.metadata)
     guard = _guard_metadata_base()
@@ -476,6 +478,10 @@ def _apply_same_thesis_guard(
         return _clone(candidate, metadata=metadata)
 
     current_thesis = _entry_thesis_from_payload(candidate.to_dict())
+    if source_family is not None:
+        # The owning runtime supplies the same identity it persists at entry.
+        # Keep the legacy source/rapid-reversal semantics independent of it.
+        current_thesis["source_family"] = source_family
     source = str(current_thesis.get("source") or "").upper()
     rapid_reversal = _latest_opposite_recent_exit(
         history,
