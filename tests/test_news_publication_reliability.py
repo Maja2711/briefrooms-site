@@ -47,7 +47,9 @@ class NewsPublicationReliabilityTests(unittest.TestCase):
         workflow = Path(".github/workflows/news-publication-sla-watchdog.yml").read_text(encoding="utf-8")
         self.assertIn('cron: "43 * * * *"', workflow)
         self.assertIn("--max-age-minutes 90", workflow)
-        self.assertIn("--strict", workflow)
+        self.assertIn("scripts/validate_news_cycle_sla.py", workflow)
+        self.assertIn("continue-on-error: true", workflow)
+        self.assertIn("Mark SLA breach as failed", workflow)
         self.assertIn("if: github.event_name != 'pull_request'", workflow)
 
 
