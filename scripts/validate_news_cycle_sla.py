@@ -33,13 +33,14 @@ def assess_runs(runs: list[dict], now: datetime, max_age_minutes: int = 90) -> d
         "age_minutes": age,
         "last_successful_cycle_at": latest["updated_at"] if latest else None,
         "last_successful_run_url": latest.get("html_url") if latest else None,
+        "last_successful_run_id": latest.get("id") if latest else None,
         "reasons": (["successful_cycle_missing_or_stale"] if age is None or age > max_age_minutes else []) +
                    (["publisher_failed_without_later_success"] if unresolved_failure else []),
         "failed_run_url": latest_failure.get("html_url") if unresolved_failure else None,
     }
 
 
-def verify_production(base_url: str = "https://briefrooms.com") -> list[str]:
+def verify_production(base_url: str = "https://briefrooms.com", expected_run_id: int | None = None) -> list[str]:
     """Compare PL/EN production feeds and page markers with the production status."""
     try:
         def get(path: str) -> bytes:
@@ -52,6 +53,8 @@ def verify_production(base_url: str = "https://briefrooms.com") -> list[str]:
         if not marker:
             return ["production_marker_missing"]
         reasons = []
+        if expected_run_id is not None and not marker.startswith(f"live-news-{expected_run_id}-"):
+            reasons.append("production_not_at_last_successful_cycle")
         for lang, page in (("pl", "pl/aktualnosci.html"), ("en", "en/news.html")):
             feed = json.loads(get(f"data/news/{lang}.json"))
             if feed.get("marker") != marker:
@@ -78,7 +81,7 @@ def main() -> int:
     with urlopen(request, timeout=20) as response:
         runs = json.load(response)["workflow_runs"]
     report = assess_runs(runs, datetime.now(timezone.utc), args.max_age_minutes)
-    production_reasons = verify_production()
+    production_reasons = verify_production(expected_run_id=report["last_successful_run_id"])
     if production_reasons:
         report["status"] = "failed"
         report["reasons"].extend(production_reasons)
