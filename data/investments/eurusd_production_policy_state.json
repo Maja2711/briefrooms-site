@@ -1,0 +1,128 @@
+{
+  "activated_at": "2026-10-20T10:15:57.628497Z",
+  "active_case_id": null,
+  "active_version_id": "eurusd-policy-b36bdb62278edbd39faee3b9",
+  "authority": {
+    "abc_writeback": false,
+    "bounded_future_admission_policy": true,
+    "direction_mutation_allowed": false,
+    "historical_backfill": false,
+    "owner_module": "TR-03",
+    "risk_mutation_allowed": false,
+    "trade_execution_authority": false,
+    "writer": "daily_eurusd_canonical_writer",
+    "x_writeback": false
+  },
+  "candidates": {
+    "eurusd-admission-24fbdb7bf2df1d7648db9784": {
+      "activation_boundary": "2026-10-20T10:15:57.628497Z",
+      "automatic_promotion_allowed": true,
+      "baseline_version": "eurusd-policy-b36bdb62278edbd39faee3b9",
+      "candidate_id": "eurusd-admission-24fbdb7bf2df1d7648db9784",
+      "candidate_type": "bounded_production_admission_margin",
+      "challenger_version": "8040cd8a1f140aad14c81227b37467fa27e92ddd9c8a018093383d9256333ea2",
+      "component_id": "TR-03:production_admission_margin",
+      "created_at": "2026-10-20T10:15:57.628497Z",
+      "evaluation_case_ids": [],
+      "evaluator_profile": "eurusd_actual_paired_fixed_blocks_v1",
+      "frozen_sha256": "98c450030f61b71078b8ad39d476e69e58b95fffa8ca08f5ab338264eb9f9d50",
+      "gate": {
+        "blockers": [
+          "fixed_prospective_sample_incomplete"
+        ],
+        "candidate_id": "eurusd-admission-24fbdb7bf2df1d7648db9784",
+        "criteria": {
+          "attempt": 1,
+          "bootstrap_samples": 4999,
+          "confidence": 0.9944444444444445,
+          "engine_version": "eurusd-daily-spot-v1.9.1",
+          "evaluator_sha256": "b60d3d59cd62c14f84838b5a7b6d6fc824cf31187d66edb027c7e5c1135a0057",
+          "fixed_final_test": true,
+          "max_drawdown_degradation_r": 0.0,
+          "max_slice_degradation_r": 0.05,
+          "minimum_days": 15,
+          "minimum_delta_r": 0.05,
+          "minimum_slice_n": 5,
+          "model_uncertainty_penalty_r": 0.02,
+          "primary_sample": 40,
+          "primary_source": "CANONICAL_ACTUAL_ONLY",
+          "purge_hours": 27,
+          "runtime_binding": null
+        },
+        "evaluated_at": "2026-10-20T10:15:57.628497Z",
+        "evaluator_profile": "eurusd_actual_paired_fixed_blocks_v1",
+        "gate_id": "eurusd-gate-273a0475bec7c1d5a00b06c6",
+        "metrics": {
+          "resolved_n": 0,
+          "selected_n": 0
+        },
+        "minimum_sample": 40,
+        "observed_sample": 0,
+        "prospective_only": true,
+        "segment_checks": [],
+        "source_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "status": "COLLECTING"
+      },
+      "metadata": {
+        "attempt": 1,
+        "bootstrap_samples": 4999,
+        "confidence": 0.9944444444444445,
+        "engine_version": "eurusd-daily-spot-v1.9.1",
+        "evaluator_sha256": "b60d3d59cd62c14f84838b5a7b6d6fc824cf31187d66edb027c7e5c1135a0057",
+        "fixed_final_test": true,
+        "max_drawdown_degradation_r": 0.0,
+        "max_slice_degradation_r": 0.05,
+        "minimum_days": 15,
+        "minimum_delta_r": 0.05,
+        "minimum_slice_n": 5,
+        "model_uncertainty_penalty_r": 0.02,
+        "primary_sample": 40,
+        "primary_source": "CANONICAL_ACTUAL_ONLY",
+        "purge_hours": 27
+      },
+      "metrics": {},
+      "promotion_route": "daily_eurusd_canonical_writer",
+      "proposed_change": {
+        "minimum_score_distance": 4.0,
+        "schema_version": "eurusd-production-admission-margin-v1"
+      },
+      "protected_slices": [],
+      "runtime_binding": null,
+      "source_module": "TR-03",
+      "source_ref": "tr03://canonical_manifest_bound_admissions",
+      "source_sha256": "24fbdb7bf2df1d7648db9784297576888e3aed661fd8f133b3f7e63d5fda6f09",
+      "status": "OOS_RUNNING",
+      "target_module": "TR-03",
+      "terminal_at": null,
+      "trade_execution_authority": false
+    }
+  },
+  "cases": {},
+  "events": [],
+  "execution_authority": false,
+  "mode": "PROSPECTIVE_POLICY_EVIDENCE",
+  "rollback_events": [],
+  "schema_version": "eurusd-production-policy-state-v1",
+  "updated_at": "2026-10-20T10:15:58.366085Z",
+  "versions": {
+    "eurusd-policy-b36bdb62278edbd39faee3b9": {
+      "activated_at": "2026-10-20T10:15:57.628497Z",
+      "candidate_id": "eurusd-policy-baseline",
+      "component_id": "TR-03:production_admission_margin",
+      "materialization_route": "daily_eurusd_canonical_writer",
+      "metadata": {},
+      "monitor_case_ids": [],
+      "monitor_reviews": [],
+      "owner_module": "TR-03",
+      "parent_version_id": null,
+      "payload_sha256": "64fbaf973cfd65c15044b846d9eec0650cfc22eafdafc0ef55ec145191578d2b",
+      "policy": {
+        "minimum_score_distance": 3.0,
+        "schema_version": "eurusd-production-admission-margin-v1"
+      },
+      "status": "ACTIVE",
+      "trade_execution_authority": false,
+      "version_id": "eurusd-policy-b36bdb62278edbd39faee3b9"
+    }
+  }
+}
