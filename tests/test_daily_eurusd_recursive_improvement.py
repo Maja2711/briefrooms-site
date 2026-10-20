@@ -140,6 +140,9 @@ class ReflectionMemoryTests(unittest.TestCase):
         memory = self.sync([trade])
         review = reflection.review(memory, trade["decision_manifest"]["final_decision"], observed_at=trade["opened_at"])
         self.assertEqual(review["similar_actual_trades"], 0)
+        self.assertFalse(review["available"])
+        self.assertEqual(review["reflection_iteration"], 0)
+        self.assertIsNone(review["memory_sha256"])
 
     def test_foreign_instrument_is_not_added_to_eurusd_memory(self):
         foreign = self.trade()
@@ -263,6 +266,20 @@ class ParallelRecursivePolicyTests(unittest.TestCase):
         self.assertEqual(len(state["candidates"]), 9)
         self.assertFalse(any(row["status"] == "OOS_RUNNING" for row in state["candidates"].values()))
         self.assertEqual(state["versions"][state["active_version_id"]]["policy"]["minimum_score_distance"], 3)
+        policy.validate_state(state)
+
+    def test_returning_to_a_parked_code_cohort_does_not_restart_attempt_one(self):
+        state = policy.default_state(self.start)
+        state, _, at = self.fixture.actual_case(state, 0)
+        a_ids = set(state["candidates"])
+        state = policy.advance_governance(state, at + timedelta(days=1), runtime_code_sha256="b" * 64)
+        state = policy.advance_governance(state, at + timedelta(days=2), runtime_code_sha256="a" * 64)
+        self.assertFalse(any(row["status"] == "OOS_RUNNING" for row in state["candidates"].values()))
+        state = policy.advance_governance(state, at + timedelta(days=40), runtime_code_sha256="a" * 64)
+        a_new = [row for row in state["candidates"].values()
+                 if row["status"] == "OOS_RUNNING" and row["candidate_id"] not in a_ids]
+        self.assertEqual(len(a_new), 3)
+        self.assertTrue(all(row["metadata"]["attempt"] == 2 for row in a_new))
         policy.validate_state(state)
 
     def test_research_changes_do_not_authorize_direction_risk_or_hard_safety_override(self):

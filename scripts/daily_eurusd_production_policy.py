@@ -224,7 +224,7 @@ def _ensure_candidate(state: dict[str, Any], at: str, runtime_code_sha256: str |
                   if float(row["proposed_change"]["minimum_score_distance"]) == target and same_cohort(row)]
         if any(row["status"] == "OOS_RUNNING" for row in trials):
             continue
-        completed = [row for row in trials if row["status"] in {"REJECTED", "ROLLED_BACK", "PROMOTED"}]
+        completed = [row for row in trials if row["status"] in {"REJECTED", "ROLLED_BACK", "PROMOTED", "PARKED"}]
         if len(completed) >= MAX_ATTEMPTS:
             continue
         if completed and _time(at) < max(_time(row["terminal_at"]) for row in completed) + timedelta(days=COOLDOWN_DAYS):
@@ -432,8 +432,6 @@ def bind_actual_history(state: Mapping[str, Any], history: Mapping[str, Any], no
 def validate_history_bindings(state: Mapping[str, Any], history: Mapping[str, Any]) -> None:
     """Cross-file reconciliation for the canonical pre-persist validator."""
     trades = {str(x.get("trade_id")): x for x in history.get("trades", []) if isinstance(x, Mapping)}
-    if state.get("recursive_improvement") is not None:
-        reflection.validate_history(state["recursive_improvement"], history)
     for case in state["cases"].values():
         outcome = case.get("outcome")
         if not outcome or outcome["source"] != "CANONICAL_ACTUAL":
@@ -441,6 +439,8 @@ def validate_history_bindings(state: Mapping[str, Any], history: Mapping[str, An
         trade = trades.get(str(case["frozen"]["position"]["trade_id"]))
         _require(trade is not None, "canonical policy outcome is absent from actual history")
         _require(_outcome(case, trade, "CANONICAL_ACTUAL", outcome["bound_at"]) == outcome, "canonical policy outcome differs from actual history")
+    if state.get("recursive_improvement") is not None:
+        reflection.validate_history(state["recursive_improvement"], history)
 
 
 def settle_cases(
@@ -922,9 +922,8 @@ def validate_state(state: Mapping[str, Any]) -> None:
         _require(not declared or not bound or declared == bound, "research cohort differs from frozen binding")
         _require(metadata["family_maximum_tests"] == 9 and metadata["confidence"] == CONFIDENCE,
                  "parallel research multiplicity contract drift")
-        if candidate["status"] != "PARKED":
-            families[(bound or declared or "UNBOUND", metadata["evaluator_sha256"],
-                      float(candidate["proposed_change"]["minimum_score_distance"]))].append(candidate)
+        families[(bound or declared or "UNBOUND", metadata["evaluator_sha256"],
+                  float(candidate["proposed_change"]["minimum_score_distance"]))].append(candidate)
     for trials in families.values():
         _require(len(trials) <= MAX_ATTEMPTS, "parallel research target-attempt budget exceeded")
         attempts = [row["metadata"]["attempt"] for row in trials]

@@ -211,6 +211,8 @@ def sync(
 def review(memory: Mapping[str, Any] | None, final: Mapping[str, Any], *, observed_at: str) -> dict[str, Any]:
     records = (memory or {}).get("records") or {}
     score, confidence = _finite(final.get("score")), _finite(final.get("confidence"))
+    known_iterations = [row for row in (memory or {}).get("iterations") or []
+                        if _time(row["at"]) <= _time(observed_at)]
     known = [row for row in records.values() if row["direction"] == final.get("direction")
              and _time(row["learned_at"]) <= _time(observed_at)
              and row["score"] is not None and score is not None and abs(row["score"] - score) <= 3
@@ -218,9 +220,9 @@ def review(memory: Mapping[str, Any] | None, final: Mapping[str, Any], *, observ
     losses = sorted((row for row in known if row["net_r"] < 0),
                     key=lambda row: _time(row["closed_at"]))
     return {
-        "mode": "EVIDENCE_BACKED_PRE_ENTRY_REFLECTION", "available": memory is not None,
-        "reflection_iteration": len((memory or {}).get("iterations") or []),
-        "memory_sha256": ((memory or {}).get("iterations") or [{}])[-1].get("iteration_sha256"),
+        "mode": "EVIDENCE_BACKED_PRE_ENTRY_REFLECTION", "available": memory is not None and _time(memory["activated_at"]) <= _time(observed_at),
+        "reflection_iteration": len(known_iterations),
+        "memory_sha256": known_iterations[-1]["iteration_sha256"] if known_iterations else None,
         "similar_actual_trades": len(known), "similar_losses": len(losses),
         "similar_mean_net_r": fmean(row["net_r"] for row in known) if known else None,
         "recent_similar_loss_ids": [row["trade_id"] for row in losses[-3:]],
