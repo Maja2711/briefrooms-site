@@ -156,8 +156,6 @@ def _execution_admission(
         _policy_state(observed_at), (candidate.metadata or {}).get("final_decision") or {},
         observed_at=observed_at,
     )
-    if candidate.direction in {"LONG", "SHORT"} and guarded.direction == "FLAT":
-        reasons.append(str(guard_meta.get("reason") or "same_thesis_reentry_blocked"))
 
     # Price-location safety may veto the native direction; it never creates it.
     context = market_context
@@ -173,9 +171,31 @@ def _execution_admission(
                     }
         except Exception as exc:
             context = {"source_error": type(exc).__name__}
+    state = _policy_state(observed_at)
+    criteria_context = production_policy.reentry_context(state, observed_at)
     technical = reentry_safety.evaluate(
         candidate.to_dict(), history, observed_at=observed_at, market_context=context,
+        criteria=criteria_context["criteria"],
     )
+    # Outside the learned post-loss scope, retain the existing thesis guard.
+    thesis_allowed = (reentry_safety.thesis_allows(guard_meta, criteria_context["criteria"])
+                      if technical.get("required") else not guard_meta.get("blocked"))
+    details["same_thesis_reentry_guard"]["effective_allowed"] = thesis_allowed
+    details["same_thesis_reentry_guard"]["criteria_policy"] = criteria_context["version_id"]
+    if not thesis_allowed:
+        reasons.append(str(guard_meta.get("reason") or "same_thesis_reentry_blocked"))
+    details["reentry_policy"] = criteria_context
+    evaluations = {}
+    for key, criteria in production_policy.reentry_contenders(state, observed_at).items():
+        proof = technical if key == criteria_context["version_id"] else reentry_safety.evaluate(
+            candidate.to_dict(), history, observed_at=observed_at, market_context=context, criteria=criteria)
+        thesis = (reentry_safety.thesis_allows(guard_meta, criteria)
+                  if proof.get("required") else not guard_meta.get("blocked"))
+        evaluations[key] = {"technical": proof, "thesis_allowed": thesis,
+                            "allowed": bool(not calendar.get("blocked") and proof.get("allowed") is True and thesis)}
+    details["reentry_policy_evaluations"] = evaluations
+    details["reentry_research_eligible"] = bool(technical.get("required") and not calendar.get("blocked")
+                                                and any(row["allowed"] for row in evaluations.values()))
     details["post_loss_technical_guard"] = technical
     if technical.get("allowed") is not True:
         reasons.append(str(technical.get("reason") or "post_loss_technical_admission_blocked"))
@@ -416,60 +436,72 @@ def prepare_entry_candidate(
 ) -> DailyEngineOutput:
     if candidate.direction not in {"LONG", "SHORT"}:
         return candidate
-    admission = (candidate.metadata or {}).get("execution_admission") or {}
-    if admission.get("allowed") is not True:
+    admission = copy.deepcopy((candidate.metadata or {}).get("execution_admission") or {})
+    canonical_allowed = admission.get("allowed") is True
+    research = admission.get("reentry_research_eligible") is True
+    if not canonical_allowed and not research:
         return _execution_blocked_output(candidate)
 
+    # The existing EPE only obtains verified paper geometry; it does not place
+    # an order. A research-only probe always returns FLAT to the position writer.
     prepared = _epe_prepare(candidate, monitor_bars, observed_at)
     if prepared.direction not in {"LONG", "SHORT"}:
         metadata = dict(prepared.metadata)
         metadata.setdefault("execution_blocked_decision", {
-            "direction": candidate.direction,
-            "score": candidate.score,
-            "confidence": candidate.confidence,
-            "preserved": True,
+            "direction": candidate.direction, "score": candidate.score,
+            "confidence": candidate.confidence, "preserved": True,
         })
         return _clone(prepared, metadata=metadata)
     prepared = _clone(prepared)
     metadata = dict(prepared.metadata)
+    execution = metadata.get("execution_price_engine") or {}
     proof = admission.get("post_loss_technical_guard") or {}
-    execution_reason = reentry_safety.check_execution(proof, metadata.get("execution_price_engine") or {})
+    execution_reason = reentry_safety.check_execution(proof, execution) if canonical_allowed else None
     if execution_reason:
-        metadata["execution_admission"] = {
-            **dict(metadata.get("execution_admission") or {}),
-            "allowed": False, "status": "BLOCKED", "reasons": [execution_reason],
-        }
-        return _execution_blocked_output(_clone(prepared, metadata=metadata))
+        canonical_allowed = False
+        admission.update(allowed=False, status="BLOCKED", reasons=[execution_reason])
+    evaluations = copy.deepcopy(admission.get("reentry_policy_evaluations") or {})
+    for evaluation in evaluations.values():
+        error = reentry_safety.check_execution(evaluation["technical"], execution)
+        evaluation["execution_allowed"] = error is None
+        evaluation["execution_reason"] = error
+        evaluation["allowed"] = bool(evaluation["allowed"] and error is None)
+    admission["reentry_policy_evaluations"] = evaluations
+    research = bool(research and any(row["allowed"] for row in evaluations.values()))
+    if not canonical_allowed and not research:
+        return _execution_blocked_output(_clone(prepared, metadata={**metadata, "execution_admission": admission}))
+
     context = production_policy.policy_context(_policy_state(observed_at),
         score=prepared.score, direction=prepared.direction,
         observed_at=belief_decision._parse_time(prepared.timestamp))
     metadata["production_policy"] = context
     if context.get("allowed") is not True:
-        metadata["execution_admission"] = {
-            **dict(metadata.get("execution_admission") or {}),
-            "allowed": False, "status": "POLICY_FILTERED",
-            "reasons": ["production_admission_policy_margin"],
-        }
+        canonical_allowed = False
+        admission.update(allowed=False, status="POLICY_FILTERED", reasons=["production_admission_policy_margin"])
+    else:
+        admission["allowed"] = canonical_allowed
+    metadata["execution_admission"] = admission
     prepared = _clone(prepared, metadata=metadata)
     manifest = _decision_manifest(prepared)
     metadata["decision_manifest"] = manifest
     prepared = _clone(prepared, metadata=metadata)
     position = _create_position_v19(prepared.to_dict())
     if _cycle_context is not None:
-        state, _case_id = production_policy.freeze_case(
-            _cycle_context["policy_state"], decision_manifest=manifest,
-            position=position, score=prepared.score,
-            now=(datetime.now(timezone.utc) if _cycle_context.get("live")
-                 else max(_cycle_context["decision_at"], belief_decision._parse_time(prepared.timestamp))),
-            slices={"session": _session(prepared.timestamp),
-                    "macro": "clear"},
-        )
+        state = _cycle_context["policy_state"]
+        frozen_at = (datetime.now(timezone.utc) if _cycle_context.get("live")
+                     else max(_cycle_context["decision_at"], belief_decision._parse_time(prepared.timestamp)))
+        # Preserve the existing actual-only margin experiment's eligibility.
+        if (candidate.metadata.get("execution_admission") or {}).get("allowed") is True and not execution_reason:
+            state, _ = production_policy.freeze_case(
+                state, decision_manifest=manifest, position=position, score=prepared.score,
+                now=frozen_at, slices={"session": _session(prepared.timestamp), "macro": "clear"})
+        if context.get("allowed") is True and evaluations:
+            state = production_policy.freeze_reentry_case(
+                state, manifest=manifest, position=position, evaluations=evaluations,
+                canonical_admitted=canonical_allowed, now=frozen_at)
         _cycle_context["policy_state"] = state
-    if context.get("allowed") is not True:
-        # Freeze the final admission record as well as the already-frozen case.
-        # The case retains the pre-filter decision and independent policy votes.
-        metadata["decision_manifest"] = manifest
-        return _execution_blocked_output(_clone(prepared, metadata=metadata))
+    if not canonical_allowed:
+        return _execution_blocked_output(prepared)
     return prepared
 
 
@@ -618,6 +650,7 @@ def run_cycle(output_path: Path, history_path: Path, client: Any | None = None) 
             if isinstance(trade.get("decision_manifest"), Mapping):
                 decision_record.validate_trade_binding(trade)
         policy = production_policy.bind_actual_history(policy, history, now)
+        policy = production_policy.settle_reentry_cases(policy, history, now=now)
         production_policy.validate_history_bindings(policy, history)
         runtime_code_sha256 = decision_record.runtime_code_hash()
         policy = production_policy.reflect_on_history(policy, history, now,
@@ -660,6 +693,8 @@ def run_cycle(output_path: Path, history_path: Path, client: Any | None = None) 
         policy = production_policy.bind_actual_history(policy, lifecycle.load_history(history_path), completed_at)
         policy = production_policy.settle_cases(policy,
             evaluator=_counterfactual_evaluator(bars, metadata, completed_at), now=completed_at)
+        policy = production_policy.settle_reentry_cases(policy, lifecycle.load_history(history_path),
+            evaluator=_counterfactual_evaluator(bars, metadata, completed_at), now=completed_at)
         policy = production_policy.reflect_on_history(policy, lifecycle.load_history(history_path), completed_at,
             runtime_code_sha256=runtime_code_sha256)
         # Governance is advanced once before the decision; a newly observed
@@ -686,6 +721,18 @@ def run_cycle(output_path: Path, history_path: Path, client: Any | None = None) 
                 "promotion_requires": "40_PURGED_CANONICAL_ACTUALS_FIXED_MULTIPLICITY_ADJUSTED_GATE",
                 "hard_safety_override_allowed": False,
                 "automatic_code_rewrite": False,
+            },
+            "adaptive_reentry": {
+                "criteria_are_learnable": True,
+                "active_policy": production_policy.reentry_context(policy, completed_at),
+                "candidates": [{"candidate_id": row["candidate_id"], "status": row["status"],
+                                "axis": row["metadata"]["axis"], "criteria": row["proposed_change"],
+                                "selected_cases": len(row["evaluation_case_ids"]),
+                                "gate_status": (row.get("gate") or {}).get("status")}
+                               for row in (policy.get("reentry_learning") or {}).get("candidates", {}).values()],
+                "observed_opportunities": len((policy.get("reentry_learning") or {}).get("cases", {})),
+                "rollback_count": len((policy.get("reentry_learning") or {}).get("rollback_events", [])),
+                "reference_outcomes_are_broker_fills": False,
             },
             "rollback_count": len(policy["rollback_events"]),
             "latest_rollback": policy["rollback_events"][-1] if policy["rollback_events"] else None,

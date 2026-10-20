@@ -8,6 +8,8 @@ on:
       - "scripts/daily_eurusd_decision_record.py"
       - "scripts/daily_eurusd_spot_v19.py"
       - "scripts/daily_eurusd_reentry_safety.py"
+      - "scripts/daily_eurusd_reentry_learning.py"
+      - "tests/test_daily_eurusd_adaptive_reentry.py"
       - "scripts/daily_eurusd_reflection.py"
       - "tests/test_daily_eurusd_recursive_improvement.py"
       - "tests/test_daily_eurusd_reentry_safety.py"
@@ -42,6 +44,8 @@ on:
       - "scripts/daily_eurusd_spot_v18.py"
       - "scripts/daily_eurusd_spot_v19.py"
       - "scripts/daily_eurusd_reentry_safety.py"
+      - "scripts/daily_eurusd_reentry_learning.py"
+      - "tests/test_daily_eurusd_adaptive_reentry.py"
       - "scripts/daily_eurusd_reflection.py"
       - "tests/test_daily_eurusd_recursive_improvement.py"
       - "tests/test_daily_eurusd_reentry_safety.py"
@@ -142,6 +146,7 @@ jobs:
             tests.test_daily_eurusd_production_policy \
             tests.test_daily_eurusd_production_policy_integration \
             tests.test_daily_eurusd_reentry_safety \
+            tests.test_daily_eurusd_adaptive_reentry \
             tests.test_daily_eurusd_recursive_improvement \
             tests.test_daily_eurusd_production_record \
             tests.test_daily_eurusd_execution_cost_integration \
@@ -162,6 +167,7 @@ jobs:
             scripts/daily_eurusd_spot_v18.py \
             scripts/daily_eurusd_spot_v19.py \
             scripts/daily_eurusd_reentry_safety.py \
+            scripts/daily_eurusd_reentry_learning.py \
             scripts/daily_eurusd_reflection.py \
             scripts/validate_daily_eurusd_persistence.py \
             scripts/daily_eurusd_production_policy.py \
@@ -184,7 +190,14 @@ jobs:
           now = datetime.now(timezone.utc)
           state = policy.default_state(now)
           state = policy.reflect_on_history(state, history, now, runtime_code_sha256=records.runtime_code_hash())
+          state = policy.advance_governance(state, now, runtime_code_sha256=records.runtime_code_hash())
           policy.validate_history_bindings(state, history)
+          print("EURUSD_ADAPTIVE_REENTRY_READ_ONLY", json.dumps({
+              "initial_criteria": policy.reentry_context(state, now)["criteria"],
+              "axes": sorted(row["metadata"]["axis"] for row in state["reentry_learning"]["candidates"].values()),
+              "live_parameter_change_from_old_results": False,
+              "historical_reentry_samples": len(state["reentry_learning"]["cases"]),
+          }, sort_keys=True))
           memory = state["recursive_improvement"]
           print("EURUSD_RECURSIVE_REFLECTION_READ_ONLY", json.dumps({
               "actual_native_trades": len(memory["records"]),
@@ -301,6 +314,7 @@ jobs:
             tests.test_daily_eurusd_production_policy \
             tests.test_daily_eurusd_production_policy_integration \
             tests.test_daily_eurusd_reentry_safety \
+            tests.test_daily_eurusd_adaptive_reentry \
             tests.test_daily_eurusd_recursive_improvement \
             tests.test_daily_eurusd_production_record \
             tests.test_daily_eurusd_execution_cost_integration \
@@ -320,6 +334,7 @@ jobs:
             scripts/daily_eurusd_spot_v18.py \
             scripts/daily_eurusd_spot_v19.py \
             scripts/daily_eurusd_reentry_safety.py \
+            scripts/daily_eurusd_reentry_learning.py \
             scripts/daily_eurusd_reflection.py \
             scripts/validate_daily_eurusd_persistence.py \
             scripts/daily_eurusd_production_policy.py \

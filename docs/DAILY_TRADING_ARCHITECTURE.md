@@ -273,7 +273,7 @@ The low-latency runtime is `scripts/daily_eurusd_macro_fast.py`; open-position e
 
 ### Re-entry and weekly-close governance
 
-The active production post-loss safety contract is [DAILY_EURUSD_POST_LOSS_REENTRY.md](DAILY_EURUSD_POST_LOSS_REENTRY.md). Every negative same-direction outcome in the active D1 candle requires a post-loss 30% daily correction, a held D1 technical support/resistance and a strong Belief-first signal. These conditions are conjunctive; score/confidence improvement alone cannot release the guard. The first hour remains protected across a D1 rollover. This safety gate does not originate direction or affect existing-position exits.
+The active production post-loss safety contract is [DAILY_EURUSD_POST_LOSS_REENTRY.md](DAILY_EURUSD_POST_LOSS_REENTRY.md). Under the initial criteria, each negative same-direction outcome in the active D1 candle requires a 30% daily correction, held technical support/resistance and a strong native signal. The local adaptive re-entry component can tighten or loosen these criteria only through prospective promotion; the active version/hash is frozen with admission. The first hour remains protected across a D1 rollover. This safety gate does not originate direction or affect existing-position exits.
 
 Risk exit and new-entry authority are deliberately separated.
 
@@ -341,3 +341,7 @@ A NATIVE LONG/SHORT signal is necessary but not sufficient for a new fill.
 ## TR-03 recursive improvement
 
 The local `LE-08` production admission component now owns evidence-backed reflection inside its existing policy state, pre-entry memory review and up to three parallel stricter challengers. `LE-11` contracts, fixed prospective gates, family-wide attempt bounds and monitoring/rollback remain authoritative. No generic controller or shadow learner receives trading authority. Details: `DAILY_EURUSD_RECURSIVE_IMPROVEMENT.md`.
+
+## TR-03 adaptive post-loss criteria
+
+The initial 30% correction, support/MA and strong-signal thresholds are starting parameters. The local `LE-08` re-entry component may tighten or loosen them after prospective paired-admission tests, using the same policy state and canonical writer. Rejected opportunities can obtain verified paper reference geometry and explicitly labelled future counterfactual outcomes, while canonical output remains FLAT. Source truth, native direction, EPE and SL/TP risk retain their authority. See `DAILY_EURUSD_ADAPTIVE_REENTRY.md` for selection, monitoring, rollback and the single-opportunity measurement limit.

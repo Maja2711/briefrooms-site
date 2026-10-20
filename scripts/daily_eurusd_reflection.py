@@ -187,6 +187,15 @@ def sync(
         "rollback_ids": [row["rollback_id"] for row in policy["rollback_events"]],
         "record_hashes": sorted(row["reflection_sha256"] for row in records.values()),
         "runtime_code_sha256": runtime_code_sha256,
+        "adaptive_reentry": {
+            "active_version_id": (policy.get("reentry_learning") or {}).get("active_version_id"),
+            "candidates": [{"candidate_id": row["candidate_id"], "status": row["status"],
+                            "selected_n": len(row["evaluation_case_ids"]),
+                            "gate_id": (row.get("gate") or {}).get("gate_id")}
+                           for row in sorted((policy.get("reentry_learning") or {}).get("candidates", {}).values(),
+                                             key=lambda row: row["candidate_id"])],
+            "rollbacks": [row["rollback_id"] for row in (policy.get("reentry_learning") or {}).get("rollback_events", [])],
+        },
     }
     feedback_hash = sha256(feedback)
     iterations = result["iterations"]
