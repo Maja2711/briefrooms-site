@@ -1,6 +1,6 @@
 # Kanoniczna mapa architektury BriefRooms — PL
 
-**Wersja mapy:** 1.35
+**Wersja mapy:** 1.36
 
 **Stan na:** 2026-10-20
 
@@ -198,6 +198,8 @@ Kanoniczna pętla L3-A: `Epistemic State -> Question Engine -> research intent -
 | `TR-08` | BRACE-SPX / Long View | Read-only/forecasting oriented SPX long-view family | Konsumuje własny point-in-time state + epistemic state; canonical DecisionEnvelope rollout nieukończony |
 
 ### TR-03 v1.9.1 — zamknięta pętla produkcyjnej polityki admission
+
+Watchdog odczytuje oczekiwaną wersję runtime z tego samego kontraktu `daily_eurusd_decision_record.ENGINE_VERSION`, którego używa kanoniczny writer. Świeży stan bieżącej wersji, zarówno OPEN, jak i NO_TRADE, przy zdrowym upstream nie powoduje alarmu SLA ani recovery. Nieaktualna/nieznana wersja i rzeczywiste przekroczenie 15 minut nadal są odrzucane. Walidacja PR sprawdza proponowany kod; produkcyjny watchdog pozostaje na `main`.
 
 Kontrola re-entry i zapis pozycji używają tej samej rodziny tezy `NATIVE_BELIEF_FIRST`. Nowy kandydat jest porównywany z ostatnią istotną stratą tej rodziny, także po `DYNAMIC_RISK_EXIT` lub `STOP_LOSS`; starsza strata legacy nie może zastąpić tego porównania. Istniejące progi istotnej zmiany pozostają bez zmian i nadal dopuszczają natychmiastowe wejście po rzeczywistej poprawie sygnału. Korekta działa prospektywnie, bez zmiany historii i kierunkowego authority.
 

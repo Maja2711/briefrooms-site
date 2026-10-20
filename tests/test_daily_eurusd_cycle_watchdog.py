@@ -25,7 +25,7 @@ class DailyEURUSDCycleWatchdogTests(unittest.TestCase):
             self._write(state, {
                 "instrument": "EUR/USD",
                 "timestamp": (now - timedelta(minutes=6)).isoformat(),
-                "engine_version": "eurusd-daily-spot-v1.9.0",
+                "engine_version": "eurusd-daily-spot-v1.9.1",
                 "direction": "SHORT",
                 "status": "OPEN",
             })
@@ -41,7 +41,7 @@ class DailyEURUSDCycleWatchdogTests(unittest.TestCase):
             self._write(state, {
                 "instrument": "EUR/USD",
                 "timestamp": (now - timedelta(minutes=16)).isoformat(),
-                "engine_version": "eurusd-daily-spot-v1.9.0",
+                "engine_version": "eurusd-daily-spot-v1.9.1",
                 "direction": "FLAT",
                 "status": "NO_TRADE",
             })
@@ -51,16 +51,54 @@ class DailyEURUSDCycleWatchdogTests(unittest.TestCase):
             self.assertTrue(result["auto_dispatch_recovery"])
 
     def test_wrong_runtime_version_is_stale_even_with_fresh_timestamp(self):
-        now = datetime(2026, 10, 5, 14, 0, tzinfo=TZ)
-        with tempfile.TemporaryDirectory() as tmp:
-            state = Path(tmp) / "state.json"
-            self._write(state, {
-                "timestamp": (now - timedelta(minutes=2)).isoformat(),
-                "engine_version": "eurusd-daily-spot-v1.8.0",
-            })
-            result = watchdog.evaluate(now, state_path=state, max_age_minutes=15)
-            self.assertEqual("stale", result["status"])
-            self.assertIn("daily_engine_version_mismatch", result["reasons"])
+        now = datetime(2026, 10, 20, 19, 35, tzinfo=TZ)
+        versions = (
+            "eurusd-daily-spot-v1.9.0",
+            "eurusd-daily-spot-v1.8.0",
+            "eurusd-daily-spot-v99.0.0",
+            "",
+        )
+        for version in versions:
+            with self.subTest(version=version), tempfile.TemporaryDirectory() as tmp:
+                state = Path(tmp) / "state.json"
+                self._write(state, {
+                    "timestamp": (now - timedelta(minutes=2)).isoformat(),
+                    "engine_version": version,
+                })
+                result = watchdog.evaluate(now, state_path=state, max_age_minutes=15)
+                self.assertEqual("stale", result["status"])
+                self.assertIn("daily_engine_version_mismatch", result["reasons"])
+
+    def test_current_production_state_does_not_raise_sla_or_dispatch_recovery(self):
+        # Reproduce the 2026-10-20 false alarm with a fresh v1.9.1 state.
+        # Both a live position and a legitimate no-trade result are healthy.
+        now = datetime(2026, 10, 20, 19, 35, tzinfo=TZ)
+        for status, direction in (("OPEN", "LONG"), ("NO_TRADE", "FLAT")):
+            with self.subTest(status=status), tempfile.TemporaryDirectory() as tmp:
+                state = Path(tmp) / "state.json"
+                ready = Path(tmp) / "ready.json"
+                self._write(state, {
+                    "instrument": "EUR/USD",
+                    "timestamp": (now - timedelta(minutes=9)).isoformat(),
+                    "engine_version": "eurusd-daily-spot-v1.9.1",
+                    "direction": direction,
+                    "status": status,
+                })
+                self._write(ready, {"ready": True})
+                result = watchdog.evaluate_pipeline(
+                    now,
+                    state_path=state,
+                    belief_created_at=(now - timedelta(minutes=8)).isoformat(),
+                    epistemic_created_at=(now - timedelta(minutes=7)).isoformat(),
+                    epistemic_readiness_path=ready,
+                )
+                self.assertEqual("healthy", result["status"])
+                self.assertEqual([], result["reasons"])
+                self.assertEqual("NONE", result["recovery_stage"])
+                self.assertFalse(result["auto_dispatch_recovery"])
+                self.assertFalse(result["daily_sla"]["breached"])
+                self.assertEqual([], result["daily_sla"]["daily_reasons"])
+                self.assertEqual("NONE", result["daily_sla"]["incident_class"])
 
     def test_weekend_does_not_raise_false_alarm(self):
         now = datetime(2026, 10, 10, 14, 0, tzinfo=TZ)  # Saturday
@@ -84,7 +122,7 @@ class DailyEURUSDCycleWatchdogTests(unittest.TestCase):
             ready = Path(tmp) / "ready.json"
             self._write(state, {
                 "timestamp": (now - timedelta(minutes=4)).isoformat(),
-                "engine_version": "eurusd-daily-spot-v1.9.0",
+                "engine_version": "eurusd-daily-spot-v1.9.1",
             })
             self._write(ready, {"ready": True, "reason": "ok"})
             result = watchdog.evaluate_pipeline(
@@ -104,7 +142,7 @@ class DailyEURUSDCycleWatchdogTests(unittest.TestCase):
             ready = Path(tmp) / "ready.json"
             self._write(state, {
                 "timestamp": (now - timedelta(minutes=4)).isoformat(),
-                "engine_version": "eurusd-daily-spot-v1.9.0",
+                "engine_version": "eurusd-daily-spot-v1.9.1",
             })
             self._write(ready, {"ready": True, "reason": "ok"})
             result = watchdog.evaluate_pipeline(
@@ -124,7 +162,7 @@ class DailyEURUSDCycleWatchdogTests(unittest.TestCase):
             ready = Path(tmp) / "ready.json"
             self._write(state, {
                 "timestamp": (now - timedelta(minutes=16)).isoformat(),
-                "engine_version": "eurusd-daily-spot-v1.9.0",
+                "engine_version": "eurusd-daily-spot-v1.9.1",
             })
             self._write(ready, {"ready": True, "reason": "authoritative_daily_eurusd_epistemic_projection"})
             result = watchdog.evaluate_pipeline(
@@ -144,7 +182,7 @@ class DailyEURUSDCycleWatchdogTests(unittest.TestCase):
             ready = Path(tmp) / "ready.json"
             self._write(state, {
                 "timestamp": (now - timedelta(minutes=45)).isoformat(),
-                "engine_version": "eurusd-daily-spot-v1.9.0",
+                "engine_version": "eurusd-daily-spot-v1.9.1",
             })
             self._write(ready, {
                 "ready": False,
@@ -168,7 +206,7 @@ class DailyEURUSDCycleWatchdogTests(unittest.TestCase):
             self._write(state, {
                 "instrument": "EUR/USD",
                 "timestamp": (now - timedelta(minutes=22)).isoformat(),
-                "engine_version": "eurusd-daily-spot-v1.9.0",
+                "engine_version": "eurusd-daily-spot-v1.9.1",
                 "status": "OPEN",
             })
             p = watchdog.evaluate_pipeline(
@@ -190,7 +228,7 @@ class DailyEURUSDCycleWatchdogTests(unittest.TestCase):
             self._write(state, {
                 "instrument": "EUR/USD",
                 "timestamp": (now - timedelta(minutes=18)).isoformat(),
-                "engine_version": "eurusd-daily-spot-v1.9.0",
+                "engine_version": "eurusd-daily-spot-v1.9.1",
                 "status": "NO_TRADE",
             })
             self._write(ready, {"ready": True})
@@ -234,7 +272,7 @@ class DailyEURUSDCycleWatchdogTests(unittest.TestCase):
             state, ready = Path(tmp) / "state.json", Path(tmp) / "ready.json"
             self._write(state, {
                 "instrument": "EUR/USD", "timestamp": (now - timedelta(minutes=19)).isoformat(),
-                "engine_version": "eurusd-daily-spot-v1.9.0", "status": "NO_TRADE",
+                "engine_version": "eurusd-daily-spot-v1.9.1", "status": "NO_TRADE",
             })
             self._write(ready, {"ready": False, "reason": "insufficient_coverage"})
             p = watchdog.evaluate_pipeline(
