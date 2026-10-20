@@ -1,3 +1,4 @@
+import { assess } from "./health.js";
 // Cloudflare Worker: independent GitHub Actions watchdog monitor.
 // Deploy as a separate Worker; never schedule this through GitHub Actions.
 const REPO = "Maja2711/briefrooms-site";
@@ -5,17 +6,6 @@ const WORKFLOWS = [
   { file: "news-publication-sla-watchdog.yml", label: "watchdog", graceMinutes: 90 },
   { file: "publish-news.yml", label: "publisher-schedule", graceMinutes: 90 },
 ];
-function assess(runs, now, graceMinutes) {
-  const scheduled = runs.filter(r => r.event === "schedule" && r.run_started_at);
-  scheduled.sort((a,b) => Date.parse(b.run_started_at)-Date.parse(a.run_started_at));
-  const latest = scheduled[0];
-  if (!latest) return {healthy:false, reason:"no_scheduled_runs"};
-  const ageMinutes = (now-Date.parse(latest.run_started_at))/60000;
-  return {healthy: ageMinutes <= graceMinutes && ageMinutes >= 0,
-    reason: ageMinutes > graceMinutes ? "schedule_missing" : ageMinutes < 0 ? "future_timestamp" : "ok",
-    ageMinutes, runId:latest.id, runUrl:latest.html_url,
-    status:latest.status, conclusion:latest.conclusion};
-}
 async function inspect(env) {
   const results = {};
   for (const workflow of WORKFLOWS) {
