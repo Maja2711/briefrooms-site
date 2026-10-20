@@ -6132,7 +6132,7 @@
       "trade_id": "eurusd:20261016T110720Z:LONG"
     },
     {
-      "audited_at": "2026-10-20T02:09:45Z",
+      "audited_at": "2026-10-20T07:43:35Z",
       "automation": {
         "after_close_only": true,
         "alter_r_pace_v1": false,
@@ -6184,16 +6184,13 @@
       "closed_at": "2026-10-20T01:17:49Z",
       "direction": "SHORT",
       "existing_exit_review": {
-        "profit_snapshot_count": null,
+        "profit_snapshot_count": 0,
         "review_uses_hindsight_for_later_price_path": true,
-        "reviewed_actual_r": null,
-        "reviewed_exit_reason": null,
-        "status": "PENDING_OR_MISMATCHED"
+        "reviewed_actual_r": -0.3768,
+        "reviewed_exit_reason": "DYNAMIC_RISK_EXIT",
+        "status": "MATCHED_CANONICAL_CLOSE"
       },
-      "findings": [
-        "CHALLENGER_REPORT_PENDING",
-        "EXIT_INTELLIGENCE_REVIEW_PENDING_OR_STALE"
-      ],
+      "findings": [],
       "instrument": "EUR/USD",
       "live_telemetry": {
         "clock_invalid_count": 0,
@@ -6266,13 +6263,47 @@
         "timely_rule": "first_seen_at >= bar_close; <=180s; first_seen_at <= actual_closed_at"
       },
       "opened_at": "2026-10-19T17:11:01Z",
-      "overall_status": "NEEDS_DATA_OR_REVIEW",
+      "overall_status": "AUDITED",
       "schema_version": "eurusd-daily-posttrade-audit-v1",
       "shadow_challengers": {
-        "canonical_trade_matched": false,
+        "canonical_trade_matched": true,
         "claimed_winner": null,
-        "results": {},
-        "status": "PENDING_SHADOW_COMPARISON"
+        "comparable_count": 0,
+        "no_auto_strategy_promotion": true,
+        "results": {
+          "CLOSE_TRAIL_035R": {
+            "earlier_simulated_exit_at": null,
+            "execution_proven": false,
+            "incremental_r_vs_canonical": null,
+            "signal_from_historical_replay_not_live_proof": false,
+            "simulated_r": null,
+            "simulation_status": "CENSORED_MARKET_DATA_GAP",
+            "spread_from_recorded_epe": false,
+            "status": "NOT_COMPARABLE"
+          },
+          "GIVEBACK_MOMENTUM": {
+            "earlier_simulated_exit_at": null,
+            "execution_proven": false,
+            "incremental_r_vs_canonical": null,
+            "signal_from_historical_replay_not_live_proof": false,
+            "simulated_r": null,
+            "simulation_status": "CENSORED_MARKET_DATA_GAP",
+            "spread_from_recorded_epe": false,
+            "status": "NOT_COMPARABLE"
+          },
+          "MOMENTUM_5_15": {
+            "earlier_simulated_exit_at": null,
+            "execution_proven": false,
+            "incremental_r_vs_canonical": null,
+            "signal_from_historical_replay_not_live_proof": false,
+            "simulated_r": null,
+            "simulation_status": "CENSORED_MARKET_DATA_GAP",
+            "spread_from_recorded_epe": false,
+            "status": "NOT_COMPARABLE"
+          }
+        },
+        "selection_note": "One observed trade cannot establish superior protection policy",
+        "status": "NO_VALID_COMPARABLE_CHALLENGERS"
       },
       "trade_id": "eurusd:20261019T171101Z:SHORT"
     }
@@ -6298,24 +6329,21 @@
   "latest_trade_summary": {
     "actual_pips": -11.9,
     "actual_r": -0.3768,
-    "audit_status": "NEEDS_DATA_OR_REVIEW",
+    "audit_status": "AUDITED",
     "closed_at": "2026-10-20T01:17:49Z",
     "exit_reason": "DYNAMIC_RISK_EXIT",
-    "findings": [
-      "CHALLENGER_REPORT_PENDING",
-      "EXIT_INTELLIGENCE_REVIEW_PENDING_OR_STALE"
-    ],
-    "shadow_status": "PENDING_SHADOW_COMPARISON",
+    "findings": [],
+    "shadow_status": "NO_VALID_COMPARABLE_CHALLENGERS",
     "telemetry_status": "NEAR_COMPLETE_TIMELY_LIVE_EVIDENCE"
   },
   "mode": "READ_ONLY_POST_CLOSE_AUDIT",
   "schema_version": "eurusd-daily-posttrade-audit-v1",
   "summary": {
     "audited_trades": 46,
-    "audits_with_findings": 43,
+    "audits_with_findings": 42,
     "canonical_closed_trades_in_scope": 46,
     "missing_or_partial_live_evidence": 42,
-    "waiting_for_challengers": 1
+    "waiting_for_challengers": 0
   },
-  "updated_at": "2026-10-20T02:09:45Z"
+  "updated_at": "2026-10-20T07:43:35Z"
 }
