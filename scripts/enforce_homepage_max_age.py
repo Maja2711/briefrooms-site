@@ -355,6 +355,7 @@ def public_news_preselection_check(
     now: datetime,
     lang: str | None = None,
     section_id: str | None = None,
+    verification_buffer: timedelta = timedelta(0),
 ) -> tuple[datetime | None, str]:
     """Read-only publication eligibility shared by ranking and the final guard.
 
@@ -365,7 +366,7 @@ def public_news_preselection_check(
         return None, "image"
     # Reserve enough time for the publisher to commit and verify production.
     # The actual public display limit remains 24 hours, unchanged.
-    if not _source_is_fresh(story, now + PUBLICATION_VERIFICATION_BUFFER, lang, section_id):
+    if not _source_is_fresh(story, now + verification_buffer, lang, section_id):
         return None, "source_stale"
     if not _primary_bulletin_is_current(story, now, lang):
         return None, "primary_bulletin_stale"
@@ -379,7 +380,7 @@ def public_news_preselection_check(
     if first_seen is None:
         return None, "timestamp"
     age = now.astimezone(timezone.utc) - first_seen
-    if age < -FUTURE_TOLERANCE or age + PUBLICATION_VERIFICATION_BUFFER > NEWS_MAX_AGE:
+    if age < -FUTURE_TOLERANCE or age + verification_buffer > NEWS_MAX_AGE:
         return None, "expired"
     return first_seen, "ok"
 
