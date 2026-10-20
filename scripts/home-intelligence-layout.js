@@ -5,7 +5,6 @@
   const copy=lang==='pl'?{
     eyebrow:'Najnowsze briefy',
     heading:'Co dziś naprawdę ma znaczenie',
-    promise:'BriefRooms filtruje informacyjny szum, analizuje konsekwencje i mierzy wyniki własnych modeli.',
     lab:'BriefRooms Lab — modele, testy i wyniki',
     shareTitle:'BriefRooms Ci się przydał? Podaj dalej.',
     shareText:'Krótkie briefy, konkretne źródła i mniej informacyjnego szumu.',
@@ -15,7 +14,6 @@
   }:{
     eyebrow:'Latest briefs',
     heading:'What really matters today',
-    promise:'BriefRooms filters information noise, analyses consequences and measures the results of its own models.',
     lab:'BriefRooms — Lab, models, tests and results',
     shareTitle:'Found BriefRooms useful? Share it.',
     shareText:'Concise briefs, concrete sources and less information noise.',
@@ -71,13 +69,8 @@
       box.insertBefore(eyebrow,heading);
     }
     setText(eyebrow,copy.eyebrow);
-    let promise=box.querySelector('.home-intelligence-promise');
-    if(!promise){
-      promise=document.createElement('p');
-      promise.className='home-intelligence-promise';
-      heading.insertAdjacentElement('afterend',promise);
-    }
-    setText(promise,copy.promise);
+    const promise=box.querySelector('.home-intelligence-promise');
+    if(promise)promise.remove();
   }
 
   function applyThought(){
