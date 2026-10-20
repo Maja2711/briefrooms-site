@@ -369,11 +369,22 @@
       } catch (_) {}
       if (!(await claimOnDevice(identity))) return;
     }
+    // Foreground recovery can occur after Android has suspended Chrome. Never
+    // present a 30-minute-old lifecycle transition as a fresh trade signal.
+    const clock = String(data?.event_type || "").toUpperCase() === "CLOSE"
+      ? (data?.closed_at || data?.observed_at || "")
+      : (data?.opened_at || data?.observed_at || "");
+    const eventMs = Date.parse(String(clock));
+    const ageMinutes = Number.isFinite(eventMs) && Date.now() - eventMs >= 120000
+      ? Math.floor((Date.now() - eventMs) / 60000) : 0;
+    const displayedBody = ageMinutes > 0
+      ? body + (lang === "pl" ? ` · OPÓŹNIONE ${ageMinutes} min` : ` · DELAYED ${ageMinutes} min`)
+      : body;
     try {
       const registration = await navigator.serviceWorker?.getRegistration("/");
       if (registration) {
         await registration.showNotification(title, {
-          body,
+          body: displayedBody,
           icon: "/assets/favicon.svg",
           badge: "/assets/favicon.svg",
           tag: identity || data?.event_id || undefined,
@@ -381,7 +392,7 @@
           data: { url: location.href, ...(data || {}) },
         });
       } else {
-        new Notification(title, { body, icon: "/assets/favicon.svg", tag: identity || data?.event_id || undefined });
+        new Notification(title, { body: displayedBody, icon: "/assets/favicon.svg", tag: identity || data?.event_id || undefined });
       }
       if (identity) {
         try { localStorage.setItem("brTradingSeenEventV2:" + identity, String(Date.now())); } catch (_) {}
@@ -621,16 +632,28 @@
     }
 
     await verifyDevicePush({ repair: true, force: true });
-    await pollEvents(config);
-    const interval = Math.max(30, Number(config.poll_interval_seconds || 60)) * 1000;
-    window.setInterval(() => pollEvents(config), interval);
-    // Installed desktop PWA can stay open for days. Revalidate its formerly
-    // working endpoint on visibility/network return, without triggering a test
-    // notification or re-sending already accepted trade alerts.
+    // Mobile background timers are suspended by Android. Catch up as soon as
+    // the user resumes the PWA, rather than waiting for the next timer tick.
+    let polling = null;
+    function refreshNow() {
+      if (!polling) polling = pollEvents(config).finally(() => { polling = null; });
+      return polling;
+    }
+    await refreshNow();
+    const interval = Math.max(15, Math.min(30, Number(config.poll_interval_seconds || 60))) * 1000;
+    window.setInterval(() => { if (!document.hidden) void refreshNow(); }, interval);
     document.addEventListener("visibilitychange", () => {
-      if (!document.hidden) void verifyDevicePush({ repair: true });
+      if (!document.hidden) {
+        void refreshNow();
+        void verifyDevicePush({ repair: true });
+      }
     });
-    window.addEventListener("online", () => void verifyDevicePush({ repair: true, force: true }));
+    window.addEventListener("focus", () => void refreshNow());
+    window.addEventListener("pageshow", () => void refreshNow());
+    window.addEventListener("online", () => {
+      void refreshNow();
+      void verifyDevicePush({ repair: true, force: true });
+    });
     window.setInterval(() => void verifyDevicePush({ repair: true }), 15 * 60_000);
   }
 
