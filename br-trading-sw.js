@@ -123,20 +123,32 @@ async function releaseTradingNotification(identity) {
   });
 }
 
+// A stale push must be labelled as such while preserving exact market timestamps.
+function pushDisplayCopy(payload, displayedAtMs = Date.now()) {
+  const body = String(payload?.body || "");
+  const eventMs = Date.parse(String(payload?.event_at || payload?.sent_at || ""));
+  if (!Number.isFinite(eventMs) || displayedAtMs - eventMs < 120000) return body;
+  const minutes = Math.floor((displayedAtMs - eventMs) / 60000);
+  const localized = String(payload?.language || "pl").toLowerCase().startsWith("pl");
+  return body + (localized ? ` · OPÓŹNIONE ${minutes} min` : ` · DELAYED ${minutes} min`);
+}
+
 self.addEventListener("push", (event) => {
   let payload = {};
   try { payload = event.data ? event.data.json() : {}; } catch (_) {
     payload = { body: event.data ? event.data.text() : "" };
   }
   const title = payload.title || "BriefRooms Trading";
+  const receivedAt = Date.now();
   const options = {
-    body: payload.body || "",
+    body: pushDisplayCopy(payload, receivedAt),
     icon: "/assets/briefrooms-app-icon-192-v2.svg",
     badge: "/assets/favicon.svg",
     tag: tradingNotificationIdentity(payload) || payload.tag || undefined,
     renotify: false, // Never raise a second audible alert for the same trade.
-    timestamp: payload.sent_at ? Date.parse(payload.sent_at) : Date.now(),
-    data: { url: payload.url || "/pl/inwestycje/daily-trading.html", event_id: payload.event_id || null, sent_at: payload.sent_at || null, ...(payload.data || {}), ack_url: payload.ack_url || payload?.data?.ack_url || null, ack_token: payload.ack_token || payload?.data?.ack_token || null, delivery_id: payload.delivery_id || payload?.data?.delivery_id || null },
+    // Android timestamp is when shown, not when a queued server request was sent.
+    timestamp: receivedAt,
+    data: { url: payload.url || "/pl/inwestycje/daily-trading.html", event_id: payload.event_id || null, sent_at: payload.sent_at || null, event_at: payload.event_at || null, push_received_at: new Date(receivedAt).toISOString(), ...(payload.data || {}), ack_url: payload.ack_url || payload?.data?.ack_url || null, ack_token: payload.ack_token || payload?.data?.ack_token || null, delivery_id: payload.delivery_id || payload?.data?.delivery_id || null },
   };
   event.waitUntil((async () => {
     const identity = tradingNotificationIdentity(payload);
