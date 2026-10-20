@@ -123,6 +123,8 @@ def _proposals(criteria: Mapping[str, Any]) -> list[tuple[str, dict[str, Any]]]:
         add("SIGNAL_" + label,
             minimum_score_distance=criteria["minimum_score_distance"] + sign * 2,
             minimum_confidence=round(criteria["minimum_confidence"] + sign * .15, 4))
+        add("SCORE_MARGIN_" + label, minimum_score_distance=criteria["minimum_score_distance"] + sign * 2)
+        add("CONFIDENCE_" + label, minimum_confidence=round(criteria["minimum_confidence"] + sign * .10, 4))
         add("THESIS_CHANGE_" + label,
             material_score_improvement=criteria["material_score_improvement"] + sign,
             material_confidence_improvement=round(criteria["material_confidence_improvement"] + sign * .02, 4))

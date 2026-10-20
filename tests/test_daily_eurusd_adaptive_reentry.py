@@ -113,8 +113,18 @@ class AdaptiveReentryGovernanceTests(unittest.TestCase):
         active = learning.context(state, at)["version_id"]
         evaluations = {}
         for key, params in criteria.items():
-            vote = active_vote if key == active else (
-                key in state["candidates"] and state["candidates"][key]["metadata"]["axis"] == target)
+            if key == active:
+                vote = active_vote
+            elif key in state["candidates"]:
+                # Consistent broad qualifying opportunity for budget tests;
+                # after a relaxed promotion the parent's correction can fail.
+                if active_vote:
+                    ceiling = criteria[active]["minimum_retracement"] + .01 if state["versions"][active]["parent_version_id"] else .60
+                    vote = params["minimum_retracement"] <= ceiling
+                else:
+                    vote = state["candidates"][key]["metadata"]["axis"] == target
+            else:
+                vote = False
             proof = {"required": True, "prior_trade_id": "loss-" + str(index), "allowed": bool(vote),
                      "criteria": copy.deepcopy(params), "criteria_sha256": safety._digest(params)}
             evaluations[key] = {"technical": proof, "thesis_allowed": True, "execution_allowed": True, "allowed": bool(vote)}
