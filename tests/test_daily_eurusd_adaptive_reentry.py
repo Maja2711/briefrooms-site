@@ -275,6 +275,31 @@ class AdaptiveReentryGovernanceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "learning epoch removed"):
             learning.validate_transition(before, None)
 
+    def test_candidate_cannot_select_a_later_known_outcome_instead_of_its_first_case(self):
+        state = self.initial()
+        for index in range(3):
+            state, _, _ = self.resolved(state, index)
+        changed = copy.deepcopy(state)
+        row = next(iter(changed["candidates"].values()))
+        row["evaluation_case_ids"] = row["evaluation_case_ids"][1:]
+        with self.assertRaisesRegex(ValueError, "first frozen eligible"):
+            learning.validate(changed, policy._paired_metrics)
+
+    def test_failed_generations_cannot_reset_the_18_test_budget(self):
+        state = self.initial()
+        for generation in range(3):
+            for index in range(learning.PRIMARY_N):
+                state, _, at = self.resolved(state, generation * 100 + index, active_vote=True,
+                                             at=self.start + timedelta(days=100 * generation + 2 * index + 1),
+                                             value=1, target="NO_OTHER_ARM")
+            state = learning.advance(state, now=at + timedelta(hours=3), code=self.code,
+                                     memory={}, stats=policy._paired_metrics)
+        state = learning.advance(state, now=at + timedelta(days=10), code=self.code,
+                                 memory={}, stats=policy._paired_metrics)
+        self.assertEqual(len(state["candidates"]), learning.MAX_TESTS)
+        self.assertFalse(any(row["status"] == "OOS_RUNNING" for row in state["candidates"].values()))
+        learning.validate(state, policy._paired_metrics)
+
     def test_preboundary_or_unevaluated_policy_cannot_authorize_promotion(self):
         state, _ = self.mature()
         changed = copy.deepcopy(state)
@@ -333,7 +358,7 @@ class AdaptiveReentryRuntimeTests(unittest.TestCase):
                 fx.belief, "calendar_safety", return_value={"blocked": False}):
             admission = runtime._execution_admission(output, data[1], observed_at=data[3], market_context=data[2])
             output = runtime._clone(output, metadata={**output.metadata, "execution_admission": admission})
-            with patch.object(runtime, "_epe_prepare", return_value=runtime._clone(output, direction="FLAT")):
+            with patch.object(runtime, "_epe_prepare", return_value=runtime._clone(output, direction="FLAT", entry=None, stop=None, target=None)):
                 result = runtime.prepare_entry_candidate(output, [], data[3])
         self.assertEqual(result.direction, "FLAT")
         self.assertFalse(context["policy_state"]["reentry_learning"]["cases"])

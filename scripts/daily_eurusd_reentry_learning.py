@@ -493,6 +493,13 @@ def validate(state: Mapping[str, Any], stats: Callable) -> None:
         budgets.setdefault(key, []).append(metadata["trial_number"])
         ids = row["evaluation_case_ids"]
         _require(len(ids) <= PRIMARY_N and len(ids) == len(set(ids)), "fixed primary sample changed")
+        expected_ids = [cid for cid, case in sorted(state["cases"].items(),
+                        key=lambda pair: _time(pair[1]["frozen"]["decision_at"]))
+                        if row["candidate_id"] in case["frozen"]["votes"]
+                        and case["frozen"]["production_version_id"] == row["baseline_version"]
+                        and case["frozen"]["manifest"]["runtime_code_sha256"] == metadata["runtime_code_sha256"]
+                        and _time(case["frozen"]["decision_at"]) > _time(row["activation_boundary"])]
+        _require(ids == expected_ids[:PRIMARY_N], "primary sample is not the first frozen eligible cases")
         for cid in ids:
             case = state["cases"][cid]
             _require(_time(case["frozen"]["decision_at"]) > _time(row["activation_boundary"]), "preboundary learning evidence")
@@ -553,6 +560,15 @@ def validate(state: Mapping[str, Any], stats: Callable) -> None:
                  "production authority/status mismatch")
         _require(sha256(safety.normalize_criteria(version["criteria"])) == version["payload_sha256"], "production criteria hash mismatch")
         parent = version["parent_version_id"]
+        expected_monitor = [cid for cid, case in sorted(state["cases"].items(),
+                            key=lambda pair: _time(pair[1]["frozen"]["decision_at"]))
+                            if case["frozen"]["production_version_id"] == vid
+                            and _time(case["frozen"]["decision_at"]) > _time(version["activated_at"])]
+        if parent is None:
+            _require(not version["monitor_case_ids"] and not version["monitor_reviews"], "baseline cannot monitor a parent")
+        else:
+            _require(version["monitor_case_ids"] == expected_monitor[:MONITOR_N * (len(version["monitor_reviews"]) + 1)],
+                     "monitor sample is not the first frozen eligible cases")
         for review_index, review in enumerate(version["monitor_reviews"]):
             ids = version["monitor_case_ids"][review_index * MONITOR_N:(review_index + 1) * MONITOR_N]
             _require(len(ids) == MONITOR_N and review["case_ids"] == ids, "monitor sample changed")
