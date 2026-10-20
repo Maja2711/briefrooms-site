@@ -1,8 +1,11 @@
 # Kanoniczna mapa architektury BriefRooms — PL
 
-**Wersja mapy:** 1.34  
-**Stan na:** 2026-10-15  
-**Bazowy commit `main`:** `6f53e046b9a55a6dc9c36b9802d2c0c695f76c53`  
+**Wersja mapy:** 1.35
+
+**Stan na:** 2026-10-20
+
+**Bazowy commit `main`:** `e39c9395518d134aae007e1cd307405813f91f23`
+
 **Repozytorium:** `Maja2711/briefrooms-site`
 
 ## 0. Rola tego dokumentu
@@ -193,6 +196,14 @@ Kanoniczna pętla L3-A: `Epistemic State -> Question Engine -> research intent -
 | `TR-06` | Portfolio 10K baseline | Długoterminowy portfel, historyczny champion/baseline | Zachowywany jako production baseline i fallback dla BRACE |
 | `TR-07` | BRACE Portfolio Engine | Portfolio research/control z optimizerem, governance i oddzielnym modelowym paper portfolio | **PROBATIONARY_CONTROL**; paper-only, deterministic controller, immutable Portfolio10K baseline jako fallback; LLM nie może promować |
 | `TR-08` | BRACE-SPX / Long View | Read-only/forecasting oriented SPX long-view family | Konsumuje własny point-in-time state + epistemic state; canonical DecisionEnvelope rollout nieukończony |
+
+### TR-03 v1.9.1 — zamknięta pętla produkcyjnej polityki admission
+
+`TR-03` zachowuje jeden kierunkowy authority Belief-first. `daily_eurusd_decision_record.py` zamraża identyfikator decyzji, natywną proweniencję, wersję/hash polityki, hash kodu i danych, EPE oraz początkową geometrię ryzyka. Manifest przechodzi bez zmian z OPEN do historii; stare transakcje nie dostają rekonstrukcji. Nowe wejścia mają jawny `DAILY_EURUSD_BID_ASK_V1`, a świeżość Evidence używa czasu źródła, nie czasu odświeżenia projekcji.
+
+`daily_eurusd_production_policy.py` jest komponentem lokalnego uczenia `LE-08`, wykorzystującym istniejące kontrakty `LE-11` i wspólną statystykę. Może wyłącznie zwiększyć minimalny dystans score od 50 w rodzinie `3 -> 4 -> 5 -> 6`; nie zmienia kierunku, ryzyka ani wykonania. Promocja wymaga pierwszych 40 wcześniej wybranych, rozłączonych przez 27h wyników rzeczywistych kanonicznych wejść pod dokładnie tym samym kodem. Stała bramka sprawdza wynik netto, niepewność, segmenty i obsunięcie. Po promocji działa monitoring kolejnych stałych okien po 20 obserwacji oraz automatyczny rollback. Zmiana kodu wycofuje niezgodne polityki przed nowym wejściem; nierozliczone pominięte okazje starego kodu są oznaczane `CENSORED`, bez wymyślonego wyniku.
+
+Jedynym writerem `eurusd_production_policy_state.json` i `eurusd_production_decisions.json` jest główny monitor na `main`. Wyjścia realtime nie zmieniają tych plików. `validate_daily_eurusd_persistence.py` kontroluje ten sam zapis, retry i rebase: append-only historię/ledger, zgodność rzeczywistych wyników, polityki i zdarzeń promocji/rollback. Niezmienione uszkodzone dane uczenia dopuszczają tylko zarządzanie już zapisaną pozycją, bez nowych wejść. A/B/C, FSE i X nie uczestniczą w tej pętli. Szczegóły i ograniczenia pomiaru: [DAILY_EURUSD_PRODUCTION_LOOP.md](DAILY_EURUSD_PRODUCTION_LOOP.md).
 
 ### EURUSD X — adaptive shadow track
 

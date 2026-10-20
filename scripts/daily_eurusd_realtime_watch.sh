@@ -61,6 +61,10 @@ persist_triggered_exit() {
 
     python scripts/build_trading_notification_events.py
 
+    # Same publication airlock as the main monitor, including conflict retries.
+    # An exit-only writer never updates production policy or decision ledgers.
+    python scripts/validate_daily_eurusd_persistence.py --baseline-ref HEAD --lifecycle-only
+
     git add --       data/investments/eurusd_daily_spot.json       data/investments/eurusd_daily_history.json       data/notifications/trading-state.json       data/notifications/trading-events.json
 
     if git diff --cached --quiet; then

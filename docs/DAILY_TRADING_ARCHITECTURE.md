@@ -75,6 +75,8 @@ Daily EUR/USD may continue to use the Daily-family contract independently; its l
 
 ## Daily EUR/USD v1.9 — Belief-first final decision
 
+Runtime v1.9.1 adds immutable decision/admission records and a bounded, future-only production admission-policy loop. Direction still belongs exclusively to Belief-first. The main monitor owns evaluation, exact-policy promotion, monitoring and rollback; the realtime writer remains exit-only. See [DAILY_EURUSD_PRODUCTION_LOOP.md](DAILY_EURUSD_PRODUCTION_LOOP.md) for state ownership, fixed evidence gates, cost accounting, migration and measurement limitations. Legacy contextual and A/B/C/X learners remain outside production authority.
+
 Daily EUR/USD now follows the same epistemic ordering as the canonical BriefRooms architecture.
 
 ```text

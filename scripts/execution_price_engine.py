@@ -53,6 +53,7 @@ DEFAULT_FUTURE_TOLERANCE_SECONDS = 30.0
 YAHOO_1M_FUTURE_TOLERANCE_SECONDS = 75.0
 DEFAULT_MAX_CROSS_FEED_PIPS = 1.5
 DEFAULT_QUOTE_MAX_AGE_SECONDS = 180.0
+DAILY_EXECUTION_COST_CONTRACT = "DAILY_EURUSD_BID_ASK_V1"
 
 SOURCE_PRIORITY = (
     "Stooq:",
@@ -650,6 +651,7 @@ def verify_daily_live_quotes(
         "fill_price": fill,
         "fill_side": "ASK" if side == "LONG" else "BID",
         "price_type": "LIVE_CONSENSUS_MID_PLUS_CONSERVATIVE_BUFFER",
+        "execution_cost_contract": DAILY_EXECUTION_COST_CONTRACT,
         "verified_at": iso_z(current),
         "verification_quality": "DIRECT_TWO_SOURCE_CONSENSUS",
         "selected_quote": _quote_payload(selected, current),

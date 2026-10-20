@@ -236,6 +236,23 @@ class EpistemicStateBuilder:
                 "belief_ids": [belief_id],
                 "representative_evidence_ids": list(belief.get("representative_evidence_ids", [])),
                 "path": "state->belief->evidence->observation->source",
+                **({"evidence_lineage": [
+                    {
+                        "evidence_id": eid,
+                        "observed_at": self.evidence[eid].get("observed_at"),
+                        "source": self.evidence[eid].get("source"),
+                        "source_ref": self.evidence[eid].get("source_ref"),
+                        "source_type": self.evidence[eid].get("source_type"),
+                        "release": {
+                            key: (self.evidence[eid].get("metadata") or {}).get(key)
+                            for key in ("adapter", "observation_metric", "observation_id",
+                                        "event_uid", "event_at", "phase", "actual_count", "data_period")
+                            if key in (self.evidence[eid].get("metadata") or {})
+                        },
+                    }
+                    for eid in belief.get("representative_evidence_ids", [])
+                    if eid in self.evidence
+                ]} if belief_id.startswith("eurusd.") else {}),
             },
             drilldown_required=bool(reasons),
             drilldown_reasons=tuple(reasons),

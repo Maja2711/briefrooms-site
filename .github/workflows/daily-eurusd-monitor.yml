@@ -4,6 +4,17 @@ name: Monitor Daily EURUSD
 on:
   pull_request:
     paths:
+      - "scripts/daily_eurusd_production_*.py"
+      - "scripts/daily_eurusd_decision_record.py"
+      - "scripts/daily_eurusd_spot_v19.py"
+      - "scripts/daily_eurusd_lifecycle.py"
+      - "scripts/daily_eurusd_belief_decision.py"
+      - "scripts/execution_price_engine.py"
+      - "scripts/validate_daily_eurusd_persistence.py"
+      - "tests/test_daily_eurusd_production_*.py"
+      - "tests/test_daily_eurusd_execution_cost_integration.py"
+      - "tests/test_daily_eurusd_belief_first.py"
+      - "tests/test_daily_eurusd_persistence.py"
       - "scripts/daily_eurusd_exit_intelligence_v2.py"
       - "scripts/daily_eurusd_correction_research.py"
       - "tests/test_daily_eurusd_exit_intelligence_v2.py"
@@ -26,6 +37,9 @@ on:
       - "scripts/daily_eurusd_spot_v17.py"
       - "scripts/daily_eurusd_spot_v18.py"
       - "scripts/daily_eurusd_spot_v19.py"
+      - "scripts/daily_eurusd_production_*.py"
+      - "scripts/daily_eurusd_decision_record.py"
+      - "scripts/validate_daily_eurusd_persistence.py"
       - "scripts/daily_eurusd_exit_intelligence_v2.py"
       - "scripts/daily_eurusd_correction_research.py"
       - "scripts/daily_eurusd_belief_decision.py"
@@ -64,6 +78,9 @@ on:
       - "tests/test_daily_eurusd_exit_intelligence_v2.py"
       - "tests/test_daily_eurusd_correction_research.py"
       - "tests/test_daily_eurusd_belief_first.py"
+      - "tests/test_daily_eurusd_production_*.py"
+      - "tests/test_daily_eurusd_execution_cost_integration.py"
+      - "tests/test_daily_eurusd_persistence.py"
       - "tests/test_epistemic_consumer_interface.py"
       - "tests/test_belief_core_live.py"
       - "tests/test_belief_wes_assets.py"
@@ -113,6 +130,11 @@ jobs:
             tests.test_daily_eurusd_exit_intelligence_v2 \
             tests.test_daily_eurusd_correction_research \
             tests.test_daily_eurusd_belief_first \
+            tests.test_daily_eurusd_persistence \
+            tests.test_daily_eurusd_production_policy \
+            tests.test_daily_eurusd_production_policy_integration \
+            tests.test_daily_eurusd_production_record \
+            tests.test_daily_eurusd_execution_cost_integration \
             tests.test_epistemic_consumer_interface \
             tests.test_no_retroactive_execution -v
           python -m py_compile \
@@ -129,6 +151,9 @@ jobs:
             scripts/daily_eurusd_spot_v17.py \
             scripts/daily_eurusd_spot_v18.py \
             scripts/daily_eurusd_spot_v19.py \
+            scripts/validate_daily_eurusd_persistence.py \
+            scripts/daily_eurusd_production_policy.py \
+            scripts/daily_eurusd_decision_record.py \
             scripts/daily_eurusd_exit_intelligence_v2.py \
             scripts/daily_eurusd_correction_research.py \
             scripts/daily_eurusd_belief_decision.py \
@@ -147,6 +172,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
+          ref: main
           fetch-depth: 0
 
       - name: Set up Python
@@ -234,6 +260,11 @@ jobs:
             tests.test_daily_eurusd_exit_intelligence_v2 \
             tests.test_daily_eurusd_correction_research \
             tests.test_daily_eurusd_belief_first \
+            tests.test_daily_eurusd_persistence \
+            tests.test_daily_eurusd_production_policy \
+            tests.test_daily_eurusd_production_policy_integration \
+            tests.test_daily_eurusd_production_record \
+            tests.test_daily_eurusd_execution_cost_integration \
             tests.test_no_retroactive_execution -v
           python -m py_compile \
             scripts/daily_engine_contract.py \
@@ -249,6 +280,9 @@ jobs:
             scripts/daily_eurusd_spot_v17.py \
             scripts/daily_eurusd_spot_v18.py \
             scripts/daily_eurusd_spot_v19.py \
+            scripts/validate_daily_eurusd_persistence.py \
+            scripts/daily_eurusd_production_policy.py \
+            scripts/daily_eurusd_decision_record.py \
             scripts/daily_eurusd_exit_intelligence_v2.py \
             scripts/daily_eurusd_correction_research.py \
             scripts/investments_wes_macro_belief.py \
@@ -275,90 +309,6 @@ jobs:
             --validate
           python -m json.tool data/investments/eurusd_daily_spot.json >/dev/null
           python -m json.tool data/investments/eurusd_daily_history.json >/dev/null
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          payload=json.loads(Path('data/investments/eurusd_daily_spot.json').read_text())
-          candidate=(payload.get('metadata') or {}).get('candidate') or {}
-          reasons=set(candidate.get('gate_reasons') or [])
-          forbidden={
-              'score_below_adaptive_long_threshold',
-              'score_above_adaptive_short_threshold',
-              'confidence_below_minimum',
-              'signal_not_persistent',
-              'entry_overextended_vs_ema20',
-              'latest_30m_bar_is_shock_bar',
-              'post_stop_cooldown',
-              'daily_entry_limit_reached',
-          }
-          leaked=sorted(reasons & forbidden)
-          if leaked:
-              raise SystemExit(f'legacy admission veto leaked into v1.9 runtime: {leaked}')
-          version=payload.get('engine_version')
-          if version != 'eurusd-daily-spot-v1.9.0':
-              raise SystemExit(f"unexpected EUR/USD engine version: {version}")
-          metadata=payload.get('metadata') or {}
-          dynamic=metadata.get('dynamic_exit') or {}
-          if not dynamic.get('enabled'):
-              raise SystemExit('v1.9 output missing dynamic-exit metadata')
-          guard=metadata.get('same_thesis_reentry_guard') or {}
-          if not guard.get('enabled'):
-              raise SystemExit('v1.9 output missing same-thesis re-entry guard metadata')
-          contextual_policy=metadata.get('contextual_entry_policy') or {}
-          position=metadata.get('position') or {}
-          lifecycle_status=str(payload.get('status') or '').upper()
-          terminal_close=lifecycle_status in {'CLOSED_SL','CLOSED_TP','CLOSED_TIME','CLOSED_DYNAMIC','CLOSED_EVENT'}
-          if not contextual_policy and not position and not terminal_close:
-              raise SystemExit('v1.9 flat/new-entry output missing contextual entry policy metadata')
-          if contextual_policy and contextual_policy.get('direction_mutation_allowed') is not False:
-              raise SystemExit('contextual entry policy must not own market direction')
-          pipeline=metadata.get('belief_pipeline') or {}
-          if pipeline.get('architecture') != 'BELIEF_FIRST_V1' or pipeline.get('final_decision_after_belief') is not True:
-              raise SystemExit(f'v1.9 output missing Belief-first pipeline contract: {pipeline}')
-          authority=metadata.get('direction_authority') or {}
-          final_decision=metadata.get('final_decision') or {}
-          epistemic_consumer=final_decision.get('epistemic_consumer') or {}
-          # A missing/unqualified Epistemic consumer is a data-quality incident,
-          # not a genuine market-neutral 50/0 decision. Never publish that state
-          # over the last canonical Daily snapshot. Existing-position lifecycle
-          # and terminal closes remain allowed so risk control cannot be blocked.
-          if not position and not terminal_close and epistemic_consumer.get('available') is not True:
-              raise SystemExit(
-                  'DAILY_EURUSD_EPISTEMIC_UNAVAILABLE_NO_PUBLICATION: '
-                  + str(epistemic_consumer.get('reason') or 'unknown')
-              )
-          if authority.get('owner') != 'NATIVE_DAILY_EURUSD_BELIEF_FIRST_DECISION_ENGINE':
-              raise SystemExit(f'unexpected v1.9 direction owner: {authority}')
-          if authority.get('source') != 'NATIVE_BELIEF_FIRST':
-              raise SystemExit(f'v1.9 final direction owner/source is not NATIVE_BELIEF_FIRST: {authority}')
-          if authority.get('epistemic_input') != 'BELIEF_CORE_CF07':
-              raise SystemExit(f'v1.9 epistemic input is not Belief Core through CF-07: {authority}')
-          if final_decision.get('decision_source') != 'NATIVE_BELIEF_FIRST':
-              raise SystemExit(f'v1.9 final decision source is not NATIVE_BELIEF_FIRST: {final_decision}')
-          if final_decision.get('epistemic_source') != 'BELIEF_CORE_CF07':
-              raise SystemExit(f'v1.9 final decision lost Belief/CF-07 epistemic source: {final_decision}')
-          if final_decision.get('legacy_raw_score_direction_authority') is not False:
-              raise SystemExit('legacy raw EURUSD/UUP/TLT direction authority leaked into v1.9')
-          shadow=metadata.get('shadow_boundary') or {}
-          for name in ('A_B_C','FSE','EURUSD_X'):
-              row=shadow.get(name) or {}
-              if row.get('production_direction_authority') is not False:
-                  raise SystemExit(f'{name} regained production direction authority: {row}')
-              if row.get('production_timing_authority') is not False:
-                  raise SystemExit(f'{name} regained production timing authority: {row}')
-          contextual=metadata.get('contextual_entry_policy') or {}
-          if contextual and contextual.get('decision_influence') is not False:
-              raise SystemExit(f'legacy contextual learner still influences v1.9 production: {contextual}')
-          source=authority.get('source','NATIVE_BELIEF_FIRST')
-          print('EURUSD_V19_BELIEF_FIRST_OK', payload.get('direction'), final_decision.get('direction'), candidate.get('accepted'), source, sorted(reasons), final_decision.get('coverage_weight'))
-          PY
-
-      - name: Enforce native provenance before Daily persistence
-        run: |
-          set -euo pipefail
-          PYTHONPATH=. python scripts/audit_provenance.py \
-            --profile daily \
-            --file data/investments/eurusd_daily_spot.json
 
       - name: Build trading notification transition from canonical Daily state
         run: |
@@ -367,25 +317,11 @@ jobs:
           python -m json.tool data/notifications/trading-state.json >/dev/null
           python -m json.tool data/notifications/trading-events.json >/dev/null
 
-      - name: Assert Daily notification coverage
+      - name: Validate production authority, provenance and immutable history
         run: |
           set -euo pipefail
-          python - <<'PY'
-          import hashlib, json
-          from pathlib import Path
-          spot=json.loads(Path("data/investments/eurusd_daily_spot.json").read_text())
-          events=json.loads(Path("data/notifications/trading-events.json").read_text()).get("events", [])
-          position=((spot.get("metadata") or {}).get("position") or {})
-          if str(position.get("status") or "").upper() == "OPEN":
-              pid=str(position.get("trade_id") or "")
-              raw=f"daily|OPEN|{pid}".encode()
-              expected=hashlib.sha256(raw).hexdigest()[:24]
-              if not any(str(e.get("event_id") or "") == expected for e in events if isinstance(e, dict)):
-                  raise SystemExit(f"OPEN position has no notification event: {pid} / {expected}")
-              print("DAILY_OPEN_NOTIFICATION_EVENT_OK", pid, expected)
-          else:
-              print("DAILY_NOTIFICATION_STATE_OK_FLAT")
-          PY
+          # EURUSD_V19_BELIEF_FIRST_OK is emitted by this same gate on every retry.
+          python scripts/validate_daily_eurusd_persistence.py --baseline-ref HEAD
 
       - name: Persist EURUSD state and append-only outcomes through NO RETROACTIVE airlock
         id: persist
@@ -396,26 +332,33 @@ jobs:
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- \
-            data/investments/eurusd_daily_spot.json \
-            data/investments/eurusd_daily_history.json \
-            data/notifications/trading-state.json \
+
+          state_paths=(
+            data/investments/eurusd_daily_spot.json
+            data/investments/eurusd_daily_history.json
+            data/investments/eurusd_production_policy_state.json
+            data/investments/eurusd_production_decisions.json
+            data/notifications/trading-state.json
             data/notifications/trading-events.json
+          )
+          stage_daily_state() {
+            for path in "${state_paths[@]}"; do
+              # Degraded exits preserve missing, never-tracked governance files.
+              if [ -e "$path" ] || git ls-files --error-unmatch -- "$path" >/dev/null 2>&1; then
+                git add -- "$path"
+              fi
+            done
+          }
+          stage_daily_state
 
           if git diff --cached --quiet; then
             echo "No EURUSD state change"
             exit 0
           fi
 
+          python scripts/validate_daily_eurusd_persistence.py --baseline-ref HEAD
           python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
           git commit -m "Monitor Daily EURUSD position"
-
-          state_paths=(
-            data/investments/eurusd_daily_spot.json
-            data/investments/eurusd_daily_history.json
-            data/notifications/trading-state.json
-            data/notifications/trading-events.json
-          )
 
           for attempt in 1 2 3 4 5 6; do
             if git push origin HEAD:main; then
@@ -428,13 +371,14 @@ jobs:
             git fetch origin main
 
             # Most BriefRooms commits touch unrelated outputs. If none of the
-            # four canonical Daily/notification files changed since our parent,
+            # canonical Daily/policy/decision/notification files changed since our parent,
             # rebase the already-verified Daily commit and retry immediately.
             # If any canonical file changed, fail closed to a fresh recompute
             # from origin/main so concurrent Daily transitions are never merged.
             if git diff --quiet HEAD^ origin/main -- "${state_paths[@]}"; then
               echo "Only unrelated remote commits detected; rebasing Daily state commit"
               if git rebase origin/main; then
+                python scripts/validate_daily_eurusd_persistence.py --baseline-ref HEAD^
                 python scripts/verify_no_retroactive_execution.py \
                   --baseline-ref HEAD^ \
                   --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
@@ -454,8 +398,9 @@ jobs:
               --history data/investments/eurusd_daily_history.json \
               --validate
             python scripts/build_trading_notification_events.py
+            python scripts/validate_daily_eurusd_persistence.py --baseline-ref HEAD
 
-            git add -- "${state_paths[@]}"
+            stage_daily_state
 
             if git diff --cached --quiet; then
               echo "Remote main already contains an equivalent or fresher EURUSD state"
@@ -471,12 +416,6 @@ jobs:
 
           echo "Unable to persist EURUSD state after retries" >&2
           exit 1
-
-      - name: Dispatch persisted Daily transition to Web Push immediately
-        if: steps.persist.outputs.changed == 'true'
-        env:
-          PUSH_API: https://briefrooms-trading-push.szczerbinski0577.workers.dev
-        run: bash scripts/sync_trading_push_commit.sh "${{ steps.persist.outputs.sha }}" daily
 
       - name: Ensure realtime lifecycle watcher is active for an OPEN position
         env:
@@ -528,6 +467,12 @@ jobs:
             -d '{"ref":"main"}'
 
           echo "Realtime Daily EURUSD watcher dispatched."
+
+      - name: Dispatch persisted Daily transition to Web Push immediately
+        if: steps.persist.outputs.changed == 'true'
+        env:
+          PUSH_API: https://briefrooms-trading-push.szczerbinski0577.workers.dev
+        run: bash scripts/sync_trading_push_commit.sh "${{ steps.persist.outputs.sha }}" daily
 
       - name: Validate public frontend runtime after lifecycle persistence
         run: |
