@@ -44,6 +44,20 @@ class NewsCycleSlaTests(unittest.TestCase):
         with patch('scripts.validate_news_cycle_sla.urlopen', side_effect=fake_open):
             self.assertIn('production_feed_marker_mismatch:pl', verify_production())
 
+    def test_production_marker_must_match_successful_run(self):
+        class Response:
+            def __init__(self, data): self.data = data
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+            def read(self): return self.data
+        def fake_open(request, timeout=15):
+            url = request.full_url
+            if 'status.json' in url: return Response(json.dumps({'marker': 'live-news-111-1'}).encode())
+            if '.json' in url: return Response(json.dumps({'marker': 'live-news-111-1'}).encode())
+            return Response(b'<meta name="briefrooms-live-news-marker" content="live-news-111-1">')
+        with patch('scripts.validate_news_cycle_sla.urlopen', side_effect=fake_open):
+            self.assertIn('production_not_at_last_successful_cycle', verify_production(expected_run_id=222))
+
     def test_new_success_resolves_prior_failure(self):
         self.assertEqual("healthy", assess_runs([run(10), run(40, "failure")], NOW)["status"])
 
