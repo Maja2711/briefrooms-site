@@ -117,6 +117,18 @@ class ProductionPolicyRuntimeIntegrationTests(unittest.TestCase):
                     self.assertTrue(guard["change"]["material_change"])
                     self.assertFalse(guard["generic_loss_cooldown"])
 
+    def test_strong_signal_alone_cannot_reenter_without_daily_correction_and_support(self):
+        for direction in ("LONG", "SHORT"):
+            with self.subTest(direction=direction):
+                trade, legacy, closed_at = self.closed_native_loss(direction)
+                candidate = self.candidate(
+                    closed_at + timedelta(seconds=62),
+                    score=62.0 if direction == "LONG" else 38.0,
+                    direction=direction, confidence=.55,
+                )
+                result = self.admission_after_loss(candidate, {"trades": [legacy, trade]})
+                self.assertFalse(result["allowed"])
+
     def test_unchanged_signal_cannot_reach_epe_after_native_loss(self):
         trade, legacy, closed_at = self.closed_native_loss()
         at = closed_at + timedelta(seconds=62)
