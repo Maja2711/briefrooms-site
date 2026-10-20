@@ -36025,6 +36025,450 @@
       "historical_backfill": false,
       "decision_id": "eurusd-production-decision:fdcd10f9db9fe2231923300f",
       "manifest_sha256": "053e639d97e9d17c7298afd61c24aec893d6dfafa986f5e2a887794e8132711a"
+    },
+    {
+      "schema_version": "eurusd-production-decision-manifest-v1",
+      "engine_version": "eurusd-daily-spot-v1.9.1",
+      "instrument": "EUR/USD",
+      "decision_at": "2026-10-20T17:59:14.306232Z",
+      "native_decision_id": "daily-eurusd-decision:31a2517eaa332a0953001ab5",
+      "policy_version_id": "eurusd-policy-b36bdb62278edbd39faee3b9",
+      "policy_sha256": "64fbaf973cfd65c15044b846d9eec0650cfc22eafdafc0ef55ec145191578d2b",
+      "policy": {
+        "version_id": "eurusd-policy-b36bdb62278edbd39faee3b9",
+        "policy_sha256": "64fbaf973cfd65c15044b846d9eec0650cfc22eafdafc0ef55ec145191578d2b",
+        "minimum_score_distance": 3.0,
+        "allowed": true,
+        "candidate_id": "eurusd-admission-471f39372d4610dcc0dfa78a",
+        "direction_mutation_allowed": false,
+        "risk_mutation_allowed": false,
+        "activation_boundary": "2026-10-20T10:15:57.628497Z"
+      },
+      "runtime_code_sha256": "8dd7b141ad7b148ed8afc54bfea8282b281a08ac300d120dd795c35befdf710f",
+      "market_snapshot_sha256": "747c959a5a207ee59a54795e2d4ab6c0ae523f4ef10061b47d2b661a88aa845d",
+      "epistemic_snapshot_sha256": "3e68671736ed27099fd1ef9e4e4e7f2b28baea145fc6b0aa6811ba7fb75e6f98",
+      "decision_sha256": "a8530c39efe1bfce4838c0080b94630b07c69ee03372032b171ae93879dd0483",
+      "final_decision": {
+        "schema_version": "daily-eurusd-belief-decision-v1",
+        "owner": "NATIVE_DAILY_EURUSD_BELIEF_FIRST_DECISION_ENGINE",
+        "decision_source": "NATIVE_BELIEF_FIRST",
+        "epistemic_source": "BELIEF_CORE_CF07",
+        "direction": "LONG",
+        "score": 54.37,
+        "confidence": 0.3692,
+        "thresholds": {
+          "long": 56.0,
+          "short": 44.0
+        },
+        "aggressive_participation": {
+          "enabled": true,
+          "threshold_mode": "AGGRESSIVE_ALIGNED",
+          "long": 53.0,
+          "short": 47.0,
+          "minimum_coverage_weight": 0.55,
+          "minimum_confidence": 0.25,
+          "minimum_aligned_beliefs": 3,
+          "alignment_margin": 0.02,
+          "aligned_long_beliefs": [
+            "eurusd.trend.bullish",
+            "eurusd.us_rates_pressure.supportive",
+            "eurusd.usd_environment.supportive"
+          ],
+          "aligned_short_beliefs": [],
+          "long_ready": true,
+          "short_ready": false,
+          "rule": "Narrower Daily participation band applies only to an authoritative, sufficiently covered/confident state with at least three aligned beliefs including the EURUSD trend anchor."
+        },
+        "coverage_weight": 0.69432,
+        "minimum_coverage_weight": 0.45,
+        "required_anchor_belief": "eurusd.trend.bullish",
+        "used_beliefs": [
+          {
+            "belief_id": "eurusd.trend.bullish",
+            "probability": 0.554599,
+            "confidence": 0.474168,
+            "directional_support": 0.109198,
+            "effective_support": 0.051778,
+            "weight": 0.45,
+            "observed_at": "2026-10-20T17:45:26Z",
+            "age_hours": 0.2301,
+            "source_evidence": [
+              {
+                "evidence_id": "ev-95115f35a1b728ccb53b",
+                "observed_at": "2026-10-20T17:45:26Z",
+                "release": {
+                  "adapter": "wes_asset_evidence",
+                  "observation_id": "obs-18237de467f4ea6bbc7e",
+                  "observation_metric": "eurusd_trend_composite"
+                },
+                "source": "Derived from Yahoo Finance OHLCV",
+                "source_ref": "derived:yahoo:EURUSD:2026-10-20T17:45:26Z:1.2.0:eurusd_trend_composite",
+                "source_type": "derived"
+              }
+            ],
+            "timestamp_basis": [
+              "SOURCE_EVIDENCE"
+            ]
+          },
+          {
+            "belief_id": "eurusd.usd_environment.supportive",
+            "probability": 0.619094,
+            "confidence": 0.595099,
+            "directional_support": 0.238188,
+            "effective_support": 0.141745,
+            "weight": 0.3,
+            "observed_at": "2026-10-20T17:44:28Z",
+            "age_hours": 0.2462,
+            "source_evidence": [
+              {
+                "evidence_id": "ev-09f1c1ac0305a9cc80b9",
+                "observed_at": "2026-10-03T06:46:45.536972Z",
+                "release": {
+                  "adapter": "llm_event_interpreter",
+                  "observation_id": "obs-a95f8ddec722d6fdf185",
+                  "observation_metric": "event_interpretation"
+                },
+                "source": "Gemini interpretation of U.S. Bureau of Labor Statistics Public Data API",
+                "source_ref": "derived:obs-2a301e3c40db7a731720",
+                "source_type": "derived"
+              },
+              {
+                "evidence_id": "ev-129598bb6383b2a8dd39",
+                "observed_at": "2026-10-20T17:36:18Z",
+                "release": {
+                  "adapter": "wes_asset_evidence",
+                  "observation_id": "obs-f92d1e36728dafcb258c",
+                  "observation_metric": "broad_usd_intraday_support_for_eurusd"
+                },
+                "source": "Derived from Yahoo Finance OHLCV",
+                "source_ref": "derived:yahoo:EURUSD:2026-10-20T17:36:18Z:1.2.0:broad_usd_intraday_support_for_eurusd",
+                "source_type": "derived"
+              },
+              {
+                "evidence_id": "ev-8e3b583cdc0a53ac3c46",
+                "observed_at": "2026-10-20T17:44:28Z",
+                "release": {
+                  "adapter": "wes_asset_evidence",
+                  "observation_id": "obs-71f716aa33dce995d111",
+                  "observation_metric": "broad_usd_support_for_eurusd"
+                },
+                "source": "Derived from Yahoo Finance OHLCV",
+                "source_ref": "derived:yahoo:EURUSD:2026-10-20T17:44:28Z:1.2.0:broad_usd_support_for_eurusd",
+                "source_type": "derived"
+              }
+            ],
+            "timestamp_basis": [
+              "SOURCE_EVIDENCE"
+            ]
+          },
+          {
+            "belief_id": "eurusd.us_rates_pressure.supportive",
+            "probability": 0.59833,
+            "confidence": 0.620368,
+            "directional_support": 0.19666,
+            "effective_support": 0.122002,
+            "weight": 0.15,
+            "observed_at": "2026-10-20T17:46:11Z",
+            "age_hours": 0.2176,
+            "source_evidence": [
+              {
+                "evidence_id": "ev-18f205d6c6d8ea92ffda",
+                "observed_at": "2026-10-03T06:46:45.536972Z",
+                "release": {
+                  "adapter": "llm_event_interpreter",
+                  "observation_id": "obs-84f3a1c00986c0c0c43e",
+                  "observation_metric": "event_interpretation"
+                },
+                "source": "Gemini interpretation of U.S. Bureau of Labor Statistics Public Data API",
+                "source_ref": "derived:obs-e5858aa5bad63675f7e6",
+                "source_type": "derived"
+              },
+              {
+                "evidence_id": "ev-1ddf53a8f71f52b024e7",
+                "observed_at": "2026-10-08T08:30:00Z",
+                "release": {
+                  "adapter": "llm_event_interpreter",
+                  "observation_id": "obs-792de75fa6e697b3953e",
+                  "observation_metric": "event_interpretation"
+                },
+                "source": "Gemini interpretation of Federal Reserve speeches and testimony",
+                "source_ref": "derived:obs-8118846d4284339b87a3",
+                "source_type": "derived"
+              },
+              {
+                "evidence_id": "ev-2e4a1cdb11462eb9288f",
+                "observed_at": "2026-10-20T17:33:25Z",
+                "release": {
+                  "adapter": "wes_asset_evidence",
+                  "observation_id": "obs-0f83abf85d7300fba2aa",
+                  "observation_metric": "fed_funds_intraday_support_for_eurusd"
+                },
+                "source": "Derived from Yahoo Finance OHLCV",
+                "source_ref": "derived:yahoo:EURUSD:2026-10-20T17:33:25Z:1.2.0:fed_funds_intraday_support_for_eurusd",
+                "source_type": "derived"
+              },
+              {
+                "evidence_id": "ev-394a9d480c9a2d2586d5",
+                "observed_at": "2026-10-20T17:36:17Z",
+                "release": {
+                  "adapter": "wes_asset_evidence",
+                  "observation_id": "obs-a20b82b66e87805ec971",
+                  "observation_metric": "us_rates_intraday_futures_support_for_eurusd"
+                },
+                "source": "Derived from Yahoo Finance OHLCV",
+                "source_ref": "derived:yahoo:EURUSD:2026-10-20T17:36:17Z:1.2.0:us_rates_intraday_futures_support_for_eurusd",
+                "source_type": "derived"
+              },
+              {
+                "evidence_id": "ev-59daa04a05fd5426f098",
+                "observed_at": "2026-10-03T06:46:45.536972Z",
+                "release": {
+                  "adapter": "llm_event_interpreter",
+                  "observation_id": "obs-886ab1d6884e66b4c8cc",
+                  "observation_metric": "event_interpretation"
+                },
+                "source": "Gemini interpretation of U.S. Bureau of Labor Statistics Public Data API",
+                "source_ref": "derived:obs-33b087e1f1f230319a15",
+                "source_type": "derived"
+              },
+              {
+                "evidence_id": "ev-e2aef32b351f5a282d9b",
+                "observed_at": "2026-10-20T17:46:11Z",
+                "release": {
+                  "adapter": "wes_asset_evidence",
+                  "observation_id": "obs-66e1f447074d8ed2935b",
+                  "observation_metric": "us_rates_pressure_proxy_for_eurusd"
+                },
+                "source": "Derived from Yahoo Finance OHLCV",
+                "source_ref": "derived:yahoo:EURUSD:2026-10-20T17:46:11Z:1.2.0:us_rates_pressure_proxy_for_eurusd",
+                "source_type": "derived"
+              }
+            ],
+            "timestamp_basis": [
+              "SOURCE_EVIDENCE"
+            ]
+          }
+        ],
+        "unavailable_beliefs": [
+          {
+            "belief_id": "eurusd.macro_surprise.supportive",
+            "reason": "stale_or_future_evidence",
+            "age_hours": 1200.0122,
+            "max_age_hours": 12.0
+          },
+          {
+            "belief_id": "eurusd.policy_differential.supportive",
+            "reason": "stale_or_future_evidence",
+            "age_hours": 1800.0122,
+            "max_age_hours": 18.0
+          }
+        ],
+        "reasons": [],
+        "routing": [
+          "RAW_SOURCES",
+          "SPECIALIZED_ADAPTERS",
+          "OBSERVATIONS",
+          "EVIDENCE_ASSESSMENT",
+          "BELIEF_CORE",
+          "NATIVE_DAILY_EURUSD_FINAL_DECISION"
+        ],
+        "legacy_raw_score_direction_authority": false,
+        "shadow_engine_direction_authority": false,
+        "epistemic_aggregate_authoritative": true,
+        "epistemic_consumer": {
+          "contract": "epistemic-consumer-interface-v1",
+          "source_contract": "belief-epistemic-state-v1",
+          "consumer": "DAILY_EURUSD",
+          "available": true,
+          "reason": "authoritative_daily_eurusd_epistemic_projection",
+          "source_created_at": "2026-10-20T17:58:30.282371Z",
+          "age_hours": 0.012229,
+          "source_sha256": "3e68671736ed27099fd1ef9e4e4e7f2b28baea145fc6b0aa6811ba7fb75e6f98",
+          "aggregate_authoritative": true,
+          "consumer_may_override_probability": false,
+          "belief_core_writeback_enabled": false,
+          "state_count": 5,
+          "aggregate_probability": 0.543689,
+          "aggregate_confidence": 0.369174,
+          "coverage_weight": 0.69432,
+          "qualified_state_count": 3,
+          "qualified_belief_ids": [
+            "eurusd.trend.bullish",
+            "eurusd.usd_environment.supportive",
+            "eurusd.us_rates_pressure.supportive"
+          ]
+        },
+        "provenance": {
+          "schema_version": "briefrooms-provenance-contract-v1",
+          "artifact_id": "daily-eurusd-decision:31a2517eaa332a0953001ab5",
+          "artifact_type": "decision",
+          "engine_id": "daily_eurusd",
+          "engine_version": "belief-first-v1.9",
+          "created_at": "2026-10-20T17:59:14.306232Z",
+          "parent_artifact_ids": [
+            "epistemic:estate-7e8c07e47963eececee3",
+            "epistemic:estate-8fc0cb7ed22485ef2dca",
+            "epistemic:estate-e03dd1c4ec5280d5c3ab"
+          ],
+          "source_ids": [
+            "BELIEF_CORE_CF07",
+            "NATIVE_BELIEF_FIRST"
+          ],
+          "evidence_ids": [
+            "epistemic:estate-7e8c07e47963eececee3",
+            "epistemic:estate-8fc0cb7ed22485ef2dca",
+            "epistemic:estate-e03dd1c4ec5280d5c3ab"
+          ],
+          "belief_ids": [
+            "eurusd.trend.bullish",
+            "eurusd.us_rates_pressure.supportive",
+            "eurusd.usd_environment.supportive"
+          ],
+          "decision_id": "daily-eurusd-decision:31a2517eaa332a0953001ab5",
+          "forecast_id": null,
+          "verification_id": null,
+          "payload_hash": "31a2517eaa332a0953001ab5179425f0ad0a1d62ecd25078e6f593e7b966b4e0",
+          "authority": "decision",
+          "prospective": true,
+          "domain_provenance": {
+            "epistemic_consumer_contract": "epistemic-consumer-interface-v1",
+            "aggregate_authoritative": true,
+            "native_write_time": true
+          }
+        }
+      },
+      "execution_admission": {
+        "allowed": false,
+        "status": "BLOCKED",
+        "reasons": [
+          "recent_same_thesis_loss_without_material_new_evidence"
+        ],
+        "final_direction_preserved": "LONG",
+        "direction_mutation_allowed": false,
+        "belief_calendar_safety": {
+          "available": true,
+          "blocked": false,
+          "reason": "clear",
+          "imminent": false,
+          "post_release_evidence_pending": false,
+          "calendar_coverage": {
+            "complete": true,
+            "observed_at": "2026-10-20T17:46:13.810665Z",
+            "age_minutes": 13.008,
+            "source_status": {
+              "BEA": {
+                "error_type": null,
+                "event_count": 10,
+                "source_ref": "https://www.bea.gov/news/schedule",
+                "status": "ok"
+              },
+              "BLS": {
+                "error_type": null,
+                "event_count": 19,
+                "source_ref": "https://www.bls.gov/schedule/news_release/bls.ics",
+                "status": "ok"
+              },
+              "ECB": {
+                "error_type": null,
+                "event_count": 5,
+                "source_ref": "https://www.ecb.europa.eu/press/calendars/mgcgc/html/index.en.html",
+                "status": "ok"
+              },
+              "EUROSTAT": {
+                "error_type": null,
+                "event_count": 24,
+                "source_ref": "https://ec.europa.eu/eurostat/o/calendars/eventsIcal?theme=&category=",
+                "status": "ok"
+              },
+              "FOMC": {
+                "error_type": null,
+                "event_count": 17,
+                "source_ref": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
+                "status": "ok"
+              }
+            }
+          },
+          "events": [],
+          "source": "belief_macro_calendar_adapter",
+          "direction_mutation_allowed": false
+        },
+        "same_thesis_reentry_guard": {
+          "enabled": true,
+          "mode": "SAME_THESIS_REENTRY_GUARD",
+          "generic_loss_cooldown": false,
+          "window_hours": 12.0,
+          "min_loss_r": -0.15,
+          "evaluated": true,
+          "blocked": true,
+          "reason": "recent_same_thesis_loss_without_material_new_evidence",
+          "prior_trade_id": "eurusd:20261020T151636Z:LONG",
+          "prior_closed_at": "2026-10-20T15:45:29Z",
+          "prior_r_multiple": -0.3522,
+          "source_family": "NATIVE_BELIEF_FIRST",
+          "current_thesis": {
+            "schema_version": "eurusd-entry-thesis-v1",
+            "source": "NATIVE",
+            "source_family": "NATIVE_BELIEF_FIRST",
+            "direction": "LONG",
+            "score": 54.37,
+            "directional_strength": 4.37,
+            "confidence": 0.3692,
+            "components": {},
+            "weights": {}
+          },
+          "prior_thesis": {
+            "schema_version": "eurusd-entry-thesis-v1",
+            "source": "NATIVE",
+            "source_family": "NATIVE_BELIEF_FIRST",
+            "direction": "LONG",
+            "score": 56.14,
+            "directional_strength": 6.14,
+            "confidence": 0.3816,
+            "components": {},
+            "weights": {},
+            "decision_id": "eurusd-production-decision:1061f8c8c38f8b45e979af16",
+            "policy_version_id": "eurusd-policy-b36bdb62278edbd39faee3b9",
+            "manifest_sha256": "d561e2f28ad45ce2b09a7a0e028d52f9aa97ac42ef0dcc0cd55e538bcce4741f"
+          },
+          "change": {
+            "material_change": false,
+            "material_change_triggers": [],
+            "directional_score_strength_improvement": -1.77,
+            "confidence_improvement": -0.0124,
+            "component_l1_change": null,
+            "shared_components": [],
+            "thresholds": {
+              "score_strength_improvement": 3.0,
+              "confidence_improvement": 0.08,
+              "component_l1_change": 0.2
+            }
+          }
+        }
+      },
+      "execution_price_engine": {},
+      "risk": {
+        "market_observed_at": "2026-10-20T17:58:27Z",
+        "market_reference_mid": 1.123721718788147,
+        "atr_30m_at_decision": 0.0008588983462407038,
+        "atr_30m_window": 26,
+        "atr_multiple": 1.35,
+        "risk_floor_percent": 0.0027,
+        "reward_risk": 1.8,
+        "soft_horizon_hours": 24.0,
+        "hard_horizon_hours": 27.0,
+        "position_horizon_hours": 27.0,
+        "dynamic_exit_policy": "R_PACE_V1",
+        "dynamic_monitor_cycle": "5m workflow / 1m OHLC path"
+      },
+      "execution_geometry": {
+        "entry": null,
+        "stop": null,
+        "target": null
+      },
+      "prospective": true,
+      "historical_backfill": false,
+      "decision_id": "eurusd-production-decision:b3b725986ece87126fe330a5",
+      "manifest_sha256": "5e1838d3ca435fba426217ffca0a9a43a86c6450dfbe4353a9ab75b4af881316"
     }
   ]
 }
