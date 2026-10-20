@@ -25,12 +25,11 @@ def assess_runs(runs: list[dict], now: datetime, max_age_minutes: int = 90) -> d
     if latest:
         completed = datetime.fromisoformat(latest["updated_at"].replace("Z", "+00:00"))
         age = max(0, (now - completed).total_seconds() / 60)
-    return {
-        "status": "healthy" if age is not None and age <= max_age_minutes else "failed",
+    latest_failure = next((r for r in sorted(runs, key=lambda x: x.get("updated_at", ""), reverse=True)\n                           if r.get("status") == "completed" and r.get("conclusion") in ("failure", "timed_out")), None)\n    unresolved_failure = bool(latest_failure and (not latest or latest_failure["updated_at"] > latest["updated_at"]))\n    return {\n        "status": "healthy" if age is not None and age <= max_age_minutes and not unresolved_failure else "failed",
         "age_minutes": age,
         "last_successful_cycle_at": latest["updated_at"] if latest else None,
         "last_successful_run_url": latest.get("html_url") if latest else None,
-        "reasons": [] if age is not None and age <= max_age_minutes else ["successful_cycle_missing_or_stale"],
+        "reasons": (["successful_cycle_missing_or_stale"] if age is None or age > max_age_minutes else []) +\n                   (["publisher_failed_without_later_success"] if unresolved_failure else []),\n        "failed_run_url": latest_failure.get("html_url") if unresolved_failure else None,
     }
 
 
