@@ -1,6 +1,6 @@
 {
   "schema_version": "gpw-loco-counterfactual-replay-v1",
-  "generated_at": "2026-10-19T20:43:40.426713Z",
+  "generated_at": "2026-10-20T19:33:06.586495Z",
   "market": "gpw",
   "method": {
     "name": "leave_one_component_out_counterfactual_replay_v1",
@@ -12,10 +12,10 @@
     "historical_backfill": false
   },
   "coverage": {
-    "snapshot_count": 24,
-    "validated_snapshot_count": 24,
+    "snapshot_count": 25,
+    "validated_snapshot_count": 25,
     "invalid_snapshot_count": 0,
-    "missing_outcome_record_count": 0,
+    "missing_outcome_record_count": 1,
     "resolved_decision_count": 23,
     "supported_components": [
       "catalyst",
@@ -78,12 +78,12 @@
       "decision_change_rate": 0.217391,
       "plan_change_count": 5,
       "beneficial_count": 0,
-      "harmful_count": 1,
-      "neutral_count": 22,
+      "harmful_count": 0,
+      "neutral_count": 23,
       "beneficial_rate": 0.0,
-      "harmful_rate": 0.043478,
-      "marginal_value_percent_sum": -2.6017,
-      "mean_marginal_value_percent": -0.113117,
+      "harmful_rate": 0.0,
+      "marginal_value_percent_sum": 0.0,
+      "mean_marginal_value_percent": 0.0,
       "median_marginal_value_percent": 0.0,
       "evidence_status": "EARLY_SIGNAL"
     },
@@ -157,13 +157,13 @@
       "decision_change_count": 8,
       "decision_change_rate": 0.347826,
       "plan_change_count": 23,
-      "beneficial_count": 1,
+      "beneficial_count": 0,
       "harmful_count": 1,
-      "neutral_count": 21,
-      "beneficial_rate": 0.043478,
+      "neutral_count": 22,
+      "beneficial_rate": 0.0,
       "harmful_rate": 0.043478,
-      "marginal_value_percent_sum": 1.0059,
-      "mean_marginal_value_percent": 0.043735,
+      "marginal_value_percent_sum": -0.3595,
+      "mean_marginal_value_percent": -0.01563,
       "median_marginal_value_percent": 0.0,
       "evidence_status": "EARLY_SIGNAL"
     }
@@ -8516,14 +8516,14 @@
         {
           "component": "volume_liquidity",
           "status": "RESOLVED",
-          "classification": "HARMFUL_COMPONENT",
+          "classification": "NEUTRAL_COMPONENT",
           "full_selected_symbol": "ALE.WA",
           "without_selected_symbol": "OPL.WA",
           "decision_changed": true,
           "plan_changed": true,
           "full_t2_net_return_percent": 0.0,
-          "without_component_t2_net_return_percent": 2.6017,
-          "marginal_value_percent": -2.6017,
+          "without_component_t2_net_return_percent": 0.0,
+          "marginal_value_percent": 0.0,
           "full_plan": {
             "action": "LONG",
             "symbol": "ALE.WA",
@@ -8570,17 +8570,10 @@
                 "status": "RESOLVED",
                 "horizon_sessions": 2,
                 "session": "2026-10-13",
-                "activated": true,
-                "activated_at": "2026-10-13T09:10:00+02:00",
-                "activation_evidence": "first_post_decision_5m_touch_from_below",
-                "entry_price": 15.26,
-                "exit_price": 15.715,
-                "exit_reason": "horizon_close",
-                "exit_at": null,
-                "gross_return_percent": 2.9817,
-                "net_return_percent": 2.6017,
-                "r_multiple": 1.1098,
-                "cost_assumption_percent": 0.38
+                "activated": false,
+                "net_return_percent": 0.0,
+                "gross_return_percent": 0.0,
+                "exit_reason": "not_activated_by_horizon"
               }
             ]
           }
@@ -8756,14 +8749,14 @@
         {
           "component": "expected_value",
           "status": "RESOLVED",
-          "classification": "BENEFICIAL_COMPONENT",
+          "classification": "NEUTRAL_COMPONENT",
           "full_selected_symbol": "ALE.WA",
           "without_selected_symbol": "KGH.WA",
           "decision_changed": true,
           "plan_changed": true,
           "full_t2_net_return_percent": 0.0,
-          "without_component_t2_net_return_percent": -1.3654,
-          "marginal_value_percent": 1.3654,
+          "without_component_t2_net_return_percent": 0.0,
+          "marginal_value_percent": 0.0,
           "full_plan": {
             "action": "LONG",
             "symbol": "ALE.WA",
@@ -8810,17 +8803,10 @@
                 "status": "RESOLVED",
                 "horizon_sessions": 2,
                 "session": "2026-10-13",
-                "activated": true,
-                "activated_at": "2026-10-13T09:00:00+02:00",
-                "activation_evidence": "first_post_decision_5m_touch_from_above",
-                "entry_price": 348.08,
-                "exit_price": 344.65,
-                "exit_reason": "horizon_close",
-                "exit_at": null,
-                "gross_return_percent": -0.9854,
-                "net_return_percent": -1.3654,
-                "r_multiple": -0.2863,
-                "cost_assumption_percent": 0.38
+                "activated": false,
+                "net_return_percent": 0.0,
+                "gross_return_percent": 0.0,
+                "exit_reason": "not_activated_by_horizon"
               }
             ]
           }
@@ -9675,6 +9661,12 @@
       "status": "PENDING_OR_DATA_GAP",
       "reason": "t_plus_2_not_complete",
       "variants": []
+    },
+    {
+      "snapshot_id": "gpw-loco-94d082f5c0e0c91abe0f",
+      "decision_date": "2026-10-20",
+      "status": "PENDING_OUTCOME_RECORD",
+      "variants": []
     }
   ],
   "governance": {
@@ -9688,5 +9680,5 @@
     "automatic_component_removal": false,
     "historical_backfill": false
   },
-  "artifact_sha256": "b1d40edbaa713ed73683c94dbb0e4f0cc8bb2fcbd1d65873c4954a8748efdffa"
+  "artifact_sha256": "345dd31a00081133864b0d617179ac20aaa416102eb66c80ac837e36a2d3b002"
 }
