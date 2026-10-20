@@ -6,6 +6,7 @@ on:
       - '.github/workflows/news-publication-sla-watchdog.yml'
       - '.github/workflows/publish-news.yml'
       - 'tests/test_news_publication_reliability.py'
+      - 'scripts/news_publication_incident.py'
   schedule:
     - cron: "43 * * * *"
 permissions:
@@ -20,7 +21,7 @@ jobs:
       - name: Install regression dependencies
         run: python -m pip install feedparser requests argostranslate langdetect
       - name: Test watchdog failure paths and publisher concurrency
-        run: python -m unittest -v tests.test_news_publication_reliability
+        run: python -m unittest -v tests.test_news_publication_reliability tests.test_news_publication_incident
   check:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
