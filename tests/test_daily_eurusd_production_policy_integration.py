@@ -97,7 +97,7 @@ class ProductionPolicyRuntimeIntegrationTests(unittest.TestCase):
                     self.assertFalse(guard["change"]["material_change"])
                     self.assertEqual(history, frozen_history)
 
-    def test_material_improvement_can_reenter_immediately_after_native_loss(self):
+    def test_material_improvement_alone_cannot_bypass_post_loss_market_safety(self):
         for direction in ("LONG", "SHORT"):
             for improvement in ("score", "confidence"):
                 with self.subTest(direction=direction, improvement=improvement):
@@ -111,11 +111,24 @@ class ProductionPolicyRuntimeIntegrationTests(unittest.TestCase):
                     candidate = self.candidate(closed_at + timedelta(seconds=62),
                         score=score, direction=direction, confidence=confidence)
                     result = self.admission_after_loss(candidate, {"trades": [legacy, trade]})
-                    self.assertTrue(result["allowed"])
+                    self.assertFalse(result["allowed"])
+                    self.assertFalse(result["post_loss_technical_guard"]["allowed"])
                     guard = result["same_thesis_reentry_guard"]
                     self.assertEqual(guard["prior_trade_id"], trade["trade_id"])
                     self.assertTrue(guard["change"]["material_change"])
                     self.assertFalse(guard["generic_loss_cooldown"])
+
+    def test_strong_signal_alone_cannot_reenter_without_daily_correction_and_support(self):
+        for direction in ("LONG", "SHORT"):
+            with self.subTest(direction=direction):
+                trade, legacy, closed_at = self.closed_native_loss(direction)
+                candidate = self.candidate(
+                    closed_at + timedelta(seconds=62),
+                    score=62.0 if direction == "LONG" else 38.0,
+                    direction=direction, confidence=.55,
+                )
+                result = self.admission_after_loss(candidate, {"trades": [legacy, trade]})
+                self.assertFalse(result["allowed"])
 
     def test_unchanged_signal_cannot_reach_epe_after_native_loss(self):
         trade, legacy, closed_at = self.closed_native_loss()
@@ -135,7 +148,9 @@ class ProductionPolicyRuntimeIntegrationTests(unittest.TestCase):
             with self.subTest(score=score):
                 candidate = self.candidate(closed_at + timedelta(seconds=62), score=score, confidence=.364)
                 result = self.admission_after_loss(candidate, {"trades": [legacy]})
-                self.assertEqual(result["allowed"], allowed)
+                self.assertFalse(result["allowed"])
+                self.assertEqual(not result["same_thesis_reentry_guard"]["blocked"], allowed)
+                self.assertFalse(result["post_loss_technical_guard"]["allowed"])
 
     def promoted(self):
         helper = fixtures.ProductionAdmissionPolicyTests()
@@ -205,6 +220,24 @@ class ProductionPolicyRuntimeIntegrationTests(unittest.TestCase):
         outcome = settled["cases"][case["case_id"]]["outcome"]
         self.assertEqual(outcome["source"], "PROSPECTIVE_COUNTERFACTUAL")
         self.assertFalse(outcome["live_executed"])
+
+
+
+    def test_native_admission_freezes_reflection_and_cannot_use_it_to_bypass_technical_guard(self):
+        trade, legacy, closed_at = self.closed_native_loss()
+        at = closed_at + timedelta(seconds=62)
+        state = policy.default_state(closed_at)
+        state = policy.reflect_on_history(state, {"trades": [legacy, trade]}, at,
+                                         runtime_code_sha256="a" * 64)
+        candidate = self.candidate(at, score=trade["entry_score"], confidence=.3936)
+        with patch.object(runtime, "_cycle_context", {"policy_state": state, "decision_at": at}):
+            result = self.admission_after_loss(candidate, {"trades": [legacy, trade]})
+        learned = result["agent_reflection"]
+        self.assertTrue(learned["available"])
+        self.assertEqual(learned["recent_similar_loss_ids"], [trade["trade_id"]])
+        self.assertFalse(result["allowed"])
+        self.assertFalse(result["post_loss_technical_guard"]["allowed"])
+        self.assertFalse(learned["may_override_direction_risk_or_safety"])
 
 
 if __name__ == "__main__":

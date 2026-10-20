@@ -20,6 +20,11 @@ from statistics import fmean
 from typing import Any, Callable, Mapping
 
 try:
+    import daily_eurusd_reflection as reflection
+except ImportError:
+    from scripts import daily_eurusd_reflection as reflection
+
+try:
     from briefrooms_evolution_contracts import (
         EvolutionCandidate, ProductionVersion, PromotionGate, RollbackEvent,
         sha256, stable_id,
@@ -50,11 +55,13 @@ MIN_SLICE_N = 5
 MAX_SLICE_DEGRADATION_R = 0.05
 MAX_DRAWDOWN_DEGRADATION_R = 0.0
 MODEL_UNCERTAINTY_PENALTY_R = 0.02
-# At most 3 attempts at each of 3 bounded transitions; fixed final tests only.
+# At most 3 attempts for each target floor (4/5/6) in one code/evaluator cohort.
+# Parallel selection uses the same family-wise correction; fixed final tests only.
 CONFIDENCE = 1.0 - 0.05 / (3 * MAX_ATTEMPTS)
 BOOTSTRAP_SAMPLES = 4999
 EVALUATOR_SHA256 = sha256({
     "policy_module": Path(__file__).read_bytes().hex(),
+    "reflection_module": Path(reflection.__file__).read_bytes().hex(),
     "statistical_gate": Path(deterministic_bootstrap_mean_ci.__code__.co_filename).read_bytes().hex(),
 })
 AUTHORITY = {
@@ -169,12 +176,16 @@ def policy_context(
     observed_at: str | datetime | None = None,
 ) -> dict[str, Any]:
     version = _effective_version(state, observed_at)
-    candidate = next((x for x in state["candidates"].values() if x["status"] == "OOS_RUNNING" and x["baseline_version"] == version["version_id"]), None)
+    candidates = sorted((x for x in state["candidates"].values()
+                         if x["status"] == "OOS_RUNNING" and x["baseline_version"] == version["version_id"]),
+                        key=lambda x: (x["proposed_change"]["minimum_score_distance"], x["candidate_id"]))
+    candidate = candidates[0] if candidates else None
     return {
         "version_id": version["version_id"], "policy_sha256": version["payload_sha256"],
         "minimum_score_distance": version["policy"]["minimum_score_distance"],
         "allowed": _allows(version["policy"], _number(score, "score"), str(direction).upper()),
         "candidate_id": candidate["candidate_id"] if candidate else None,
+        "candidate_ids": [item["candidate_id"] for item in candidates],
         "direction_mutation_allowed": False, "risk_mutation_allowed": False,
         "activation_boundary": version["activated_at"],
     }
@@ -187,44 +198,90 @@ def _candidate_fingerprint(candidate: Mapping[str, Any]) -> dict[str, Any]:
     )}
 
 
-def _ensure_candidate(state: dict[str, Any], at: str) -> None:
+def _ensure_candidate(state: dict[str, Any], at: str, runtime_code_sha256: str | None = None) -> None:
+    """Aggressive research, fixed risk: test every stricter bounded floor.
+
+    Three target floors times three attempts bounds the complete statistical
+    family at nine. Changing the parent policy does not restart that budget.
+    Discovery ranks research only; it never replaces the prospective gate.
+    """
     active = state["versions"][state["active_version_id"]]
     floor = float(active["policy"]["minimum_score_distance"])
     if floor >= MAXIMUM_FLOOR:
         return
-    prior = [x for x in state["candidates"].values() if x["baseline_version"] == active["version_id"]]
-    completed_trials = [x for x in prior if x["status"] in {"REJECTED", "ROLLED_BACK", "PROMOTED"}]
-    if any(x["status"] in {"OOS_RUNNING", "PROMOTED"} for x in prior) or len(completed_trials) >= MAX_ATTEMPTS:
-        return
-    if completed_trials and _time(at) < max(_time(x["terminal_at"]) for x in completed_trials) + timedelta(days=COOLDOWN_DAYS):
-        return
-    proposed = _policy(floor + 1.0)
-    spec = {
-        "engine_version": ENGINE_VERSION, "primary_sample": PRIMARY_N,
-        "minimum_days": PRIMARY_DAYS, "purge_hours": PURGE_HOURS,
-        "minimum_delta_r": MIN_DELTA_R, "confidence": CONFIDENCE,
-        "bootstrap_samples": BOOTSTRAP_SAMPLES, "minimum_slice_n": MIN_SLICE_N,
-        "max_slice_degradation_r": MAX_SLICE_DEGRADATION_R,
-        "max_drawdown_degradation_r": MAX_DRAWDOWN_DEGRADATION_R,
-        "model_uncertainty_penalty_r": MODEL_UNCERTAINTY_PENALTY_R,
-        "attempt": len(completed_trials) + 1, "fixed_final_test": True,
-        "primary_source": "CANONICAL_ACTUAL_ONLY", "evaluator_sha256": EVALUATOR_SHA256,
-    }
-    identity = {"baseline": active["version_id"], "policy": proposed, "at": at, "spec": spec}
-    cid = stable_id("eurusd-admission", identity)
-    result = EvolutionCandidate(
-        candidate_id=cid, candidate_type="bounded_production_admission_margin",
-        source_module="TR-03", target_module="TR-03", component_id=COMPONENT_ID,
-        created_at=at, activation_boundary=at, status="OOS_RUNNING",
-        evaluator_profile="eurusd_actual_paired_fixed_blocks_v1", promotion_route=PROMOTION_ROUTE,
-        baseline_version=active["version_id"], challenger_version=sha256(proposed),
-        proposed_change=proposed, source_ref="tr03://canonical_manifest_bound_admissions",
-        source_sha256=sha256(identity), automatic_promotion_allowed=True,
-        metadata=spec,
-    ).to_dict()
-    result.update(evaluation_case_ids=[], gate=None, terminal_at=None, runtime_binding=None)
-    result["frozen_sha256"] = sha256(_candidate_fingerprint(result))
-    state["candidates"][cid] = result
+    epoch = runtime_code_sha256 or state.get("research_runtime_code_sha256")
+    memory = state.get("recursive_improvement") or {}
+    for target in (4.0, 5.0, 6.0):
+        if target <= floor:
+            continue
+        def same_cohort(candidate: Mapping[str, Any]) -> bool:
+            binding = candidate.get("runtime_binding") or {}
+            declared = candidate["metadata"].get("research_runtime_code_sha256")
+            code = binding.get("runtime_code_sha256") or declared
+            return (candidate["metadata"]["evaluator_sha256"] == EVALUATOR_SHA256
+                    and (epoch is None or code is None or code == epoch))
+        trials = [row for row in state["candidates"].values()
+                  if float(row["proposed_change"]["minimum_score_distance"]) == target and same_cohort(row)]
+        if any(row["status"] == "OOS_RUNNING" for row in trials):
+            continue
+        completed = [row for row in trials if row["status"] in {"REJECTED", "ROLLED_BACK", "PROMOTED", "PARKED"}]
+        if len(completed) >= MAX_ATTEMPTS:
+            continue
+        if completed and _time(at) < max(_time(row["terminal_at"]) for row in completed) + timedelta(days=COOLDOWN_DAYS):
+            continue
+        proposed = _policy(target)
+        hypothesis = next((row for row in memory.get("hypotheses") or []
+                           if row["minimum_score_distance"] == target), None)
+        spec = {
+            "engine_version": ENGINE_VERSION, "primary_sample": PRIMARY_N,
+            "minimum_days": PRIMARY_DAYS, "purge_hours": PURGE_HOURS,
+            "minimum_delta_r": MIN_DELTA_R, "confidence": CONFIDENCE,
+            "bootstrap_samples": BOOTSTRAP_SAMPLES, "minimum_slice_n": MIN_SLICE_N,
+            "max_slice_degradation_r": MAX_SLICE_DEGRADATION_R,
+            "max_drawdown_degradation_r": MAX_DRAWDOWN_DEGRADATION_R,
+            "model_uncertainty_penalty_r": MODEL_UNCERTAINTY_PENALTY_R,
+            "attempt": len(completed) + 1, "fixed_final_test": True,
+            "primary_source": "CANONICAL_ACTUAL_ONLY", "evaluator_sha256": EVALUATOR_SHA256,
+            "research_mode": "PARALLEL_BOUNDED_RECURSIVE", "family_maximum_tests": 9,
+            "research_runtime_code_sha256": epoch,
+            "reflection_iteration_sha256": (memory.get("iterations") or [{}])[-1].get("iteration_sha256"),
+            "hypothesis_id": hypothesis["hypothesis_id"] if hypothesis else None,
+            "lesson_ids": [row["lesson_id"] for row in memory.get("lessons") or [] if row["losses"]],
+            "selection_rule": "PASS_ONLY_MAX_LOWER_CI_THEN_MEAN_THEN_LEAST_RESTRICTIVE",
+        }
+        identity = {"baseline": active["version_id"], "policy": proposed, "at": at, "spec": spec}
+        cid = stable_id("eurusd-admission", identity)
+        result = EvolutionCandidate(
+            candidate_id=cid, candidate_type="bounded_production_admission_margin",
+            source_module="TR-03", target_module="TR-03", component_id=COMPONENT_ID,
+            created_at=at, activation_boundary=at, status="OOS_RUNNING",
+            evaluator_profile="eurusd_actual_paired_fixed_blocks_v1", promotion_route=PROMOTION_ROUTE,
+            baseline_version=active["version_id"], challenger_version=sha256(proposed),
+            proposed_change=proposed, source_ref="tr03://canonical_manifest_bound_admissions",
+            source_sha256=sha256(identity), automatic_promotion_allowed=True,
+            metadata=spec,
+        ).to_dict()
+        result.update(evaluation_case_ids=[], gate=None, terminal_at=None, runtime_binding=None)
+        result["frozen_sha256"] = sha256(_candidate_fingerprint(result))
+        state["candidates"][cid] = result
+
+
+def reflect_on_history(
+    state: Mapping[str, Any], history: Mapping[str, Any], now: str | datetime, *,
+    runtime_code_sha256: str,
+) -> dict[str, Any]:
+    result, at = copy.deepcopy(state), _now(now)
+    result["recursive_improvement"] = reflection.sync(
+        result.get("recursive_improvement"), history, result,
+        now=at, runtime_code_sha256=runtime_code_sha256,
+    )
+    result["updated_at"] = at
+    validate_transition(state, result)
+    return result
+
+
+def reflection_context(state: Mapping[str, Any], final: Mapping[str, Any], *, observed_at: str | datetime) -> dict[str, Any]:
+    return reflection.review(state.get("recursive_improvement"), final, observed_at=_now(observed_at))
 
 
 def _manifest_ref(manifest: Mapping[str, Any]) -> dict[str, Any]:
@@ -278,16 +335,21 @@ def freeze_case(
     parent = active.get("parent_version_id")
     if parent:
         votes[parent] = _allows(result["versions"][parent]["policy"], score, position["direction"])
-    candidate = result["candidates"].get(context["candidate_id"])
+    candidates = [result["candidates"][cid] for cid in context["candidate_ids"]]
     final = decision_manifest.get("final_decision") or {}
     _require(final.get("direction") == position["direction"] and abs(_number(final.get("score"), "final score") - score) < 1e-8, "case differs from final Belief direction/score")
     runtime_hash = decision_manifest["runtime_code_sha256"]
-    if candidate and candidate.get("runtime_binding") and candidate["runtime_binding"]["runtime_code_sha256"] != runtime_hash:
-        candidate["status"], candidate["terminal_at"] = "PARKED", at
-        candidate["terminal_reason"] = "runtime_code_semantics_changed"
-        candidate = None
-    if candidate and _time(ref["decision_at"]) > _time(candidate["activation_boundary"]):
-        votes[candidate["candidate_id"]] = _allows(candidate["proposed_change"], score, position["direction"])
+    eligible_candidates = []
+    for candidate in candidates:
+        declared = candidate["metadata"].get("research_runtime_code_sha256")
+        bound = (candidate.get("runtime_binding") or {}).get("runtime_code_sha256")
+        if (bound and bound != runtime_hash) or (declared and declared != runtime_hash):
+            candidate["status"], candidate["terminal_at"] = "PARKED", at
+            candidate["terminal_reason"] = "runtime_code_semantics_changed"
+            continue
+        if _time(ref["decision_at"]) > _time(candidate["activation_boundary"]):
+            votes[candidate["candidate_id"]] = _allows(candidate["proposed_change"], score, position["direction"])
+            eligible_candidates.append(candidate)
     cid = stable_id("eurusd-case", {"manifest": ref, "trade_id": position["trade_id"]})
     if cid in result["cases"]:
         prior = result["cases"][cid]["frozen"]
@@ -307,10 +369,11 @@ def freeze_case(
             "coverage_failures": [], "last_coverage_at": at, "coverage_reason": None}
     result["cases"][cid] = case
     result["active_case_id"] = cid
-    if candidate and context["allowed"] and candidate["candidate_id"] in votes and _select_purged(result, candidate["evaluation_case_ids"], case, PRIMARY_N):
-        if candidate["runtime_binding"] is None:
-            candidate["runtime_binding"] = {"runtime_code_sha256": runtime_hash, "case_id": cid, "bound_at": at}
-        candidate["evaluation_case_ids"].append(cid)
+    for candidate in eligible_candidates:
+        if context["allowed"] and _select_purged(result, candidate["evaluation_case_ids"], case, PRIMARY_N):
+            if candidate["runtime_binding"] is None:
+                candidate["runtime_binding"] = {"runtime_code_sha256": runtime_hash, "case_id": cid, "bound_at": at}
+            candidate["evaluation_case_ids"].append(cid)
     monitor_eligible = [cid for cid in active["monitor_case_ids"] if result["cases"][cid]["status"] != "CENSORED"]
     if parent and _time(ref["decision_at"]) > _time(active["activated_at"]) and _select_purged(result, monitor_eligible, case, MONITOR_N * (len(active["monitor_reviews"]) + 1)):
         active["monitor_case_ids"].append(cid)
@@ -376,6 +439,8 @@ def validate_history_bindings(state: Mapping[str, Any], history: Mapping[str, An
         trade = trades.get(str(case["frozen"]["position"]["trade_id"]))
         _require(trade is not None, "canonical policy outcome is absent from actual history")
         _require(_outcome(case, trade, "CANONICAL_ACTUAL", outcome["bound_at"]) == outcome, "canonical policy outcome differs from actual history")
+    if state.get("recursive_improvement") is not None:
+        reflection.validate_history(state["recursive_improvement"], history)
 
 
 def settle_cases(
@@ -553,6 +618,7 @@ def advance_governance(
     validate_state(result)
     if runtime_code_sha256 is not None:
         _require(len(runtime_code_sha256) == 64, "runtime code fingerprint required")
+        result["research_runtime_code_sha256"] = runtime_code_sha256
         current = result["versions"][result["active_version_id"]]
         # A returned parent may itself belong to the obsolete code epoch.
         # Walk back to an evaluated compatible version or the baseline BEFORE
@@ -562,7 +628,9 @@ def advance_governance(
             current = result["versions"][result["active_version_id"]]
         for candidate in result["candidates"].values():
             binding = candidate.get("runtime_binding")
-            if candidate["status"] == "OOS_RUNNING" and binding and binding["runtime_code_sha256"] != runtime_code_sha256:
+            declared = candidate["metadata"].get("research_runtime_code_sha256")
+            if candidate["status"] == "OOS_RUNNING" and ((binding and binding["runtime_code_sha256"] != runtime_code_sha256)
+                    or (declared and declared != runtime_code_sha256)):
                 candidate["status"], candidate["terminal_at"] = "PARKED", at
                 candidate["terminal_reason"] = "runtime_code_semantics_changed"
         active_case = result["cases"].get(result.get("active_case_id"))
@@ -606,6 +674,7 @@ def advance_governance(
                 _rollback(result, at, "SEGMENT_SAFETY_FAILURE", {"checks": checks})
             elif metrics["independent_days"] >= MONITOR_DAYS and metrics["challenger_max_drawdown_r"] > metrics["champion_max_drawdown_r"] + MAX_DRAWDOWN_DEGRADATION_R + 1e-9:
                 _rollback(result, at, "SEGMENT_SAFETY_FAILURE", {"reason": "drawdown_degradation", **metrics})
+    passing = []
     for candidate in result["candidates"].values():
         if candidate["status"] != "OOS_RUNNING" or candidate["baseline_version"] != result["active_version_id"]:
             continue
@@ -620,18 +689,33 @@ def advance_governance(
             gate["gate_id"] = stable_id("eurusd-gate", {"candidate": candidate["frozen_sha256"], "metrics": gate["metrics"], "blockers": gate["blockers"]})
         candidate["gate"] = gate
         if gate["status"] == "PASS" and not gap:
-            _require(candidate["challenger_version"] == sha256(candidate["proposed_change"]), "candidate exact policy hash mismatch")
-            parent_id = result["active_version_id"]
-            version = _version(candidate["proposed_change"], at, candidate["candidate_id"], parent_id)
-            version["runtime_code_sha256"] = candidate["runtime_binding"]["runtime_code_sha256"]
-            result["versions"][parent_id]["status"] = "SUPERSEDED"
-            result["versions"][version["version_id"]] = version
-            result["active_version_id"] = version["version_id"]
-            candidate["status"], candidate["terminal_at"] = "PROMOTED", at
-            result["events"].append({"event": "PROMOTION", "at": at, "candidate_id": candidate["candidate_id"], "gate_id": gate["gate_id"], "policy_sha256": version["payload_sha256"], "version_id": version["version_id"]})
+            passing.append(candidate)
         elif gate["status"] == "FAIL":
             candidate["status"], candidate["terminal_at"] = "REJECTED", at
-    _ensure_candidate(result, at)
+    if passing:
+        # Every contender retains its complete, multiplicity-adjusted gate.
+        # A descriptive discovery result can never pick a failing challenger.
+        winner = max(passing, key=lambda row: (
+            row["gate"]["metrics"]["block_ci_low_r"],
+            row["gate"]["metrics"]["stressed_mean_delta_r"],
+            -float(row["proposed_change"]["minimum_score_distance"]),
+        ))
+        _require(winner["challenger_version"] == sha256(winner["proposed_change"]), "candidate exact policy hash mismatch")
+        parent_id = result["active_version_id"]
+        version = _version(winner["proposed_change"], at, winner["candidate_id"], parent_id)
+        version["runtime_code_sha256"] = winner["runtime_binding"]["runtime_code_sha256"]
+        result["versions"][parent_id]["status"] = "SUPERSEDED"
+        result["versions"][version["version_id"]] = version
+        result["active_version_id"] = version["version_id"]
+        winner["status"], winner["terminal_at"] = "PROMOTED", at
+        result["events"].append({"event": "PROMOTION", "at": at, "candidate_id": winner["candidate_id"],
+                                 "gate_id": winner["gate"]["gate_id"], "policy_sha256": version["payload_sha256"],
+                                 "version_id": version["version_id"]})
+        for sibling in result["candidates"].values():
+            if sibling["status"] == "OOS_RUNNING" and sibling["baseline_version"] == parent_id:
+                sibling["status"], sibling["terminal_at"] = "REJECTED", at
+                sibling["terminal_reason"] = "parent_replaced_by_independently_passing_sibling"
+    _ensure_candidate(result, at, runtime_code_sha256)
     result["updated_at"] = at
     validate_transition(state, result)
     return result
@@ -708,6 +792,14 @@ def _validate_governance_timeline(state: Mapping[str, Any]) -> None:
             _require(event["policy_sha256"] == version["payload_sha256"] == candidate["challenger_version"], "promotion policy differs from exact evaluated hash")
             _require(version["runtime_code_sha256"] == candidate["runtime_binding"]["runtime_code_sha256"], "promotion runtime differs from evaluated cohort")
             _require(all(_time(state["cases"][case_id]["outcome"]["bound_at"]) <= at for case_id in candidate["evaluation_case_ids"]), "promotion predates outcome knowledge")
+            if candidate["metadata"].get("research_mode") == "PARALLEL_BOUNDED_RECURSIVE":
+                contenders = [row for row in state["candidates"].values()
+                              if row["baseline_version"] == head and (row.get("gate") or {}).get("status") == "PASS"
+                              and _time(row["gate"]["evaluated_at"]) == at]
+                selected = max(contenders, key=lambda row: (
+                    row["gate"]["metrics"]["block_ci_low_r"], row["gate"]["metrics"]["stressed_mean_delta_r"],
+                    -float(row["proposed_change"]["minimum_score_distance"])))
+                _require(selected["candidate_id"] == cid, "promotion differs from frozen parallel selection rule")
             expected_status[head], expected_status[vid] = "SUPERSEDED", "ACTIVE"
             seen_versions.add(vid)
             seen_candidates.add(cid)
@@ -739,6 +831,8 @@ def validate_state(state: Mapping[str, Any]) -> None:
     _require(state.get("authority") == AUTHORITY, "production policy authority mismatch")
     _require(state.get("mode") == "PROSPECTIVE_POLICY_EVIDENCE" and state.get("execution_authority") is False, "policy evidence cannot publish execution")
     _time(state["activated_at"])
+    if state.get("recursive_improvement") is not None:
+        reflection.validate(state["recursive_improvement"])
     _require(state["active_version_id"] in state["versions"], "active production version missing")
     _require([v["version_id"] for v in state["versions"].values() if v["status"] == "ACTIVE"] == [state["active_version_id"]], "multiple active policy versions")
     for version in state["versions"].values():
@@ -748,7 +842,7 @@ def validate_state(state: Mapping[str, Any]) -> None:
         parent = version.get("parent_version_id")
         if parent:
             _require(parent in state["versions"], "unknown parent version")
-            _require(float(version["policy"]["minimum_score_distance"]) == float(state["versions"][parent]["policy"]["minimum_score_distance"]) + 1.0, "policy change outside bounded step")
+            _require(float(state["versions"][parent]["policy"]["minimum_score_distance"]) < float(version["policy"]["minimum_score_distance"]) <= MAXIMUM_FLOOR, "policy change outside bounded family")
             candidate = state["candidates"].get(version["candidate_id"])
             _require(candidate is not None and candidate.get("gate") is not None and candidate["gate"]["status"] == "PASS", "production version lacks passing candidate")
             _require(candidate["baseline_version"] == parent and candidate["challenger_version"] == version["payload_sha256"], "production materialization differs from evaluated candidate")
@@ -795,7 +889,8 @@ def validate_state(state: Mapping[str, Any]) -> None:
         _require(sha256(candidate["proposed_change"]) == candidate["challenger_version"], "candidate policy hash drift")
         _require(candidate["source_module"] == "TR-03" and candidate["target_module"] == "TR-03" and candidate["promotion_route"] == PROMOTION_ROUTE and candidate["trade_execution_authority"] is False, "candidate authority drift")
         parent = state["versions"][candidate["baseline_version"]]
-        _require(float(candidate["proposed_change"]["minimum_score_distance"]) == float(parent["policy"]["minimum_score_distance"]) + 1, "candidate outside bounded step")
+        _require(float(parent["policy"]["minimum_score_distance"]) < float(candidate["proposed_change"]["minimum_score_distance"]) <= MAXIMUM_FLOOR, "candidate outside bounded family")
+        _require(candidate["proposed_change"] == _policy(float(candidate["proposed_change"]["minimum_score_distance"])), "candidate policy contract drift")
         selected = candidate["evaluation_case_ids"]
         _require(len(selected) == len(set(selected)) and len(selected) <= PRIMARY_N, "invalid fixed evaluation sample")
         previous = None
@@ -814,6 +909,26 @@ def validate_state(state: Mapping[str, Any]) -> None:
             _require(recomputed == gate, "promotion evidence no longer reconciles")
         if candidate["status"] == "PROMOTED":
             _require(gate is not None and gate["status"] == "PASS", "promotion without independent passing gate")
+    # Each target has one family-wide three-attempt budget per exact code/evaluator
+    # cohort, regardless of parent policy changes. Parked old-code trials cannot
+    # contribute to a new cohort or justify promotion.
+    families: dict[tuple[str, str, float], list[Mapping[str, Any]]] = defaultdict(list)
+    for candidate in state["candidates"].values():
+        if candidate["metadata"].get("research_mode") != "PARALLEL_BOUNDED_RECURSIVE":
+            continue
+        metadata = candidate["metadata"]
+        declared = metadata.get("research_runtime_code_sha256")
+        bound = (candidate.get("runtime_binding") or {}).get("runtime_code_sha256")
+        _require(not declared or not bound or declared == bound, "research cohort differs from frozen binding")
+        _require(metadata["family_maximum_tests"] == 9 and metadata["confidence"] == CONFIDENCE,
+                 "parallel research multiplicity contract drift")
+        families[(bound or declared or "UNBOUND", metadata["evaluator_sha256"],
+                  float(candidate["proposed_change"]["minimum_score_distance"]))].append(candidate)
+    for trials in families.values():
+        _require(len(trials) <= MAX_ATTEMPTS, "parallel research target-attempt budget exceeded")
+        attempts = [row["metadata"]["attempt"] for row in trials]
+        _require(len(attempts) == len(set(attempts)) and all(1 <= value <= MAX_ATTEMPTS for value in attempts),
+                 "parallel research attempt reset or reuse")
     _validate_governance_timeline(state)
     _require(_effective_version(state, state["updated_at"])["version_id"] == state["active_version_id"], "active policy differs from governed event timeline")
     for version in state["versions"].values():
@@ -823,6 +938,7 @@ def validate_state(state: Mapping[str, Any]) -> None:
 def validate_transition(before: Mapping[str, Any], after: Mapping[str, Any]) -> None:
     validate_state(after)
     _require(_time(after["updated_at"]) >= _time(before["updated_at"]), "policy state time regression")
+    reflection.validate_transition(before.get("recursive_improvement"), after.get("recursive_improvement"))
     for cid, old in before.get("cases", {}).items():
         _require(cid in after["cases"] and old["frozen"] == after["cases"][cid]["frozen"], "case history rewrite")
         if old["outcome"] is not None:
