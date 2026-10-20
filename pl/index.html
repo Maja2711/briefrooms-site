@@ -135,22 +135,7 @@
 <script src="/scripts/homepage-photo-only.js?v=ai-outlook-direction-2" defer></script>
 <script src="/scripts/home-lab-v5.js" defer></script>
 <script src="/scripts/home-lab.js?v=1" defer></script>
-<script src="/scripts/home-intelligence-layout.js?v=1" defer></script>
-<script>
-/* Hide the retired homepage subtitle without changing any other content. */
-(function () {
-  const phrase = 'BriefRooms filtruje informacyjny szum, analizuje konsekwencje i mierzy wynik własnych modeli';
-  function removeSubtitle() {
-    document.querySelectorAll('p, div, span').forEach(function (element) {
-      if (element.children.length) return;
-      const normalized = (element.textContent || '').replace(/\\s+/g, ' ').trim();
-      if (normalized.includes(phrase)) element.remove();
-    });
-  }
-  document.addEventListener('DOMContentLoaded', removeSubtitle);
-  new MutationObserver(removeSubtitle).observe(document.documentElement, {childList: true, subtree: true});
-})();
-</script>
+<script src="/scripts/home-intelligence-layout.js?v=2" defer></script>
 <script src="/scripts/news-live.js?v=10&rev=remove-subtitle" defer></script>
 <script src="/scripts/home-card-floor.js?v=5" defer></script>
 <script src="/scripts/urgent-news-live.js?v=1" defer></script>
