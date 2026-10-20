@@ -773,6 +773,25 @@ function eventToPushLatencyMs(event, acceptedAtMs = Date.now()) {
     ? Math.max(0, acceptedAtMs - eventMs) : null;
 }
 
+// Provider acceptance is not device delivery. Report the unacknowledged
+// backlog without resending provider-accepted events (duplicates are unsafe).
+function pushAckLagMetrics(deliveries, nowMs = Date.now()) {
+  let over2m = 0;
+  let over10m = 0;
+  let oldestMs = 0;
+  for (const row of deliveries) {
+    if (String(row?.status || "") !== "SENT_TO_PUSH") continue;
+    const acceptedMs = Date.parse(String(row.sent_to_push_at || ""));
+    if (!Number.isFinite(acceptedMs)) continue;
+    const ageMs = Math.max(0, nowMs - acceptedMs);
+    oldestMs = Math.max(oldestMs, ageMs);
+    if (ageMs >= 120000) over2m += 1;
+    if (ageMs >= 600000) over10m += 1;
+  }
+  return { unacked_over_2m: over2m, unacked_over_10m: over10m,
+    oldest_unacked_ms: oldestMs };
+}
+
 function notificationPayload(event, lang, publicBaseUrl = "", delivery = null) {
   const engine = event.engine === "daily" ? "Daily Trading" : event.engine === "weekly" ? "Weekly Trading" : "Stock Trading";
   const base = String(publicBaseUrl || "").replace(/\/$/, "");
@@ -783,7 +802,14 @@ function notificationPayload(event, lang, publicBaseUrl = "", delivery = null) {
     delivery_id: delivery?.delivery_id || null,
     ack_token: delivery?.ack_token || null,
     ack_url: delivery ? `${base}/ack` : null,
+    // Keep the trading event clock distinct from the Web Push send clock.
+    // Android must show when it rendered the notification, not mislabel sent_at
+    // as its display time.
     sent_at: new Date().toISOString(),
+    event_at: String(event.event_type || "").toUpperCase() === "CLOSE"
+      ? (event.closed_at || event.observed_at || null)
+      : (event.opened_at || event.observed_at || null),
+    language: String(lang || "pl").toLowerCase().startsWith("pl") ? "pl" : "en",
     url: notificationUrl(event, lang),
     data: {
       engine: event.engine,
@@ -1030,6 +1056,13 @@ export class PushHub {
     stats.last_dispatch_pending = pending;
     stats.last_dispatch_awaiting_ack = awaitingAck;
     stats.delivery_states = stateCounts;
+    stats.ack_sla = pushAckLagMetrics(allDeliveries.values());
+    const lastAlert = Date.parse(String(stats.last_ack_sla_alert_at || ""));
+    if (stats.ack_sla.unacked_over_2m > 0 &&
+        (!Number.isFinite(lastAlert) || Date.now() - lastAlert > 5 * 60_000)) {
+      stats.last_ack_sla_alert_at = new Date().toISOString();
+      console.warn("BR_PUSH_DEVICE_ACK_DELAYED", JSON.stringify(stats.ack_sla));
+    }
     stats.last_dispatch_at = new Date().toISOString();
     await this.ctx.storage.put("stats", stats);
 
@@ -1554,6 +1587,7 @@ export class PushHub {
         device_render_ack_retry: false,
         max_delivery_attempts: 1,
         last_dispatch_awaiting_ack: Number(stats.last_dispatch_awaiting_ack || 0),
+        ack_sla: stats.ack_sla || { unacked_over_2m: 0, unacked_over_10m: 0, oldest_unacked_ms: 0 },
         duplicate_suppressed: Number(stats.duplicate_suppressed || 0),
         delivery_unique_key: "(event_id,subscriber_id)",
         inbox: true,
@@ -1948,4 +1982,4 @@ export default {
   }
 };
 
-export { finiteNumber, yahooMinuteBars, dailyCommitSnapshot, weeklyCommitSnapshot, stockCommitSnapshot, transitionDescriptors, persistedOutboxEvents, diffPersistedOutboxEvents, notificationPayload, eventToPushLatencyMs, storedCommitSnapshot, persistableCommitSnapshot, comparableCommitSnapshot, sameCommitSnapshot, isoWeekId, DELIVERY_STATUS, deliveryId, deliveryStorageKey, immutableEventCore, sameImmutableEvent, newDeliveryRecord, transitionDelivery, retryDelayMs, deliveryReadyForRetry, isSyntheticRecoveryEvent };
+export { finiteNumber, yahooMinuteBars, dailyCommitSnapshot, weeklyCommitSnapshot, stockCommitSnapshot, transitionDescriptors, persistedOutboxEvents, diffPersistedOutboxEvents, notificationPayload, eventToPushLatencyMs, pushAckLagMetrics, storedCommitSnapshot, persistableCommitSnapshot, comparableCommitSnapshot, sameCommitSnapshot, isoWeekId, DELIVERY_STATUS, deliveryId, deliveryStorageKey, immutableEventCore, sameImmutableEvent, newDeliveryRecord, transitionDelivery, retryDelayMs, deliveryReadyForRetry, isSyntheticRecoveryEvent };
