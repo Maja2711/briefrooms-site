@@ -10,7 +10,7 @@ on:
     - cron: "43 * * * *"
 permissions:
   contents: read
-  issues: read
+  issues: write
 jobs:
   regression:
     if: github.event_name == 'pull_request'
@@ -29,6 +29,19 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: main
+      - name: Install watchdog dependencies
+        run: python -m pip install feedparser requests argostranslate langdetect
       - name: Verify production publication SLA
+        id: health
+        continue-on-error: true
         run: |
-          python scripts/validate_live_news_health.py --base-url https://briefrooms.com --max-age-minutes 90 --attempts 2 --interval 10 --strict
+          python scripts/validate_live_news_health.py --base-url https://briefrooms.com --max-age-minutes 90 --attempts 2 --interval 10 --output /tmp/news-publication-sla.json --strict
+      - name: Open or update publication incident
+        if: steps.health.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: python scripts/news_publication_incident.py --report /tmp/news-publication-sla.json
+      - name: Mark SLA breach as failed
+        if: steps.health.outcome == 'failure'
+        run: exit 1
