@@ -337,3 +337,7 @@ A NATIVE LONG/SHORT signal is necessary but not sufficient for a new fill.
 - Single-source and degraded-divergence fills are not considered verified.
 - Code pushes to `main` are validation-only for Daily EUR/USD. Production state reconciliation runs only from the scheduled market cycle or explicit manual dispatch.
 
+
+## TR-03 recursive improvement
+
+The local `LE-08` production admission component now owns evidence-backed reflection inside its existing policy state, pre-entry memory review and up to three parallel stricter challengers. `LE-11` contracts, fixed prospective gates, family-wide attempt bounds and monitoring/rollback remain authoritative. No generic controller or shadow learner receives trading authority. Details: `DAILY_EURUSD_RECURSIVE_IMPROVEMENT.md`.

@@ -222,5 +222,23 @@ class ProductionPolicyRuntimeIntegrationTests(unittest.TestCase):
         self.assertFalse(outcome["live_executed"])
 
 
+
+    def test_native_admission_freezes_reflection_and_cannot_use_it_to_bypass_technical_guard(self):
+        trade, legacy, closed_at = self.closed_native_loss()
+        at = closed_at + timedelta(seconds=62)
+        state = policy.default_state(closed_at)
+        state = policy.reflect_on_history(state, {"trades": [legacy, trade]}, at,
+                                         runtime_code_sha256="a" * 64)
+        candidate = self.candidate(at, score=trade["entry_score"], confidence=.3936)
+        with patch.object(runtime, "_cycle_context", {"policy_state": state, "decision_at": at}):
+            result = self.admission_after_loss(candidate, {"trades": [legacy, trade]})
+        learned = result["agent_reflection"]
+        self.assertTrue(learned["available"])
+        self.assertEqual(learned["recent_similar_loss_ids"], [trade["trade_id"]])
+        self.assertFalse(result["allowed"])
+        self.assertFalse(result["post_loss_technical_guard"]["allowed"])
+        self.assertFalse(learned["may_override_direction_risk_or_safety"])
+
+
 if __name__ == "__main__":
     unittest.main()

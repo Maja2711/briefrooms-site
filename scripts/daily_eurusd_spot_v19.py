@@ -152,6 +152,10 @@ def _execution_admission(
     )
     guard_meta = (guarded.metadata or {}).get("same_thesis_reentry_guard") or {}
     details["same_thesis_reentry_guard"] = dict(guard_meta)
+    details["agent_reflection"] = production_policy.reflection_context(
+        _policy_state(observed_at), (candidate.metadata or {}).get("final_decision") or {},
+        observed_at=observed_at,
+    )
     if candidate.direction in {"LONG", "SHORT"} and guarded.direction == "FLAT":
         reasons.append(str(guard_meta.get("reason") or "same_thesis_reentry_blocked"))
 
@@ -615,6 +619,9 @@ def run_cycle(output_path: Path, history_path: Path, client: Any | None = None) 
                 decision_record.validate_trade_binding(trade)
         policy = production_policy.bind_actual_history(policy, history, now)
         production_policy.validate_history_bindings(policy, history)
+        runtime_code_sha256 = decision_record.runtime_code_hash()
+        policy = production_policy.reflect_on_history(policy, history, now,
+            runtime_code_sha256=runtime_code_sha256)
     except (ValueError, TypeError, KeyError) as exc:
         # A corrupt learning record must stop new admissions/promotions, not
         # the deterministic risk exit of an already persisted position.
@@ -636,7 +643,7 @@ def run_cycle(output_path: Path, history_path: Path, client: Any | None = None) 
         finally:
             _cycle_context = previous_context
     policy = production_policy.advance_governance(policy, now,
-        runtime_code_sha256=decision_record.runtime_code_hash())
+        runtime_code_sha256=runtime_code_sha256)
     previous_context = _cycle_context
     _cycle_context = {"policy_state": policy, "decision_at": now, "live": live,
                       "market_client": cached, "monitor_bars": bars}
@@ -653,6 +660,8 @@ def run_cycle(output_path: Path, history_path: Path, client: Any | None = None) 
         policy = production_policy.bind_actual_history(policy, lifecycle.load_history(history_path), completed_at)
         policy = production_policy.settle_cases(policy,
             evaluator=_counterfactual_evaluator(bars, metadata, completed_at), now=completed_at)
+        policy = production_policy.reflect_on_history(policy, lifecycle.load_history(history_path), completed_at,
+            runtime_code_sha256=runtime_code_sha256)
         # Governance is advanced once before the decision; a newly observed
         # outcome cannot silently change the policy used by that same decision.
         metadata["production_policy_loop"] = {
@@ -666,6 +675,18 @@ def run_cycle(output_path: Path, history_path: Path, client: Any | None = None) 
                 "resolved_cases": sum(policy["cases"][cid]["outcome"] is not None for cid in item["evaluation_case_ids"]),
                 "gate_status": (item.get("gate") or {}).get("status")}
                 for item in policy["candidates"].values()],
+            "recursive_improvement": {
+                "mode": "AGGRESSIVE_BOUNDED",
+                "cadence": "EVERY_MONITOR_CYCLE_AND_CANONICAL_CLOSE",
+                "reflection_iteration": len(policy["recursive_improvement"]["iterations"]),
+                "reflected_actual_trades": len(policy["recursive_improvement"]["records"]),
+                "lessons": policy["recursive_improvement"]["lessons"],
+                "research_hypotheses": policy["recursive_improvement"]["hypotheses"],
+                "maximum_parallel_candidates": 3,
+                "promotion_requires": "40_PURGED_CANONICAL_ACTUALS_FIXED_MULTIPLICITY_ADJUSTED_GATE",
+                "hard_safety_override_allowed": False,
+                "automatic_code_rewrite": False,
+            },
             "rollback_count": len(policy["rollback_events"]),
             "latest_rollback": policy["rollback_events"][-1] if policy["rollback_events"] else None,
             "production_performance": decision_record.production_measurements(lifecycle.load_history(history_path)),
@@ -673,6 +694,7 @@ def run_cycle(output_path: Path, history_path: Path, client: Any | None = None) 
         learning = dict(metadata.get("learning") or {})
         learning["production_direction_learning_applied"] = False
         learning["production_admission_learning"] = True
+        learning["recursive_improvement_mode"] = "AGGRESSIVE_BOUNDED"
         metadata["learning"] = learning
         output = _clone(output, metadata=metadata)
         production_policy.save_state(state_path, policy)

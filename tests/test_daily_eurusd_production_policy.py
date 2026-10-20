@@ -258,9 +258,10 @@ class ProductionAdmissionPolicyTests(unittest.TestCase):
 
     def test_code_epoch_skips_all_obsolete_promoted_ancestors_before_admission(self):
         state, promoted = self.mature()
+        state = policy.advance_governance(state, promoted + timedelta(days=31))
         for index in range(policy.PRIMARY_N):
             state, _, at = self.actual_case(state, 100 + index,
-                at=promoted + timedelta(days=2 * index + 2), score=54.5)
+                at=promoted + timedelta(days=2 * index + 32), score=54.5)
         state = policy.advance_governance(state, at + timedelta(hours=22))
         self.assertEqual(policy.policy_context(state, 54.5, "LONG")["minimum_score_distance"], 5)
         state = policy.advance_governance(state, at + timedelta(days=1), runtime_code_sha256="b" * 64)

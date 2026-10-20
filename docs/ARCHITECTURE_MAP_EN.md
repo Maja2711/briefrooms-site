@@ -1,6 +1,6 @@
 # BriefRooms Canonical Architecture Map — EN
 
-**Map version:** 1.37
+**Map version:** 1.38
 
 **Snapshot date:** 2026-10-20
 
@@ -205,7 +205,9 @@ The re-entry check and position writer use the same `NATIVE_BELIEF_FIRST` thesis
 
 `TR-03` retains one Belief-first direction authority. `daily_eurusd_decision_record.py` freezes decision identity, native provenance, policy version/hash, code/data hashes, EPE and initial risk geometry. The manifest passes unchanged from OPEN into canonical history; legacy trades are never reconstructed. New entries use explicit `DAILY_EURUSD_BID_ASK_V1`, while Evidence freshness uses source time rather than projection refresh time.
 
-`daily_eurusd_production_policy.py` is an `LE-08` local learning component reusing existing `LE-11` contracts and shared statistics. It may only increase the minimum score distance from 50 within `3 -> 4 -> 5 -> 6`; it cannot change direction, risk or execution. Promotion requires the first 40 prospectively selected canonical actual admissions, purged by 27h and bound to the exact same runtime code. A fixed gate checks net results, uncertainty, slices and drawdown. Fixed subsequent windows of 20 observations monitor each promotion and can trigger automatic rollback. Code changes roll back incompatible policies before new admission; unresolved skipped opportunities from obsolete code become `CENSORED` with no fabricated result.
+`daily_eurusd_production_policy.py` is an `LE-08` local learning component reusing existing `LE-11` contracts and shared statistics. It may only increase the minimum score distance from 50 within `3/4/5/6`; it tests up to three stricter variants in parallel and cannot change direction, risk or execution. Promotion requires the first 40 prospectively selected canonical actual admissions, purged by 27h and bound to the exact same runtime code. A fixed gate checks net results, uncertainty, slices and drawdown. Fixed subsequent windows of 20 observations monitor each promotion and can trigger automatic rollback. Code changes roll back incompatible policies before new admission; unresolved skipped opportunities from obsolete code become `CENSORED` with no fabricated result.
+
+`AGGRESSIVE_BOUNDED` adds reflection memory inside the existing policy state: canonical actual outcomes -> observed failures and winners -> hypotheses -> parallel tests -> exact promotion -> monitoring/rollback -> next iteration. `daily_eurusd_reflection.py` has no execution authority; native admission freezes references to known similar losses and original Evidence. Historical data is discovery only. The shared budget is three attempts per target floor in one code/evaluator cohort, at most nine in total, without resetting on parent-policy changes. Select among PASS gates by highest lower CI, then mean delta, then least restrictive policy. Hard 30% correction, support and strong-signal requirements are outside learning authority. Details: `docs/DAILY_EURUSD_RECURSIVE_IMPROVEMENT.md`.
 
 Only the main monitor on `main` writes `eurusd_production_policy_state.json` and `eurusd_production_decisions.json`. Realtime exits cannot mutate these files. `validate_daily_eurusd_persistence.py` guards initial persistence, retries and rebases alike: append-only history/ledger, actual-result reconciliation, policy identity, and promotion/rollback event authorization. Unchanged corrupt learning data permits only management of an already persisted position, with no new admission. A/B/C, FSE and X do not participate. Measurement limits and implementation: [DAILY_EURUSD_PRODUCTION_LOOP.md](DAILY_EURUSD_PRODUCTION_LOOP.md).
 

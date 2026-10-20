@@ -8,6 +8,8 @@ on:
       - "scripts/daily_eurusd_decision_record.py"
       - "scripts/daily_eurusd_spot_v19.py"
       - "scripts/daily_eurusd_reentry_safety.py"
+      - "scripts/daily_eurusd_reflection.py"
+      - "tests/test_daily_eurusd_recursive_improvement.py"
       - "tests/test_daily_eurusd_reentry_safety.py"
       - "scripts/daily_eurusd_lifecycle.py"
       - "scripts/daily_eurusd_belief_decision.py"
@@ -40,6 +42,8 @@ on:
       - "scripts/daily_eurusd_spot_v18.py"
       - "scripts/daily_eurusd_spot_v19.py"
       - "scripts/daily_eurusd_reentry_safety.py"
+      - "scripts/daily_eurusd_reflection.py"
+      - "tests/test_daily_eurusd_recursive_improvement.py"
       - "tests/test_daily_eurusd_reentry_safety.py"
       - "scripts/daily_eurusd_production_*.py"
       - "scripts/daily_eurusd_decision_record.py"
@@ -138,6 +142,7 @@ jobs:
             tests.test_daily_eurusd_production_policy \
             tests.test_daily_eurusd_production_policy_integration \
             tests.test_daily_eurusd_reentry_safety \
+            tests.test_daily_eurusd_recursive_improvement \
             tests.test_daily_eurusd_production_record \
             tests.test_daily_eurusd_execution_cost_integration \
             tests.test_epistemic_consumer_interface \
@@ -157,6 +162,7 @@ jobs:
             scripts/daily_eurusd_spot_v18.py \
             scripts/daily_eurusd_spot_v19.py \
             scripts/daily_eurusd_reentry_safety.py \
+            scripts/daily_eurusd_reflection.py \
             scripts/validate_daily_eurusd_persistence.py \
             scripts/daily_eurusd_production_policy.py \
             scripts/daily_eurusd_decision_record.py \
@@ -166,6 +172,31 @@ jobs:
             scripts/belief_epistemic_state.py \
             scripts/epistemic_consumer_interface.py \
             scripts/execution_price_engine.py
+          python - <<'PY'
+          import json
+          from datetime import datetime, timezone
+          from pathlib import Path
+          from scripts import daily_eurusd_production_policy as policy
+          from scripts import daily_eurusd_decision_record as records
+          history_path = Path("data/investments/eurusd_daily_history.json")
+          original = history_path.read_bytes()
+          history = json.loads(original)
+          now = datetime.now(timezone.utc)
+          state = policy.default_state(now)
+          state = policy.reflect_on_history(state, history, now, runtime_code_sha256=records.runtime_code_hash())
+          policy.validate_history_bindings(state, history)
+          memory = state["recursive_improvement"]
+          print("EURUSD_RECURSIVE_REFLECTION_READ_ONLY", json.dumps({
+              "actual_native_trades": len(memory["records"]),
+              "legacy_without_native_manifest": memory["legacy_trades_without_native_manifest"],
+              "latest": [{"trade_id": row["trade_id"], "net_r": row["net_r"], "findings": row["findings"]}
+                         for row in sorted(memory["records"].values(), key=lambda row: row["closed_at"])[-3:]],
+              "parallel_stricter_floors": sorted(row["proposed_change"]["minimum_score_distance"] for row in state["candidates"].values()),
+              "history_unchanged": history_path.read_bytes() == original,
+              "historical_discovery_is_oos": False,
+          }, sort_keys=True))
+          assert history_path.read_bytes() == original
+          PY
           echo "PUSH_VALIDATION_ONLY_NO_TRADING_STATE_MUTATION"
 
   reconcile-eurusd:
@@ -270,6 +301,7 @@ jobs:
             tests.test_daily_eurusd_production_policy \
             tests.test_daily_eurusd_production_policy_integration \
             tests.test_daily_eurusd_reentry_safety \
+            tests.test_daily_eurusd_recursive_improvement \
             tests.test_daily_eurusd_production_record \
             tests.test_daily_eurusd_execution_cost_integration \
             tests.test_no_retroactive_execution -v
@@ -288,6 +320,7 @@ jobs:
             scripts/daily_eurusd_spot_v18.py \
             scripts/daily_eurusd_spot_v19.py \
             scripts/daily_eurusd_reentry_safety.py \
+            scripts/daily_eurusd_reflection.py \
             scripts/validate_daily_eurusd_persistence.py \
             scripts/daily_eurusd_production_policy.py \
             scripts/daily_eurusd_decision_record.py \
