@@ -33,6 +33,31 @@ def assess_runs(runs: list[dict], now: datetime, max_age_minutes: int = 90) -> d
     }
 
 
+def verify_production(base_url: str = "https://briefrooms.com") -> list[str]:
+    """Compare PL/EN production feeds and page markers with the production status."""
+    try:
+        def get(path: str) -> bytes:
+            req = Request(f"{base_url}/{path}?cycle_sla=1",
+                          headers={"User-Agent": "BriefRooms-news-watchdog", "Cache-Control": "no-cache"})
+            with urlopen(req, timeout=15) as response:
+                return response.read()
+        status = json.loads(get("data/news/status.json"))
+        marker = status.get("marker")
+        if not marker:
+            return ["production_marker_missing"]
+        reasons = []
+        for lang, page in (("pl", "pl/aktualnosci.html"), ("en", "en/news.html")):
+            feed = json.loads(get(f"data/news/{lang}.json"))
+            if feed.get("marker") != marker:
+                reasons.append(f"production_feed_marker_mismatch:{lang}")
+            html = get(page).decode("utf-8", "replace")
+            if f'name="briefrooms-live-news-marker" content="{marker}"' not in html:
+                reasons.append(f"production_page_marker_mismatch:{lang}")
+        return reasons
+    except (OSError, ValueError, KeyError) as exc:
+        return [f"production_verification_failed:{type(exc).__name__}"]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo", default=os.environ.get("GITHUB_REPOSITORY", "Maja2711/briefrooms-site"))
@@ -46,7 +71,7 @@ def main() -> int:
     )
     with urlopen(request, timeout=20) as response:
         runs = json.load(response)["workflow_runs"]
-    report = assess_runs(runs, datetime.now(timezone.utc), args.max_age_minutes)
+    report = assess_runs(runs, datetime.now(timezone.utc), args.max_age_minutes)\n    production_reasons = verify_production()\n    if production_reasons:\n        report["status"] = "failed"\n        report["reasons"].extend(production_reasons)
     with open(args.output, "w", encoding="utf-8") as file:
         json.dump(report, file, indent=2)
     print(json.dumps(report))
