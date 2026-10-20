@@ -9,10 +9,11 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 from zoneinfo import ZoneInfo
 
+from daily_eurusd_decision_record import ENGINE_VERSION as EXPECTED_ENGINE_VERSION
+
 ROOT = Path(__file__).resolve().parents[1]
 TZ = ZoneInfo("Europe/Warsaw")
 STATE = ROOT / "data/investments/eurusd_daily_spot.json"
-EXPECTED_ENGINE_VERSION = "eurusd-daily-spot-v1.9.0"
 DEFAULT_MAX_AGE_MINUTES = 15
 DEFAULT_EPISTEMIC_MAX_AGE_MINUTES = 20
 DEFAULT_BELIEF_MAX_AGE_MINUTES = 30

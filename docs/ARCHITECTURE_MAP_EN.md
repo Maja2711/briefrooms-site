@@ -1,6 +1,6 @@
 # BriefRooms Canonical Architecture Map — EN
 
-**Map version:** 1.35
+**Map version:** 1.36
 
 **Snapshot date:** 2026-10-20
 
@@ -198,6 +198,8 @@ Canonical L3-A loop: `Epistemic State -> Question Engine -> research intent -> a
 | `TR-08` | BRACE-SPX / Long View | Read-only/forecast-oriented SPX long-view family | Uses its point-in-time state plus epistemic state; canonical DecisionEnvelope rollout incomplete |
 
 ### TR-03 v1.9.1 — closed production admission-policy loop
+
+The watchdog reads the expected runtime version from the same `daily_eurusd_decision_record.ENGINE_VERSION` contract as the canonical writer. A fresh current-version OPEN or NO_TRADE state with healthy upstream does not raise an SLA alarm or request recovery. Obsolete/unknown versions and actual states older than 15 minutes still fail closed. PR validation checks the proposed code; the production watchdog remains pinned to `main`.
 
 The re-entry check and position writer use the same `NATIVE_BELIEF_FIRST` thesis family. A new candidate is compared with the latest meaningful loss in that family, including `DYNAMIC_RISK_EXIT` or `STOP_LOSS`; an older legacy loss cannot replace that comparison. Existing material-change thresholds remain unchanged and still allow immediate re-entry after a real signal improvement. The correction is prospective, with no history mutation or direction-authority change.
 
