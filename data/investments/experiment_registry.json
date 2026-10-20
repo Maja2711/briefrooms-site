@@ -50,7 +50,7 @@
       },
       "family": "Geopolitics",
       "id": "gse-v2-learning-lab",
-      "last_updated": "2026-10-20T17:12:29.210177Z",
+      "last_updated": "2026-10-20T20:38:43.000535Z",
       "max_drawdown": null,
       "minimum_sample": 60,
       "name": "GSE v2 Learning Lab",
@@ -83,7 +83,7 @@
       },
       "family": "Weekly Investments",
       "id": "strategy-research-lab",
-      "last_updated": "2026-10-20T08:00:30+02:00",
+      "last_updated": "2026-10-20T19:58:19+02:00",
       "max_drawdown": null,
       "minimum_sample": 30,
       "name": "Autonomous Strategy Research Lab",
@@ -99,7 +99,7 @@
       },
       "production_impact": false,
       "purpose": "Autonomiczne generowanie i filtrowanie kandydatów strategii bez prawa do produkcyjnej aktywacji.",
-      "sample_count": 222,
+      "sample_count": 223,
       "sample_unit": "research_cycles",
       "source": "data/investments/research_lab_report.json",
       "stage": "SHADOW",
@@ -194,22 +194,22 @@
       "details": {
         "arms": {
           "A": {
-            "directional_accuracy_1h": 0.4411764705882353,
-            "mean_signed_return_bps_1h": -1.3508102040816328,
+            "directional_accuracy_1h": 0.4117647058823529,
+            "mean_signed_return_bps_1h": -1.9286061224489797,
             "resolved_1h": 34
           },
           "B": {
-            "directional_accuracy_1h": 0.5333333333333333,
-            "mean_signed_return_bps_1h": -0.7560571428571428,
+            "directional_accuracy_1h": 0.5111111111111111,
+            "mean_signed_return_bps_1h": -1.3338530612244899,
             "resolved_1h": 45
           },
           "C": {
-            "directional_accuracy_1h": 0.4375,
-            "mean_signed_return_bps_1h": -1.3501204081632654,
+            "directional_accuracy_1h": 0.40625,
+            "mean_signed_return_bps_1h": -1.9279163265306123,
             "resolved_1h": 32
           }
         },
-        "captures": 184,
+        "captures": 185,
         "learning_loop": {
           "arms": {
             "A": {
@@ -340,7 +340,7 @@
       },
       "family": "EURUSD",
       "id": "eurusd-abc-live-shadow",
-      "last_updated": "2026-10-20T15:04:30.340672Z",
+      "last_updated": "2026-10-20T19:15:13.286576Z",
       "max_drawdown": null,
       "minimum_sample": 40,
       "name": "EURUSD A/B/C Live Shadow",
@@ -354,7 +354,7 @@
         "interpretation": "Forecast skill; nie jest automatycznie formalną alpha ani wynikiem transakcyjnym po kosztach.",
         "label": "Najlepsza trafność kierunku 1h",
         "unit": "fraction",
-        "value": 0.5333333333333333
+        "value": 0.5111111111111111
       },
       "production_impact": false,
       "purpose": "Prospektywne porównanie trzech wariantów: technicznego, Belief-only i hybrydowego.",
@@ -373,11 +373,11 @@
       "category": "trading",
       "delta_vs_benchmark": null,
       "details": {
-        "brier": 0.276271,
+        "brier": 0.280621,
         "calibration_block_resolved": null,
-        "captures": 97,
-        "challenger": "X-AUTO-03",
-        "champion": "X-BASE",
+        "captures": 98,
+        "challenger": "X-BASE",
+        "champion": "X-AUTO-05",
         "discovery_layer": null,
         "fixed_core": {
           "bollinger": {
@@ -411,15 +411,15 @@
           ],
           "pivot": "classic_daily_floor_P_R1_R2_R3_S1_S2_S3"
         },
-        "hit_rate": 0.473684,
-        "mean_signed_return_bps": -1.007,
-        "resolved": 95,
+        "hit_rate": null,
+        "mean_signed_return_bps": null,
+        "resolved": 96,
         "rollback": null,
-        "signal_n": 57
+        "signal_n": 0
       },
       "family": "EURUSD",
       "id": "eurusd-x-adaptive-shadow",
-      "last_updated": "2026-10-20T15:05:02.269220Z",
+      "last_updated": "2026-10-20T18:28:48.846777Z",
       "max_drawdown": null,
       "minimum_sample": 30,
       "name": "EURUSD X Adaptive Shadow",
@@ -432,21 +432,21 @@
         "interpretation": "Niższy Brier jest lepszy; liczony na prospektywnie rozstrzygniętych prognozach Championa dla horyzontu 4h.",
         "label": "Brier Championa (4h)",
         "unit": "score",
-        "value": 0.276271
+        "value": 0.280621
       },
       "production_impact": false,
       "purpose": "Szybko kalibrowany EUR/USD shadow challenger ze stałym core technicznym, BRs Belief Core, wersjonowanymi eksperymentalnymi dodatkami i automatycznym rollbackiem do ostatniego Championa.",
-      "sample_count": 95,
+      "sample_count": 8,
       "sample_unit": "resolved_champion_4h_outcomes",
       "source": "data/investments/eurusd_x_public_pl.json",
       "stage": "SHADOW",
-      "started_at": "2026-10-20T15:05:02.269220Z",
-      "status": "RUNNING",
+      "started_at": "2026-10-20T18:28:48.846777Z",
+      "status": "INSUFFICIENT_DATA",
       "system_class": "LAB",
       "version": "eurusd-x-v1.0.0"
     }
   ],
-  "generated_at": "2026-10-20T17:12:29.210177Z",
+  "generated_at": "2026-10-20T20:38:43.000535Z",
   "schema_version": "briefrooms-experiment-registry-v1",
   "status_policy": {
     "allowed": [
@@ -469,8 +469,8 @@
     }
   },
   "summary": {
-    "active": 3,
-    "awaiting_evidence": 3,
+    "active": 2,
+    "awaiting_evidence": 4,
     "errors": 0,
     "parked_or_killed": 0,
     "promotion_candidates": 0,
