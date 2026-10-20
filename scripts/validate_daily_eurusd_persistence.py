@@ -246,11 +246,14 @@ def validate_production_feedback(
                     if (version.get("payload_sha256") != manifest["policy_sha256"]
                             or context.get("minimum_score_distance") != _mapping(version.get("policy")).get("minimum_score_distance")):
                         errors.append(f"manifest policy differs from registered version: {manifest['decision_id']}")
+                    _module("daily_eurusd_production_policy").validate_reentry_manifest(policy, manifest)
                     final = manifest["final_decision"]
                     expected = _module("daily_eurusd_production_policy")._allows(version["policy"], float(final["score"]), str(final["direction"]))
                     if context.get("allowed") is not expected:
                         errors.append(f"manifest vote differs from registered policy: {manifest['decision_id']}")
-                for case in (policy.get("cases") or {}).values():
+                all_cases = [*(policy.get("cases") or {}).values(),
+                             *((policy.get("reentry_learning") or {}).get("cases") or {}).values()]
+                for case in all_cases:
                     manifest = _mapping(case.get("frozen")).get("manifest")
                     if not isinstance(manifest, Mapping) or ledger.get(manifest.get("decision_id")) != manifest:
                         errors.append("policy case has no identical frozen decision in ledger")

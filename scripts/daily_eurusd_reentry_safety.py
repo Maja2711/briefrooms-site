@@ -26,6 +26,71 @@ MAX_MARKET_AGE_SECONDS = 180.0
 FIRST_HOUR_SECONDS = 3600.0
 EPS = 1e-10
 
+# These are initial criteria, not immutable production thresholds. Only the
+# local learner's prospectively approved version is supplied by the writer.
+DEFAULT_CRITERIA = {
+    "minimum_retracement": .30, "minimum_score_distance": 10.0,
+    "minimum_confidence": .50, "minimum_aligned_beliefs": 3,
+    "support_mode": "D1_LEVEL", "ma_periods": [60, 100, 200],
+    "zone_atr": .10, "maximum_entry_distance_atr": .25,
+    "confirmation_minutes": 5, "minimum_wait_minutes": 0,
+    "require_post_loss_trend": True, "require_material_change": True,
+    "material_score_improvement": 3.0, "material_confidence_improvement": .08,
+}
+
+
+def normalize_criteria(value: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    result = dict(DEFAULT_CRITERIA) if value is None else dict(value)
+    if set(result) != set(DEFAULT_CRITERIA):
+        raise ValueError("reentry_criteria_contract_mismatch")
+    for key, bounds in {
+        "minimum_retracement": (0, 1), "minimum_score_distance": (0, 50),
+        "minimum_confidence": (0, 1), "zone_atr": (.01, 1),
+        "maximum_entry_distance_atr": (.02, 2),
+        "material_score_improvement": (0, 50), "material_confidence_improvement": (0, 1),
+    }.items():
+        number = _number(result[key])
+        if not bounds[0] <= number <= bounds[1]:
+            raise ValueError("reentry_criteria_out_of_domain:" + key)
+        result[key] = number
+    for key, low, high in (("minimum_aligned_beliefs", 1, 5), ("minimum_wait_minutes", 0, 1440)):
+        value = result[key]
+        if isinstance(value, bool) or not isinstance(value, int) or not low <= value <= high:
+            raise ValueError("invalid_reentry_integer:" + key)
+    if result["confirmation_minutes"] not in (1, 5, 15) or isinstance(result["confirmation_minutes"], bool) or not isinstance(result["confirmation_minutes"], int):
+        raise ValueError("invalid_confirmation_interval")
+    if result["support_mode"] not in {"D1_LEVEL", "PRICE_REJECTION"}:
+        raise ValueError("invalid_support_definition")
+    periods = result["ma_periods"]
+    if (not isinstance(periods, list) or not 1 <= len(periods) <= 8
+            or any(isinstance(p, bool) or not isinstance(p, int) or not 2 <= p <= 400 for p in periods)
+            or periods != sorted(set(periods))):
+        raise ValueError("invalid_ma_periods")
+    result["ma_periods"] = list(periods)
+    if result["maximum_entry_distance_atr"] <= result["zone_atr"]:
+        raise ValueError("entry_zone_must_have_positive_width")
+    if any(not isinstance(result[key], bool) for key in ("require_post_loss_trend", "require_material_change")):
+        raise ValueError("invalid_reentry_requirement")
+    return result
+
+
+def thesis_allows(guard: Mapping[str, Any], criteria: Mapping[str, Any]) -> bool:
+    if not guard.get("blocked"):
+        return True
+    if guard.get("reason") not in {
+        "recent_same_thesis_loss_without_material_new_evidence",
+        "recent_same_direction_loss_without_material_new_evidence",
+    }:
+        return False
+    if criteria["require_material_change"] is False:
+        return True
+    change = guard.get("change") or {}
+    score = change.get("directional_score_strength_improvement")
+    confidence = change.get("confidence_improvement")
+    return ((score is not None and _number(score) >= criteria["material_score_improvement"] - EPS)
+            or (confidence is not None and _number(confidence) >= criteria["material_confidence_improvement"] - EPS))
+
+
 
 def _time(value: Any) -> datetime:
     stamp = value if isinstance(value, datetime) else datetime.fromisoformat(str(value).replace("Z", "+00:00"))
@@ -92,22 +157,27 @@ def _bars(raw: Sequence[Any], now: datetime, *, minutes: int | None = None) -> l
     return [result[key] for key in sorted(result)]
 
 
-def _strong_signal(payload: Mapping[str, Any], loss_at: datetime, now: datetime) -> dict[str, Any]:
+def _strong_signal(payload: Mapping[str, Any], loss_at: datetime, now: datetime, criteria: Mapping[str, Any]) -> dict[str, Any]:
     final = (payload.get("metadata") or {}).get("final_decision") or {}
     direction = str(payload.get("direction") or "")
     score, confidence = _number(payload.get("score")), _number(payload.get("confidence"))
     consumer = final.get("epistemic_consumer") or {}
     aligned = []
     anchor_fresh = False
+    anchor_present = False
     for belief in final.get("used_beliefs") or []:
         probability = _number(belief.get("probability"))
         observed = _time(belief.get("observed_at"))
         agrees = probability >= .52 if direction == "LONG" else probability <= .48
         if agrees and 0 <= probability <= 1 and observed <= now:
             aligned.append(str(belief.get("belief_id")))
-            if belief.get("belief_id") == ANCHOR and loss_at < observed:
-                anchor_fresh = True
-    score_ok = score >= STRONG_LONG_SCORE if direction == "LONG" else score <= STRONG_SHORT_SCORE
+            if belief.get("belief_id") == ANCHOR:
+                anchor_present = True
+                if loss_at < observed:
+                    anchor_fresh = True
+    long_score = 50 + criteria["minimum_score_distance"]
+    short_score = 50 - criteria["minimum_score_distance"]
+    score_ok = score >= long_score if direction == "LONG" else score <= short_score
     authoritative = (
         final.get("decision_source") == "NATIVE_BELIEF_FIRST"
         and final.get("direction") == direction
@@ -120,12 +190,14 @@ def _strong_signal(payload: Mapping[str, Any], loss_at: datetime, now: datetime)
     )
     return {
         "passed": bool(authoritative and 0 <= score <= 100 and 0 <= confidence <= 1
-                       and score_ok and confidence >= MIN_CONFIDENCE
-                       and len(set(aligned)) >= MIN_ALIGNED_BELIEFS and anchor_fresh),
+                       and score_ok and confidence >= criteria["minimum_confidence"]
+                       and len(set(aligned)) >= criteria["minimum_aligned_beliefs"] and anchor_present
+                       and (anchor_fresh or not criteria["require_post_loss_trend"])),
         "score": score, "confidence": confidence, "authoritative": authoritative,
         "aligned_belief_ids": sorted(set(aligned)), "post_loss_trend_evidence": anchor_fresh,
-        "thresholds": {"long_score": STRONG_LONG_SCORE, "short_score": STRONG_SHORT_SCORE,
-                       "confidence": MIN_CONFIDENCE, "aligned_beliefs": MIN_ALIGNED_BELIEFS},
+        "thresholds": {"long_score": long_score, "short_score": short_score,
+                       "confidence": criteria["minimum_confidence"], "aligned_beliefs": criteria["minimum_aligned_beliefs"],
+                       "require_post_loss_trend": criteria["require_post_loss_trend"]},
     }
 
 
@@ -140,9 +212,9 @@ def _atr(rows: Sequence[Mapping[str, Any]]) -> float:
     return value
 
 
-def _levels(rows: Sequence[Mapping[str, Any]], direction: str, zone: float) -> list[dict[str, Any]]:
+def _levels(rows: Sequence[Mapping[str, Any]], direction: str, zone: float, periods: Sequence[int] = MA_PERIODS) -> list[dict[str, Any]]:
     levels = []
-    for period in MA_PERIODS:
+    for period in periods:
         if len(rows) >= period:
             levels.append({"kind": "SMA_D1", "period": period,
                            "price": sum(row["close"] for row in rows[-period:]) / period,
@@ -167,27 +239,28 @@ def _levels(rows: Sequence[Mapping[str, Any]], direction: str, zone: float) -> l
     return levels
 
 
-def _five_minute(rows: Sequence[Mapping[str, Any]], loss_at: datetime) -> list[dict[str, Any]]:
+def _five_minute(rows: Sequence[Mapping[str, Any]], loss_at: datetime, minutes: int = 5) -> list[dict[str, Any]]:
     groups: dict[int, list[Mapping[str, Any]]] = {}
     for row in rows:
         start = _time(row["timestamp"])
-        bucket = int(start.timestamp()) // 300 * 300
+        bucket = int(start.timestamp()) // (60 * minutes) * (60 * minutes)
         groups.setdefault(bucket, []).append(row)
     result = []
     for epoch, chunk in sorted(groups.items()):
         start = datetime.fromtimestamp(epoch, timezone.utc)
-        if start <= loss_at or len(chunk) != 5:
+        if start <= loss_at or len(chunk) != minutes:
             continue
         if any(_time(row["timestamp"]) != start + timedelta(minutes=i) for i, row in enumerate(chunk)):
             continue
-        result.append({"timestamp": _iso(start), "end": _iso(start + timedelta(minutes=5)),
+        result.append({"timestamp": _iso(start), "end": _iso(start + timedelta(minutes=minutes)),
                        "open": chunk[0]["open"], "close": chunk[-1]["close"],
                        "high": max(row["high"] for row in chunk), "low": min(row["low"] for row in chunk)})
     return result
 
 
 def evaluate(payload: Mapping[str, Any], history: Mapping[str, Any] | None, *,
-             observed_at: datetime, market_context: Mapping[str, Any] | None = None) -> dict[str, Any]:
+             observed_at: datetime, market_context: Mapping[str, Any] | None = None,
+             criteria: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Can only veto a native candidate. Never creates direction or modifies history."""
     now = _time(observed_at)
     result: dict[str, Any] = {
@@ -206,6 +279,8 @@ def evaluate(payload: Mapping[str, Any], history: Mapping[str, Any] | None, *,
         result["reason"] = "no_directional_candidate"
         return result
     try:
+        criteria = normalize_criteria(criteria)
+        result.update(criteria=criteria, criteria_sha256=_digest(criteria))
         loss = latest_loss(history, direction, now)
         if loss is None:
             return result
@@ -227,7 +302,9 @@ def evaluate(payload: Mapping[str, Any], history: Mapping[str, Any] | None, *,
         # before a session rollover is also protected for its complete first hour.
         if loss_at < start and (now - loss_at).total_seconds() > FIRST_HOUR_SECONDS:
             return {**result, "required": False, "reason": "loss_outside_current_d1_and_first_hour"}
-        signal = _strong_signal(payload, loss_at, now)
+        if (now - loss_at).total_seconds() < criteria["minimum_wait_minutes"] * 60:
+            return block("post_loss_learned_wait_not_complete")
+        signal = _strong_signal(payload, loss_at, now, criteria)
         result["strong_signal"] = signal
         if not signal["passed"]:
             return block("post_loss_strong_native_signal_required")
@@ -249,12 +326,13 @@ def evaluate(payload: Mapping[str, Any], history: Mapping[str, Any] | None, *,
             return block("incomplete_current_d1_intraday_path")
         if (now - _time(minute[-1]["timestamp"]) - timedelta(minutes=1)).total_seconds() > MAX_MARKET_AGE_SECONDS:
             return block("post_loss_market_path_stale")
-        groups = _five_minute(minute, loss_at)
+        groups = _five_minute(minute, loss_at, criteria["confirmation_minutes"])
+        confirmation_reason = "post_loss_completed_" + str(criteria["confirmation_minutes"]) + "m_confirmation_required"
         if len(groups) < 2:
-            return block("post_loss_completed_5m_confirmation_required")
+            return block(confirmation_reason)
         touch, confirmation = groups[-2:]
         if touch["end"] != confirmation["timestamp"]:
-            return block("post_loss_completed_5m_confirmation_required")
+            return block(confirmation_reason)
         before = [row for row in minute if _time(row["timestamp"]) < _time(touch["timestamp"])]
         if not before:
             return block("daily_impulse_unavailable")
@@ -264,18 +342,23 @@ def evaluate(payload: Mapping[str, Any], history: Mapping[str, Any] | None, *,
             return block("directional_daily_impulse_unavailable")
         retracement = ((extreme - touch["low"]) / impulse if direction == "LONG"
                        else (touch["high"] - extreme) / impulse)
-        result["correction"] = {"fraction": round(retracement, 8), "minimum": MIN_RETRACEMENT,
+        result["correction"] = {"fraction": round(retracement, 8), "minimum": criteria["minimum_retracement"],
                                 "extreme": extreme, "impulse": impulse, "touch": dict(touch)}
-        if retracement + EPS < MIN_RETRACEMENT:
-            return block("daily_retracement_below_30_percent")
+        if retracement + EPS < criteria["minimum_retracement"]:
+            return block("daily_retracement_below_30_percent" if criteria["minimum_retracement"] == .30
+                         else "daily_retracement_below_learned_threshold")
         since_touch = [row for row in minute if _time(row["timestamp"]) >= _time(touch["timestamp"])]
         changed = (max(row["high"] for row in since_touch) > extreme + EPS if direction == "LONG"
                    else min(row["low"] for row in since_touch) < extreme - EPS)
         if changed:
             return block("daily_impulse_changed_after_correction")
-        zone = max(.0001, ZONE_ATR * atr)
-        entry_distance = MAX_ENTRY_DISTANCE_ATR * atr
-        for level in _levels(completed, direction, zone):
+        zone = max(.0001, criteria["zone_atr"] * atr)
+        entry_distance = criteria["maximum_entry_distance_atr"] * atr
+        levels = _levels(completed, direction, zone, criteria["ma_periods"])
+        if criteria["support_mode"] == "PRICE_REJECTION":
+            levels = [{"kind": "CONFIRMED_INTRADAY_REJECTION",
+                       "price": touch["low"] if direction == "LONG" else touch["high"]}]
+        for level in levels:
             price = level["price"]
             if direction == "LONG":
                 held = (price - zone - EPS <= touch["low"] <= price + zone + EPS
@@ -316,6 +399,8 @@ def check_execution(proof: Mapping[str, Any], execution: Mapping[str, Any]) -> s
     if proof.get("schema_version") != SCHEMA or proof.get("allowed") is not True:
         return "post_loss_technical_admission_not_verified"
     try:
+        if _digest(normalize_criteria(proof.get("criteria"))) != proof.get("criteria_sha256"):
+            return "post_loss_execution_criteria_proof_invalid"
         price = _number(execution.get("fill_price"))
         zone = proof["entry_zone"]
         if not _number(zone["minimum"]) - EPS <= price <= _number(zone["maximum"]) + EPS:

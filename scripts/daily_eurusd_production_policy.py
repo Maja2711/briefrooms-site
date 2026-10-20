@@ -21,8 +21,10 @@ from typing import Any, Callable, Mapping
 
 try:
     import daily_eurusd_reflection as reflection
+    import daily_eurusd_reentry_learning as reentry_learning
 except ImportError:
     from scripts import daily_eurusd_reflection as reflection
+    from scripts import daily_eurusd_reentry_learning as reentry_learning
 
 try:
     from briefrooms_evolution_contracts import (
@@ -62,6 +64,7 @@ BOOTSTRAP_SAMPLES = 4999
 EVALUATOR_SHA256 = sha256({
     "policy_module": Path(__file__).read_bytes().hex(),
     "reflection_module": Path(reflection.__file__).read_bytes().hex(),
+    "reentry_learning": Path(reentry_learning.__file__).read_bytes().hex(),
     "statistical_gate": Path(deterministic_bootstrap_mean_ci.__code__.co_filename).read_bytes().hex(),
 })
 AUTHORITY = {
@@ -188,6 +191,7 @@ def policy_context(
         "candidate_ids": [item["candidate_id"] for item in candidates],
         "direction_mutation_allowed": False, "risk_mutation_allowed": False,
         "activation_boundary": version["activated_at"],
+        "reentry_policy": reentry_learning.context(state.get("reentry_learning"), observed_at or state["updated_at"]),
     }
 
 
@@ -282,6 +286,39 @@ def reflect_on_history(
 
 def reflection_context(state: Mapping[str, Any], final: Mapping[str, Any], *, observed_at: str | datetime) -> dict[str, Any]:
     return reflection.review(state.get("recursive_improvement"), final, observed_at=_now(observed_at))
+
+
+def reentry_context(state: Mapping[str, Any], at: str | datetime) -> dict[str, Any]:
+    return reentry_learning.context(state.get("reentry_learning"), at)
+
+
+def reentry_contenders(state: Mapping[str, Any], at: str | datetime) -> dict[str, Any]:
+    return reentry_learning.contenders(state.get("reentry_learning"), at)
+
+
+def freeze_reentry_case(state: Mapping[str, Any], **kwargs: Any) -> dict[str, Any]:
+    if state.get("reentry_learning") is None:
+        return dict(state)
+    result = copy.deepcopy(state)
+    result["reentry_learning"], _ = reentry_learning.freeze(state["reentry_learning"], **kwargs)
+    return result
+
+
+def settle_reentry_cases(state: Mapping[str, Any], history: Mapping[str, Any], **kwargs: Any) -> dict[str, Any]:
+    if state.get("reentry_learning") is None:
+        return dict(state)
+    result = copy.deepcopy(state)
+    result["reentry_learning"] = reentry_learning.settle(state["reentry_learning"], history, **kwargs)
+    return result
+
+
+def validate_reentry_manifest(state: Mapping[str, Any], manifest: Mapping[str, Any]) -> None:
+    registry = state.get("reentry_learning")
+    if registry is None or _time(manifest["decision_at"]) < _time(registry["activated_at"]):
+        return
+    expected = reentry_learning.context(registry, manifest["decision_at"])
+    actual = (manifest.get("policy") or {}).get("reentry_policy")
+    _require(actual == expected, "manifest reentry criteria differ from governed policy")
 
 
 def _manifest_ref(manifest: Mapping[str, Any]) -> dict[str, Any]:
@@ -441,6 +478,8 @@ def validate_history_bindings(state: Mapping[str, Any], history: Mapping[str, An
         _require(_outcome(case, trade, "CANONICAL_ACTUAL", outcome["bound_at"]) == outcome, "canonical policy outcome differs from actual history")
     if state.get("recursive_improvement") is not None:
         reflection.validate_history(state["recursive_improvement"], history)
+    if state.get("reentry_learning") is not None:
+        reentry_learning.validate_history(state["reentry_learning"], history)
 
 
 def settle_cases(
@@ -495,14 +534,14 @@ def _values(case: Mapping[str, Any], baseline: str, challenger: str) -> tuple[fl
     return base, candidate, stressed
 
 
-def _paired_metrics(cases: list[Mapping[str, Any]], baseline: str, challenger: str, seed: str) -> tuple[dict[str, Any], list[dict[str, Any]], list[str]]:
+def _paired_metrics(cases: list[Mapping[str, Any]], baseline: str, challenger: str, seed: str, *, confidence: float = CONFIDENCE) -> tuple[dict[str, Any], list[dict[str, Any]], list[str]]:
     rows = [_values(case, baseline, challenger) for case in cases]
     delta = [row[2] for row in rows]
     by_day: dict[str, list[float]] = defaultdict(list)
     for case, value in zip(cases, delta):
         by_day[case["frozen"]["decision_at"][:10]].append(value)
     blocks = [fmean(x) for _, x in sorted(by_day.items())]
-    low, high = deterministic_bootstrap_mean_ci(blocks, samples=BOOTSTRAP_SAMPLES, confidence=CONFIDENCE, seed_text=seed) if blocks else (None, None)
+    low, high = deterministic_bootstrap_mean_ci(blocks, samples=BOOTSTRAP_SAMPLES, confidence=confidence, seed_text=seed) if blocks else (None, None)
     midpoint = len(blocks) // 2
     def profit_factor(values: list[float]) -> dict[str, Any]:
         wins = sum(max(0.0, value) for value in values)
@@ -716,6 +755,10 @@ def advance_governance(
                 sibling["status"], sibling["terminal_at"] = "REJECTED", at
                 sibling["terminal_reason"] = "parent_replaced_by_independently_passing_sibling"
     _ensure_candidate(result, at, runtime_code_sha256)
+    if runtime_code_sha256 is not None or result.get("reentry_learning") is not None:
+        result["reentry_learning"] = reentry_learning.advance(result.get("reentry_learning"),
+            now=at, code=runtime_code_sha256 or result["reentry_learning"]["runtime_code_sha256"],
+            memory=result.get("recursive_improvement") or {}, stats=_paired_metrics)
     result["updated_at"] = at
     validate_transition(state, result)
     return result
@@ -833,6 +876,8 @@ def validate_state(state: Mapping[str, Any]) -> None:
     _time(state["activated_at"])
     if state.get("recursive_improvement") is not None:
         reflection.validate(state["recursive_improvement"])
+    if state.get("reentry_learning") is not None:
+        reentry_learning.validate(state["reentry_learning"], _paired_metrics)
     _require(state["active_version_id"] in state["versions"], "active production version missing")
     _require([v["version_id"] for v in state["versions"].values() if v["status"] == "ACTIVE"] == [state["active_version_id"]], "multiple active policy versions")
     for version in state["versions"].values():
@@ -939,6 +984,7 @@ def validate_transition(before: Mapping[str, Any], after: Mapping[str, Any]) -> 
     validate_state(after)
     _require(_time(after["updated_at"]) >= _time(before["updated_at"]), "policy state time regression")
     reflection.validate_transition(before.get("recursive_improvement"), after.get("recursive_improvement"))
+    reentry_learning.validate_transition(before.get("reentry_learning"), after.get("reentry_learning"))
     for cid, old in before.get("cases", {}).items():
         _require(cid in after["cases"] and old["frozen"] == after["cases"][cid]["frozen"], "case history rewrite")
         if old["outcome"] is not None:

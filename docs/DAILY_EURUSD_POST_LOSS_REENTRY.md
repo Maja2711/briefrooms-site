@@ -10,13 +10,13 @@ Every negative canonical same-direction result counts, including losses smaller 
 
 The runtime reads D1 only when a recent same-direction loss exists. D1 session boundaries come from the source candle timestamp in UTC, not the user's local midnight. No first entry without a relevant loss gains an additional price-location veto.
 
-## Three jointly mandatory conditions
+## Initial criteria, subject to prospective learning
 
 1. At least 30% of the current D1 open-to-extreme movement must have been corrected after the loss.
 2. A strong D1 technical level must hold during that correction and a completed confirmation candle.
 3. The current authoritative native Belief-first signal must be strong and backed by source EURUSD trend evidence observed after the loss.
 
-Score/confidence improvement alone cannot release the additional gate.
+These are initial engineering criteria. The local learner can change correction, support and signal requirements in either direction only through the versioned prospective promotion path in [DAILY_EURUSD_ADAPTIVE_REENTRY.md](DAILY_EURUSD_ADAPTIVE_REENTRY.md). Without an approved alternative, score/confidence improvement alone cannot release the initial gate. The active criteria and their hash are frozen in admission.
 
 ### Correction arithmetic and sequence
 

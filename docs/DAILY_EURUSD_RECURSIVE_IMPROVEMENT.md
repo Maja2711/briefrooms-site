@@ -46,7 +46,7 @@ Before entry, `execution_admission.agent_reflection` records similar known
 actual trades, mean net R, recent loss IDs, relevant lessons, source-evidence
 change and the memory iteration hash. The immutable admission manifest freezes
 that review. It is explanatory memory; approved policy is the decision mechanism
-that may abstain. Reflection cannot bypass a failed price, evidence or risk gate.
+that may abstain. Reflection alone cannot bypass a gate. The production writer consumes the exact prospectively approved criteria version; native source truth, EPE and position risk retain their authority.
 
 ## Parallel research with bounded production authority
 
@@ -85,9 +85,7 @@ cannot be discarded to restart an easier test.
 
 The final direction remains Belief Core -> EpistemicState -> CF-07 -> native
 LONG/SHORT/FLAT. Research cannot change direction, position size, SL/TP, execution
-costs, other instruments or source facts. It cannot loosen the user's post-loss
-requirements: >=30% D1 correction, tested strong support/resistance, and a fresh
-strong native signal. Calendar, same-thesis memory, technical safety, current
+costs, other instruments or source facts. Post-loss correction, support, strength, new-evidence and waiting criteria are learnable starting parameters. The same local writer may tighten or loosen them only after the separate prospective re-entry component gate; see `DAILY_EURUSD_ADAPTIVE_REENTRY.md`. Calendar, same-thesis memory, technical safety, current
 policy and verified EPE all remain mandatory.
 
 The reflection implementation joins the runtime code hash and evaluator identity.
