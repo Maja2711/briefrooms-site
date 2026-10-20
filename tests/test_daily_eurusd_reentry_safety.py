@@ -81,6 +81,8 @@ def fixture(direction="LONG", period=60, retracement=.30, now=None):
         "owner": "NATIVE_DAILY_EURUSD_BELIEF_FIRST_DECISION_ENGINE",
         "direction": direction, "decision_source": "NATIVE_BELIEF_FIRST",
         "score": score, "confidence": .55, "epistemic_aggregate_authoritative": True,
+        "routing": ["RAW_SOURCES", "SPECIALIZED_ADAPTERS", "OBSERVATIONS",
+                    "EVIDENCE_ASSESSMENT", "BELIEF_CORE", "NATIVE_DAILY_EURUSD_FINAL_DECISION"],
         "epistemic_consumer": {"available": True, "contract": "epistemic-consumer-interface-v1",
                                "aggregate_authoritative": True, "aggregate_probability": score / 100,
                                "source_sha256": "prospective-epistemic-facts"},
