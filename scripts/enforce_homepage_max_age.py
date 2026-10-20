@@ -21,6 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 NEWS_DIR = ROOT / "data" / "news"
 STATE_PATH = NEWS_DIR / "homepage_exposure.json"
 NEWS_MAX_AGE = timedelta(hours=24)
+PUBLICATION_VERIFICATION_BUFFER = timedelta(minutes=15)
 WARSAW = ZoneInfo("Europe/Warsaw")
 # Compatibility alias for older tests/importers. The policy is now global, not homepage-only.
 HOME_MAX_AGE = NEWS_MAX_AGE
@@ -362,7 +363,9 @@ def public_news_preselection_check(
     """
     if not _homepage_image_url(story):
         return None, "image"
-    if not _source_is_fresh(story, now, lang, section_id):
+    # Reserve enough time for the publisher to commit and verify production.
+    # The actual public display limit remains 24 hours, unchanged.
+    if not _source_is_fresh(story, now + PUBLICATION_VERIFICATION_BUFFER, lang, section_id):
         return None, "source_stale"
     if not _primary_bulletin_is_current(story, now, lang):
         return None, "primary_bulletin_stale"
@@ -376,7 +379,7 @@ def public_news_preselection_check(
     if first_seen is None:
         return None, "timestamp"
     age = now.astimezone(timezone.utc) - first_seen
-    if age < -FUTURE_TOLERANCE or age > NEWS_MAX_AGE:
+    if age < -FUTURE_TOLERANCE or age + PUBLICATION_VERIFICATION_BUFFER > NEWS_MAX_AGE:
         return None, "expired"
     return first_seen, "ok"
 
