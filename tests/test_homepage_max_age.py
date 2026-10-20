@@ -32,8 +32,8 @@ class HomepageExposureCapTests(unittest.TestCase):
         now = datetime(2026, 10, 20, 12, 13, tzinfo=timezone.utc)
         old = self._story("BBC near expiry", now - HOME_MAX_AGE + timedelta(minutes=3), "Business")
         safe = self._story("BBC fresh", now - HOME_MAX_AGE + PUBLICATION_VERIFICATION_BUFFER + timedelta(seconds=1), "Business")
-        self.assertEqual(public_news_preselection_check(old, {}, now, "en", "business")[1], "source_stale")
-        self.assertEqual(public_news_preselection_check(safe, {}, now, "en", "business")[1], "ok")
+        self.assertEqual(public_news_preselection_check(old, {}, now, "en", "business", verification_buffer=PUBLICATION_VERIFICATION_BUFFER)[1], "source_stale")
+        self.assertEqual(public_news_preselection_check(safe, {}, now, "en", "business", verification_buffer=PUBLICATION_VERIFICATION_BUFFER)[1], "ok")
         self.assertGreater(now + PUBLICATION_VERIFICATION_BUFFER - datetime.fromisoformat(old["published_at"]), HOME_MAX_AGE)
 
     def test_preselection_excludes_exposure_expiring_during_verification(self):
@@ -42,7 +42,7 @@ class HomepageExposureCapTests(unittest.TestCase):
         from scripts.enforce_homepage_max_age import base
         identity = base.normalized_identity(story)
         state = {identity: {"first_seen_at": (now - HOME_MAX_AGE + timedelta(minutes=5)).isoformat()}}
-        self.assertEqual(public_news_preselection_check(story, state, now, "en", "business")[1], "expired")
+        self.assertEqual(public_news_preselection_check(story, state, now, "en", "business", verification_buffer=PUBLICATION_VERIFICATION_BUFFER)[1], "expired")
 
     def test_public_section_hard_cap_is_fifteen(self) -> None:
         now = datetime(2026, 10, 11, 7, 0, tzinfo=timezone.utc)
