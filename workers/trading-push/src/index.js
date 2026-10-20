@@ -784,6 +784,8 @@ function pushAckLagMetrics(deliveries, nowMs = Date.now()) {
     const acceptedMs = Date.parse(String(row.sent_to_push_at || ""));
     if (!Number.isFinite(acceptedMs)) continue;
     const ageMs = Math.max(0, nowMs - acceptedMs);
+    // Ignore historic abandoned endpoints in the actionable 24h SLA window.
+    if (ageMs > 24 * 60 * 60_000) continue;
     oldestMs = Math.max(oldestMs, ageMs);
     if (ageMs >= 120000) over2m += 1;
     if (ageMs >= 600000) over10m += 1;
