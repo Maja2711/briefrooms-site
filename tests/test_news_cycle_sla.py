@@ -1,7 +1,9 @@
 from __future__ import annotations
 import unittest
+import json
+from unittest.mock import patch
 from datetime import datetime, timedelta, timezone
-from scripts.validate_news_cycle_sla import assess_runs
+from scripts.validate_news_cycle_sla import assess_runs, verify_production
 
 NOW = datetime(2026, 10, 20, 8, tzinfo=timezone.utc)
 
@@ -26,6 +28,21 @@ class NewsCycleSlaTests(unittest.TestCase):
         result = assess_runs([run(40), run(10, "failure")], NOW)
         self.assertEqual("failed", result["status"])
         self.assertIn("publisher_failed_without_later_success", result["reasons"])
+
+    def test_production_feed_mismatch_fails(self):
+        class Response:
+            def __init__(self, data): self.data = data
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+            def read(self): return self.data
+        def fake_open(request, timeout=15):
+            url = request.full_url
+            if 'status.json' in url: return Response(json.dumps({'marker': 'expected'}).encode())
+            if 'pl.json' in url: return Response(json.dumps({'marker': 'wrong'}).encode())
+            if 'en.json' in url: return Response(json.dumps({'marker': 'expected'}).encode())
+            return Response(b'<meta name="briefrooms-live-news-marker" content="expected">')
+        with patch('scripts.validate_news_cycle_sla.urlopen', side_effect=fake_open):
+            self.assertIn('production_feed_marker_mismatch:pl', verify_production())
 
     def test_new_success_resolves_prior_failure(self):
         self.assertEqual("healthy", assess_runs([run(10), run(40, "failure")], NOW)["status"])
