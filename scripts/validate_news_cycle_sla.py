@@ -15,7 +15,8 @@ WORKFLOW = "publish-news.yml"
 
 
 def assess_runs(runs: list[dict], now: datetime, max_age_minutes: int = 90) -> dict:
-    successful = [r for r in runs if r.get("conclusion") == "success"
+    eligible = [r for r in runs if r.get("event") in ("schedule", "workflow_dispatch", "push")]
+    successful = [r for r in eligible if r.get("conclusion") == "success"
                   and r.get("status") == "completed"
                   and r.get("event") in ("schedule", "workflow_dispatch", "push")
                   and r.get("run_started_at") and r.get("updated_at")]
@@ -25,7 +26,7 @@ def assess_runs(runs: list[dict], now: datetime, max_age_minutes: int = 90) -> d
     if latest:
         completed = datetime.fromisoformat(latest["updated_at"].replace("Z", "+00:00"))
         age = max(0, (now - completed).total_seconds() / 60)
-    latest_failure = next((r for r in sorted(runs, key=lambda x: x.get("updated_at", ""), reverse=True)
+    latest_failure = next((r for r in sorted(eligible, key=lambda x: x.get("updated_at", ""), reverse=True)
                            if r.get("status") == "completed" and r.get("conclusion") in ("failure", "timed_out")), None)
     unresolved_failure = bool(latest_failure and (not latest or latest_failure["updated_at"] > latest["updated_at"]))
     return {
