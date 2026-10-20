@@ -2,6 +2,22 @@
   'use strict';
 
   const lang = document.documentElement.lang === 'en' ? 'en' : 'pl';
+  // Remove the retired homepage marketing sentence, including when injected by a runtime.
+  function removeRetiredHomepageSubtitle() {
+    if (lang !== 'pl' || !document.querySelector('#latest-briefs')) return;
+    const retired = 'BriefRooms filtruje informacyjny szum, analizuje konsekwencje i mierzy wynik własnych modeli';
+    document.querySelectorAll('p').forEach(node => {
+      if (node.textContent.trim().replace(/[.\s]+$/g, '') === retired) node.remove();
+    });
+  }
+  function watchRetiredHomepageSubtitle() {
+    removeRetiredHomepageSubtitle();
+    const observer = new MutationObserver(removeRetiredHomepageSubtitle);
+    observer.observe(document.body, {childList: true, subtree: true});
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watchRetiredHomepageSubtitle, {once: true});
+  else watchRetiredHomepageSubtitle();
+
   const feedUrl = `/data/news/${lang}.json`;
   const HOME_MAX_AGE_MS = 24 * 60 * 60 * 1000;
   const FUTURE_TOLERANCE_MS = 10 * 60 * 1000;
