@@ -1,0 +1,10 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { assess } from "../src/health.js";
+const now=Date.parse("2026-10-20T10:00:00Z");
+const run=(minute,event="schedule")=>({id:1,event,run_started_at:new Date(now-minute*60000).toISOString()});
+test("healthy scheduled run",()=>assert.equal(assess([run(65)],now,90).healthy,true));
+test("missed schedule",()=>assert.equal(assess([run(91)],now,90).reason,"schedule_missing"));
+test("manual run does not mask missing schedule",()=>assert.equal(assess([run(120),run(2,"workflow_dispatch")],now,90).healthy,false));
+test("missing runs fail closed",()=>assert.equal(assess([],now,90).healthy,false));
+test("future timestamp fails closed",()=>assert.equal(assess([run(-1)],now,90).healthy,false));
