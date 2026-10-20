@@ -143,7 +143,8 @@
   function removeSubtitle() {
     document.querySelectorAll('p, div, span').forEach(function (element) {
       if (element.children.length) return;
-      if (element.textContent.trim().replace(/[.\\s]+$/g, '') === phrase) element.remove();
+      const normalized = (element.textContent || '').replace(/\\s+/g, ' ').trim();
+      if (normalized.includes(phrase)) element.remove();
     });
   }
   document.addEventListener('DOMContentLoaded', removeSubtitle);
