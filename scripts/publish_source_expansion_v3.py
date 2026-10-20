@@ -198,6 +198,7 @@ def select_sections(
     def eligible(story: dict[str, Any], section_id: str) -> bool:
         first_seen, _reason = public_freshness.public_news_preselection_check(
             story, state_lang, now, lang, section_id,
+            verification_buffer=public_freshness.PUBLICATION_VERIFICATION_BUFFER,
         )
         return first_seen is not None
 
