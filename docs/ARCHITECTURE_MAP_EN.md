@@ -1,6 +1,6 @@
 # BriefRooms Canonical Architecture Map — EN
 
-**Map version:** 1.36
+**Map version:** 1.37
 
 **Snapshot date:** 2026-10-20
 
@@ -201,7 +201,7 @@ Canonical L3-A loop: `Epistemic State -> Question Engine -> research intent -> a
 
 The watchdog reads the expected runtime version from the same `daily_eurusd_decision_record.ENGINE_VERSION` contract as the canonical writer. A fresh current-version OPEN or NO_TRADE state with healthy upstream does not raise an SLA alarm or request recovery. Obsolete/unknown versions and actual states older than 15 minutes still fail closed. PR validation checks the proposed code; the production watchdog remains pinned to `main`.
 
-The re-entry check and position writer use the same `NATIVE_BELIEF_FIRST` thesis family. A new candidate is compared with the latest meaningful loss in that family, including `DYNAMIC_RISK_EXIT` or `STOP_LOSS`; an older legacy loss cannot replace that comparison. Existing material-change thresholds remain unchanged and still allow immediate re-entry after a real signal improvement. The correction is prospective, with no history mutation or direction-authority change.
+The re-entry check and position writer use the same `NATIVE_BELIEF_FIRST` thesis family; the latest meaningful loss cannot be replaced by an older legacy loss. In addition, `scripts/daily_eurusd_reentry_safety.py` vetoes same-direction re-entry after **every** loss in the current source D1 candle, including the full first hour across a D1 rollover. It jointly requires at least 30% retracement of the open-to-extreme move, held SMA60/100/200 D1 support/resistance or a twice-confirmed structural D1 level, and a strong Belief-first signal (score 60/40, confidence ≥0.50, three aligned beliefs including post-loss source EURUSD trend evidence). Touch and confirmation use two completed post-loss 5m bars; an unfinished D1 candle cannot supply future extremes. EPE rechecks the price zone, source quote timestamp and D1 boundary. The existing 3-point/0.08 material-improvement gate for meaningful losses remains an additional condition. This is a TR-03 safety veto only: no new direction authority, Shadow influence, history mutation or D1-data dependency for exits. Details: `docs/DAILY_EURUSD_POST_LOSS_REENTRY.md`.
 
 `TR-03` retains one Belief-first direction authority. `daily_eurusd_decision_record.py` freezes decision identity, native provenance, policy version/hash, code/data hashes, EPE and initial risk geometry. The manifest passes unchanged from OPEN into canonical history; legacy trades are never reconstructed. New entries use explicit `DAILY_EURUSD_BID_ASK_V1`, while Evidence freshness uses source time rather than projection refresh time.
 

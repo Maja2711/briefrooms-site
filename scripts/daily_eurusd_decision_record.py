@@ -21,6 +21,7 @@ LEDGER_SCHEMA = "eurusd-production-decisions-v1"
 CODE_FILES = (
     "daily_eurusd_spot.py", "daily_eurusd_spot_v12.py", "daily_eurusd_spot_v13.py",
     "daily_eurusd_spot_v19.py", "daily_eurusd_belief_decision.py",
+    "daily_eurusd_reentry_safety.py",
     "daily_eurusd_lifecycle.py", "daily_eurusd_spot_v14.py",
     "daily_eurusd_production_policy.py", "daily_eurusd_decision_record.py",
     "execution_price_engine.py", "epistemic_consumer_interface.py",

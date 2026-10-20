@@ -273,6 +273,8 @@ The low-latency runtime is `scripts/daily_eurusd_macro_fast.py`; open-position e
 
 ### Re-entry and weekly-close governance
 
+The active production post-loss safety contract is [DAILY_EURUSD_POST_LOSS_REENTRY.md](DAILY_EURUSD_POST_LOSS_REENTRY.md). Every negative same-direction outcome in the active D1 candle requires a post-loss 30% daily correction, a held D1 technical support/resistance and a strong Belief-first signal. These conditions are conjunctive; score/confidence improvement alone cannot release the guard. The first hour remains protected across a D1 rollover. This safety gate does not originate direction or affect existing-position exits.
+
 Risk exit and new-entry authority are deliberately separated.
 
 - An open EUR/USD position may still be closed immediately by SL/TP, Dynamic Risk or macro-event risk; there is no minimum position age.

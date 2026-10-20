@@ -32,6 +32,7 @@ import daily_eurusd_spot_v18 as v18
 import investments_wes_macro_belief as legacy_macro_context
 import daily_eurusd_decision_record as decision_record
 import daily_eurusd_production_policy as production_policy
+import daily_eurusd_reentry_safety as reentry_safety
 
 ENGINE_VERSION = decision_record.ENGINE_VERSION
 ENTRY_THESIS_SOURCE_FAMILY = "NATIVE_BELIEF_FIRST"
@@ -119,6 +120,7 @@ def _execution_admission(
     history: Mapping[str, Any] | None,
     *,
     observed_at: datetime,
+    market_context: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     reasons: list[str] = []
     details: dict[str, Any] = {
@@ -152,6 +154,27 @@ def _execution_admission(
     details["same_thesis_reentry_guard"] = dict(guard_meta)
     if candidate.direction in {"LONG", "SHORT"} and guarded.direction == "FLAT":
         reasons.append(str(guard_meta.get("reason") or "same_thesis_reentry_blocked"))
+
+    # Price-location safety may veto the native direction; it never creates it.
+    context = market_context
+    if context is None:
+        runtime_context = _cycle_context or {}
+        try:
+            if reentry_safety.latest_loss(history, candidate.direction, observed_at) is not None:
+                market_client = runtime_context.get("market_client")
+                if market_client is not None:
+                    context = {
+                        "daily_bars": market_client.bars(base.EURUSD, "2y", "1d"),
+                        "minute_bars": runtime_context.get("monitor_bars") or [],
+                    }
+        except Exception as exc:
+            context = {"source_error": type(exc).__name__}
+    technical = reentry_safety.evaluate(
+        candidate.to_dict(), history, observed_at=observed_at, market_context=context,
+    )
+    details["post_loss_technical_guard"] = technical
+    if technical.get("allowed") is not True:
+        reasons.append(str(technical.get("reason") or "post_loss_technical_admission_blocked"))
 
     allowed = candidate.direction in {"LONG", "SHORT"} and not reasons
     return {
@@ -339,6 +362,7 @@ def build_output(
         guard = (md["execution_admission"].get("same_thesis_reentry_guard") or {})
         if guard:
             md["same_thesis_reentry_guard"] = dict(guard)
+        md["post_loss_technical_guard"] = dict(md["execution_admission"]["post_loss_technical_guard"])
         provisional = _clone(provisional, metadata=md)
     elif not allow_entry:
         md = dict(provisional.metadata)
@@ -404,6 +428,14 @@ def prepare_entry_candidate(
         return _clone(prepared, metadata=metadata)
     prepared = _clone(prepared)
     metadata = dict(prepared.metadata)
+    proof = admission.get("post_loss_technical_guard") or {}
+    execution_reason = reentry_safety.check_execution(proof, metadata.get("execution_price_engine") or {})
+    if execution_reason:
+        metadata["execution_admission"] = {
+            **dict(metadata.get("execution_admission") or {}),
+            "allowed": False, "status": "BLOCKED", "reasons": [execution_reason],
+        }
+        return _execution_blocked_output(_clone(prepared, metadata=metadata))
     context = production_policy.policy_context(_policy_state(observed_at),
         score=prepared.score, direction=prepared.direction,
         observed_at=belief_decision._parse_time(prepared.timestamp))
@@ -606,7 +638,8 @@ def run_cycle(output_path: Path, history_path: Path, client: Any | None = None) 
     policy = production_policy.advance_governance(policy, now,
         runtime_code_sha256=decision_record.runtime_code_hash())
     previous_context = _cycle_context
-    _cycle_context = {"policy_state": policy, "decision_at": now, "live": live}
+    _cycle_context = {"policy_state": policy, "decision_at": now, "live": live,
+                      "market_client": cached, "monitor_bars": bars}
     try:
         output = v18.run_cycle(output_path, history_path, cached)
         metadata = dict(output.metadata)

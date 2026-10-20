@@ -1,6 +1,6 @@
 # Kanoniczna mapa architektury BriefRooms — PL
 
-**Wersja mapy:** 1.36
+**Wersja mapy:** 1.37
 
 **Stan na:** 2026-10-20
 
@@ -201,7 +201,7 @@ Kanoniczna pętla L3-A: `Epistemic State -> Question Engine -> research intent -
 
 Watchdog odczytuje oczekiwaną wersję runtime z tego samego kontraktu `daily_eurusd_decision_record.ENGINE_VERSION`, którego używa kanoniczny writer. Świeży stan bieżącej wersji, zarówno OPEN, jak i NO_TRADE, przy zdrowym upstream nie powoduje alarmu SLA ani recovery. Nieaktualna/nieznana wersja i rzeczywiste przekroczenie 15 minut nadal są odrzucane. Walidacja PR sprawdza proponowany kod; produkcyjny watchdog pozostaje na `main`.
 
-Kontrola re-entry i zapis pozycji używają tej samej rodziny tezy `NATIVE_BELIEF_FIRST`. Nowy kandydat jest porównywany z ostatnią istotną stratą tej rodziny, także po `DYNAMIC_RISK_EXIT` lub `STOP_LOSS`; starsza strata legacy nie może zastąpić tego porównania. Istniejące progi istotnej zmiany pozostają bez zmian i nadal dopuszczają natychmiastowe wejście po rzeczywistej poprawie sygnału. Korekta działa prospektywnie, bez zmiany historii i kierunkowego authority.
+Kontrola re-entry i zapis pozycji używają tej samej rodziny tezy `NATIVE_BELIEF_FIRST`; nowy kandydat jest porównywany z ostatnią istotną stratą, bez zastępowania jej starszą stratą legacy. Dodatkowo `scripts/daily_eurusd_reentry_safety.py` blokuje ponowienie w tym samym kierunku po **każdej** stracie na bieżącej źródłowej świecy D1, także przez pierwszą godzinę po stracie przekraczającej granicę D1. Wymaga łącznie korekty co najmniej 30% ruchu otwarcie–ekstremum, utrzymanego wsparcia/oporu SMA60/100/200 D1 albo dwukrotnie potwierdzonego poziomu strukturalnego D1 oraz mocnego sygnału Belief-first (score 60/40, confidence ≥0,50, trzy zgodne beliefs z nowym po stracie źródłowym trendem EURUSD). Dotknięcie i potwierdzenie pochodzą z dwóch zakończonych świec 5m po zamknięciu; bieżąca D1 nie dostarcza przyszłego maksimum/minimum. EPE ponownie kontroluje strefę ceny, czas kwotowania i granicę D1. Dotychczasowa bramka poprawy 3 pkt/0,08 dla istotnych strat pozostaje dodatkowym warunkiem. To wyłącznie safety veto TR-03, bez nowego direction authority, udziału Shadow, zmian historii lub zależności wyjść od danych D1. Szczegóły: `docs/DAILY_EURUSD_POST_LOSS_REENTRY.md`.
 
 `TR-03` zachowuje jeden kierunkowy authority Belief-first. `daily_eurusd_decision_record.py` zamraża identyfikator decyzji, natywną proweniencję, wersję/hash polityki, hash kodu i danych, EPE oraz początkową geometrię ryzyka. Manifest przechodzi bez zmian z OPEN do historii; stare transakcje nie dostają rekonstrukcji. Nowe wejścia mają jawny `DAILY_EURUSD_BID_ASK_V1`, a świeżość Evidence używa czasu źródła, nie czasu odświeżenia projekcji.
 

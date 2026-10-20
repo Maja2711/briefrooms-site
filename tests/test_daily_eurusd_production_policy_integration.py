@@ -97,7 +97,7 @@ class ProductionPolicyRuntimeIntegrationTests(unittest.TestCase):
                     self.assertFalse(guard["change"]["material_change"])
                     self.assertEqual(history, frozen_history)
 
-    def test_material_improvement_can_reenter_immediately_after_native_loss(self):
+    def test_material_improvement_alone_cannot_bypass_post_loss_market_safety(self):
         for direction in ("LONG", "SHORT"):
             for improvement in ("score", "confidence"):
                 with self.subTest(direction=direction, improvement=improvement):
@@ -111,7 +111,8 @@ class ProductionPolicyRuntimeIntegrationTests(unittest.TestCase):
                     candidate = self.candidate(closed_at + timedelta(seconds=62),
                         score=score, direction=direction, confidence=confidence)
                     result = self.admission_after_loss(candidate, {"trades": [legacy, trade]})
-                    self.assertTrue(result["allowed"])
+                    self.assertFalse(result["allowed"])
+                    self.assertFalse(result["post_loss_technical_guard"]["allowed"])
                     guard = result["same_thesis_reentry_guard"]
                     self.assertEqual(guard["prior_trade_id"], trade["trade_id"])
                     self.assertTrue(guard["change"]["material_change"])
@@ -147,7 +148,9 @@ class ProductionPolicyRuntimeIntegrationTests(unittest.TestCase):
             with self.subTest(score=score):
                 candidate = self.candidate(closed_at + timedelta(seconds=62), score=score, confidence=.364)
                 result = self.admission_after_loss(candidate, {"trades": [legacy]})
-                self.assertEqual(result["allowed"], allowed)
+                self.assertFalse(result["allowed"])
+                self.assertEqual(not result["same_thesis_reentry_guard"]["blocked"], allowed)
+                self.assertFalse(result["post_loss_technical_guard"]["allowed"])
 
     def promoted(self):
         helper = fixtures.ProductionAdmissionPolicyTests()

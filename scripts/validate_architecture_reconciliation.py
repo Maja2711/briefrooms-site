@@ -180,9 +180,9 @@ require(legacy_closed_loop, "contents: read", "legacy closed loop")
 forbid(legacy_closed_loop, "Apply statistically proven autonomous policy calibration", "legacy closed loop")
 forbid(legacy_closed_loop, "git push origin HEAD:main", "legacy closed loop")
 
-for token in ("**Wersja mapy:** 1.36", "IN-08", "EP-09", "LE-10", "LE-11", "L3-04", "PROBATIONARY_CONTROL", "NO_TRADE", "FULL", "WES 1.3.1"):
+for token in ("**Wersja mapy:** 1.37", "IN-08", "EP-09", "LE-10", "LE-11", "L3-04", "PROBATIONARY_CONTROL", "NO_TRADE", "FULL", "WES 1.3.1"):
     require(pl_map, token, "PL Architecture Map")
-for token in ("**Map version:** 1.36", "IN-08", "EP-09", "LE-10", "LE-11", "L3-04", "PROBATIONARY_CONTROL", "NO_TRADE", "FULL", "WES 1.3.1"):
+for token in ("**Map version:** 1.37", "IN-08", "EP-09", "LE-10", "LE-11", "L3-04", "PROBATIONARY_CONTROL", "NO_TRADE", "FULL", "WES 1.3.1"):
     require(en_map, token, "EN Architecture Map")
 require(stock_doc, "PRODUCTION CHAMPION — FULL", "Stock Trading architecture")
 require(stock_doc, "Market Relationship / Trigger", "Stock Trading architecture")
@@ -218,6 +218,10 @@ require(wes_cycle_watchdog_workflow, "actions/workflows/investments-wes.yml/disp
 require(daily_cycle_watchdog, "DEFAULT_MAX_AGE_MINUTES = 15", "Daily EURUSD 15-minute liveness threshold")
 require(daily_decision_record, 'ENGINE_VERSION = "eurusd-daily-spot-v1.9.1"', "Daily EURUSD canonical engine-version contract")
 require(daily_runtime, "ENGINE_VERSION = decision_record.ENGINE_VERSION", "Daily EURUSD writer shared engine-version contract")
+require(daily_runtime, "reentry_safety.evaluate(", "Daily EURUSD post-loss technical safety")
+require(daily_runtime, "reentry_safety.check_execution(", "Daily EURUSD post-loss execution recheck")
+require(read("scripts/daily_eurusd_reentry_safety.py"), 'MIN_RETRACEMENT = .30', "Daily EURUSD minimum correction contract")
+require(daily_decision_record, '"daily_eurusd_reentry_safety.py"', "Daily EURUSD frozen safety implementation cohort")
 require(daily_cycle_watchdog, "from daily_eurusd_decision_record import ENGINE_VERSION as EXPECTED_ENGINE_VERSION", "Daily EURUSD watchdog shared engine-version contract")
 forbid(daily_cycle_watchdog, "EXPECTED_ENGINE_VERSION = ", "Daily EURUSD duplicated watchdog version")
 require(daily_cycle_watchdog_workflow, "scripts/daily_eurusd_cycle_watchdog.py", "Daily EURUSD cycle watchdog")
