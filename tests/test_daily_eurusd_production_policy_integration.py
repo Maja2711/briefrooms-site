@@ -20,9 +20,9 @@ from tests import test_daily_eurusd_production_policy as fixtures
 
 
 class ProductionPolicyRuntimeIntegrationTests(unittest.TestCase):
-    def candidate(self, at, score=53.5):
+    def candidate(self, at, score=53.5, direction="LONG", confidence=.8):
         final = belief.attach_decision_provenance({
-            "direction": "LONG", "score": score, "confidence": .8,
+            "direction": direction, "score": score, "confidence": confidence,
             "decision_source": "NATIVE_BELIEF_FIRST", "used_beliefs": [],
         }, {}, observed_at=at)
         execution = {
@@ -32,8 +32,10 @@ class ProductionPolicyRuntimeIntegrationTests(unittest.TestCase):
             "synthetic_half_spread_pips": 1.5, "synthetic_spread_pips": 3.0,
         }
         return runtime.DailyEngineOutput(
-            instrument="EUR/USD", timestamp=policy._iso(at), direction="LONG",
-            score=score, confidence=.8, entry=1.10015, stop=1.09, target=1.118,
+            instrument="EUR/USD", timestamp=policy._iso(at), direction=direction,
+            score=score, confidence=confidence, entry=1.10015,
+            stop=1.09 if direction == "LONG" else 1.11030,
+            target=1.118 if direction == "LONG" else 1.08230,
             horizon="intraday_to_27h", engine_version=runtime.ENGINE_VERSION,
             status="SIGNAL", decision_mode="WITH", metadata={
                 "decision_source": "NATIVE", "final_decision": final,
@@ -43,6 +45,97 @@ class ProductionPolicyRuntimeIntegrationTests(unittest.TestCase):
                 "risk": {"risk_plan_version": "initial-geometry-v1"},
             },
         ).validate()
+
+    def closed_native_loss(self, direction="LONG", exit_reason="DYNAMIC_RISK_EXIT"):
+        at = datetime(2026, 10, 20, 14, 42, 47, tzinfo=timezone.utc)
+        score = 58.43 if direction == "LONG" else 41.57
+        candidate = self.candidate(at, score=score, direction=direction, confidence=.3936)
+        context = {"policy_state": policy.default_state(at - timedelta(minutes=1)), "decision_at": at}
+        with patch.object(runtime, "_cycle_context", context), patch.object(runtime, "_epe_prepare", return_value=candidate):
+            admitted = runtime.prepare_entry_candidate(candidate, [], at)
+            position = runtime._create_position_v19(admitted.to_dict())
+        sign = 1 if direction == "LONG" else -1
+        risk = abs(position["entry"] - position["stop"])
+        first_mid = position["entry"] + sign * (.00015 - .1 * risk)
+        last_mid = (position["stop"] if exit_reason == "STOP_LOSS"
+                    else position["entry"] + sign * (.00015 - .4 * risk))
+        closed_at = datetime(2026, 10, 20, 14, 50, 28, tzinfo=timezone.utc)
+        bars = [Bar(at + timedelta(minutes=1), first_mid), Bar(closed_at, last_mid)]
+        trade = runtime.v18._evaluate_position(position, bars, closed_at)
+        self.assertIsNotNone(trade)
+        self.assertEqual(trade["exit_reason"], exit_reason)
+        records.validate_trade_binding(trade)
+        legacy = {
+            "trade_id": "legacy-morning-loss", "direction": direction,
+            "closed_at": policy._iso(closed_at - timedelta(hours=6)), "r_multiple": -.3521,
+            "entry_thesis": {
+                "source": "NATIVE", "source_family": "NATIVE_COMPONENTS", "direction": direction,
+                "score": 53.12 if direction == "LONG" else 46.88, "confidence": .364,
+                "components": {}, "weights": {},
+            },
+        }
+        return trade, legacy, closed_at
+
+    def admission_after_loss(self, candidate, history):
+        with patch.object(belief, "calendar_safety", return_value={"blocked": False, "reason": "clear"}):
+            return runtime._execution_admission(candidate, history, observed_at=policy._time(candidate.timestamp))
+
+    def test_reentry_compares_latest_native_loss_when_legacy_loss_exists(self):
+        for direction in ("LONG", "SHORT"):
+            for exit_reason in ("DYNAMIC_RISK_EXIT", "STOP_LOSS"):
+                with self.subTest(direction=direction, exit_reason=exit_reason):
+                    trade, legacy, closed_at = self.closed_native_loss(direction, exit_reason)
+                    candidate = self.candidate(closed_at + timedelta(seconds=62),
+                        score=trade["entry_score"], direction=direction, confidence=.3936)
+                    history = {"trades": [trade, legacy]}
+                    frozen_history = copy.deepcopy(history)
+                    result = self.admission_after_loss(candidate, history)
+                    self.assertFalse(result["allowed"])
+                    guard = result["same_thesis_reentry_guard"]
+                    self.assertEqual(guard["prior_trade_id"], trade["trade_id"])
+                    self.assertEqual(guard["current_thesis"]["source_family"], trade["entry_thesis"]["source_family"])
+                    self.assertFalse(guard["change"]["material_change"])
+                    self.assertEqual(history, frozen_history)
+
+    def test_material_improvement_can_reenter_immediately_after_native_loss(self):
+        for direction in ("LONG", "SHORT"):
+            for improvement in ("score", "confidence"):
+                with self.subTest(direction=direction, improvement=improvement):
+                    trade, legacy, closed_at = self.closed_native_loss(direction)
+                    score = trade["entry_score"]
+                    confidence = .3936
+                    if improvement == "score":
+                        score += 3.1 if direction == "LONG" else -3.1
+                    else:
+                        confidence += .081
+                    candidate = self.candidate(closed_at + timedelta(seconds=62),
+                        score=score, direction=direction, confidence=confidence)
+                    result = self.admission_after_loss(candidate, {"trades": [legacy, trade]})
+                    self.assertTrue(result["allowed"])
+                    guard = result["same_thesis_reentry_guard"]
+                    self.assertEqual(guard["prior_trade_id"], trade["trade_id"])
+                    self.assertTrue(guard["change"]["material_change"])
+                    self.assertFalse(guard["generic_loss_cooldown"])
+
+    def test_unchanged_signal_cannot_reach_epe_after_native_loss(self):
+        trade, legacy, closed_at = self.closed_native_loss()
+        at = closed_at + timedelta(seconds=62)
+        candidate = self.candidate(at, score=trade["entry_score"], confidence=.3936)
+        metadata = {**candidate.metadata, "execution_admission": self.admission_after_loss(candidate, {"trades": [legacy, trade]})}
+        candidate = runtime._clone(candidate, metadata=metadata)
+        with patch.object(runtime, "_epe_prepare", return_value=candidate) as epe:
+            output = runtime.prepare_entry_candidate(candidate, [], at)
+        epe.assert_not_called()
+        self.assertEqual(output.direction, "FLAT")
+        self.assertEqual(output.metadata["final_decision"]["direction"], "LONG")
+
+    def test_legacy_loss_still_requires_material_improvement(self):
+        _, legacy, closed_at = self.closed_native_loss()
+        for score, allowed in ((53.12, False), (58.43, True)):
+            with self.subTest(score=score):
+                candidate = self.candidate(closed_at + timedelta(seconds=62), score=score, confidence=.364)
+                result = self.admission_after_loss(candidate, {"trades": [legacy]})
+                self.assertEqual(result["allowed"], allowed)
 
     def promoted(self):
         helper = fixtures.ProductionAdmissionPolicyTests()

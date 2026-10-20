@@ -16,6 +16,8 @@ The existing Belief Core -> EpistemicState -> CF-07 -> native final LONG/SHORT/F
 
 The main monitor atomically publishes output, history, policy state, decision ledger and notification transitions in one guarded Git commit. The realtime writer appends actual closes; the next full monitor binds them to the original admission. Watcher startup precedes Web Push, so a notification failure cannot prevent risk monitoring.
 
+The re-entry safety check and the canonical position writer use the same `NATIVE_BELIEF_FIRST` thesis-family identity. A recent meaningful native loss, including `DYNAMIC_RISK_EXIT` or `STOP_LOSS`, must therefore be compared with the new native candidate before an older legacy loss can qualify it. An unchanged score/confidence cannot reuse improvement measured against an older trade to release the guard. Existing material-change thresholds and the 12-hour loss window remain in force; material improvement can still permit immediate re-entry. This admission check neither changes the final Belief direction nor rewrites historical thesis identities.
+
 ## Immutable observations and measurement
 
 `data/investments/eurusd_production_decisions.json` is an append-only record of new monitor decisions. Each manifest includes native provenance and decision time, policy version/hash, runtime source hash, market/Epistemic hashes, final decision, admission result, EPE verification and initial entry/stop/target. A position and its eventual closed trade retain the identical entry manifest. A new refresh decision is a separate record and never relabels the open position's policy.
