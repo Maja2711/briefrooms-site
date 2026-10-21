@@ -1,6 +1,6 @@
 {
   "layer_version": "5.9.1-experimental",
-  "checked_at": "2026-10-21T17:21:21+02:00",
+  "checked_at": "2026-10-21T17:37:14+02:00",
   "actions": [
     {
       "instrument_id": "eurusd",
@@ -14,51 +14,9 @@
     },
     {
       "instrument_id": "btcusd",
-      "action": "wait_for_market_entry",
-      "direction": "long",
-      "target_price": 83580.70006916,
-      "reference_price": 84344.7109375,
-      "order_type": "market",
-      "expires_at": "2026-10-21T17:36:21+02:00",
-      "overextension_score": 0.53288,
-      "market_entry_diagnostics": {
-        "version": "WES-1.3.1",
-        "scoring_model": "weekly_primary_daily_confirmation_modifier",
-        "direction": "long",
-        "daily_score": 40.0,
-        "weekly_score": 50.0,
-        "selected_utility": 8.2538,
-        "confirmations": 2,
-        "ret5_pct": 3.4894,
-        "ret20_pct": -0.5991,
-        "overextension_score": 0.53288,
-        "daily_aligned": true,
-        "weekly_aligned": true,
-        "daily_opposed": false,
-        "weekly_opposed": false,
-        "momentum_aligned": false,
-        "momentum_opposed": false,
-        "primary_score_components": {
-          "weekly": 0.9091,
-          "utility": 0.5896,
-          "confirmations": 0.5,
-          "momentum": 0.5
-        },
-        "primary_market_score": 0.7065,
-        "overextension_penalty": 0.1066,
-        "score_before_daily_modifier": 0.5999,
-        "daily_confirmation_modifier": 0.0582,
-        "daily_confirmation_state": "aligned_bonus",
-        "daily_modifier_bounds": {
-          "aligned_bonus_max": 0.08,
-          "opposed_penalty_max": 0.1,
-          "strong_opposition_veto_abs_score": 55.0
-        },
-        "market_score": 0.6581,
-        "minimum_market_score": 0.6,
-        "eligible": true,
-        "reasons": []
-      }
+      "action": "reject_unverified_market_entry",
+      "reason": "missing_canonical_live_target_contract",
+      "target_price": 83580.70006916
     }
   ],
   "status": "completed",
