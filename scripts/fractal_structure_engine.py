@@ -15,7 +15,9 @@ from zoneinfo import ZoneInfo
 
 SCHEMA="briefrooms-fractal-structure-engine-v1"
 PUBLIC_SCHEMA="briefrooms-fse-public-v1"
-METHODOLOGY_VERSION="FSE-CORE-2.0"
+METHODOLOGY_VERSION="FSE-CORE-3.0"
+SEARCH_MIN_EPISODES=8
+SEARCH_WINDOW=64
 SNAPSHOT_SCHEMA="briefrooms-fse-snapshot-v1"
 RESOLUTION_SCHEMA="briefrooms-fse-resolution-v1"
 SNAPSHOTS_FILE="fse_snapshots.jsonl"
@@ -314,20 +316,55 @@ def similarity(a:Sequence[float],b:Sequence[float])->float:
     if not a or len(a)!=len(b):return 0.0
     return 1.0/(1.0+math.sqrt(mean([(x-y)**2 for x,y in zip(a,b)])))
 
+def _search_distance(a:Sequence[float],b:Sequence[float])->float:
+    if not a or len(a)!=len(b):return math.inf
+    return math.sqrt(mean([(float(x)-float(y))**2 for x,y in zip(a,b)]))
+
+def _independent_search_rows(rows:Sequence[Mapping[str,Any]],limit:int)->list[Mapping[str,Any]]:
+    """Select whole feature-and-outcome episodes; nearby windows get one vote."""
+    selected=[]
+    for row in rows:
+        if any(not (row["end"]<old["start"] or row["start"]>old["end"]) for old in selected):continue
+        selected.append(row)
+        if len(selected)>=limit:break
+    return selected
+
+def _quality_selected(rows:Sequence[Mapping[str,Any]],vector:Sequence[float],top_k:int)->tuple[list[Mapping[str,Any]],dict[str,Any]]:
+    """Calibrate distance from historical independent episodes, never outcomes.
+
+    The declared 0.75 ceiling is a research prior, not an optimized alpha claim.
+    At most 64 past anchors bound the quadratic calibration cost.
+    """
+    anchors=_independent_search_rows(sorted(rows,key=lambda row:row["start"]),64)
+    quality={"raw_windows_n":len(rows),"independent_episodes_n":len(anchors),"minimum_episodes":SEARCH_MIN_EPISODES,
+             "available":False,"status":"ABSTAIN","quality_threshold":None,"reason":"insufficient independent episodes"}
+    if len(anchors)<SEARCH_MIN_EPISODES:return [],quality
+    distances=[min(_search_distance(a["vector"],b["vector"]) for b in anchors if b is not a) for a in anchors]
+    threshold=min(.75,max(1e-6,quantile(distances,.90)*1.5))
+    ranked=sorted((dict(row,distance=_search_distance(vector,row["vector"])) for row in rows),key=lambda row:(row["distance"],row["start"]))
+    selected=_independent_search_rows([row for row in ranked if row["distance"]<=threshold],top_k)
+    quality.update(quality_threshold=threshold,independent_analogues_n=len(selected),reason="poor analogue quality or insufficient independent matches")
+    if len(selected)<SEARCH_MIN_EPISODES:return [],quality
+    quality.update(available=True,status="MATCHED",reason="independent historical matches passed the frozen search-quality rule")
+    return selected,quality
+
 def historical_analogues(hourly:Sequence[Bar],horizon_bars:int=4,top_k:int=50)->dict[str,Any]:
     r=list(hourly); cur=path_fingerprint(r)
-    if len(r)<200 or not cur:return {"source":"HISTORICAL_BOOTSTRAP","analogues_n":0,"p_up":.5}
+    empty={"source":"HISTORICAL_BOOTSTRAP","analogues_n":0,"p_up":None,"available":False,"status":"ABSTAIN","reason":"insufficient historical data"}
+    if len(r)<200 or not cur:return empty
     cand=[]
-    for end in range(64,len(r)-horizon_bars-8,8):
+    query_start=len(r)-SEARCH_WINDOW
+    for end in range(SEARCH_WINDOW,query_start-horizon_bars+1,8):
         fp=path_fingerprint(r[:end]); ref=r[end-1].close; fut=r[end:end+horizon_bars]
         if not fp or ref<=0 or len(fut)<horizon_bars:continue
         ret=fut[-1].close/ref-1; path=[x.close/ref-1 for x in fut]
-        cand.append({"similarity":similarity(cur,fp),"return":ret,"min":min(path),"max":max(path)})
-    cand.sort(key=lambda x:x["similarity"],reverse=True); c=cand[:top_k]
-    if not c:return {"source":"HISTORICAL_BOOTSTRAP","analogues_n":0,"p_up":.5}
+        cand.append({"vector":fp,"start":end-SEARCH_WINDOW,"end":end+horizon_bars-1,"similarity":similarity(cur,fp),"return":ret,"min":min(path),"max":max(path)})
+    c,quality=_quality_selected(cand,cur,top_k)
+    quality["query_exclusion_bars"]=SEARCH_WINDOW
+    if not c:return dict(empty,**quality)
     w=[max(x["similarity"],1e-6)**3 for x in c]; ws=sum(w); pup=sum(a for a,x in zip(w,c) if x["return"]>0)/ws; up=pup>=.5
     adv=[-x["min"] if up else x["max"] for x in c]
-    return {"source":"HISTORICAL_BOOTSTRAP","analogues_n":len(c),"p_up":pup,"top_similarity":c[0]["similarity"],"mean_similarity":mean([x["similarity"] for x in c]),"median_forward_return":statistics.median([x["return"] for x in c]),"median_adverse_excursion":statistics.median(adv)}
+    return {"source":"HISTORICAL_BOOTSTRAP","analogues_n":len(c),"p_up":pup,"top_similarity":c[0]["similarity"],"mean_similarity":mean([x["similarity"] for x in c]),"median_forward_return":statistics.median([x["return"] for x in c]),"median_adverse_excursion":statistics.median(adv),**quality}
 
 def feature_vector(scales:Mapping[str,Mapping[str,Any]],risk:Mapping[str,Any])->list[float]:
     out=[]
@@ -361,18 +398,23 @@ def verify_chain(path:Path,schema:str,id_key:str)->dict[str,Any]:
         seen.add(rid); prev=stored
     return {"ok":True,"events":len(rows),"head_hash":prev}
 
-def memory_analogues(vector:Sequence[float],snaps:Sequence[Mapping[str,Any]],resmap:Mapping[str,Mapping[str,Any]],instrument:str,as_of:datetime|None=None)->dict[str,Any]|None:
+def memory_analogues(vector:Sequence[float],snaps:Sequence[Mapping[str,Any]],resmap:Mapping[str,Mapping[str,Any]],instrument:str,as_of:datetime|None=None,query_start:datetime|None=None)->dict[str,Any]|None:
     c=[]
     for s in snaps:
         if s.get("instrument")!=instrument or s.get("methodology_version")!=METHODOLOGY_VERSION:continue
-        res=resmap.get(str(s.get("snapshot_id") or "")); v=s.get("feature_vector")
+        res=resmap.get(str(s.get("snapshot_id") or "")); v=s.get("search_vector")
         if not res or res.get("methodology_version")!=METHODOLOGY_VERSION or not isinstance(v,list) or len(v)!=len(vector):continue
         if as_of is not None and parse_time(str(res["resolved_at"]))>as_of:continue
+        if not s.get("search_window_start_at") or not res.get("outcome_closed_at"):continue
+        start=parse_time(s["search_window_start_at"]); end=parse_time(res["outcome_closed_at"])
+        if query_start is not None and end>=query_start:continue
         sim=1/(1+math.sqrt(mean([(float(a)-float(b))**2 for a,b in zip(vector,v)])))
-        c.append({"similarity":sim,"up":1 if res.get("outcome_up") else 0,"return":float(res.get("forward_return") or 0),"mae":float(res.get("mae_fraction") or 0)})
-    if len(c)<12:return None
-    c.sort(key=lambda x:x["similarity"],reverse=True); c=c[:40]; w=[x["similarity"]**3 for x in c]; ws=sum(w)
-    return {"source":"PROSPECTIVE_MEMORY","analogues_n":len(c),"p_up":sum(a*x["up"] for a,x in zip(w,c))/ws,"top_similarity":c[0]["similarity"],"mean_similarity":mean([x["similarity"] for x in c]),"median_forward_return":statistics.median([x["return"] for x in c]),"median_adverse_excursion":statistics.median([x["mae"] for x in c])}
+        c.append({"vector":v,"start":start,"end":end,"similarity":sim,"up":1 if res.get("outcome_up") else 0,"return":float(res.get("forward_return") or 0),"mae":float(res.get("mae_fraction") or 0)})
+    if len(c)<SEARCH_MIN_EPISODES:return None
+    c,quality=_quality_selected(c,vector,40)
+    if not c:return None  # A separate historical search may qualify; it must pass its own gate.
+    w=[x["similarity"]**3 for x in c]; ws=sum(w)
+    return {"source":"PROSPECTIVE_MEMORY","analogues_n":len(c),"p_up":sum(a*x["up"] for a,x in zip(w,c))/ws,"top_similarity":c[0]["similarity"],"mean_similarity":mean([x["similarity"] for x in c]),"median_forward_return":statistics.median([x["return"] for x in c]),"median_adverse_excursion":statistics.median([x["mae"] for x in c]),**quality}
 
 def fetch_instrument(client:YahooChartClient,symbol:str)->dict[str,list[Bar]]:
     d={tf:client.bars(symbol,str(s["range"]),str(s["interval"])) for tf,s in TIMEFRAMES.items()}; d["4h"]=resample_minutes(d["1h"],240,symbol); return d
@@ -380,9 +422,12 @@ def fetch_instrument(client:YahooChartClient,symbol:str)->dict[str,list[Bar]]:
 def instrument_state(instrument:str,symbol:str,d:Mapping[str,Sequence[Bar]],snaps,resmap)->dict[str,Any]:
     scales={tf:scale_features(d[tf],240 if tf=="4h" else int(TIMEFRAMES[tf]["minutes"])) for tf in ("5m","15m","1h","4h","1d")}
     risk=structural_risk(scales); vec=feature_vector(scales,risk); last=d["1h"][-1]
-    mem=memory_analogues(vec,snaps,resmap,instrument,last.source_observed_at or last.timestamp) or historical_analogues(d["1h"])
-    raw_p=finite(mem.get("p_up")); pup=clamp(raw_p if raw_p is not None else .5); last=d["1h"][-1]
-    return {"instrument":instrument,"symbol":symbol,"observed_at":(last.source_observed_at or last.timestamp).isoformat().replace("+00:00","Z"),"bar_open_at":last.timestamp.isoformat().replace("+00:00","Z"),"reference_price":last.close,"scales":scales,"structural_risk":risk,"fractal_memory":mem,"p_up_4h":pup,"forecast":"UP" if pup>=.55 else ("DOWN" if pup<=.45 else "NEUTRAL"),"feature_vector":vec,"atr_1h_fraction":float(scales["1h"].get("atr_fraction") or 0)}
+    query_start=d["1h"][-min(SEARCH_WINDOW,len(d["1h"]))].timestamp
+    search_vector=path_fingerprint(d["1h"])
+    mem=memory_analogues(search_vector,snaps,resmap,instrument,last.source_observed_at or last.timestamp,query_start=query_start) or historical_analogues(d["1h"])
+    raw_p=finite(mem.get("p_up")); pup=clamp(raw_p) if raw_p is not None else None
+    forecast="ABSTAIN" if pup is None else ("UP" if pup>=.55 else ("DOWN" if pup<=.45 else "NEUTRAL"))
+    return {"instrument":instrument,"symbol":symbol,"observed_at":(last.source_observed_at or last.timestamp).isoformat().replace("+00:00","Z"),"bar_open_at":last.timestamp.isoformat().replace("+00:00","Z"),"search_window_start_at":query_start.isoformat(),"search_vector":search_vector,"reference_price":last.close,"scales":scales,"structural_risk":risk,"fractal_memory":mem,"p_up_4h":pup,"forecast":forecast,"feature_vector":vec,"atr_1h_fraction":float(scales["1h"].get("atr_fraction") or 0)}
 
 def resolve_snapshots(state_dir:Path,hourly:Mapping[str,Sequence[Bar]],horizon_bars:int=4,as_of:str|datetime|None=None)->None:
     cutoff=parse_time(as_of) if isinstance(as_of,str) else (as_of or datetime.now(timezone.utc))
@@ -398,10 +443,10 @@ def resolve_snapshots(state_dir:Path,hourly:Mapping[str,Sequence[Bar]],horizon_b
         # close before scoring. Old feed backfills never become prospective.
         if path[0].timestamp<frozen or closed>cutoff:continue
         ref=float(s["reference_price"]); ret=bar.close/ref-1; up=1 if ret>0 else 0
-        raw_p=finite(s.get("p_up_4h")); p=clamp(raw_p if raw_p is not None else .5); brier=(p-up)**2
+        raw_p=finite(s.get("p_up_4h")); p=clamp(raw_p) if raw_p is not None else None; brier=(p-up)**2 if p is not None else None
         large=1 if abs(ret)>=.75*max(float(s.get("atr_1h_fraction") or 0),1e-9) else 0; pr=clamp(float(s.get("risk_score") or 0)); rb=(pr-large)**2; prts=[x.close/ref-1 for x in path]
         rid="fseres-"+sha({"methodology_version":METHODOLOGY_VERSION,"snapshot_id":sid,"outcome_closed_at":closed.isoformat()})[:24]
-        append_chain(state_dir/RESOLUTIONS_FILE,RESOLUTION_SCHEMA,{"resolution_id":rid,"snapshot_id":sid,"instrument":s["instrument"],"observed_at":s["observed_at"],"bar_open_at":s["bar_open_at"],"frozen_at":s["frozen_at"],"horizon":f"{horizon_bars}x1h_market_bars","resolved_at":cutoff.isoformat().replace("+00:00","Z"),"outcome_closed_at":closed.isoformat().replace("+00:00","Z"),"methodology_version":METHODOLOGY_VERSION,"forward_return":ret,"outcome_up":bool(up),"mae_fraction":min(prts),"mfe_fraction":max(prts),"directional_brier":brier,"directional_brier_edge_vs_0_5":.25-brier,"large_move_event":bool(large),"risk_probability":pr,"risk_brier":rb,"risk_brier_edge_vs_0_5":.25-rb,"prospective_only":True,"authority":dict(ZERO_AUTHORITY)},"resolution_id")
+        append_chain(state_dir/RESOLUTIONS_FILE,RESOLUTION_SCHEMA,{"resolution_id":rid,"snapshot_id":sid,"instrument":s["instrument"],"observed_at":s["observed_at"],"bar_open_at":s["bar_open_at"],"frozen_at":s["frozen_at"],"horizon":f"{horizon_bars}x1h_market_bars","resolved_at":cutoff.isoformat().replace("+00:00","Z"),"outcome_closed_at":closed.isoformat().replace("+00:00","Z"),"methodology_version":METHODOLOGY_VERSION,"forward_return":ret,"outcome_up":bool(up),"mae_fraction":min(prts),"mfe_fraction":max(prts),"directional_brier":brier,"directional_brier_edge_vs_0_5":.25-brier if brier is not None else None,"large_move_event":bool(large),"risk_probability":pr,"risk_brier":rb,"risk_brier_edge_vs_0_5":.25-rb,"prospective_only":True,"authority":dict(ZERO_AUTHORITY)},"resolution_id")
         done.add(sid)
 
 def create_snapshot(state_dir:Path,s:Mapping[str,Any],frozen_at:str|None=None)->None:
@@ -410,15 +455,15 @@ def create_snapshot(state_dir:Path,s:Mapping[str,Any],frozen_at:str|None=None)->
     if any(x.get("methodology_version")==METHODOLOGY_VERSION and x.get("bar_open_at")==opened for x in rows):return
     frozen=frozen_at or datetime.now(timezone.utc).isoformat().replace("+00:00","Z")
     sid="fsesnap-"+sha({"methodology_version":METHODOLOGY_VERSION,"instrument":s["instrument"],"bar_open_at":opened})[:24]
-    append_chain(state_dir/SNAPSHOTS_FILE,SNAPSHOT_SCHEMA,{"snapshot_id":sid,"instrument":s["instrument"],"symbol":s["symbol"],"observed_at":s["observed_at"],"bar_open_at":opened,"frozen_at":frozen,"methodology_version":METHODOLOGY_VERSION,"reference_price":s["reference_price"],"risk_score":s["structural_risk"]["risk_score"],"regime":s["structural_risk"]["regime"],"p_up_4h":s["p_up_4h"],"frozen_memory":dict(s["fractal_memory"]),"analogue_source":s["fractal_memory"].get("source"),"analogue_n":s["fractal_memory"].get("analogues_n"),"atr_1h_fraction":s["atr_1h_fraction"],"feature_vector":list(s["feature_vector"]),"prospective_only":True,"authority":dict(ZERO_AUTHORITY)},"snapshot_id")
+    append_chain(state_dir/SNAPSHOTS_FILE,SNAPSHOT_SCHEMA,{"snapshot_id":sid,"instrument":s["instrument"],"symbol":s["symbol"],"observed_at":s["observed_at"],"bar_open_at":opened,"search_window_start_at":s.get("search_window_start_at"),"search_vector":list(s.get("search_vector") or []),"frozen_at":frozen,"methodology_version":METHODOLOGY_VERSION,"reference_price":s["reference_price"],"risk_score":s["structural_risk"]["risk_score"],"regime":s["structural_risk"]["regime"],"p_up_4h":s["p_up_4h"],"frozen_memory":dict(s["fractal_memory"]),"analogue_source":s["fractal_memory"].get("source"),"analogue_n":s["fractal_memory"].get("analogues_n"),"atr_1h_fraction":s["atr_1h_fraction"],"feature_vector":list(s["feature_vector"]),"prospective_only":True,"authority":dict(ZERO_AUTHORITY)},"snapshot_id")
 
 def bind_frozen_forecast(state:dict[str,Any],snapshot:Mapping[str,Any])->None:
     """A live feature refresh cannot silently replace the immutable forecast."""
     state["latest_source_observed_at"]=state["observed_at"]
     state["live_features_observed_at"]=state["observed_at"]
     state["frozen_forecast"]={key:snapshot.get(key) for key in ("snapshot_id","methodology_version","bar_open_at","observed_at","frozen_at","reference_price","p_up_4h")}
-    state["p_up_4h"]=float(snapshot["p_up_4h"])
-    state["forecast"]="UP" if state["p_up_4h"]>=.55 else ("DOWN" if state["p_up_4h"]<=.45 else "NEUTRAL")
+    state["p_up_4h"]=finite(snapshot.get("p_up_4h"))
+    state["forecast"]="ABSTAIN" if state["p_up_4h"] is None else ("UP" if state["p_up_4h"]>=.55 else ("DOWN" if state["p_up_4h"]<=.45 else "NEUTRAL"))
     state["fractal_memory"]=dict(snapshot.get("frozen_memory") or {"source":snapshot.get("analogue_source"),"analogues_n":snapshot.get("analogue_n")})
 
 def verify(state_dir:Path)->dict[str,Any]:
@@ -440,7 +485,7 @@ def verify(state_dir:Path)->dict[str,Any]:
     return {"ok":True,"snapshots":a,"resolutions":b,"zero_authority":True}
 
 def measurements(resolutions:Sequence[Mapping[str,Any]],instrument:str)->list[dict[str,Any]]:
-    r=[x for x in resolutions if x.get("instrument")==instrument and x.get("methodology_version")==METHODOLOGY_VERSION]; de=[float(x.get("directional_brier_edge_vs_0_5") or 0) for x in r]; re=[float(x.get("risk_brier_edge_vs_0_5") or 0) for x in r]
+    r=[x for x in resolutions if x.get("instrument")==instrument and x.get("methodology_version")==METHODOLOGY_VERSION]; de=[float(x["directional_brier_edge_vs_0_5"]) for x in r if finite(x.get("directional_brier_edge_vs_0_5")) is not None]; re=[float(x["risk_brier_edge_vs_0_5"]) for x in r if finite(x.get("risk_brier_edge_vs_0_5")) is not None]
     return [
         {"proposal_key":f"fse-fractal-memory-{instrument.lower()}-4h-brier","claim":f"FSE Fractal Memory for {instrument} improves prospective 4x1h-market-bar directional Brier score versus a 50/50 baseline.","champion":"50/50 directional baseline","challenger":"FSE Fractal Memory","metric_name":"brier_improvement_vs_0_5","target_n":40,"success_mean_edge":.0025,"reject_mean_edge":-.0025,"counter":len(de),"total":sum(de),"details":{"instrument":instrument,"horizon":"4x1h_market_bars","kind":"directional_memory","methodology_version":METHODOLOGY_VERSION}},
         {"proposal_key":f"fse-structural-risk-{instrument.lower()}-4h-brier","claim":f"FSE structural-risk probability for {instrument} improves prospective 4x1h-market-bar large-move Brier score versus a 50/50 baseline.","champion":"50/50 large-move baseline","challenger":"FSE Structural Risk","metric_name":"risk_brier_improvement_vs_0_5","target_n":40,"success_mean_edge":.0025,"reject_mean_edge":-.0025,"counter":len(re),"total":sum(re),"details":{"instrument":instrument,"horizon":"4x1h_market_bars","large_move_threshold":"0.75 * frozen ATR(1h)","kind":"risk_calibration","methodology_version":METHODOLOGY_VERSION}},
@@ -482,9 +527,9 @@ def public_projection(states,resolutions,at:str,snapshots=None)->dict[str,Any]:
     perf=[{"instrument":str(s["instrument"]),**directional_performance(resolutions,snapshots or [],str(s["instrument"]),methodology_version=METHODOLOGY_VERSION)} for s in states]
     for s in states:
         ms += measurements(resolutions,str(s["instrument"])); risk=s["structural_risk"]; mem=s["fractal_memory"]
-        inst.append({"instrument":s["instrument"],"symbol":s["symbol"],"observed_at":s["observed_at"],"latest_source_observed_at":s.get("latest_source_observed_at",s["observed_at"]),"live_features_observed_at":s.get("live_features_observed_at",s["observed_at"]),"reference_price":s["reference_price"],"frozen_forecast":s.get("frozen_forecast"),"regime":risk["regime"],"risk_score":risk["risk_score"],"risk_components":risk["components"],"persistence":risk["persistence"],"research_risk_geometry":risk["research_candidate"],"fractal_memory":{"source":mem.get("source"),"analogues_n":mem.get("analogues_n"),"p_up_4h":s["p_up_4h"],"forecast":s["forecast"],"top_similarity":mem.get("top_similarity"),"mean_similarity":mem.get("mean_similarity"),"median_forward_return":mem.get("median_forward_return"),"median_adverse_excursion":mem.get("median_adverse_excursion")},"scale_summary":{tf:{k:v.get(k) for k in ("bars","hurst_q2","multifractality_proxy","excess_kurtosis","tail_ratio_q95_median","atr_fraction")} for tf,v in s["scales"].items()}})
+        inst.append({"instrument":s["instrument"],"symbol":s["symbol"],"observed_at":s["observed_at"],"latest_source_observed_at":s.get("latest_source_observed_at",s["observed_at"]),"live_features_observed_at":s.get("live_features_observed_at",s["observed_at"]),"reference_price":s["reference_price"],"frozen_forecast":s.get("frozen_forecast"),"regime":risk["regime"],"risk_score":risk["risk_score"],"risk_components":risk["components"],"persistence":risk["persistence"],"research_risk_geometry":risk["research_candidate"],"fractal_memory":{**{k:mem.get(k) for k in ("available","status","reason","raw_windows_n","independent_episodes_n","independent_analogues_n","minimum_episodes","quality_threshold","query_exclusion_bars")},"source":mem.get("source"),"analogues_n":mem.get("analogues_n"),"p_up_4h":s["p_up_4h"],"forecast":s["forecast"],"top_similarity":mem.get("top_similarity"),"mean_similarity":mem.get("mean_similarity"),"median_forward_return":mem.get("median_forward_return"),"median_adverse_excursion":mem.get("median_adverse_excursion")},"scale_summary":{tf:{k:v.get(k) for k in ("bars","hurst_q2","multifractality_proxy","excess_kurtosis","tail_ratio_q95_median","atr_fraction")} for tf,v in s["scales"].items()}})
     legacy={"snapshots":sum(s.get("methodology_version")!=METHODOLOGY_VERSION for s in snapshots or []),"resolutions":sum(r.get("methodology_version")!=METHODOLOGY_VERSION for r in resolutions),"included_in_current_metrics":False}
-    return {"schema_version":PUBLIC_SCHEMA,"methodology_version":METHODOLOGY_VERSION,"engine":"FSE — Fractal Structure Engine","module_id":"IN-09","mode":"SHADOW_ONLY","generated_at":at,"legacy_evidence":legacy,"pipeline":"MULTISCALE MARKET GEOMETRY -> STRUCTURAL RISK + FRACTAL MEMORY -> PROSPECTIVE FREEZE -> FORWARD VERIFICATION","risk_definition":"Risk = f(scale, persistence, multifractality_proxy, tails)","memory_definition":"current state -> normalized structural fingerprint -> analogues -> forward distribution","instruments":inst,"hse_measurements":ms,"directional_performance":perf,"authority":dict(ZERO_AUTHORITY),"production_impact":False,"notes":["4h is resampled from fixed time/session buckets of 1h bars.","Multifractality is a generalized-Hurst spread proxy, not full MF-DFA.","Historical 1h analogues bootstrap the model; durable full-vector Fractal Memory takes over after enough prospective resolutions.","Legacy cohorts remain immutable and excluded from current metrics.","Sizing and stop multipliers are research candidates only."]}
+    return {"schema_version":PUBLIC_SCHEMA,"methodology_version":METHODOLOGY_VERSION,"engine":"FSE — Fractal Structure Engine","module_id":"IN-09","mode":"SHADOW_ONLY","generated_at":at,"legacy_evidence":legacy,"pipeline":"MULTISCALE MARKET GEOMETRY -> STRUCTURAL RISK + FRACTAL MEMORY -> PROSPECTIVE FREEZE -> FORWARD VERIFICATION","risk_definition":"Risk = f(scale, persistence, multifractality_proxy, tails)","memory_definition":"current state -> normalized structural fingerprint -> analogues -> forward distribution","instruments":inst,"hse_measurements":ms,"directional_performance":perf,"authority":dict(ZERO_AUTHORITY),"production_impact":False,"notes":["4h is resampled from fixed time/session buckets of 1h bars.","Multifractality is a generalized-Hurst spread proxy, not full MF-DFA.","Historical 1h analogues bootstrap the model; durable 64-bar shape memory uses the same retrieval vector after enough independent prospective episodes; multiscale geometry remains descriptive context.","Legacy cohorts remain immutable and excluded from current metrics.","Sizing and stop multipliers are research candidates only."]}
 
 def run_cycle(root:Path,state_dir:Path,public_path:Path,instruments:Mapping[str,str]|None=None,client:YahooChartClient|None=None,at:str|None=None)->dict[str,Any]:
     state_dir.mkdir(parents=True,exist_ok=True); instruments=dict(instruments or DEFAULT_INSTRUMENTS); client=client or YahooChartClient()

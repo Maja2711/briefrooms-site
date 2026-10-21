@@ -276,11 +276,38 @@ class HSE2Tests(unittest.TestCase):
 
 
 class FSERepairCohortTests(unittest.TestCase):
+    def test_stale_publication_cannot_quarantine_new_methodology_or_resume_old_evidence(self):
+        cases=(("FSE-CORE", "data/investments/fse_public.json", "fse-fractal-memory-eurusd-4h-brier"),
+               ("FSE-PHASE", "data/investments/fse_v2_public.json", "fse-phase-memory-eurusd-4h-brier"),
+               ("FSE-ADAPTIVE", "data/investments/fse_v2_public.json", "fse-adaptive-ensemble-eurusd-4h-brier-v1"))
+        for prefix,path,key in cases:
+            with self.subTest(prefix=prefix),tempfile.TemporaryDirectory() as tmp:
+                root=Path(tmp);state=root/"state";public=root/"public.json"
+                def publish(version,counter,total,at):
+                    write(root,path,{"generated_at":at,"methodology_version":version,"hse_measurements":[{
+                        "proposal_key":key,"metric_name":"paired_brier","target_n":40,"counter":counter,"total":total,
+                        "details":{"methodology_version":version}}]})
+                    return run_cycle(root,state,public,at)
+                first=publish(prefix+"-3.0",0,0,"2026-10-21T10:00:00Z")
+                eid=first["experiments"][0]["experiment_id"]
+                stale=publish(prefix+"-2.0",80,8,"2026-10-21T10:05:00Z")
+                self.assertEqual(len(stale["experiments"]),1)
+                self.assertEqual(stale["experiments"][0]["experiment_id"],eid)
+                self.assertEqual(stale["experiments"][0]["prospective_n"],0)
+                restored=publish(prefix+"-3.0",1,.02,"2026-10-21T10:10:00Z")
+                self.assertEqual(restored["experiments"][0]["experiment_id"],eid)
+                self.assertEqual(restored["experiments"][0]["prospective_n"],1)
+                self.assertEqual(restored["historical_fse_experiments"],[])
+                self.assertTrue(verify(state)["ok"])
+
     def test_corrected_cohorts_archive_prior_verdicts_without_rewriting_evidence(self):
         cases = (
             ("briefrooms-fse-public-v1", "FSE-CORE-2.0", "data/investments/fse_public.json", "fse-fractal-memory-eurusd-4h-brier"),
             ("FSE-PHASE-1.0", "FSE-PHASE-2.0", "data/investments/fse_v2_public.json", "fse-phase-memory-eurusd-4h-brier"),
             ("FSE-ADAPTIVE-1.0", "FSE-ADAPTIVE-2.0", "data/investments/fse_v2_public.json", "fse-adaptive-ensemble-eurusd-4h-brier-v1"),
+            ("FSE-CORE-2.0", "FSE-CORE-3.0", "data/investments/fse_public.json", "fse-fractal-memory-eurusd-4h-brier"),
+            ("FSE-PHASE-2.0", "FSE-PHASE-3.0", "data/investments/fse_v2_public.json", "fse-phase-memory-eurusd-4h-brier"),
+            ("FSE-ADAPTIVE-2.0", "FSE-ADAPTIVE-3.0", "data/investments/fse_v2_public.json", "fse-adaptive-ensemble-eurusd-4h-brier-v1"),
         )
         for old_version, new_version, path, key in cases:
             with self.subTest(methodology=new_version), tempfile.TemporaryDirectory() as tmp:

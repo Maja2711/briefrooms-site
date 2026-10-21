@@ -34,14 +34,22 @@ def registered_family(state: dict, rows: list[Bar], instrument: str = "BTCUSD") 
         "name": "Autonomicznie zidentyfikowany testowy motyw",
         "description": "Historyczna hipoteza testowa", "applications": ["research only"],
         "historical_sample_n": 18, "historical_p_up": 0.63,
+        "methodology_version":asd.VERSION,"historical_independent_n":18,
+        **asd.selection_contract(state),
         "historical_median_abs_return": 0.005,
     }
     family["definition_hash"] = asd.digest(family)
     state["families"][fid] = family
+    asd.register_trial(state,fid,clock_after(rows))
     return fid
 
 
 class FSEAutonomousDiscoveryTests(unittest.TestCase):
+    @staticmethod
+    def episode(vector, index, window=32):
+        return {"vector":vector,"return":.01,"end_at":str(index),"window":window,
+                "start_index":index*80,"end_index":index*80+window-1,"target_end_index":index*80+window+3}
+
     def test_price_level_invariant_geometry(self):
         a = [x.close for x in bars(130)]
         one = asd.fingerprint(a)
@@ -55,7 +63,7 @@ class FSEAutonomousDiscoveryTests(unittest.TestCase):
             for i in range(9):
                 vec = tuple(center + 0.003 * ((k + i) % 4) for k in range(15))
                 sample.append({"vector": vec, "return": 0.02 if i % 2 else -0.01,
-                               "end_at": str(i), "window": 32})
+                               "end_at": str(i), "window": 32,"start_index":i*40,"target_end_index":i*40+35})
         groups = asd.learn_groups(sample)
         self.assertGreaterEqual(len(groups), 2)
         self.assertTrue(all(x["count"] >= asd.MIN_SUPPORT for x in groups))
@@ -83,7 +91,7 @@ class FSEAutonomousDiscoveryTests(unittest.TestCase):
         self.assertFalse(row["execution_authority"])
         self.assertFalse(asd.capture(state, "BTCUSD", source, frozen_at))
         extended = source + [Bar(source[-1].timestamp + timedelta(hours=i),
-                                 source[-1].close * (1 + .001 * i)) for i in range(1, 5)]
+                                 source[-1].close * (1 + .001 * i)) for i in range(1, 6)]
         before_end = extended[-1].timestamp + timedelta(minutes=30)
         self.assertEqual(asd.resolve(state, "BTCUSD", extended, before_end), 0)
         self.assertEqual(asd.resolve(state, "BTCUSD", extended, clock_after(extended)), 1)
@@ -128,15 +136,18 @@ class FSEAutonomousDiscoveryTests(unittest.TestCase):
 
     @staticmethod
     def add_prospective_results(state, family_id, n, brier, baseline,
-                                abs_move=None, baseline_abs=None):
-        for k in range(n):
+                                abs_move=None, baseline_abs=None,start_index=0,spacing=5):
+        for k in range(start_index,start_index+n):
             asd.append_evidence(state, "resolutions", {
                 "snapshot_id": f"test:{family_id}:{k}",
                 "instrument": "BTCUSD", "family_id": family_id,
+                "methodology_version":asd.VERSION,
+                "frozen_at":(datetime(2026,10,1,tzinfo=timezone.utc)+timedelta(hours=k*spacing)).isoformat(),
+                "outcome_closed_at":(datetime(2026,10,1,tzinfo=timezone.utc)+timedelta(hours=k*spacing+4)).isoformat(),
                 "outcome_observed_at": (datetime(2026, 10, 1, tzinfo=timezone.utc)
-                                        + timedelta(hours=k)).isoformat(),
+                                        + timedelta(hours=k*spacing+3)).isoformat(),
                 "resolved_at": (datetime(2026, 10, 1, tzinfo=timezone.utc)
-                                + timedelta(hours=k+4)).isoformat(),
+                                + timedelta(hours=k*spacing+4)).isoformat(),
                 "outcome_up": 1, "forward_return": 0.005,
                 "brier": brier, "baseline_brier": baseline,
                 "abs_move_mae": abs_move, "baseline_abs_move_mae": baseline_abs,
@@ -153,7 +164,11 @@ class FSEAutonomousDiscoveryTests(unittest.TestCase):
         self.assertEqual(asd.publication(state, t)["summary"]["families"], 1)
         asd.append_evidence(state, "resolutions", {
             "snapshot_id": "test:40", "instrument": "BTCUSD", "family_id": fid,
-            "outcome_observed_at": t.isoformat(), "resolved_at": t.isoformat(),
+            "methodology_version":asd.VERSION,
+            "frozen_at":(datetime(2026,10,1,tzinfo=timezone.utc)+timedelta(hours=39*5)).isoformat(),
+            "outcome_closed_at":(datetime(2026,10,1,tzinfo=timezone.utc)+timedelta(hours=39*5+4)).isoformat(),
+            "outcome_observed_at":(datetime(2026,10,1,tzinfo=timezone.utc)+timedelta(hours=39*5+3)).isoformat(),
+            "resolved_at":(datetime(2026,10,1,tzinfo=timezone.utc)+timedelta(hours=39*5+4)).isoformat(),
             "brier": .27, "baseline_brier": .25,
             "prospective": True, "execution_authority": False
         })
@@ -209,10 +224,13 @@ class FSEAutonomousDiscoveryTests(unittest.TestCase):
             base = copy.deepcopy(state["families"]["ASD-TEST0001"])
             base["family_id"] = f"ASD-ALREADY{i:04d}"
             base["centroid"] = [float(i+2)] * 15
+            base.update(asd.selection_contract(state))
             base["definition_hash"] = asd.digest({k:v for k,v in base.items() if k!="definition_hash"})
             state["families"][base["family_id"]] = base
+            asd.register_trial(state,base["family_id"],clock_after(original))
+        members=[{"vector":[200.0]*15,"return":.02,"end_at":str(i),"start_index":i*40,"target_end_index":i*40+35} for i in range(8)]
         group = {"centroid": [200.0] * 15, "radius": .15,
-                 "members": [{"return": 0.02}] * 8, "count": 8}
+                 "members": members, "count": 8}
         with patch.object(asd, "candidates", return_value=[{"vector": [200.0] * 15}]*8),\
              patch.object(asd, "learn_groups", return_value=[group]):
             created = asd.discover(state, "BTCUSD", original, clock_after(original))
@@ -276,6 +294,166 @@ class FSEAutonomousDiscoveryTests(unittest.TestCase):
         asd.cycle(state, {"BTCUSD": extra}, clock)
         self.assertEqual(len(state["resolutions"]), 0)
         self.assertEqual(state["snapshots"][-1]["observed_at"], source[-1].timestamp.isoformat())
+
+    def test_query_purge_excludes_current_motif_and_training_target(self):
+        source=bars(1000)
+        for window in asd.WINDOWS:
+            sample=asd.candidates(source,window)
+            self.assertTrue(sample)
+            self.assertTrue(all(r["target_end_index"]<len(source)-window for r in sample))
+            self.assertGreater(len(asd.independent_episodes(sample)),asd.MIN_SUPPORT)
+
+    def test_overlapping_windows_are_not_six_independent_occurrences(self):
+        raw=[{"vector":[.1]*15,"return":.01,"end_at":str(i),"start_index":i*8,"target_end_index":i*8+67} for i in range(6)]
+        self.assertEqual(len(asd.independent_episodes(raw)),1)
+        self.assertEqual(asd.learn_groups(raw),[])
+        separate=[self.episode([.1]*15,i,64) for i in range(6)]
+        self.assertEqual(asd.learn_groups(separate)[0]["independent_count"],6)
+
+    def test_sparse_bridge_does_not_erase_two_dense_families(self):
+        values=[i*.001 for i in range(8)]+[.1,.2,.3]+[.35+i*.001 for i in range(8)]
+        sample=[self.episode([value]*15,i) for i,value in enumerate(values)]
+        groups=asd.learn_groups(sample)
+        self.assertEqual(len(groups),2)
+        self.assertTrue(all(g["independent_count"]>=8 for g in groups))
+        reversed_groups=asd.learn_groups(list(reversed(sample)))
+        self.assertEqual([(g["centroid"],g["count"]) for g in groups],[(g["centroid"],g["count"]) for g in reversed_groups])
+        changed=[dict(r,**{"return":-999}) for r in sample]
+        self.assertEqual([g["centroid"] for g in groups],[g["centroid"] for g in asd.learn_groups(changed)])
+
+    def test_quality_gate_abstains_on_weak_or_ambiguous_match(self):
+        source=bars(); t=clock_after(source)
+        state=asd.blank_state(); fid=registered_family(state,source)
+        family=state["families"][fid]
+        family["centroid"]=[x+.16 for x in family["centroid"]]
+        family["definition_hash"]=asd.digest({k:v for k,v in family.items() if k!="definition_hash"})
+        self.assertTrue(asd.capture(state,"BTCUSD",source,t))
+        self.assertEqual(state["snapshots"][-1]["status"],"FROZEN_LOW_QUALITY")
+        self.assertIsNone(state["snapshots"][-1]["p_up"])
+        state=asd.blank_state(); fid=registered_family(state,source)
+        other=copy.deepcopy(state["families"][fid]); other["family_id"]="ASD-SECOND"
+        other.update(asd.selection_contract(state)); other["centroid"]=[x+.001 for x in other["centroid"]]
+        other["definition_hash"]=asd.digest({k:v for k,v in other.items() if k!="definition_hash"})
+        state["families"][other["family_id"]]=other; asd.register_trial(state,other["family_id"],t)
+        asd.capture(state,"BTCUSD",source,t)
+        self.assertEqual(state["snapshots"][-1]["status"],"FROZEN_AMBIGUOUS")
+        self.assertIsNone(state["snapshots"][-1]["family_id"])
+        self.assertTrue(state["snapshots"][-1]["query_fingerprints"])
+        asd.verify(state)
+
+    def test_forty_overlapping_outcomes_cannot_pass_independent_holdout(self):
+        state=asd.blank_state(); fid=registered_family(state,bars())
+        self.add_prospective_results(state,fid,40,.1,.25,spacing=1)
+        score=asd.family_evidence(state,fid)
+        self.assertEqual(score["prospective_n"],40)
+        self.assertEqual(score["independent_n"],10)
+        self.assertFalse(score["formal_evaluated"])
+        self.assertEqual(asd.finalize_selections(state,datetime(2027,1,1,tzinfo=timezone.utc)),0)
+        self.assertEqual(asd.retire_failed_families(state,datetime(2027,1,1,tzinfo=timezone.utc)),0)
+
+    def test_fixed_holdout_verdict_is_frozen_once_and_not_reselected(self):
+        state=asd.blank_state(); fid=registered_family(state,bars())
+        self.add_prospective_results(state,fid,40,.15,.25)
+        t=datetime(2027,1,1,tzinfo=timezone.utc)
+        self.assertEqual(asd.finalize_selections(state,t),1)
+        frozen=copy.deepcopy(state["selection_events"])
+        initial=asd.family_evidence(state,fid)
+        self.add_prospective_results(state,fid,50,.9,.25,start_index=40)
+        self.assertEqual(asd.finalize_selections(state,t),0)
+        self.assertEqual(state["selection_events"],frozen)
+        current=asd.family_evidence(state,fid)
+        self.assertEqual(current["prospective_n"],90)
+        self.assertEqual(current["holdout_n"],40)
+        self.assertEqual(current["mean_brier"],initial["mean_brier"])
+        self.assertTrue(current["directional_pass"])
+        asd.verify(state)
+
+    def test_trial_budget_is_durable_and_does_not_cap_exploratory_catalogue(self):
+        state=asd.blank_state(); first=registered_family(state,bars()); t=clock_after(bars())
+        for i in range(1,26):
+            family=copy.deepcopy(state["families"][first]); family["family_id"]=f"ASD-BUDGET-{i}"
+            family.update(asd.selection_contract(state)); family["centroid"]=[float(i)]*15
+            family["definition_hash"]=asd.digest({k:v for k,v in family.items() if k!="definition_hash"})
+            state["families"][family["family_id"]]=family; asd.register_trial(state,family["family_id"],t)
+        self.assertEqual(len(state["families"]),26)
+        restored=copy.deepcopy(state); contract=asd.selection_contract(restored)
+        self.assertFalse(contract["selection_eligible"])
+        self.assertIsNone(contract["selection_trial_index"])
+        self.add_prospective_results(restored,"ASD-BUDGET-25",40,.01,.25)
+        self.assertFalse(asd.family_evidence(restored,"ASD-BUDGET-25")["formal_evaluated"])
+        self.assertEqual(asd.publication(restored,t)["summary"]["selection_trials_used"],24)
+        asd.verify(restored)
+        corrupted=copy.deepcopy(restored); corrupted["selection_events"]=[]
+        with self.assertRaises(ValueError):asd.verify(corrupted)
+
+    def test_migration_archives_legacy_without_rewriting_definitions_or_evidence(self):
+        source=bars(1000); state=asd.blank_state(); fid=registered_family(state,source)
+        family=state["families"][fid]
+        for key in ["methodology_version","historical_independent_n","selection_trial_index","selection_target_n","selection_alpha","selection_eligible"]:family.pop(key)
+        family["definition_hash"]=asd.digest({k:v for k,v in family.items() if k!="definition_hash"})
+        state["schema_version"]=asd.LEGACY_VERSION; state.pop("selection_events")
+        old_snapshot={"snapshot_id":"BTCUSD:legacy","instrument":"BTCUSD","family_id":fid,"observed_at":source[100].timestamp.isoformat(),"frozen_at":source[101].timestamp.isoformat(),"reference_close":source[100].close,"p_up":.63,"baseline_p_up":.5}
+        asd.append_evidence(state,"snapshots",old_snapshot)
+        asd.append_evidence(state,"resolutions",{"snapshot_id":"BTCUSD:legacy:resolved","instrument":"BTCUSD","family_id":fid,"brier":.2,"baseline_brier":.25})
+        original_family=copy.deepcopy(family); original_snapshots=copy.deepcopy(state["snapshots"]); original_resolutions=copy.deepcopy(state["resolutions"])
+        asd.cycle(state,{"BTCUSD":source},clock_after(source))
+        self.assertEqual(state["schema_version"],asd.VERSION)
+        self.assertEqual(state["families"][fid],original_family)
+        self.assertEqual(state["snapshots"][:len(original_snapshots)],original_snapshots)
+        self.assertEqual(state["resolutions"][:len(original_resolutions)],original_resolutions)
+        self.assertFalse(any(r["snapshot_id"]=="BTCUSD:legacy" for r in state["resolutions"]))
+        public=asd.publication(state,clock_after(source))
+        self.assertEqual(public["legacy_evidence"]["families"],1)
+        self.assertEqual(public["legacy_evidence"]["snapshots"],1)
+        self.assertFalse(public["legacy_evidence"]["included_in_current_metrics"])
+        archive=next(f for f in public["legacy_families"] if f["family_id"]==fid)
+        self.assertEqual(archive["description"],original_family["description"])
+        self.assertEqual(archive["applications"],original_family["applications"])
+        self.assertEqual(archive["historical_sample_n"],18)
+        self.assertEqual(archive["historical_p_up"],.63)
+        self.assertEqual(archive["legacy_prospective_n"],1)
+        self.assertEqual(archive["mean_brier"],.2)
+        self.assertEqual(archive["evidence_status"],"ARCHIVED_LEGACY")
+        self.assertNotIn(fid,[f["family_id"] for f in public["families"]])
+        self.assertTrue(all(r["family_id"]!=fid for r in public["current_matches"]))
+        asd.verify(state)
+
+    def test_live_reference_freeze_excludes_already_open_target_hour(self):
+        end=datetime(2026,10,21,19,tzinfo=timezone.utc)
+        source=bars(180,start=end-timedelta(hours=179)); state=asd.blank_state()
+        registered_family(state,source)
+        frozen=end+timedelta(hours=1,minutes=57)
+        live=Bar(end+timedelta(hours=1),120,source_observed_at=frozen-timedelta(minutes=1))
+        self.assertTrue(asd.capture(state,"BTCUSD",source,frozen,reference_bar=live))
+        snap=state["snapshots"][-1]
+        self.assertEqual(snap["reference_price"],120)
+        self.assertEqual(asd.utc(snap["reference_source_observed_at"]),frozen-timedelta(minutes=1))
+        self.assertEqual(snap["target_selection"],asd.TARGET_SELECTION)
+        future=source+[Bar(end+timedelta(hours=i),999 if i==1 else 121) for i in range(1,6)]
+        self.assertEqual(asd.resolve(state,"BTCUSD",future,end+timedelta(hours=5,minutes=59)),0)
+        self.assertEqual(asd.resolve(state,"BTCUSD",future,end+timedelta(hours=6)),1)
+        result=state["resolutions"][-1]
+        self.assertEqual(result["target_bar_opens"][0],(end+timedelta(hours=2)).isoformat())
+        self.assertTrue(all(asd.utc(t)>=frozen for t in result["target_bar_opens"]))
+        self.assertAlmostEqual(result["forward_return"],121/120-1,places=8)
+
+    def test_reference_requires_fresh_source_clock_and_live_clock_is_post_fetch(self):
+        from unittest.mock import patch
+        end=datetime(2026,10,21,19,tzinfo=timezone.utc)
+        source=bars(180,start=end-timedelta(hours=179)); frozen=end+timedelta(hours=1,minutes=57)
+        live=Bar(end+timedelta(hours=1),120,source_observed_at=frozen-timedelta(minutes=1))
+        state=asd.blank_state(); registered_family(state,source)
+        self.assertFalse(asd.capture(state,"BTCUSD",source,frozen))
+        future_quote=Bar(live.timestamp,120,source_observed_at=frozen+timedelta(seconds=1))
+        self.assertFalse(asd.capture(state,"BTCUSD",source,frozen,reference_bar=future_quote))
+        with patch.object(asd,"now_utc",return_value=frozen):
+            asd.cycle(state,{"BTCUSD":source+[live]},end+timedelta(hours=1),live_clock=True)
+        self.assertEqual(len(state["snapshots"]),1)
+        self.assertEqual(asd.utc(state["snapshots"][0]["frozen_at"]),frozen)
+        self.assertEqual(state["snapshots"][0]["reference_price"],120)
+        fixed=asd.blank_state(); registered_family(fixed,source)
+        asd.cycle(fixed,{"BTCUSD":source+[live]},end+timedelta(hours=1,minutes=30))
+        self.assertEqual(fixed["snapshots"],[])
 
 
 if __name__ == "__main__":

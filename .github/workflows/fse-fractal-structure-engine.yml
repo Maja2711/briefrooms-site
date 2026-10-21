@@ -127,10 +127,12 @@ jobs:
           python - <<'PY'
           import json
           from pathlib import Path
+          from scripts.fractal_structure_engine import METHODOLOGY_VERSION
           p=json.loads(Path("data/investments/fse_public.json").read_text())
           assert p["engine"] == "FSE — Fractal Structure Engine"
           assert p["module_id"] == "IN-09"
           assert p["mode"] == "SHADOW_ONLY"
+          assert p["methodology_version"] == METHODOLOGY_VERSION
           assert p["production_impact"] is False
           assert p["instruments"]
           assert len(p["hse_measurements"]) == 2 * len(p["instruments"])
@@ -138,6 +140,10 @@ jobs:
               assert value is False
           for row in p["instruments"]:
               assert row["research_risk_geometry"]["production_applied"] is False
+              memory=row["fractal_memory"]
+              assert memory["status"] in {"MATCHED","ABSTAIN"}
+              if memory["available"] is False:
+                  assert memory["p_up_4h"] is None and memory["forecast"]=="ABSTAIN"
           print("FSE_ZERO_AUTHORITY_PASS")
           PY
           git diff --exit-code --             data/investments/stock_trading_v2_production_state.json             data/investments/stock_trading_champion_manifest.json             data/investments/wes_incremental_alpha_report.json             data/investments/eurusd_x_public_pl.json

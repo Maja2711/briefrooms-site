@@ -138,7 +138,7 @@ jobs:
           assert p["module_id"]=="IN-09" and p["component_id"]=="FSE-PHASE"
           assert p["methodology_version"]==METHODOLOGY_VERSION
           assert all(v is False for v in p["authority"].values())
-          assert len(p["hse_measurements"]) == 4 * len(p["instruments"])
+          assert len(p["hse_measurements"]) == 5 * len(p["instruments"])
           assert p["adaptive_learning_version"] == ADAPTIVE_VERSION
           assert p["adaptive_learning_authority"] == p["authority"]
           assert p["promotion_gate"]["automatic_promotion"] is False
@@ -148,6 +148,7 @@ jobs:
               assert "cross_scale_alignment" in row
               assert "p_calibration_challenger" in row
               assert "adaptive_learning" in row
+              assert "simple_memory" in row and "feature_ablation" in row
               assert row["adaptive_learning"]["ensemble"]["production_applied"] is False
               assert row["adaptive_learning"]["risk"]["production_applied"] is False
           print("FSE_PHASE_ZERO_AUTHORITY_PASS")

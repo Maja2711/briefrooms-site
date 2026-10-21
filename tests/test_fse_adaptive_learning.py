@@ -99,9 +99,11 @@ class TestFSEAdaptiveLearning(unittest.TestCase):
     def test_legacy_cohorts_cannot_train_or_appear_in_corrected_metrics(self):
         snaps, results, start = samples()
         for s in snaps:
-            s["methodology_version"] = "FSE-PHASE-1.0"
+            s["methodology_version"] = "FSE-PHASE-2.0"
+            s["adaptive_version"] = "FSE-ADAPTIVE-2.0"
         for r in results:
-            r["methodology_version"] = "FSE-PHASE-1.0"
+            r["methodology_version"] = "FSE-PHASE-2.0"
+            r["adaptive_version"] = "FSE-ADAPTIVE-2.0"
             r["edge_vs_0_5"] = 0.1
             r["adaptive_brier_improvement_vs_deep"] = 0.1
         row = current_row(start + timedelta(hours=70))
@@ -213,6 +215,80 @@ class TestFSEAdaptiveLearning(unittest.TestCase):
             self.assertEqual(b["instruments"][0]["reference_price"], 100.0)
             self.assertEqual(b["instruments"][0]["frozen_at"], rows[0]["frozen_at"])
 
+    def test_abstention_remains_frozen_and_never_creates_directional_evidence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            observed = datetime(2026, 10, 1, tzinfo=timezone.utc)
+            first = current_row(observed)
+            first["memory"].update(p_up=.75, available=False, status="ABSTAIN")
+            first["forecast"] = "ABSTAIN"
+            first["simple_memory"] = {"p_up": .65, "available": False}
+            first["phase_map"]["1h"]["phase_memory"].update(p_up_4h=None, p_up_remaining=None, available=False)
+            first["p_calibration_challenger"] = {"active": False, "p_challenger": None}
+            later = current_row(observed)
+            later["memory"].update(p_up=.9, available=True)
+            later["simple_memory"] = {"p_up": .8, "available": True}
+            with patch.object(fse, "fetch_multiscale", return_value={"1h": []}), \
+                    patch.object(fse, "build_instrument_state", side_effect=[first, later]):
+                fse.run_cycle(root, root / "state", root / "public.json", {"BTCUSD": "BTC-USD"},
+                              at=(observed + timedelta(minutes=10)).isoformat())
+                out = fse.run_cycle(root, root / "state", root / "public.json", {"BTCUSD": "BTC-USD"},
+                                    at=(observed + timedelta(minutes=50)).isoformat())
+            row = out["instruments"][0]
+            self.assertIsNone(row["memory"]["p_up"])
+            self.assertEqual(row["forecast"], "ABSTAIN")
+            self.assertFalse(row["feature_ablation"]["paired_available"])
+            future = [v1.Bar(observed + timedelta(hours=i), 100 + i) for i in range(1, 6)]
+            fse.resolve(root / "state", {"BTCUSD": future}, as_of=(observed + timedelta(hours=6)).isoformat())
+            result = fse.read_jsonl(root / "state" / fse.RESOLUTIONS_FILE)[0]
+            for key in ("directional_brier", "phase_brier", "challenger_brier", "edge_vs_0_5",
+                        "full_brier_improvement_vs_simple"):
+                self.assertIsNone(result[key])
+            self.assertTrue(all(item["counter"] == 0 for item in fse.hse_measurements([result], "BTCUSD")))
+            self.assertIsInstance(result["large_move_event"], bool)
+
+    def test_feature_ablation_is_paired_and_counts_independent_immutable_test_blocks(self):
+        start = datetime(2026, 10, 1, tzinfo=timezone.utc)
+        rows = [{"instrument": "BTCUSD", "methodology_version": fse.METHODOLOGY_VERSION,
+                 "prospective_only": True, "full_brier_improvement_vs_simple": .01,
+                 "frozen_at": (start + timedelta(hours=i)).isoformat(),
+                 "outcome_closed_at": (start + timedelta(hours=i + 5)).isoformat()}
+                for i in range(40)]
+        metric = fse.hse_measurements(rows, "BTCUSD")[-1]
+        self.assertEqual(metric["raw_paired_n"], 40)
+        self.assertEqual(metric["counter"], 8)
+        self.assertAlmostEqual(metric["total"], .08)
+        self.assertTrue(metric["details"]["independent_blocks_only"])
+        # A late outcome must not rearrange the already credited test blocks.
+        late = dict(rows[1], full_brier_improvement_vs_simple=100)
+        self.assertEqual(fse.hse_measurements(rows + [late], "BTCUSD")[-1]["total"], metric["total"])
+
+    def test_feature_ablation_scores_only_two_valid_frozen_forecasts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            observed = datetime(2026, 10, 1, tzinfo=timezone.utc)
+            row = current_row(observed)
+            row["memory"]["p_up"] = .6
+            row["simple_memory"] = {"p_up": .7, "available": True}
+            fse.snapshot(root, row)
+            future = [v1.Bar(observed + timedelta(hours=i), 100 + i) for i in range(1, 6)]
+            fse.resolve(root, {"BTCUSD": future}, as_of=(observed + timedelta(hours=6)).isoformat())
+            result = fse.read_jsonl(root / fse.RESOLUTIONS_FILE)[0]
+            self.assertAlmostEqual(result["simple_brier"], .09)
+            self.assertAlmostEqual(result["full_brier_improvement_vs_simple"], -.07)
+            metric = fse.hse_measurements([result], "BTCUSD")[-1]
+            self.assertEqual(metric["counter"], 1)
+            self.assertEqual(metric["raw_paired_n"], 1)
+            unpaired = root / "unpaired"
+            row["simple_memory"] = {"p_up": None, "available": False}
+            fse.snapshot(unpaired, row)
+            fse.resolve(unpaired, {"BTCUSD": future}, as_of=(observed + timedelta(hours=6)).isoformat())
+            missing = fse.read_jsonl(unpaired / fse.RESOLUTIONS_FILE)[0]
+            self.assertIsNotNone(missing["directional_brier"])
+            self.assertIsNone(missing["simple_brier"])
+            self.assertIsNone(missing["full_brier_improvement_vs_simple"])
+            self.assertEqual(fse.hse_measurements([missing], "BTCUSD")[-1]["counter"], 0)
+
     def test_partial_hour_never_settles_a_future_outcome(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -240,11 +316,11 @@ class TestFSEAdaptiveLearning(unittest.TestCase):
             "adaptive_risk_improvement_vs_prior": 0.02,
         }]
         proposals = fse.hse_measurements(rows, "BTCUSD")
-        self.assertEqual(len(proposals), 4)
-        self.assertEqual([x["counter"] for x in proposals], [1, 1, 1, 1])
+        self.assertEqual(len(proposals), 5)
+        self.assertEqual([x["counter"] for x in proposals], [1, 1, 1, 1, 0])
         self.assertEqual([x["details"]["methodology_version"] for x in proposals],
                          [fse.METHODOLOGY_VERSION, fse.METHODOLOGY_VERSION,
-                          fse.ADAPTIVE_VERSION, fse.ADAPTIVE_VERSION])
+                          fse.ADAPTIVE_VERSION, fse.ADAPTIVE_VERSION, fse.METHODOLOGY_VERSION])
         self.assertTrue(all(x["target_n"] == 40 for x in proposals))
 
 

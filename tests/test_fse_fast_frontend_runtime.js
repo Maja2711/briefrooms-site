@@ -19,6 +19,64 @@ for(const path of ["scripts/central-lab.js","scripts/central-lab-runtime-en.js"]
   const block=source.slice(source.indexOf("// Fast presentation selection"),source.indexOf("const FSE_TREND_TFS="));
   function api(get=async()=>null){return vm.runInNewContext(block+";({load:fseLoadFast,merge:fseMergeProjection,fresh:fseFastRowFresh,valid:fseProjectionValid});",{Date:Clock,Map,Number,String,Array,Infinity,finite:v=>v!==null&&v!==undefined&&Number.isFinite(Number(v)),get});}
 
+  function presentation(){
+    const body=source.slice(source.indexOf("function fseSignal("),source.indexOf("function fseHseMatches("));
+    const finite=v=>v!==null&&v!==undefined&&v!==""&&Number.isFinite(Number(v));
+    return vm.runInNewContext(body+";({probability:fseSearchProbability,quality:fseSearchQuality,comparison:fseSearchComparison,cell:fseModelCell,signal:fseSignal,brier:fseBrierText});",{
+      finite,Number,String,Array,esc:value=>String(value??"—"),num:(value,d=0)=>finite(value)?Number(value).toFixed(d):"—",pct:value=>finite(value)?(Number(value)*100).toFixed(1)+"%":"—",fseInstrumentLabel:value=>String(value),
+    });
+  }
+
+  test(path+": abstention is explicit and never becomes a 50% or directional forecast",()=>{
+    const view=presentation(),memory={available:false,status:"ABSTAIN",reason:"INSUFFICIENT_INDEPENDENT_EPISODES",raw_windows_n:180,independent_episodes_n:3,minimum_episodes:8};
+    const cell=view.cell(null,{resolved_n:0},null,"deep",memory);
+    assert.match(cell,path.endsWith("central-lab.js")?/Brak dobrego dopasowania/:/No reliable analogue/);
+    assert(!cell.includes("50.0%"));assert(!cell.includes('class="fse-signal long"'));
+    assert(!cell.includes('class="fse-signal short"'));assert(!cell.includes('class="fse-signal neutral"'));
+    assert.equal(view.probability(memory,.72),null,"ABSTAIN must also defeat an inconsistent numeric P");
+    assert.equal(view.probability({available:true,status:"MATCHED"},0),0,"An explicit zero probability is not missing");
+    assert.match(view.quality(memory,null),/180/);assert.match(view.quality(memory,null),/3/);
+  });
+
+  test(path+": quality reasons are readable in the selected language",()=>{
+    const view=presentation();
+    const known=view.quality({available:false,status:"ABSTAIN",reason:"insufficient past quality calibration"},null);
+    const unknown=view.quality({available:false,status:"ABSTAIN",reason:"future unpublished English reason"},null);
+    if(path.endsWith("central-lab.js")){
+      assert.match(known,/Za mało wcześniejszych danych/);
+      assert(!known.includes("insufficient past quality calibration"));
+      assert.match(unknown,/Dane nie potwierdzają/);
+      assert(!unknown.includes("future unpublished English reason"));
+    }else{
+      assert(known.includes("insufficient past quality calibration"));
+      assert(unknown.includes("future unpublished English reason"));
+    }
+  });
+
+  test(path+": the shape-only ablation never fabricates a pair or baseline Brier",()=>{
+    const view=presentation(),unavailable={available:false,status:"ABSTAIN",reason:"DISTANCE_GATE"},available={available:true,status:"FORECAST",independent_analogues_n:9,history_candidates:240};
+    const output=view.comparison([{instrument:"EURUSD",memory:unavailable,simple_memory:available,feature_ablation:{full_p_up:null,simple_p_up:.61,paired_available:false}}]);
+    assert.match(output,/AB-join/);assert.match(output,/61.0%/);assert(!output.includes("50.0%"));
+    assert.match(output,path.endsWith("central-lab.js")?/Brak pełnej pary/:/No complete forecast pair/);
+    assert.equal(view.brier({details:{kind:"feature_ablation"}},.0125),"Δ 0.0125");
+    assert.equal(view.brier({details:{kind:"feature_ablation"}},null),"—");
+  });
+
+  test(path+": ASD2 keeps archived families accessible without treating them as current matches",()=>{
+    const panelStart=source.indexOf("function fseDiscoveryPanel(d){"),panelEnd=source.indexOf("\nasync function fse(){",panelStart);
+    const helpersStart=source.indexOf("function fseDiscoveryEnglishCopy(");
+    const helper=helpersStart>=0?source.slice(helpersStart,panelStart):source.slice(source.indexOf("function fseDiscoveryShape("),panelStart);
+    const render=vm.runInNewContext(helper+source.slice(panelStart,panelEnd)+";fseDiscoveryPanel;",{Date:Clock,Map,Set,Number,String,Array,Math,esc:value=>String(value??"—"),num:value=>value===null||value===undefined?"—":String(value),finite:value=>value!==null&&value!==undefined&&Number.isFinite(Number(value)),fseInstrumentLabel:value=>String(value)});
+    const family={family_id:"ASD-NEW",methodology_version:"FSE-ASD-2.0",instrument:"EURUSD",name:"Current family",name_en:"Current family",description:"Current research",description_en:"Current research",window:32,historical_sample_n:100,historical_independent_n:7,prospective_n:20,independent_n:4,required_independent_n:40,holdout_n:2,evidence_status:"COLLECTING",application_status:"UNDETERMINED",applications:[]};
+    const old={...family,family_id:"ASD-ARCHIVED",methodology_version:"FSE-ASD-1.0",application_status:"RESEARCH_CANDIDATE",applications:["Obsolete application"],applications_en:["Obsolete application"]};
+    const result=render({schema_version:"FSE-ASD-1.0",methodology_version:"FSE-ASD-2.0",generated_at:new Date(now).toISOString(),families:[family],legacy_families:[old],legacy_evidence:{families:1,snapshots:12,resolutions:9,included_in_current_metrics:false},current_matches:[{instrument:"EURUSD",family_id:"ASD-ARCHIVED",status:"FROZEN_MATCH",p_up:.7},{instrument:"BTCUSD",family_id:null,status:"FROZEN_LOW_QUALITY",p_up:null,match_quality:{reason:"DISTANCE_GATE"}}]});
+    assert(result.includes("ASD-NEW")&&result.includes("ASD-ARCHIVED"));
+    assert(result.includes("fse-discovery-archive"));assert(!result.includes("fse-discovery-matches"));
+    assert(!result.includes("Obsolete application"));assert(result.includes("100")&&result.includes("7"));
+    assert.match(result,path.endsWith("central-lab.js")?/Brak dobrego dopasowania/:/No reliable analogue/);
+    assert.match(result,path.endsWith("central-lab.js")?/Dopasowanie nie spełnia progu podobieństwa/:/DISTANCE GATE/);
+  });
+
   test(path+": historical HSE support cannot label or inflate the current methodology",()=>{
     const start=source.indexOf("function fseHseMatches(");
     const body=source.slice(start,source.indexOf("// Fast presentation selection",start));

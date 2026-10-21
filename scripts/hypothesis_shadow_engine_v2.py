@@ -623,48 +623,56 @@ def supersede_fse_routing_duplicates(registry: dict[str, Any]) -> int:
     return changed
 
 
-def quarantine_previous_fse_methodologies(registry: dict[str, Any], proposals: list[dict[str, Any]], at: str) -> None:
+def _fse_method_family(row: Mapping[str, Any]) -> str:
+    version = methodology_version_for(row) or ""
+    if version.startswith("FSE-ADAPTIVE-") or str(row.get("proposal_key") or "").startswith("fse-adaptive-"):
+        return "adaptive"
+    return "core" if row.get("source_path") == SOURCE_PATHS["FSE"] else "phase"
+
+
+def quarantine_previous_fse_methodologies(registry: dict[str, Any], proposals: list[dict[str, Any]], at: str) -> dict[str,str]:
     """Preserve pre-repair evidence outside the corrected formal cohort.
 
     Activate each boundary only once its corrected source is actually published.
     Registry annotations never rewrite frozen epochs, evidence, results or lessons.
     """
-    corrected = {"FSE-CORE-2.0": "core", "FSE-PHASE-2.0": "phase", "FSE-ADAPTIVE-2.0": "adaptive"}
+    corrected = {f"FSE-{component}-{version}.0": family for component,family in
+                 (("CORE","core"),("PHASE","phase"),("ADAPTIVE","adaptive")) for version in (2,3)}
 
-    def family(row: Mapping[str, Any]) -> str:
-        version = methodology_version_for(row) or ""
-        if version.startswith("FSE-ADAPTIVE-") or str(row.get("proposal_key") or "").startswith("fse-adaptive-"):
-            return "adaptive"
-        if row.get("source_path") == SOURCE_PATHS["FSE"]:
-            return "core"
-        return "phase"
-
-    active = {corrected[version]: version for row in proposals
+    # A lagging publication must never downgrade or permanently quarantine a
+    # methodology already frozen in this registry. Earlier cohorts stay archived.
+    known = [row for row in [*registry.get("experiments", []), *proposals] if isinstance(row,Mapping)]
+    active = {corrected[version]: version for row in sorted(known,key=lambda row:methodology_version_for(row) or "")
               if row.get("source_engine") == "FSE"
               and (version := methodology_version_for(row)) in corrected}
     for exp in registry.get("experiments", []):
         if not isinstance(exp, dict) or exp.get("source_engine") != "FSE":
             continue
-        replacement = active.get(family(exp))
+        replacement = active.get(_fse_method_family(exp))
         if not replacement or methodology_version_for(exp) == replacement:
             continue
         exp["methodology_quarantined"] = True
         exp.setdefault("methodology_quarantined_at", at)
-        exp["methodology_quarantine_reason"] = "FSE_2026_10_21_TIME_AND_TARGET_REPAIR"
+        exp["methodology_quarantine_reason"] = ("FSE_2026_10_21_SEARCH_QUALITY_UPGRADE" if replacement.endswith("-3.0") else "FSE_2026_10_21_TIME_AND_TARGET_REPAIR")
         exp["replacement_methodology_version"] = replacement
         exp["source_active"] = False
+    return active
 
 
 def register_and_collect(state_dir: Path, proposals: list[dict[str, Any]], at: str) -> dict[str, Any]:
     registry = load_registry(state_dir)
     supersede_fse_routing_duplicates(registry)
-    quarantine_previous_fse_methodologies(registry, proposals, at)
+    current_fse_versions=quarantine_previous_fse_methodologies(registry, proposals, at)
     by_id = {str(x.get("experiment_id")): x for x in registry.get("experiments", []) if isinstance(x, dict)}
     seen = set()
     new_experiments = 0
     evidence_added_n = 0
 
     for p in proposals:
+        if p.get("source_engine")=="FSE":
+            current=current_fse_versions.get(_fse_method_family(p))
+            if current and methodology_version_for(p)!=current:
+                continue
         requested_eid = experiment_id(p)
         legacy_eid = stable_id("hse2exp", legacy_contract_for(p))
         methodology_version = methodology_version_for(p)

@@ -4,7 +4,7 @@
 **Mode:** `SHADOW_ONLY` / research challenger  
 **Authority:** zero production authority
 
-**Current methodology:** `FSE-CORE-2.0` / `FSE-PHASE-2.0` / `FSE-ADAPTIVE-2.0`; projection `FSE-FAST-2.0`. The repair contract in section 12 supersedes historical timing, horizon and cohort-credit rules below.
+**Current methodology:** `FSE-CORE-3.0` / `FSE-PHASE-3.0` / `FSE-ADAPTIVE-3.0`; projection `FSE-FAST-2.0`. The repair contract in section 12 supersedes historical timing, horizon and cohort-credit rules below. ASD 2.0 search and abstention: section 13.
 
 ## 1. Purpose
 
@@ -79,13 +79,15 @@ It cannot change live sizing or stops without a later explicit integration into 
 The fingerprint does not compare nominal price levels. The path is normalized by local ATR:
 
 [
-x_i=rac{P_i-P_0}{ATR}
+x_i=
+rac{P_i-P_0}{ATR}
 ]
 
 The current fingerprint is compared with historical structures through normalized RMS distance. Similarity:
 
 [
-S=rac{1}{1+RMS}
+S=
+rac{1}{1+RMS}
 ]
 
 Nearest analogues generate a weighted forward distribution:
@@ -346,3 +348,18 @@ Rules:
 - PL/EN script URLs receive a new version and production parity covers both central LAB renderers. Edge deployment validates actual source freshness rather than response-generation time alone.
 
 Authority remains unchanged: SHADOW_ONLY, no execution, production-policy/Belief changes or automatic promotion. A methodology repair is not evidence of model improvement; its prospective assessment starts at its own new boundary.
+
+## 13. structure search 3.0 / ASD 2.0
+
+Current research versions are `FSE-CORE-3.0`, `FSE-PHASE-3.0`, `FSE-ADAPTIVE-3.0` and `FSE-ASD-2.0`; transport remains `FSE-FAST-2.0`. Analogue feature/outcome windows cannot overlap the live query, and multiple windows from one episode cannot manufacture independent support. Deep/Phase/Core require at least eight independent matches and a quality rule learned from prior data without outcome optimization. No reliable match produces explicit `ABSTAIN` and `P=null`, never fabricated 50% or directional Brier credit. Full geometry is compared with a simple exact z-normalized Euclidean shape distance profile: a query/history reference, not a full all-pairs Matrix Profile. Paired ablation freezes both probabilities against the same future target; formal N counts disjoint outcome blocks. ASD uses density cores, independent support, query exclusion and an ambiguity threshold. Selection preregisters its sample and a shared lifetime budget of 24 trials × 2 endpoints, without per-cycle resets. Existing family definitions, snapshots, outcomes and lessons retain their hashes; previous cohorts/catalogue remain historical, while current HSE has a new freeze. The module remains SHADOW_ONLY with no production EURUSD, Belief, position or promotion authority.
+
+Implementation contract:
+
+- Core: historical and prospective retrieval share a 32-point shape from a 64-bar window and at least eight disjoint shape/target episodes. The 22 multiscale geometry features remain descriptive audit context and do not manufacture independent shape support. Distance quality uses only prior independent nearest-neighbor geometry; the 0.75 ceiling is a frozen research prior.
+- Deep: path/geometry/daily blocks are scaled separately from prior candidates. Simple compares shape over a fixed 96-bar window. Complex features remain the full arm until paired ablation supports removing them; no automatic feature deletion or promotion.
+- Ablation: `full_brier_improvement_vs_simple`, positive values favor full geometry; `raw_paired_n` is separate from formal disjoint-target N. Neither Brier nor research review proves profitability after costs.
+- ASD: at least six independent discovery episodes; radius/margin match quality, a fixed first sample of 40 independent outcomes, one selection budget and append-only `selection_events`. The two-endpoint test accounts for all 24 preregistered trials. Later evidence cannot revise a frozen verdict.
+- Preservation: existing ledgers/definitions are not rewritten and production data is not migrated. Code rollback retains artifacts; each future methodology needs its own identity and freeze.
+
+- ASD 2.0 timing: completed bars define the motif while a fresh quote defines the reference price. Its real source clock must be no later than freeze and at most five minutes old. Outcomes use the first four market bars opening at or after freeze; pre-freeze bars cannot enter the future target. Live execution freezes after data acquisition; an explicit replay cutoff remains fixed.
+- HSE retains the highest frozen methodology version; a temporarily older publication cannot disable its newer cohort or resume older evidence collection.

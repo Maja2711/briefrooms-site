@@ -164,8 +164,8 @@ class DecisionLabFSEFrontendTests(unittest.TestCase):
         en = (ROOT / "en/investing/decision-lab.html").read_text(encoding="utf-8")
         self.assertIn("/assets/decision-lab.css?v=20261011-asd4", pl)
         self.assertIn("/assets/decision-lab.css?v=20261011-asd4", en)
-        self.assertIn("/scripts/central-lab.js?v=20261021-fse-fixes2", pl)
-        self.assertIn("/scripts/central-lab-runtime-en.js?v=20261021-fse-fixes2", en)
+        self.assertIn("/scripts/central-lab.js?v=20261021-fse-search3", pl)
+        self.assertIn("/scripts/central-lab-runtime-en.js?v=20261021-fse-search3", en)
 
 
 if __name__ == "__main__":
