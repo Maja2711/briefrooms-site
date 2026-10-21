@@ -272,34 +272,89 @@ function githubTokenFromRequest(request) {
   return match[1];
 }
 
+const COMMIT_SYNC_ERROR_CODES = new Set([
+  "GITHUB_AUTH_REQUIRED", "INVALID_GITHUB_AUTHORIZATION", "INVALID_COMMIT_SHA",
+  "COMMIT_SYNC_ENGINES_REQUIRED", "INVALID_COMMIT_SYNC_ENGINE", "GITHUB_TOKEN_TARGET_NOT_ALLOWED",
+  "GITHUB_MAIN_HEAD_MISSING", "GITHUB_TARGET_COMMIT_MISMATCH", "COMMIT_NOT_RECENT_MAIN_ANCESTOR",
+  "GITHUB_TIMEOUT", "GITHUB_FETCH_FAILED", "GITHUB_JSON_INVALID", "GITHUB_HTTP_ERROR",
+  "COMMIT_FILE_TIMEOUT", "COMMIT_FILE_FETCH_FAILED", "COMMIT_FILE_JSON_INVALID", "COMMIT_FILE_HTTP_ERROR",
+  "IMMUTABLE_EVENT_CONFLICT", "WES_OUTBOX_EVENT_ID_MISMATCH", "WEEKLY_COMMIT_DIRECTORY_INVALID",
+  "FALLBACK_REQUESTED_STATE_NOT_CURRENT", "FALLBACK_REQUESTED_OUTBOX_NOT_CURRENT", "SYNC_INTERNAL_ERROR",
+]);
+const DIAGNOSTIC_HTTP_STATUSES = new Set([400, 401, 403, 404, 408, 409, 410, 422, 429, 500, 502, 503, 504]);
+for (const status of DIAGNOSTIC_HTTP_STATUSES) {
+  COMMIT_SYNC_ERROR_CODES.add(`GITHUB_HTTP_${status}`);
+  COMMIT_SYNC_ERROR_CODES.add(`COMMIT_FILE_HTTP_${status}`);
+}
+
+function commitSyncErrorCode(error) {
+  if (COMMIT_SYNC_ERROR_CODES.has(error?.code)) return error.code;
+  const message = String(error?.message || "");
+  const http = /^(github_http|commit_file_http)_(\d{3})(?::|$)/.exec(message);
+  if (http) {
+    const prefix = http[1].toUpperCase();
+    return DIAGNOSTIC_HTTP_STATUSES.has(Number(http[2])) ? `${prefix}_${http[2]}` : `${prefix}_ERROR`;
+  }
+  const prefix = message.split(":", 1)[0].toUpperCase();
+  if (COMMIT_SYNC_ERROR_CODES.has(prefix)) return prefix;
+  if (prefix === "FALLBACK_REQUESTED_STATE_NOT_CURRENT") return prefix;
+  if (prefix === "FALLBACK_REQUESTED_OUTBOX_NOT_CURRENT") return prefix;
+  return "SYNC_INTERNAL_ERROR";
+}
+
+function commitSyncErrorStatus(code) {
+  if (code === "GITHUB_AUTH_REQUIRED" || code === "GITHUB_HTTP_401") return 401;
+  if (code === "GITHUB_HTTP_403") return 403;
+  if (code === "GITHUB_HTTP_429") return 429;
+  if (["INVALID_GITHUB_AUTHORIZATION", "INVALID_COMMIT_SHA", "COMMIT_SYNC_ENGINES_REQUIRED", "INVALID_COMMIT_SYNC_ENGINE"].includes(code)) return 400;
+  if (["COMMIT_NOT_RECENT_MAIN_ANCESTOR", "GITHUB_TARGET_COMMIT_MISMATCH"].includes(code)) return 409;
+  return 502;
+}
+
+function upstreamError(error, prefix) {
+  const timeout = ["TimeoutError", "AbortError"].includes(String(error?.name || ""));
+  const code = `${prefix}_${timeout ? "TIMEOUT" : "FETCH_FAILED"}`;
+  return Object.assign(new Error(code), { code });
+}
+
 async function githubJson(url, { githubToken = null } = {}) {
   const target = new URL(url);
   if (githubToken && (target.origin !== "https://api.github.com"
       || !target.pathname.startsWith(`/repos/${COMMIT_SYNC_REPO}/`))) {
     throw new Error("github_token_target_not_allowed");
   }
-  const response = await fetch(url, {
-    signal: AbortSignal.timeout(8_000),
-    redirect: githubToken ? "error" : "follow",
-    headers: {
-      "cache-control": "no-cache",
-      "accept": "application/vnd.github+json",
-      "user-agent": "BriefRooms-Trading-Push/1.0",
-      ...(githubToken ? { authorization: `Bearer ${githubToken}` } : {}),
-    },
-  });
+  let response;
+  try {
+    response = await fetch(url, {
+      signal: AbortSignal.timeout(8_000),
+      redirect: githubToken ? "error" : "follow",
+      headers: {
+        "cache-control": "no-cache",
+        "accept": "application/vnd.github+json",
+        "user-agent": "BriefRooms-Trading-Push/1.0",
+        ...(githubToken ? { authorization: `Bearer ${githubToken}` } : {}),
+      },
+    });
+  } catch (error) { throw upstreamError(error, "GITHUB"); }
   if (!response.ok) throw new Error(`github_http_${response.status}:${url}`);
-  return response.json();
+  try { return await response.json(); } catch {
+    throw Object.assign(new Error("GITHUB_JSON_INVALID"), { code: "GITHUB_JSON_INVALID" });
+  }
 }
 
 async function commitFileJson(sha, path, { optional = false } = {}) {
-  const response = await fetch(
-    `https://raw.githubusercontent.com/${COMMIT_SYNC_REPO}/${sha}/${path}?_=${Date.now()}`,
-    { headers: { "cache-control": "no-cache", "accept": "application/json" }, signal: AbortSignal.timeout(8_000) },
-  );
+  let response;
+  try {
+    response = await fetch(
+      `https://raw.githubusercontent.com/${COMMIT_SYNC_REPO}/${sha}/${path}?_=${Date.now()}`,
+      { headers: { "cache-control": "no-cache", "accept": "application/json" }, signal: AbortSignal.timeout(8_000) },
+    );
+  } catch (error) { throw upstreamError(error, "COMMIT_FILE"); }
   if (optional && response.status === 404) return null;
   if (!response.ok) throw new Error(`commit_file_http_${response.status}:${path}`);
-  return response.json();
+  try { return await response.json(); } catch {
+    throw Object.assign(new Error("COMMIT_FILE_JSON_INVALID"), { code: "COMMIT_FILE_JSON_INVALID" });
+  }
 }
 
 function persistedOutboxEvents(payload, engine = null) {
@@ -1662,6 +1717,21 @@ export class PushHub {
     };
   }
 
+  async recordCommitSyncError(error) {
+    const code = commitSyncErrorCode(error);
+    try {
+      const stats = (await this.ctx.storage.get("stats")) || {};
+      // Preserve the last successful receipt. Never persist arbitrary error
+      // messages, request headers, tokens, URLs or upstream response bodies.
+      stats.last_commit_sync_error_at = new Date().toISOString();
+      stats.last_commit_sync_error_code = code;
+      await this.ctx.storage.put("stats", stats);
+    } catch {
+      // Diagnostics must not replace the original safe failure response.
+    }
+    return code;
+  }
+
   async fetch(request) {
     const url = new URL(request.url);
     const path = url.pathname;
@@ -1673,6 +1743,18 @@ export class PushHub {
 
     if (path === "/vapid-public-key" && request.method === "GET") {
       return json({ publicKey: this.env.VAPID_PUBLIC_KEY || null }, 200, cors(origin));
+    }
+
+    if (path === "/verify-commit" && request.method === "GET") {
+      try {
+        const githubToken = githubTokenFromRequest(request);
+        if (!githubToken) return json({ ok: false, error_code: "GITHUB_AUTH_REQUIRED" }, 401, cors(origin));
+        const commit = await this.verifyRecentMainCommit(url.searchParams.get("sha"), { githubToken });
+        return json({ ok: true, ...commit, authenticated: true, read_only: true }, 200, cors(origin));
+      } catch (error) {
+        const code = commitSyncErrorCode(error);
+        return json({ ok: false, error_code: code }, commitSyncErrorStatus(code), cors(origin));
+      }
     }
 
     if (path === "/health" && request.method === "GET") {
@@ -1725,6 +1807,9 @@ export class PushHub {
         last_commit_sync_engine_status: stats.last_commit_sync_engine_status || {},
         last_commit_sync_fallback_reason: stats.last_commit_sync_fallback_reason || null,
         last_commit_sync_authenticated: stats.last_commit_sync_authenticated === true,
+        last_commit_sync_error_at: stats.last_commit_sync_error_at || null,
+        last_commit_sync_error_code: COMMIT_SYNC_ERROR_CODES.has(stats.last_commit_sync_error_code)
+          ? stats.last_commit_sync_error_code : null,
         recovery_ingest_internal_only: true,
         fast_daily_watcher: true,
         fast_daily_failures: Number(stats.fast_daily_failures || 0),
@@ -1778,14 +1863,11 @@ export class PushHub {
         const queued = result.durable_accepted === true && result.retry_scheduled_at;
         return json(result, queued ? 202 : result.ok ? 200 : 502, cors(origin));
       } catch (error) {
-        const message = String(error?.message || error || "sync_trading_failed");
+        const code = await this.recordCommitSyncError(error);
         console.warn("BR_PUSH_SYNC_ERROR", JSON.stringify({
-          error: message.slice(0, 240),
+          error_code: code,
         }));
-        const status = message.startsWith("commit_not_recent_main_ancestor:") ? 409
-          : ["invalid_commit_sha", "commit_sync_engines_required", "invalid_commit_sync_engine", "invalid_github_authorization"].includes(message) ? 400
-          : 502;
-        return json({ ok: false, error: message }, status, cors(origin));
+        return json({ ok: false, error_code: code }, commitSyncErrorStatus(code), cors(origin));
       }
     }
 
@@ -1796,11 +1878,9 @@ export class PushHub {
         const queued = result.durable_accepted === true && result.retry_scheduled_at;
         return json(result, queued ? 202 : result.ok ? 200 : 502, cors(origin));
       } catch (error) {
-        const message = String(error?.message || error || "sync_daily_failed");
-        const status = message.startsWith("commit_not_current_main_head:") ? 409
-          : ["invalid_commit_sha", "invalid_github_authorization"].includes(message) ? 400
-          : 502;
-        return json({ ok: false, error: message }, status, cors(origin));
+        const code = await this.recordCommitSyncError(error);
+        console.warn("BR_PUSH_SYNC_ERROR", JSON.stringify({ error_code: code }));
+        return json({ ok: false, error_code: code }, commitSyncErrorStatus(code), cors(origin));
       }
     }
 
@@ -2114,4 +2194,4 @@ export default {
   }
 };
 
-export { finiteNumber, yahooMinuteBars, dailyCommitSnapshot, weeklyCommitSnapshot, stockCommitSnapshot, transitionDescriptors, persistedOutboxEvents, diffPersistedOutboxEvents, notificationPayload, eventToPushLatencyMs, pushAckLagMetrics, storedCommitSnapshot, persistableCommitSnapshot, comparableCommitSnapshot, sameCommitSnapshot, isoWeekId, DELIVERY_STATUS, deliveryId, deliveryStorageKey, immutableEventCore, sameImmutableEvent, newDeliveryRecord, transitionDelivery, retryDelayMs, providerRetryDelayMs, deliveryReadyForRetry, isSyntheticRecoveryEvent, githubJson, runScheduledRecovery };
+export { finiteNumber, yahooMinuteBars, dailyCommitSnapshot, weeklyCommitSnapshot, stockCommitSnapshot, transitionDescriptors, persistedOutboxEvents, diffPersistedOutboxEvents, notificationPayload, eventToPushLatencyMs, pushAckLagMetrics, storedCommitSnapshot, persistableCommitSnapshot, comparableCommitSnapshot, sameCommitSnapshot, isoWeekId, DELIVERY_STATUS, deliveryId, deliveryStorageKey, immutableEventCore, sameImmutableEvent, newDeliveryRecord, transitionDelivery, retryDelayMs, providerRetryDelayMs, deliveryReadyForRetry, isSyntheticRecoveryEvent, githubJson, runScheduledRecovery, commitSyncErrorCode };

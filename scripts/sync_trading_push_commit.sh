@@ -83,7 +83,31 @@ PY
     exit 0
   fi
 
-  echo "Trading push handoff attempt $attempt failed: HTTP ${code:-unavailable}" >&2
+  # Never print the raw body: an upstream error may reflect credentials.
+  # Only stable diagnostic codes produced by the Worker are safe to expose.
+  reason=$(python - "$response" <<'PY'
+import json, re, sys
+from pathlib import Path
+allowed={"GITHUB_TIMEOUT", "GITHUB_FETCH_FAILED", "GITHUB_JSON_INVALID",
+         "GITHUB_TOKEN_TARGET_NOT_ALLOWED", "INVALID_GITHUB_AUTHORIZATION",
+         "GITHUB_AUTH_REQUIRED", "INVALID_COMMIT_SHA",
+         "GITHUB_MAIN_HEAD_MISSING", "GITHUB_TARGET_COMMIT_MISMATCH",
+         "COMMIT_NOT_RECENT_MAIN_ANCESTOR", "COMMIT_SYNC_ENGINES_REQUIRED",
+         "INVALID_COMMIT_SYNC_ENGINE", "COMMIT_FILE_TIMEOUT",
+         "COMMIT_FILE_FETCH_FAILED", "COMMIT_FILE_JSON_INVALID",
+         "IMMUTABLE_EVENT_CONFLICT", "SYNC_INTERNAL_ERROR", "GITHUB_HTTP_ERROR",
+         "COMMIT_FILE_HTTP_ERROR", "WES_OUTBOX_EVENT_ID_MISMATCH",
+         "WEEKLY_COMMIT_DIRECTORY_INVALID", "FALLBACK_REQUESTED_STATE_NOT_CURRENT",
+         "FALLBACK_REQUESTED_OUTBOX_NOT_CURRENT"}
+try:
+    code=json.loads(Path(sys.argv[1]).read_text()).get("error_code")
+    safe=isinstance(code,str) and (code in allowed or re.fullmatch(r"(?:GITHUB|COMMIT_FILE)_HTTP_[1-5][0-9]{2}",code))
+    print(code if safe else "UNCLASSIFIED_RESPONSE")
+except (OSError,ValueError,TypeError,AttributeError):
+    print("INVALID_RESPONSE")
+PY
+)
+  echo "Trading push handoff attempt $attempt failed: HTTP ${code:-unavailable} reason=$reason" >&2
   if [[ "$attempt" -lt 4 ]]; then sleep "$attempt"; fi
 done
 

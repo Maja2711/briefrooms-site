@@ -75,7 +75,9 @@ Initial dispatch starts immediately. Explicit `429/5xx` rejections may enter the
 
 Recipient initialization and delivery are serialized. Device ACK requires completed `showNotification` or an existing notification; an IndexedDB `PENDING` reservation is not display proof. Provider acceptance is not device receipt, and missing ACK cannot trigger another audible alert.
 
-Deployment checks read-only `/health` and `/inbox`, transport version `commit-bound-durable-v3`, and alarm capability. It neither replays production transitions as tests nor broadcasts fabricated alerts. Existing VAPID keys remain unchanged; a partial pair requires restoring the original key rather than invalidating every device. Notification code pushes validate trading writers only; position runtime remains scheduled or explicitly manual/governed.
+Deployment checks read-only `/health` and `/inbox`, transport version `commit-bound-durable-v3`, and alarm capability. An additional authenticated `GET /verify-commit?sha=...` verifies Actions access to GitHub and the exact commit through Cloudflare; it performs no state writes, synchronization or delivery. Deployment neither replays production transitions as tests nor broadcasts fabricated alerts. Existing VAPID keys remain unchanged; a partial pair requires restoring the original key rather than invalidating every device. Notification code pushes validate trading writers only; position runtime remains scheduled or explicitly manual/governed.
+
+A failed handoff stores a separate error time and allowlisted code while preserving the previous confirmed success. Actions logs show only the safe code, never raw responses or tokens. Publication parity also covers `br-trading-sw.js` and `scripts/trading-notifications.js`; all eight PL/EN trading pages use one current script URL version. Opening or refreshing the app allows the update to be downloaded; existing device subscriptions remain valid.
 
 Submission to the push provider has no intentional wait for recovery polling. Actual display time also depends on network, Web Push provider and device OS; metrics never claim zero latency or confirmed delivery without ACK evidence.
 

@@ -85,6 +85,32 @@ jobs:
             -o /tmp/push-inbox.json
           node -e 'const fs=require("fs"); const j=JSON.parse(fs.readFileSync("/tmp/push-inbox.json","utf8")); if(!j.ok || j.schema_version !== "briefrooms-notification-inbox-v1" || !Array.isArray(j.events)) { console.error(j); process.exit(1); } console.log("PRODUCTION_DURABLE_INBOX_OK", j.events.length)'
 
+      - name: Verify authenticated GitHub connection without trading transitions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          code=$(curl --silent --show-error --connect-timeout 5 --max-time 25 \
+            --retry 3 --retry-delay 2 \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            "https://briefrooms-trading-push.szczerbinski0577.workers.dev/verify-commit?sha=${GITHUB_SHA}" \
+            -o /tmp/push-github-verification.json -w '%{http_code}' || true)
+          node - "$GITHUB_SHA" "$code" <<'NODE'
+          const fs = require("fs");
+          let j;
+          try { j = JSON.parse(fs.readFileSync("/tmp/push-github-verification.json", "utf8")); }
+          catch { console.error("GITHUB_CONNECTION_INVALID_RESPONSE"); process.exit(1); }
+          const ok = process.argv[3] === "200" && j.ok === true
+            && j.sha === process.argv[2] && j.authenticated === true && j.read_only === true;
+          const errorCode = /^(?:GITHUB|COMMIT|INVALID|SYNC)_[A-Z0-9_]{1,64}$/.test(j.error_code || "")
+            ? j.error_code : "UNCLASSIFIED_RESPONSE";
+          console.log("PRODUCTION_GITHUB_CONNECTION", JSON.stringify({
+            ok, sha: ok ? j.sha : null, authenticated: ok, read_only: ok,
+            http_status: process.argv[3], error_code: ok ? null : errorCode,
+          }));
+          if (!ok) process.exit(1);
+          NODE
+
       - name: Verify canonical production EURUSD 1m feed
         run: |
           set -euo pipefail

@@ -42,6 +42,8 @@ PARITY_PATHS = (
     "scripts/home-intelligence-layout.js",
     "data/home/axiom-thought.json",
     "scripts/pwa.js",
+    "br-trading-sw.js",
+    "scripts/trading-notifications.js",
     "scripts/hot-x-render.js",
     "pl/inwestycje/decision-lab.html",
     "en/investing/decision-lab.html",

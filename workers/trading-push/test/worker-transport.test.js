@@ -250,7 +250,8 @@ test("supplied GitHub token failure fails closed rather than using unauthenticat
       method: "POST", headers: { authorization: "Bearer ghs_invalid" },
       body: JSON.stringify({ sha, engines: ["daily"] }),
     }));
-    assert.equal(response.status, 502);
+    assert.equal(response.status, 403);
+    assert.equal((await response.json()).error_code, "GITHUB_HTTP_403");
     assert.ok(calls.every((call) => new URL(call.url).hostname === "api.github.com"));
     assert.equal((await storage.list({ prefix: "event:" })).size, 0);
   } finally { globalThis.fetch = originalFetch; }
