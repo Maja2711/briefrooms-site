@@ -46,6 +46,26 @@ jobs:
           cat /tmp/taste-inspect.log | tail -n 30
           if [ "$rc" -gt 1 ]; then echo "Inspector crash/timeout: $rc"; exit 1; fi
           node --input-type=module -e "import{readFileSync}from'node:fs';let r=JSON.parse(readFileSync('.taste-skill/inspect-smoke/report.json'));if(r.viewports?.length!==3)process.exit(1);console.log('Inspector OK, viewports:',r.viewports.length,'design findings:',r.findings?.length)"
+      - name: Baseline real PL and EN pages in local browser
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m http.server 8000 --bind 127.0.0.1 > /tmp/taste-local-server.log 2>&1 &
+          server=$!
+          trap 'kill "$server" 2>/dev/null || true' EXIT
+          sleep 3
+          for lang in pl en; do
+            set +e
+            timeout 120s node .agents/skills/design-taste-frontend/scripts/inspect.mjs "http://127.0.0.1:8000/$lang/" --out ".taste-skill/inspect-$lang" --widths 1440,768,390 --json > "/tmp/taste-inspect-$lang.log" 2>&1
+            rc=$?
+            set -e
+            if [ "$rc" -gt 1 ]; then
+              echo "$lang inspector failed with code $rc"
+              tail -n 45 "/tmp/taste-inspect-$lang.log"
+              exit 1
+            fi
+            LANG_TO_CHECK="$lang" node --input-type=module -e "import{readFileSync}from'node:fs';let l=process.env.LANG_TO_CHECK;let r=JSON.parse(readFileSync('.taste-skill/inspect-'+l+'/report.json'));if(r.viewports?.length!==3)process.exit(1);console.log(l+': 3 viewports, '+(r.findings?.length||0)+' existing design findings (not a test failure)')"
+          done
       - name: Upload smoke artifacts
         if: always()
         uses: actions/upload-artifact@v4
