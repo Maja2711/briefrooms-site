@@ -86,6 +86,23 @@ test("session references handle FX weekends, DST, holidays and early closes",()=
   }
 });
 
+test("a full SPY source uses bounded hourly zone conversion rather than per-minute Intl work",async(t)=>{
+  const start=Date.parse("2027-02-01T14:30:00Z"),now=Date.parse("2027-02-10T21:00:00Z"),timestamp=[],close=[];
+  for(let day=0;day<10;day+=1){
+    const open=start+day*86400000;
+    if([0,6].includes(new Date(open).getUTCDay()))continue;
+    for(let minute=0;minute<390;minute+=1){timestamp.push((open+minute*60000)/1000);close.push(100+Math.sin(minute/13)/10);}
+  }
+  let conversions=0;
+  const original=Intl.DateTimeFormat.prototype.formatToParts;
+  t.mock.method(Intl.DateTimeFormat.prototype,"formatToParts",function(...args){conversions+=1;return original.apply(this,args);});
+  const bars=parseYahooBars({chart:{result:[{timestamp,indicators:{quote:[{close}]}}]}},now,"SPX");
+  const result=await mergedPhaseMap({},bars,"SPX");
+  assert.equal(bars.length,3120);
+  assert.equal(result["1h"].available,true);
+  assert.ok(conversions<=80,`hourly-offset/session cache exceeded its budget: ${conversions}`);
+});
+
 function minutePayload(now,offset=0){
   return {chart:{result:[{timestamp:Array.from({length:180},(_,i)=>(now-(180-i)*60000+offset)/1000),indicators:{quote:[{close:Array.from({length:180},(_,i)=>100+i/100)}]}}]}};
 }
