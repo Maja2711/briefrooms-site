@@ -29,7 +29,7 @@ test("verify-commit authenticates exact SHA through GitHub only, without touchin
     calls.push(String(url));
     assert.equal(new URL(url).hostname, "api.github.com");
     assert.equal(options.headers.authorization, `Bearer ${token}`);
-    assert.equal(options.redirect, "error");
+    assert.equal(options.redirect, "manual");
     return Response.json({ sha, parents: [{ sha: parent }] });
   };
   try {
@@ -82,6 +82,40 @@ test("GitHub timeout, runtime fetch and JSON failures get separate safe diagnost
     await assert.rejects(githubJson(url, { githubToken: token }), (error) => commitSyncErrorCode(error) === "GITHUB_JSON_INVALID");
     assert.equal(commitSyncErrorCode(new Error(`unknown ${token}`)), "SYNC_INTERNAL_ERROR");
     assert.equal(commitSyncErrorCode(new Error(`github_http_403:https://example.test/?secret=${token}`)), "GITHUB_HTTP_403");
+  } finally { globalThis.fetch = original; }
+});
+
+test("authenticated GitHub fetch works with workerd modes and rejects redirects without following or reading their bodies", async () => {
+  const original = globalThis.fetch;
+  const url = "https://api.github.com/repos/Maja2711/briefrooms-site/commits/main";
+  try {
+    for (const status of [200, 302]) {
+      const calls = [];
+      let bodyReads = 0;
+      globalThis.fetch = async (target, options) => {
+        // Model the runtime boundary Node's fetch does not enforce.
+        if (!["follow", "manual"].includes(options.redirect)) throw new TypeError("Invalid redirect value");
+        calls.push(String(target));
+        assert.equal(options.redirect, "manual");
+        assert.equal(options.headers.authorization, `Bearer ${token}`);
+        return status === 200 ? Response.json({ sha }) : {
+          status: 302, ok: false,
+          headers: new Headers({ location: "https://untrusted.example/redirect" }),
+          json: () => { bodyReads += 1; throw new Error(`unsafe ${token}`); },
+        };
+      };
+      if (status === 200) {
+        assert.deepEqual(await githubJson(url, { githubToken: token }), { sha });
+      } else {
+        await assert.rejects(githubJson(url, { githubToken: token }), (error) => {
+          assert.equal(commitSyncErrorCode(error), "GITHUB_REDIRECT_REJECTED");
+          assert.equal(error.message, "GITHUB_REDIRECT_REJECTED");
+          return true;
+        });
+      }
+      assert.deepEqual(calls, [url]);
+      assert.equal(bodyReads, 0);
+    }
   } finally { globalThis.fetch = original; }
 });
 
