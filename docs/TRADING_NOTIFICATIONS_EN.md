@@ -15,6 +15,12 @@ Users can independently select:
 
 The close reason is not a separate subscription. CLOSE means every real transition from OPEN to no longer active / CLOSED, regardless of TP, SL, time exit or an earlier thesis-driven exit.
 
+## Notification copy and event clocks
+
+Keep OPEN/CLOSE as the primary status in both languages, with LONG/SHORT for Daily/Weekly and generic position status for stocks. Never substitute entry price for a missing close price. Stock price return is descriptive price-only return, not net account return.
+
+Through five minutes inclusive, neither background push nor foreground recovery adds a delay suffix. Older events retain `DELAYED … min` / `OPÓŹNIONE … min`. Original lifecycle, provider-acceptance and display timestamps remain distinct and unchanged in diagnostics. CLOSE recovery uses `closed_at`, falling back to `observed_at`, never the old opening time.
+
 ## Source of truth
 
 Notifications only read persisted state after the authority-owning engine has written it:
@@ -58,6 +64,20 @@ Web Push language is stored per device subscription: a PL device receives Polish
 Public direct `/ingest` is disabled. Internal `https://internal/ingest` is available only to the Worker scheduler as a recovery mechanism that reads canonical `data/notifications/trading-events.json`; polling is no longer the primary alert-delivery path. Recovery initialization remains seed-only, so historical events are not emitted.
 
 A push-backend failure cannot affect TR-03/TR-04/TR-05 or any execution/risk/decision path.
+
+## GitHub–Cloudflare handoff, retries and deployment
+
+The writer calls `scripts/sync_trading_push_commit.sh` immediately after successful commit persistence. Requests have a 5s connection and 25s total deadline, with at most four handoff attempts. Receipts must reconcile exact SHA and requested channels. The script does not wait for device display or a separate website publishing workflow.
+
+GitHub Actions forwards its short-lived token over HTTPS only to the owned Worker. The Worker uses it only within that request for GET of the fixed repository through GitHub's API, without redirects, token persistence or logging. This avoids anonymous API rate limits; unauthenticated fallback retains persisted-state verification. The credential adds no trading execution path to the notification layer.
+
+Initial dispatch starts immediately. Explicit `429/5xx` rejections may enter the durable queue: a Durable Object alarm retries from 2s, honors `Retry-After`, and limits delivery to five attempts and ten minutes from creation. HTTP 202 means verified durable acceptance with a scheduled alarm, not proof of device display. Accepted or ambiguous sends are not replayed; provider 403 does not delete a subscription. Recovery-feed outages cannot block independent pending retries.
+
+Recipient initialization and delivery are serialized. Device ACK requires completed `showNotification` or an existing notification; an IndexedDB `PENDING` reservation is not display proof. Provider acceptance is not device receipt, and missing ACK cannot trigger another audible alert.
+
+Deployment checks read-only `/health` and `/inbox`, transport version `commit-bound-durable-v3`, and alarm capability. It neither replays production transitions as tests nor broadcasts fabricated alerts. Existing VAPID keys remain unchanged; a partial pair requires restoring the original key rather than invalidating every device. Notification code pushes validate trading writers only; position runtime remains scheduled or explicitly manual/governed.
+
+Submission to the push provider has no intentional wait for recovery polling. Actual display time also depends on network, Web Push provider and device OS; metrics never claim zero latency or confirmed delivery without ACK evidence.
 
 ## Target Notification Analytics
 

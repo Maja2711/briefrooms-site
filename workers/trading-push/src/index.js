@@ -264,12 +264,28 @@ const COMMIT_SYNC_ENGINES = new Set(["daily", "weekly", "stock"]);
 const WES_OUTBOX_PATH = "data/notifications/wes-event-outbox.json";
 const WES_OUTBOX_RAW_URL = `https://raw.githubusercontent.com/${COMMIT_SYNC_REPO}/main/${WES_OUTBOX_PATH}`;
 
-async function githubJson(url) {
+function githubTokenFromRequest(request) {
+  const authorization = request.headers.get("authorization");
+  if (!authorization) return null;
+  const match = /^Bearer ([A-Za-z0-9_.-]+)$/i.exec(authorization);
+  if (!match) throw new Error("invalid_github_authorization");
+  return match[1];
+}
+
+async function githubJson(url, { githubToken = null } = {}) {
+  const target = new URL(url);
+  if (githubToken && (target.origin !== "https://api.github.com"
+      || !target.pathname.startsWith(`/repos/${COMMIT_SYNC_REPO}/`))) {
+    throw new Error("github_token_target_not_allowed");
+  }
   const response = await fetch(url, {
+    signal: AbortSignal.timeout(8_000),
+    redirect: githubToken ? "error" : "follow",
     headers: {
       "cache-control": "no-cache",
       "accept": "application/vnd.github+json",
       "user-agent": "BriefRooms-Trading-Push/1.0",
+      ...(githubToken ? { authorization: `Bearer ${githubToken}` } : {}),
     },
   });
   if (!response.ok) throw new Error(`github_http_${response.status}:${url}`);
@@ -279,7 +295,7 @@ async function githubJson(url) {
 async function commitFileJson(sha, path, { optional = false } = {}) {
   const response = await fetch(
     `https://raw.githubusercontent.com/${COMMIT_SYNC_REPO}/${sha}/${path}?_=${Date.now()}`,
-    { headers: { "cache-control": "no-cache", "accept": "application/json" } },
+    { headers: { "cache-control": "no-cache", "accept": "application/json" }, signal: AbortSignal.timeout(8_000) },
   );
   if (optional && response.status === 404) return null;
   if (!response.ok) throw new Error(`commit_file_http_${response.status}:${path}`);
@@ -531,9 +547,9 @@ function transitionDescriptors(engine, before, after, observedAt = null) {
   return events;
 }
 
-async function latestWeeklyPayloadAtCommit(sha) {
+async function latestWeeklyPayloadAtCommit(sha, options = {}) {
   const rows = await githubJson(
-    `https://api.github.com/repos/${COMMIT_SYNC_REPO}/contents/data/investments/weekly?ref=${encodeURIComponent(sha)}&_=${Date.now()}`,
+    `https://api.github.com/repos/${COMMIT_SYNC_REPO}/contents/data/investments/weekly?ref=${encodeURIComponent(sha)}&_=${Date.now()}`, options,
   );
   if (!Array.isArray(rows)) throw new Error("weekly_commit_directory_invalid");
   const candidates = rows
@@ -544,13 +560,13 @@ async function latestWeeklyPayloadAtCommit(sha) {
   return commitFileJson(sha, latest.path, { optional: true });
 }
 
-async function snapshotAtCommit(engine, sha) {
+async function snapshotAtCommit(engine, sha, options = {}) {
   if (!sha) return emptyCommitSnapshot();
   if (engine === "daily") {
     return dailyCommitSnapshot(await commitFileJson(sha, "data/investments/eurusd_daily_spot.json", { optional: true }));
   }
   if (engine === "weekly") {
-    return weeklyCommitSnapshot(await latestWeeklyPayloadAtCommit(sha));
+    return weeklyCommitSnapshot(await latestWeeklyPayloadAtCommit(sha, options));
   }
   if (engine === "stock") {
     return stockCommitSnapshot(await commitFileJson(sha, "data/investments/stock_trading_portfolio.json", { optional: true }));
@@ -646,6 +662,8 @@ const DELIVERY_STATUS = Object.freeze({
 });
 const SENDING_STALE_MS = 2 * 60_000;
 const MAX_RETRY_MS = 15 * 60_000;
+const MAX_DELIVERY_ATTEMPTS = 5;
+const MAX_DELIVERY_AGE_MS = 10 * 60_000;
 // Provider acceptance is the transport terminal state. Missing render ACK is
 // telemetry, never permission to trigger another Android alert.
 function deliveryId(eventIdValue, subscriberId) {
@@ -713,7 +731,24 @@ function transitionDelivery(record, status, at = new Date().toISOString(), patch
 }
 
 function retryDelayMs(attempts) {
-  return Math.min(MAX_RETRY_MS, 30_000 * (2 ** Math.max(0, Number(attempts || 1) - 1)));
+  return Math.min(MAX_RETRY_MS, 2_000 * (2 ** Math.max(0, Number(attempts || 1) - 1)));
+}
+
+function deliveryTransportFailed(record) {
+  return record?.status === DELIVERY_STATUS.EXPIRED && (
+    Number(record.provider_status || 0) >= 400
+    || /^(ambiguous_|retry_limit_|delivery_window_|immutable_event_missing)/.test(String(record.last_error || ""))
+  );
+}
+
+function providerRetryDelayMs(error, attempts, nowMs = Date.now()) {
+  const value = error?.headers?.["retry-after"] ?? error?.headers?.get?.("retry-after");
+  const seconds = Number(value);
+  const dateMs = Date.parse(String(value || ""));
+  const requested = value != null && Number.isFinite(seconds)
+    ? Math.max(0, seconds * 1000)
+    : Number.isFinite(dateMs) ? Math.max(0, dateMs - nowMs) : 0;
+  return Math.max(retryDelayMs(attempts), requested);
 }
 
 function deliveryReadyForRetry(record, nowMs = Date.now()) {
@@ -833,6 +868,43 @@ export class PushHub {
     this.env = env;
   }
 
+  withDeliveryLock(operation) {
+    // Durable Object requests can interleave while provider I/O is pending.
+    // Serialize recipient creation and claiming, not just storage writes, so a
+    // simultaneous commit handoff/recovery cannot send one UNSENT record twice.
+    const pending = (this.deliveryWork || Promise.resolve()).catch(() => {}).then(operation);
+    this.deliveryWork = pending;
+    return pending;
+  }
+
+  async schedulePendingRetry(records) {
+    if (typeof this.ctx.storage.setAlarm !== "function") return null;
+    let earliest = Infinity;
+    for (const record of records) {
+      if (record?.status === DELIVERY_STATUS.UNSENT) {
+        const retryAt = Date.parse(String(record.next_retry_at || ""));
+        const createdAt = Date.parse(String(record.created_at || ""));
+        earliest = Math.min(earliest,
+          Number.isFinite(retryAt) ? retryAt : Date.now(),
+          Number.isFinite(createdAt) ? createdAt + MAX_DELIVERY_AGE_MS : Date.now());
+      } else if (record?.status === DELIVERY_STATUS.SENDING) {
+        const sendingAt = Date.parse(String(record.updated_at || ""));
+        earliest = Math.min(earliest, Number.isFinite(sendingAt) ? sendingAt + SENDING_STALE_MS : Date.now());
+      }
+    }
+    if (!Number.isFinite(earliest)) {
+      if (typeof this.ctx.storage.deleteAlarm === "function") await this.ctx.storage.deleteAlarm();
+      return null;
+    }
+    const at = Math.max(Date.now() + 1000, earliest);
+    await this.ctx.storage.setAlarm(at);
+    return new Date(at).toISOString();
+  }
+
+  async alarm() {
+    await this.deliverPending();
+  }
+
   async persistImmutableEvent(event) {
     if (!event?.event_id) throw new Error("event_id_required");
     const key = `event:${event.event_id}`;
@@ -902,6 +974,10 @@ export class PushHub {
   }
 
   async deliverPending({ eventIds = null } = {}) {
+    return this.withDeliveryLock(() => this.deliverPendingNow({ eventIds }));
+  }
+
+  async deliverPendingNow({ eventIds = null } = {}) {
     if (this.env.VAPID_PUBLIC_KEY && this.env.VAPID_PRIVATE_KEY) {
       webpush.setVapidDetails(
         this.env.VAPID_SUBJECT || "https://briefrooms.com",
@@ -941,9 +1017,24 @@ export class PushHub {
             last_error: "ambiguous_send_not_replayed", next_retry_at: null,
           }));
           duplicateSuppressed += 1;
+          expired += 1;
+          failed += 1;
           touchedEvents.add(String(original.event_id));
         }
         continue;
+      }
+      if (original.status === DELIVERY_STATUS.UNSENT) {
+        const createdAt = Date.parse(String(original.created_at || ""));
+        const exhausted = Number(original.attempts || 0) >= MAX_DELIVERY_ATTEMPTS;
+        if (exhausted || !Number.isFinite(createdAt) || Date.now() - createdAt >= MAX_DELIVERY_AGE_MS) {
+          await this.ctx.storage.put(key, transitionDelivery(original, DELIVERY_STATUS.EXPIRED, new Date().toISOString(), {
+            last_error: exhausted ? "retry_limit_exhausted" : "delivery_window_expired", next_retry_at: null,
+          }));
+          expired += 1;
+          failed += 1;
+          touchedEvents.add(String(original.event_id));
+          continue;
+        }
       }
       if (!deliveryReadyForRetry(original)) {
         if (original.status === DELIVERY_STATUS.ACKED) acked += 1;
@@ -981,7 +1072,7 @@ export class PushHub {
         const response = await webpush.sendNotification(
           subscriber.subscription,
           notificationPayload(event, subscriber.language, this.env.PUBLIC_BASE_URL, sending),
-          { TTL: 600, urgency: "high" },
+          { TTL: 600, urgency: "high", timeout: 10_000 },
         );
         const now = new Date().toISOString();
         const latest = (await this.ctx.storage.get(key)) || sending;
@@ -1009,26 +1100,29 @@ export class PushHub {
           acked += 1;
           continue;
         }
-        if (status === 403 || status === 404 || status === 410) {
+        if (status === 404 || status === 410) {
           await this.ctx.storage.delete(subKey);
         }
         // Retry only if the provider explicitly rejected (429/5xx).
         // A transport timeout is ambiguous: the phone may already have shown it.
-        const safeRetry = status === 429 || status >= 500;
+        const retryableRejection = status === 429 || status >= 500;
+        const createdAt = Date.parse(String(original.created_at || ""));
+        const safeRetry = retryableRejection && attempt < MAX_DELIVERY_ATTEMPTS
+          && Number.isFinite(createdAt) && Date.now() - createdAt < MAX_DELIVERY_AGE_MS;
         await this.ctx.storage.put(key, transitionDelivery(latest, safeRetry ? DELIVERY_STATUS.UNSENT : DELIVERY_STATUS.EXPIRED, now, {
           provider_status: status || null,
           last_error: safeRetry ? String(error?.message || error || "push_failed").slice(0, 500)
+            : retryableRejection ? (attempt >= MAX_DELIVERY_ATTEMPTS ? "retry_limit_exhausted" : "delivery_window_expired")
             : status ? `provider_rejected:${status}` : "ambiguous_push_error_not_replayed",
-          next_retry_at: safeRetry ? new Date(Date.now() + retryDelayMs(attempt)).toISOString() : null,
+          next_retry_at: safeRetry ? new Date(Date.now() + providerRetryDelayMs(error, attempt)).toISOString() : null,
         }));
         if (!safeRetry) {
           expired += 1;
           if (!status) duplicateSuppressed += 1;
-        } else {
-          failed += 1;
-          const statusKey = String(status);
-          failedStatuses[statusKey] = Number(failedStatuses[statusKey] || 0) + 1;
         }
+        failed += 1;
+        const statusKey = status ? String(status) : "ambiguous";
+        failedStatuses[statusKey] = Number(failedStatuses[statusKey] || 0) + 1;
       }
     }
 
@@ -1036,14 +1130,17 @@ export class PushHub {
 
     const allDeliveries = await this.ctx.storage.list({ prefix: "delivery:" });
     const stateCounts = { UNSENT: 0, SENDING: 0, SENT_TO_PUSH: 0, ACKED: 0, EXPIRED: 0 };
+    let terminalFailed = 0;
     for (const row of allDeliveries.values()) {
       const status = String(row?.status || "");
       if (Object.hasOwn(stateCounts, status)) stateCounts[status] += 1;
+      if ((!filter || filter.has(String(row?.event_id))) && deliveryTransportFailed(row)) terminalFailed += 1;
     }
     // Dispatch API may return before device ACK, without failing workflows;
     // health separately reports acknowledgments still outstanding.
     const pending = stateCounts.UNSENT + stateCounts.SENDING;
     const awaitingAck = stateCounts.SENT_TO_PUSH;
+    const retryScheduledAt = await this.schedulePendingRetry(allDeliveries.values());
 
     const stats = (await this.ctx.storage.get("stats")) || {};
     stats.sent = Number(stats.sent || 0) + sent;
@@ -1051,12 +1148,14 @@ export class PushHub {
     stats.expired_removed = Number(stats.expired_removed || 0) + expired;
     stats.duplicate_suppressed = Number(stats.duplicate_suppressed || 0) + duplicateSuppressed;
     stats.active_subscriptions = (await this.ctx.storage.list({ prefix: "sub:" })).size;
-    stats.last_failed_statuses = failedStatuses;
+    if (Object.keys(failedStatuses).length) stats.last_failed_statuses = failedStatuses;
     stats.last_dispatch_sent = sent;
     stats.last_dispatch_failed = failed;
     stats.last_dispatch_expired = expired;
     stats.last_dispatch_pending = pending;
     stats.last_dispatch_awaiting_ack = awaitingAck;
+    stats.last_dispatch_retry_at = retryScheduledAt;
+    stats.last_dispatch_terminal_failed = terminalFailed;
     stats.delivery_states = stateCounts;
     stats.ack_sla = pushAckLagMetrics(allDeliveries.values());
     const lastAlert = Date.parse(String(stats.last_ack_sla_alert_at || ""));
@@ -1068,10 +1167,14 @@ export class PushHub {
     stats.last_dispatch_at = new Date().toISOString();
     await this.ctx.storage.put("stats", stats);
 
-    return { ok: failed === 0, sent, failed, expired, acked, pending, awaiting_ack: awaitingAck, duplicate_suppressed: duplicateSuppressed, delivery_states: stateCounts };
+    return { ok: failed === 0 && terminalFailed === 0, sent, failed, terminal_failed: terminalFailed, expired, acked, pending, awaiting_ack: awaitingAck, retry_scheduled_at: retryScheduledAt, duplicate_suppressed: duplicateSuppressed, delivery_states: stateCounts };
   }
 
   async dispatchEvents(events, { seedIfUninitialized = false } = {}) {
+    return this.withDeliveryLock(() => this.dispatchEventsNow(events, { seedIfUninitialized }));
+  }
+
+  async dispatchEventsNow(events, { seedIfUninitialized = false } = {}) {
     const initialized = Boolean(await this.ctx.storage.get("feed_initialized"));
 
     if (!initialized && seedIfUninitialized) {
@@ -1102,7 +1205,8 @@ export class PushHub {
     if (!eventIds.length) {
       return { ok: true, sent: 0, failed: 0, expired: 0, acked: 0, pending: 0 };
     }
-    return this.deliverPending({ eventIds });
+    const dispatch = await this.deliverPendingNow({ eventIds });
+    return { ...dispatch, durable_accepted: dispatch.terminal_failed === 0 };
   }
 
   async acknowledgeDelivery(payload) {
@@ -1261,20 +1365,21 @@ export class PushHub {
   }
 
 
-  async verifyRecentMainCommit(commitSha) {
+  async verifyRecentMainCommit(commitSha, options = {}) {
     const sha = String(commitSha || "").trim().toLowerCase();
     if (!/^[0-9a-f]{40}$/.test(sha)) throw new Error("invalid_commit_sha");
 
     const [headPayload, targetPayload] = await Promise.all([
-      githubJson(`https://api.github.com/repos/${COMMIT_SYNC_REPO}/commits/main?_=${Date.now()}`),
-      githubJson(`https://api.github.com/repos/${COMMIT_SYNC_REPO}/commits/${sha}?_=${Date.now()}`),
+      githubJson(`https://api.github.com/repos/${COMMIT_SYNC_REPO}/commits/main?_=${Date.now()}`, options),
+      githubJson(`https://api.github.com/repos/${COMMIT_SYNC_REPO}/commits/${sha}?_=${Date.now()}`, options),
     ]);
     const headSha = String(headPayload?.sha || "").toLowerCase();
-    if (!headSha) throw new Error("github_main_head_missing");
+    if (!/^[0-9a-f]{40}$/.test(headSha)) throw new Error("github_main_head_missing");
+    if (String(targetPayload?.sha || "").toLowerCase() !== sha) throw new Error("github_target_commit_mismatch");
 
     if (sha !== headSha) {
       const compare = await githubJson(
-        `https://api.github.com/repos/${COMMIT_SYNC_REPO}/compare/${sha}...main?_=${Date.now()}`,
+        `https://api.github.com/repos/${COMMIT_SYNC_REPO}/compare/${sha}...main?_=${Date.now()}`, options,
       );
       const isAncestor = String(compare?.status || "") === "ahead" && Number(compare?.behind_by || 0) === 0;
       const committedAt = Date.parse(
@@ -1440,7 +1545,7 @@ export class PushHub {
     };
   }
 
-  async syncTradingCommit(commitSha, requestedEngines) {
+  async syncTradingCommit(commitSha, requestedEngines, { githubToken = null } = {}) {
     const engines = [...new Set(
       (Array.isArray(requestedEngines) ? requestedEngines : [requestedEngines])
         .map((value) => String(value || "").trim().toLowerCase())
@@ -1453,10 +1558,10 @@ export class PushHub {
 
     let commit;
     try {
-      commit = await this.verifyRecentMainCommit(commitSha);
+      commit = await this.verifyRecentMainCommit(commitSha, { githubToken });
     } catch (error) {
       const message = String(error?.message || error || "");
-      if (message.startsWith("github_http_403:")) {
+      if (!githubToken && message.startsWith("github_http_403:")) {
         return this.syncCurrentTrading(engines, {
           requestedSha: String(commitSha || "").trim().toLowerCase(),
           fallbackReason: "github_api_403",
@@ -1489,8 +1594,8 @@ export class PushHub {
       }
 
       const [before, after] = await Promise.all([
-        snapshotAtCommit(engine, commit.parent_sha),
-        snapshotAtCommit(engine, commit.sha),
+        snapshotAtCommit(engine, commit.parent_sha, { githubToken }),
+        snapshotAtCommit(engine, commit.sha, { githubToken }),
       ]);
       const descriptors = transitionDescriptors(engine, before, after, checkedAt);
       for (const descriptor of descriptors) {
@@ -1509,8 +1614,14 @@ export class PushHub {
       );
     }
 
-    const dispatch = events.length
-      ? await this.dispatchEvents(events)
+    const verifiedEvents = events.map((event) => ({
+      ...event,
+      source_commit_sha: commit.sha,
+      source_parent_sha: commit.parent_sha,
+      commit_verified_at: checkedAt,
+    }));
+    const dispatch = verifiedEvents.length
+      ? await this.dispatchEvents(verifiedEvents)
       : { ok: true, sent: 0, failed: 0, expired: 0, pending: 0 };
 
     const stats = (await this.ctx.storage.get("stats")) || {};
@@ -1521,6 +1632,8 @@ export class PushHub {
     stats.last_commit_sync_event_count = events.length;
     stats.last_commit_sync_status = events.length ? "TRANSITIONS_DISPATCHED" : "NO_TRANSITION";
     stats.last_commit_sync_engine_status = engineStatus;
+    stats.last_commit_sync_fallback_reason = null;
+    stats.last_commit_sync_authenticated = Boolean(githubToken);
     await this.ctx.storage.put("stats", stats);
 
     return {
@@ -1533,14 +1646,16 @@ export class PushHub {
       event_ids: events.map((event) => event.event_id),
       engine_status: engineStatus,
       dispatch,
+      durable_accepted: !verifiedEvents.length || dispatch.durable_accepted === true,
+      retry_scheduled_at: dispatch.retry_scheduled_at || null,
     };
   }
 
-  async syncDailyCommit(commitSha) {
+  async syncDailyCommit(commitSha, options = {}) {
     // Legacy compatibility endpoint. Route through the same resilient commit-bound
     // pipeline used by production Daily so GitHub API rate limits cannot create a
     // second, weaker notification path.
-    const result = await this.syncTradingCommit(commitSha, ["daily"]);
+    const result = await this.syncTradingCommit(commitSha, ["daily"], options);
     return {
       ...result,
       event_id: Array.isArray(result.event_ids) && result.event_ids.length ? result.event_ids[0] : null,
@@ -1565,6 +1680,8 @@ export class PushHub {
       const stats = (await this.ctx.storage.get("stats")) || {};
       return json({
         ok: true,
+        service: "briefrooms-trading-push",
+        notification_transport_version: "commit-bound-durable-v3",
         ready: Boolean(this.env.VAPID_PUBLIC_KEY && this.env.VAPID_PRIVATE_KEY),
         active_subscriptions: subscriptions.size,
         sent: Number(stats.sent || 0),
@@ -1577,17 +1694,22 @@ export class PushHub {
         last_dispatch_sent: Number(stats.last_dispatch_sent || 0),
         last_dispatch_failed: Number(stats.last_dispatch_failed || 0),
         last_dispatch_expired: Number(stats.last_dispatch_expired || 0),
+        last_dispatch_terminal_failed: Number(stats.last_dispatch_terminal_failed || 0),
         last_dispatch_pending: Number(stats.last_dispatch_pending || 0),
         delivery_states: stats.delivery_states || { UNSENT: 0, SENDING: 0, SENT_TO_PUSH: 0, ACKED: 0, EXPIRED: 0 },
         acked: Number(stats.acked || 0),
         last_acked_at: stats.last_acked_at || null,
         durable_outbox: true,
         durable_retry: true,
+        durable_alarm_retry: true,
+        retry_scheduled_at: stats.last_dispatch_retry_at || null,
         delivery_ack_required: false,
         delivery_ack_optional: true,
         provider_acceptance_terminal: true,
         device_render_ack_retry: false,
-        max_delivery_attempts: 1,
+        max_delivery_attempts: MAX_DELIVERY_ATTEMPTS,
+        max_provider_accepted_sends_per_delivery: 1,
+        max_delivery_age_ms: MAX_DELIVERY_AGE_MS,
         last_dispatch_awaiting_ack: Number(stats.last_dispatch_awaiting_ack || 0),
         ack_sla: stats.ack_sla || { unacked_over_2m: 0, unacked_over_10m: 0, oldest_unacked_ms: 0 },
         duplicate_suppressed: Number(stats.duplicate_suppressed || 0),
@@ -1602,6 +1724,7 @@ export class PushHub {
         last_commit_sync_status: stats.last_commit_sync_status || null,
         last_commit_sync_engine_status: stats.last_commit_sync_engine_status || {},
         last_commit_sync_fallback_reason: stats.last_commit_sync_fallback_reason || null,
+        last_commit_sync_authenticated: stats.last_commit_sync_authenticated === true,
         recovery_ingest_internal_only: true,
         fast_daily_watcher: true,
         fast_daily_failures: Number(stats.fast_daily_failures || 0),
@@ -1639,7 +1762,7 @@ export class PushHub {
     if (path === "/sync-trading" && request.method === "POST") {
       try {
         const payload = await bodyJson(request);
-        const result = await this.syncTradingCommit(payload.sha, payload.engines);
+        const result = await this.syncTradingCommit(payload.sha, payload.engines, { githubToken: githubTokenFromRequest(request) });
         console.info("BR_PUSH_SYNC_RESULT", JSON.stringify({
           sha: String(result.sha || "").slice(0, 12),
           engines: result.engines,
@@ -1652,14 +1775,15 @@ export class PushHub {
           failed: result.dispatch?.failed || 0,
           pending: result.dispatch?.pending || 0,
         }));
-        return json(result, result.ok ? 200 : 502, cors(origin));
+        const queued = result.durable_accepted === true && result.retry_scheduled_at;
+        return json(result, queued ? 202 : result.ok ? 200 : 502, cors(origin));
       } catch (error) {
         const message = String(error?.message || error || "sync_trading_failed");
         console.warn("BR_PUSH_SYNC_ERROR", JSON.stringify({
           error: message.slice(0, 240),
         }));
         const status = message.startsWith("commit_not_recent_main_ancestor:") ? 409
-          : ["invalid_commit_sha", "commit_sync_engines_required", "invalid_commit_sync_engine"].includes(message) ? 400
+          : ["invalid_commit_sha", "commit_sync_engines_required", "invalid_commit_sync_engine", "invalid_github_authorization"].includes(message) ? 400
           : 502;
         return json({ ok: false, error: message }, status, cors(origin));
       }
@@ -1668,12 +1792,13 @@ export class PushHub {
     if (path === "/sync-daily" && request.method === "POST") {
       try {
         const payload = await bodyJson(request);
-        const result = await this.syncDailyCommit(payload.sha);
-        return json(result, result.ok ? 200 : 502, cors(origin));
+        const result = await this.syncDailyCommit(payload.sha, { githubToken: githubTokenFromRequest(request) });
+        const queued = result.durable_accepted === true && result.retry_scheduled_at;
+        return json(result, queued ? 202 : result.ok ? 200 : 502, cors(origin));
       } catch (error) {
         const message = String(error?.message || error || "sync_daily_failed");
         const status = message.startsWith("commit_not_current_main_head:") ? 409
-          : message === "invalid_commit_sha" ? 400
+          : ["invalid_commit_sha", "invalid_github_authorization"].includes(message) ? 400
           : 502;
         return json({ ok: false, error: message }, status, cors(origin));
       }
@@ -1913,6 +2038,71 @@ async function hub(env) {
   return env.PUSH_HUB.get(id);
 }
 
+async function runScheduledRecovery(env) {
+  const h = await hub(env);
+  const stages = [
+    ["fast_daily", async () => {
+      let lastError;
+      for (let attempt = 1; attempt <= 3; attempt += 1) {
+        try {
+          const response = await h.fetch("https://internal/fast-daily-watch", { method: "POST" });
+          if (!response.ok) throw new Error(`fast_daily_watch_http_${response.status}`);
+          return;
+        } catch (error) {
+          lastError = error;
+          if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, attempt * 750));
+        }
+      }
+      throw lastError || new Error("fast_daily_watch_failed_after_retries");
+    }],
+    ["event_feed", async () => {
+      const feedUrl = new URL(env.EVENT_FEED_URL);
+      feedUrl.searchParams.set("_", String(Date.now()));
+      const response = await fetch(feedUrl.toString(), {
+        headers: { "cache-control": "no-cache", "accept": "application/json" },
+        signal: AbortSignal.timeout(8_000),
+      });
+      if (!response.ok) throw new Error(`event_feed_http_${response.status}`);
+      const payload = await response.json();
+      const ingest = await h.fetch("https://internal/ingest", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ events: Array.isArray(payload.events) ? payload.events : [] }),
+      });
+      if (!ingest.ok) throw new Error(`event_ingest_http_${ingest.status}`);
+    }],
+    ["wes_feed", async () => {
+      const feedUrl = new URL(env.WES_EVENT_FEED_URL || WES_OUTBOX_RAW_URL);
+      feedUrl.searchParams.set("_", String(Date.now()));
+      const response = await fetch(feedUrl.toString(), {
+        headers: { "cache-control": "no-cache", "accept": "application/json" },
+        signal: AbortSignal.timeout(8_000),
+      });
+      if (response.status === 404) return;
+      if (!response.ok) throw new Error(`wes_event_feed_http_${response.status}`);
+      const payload = await response.json();
+      const ingest = await h.fetch("https://internal/ingest", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ events: persistedOutboxEvents(payload, "weekly") }),
+      });
+      if (!ingest.ok) throw new Error(`wes_event_ingest_http_${ingest.status}`);
+    }],
+    ["durable_retry", async () => {
+      const response = await h.fetch("https://internal/retry-pending", { method: "POST" });
+      if (!response.ok) throw new Error(`durable_retry_http_${response.status}`);
+    }],
+  ];
+  // Recovery feeds are independent. An unavailable feed must never prevent an
+  // already-durable provider rejection from reaching its retry path.
+  const results = await Promise.allSettled(stages.map(async ([name, run]) => {
+    try { await run(); } catch (error) {
+      throw new Error(`${name}:${String(error?.message || error)}`);
+    }
+  }));
+  const errors = results.filter((result) => result.status === "rejected")
+    .map((result) => String(result.reason?.message || result.reason));
+  if (errors.length) throw new Error(`notification_recovery_stages_failed:${errors.join("|")}`);
+}
+
 export default {
   async fetch(request, env) {
     const h = await hub(env);
@@ -1920,68 +2110,8 @@ export default {
   },
 
   async scheduled(_controller, env, ctx) {
-    ctx.waitUntil((async () => {
-      const h = await hub(env);
-
-      let fastWatchOk = false;
-      let lastFastError = null;
-      for (let attempt = 1; attempt <= 3; attempt += 1) {
-        try {
-          const response = await h.fetch("https://internal/fast-daily-watch", { method: "POST" });
-          if (!response.ok) {
-            const payload = await response.text();
-            throw new Error(`fast_daily_watch_http_${response.status}:${payload.slice(0, 300)}`);
-          }
-          fastWatchOk = true;
-          break;
-        } catch (error) {
-          lastFastError = error;
-          if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, attempt * 750));
-        }
-      }
-
-      const response = await fetch(env.EVENT_FEED_URL, {
-        headers: { "cache-control": "no-cache", "accept": "application/json" },
-      });
-      if (!response.ok) throw new Error(`event_feed_http_${response.status}`);
-      const payload = await response.json();
-      const ingestResponse = await h.fetch("https://internal/ingest", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ events: Array.isArray(payload.events) ? payload.events : [] }),
-      });
-      if (!ingestResponse.ok) {
-        throw new Error(`event_ingest_http_${ingestResponse.status}`);
-      }
-
-      // Weekly/WES recovery consumes the canonical lifecycle outbox directly.
-      // It must never infer OPEN/CLOSE from position snapshots.
-      const wesResponse = await fetch(env.WES_EVENT_FEED_URL || WES_OUTBOX_RAW_URL, {
-        headers: { "cache-control": "no-cache", "accept": "application/json" },
-      });
-      if (wesResponse.status !== 404) {
-        if (!wesResponse.ok) throw new Error(`wes_event_feed_http_${wesResponse.status}`);
-        const wesPayload = await wesResponse.json();
-        const wesIngestResponse = await h.fetch("https://internal/ingest", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ events: persistedOutboxEvents(wesPayload, "weekly") }),
-        });
-        if (!wesIngestResponse.ok) {
-          throw new Error(`wes_event_ingest_http_${wesIngestResponse.status}`);
-        }
-      }
-
-      const retryResponse = await h.fetch("https://internal/retry-pending", { method: "POST" });
-      if (!retryResponse.ok) {
-        throw new Error(`durable_retry_http_${retryResponse.status}`);
-      }
-
-      if (!fastWatchOk) {
-        throw lastFastError || new Error("fast_daily_watch_failed_after_retries");
-      }
-    })());
+    ctx.waitUntil(runScheduledRecovery(env));
   }
 };
 
-export { finiteNumber, yahooMinuteBars, dailyCommitSnapshot, weeklyCommitSnapshot, stockCommitSnapshot, transitionDescriptors, persistedOutboxEvents, diffPersistedOutboxEvents, notificationPayload, eventToPushLatencyMs, pushAckLagMetrics, storedCommitSnapshot, persistableCommitSnapshot, comparableCommitSnapshot, sameCommitSnapshot, isoWeekId, DELIVERY_STATUS, deliveryId, deliveryStorageKey, immutableEventCore, sameImmutableEvent, newDeliveryRecord, transitionDelivery, retryDelayMs, deliveryReadyForRetry, isSyntheticRecoveryEvent };
+export { finiteNumber, yahooMinuteBars, dailyCommitSnapshot, weeklyCommitSnapshot, stockCommitSnapshot, transitionDescriptors, persistedOutboxEvents, diffPersistedOutboxEvents, notificationPayload, eventToPushLatencyMs, pushAckLagMetrics, storedCommitSnapshot, persistableCommitSnapshot, comparableCommitSnapshot, sameCommitSnapshot, isoWeekId, DELIVERY_STATUS, deliveryId, deliveryStorageKey, immutableEventCore, sameImmutableEvent, newDeliveryRecord, transitionDelivery, retryDelayMs, providerRetryDelayMs, deliveryReadyForRetry, isSyntheticRecoveryEvent, githubJson, runScheduledRecovery };

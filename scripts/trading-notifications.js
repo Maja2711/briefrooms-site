@@ -309,6 +309,12 @@
     return parts.every(Boolean) ? parts.join("|") : String(event?.event_id || "");
   }
 
+  function eventClock(event) {
+    return String(event?.event_type || "").toUpperCase() === "CLOSE"
+      ? (event?.closed_at || event?.observed_at || "")
+      : (event?.opened_at || event?.observed_at || "");
+  }
+
   // The foreground recovery path and background SW use the SAME IndexedDB
   // event identity so a missed background push is recovered when the app opens,
   // without two alerts for the same trade.
@@ -326,7 +332,7 @@
           let exists = false;
           try {
             const tx = db.transaction("events", "readwrite");
-            const add = tx.objectStore("events").add({ id: identity, seen_at: Date.now() });
+            const add = tx.objectStore("events").add({ id: identity, seen_at: Date.now(), status: "PENDING" });
             add.onerror = (e) => {
               if (add.error?.name === "ConstraintError") {
                 exists = true;
@@ -340,6 +346,26 @@
           } catch (_) { db.close(); finish(true); }
         };
       } catch (_) { finish(true); }
+    });
+  }
+
+  function markShownOnDevice(identity) {
+    if (!identity || !window.indexedDB) return Promise.resolve();
+    return new Promise((resolve) => {
+      try {
+        const req = indexedDB.open("briefrooms-trading-push-seen-v1", 1);
+        req.onupgradeneeded = () => req.result.createObjectStore("events", { keyPath: "id" });
+        req.onerror = () => resolve();
+        req.onsuccess = () => {
+          const db = req.result;
+          try {
+            const tx = db.transaction("events", "readwrite");
+            const now = Date.now();
+            tx.objectStore("events").put({ id: identity, seen_at: now, shown_at: now, status: "SHOWN" });
+            tx.oncomplete = tx.onabort = tx.onerror = () => { db.close(); resolve(); };
+          } catch (_) { db.close(); resolve(); }
+        };
+      } catch (_) { resolve(); }
     });
   }
 
@@ -371,12 +397,10 @@
     }
     // Foreground recovery can occur after Android has suspended Chrome. Never
     // present a 30-minute-old lifecycle transition as a fresh trade signal.
-    const clock = String(data?.event_type || "").toUpperCase() === "CLOSE"
-      ? (data?.closed_at || data?.observed_at || "")
-      : (data?.opened_at || data?.observed_at || "");
-    const eventMs = Date.parse(String(clock));
-    const ageMinutes = Number.isFinite(eventMs) && Date.now() - eventMs >= 120000
-      ? Math.floor((Date.now() - eventMs) / 60000) : 0;
+    const displayedAt = Date.now();
+    const eventMs = Date.parse(String(eventClock(data)));
+    const ageMinutes = Number.isFinite(eventMs) && displayedAt - eventMs > 5 * 60_000
+      ? Math.floor((displayedAt - eventMs) / 60000) : 0;
     const displayedBody = ageMinutes > 0
       ? body + (lang === "pl" ? ` · OPÓŹNIONE ${ageMinutes} min` : ` · DELAYED ${ageMinutes} min`)
       : body;
@@ -395,6 +419,7 @@
         new Notification(title, { body: displayedBody, icon: "/assets/favicon.svg", tag: identity || data?.event_id || undefined });
       }
       if (identity) {
+        await markShownOnDevice(identity);
         try { localStorage.setItem("brTradingSeenEventV2:" + identity, String(Date.now())); } catch (_) {}
       }
     } catch (_) {
@@ -425,7 +450,7 @@
       // flooded by weeks of accumulated historical trading notifications.
       const now = Date.now();
       const recent = events.filter((event) => {
-        const t = Date.parse(String(event.closed_at || event.opened_at || event.observed_at || ""));
+        const t = Date.parse(String(eventClock(event)));
         return Number.isFinite(t) && now >= t && now - t <= 2 * 60 * 60_000;
       });
       const candidates = [...new Map(recent.map((event) => [logicalEventId(event), event])).values()];

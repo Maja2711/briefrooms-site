@@ -527,6 +527,7 @@ jobs:
       - name: Dispatch persisted Daily transition to Web Push immediately
         if: steps.persist.outputs.changed == 'true'
         env:
+          GH_TOKEN: ${{ github.token }}
           PUSH_API: https://briefrooms-trading-push.szczerbinski0577.workers.dev
         run: bash scripts/sync_trading_push_commit.sh "${{ steps.persist.outputs.sha }}" daily
 

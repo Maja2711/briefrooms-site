@@ -1,10 +1,10 @@
 # BriefRooms Canonical Architecture Map — EN
 
-**Map version:** 1.39
+**Map version:** 1.40
 
-**Snapshot date:** 2026-10-20
+**Snapshot date:** 2026-10-21
 
-**Base `main` commit:** `e39c9395518d134aae007e1cd307405813f91f23`
+**Base `main` commit:** `35d7e27e14984f6bcab522a3bbc836f75ced24cf`
 
 **Repository:** `Maja2711/briefrooms-site`
 
@@ -522,6 +522,10 @@ Primary detailed documents used to build and maintain the current map:
 
 `NT-01` only reads already persisted state owned by `TR-03`, `TR-04` and `TR-05`. It cannot invoke lifecycle logic, create fills, mutate positions or influence models. The production Web Push path is commit-bound for **every channel**: Daily EUR/USD, Weekly EUR/USD, Weekly BTC/USD, Weekly S&P 500 futures, and Stock Trading GPW/US. After a successful canonical write, every writer uses the shared `scripts/sync_trading_push_commit.sh` handoff to send only the exact commit SHA and channel to `/sync-trading`. The Worker accepts the current head or a recent ancestor of current `main`, compares that commit's state with its direct parent, and emits only real `absent -> OPEN` / `OPEN -> CLOSED` transitions. Weekly is wired at every writer that can mutate position state: WES, full maintenance, freshness recovery, the live-price/risk writer, Event Intelligence and the five-minute risk path; Stock Trading is wired at v2 production admission, canonical portfolio lifecycle and the Event Intelligence overlay; Daily uses the same path from its realtime watcher as well. Deterministic `event_id = engine + event_type + position_id` prevents duplicates. Language and destination URL are selected per device subscription (PL/EN). Public `/ingest` is disabled; internal-only ingest plus the canonical feed remain recovery-only. Access configuration supports `PUBLIC | AUTHENTICATED | PAID`. GitHub Pages remains the frontend; background Web Push is handled by an isolated Cloudflare Worker with a Durable Object, while private VAPID material remains only in Worker Secrets.
 
+
+### NT-01 — immediate handoff and durable retry
+
+After canonical commit persistence, each writer immediately calls time-bounded `/sync-trading`. The GitHub Actions token travels only over HTTPS to the owned Worker and is used only within that request to read the fixed repository through GitHub's API; it is never stored or logged. This avoids anonymous API limits (`403`) without changing model authority. Receipts reconcile exact SHA/channels and provider acceptance or a durable queue with a scheduled retry. Explicit `429/5xx` rejections use bounded Durable Object alarm retries independently of recovery feed success; missing device ACK never authorizes replay of an accepted alert. Delivery and recipient initialization are serialized, and ACK proves completed display rather than an identifier reservation. PL/EN copy contains no delay suffix through five minutes inclusive; original timestamps and diagnostics remain. Deployment sends no test events and preserves the existing VAPID pair; a partial pair blocks rotation. Notification code pushes run writer validation only, with no trading entry/exit execution. Details: `TRADING_NOTIFICATIONS_PL.md` / `_EN.md`.
 
 ## LE-12 — History Integrity Guard (code stage; no independent archive yet)
 

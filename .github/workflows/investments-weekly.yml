@@ -159,6 +159,7 @@ jobs:
       - name: Dispatch checkpointed Weekly transition to Web Push immediately
         if: steps.checkpoint.outputs.changed == 'true'
         env:
+          GH_TOKEN: ${{ github.token }}
           PUSH_API: https://briefrooms-trading-push.szczerbinski0577.workers.dev
         run: bash scripts/sync_trading_push_commit.sh "${{ steps.checkpoint.outputs.sha }}" weekly
 
@@ -235,5 +236,6 @@ jobs:
       - name: Dispatch final Weekly transition to Web Push immediately
         if: steps.final_commit.outputs.changed == 'true'
         env:
+          GH_TOKEN: ${{ github.token }}
           PUSH_API: https://briefrooms-trading-push.szczerbinski0577.workers.dev
         run: bash scripts/sync_trading_push_commit.sh "${{ steps.final_commit.outputs.sha }}" weekly
