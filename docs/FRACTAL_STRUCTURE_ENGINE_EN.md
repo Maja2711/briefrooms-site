@@ -363,3 +363,5 @@ Implementation contract:
 
 - ASD 2.0 timing: completed bars define the motif while a fresh quote defines the reference price. Its real source clock must be no later than freeze and at most five minutes old. Outcomes use the first four market bars opening at or after freeze; pre-freeze bars cannot enter the future target. Live execution freezes after data acquisition; an explicit replay cutoff remains fixed.
 - HSE retains the highest frozen methodology version; a temporarily older publication cannot disable its newer cohort or resume older evidence collection.
+
+HSE reads the complete FSE contract (6 Core + 15 Phase/Adaptive/ablation metrics); the public instrument comes from explicit `details.instrument`, without inferring it from claim prose.

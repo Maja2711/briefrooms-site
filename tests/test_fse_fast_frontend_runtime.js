@@ -100,6 +100,23 @@ for(const path of ["scripts/central-lab.js","scripts/central-lab-runtime-en.js"]
     assert.ok(source.includes("experiments.find(x=>fseHseMatches(x,m))"));
   });
 
+  test(path+": generic HSE claims map through explicit instrument rather than their prose",()=>{
+    const start=source.indexOf("function fseHseMatches("),body=source.slice(start,source.indexOf("// Fast presentation selection",start));
+    const methods=vm.runInNewContext(body+";({match:fseHseMatches,current:fseCurrentExperiments});",{String,Array});
+    const metrics=["adaptive_ensemble_brier_improvement_vs_deep","adaptive_risk_improvement_vs_prior","full_brier_improvement_vs_simple"];
+    const measurements=ids.flatMap(instrument=>metrics.map(metric_name=>({metric_name,details:{instrument,methodology_version:metric_name.includes("simple")?"FSE-PHASE-3.0":"FSE-ADAPTIVE-3.0"}})));
+    const experiments=measurements.map(m=>({source_engine:"FSE",instrument:m.details.instrument,metric_name:m.metric_name,methodology_version:m.details.methodology_version,claim:"Generic prospective comparison without an instrument name",prospective_n:0}));
+    assert.equal(methods.current(experiments,measurements).length,9);
+    for(const measurement of measurements){
+      const matching=experiments.filter(exp=>methods.match(exp,measurement));
+      assert.equal(matching.length,1);assert.equal(matching[0].instrument,measurement.details.instrument);
+    }
+    const euro=measurements.find(m=>m.details.instrument==="EURUSD"),wrong={...experiments[0],instrument:"BTCUSD",claim:"Legacy prose explicitly mentions EURUSD"};
+    assert.equal(methods.match(wrong,euro),false,"Explicit instrument must take precedence over legacy prose");
+    const legacy={...experiments[0],claim:"Legacy FSE for EURUSD"};delete legacy.instrument;
+    assert.equal(methods.match(legacy,euro),true,"Old public snapshots retain their claim-text fallback");
+  });
+
   test(path+": stale/partial HTTP 200 recovers from the static provider",async()=>{
     const urls=[],fallback=payload();
     const instance=api(async url=>{urls.push(url);return url.includes("fse-fast")?payload([row("EURUSD",now-86400000)],now-86400000):fallback;});

@@ -389,3 +389,5 @@ Kontrakt implementacyjny:
 
 - Czas ASD 2.0: zamknięte świece określają wzorzec, świeże kwotowanie określa cenę referencyjną. Referencja musi mieć rzeczywisty czas źródła nie późniejszy od freeze i wiek najwyżej 5 minut. Wynik obejmuje pierwsze cztery świece rynkowe otwierające się w chwili freeze lub później; dane sprzed freeze nie są przyszłym targetem. Zegar wykonania live jest zamrażany po pozyskaniu danych; jawny replay cutoff pozostaje stały.
 - HSE zachowuje najwyższą zamrożoną wersję metodologii; chwilowo starsza publikacja nie może wyłączyć nowszej kohorty ani wznowić naliczania starej.
+
+HSE odczytuje cały kontrakt FSE (6 metryk Core + 15 Phase/Adaptive/ablation); publiczny instrument pochodzi z jawnego `details.instrument`, bez wyprowadzania go z tekstu hipotezy.
