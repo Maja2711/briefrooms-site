@@ -160,9 +160,11 @@ function fseBrierText(measurement,edge){
 
 function fseHseMatches(experiment,measurement){
   const method=measurement?.details?.methodology_version,instrument=String(measurement?.details?.instrument||'');
+  const explicitInstrument=experiment?.instrument!==undefined&&experiment?.instrument!==null;
+  const sameInstrument=explicitInstrument?String(experiment.instrument)===instrument:String(experiment?.claim||'').includes(instrument);
   return experiment?.source_engine==='FSE'&&typeof method==='string'&&method.length>0
     &&experiment.methodology_version===method&&experiment.metric_name===measurement.metric_name
-    &&instrument.length>0&&String(experiment.claim||'').includes(instrument);
+    &&instrument.length>0&&sameInstrument;
 }
 function fseCurrentExperiments(experiments,measurements){
   return (Array.isArray(experiments)?experiments:[]).filter(experiment=>measurements.some(measurement=>fseHseMatches(experiment,measurement)));

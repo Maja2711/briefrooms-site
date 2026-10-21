@@ -276,6 +276,39 @@ class HSE2Tests(unittest.TestCase):
 
 
 class FSERepairCohortTests(unittest.TestCase):
+    def test_all_five_phase_metrics_per_instrument_survive_adapter_and_keep_prior_ids(self):
+        from scripts import fractal_structure_engine as core
+        from scripts import fractal_structure_engine_v2 as phase
+        instruments=("EURUSD","BTCUSD","SPX")
+        core_rows=[row for instrument in instruments for row in core.measurements([],instrument)]
+        phase_rows=[row for instrument in instruments for row in phase.hse_measurements([],instrument)]
+        self.assertEqual(len(core_rows),6)
+        self.assertEqual(len(phase_rows),15)
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);state=root/"state";public=root/"public.json"
+            def sources(rows,at):
+                write(root,SOURCE_PATHS["FSE"],{"generated_at":at,"methodology_version":core.METHODOLOGY_VERSION,"hse_measurements":core_rows})
+                write(root,"data/investments/fse_v2_public.json",{"generated_at":at,"methodology_version":phase.METHODOLOGY_VERSION,"hse_measurements":rows})
+                return run_cycle(root,state,public,at)
+            initial=sources(phase_rows[:12],"2026-10-21T20:00:00Z")
+            frozen={row["experiment_id"]:row["frozen_at"] for row in initial["experiments"]}
+            self.assertEqual(len(frozen),18)
+            expanded=sources(phase_rows,"2026-10-21T20:05:00Z")
+            current={row["experiment_id"]:row for row in expanded["experiments"]}
+            self.assertEqual(len(current),21)
+            for eid,at in frozen.items():
+                self.assertEqual(current[eid]["frozen_at"],at)
+                self.assertEqual(current[eid]["prospective_n"],0)
+            for instrument in instruments:
+                self.assertEqual(sum(row["instrument"]==instrument for row in current.values()),7)
+            for row in phase_rows:row.update(counter=1,total=.01)
+            advanced=sources(phase_rows,"2026-10-21T20:10:00Z")
+            phase_current=[row for row in advanced["experiments"] if row["methodology_version"]!=core.METHODOLOGY_VERSION]
+            self.assertEqual(len(phase_current),15)
+            self.assertTrue(all(row["prospective_n"]==1 for row in phase_current))
+            self.assertEqual(advanced["historical_fse_experiments"],[])
+            self.assertTrue(verify(state)["ok"])
+
     def test_stale_publication_cannot_quarantine_new_methodology_or_resume_old_evidence(self):
         cases=(("FSE-CORE", "data/investments/fse_public.json", "fse-fractal-memory-eurusd-4h-brier"),
                ("FSE-PHASE", "data/investments/fse_v2_public.json", "fse-phase-memory-eurusd-4h-brier"),

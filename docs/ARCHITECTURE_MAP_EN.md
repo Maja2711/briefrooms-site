@@ -178,6 +178,8 @@ An adapter is not a decision engine. Its primary job is to translate a source in
 
 ### IN-09 — structure search 3.0 / ASD 2.0
 
+HSE reads the complete FSE contract (6 Core + 15 Phase/Adaptive/ablation metrics); the public instrument comes from explicit `details.instrument`, without inferring it from claim prose.
+
 Current research versions are `FSE-CORE-3.0`, `FSE-PHASE-3.0`, `FSE-ADAPTIVE-3.0` and `FSE-ASD-2.0`; transport remains `FSE-FAST-2.0`. Analogue feature/outcome windows cannot overlap the live query, and multiple windows from one episode cannot manufacture independent support. Deep/Phase/Core require at least eight independent matches and a quality rule learned from prior data without outcome optimization. No reliable match produces explicit `ABSTAIN` and `P=null`, never fabricated 50% or directional Brier credit. Full geometry is compared with a simple exact z-normalized Euclidean shape distance profile: a query/history reference, not a full all-pairs Matrix Profile. Paired ablation freezes both probabilities against the same future target; formal N counts disjoint outcome blocks. ASD uses density cores, independent support, query exclusion and an ambiguity threshold. Selection preregisters its sample and a shared lifetime budget of 24 trials × 2 endpoints, without per-cycle resets. Existing family definitions, snapshots, outcomes and lessons retain their hashes; previous cohorts/catalogue remain historical, while current HSE has a new freeze. The module remains SHADOW_ONLY with no production EURUSD, Belief, position or promotion authority. Details: `FRACTAL_STRUCTURE_ENGINE_EN.md`, section 13.
 
 ### L3 — autonomous experience acquisition

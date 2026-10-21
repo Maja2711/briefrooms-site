@@ -373,7 +373,9 @@ def proposals_fse(data: Mapping[str, Any], source_path: str, source_sha256: str 
     """
     out = []
     rows = data.get("hse_measurements") if isinstance(data.get("hse_measurements"), list) else []
-    for row in rows[:12]:
+    # The producer's frozen contract may add paired research arms. Never
+    # silently drop an instrument or metric at an arbitrary positional limit.
+    for row in rows:
         if not isinstance(row, Mapping):
             continue
         key = str(row.get("proposal_key") or "")
@@ -955,13 +957,15 @@ def public_projection(registry: Mapping[str, Any], source_status: Mapping[str, A
         if not isinstance(exp, Mapping) or exp.get("administrative_superseded") is True or exp.get("methodology_quarantined") is True:
             continue
         experiments.append({
+            "instrument": (exp.get("details") or {}).get("instrument"),
+            **{
             key: exp.get(key)
             for key in (
                 "experiment_id", "status", "source_active", "source_engine", "claim",
                 "champion", "challenger", "metric_name", "target_n", "prospective_n",
                 "frozen_at", "last_evidence_at", "completed_at", "result_id", "lesson_id", "methodology_version"
             )
-        })
+        }})
     sources = {}
     for source in SOURCE_PATHS:
         rows = [x for x in experiments if x.get("source_engine") == source]

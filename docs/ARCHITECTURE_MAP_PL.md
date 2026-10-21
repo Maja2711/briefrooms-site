@@ -178,6 +178,8 @@ Adapter nie jest silnikiem decyzji. Jego podstawowym zadaniem jest tłumaczenie 
 
 ### IN-09 — wyszukiwanie struktur 3.0 / ASD 2.0
 
+HSE odczytuje cały kontrakt FSE (6 metryk Core + 15 Phase/Adaptive/ablation); publiczny instrument pochodzi z jawnego `details.instrument`, bez wyprowadzania go z tekstu hipotezy.
+
 Aktualne wersje badawcze to `FSE-CORE-3.0`, `FSE-PHASE-3.0`, `FSE-ADAPTIVE-3.0` i `FSE-ASD-2.0`; transport pozostaje `FSE-FAST-2.0`. Okna cech i wyników analogów nie mogą nachodzić na bieżący wzorzec, a wiele okien jednego epizodu nie tworzy niezależnego wsparcia. Deep/Phase/Core wymagają co najmniej ośmiu niezależnych dopasowań i jakości ustalonej na wcześniejszych danych bez optymalizacji na wynikach. Brak dopasowania daje jawne `ABSTAIN` i `P=null`, bez zastępowania przez 50% lub zaliczania kierunkowego Brier. Pełna geometria jest porównywana z prostym, dokładnym profilem odległości euklidesowych po normalizacji kształtu; jest to wariant query/history, nie pełny all-pairs Matrix Profile. Sparowana ablacja zamraża oba P i ocenia ten sam przyszły target; formalne N liczy rozłączne bloki wyników. ASD używa gęstych rdzeni klastrów, niezależnego wsparcia, odstępu od query i progu niejednoznaczności. Rejestr selekcji zamraża próbę i wspólny budżet 24 testów × 2 zastosowania, bez resetu co cykl. Istniejące rodziny, snapshoty, wyniki i lekcje zachowują definicje oraz hashe; wcześniejsze kohorty i katalog są archiwum, a bieżące HSE ma nowy freeze. Moduł pozostaje SHADOW_ONLY i nie zmienia produkcyjnego EURUSD, Belief, pozycji ani promocji. Szczegóły: `FRACTAL_STRUCTURE_ENGINE_PL.md`, sekcja 13.
 
 ### L3 — autonomiczne zdobywanie doświadczenia
