@@ -4,6 +4,8 @@
 **Mode:** `SHADOW_ONLY` / research challenger  
 **Authority:** zero production authority
 
+**Current methodology:** `FSE-CORE-2.0` / `FSE-PHASE-2.0` / `FSE-ADAPTIVE-2.0`; projection `FSE-FAST-2.0`. The repair contract in section 12 supersedes historical timing, horizon and cohort-credit rules below.
+
 ## 1. Purpose
 
 FSE describes market geometry across multiple scales and deliberately separates two questions:
@@ -331,3 +333,16 @@ Rules:
 **ASD remains independent:** the hourly immutable collector continues capturing matched and unmatched prospective outcomes; no synthetic sample inflation or unverified assignment of unmatched paths. Feature-importance learning and automatic methodology proposal are subsequent milestones, not part of v1.
 
 **Before potential production review:** paired OOS improvement, overlap-robust uncertainty/HAC, concept drift and multiple-comparisons control, plus explicit owner-specific Evolution Gate promotion. Shadow Champion is never production Champion by implication.
+
+## 12. Version 2.0 contract — measurement and publication repair
+
+- `Bar.timestamp` is the canonical bar open, separate from `source_observed_at`. A trailing live quote updates its proper bucket instead of creating a bar at an arbitrary instant. The adapter sorts/deduplicates data and checks finite positive prices and OHLC consistency. SPY respects the 09:30 America/New_York session, DST and available closing-time metadata. Four-hour aggregation has stable boundaries and never spans different sessions.
+- Snapshots bind methodology version and canonical bar. Source observation, `bar_open_at`, actual `frozen_at` and later `outcome_closed_at` are distinct. Repeating a bar cannot change its frozen forecast. Settlement uses four forward bars and waits for the final bar to close; training respects actual outcome completion. Numeric P=0 remains zero instead of becoming fallback 0.5.
+- Deep Memory historical daily context includes only daily bars completed at that historical instant, never a later daily close.
+- Phase exposes descriptive `p_up_remaining` to motif completion separately from `p_up_4h` for the next four hourly bars. Only the fixed four-bar target feeds the challenger, ensemble, Brier and matching HSE2 hypothesis.
+- Earlier snapshots/resolutions retain their original bytes and hashes. Corrected methods neither retrospectively settle old pending snapshots nor train on earlier cohorts; legacy counts remain explicit. HSE2 creates a fresh freeze and prospective N. Earlier FSE verdicts appear under `historical_fse_experiments/results/lessons`, outside current formal results; original epochs/evidence/results are not rewritten.
+- ASD retains its own append-only state. Backend/integrity validation continues to block invalid collection; presentation tests run separately without stopping the collector. PL/EN display valid current matches and the catalogue without a permanent family-count truncation. Existing Shadow Observatory monitors the ASD catalogue and marks publications older than three hours STALE.
+- Fast reports `transport_version=FSE-FAST-2.0`, bounded acquisition and per-instrument `source_status`: `market_state`, `source_reference_at`, raw age and session-adjusted `source_lag_minutes`. Stale/future data cannot count as success merely because HTTP returns 200. The frontend also tries fallback for stale/missing instruments and selects each newest compatible scale. Unavailable descriptors cannot vote in trend. Old analogue memory is never attached to a new structure.
+- PL/EN script URLs receive a new version and production parity covers both central LAB renderers. Edge deployment validates actual source freshness rather than response-generation time alone.
+
+Authority remains unchanged: SHADOW_ONLY, no execution, production-policy/Belief changes or automatic promotion. A methodology repair is not evidence of model improvement; its prospective assessment starts at its own new boundary.

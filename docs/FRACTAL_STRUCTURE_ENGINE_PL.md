@@ -4,6 +4,8 @@
 **Tryb:** `SHADOW_ONLY` / research challenger  
 **Authority:** zero production authority
 
+**Aktualna metodologia:** `FSE-CORE-2.0` / `FSE-PHASE-2.0` / `FSE-ADAPTIVE-2.0`; projekcja `FSE-FAST-2.0`. Kontrakt naprawy w sekcji 12 zastępuje wcześniejsze zasady czasu, horyzontu i zaliczania kohort opisane historycznie poniżej.
+
 ## 1. Cel
 
 FSE opisuje geometrię rynku w wielu skalach i rozdziela dwa pytania:
@@ -357,3 +359,16 @@ Zapis wyłącznie artefaktu publicznego, automatyczna promocja, Belief Core writ
 **ASD:** niezależny godzinny proces nadal zbiera immutable prospective matched/unmatched. Nie zwiększamy N z historii, nie przypisujemy niedopasowanych rodzinom, nie zmieniamy promieni/medoidów przed osobnym eksperymentem. Uczenie cech i generowanie nowych metodologii są odroczone na późniejsze etapy.
 
 **Warunki niezbędne przed jakimkolwiek realnym użyciem:** dodatni prospective paired Brier vs poprawny benchmark, adekwatne bloki czasowe/HAC, odporność na drift, kontrola multiple testing i osobna promocja per-engine przez właściwy Evolution Gate. Shadow Champion nie jest Championem produkcyjnym.
+
+## 12. Kontrakt 2.0 — naprawa błędów pomiaru i publikacji
+
+- `Bar.timestamp` jest kanonicznym otwarciem świecy, oddzielonym od `source_observed_at`. Końcowy punkt kwotowania aktualizuje właściwy koszyk, nie tworzy nowej świecy o przypadkowej godzinie. Adapter sortuje/deduplikuje dane i kontroluje ceny finite/dodatnie oraz poprawność OHLC. SPY respektuje otwarcie sesji 09:30 America/New_York, DST i dostępne informacje o jej końcu. Agregacja 4h ma stałe granice i nie łączy różnych sesji.
+- Snapshot wiąże wersję metodologii i kanoniczną świecę. Zapisuje oddzielnie źródłowy czas obserwacji, `bar_open_at`, rzeczywisty `frozen_at` i późniejsze `outcome_closed_at`. Ponowne wywołanie dla tej samej świecy nie zmienia zamrożonej prognozy. Resolver rozlicza wyłącznie cztery przyszłe świece i czeka na zamknięcie ostatniej; trening uwzględnia rzeczywisty koniec wyniku. Liczbowe P=0 pozostaje zerem, a nie wartością domyślną 0,5.
+- Historyczny kontekst dzienny Deep Memory dopuszcza tylko świece zakończone w danym historycznym momencie. Nie może korzystać z późniejszego dziennego close.
+- Phase publikuje osobno opisowe `p_up_remaining` do końca motywu i `p_up_4h` dla czterech następnych świec godzinowych. Wyłącznie stały target 4h zasila challenger, ensemble, Brier i odpowiednią hipotezę HSE2.
+- Stare snapshoty/rozliczenia zachowują oryginalne bajty i hashe. Nowe wersje nie rozliczają zaległych starych snapshotów nową metodą i nie uczą się na poprzednich kohortach; legacy jest jawnie raportowane. HSE2 tworzy nowy freeze i własne N. Wcześniejsze oceny FSE trafiają do `historical_fse_experiments/results/lessons`, poza bieżącym formalnym wynikiem; źródłowe epoki/evidence/wyniki nie są przepisywane.
+- ASD zachowuje własny append-only stan. Kontrola backendu i integralności nadal blokuje niepoprawne zbieranie; test prezentacji jest osobnym zadaniem i nie zatrzymuje kolektora. PL/EN pokazują aktualne poprawne dopasowania i katalog bez trwałego ucięcia liczby rodzin. Istniejące Shadow Observatory monitoruje katalog ASD i oznacza publikację starszą niż 3h jako STALE.
+- Fast ma `transport_version=FSE-FAST-2.0`, ograniczone czasowo pobieranie i `source_status` per instrument: `market_state`, `source_reference_at`, surowy wiek oraz sesyjny `source_lag_minutes`. Stare lub przyszłe dane nie są uznawane za sukces tylko dlatego, że serwer zwrócił HTTP 200. Frontend próbuje fallbacku również przy brakujących/starych instrumentach i wybiera najnowszą poprawną skalę. Niedostępny deskryptor nie głosuje w trendzie. Stara pamięć analogów nie zostaje przypięta do nowej struktury.
+- Publikacja PL/EN ma nową wersję URL skryptów; produkcyjne parity obejmuje oba renderery centralnego LAB. Deployment Edge kontroluje rzeczywistą świeżość źródeł, nie sam czas wygenerowania odpowiedzi.
+
+Uprawnienia pozostają niezmienione: SHADOW_ONLY, brak execution, zmian produkcyjnej polityki/Belief i automatycznej promocji. Zmiana metodologii nie jest dowodem poprawy modelu; zbiera nowy prospektywny wynik od własnej granicy.

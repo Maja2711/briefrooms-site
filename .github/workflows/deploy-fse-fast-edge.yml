@@ -44,12 +44,12 @@ jobs:
           set -euo pipefail
           url="https://briefrooms-fse-fast.szczerbinski0577.workers.dev/fse-fast"
           for attempt in 1 2 3 4 5; do
-            if curl --fail --silent --show-error "$url?_=$RANDOM" -o /tmp/fse-fast-edge.json; then
-              node - <<'NODE'
+            if curl --fail --silent --show-error --connect-timeout 5 --max-time 35 "$url?_=$RANDOM" -o /tmp/fse-fast-edge.json; then
+              if node - <<'NODE'
           const fs=require("fs");
           const j=JSON.parse(fs.readFileSync("/tmp/fse-fast-edge.json","utf8"));
           const instruments=new Set((j.instruments||[]).map(x=>x.instrument));
-          if (j.mode!=="SHADOW_ONLY" || j.production_impact!==false || j.cadence_minutes!==5 ||
+          if (j.mode!=="SHADOW_ONLY" || j.production_impact!==false || j.cadence_minutes!==5 || j.transport_version!=="FSE-FAST-2.0" ||
               !instruments.has("EURUSD") || !instruments.has("BTCUSD") || !instruments.has("SPX")) {
             console.error("FSE_FAST_EDGE_VERIFY_FAIL",j);
             process.exit(1);
@@ -60,9 +60,20 @@ jobs:
             console.error("FSE_FAST_EDGE_GENERATED_STALE",age,j.generated_at);
             process.exit(1);
           }
+          for (const row of j.instruments) {
+            const status=row.source_status || {};
+            const source=Date.parse(row.latest_fast_observed_at);
+            const reference=Date.parse(status.source_reference_at);
+            const lag=status.source_lag_minutes;
+            if (!Number.isFinite(source) || source>Date.now()+60000 || !Number.isFinite(reference) || reference>Date.now()+60000 ||
+                !["OPEN","CLOSED"].includes(status.market_state) || typeof lag!=="number" || !Number.isFinite(lag) || lag<0 || lag>12) {
+              console.error("FSE_FAST_EDGE_SOURCE_STALE", row.instrument, status.market_state, lag);
+              process.exit(1);
+            }
+          }
           console.log("FSE_FAST_EDGE_PASS",j.generated_at,j.instruments.map(x=>[x.instrument,x.latest_fast_observed_at]));
           NODE
-              exit 0
+              then exit 0; fi
             fi
             sleep "$attempt"
           done

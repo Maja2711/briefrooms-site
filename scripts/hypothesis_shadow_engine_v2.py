@@ -623,9 +623,42 @@ def supersede_fse_routing_duplicates(registry: dict[str, Any]) -> int:
     return changed
 
 
+def quarantine_previous_fse_methodologies(registry: dict[str, Any], proposals: list[dict[str, Any]], at: str) -> None:
+    """Preserve pre-repair evidence outside the corrected formal cohort.
+
+    Activate each boundary only once its corrected source is actually published.
+    Registry annotations never rewrite frozen epochs, evidence, results or lessons.
+    """
+    corrected = {"FSE-CORE-2.0": "core", "FSE-PHASE-2.0": "phase", "FSE-ADAPTIVE-2.0": "adaptive"}
+
+    def family(row: Mapping[str, Any]) -> str:
+        version = methodology_version_for(row) or ""
+        if version.startswith("FSE-ADAPTIVE-") or str(row.get("proposal_key") or "").startswith("fse-adaptive-"):
+            return "adaptive"
+        if row.get("source_path") == SOURCE_PATHS["FSE"]:
+            return "core"
+        return "phase"
+
+    active = {corrected[version]: version for row in proposals
+              if row.get("source_engine") == "FSE"
+              and (version := methodology_version_for(row)) in corrected}
+    for exp in registry.get("experiments", []):
+        if not isinstance(exp, dict) or exp.get("source_engine") != "FSE":
+            continue
+        replacement = active.get(family(exp))
+        if not replacement or methodology_version_for(exp) == replacement:
+            continue
+        exp["methodology_quarantined"] = True
+        exp.setdefault("methodology_quarantined_at", at)
+        exp["methodology_quarantine_reason"] = "FSE_2026_10_21_TIME_AND_TARGET_REPAIR"
+        exp["replacement_methodology_version"] = replacement
+        exp["source_active"] = False
+
+
 def register_and_collect(state_dir: Path, proposals: list[dict[str, Any]], at: str) -> dict[str, Any]:
     registry = load_registry(state_dir)
     supersede_fse_routing_duplicates(registry)
+    quarantine_previous_fse_methodologies(registry, proposals, at)
     by_id = {str(x.get("experiment_id")): x for x in registry.get("experiments", []) if isinstance(x, dict)}
     seen = set()
     new_experiments = 0
@@ -643,7 +676,7 @@ def register_and_collect(state_dir: Path, proposals: list[dict[str, Any]], at: s
         # fresh methodology-bound experiment and T0 boundary.
         if exp is None and methodology_version and legacy_eid != requested_eid:
             legacy_exp = by_id.get(legacy_eid)
-            if legacy_exp is not None:
+            if legacy_exp is not None and legacy_exp.get("methodology_quarantined") is not True:
                 legacy_details = legacy_exp.get("details")
                 frozen_methodology = str(
                     legacy_exp.get("methodology_version")
@@ -668,6 +701,9 @@ def register_and_collect(state_dir: Path, proposals: list[dict[str, Any]], at: s
 
         eid = str(exp["experiment_id"])
         seen.add(eid)
+        if exp.get("methodology_quarantined") is True:
+            exp["source_active"] = False
+            continue
         current_contract_sha = sha(contract_for(p))
         legacy_contract_sha = sha(legacy_contract_for(p))
         if exp.get("contract_sha256") == current_contract_sha:
@@ -787,6 +823,7 @@ def evaluate(state_dir: Path, registry: dict[str, Any], at: str) -> dict[str, An
             not isinstance(exp, dict)
             or exp.get("status") != "RUNNING_SHADOW"
             or exp.get("administrative_superseded") is True
+            or exp.get("methodology_quarantined") is True
         ):
             continue
         target_n = int(exp.get("target_n") or 0)
@@ -903,15 +940,18 @@ def public_projection(registry: Mapping[str, Any], source_status: Mapping[str, A
         exp for exp in registry.get("experiments", [])
         if isinstance(exp, Mapping) and exp.get("administrative_superseded") is True
     ]
+    quarantined = [exp for exp in registry.get("experiments", [])
+                   if isinstance(exp, Mapping) and exp.get("methodology_quarantined") is True]
+    quarantined_ids = {exp.get("experiment_id") for exp in quarantined}
     for exp in registry.get("experiments", []):
-        if not isinstance(exp, Mapping) or exp.get("administrative_superseded") is True:
+        if not isinstance(exp, Mapping) or exp.get("administrative_superseded") is True or exp.get("methodology_quarantined") is True:
             continue
         experiments.append({
             key: exp.get(key)
             for key in (
                 "experiment_id", "status", "source_active", "source_engine", "claim",
                 "champion", "challenger", "metric_name", "target_n", "prospective_n",
-                "frozen_at", "last_evidence_at", "completed_at", "result_id", "lesson_id"
+                "frozen_at", "last_evidence_at", "completed_at", "result_id", "lesson_id", "methodology_version"
             )
         })
     sources = {}
@@ -934,6 +974,7 @@ def public_projection(registry: Mapping[str, Any], source_status: Mapping[str, A
         "prospective_evidence_n": sum(int(x.get("prospective_n") or 0) for x in experiments),
         "lessons_total": len(lessons),
         "administrative_superseded_experiments": len(superseded),
+        "historical_fse_experiments": len(quarantined),
     }
     return {
         "schema_version": PUBLIC_SCHEMA,
@@ -945,12 +986,21 @@ def public_projection(registry: Mapping[str, Any], source_status: Mapping[str, A
         "summary": summary,
         "sources": sources,
         "experiments": experiments,
+        "historical_fse_experiments": [{
+            key: exp.get(key) for key in (
+                "experiment_id", "status", "source_engine", "claim", "metric_name", "prospective_n",
+                "frozen_at", "completed_at", "result_id", "lesson_id", "methodology_version",
+                "methodology_quarantined_at", "methodology_quarantine_reason", "replacement_methodology_version",
+            )} for exp in quarantined],
+        "historical_fse_results": [row for row in results if row.get("experiment_id") in quarantined_ids],
+        "historical_fse_lessons": [row for row in lessons if row.get("source_experiment_id") in quarantined_ids],
         "administrative_corrections": {
             "superseded_experiments": len(superseded),
+            "methodology_quarantined_experiments": len(quarantined),
             "reason": "FSE contract-routing correction; durable epochs/evidence retained, superseded contracts excluded from formal evaluation",
         },
-        "recent_results": results[-12:],
-        "recent_lessons": lessons[-12:],
+        "recent_results": [row for row in results if row.get("experiment_id") not in quarantined_ids][-12:],
+        "recent_lessons": [row for row in lessons if row.get("source_experiment_id") not in quarantined_ids][-12:],
         "authority": dict(ZERO_AUTHORITY),
         "production_impact": False,
     }

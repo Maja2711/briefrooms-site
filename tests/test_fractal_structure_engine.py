@@ -4,6 +4,7 @@ import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from unittest.mock import patch
 
 from scripts import fractal_structure_engine as fse
 
@@ -68,16 +69,86 @@ class FSETests(unittest.TestCase):
                 "reference_price":h[10].close,"risk_score":0.8,"regime":"TURBULENT",
                 "p_up_4h":0.7,"analogue_source":"HISTORICAL_BOOTSTRAP","analogue_n":20,
                 "atr_1h_fraction":0.002,"feature_vector":[0.1]*22,
+                "bar_open_at":observed.isoformat(),
+                "frozen_at":(observed+timedelta(minutes=20)).isoformat(),
+                "methodology_version":fse.METHODOLOGY_VERSION,
                 "prospective_only":True,"authority":dict(fse.ZERO_AUTHORITY),
             }
             fse.append_chain(state/fse.SNAPSHOTS_FILE,fse.SNAPSHOT_SCHEMA,snap,"snapshot_id")
-            fse.resolve_snapshots(state,{"EURUSD":h})
+            fse.resolve_snapshots(state,{"EURUSD":h},as_of=h[14].timestamp+timedelta(minutes=59))
+            self.assertEqual(fse.read_jsonl(state/fse.RESOLUTIONS_FILE),[])
+            fse.resolve_snapshots(state,{"EURUSD":h},as_of=h[15].timestamp)
             rows=fse.read_jsonl(state/fse.RESOLUTIONS_FILE)
             self.assertEqual(len(rows),1)
             self.assertGreater(fse.parse_time(rows[0]["resolved_at"]),observed)
             self.assertAlmostEqual(rows[0]["directional_brier_edge_vs_0_5"],0.25-rows[0]["directional_brier"])
             self.assertTrue(rows[0]["prospective_only"])
             self.assertTrue(fse.verify(state)["zero_authority"])
+
+    def test_zero_probability_stays_zero_and_scores_correctly(self):
+        d={tf:bars(240,int(spec["minutes"]),drift=-.0005) for tf,spec in fse.TIMEFRAMES.items()}
+        d["4h"]=fse.resample_fixed(d["1h"],4)
+        state=fse.instrument_state("EURUSD","EURUSD=X",d,[],{})
+        self.assertEqual(state["fractal_memory"]["p_up"],0)
+        self.assertEqual(state["p_up_4h"],0)
+        self.assertEqual(state["forecast"],"DOWN")
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp); current=bars(80,drift=-.0005)
+            state["observed_at"]=state["bar_open_at"]=current[10].timestamp.isoformat()
+            state["reference_price"]=current[10].close
+            fse.create_snapshot(path,state,frozen_at=(current[10].timestamp+timedelta(minutes=20)).isoformat())
+            fse.resolve_snapshots(path,{"EURUSD":current},as_of=current[15].timestamp)
+            self.assertEqual(fse.read_jsonl(path/fse.RESOLUTIONS_FILE)[0]["directional_brier"],0)
+
+    def test_legacy_cohort_is_retained_but_not_settled_or_measured(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); legacy={"snapshot_id":"old","instrument":"EURUSD","observed_at":"2026-01-01T00:00:00Z","authority":dict(fse.ZERO_AUTHORITY)}
+            fse.append_chain(root/fse.SNAPSHOTS_FILE,fse.SNAPSHOT_SCHEMA,legacy,"snapshot_id")
+            before=(root/fse.SNAPSHOTS_FILE).read_bytes()
+            fse.resolve_snapshots(root,{"EURUSD":bars(40)},as_of="2026-02-01T00:00:00Z")
+            self.assertEqual(fse.read_jsonl(root/fse.RESOLUTIONS_FILE),[])
+            self.assertEqual((root/fse.SNAPSHOTS_FILE).read_bytes(),before)
+        old_result={"instrument":"EURUSD","directional_brier_edge_vs_0_5":.2,"risk_brier_edge_vs_0_5":.2}
+        self.assertTrue(all(m["counter"]==0 for m in fse.measurements([old_result],"EURUSD")))
+        self.assertTrue(all(m["details"]["methodology_version"]==fse.METHODOLOGY_VERSION for m in fse.measurements([],"EURUSD")))
+
+    def test_snapshot_identity_uses_version_and_bar_not_live_quote(self):
+        d={tf:bars(240,int(spec["minutes"])) for tf,spec in fse.TIMEFRAMES.items()}; d["4h"]=fse.resample_fixed(d["1h"],4)
+        state=fse.instrument_state("EURUSD","EURUSD=X",d,[],{})
+        capture=fse.parse_time(state["bar_open_at"])+timedelta(minutes=30)
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp)
+            fse.create_snapshot(path,state,frozen_at=capture.isoformat())
+            state["observed_at"]=(capture-timedelta(minutes=1)).isoformat()
+            state["p_up_4h"]=.9
+            fse.create_snapshot(path,state,frozen_at=(capture+timedelta(minutes=1)).isoformat())
+            rows=fse.read_jsonl(path/fse.SNAPSHOTS_FILE)
+            self.assertEqual(len(rows),1)
+            self.assertEqual(rows[0]["frozen_at"],capture.isoformat())
+            self.assertEqual(rows[0]["methodology_version"],"FSE-CORE-2.0")
+
+    def test_repeated_hour_publishes_frozen_forecast_and_dates_live_features(self):
+        class UpdatingClient(FakeClient):
+            update=0
+            def bars(self,symbol,range_,interval):
+                rows=super().bars(symbol,range_,interval)
+                if interval=="60m":
+                    last=rows[-1]; price=last.close*(1+self.update*.01)
+                    rows[-1]=fse.Bar(last.timestamp,price,last.open,max(last.high,price),min(last.low,price),last.volume,last.timestamp+timedelta(minutes=10+self.update*10))
+                return rows
+        client=UpdatingClient(); opened=client.bars("EURUSD=X","2y","60m")[-1].timestamp
+        with tempfile.TemporaryDirectory() as tmp, patch.object(fse,"historical_analogues",side_effect=[{"source":"HISTORICAL_BOOTSTRAP","analogues_n":20,"p_up":.2},{"source":"HISTORICAL_BOOTSTRAP","analogues_n":20,"p_up":.9}]):
+            root=Path(tmp)
+            first=fse.run_cycle(root,root/"state",root/"public.json",{"EURUSD":"EURUSD=X"},client,at=(opened+timedelta(minutes=15)).isoformat())
+            client.update=1
+            second=fse.run_cycle(root,root/"state",root/"public.json",{"EURUSD":"EURUSD=X"},client,at=(opened+timedelta(minutes=25)).isoformat())
+            a=first["instruments"][0]; b=second["instruments"][0]
+            self.assertEqual(b["fractal_memory"]["p_up_4h"],.2)
+            self.assertEqual(b["frozen_forecast"],a["frozen_forecast"])
+            self.assertNotEqual(b["reference_price"],b["frozen_forecast"]["reference_price"])
+            self.assertEqual(b["latest_source_observed_at"],(opened+timedelta(minutes=20)).isoformat().replace("+00:00","Z"))
+            self.assertEqual(b["live_features_observed_at"],b["latest_source_observed_at"])
+            self.assertEqual(len(fse.read_jsonl(root/"state"/fse.SNAPSHOTS_FILE)),1)
 
 
     def test_directional_performance_scores_frozen_and_excludes_neutral(self):

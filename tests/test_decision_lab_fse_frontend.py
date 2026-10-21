@@ -50,9 +50,11 @@ class DecisionLabFSEFrontendTests(unittest.TestCase):
             self.assertNotIn("FAST 5M", text, rel)
             self.assertIn("function fseBarClock", text, rel)
             self.assertIn("row?.observed_at", text, rel)
-            self.assertIn("stale_after_minutes", text, rel)
+            self.assertIn("fseFastRowFresh", text, rel)
+            self.assertIn("FSE-FAST-2.0", text, rel)
             self.assertIn("setInterval", text, rel)
-            self.assertIn("x.source_engine==='FSE'", text, rel)
+            self.assertIn("experiment?.source_engine==='FSE'", text, rel)
+            self.assertIn("fseCurrentExperiments(hse.experiments,allMeasurements)", text, rel)
             self.assertIn("Brier", text, rel)
             self.assertIn("fse();shadows()", text, rel)
 
@@ -62,11 +64,13 @@ class DecisionLabFSEFrontendTests(unittest.TestCase):
             self.assertIn("function fseDiscoveryPanel(", text, rel)
             self.assertIn("/data/investments/fse_discovery_public.json", text, rel)
             self.assertIn("fseDiscoveryPanel(discovery)", text, rel)
-        # Polish LAB deliberately has the compact counter, not detailed cards.
+        # Both locales expose the same evidence and complete expandable catalogue.
         pl = (ROOT / "scripts/central-lab.js").read_text(encoding="utf-8")
-        self.assertIn("new Set(families.map(", pl)
+        self.assertIn("new Map((Array.isArray(d.families)", pl)
         self.assertIn("FSE analizuje obecnie", pl)
-        self.assertNotIn("fse-discovery-cardtop", pl)
+        self.assertIn("fse-discovery-cardtop", pl)
+        self.assertIn("fse-discovery-catalogue", pl)
+        self.assertNotIn("families.slice(0,12)", pl)
         # English LAB is unchanged and continues to show its detailed research cards.
         en = (ROOT / "scripts/central-lab-runtime-en.js").read_text(encoding="utf-8")
         for field in ("f.evidence_status", "f.applications", "f.name", "f.description"):
@@ -86,10 +90,11 @@ class DecisionLabFSEFrontendTests(unittest.TestCase):
         self.assertIn("fseDiscoveryShape(f)", js)
 
     def test_unmatched_discovery_observations_remain_in_shadow(self):
-        # PL renders counts only, thus cannot accidentally promote an unmatched
-        # current observation to a visible identified pattern.
+        # Both readers exclude novel or retired matches from the visible banner.
         pl = (ROOT / "scripts/central-lab.js").read_text(encoding="utf-8")
-        self.assertNotIn("fse-discovery-matches", pl)
+        self.assertIn("fse-discovery-matches", pl)
+        self.assertIn("x.status==='FROZEN_MATCH'", pl)
+        self.assertIn("activeIds.has(x.family_id)", pl)
         en = (ROOT / "scripts/central-lab-runtime-en.js").read_text(encoding="utf-8")
         self.assertIn("x.status==='FROZEN_MATCH'", en)
         self.assertIn("activeIds.has(x.family_id)", en)
@@ -159,8 +164,8 @@ class DecisionLabFSEFrontendTests(unittest.TestCase):
         en = (ROOT / "en/investing/decision-lab.html").read_text(encoding="utf-8")
         self.assertIn("/assets/decision-lab.css?v=20261011-asd4", pl)
         self.assertIn("/assets/decision-lab.css?v=20261011-asd4", en)
-        self.assertIn("/scripts/central-lab.js?v=20261013-fse-summary1", pl)
-        self.assertIn("/scripts/central-lab-runtime-en.js?v=20261011-asd-match2", en)
+        self.assertIn("/scripts/central-lab.js?v=20261021-fse-fixes2", pl)
+        self.assertIn("/scripts/central-lab-runtime-en.js?v=20261021-fse-fixes2", en)
 
 
 if __name__ == "__main__":

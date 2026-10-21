@@ -107,6 +107,21 @@ class ShadowEnginesPublicTests(unittest.TestCase):
             row=next(x for x in payload["engines"] if x["id"]=="belief-core")
             self.assertEqual(row["status"],"ERROR")
 
+    def test_asd_recent_workflow_cannot_hide_an_old_catalogue(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            source=root/"data/investments/fse_discovery_public.json"
+            source.parent.mkdir(parents=True)
+            source.write_text(json.dumps({"generated_at":"2026-10-13T19:36:55Z",
+                "summary":{"families":13,"prospective_resolutions":15}}),encoding="utf-8")
+            statuses={"fse-autonomous-structure-discovery.yml":{
+                "databaseId":23,"status":"completed","conclusion":"success",
+                "createdAt":"2026-10-21T18:00:00Z","updatedAt":"2026-10-21T18:01:00Z"}}
+            payload=build(root,statuses,now=datetime(2026,10,21,18,30,tzinfo=timezone.utc))
+            row=next(x for x in payload["engines"] if x["id"]=="fse-asd")
+            self.assertEqual(row["status"],"STALE")
+            self.assertEqual(row["observations"],15)
+
     def test_missing_run_is_idle(self):
         with tempfile.TemporaryDirectory() as tmp:
             payload=build(Path(tmp),{},now=datetime(2026,9,28,10,30,tzinfo=timezone.utc))

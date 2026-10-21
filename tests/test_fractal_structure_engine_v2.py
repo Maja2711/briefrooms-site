@@ -3,6 +3,8 @@ import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from unittest.mock import patch
+from zoneinfo import ZoneInfo
 
 from scripts import fractal_structure_engine as v1
 from scripts import fractal_structure_engine_v2 as v2
@@ -58,6 +60,84 @@ class TestFSEPhaseEngine(unittest.TestCase):
         self.assertGreaterEqual(out["p_up_remaining"], 0.0)
         self.assertLessEqual(out["p_up_remaining"], 1.0)
 
+    def test_historical_daily_context_ignores_same_day_future_close(self):
+        daily = bars(200, 1440)
+        at = daily[-1].timestamp + timedelta(hours=9)
+        before = v2.daily_context(daily, at)
+        last = daily[-1]
+        daily[-1] = v1.Bar(last.timestamp, last.close * 2, last.open, last.close * 2, last.low, 1)
+        self.assertEqual(before, v2.daily_context(daily, at))
+
+    def test_daily_context_respects_explicit_spy_session_close(self):
+        daily = bars(199, 1440)
+        opened = daily[-1].timestamp + timedelta(days=1, hours=13, minutes=30)
+        closed = opened + timedelta(hours=6, minutes=30)
+        daily.append(v1.Bar(opened, 200, 190, 201, 189, 1, closed, closed))
+        with patch.object(v2, "geometry_features", side_effect=lambda rows, window: [rows[-1].close]):
+            self.assertNotEqual(v2.daily_context(daily, closed - timedelta(seconds=1)), [200])
+            self.assertEqual(v2.daily_context(daily, closed), [200])
+
+    def test_phase_probability_scores_next_four_bars_separately_from_motif_end(self):
+        rows = [v1.Bar(datetime(2026, 1, 1, tzinfo=timezone.utc) + timedelta(hours=i), 100)
+                for i in range(288)]
+        for i, close in zip(range(38, 42), (99, 98, 97, 96)):
+            rows[i] = v1.Bar(rows[i].timestamp, close)
+        rows[95] = v1.Bar(rows[95].timestamp, 120)
+        # Equal similarities isolate the first matched prefix's two targets.
+        with patch.object(v2, "shape_vector", return_value=[0.0]):
+            out = v2.phase_analogues(rows, top_k=1)
+        self.assertEqual(out["p_up_remaining"], 1.0)
+        self.assertEqual(out["p_up_next_4_bars"], 0.0)
+        self.assertEqual(out["median_remaining_bars"], 58)
+
+    def test_intrabar_children_are_bounded_by_parent_close(self):
+        parent = bars(3, 60)
+        child = bars(20, 15)
+        out = v2.intrabar_formation(parent, child, "1h", "15m")
+        self.assertEqual(out["observed_child_bars"], 4)
+        self.assertEqual(out["parent_started_at"], parent[-1].timestamp.isoformat().replace("+00:00", "Z"))
+        self.assertEqual(out["parent_closes_at"], (parent[-1].timestamp + timedelta(hours=1)).isoformat().replace("+00:00", "Z"))
+
+    def test_weekly_fx_uses_market_iso_week_across_utc_sunday_and_dst(self):
+        london = ZoneInfo("Europe/London")
+        rows = []
+        for day in (19, 20, 21):
+            opened = datetime(2026, 10, day, tzinfo=london)
+            closed = opened + timedelta(days=1)
+            rows.append(v1.Bar(opened.astimezone(timezone.utc), 100 + day, closed_at=closed.astimezone(timezone.utc),
+                               calendar_timezone="Europe/London"))
+        # Monday in London begins on Sunday UTC. All three daily bars still
+        # belong to the same market week, whose DST-ending span is 169 hours.
+        weekly = v2.resample_weekly(rows)
+        self.assertEqual(len(weekly), 1)
+        self.assertEqual(weekly[0].timestamp, datetime(2026, 10, 18, 23, tzinfo=timezone.utc))
+        self.assertEqual(weekly[0].closed_at, datetime(2026, 10, 26, tzinfo=timezone.utc))
+        self.assertEqual((weekly[0].closed_at - weekly[0].timestamp).total_seconds() / 3600, 169)
+        self.assertEqual(weekly[0].close, 121)
+        self.assertTrue(all(weekly[0].closed_at >= row.closed_at for row in rows))
+
+    def test_weekly_symbol_fallback_and_spy_week_bounds_preserve_children(self):
+        london = ZoneInfo("Europe/London")
+        monday = datetime(2026, 10, 19, tzinfo=london).astimezone(timezone.utc)
+        fx = v2.resample_weekly([v1.Bar(monday, 100), v1.Bar(monday + timedelta(days=1), 101)], "EURUSD=X")
+        self.assertEqual(len(fx), 1)
+        ny = ZoneInfo("America/New_York")
+        opened = datetime(2026, 10, 23, 9, 30, tzinfo=ny).astimezone(timezone.utc)
+        closed = datetime(2026, 10, 23, 16, tzinfo=ny).astimezone(timezone.utc)
+        spy = v2.resample_weekly([v1.Bar(opened, 100, closed_at=closed, calendar_timezone="America/New_York")])
+        self.assertEqual(spy[0].timestamp, datetime(2026, 10, 19, 4, tzinfo=timezone.utc))
+        self.assertGreaterEqual(spy[0].closed_at, closed)
+
+    def test_full_phase_map_preserves_quote_clock_separately_from_bar_open(self):
+        opened = datetime(2026, 10, 21, 19, tzinfo=timezone.utc)
+        quote = opened + timedelta(minutes=50)
+        closed = opened + timedelta(hours=1)
+        row = v1.Bar(opened, 100, source_observed_at=quote, closed_at=closed)
+        out = v2.build_phase_map({"1h": [row]})["1h"]
+        self.assertEqual(out["observed_at"], "2026-10-21T19:00:00Z")
+        self.assertEqual(out["source_observed_at"], "2026-10-21T19:50:00Z")
+        self.assertEqual(out["closed_at"], "2026-10-21T20:00:00Z")
+
     def test_intrabar_and_cross_scale_are_bounded(self):
         scales = {
             "1m": bars(800, 1),
@@ -103,6 +183,8 @@ class TestFSEPhaseEngine(unittest.TestCase):
                     "instrument": "EURUSD",
                     "symbol": "EURUSD=X",
                     "observed_at": observed.isoformat().replace("+00:00", "Z"),
+                    "bar_open_at": observed.isoformat(),
+                    "frozen_at": observed.isoformat(),
                     "reference_price": 100.0,
                     "p_up_4h": 0.60,
                     "base_p_up": 0.60,
@@ -120,6 +202,7 @@ class TestFSEPhaseEngine(unittest.TestCase):
                     "cascade_state": "COHERENT",
                     "regime": "TRENDING",
                     "methodology_version": v2.METHODOLOGY_VERSION,
+                    "adaptive_version": v2.ADAPTIVE_VERSION,
                     "prospective_only": True,
                     "authority": dict(v2.ZERO_AUTHORITY),
                 },

@@ -3,7 +3,7 @@ const esc=v=>String(v??'—').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>'
 const finite=v=>v!==null&&v!==undefined&&v!==''&&Number.isFinite(Number(v));
 const num=(v,d=0)=>finite(v)?new Intl.NumberFormat('en-US',{maximumFractionDigits:d}).format(Number(v)):'—';
 const pct=(v,d=1)=>finite(v)?num(Number(v)*100,d)+'%':'—';
-const get=async u=>{const r=await fetch(u+'?lab='+Date.now(),{cache:'no-store'});if(!r.ok)throw Error(r.status);return r.json()};
+const get=async u=>{const r=await fetch(u+'?lab='+Date.now(),{cache:'no-store',signal:AbortSignal.timeout(10000)});if(!r.ok)throw Error(r.status);return r.json()};
 const chip=s=>'<span class="central-chip">'+esc(String(s||'—').replaceAll('_',' '))+'</span>';
 function researchGate(status){
   const s=String(status||'').toLowerCase();
@@ -123,6 +123,125 @@ function fseModelCell(p,score,fallback,kind){
     '<small>Directional hit rate: '+hit+'</small><small>Brier: '+(finite(brier)?num(brier,4):'—')+' · N='+num(n)+'</small>'+diff+'</div>';
 }
 
+function fseHseMatches(experiment,measurement){
+  const method=measurement?.details?.methodology_version,instrument=String(measurement?.details?.instrument||'');
+  return experiment?.source_engine==='FSE'&&typeof method==='string'&&method.length>0
+    &&experiment.methodology_version===method&&experiment.metric_name===measurement.metric_name
+    &&instrument.length>0&&String(experiment.claim||'').includes(instrument);
+}
+function fseCurrentExperiments(experiments,measurements){
+  return (Array.isArray(experiments)?experiments:[]).filter(experiment=>measurements.some(measurement=>fseHseMatches(experiment,measurement)));
+}
+
+// Fast presentation selection is independent of immutable forecast evidence.
+const FSE_FAST_VERSION='FSE-FAST-2.0';
+const FSE_FAST_TFS=['1m','5m','15m','1h'];
+const fseLastProjection=new Map();
+function fseProjectionValid(payload,now=Date.now()){
+  const at=Date.parse(String(payload?.generated_at||''));
+  return ['briefrooms-fse-intraday-fast-edge-v1','briefrooms-fse-intraday-fast-v1'].includes(payload?.schema_version)
+    &&payload.transport_version===FSE_FAST_VERSION&&payload.mode==='SHADOW_ONLY'&&payload.production_impact===false
+    &&Array.isArray(payload.instruments)&&Number.isFinite(at)&&at<=now+60000;
+}
+function fseFastRowFresh(payload,row,now=Date.now()){
+  if(!fseProjectionValid(payload,now)||!row?.phase_map)return false;
+  const generated=Date.parse(payload.generated_at),source=Date.parse(String(row.phase_map['1m']?.source_observed_at||row.latest_fast_observed_at||''));
+  if(now-generated>12*60000||!Number.isFinite(source)||source>now+60000)return false;
+  const status=row.source_status||{},reference=Date.parse(String(status.source_reference_at||''));
+  if(!['OPEN','CLOSED'].includes(status.market_state)||!finite(status.source_lag_minutes)||Number(status.source_lag_minutes)>12||Number(status.source_lag_minutes)<0)return false;
+  if(!Number.isFinite(reference)||reference>now+60000||now-reference>5*86400000)return false;
+  if(status.market_state==='OPEN'&&now-reference>12*60000)return false;
+  return Math.max(0,(reference-source-60000)/60000)<=12;
+}
+async function fseLoadFast(instruments=['EURUSD','BTCUSD','SPX']){
+  const edge=await get('https://briefrooms-fse-fast.szczerbinski0577.workers.dev/fse-fast').catch(()=>null);
+  const candidates=edge?[edge]:[];
+  const complete=instruments.every(id=>{
+    const row=edge?.instruments?.find(x=>x?.instrument===id);
+    return fseFastRowFresh(edge,row)&&FSE_FAST_TFS.every(tf=>row.phase_map[tf]?.available===true);
+  });
+  if(!complete){
+    const fallback=await get('/data/investments/fse_intraday_public.json').catch(()=>null);
+    if(fallback)candidates.push(fallback);
+  }
+  return candidates;
+}
+function fseScaleTime(row){
+  const ms=Date.parse(String(row?.source_observed_at||row?.observed_at||''));
+  return Number.isFinite(ms)&&ms<=Date.now()+60000?ms:-Infinity;
+}
+function fseMergeProjection(baseRows,candidates,now=Date.now()){
+  const bases=new Map(baseRows.map(row=>[String(row.instrument),row]));
+  for(const payload of candidates){
+    if(!fseProjectionValid(payload,now))continue;
+    for(const row of payload.instruments){
+      if(['EURUSD','BTCUSD','SPX'].includes(row?.instrument)&&!bases.has(row.instrument))bases.set(row.instrument,{instrument:row.instrument,phase_map:{}});
+    }
+  }
+  return [...bases.values()].map(base=>{
+    const map={...(base.phase_map||{})};
+    const previous=fseLastProjection.get(base.instrument);
+    if(previous)for(const [tf,row] of Object.entries(previous.phase_map||{}))if(fseScaleTime(row)>fseScaleTime(map[tf]))map[tf]=row;
+    let selected=null;
+    for(const payload of candidates){
+      const row=payload?.instruments?.find(x=>x?.instrument===base.instrument);
+      if(!fseFastRowFresh(payload,row,now))continue;
+      if(!selected||Date.parse(payload.generated_at)>Date.parse(selected.payload.generated_at))selected={payload,row};
+      for(const [tf,value] of Object.entries(row.phase_map)){
+        if(!['1m','5m','15m','1h','4h','1d','1w'].includes(tf)||value?.available!==true)continue;
+        if(fseScaleTime(value)<fseScaleTime(map[tf]))continue;
+        map[tf]=FSE_FAST_TFS.includes(tf)?{...value,phase_memory:null,phase_progress:null}:value;
+      }
+    }
+    const meta=selected?{available:true,fresh:true,generated_at:selected.payload.generated_at,latest_fast_observed_at:selected.row.latest_fast_observed_at,
+      source_age_minutes:selected.row.source_status.source_age_minutes,cadence_minutes:selected.payload.cadence_minutes||5,market_state:selected.row.source_status.market_state}
+      :{available:!!previous?._fast_meta?.available,...(previous?._fast_meta||{}),fresh:false};
+    const result={...base,_frozen_phase_map:base.phase_map||{},phase_map:map,cross_scale_alignment:fseAlignment(map),_fast_meta:meta};
+    fseLastProjection.set(base.instrument,result);
+    return result;
+  });
+}
+function fseAlignment(phaseMap) {
+  const SCALE_ORDER=["1m","5m","15m","1h","4h","1d","1w"],mean=xs=>xs.length?xs.reduce((a,b)=>a+b,0)/xs.length:0,clamp=x=>Math.max(0,Math.min(1,x));
+  const pairs=[];
+  for (let i=0;i<SCALE_ORDER.length-1;i+=1) {
+    const fast=SCALE_ORDER[i],slow=SCALE_ORDER[i+1];
+    const a=phaseMap?.[fast]||{},b=phaseMap?.[slow]||{};
+    if (!a.available||!b.available) continue;
+    const da=a.direction,db=b.direction;
+    const directionScore=(da==="FLAT"||db==="FLAT")?0.5:(da===db?1:0);
+    const shapeDist=Math.sqrt(mean([
+      (Number(a.efficiency||0)-Number(b.efficiency||0))**2,
+      (Math.tanh(Math.log(Math.max(Number(a.volatility_ratio||1),1e-9)))-Math.tanh(Math.log(Math.max(Number(b.volatility_ratio||1),1e-9))))**2,
+      (Number(a.curvature||0)-Number(b.curvature||0))**2,
+    ]));
+    const shapeScore=clamp(1-shapeDist/1.25);
+    const conf=Math.sqrt(clamp(Number(a.confidence||0))*clamp(Number(b.confidence||0)));
+    const pa=a.phase_progress,pb=b.phase_progress;
+    const lead=(pa==null||pb==null)?null:clamp(0.5+(Number(pa)-Number(pb))/0.8);
+    const score=0.45*directionScore+0.40*shapeScore+0.15*conf;
+    pairs.push({fast,slow,alignment:score,fast_lead:lead});
+  }
+  const alignment=pairs.length?mean(pairs.map((x)=>x.alignment)):0;
+  const leads=pairs.filter((x)=>x.fast_lead!=null).map((x)=>Number(x.fast_lead));
+  const ranked=Object.entries(phaseMap||{}).filter(([,row])=>row?.available===true).map(([tf,row])=>{
+    const mem=row?.phase_memory||{};
+    return [Number(row?.confidence||0)*Number(mem?.top_similarity||0),tf];
+  });
+  let dominantScale=null,best=-Infinity;
+  for (const [quality,tf] of ranked) {
+    if (quality>best||(quality===best&&String(tf)>String(dominantScale||""))) {best=quality;dominantScale=tf;}
+  }
+  return {
+    alignment_score:alignment,
+    cascade_state:alignment>=0.70?"COHERENT":(alignment>=0.50?"MIXED":"FRACTURED"),
+    fast_scale_lead_score:leads.length?mean(leads):null,
+    dominant_scale:dominantScale,
+    pairs,
+  };
+}
+
+
 const FSE_TREND_TFS=['5m','15m','1h','4h','1d','1w'];
 const FSE_TREND_WEIGHTS={ '1m':1,'5m':1.25,'15m':1.5,'1h':2,'4h':2.5,'1d':3,'1w':3.5 };
 function fseDirectionValue(value){
@@ -133,7 +252,7 @@ function fseTrendScore(phaseMap,tfs=FSE_TREND_TFS){
   let total=0,weight=0;
   tfs.forEach(tf=>{
     const row=phaseMap?.[tf];
-    if(!row||!row.direction)return;
+    if(row?.available!==true||!['UP','DOWN','FLAT'].includes(row.direction))return;
     const w=Number(FSE_TREND_WEIGHTS[tf]||1);
     total+=w*fseDirectionValue(row.direction);
     weight+=w;
@@ -163,7 +282,7 @@ function fseBarClock(value){
   return d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
 }
 function fseDirectionChip(tf,row,dominant){
-  const dir=String(row?.direction||'FLAT').toUpperCase();
+  const dir=row?.available===true?String(row.direction||'FLAT').toUpperCase():'—';
   const key=['UP','DOWN','FLAT'].includes(dir)?dir.toLowerCase():'flat';
   const arrow=dir==='UP'?'↑':(dir==='DOWN'?'↓':'→');
   return '<span class="fse-tf-direction '+key+(String(dominant||'').toLowerCase()===tf?' dominant':'')+'"><small>'+esc(tf)+'</small><b>'+arrow+' '+esc(dir)+'</b><em>'+esc(fseBarClock(row?.observed_at))+'</em></span>';
@@ -179,9 +298,10 @@ function fseFractalTrendCard(x){
     ? '<span class="fse-fast-state '+(fm.fresh?'fresh':'stale')+'">'+(fm.fresh?('FAST '+esc(String(fm.cadence_minutes||5))+'M'):'STALE')+'</span>'
     : '<span class="fse-fast-state stale">NO FAST</span>';
   const sourceAge=finite(fm.source_age_minutes)?(num(fm.source_age_minutes,0)+' min'):'—';
+  const session=fm.market_state==='CLOSED'?' · session closed':'';
   return '<section class="fse-trend-card '+trend.key+'"><div class="fse-trend-head"><div><strong>'+esc(fseInstrumentLabel(x.instrument))+'</strong><small>Fractal Trend · FSE-PHASE</small></div><div class="fse-trend-badges">'+freshness+'<span class="fse-trend-badge '+trend.key+'">'+esc(trend.label)+'</span></div></div>'+
     '<div class="fse-trend-meta"><span>Lower TF <b>'+esc(lower)+'</b></span><span>Higher TF <b>'+esc(higher)+'</b></span><span>Alignment <b>'+pct(a.alignment_score,1)+'</b></span><span>Cascade <b>'+esc(a.cascade_state||'—')+'</b></span></div>'+
-    '<div class="fse-fast-meta"><span>Fast run <b>'+esc(fm.generated_at?shadowWhen(fm.generated_at):'—')+'</b></span><span>Latest bar <b>'+esc(fm.latest_fast_observed_at?shadowWhen(fm.latest_fast_observed_at):'—')+'</b></span><span>Source age <b>'+esc(sourceAge)+'</b></span></div>'+
+    '<div class="fse-fast-meta"><span>Fast run <b>'+esc(fm.generated_at?shadowWhen(fm.generated_at):'—')+'</b></span><span>Latest bar <b>'+esc(fm.latest_fast_observed_at?shadowWhen(fm.latest_fast_observed_at):'—')+'</b></span><span>Source age <b>'+esc(sourceAge+session)+'</b></span></div>'+
     '<div class="fse-tf-ribbon">'+ribbon+'</div></section>';
 }
 function fseDiscoveryEnglishCopy(f){
@@ -220,17 +340,17 @@ function fseDiscoveryShape(f){
 
 function fseDiscoveryPanel(d){
   if(!d||d.schema_version!=='FSE-ASD-1.0')return '<section class="fse-discovery"><h3 class="central-subtitle">Autonomous Structure Discovery</h3><p class="central-note">No autonomous structure registry yet. Waiting for the first validated market-data cycle.</p></section>';
-  const sum=d.summary||{},families=Array.isArray(d.families)?d.families:[],current=Array.isArray(d.current_matches)?d.current_matches:[];
+  const sum=d.summary||{},families=[...new Map((Array.isArray(d.families)?d.families:[]).filter(f=>f&&typeof f.family_id==='string').map(f=>[f.family_id,f])).values()],current=Array.isArray(d.current_matches)?d.current_matches:[];
   const freshAt=Date.parse(String(d.generated_at||'')),stale=!Number.isFinite(freshAt)||Date.now()-freshAt>180*60000;
-  const stats='<div class="fse-discovery-stats"><span>Structure families <b>'+num(sum.families||0)+'</b></span><span>Frozen observations <b>'+num(sum.frozen_snapshots||0)+'</b></span><span>Forward resolutions <b>'+num(sum.prospective_resolutions||0)+'</b></span><span>Production <b>OFF</b></span></div>';
+  const stats='<div class="fse-discovery-stats"><span>Structure families <b>'+num(families.length)+'</b></span><span>Frozen observations <b>'+num(sum.frozen_snapshots||0)+'</b></span><span>Forward resolutions <b>'+num(sum.prospective_resolutions||0)+'</b></span><span>Production <b>OFF</b></span></div>';
   // Noisy unknown/novel outcomes remain in the immutable Shadow evidence only.
   // The LAB highlights verified associations with still-active discovered families.
   const activeIds=new Set(families.map(f=>f.family_id).filter(Boolean));
   const matches=current
-    .filter(x=>x&&x.status==='FROZEN_MATCH'&&typeof x.family_id==='string'&&activeIds.has(x.family_id))
+    .filter(x=>!stale&&x&&x.status==='FROZEN_MATCH'&&typeof x.family_id==='string'&&activeIds.has(x.family_id))
     .map(x=>'<span class="fse-discovery-match"><b>'+esc(fseInstrumentLabel(x.instrument))+'</b> '+esc(x.family_id)+'</span>')
     .join('');
-  const cards=families.slice(0,12).map(f=>{
+  const cards=families.map(f=>{
     const english=fseDiscoveryEnglishCopy(f);
     const apps=f.application_status==='RESEARCH_CANDIDATE'?english.applications:[];
     const applications=apps.map(s=>'<li>'+esc(s)+'</li>').join('');
@@ -246,7 +366,7 @@ function fseDiscoveryPanel(d){
   return '<section class="fse-discovery"><div class="fse-discovery-head"><h3 class="central-subtitle">Autonomous Structure Discovery</h3><p>Unsupervised families discovered from market prices; names and research hypotheses are generated automatically. These are not trading orders.</p></div>'+
     (stale?'<p class="central-note"><strong>STALE:</strong> '+esc(String(d.generated_at||'missing'))+'</p>':'')+stats+
     (matches?'<div class="fse-discovery-matches"><strong>Current match:</strong>'+matches+'</div>':'')+
-    (cards?'<div class="fse-discovery-grid">'+cards+'</div>':'<p class="central-note">No autonomous structure registry yet. Waiting for the first validated market-data cycle.</p>')+
+    (cards?'<details class="fse-discovery-catalogue"><summary>Show structure catalogue ('+num(families.length)+')</summary><div class="fse-discovery-grid">'+cards+'</div></details>':'<p class="central-note">No autonomous structure registry yet. Waiting for the first validated market-data cycle.</p>')+
     '<p class="central-note">Method: data-discovered clusters, not predefined chart formations. No template applications. After at least 40 genuine forward outcomes: research review candidate or removal from the active catalogue (audit history retained). Shadow only; no production authority.</p></section>';
 }
 
@@ -254,41 +374,19 @@ async function fse(){
   const root=document.querySelector('#central-fse-lab');
   if(!root)return;
   try{
-    const [r,hse,v2,discovery,fast]=await Promise.all([
+    const [r,hse,v2,discovery,fastCandidates]=await Promise.all([
       get('/data/investments/fse_public.json'),
       get('/data/investments/hypothesis_shadow_engine_v2_public.json').catch(()=>({})),
       get('/data/investments/fse_v2_public.json').catch(()=>({})),
       get('/data/investments/fse_discovery_public.json').catch(()=>({})),
-      get('https://briefrooms-fse-fast.szczerbinski0577.workers.dev/fse-fast').catch(()=>get('/data/investments/fse_intraday_public.json').catch(()=>({})))
+      fseLoadFast()
     ]);
     const instruments=Array.isArray(r.instruments)?r.instruments:[];
-    const fastRows=Array.isArray(fast.instruments)?fast.instruments:[];
-    const fastBy=new Map(fastRows.map(x=>[String(x.instrument||''),x]));
-    const fastRunAt=Date.parse(String(fast.generated_at||''));
-    const fastRunAge=Number.isFinite(fastRunAt)?Math.max(0,(Date.now()-fastRunAt)/60000):Infinity;
-    const fastFresh=fastRunAge<=Number(fast.stale_after_minutes||12);
-    const v2Instruments=(Array.isArray(v2.instruments)?v2.instruments:[]).map(x=>{
-      const fx=fastBy.get(String(x.instrument||'')),sourceAt=Date.parse(String(fx?.latest_fast_observed_at||''));
-      const sourceAge=Number.isFinite(sourceAt)?Math.max(0,(Date.now()-sourceAt)/60000):Infinity;
-      if(!fx)return {...x,_fast_meta:{available:false,fresh:false}};
-      return {
-        ...x,
-        phase_map:fx.phase_map||x.phase_map,
-        cross_scale_alignment:fx.cross_scale_alignment||x.cross_scale_alignment,
-        _fast_meta:{
-          available:true,
-          fresh:fastFresh&&sourceAge<=Number(fast.stale_after_minutes||12),
-          generated_at:fast.generated_at,
-          latest_fast_observed_at:fx.latest_fast_observed_at,
-          source_age_minutes:sourceAge,
-          cadence_minutes:fast.cadence_minutes||5
-        }
-      };
-    });
+    const v2Instruments=fseMergeProjection(Array.isArray(v2.instruments)?v2.instruments:[],fastCandidates);
     const measurements=Array.isArray(r.hse_measurements)?r.hse_measurements:[];
     const phaseMeasurements=Array.isArray(v2.hse_measurements)?v2.hse_measurements:[];
     const allMeasurements=[...measurements,...phaseMeasurements];
-    const experiments=Array.isArray(hse.experiments)?hse.experiments.filter(x=>x.source_engine==='FSE'):[];
+    const experiments=fseCurrentExperiments(hse.experiments,allMeasurements);
     const available=Number(r?.source_status?.available||instruments.length);
     const configured=Number(r?.source_status?.configured||instruments.length);
     const fractalTrendCards=v2Instruments.map(fseFractalTrendCard).join('');
@@ -312,9 +410,9 @@ async function fse(){
         '<td data-label="Deep Fractal Memory v2">'+fseModelCell(deep?.memory?.p_up,score.deep,deepFallback.get(id),'deep')+'</td>'+
         '<td data-label="v2 Calibration Challenger">'+fseModelCell(calP,score.challenger,challengerFallback.get(id),'challenger')+'</td></tr>';
     }).join('');
-    const phaseSummary=v2Instruments.map(x=>{const a=x.cross_scale_alignment||{},c=x.p_calibration_challenger||{},p1=x?.phase_map?.['1h']||{},pm=p1.phase_memory||{};return '<tr><td><strong>'+esc(fseInstrumentLabel(x.instrument))+'</strong></td><td><b>'+esc(a.cascade_state||'—')+'</b></td><td>'+pct(a.alignment_score,1)+'</td><td>'+esc(a.dominant_scale||'—')+'</td><td>'+pct(c.p_base,1)+'</td><td>'+pct(pm.p_up_remaining,1)+'</td><td><b>'+pct(c.p_challenger,1)+'</b></td><td>'+(finite(c.shift_pp)?num(c.shift_pp,1)+' pp':'—')+'</td><td>'+esc(x.regime||'—')+'</td></tr>';}).join('');
-    const phaseRows=v2Instruments.flatMap(x=>{const formation=x.intrabar_formation||{};return ['5m','15m','1h','4h','1d','1w'].map(tf=>{const p=x?.phase_map?.[tf]||{},pm=p.phase_memory||{},ib=formation[tf]||{};return '<tr><td><strong>'+esc(fseInstrumentLabel(x.instrument))+'</strong></td><td><b>'+esc(tf)+'</b></td><td>'+esc(p.structure_id||'—')+'</td><td>'+esc(p.phase||'—')+'</td><td><b>'+esc(String(p.direction||'FLAT').toUpperCase())+'</b></td><td>'+pct(pm.phase_progress,1)+'</td><td>'+pct(pm.top_similarity,1)+'</td><td>'+pct(pm.p_up_remaining,1)+'</td><td>'+(ib.available?pct(ib.formation_progress,1):'—')+'</td><td>'+num(pm.analogues_n)+'</td></tr>';});}).join('');
-    const validationRows=allMeasurements.map(m=>{const instrument=String(m?.details?.instrument||''),kind=String(m?.details?.kind||'');const counter=Number(m.counter||0),total=Number(m.total||0),edge=counter>0?total/counter:null;const exp=experiments.find(x=>x.metric_name===m.metric_name&&String(x.claim||'').includes(instrument));const brierText=kind==='p_calibration_regime_phase'?(edge==null?'—':'Δ '+num(edge,4)):(edge==null?'—':num(.25-edge,4));return '<tr><td><strong>'+esc(fseInstrumentLabel(instrument))+'</strong></td><td>'+esc(fseTrackLabel(m))+'</td><td>'+num(counter)+' / '+num(m.target_n)+'</td><td>'+brierText+'</td><td>'+(edge==null?'—':fseSignedPct(edge,2))+'</td><td>'+shadowStatus(exp?.status||'RUNNING_SHADOW')+'</td><td>'+shadowWhen(exp?.last_evidence_at||exp?.frozen_at)+'</td></tr>';}).join('');
+    const phaseSummary=v2Instruments.map(x=>{const a=x.cross_scale_alignment||{},c=x.p_calibration_challenger||{},p1=x?._frozen_phase_map?.['1h']||{},pm=p1.phase_memory||{};return '<tr><td><strong>'+esc(fseInstrumentLabel(x.instrument))+'</strong></td><td><b>'+esc(a.cascade_state||'—')+'</b></td><td>'+pct(a.alignment_score,1)+'</td><td>'+esc(a.dominant_scale||'—')+'</td><td>'+pct(c.p_base,1)+'</td><td>'+pct(pm.p_up_4h,1)+'</td><td><b>'+pct(c.p_challenger,1)+'</b></td><td>'+(finite(c.shift_pp)?num(c.shift_pp,1)+' pp':'—')+'</td><td>'+esc(x.regime||'—')+'</td></tr>';}).join('');
+    const phaseRows=v2Instruments.flatMap(x=>{const formation=x.intrabar_formation||{};return ['5m','15m','1h','4h','1d','1w'].map(tf=>{const p=x?.phase_map?.[tf]||{},pm=p.phase_memory||{},ib=formation[tf]||{};return '<tr><td><strong>'+esc(fseInstrumentLabel(x.instrument))+'</strong></td><td><b>'+esc(tf)+'</b></td><td>'+esc(p.structure_id||'—')+'</td><td>'+esc(p.phase||'—')+'</td><td><b>'+esc((p.available===true?String(p.direction||'FLAT').toUpperCase():'—'))+'</b></td><td>'+pct(pm.phase_progress,1)+'</td><td>'+pct(pm.top_similarity,1)+'</td><td>'+pct(pm.p_up_remaining,1)+'</td><td>'+(ib.available?pct(ib.formation_progress,1):'—')+'</td><td>'+num(pm.analogues_n)+'</td></tr>';});}).join('');
+    const validationRows=allMeasurements.map(m=>{const instrument=String(m?.details?.instrument||''),kind=String(m?.details?.kind||'');const counter=Number(m.counter||0),total=Number(m.total||0),edge=counter>0?total/counter:null;const exp=experiments.find(x=>fseHseMatches(x,m));const brierText=kind==='p_calibration_regime_phase'?(edge==null?'—':'Δ '+num(edge,4)):(edge==null?'—':num(.25-edge,4));return '<tr><td><strong>'+esc(fseInstrumentLabel(instrument))+'</strong></td><td>'+esc(fseTrackLabel(m))+'</td><td>'+num(counter)+' / '+num(m.target_n)+'</td><td>'+brierText+'</td><td>'+(edge==null?'—':fseSignedPct(edge,2))+'</td><td>'+shadowStatus(exp?.status||'RUNNING_SHADOW')+'</td><td>'+shadowWhen(exp?.last_evidence_at||exp?.frozen_at)+'</td></tr>';}).join('');
     const forwardN=experiments.reduce((sum,x)=>sum+Number(x.prospective_n||0),0);
     const targetN=experiments.reduce((sum,x)=>sum+Number(x.target_n||0),0);
     root.innerHTML='<article class="panel central-head fse-panel"><header><div><h2>FSE — Fractal Structure Engine</h2><p>Multiscale market structure: regime, Fractal Memory and FSE-PHASE. The Phase Engine tracks how a structure forms across time scales without production trading authority.</p></div>'+chip(v2?.methodology_version||r.mode||'SHADOW_ONLY')+'</header>'+
@@ -325,7 +423,7 @@ async function fse(){
       '<h3 class="central-subtitle fse-comparison-title">Fractal Memory — direction and performance</h3>'+
       '<div class="central-table-wrap"><table class="central-table fse-comparison-table"><thead><tr><th>Instrument</th><th>Fractal Memory v1</th><th>Deep Fractal Memory v2</th><th>v2 Calibration Challenger</th></tr></thead><tbody>'+comparisonRows+'</tbody></table></div>'+
       '<p class="central-note fse-comparison-note">Horizon: next four 1h market bars. Hit rate covers only settled LONG/SHORT calls (not NEUTRAL). Brier includes neutral forecasts. N counts settlements. SHADOW results do not imply trade success.</p>'+
-      '<h3 class="central-subtitle">FSE-PHASE · Cross-Scale Alignment + P Challenger</h3>'+(v2?.methodology_version?'<div class="central-table-wrap"><table class="central-table fse-phase-summary"><thead><tr><th>Instrument</th><th>Cascade</th><th>Alignment</th><th>Dominant TF</th><th>P base</th><th>P phase 1H</th><th>P challenger</th><th>Shift</th><th>Regime</th></tr></thead><tbody>'+phaseSummary+'</tbody></table></div>':'<p class="central-note">FSE-PHASE is waiting for its first post-deployment cycle.</p>')+
+      '<h3 class="central-subtitle">FSE-PHASE · Cross-Scale Alignment + P Challenger</h3>'+(v2?.methodology_version?'<div class="central-table-wrap"><table class="central-table fse-phase-summary"><thead><tr><th>Instrument</th><th>Cascade</th><th>Alignment</th><th>Dominant TF</th><th>P base</th><th>P phase +4 × 1h (frozen)</th><th>P challenger</th><th>Shift</th><th>Regime</th></tr></thead><tbody>'+phaseSummary+'</tbody></table></div>':'<p class="central-note">FSE-PHASE is waiting for its first post-deployment cycle.</p>')+
       (phaseRows?'<h3 class="central-subtitle">Fractal Phase Map · Intrabar Formation</h3><div class="central-table-wrap"><table class="central-table fse-phase-table"><thead><tr><th>Instrument</th><th>TF</th><th>Structure</th><th>Phase</th><th>Direction</th><th>Progress</th><th>Similarity</th><th>P UP remaining</th><th>Intrabar</th><th>Analogues</th></tr></thead><tbody>'+phaseRows+'</tbody></table></div>':'')+
       '<h3 class="central-subtitle">Prospective learning · Brier · HSE2</h3><div class="central-table-wrap"><table class="central-table fse-validation-table"><thead><tr><th>Instrument</th><th>Track</th><th>Forward N</th><th>Brier / Δ</th><th>Edge</th><th>HSE2 status</th><th>Freeze / evidence</th></tr></thead><tbody>'+validationRows+'</tbody></table></div>'+
       '<p class="central-note">FSE-PHASE receives no historical credit. Phase Memory and the P Calibration Challenger start formal N only from snapshots frozen under FSE-PHASE-1.0. The challenger is capped at ±6 pp and cannot write to production. Generated '+shadowWhen(v2.generated_at||r.generated_at)+'.</p></article>';
