@@ -103,7 +103,7 @@ jobs:
             tests.test_no_retroactive_execution -v
 
   weekly-overlay:
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && github.event_name != 'push'
     needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -165,11 +165,12 @@ jobs:
       - name: Dispatch Event Intelligence Weekly transition to Web Push immediately
         if: steps.weekly_commit.outputs.changed == 'true'
         env:
+          GH_TOKEN: ${{ github.token }}
           PUSH_API: https://briefrooms-trading-push.szczerbinski0577.workers.dev
         run: bash scripts/sync_trading_push_commit.sh "${{ steps.weekly_commit.outputs.sha }}" weekly
 
   stock-overlay:
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && github.event_name != 'push'
     needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 12
@@ -226,5 +227,6 @@ jobs:
       - name: Dispatch Event Intelligence Stock transition to Web Push immediately
         if: steps.stock_commit.outputs.changed == 'true'
         env:
+          GH_TOKEN: ${{ github.token }}
           PUSH_API: https://briefrooms-trading-push.szczerbinski0577.workers.dev
         run: bash scripts/sync_trading_push_commit.sh "${{ steps.stock_commit.outputs.sha }}" stock

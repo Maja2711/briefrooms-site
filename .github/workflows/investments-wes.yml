@@ -271,5 +271,6 @@ jobs:
       - name: Dispatch persisted Weekly WES transition to Web Push immediately
         if: steps.commit.outputs.changed == 'true'
         env:
+          GH_TOKEN: ${{ github.token }}
           PUSH_API: https://briefrooms-trading-push.szczerbinski0577.workers.dev
         run: bash scripts/sync_trading_push_commit.sh "${{ steps.commit.outputs.sha }}" weekly

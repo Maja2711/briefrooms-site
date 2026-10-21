@@ -1,10 +1,10 @@
 # Kanoniczna mapa architektury BriefRooms — PL
 
-**Wersja mapy:** 1.39
+**Wersja mapy:** 1.40
 
-**Stan na:** 2026-10-20
+**Stan na:** 2026-10-21
 
-**Bazowy commit `main`:** `e39c9395518d134aae007e1cd307405813f91f23`
+**Bazowy commit `main`:** `35d7e27e14984f6bcab522a3bbc836f75ced24cf`
 
 **Repozytorium:** `Maja2711/briefrooms-site`
 
@@ -526,6 +526,10 @@ Najważniejsze dokumenty szczegółowe użyte do budowy i utrzymania aktualnej m
 
 `NT-01` czyta wyłącznie już zapisane stany `TR-03`, `TR-04` i `TR-05`. Nie może wywoływać lifecycle, tworzyć filli, modyfikować pozycji ani wpływać na modele. Produkcyjna ścieżka Web Push jest commit-bound dla **wszystkich kanałów**: Daily EUR/USD, Weekly EUR/USD, Weekly BTC/USD, Weekly S&P 500 futures oraz Stock Trading GPW/USA. Każdy kanoniczny writer po udanym zapisie przekazuje przez wspólny `scripts/sync_trading_push_commit.sh` do `/sync-trading` wyłącznie dokładne SHA commita i kanał. Worker dopuszcza aktualny head lub niedawnego przodka aktualnego `main`, porównuje stan tego commita z jego bezpośrednim rodzicem i emituje tylko rzeczywiste przejścia `brak -> OPEN` / `OPEN -> CLOSED`. Weekly jest podpięty we wszystkich writerach mogących zmienić stan pozycji: WES, pełnym maintenance, freshness recovery, live-price/risk writerze, Event Intelligence i 5-minutowym risk path; Stock Trading w v2 production admission, canonical portfolio lifecycle i Event Intelligence overlay; Daily używa tej samej ścieżki także w realtime watcherze. Deterministyczne `event_id = engine + event_type + position_id` chroni przed duplikacją. Język i docelowy URL są wybierane per subskrypcja urządzenia (PL/EN). Publiczny `/ingest` jest wyłączony; internal-only ingest + kanoniczny feed pozostają wyłącznie recovery. Konfiguracja dostępu przewiduje `PUBLIC | AUTHENTICATED | PAID`. GitHub Pages pozostaje frontendem; background Web Push obsługuje odseparowany Cloudflare Worker z Durable Object, a prywatny VAPID pozostaje wyłącznie w Worker Secrets.
 
+
+### NT-01 — natychmiastowy handoff i trwałe ponawianie
+
+Po zapisie kanonicznego commita writer natychmiast wykonuje ograniczony czasowo `/sync-trading`. Token GitHub Actions jest przekazywany wyłącznie przez HTTPS do własnego Workera i używany tylko w ramach tego żądania do odczytu stałego repozytorium z API GitHub; nie jest zapisywany ani logowany. Rozwiązuje to ograniczenie anonimowych odczytów API (`403`) bez zmiany authority modeli. Odpowiedź potwierdza dokładne SHA i kanały oraz przyjęcie przez usługę push albo trwałą kolejkę z zaplanowanym ponowieniem. Jawne odrzucenia `429/5xx` mają bounded retry przez Durable Object alarm, niezależnie od powodzenia feedów recovery; brak ACK telefonu nigdy nie upoważnia do ponownego wysłania przyjętego alertu. Wysyłki i inicjalizacja odbiorców są serializowane, a ACK oznacza zakończone wyświetlenie, nie samą rezerwację identyfikatora. Do 5 minut włącznie treść PL/EN nie zawiera dopisku o opóźnieniu; oryginalne czasy i diagnostyka pozostają. Deployment nie wysyła zdarzeń testowych i zachowuje istniejącą parę VAPID; niepełna para blokuje rotację. Push zmian powiadomień uruchamia wyłącznie walidację writerów, bez wejść lub wyjść transakcyjnych. Szczegóły: `TRADING_NOTIFICATIONS_PL.md` / `_EN.md`.
 
 ## LE-12 — History Integrity Guard (etap kodu, bez niezależnego archiwum)
 

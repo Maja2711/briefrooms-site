@@ -27,6 +27,8 @@ Status otwarcia lub zamknięcia jest **zawsze informacją główną**. Powód te
 
 Ten sam formatter obowiązuje backend Web Push oraz przeglądarkowe powiadomienia recovery. Zmiana tekstu nie zmienia `event_id`, deduplikacji, subskrypcji ani mechaniki transakcyjnej.
 
+Do 5 minut włącznie nie dodajemy do treści informacji o opóźnieniu. Dopiero starsze zdarzenie dostaje `OPÓŹNIONE … min` / `DELAYED … min`. Czas zdarzenia, przyjęcia przez dostawcę i wyświetlenia pozostają oddzielne oraz niezmienione w diagnostyce. Recovery CLOSE używa `closed_at`, a przy jego braku `observed_at`, nigdy dawnego czasu otwarcia pozycji.
+
 ## Źródło prawdy
 
 Warstwa notification czyta wyłącznie zapisany stan po wykonaniu przez silnik posiadający authority:
@@ -70,6 +72,20 @@ Język Web Push jest ustalany per urządzenie z zapisanej subskrypcji: urządzen
 Publiczny bezpośredni `/ingest` jest wyłączony. Wewnętrzny `https://internal/ingest` jest dostępny wyłącznie dla schedulera Workera jako mechanizm recovery, który odczytuje kanoniczny `data/notifications/trading-events.json`; polling nie jest już podstawową ścieżką dostarczenia alertu. Pierwsza inicjalizacja recovery pozostaje seed-only, więc nie wysyła historycznych zdarzeń.
 
 Awaria backendu push nie ma wpływu na TR-03/TR-04/TR-05 ani na execution/risk/decision path.
+
+## GitHub–Cloudflare: handoff, retry i wdrożenie
+
+Writer wywołuje `scripts/sync_trading_push_commit.sh` od razu po skutecznym zapisie commita. Żądanie ma limit połączenia 5 s i całkowity 25 s, maksymalnie cztery próby transportu. Potwierdzenie musi odpowiadać dokładnemu SHA i żądanym kanałom. Skrypt nie czeka na wyświetlenie na telefonie ani na osobny workflow publikacji strony.
+
+GitHub Actions przekazuje swój krótkotrwały token w nagłówku HTTPS wyłącznie do własnego Workera. Worker używa go tylko podczas tego żądania do GET wskazanego repozytorium w API GitHub, bez przekierowań, zapisu tokenu lub logowania. Pozwala to uniknąć limitów anonimowego API; fallback bez tokenu zachowuje weryfikację utrwalonego stanu. Token nie daje warstwie powiadomień ścieżki wykonywania transakcji.
+
+Pierwsza wysyłka rusza natychmiast. Jawne odrzucenie `429/5xx` może wejść do trwałej kolejki: alarm Durable Object uruchamia retry od 2 s, respektuje `Retry-After`, ogranicza całość do pięciu prób i 10 minut od utworzenia dostawy. HTTP 202 oznacza zweryfikowane, trwałe przyjęcie z zaplanowanym alarmem, nie dowód wyświetlenia. Zakończona lub niejednoznaczna wysyłka nie jest odtwarzana; błąd 403 dostawcy nie usuwa subskrypcji. Awarie feedów recovery nie blokują niezależnych retry.
+
+Inicjalizacja odbiorców i wysyłka są serializowane. ACK telefonu wymaga zakończonego `showNotification` lub potwierdzonej istniejącej wiadomości; wpis `PENDING` w IndexedDB nie jest dowodem wyświetlenia. Przyjęcie przez usługę push nie jest równoznaczne z odbiorem przez urządzenie i brak ACK nie powoduje ponownego alarmu.
+
+Deployment sprawdza read-only `/health` i `/inbox`, wersję `commit-bound-durable-v3` oraz obsługę alarmów. Nie wywołuje produkcyjnych przejść jako testu i nie wysyła fikcyjnych powiadomień. Istniejące klucze VAPID są zachowane; gdy brakuje tylko jednego, deployment wymaga przywrócenia oryginalnego klucza zamiast unieważnić wszystkie urządzenia. Push zmian tego połączenia uruchamia walidację writerów; runtime pozycji pozostaje wyłącznie harmonogramem lub jawnym/governed uruchomieniem.
+
+Nadanie do usługi push następuje bez celowego oczekiwania na cykl recovery. Ostateczny czas wyświetlenia zależy również od sieci, dostawcy Web Push i systemu telefonu; metryki nie deklarują zerowego opóźnienia ani dostarczenia bez dowodu ACK.
 
 ## Docelowe Notification Analytics
 

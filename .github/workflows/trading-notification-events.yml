@@ -12,6 +12,8 @@ on:
     paths:
       - "scripts/build_trading_notification_events.py"
       - "tests/test_trading_notification_events.py"
+      - "scripts/sync_trading_push_commit.sh"
+      - "tests/test_trading_push_handoff.py"
       - "data/notifications/trading-notification-config.json"
       - "data/investments/eurusd_daily_spot.json"
       - "data/investments/eurusd_daily_history.json"
@@ -44,6 +46,7 @@ jobs:
         with:
           node-version: "22"
       - name: Validate durable push deduplication and lifecycle
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
         working-directory: workers/trading-push
         run: |
           npm install --no-audit --no-fund
@@ -53,7 +56,7 @@ jobs:
           python -m py_compile scripts/build_trading_notification_events.py
           node --check scripts/trading-notifications.js
           node --check br-trading-sw.js
-          python -m unittest tests.test_trading_notification_events -v
+          python -m unittest tests.test_trading_notification_events tests.test_trading_push_handoff -v
           python scripts/build_trading_notification_events.py
       - name: Persist notification state/events only when changed
         if: github.event_name != 'pull_request'

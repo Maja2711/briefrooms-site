@@ -180,9 +180,9 @@ require(legacy_closed_loop, "contents: read", "legacy closed loop")
 forbid(legacy_closed_loop, "Apply statistically proven autonomous policy calibration", "legacy closed loop")
 forbid(legacy_closed_loop, "git push origin HEAD:main", "legacy closed loop")
 
-for token in ("**Wersja mapy:** 1.39", "IN-08", "EP-09", "LE-10", "LE-11", "L3-04", "PROBATIONARY_CONTROL", "NO_TRADE", "FULL", "WES 1.3.1"):
+for token in ("**Wersja mapy:** 1.40", "IN-08", "EP-09", "LE-10", "LE-11", "L3-04", "PROBATIONARY_CONTROL", "NO_TRADE", "FULL", "WES 1.3.1"):
     require(pl_map, token, "PL Architecture Map")
-for token in ("**Map version:** 1.39", "IN-08", "EP-09", "LE-10", "LE-11", "L3-04", "PROBATIONARY_CONTROL", "NO_TRADE", "FULL", "WES 1.3.1"):
+for token in ("**Map version:** 1.40", "IN-08", "EP-09", "LE-10", "LE-11", "L3-04", "PROBATIONARY_CONTROL", "NO_TRADE", "FULL", "WES 1.3.1"):
     require(en_map, token, "EN Architecture Map")
 require(stock_doc, "PRODUCTION CHAMPION — FULL", "Stock Trading architecture")
 require(stock_doc, "Market Relationship / Trigger", "Stock Trading architecture")
@@ -295,7 +295,7 @@ require(daily_realtime_workflow, "scripts/daily_eurusd_realtime_watch.sh", "Dail
 require(daily_workflow, "sync_trading_push_commit.sh", "Daily EURUSD immediate notification handoff")
 require(daily_workflow, "daily", "Daily EURUSD notification channel")
 require(daily_workflow, "daily-eurusd-realtime-lifecycle.yml", "Daily EURUSD watcher recovery")
-require(trading_push_worker, "async syncTradingCommit(commitSha, requestedEngines)", "Trading push all-channel commit-bound sync")
+require(trading_push_worker, "async syncTradingCommit(commitSha, requestedEngines,", "Trading push all-channel commit-bound sync")
 require(trading_push_worker, "transitionDescriptors", "Trading push exact commit-parent transition diff")
 require(trading_push_worker, "direct_ingest_disabled_use_commit_sync", "Trading push injection boundary")
 require(trading_push_worker, 'url.hostname === "internal" && path === "/ingest"', "Trading push internal-only recovery ingest")

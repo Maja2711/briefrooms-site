@@ -38,7 +38,25 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  validate-push-handoff:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate notification handoff without executing trading
+        run: |
+          set -euo pipefail
+          bash -n scripts/sync_trading_push_commit.sh
+          python -m unittest tests.test_trading_push_handoff -v
+
   portfolio:
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 12
     env:
@@ -120,6 +138,7 @@ jobs:
       - name: Dispatch persisted Stock Trading transition to Web Push immediately
         if: steps.commit.outputs.changed == 'true'
         env:
+          GH_TOKEN: ${{ github.token }}
           PUSH_API: https://briefrooms-trading-push.szczerbinski0577.workers.dev
         run: bash scripts/sync_trading_push_commit.sh "${{ steps.commit.outputs.sha }}" stock
 

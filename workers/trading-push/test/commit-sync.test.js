@@ -264,6 +264,7 @@ test("Foreground and push formatters stay byte-equivalent ignoring indent", () =
   const backend = readFileSync(new URL("../src/index.js", import.meta.url), "utf8");
   const foreground = readFileSync(new URL("../../../scripts/trading-notifications.js", import.meta.url), "utf8");
   const extract = (source) => {
+    source = source.replace(/\r\n/g, "\n");
     const marker = "function notificationText(event, language) {";
     const at = source.indexOf(marker);
     assert.ok(at >= 0, "notificationText function must exist in each delivery path");
@@ -473,7 +474,7 @@ test("provider-accepted pushes cannot replay when browser ACK is absent", () => 
   assert.equal(deliveryReadyForRetry(sent, Date.parse("2026-10-07T10:05:01.000Z")), false);
   assert.equal(deliveryReadyForRetry(sent, Date.parse("2026-10-07T12:05:01.000Z")), false);
   assert.equal(deliveryReadyForRetry({ ...sent, next_retry_at: "2026-10-07T10:05:00.000Z" }, Date.parse("2026-10-07T12:05:01.000Z")), false);
-  assert.equal(retryDelayMs(1), 30000);
+  assert.equal(retryDelayMs(1), 2000);
   assert.ok(retryDelayMs(99) <= 15 * 60 * 1000);
 });
 

@@ -89,7 +89,7 @@ async function claimTradingNotification(identity) {
         let alreadyClaimed = false;
         try {
           const tx = db.transaction("events", "readwrite");
-          const write = tx.objectStore("events").add({ id: identity, seen_at: Date.now() });
+          const write = tx.objectStore("events").add({ id: identity, seen_at: Date.now(), status: "PENDING" });
           write.onerror = (e) => {
             if (write.error?.name === "ConstraintError") {
               e.preventDefault();
@@ -103,6 +103,37 @@ async function claimTradingNotification(identity) {
         } catch (_) { db.close(); finish(true); }
       };
     } catch (_) { finish(true); }
+  });
+}
+
+// A claim only prevents concurrent display; it is not evidence that display
+// succeeded. Legacy seen_at-only claims also cannot prove an ACK is safe.
+async function shownTradingNotification(identity, markShown = false) {
+  if (!identity || !self.indexedDB) return false;
+  return new Promise((resolve) => {
+    try {
+      const opening = self.indexedDB.open("briefrooms-trading-push-seen-v1", 1);
+      opening.onupgradeneeded = () => opening.result.createObjectStore("events", { keyPath: "id" });
+      opening.onerror = () => resolve(false);
+      opening.onsuccess = () => {
+        const db = opening.result;
+        try {
+          const tx = db.transaction("events", markShown ? "readwrite" : "readonly");
+          const store = tx.objectStore("events");
+          let shown = false;
+          if (markShown) {
+            const now = Date.now();
+            store.put({ id: identity, seen_at: now, shown_at: now, status: "SHOWN" });
+            shown = true;
+          } else {
+            const read = store.get(identity);
+            read.onsuccess = () => { shown = read.result?.status === "SHOWN" && Number.isFinite(read.result?.shown_at); };
+          }
+          tx.oncomplete = () => { db.close(); resolve(shown); };
+          tx.onabort = tx.onerror = () => { db.close(); resolve(false); };
+        } catch (_) { db.close(); resolve(false); }
+      };
+    } catch (_) { resolve(false); }
   });
 }
 
@@ -127,7 +158,7 @@ async function releaseTradingNotification(identity) {
 function pushDisplayCopy(payload, displayedAtMs = Date.now()) {
   const body = String(payload?.body || "");
   const eventMs = Date.parse(String(payload?.event_at || payload?.sent_at || ""));
-  if (!Number.isFinite(eventMs) || displayedAtMs - eventMs < 120000) return body;
+  if (!Number.isFinite(eventMs) || displayedAtMs - eventMs <= 5 * 60_000) return body;
   const minutes = Math.floor((displayedAtMs - eventMs) / 60000);
   const localized = String(payload?.language || "pl").toLowerCase().startsWith("pl");
   return body + (localized ? ` · OPÓŹNIONE ${minutes} min` : ` · DELAYED ${minutes} min`);
@@ -155,12 +186,16 @@ self.addEventListener("push", (event) => {
     let shown = false;
     const existing = identity && typeof self.registration.getNotifications === "function"
       ? await self.registration.getNotifications({ tag: identity }) : [];
-    if (existing.length || !(await claimTradingNotification(identity))) {
-      // Already shown by this origin, either in this session or previously.
+    if (existing.length) {
       shown = true;
+    } else if (!(await claimTradingNotification(identity))) {
+      // A simultaneous foreground/push display may still fail. ACK only a
+      // completed display, never another handler's in-flight IDB claim.
+      shown = await shownTradingNotification(identity);
     } else {
       try {
         await self.registration.showNotification(title, options);
+        await shownTradingNotification(identity, true);
         shown = true;
       } catch (error) {
         // The OS may have blocked the UI: do not ACK. Permit bounded retry.
