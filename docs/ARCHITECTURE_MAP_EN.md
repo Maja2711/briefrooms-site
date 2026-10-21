@@ -525,6 +525,8 @@ Primary detailed documents used to build and maintain the current map:
 
 ### NT-01 — immediate handoff and durable retry
 
+Authenticated `GET /verify-commit?sha=...` is a read-only Actions → Cloudflare → GitHub connection check, with no state writes, synchronization or delivery. Deployment checks this endpoint, and publication parity covers both notification scripts. Handoff failures have a separate timestamp and allowlisted code; they neither overwrite the last confirmed success nor expose tokens or raw responses.
+
 After canonical commit persistence, each writer immediately calls time-bounded `/sync-trading`. The GitHub Actions token travels only over HTTPS to the owned Worker and is used only within that request to read the fixed repository through GitHub's API; it is never stored or logged. This avoids anonymous API limits (`403`) without changing model authority. Receipts reconcile exact SHA/channels and provider acceptance or a durable queue with a scheduled retry. Explicit `429/5xx` rejections use bounded Durable Object alarm retries independently of recovery feed success; missing device ACK never authorizes replay of an accepted alert. Delivery and recipient initialization are serialized, and ACK proves completed display rather than an identifier reservation. PL/EN copy contains no delay suffix through five minutes inclusive; original timestamps and diagnostics remain. Deployment sends no test events and preserves the existing VAPID pair; a partial pair blocks rotation. Notification code pushes run writer validation only, with no trading entry/exit execution. Details: `TRADING_NOTIFICATIONS_PL.md` / `_EN.md`.
 
 ## LE-12 — History Integrity Guard (code stage; no independent archive yet)

@@ -121,6 +121,18 @@ sleep() { return 0; }
                 self.assertNotEqual(0, result.returncode)
                 self.assertEqual([], calls)
 
+    def test_failure_logs_only_allowlisted_codes_without_reflected_secrets(self):
+        token = "test-secret-must-never-be-reflected"
+        result, calls, _ = self._run({"ok": False, "error_code": "GITHUB_HTTP_403",
+                                      "error": "upstream reflected " + token}, code="502", token=token)
+        self.assertNotEqual(0, result.returncode)
+        self.assertEqual(4, len(calls))
+        self.assertIn("reason=GITHUB_HTTP_403", result.stderr)
+        self.assertNotIn(token, result.stdout + result.stderr)
+        result, _, _ = self._run({"error_code": token, "error": token}, code="502", token=token)
+        self.assertIn("reason=UNCLASSIFIED_RESPONSE", result.stderr)
+        self.assertNotIn(token, result.stdout + result.stderr)
+
 
 class TradingPushWorkflowBoundaryTests(unittest.TestCase):
     def test_canonical_sync_steps_forward_request_scoped_github_token(self):
