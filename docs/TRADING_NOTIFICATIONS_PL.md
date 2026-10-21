@@ -75,6 +75,8 @@ Awaria backendu push nie ma wpływu na TR-03/TR-04/TR-05 ani na execution/risk/d
 
 ## GitHub–Cloudflare: handoff, retry i wdrożenie
 
+Uwierzytelniony fetch używa `redirect: "manual"` i jawnie odrzuca odpowiedź 3xx przed odczytem danych. Cloudflare workerd nie obsługuje `redirect: "error"`, mimo że Node dopuszcza tę wartość; test transportu odwzorowuje to ograniczenie. Odrzucone przekierowanie ma bezpieczny kod `GITHUB_REDIRECT_REJECTED`; token nigdy nie jest przekazywany pod wskazany w nim adres.
+
 Writer wywołuje `scripts/sync_trading_push_commit.sh` od razu po skutecznym zapisie commita. Żądanie ma limit połączenia 5 s i całkowity 25 s, maksymalnie cztery próby transportu. Potwierdzenie musi odpowiadać dokładnemu SHA i żądanym kanałom. Skrypt nie czeka na wyświetlenie na telefonie ani na osobny workflow publikacji strony.
 
 GitHub Actions przekazuje swój krótkotrwały token w nagłówku HTTPS wyłącznie do własnego Workera. Worker używa go tylko podczas tego żądania do GET wskazanego repozytorium w API GitHub, bez przekierowań, zapisu tokenu lub logowania. Pozwala to uniknąć limitów anonimowego API; fallback bez tokenu zachowuje weryfikację utrwalonego stanu. Token nie daje warstwie powiadomień ścieżki wykonywania transakcji.

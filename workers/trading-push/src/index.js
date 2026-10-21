@@ -276,7 +276,7 @@ const COMMIT_SYNC_ERROR_CODES = new Set([
   "GITHUB_AUTH_REQUIRED", "INVALID_GITHUB_AUTHORIZATION", "INVALID_COMMIT_SHA",
   "COMMIT_SYNC_ENGINES_REQUIRED", "INVALID_COMMIT_SYNC_ENGINE", "GITHUB_TOKEN_TARGET_NOT_ALLOWED",
   "GITHUB_MAIN_HEAD_MISSING", "GITHUB_TARGET_COMMIT_MISMATCH", "COMMIT_NOT_RECENT_MAIN_ANCESTOR",
-  "GITHUB_TIMEOUT", "GITHUB_FETCH_FAILED", "GITHUB_JSON_INVALID", "GITHUB_HTTP_ERROR",
+  "GITHUB_TIMEOUT", "GITHUB_FETCH_FAILED", "GITHUB_JSON_INVALID", "GITHUB_HTTP_ERROR", "GITHUB_REDIRECT_REJECTED",
   "COMMIT_FILE_TIMEOUT", "COMMIT_FILE_FETCH_FAILED", "COMMIT_FILE_JSON_INVALID", "COMMIT_FILE_HTTP_ERROR",
   "IMMUTABLE_EVENT_CONFLICT", "WES_OUTBOX_EVENT_ID_MISMATCH", "WEEKLY_COMMIT_DIRECTORY_INVALID",
   "FALLBACK_REQUESTED_STATE_NOT_CURRENT", "FALLBACK_REQUESTED_OUTBOX_NOT_CURRENT", "SYNC_INTERNAL_ERROR",
@@ -327,7 +327,8 @@ async function githubJson(url, { githubToken = null } = {}) {
   try {
     response = await fetch(url, {
       signal: AbortSignal.timeout(8_000),
-      redirect: githubToken ? "error" : "follow",
+      // workerd supports only follow/manual; reject redirects explicitly below.
+      redirect: githubToken ? "manual" : "follow",
       headers: {
         "cache-control": "no-cache",
         "accept": "application/vnd.github+json",
@@ -336,6 +337,9 @@ async function githubJson(url, { githubToken = null } = {}) {
       },
     });
   } catch (error) { throw upstreamError(error, "GITHUB"); }
+  if (githubToken && response.status >= 300 && response.status < 400) {
+    throw Object.assign(new Error("GITHUB_REDIRECT_REJECTED"), { code: "GITHUB_REDIRECT_REJECTED" });
+  }
   if (!response.ok) throw new Error(`github_http_${response.status}:${url}`);
   try { return await response.json(); } catch {
     throw Object.assign(new Error("GITHUB_JSON_INVALID"), { code: "GITHUB_JSON_INVALID" });

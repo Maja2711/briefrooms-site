@@ -67,6 +67,8 @@ A push-backend failure cannot affect TR-03/TR-04/TR-05 or any execution/risk/dec
 
 ## GitHub–Cloudflare handoff, retries and deployment
 
+Authenticated fetch uses `redirect: "manual"` and explicitly rejects 3xx responses before reading data. Cloudflare workerd does not support `redirect: "error"`, although Node accepts it; transport tests reproduce this runtime constraint. Rejected redirects return safe code `GITHUB_REDIRECT_REJECTED`; credentials never travel to the redirect destination.
+
 The writer calls `scripts/sync_trading_push_commit.sh` immediately after successful commit persistence. Requests have a 5s connection and 25s total deadline, with at most four handoff attempts. Receipts must reconcile exact SHA and requested channels. The script does not wait for device display or a separate website publishing workflow.
 
 GitHub Actions forwards its short-lived token over HTTPS only to the owned Worker. The Worker uses it only within that request for GET of the fixed repository through GitHub's API, without redirects, token persistence or logging. This avoids anonymous API rate limits; unauthenticated fallback retains persisted-state verification. The credential adds no trading execution path to the notification layer.
