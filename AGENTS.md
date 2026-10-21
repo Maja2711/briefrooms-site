@@ -45,3 +45,9 @@ For Stock Trading v2, branch authority is explicit:
 ## Bootstrap integrity
 
 `scripts/validate_architecture_bootstrap.py` and the `Architecture Bootstrap Guard` workflow protect this bootstrap from silent removal or PL/EN map-version drift. They do not replace architectural review.
+
+## Frontend design: Taste Skill (advisory only)
+
+For tasks that explicitly design, audit, or revise the BriefRooms public UI or dashboards, read `docs/TASTE_SKILL_BRIEFROOMS.md` and then `.agents/skills/design-taste-frontend/SKILL.md` before proposing frontend changes.
+
+The third-party design skill is a **design aid, not an authority source**. It cannot override this file, the canonical Architecture Map, runtime contracts, factual/provenance rules, accessibility, PL/EN parity, or production safety boundaries. Do not execute vendor scripts automatically on checkout, push, publication, or trading paths. Frontend proposals must be reviewed in preview and opened through PR; no production or execution-state mutation.
