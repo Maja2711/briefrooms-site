@@ -275,5 +275,60 @@ class HSE2Tests(unittest.TestCase):
             self.assertEqual(out["summary"]["prospective_evidence_n"],0)
 
 
+class FSERepairCohortTests(unittest.TestCase):
+    def test_corrected_cohorts_archive_prior_verdicts_without_rewriting_evidence(self):
+        cases = (
+            ("briefrooms-fse-public-v1", "FSE-CORE-2.0", "data/investments/fse_public.json", "fse-fractal-memory-eurusd-4h-brier"),
+            ("FSE-PHASE-1.0", "FSE-PHASE-2.0", "data/investments/fse_v2_public.json", "fse-phase-memory-eurusd-4h-brier"),
+            ("FSE-ADAPTIVE-1.0", "FSE-ADAPTIVE-2.0", "data/investments/fse_v2_public.json", "fse-adaptive-ensemble-eurusd-4h-brier-v1"),
+        )
+        for old_version, new_version, path, key in cases:
+            with self.subTest(methodology=new_version), tempfile.TemporaryDirectory() as tmp:
+                root=Path(tmp); state=root/"state"; public=root/"public.json"
+                data={"generated_at":"2026-10-21T10:00:00Z", "module_id":"IN-09", "mode":"SHADOW_ONLY",
+                      "production_impact":False, "methodology_version":old_version,
+                      "hse_measurements":[{"proposal_key":key, "metric_name":"paired_brier",
+                          "target_n":2, "counter":0, "total":0.0,
+                          "details":{"methodology_version":old_version}}]}
+                write(root,path,data)
+                initial=run_cycle(root,state,public,"2026-10-21T10:01:00Z")
+                old_id=initial["experiments"][0]["experiment_id"]
+                data["hse_measurements"][0].update(counter=2,total=0.1)
+                write(root,path,data)
+                old=run_cycle(root,state,public,"2026-10-21T11:01:00Z")
+                self.assertEqual(old["experiments"][0]["status"],"SUPPORTED")
+                ledgers={p.name:p.read_bytes() for p in state.glob("*.jsonl")}
+                data["methodology_version"]=new_version
+                data["hse_measurements"][0]["details"]["methodology_version"]=new_version
+                data["hse_measurements"][0].update(counter=0,total=0.0)
+                write(root,path,data)
+                repaired=run_cycle(root,state,public,"2026-10-21T12:01:00Z")
+                current=repaired["experiments"][0]
+                self.assertNotEqual(current["experiment_id"],old_id)
+                self.assertEqual(current["methodology_version"],new_version)
+                self.assertEqual(current["prospective_n"],0)
+                self.assertEqual(current["status"],"RUNNING_SHADOW")
+                self.assertEqual(repaired["summary"]["supported"],0)
+                archive=repaired["historical_fse_experiments"]
+                self.assertEqual(len(archive),1)
+                self.assertEqual(archive[0]["experiment_id"],old_id)
+                self.assertEqual(archive[0]["status"],"SUPPORTED")
+                self.assertEqual(archive[0]["prospective_n"],2)
+                self.assertEqual(len(repaired["historical_fse_results"]),1)
+                self.assertEqual(repaired["recent_results"],[])
+                for name, frozen in ledgers.items():
+                    after=(state/name).read_bytes()
+                    if name=="hse2_validation_epochs.jsonl":
+                        self.assertTrue(after.startswith(frozen))
+                    else:
+                        self.assertEqual(after,frozen)
+                data["hse_measurements"][0].update(counter=1,total=0.02)
+                write(root,path,data)
+                next_cycle=run_cycle(root,state,public,"2026-10-21T13:01:00Z")
+                self.assertEqual(next_cycle["experiments"][0]["prospective_n"],1)
+                self.assertEqual(next_cycle["historical_fse_experiments"][0]["prospective_n"],2)
+                self.assertTrue(verify(state)["ok"])
+
+
 if __name__=="__main__":
     unittest.main()

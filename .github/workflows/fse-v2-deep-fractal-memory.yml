@@ -132,13 +132,14 @@ jobs:
           python scripts/fractal_structure_engine_v2.py --state-dir "$FSE_V2_STATE_DIR" --verify
           python - <<'PY'
           import json
+          from scripts.fractal_structure_engine_v2 import METHODOLOGY_VERSION, ADAPTIVE_VERSION
           p=json.load(open("data/investments/fse_v2_public.json"))
           assert p["mode"]=="SHADOW_ONLY" and p["production_impact"] is False
           assert p["module_id"]=="IN-09" and p["component_id"]=="FSE-PHASE"
-          assert p["methodology_version"]=="FSE-PHASE-1.0"
+          assert p["methodology_version"]==METHODOLOGY_VERSION
           assert all(v is False for v in p["authority"].values())
           assert len(p["hse_measurements"]) == 4 * len(p["instruments"])
-          assert p["adaptive_learning_version"] == "FSE-ADAPTIVE-1.0"
+          assert p["adaptive_learning_version"] == ADAPTIVE_VERSION
           assert p["adaptive_learning_authority"] == p["authority"]
           assert p["promotion_gate"]["automatic_promotion"] is False
           for row in p["instruments"]:

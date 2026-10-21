@@ -70,5 +70,11 @@ for (const [path,header] of [
   ]});
   assert(!retiredOnly.includes(header), "Family absent from active catalogue must not be displayed: "+path);
 
+  const many=Array.from({length:20},(_,index)=>({...known,family_id:"ASD-CATALOGUE-"+index}));
+  const catalogue=render({...base,families:many});
+  assert(catalogue.includes("ASD-CATALOGUE-19"), "No valid family may disappear after a 12-card cut: "+path);
+  assert(catalogue.includes("fse-discovery-catalogue"), "Large catalogue must remain expandable: "+path);
+  const old=render({...base,generated_at:"2020-01-01T00:00:00Z",current_matches:[active]});
+  assert(!old.includes(header), "Stale catalogue must not claim a current match: "+path);
   console.log("FSE_MATCH_VISIBILITY_PASS", path);
 }

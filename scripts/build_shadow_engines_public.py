@@ -112,6 +112,15 @@ SPECS = [
         "max_idle_hours": 3,
     },
     {
+        "id": "fse-asd",
+        "name": "FSE Autonomous Structure Discovery",
+        "workflows": ["fse-autonomous-structure-discovery.yml"],
+        "source": "data/investments/fse_discovery_public.json",
+        "domain": "/pl/inwestycje/decision-lab.html",
+        "domain_label": "BriefRooms LAB",
+        "max_idle_hours": 3,
+    },
+    {
         "id": "hypothesis-shadow",
         "name": "Hypothesis Shadow Engine 2.0",
         "workflows": ["hypothesis-shadow-engine-v2.yml"],
@@ -311,6 +320,15 @@ def metadata(engine_id: str, data: Mapping[str, Any]) -> dict[str, Any]:
             "data_at": data.get("generated_at"),
             "promotion_gate": gate.get("status"),
         }
+    if engine_id == "fse-asd":
+        summary = data.get("summary") if isinstance(data.get("summary"), Mapping) else {}
+        return {
+            "observations": summary.get("prospective_resolutions"),
+            "observation_label": "resolved matched/unmatched snapshots",
+            "champion": "Frozen empirical baselines",
+            "challenger": f"{int(summary.get('families') or 0)} structure families (research only)",
+            "data_at": data.get("generated_at"),
+        }
     if engine_id == "hypothesis-shadow":
         summary = data.get("summary") if isinstance(data.get("summary"), Mapping) else {}
         running = int(summary.get("running_shadow") or 0)
@@ -395,6 +413,13 @@ def build(root: Path, workflow_status: Mapping[str, Any], now: datetime | None =
                                     "independent_weekly_definition": independent.get("benchmark_definition")}
         latest = latest_workflow(spec, workflow_status)
         state, reason = status_for(latest, meta, float(spec["max_idle_hours"]), now)
+        if spec["id"] == "fse-asd" and state not in {"ERROR", "IDLE"}:
+            data_time = parse_time(meta.get("data_at"))
+            age_seconds = (now - data_time).total_seconds() if data_time else None
+            if age_seconds is None or age_seconds < -60 or age_seconds > 3 * 3600:
+                state, reason = "STALE", "katalog FSE ASD nie ma wiarygodnej publikacji z ostatnich 3 godzin"
+            elif state == "NO DATA":
+                state, reason = "COLLECTING", "ASD zbiera prospektywne obserwacje; brak rozliczeń nie oznacza przewagi"
         if spec["id"] == "wes" and state not in {"ERROR", "IDLE"}:
             data_time = parse_time(meta.get("data_at"))
             if data_time is None or (now - data_time).total_seconds() > 3 * 3600:

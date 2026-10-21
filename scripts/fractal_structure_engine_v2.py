@@ -17,7 +17,6 @@ snapshots count as prospective evidence.
 from __future__ import annotations
 
 import argparse
-import bisect
 import hashlib
 import json
 import math
@@ -25,6 +24,7 @@ import statistics
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Mapping, Sequence
+from zoneinfo import ZoneInfo
 
 from scripts import fractal_structure_engine as v1
 
@@ -36,7 +36,7 @@ RESOLUTIONS_FILE = "fse_v2_resolutions.jsonl"
 PUBLIC_SCHEMA = "briefrooms-fse-v2-public-v2"
 ZERO_AUTHORITY = dict(v1.ZERO_AUTHORITY)
 
-METHODOLOGY_VERSION = "FSE-PHASE-1.0"
+METHODOLOGY_VERSION = "FSE-PHASE-2.0"
 HOURLY_RANGE = "2y"
 DAILY_RANGE = "10y"
 HORIZON = 4
@@ -52,7 +52,7 @@ NATIVE_FEEDS = {
     "1d": (DAILY_RANGE, "1d"),
 }
 P_CALIBRATION_MAX_SHIFT = 0.06
-ADAPTIVE_VERSION = "FSE-ADAPTIVE-1.0"
+ADAPTIVE_VERSION = "FSE-ADAPTIVE-2.0"
 ADAPTIVE_MIN_INDEPENDENT = 12
 RISK_CALIBRATION_MIN_N = 40
 
@@ -243,11 +243,12 @@ def geometry_features(bars: Sequence[v1.Bar], window: int = 512) -> list[float]:
 
 
 def daily_context(daily: Sequence[v1.Bar], at_ts: datetime) -> list[float]:
-    times = [b.timestamp for b in daily]
-    idx = bisect.bisect_right(times, at_ts)
-    if idx < 128:
+    # Daily timestamps are opens. A same-day final close was not known at an
+    # historical intraday prefix; SPY's explicit session close also survives here.
+    completed = [b for b in daily if v1.bar_is_closed(b, at_ts, minutes=1440)]
+    if len(completed) < 128:
         return []
-    return geometry_features(daily[:idx], window=min(512, idx))
+    return geometry_features(completed, window=min(512, len(completed)))
 
 
 def vector_distance(a: Sequence[float], b: Sequence[float]) -> float:
@@ -260,7 +261,8 @@ def deep_historical_analogues(hourly: Sequence[v1.Bar], daily: Sequence[v1.Bar],
     h, d = list(hourly), list(daily)
     current_path = path_shape(h)
     current_geo = geometry_features(h)
-    current_daily = daily_context(d, h[-1].timestamp)
+    current_at = h[-1].source_observed_at or v1.bar_closed_at(h[-1], minutes=60)
+    current_daily = daily_context(d, current_at)
     cur = current_path + current_geo + current_daily
     if not current_path or not current_geo or not current_daily:
         return {"source": "DEEP_HISTORY", "analogues_n": 0, "p_up": 0.5, "history_candidates": 0}
@@ -270,7 +272,7 @@ def deep_historical_analogues(hourly: Sequence[v1.Bar], daily: Sequence[v1.Bar],
         hist = h[:end]
         p = path_shape(hist)
         g = geometry_features(hist)
-        dc = daily_context(d, h[end - 1].timestamp)
+        dc = daily_context(d, v1.bar_closed_at(h[end - 1], minutes=60))
         vec = p + g + dc
         if not p or not g or not dc or len(vec) != len(cur):
             continue
@@ -325,30 +327,33 @@ def aggregate_bar(group: Sequence[v1.Bar], timestamp: datetime) -> v1.Bar:
 
 
 def resample_minutes(bars: Sequence[v1.Bar], minutes: int) -> list[v1.Bar]:
-    buckets: dict[int, list[v1.Bar]] = {}
-    seconds = minutes * 60
-    for bar in bars:
-        key = int(bar.timestamp.timestamp()) // seconds * seconds
-        buckets.setdefault(key, []).append(bar)
-    return [aggregate_bar(buckets[k], datetime.fromtimestamp(k, tz=timezone.utc)) for k in sorted(buckets)]
+    return v1.resample_minutes(bars, minutes)
 
 
-def resample_weekly(bars: Sequence[v1.Bar]) -> list[v1.Bar]:
-    buckets: dict[tuple[int, int], list[v1.Bar]] = {}
+def resample_weekly(bars: Sequence[v1.Bar], symbol: str | None = None) -> list[v1.Bar]:
+    buckets: dict[tuple[int, int, str], list[v1.Bar]] = {}
+    fallback_zone = {"SPY": "America/New_York", "EURUSD=X": "Europe/London"}.get(symbol or "", "UTC")
     for bar in bars:
-        iso = bar.timestamp.isocalendar()
-        buckets.setdefault((iso.year, iso.week), []).append(bar)
+        calendar_zone = bar.calendar_timezone or fallback_zone
+        iso = bar.timestamp.astimezone(ZoneInfo(calendar_zone)).isocalendar()
+        buckets.setdefault((iso.year, iso.week, calendar_zone), []).append(bar)
     out = []
     for key in sorted(buckets):
-        rows = buckets[key]
-        out.append(aggregate_bar(rows, rows[0].timestamp))
+        rows = sorted(buckets[key], key=lambda row: row.timestamp)
+        week_open_local = datetime.fromisocalendar(key[0], key[1], 1).replace(tzinfo=ZoneInfo(key[2]))
+        week_open = week_open_local.astimezone(timezone.utc)
+        week_end = (week_open_local + timedelta(days=7)).astimezone(timezone.utc)
+        week_end = max(week_end, max(v1.bar_closed_at(row, minutes=1440) for row in rows))
+        bar = aggregate_bar(rows, week_open)
+        out.append(v1.Bar(bar.timestamp, bar.close, bar.open, bar.high, bar.low, bar.volume,
+                          max((x.source_observed_at or x.timestamp) for x in rows), week_end, key[2]))
     return out
 
 
 def fetch_multiscale(client: v1.YahooChartClient, symbol: str) -> dict[str, list[v1.Bar]]:
     d = {tf: client.bars(symbol, range_, interval) for tf, (range_, interval) in NATIVE_FEEDS.items()}
-    d["4h"] = resample_minutes(d["1h"], 240)
-    d["1w"] = resample_weekly(d["1d"])
+    d["4h"] = v1.resample_minutes(d["1h"], 240, symbol=symbol)
+    d["1w"] = resample_weekly(d["1d"], symbol=symbol)
     return d
 
 
@@ -424,10 +429,10 @@ def phase_analogues(
     all_rows = list(bars)
     r = all_rows[-max_history:]
     if len(r) < max(motif_window * 3, 180):
-        return {"source": "PHASE_MEMORY", "analogues_n": 0, "p_up_remaining": 0.5, "phase_progress": None}
+        return {"source": "PHASE_MEMORY", "analogues_n": 0, "p_up_remaining": 0.5, "p_up_next_4_bars": None, "phase_progress": None}
     cur = shape_vector(r[-current_window:])
     if not cur:
-        return {"source": "PHASE_MEMORY", "analogues_n": 0, "p_up_remaining": 0.5, "phase_progress": None}
+        return {"source": "PHASE_MEMORY", "analogues_n": 0, "p_up_remaining": 0.5, "p_up_next_4_bars": None, "phase_progress": None}
     candidates = []
     last_start = len(r) - current_window - motif_window
     stride = max(4, len(r) // 700)
@@ -444,13 +449,14 @@ def phase_analogues(
             if best is None or sim > best["similarity"]:
                 ref = prefix[-1].close
                 remaining = motif[plen:]
-                if not remaining or ref <= 0:
+                if len(remaining) < HORIZON or ref <= 0:
                     continue
                 ret = remaining[-1].close / ref - 1.0
                 best = {
                     "similarity": sim,
                     "progress": progress,
                     "return": ret,
+                    "return_4h": remaining[HORIZON - 1].close / ref - 1.0,
                     "remaining_bars": len(remaining),
                 }
         if best is not None:
@@ -458,7 +464,7 @@ def phase_analogues(
     candidates.sort(key=lambda x: x["similarity"], reverse=True)
     selected = candidates[:top_k]
     if not selected:
-        return {"source": "PHASE_MEMORY", "analogues_n": 0, "p_up_remaining": 0.5, "phase_progress": None}
+        return {"source": "PHASE_MEMORY", "analogues_n": 0, "p_up_remaining": 0.5, "p_up_next_4_bars": None, "phase_progress": None}
     weights = [max(x["similarity"], 0.05) ** 4 for x in selected]
     ws = sum(weights)
     p_up = sum(w for w, x in zip(weights, selected) if x["return"] > 0) / ws
@@ -468,6 +474,7 @@ def phase_analogues(
         "analogues_n": len(selected),
         "history_candidates": len(candidates),
         "p_up_remaining": p_up,
+        "p_up_next_4_bars": sum(w for w, x in zip(weights, selected) if x["return_4h"] > 0) / ws,
         "phase_progress": progress,
         "top_similarity": selected[0]["similarity"],
         "mean_similarity": mean([x["similarity"] for x in selected]),
@@ -496,7 +503,9 @@ def intrabar_formation(parent: Sequence[v1.Bar], child: Sequence[v1.Bar], parent
     if not p or not c:
         return {"available": False, "parent_scale": parent_scale, "child_scale": child_scale}
     start = p[-1].timestamp
-    rows = [x for x in c if x.timestamp >= start]
+    minutes = {"5m": 5, "15m": 15, "1h": 60, "4h": 240, "1d": 1440, "1w": 10080}[parent_scale]
+    end = v1.bar_closed_at(p[-1], minutes=minutes)
+    rows = [x for x in c if start <= x.timestamp < end]
     expected = expected_child_count(p, c)
     if not rows or not expected:
         return {"available": False, "parent_scale": parent_scale, "child_scale": child_scale}
@@ -515,6 +524,7 @@ def intrabar_formation(parent: Sequence[v1.Bar], child: Sequence[v1.Bar], parent
         "parent_scale": parent_scale,
         "child_scale": child_scale,
         "parent_started_at": start.isoformat().replace("+00:00", "Z"),
+        "parent_closes_at": end.isoformat().replace("+00:00", "Z"),
         "observed_child_bars": len(rows),
         "expected_child_bars": expected,
         "formation_progress": clamp(len(rows) / max(expected, 1)),
@@ -532,10 +542,16 @@ def build_phase_map(scales: Mapping[str, Sequence[v1.Bar]]) -> dict[str, Any]:
         bars = list(scales.get(tf) or [])
         descriptor = phase_descriptor(bars)
         memory = phase_analogues(bars)
+        memory["forecast_horizon"] = f"4x{tf}_market_bars"
+        if tf == "1h":
+            memory["p_up_4h"] = memory.get("p_up_next_4_bars")
         out[tf] = {
             **descriptor,
             "bars": len(bars),
             "observed_at": bars[-1].timestamp.isoformat().replace("+00:00", "Z") if bars else None,
+            "source_observed_at": (bars[-1].source_observed_at or bars[-1].timestamp).isoformat().replace("+00:00", "Z") if bars else None,
+            "closed_at": v1.bar_closed_at(bars[-1], minutes={"1m": 1, "5m": 5, "15m": 15, "1h": 60,
+                                                            "4h": 240, "1d": 1440, "1w": 10080}[tf]).isoformat().replace("+00:00", "Z") if bars else None,
             "phase_progress": memory.get("phase_progress"),
             "phase_memory": memory,
         }
@@ -633,6 +649,7 @@ def _settled_training_pairs(
         if s.get("instrument") == instrument
         and s.get("prospective_only") is True
         and s.get("methodology_version") == METHODOLOGY_VERSION
+        and s.get("adaptive_version") == ADAPTIVE_VERSION
     }
     pairs = []
     seen = set()
@@ -641,11 +658,12 @@ def _settled_training_pairs(
         s = snap_by_id.get(sid)
         if not s or sid in seen or r.get("instrument") != instrument or r.get("prospective_only") is not True:
             continue
-        if r.get("methodology_version") != METHODOLOGY_VERSION or not isinstance(r.get("outcome_up"), bool):
+        if (r.get("methodology_version") != METHODOLOGY_VERSION or
+                r.get("adaptive_version") != ADAPTIVE_VERSION or not isinstance(r.get("outcome_up"), bool)):
             continue
         try:
-            observed = v1.parse_time(str(s["observed_at"]))
-            ended = v1.parse_time(str(r["resolved_at"]))
+            observed = v1.parse_time(str(s["frozen_at"]))
+            ended = v1.parse_time(str(r["outcome_closed_at"]))
         except (ValueError, KeyError, TypeError):
             continue
         if observed >= ended or ended >= boundary:
@@ -673,7 +691,7 @@ def adaptive_ensemble(
 ) -> dict[str, Any]:
     """Bounded research challenger; past frozen component forecasts only."""
     base = v1.finite(row["memory"].get("p_up"))
-    phase = v1.finite(((row.get("phase_map") or {}).get("1h") or {}).get("phase_memory", {}).get("p_up_remaining"))
+    phase = v1.finite(((row.get("phase_map") or {}).get("1h") or {}).get("phase_memory", {}).get("p_up_4h"))
     previous = row.get("p_calibration_challenger") or {}
     challenger = v1.finite(previous.get("p_challenger")) if previous.get("active") else None
     fallback = {"active": False, "methodology_version": ADAPTIVE_VERSION,
@@ -682,7 +700,7 @@ def adaptive_ensemble(
                 "weights": None, "trained_through": None, "production_applied": False}
     if base is None or phase is None or challenger is None or not all(0 <= v <= 1 for v in (base, phase, challenger)):
         return dict(fallback, reason="component forecast missing or invalid")
-    past = _settled_training_pairs(snapshots, resolutions, str(row["instrument"]), str(row["observed_at"]))
+    past = _settled_training_pairs(snapshots, resolutions, str(row["instrument"]), str(row["frozen_at"]))
     keys = ("base_p_up", "phase_p_up", "challenger_p_up")
     valid = [item for item in past
              if all(v1.finite(item[2].get(k)) is not None and 0 <= float(item[2][k]) <= 1 for k in keys)]
@@ -723,7 +741,7 @@ def adaptive_risk_calibrator(
                 "trained_through": None, "production_applied": False}
     if candidate_score is None or not 0 <= candidate_score <= 1:
         return dict(fallback, reason="invalid structural risk score")
-    past = _settled_training_pairs(snapshots, resolutions, str(row["instrument"]), str(row["observed_at"]))
+    past = _settled_training_pairs(snapshots, resolutions, str(row["instrument"]), str(row["frozen_at"]))
     valid = [item for item in past if isinstance(item[3].get("large_move_event"), bool)
              and v1.finite(item[2].get("risk_score")) is not None
              and 0 <= float(item[2]["risk_score"]) <= 1]
@@ -766,13 +784,15 @@ def build_instrument_state(instrument: str, symbol: str, scales: Mapping[str, Se
     risk["atr_1h_fraction"] = feature_scales["1h"].get("atr_fraction")
     base_p = clamp(float(deep.get("p_up", 0.5)))
     phase_mem = (phase_map.get("1h") or {}).get("phase_memory") or {}
-    phase_p = clamp(float(phase_mem.get("p_up_remaining", 0.5)))
-    phase_available = int(phase_mem.get("analogues_n") or 0) >= 12
+    phase_probability = v1.finite(phase_mem.get("p_up_4h"))
+    phase_p = clamp(phase_probability if phase_probability is not None else 0.5)
+    phase_available = int(phase_mem.get("analogues_n") or 0) >= 12 and phase_probability is not None
     challenger = calibration_challenger(base_p, phase_p, float(alignment.get("alignment_score") or 0), str(risk.get("regime")), phase_available)
     return {
         "instrument": instrument,
         "symbol": symbol,
-        "observed_at": hourly[-1].timestamp.isoformat().replace("+00:00", "Z"),
+        "bar_open_at": hourly[-1].timestamp.isoformat().replace("+00:00", "Z"),
+        "observed_at": (hourly[-1].source_observed_at or v1.bar_closed_at(hourly[-1], minutes=60)).isoformat().replace("+00:00", "Z"),
         "reference_price": hourly[-1].close,
         "forecast": "UP" if base_p >= 0.55 else ("DOWN" if base_p <= 0.45 else "NEUTRAL"),
         "memory": deep,
@@ -791,12 +811,19 @@ def resolve(state_dir: Path, hourly_by: Mapping[str, Sequence[v1.Bar]], as_of: s
         sid = str(s.get("snapshot_id") or "")
         if not sid or sid in done:
             continue
-        future = [b for b in hourly_by.get(str(s.get("instrument")), []) if b.timestamp > v1.parse_time(str(s["observed_at"]))]
+        # Legacy forecasts retain their original bytes and results, but cannot
+        # acquire corrected-methodology evidence retroactively.
+        if s.get("methodology_version") != METHODOLOGY_VERSION:
+            continue
+        frozen_at = v1.parse_time(str(s["frozen_at"]))
+        bar_open_at = v1.parse_time(str(s["bar_open_at"]))
+        future = [b for b in hourly_by.get(str(s.get("instrument")), []) if b.timestamp > bar_open_at]
         if len(future) < HORIZON:
             continue
         path = future[:HORIZON]
         # Yahoo 1h timestamps denote bar opens: reject partial last-hour outcomes.
-        if path[-1].timestamp + timedelta(hours=1) > cutoff:
+        outcome_closed_at = v1.bar_closed_at(path[-1], minutes=60)
+        if path[0].timestamp < frozen_at or outcome_closed_at > cutoff:
             continue
         ref = float(s["reference_price"])
         ret = path[-1].close / ref - 1
@@ -824,7 +851,10 @@ def resolve(state_dir: Path, hourly_by: Mapping[str, Sequence[v1.Bar]], as_of: s
             "snapshot_id": sid,
             "instrument": s["instrument"],
             "observed_at": s["observed_at"],
+            "bar_open_at": s["bar_open_at"],
+            "frozen_at": s["frozen_at"],
             "resolved_at": path[-1].timestamp.isoformat().replace("+00:00", "Z"),
+            "outcome_closed_at": outcome_closed_at.isoformat().replace("+00:00", "Z"),
             "horizon": "4x1h_market_bars",
             "forward_return": ret,
             "outcome_up": bool(y),
@@ -853,10 +883,12 @@ def resolve(state_dir: Path, hourly_by: Mapping[str, Sequence[v1.Bar]], as_of: s
 
 
 def snapshot(state_dir: Path, row: Mapping[str, Any]) -> None:
-    prior = [x for x in read_jsonl(state_dir / SNAPSHOTS_FILE) if x.get("instrument") == row["instrument"]]
-    if prior and prior[-1].get("observed_at") == row["observed_at"]:
+    prior = [x for x in read_jsonl(state_dir / SNAPSHOTS_FILE)
+             if x.get("instrument") == row["instrument"] and x.get("methodology_version") == METHODOLOGY_VERSION]
+    if any(x.get("bar_open_at") == row["bar_open_at"] for x in prior):
         return
-    sid = "fsev2snap-" + v1.sha({"instrument": row["instrument"], "observed_at": row["observed_at"]})[:24]
+    sid = "fsev2snap-" + v1.sha({"instrument": row["instrument"], "bar_open_at": row["bar_open_at"],
+                               "methodology_version": METHODOLOGY_VERSION})[:24]
     phase_1h = row["phase_map"].get("1h") or {}
     phase_mem = phase_1h.get("phase_memory") or {}
     challenger = row["p_calibration_challenger"]
@@ -871,10 +903,14 @@ def snapshot(state_dir: Path, row: Mapping[str, Any]) -> None:
             "instrument": row["instrument"],
             "symbol": row["symbol"],
             "observed_at": row["observed_at"],
+            "bar_open_at": row["bar_open_at"],
+            "frozen_at": row["frozen_at"],
             "reference_price": row["reference_price"],
             "p_up_4h": row["memory"]["p_up"],
             "base_p_up": row["memory"]["p_up"],
-            "phase_p_up": phase_mem.get("p_up_remaining"),
+            "phase_p_up": phase_mem.get("p_up_4h"),
+            "phase_p_up_remaining": phase_mem.get("p_up_remaining"),
+            "phase_forecast_horizon": "4x1h_market_bars",
             "challenger_p_up": challenger.get("p_challenger") if challenger.get("active") else None,
             "adaptive_version": ADAPTIVE_VERSION,
             "adaptive_p_up": ensemble.get("p_adaptive") if ensemble.get("active") else None,
@@ -910,16 +946,20 @@ def verify(state_dir: Path) -> dict[str, Any]:
     for row in read_jsonl(state_dir / SNAPSHOTS_FILE) + read_jsonl(state_dir / RESOLUTIONS_FILE):
         if row.get("authority") != ZERO_AUTHORITY:
             raise ValueError("FSE v2 authority violation")
-        if row.get("adaptive_version") == ADAPTIVE_VERSION and row.get("observed_at"):
+        if row.get("methodology_version") == METHODOLOGY_VERSION:
+            frozen = v1.parse_time(str(row["frozen_at"]))
+            if not (v1.parse_time(str(row["bar_open_at"])) <= v1.parse_time(str(row["observed_at"])) <= frozen):
+                raise ValueError("FSE snapshot clock order violation")
             for field in ("adaptive_ensemble_trained_through", "adaptive_risk_trained_through"):
                 trained_through = row.get(field)
-                if trained_through and v1.parse_time(str(trained_through)) >= v1.parse_time(str(row["observed_at"])):
+                if trained_through and v1.parse_time(str(trained_through)) >= frozen:
                     raise ValueError("FSE adaptive future leakage: " + field)
     return {"ok": True, "snapshots": a, "resolutions": b, "zero_authority": True}
 
 
 def metric(resolutions: Sequence[Mapping[str, Any]], instrument: str) -> dict[str, Any]:
-    rows = [x for x in resolutions if x.get("instrument") == instrument]
+    rows = [x for x in resolutions if x.get("instrument") == instrument
+            and x.get("methodology_version") == METHODOLOGY_VERSION and x.get("prospective_only") is True]
     edges = [float(x["edge_vs_0_5"]) for x in rows if v1.finite(x.get("edge_vs_0_5")) is not None]
     return {
         "instrument": instrument,
@@ -934,7 +974,8 @@ def metric(resolutions: Sequence[Mapping[str, Any]], instrument: str) -> dict[st
 
 
 def hse_measurements(resolutions: Sequence[Mapping[str, Any]], instrument: str) -> list[dict[str, Any]]:
-    rows = [x for x in resolutions if x.get("instrument") == instrument and x.get("methodology_version") == METHODOLOGY_VERSION]
+    rows = [x for x in resolutions if x.get("instrument") == instrument
+            and x.get("methodology_version") == METHODOLOGY_VERSION and x.get("prospective_only") is True]
     phase = [float(x["phase_edge_vs_0_5"]) for x in rows if v1.finite(x.get("phase_edge_vs_0_5")) is not None]
     calibration = [
         float(x["calibration_brier_improvement_vs_base"])
@@ -1052,18 +1093,41 @@ def run_cycle(
     resolve(state_dir, raw_hourly, as_of=at)
     resolved_history = read_jsonl(state_dir / RESOLUTIONS_FILE)
     frozen_history = read_jsonl(state_dir / SNAPSHOTS_FILE)
+    generated = at or datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     # Fit from already-settled, independent observations strictly BEFORE this candle.
     # On a repeated market timestamp reuse its frozen prediction; never rewrite history.
     for row in states:
         same = next((s for s in reversed(frozen_history)
                      if s.get("instrument") == row["instrument"] and
-                     s.get("observed_at") == row["observed_at"]), None)
+                      s.get("methodology_version") == METHODOLOGY_VERSION and
+                      s.get("bar_open_at") == row["bar_open_at"]), None)
         if same is None:
+            row["frozen_at"] = generated
             row["adaptive_learning"] = {
                 "ensemble": adaptive_ensemble(row, frozen_history, resolved_history),
                 "risk": adaptive_risk_calibrator(row, frozen_history, resolved_history),
             }
+            # Record the persistence boundary after fitting, rather than dating
+            # the forecast back to its market bar or the beginning of the run.
+            row["frozen_at"] = at or datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         else:
+            # Live phase descriptors may refresh, while all probabilities being
+            # evaluated against this bar's target retain their original freeze.
+            row["latest_source_observed_at"] = row["observed_at"]
+            for key in ("observed_at", "frozen_at", "reference_price", "forecast"):
+                row[key] = same[key]
+            row["memory"]["p_up"] = same["base_p_up"]
+            row["phase_map"]["1h"]["phase_memory"]["p_up_4h"] = same.get("phase_p_up")
+            row["phase_map"]["1h"]["phase_memory"]["p_up_next_4_bars"] = same.get("phase_p_up")
+            row["p_calibration_challenger"].update({
+                "active": same.get("challenger_p_up") is not None,
+                "p_base": same["base_p_up"],
+                "phase_p": same.get("phase_p_up"),
+                "p_challenger": same.get("challenger_p_up"),
+                "shift_pp": (float(same["challenger_p_up"]) - float(same["base_p_up"])) * 100.0
+                            if same.get("challenger_p_up") is not None else 0.0,
+                "reason": "reused immutable frozen snapshot",
+            })
             row["adaptive_learning"] = {
                 "ensemble": {"active": same.get("adaptive_p_up") is not None,
                              "methodology_version": same.get("adaptive_version"),
@@ -1091,7 +1155,8 @@ def run_cycle(
 
     performance = [
         {"instrument": iid,
-         "deep": v1.directional_performance(resolutions,snapshots,iid,probability_field="base_p_up"),
+         "deep": v1.directional_performance(resolutions,snapshots,iid,probability_field="base_p_up",
+             methodology_version=METHODOLOGY_VERSION),
          "challenger": v1.directional_performance(resolutions,snapshots,iid,
              probability_field="challenger_p_up",methodology_version=METHODOLOGY_VERSION,
              paired_base_field="base_p_up")}
@@ -1103,6 +1168,9 @@ def run_cycle(
             "instrument": row["instrument"],
             "symbol": row["symbol"],
             "observed_at": row["observed_at"],
+            "bar_open_at": row["bar_open_at"],
+            "frozen_at": row["frozen_at"],
+            "latest_source_observed_at": row.get("latest_source_observed_at", row["observed_at"]),
             "reference_price": row["reference_price"],
             "forecast": row["forecast"],
             "memory": row["memory"],
@@ -1140,6 +1208,11 @@ def run_cycle(
         "measurements": legacy,
         "hse_measurements": hse,
         "directional_performance": performance,
+        "legacy_evidence": {
+            "snapshots": sum(s.get("methodology_version") != METHODOLOGY_VERSION for s in snapshots),
+            "resolutions": sum(r.get("methodology_version") != METHODOLOGY_VERSION for r in resolutions),
+            "included_in_current_metrics": False,
+        },
         "promotion_gate": promotion_gate(hse),
         "state_verification": check,
         "errors": errors,
@@ -1148,7 +1221,7 @@ def run_cycle(
             "Intrabar Formation reads lower-timeframe bars inside the currently forming higher-timeframe bar.",
             "Cross-scale alignment is descriptive research evidence; it does not itself create a trade.",
             "P Calibration Challenger is capped at +/-6 percentage points and remains shadow-only.",
-            "No historical phase/calibration record is credited prospectively; only snapshots frozen under FSE-PHASE-1.0 count.",
+            "No legacy phase/calibration record is credited to the corrected cohort; only snapshots frozen under FSE-PHASE-2.0 count.",
             "Adaptive Ensemble and Risk Calibrator use prior settled evidence only and are independent shadow hypotheses in existing HSE2.",
         ],
     }

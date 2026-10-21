@@ -14,7 +14,9 @@ const ZERO_AUTHORITY = {
   trade_execution: false,
   automatic_promotion: false,
 };
-const CACHE_KEY = new Request("https://briefrooms-fse-fast.internal/snapshot-v1");
+export const TRANSPORT_VERSION = "FSE-FAST-2.0";
+const CACHE_KEY = new Request("https://briefrooms-fse-fast.internal/snapshot-v2");
+const SOURCE_STALE_MS = 12 * 60_000;
 const JSON_HEADERS = {
   "content-type": "application/json; charset=utf-8",
   "access-control-allow-origin": "*",
@@ -73,25 +75,124 @@ function canonicalSignature(signature) {
   });
 }
 
-export function parseYahooBars(payload) {
+export function parseYahooBars(payload, now=Date.now(), instrument=null) {
   const result=payload?.chart?.result?.[0];
   const timestamps=Array.isArray(result?.timestamp)?result.timestamp:[];
   const quote=result?.indicators?.quote?.[0]||{};
-  const rows=[];
-  for (let i=0;i<timestamps.length;i+=1) {
+  const rows=new Map();
+  const ordered=timestamps.map((stamp,i)=>[finiteNumber(stamp),i]).filter(([stamp])=>stamp!==null).sort((a,b)=>a[0]-b[0]);
+  for (const [,i] of ordered) {
     const close=finiteNumber(quote.close?.[i]);
     const epoch=finiteNumber(timestamps[i]);
-    if (close==null || epoch==null) continue;
-    rows.push({
-      timestamp:new Date(epoch*1000).toISOString(),
+    if (close==null || close<=0 || epoch==null) continue;
+    if (epoch*1000>now+60_000) throw new Error("future_source_clock");
+    const sourceMs=epoch*1000;
+    let effectiveMs=sourceMs;
+    if (instrument==="SPX") {
+      const local=nyClock(sourceMs),session=spySession(new Date(Date.UTC(local.year,local.month-1,local.day)));
+      if(!session||sourceMs<session.open||sourceMs>session.close)continue;
+      if(sourceMs===session.close)effectiveMs-=1;
+    }
+    const bucket=Math.floor(effectiveMs/60_000)*60_000;
+    const old=rows.get(bucket);
+    if (sourceMs!==bucket) {
+      // A provider's off-grid live quote can update a known minute only.
+      if (!old) continue;
+      rows.set(bucket,{...old,close,high:Math.max(old.high??old.close,close),low:Math.min(old.low??old.close,close),source_observed_at:new Date(epoch*1000).toISOString()});
+      continue;
+    }
+    const open=finiteNumber(quote.open?.[i]),high=finiteNumber(quote.high?.[i]),low=finiteNumber(quote.low?.[i]);
+    if([open,high,low].some(x=>x!==null&&x<=0)||(high!==null&&high<Math.max(open??close,close))||(low!==null&&low>Math.min(open??close,close)))continue;
+    rows.set(bucket,{
+      timestamp:new Date(bucket).toISOString(),
+      source_observed_at:new Date(bucket+60_000<=now?bucket+60_000:bucket).toISOString(),
+      closed_at:new Date(bucket+60_000).toISOString(),
       close,
-      open:finiteNumber(quote.open?.[i]),
-      high:finiteNumber(quote.high?.[i]),
-      low:finiteNumber(quote.low?.[i]),
+      open,
+      high,
+      low,
       volume:finiteNumber(quote.volume?.[i]),
     });
   }
-  return rows;
+  return [...rows.entries()].sort((a,b)=>a[0]-b[0]).map(([,row])=>row);
+}
+
+function nyClock(ms) {
+  const parts=new Intl.DateTimeFormat("en-US",{timeZone:"America/New_York",year:"numeric",month:"numeric",day:"numeric",hour:"numeric",minute:"numeric",hourCycle:"h23"}).formatToParts(new Date(ms));
+  const out=Object.fromEntries(parts.filter(x=>x.type!=="literal").map(x=>[x.type,Number(x.value)]));
+  out.weekday=new Date(Date.UTC(out.year,out.month-1,out.day)).getUTCDay();
+  return out;
+}
+
+function nyInstant(year,month,day,hour,minute=0) {
+  const guess=Date.UTC(year,month-1,day,hour,minute);
+  const local=nyClock(guess);
+  return guess+(guess-Date.UTC(local.year,local.month-1,local.day,local.hour,local.minute));
+}
+
+function observedHoliday(year,month,day) {
+  const d=new Date(Date.UTC(year,month-1,day));
+  d.setUTCDate(d.getUTCDate()+(d.getUTCDay()===6?-1:d.getUTCDay()===0?1:0));
+  return d.toISOString().slice(0,10);
+}
+
+function easterSunday(year) {
+  const a=year%19,b=Math.floor(year/100),c=year%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3);
+  const h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451);
+  return new Date(Date.UTC(year,Math.floor((h+l-7*m+114)/31)-1,(h+l-7*m+114)%31+1));
+}
+
+function nthWeekday(year,month,weekday,n) {
+  const first=new Date(Date.UTC(year,month-1,1));
+  return 1+(weekday-first.getUTCDay()+7)%7+(n-1)*7;
+}
+
+function spySession(date) {
+  const year=date.getUTCFullYear(),month=date.getUTCMonth()+1,day=date.getUTCDate();
+  if ([0,6].includes(date.getUTCDay())) return null;
+  const key=date.toISOString().slice(0,10),goodFriday=easterSunday(year);goodFriday.setUTCDate(goodFriday.getUTCDate()-2);
+  const memorial=new Date(Date.UTC(year,5,0));memorial.setUTCDate(memorial.getUTCDate()-(memorial.getUTCDay()+1)%7);
+  const holidays=new Set([
+    new Date(Date.UTC(year,0,1+(new Date(Date.UTC(year,0,1)).getUTCDay()===0?1:0))).toISOString().slice(0,10),observedHoliday(year,6,19),observedHoliday(year,7,4),observedHoliday(year,12,25),
+    new Date(Date.UTC(year,0,nthWeekday(year,1,1,3))).toISOString().slice(0,10),
+    new Date(Date.UTC(year,1,nthWeekday(year,2,1,3))).toISOString().slice(0,10),
+    memorial.toISOString().slice(0,10),goodFriday.toISOString().slice(0,10),
+    new Date(Date.UTC(year,8,nthWeekday(year,9,1,1))).toISOString().slice(0,10),
+    new Date(Date.UTC(year,10,nthWeekday(year,11,4,4))).toISOString().slice(0,10),
+  ]);
+  if (holidays.has(key)) return null;
+  const thanksgiving=nthWeekday(year,11,4,4);
+  const early=(month===11&&day===thanksgiving+1)||(month===12&&day===24)||(month===7&&day===3);
+  return {open:nyInstant(year,month,day,9,30),close:nyInstant(year,month,day,early?13:16)};
+}
+
+export function marketReference(instrument,now=Date.now()) {
+  if (instrument==="BTCUSD") return {market_state:"OPEN",reference:now};
+  const local=nyClock(now),date=new Date(Date.UTC(local.year,local.month-1,local.day));
+  if (instrument==="EURUSD") {
+    const minute=local.hour*60+local.minute;
+    if ((local.weekday>=1&&local.weekday<=4)||(local.weekday===5&&minute<17*60)||(local.weekday===0&&minute>=17*60)) return {market_state:"OPEN",reference:now};
+    const sinceFriday=(local.weekday-5+7)%7;
+    date.setUTCDate(date.getUTCDate()-sinceFriday);
+    return {market_state:"CLOSED",reference:nyInstant(date.getUTCFullYear(),date.getUTCMonth()+1,date.getUTCDate(),17)};
+  }
+  if (instrument!=="SPX") throw new Error("unknown_instrument");
+  for (let i=0;i<10;i+=1) {
+    const session=spySession(date);
+    if (session&&now>=session.open) return {market_state:now<session.close?"OPEN":"CLOSED",reference:Math.min(now,session.close)};
+    date.setUTCDate(date.getUTCDate()-1);
+  }
+  throw new Error("market_session_unavailable");
+}
+
+export function validateMinuteSource(bars,instrument,now=Date.now()) {
+  if (bars.length<90) throw new Error(`insufficient_1m_bars_${bars.length}`);
+  const last=bars.at(-1),lastMs=Date.parse(last.source_observed_at||last.timestamp);
+  if (!Number.isFinite(lastMs)||lastMs>now+60_000) throw new Error("future_or_invalid_source_clock");
+  const {market_state,reference}=marketReference(instrument,now);
+  const lag=Math.max(0,reference-(lastMs+60_000));
+  if (lag>SOURCE_STALE_MS) throw new Error(`stale_1m_source_${Math.round(lag/60_000)}m`);
+  return {market_state,source_reference_at:new Date(reference).toISOString(),source_age_minutes:Math.max(0,(now-lastMs)/60_000),source_lag_minutes:lag/60_000};
 }
 
 function aggregateBars(rows, timestampMs) {
@@ -108,17 +209,31 @@ function aggregateBars(rows, timestampMs) {
   };
 }
 
-export function resampleMinutes(bars, minutes) {
+export function resampleMinutes(bars, minutes, instrument=null) {
   const bucketMs=minutes*60_000;
   const buckets=new Map();
   for (const bar of bars) {
     const ms=Date.parse(bar.timestamp);
     if (!Number.isFinite(ms)) continue;
-    const key=Math.floor(ms/bucketMs)*bucketMs;
+    const local=instrument==="SPX"?nyClock(ms):null;
+    const session=local?spySession(new Date(Date.UTC(local.year,local.month-1,local.day))):null;
+    if (local&&(!session||ms<session.open||ms>=session.close)) continue;
+    const anchor=local?nyInstant(local.year,local.month,local.day,9,30):0;
+    const key=Math.floor((ms-anchor)/bucketMs)*bucketMs+anchor;
     if (!buckets.has(key)) buckets.set(key,[]);
     buckets.get(key).push(bar);
   }
-  return [...buckets.keys()].sort((a,b)=>a-b).map((key)=>aggregateBars(buckets.get(key),key));
+  return [...buckets.keys()].sort((a,b)=>a-b).map((key)=>{
+    const rows=buckets.get(key),bar=aggregateBars(rows,key);
+    bar.source_observed_at=rows.at(-1).source_observed_at||rows.at(-1).timestamp;
+    const local=instrument==="SPX"?nyClock(key):null;
+    const session=local?spySession(new Date(Date.UTC(local.year,local.month-1,local.day))):null;
+    const closedMs=session?Math.min(key+bucketMs,session.close):key+bucketMs;
+    bar.closed_at=new Date(closedMs).toISOString();
+    const expected=Math.max(1,Math.round((closedMs-key)/60_000));
+    bar.is_partial=rows.length<expected;
+    return bar;
+  });
 }
 
 export async function phaseDescriptor(bars, window=64) {
@@ -177,13 +292,13 @@ export async function phaseDescriptor(bars, window=64) {
   };
 }
 
-async function fetchJson(url) {
-  const response=await fetch(url,{headers:{"cache-control":"no-cache","accept":"application/json"}});
+export async function fetchJson(url,timeoutMs=4000) {
+  const response=await fetch(url,{signal:AbortSignal.timeout(timeoutMs),headers:{"cache-control":"no-cache","accept":"application/json"}});
   if (!response.ok) throw new Error(`http_${response.status}:${url}`);
   return response.json();
 }
 
-async function fetchMinuteBars(symbol) {
+export async function fetchMinuteBars(symbol,instrument,now=Date.now()) {
   const enc=encodeURIComponent(symbol);
   const direct1=`https://query1.finance.yahoo.com/v8/finance/chart/${enc}?range=7d&interval=1m&includePrePost=false&events=div%2Csplits`;
   const direct2=`https://query2.finance.yahoo.com/v8/finance/chart/${enc}?range=7d&interval=1m&includePrePost=false&events=div%2Csplits`;
@@ -196,9 +311,9 @@ async function fetchMinuteBars(symbol) {
   const errors=[];
   for (const url of candidates) {
     try {
-      const bars=parseYahooBars(await fetchJson(`${url}${url.includes("?")?"&":"?"}_=${Date.now()}`));
-      if (bars.length<90) throw new Error(`insufficient_1m_bars_${bars.length}`);
-      return bars;
+      const bars=parseYahooBars(await fetchJson(`${url}${url.includes("?")?"&":"?"}_=${Date.now()}`),now,instrument);
+      const sourceStatus=validateMinuteSource(bars,instrument,now);
+      return {bars,sourceStatus};
     } catch (error) {
       errors.push(String(error?.message||error));
     }
@@ -206,23 +321,27 @@ async function fetchMinuteBars(symbol) {
   throw new Error(`all_sources_failed:${errors.join("|")}`);
 }
 
-async function mergedPhaseMap(baseRow, minuteBars) {
+export async function mergedPhaseMap(baseRow, minuteBars, instrument=null) {
   const base=baseRow?.phase_map||{};
   const scales={
     "1m":minuteBars,
-    "5m":resampleMinutes(minuteBars,5),
-    "15m":resampleMinutes(minuteBars,15),
-    "1h":resampleMinutes(minuteBars,60),
+    "5m":resampleMinutes(minuteBars,5,instrument),
+    "15m":resampleMinutes(minuteBars,15,instrument),
+    "1h":resampleMinutes(minuteBars,60,instrument),
   };
   const out={};
   for (const tf of SCALE_ORDER) {
-    const prior={...(base[tf]||{})};
+    let prior={...(base[tf]||{})};
     if (FAST_SCALES.includes(tf)) {
       const bars=scales[tf];
-      Object.assign(prior,await phaseDescriptor(bars));
+      prior=await phaseDescriptor(bars);
       prior.bars=bars.length;
       prior.observed_at=bars.length?bars.at(-1).timestamp:null;
       prior.fast_refreshed=true;
+      prior.provisional=true;
+      prior.source_observed_at=bars.at(-1)?.source_observed_at||prior.observed_at;
+      prior.phase_progress=null;
+      prior.phase_memory=null;
     } else {
       prior.fast_refreshed=false;
     }
@@ -253,7 +372,7 @@ export function crossScaleAlignment(phaseMap) {
   }
   const alignment=pairs.length?mean(pairs.map((x)=>x.alignment)):0;
   const leads=pairs.filter((x)=>x.fast_lead!=null).map((x)=>Number(x.fast_lead));
-  const ranked=Object.entries(phaseMap||{}).map(([tf,row])=>{
+  const ranked=Object.entries(phaseMap||{}).filter(([,row])=>row?.available===true).map(([tf,row])=>{
     const mem=row?.phase_memory||{};
     return [Number(row?.confidence||0)*Number(mem?.top_similarity||0),tf];
   });
@@ -271,14 +390,14 @@ export function crossScaleAlignment(phaseMap) {
 }
 
 async function buildSnapshot(env) {
-  const base=await fetchJson(env.FSE_V2_URL||"https://briefrooms.com/data/investments/fse_v2_public.json");
+  const base=await fetchJson(env.FSE_V2_URL||"https://briefrooms.com/data/investments/fse_v2_public.json").catch(()=>({}));
   const baseRows=new Map((Array.isArray(base?.instruments)?base.instruments:[]).map((x)=>[String(x.instrument||""),x]));
   const rows=[];
   const errors={};
   await Promise.all(Object.entries(INSTRUMENTS).map(async ([instrument,symbol])=>{
     try {
-      const minuteBars=await fetchMinuteBars(symbol);
-      const phaseMap=await mergedPhaseMap(baseRows.get(instrument)||{},minuteBars);
+      const {bars:minuteBars,sourceStatus}=await fetchMinuteBars(symbol,instrument);
+      const phaseMap=await mergedPhaseMap(baseRows.get(instrument)||{},minuteBars,instrument);
       const observed={};
       for (const tf of FAST_SCALES) observed[tf]=phaseMap?.[tf]?.observed_at||null;
       const latest=Object.values(observed).filter(Boolean).sort().at(-1)||null;
@@ -290,6 +409,7 @@ async function buildSnapshot(env) {
         cross_scale_alignment:crossScaleAlignment(phaseMap),
         fast_observed_at:observed,
         latest_fast_observed_at:latest,
+        source_status:sourceStatus,
       });
     } catch (error) {
       errors[instrument]=String(error?.message||error);
@@ -299,6 +419,7 @@ async function buildSnapshot(env) {
   if (!rows.length) throw new Error(`no_fse_instruments:${JSON.stringify(errors)}`);
   return {
     schema_version:"briefrooms-fse-intraday-fast-edge-v1",
+    transport_version:TRANSPORT_VERSION,
     engine:"FSE Intraday Fast Edge Projection",
     module_id:"IN-09",
     component_id:"FSE-INTRADAY-FAST-EDGE",
@@ -333,7 +454,7 @@ async function responseForSnapshot(env, ctx) {
       const cachedPayload=await cached.clone().json();
       const generatedMs=Date.parse(String(cachedPayload?.generated_at||""));
       const ageMs=Number.isFinite(generatedMs)?Date.now()-generatedMs:Infinity;
-      if (ageMs>=-60_000 && ageMs<=5*60_000) {
+      if (cachedPayload.transport_version===TRANSPORT_VERSION && ageMs>=-60_000 && ageMs<=5*60_000) {
         const headers=new Headers(cached.headers);
         Object.entries(JSON_HEADERS).forEach(([k,v])=>headers.set(k,v));
         headers.set("x-fse-cache","HIT_FRESH");
@@ -357,7 +478,7 @@ export default {
     const url=new URL(request.url);
     if (request.method==="OPTIONS") return new Response(null,{status:204,headers:JSON_HEADERS});
     if (url.pathname==="/health") {
-      return new Response(JSON.stringify({ok:true,service:"briefrooms-fse-fast-edge",cadence_minutes:5,production_impact:false}),{headers:JSON_HEADERS});
+      return new Response(JSON.stringify({ok:true,service:"briefrooms-fse-fast-edge",transport_version:TRANSPORT_VERSION,cadence_minutes:5,production_impact:false}),{headers:JSON_HEADERS});
     }
     if (url.pathname!=="/fse-fast") return new Response(JSON.stringify({error:"not_found"}),{status:404,headers:JSON_HEADERS});
     try {

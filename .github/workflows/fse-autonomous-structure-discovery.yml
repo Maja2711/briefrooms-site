@@ -12,6 +12,8 @@ on:
       - "scripts/central-lab-runtime-en.js"
       - "tests/test_fse_discovery_en_runtime.js"
       - "tests/test_fse_discovery_match_visibility.js"
+      - "tests/test_fse_fast_frontend_runtime.js"
+      - "tests/test_fse_repair_workflows.py"
       - "assets/decision-lab.css"
       - ".github/workflows/fse-autonomous-structure-discovery.yml"
   push:
@@ -45,17 +47,34 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Verify autonomous discovery and frontend contracts
+      - name: Verify autonomous discovery and immutable evidence
         run: |
           set -euo pipefail
           python -m py_compile scripts/fse_autonomous_discovery.py
-          python -m unittest tests.test_fse_autonomous_discovery tests.test_decision_lab_fse_frontend -v
+          python -m unittest tests.test_fse_autonomous_discovery tests.test_fse_repair_workflows -v
+          python scripts/verify_trading_workflow_airlocks.py
+          python scripts/validate_architecture_bootstrap.py
+
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Verify LAB presentation independently of the collector
+        run: |
+          set -euo pipefail
+          python -m unittest tests.test_decision_lab_fse_frontend -v
           node --check scripts/central-lab.js
           node --check scripts/central-lab-runtime-en.js
           node tests/test_fse_discovery_en_runtime.js
           node tests/test_fse_discovery_match_visibility.js
-          python scripts/verify_trading_workflow_airlocks.py
-          python scripts/validate_architecture_bootstrap.py
+          node tests/test_fse_fast_frontend_runtime.js
 
   discover:
     needs: test

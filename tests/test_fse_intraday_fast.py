@@ -2,6 +2,8 @@ import json
 import math
 import tempfile
 import unittest
+from unittest.mock import patch
+from io import BytesIO
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -10,7 +12,7 @@ from scripts import fse_intraday_fast as fast
 
 
 def bars(n=1200, minutes=1):
-    t=datetime(2026,10,1,tzinfo=timezone.utc)
+    t=datetime(2026,10,6,11,20,tzinfo=timezone.utc)-timedelta(minutes=n*minutes)
     p=100.0
     out=[]
     for i in range(n):
@@ -30,6 +32,44 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class TestFSEIntradayFast(unittest.TestCase):
+    def test_fast_descriptor_does_not_inherit_old_memory_or_direction(self):
+        base={"phase_map":{"1h":{"direction":"DOWN","structure_id":"OLD","phase_memory":{"p_up_remaining":0.99},"phase_progress":0.85}}}
+        current=fast.merged_phase_map(base,bars())
+        self.assertIsNone(current["1h"]["phase_memory"])
+        self.assertIsNone(current["1h"]["phase_progress"])
+        short=fast.merged_phase_map(base,bars(90))
+        self.assertFalse(short["1h"]["available"])
+        self.assertNotIn("direction",short["1h"])
+        self.assertNotIn("structure_id",short["1h"])
+
+    def test_session_clocks_and_future_source(self):
+        cases=[("BTCUSD","2026-10-24T12:00:00Z","OPEN","2026-10-24T12:00:00Z"),
+               ("EURUSD","2026-10-24T12:00:00Z","CLOSED","2026-10-23T21:00:00Z"),
+               ("EURUSD","2026-11-02T00:00:00Z","OPEN","2026-11-02T00:00:00Z"),
+               ("SPX","2026-10-21T12:00:00Z","CLOSED","2026-10-20T20:00:00Z"),
+               ("SPX","2026-12-25T17:00:00Z","CLOSED","2026-12-24T18:00:00Z"),
+               ("SPX","2026-11-27T19:00:00Z","CLOSED","2026-11-27T18:00:00Z")]
+        for instrument,at,state,reference in cases:
+            actual=fast.market_reference(instrument,v1.parse_time(at))
+            self.assertEqual(actual,(state,v1.parse_time(reference)))
+        now=v1.parse_time("2026-10-06T11:20:00Z")
+        with self.assertRaisesRegex(RuntimeError,"stale"):
+            fast.validate_minute_source(bars(),"BTCUSD",now+timedelta(hours=1))
+        with self.assertRaisesRegex(RuntimeError,"future"):
+            fast.validate_minute_source(bars(),"BTCUSD",now-timedelta(hours=1))
+
+    def test_stale_http_200_tries_alternate_provider(self):
+        now=v1.parse_time("2026-10-06T11:20:00Z")
+        def payload(offset):
+            rows=bars(180)
+            return {"chart":{"result":[{"timestamp":[int((b.timestamp+offset).timestamp()) for b in rows],"indicators":{"quote":[{"close":[b.close for b in rows]}]}}]}}
+        responses=[BytesIO(json.dumps(payload(-timedelta(hours=1))).encode()),BytesIO(json.dumps(payload(timedelta())).encode())]
+        with patch("scripts.fse_intraday_fast.urllib.request.urlopen",side_effect=responses) as request:
+            actual=fast.FastYahooChartClient(now).bars("BTC-USD","7d","1m")
+        self.assertEqual(request.call_count,2)
+        self.assertEqual(actual[-1].timestamp,now-timedelta(minutes=1))
+        self.assertEqual(request.call_args.kwargs["timeout"],4)
+
     def test_builds_fast_projection_without_authority(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp)
