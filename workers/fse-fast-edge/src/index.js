@@ -17,6 +17,11 @@ const ZERO_AUTHORITY = {
 export const TRANSPORT_VERSION = "FSE-FAST-2.0";
 const CACHE_KEY = new Request("https://briefrooms-fse-fast.internal/snapshot-v2");
 const SOURCE_STALE_MS = 12 * 60_000;
+// Time-zone conversion is expensive in an Edge CPU budget. NY offsets change
+// only on hour boundaries; cache offsets, not market data or freshness clocks.
+const NY_FORMATTER = new Intl.DateTimeFormat("en-US",{timeZone:"America/New_York",year:"numeric",month:"numeric",day:"numeric",hour:"numeric",minute:"numeric",hourCycle:"h23"});
+const NY_HOUR_OFFSETS = new Map();
+const SPY_SESSIONS = new Map();
 const JSON_HEADERS = {
   "content-type": "application/json; charset=utf-8",
   "access-control-allow-origin": "*",
@@ -118,10 +123,15 @@ export function parseYahooBars(payload, now=Date.now(), instrument=null) {
 }
 
 function nyClock(ms) {
-  const parts=new Intl.DateTimeFormat("en-US",{timeZone:"America/New_York",year:"numeric",month:"numeric",day:"numeric",hour:"numeric",minute:"numeric",hourCycle:"h23"}).formatToParts(new Date(ms));
-  const out=Object.fromEntries(parts.filter(x=>x.type!=="literal").map(x=>[x.type,Number(x.value)]));
-  out.weekday=new Date(Date.UTC(out.year,out.month-1,out.day)).getUTCDay();
-  return out;
+  const hour=Math.floor(ms/3600_000),hourMs=hour*3600_000;
+  if(!NY_HOUR_OFFSETS.has(hour)){
+    if(NY_HOUR_OFFSETS.size>=640)NY_HOUR_OFFSETS.clear();
+    const parts=NY_FORMATTER.formatToParts(new Date(hourMs));
+    const value=Object.fromEntries(parts.filter(x=>x.type!=="literal").map(x=>[x.type,Number(x.value)]));
+    NY_HOUR_OFFSETS.set(hour,Date.UTC(value.year,value.month-1,value.day,value.hour,value.minute)-hourMs);
+  }
+  const local=new Date(ms+NY_HOUR_OFFSETS.get(hour));
+  return {year:local.getUTCFullYear(),month:local.getUTCMonth()+1,day:local.getUTCDate(),hour:local.getUTCHours(),minute:local.getUTCMinutes(),weekday:local.getUTCDay()};
 }
 
 function nyInstant(year,month,day,hour,minute=0) {
@@ -148,6 +158,15 @@ function nthWeekday(year,month,weekday,n) {
 }
 
 function spySession(date) {
+  const key=date.toISOString().slice(0,10);
+  if(SPY_SESSIONS.has(key))return SPY_SESSIONS.get(key);
+  if(SPY_SESSIONS.size>=64)SPY_SESSIONS.clear();
+  const session=buildSpySession(date);
+  SPY_SESSIONS.set(key,session);
+  return session;
+}
+
+function buildSpySession(date) {
   const year=date.getUTCFullYear(),month=date.getUTCMonth()+1,day=date.getUTCDate();
   if ([0,6].includes(date.getUTCDay())) return null;
   const key=date.toISOString().slice(0,10),goodFriday=easterSunday(year);goodFriday.setUTCDate(goodFriday.getUTCDate()-2);
