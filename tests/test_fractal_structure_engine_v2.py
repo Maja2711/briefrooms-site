@@ -52,7 +52,7 @@ class TestFSEPhaseEngine(unittest.TestCase):
         self.assertTrue(all(math.isfinite(x) for x in g))
 
     def test_phase_memory_estimates_progress_and_probability(self):
-        out = v2.phase_analogues(bars(900), top_k=30, max_history=900)
+        out = v2.phase_analogues(bars(1800), top_k=30, max_history=1800)
         self.assertEqual(out["source"], "PHASE_MEMORY")
         self.assertGreater(out["analogues_n"], 0)
         self.assertGreaterEqual(out["phase_progress"], 0.40)
@@ -84,7 +84,9 @@ class TestFSEPhaseEngine(unittest.TestCase):
             rows[i] = v1.Bar(rows[i].timestamp, close)
         rows[95] = v1.Bar(rows[95].timestamp, 120)
         # Equal similarities isolate the first matched prefix's two targets.
-        with patch.object(v2, "shape_vector", return_value=[0.0]):
+        with patch.object(v2, "z_normalized_profile", return_value=[0.0]), \
+                patch.object(v2, "historical_quality_threshold", return_value=(1.0, 3)), \
+                patch.object(v2, "MIN_INDEPENDENT_ANALOGUES", 1):
             out = v2.phase_analogues(rows, top_k=1)
         self.assertEqual(out["p_up_remaining"], 1.0)
         self.assertEqual(out["p_up_next_4_bars"], 0.0)
@@ -161,15 +163,81 @@ class TestFSEPhaseEngine(unittest.TestCase):
         self.assertTrue(out["active"])
         self.assertLessEqual(abs(out["p_challenger"] - out["p_base"]), v2.P_CALIBRATION_MAX_SHIFT + 1e-12)
         self.assertFalse(out["production_applied"])
+        for base, phase in ((0.0, 1.0), (1.0, 0.0)):
+            extreme = v2.calibration_challenger(base, phase, 1, "TURBULENT", True)
+            self.assertEqual(extreme["p_base"], base)
+            self.assertLessEqual(abs(extreme["p_challenger"] - base), .06 + 1e-12)
 
     def test_deep_memory_searches_many_candidates(self):
         out = v2.deep_historical_analogues(bars(1800, 60, 2025), bars(2600, 1440, 2019), top_k=40)
         self.assertEqual(out["source"], "DEEP_HISTORY")
-        self.assertEqual(out["analogues_n"], 40)
+        self.assertGreaterEqual(out["analogues_n"], v2.MIN_INDEPENDENT_ANALOGUES)
+        self.assertLessEqual(out["analogues_n"], 40)
         self.assertGreater(out["history_candidates"], 40)
         self.assertGreater(out["fingerprint_dimensions"], 40)
         self.assertGreaterEqual(out["p_up"], 0)
         self.assertLessEqual(out["p_up"], 1)
+
+    def test_overlapping_neighbours_are_one_episode_and_minimum_is_real(self):
+        candidates = [{"start": i, "end": i + 100, "distance": 0.01, "return": 0.1,
+                       "mae": -0.01, "mfe": 0.1} for i in range(80)]
+        out = v2.forecast_from_search(candidates, 0.2, 10, 80, "fixture")
+        self.assertEqual(out["independent_analogues_n"], 1)
+        self.assertFalse(out["available"])
+        self.assertIsNone(out["p_up"])
+        independent = [dict(candidates[0], start=i * 100, end=(i + 1) * 100) for i in range(8)]
+        out = v2.forecast_from_search(independent, 0.2, 10, 80, "fixture")
+        self.assertTrue(out["available"])
+        self.assertEqual(out["p_up"], 1.0)
+        down = v2.forecast_from_search([dict(row, **{"return": -.1}) for row in independent], .2, 10, 80, "fixture")
+        self.assertEqual(down["p_up"], 0.0)
+        self.assertTrue(down["available"])
+
+    def test_poor_neighbours_abstain_instead_of_forced_fifty_fifty(self):
+        candidates = [{"start": i * 100, "end": (i + 1) * 100, "distance": 3.0,
+                       "return": 0.1, "mae": -0.01, "mfe": 0.1} for i in range(20)]
+        out = v2.forecast_from_search(candidates, 0.5, 10, 80, "fixture")
+        self.assertEqual(out["status"], "ABSTAIN")
+        self.assertIsNone(out["p_up"])
+        self.assertIsNone(v2.phase_analogues(bars(200))["p_up_remaining"])
+        self.assertIsNone(v2.calibration_challenger(None, .6, .8, "TRENDING", True)["p_challenger"])
+        self.assertIsNone(v2.probability(1.1))
+        self.assertIsNone(v2.probability(float("nan")))
+        self.assertEqual(v2.probability(0), 0)
+
+    def test_distance_blocks_have_equal_weight_independent_of_dimension_count(self):
+        candidates = [{"blocks": [[float(i)], [float(i)], [float(i)]]} for i in range(12)]
+        left, right = candidates[0], candidates[-1]
+        original = v2.block_distance_model(candidates)(left, right)
+        duplicated = [{"blocks": [row["blocks"][0] * 40, row["blocks"][1], row["blocks"][2]]}
+                      for row in candidates]
+        self.assertAlmostEqual(original, v2.block_distance_model(duplicated)(duplicated[0], duplicated[-1]))
+
+    def test_quality_threshold_is_outcome_blind_and_current_query_not_a_training_input(self):
+        candidates = [{"start": i * 100, "end": (i + 1) * 100, "value": float(i), "return": 1.0}
+                      for i in range(20)]
+        distance = lambda a, b: abs(a["value"] - b["value"])
+        before = v2.historical_quality_threshold(candidates, distance)
+        for row in candidates:
+            row["return"] = -100.0
+        self.assertEqual(before, v2.historical_quality_threshold(candidates, distance))
+        self.assertGreaterEqual(before[1], 3)
+
+    def test_deep_candidates_exclude_entire_query_and_shape_arm_uses_raw_96_points(self):
+        hourly = bars(1800)
+        calls = []
+        real = v2.forecast_from_search
+        def capture(candidates, *args):
+            calls.append(candidates)
+            return real(candidates, *args)
+        with patch.object(v2, "geometry_features", return_value=[0.1, 0.2]), \
+                patch.object(v2, "daily_context", return_value=[0.1, 0.2]), \
+                patch.object(v2, "forecast_from_search", side_effect=capture):
+            out = v2.deep_historical_analogues(hourly, [], include_simple=True)
+        self.assertEqual(len(calls), 2)
+        self.assertTrue(all(row["end"] <= len(hourly) - 96 for cohort in calls for row in cohort))
+        self.assertTrue(all(len(row["shape"]) == 96 for row in calls[1]))
+        self.assertIn("historical AB-join", out["simple_memory"]["method"])
 
     def test_new_methodology_produces_prospective_hse_evidence_only_after_resolution(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -253,7 +321,7 @@ class TestFSEPhaseEngine(unittest.TestCase):
             self.assertIn("intrabar_formation", row)
             self.assertIn("cross_scale_alignment", row)
             self.assertIn("p_calibration_challenger", row)
-            self.assertEqual(len(out["hse_measurements"]), 4)
+            self.assertEqual(len(out["hse_measurements"]), 5)
             self.assertEqual(out["adaptive_learning_version"], v2.ADAPTIVE_VERSION)
             self.assertFalse(row["adaptive_learning"]["ensemble"]["production_applied"])
             self.assertFalse(row["adaptive_learning"]["risk"]["production_applied"])

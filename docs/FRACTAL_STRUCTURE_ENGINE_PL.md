@@ -4,7 +4,7 @@
 **Tryb:** `SHADOW_ONLY` / research challenger  
 **Authority:** zero production authority
 
-**Aktualna metodologia:** `FSE-CORE-2.0` / `FSE-PHASE-2.0` / `FSE-ADAPTIVE-2.0`; projekcja `FSE-FAST-2.0`. Kontrakt naprawy w sekcji 12 zastępuje wcześniejsze zasady czasu, horyzontu i zaliczania kohort opisane historycznie poniżej.
+**Aktualna metodologia:** `FSE-CORE-3.0` / `FSE-PHASE-3.0` / `FSE-ADAPTIVE-3.0`; projekcja `FSE-FAST-2.0`. Kontrakt naprawy w sekcji 12 zastępuje wcześniejsze zasady czasu, horyzontu i zaliczania kohort opisane historycznie poniżej. Wyszukiwanie ASD 2.0 i abstencja: sekcja 13.
 
 ## 1. Cel
 
@@ -79,13 +79,15 @@ Nie może ona zmienić realnego sizingu ani SL bez późniejszej, jawnej integra
 Fingerprint nie porównuje nominalnego poziomu ceny. Ścieżka jest normalizowana lokalnym ATR:
 
 [
-x_i=rac{P_i-P_0}{ATR}
+x_i=
+rac{P_i-P_0}{ATR}
 ]
 
 Bieżący fingerprint jest porównywany z historycznymi strukturami metodą odległości RMS po normalizacji. Similarity:
 
 [
-S=rac{1}{1+RMS}
+S=
+rac{1}{1+RMS}
 ]
 
 Najbliższe analogi tworzą ważony rozkład forward:
@@ -372,3 +374,18 @@ Zapis wyłącznie artefaktu publicznego, automatyczna promocja, Belief Core writ
 - Publikacja PL/EN ma nową wersję URL skryptów; produkcyjne parity obejmuje oba renderery centralnego LAB. Deployment Edge kontroluje rzeczywistą świeżość źródeł, nie sam czas wygenerowania odpowiedzi.
 
 Uprawnienia pozostają niezmienione: SHADOW_ONLY, brak execution, zmian produkcyjnej polityki/Belief i automatycznej promocji. Zmiana metodologii nie jest dowodem poprawy modelu; zbiera nowy prospektywny wynik od własnej granicy.
+
+## 13. wyszukiwanie struktur 3.0 / ASD 2.0
+
+Aktualne wersje badawcze to `FSE-CORE-3.0`, `FSE-PHASE-3.0`, `FSE-ADAPTIVE-3.0` i `FSE-ASD-2.0`; transport pozostaje `FSE-FAST-2.0`. Okna cech i wyników analogów nie mogą nachodzić na bieżący wzorzec, a wiele okien jednego epizodu nie tworzy niezależnego wsparcia. Deep/Phase/Core wymagają co najmniej ośmiu niezależnych dopasowań i jakości ustalonej na wcześniejszych danych bez optymalizacji na wynikach. Brak dopasowania daje jawne `ABSTAIN` i `P=null`, bez zastępowania przez 50% lub zaliczania kierunkowego Brier. Pełna geometria jest porównywana z prostym, dokładnym profilem odległości euklidesowych po normalizacji kształtu; jest to wariant query/history, nie pełny all-pairs Matrix Profile. Sparowana ablacja zamraża oba P i ocenia ten sam przyszły target; formalne N liczy rozłączne bloki wyników. ASD używa gęstych rdzeni klastrów, niezależnego wsparcia, odstępu od query i progu niejednoznaczności. Rejestr selekcji zamraża próbę i wspólny budżet 24 testów × 2 zastosowania, bez resetu co cykl. Istniejące rodziny, snapshoty, wyniki i lekcje zachowują definicje oraz hashe; wcześniejsze kohorty i katalog są archiwum, a bieżące HSE ma nowy freeze. Moduł pozostaje SHADOW_ONLY i nie zmienia produkcyjnego EURUSD, Belief, pozycji ani promocji.
+
+Kontrakt implementacyjny:
+
+- Core: historyczne i prospektywne wyszukiwanie używa tego samego 32-punktowego kształtu z okna 64 świec, minimum 8 rozłącznych epizodów obejmujących kształt i target. Wektor 22 cech wieloskalowych pozostaje opisem/audytem, nie udaje niezależnego wsparcia pamięci kształtu. Próg odległości wyznacza wyłącznie historyczny rozkład najbliższych niezależnych przykładów; twardy limit 0,75 jest zamrożonym research prior.
+- Deep: osobna normalizacja bloków path/geometry/daily na wcześniejszych kandydatach. Simple jest porównaniem kształtu w stałym oknie 96 barów. Złożone cechy pozostają pełnym wariantem do czasu wyniku sparowanej ablacji; brak automatycznego usuwania lub promocji.
+- Ablacja: `full_brier_improvement_vs_simple`, dodatnia wartość oznacza przewagę pełnego wariantu; `raw_paired_n` jest osobne od formalnego N rozłącznych targetów. Ani Brier, ani test badawczy nie są dowodem zysku po kosztach.
+- ASD: minimum 6 niezależnych epizodów discovery; promień/margines dopasowania, stała pierwsza próba 40 niezależnych wyników, wspólny budżet selekcji i append-only `selection_events`. Kontrola dwóch zastosowań uwzględnia cały budżet 24 prób. Kolejne dane nie zmieniają zamrożonego werdyktu.
+- Zachowanie: stare ledgery i definicje nie są przepisywane, istniejące dane produkcyjne nie są migrowane. Cofnięcie kodu nie usuwa artefaktów; każda kolejna metoda musi mieć własny identyfikator i freeze.
+
+- Czas ASD 2.0: zamknięte świece określają wzorzec, świeże kwotowanie określa cenę referencyjną. Referencja musi mieć rzeczywisty czas źródła nie późniejszy od freeze i wiek najwyżej 5 minut. Wynik obejmuje pierwsze cztery świece rynkowe otwierające się w chwili freeze lub później; dane sprzed freeze nie są przyszłym targetem. Zegar wykonania live jest zamrażany po pozyskaniu danych; jawny replay cutoff pozostaje stały.
+- HSE zachowuje najwyższą zamrożoną wersję metodologii; chwilowo starsza publikacja nie może wyłączyć nowszej kohorty ani wznowić naliczania starej.

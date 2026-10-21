@@ -53,7 +53,9 @@ class FSETests(unittest.TestCase):
     def test_historical_memory_builds_distribution(self):
         out=fse.historical_analogues(bars(1200,60),top_k=30)
         self.assertEqual(out["source"],"HISTORICAL_BOOTSTRAP")
-        self.assertEqual(out["analogues_n"],30)
+        self.assertGreaterEqual(out["analogues_n"],fse.SEARCH_MIN_EPISODES)
+        self.assertLessEqual(out["analogues_n"],30)
+        self.assertGreater(out["raw_windows_n"],out["independent_analogues_n"])
         self.assertGreaterEqual(out["p_up"],0.0)
         self.assertLessEqual(out["p_up"],1.0)
         self.assertIsNotNone(out["top_similarity"])
@@ -87,6 +89,7 @@ class FSETests(unittest.TestCase):
 
     def test_zero_probability_stays_zero_and_scores_correctly(self):
         d={tf:bars(240,int(spec["minutes"]),drift=-.0005) for tf,spec in fse.TIMEFRAMES.items()}
+        d["1h"]=bars(1600,60,drift=-.0005)
         d["4h"]=fse.resample_fixed(d["1h"],4)
         state=fse.instrument_state("EURUSD","EURUSD=X",d,[],{})
         self.assertEqual(state["fractal_memory"]["p_up"],0)
@@ -125,7 +128,84 @@ class FSETests(unittest.TestCase):
             rows=fse.read_jsonl(path/fse.SNAPSHOTS_FILE)
             self.assertEqual(len(rows),1)
             self.assertEqual(rows[0]["frozen_at"],capture.isoformat())
-            self.assertEqual(rows[0]["methodology_version"],"FSE-CORE-2.0")
+            self.assertEqual(rows[0]["methodology_version"],fse.METHODOLOGY_VERSION)
+
+    def test_overlapping_windows_cannot_manufacture_independent_support(self):
+        rows=[{"start":i,"end":i+67,"vector":[0.0]*32} for i in range(100)]
+        selected,quality=fse._quality_selected(rows,[0.0]*32,50)
+        self.assertEqual(selected,[])
+        self.assertFalse(quality["available"])
+        self.assertLess(quality["independent_episodes_n"],fse.SEARCH_MIN_EPISODES)
+        independent=[{"start":i*68,"end":i*68+67,"vector":[0.0]*32} for i in range(10)]
+        selected,quality=fse._quality_selected(independent,[0.0]*32,50)
+        self.assertTrue(quality["available"])
+        self.assertEqual(len(selected),10)
+        rejected,poor=fse._quality_selected(independent,[20.0]*32,50)
+        self.assertEqual(rejected,[])
+        self.assertFalse(poor["available"])
+
+    def test_historical_search_excludes_query_and_does_not_use_outcomes_for_quality(self):
+        original=fse._quality_selected
+        history=bars(1600)
+        with patch.object(fse,"_quality_selected",wraps=original) as gate:
+            result=fse.historical_analogues(history)
+        candidates=gate.call_args.args[0]
+        self.assertTrue(candidates)
+        self.assertTrue(all(row["end"]<len(history)-fse.SEARCH_WINDOW for row in candidates))
+        changed=[dict(row,**{"return":-float(row["return"])}) for row in candidates]
+        a,qa=original(candidates,gate.call_args.args[1],50)
+        b,qb=original(changed,gate.call_args.args[1],50)
+        self.assertEqual(qa,qb)
+        self.assertEqual([x["start"] for x in a],[x["start"] for x in b])
+        self.assertEqual(result["query_exclusion_bars"],64)
+
+    def test_prospective_retrieval_uses_the_actual_64_bar_shape_not_long_context(self):
+        d={tf:bars(700,int(spec["minutes"])) for tf,spec in fse.TIMEFRAMES.items()}
+        d["4h"]=fse.resample_fixed(d["1h"],4)
+        state=fse.instrument_state("EURUSD","EURUSD=X",d,[],{})
+        self.assertEqual(state["search_vector"],fse.path_fingerprint(d["1h"][-64:]))
+        self.assertEqual(len(state["search_vector"]),32)
+        self.assertEqual(len(state["feature_vector"]),22)
+        self.assertEqual(fse.parse_time(state["search_window_start_at"]),d["1h"][-64].timestamp)
+        snapshots=[];resolutions={}
+        start=datetime(2025,1,1,tzinfo=timezone.utc)
+        for i in range(10):
+            opened=start+timedelta(hours=i*72+63);sid=str(i)
+            snapshots.append({"snapshot_id":sid,"instrument":"EURUSD","methodology_version":fse.METHODOLOGY_VERSION,
+                              "search_window_start_at":(opened-timedelta(hours=63)).isoformat(),
+                              "search_vector":[0.0]*32,"feature_vector":[10000.0]*22})
+            resolutions[sid]={"methodology_version":fse.METHODOLOGY_VERSION,"resolved_at":(opened+timedelta(hours=5)).isoformat(),
+                              "outcome_closed_at":(opened+timedelta(hours=5)).isoformat(),"outcome_up":False}
+        memory=fse.memory_analogues([0.0]*32,snapshots,resolutions,"EURUSD",as_of=start+timedelta(days=60),query_start=start+timedelta(days=50))
+        self.assertTrue(memory["available"])
+        self.assertEqual(memory["p_up"],0.0)
+
+    def test_abstention_is_frozen_and_settled_without_fake_directional_evidence(self):
+        d={tf:bars(240,int(spec["minutes"])) for tf,spec in fse.TIMEFRAMES.items()}
+        d["4h"]=fse.resample_fixed(d["1h"],4)
+        state=fse.instrument_state("EURUSD","EURUSD=X",d,[],{})
+        self.assertIsNone(state["p_up_4h"])
+        self.assertEqual(state["forecast"],"ABSTAIN")
+        history=bars(40)
+        state.update(observed_at=history[10].timestamp.isoformat(),bar_open_at=history[10].timestamp.isoformat(),
+                     reference_price=history[10].close,search_window_start_at=history[0].timestamp.isoformat())
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp)
+            fse.create_snapshot(path,state,(history[10].timestamp+timedelta(minutes=20)).isoformat())
+            snap=fse.read_jsonl(path/fse.SNAPSHOTS_FILE)[0]
+            state["p_up_4h"]=.9
+            fse.bind_frozen_forecast(state,snap)
+            self.assertIsNone(state["p_up_4h"])
+            self.assertEqual(state["forecast"],"ABSTAIN")
+            fse.resolve_snapshots(path,{"EURUSD":history},as_of=history[15].timestamp)
+            resolved=fse.read_jsonl(path/fse.RESOLUTIONS_FILE)
+            self.assertEqual(len(resolved),1)
+            self.assertIsNone(resolved[0]["directional_brier"])
+            self.assertIsNone(resolved[0]["directional_brier_edge_vs_0_5"])
+            directional,risk=fse.measurements(resolved,"EURUSD")
+            self.assertEqual(directional["counter"],0)
+            self.assertEqual(risk["counter"],1)
+            self.assertTrue(fse.verify(path)["ok"])
 
     def test_repeated_hour_publishes_frozen_forecast_and_dates_live_features(self):
         class UpdatingClient(FakeClient):

@@ -36,7 +36,7 @@ RESOLUTIONS_FILE = "fse_v2_resolutions.jsonl"
 PUBLIC_SCHEMA = "briefrooms-fse-v2-public-v2"
 ZERO_AUTHORITY = dict(v1.ZERO_AUTHORITY)
 
-METHODOLOGY_VERSION = "FSE-PHASE-2.0"
+METHODOLOGY_VERSION = "FSE-PHASE-3.0"
 HOURLY_RANGE = "2y"
 DAILY_RANGE = "10y"
 HORIZON = 4
@@ -52,9 +52,11 @@ NATIVE_FEEDS = {
     "1d": (DAILY_RANGE, "1d"),
 }
 P_CALIBRATION_MAX_SHIFT = 0.06
-ADAPTIVE_VERSION = "FSE-ADAPTIVE-2.0"
+ADAPTIVE_VERSION = "FSE-ADAPTIVE-3.0"
 ADAPTIVE_MIN_INDEPENDENT = 12
 RISK_CALIBRATION_MIN_N = 40
+MIN_INDEPENDENT_ANALOGUES = 8
+QUERY_LOOKBACK = 96
 
 
 
@@ -68,6 +70,17 @@ def stdev(xs: Sequence[float]) -> float:
 
 def clamp(x: float, lo: float = 0.0, hi: float = 1.0) -> float:
     return max(lo, min(hi, float(x)))
+
+
+def probability(value: Any) -> float | None:
+    result = v1.finite(value)
+    return result if result is not None and 0 <= result <= 1 else None
+
+
+def forecast_probability(memory: Mapping[str, Any], field: str = "p_up") -> float | None:
+    if memory.get("available") is False or memory.get("status") == "ABSTAIN":
+        return None
+    return probability(memory.get(field))
 
 
 def robust_scale(xs: Sequence[float]) -> float:
@@ -257,59 +270,164 @@ def vector_distance(a: Sequence[float], b: Sequence[float]) -> float:
     return math.sqrt(mean([min((float(x) - float(y)) ** 2, 9.0) for x, y in zip(a, b)]))
 
 
-def deep_historical_analogues(hourly: Sequence[v1.Bar], daily: Sequence[v1.Bar], top_k: int = TOP_K) -> dict[str, Any]:
+def z_normalized_profile(bars: Sequence[v1.Bar], points: int | None = None) -> list[float]:
+    values = [math.log(b.close) for b in bars if b.close > 0]
+    if len(values) != len(bars) or len(values) < 8 or stdev(values) < 1e-12:
+        return []
+    center, scale = mean(values), stdev(values)
+    values = [(x - center) / scale for x in values]
+    if points is None:
+        return values
+    out = []
+    for i in range(points):
+        position = i * (len(values) - 1) / (points - 1)
+        left, right = math.floor(position), math.ceil(position)
+        out.append(values[left] if left == right else values[left] * (right - position) + values[right] * (position - left))
+    return out
+
+
+def independent_episodes(candidates: Sequence[Mapping[str, Any]], top_k: int, threshold: float | None = None) -> list[dict[str, Any]]:
+    selected: list[dict[str, Any]] = []
+    for item in sorted(candidates, key=lambda x: (float(x["distance"]), int(x["start"]))):
+        if threshold is not None and float(item["distance"]) > threshold:
+            continue
+        if any(int(item["start"]) < int(old["end"]) and int(item["end"]) > int(old["start"]) for old in selected):
+            continue
+        selected.append(dict(item))
+        if len(selected) >= top_k:
+            break
+    return selected
+
+
+def historical_quality_threshold(candidates: Sequence[Mapping[str, Any]], distance) -> tuple[float | None, int]:
+    """Past-only, outcome-blind eighth-neighbour reference distribution.
+
+    Each reference query sees only earlier, disjoint historical episodes. The
+    current query never contributes to the acceptance threshold.
+    """
+    episodes = []
+    for item in sorted(candidates, key=lambda x: (int(x["end"]), int(x["start"]))):
+        if not episodes or int(item["start"]) >= int(episodes[-1]["end"]):
+            episodes.append(item)
+    anchors = []
+    for index in range(MIN_INDEPENDENT_ANALOGUES, len(episodes)):
+        query = episodes[index]
+        distances = sorted(float(distance(query, old)) for old in episodes[:index])
+        if len(distances) >= MIN_INDEPENDENT_ANALOGUES:
+            anchors.append(distances[MIN_INDEPENDENT_ANALOGUES - 1])
+    anchors = [x for x in anchors[-48:] if math.isfinite(x)]
+    return (max(1e-9, v1.quantile(anchors, 0.90)), len(anchors)) if len(anchors) >= 3 else (None, len(anchors))
+
+
+def block_distance_model(candidates: Sequence[Mapping[str, Any]]):
+    """Fit dimension scales on past-only fingerprints, then weight blocks equally."""
+    first = candidates[0]["blocks"]
+    normalizers = []
+    for block_index, block in enumerate(first):
+        block_norm = []
+        for dimension in range(len(block)):
+            values = [float(row["blocks"][block_index][dimension]) for row in candidates]
+            center = statistics.median(values)
+            scale = robust_scale(values)
+            if scale <= 1e-8:
+                scale = max(stdev(values), 1.0)
+            block_norm.append((center, scale))
+        normalizers.append(block_norm)
+
+    def distance(left, right):
+        losses = []
+        for a, b, norms in zip(left["blocks"], right["blocks"], normalizers):
+            if len(a) != len(b) or len(a) != len(norms):
+                return float("inf")
+            losses.append(mean([clamp((float(x) - float(y)) / scale, -6, 6) ** 2
+                                for x, y, (_, scale) in zip(a, b, norms)]))
+        return math.sqrt(mean(losses)) if losses else float("inf")
+    return distance
+
+
+def forecast_from_search(candidates: Sequence[Mapping[str, Any]], threshold: float | None,
+                         calibration_n: int, top_k: int, method: str) -> dict[str, Any]:
+    selected = independent_episodes(candidates, top_k, threshold) if threshold is not None else []
+    available = len(selected) >= MIN_INDEPENDENT_ANALOGUES
+    best = min((float(x["distance"]) for x in candidates), default=None)
+    out = {"available": available, "status": "FORECAST" if available else "ABSTAIN",
+           "reason": "accepted independent historical episodes" if available else
+                     ("insufficient past quality calibration" if threshold is None else "no reliable independent analogues"),
+           "p_up": None, "analogues_n": len(selected), "independent_analogues_n": len(selected),
+           "history_candidates": len(candidates), "quality_threshold": threshold,
+           "quality_calibration_n": calibration_n, "query_distance": best,
+           "query_exclusion": "entire current query window; historical paths and targets end before it",
+           "method": method}
+    if not available:
+        return out
+    weights = [(1 / (1 + float(x["distance"]))) ** 4 for x in selected]
+    total = sum(weights)
+    out.update({"p_up": sum(w for w, x in zip(weights, selected) if x["return"] > 0) / total,
+                "top_similarity": 1 / (1 + float(selected[0]["distance"])),
+                "mean_similarity": mean([1 / (1 + float(x["distance"])) for x in selected]),
+                "effective_analogues": total ** 2 / sum(w * w for w in weights),
+                "median_forward_return": statistics.median(x["return"] for x in selected),
+                "median_adverse_excursion": statistics.median(x["mae"] for x in selected),
+                "median_favorable_excursion": statistics.median(x["mfe"] for x in selected)})
+    return out
+
+
+def deep_historical_analogues(hourly: Sequence[v1.Bar], daily: Sequence[v1.Bar], top_k: int = TOP_K,
+                             include_simple: bool = False) -> dict[str, Any]:
     h, d = list(hourly), list(daily)
     current_path = path_shape(h)
     current_geo = geometry_features(h)
     current_at = h[-1].source_observed_at or v1.bar_closed_at(h[-1], minutes=60)
     current_daily = daily_context(d, current_at)
-    cur = current_path + current_geo + current_daily
-    if not current_path or not current_geo or not current_daily:
-        return {"source": "DEEP_HISTORY", "analogues_n": 0, "p_up": 0.5, "history_candidates": 0}
+    current_shape = z_normalized_profile(h[-QUERY_LOOKBACK:])
+    cur = {"blocks": [current_path, current_geo, current_daily], "shape": current_shape}
     cand = []
     stride = max(4, len(h) // 3500)
-    for end in range(512, len(h) - HORIZON - 8, stride):
+    for end in range(512, len(h) - QUERY_LOOKBACK - HORIZON + 1, stride):
         hist = h[:end]
         p = path_shape(hist)
         g = geometry_features(hist)
         dc = daily_context(d, v1.bar_closed_at(h[end - 1], minutes=60))
-        vec = p + g + dc
-        if not p or not g or not dc or len(vec) != len(cur):
+        shape = z_normalized_profile(hist[-QUERY_LOOKBACK:])
+        if not shape:
             continue
-        dist = vector_distance(cur, vec)
-        sim = 1 / (1 + dist)
         ref = h[end - 1].close
         fut = h[end : end + HORIZON]
         ret = fut[-1].close / ref - 1
         path = [b.close / ref - 1 for b in fut]
-        cand.append({"similarity": sim, "return": ret, "mae": min(path), "mfe": max(path), "at": h[end - 1].timestamp})
-    cand.sort(key=lambda x: x["similarity"], reverse=True)
-    selected = cand[:top_k]
-    if not selected:
-        return {"source": "DEEP_HISTORY", "analogues_n": 0, "p_up": 0.5, "history_candidates": 0}
-    w = [max(x["similarity"], 0.05) ** 4 for x in selected]
-    ws = sum(w)
-    pup = sum(wi for wi, x in zip(w, selected) if x["return"] > 0) / ws
-    eff = (sum(w) ** 2) / max(sum(x * x for x in w), 1e-12)
-    return {
+        cand.append({"start": end - QUERY_LOOKBACK, "end": end + HORIZON,
+                     "blocks": [p, g, dc], "shape": shape,
+                     "return": ret, "mae": min(path), "mfe": max(path), "at": h[end - 1].timestamp})
+    full_method = "equal path/geometry/daily blocks; past-only robust dimension scales; independent episodes"
+    shape_method = "z-normalized Euclidean distance profile (fixed 96 raw log-price windows; historical AB-join reference)"
+    full_cand = [x for x in cand if all(x["blocks"])]
+    if full_cand and all(cur["blocks"]) and current_shape:
+        full_distance = block_distance_model(full_cand)
+        full_threshold, full_n = historical_quality_threshold(full_cand, full_distance)
+        full_candidates = [dict(x, distance=full_distance(cur, x)) for x in full_cand]
+        full = forecast_from_search(full_candidates, full_threshold, full_n, top_k, full_method)
+    else:
+        full = forecast_from_search([], None, 0, top_k, full_method)
+    shape_distance = lambda a, b: math.sqrt(mean([(x - y) ** 2 for x, y in zip(a["shape"], b["shape"])]))
+    if cand and current_shape:
+        shape_threshold, shape_n = historical_quality_threshold(cand, shape_distance)
+        simple = forecast_from_search([dict(x, distance=shape_distance(cur, x)) for x in cand],
+                                      shape_threshold, shape_n, top_k, shape_method)
+    else:
+        simple = forecast_from_search([], None, 0, top_k, shape_method)
+    full.update({
         "source": "DEEP_HISTORY",
-        "analogues_n": len(selected),
-        "history_candidates": len(cand),
-        "p_up": pup,
-        "top_similarity": selected[0]["similarity"],
-        "mean_similarity": mean([x["similarity"] for x in selected]),
-        "effective_analogues": eff,
-        "median_forward_return": statistics.median(x["return"] for x in selected),
-        "median_adverse_excursion": statistics.median(x["mae"] for x in selected),
-        "median_favorable_excursion": statistics.median(x["mfe"] for x in selected),
         "history_start": h[0].timestamp.isoformat().replace("+00:00", "Z"),
         "history_end": h[-1].timestamp.isoformat().replace("+00:00", "Z"),
         "daily_history_start": d[0].timestamp.isoformat().replace("+00:00", "Z") if d else None,
         "daily_history_bars": len(d),
         "hourly_history_bars": len(h),
-        "fingerprint_dimensions": len(cur),
-        "method": "robust path + generalized Hurst + DFA + Haar + tails + entropy + box dimension + daily context",
-    }
+        "fingerprint_dimensions": sum(len(block) for block in cur["blocks"]),
+    })
+    simple["source"] = "SHAPE_DISTANCE_PROFILE"
+    if include_simple:
+        full["simple_memory"] = simple
+    return full
 
 
 def aggregate_bar(group: Sequence[v1.Bar], timestamp: datetime) -> v1.Bar:
@@ -428,61 +546,70 @@ def phase_analogues(
 ) -> dict[str, Any]:
     all_rows = list(bars)
     r = all_rows[-max_history:]
-    if len(r) < max(motif_window * 3, 180):
-        return {"source": "PHASE_MEMORY", "analogues_n": 0, "p_up_remaining": 0.5, "p_up_next_4_bars": None, "phase_progress": None}
-    cur = shape_vector(r[-current_window:])
-    if not cur:
-        return {"source": "PHASE_MEMORY", "analogues_n": 0, "p_up_remaining": 0.5, "p_up_next_4_bars": None, "phase_progress": None}
+    cur = z_normalized_profile(r[-current_window:], 24) if len(r) >= current_window else []
     candidates = []
     last_start = len(r) - current_window - motif_window
     stride = max(4, len(r) // 700)
     for start in range(0, max(0, last_start), stride):
         motif = r[start : start + motif_window]
-        best = None
+        stages = []
         for progress in PHASE_PROGRESS_GRID:
             plen = max(12, int(round(motif_window * progress)))
             prefix = motif[:plen]
-            fp = shape_vector(prefix)
+            fp = z_normalized_profile(prefix, 24)
             if not fp:
                 continue
-            sim = 1.0 / (1.0 + vector_distance(cur, fp))
-            if best is None or sim > best["similarity"]:
-                ref = prefix[-1].close
-                remaining = motif[plen:]
-                if len(remaining) < HORIZON or ref <= 0:
-                    continue
-                ret = remaining[-1].close / ref - 1.0
-                best = {
-                    "similarity": sim,
-                    "progress": progress,
-                    "return": ret,
-                    "return_4h": remaining[HORIZON - 1].close / ref - 1.0,
-                    "remaining_bars": len(remaining),
-                }
-        if best is not None:
-            candidates.append(best)
-    candidates.sort(key=lambda x: x["similarity"], reverse=True)
-    selected = candidates[:top_k]
-    if not selected:
-        return {"source": "PHASE_MEMORY", "analogues_n": 0, "p_up_remaining": 0.5, "p_up_next_4_bars": None, "phase_progress": None}
-    weights = [max(x["similarity"], 0.05) ** 4 for x in selected]
+            ref = prefix[-1].close
+            remaining = motif[plen:]
+            if len(remaining) < HORIZON or ref <= 0:
+                continue
+            stages.append({"shape": fp, "progress": progress,
+                           "return": remaining[-1].close / ref - 1.0,
+                           "return_4h": remaining[HORIZON - 1].close / ref - 1.0,
+                           "remaining_bars": len(remaining)})
+        if stages:
+            candidates.append({"start": start, "end": start + motif_window, "stages": stages,
+                               "shape": min(stages, key=lambda x: abs(x["progress"] - 0.55))["shape"]})
+    distance = lambda a, b: math.sqrt(mean([(x - y) ** 2 for x, y in zip(a, b)]))
+    # Historical reference queries use a fixed 55% prefix, with earlier motifs
+    # only. Selecting the live query's best stage cannot alter this threshold.
+    threshold, calibration_n = historical_quality_threshold(
+        candidates, lambda a, b: min(distance(a["shape"], stage["shape"]) for stage in b["stages"]))
+    ranked = []
+    if cur:
+        for candidate in candidates:
+            stage = min(candidate["stages"], key=lambda x: distance(cur, x["shape"]))
+            ranked.append({**candidate, **stage, "distance": distance(cur, stage["shape"])})
+    selected = independent_episodes(ranked, top_k, threshold) if threshold is not None else []
+    available = len(selected) >= MIN_INDEPENDENT_ANALOGUES
+    out = {"source": "PHASE_MEMORY", "available": available,
+           "status": "FORECAST" if available else "ABSTAIN",
+           "reason": "accepted independent motif episodes" if available else
+                     ("insufficient past quality calibration" if threshold is None else "no reliable independent analogues"),
+           "analogues_n": len(selected), "independent_analogues_n": len(selected),
+           "history_candidates": len(candidates), "quality_threshold": threshold,
+           "quality_calibration_n": calibration_n,
+           "query_distance": min((x["distance"] for x in ranked), default=None),
+           "p_up_remaining": None, "p_up_next_4_bars": None, "phase_progress": None,
+           "query_exclusion": "historical motif ends before current query starts"}
+    if not available:
+        return out
+    weights = [(1 / (1 + x["distance"])) ** 4 for x in selected]
     ws = sum(weights)
     p_up = sum(w for w, x in zip(weights, selected) if x["return"] > 0) / ws
     progress = sum(w * x["progress"] for w, x in zip(weights, selected)) / ws
-    return {
-        "source": "PHASE_MEMORY",
-        "analogues_n": len(selected),
-        "history_candidates": len(candidates),
+    out.update({
         "p_up_remaining": p_up,
         "p_up_next_4_bars": sum(w for w, x in zip(weights, selected) if x["return_4h"] > 0) / ws,
         "phase_progress": progress,
-        "top_similarity": selected[0]["similarity"],
-        "mean_similarity": mean([x["similarity"] for x in selected]),
+        "top_similarity": 1 / (1 + selected[0]["distance"]),
+        "mean_similarity": mean([1 / (1 + x["distance"]) for x in selected]),
         "median_remaining_return": statistics.median(x["return"] for x in selected),
         "median_remaining_bars": statistics.median(x["remaining_bars"] for x in selected),
         "progress_grid": list(PHASE_PROGRESS_GRID),
-        "method": "current partial path matched to historical motif prefixes at multiple completion stages",
-    }
+        "method": "z-normalized phase prefixes; disjoint motifs, past-only quality threshold and fixed four-bar target",
+    })
+    return out
 
 
 def expected_child_count(parent: Sequence[v1.Bar], child: Sequence[v1.Bar]) -> int | None:
@@ -596,9 +723,13 @@ def cross_scale_alignment(phase_map: Mapping[str, Mapping[str, Any]]) -> dict[st
     }
 
 
-def calibration_challenger(base_p: float, phase_p: float, alignment: float, regime: str, phase_available: bool) -> dict[str, Any]:
-    base = clamp(base_p, 0.01, 0.99)
-    phase = clamp(phase_p, 0.01, 0.99)
+def calibration_challenger(base_p: float | None, phase_p: float | None, alignment: float, regime: str, phase_available: bool) -> dict[str, Any]:
+    if (v1.finite(base_p) is None or v1.finite(phase_p) is None or
+            not 0 <= float(base_p) <= 1 or not 0 <= float(phase_p) <= 1):
+        return {"active": False, "p_base": base_p, "p_challenger": None, "phase_p": phase_p,
+                "shift_pp": None, "reason": "component forecast abstained", "production_applied": False}
+    base = float(base_p)
+    phase = float(phase_p)
     if not phase_available:
         return {
             "active": False,
@@ -613,7 +744,7 @@ def calibration_challenger(base_p: float, phase_p: float, alignment: float, regi
     shrink = {"TURBULENT": 0.85, "TRANSITION": 0.90}.get(str(regime), 1.0)
     raw = 0.5 + (blend - 0.5) * shrink
     delta = max(-P_CALIBRATION_MAX_SHIFT, min(P_CALIBRATION_MAX_SHIFT, raw - base))
-    challenger = clamp(base + delta, 0.01, 0.99)
+    challenger = clamp(base + delta)
     return {
         "active": True,
         "p_base": base,
@@ -690,10 +821,11 @@ def adaptive_ensemble(
     resolutions: Sequence[Mapping[str, Any]],
 ) -> dict[str, Any]:
     """Bounded research challenger; past frozen component forecasts only."""
-    base = v1.finite(row["memory"].get("p_up"))
-    phase = v1.finite(((row.get("phase_map") or {}).get("1h") or {}).get("phase_memory", {}).get("p_up_4h"))
+    base = forecast_probability(row["memory"])
+    phase_memory = ((row.get("phase_map") or {}).get("1h") or {}).get("phase_memory") or {}
+    phase = forecast_probability(phase_memory, "p_up_4h")
     previous = row.get("p_calibration_challenger") or {}
-    challenger = v1.finite(previous.get("p_challenger")) if previous.get("active") else None
+    challenger = probability(previous.get("p_challenger")) if previous.get("active") else None
     fallback = {"active": False, "methodology_version": ADAPTIVE_VERSION,
                 "reason": "insufficient independent settled forecasts",
                 "p_adaptive": None, "training_independent_n": 0,
@@ -770,7 +902,8 @@ def adaptive_risk_calibrator(
 
 def build_instrument_state(instrument: str, symbol: str, scales: Mapping[str, Sequence[v1.Bar]]) -> dict[str, Any]:
     hourly, daily = list(scales["1h"]), list(scales["1d"])
-    deep = deep_historical_analogues(hourly, daily)
+    deep = deep_historical_analogues(hourly, daily, include_simple=True)
+    simple = deep.pop("simple_memory")
     phase_map = build_phase_map(scales)
     alignment = cross_scale_alignment(phase_map)
     formation = {}
@@ -782,11 +915,12 @@ def build_instrument_state(instrument: str, symbol: str, scales: Mapping[str, Se
     }
     risk = v1.structural_risk(feature_scales)
     risk["atr_1h_fraction"] = feature_scales["1h"].get("atr_fraction")
-    base_p = clamp(float(deep.get("p_up", 0.5)))
+    base_p = forecast_probability(deep)
+    deep["p_up"] = base_p
     phase_mem = (phase_map.get("1h") or {}).get("phase_memory") or {}
-    phase_probability = v1.finite(phase_mem.get("p_up_4h"))
-    phase_p = clamp(phase_probability if phase_probability is not None else 0.5)
-    phase_available = int(phase_mem.get("analogues_n") or 0) >= 12 and phase_probability is not None
+    phase_probability = forecast_probability(phase_mem, "p_up_4h")
+    phase_p = phase_probability
+    phase_available = phase_mem.get("available") is True and phase_probability is not None
     challenger = calibration_challenger(base_p, phase_p, float(alignment.get("alignment_score") or 0), str(risk.get("regime")), phase_available)
     return {
         "instrument": instrument,
@@ -794,8 +928,9 @@ def build_instrument_state(instrument: str, symbol: str, scales: Mapping[str, Se
         "bar_open_at": hourly[-1].timestamp.isoformat().replace("+00:00", "Z"),
         "observed_at": (hourly[-1].source_observed_at or v1.bar_closed_at(hourly[-1], minutes=60)).isoformat().replace("+00:00", "Z"),
         "reference_price": hourly[-1].close,
-        "forecast": "UP" if base_p >= 0.55 else ("DOWN" if base_p <= 0.45 else "NEUTRAL"),
+        "forecast": "ABSTAIN" if base_p is None else ("UP" if base_p >= 0.55 else ("DOWN" if base_p <= 0.45 else "NEUTRAL")),
         "memory": deep,
+        "simple_memory": simple,
         "phase_map": phase_map,
         "intrabar_formation": formation,
         "cross_scale_alignment": alignment,
@@ -828,12 +963,14 @@ def resolve(state_dir: Path, hourly_by: Mapping[str, Sequence[v1.Bar]], as_of: s
         ref = float(s["reference_price"])
         ret = path[-1].close / ref - 1
         y = 1 if ret > 0 else 0
-        base_p = clamp(float(s.get("base_p_up", s.get("p_up_4h", 0.5))))
-        base_brier = (base_p - y) ** 2
-        phase_p = v1.finite(s.get("phase_p_up"))
-        challenger_p = v1.finite(s.get("challenger_p_up"))
-        phase_brier = None if phase_p is None else (clamp(phase_p) - y) ** 2
-        challenger_brier = None if challenger_p is None else (clamp(challenger_p) - y) ** 2
+        base_p = probability(s.get("base_p_up"))
+        base_brier = (base_p - y) ** 2 if base_p is not None and 0 <= base_p <= 1 else None
+        simple_p = probability(s.get("simple_p_up"))
+        simple_brier = (simple_p - y) ** 2 if simple_p is not None and 0 <= simple_p <= 1 else None
+        phase_p = probability(s.get("phase_p_up"))
+        challenger_p = probability(s.get("challenger_p_up"))
+        phase_brier = None if phase_p is None else (phase_p - y) ** 2
+        challenger_brier = None if challenger_p is None else (challenger_p - y) ** 2
         adaptive_p = v1.finite(s.get("adaptive_p_up"))
         adaptive_brier = (adaptive_p - y) ** 2 if adaptive_p is not None and 0 <= adaptive_p <= 1 else None
         risk_score = v1.finite(s.get("risk_score"))
@@ -859,14 +996,16 @@ def resolve(state_dir: Path, hourly_by: Mapping[str, Sequence[v1.Bar]], as_of: s
             "forward_return": ret,
             "outcome_up": bool(y),
             "directional_brier": base_brier,
-            "edge_vs_0_5": 0.25 - base_brier,
+            "edge_vs_0_5": None if base_brier is None else 0.25 - base_brier,
+            "simple_brier": simple_brier,
+            "full_brier_improvement_vs_simple": None if base_brier is None or simple_brier is None else simple_brier - base_brier,
             "phase_brier": phase_brier,
             "phase_edge_vs_0_5": None if phase_brier is None else 0.25 - phase_brier,
             "challenger_brier": challenger_brier,
-            "calibration_brier_improvement_vs_base": None if challenger_brier is None else base_brier - challenger_brier,
+            "calibration_brier_improvement_vs_base": None if challenger_brier is None or base_brier is None else base_brier - challenger_brier,
             "adaptive_version": s.get("adaptive_version"),
             "adaptive_brier": adaptive_brier,
-            "adaptive_brier_improvement_vs_deep": None if adaptive_brier is None else base_brier - adaptive_brier,
+            "adaptive_brier_improvement_vs_deep": None if adaptive_brier is None or base_brier is None else base_brier - adaptive_brier,
             "large_move_event": large_move,
             "structural_risk_index": risk_score,
             "adaptive_risk_brier": risk_brier,
@@ -892,6 +1031,18 @@ def snapshot(state_dir: Path, row: Mapping[str, Any]) -> None:
     phase_1h = row["phase_map"].get("1h") or {}
     phase_mem = phase_1h.get("phase_memory") or {}
     challenger = row["p_calibration_challenger"]
+    frozen_memory = dict(row["memory"])
+    frozen_memory["p_up"] = forecast_probability(frozen_memory)
+    frozen_simple = dict(row.get("simple_memory") or {})
+    frozen_simple["p_up"] = forecast_probability(frozen_simple)
+    frozen_phase = dict(phase_mem)
+    frozen_phase["p_up_4h"] = forecast_probability(frozen_phase, "p_up_4h")
+    frozen_phase["p_up_next_4_bars"] = frozen_phase["p_up_4h"]
+    frozen_challenger = dict(challenger)
+    challenger_valid = (frozen_memory["p_up"] is not None and frozen_phase["p_up_4h"] is not None and
+                        challenger.get("active") is True and probability(challenger.get("p_challenger")) is not None)
+    frozen_challenger.update(active=challenger_valid,
+                             p_challenger=probability(challenger.get("p_challenger")) if challenger_valid else None)
     adaptive = row.get("adaptive_learning") or {}
     ensemble = adaptive.get("ensemble") or {}
     risk_cal = adaptive.get("risk") or {}
@@ -906,12 +1057,17 @@ def snapshot(state_dir: Path, row: Mapping[str, Any]) -> None:
             "bar_open_at": row["bar_open_at"],
             "frozen_at": row["frozen_at"],
             "reference_price": row["reference_price"],
-            "p_up_4h": row["memory"]["p_up"],
-            "base_p_up": row["memory"]["p_up"],
-            "phase_p_up": phase_mem.get("p_up_4h"),
+            "p_up_4h": frozen_memory["p_up"],
+            "base_p_up": frozen_memory["p_up"],
+            "simple_p_up": frozen_simple["p_up"],
+            "frozen_memory": frozen_memory,
+            "frozen_simple_memory": frozen_simple,
+            "phase_p_up": frozen_phase["p_up_4h"],
             "phase_p_up_remaining": phase_mem.get("p_up_remaining"),
+            "frozen_phase_memory": frozen_phase,
+            "frozen_challenger": frozen_challenger,
             "phase_forecast_horizon": "4x1h_market_bars",
-            "challenger_p_up": challenger.get("p_challenger") if challenger.get("active") else None,
+            "challenger_p_up": frozen_challenger["p_challenger"],
             "adaptive_version": ADAPTIVE_VERSION,
             "adaptive_p_up": ensemble.get("p_adaptive") if ensemble.get("active") else None,
             "adaptive_ensemble_weights": ensemble.get("weights"),
@@ -988,6 +1144,19 @@ def hse_measurements(resolutions: Sequence[Mapping[str, Any]], instrument: str) 
     risk_edges = [float(x["adaptive_risk_improvement_vs_prior"]) for x in rows
                   if x.get("adaptive_version") == ADAPTIVE_VERSION and
                   v1.finite(x.get("adaptive_risk_improvement_vs_prior")) is not None]
+    paired_rows = [x for x in rows if v1.finite(x.get("full_brier_improvement_vs_simple")) is not None]
+    paired_intervals = []
+    for row in paired_rows:
+        try:
+            start, end = v1.parse_time(str(row["frozen_at"])), v1.parse_time(str(row["outcome_closed_at"]))
+        except (KeyError, TypeError, ValueError):
+            continue
+        if start < end:
+            paired_intervals.append((start, end, row))
+    # Preserve append-order selection: a late backfill cannot change which
+    # already credited test blocks contributed to cumulative HSE2 evidence.
+    ablation_blocks = _nonoverlapping(paired_intervals)
+    ablation_edges = [float(item[2]["full_brier_improvement_vs_simple"]) for item in ablation_blocks]
     return [
         {
             "proposal_key": f"fse-phase-memory-{instrument.lower()}-4h-brier",
@@ -1047,6 +1216,21 @@ def hse_measurements(resolutions: Sequence[Mapping[str, Any]], instrument: str) 
             "counter": len(risk_edges), "total": sum(risk_edges),
             "details": {"instrument": instrument, "kind": "adaptive_risk",
                         "methodology_version": ADAPTIVE_VERSION, "horizon": "4x1h_market_bars"},
+        },
+        {
+            "proposal_key": f"fse-full-vs-shape-ablation-{instrument.lower()}-4h-brier-v1",
+            "claim": f"FSE full multiblock memory improves paired prospective Brier versus its frozen simple shape-only distance profile.",
+            "champion": "Frozen z-normalized shape-only distance profile",
+            "challenger": "FSE full path/geometry/daily memory",
+            "metric_name": "full_brier_improvement_vs_simple",
+            "target_n": 40, "success_mean_edge": 0.0025, "reject_mean_edge": -0.0025,
+            "counter": len(ablation_edges), "total": sum(ablation_edges),
+            "raw_paired_n": len(paired_rows),
+            "details": {"instrument": instrument, "kind": "feature_ablation",
+                        "methodology_version": METHODOLOGY_VERSION, "horizon": "4x1h_market_bars",
+                        "paired_only": True, "independent_blocks_only": True,
+                        "raw_paired_n": len(paired_rows),
+                        "baseline": "shape_only_z_normalized_distance_profile"},
         },
     ]
 
@@ -1116,18 +1300,10 @@ def run_cycle(
             row["latest_source_observed_at"] = row["observed_at"]
             for key in ("observed_at", "frozen_at", "reference_price", "forecast"):
                 row[key] = same[key]
-            row["memory"]["p_up"] = same["base_p_up"]
-            row["phase_map"]["1h"]["phase_memory"]["p_up_4h"] = same.get("phase_p_up")
-            row["phase_map"]["1h"]["phase_memory"]["p_up_next_4_bars"] = same.get("phase_p_up")
-            row["p_calibration_challenger"].update({
-                "active": same.get("challenger_p_up") is not None,
-                "p_base": same["base_p_up"],
-                "phase_p": same.get("phase_p_up"),
-                "p_challenger": same.get("challenger_p_up"),
-                "shift_pp": (float(same["challenger_p_up"]) - float(same["base_p_up"])) * 100.0
-                            if same.get("challenger_p_up") is not None else 0.0,
-                "reason": "reused immutable frozen snapshot",
-            })
+            row["memory"] = dict(same["frozen_memory"])
+            row["simple_memory"] = dict(same["frozen_simple_memory"])
+            row["phase_map"]["1h"]["phase_memory"] = dict(same["frozen_phase_memory"])
+            row["p_calibration_challenger"] = dict(same["frozen_challenger"])
             row["adaptive_learning"] = {
                 "ensemble": {"active": same.get("adaptive_p_up") is not None,
                              "methodology_version": same.get("adaptive_version"),
@@ -1173,7 +1349,15 @@ def run_cycle(
             "latest_source_observed_at": row.get("latest_source_observed_at", row["observed_at"]),
             "reference_price": row["reference_price"],
             "forecast": row["forecast"],
-            "memory": row["memory"],
+            "memory": dict(row["memory"], p_up=forecast_probability(row["memory"])),
+            "simple_memory": dict(row.get("simple_memory") or {}, p_up=forecast_probability(row.get("simple_memory") or {})),
+            "feature_ablation": {
+                "full_p_up": forecast_probability(row["memory"]),
+                "simple_p_up": forecast_probability(row.get("simple_memory") or {}),
+                "paired_available": forecast_probability(row["memory"]) is not None and
+                                    forecast_probability(row.get("simple_memory") or {}) is not None,
+                "benchmark": "shape_only_z_normalized_distance_profile", "frozen_at": row["frozen_at"],
+            },
             "regime": row["structural_risk"]["regime"],
             "risk_score": row["structural_risk"]["risk_score"],
             "phase_map": row["phase_map"],
@@ -1221,7 +1405,9 @@ def run_cycle(
             "Intrabar Formation reads lower-timeframe bars inside the currently forming higher-timeframe bar.",
             "Cross-scale alignment is descriptive research evidence; it does not itself create a trade.",
             "P Calibration Challenger is capped at +/-6 percentage points and remains shadow-only.",
-            "No legacy phase/calibration record is credited to the corrected cohort; only snapshots frozen under FSE-PHASE-2.0 count.",
+            "No legacy phase/calibration record is credited to the corrected cohort; only snapshots frozen under FSE-PHASE-3.0 count.",
+            "Poor or insufficient independent analogues abstain; missing probabilities are never replaced by 50/50.",
+            "The shape-only historical AB-join is a distance-profile reference, not a complete all-pairs Matrix Profile implementation.",
             "Adaptive Ensemble and Risk Calibrator use prior settled evidence only and are independent shadow hypotheses in existing HSE2.",
         ],
     }

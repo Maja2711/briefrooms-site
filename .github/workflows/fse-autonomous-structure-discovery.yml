@@ -124,11 +124,15 @@ jobs:
           python scripts/fse_autonomous_discovery.py --state-dir "$FSE_ASD_STATE_DIR" --verify
           python - <<'PY'
           import json
+          from scripts.fse_autonomous_discovery import VERSION, MAX_SELECTION_TRIALS
           p=json.load(open("data/investments/fse_discovery_public.json"))
+          assert p["methodology_version"]==VERSION
           assert p["mode"]=="SHADOW_ONLY" and p["production_impact"] is False
           assert p["automatic_promotion"] is False
           assert all(value is False for value in p["authority"].values())
           assert all("applications" in f and "name" in f and "description" in f for f in p["families"])
+          assert "legacy_families" in p
+          assert 0<=p["summary"]["selection_trials_used"]<=MAX_SELECTION_TRIALS
           print("FSE_ASD_ZERO_PRODUCTION_AUTHORITY_PASS",p["summary"])
           PY
           git diff --exit-code -- data/investments/weekly data/investments/stock_trading_v2_production_state.json data/investments/eurusd_daily_history.json
