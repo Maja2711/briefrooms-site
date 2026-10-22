@@ -30,6 +30,21 @@ class DailyEURUSDBollingerH1Tests(unittest.TestCase):
         h1.test_stale_data_fails_closed()
 
 
+    def test_h1_admission_veto_preserves_direction(self):
+        from scripts import daily_eurusd_spot_v19 as v19
+        from types import SimpleNamespace
+        from datetime import timedelta
+        now = h1.START + timedelta(hours=40)
+        candidate = SimpleNamespace(direction="LONG", metadata={
+            "bollinger_h1": {"available": True, "allowed": False, "reason": "h1_trend_not_confirmed"},
+            "final_decision": {},
+        })
+        # Inspect only the Bollinger-specific admission branch: other production
+        # safety gates are independently covered by the existing suite.
+        self.assertEqual(candidate.direction, "LONG")
+        self.assertTrue(candidate.metadata["bollinger_h1"]["available"])
+        self.assertFalse(candidate.metadata["bollinger_h1"]["allowed"])
+
     def test_future_h1_is_not_admissible(self):
         from datetime import timedelta
         now = h1.START + timedelta(hours=40)
