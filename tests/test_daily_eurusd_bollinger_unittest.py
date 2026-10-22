@@ -31,7 +31,10 @@ class DailyEURUSDBollingerH1Tests(unittest.TestCase):
 
 
     def test_production_admission_blocks_verified_h1_veto(self):
-        from scripts import daily_eurusd_spot_v19 as v19
+        # Import the same module instance as the production unittest suite.
+        # A second import as scripts.daily_eurusd_spot_v19 re-runs _install(),
+        # rebinding the v18/base hooks and creating two different manifests.
+        import daily_eurusd_spot_v19 as v19
         from unittest.mock import patch
         from types import SimpleNamespace
         from datetime import timedelta
