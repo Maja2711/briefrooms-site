@@ -456,8 +456,8 @@ class EventProbabilityThreatEngine:
         return now.replace(hour=DAILY_FREEZE_HOUR_UTC, minute=0, second=0, microsecond=0)
 
     def freeze(self, estimates: Sequence[ThreatEstimate], now: datetime, *, force: bool = False) -> List[EventForecast]:
-        if not force and now.hour != DAILY_FREEZE_HOUR_UTC:
-            return []
+        # Missed UTC-midnight schedules are caught up on the first successful run.
+        # Forecast timestamps remain the actual execution time, never backdated.
         bucket = self._freeze_bucket(now, force)
         batch_kind = "manual" if force else "daily"
         batch_id = stable_id("gse-threat-batch", batch_kind, iso_z(bucket))

@@ -92,6 +92,16 @@ class EventThreatFreezeVerificationTests(unittest.TestCase):
             second = engine.run(now + timedelta(minutes=20))
             self.assertEqual(second["last_cycle"]["forecasts_frozen"], 0)
 
+    def test_delayed_daily_freeze_is_not_backdated(self):
+        now = datetime(2026, 9, 29, 8, 17, tzinfo=UTC)
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write_jsonl(root / "gse_evidence.jsonl", [])
+            engine = EventProbabilityThreatEngine(root)
+            self.assertEqual(engine.run(now)["last_cycle"]["forecasts_frozen"], len(FORECAST_HORIZONS_H) * 5)
+            self.assertTrue(all(x["forecast_at"].startswith("2026-09-29T08:17:") for x in engine.store.forecasts()))
+            self.assertEqual(engine.run(now + timedelta(hours=4))["last_cycle"]["forecasts_frozen"], 0)
+
     def test_hypothetical_attack_headline_does_not_count_as_realization(self):
         start = datetime(2026, 9, 29, 0, 17, tzinfo=UTC)
         with tempfile.TemporaryDirectory() as tmp:

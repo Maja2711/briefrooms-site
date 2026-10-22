@@ -528,8 +528,8 @@ class GeopoliticalScenarioEngine:
 
     def freeze(self, scenarios: Sequence[Scenario], now: datetime, *, force: bool = False) -> List[FrozenAssetForecast]:
         bucket = self._freeze_bucket(now)
-        if not force and now.hour not in FREEZE_HOURS_UTC:
-            return []
+        # Freeze the current 6-hour bucket on the first successful scheduled run.
+        # Do not backdate the forecast timestamp if GitHub Actions started late.
         batch_id = stable_id("gse-batch", iso_z(bucket))
         existing_batches = {str(x.get("batch_id")) for x in self.store.forecasts()}
         if batch_id in existing_batches and not force:

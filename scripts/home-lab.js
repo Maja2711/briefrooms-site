@@ -22,7 +22,7 @@
   };
   const T=isEn?{
     unavailable:'Source unavailable',details:'Open →',research:'RESEARCH ONLY',
-    gseLabel:'GEOPOLITICS · GSE v2',gseStatus:'FROZEN FORECAST',gseStale:'STALE FORECAST',
+    gseLabel:'GEOPOLITICS · GSE v2',gseStatus:'TOP PROBABILITY',gseStale:'NO CURRENT FORECAST',gseOthers:'Also in the top 3',gseMarket:'P(direction)',gseEvent:'P(event)',
     thesisProbability:'Thesis probability',horizon:'Horizon',clusters:'N effective',epistemic:'Epistemic conf.',
     fxLabel:'INVESTING · DAILY EUR/USD',live:'LIVE',snapshot:'OPEN · SNAPSHOT',result:'RESULT',
     entry:'Entry',now:'Now',engineMark:'Engine mark',pnl:'P/L',exit:'Exit',closed:'Closed',
@@ -32,7 +32,7 @@
     roomNames:{health:'Health',science:'Science',geo:'Geopolitics'}
   }:{
     unavailable:'Brak świeżego źródła',details:'Otwórz →',research:'TYLKO RESEARCH',
-    gseLabel:'GEOPOLITYKA · GSE v2',gseStatus:'ZAMROŻONA PROGNOZA',gseStale:'PROGNOZA NIEŚWIEŻA',
+    gseLabel:'GEOPOLITYKA · GSE v2',gseStatus:'NAJWYŻSZE P',gseStale:'BRAK AKTUALNYCH',gseOthers:'Kolejne prognozy',gseMarket:'P(kierunku)',gseEvent:'P(zdarzenia)',
     thesisProbability:'P(tezy)',horizon:'Horyzont',clusters:'N efektywne',epistemic:'Pewność epistem.',
     fxLabel:'INWESTYCJE · DAILY EUR/USD',live:'LIVE',snapshot:'OPEN · SNAPSHOT',result:'WYNIK',
     entry:'Wejście',now:'Teraz',engineMark:'Mark silnika',pnl:'P/L',exit:'Wyjście',closed:'Zamknięto',
@@ -127,22 +127,41 @@
   }
 
   function gseModel(data){
-    const x=data&&data.featured_thesis;
-    if(!x)return unavailableModel('is-gse',T.gseLabel,PATHS.gseLab);
-    const fresh=x.freshness==='fresh';
-    const question=x['question_'+lang]||x.question_en||x.question_pl||'GSE v2';
-    const ec=num(x.epistemic_confidence);
+    const ranking=data&&data.home_top_forecasts;
+    const candidates=ranking?[ranking.selected,...(Array.isArray(ranking.runners_up)?ranking.runners_up:[])].filter(Boolean):[];
+    // Revalidate at view time: even a cached JSON projection can expire.
+    const live=candidates.filter(x=>{
+      const probability=num(x.probability),maxAge=num(x.max_age_hours);
+      const at=Date.parse(x.forecast_at||''),target=Date.parse(x.target_at||'');
+      const age=Date.now()-at;
+      return probability!==null&&probability>=0&&probability<=1&&
+        maxAge!==null&&maxAge>0&&Number.isFinite(at)&&Number.isFinite(target)&&
+        age>=-120000&&age<=maxAge*3600000&&target>Date.now();
+    }).sort((a,b)=>Number(b.probability)-Number(a.probability)||(num(b.confidence)||0)-(num(a.confidence)||0));
+    const x=live[0];
+    if(!x){
+      const empty=unavailableModel('is-gse',T.gseLabel,PATHS.gseLab);
+      empty.id='home-live-gse';empty.status=T.gseStale;empty.statusClass='is-stale';
+      return empty;
+    }
+    const next=live.slice(1,3);
+    const title=x['question_'+lang]||x.question_en||x.question_pl||'GSE v2';
+    const confidence=num(x.confidence),sample=num(x.sample_size);
+    const alternatives=next.map(item=>
+      (item['short_label_'+lang]||item.short_label_en||item.asset||'GSE')+' '+fmtProb(item.probability)
+    ).join(' · ');
     return {
-      id:'home-live-gse',variant:'is-gse',label:T.gseLabel,
-      status:fresh?T.gseStatus:T.gseStale,statusClass:fresh?'':'is-stale',
-      value:(Number(x.probability)>=0.5?(isEn?'YES':'TAK'):(isEn?'NO':'NIE'))+' — '+fmtProb(x.probability),valueLabel:'P(tezy)',
-      title:question,
+      id:'home-live-gse',variant:'is-gse',label:T.gseLabel,status:T.gseStatus,
+      value:fmtProb(x.probability),
+      valueLabel:x.kind==='event'?T.gseEvent:T.gseMarket,
+      title:title,
+      desc:alternatives?T.gseOthers+': '+clampText(alternatives,160):'',
       metrics:[
         {label:T.horizon,value:x.horizon_label||(String(x.horizon_hours||'—')+'h')},
-        {label:T.clusters,value:String(x.effective_cluster_n==null?'—':x.effective_cluster_n)},
-        {label:T.epistemic,value:ec===null?'—':fmtProb(ec)}
+        {label:x['sample_label_'+lang]||T.clusters,value:sample===null?'—':String(sample)},
+        {label:T.epistemic,value:confidence===null?'—':fmtProb(confidence)}
       ],
-      note:T.research+' · '+(x.expected_direction||'—')+' '+(x.asset||''),
+      note:T.research+' · GSE v2 SHADOW · '+(x.kind==='event'?'EVENT':'MARKET'),
       meta:fmtTime(x.forecast_at),
       href:x['href_'+lang]||PATHS.gseLab,cta:T.details
     };
