@@ -799,13 +799,17 @@ def _open_output_v19(
     """Preserve legacy position facts while projecting them through v1.9 runtime."""
     pending = (_cycle_context or {}).pop("pending_canonical_freeze", None)
     if pending is not None:
-        manifest = position.get("decision_manifest") or {}
-        if (pending["manifest"]["decision_id"] != manifest.get("decision_id")
-                or pending["manifest"]["manifest_sha256"] != manifest.get("manifest_sha256")):
-            raise ValueError("canonical admission manifest changed before position persistence")
+        manifest = position.get("decision_manifest")
+        if not isinstance(manifest, Mapping):
+            raise ValueError("canonical open position missing decision manifest")
+        decision_record.validate_manifest(manifest)
+        # The lifecycle may select a different final decision than the EPE
+        # provisional candidate. Only the actual persisted position is evidence.
+        final = manifest.get("final_decision") or {}
+        score = float(final.get("score", position.get("entry_score", pending["score"])))
         state, _ = production_policy.freeze_case(
             _cycle_context["policy_state"], decision_manifest=manifest, position=position,
-            score=pending["score"], now=pending["frozen_at"],
+            score=score, now=pending["frozen_at"],
             slices={"session": pending["session"], "macro": "clear"})
         _cycle_context["policy_state"] = state
     output = _v18_open_output(candidate, position, mark_price)
