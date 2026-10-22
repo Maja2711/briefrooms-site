@@ -36,7 +36,7 @@ def evaluate(bars, direction, observed_at):
     if len(candles) < PERIOD + 3:
         return {"available": False, "allowed": False, "reason": "insufficient_closed_h1_bars", "closed_h1": len(candles)}
     age_minutes = (observed_at - candles[-1][0]).total_seconds() / 60
-    if age_minutes > MAX_AGE_MINUTES:
+    if age_minutes < 0 or age_minutes > MAX_AGE_MINUTES:
         return {"available": False, "allowed": False, "reason": "stale_h1_bollinger",
                 "closed_h1": len(candles), "last_closed_h1": candles[-1][0].isoformat(),
                 "age_minutes": round(age_minutes, 2)}
