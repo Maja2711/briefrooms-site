@@ -33,10 +33,12 @@ try {
         const statusGeometry = await page.evaluate(() => {
           const stamp = document.querySelector(".str-market-us-panel .str-data-stamp");
           const title = document.querySelector(".str-market-us-panel .str-market-status strong");
-          const panel = document.querySelector(".str-market-us-panel");
+          const panel = document.querySelector(".str-market-us-panel > .str-market-status");
           const gpw = document.querySelector(".str-market-statuses > .str-market-status");
           const rect = (node) => { const r = node.getBoundingClientRect(); return {top:r.top,bottom:r.bottom,left:r.left,right:r.right}; };
-          return {stamp:rect(stamp),title:rect(title),panel:rect(panel),gpw:rect(gpw),
+          const gpwTitle = gpw.querySelector("strong");
+          return {stamp:rect(stamp),title:rect(title),gpwTitle:rect(gpwTitle),
+                  panel:rect(panel),gpw:rect(gpw),
                   timestamp:stamp.querySelector("strong").textContent.trim(),usa:title.textContent.trim()};
         });
         assert.ok(statusGeometry.stamp.bottom <= statusGeometry.title.top + 1,
@@ -46,9 +48,18 @@ try {
           lang + "/" + width + ": portfolio date spills outside USA status column");
         assert.ok(statusGeometry.timestamp.length > 4, lang + "/" + width + ": missing portfolio date");
         assert.ok(statusGeometry.usa.includes("USA"), lang + "/" + width + ": missing USA status");
-        assert.ok(statusGeometry.panel.left >= statusGeometry.gpw.right - 2 ||
-                  statusGeometry.panel.top >= statusGeometry.gpw.bottom - 2,
-          lang + "/" + width + ": USA/date overlaps GPW status");
+        // User-reported regression: GPW heading was ~30px ABOVE US heading
+        // while both statuses were split into separate flex/grid structures.
+        if (width > 620) {
+          assert.ok(Math.abs(statusGeometry.gpwTitle.top - statusGeometry.title.top) <= 2,
+            lang + "/" + width + ": GPW and USA status headings are not level: " +
+            JSON.stringify(statusGeometry));
+          assert.ok(statusGeometry.gpw.right <= statusGeometry.title.left + 2,
+            lang + "/" + width + ": GPW and USA status areas overlap");
+        } else {
+          assert.ok(statusGeometry.gpw.bottom <= statusGeometry.stamp.top + 2,
+            lang + "/" + width + ": mobile GPW/status order overlaps");
+        }
         // Standalone market actions: verify real computed geometry and contrast
         // affordances in both languages, not the retired shared glass bezel.
         const buttons = await page.evaluate(() => {
