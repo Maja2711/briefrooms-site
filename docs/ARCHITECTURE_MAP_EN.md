@@ -542,3 +542,7 @@ After canonical commit persistence, each writer immediately calls time-bounded `
 ## LE-12 — History Integrity Guard (code stage; no independent archive yet)
 
 `scripts/history_integrity_guard.py`, `tests/test_history_integrity_guard.py`, `docs/HISTORY_INTEGRITY_GUARD.md`. Read-only SHA-256 snapshot/verify for explicitly selected frozen files. **Not yet an operational WORM protection**: independent store, trusted timestamp, and promotion-blocking integration are not provisioned. A repo-local manifest is not an independent anchor. No trade execution, historical rewrite, calibration, promotion or rollback authority. Independent archive permissions, actual external roundtrip and fail-closed end-to-end tests are required before production-control claims.
+
+### TR-03 — Bollinger H1 admission (proposed change)
+
+After the final Belief-first direction, Daily EUR/USD evaluates completed H1 bars and Bollinger SMA(30) ± 2.5σ in `scripts/daily_eurusd_bollinger_h1.py`. This is the primary technical filter for new entries: it can veto admission when trend confirmation fails, momentum is exhausted, or source bars are incomplete/stale. It cannot generate or reverse direction, change EPE, SL/TP, open-position lifecycle, or any other instrument. The module is covered by the immutable runtime code fingerprint. Promotion to `main` requires PR review and tests; no automatic promotion.
