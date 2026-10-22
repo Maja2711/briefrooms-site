@@ -170,3 +170,7 @@ Experience
 No learning step may rewrite closed history, fabricate prior execution or silently weaken hard safety invariants.
 
 Detailed bilingual sizing contract: `docs/STOCK_TRADING_FIXED_NOTIONAL_EN.md` and `docs/STOCK_TRADING_FIXED_NOTIONAL_PL.md`.
+
+## Read-only Company Logo Resolver
+
+A separate GitHub Actions job observes new GPW/US canonical portfolio symbols and retries periodically. It may publish only `data/investments/company_logo_cache.json` and validated PNGs in `assets/company-logos/`. Wikidata name, ticker (P249), listed exchange (P414) and official HTTPS website (P856) must match before requesting the corresponding favicon image. The fetched site icon is checked for bounded dimensions and PNG integrity; this is not official trademark authentication. Without a verified match or suitable icon, no cache entry is created and the existing text fallback remains. The optional logo cache never controls stock discovery, admission, P&L or execution.
