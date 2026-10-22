@@ -1,6 +1,6 @@
 {
   "schema_version": "gpw-loco-counterfactual-replay-v1",
-  "generated_at": "2026-10-21T19:32:49.019161Z",
+  "generated_at": "2026-10-22T19:23:33.711846Z",
   "market": "gpw",
   "method": {
     "name": "leave_one_component_out_counterfactual_replay_v1",
@@ -12,10 +12,10 @@
     "historical_backfill": false
   },
   "coverage": {
-    "snapshot_count": 26,
-    "validated_snapshot_count": 26,
+    "snapshot_count": 27,
+    "validated_snapshot_count": 27,
     "invalid_snapshot_count": 0,
-    "missing_outcome_record_count": 0,
+    "missing_outcome_record_count": 1,
     "resolved_decision_count": 24,
     "supported_components": [
       "catalyst",
@@ -146,8 +146,8 @@
       "neutral_count": 21,
       "beneficial_rate": 0.125,
       "harmful_rate": 0.0,
-      "marginal_value_percent_sum": 13.5155,
-      "mean_marginal_value_percent": 0.563146,
+      "marginal_value_percent_sum": 13.6569,
+      "mean_marginal_value_percent": 0.569037,
       "median_marginal_value_percent": 0.0,
       "evidence_status": "EARLY_SIGNAL"
     },
@@ -157,13 +157,13 @@
       "decision_change_count": 8,
       "decision_change_rate": 0.333333,
       "plan_change_count": 24,
-      "beneficial_count": 0,
-      "harmful_count": 2,
-      "neutral_count": 22,
-      "beneficial_rate": 0.0,
-      "harmful_rate": 0.083333,
-      "marginal_value_percent_sum": -0.9161,
-      "mean_marginal_value_percent": -0.038171,
+      "beneficial_count": 2,
+      "harmful_count": 1,
+      "neutral_count": 21,
+      "beneficial_rate": 0.083333,
+      "harmful_rate": 0.041667,
+      "marginal_value_percent_sum": 0.9356,
+      "mean_marginal_value_percent": 0.038983,
       "median_marginal_value_percent": 0.0,
       "evidence_status": "EARLY_SIGNAL"
     }
@@ -9083,8 +9083,8 @@
           "decision_changed": true,
           "plan_changed": true,
           "full_t2_net_return_percent": 1.2609,
-          "without_component_t2_net_return_percent": -2.6732,
-          "marginal_value_percent": 3.9341,
+          "without_component_t2_net_return_percent": -2.6448,
+          "marginal_value_percent": 3.9057,
           "full_plan": {
             "action": "LONG",
             "symbol": "LPP.WA",
@@ -9122,31 +9122,24 @@
                 "status": "RESOLVED",
                 "horizon_sessions": 1,
                 "session": "2026-10-15",
-                "activated": true,
-                "activated_at": "2026-10-15T09:00:00+02:00",
-                "activation_evidence": "first_post_decision_5m_open_in_zone",
-                "entry_price": 17.225,
-                "exit_price": 17.26,
-                "exit_reason": "horizon_close",
-                "exit_at": null,
-                "gross_return_percent": 0.2032,
-                "net_return_percent": -0.1768,
-                "r_multiple": 0.0886,
-                "cost_assumption_percent": 0.38
+                "activated": false,
+                "net_return_percent": 0.0,
+                "gross_return_percent": 0.0,
+                "exit_reason": "not_activated_by_horizon"
               },
               {
                 "status": "RESOLVED",
                 "horizon_sessions": 2,
                 "session": "2026-10-16",
                 "activated": true,
-                "activated_at": "2026-10-15T09:00:00+02:00",
+                "activated_at": "2026-10-16T09:00:00+02:00",
                 "activation_evidence": "first_post_decision_5m_open_in_zone",
-                "entry_price": 17.225,
+                "entry_price": 17.22,
                 "exit_price": 16.83,
                 "exit_reason": "stop",
                 "exit_at": "2026-10-16T10:20:00+02:00",
-                "gross_return_percent": -2.2932,
-                "net_return_percent": -2.6732,
+                "gross_return_percent": -2.2648,
+                "net_return_percent": -2.6448,
                 "r_multiple": -1.0,
                 "cost_assumption_percent": 0.38
               }
@@ -9156,14 +9149,14 @@
         {
           "component": "expected_value",
           "status": "RESOLVED",
-          "classification": "HARMFUL_COMPONENT",
+          "classification": "BENEFICIAL_COMPONENT",
           "full_selected_symbol": "LPP.WA",
           "without_selected_symbol": "LPP.WA",
           "decision_changed": false,
           "plan_changed": true,
           "full_t2_net_return_percent": 1.2609,
-          "without_component_t2_net_return_percent": 1.6204,
-          "marginal_value_percent": -0.3595,
+          "without_component_t2_net_return_percent": 0.0,
+          "marginal_value_percent": 1.2609,
           "full_plan": {
             "action": "LONG",
             "symbol": "LPP.WA",
@@ -9201,33 +9194,19 @@
                 "status": "RESOLVED",
                 "horizon_sessions": 1,
                 "session": "2026-10-15",
-                "activated": true,
-                "activated_at": "2026-10-15T09:00:00+02:00",
-                "activation_evidence": "first_post_decision_5m_open_in_zone",
-                "entry_price": 25600.0,
-                "exit_price": 26112.1,
-                "exit_reason": "target",
-                "exit_at": "2026-10-15T11:20:00+02:00",
-                "gross_return_percent": 2.0004,
-                "net_return_percent": 1.6204,
-                "r_multiple": 1.477,
-                "cost_assumption_percent": 0.38
+                "activated": false,
+                "net_return_percent": 0.0,
+                "gross_return_percent": 0.0,
+                "exit_reason": "not_activated_by_horizon"
               },
               {
                 "status": "RESOLVED",
                 "horizon_sessions": 2,
                 "session": "2026-10-16",
-                "activated": true,
-                "activated_at": "2026-10-15T09:00:00+02:00",
-                "activation_evidence": "first_post_decision_5m_open_in_zone",
-                "entry_price": 25600.0,
-                "exit_price": 26112.1,
-                "exit_reason": "target",
-                "exit_at": "2026-10-15T11:20:00+02:00",
-                "gross_return_percent": 2.0004,
-                "net_return_percent": 1.6204,
-                "r_multiple": 1.477,
-                "cost_assumption_percent": 0.38
+                "activated": false,
+                "net_return_percent": 0.0,
+                "gross_return_percent": 0.0,
+                "exit_reason": "not_activated_by_horizon"
               }
             ]
           }
@@ -9504,8 +9483,8 @@
           "decision_changed": true,
           "plan_changed": true,
           "full_t2_net_return_percent": 0.992,
-          "without_component_t2_net_return_percent": -2.8815,
-          "marginal_value_percent": 3.8735,
+          "without_component_t2_net_return_percent": -3.0513,
+          "marginal_value_percent": 4.0433,
           "full_plan": {
             "action": "LONG",
             "symbol": "LPP.WA",
@@ -9544,14 +9523,14 @@
                 "horizon_sessions": 1,
                 "session": "2026-10-16",
                 "activated": true,
-                "activated_at": "2026-10-15T14:45:00+02:00",
+                "activated_at": "2026-10-16T09:00:00+02:00",
                 "activation_evidence": "first_post_decision_5m_open_in_zone",
-                "entry_price": 17.19,
+                "entry_price": 17.22,
                 "exit_price": 16.76,
                 "exit_reason": "stop",
                 "exit_at": "2026-10-16T10:20:00+02:00",
-                "gross_return_percent": -2.5015,
-                "net_return_percent": -2.8815,
+                "gross_return_percent": -2.6713,
+                "net_return_percent": -3.0513,
                 "r_multiple": -1.0,
                 "cost_assumption_percent": 0.38
               },
@@ -9560,14 +9539,14 @@
                 "horizon_sessions": 2,
                 "session": "2026-10-19",
                 "activated": true,
-                "activated_at": "2026-10-15T14:45:00+02:00",
+                "activated_at": "2026-10-16T09:00:00+02:00",
                 "activation_evidence": "first_post_decision_5m_open_in_zone",
-                "entry_price": 17.19,
+                "entry_price": 17.22,
                 "exit_price": 16.76,
                 "exit_reason": "stop",
                 "exit_at": "2026-10-16T10:20:00+02:00",
-                "gross_return_percent": -2.5015,
-                "net_return_percent": -2.8815,
+                "gross_return_percent": -2.6713,
+                "net_return_percent": -3.0513,
                 "r_multiple": -1.0,
                 "cost_assumption_percent": 0.38
               }
@@ -9577,14 +9556,14 @@
         {
           "component": "expected_value",
           "status": "RESOLVED",
-          "classification": "NEUTRAL_COMPONENT",
+          "classification": "BENEFICIAL_COMPONENT",
           "full_selected_symbol": "LPP.WA",
           "without_selected_symbol": "LPP.WA",
           "decision_changed": false,
           "plan_changed": true,
           "full_t2_net_return_percent": 0.992,
-          "without_component_t2_net_return_percent": 0.992,
-          "marginal_value_percent": 0.0,
+          "without_component_t2_net_return_percent": 0.7607,
+          "marginal_value_percent": 0.2313,
           "full_plan": {
             "action": "LONG",
             "symbol": "LPP.WA",
@@ -9623,15 +9602,15 @@
                 "horizon_sessions": 1,
                 "session": "2026-10-16",
                 "activated": true,
-                "activated_at": "2026-10-15T14:45:00+02:00",
+                "activated_at": "2026-10-16T09:00:00+02:00",
                 "activation_evidence": "first_post_decision_5m_open_in_zone",
-                "entry_price": 26240.0,
+                "entry_price": 26300.0,
                 "exit_price": 26400.0,
                 "exit_reason": "horizon_close",
                 "exit_at": null,
-                "gross_return_percent": 0.6098,
-                "net_return_percent": 0.2298,
-                "r_multiple": 0.3387,
+                "gross_return_percent": 0.3802,
+                "net_return_percent": 0.0002,
+                "r_multiple": 0.1878,
                 "cost_assumption_percent": 0.38
               },
               {
@@ -9639,15 +9618,15 @@
                 "horizon_sessions": 2,
                 "session": "2026-10-19",
                 "activated": true,
-                "activated_at": "2026-10-15T14:45:00+02:00",
+                "activated_at": "2026-10-16T09:00:00+02:00",
                 "activation_evidence": "first_post_decision_5m_open_in_zone",
-                "entry_price": 26240.0,
+                "entry_price": 26300.0,
                 "exit_price": 26600.0,
                 "exit_reason": "horizon_close",
                 "exit_at": null,
-                "gross_return_percent": 1.372,
-                "net_return_percent": 0.992,
-                "r_multiple": 0.7621,
+                "gross_return_percent": 1.1407,
+                "net_return_percent": 0.7607,
+                "r_multiple": 0.5635,
                 "cost_assumption_percent": 0.38
               }
             ]
@@ -10089,6 +10068,12 @@
       "status": "PENDING_OR_DATA_GAP",
       "reason": "t_plus_2_not_complete",
       "variants": []
+    },
+    {
+      "snapshot_id": "gpw-loco-9bf86a72aac99d3a20dc",
+      "decision_date": "2026-10-22",
+      "status": "PENDING_OUTCOME_RECORD",
+      "variants": []
     }
   ],
   "governance": {
@@ -10102,5 +10087,5 @@
     "automatic_component_removal": false,
     "historical_backfill": false
   },
-  "artifact_sha256": "aef2ffb46b63f27383409b85b3ce84c3091bdbfce1c86dc828b769eec374637e"
+  "artifact_sha256": "9c9943ae3f575a0efead3efc38a030e365285becce21bc9fca4cea9479fad5b2"
 }
