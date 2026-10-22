@@ -14,6 +14,8 @@ on:
       - "tests/test_trading_notification_events.py"
       - "scripts/sync_trading_push_commit.sh"
       - "tests/test_trading_push_handoff.py"
+      - "scripts/audit_trading_push_delivery_sla.py"
+      - "tests/test_trading_push_delivery_sla.py"
       - "data/notifications/trading-notification-config.json"
       - "data/investments/eurusd_daily_spot.json"
       - "data/investments/eurusd_daily_history.json"
@@ -56,7 +58,7 @@ jobs:
           python -m py_compile scripts/build_trading_notification_events.py
           node --check scripts/trading-notifications.js
           node --check br-trading-sw.js
-          python -m unittest tests.test_trading_notification_events tests.test_trading_push_handoff -v
+          python -m unittest tests.test_trading_notification_events tests.test_trading_push_handoff tests.test_trading_push_delivery_sla -v
           python scripts/build_trading_notification_events.py
       - name: Persist notification state/events only when changed
         if: github.event_name != 'pull_request'
@@ -82,3 +84,9 @@ jobs:
             sleep $((attempt*3))
           done
           exit 1
+
+      # Read-only production diagnostics. Never send tests or retry accepted
+      # notifications here; doing so could create duplicate trade alerts.
+      - name: Audit per-event provider-to-device notification SLA
+        if: github.event_name != 'pull_request'
+        run: python scripts/audit_trading_push_delivery_sla.py
