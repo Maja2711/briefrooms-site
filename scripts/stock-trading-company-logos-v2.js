@@ -22,11 +22,19 @@
     BDX:'budimex.pl', BUD:'budimex.pl', ATT:'grupaazoty.com', PKP:'pkpcargo.com'
   };
 
+  // Known, verified US listings only. Do not override identically named GPW tickers.
+  const US_DOMAINS = Object.freeze({
+    ASO: 'academy.com', // Academy Sports + Outdoors
+    WMG: 'wmg.com',     // Warner Music Group
+    SAP: 'sap.com'      // SAP SE ADS
+  });
+
   const normalizeTicker = (value) => String(value || '').toUpperCase().replace(/\.WA$/,'').replace(/[^A-Z0-9]/g,'');
   const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 
-  function resolveDomain(ticker, name) {
+  function resolveDomain(ticker, name, market) {
     const t = normalizeTicker(ticker);
+    if (market === 'US' && US_DOMAINS[t]) return US_DOMAINS[t];
     if (DOMAINS[t]) return DOMAINS[t];
     const n = String(name || '').toLowerCase();
     if (n.includes('micron')) return 'micron.com';
@@ -71,7 +79,7 @@
     if (mark.dataset.logoV2Key === key) return;
     mark.dataset.logoV2Key = key;
 
-    const domain = resolveDomain(ticker, name);
+    const domain = resolveDomain(ticker, name, mark.classList.contains('is-us') ? 'US' : 'GPW');
     const sources = sourcesFor(domain);
     mark.classList.add('br-company-logo-v2');
     mark.classList.toggle('is-logo-fallback', !sources.length);
