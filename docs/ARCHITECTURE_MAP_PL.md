@@ -546,3 +546,7 @@ Po zapisie kanonicznego commita writer natychmiast wykonuje ograniczony czasowo 
 ## LE-12 — History Integrity Guard (etap kodu, bez niezależnego archiwum)
 
 `scripts/history_integrity_guard.py`, `tests/test_history_integrity_guard.py`, `docs/HISTORY_INTEGRITY_GUARD.md`. Wyłącznie odczytowe SHA-256 snapshot/verify dla jawnie wskazanych zamrożonych plików. **Nie jest jeszcze aktywnym zabezpieczeniem WORM**: brak niezależnego magazynu, zaufanego timestampu i integracji blokującej promocje. Manifest w repo nie stanowi niezależnego dowodu. Bez prawa do trading/execution, zmian historii, kalibracji, promocji ani rollbacku. Przed uznaniem za production control wymagane niezależne uprawnienia do archiwum, rzeczywisty zapis/odczyt i test end-to-end fail-closed.
+
+### TR-03 — Bollinger H1 admission (proponowana zmiana)
+
+Po finalnym kierunku Belief-first silnik Daily EUR/USD ocenia zamknięte świece H1 i Bollinger SMA(30) ± 2.5σ przez `scripts/daily_eurusd_bollinger_h1.py`. Jest to główny filtr techniczny nowych wejść: może zablokować admission przy braku potwierdzenia trendu, wyczerpaniu impulsu lub niepełnych/starych danych. Nie tworzy ani nie odwraca kierunku, nie zmienia EPE, SL/TP, open-position lifecycle ani innych instrumentów. Kod modułu jest objęty manifestem runtime hash. Wdrożenie do `main` wymaga testów i przeglądu PR; brak automatycznej promocji.
