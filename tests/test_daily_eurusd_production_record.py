@@ -300,3 +300,12 @@ class ProductionDecisionRecordTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# The monitor workflow explicitly enumerates unittest modules instead of using
+# discovery. Export the focused Bollinger suites through an already-listed
+# EURUSD production test module so the H1/D1 tests cannot be silently skipped.
+from tests.test_daily_eurusd_bollinger_unittest import (  # noqa: E402,F401
+    DailyEURUSDBollingerH1Tests,
+    DailyEURUSDBollingerD1Tests,
+)
