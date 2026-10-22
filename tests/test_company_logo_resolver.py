@@ -54,6 +54,20 @@ class ResolverTests(unittest.TestCase):
         bad[-6] = bad[-6] ^ 1
         self.assertFalse(resolver.valid_png(bytes(bad)))
 
+    def test_legacy_domain_map_is_market_scoped(self):
+        # Existing BRs logo domains may be cached while new symbols still
+        # use issuer evidence. Never allow one exchange's ticker to leak.
+        self.assertEqual(resolver.curated_domain("GPW", "LPP"), "lppsa.com")
+        self.assertEqual(resolver.curated_domain("GPW", "ALE"), "allegro.eu")
+        self.assertEqual(resolver.curated_domain("GPW", "DNP"), "grupadino.pl")
+        self.assertEqual(resolver.curated_domain("US", "ASO"), "academy.com")
+        self.assertEqual(resolver.curated_domain("US", "WMG"), "wmg.com")
+        self.assertEqual(resolver.curated_domain("US", "SAP"), "sap.com")
+        self.assertIsNone(resolver.curated_domain("US", "LPP"))
+        self.assertIsNone(resolver.curated_domain("GPW", "ASO"))
+        self.assertIsNone(resolver.curated_domain("GPW", "SAP"))
+        self.assertIsNone(resolver.curated_domain("US", "UNKNOWN2026"))
+
     def test_open_positions_scope_and_dedup(self):
         rows = resolver.open_positions({"markets": {
             "GPW": {"open_positions": [{"ticker":"ALE","symbol":"ALE.WA","name":"Allegro"},
