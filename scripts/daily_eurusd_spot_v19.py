@@ -268,7 +268,7 @@ def build_output(
     # Keep this optional until verified against real feed timestamps and CI fixtures.
     try:
         client = (_cycle_context or {}).get("market_client")
-        h1_rows = client.bars(base.EURUSD, "90d", "30m") if client is not None else []
+        h1_rows = client.bars(base.EURUSD, "60d", "30m") if client is not None else []
         bollinger = bollinger_h1.evaluate(h1_rows, direction, observed_at) if h1_rows else {
             "available": False, "reason": "h1_history_not_available", "role": "PRIMARY_TECHNICAL"}
     except (ValueError, TypeError, KeyError, OSError, RuntimeError) as exc:
