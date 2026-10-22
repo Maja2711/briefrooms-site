@@ -20,7 +20,7 @@ SCHEMA = "eurusd-production-decision-manifest-v1"
 LEDGER_SCHEMA = "eurusd-production-decisions-v1"
 CODE_FILES = (
     "daily_eurusd_spot.py", "daily_eurusd_spot_v12.py", "daily_eurusd_spot_v13.py",
-    "daily_eurusd_spot_v19.py", "daily_eurusd_bollinger_h1.py", "daily_eurusd_belief_decision.py",
+    "daily_eurusd_spot_v19.py", "daily_eurusd_bollinger_h1.py", "daily_eurusd_bollinger_d1.py", "daily_eurusd_belief_decision.py",
     "daily_eurusd_reentry_safety.py", "daily_eurusd_reflection.py", "daily_eurusd_reentry_learning.py",
     "daily_eurusd_lifecycle.py", "daily_eurusd_spot_v14.py",
     "daily_eurusd_production_policy.py", "daily_eurusd_decision_record.py",
