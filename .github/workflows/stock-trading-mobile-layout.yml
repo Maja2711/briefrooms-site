@@ -7,6 +7,8 @@ on:
       - "pl/inwestycje/stock-trading.html"
       - "en/investing/stock-trading.html"
       - "tests/stock_trading_mobile_layout.mjs"
+      - "scripts/stock-trading-company-logos-v2.js"
+      - "tests/stock_trading_company_logos.mjs"
       - ".github/workflows/stock-trading-mobile-layout.yml"
   push:
     branches: [main]
@@ -15,6 +17,8 @@ on:
       - "pl/inwestycje/stock-trading.html"
       - "en/investing/stock-trading.html"
       - "tests/stock_trading_mobile_layout.mjs"
+      - "scripts/stock-trading-company-logos-v2.js"
+      - "tests/stock_trading_company_logos.mjs"
   workflow_dispatch:
 
 permissions:
@@ -31,6 +35,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Validate GPW/USA logo mapping and image fallback
+        run: node --test tests/stock_trading_company_logos.mjs
       - name: Install installed-PWA browser driver
         run: |
           test -x "$(command -v google-chrome)"
