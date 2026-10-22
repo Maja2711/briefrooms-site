@@ -117,7 +117,7 @@ class GSEFrozenForecastTest(unittest.TestCase):
             self.assertGreater(report["overall"]["count"], 0)
             self.assertFalse(report["automatic_tuning_enabled"])
 
-    def test_no_freeze_outside_six_hour_windows(self):
+    def test_delayed_first_run_catches_up_current_bucket(self):
         now = datetime(2026, 8, 18, 13, 17, tzinfo=UTC)
         rows = [
             ev("1", "Russia Ukraine Black Sea port strike disrupts grain export", now - timedelta(hours=2), "a"),
@@ -126,7 +126,9 @@ class GSEFrozenForecastTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             engine = GeopoliticalScenarioEngine(Path(tmp), evidence_adapter=_EvidenceAdapter(rows), market=_Market())
             status = engine.run(now)
-            self.assertEqual(status["forecasts_frozen"], 0)
+            self.assertGreater(status["forecasts_frozen"], 0)
+            self.assertTrue(all(x["forecast_at"].startswith("2026-08-18T13:17:") for x in engine.store.forecasts()))
+            self.assertEqual(engine.run(now + timedelta(minutes=15))["forecasts_frozen"], 0)
 
 
 if __name__ == "__main__":
