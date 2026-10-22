@@ -521,19 +521,11 @@ def prepare_entry_candidate(
                      else max(_cycle_context["decision_at"], belief_decision._parse_time(prepared.timestamp)))
         # Freeze against the position actually persisted by the lifecycle writer.
         if (candidate.metadata.get("execution_admission") or {}).get("allowed") is True and not execution_reason:
-            # The canonical writer may construct a different position object.
-            # Defer its freeze until _open_output_v19 receives that exact object.
-            if canonical_allowed:
-                _cycle_context["pending_canonical_freeze"] = {
-                    "manifest": copy.deepcopy(manifest), "score": prepared.score,
-                    "frozen_at": frozen_at, "session": _session(prepared.timestamp),
-                }
-            else:
-                state, _ = production_policy.freeze_case(
-                    state, decision_manifest=manifest, position=position,
-                    score=prepared.score, now=frozen_at,
-                    slices={"session": _session(prepared.timestamp), "macro": "clear"})
-                _cycle_context["policy_state"] = state
+            state, _ = production_policy.freeze_case(
+                state, decision_manifest=manifest, position=position,
+                score=prepared.score, now=frozen_at,
+                slices={"session": _session(prepared.timestamp), "macro": "clear"})
+            _cycle_context["policy_state"] = state
         if context.get("allowed") is True and evaluations:
             state = production_policy.freeze_reentry_case(
                 state, manifest=manifest, position=position, evaluations=evaluations,
