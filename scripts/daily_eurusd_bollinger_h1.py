@@ -1,7 +1,8 @@
 """EUR/USD Daily-only H1 Bollinger technical admission (Belief direction remains authoritative).
 
 Uses only fully closed pairs of 30-minute EUR/USD bars. Never creates or reverses
-direction; missing or incomplete H1 history is reported as unavailable (admission\ncurrently runs in observation-only mode for missing H1 evidence).
+direction; missing or incomplete H1 history is reported as unavailable (admission
+currently runs in observation-only mode for missing H1 evidence).
 """
 from __future__ import annotations
 from datetime import timedelta, timezone
@@ -34,8 +35,11 @@ def evaluate(bars, direction, observed_at):
                         float(min(first.low, last.low)), float(last.close)))
     if len(candles) < PERIOD + 3:
         return {"available": False, "allowed": False, "reason": "insufficient_closed_h1_bars", "closed_h1": len(candles)}
-    if observed_at - candles[-1][0] > timedelta(minutes=MAX_AGE_MINUTES):
-        return {"available": False, "allowed": False, "reason": "stale_h1_bollinger"}
+    age_minutes = (observed_at - candles[-1][0]).total_seconds() / 60
+    if age_minutes > MAX_AGE_MINUTES:
+        return {"available": False, "allowed": False, "reason": "stale_h1_bollinger",
+                "closed_h1": len(candles), "last_closed_h1": candles[-1][0].isoformat(),
+                "age_minutes": round(age_minutes, 2)}
     closes = [x[4] for x in candles]
     def band(index):
         values = closes[index-PERIOD+1:index+1]
@@ -68,7 +72,8 @@ def evaluate(bars, direction, observed_at):
             "outer_band_exhaustion" if exhaustion else "h1_trend_not_confirmed",
         "role": "PRIMARY_TECHNICAL_ADMISSION", "direction_mutation_allowed": False,
         "weight": "HIGH_VETO_NEW_ENTRY", "period": PERIOD, "deviations": MULTIPLIER,
-        "last_closed_h1": candles[-1][0].isoformat(), "close": price,
+        "last_closed_h1": candles[-1][0].isoformat(), "closed_h1": len(candles),
+        "age_minutes": round(age_minutes, 2), "close": price,
         "middle": mid, "upper": upper, "lower": lower, "percent_b": percent_b,
         "middle_slope": slope, "aligned": aligned, "exhaustion": exhaustion,
     }
