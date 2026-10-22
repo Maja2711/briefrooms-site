@@ -34,6 +34,7 @@ import daily_eurusd_decision_record as decision_record
 import daily_eurusd_production_policy as production_policy
 import daily_eurusd_reentry_safety as reentry_safety
 import daily_eurusd_bollinger_h1 as bollinger_h1
+import daily_eurusd_bollinger_d1 as bollinger_d1
 
 ENGINE_VERSION = decision_record.ENGINE_VERSION
 ENTRY_THESIS_SOURCE_FAMILY = "NATIVE_BELIEF_FIRST"
@@ -262,10 +263,19 @@ def build_output(
     )
 
     bollinger = bollinger_h1.evaluate(rows, direction, observed_at)
+    # D1 provides read-only, auxiliary trend context; never blocks admission.
+    try:
+        client = (_cycle_context or {}).get("market_client")
+        daily_bars = client.bars(base.EURUSD, "6mo", "1d") if client is not None else []
+        d1_context = bollinger_d1.evaluate(daily_bars, observed_at)
+    except (ValueError, TypeError, KeyError, OSError, RuntimeError) as exc:
+        d1_context = {"available": False, "reason": "daily_context_fetch_failed",
+                      "error_type": type(exc).__name__, "role": "AUXILIARY_TECHNICAL"}
     legacy_learning = lifecycle.learning_state(list((history or {}).get("trades") or []))
     metadata: dict[str, Any] = {
         "market_snapshot_sha256": decision_record.market_snapshot_hash(snapshot),
         "bollinger_h1": bollinger,
+        "bollinger_d1": d1_context,
         "market": "FX_SPOT",
         "currency_pair": "EUR/USD",
         "rollout_stage": "paper",
