@@ -125,3 +125,129 @@
     transform: none;
   }
 }
+
+
+/* 2026-10-22 approved visual: illustrated independent market actions.
+   Both illustrations are original, local SVGs; portfolio state stays read-only. */
+@media (min-width: 1251px) {
+  .stock-trading-page .str-market-overview {
+    grid-template-columns: minmax(0, 1fr) minmax(270px, .31fr) 210px;
+    gap: 16px;
+  }
+}
+.stock-trading-page .str-market-tab,
+.stock-trading-page .str-market-tab:not(.is-active) {
+  isolation: isolate;
+  align-items: flex-start;
+  justify-content: center;
+  min-height: 92px;
+  gap: 4px;
+  padding: 15px 55px 14px 22px;
+  overflow: hidden;
+  background-color: #113c56;
+  background-image: none;
+}
+.stock-trading-page .str-market-tab[data-market-jump="US"] { background-color: #1a3052; }
+.stock-trading-page .str-market-tab::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  border-radius: inherit;
+  background: url("/assets/stock-market-gpw-skyline.svg") right center / cover no-repeat;
+  opacity: .94;
+  pointer-events: none;
+}
+.stock-trading-page .str-market-tab[data-market-jump="US"]::before {
+  background-image: url("/assets/stock-market-us-skyline.svg");
+}
+.stock-trading-page .str-market-tab::after,
+.stock-trading-page .str-market-tab.is-active::after {
+  content: "›";
+  position: absolute;
+  right: 13px;
+  top: 50%;
+  left: auto;
+  bottom: auto;
+  z-index: 2;
+  display: grid;
+  width: 37px;
+  height: 37px;
+  place-items: center;
+  border: 1px solid rgba(232,251,255,.67);
+  border-radius: 50%;
+  background: rgba(2,18,33,.49);
+  color: #effcff;
+  font-family: Arial, sans-serif;
+  font-size: 30px;
+  font-weight: 350;
+  line-height: 1;
+  transform: translateY(-50%);
+  box-shadow: 0 1px 6px rgba(0,0,0,.22);
+  pointer-events: none;
+}
+.stock-trading-page .str-market-tab-title,
+.stock-trading-page .str-market-tab small {
+  position: relative;
+  z-index: 1;
+  text-align: left;
+}
+.stock-trading-page .str-market-tab-title {
+  justify-content: flex-start;
+  gap: 12px;
+  font-size: 20px;
+  font-weight: 850;
+  letter-spacing: -.02em;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+.stock-trading-page .str-market-tab .str-flag {
+  width: 46px;
+  height: 30px;
+  flex: 0 0 46px;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(255,255,255,.19), 0 3px 7px rgba(0,0,0,.23);
+}
+.stock-trading-page .str-market-tab .str-flag-us {
+  background: repeating-linear-gradient(to bottom,#b22234 0 2.31px,#fff 2.31px 4.62px);
+}
+.stock-trading-page .str-market-tab .str-flag-us::before { width: 20px; height: 16px; }
+.stock-trading-page .str-market-tab small {
+  margin-left: 58px;
+  color: #e2eff7;
+  font-size: 11.5px;
+  font-weight: 650;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+.stock-trading-page .str-market-tab:hover {
+  background-color: #16586e;
+}
+.stock-trading-page .str-market-tab[data-market-jump="US"]:hover {
+  background-color: #26456f;
+}
+.stock-trading-page .str-market-tab.is-active,
+.stock-trading-page .str-market-tab.is-active:hover {
+  background-color: #036571;
+  box-shadow: 0 4px 0 #063039, 0 9px 18px rgba(0,0,0,.26), inset 0 -3px 0 #0ce8dc;
+}
+.stock-trading-page .str-market-tab.is-active:hover { background-color: #087784; }
+.stock-trading-page .str-market-tab.is-active small { color: #efffff; }
+@media (min-width: 901px) and (max-width: 1250px) {
+  .stock-trading-page .str-market-overview { grid-template-columns: minmax(0,1fr); }
+  .stock-trading-page .str-data-stamp { grid-column: auto; }
+}
+@media (max-width: 620px) {
+  .stock-trading-page .str-market-tab,
+  .stock-trading-page .str-market-tab:not(.is-active) {
+    min-height: 80px;
+    padding: 12px 53px 12px 15px;
+  }
+  .stock-trading-page .str-market-tab-title { font-size: 18px; gap: 10px; }
+  .stock-trading-page .str-market-tab .str-flag { width:38px; height:25px; flex-basis:38px; }
+  .stock-trading-page .str-market-tab .str-flag-us { background: repeating-linear-gradient(to bottom,#b22234 0 1.92px,#fff 1.92px 3.84px); }
+  .stock-trading-page .str-market-tab .str-flag-us::before { width:17px; height:13px; }
+  .stock-trading-page .str-market-tab small { margin-left:48px; font-size:11px; white-space:normal; }
+  .stock-trading-page .str-market-tab::after,
+  .stock-trading-page .str-market-tab.is-active::after { right:10px; width:32px; height:32px; font-size:26px; }
+}

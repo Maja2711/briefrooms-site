@@ -13,7 +13,7 @@ PAGES = [
     ROOT / "en/investing/stock-trading.html",
 ]
 RENDERER = ROOT / "scripts/stock-trading-public.js"
-VERSION = "stock-market-tabs-glass-3d.css?v=20261022-1"
+VERSION = "stock-market-tabs-glass-3d.css?v=20261022-2"
 
 
 def css_block(css: str, selector: str) -> str:
@@ -44,6 +44,18 @@ class StockMarketSelectorUITests(unittest.TestCase):
             with self.subTest(page=page.name, lang=page.parent.name):
                 html = page.read_text(encoding="utf-8")
                 self.assertIn(VERSION, html)
+
+    def test_approved_illustrations_are_local(self):
+        css = CSS.read_text(encoding="utf-8")
+        self.assertIn('stock-market-gpw-skyline.svg', css)
+        self.assertIn('stock-market-us-skyline.svg', css)
+        self.assertIn('content: "›"', css)
+        for market in ("gpw", "us"):
+            image = ROOT / f"assets/stock-market-{market}-skyline.svg"
+            svg = image.read_text(encoding="utf-8")
+            self.assertIn("<svg", svg)
+            self.assertNotIn("<script", svg)
+            self.assertNotIn("http:", svg)
 
     def test_existing_market_navigation_stays_semantic(self):
         js = RENDERER.read_text(encoding="utf-8")
