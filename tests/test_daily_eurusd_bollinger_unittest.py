@@ -30,6 +30,28 @@ class DailyEURUSDBollingerH1Tests(unittest.TestCase):
         h1.test_stale_data_fails_closed()
 
 
+    def test_production_admission_blocks_verified_h1_veto(self):
+        from scripts import daily_eurusd_spot_v19 as v19
+        from unittest.mock import patch
+        from types import SimpleNamespace
+        from datetime import timedelta
+        now = h1.START + timedelta(hours=40)
+        candidate = SimpleNamespace(direction="LONG", metadata={
+            "bollinger_h1": {"available": True, "allowed": False, "reason": "h1_trend_not_confirmed"},
+            "final_decision": {},
+        })
+        with patch.object(v19.belief_decision, "calendar_safety", return_value={"blocked": False}), \
+             patch.object(v19.v16, "_apply_same_thesis_guard", return_value=candidate), \
+             patch.object(v19.production_policy, "reflection_context", return_value={}), \
+             patch.object(v19.production_policy, "reentry_context", return_value={"criteria": {}, "version_id": "test"}), \
+             patch.object(v19.production_policy, "reentry_contenders", return_value={}), \
+             patch.object(v19.reentry_safety, "evaluate", return_value={"required": False, "allowed": True}), \
+             patch.object(v19, "_policy_state", return_value={}):
+            result = v19._execution_admission(candidate, None, observed_at=now)
+        self.assertFalse(result["allowed"])
+        self.assertIn("bollinger_h1_h1_trend_not_confirmed", result["reasons"])
+        self.assertEqual(candidate.direction, "LONG")
+
     def test_future_h1_is_not_admissible(self):
         from datetime import timedelta
         now = h1.START + timedelta(hours=40)
