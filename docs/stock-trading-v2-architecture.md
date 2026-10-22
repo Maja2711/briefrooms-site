@@ -174,3 +174,7 @@ Detailed bilingual sizing contract: `docs/STOCK_TRADING_FIXED_NOTIONAL_EN.md` an
 ## Read-only Company Logo Resolver
 
 A separate GitHub Actions job observes new GPW/US canonical portfolio symbols and retries periodically. It may publish only `data/investments/company_logo_cache.json` and validated PNGs in `assets/company-logos/`. Wikidata name, ticker (P249), listed exchange (P414) and official HTTPS website (P856) must match before requesting the corresponding favicon image. The fetched site icon is checked for bounded dimensions and PNG integrity; this is not official trademark authentication. Without a verified match or suitable icon, no cache entry is created and the existing text fallback remains. The optional logo cache never controls stock discovery, admission, P&L or execution.
+
+### Existing-domain backfill
+
+The background cache builder first requires verified Wikidata name+ticker+exchange+HTTPS website metadata. If that discovery is unavailable, it may use the *already reviewed, market-scoped domain registry in the existing Stock Trading logo renderer* for known issuers. This is recorded separately as `existing_market_scoped_ui_domain_map`, never mislabeled as Wikidata evidence. No cross-market ticker guesses are allowed; all candidates still require a valid PNG. New tickers not present in the existing registry continue through automatic discovery, otherwise text fallback.

@@ -191,6 +191,33 @@ def valid_png(payload: bytes) -> bool:
         p += 12 + n
     return bool(found_end and found_data and width and height)
 
+def curated_domain(market: str, ticker: str,
+                   source: Path = ROOT / "scripts/stock-trading-company-logos-v2.js") -> str | None:
+    """Existing reviewed UI mapping, split into its GPW and US namespaces.
+
+    This is a *fallback* for legacy known stocks, never a global ticker guess.
+    Newly encountered companies are always looked up via Wikidata first.
+    If the existing JS format changes, fail closed instead of mis-scoping.
+    """
+    if market not in ("GPW", "US") or not TICKER_RE.fullmatch(ticker):
+        return None
+    try:
+        code = source.read_text(encoding="utf-8")
+        block = code.split("const DOMAINS = {", 1)[1].split("\n  };", 1)[0]
+        split_at = block.index("\n\n    JSW:")
+        us_block, gpw_block = block[:split_at], block[split_at:]
+        us_overrides = code.split("const US_DOMAINS = Object.freeze({", 1)[1].split("\n  });", 1)[0]
+    except (OSError, ValueError, IndexError):
+        return None
+    pairs = re.compile(r"\b([A-Z0-9]+)\s*:\s*'([a-zA-Z0-9.-]+)'")
+    known = dict(pairs.findall(gpw_block if market == "GPW" else us_block))
+    if market == "US":
+        known.update(dict(pairs.findall(us_overrides)))
+    host = known.get(ticker, "").lower()
+    if not HOST_RE.fullmatch(host) or "." not in host or ".." in host:
+        return None
+    return host or None
+
 def open_positions(data: dict) -> list[tuple[str, str, str]]:
     selected = []
     for market in ("GPW", "US"):
@@ -221,6 +248,14 @@ def process(portfolio_path: Path = PORTFOLIO, manifest_path: Path = MANIFEST,
                 continue
         try:
             matched = discover_fn(market, ticker, name)
+            evidence = "wikidata_name_ticker_exchange_website"
+            if not matched:
+                # The existing UI has a market-scoped, maintainer-reviewed
+                # domain map. Cache those already used logos too.
+                known_domain = curated_domain(market, ticker)
+                if known_domain:
+                    matched = (known_domain, "")
+                    evidence = "existing_market_scoped_ui_domain_map"
             if not matched:
                 summary["unresolved"] += 1
                 continue
@@ -237,7 +272,7 @@ def process(portfolio_path: Path = PORTFOLIO, manifest_path: Path = MANIFEST,
                 "market": market, "ticker": ticker, "name": name,
                 "path": "/assets/company-logos/" + market.lower() + "/" + ticker.lower() + ".png",
                 "domain": domain, "entity_id": entity_id,
-                "evidence": "wikidata_name_ticker_exchange_website",
+                "evidence": evidence,
                 "image_source": "google_favicon_for_verified_website",
                 "sha256": hashlib.sha256(image).hexdigest()
             }
