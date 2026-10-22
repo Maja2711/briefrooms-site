@@ -1300,6 +1300,47 @@ export class PushHub {
     return { ok: true, status: 200, delivery_id: id, event_id: record.event_id, delivery_status: DELIVERY_STATUS.ACKED };
   }
 
+  // Public event IDs are already published in the read-only Inbox. Report only
+  // aggregated delivery states; never expose endpoint, subscription, ACK token
+  // or per-device timestamps.
+  async eventDeliverySummary(eventIdValue) {
+    const id = String(eventIdValue || "").trim().toLowerCase();
+    if (!/^[a-f0-9]{24}$/.test(id)) return { ok: false, error: "invalid_event_id" };
+    const [stored, recipients, rows] = await Promise.all([
+      this.ctx.storage.get(`event:${id}`),
+      this.ctx.storage.get(`recipients:${id}`),
+      this.ctx.storage.list({ prefix: `delivery:${id}:` }),
+    ]);
+    if (!stored?.event) return { ok: false, error: "event_not_found" };
+    const counts = { UNSENT: 0, SENDING: 0, SENT_TO_PUSH: 0, ACKED: 0, EXPIRED: 0 };
+    let firstAccepted = null;
+    let firstAck = null;
+    for (const row of rows.values()) {
+      if (Object.hasOwn(counts, row?.status)) counts[row.status] += 1;
+      if (row?.sent_to_push_at && (!firstAccepted || row.sent_to_push_at < firstAccepted))
+        firstAccepted = row.sent_to_push_at;
+      if (row?.acked_at && (!firstAck || row.acked_at < firstAck))
+        firstAck = row.acked_at;
+    }
+    return {
+      ok: true,
+      event_id: id,
+      engine: stored.event.engine,
+      event_type: stored.event.event_type,
+      event_at: String(stored.event.event_type || "").toUpperCase() === "CLOSE"
+        ? (stored.event.closed_at || stored.event.observed_at || null)
+        : (stored.event.opened_at || stored.event.observed_at || null),
+      inbox_stored_at: stored.stored_at || null,
+      recipients_initialized_at: recipients?.initialized_at || null,
+      recipients_initial_count: Number(recipients?.count || 0),
+      seeded_without_delivery: recipients?.seeded_without_delivery === true,
+      migrated_from_legacy_complete: recipients?.migrated_from_legacy_complete === true,
+      deliveries: counts,
+      first_provider_accepted_at: firstAccepted,
+      first_device_ack_at: firstAck,
+    };
+  }
+
   async inbox(limit = 50) {
     const safeLimit = Math.max(1, Math.min(200, Number(limit || 50)));
     const rows = await this.ctx.storage.list({ prefix: "event:" });
@@ -1949,6 +1990,11 @@ export class PushHub {
 
     if (path === "/inbox" && request.method === "GET") {
       return json(await this.inbox(url.searchParams.get("limit") || 50), 200, cors(origin));
+    }
+
+    if (path === "/event-delivery-summary" && request.method === "GET") {
+      const result = await this.eventDeliverySummary(url.searchParams.get("event_id"));
+      return json(result, result.ok ? 200 : result.error === "event_not_found" ? 404 : 400, cors(origin));
     }
 
     if (path === "/subscription-status" && request.method === "POST") {
