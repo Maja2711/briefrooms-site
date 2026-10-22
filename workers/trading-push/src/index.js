@@ -1302,7 +1302,8 @@ export class PushHub {
 
   // Public event IDs are already published in the read-only Inbox. Report only
   // aggregated delivery states; never expose endpoint, subscription, ACK token
-  // or per-device timestamps.
+  // or per-device timestamps. Aggregate first-accepted and first-ACK clocks
+  // can refer to different subscriptions, so provide SAME-delivery latencies.
   async eventDeliverySummary(eventIdValue) {
     const id = String(eventIdValue || "").trim().toLowerCase();
     if (!/^[a-f0-9]{24}$/.test(id)) return { ok: false, error: "invalid_event_id" };
@@ -1322,8 +1323,25 @@ export class PushHub {
       if (row?.acked_at && (!firstAck || row.acked_at < firstAck))
         firstAck = row.acked_at;
     }
+    const matchedAckDelaysMs = [];
+    let acceptedButNotAckedOver10m = 0;
+    for (const row of rows.values()) {
+      const acceptedMs = Date.parse(String(row?.sent_to_push_at || ""));
+      const ackMs = Date.parse(String(row?.acked_at || ""));
+      if (Number.isFinite(acceptedMs) && Number.isFinite(ackMs) && ackMs >= acceptedMs) {
+        matchedAckDelaysMs.push(ackMs - acceptedMs);
+      } else if (row?.status === DELIVERY_STATUS.SENT_TO_PUSH
+        && Number.isFinite(acceptedMs) && Date.now() - acceptedMs >= 10 * 60_000) {
+        acceptedButNotAckedOver10m += 1;
+      }
+    }
     return {
       ok: true,
+      // All timings below pair acceptance/ACK within one delivery record.
+      same_delivery_ack_count: matchedAckDelaysMs.length,
+      same_delivery_ack_min_ms: matchedAckDelaysMs.length ? Math.min(...matchedAckDelaysMs) : null,
+      same_delivery_ack_max_ms: matchedAckDelaysMs.length ? Math.max(...matchedAckDelaysMs) : null,
+      accepted_without_ack_over_10m: acceptedButNotAckedOver10m,
       event_id: id,
       engine: stored.event.engine,
       event_type: stored.event.event_type,
