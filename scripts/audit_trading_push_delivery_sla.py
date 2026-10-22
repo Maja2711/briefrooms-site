@@ -79,7 +79,7 @@ def main() -> int:
              "--max-time", "15", "--write-out", "\\n%{http_code}", url],
             capture_output=True, text=True, check=False, timeout=20,
         )
-        payload, sep, status = response.stdout.rpartition("\\n")
+        payload, sep, status = response.stdout.rpartition("\n")
         if response.returncode != 0 or not sep:
             warnings += 1
             print(f"::warning::PUSH_SLA_DIAGNOSTIC_UNAVAILABLE event_id={eid} transport=curl")
