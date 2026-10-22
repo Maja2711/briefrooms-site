@@ -30,6 +30,13 @@ class DailyEURUSDBollingerH1Tests(unittest.TestCase):
         h1.test_stale_data_fails_closed()
 
 
+    def test_future_h1_is_not_admissible(self):
+        from datetime import timedelta
+        now = h1.START + timedelta(hours=40)
+        result = h1.bb.evaluate(h1.bars([1.12 + 0.0001 * i for i in range(40)]), "LONG", now - timedelta(minutes=5))
+        self.assertTrue(result["available"] or result["reason"] == "stale_h1_bollinger")
+        self.assertLessEqual(result.get("age_minutes", 0), 90)
+
     def test_stale_h1_exposes_freshness_diagnostics(self):
         from datetime import timedelta
         now = h1.START + timedelta(hours=40)
