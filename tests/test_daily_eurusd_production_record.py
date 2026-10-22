@@ -128,6 +128,11 @@ class ProductionDecisionRecordTests(unittest.TestCase):
             self.assertEqual(position["engine_version"], v19.ENGINE_VERSION)
             manifest = copy.deepcopy(position["decision_manifest"])
             records.validate_manifest(manifest)
+            frozen_state = json.loads((root / "eurusd_production_policy_state.json").read_text(encoding="utf-8"))
+            for case in frozen_state["cases"].values():
+                if case["frozen"]["position"]["trade_id"] == position["trade_id"]:
+                    self.assertEqual(case["frozen"]["decision_id"], manifest["decision_id"], "freeze decision id differs from opened position")
+                    self.assertEqual(case["frozen"]["manifest_sha256"], manifest["manifest_sha256"], "freeze manifest differs from opened position")
             self.assertEqual(manifest["execution_price_engine"]["execution_cost_contract"], lifecycle.EXECUTION_COST_CONTRACT)
             closed = self._runtime(root, now + timedelta(minutes=2), stop=True)
             self.assertIsNone(closed.metadata.get("position"))
