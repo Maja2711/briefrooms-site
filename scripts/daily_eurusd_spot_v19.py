@@ -520,11 +520,20 @@ def prepare_entry_candidate(
         frozen_at = (datetime.now(timezone.utc) if _cycle_context.get("live")
                      else max(_cycle_context["decision_at"], belief_decision._parse_time(prepared.timestamp)))
         # Freeze against the position actually persisted by the lifecycle writer.
-        if (candidate.metadata.get("execution_admission") or {}).get("allowed") is True and not execution_reason and canonical_allowed:
-            _cycle_context["pending_canonical_freeze"] = {
-                "manifest": copy.deepcopy(manifest), "score": prepared.score,
-                "frozen_at": frozen_at, "session": _session(prepared.timestamp),
-            }
+        if (candidate.metadata.get("execution_admission") or {}).get("allowed") is True and not execution_reason:
+            # The canonical writer may construct a different position object.
+            # Defer its freeze until _open_output_v19 receives that exact object.
+            if canonical_allowed:
+                _cycle_context["pending_canonical_freeze"] = {
+                    "manifest": copy.deepcopy(manifest), "score": prepared.score,
+                    "frozen_at": frozen_at, "session": _session(prepared.timestamp),
+                }
+            else:
+                state, _ = production_policy.freeze_case(
+                    state, decision_manifest=manifest, position=position,
+                    score=prepared.score, now=frozen_at,
+                    slices={"session": _session(prepared.timestamp), "macro": "clear"})
+                _cycle_context["policy_state"] = state
         if context.get("allowed") is True and evaluations:
             state = production_policy.freeze_reentry_case(
                 state, manifest=manifest, position=position, evaluations=evaluations,
@@ -560,18 +569,6 @@ def _create_position_v19(payload: Mapping[str, Any]) -> dict[str, Any]:
     thesis.update({"source_family": ENTRY_THESIS_SOURCE_FAMILY, "decision_id": manifest["decision_id"],
         "policy_version_id": manifest["policy_version_id"], "manifest_sha256": manifest["manifest_sha256"]})
     position["entry_thesis"] = thesis
-    # prepare_entry_candidate constructs a provisional position; v18 subsequently
-    # constructs the canonical one. Freeze only when the latter is created.
-    pending = (_cycle_context or {}).pop("pending_canonical_freeze", None)
-    if pending is not None:
-        if (pending["manifest"]["decision_id"] != manifest["decision_id"]
-                or pending["manifest"]["manifest_sha256"] != manifest["manifest_sha256"]):
-            raise ValueError("canonical admission manifest changed before persistence")
-        state, _ = production_policy.freeze_case(
-            _cycle_context["policy_state"], decision_manifest=manifest, position=position,
-            score=pending["score"], now=pending["frozen_at"],
-            slices={"session": pending["session"], "macro": "clear"})
-        _cycle_context["policy_state"] = state
     return position
 
 
@@ -800,6 +797,17 @@ def _open_output_v19(
     mark_price: float,
 ) -> DailyEngineOutput:
     """Preserve legacy position facts while projecting them through v1.9 runtime."""
+    pending = (_cycle_context or {}).pop("pending_canonical_freeze", None)
+    if pending is not None:
+        manifest = position.get("decision_manifest") or {}
+        if (pending["manifest"]["decision_id"] != manifest.get("decision_id")
+                or pending["manifest"]["manifest_sha256"] != manifest.get("manifest_sha256")):
+            raise ValueError("canonical admission manifest changed before position persistence")
+        state, _ = production_policy.freeze_case(
+            _cycle_context["policy_state"], decision_manifest=manifest, position=position,
+            score=pending["score"], now=pending["frozen_at"],
+            slices={"session": pending["session"], "macro": "clear"})
+        _cycle_context["policy_state"] = state
     output = _v18_open_output(candidate, position, mark_price)
     metadata = dict(output.metadata)
     metadata["runtime_projection"] = {
