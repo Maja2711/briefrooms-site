@@ -546,3 +546,5 @@ After canonical commit persistence, each writer immediately calls time-bounded `
 ### TR-03 — Bollinger H1 admission (proposed change)
 
 After the final Belief-first direction, Daily EUR/USD evaluates completed H1 bars and Bollinger SMA(30) ± 2.5σ in `scripts/daily_eurusd_bollinger_h1.py`. This is the primary technical filter for new entries: it can veto admission when trend confirmation fails, momentum is exhausted, or source bars are incomplete/stale. It cannot generate or reverse direction, change EPE, SL/TP, open-position lifecycle, or any other instrument. The module is covered by the immutable runtime code fingerprint. Promotion to `main` requires PR review and tests; no automatic promotion.
+
+Auxiliary D1 observation: `scripts/daily_eurusd_bollinger_d1.py` calculates SMA(30) ± 2.5σ using completed daily candles, middle-band crossings, slope and band proximity. Its result is recorded in `metadata.bollinger_d1`; it has no entry veto, direction or exit authority. Missing data yields `available=false`, not a fabricated signal.
