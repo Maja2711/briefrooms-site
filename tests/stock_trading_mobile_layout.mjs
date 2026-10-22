@@ -33,7 +33,7 @@ try {
         const statusGeometry = await page.evaluate(() => {
           const stamp = document.querySelector(".str-market-us-panel .str-data-stamp");
           const title = document.querySelector(".str-market-us-panel .str-market-status strong");
-          const panel = document.querySelector(".str-market-us-panel");
+          const panel = document.querySelector(".str-market-us-panel > .str-market-status");
           const gpw = document.querySelector(".str-market-statuses > .str-market-status");
           const rect = (node) => { const r = node.getBoundingClientRect(); return {top:r.top,bottom:r.bottom,left:r.left,right:r.right}; };
           const gpwTitle = gpw.querySelector("strong");
