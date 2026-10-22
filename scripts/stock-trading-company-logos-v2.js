@@ -29,6 +29,17 @@
     SAP: 'sap.com'      // SAP SE ADS
   });
 
+  // The optional same-origin logo cache is published by a separate read-only
+  // workflow. A missing or malformed manifest never blocks position cards.
+  const LOGO_CACHE_URL = '/data/investments/company_logo_cache.json';
+  const logoCache = Object.create(null);
+  function cachedLogo(market, ticker) {
+    const row = logoCache[market + ':' + ticker];
+    if (!row || row.market !== market || row.ticker !== ticker) return '';
+    const expected = '/assets/company-logos/' + market.toLowerCase() + '/' + ticker.toLowerCase() + '.png';
+    return row.path === expected ? expected : '';
+  }
+
   const normalizeTicker = (value) => String(value || '').toUpperCase().replace(/\.WA$/,'').replace(/[^A-Z0-9]/g,'');
   const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 
@@ -75,12 +86,14 @@
     const name = position.querySelector('.str-company-name span')?.textContent?.trim() || ticker;
     if (!ticker) return;
 
-    const key = `${ticker}|${name}`;
+    const market = mark.classList.contains('is-us') ? 'US' : 'GPW';
+    const local = cachedLogo(market, ticker);
+    const key = `${market}|${ticker}|${name}|${local}`;
     if (mark.dataset.logoV2Key === key) return;
     mark.dataset.logoV2Key = key;
 
-    const domain = resolveDomain(ticker, name, mark.classList.contains('is-us') ? 'US' : 'GPW');
-    const sources = sourcesFor(domain);
+    const domain = resolveDomain(ticker, name, market);
+    const sources = local ? [local, ...sourcesFor(domain)] : sourcesFor(domain);
     mark.classList.add('br-company-logo-v2');
     mark.classList.toggle('is-logo-fallback', !sources.length);
 
@@ -119,4 +132,21 @@
   document.addEventListener('DOMContentLoaded', schedule, {once:true});
   window.addEventListener('load', schedule, {once:true});
   schedule();
+
+  if (typeof fetch === 'function') {
+    fetch(LOGO_CACHE_URL, {cache: 'no-cache'})
+      .then(response => response.ok ? response.json() : null)
+      .then(data => {
+        if (!data || data.schema_version !== 1 || !data.entries || typeof data.entries !== 'object') return;
+        for (const [key, row] of Object.entries(data.entries)) {
+          if (!/^(GPW|US):[A-Z0-9]{1,12}$/.test(key) || !row || typeof row !== 'object') continue;
+          const [market, ticker] = key.split(':');
+          if (row.market === market && row.ticker === ticker &&
+              row.path === '/assets/company-logos/' + market.toLowerCase() + '/' + ticker.toLowerCase() + '.png') {
+            logoCache[key] = row;
+          }
+        }
+        schedule();
+      }).catch(() => {}); // fail-closed, never block the trading UI
+  }
 })();

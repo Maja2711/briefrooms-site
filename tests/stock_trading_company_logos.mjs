@@ -124,7 +124,37 @@ for (const position of positions.slice(-2)) {
 }
 for (const route of ['pl/inwestycje/stock-trading.html', 'en/investing/stock-trading.html']) {
   const html = readFileSync(join(rootDir, route), 'utf8');
-  assert.ok(html.includes('/scripts/stock-trading-company-logos-v2.js?v=20261022-us-logo-1'));
+  assert.ok(html.includes('/scripts/stock-trading-company-logos-v2.js?v=20261022-logo-cache-1'));
   assert.ok(!html.includes('/scripts/stock-trading-company-logos-v2.js?v=20260918-4'));
 }
 console.log('PASS US logos: ASO, WMG, SAP; GPW isolated; source fallback; PL/EN cache version');
+
+
+const cachePositions = [
+  new Position('ABCD', 'Example issuer', 'US'),
+  new Position('ABCD', 'Different Polish issuer', 'GPW')
+];
+const cacheContext = {
+  document: {getElementById() {return {querySelectorAll(){return cachePositions;}};},addEventListener() {}},
+  window: {addEventListener() {}},
+  MutationObserver: class {observe() {}},
+  requestAnimationFrame(callback) {callback(); return 0;},
+  fetch(url, options) {
+    assert.equal(url, '/data/investments/company_logo_cache.json');
+    assert.equal(options.cache, 'no-cache');
+    return Promise.resolve({ok:true, json:async()=>({
+      schema_version:1,
+      entries:{
+        'US:ABCD':{market:'US',ticker:'ABCD',path:'/assets/company-logos/us/abcd.png'},
+        'GPW:ABCD':{market:'GPW',ticker:'ABCD',path:'/assets/company-logos/us/abcd.png'}
+      }
+    })});
+  }
+};
+runInNewContext(script,cacheContext);
+await new Promise(resolve=>setImmediate(resolve));
+assert.equal(cachePositions[0].mark.image.src,'/assets/company-logos/us/abcd.png');
+assert.equal(cachePositions[1].mark.image,null,'must not use US logo on GPW');
+cachePositions[0].mark.image.fire('error');
+assert.ok(cachePositions[0].mark.classList.contains('is-logo-fallback'));
+console.log('PASS logo cache: async upgrade, scoped, error fallback');
