@@ -36,10 +36,14 @@ class DailyEURUSDBollingerH1Tests(unittest.TestCase):
         from types import SimpleNamespace
         from datetime import timedelta
         now = h1.START + timedelta(hours=40)
-        candidate = SimpleNamespace(direction="LONG", metadata={
+        candidate = v19.DailyEngineOutput(
+            instrument=v19.base.EURUSD, timestamp=now.isoformat(), direction="LONG",
+            score=0.8, confidence=0.8, entry=1.12, stop=1.11, target=1.14,
+            horizon="intraday_to_27h", engine_version=v19.ENGINE_VERSION,
+            status="OPEN", decision_mode="WITH", metadata={
             "bollinger_h1": {"available": True, "allowed": False, "reason": "h1_trend_not_confirmed"},
             "final_decision": {},
-        })
+        }).validate()
         with patch.object(v19.belief_decision, "calendar_safety", return_value={"blocked": False}), \
              patch.object(v19.v16, "_apply_same_thesis_guard", return_value=candidate), \
              patch.object(v19.production_policy, "reflection_context", return_value={}), \
