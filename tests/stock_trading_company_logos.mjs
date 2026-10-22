@@ -87,7 +87,7 @@ const context = {
   },
   window: { addEventListener() {} },
   MutationObserver: class { observe() {} },
-  requestAnimationFrame() { return 1; }
+  requestAnimationFrame(callback) { callback(); return 0; }
 };
 runInNewContext(script, context, { filename: 'stock-trading-company-logos-v2.js' });
 
