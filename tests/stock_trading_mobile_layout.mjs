@@ -28,27 +28,41 @@ try {
         await page.goto(base + route, { waitUntil: "domcontentloaded", timeout: 40_000 });
         await page.locator(".stock-room-hero").waitFor();
         await page.waitForTimeout(350);
-        const glass = await page.evaluate(() => {
+        // Standalone market actions: verify real computed geometry and contrast
+        // affordances in both languages, not the retired shared glass bezel.
+        const buttons = await page.evaluate(() => {
           const nodes = [...document.querySelectorAll(".str-market-tab")];
           return nodes.map(node => {
             const css = getComputedStyle(node);
-            const shine = getComputedStyle(node, "::before");
+            const rect = node.getBoundingClientRect();
             return {
-              height: node.getBoundingClientRect().height,
-              background: css.backgroundImage,
-              shadows: css.boxShadow,
-              shine: shine.backgroundImage,
+              top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom,
+              height: rect.height,
+              background: css.backgroundColor,
+              backgroundImage: css.backgroundImage,
+              border: css.borderTopWidth,
+              borderRadius: css.borderRadius,
+              cursor: css.cursor,
+              pressed: node.getAttribute("aria-pressed"),
             };
           });
         });
-        if (glass.length) {
-          assert.equal(glass.length, 2, `${lang}/${width}: expected GPW and USA market tabs`);
-          for (const btn of glass) {
-            assert.ok(btn.height >= 60, `${lang}/${width}: button size shrunk`);
-            assert.match(btn.background, /linear-gradient/, `${lang}/${width}: missing glass 3D gradient`);
-            assert.match(btn.shadows, /inset/, `${lang}/${width}: missing raised bevel`);
-            assert.match(btn.shine, /linear-gradient/, `${lang}/${width}: missing specular glass shine`);
+        if (buttons.length) {
+          assert.equal(buttons.length, 2, `${lang}/${width}: expected GPW and USA buttons`);
+          for (const btn of buttons) {
+            assert.ok(btn.height >= 60, `${lang}/${width}: touch target too short`);
+            assert.ok(parseFloat(btn.border) >= 1, `${lang}/${width}: missing independent border`);
+            assert.ok(parseFloat(btn.borderRadius) >= 10, `${lang}/${width}: missing button corners`);
+            assert.equal(btn.cursor, "pointer", `${lang}/${width}: missing clickable affordance`);
+            assert.equal(btn.backgroundImage, "none", `${lang}/${width}: legacy glass treatment remains`);
+            assert.notEqual(btn.background, "rgba(0, 0, 0, 0)", `${lang}/${width}: missing button surface`);
+            assert.ok(["true", "false"].includes(btn.pressed), `${lang}/${width}: missing pressed state`);
           }
+          const gap = width <= 620
+            ? buttons[1].top - buttons[0].bottom
+            : buttons[1].left - buttons[0].right;
+          assert.ok(gap >= 10 && gap <= 20,
+            `${lang}/${width}: buttons touch or have excessive spacing: ${gap}px`);
         }
         const sizes = await page.evaluate(() => {
           const history = document.querySelector(".str-history-table");
