@@ -1,6 +1,10 @@
 name: News Freshness Recovery
 on:
   workflow_dispatch:
+  # Recovery also evaluates after a watchdog run, even when hourly publisher cron is skipped.
+  workflow_run:
+    workflows: ["News Publication SLA Watchdog"]
+    types: [completed]
   schedule:
     - cron: "*/15 * * * *"
 permissions:
