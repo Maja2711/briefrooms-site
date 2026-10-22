@@ -541,6 +541,27 @@ test("Event delivery summary exposes aggregated states without subscription data
   assert.equal((await hub.eventDeliverySummary("invalid")).ok, false);
 });
 
+test("Delivery diagnostics correlate ACK with the SAME subscriber rather than unrelated first acceptance", async () => {
+  const storage = new FakeStorage();
+  const id = "cc15f7da07b386d5d3563c7b";
+  await storage.put(`event:${id}`, { event: { event_id: id, engine: "daily", event_type: "OPEN", opened_at: "2026-10-22T03:52:02Z" } });
+  await storage.put(`recipients:${id}`, { count: 4, initialized_at: "2026-10-22T03:52:12Z" });
+  await storage.put(`delivery:${id}:early-device`, { status: DELIVERY_STATUS.SENT_TO_PUSH,
+    sent_to_push_at: "2026-10-22T03:52:13Z", ack_token: "private-early" });
+  await storage.put(`delivery:${id}:late-device`, { status: DELIVERY_STATUS.ACKED,
+    sent_to_push_at: "2026-10-22T05:49:59Z", acked_at: "2026-10-22T05:50:01Z",
+    ack_token: "private-late" });
+  const d = await new PushHub({ storage }, {}).eventDeliverySummary(id);
+  assert.equal(d.first_provider_accepted_at, "2026-10-22T03:52:13Z");
+  assert.equal(d.first_device_ack_at, "2026-10-22T05:50:01Z");
+  assert.equal(d.same_delivery_ack_count, 1);
+  assert.equal(d.same_delivery_ack_min_ms, 2000);
+  assert.equal(d.same_delivery_ack_max_ms, 2000);
+  assert.equal(d.accepted_without_ack_over_10m, 1);
+  assert.equal(JSON.stringify(d).includes("private-"), false);
+  assert.equal(JSON.stringify(d).includes("early-device"), false);
+});
+
 test("Daily OPEN and CLOSE already accepted by push provider are never re-sent on stale commit fallback", async () => {
   for (const kind of ["OPEN", "CLOSE"]) {
     const storage = new FakeStorage();
