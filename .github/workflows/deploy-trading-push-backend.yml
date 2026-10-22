@@ -85,6 +85,40 @@ jobs:
             -o /tmp/push-inbox.json
           node -e 'const fs=require("fs"); const j=JSON.parse(fs.readFileSync("/tmp/push-inbox.json","utf8")); if(!j.ok || j.schema_version !== "briefrooms-notification-inbox-v1" || !Array.isArray(j.events)) { console.error(j); process.exit(1); } console.log("PRODUCTION_DURABLE_INBOX_OK", j.events.length)'
 
+      - name: Diagnose latest real Daily notification (read-only, no replay)
+        run: |
+          set -euo pipefail
+          event_id="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          events=json.loads(Path("data/notifications/trading-events.json").read_text()).get("events",[])
+          daily=[row for row in events if row.get("engine")=="daily" and row.get("event_type") in ("OPEN","CLOSE")]
+          print(daily[-1].get("event_id","") if daily else "")
+          PY
+          )"
+          if [[ ! "$event_id" =~ ^[0-9a-f]{24}$ ]]; then
+            echo "DELIVERY_AUDIT no recent Daily event"
+            exit 0
+          fi
+          code=$(curl --silent --show-error --connect-timeout 5 --max-time 20 \
+            --get --data-urlencode "event_id=$event_id" \
+            -o /tmp/push-event-delivery.json -w '%{http_code}' \
+            "https://briefrooms-trading-push.szczerbinski0577.workers.dev/event-delivery-summary" || true)
+          python - "$code" <<'PY'
+          import json,sys
+          from pathlib import Path
+          j=json.loads(Path("/tmp/push-event-delivery.json").read_text())
+          safe={key:j.get(key) for key in (
+            "ok","event_id","engine","event_type","event_at","inbox_stored_at",
+            "recipients_initialized_at","recipients_initial_count",
+            "seeded_without_delivery","migrated_from_legacy_complete",
+            "deliveries","first_provider_accepted_at","first_device_ack_at","error"
+          )}
+          print("PRODUCTION_EVENT_DELIVERY_AUDIT",json.dumps(safe,separators=(",",":")))
+          if sys.argv[1] not in ("200","404"):
+            raise SystemExit("Unexpected delivery audit HTTP status")
+          PY
+
       - name: Verify authenticated GitHub connection without trading transitions
         env:
           GH_TOKEN: ${{ github.token }}
