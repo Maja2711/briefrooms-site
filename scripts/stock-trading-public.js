@@ -611,8 +611,13 @@
     root.innerHTML = `
       <section class="str-market-overview">
         <div class="str-market-tabs" role="navigation" aria-label="Markets">${marketTab('GPW')}${marketTab('US')}</div>
-        <div class="str-market-statuses">${marketStatus('GPW')}${marketStatus('US')}</div>
-        <div class="str-data-stamp"><span>${icon('calendar')}</span><div><small>${esc(T.portfolioData)}</small><strong>${esc(portfolioTimestamp())}</strong></div></div>
+        <div class="str-market-statuses">
+          ${marketStatus('GPW')}
+          <div class="str-market-us-panel">
+            <div class="str-data-stamp"><span>${icon('calendar')}</span><div><small>${esc(T.portfolioData)}</small><strong>${esc(portfolioTimestamp())}</strong></div></div>
+            ${marketStatus('US')}
+          </div>
+        </div>
       </section>
 
       <section class="str-section str-open-section" id="str-open-section">
