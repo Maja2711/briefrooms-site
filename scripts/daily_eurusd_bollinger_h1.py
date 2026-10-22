@@ -1,7 +1,7 @@
 """EUR/USD Daily-only H1 Bollinger technical admission (Belief direction remains authoritative).
 
 Uses only fully closed pairs of 30-minute EUR/USD bars. Never creates or reverses
-direction; missing or incomplete H1 history fails closed for *new entries*.
+direction; missing or incomplete H1 history is reported as unavailable (admission\ncurrently runs in observation-only mode for missing H1 evidence).
 """
 from __future__ import annotations
 from datetime import timedelta, timezone
