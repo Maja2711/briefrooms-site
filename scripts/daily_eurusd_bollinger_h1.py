@@ -47,7 +47,7 @@ def evaluate(bars, direction, observed_at):
     prev2_mid, _, _ = band(len(closes)-3)
     price, previous = closes[-1], closes[-2]
     width = upper - lower
-    if width <= 0 or not all(isfinite(x) for x in (mid, upper, lower, price)):
+    # Floating-point cancellation on constant-price fixtures can produce a\n    # spurious nonzero width (~1e-15). Such bands carry no trend information.\n    if width <= 1e-10 or not all(isfinite(x) for x in (mid, upper, lower, price)):
         return {"available": False, "allowed": False, "reason": "invalid_bollinger_geometry"}
     percent_b = (price-lower)/width
     slope = mid-prev_mid
