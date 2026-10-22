@@ -251,3 +251,87 @@
   .stock-trading-page .str-market-tab::after,
   .stock-trading-page .str-market-tab.is-active::after { right:10px; width:32px; height:32px; font-size:26px; }
 }
+
+
+/* 2026-10-22: portfolio date sits ABOVE USA market status.
+   No detached third grid column, overlapping or absolute positioning. */
+@media (min-width: 1251px) {
+  .stock-trading-page .str-market-overview {
+    grid-template-columns: minmax(0, 1.83fr) minmax(470px, 1fr);
+    gap: 16px;
+  }
+}
+.stock-trading-page .str-market-statuses {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: stretch;
+  min-width: 0;
+}
+.stock-trading-page .str-market-statuses > .str-market-status {
+  min-width: 0;
+  justify-content: center;
+}
+.stock-trading-page .str-market-status > div,
+.stock-trading-page .str-data-stamp > div { min-width: 0; }
+.stock-trading-page .str-market-status small {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+.stock-trading-page .str-market-us-panel {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  border-left: 1px solid rgba(82,161,197,.18);
+}
+.stock-trading-page .str-market-us-panel .str-data-stamp {
+  box-sizing: border-box;
+  display: flex;
+  grid-column: auto;
+  flex: 0 0 auto;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  gap: 8px;
+  justify-content: flex-start;
+  padding: 7px 12px 5px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.stock-trading-page .str-market-us-panel .str-data-stamp > span {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  border-radius: 7px;
+}
+.stock-trading-page .str-market-us-panel .str-data-stamp svg { width: 16px; height: 16px; }
+.stock-trading-page .str-market-us-panel .str-data-stamp strong {
+  font-size: 11px;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+.stock-trading-page .str-market-us-panel > .str-market-status {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 7px 12px;
+  gap: 8px;
+  border-top: 1px solid rgba(82,161,197,.13);
+}
+.stock-trading-page .str-market-us-panel > .str-market-status strong { line-height: 1.25; }
+@media (max-width: 1250px) {
+  .stock-trading-page .str-market-overview { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 620px) {
+  .stock-trading-page .str-market-statuses { grid-template-columns: minmax(0, 1fr); }
+  .stock-trading-page .str-market-statuses > .str-market-status {
+    justify-content: flex-start;
+    padding: 12px 14px;
+  }
+  .stock-trading-page .str-market-us-panel {
+    border-left: 0;
+    border-top: 1px solid rgba(82,161,197,.18);
+  }
+  .stock-trading-page .str-market-us-panel .str-data-stamp { padding: 10px 14px 7px; }
+  .stock-trading-page .str-market-us-panel > .str-market-status { padding: 10px 14px 12px; }
+}

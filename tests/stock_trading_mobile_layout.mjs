@@ -28,6 +28,27 @@ try {
         await page.goto(base + route, { waitUntil: "domcontentloaded", timeout: 40_000 });
         await page.locator(".stock-room-hero").waitFor();
         await page.waitForTimeout(350);
+        await page.locator(".str-market-us-panel .str-data-stamp").waitFor({timeout: 15000});
+        // Verify real browser geometry in PL/EN and phone/desktop widths.
+        const statusGeometry = await page.evaluate(() => {
+          const stamp = document.querySelector(".str-market-us-panel .str-data-stamp");
+          const title = document.querySelector(".str-market-us-panel .str-market-status strong");
+          const panel = document.querySelector(".str-market-us-panel");
+          const gpw = document.querySelector(".str-market-statuses > .str-market-status");
+          const rect = (node) => { const r = node.getBoundingClientRect(); return {top:r.top,bottom:r.bottom,left:r.left,right:r.right}; };
+          return {stamp:rect(stamp),title:rect(title),panel:rect(panel),gpw:rect(gpw),
+                  timestamp:stamp.querySelector("strong").textContent.trim(),usa:title.textContent.trim()};
+        });
+        assert.ok(statusGeometry.stamp.bottom <= statusGeometry.title.top + 1,
+          lang + "/" + width + ": portfolio date overlaps USA status: " + JSON.stringify(statusGeometry));
+        assert.ok(statusGeometry.stamp.left >= statusGeometry.panel.left - 1 &&
+                  statusGeometry.stamp.right <= statusGeometry.panel.right + 1,
+          lang + "/" + width + ": portfolio date spills outside USA status column");
+        assert.ok(statusGeometry.timestamp.length > 4, lang + "/" + width + ": missing portfolio date");
+        assert.ok(statusGeometry.usa.includes("USA"), lang + "/" + width + ": missing USA status");
+        assert.ok(statusGeometry.panel.left >= statusGeometry.gpw.right - 2 ||
+                  statusGeometry.panel.top >= statusGeometry.gpw.bottom - 2,
+          lang + "/" + width + ": USA/date overlaps GPW status");
         // Standalone market actions: verify real computed geometry and contrast
         // affordances in both languages, not the retired shared glass bezel.
         const buttons = await page.evaluate(() => {
