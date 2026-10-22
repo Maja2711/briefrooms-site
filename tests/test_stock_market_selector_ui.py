@@ -55,7 +55,8 @@ class StockMarketSelectorUITests(unittest.TestCase):
             svg = image.read_text(encoding="utf-8")
             self.assertIn("<svg", svg)
             self.assertNotIn("<script", svg)
-            self.assertNotIn("http:", svg)
+            self.assertNotIn("<image", svg)
+            self.assertNotIn("<foreignObject", svg)
 
     def test_existing_market_navigation_stays_semantic(self):
         js = RENDERER.read_text(encoding="utf-8")
