@@ -7,13 +7,11 @@ The push service's acceptance is not proof of the phone displaying the alert.
 from __future__ import annotations
 
 import json
-import os
 import sys
+import subprocess
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
-from urllib.request import Request, urlopen
 
 EVENTS = Path("data/notifications/trading-events.json")
 PUSH_API = "https://briefrooms-trading-push.szczerbinski0577.workers.dev"
@@ -74,17 +72,30 @@ def main() -> int:
         if not eid or not all(x in "0123456789abcdef" for x in eid):
             continue
         url = PUSH_API + "/event-delivery-summary?" + urlencode({"event_id": eid})
-        try:
-            with urlopen(Request(url, headers={"accept": "application/json"}), timeout=15) as response:
-                record = json.load(response)
-        except HTTPError as exc:
-            if exc.code == 404:
-                record = {"ok": False}
-            else:
-                print(f"::warning::PUSH_SLA_DIAGNOSTIC_HTTP_{exc.code} event_id={eid}")
+        # Use the same curl transport as the deployed Worker health checks.
+        # Do not interpret an HTTP failure as a successful SLA check.
+        response = subprocess.run(
+            ["curl", "--silent", "--show-error", "--connect-timeout", "5",
+             "--max-time", "15", "--write-out", "\\n%{http_code}", url],
+            capture_output=True, text=True, check=False, timeout=20,
+        )
+        payload, sep, status = response.stdout.rpartition("\\n")
+        if response.returncode != 0 or not sep:
+            warnings += 1
+            print(f"::warning::PUSH_SLA_DIAGNOSTIC_UNAVAILABLE event_id={eid} transport=curl")
+            continue
+        if status == "404":
+            record = {"ok": False}
+        elif status == "200":
+            try:
+                record = json.loads(payload)
+            except (ValueError, TypeError):
+                warnings += 1
+                print(f"::warning::PUSH_SLA_DIAGNOSTIC_INVALID_JSON event_id={eid}")
                 continue
-        except (URLError, OSError, ValueError) as exc:
-            print(f"::warning::PUSH_SLA_DIAGNOSTIC_UNAVAILABLE event_id={eid} type={type(exc).__name__}")
+        else:
+            warnings += 1
+            print(f"::warning::PUSH_SLA_DIAGNOSTIC_HTTP_{status} event_id={eid}")
             continue
         for note in audit_one(event, record, now):
             warnings += 1
