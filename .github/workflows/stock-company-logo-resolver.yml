@@ -59,6 +59,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Start immutable presentation-only run clock
+        # NO RETROACTIVE EXECUTION: this is a UI cache writer, never a trade writer.
+        run: |
+          echo "NO_RETROACTIVE_EXECUTION=1" >> "$GITHUB_ENV"
+          echo "NO_RETROACTIVE_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
       - name: Resolve issuer identities and fetch bounded site icons
         run: python scripts/company_logo_resolver.py
       - name: Strictly persist UI-only cache, safely rebase if main advances
@@ -77,15 +82,22 @@ jobs:
             echo "Unexpected file in logo-only commit" >&2
             exit 1
           fi
+          # NO RETROACTIVE EXECUTION mandatory guard before committing
+          python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
           git commit -m "ui: cache vetted GPW and US company icons"
           for attempt in 1 2 3 4; do
-            if git pull --rebase origin main && git push origin HEAD:main; then
-              echo "LOGO_CACHE_PUBLISHED"
-              exit 0
+            if git pull --rebase origin main; then
+              # Recheck against rebase parent before publication to main.
+              python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
+              if git push origin HEAD:main; then
+                echo "LOGO_CACHE_PUBLISHED"
+                exit 0
+              fi
             fi
             git rebase --abort 2>/dev/null || true
             git fetch origin main
             git rebase origin/main
+            python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
             sleep $((attempt * 2))
           done
           echo "Logo cache could not be persisted" >&2
