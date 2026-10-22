@@ -132,8 +132,10 @@ def _execution_admission(
 
     bollinger = (candidate.metadata or {}).get("bollinger_h1") or {}
     details["bollinger_h1"] = dict(bollinger)
-    if bollinger.get("allowed") is not True:
-        reasons.append("bollinger_h1_" + str(bollinger.get("reason") or "unavailable"))
+    # Only evaluated, trustworthy technical evidence can veto entry. Missing
+    # evidence is observable but must not rewrite established admission contracts.
+    if bollinger.get("available") is True and bollinger.get("allowed") is False:
+        reasons.append("bollinger_h1_" + str(bollinger.get("reason") or "not_aligned"))
 
     calendar = belief_decision.calendar_safety(
         observed_at=observed_at,
@@ -262,7 +264,16 @@ def build_output(
         authoritative_consumer=consumer_meta,
     )
 
-    bollinger = bollinger_h1.evaluate(rows, direction, observed_at)
+    # Fetch sufficient completed H1 history independently of the risk-geometry snapshot.
+    # Keep this optional until verified against real feed timestamps and CI fixtures.
+    try:
+        client = (_cycle_context or {}).get("market_client")
+        h1_rows = client.bars(base.EURUSD, "90d", "30m") if client is not None else []
+        bollinger = bollinger_h1.evaluate(h1_rows, direction, observed_at) if h1_rows else {
+            "available": False, "reason": "h1_history_not_available", "role": "PRIMARY_TECHNICAL"}
+    except (ValueError, TypeError, KeyError, OSError, RuntimeError) as exc:
+        bollinger = {"available": False, "reason": "h1_history_fetch_failed",
+                     "error_type": type(exc).__name__, "role": "PRIMARY_TECHNICAL"}
     # D1 provides read-only, auxiliary trend context; never blocks admission.
     try:
         client = (_cycle_context or {}).get("market_client")
