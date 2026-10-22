@@ -514,6 +514,33 @@ class FakeStorage {
   }
 }
 
+test("Event delivery summary exposes aggregated states without subscription data or secrets", async () => {
+  const storage = new FakeStorage();
+  const id = "cc15f7da07b386d5d3563c7b";
+  await storage.put(`event:${id}`, {
+    event: { event_id: id, engine: "daily", event_type: "OPEN",
+      opened_at: "2026-10-22T03:52:02Z" },
+    stored_at: "2026-10-22T03:52:14Z",
+  });
+  await storage.put(`recipients:${id}`, {
+    count: 2, initialized_at: "2026-10-22T03:52:14Z",
+  });
+  await storage.put(`delivery:${id}:secret-device`, {
+    event_id: id, status: DELIVERY_STATUS.SENT_TO_PUSH,
+    sent_to_push_at: "2026-10-22T03:52:15Z", ack_token: "never_expose_me",
+  });
+  const hub = new PushHub({ storage }, {});
+  const data = await hub.eventDeliverySummary(id);
+  assert.equal(data.ok, true);
+  assert.equal(data.recipients_initial_count, 2);
+  assert.equal(data.deliveries.SENT_TO_PUSH, 1);
+  assert.equal(data.first_provider_accepted_at, "2026-10-22T03:52:15Z");
+  assert.equal(data.event_at, "2026-10-22T03:52:02Z");
+  assert.equal(JSON.stringify(data).includes("secret-device"), false);
+  assert.equal(JSON.stringify(data).includes("never_expose_me"), false);
+  assert.equal((await hub.eventDeliverySummary("invalid")).ok, false);
+});
+
 test("Daily OPEN and CLOSE already accepted by push provider are never re-sent on stale commit fallback", async () => {
   for (const kind of ["OPEN", "CLOSE"]) {
     const storage = new FakeStorage();
