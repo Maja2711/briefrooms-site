@@ -13,7 +13,7 @@ MAX_AGE_MINUTES = 90
 
 def evaluate(bars, direction, observed_at):
     if direction not in ("LONG", "SHORT"):
-        return {"allowed": False, "reason": "belief_not_directional", "weight": "PRIMARY_TECHNICAL"}
+        return {"available": False, "allowed": False, "reason": "belief_not_directional", "weight": "PRIMARY_TECHNICAL"}
     observed_at = observed_at.astimezone(timezone.utc)
     buckets = {}
     for bar in bars:
@@ -33,9 +33,9 @@ def evaluate(bars, direction, observed_at):
         candles.append((hour + timedelta(hours=1), float(first.open), float(max(first.high, last.high)),
                         float(min(first.low, last.low)), float(last.close)))
     if len(candles) < PERIOD + 3:
-        return {"allowed": False, "reason": "insufficient_closed_h1_bars", "closed_h1": len(candles)}
+        return {"available": False, "allowed": False, "reason": "insufficient_closed_h1_bars", "closed_h1": len(candles)}
     if observed_at - candles[-1][0] > timedelta(minutes=MAX_AGE_MINUTES):
-        return {"allowed": False, "reason": "stale_h1_bollinger"}
+        return {"available": False, "allowed": False, "reason": "stale_h1_bollinger"}
     closes = [x[4] for x in candles]
     def band(index):
         values = closes[index-PERIOD+1:index+1]
@@ -48,7 +48,7 @@ def evaluate(bars, direction, observed_at):
     price, previous = closes[-1], closes[-2]
     width = upper - lower
     if width <= 0 or not all(isfinite(x) for x in (mid, upper, lower, price)):
-        return {"allowed": False, "reason": "invalid_bollinger_geometry"}
+        return {"available": False, "allowed": False, "reason": "invalid_bollinger_geometry"}
     percent_b = (price-lower)/width
     slope = mid-prev_mid
     slope_prior = prev_mid-prev2_mid
@@ -62,7 +62,7 @@ def evaluate(bars, direction, observed_at):
     exhaustion = upper_rejection if direction == "LONG" else lower_rejection
     allowed = aligned and not exhaustion
     return {
-        "allowed": allowed, "reason": "aligned_h1_trend" if allowed else
+        "available": True, "allowed": allowed, "reason": "aligned_h1_trend" if allowed else
             "outer_band_exhaustion" if exhaustion else "h1_trend_not_confirmed",
         "role": "PRIMARY_TECHNICAL_ADMISSION", "direction_mutation_allowed": False,
         "weight": "HIGH_VETO_NEW_ENTRY", "period": PERIOD, "deviations": MULTIPLIER,
