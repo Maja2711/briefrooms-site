@@ -33,6 +33,7 @@ import investments_wes_macro_belief as legacy_macro_context
 import daily_eurusd_decision_record as decision_record
 import daily_eurusd_production_policy as production_policy
 import daily_eurusd_reentry_safety as reentry_safety
+import daily_eurusd_bollinger_h1 as bollinger_h1
 
 ENGINE_VERSION = decision_record.ENGINE_VERSION
 ENTRY_THESIS_SOURCE_FAMILY = "NATIVE_BELIEF_FIRST"
@@ -127,6 +128,11 @@ def _execution_admission(
         "final_direction_preserved": candidate.direction,
         "direction_mutation_allowed": False,
     }
+
+    bollinger = (candidate.metadata or {}).get("bollinger_h1") or {}
+    details["bollinger_h1"] = dict(bollinger)
+    if bollinger.get("allowed") is not True:
+        reasons.append("bollinger_h1_" + str(bollinger.get("reason") or "unavailable"))
 
     calendar = belief_decision.calendar_safety(
         observed_at=observed_at,
@@ -255,9 +261,11 @@ def build_output(
         authoritative_consumer=consumer_meta,
     )
 
+    bollinger = bollinger_h1.evaluate(rows, direction, observed_at)
     legacy_learning = lifecycle.learning_state(list((history or {}).get("trades") or []))
     metadata: dict[str, Any] = {
         "market_snapshot_sha256": decision_record.market_snapshot_hash(snapshot),
+        "bollinger_h1": bollinger,
         "market": "FX_SPOT",
         "currency_pair": "EUR/USD",
         "rollout_stage": "paper",
