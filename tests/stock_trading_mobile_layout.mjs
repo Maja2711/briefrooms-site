@@ -14,7 +14,7 @@ const widths = [320, 360, 390, 430, 768];
 try {
   for (const lang of ["pl", "en"]) {
     const route = lang === "pl" ? "/pl/inwestycje/stock-trading.html" : "/en/investing/stock-trading.html";
-    for (const width of [...widths, 1280]) {
+    for (const width of [...widths, 1280, 1600]) {
       const context = await browser.newContext({
         viewport: { width, height: 812 },
         isMobile: width <= 768,
