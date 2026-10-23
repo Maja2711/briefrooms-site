@@ -119,7 +119,9 @@ class DailyEURUSDBollingerTouchTests(touch.DailyEURUSDBollingerTouchTests):
                 }
                 candidate = v19.DailyEngineOutput(
                     instrument=v19.base.EURUSD, timestamp=now.isoformat(), direction=direction,
-                    score=0.8, confidence=0.8, entry=1.12, stop=1.11, target=1.14,
+                    score=0.8, confidence=0.8, entry=1.12,
+                    stop=1.11 if direction == "LONG" else 1.13,
+                    target=1.14 if direction == "LONG" else 1.10,
                     horizon="intraday_to_27h", engine_version=v19.ENGINE_VERSION,
                     status="SIGNAL", decision_mode="WITH", metadata=metadata,
                 ).validate()
