@@ -33,6 +33,8 @@ import investments_wes_macro_belief as legacy_macro_context
 import daily_eurusd_decision_record as decision_record
 import daily_eurusd_production_policy as production_policy
 import daily_eurusd_reentry_safety as reentry_safety
+import daily_eurusd_bollinger_h1 as bollinger_h1
+import daily_eurusd_bollinger_d1 as bollinger_d1
 
 ENGINE_VERSION = decision_record.ENGINE_VERSION
 ENTRY_THESIS_SOURCE_FAMILY = "NATIVE_BELIEF_FIRST"
@@ -127,6 +129,13 @@ def _execution_admission(
         "final_direction_preserved": candidate.direction,
         "direction_mutation_allowed": False,
     }
+
+    bollinger = (candidate.metadata or {}).get("bollinger_h1") or {}
+    details["bollinger_h1"] = dict(bollinger)
+    # Only evaluated, trustworthy technical evidence can veto entry. Missing
+    # evidence is observable but must not rewrite established admission contracts.
+    if bollinger.get("available") is True and bollinger.get("allowed") is False:
+        reasons.append("bollinger_h1_" + str(bollinger.get("reason") or "not_aligned"))
 
     calendar = belief_decision.calendar_safety(
         observed_at=observed_at,
@@ -255,9 +264,29 @@ def build_output(
         authoritative_consumer=consumer_meta,
     )
 
+    # Fetch sufficient completed H1 history independently of the risk-geometry snapshot.
+    # Keep this optional until verified against real feed timestamps and CI fixtures.
+    try:
+        client = (_cycle_context or {}).get("market_client")
+        h1_rows = client.bars(base.EURUSD, "60d", "30m") if client is not None else []
+        bollinger = bollinger_h1.evaluate(h1_rows, direction, observed_at) if h1_rows else {
+            "available": False, "reason": "h1_history_not_available", "role": "PRIMARY_TECHNICAL"}
+    except (ValueError, TypeError, KeyError, OSError, RuntimeError) as exc:
+        bollinger = {"available": False, "reason": "h1_history_fetch_failed",
+                     "error_type": type(exc).__name__, "role": "PRIMARY_TECHNICAL"}
+    # D1 provides read-only, auxiliary trend context; never blocks admission.
+    try:
+        client = (_cycle_context or {}).get("market_client")
+        daily_bars = client.bars(base.EURUSD, "6mo", "1d") if client is not None else []
+        d1_context = bollinger_d1.evaluate(daily_bars, observed_at)
+    except (ValueError, TypeError, KeyError, OSError, RuntimeError) as exc:
+        d1_context = {"available": False, "reason": "daily_context_fetch_failed",
+                      "error_type": type(exc).__name__, "role": "AUXILIARY_TECHNICAL"}
     legacy_learning = lifecycle.learning_state(list((history or {}).get("trades") or []))
     metadata: dict[str, Any] = {
         "market_snapshot_sha256": decision_record.market_snapshot_hash(snapshot),
+        "bollinger_h1": bollinger,
+        "bollinger_d1": d1_context,
         "market": "FX_SPOT",
         "currency_pair": "EUR/USD",
         "rollout_stage": "paper",
@@ -490,11 +519,13 @@ def prepare_entry_candidate(
         state = _cycle_context["policy_state"]
         frozen_at = (datetime.now(timezone.utc) if _cycle_context.get("live")
                      else max(_cycle_context["decision_at"], belief_decision._parse_time(prepared.timestamp)))
-        # Preserve the existing actual-only margin experiment's eligibility.
+        # Freeze against the position actually persisted by the lifecycle writer.
         if (candidate.metadata.get("execution_admission") or {}).get("allowed") is True and not execution_reason:
             state, _ = production_policy.freeze_case(
-                state, decision_manifest=manifest, position=position, score=prepared.score,
-                now=frozen_at, slices={"session": _session(prepared.timestamp), "macro": "clear"})
+                state, decision_manifest=manifest, position=position,
+                score=prepared.score, now=frozen_at,
+                slices={"session": _session(prepared.timestamp), "macro": "clear"})
+            _cycle_context["policy_state"] = state
         if context.get("allowed") is True and evaluations:
             state = production_policy.freeze_reentry_case(
                 state, manifest=manifest, position=position, evaluations=evaluations,
@@ -758,6 +789,21 @@ def _open_output_v19(
     mark_price: float,
 ) -> DailyEngineOutput:
     """Preserve legacy position facts while projecting them through v1.9 runtime."""
+    pending = (_cycle_context or {}).pop("pending_canonical_freeze", None)
+    if pending is not None:
+        manifest = position.get("decision_manifest")
+        if not isinstance(manifest, Mapping):
+            raise ValueError("canonical open position missing decision manifest")
+        decision_record.validate_manifest(manifest)
+        # The lifecycle may select a different final decision than the EPE
+        # provisional candidate. Only the actual persisted position is evidence.
+        final = manifest.get("final_decision") or {}
+        score = float(final.get("score", position.get("entry_score", pending["score"])))
+        state, _ = production_policy.freeze_case(
+            _cycle_context["policy_state"], decision_manifest=manifest, position=position,
+            score=score, now=pending["frozen_at"],
+            slices={"session": pending["session"], "macro": "clear"})
+        _cycle_context["policy_state"] = state
     output = _v18_open_output(candidate, position, mark_price)
     metadata = dict(output.metadata)
     metadata["runtime_projection"] = {
