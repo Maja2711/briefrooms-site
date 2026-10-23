@@ -8,6 +8,7 @@ import unittest
 
 from tests import test_daily_eurusd_bollinger_h1 as h1
 from tests import test_daily_eurusd_bollinger_d1 as d1
+from tests import test_daily_eurusd_bollinger_touch as touch
 
 
 class DailyEURUSDBollingerH1Tests(unittest.TestCase):
@@ -92,3 +93,62 @@ class DailyEURUSDBollingerD1Tests(unittest.TestCase):
 for name in dir(d1):
     if name.startswith("test_") and callable(getattr(d1, name)):
         setattr(DailyEURUSDBollingerD1Tests, name, staticmethod(getattr(d1, name)))
+
+# Include the prospective touch/correction tests in the explicit production CI
+# suite even where the workflow does not use unittest discovery.
+class DailyEURUSDBollingerTouchTests(touch.DailyEURUSDBollingerTouchTests):
+    def test_production_veto_respects_belief_only(self):
+        import daily_eurusd_spot_v19 as v19
+        from unittest.mock import patch
+        now = h1.START + __import__("datetime").timedelta(hours=40)
+        with patch.object(v19.belief_decision, "calendar_safety", return_value={"blocked": False}), \
+             patch.object(v19.v16, "_apply_same_thesis_guard", side_effect=lambda c, *a, **k: c), \
+             patch.object(v19.production_policy, "reflection_context", return_value={}), \
+             patch.object(v19.production_policy, "reentry_context", return_value={"criteria": {}, "version_id": "test"}), \
+             patch.object(v19.production_policy, "reentry_contenders", return_value={}), \
+             patch.object(v19.reentry_safety, "evaluate", return_value={"required": False, "allowed": True}), \
+             patch.object(v19, "_policy_state", return_value={}):
+            for direction, gate_key, reason in (
+                ("LONG", "upper_long_blocked", "bollinger_d1_upper_touch_waiting_for_half_retracement"),
+                ("SHORT", "lower_short_blocked", "bollinger_d1_lower_touch_waiting_for_half_retracement"),
+            ):
+                metadata = {
+                    "bollinger_h1": {"available": True, "allowed": True},
+                    "bollinger_d1_touch": {gate_key: True},
+                    "final_decision": {"direction": direction},
+                }
+                candidate = v19.DailyEngineOutput(
+                    instrument=v19.base.EURUSD, timestamp=now.isoformat(), direction=direction,
+                    score=0.8, confidence=0.8, entry=1.12,
+                    stop=1.11 if direction == "LONG" else 1.13,
+                    target=1.14 if direction == "LONG" else 1.10,
+                    horizon="intraday_to_27h", engine_version=v19.ENGINE_VERSION,
+                    status="SIGNAL", decision_mode="WITH", metadata=metadata,
+                ).validate()
+                blocked = v19._execution_admission(candidate, None, observed_at=now)
+                self.assertFalse(blocked["allowed"])
+                self.assertIn(reason, blocked["reasons"])
+                self.assertEqual(blocked["final_direction_preserved"], direction)
+                metadata["bollinger_d1_touch"] = {gate_key: False}
+                released = v19._execution_admission(
+                    v19._clone(candidate, metadata=metadata), None, observed_at=now)
+                self.assertTrue(released["allowed"])
+
+# The Daily monitor validation imports the established H1 test case explicitly.
+# Attach each new regression there too so every configured CI runner executes it.
+def _run_touch_regression(method_name):
+    def test(self):
+        scenario = touch.DailyEURUSDBollingerTouchTests(methodName=method_name)
+        scenario.setUp()
+        getattr(scenario, method_name)()
+    return test
+
+
+for _name in dir(touch.DailyEURUSDBollingerTouchTests):
+    if _name.startswith("test_"):
+        setattr(DailyEURUSDBollingerH1Tests, "test_d1_touch_" + _name[5:],
+                _run_touch_regression(_name))
+
+DailyEURUSDBollingerH1Tests.test_d1_touch_admission_veto = (
+    DailyEURUSDBollingerTouchTests.test_production_veto_respects_belief_only
+)

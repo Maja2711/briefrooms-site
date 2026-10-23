@@ -35,6 +35,7 @@ import daily_eurusd_production_policy as production_policy
 import daily_eurusd_reentry_safety as reentry_safety
 import daily_eurusd_bollinger_h1 as bollinger_h1
 import daily_eurusd_bollinger_d1 as bollinger_d1
+import daily_eurusd_bollinger_touch as bollinger_touch
 
 ENGINE_VERSION = decision_record.ENGINE_VERSION
 ENTRY_THESIS_SOURCE_FAMILY = "NATIVE_BELIEF_FIRST"
@@ -136,6 +137,17 @@ def _execution_admission(
     # evidence is observable but must not rewrite established admission contracts.
     if bollinger.get("available") is True and bollinger.get("allowed") is False:
         reasons.append("bollinger_h1_" + str(bollinger.get("reason") or "not_aligned"))
+
+    # Belief alone creates direction. A D1 upper/lower touch can only veto
+    # chasing the same direction until a subsequent 50% retracement.
+    d1_touch = (candidate.metadata or {}).get("bollinger_d1_touch") or {}
+    details["bollinger_d1_touch"] = dict(d1_touch)
+    if candidate.direction == "LONG" and d1_touch.get("upper_long_blocked") is True:
+        reasons.append("bollinger_d1_upper_touch_waiting_for_half_retracement")
+    if candidate.direction == "SHORT" and d1_touch.get("lower_short_blocked") is True:
+        reasons.append("bollinger_d1_lower_touch_waiting_for_half_retracement")
+    if d1_touch.get("processing_error"):
+        reasons.append("bollinger_d1_touch_state_unverified")
 
     calendar = belief_decision.calendar_safety(
         observed_at=observed_at,
@@ -282,11 +294,27 @@ def build_output(
     except (ValueError, TypeError, KeyError, OSError, RuntimeError) as exc:
         d1_context = {"available": False, "reason": "daily_context_fetch_failed",
                       "error_type": type(exc).__name__, "role": "AUXILIARY_TECHNICAL"}
+    # Evaluate touches even with Belief FLAT, preserving state in the output.
+    try:
+        d1_touch = bollinger_touch.update(
+            d1_context, (_cycle_context or {}).get("monitor_bars") or [], observed_at,
+            previous_state=(_cycle_context or {}).get("prior_bollinger_touch_state"),
+        )
+    except (ValueError, TypeError, KeyError, OSError, RuntimeError) as exc:
+        prior = (_cycle_context or {}).get("prior_bollinger_touch_state") or {}
+        d1_touch = {
+            "available": False, "processing_error": type(exc).__name__,
+            "upper_long_blocked": (prior.get("upper") or {}).get("blocked") is True,
+            "lower_short_blocked": (prior.get("lower") or {}).get("blocked") is True,
+            "state": dict(prior), "direction_mutation_allowed": False,
+            "opens_trade": False,
+        }
     legacy_learning = lifecycle.learning_state(list((history or {}).get("trades") or []))
     metadata: dict[str, Any] = {
         "market_snapshot_sha256": decision_record.market_snapshot_hash(snapshot),
         "bollinger_h1": bollinger,
         "bollinger_d1": d1_context,
+        "bollinger_d1_touch": d1_touch,
         "market": "FX_SPOT",
         "currency_pair": "EUR/USD",
         "rollout_stage": "paper",
@@ -693,7 +721,8 @@ def run_cycle(output_path: Path, history_path: Path, client: Any | None = None) 
         if str(position.get("status") or "").upper() != "OPEN":
             raise
         previous_context = _cycle_context
-        _cycle_context = {"policy_state": production_policy.default_state(now), "decision_at": now, "live": live}
+        _cycle_context = {"policy_state": production_policy.default_state(now), "decision_at": now, "live": live,
+                          "prior_bollinger_touch_state": (previous_metadata.get("bollinger_d1_touch") or {}).get("state")}
         try:
             output = v18.run_cycle(output_path, history_path, cached)
             metadata = dict(output.metadata)
@@ -710,7 +739,8 @@ def run_cycle(output_path: Path, history_path: Path, client: Any | None = None) 
         runtime_code_sha256=runtime_code_sha256)
     previous_context = _cycle_context
     _cycle_context = {"policy_state": policy, "decision_at": now, "live": live,
-                      "market_client": cached, "monitor_bars": bars}
+                      "market_client": cached, "monitor_bars": bars,
+                      "prior_bollinger_touch_state": (previous_metadata.get("bollinger_d1_touch") or {}).get("state")}
     try:
         output = v18.run_cycle(output_path, history_path, cached)
         metadata = dict(output.metadata)
