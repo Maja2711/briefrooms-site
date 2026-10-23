@@ -133,3 +133,22 @@ class DailyEURUSDBollingerTouchTests(touch.DailyEURUSDBollingerTouchTests):
                 released = v19._execution_admission(
                     v19._clone(candidate, metadata=metadata), None, observed_at=now)
                 self.assertTrue(released["allowed"])
+
+# The Daily monitor validation imports the established H1 test case explicitly.
+# Attach each new regression there too so every configured CI runner executes it.
+def _run_touch_regression(method_name):
+    def test(self):
+        scenario = touch.DailyEURUSDBollingerTouchTests(methodName=method_name)
+        scenario.setUp()
+        getattr(scenario, method_name)()
+    return test
+
+
+for _name in dir(touch.DailyEURUSDBollingerTouchTests):
+    if _name.startswith("test_"):
+        setattr(DailyEURUSDBollingerH1Tests, "test_d1_touch_" + _name[5:],
+                _run_touch_regression(_name))
+
+DailyEURUSDBollingerH1Tests.test_d1_touch_admission_veto = (
+    DailyEURUSDBollingerTouchTests.test_production_veto_respects_belief_only
+)
