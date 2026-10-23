@@ -107,3 +107,61 @@
     overflow-wrap: anywhere;
   }
 }
+
+
+/* Mobile overview cards: keep the company identity in normal document flow.
+   The legacy compact-ticket negative margin must never lift the overview
+   ticker/name above the card boundary or into the active-status badge. */
+@media (max-width: 760px) {
+  .stock-trading-page .str-overview-position {
+    box-sizing: border-box;
+    min-width: 0 !important;
+  }
+  .stock-trading-page .str-overview-position-head {
+    min-width: 0;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .stock-trading-page .str-overview-position-body {
+    min-width: 0;
+    grid-template-columns: minmax(78px, 92px) minmax(0, 1fr) !important;
+  }
+  .stock-trading-page .str-overview-position-copy {
+    min-width: 0 !important;
+  }
+  .stock-trading-page .str-overview-position .str-company-name {
+    position: static !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 2px !important;
+    width: auto !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    margin: 0 0 10px !important;
+    transform: none !important;
+  }
+  .stock-trading-page .str-overview-position .str-company-name h3 {
+    margin: 0 !important;
+    font-size: clamp(17px, 4.5vw, 21px) !important;
+    line-height: 1.2 !important;
+    overflow-wrap: anywhere;
+  }
+  .stock-trading-page .str-overview-position .str-company-name span {
+    display: -webkit-box !important;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0 !important;
+    overflow: hidden !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-height: 1.35;
+    font-size: 11px;
+  }
+  .stock-trading-page .str-overview-facts,
+  .stock-trading-page .str-overview-pnl {
+    min-width: 0;
+  }
+}
