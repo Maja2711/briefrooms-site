@@ -6,6 +6,7 @@ import json
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
+from scripts.gse_home_ranking import rank_home_forecasts
 from typing import Any, Iterable
 
 SCHEMA_VERSION = "gse-v2-public-lab-v3"
@@ -473,6 +474,7 @@ def build_projection(state_dir: Path, catalog_path: Path, featured_thesis_config
     featured_thesis = featured_thesis_projection(state_dir, featured_thesis_config, generated_at=generated_at)
     spx_long_view = asset_outlook_projection(state_dir, "SPX", generated_at=generated_at)
     event_threat = event_threat_projection(state_dir)
+    home_top_forecasts = rank_home_forecasts(state_dir, generated_at=generated_at)
     last_learning_at = latest_timestamp(row.get("recorded_at") for row in ledger)
     last_base_verification_at = latest_timestamp(row.get("verified_at") for row in base_verifications)
     last_v2_verification_at = latest_timestamp(row.get("verified_at") for row in v2_verifications)
@@ -485,6 +487,7 @@ def build_projection(state_dir: Path, catalog_path: Path, featured_thesis_config
         "featured_thesis": featured_thesis,
         "spx_long_view": spx_long_view,
         "event_threat": event_threat,
+        "home_top_forecasts": home_top_forecasts,
         "activity": {
             "last_scan_at": last_scan_at,
             "last_learning_at": last_learning_at,

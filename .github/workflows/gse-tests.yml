@@ -6,6 +6,10 @@ on:
       - "scripts/geopolitical_scenario_engine.py"
       - "scripts/gse_event_probability_threat_engine.py"
       - "scripts/gse_v2_public_lab_projection.py"
+      - "scripts/gse_home_ranking.py"
+      - "scripts/home-lab-v5.js"
+      - "scripts/home-lab.js"
+      - "tests/test_gse_home_ranking.py"
       - "tests/test_geopolitical_scenario_engine.py"
       - "tests/test_gse_event_probability_threat_engine.py"
       - "tests/test_gse_v2_public_lab_projection.py"
@@ -17,6 +21,10 @@ on:
       - "scripts/geopolitical_scenario_engine.py"
       - "scripts/gse_event_probability_threat_engine.py"
       - "scripts/gse_v2_public_lab_projection.py"
+      - "scripts/gse_home_ranking.py"
+      - "scripts/home-lab-v5.js"
+      - "scripts/home-lab.js"
+      - "tests/test_gse_home_ranking.py"
       - "tests/test_geopolitical_scenario_engine.py"
       - "tests/test_gse_event_probability_threat_engine.py"
       - "tests/test_gse_v2_public_lab_projection.py"
@@ -34,8 +42,10 @@ jobs:
         with:
           python-version: "3.12"
       - name: Compile GSE
-        run: python -m py_compile scripts/geopolitical_scenario_engine.py scripts/gse_event_probability_threat_engine.py scripts/gse_v2_public_lab_projection.py
+        run: python -m py_compile scripts/geopolitical_scenario_engine.py scripts/gse_event_probability_threat_engine.py scripts/gse_v2_public_lab_projection.py scripts/gse_home_ranking.py
+      - name: Check homepage GSE JavaScript
+        run: node --check scripts/home-lab-v5.js && node --check scripts/home-lab.js
       - name: Run GSE tests
         env:
           PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
-        run: python -m unittest tests.test_geopolitical_scenario_engine tests.test_gse_event_probability_threat_engine tests.test_gse_v2_public_lab_projection -v
+        run: python -m unittest tests.test_geopolitical_scenario_engine tests.test_gse_event_probability_threat_engine tests.test_gse_v2_public_lab_projection tests.test_gse_home_ranking -v

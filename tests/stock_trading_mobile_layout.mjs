@@ -14,7 +14,7 @@ const widths = [320, 360, 390, 430, 768];
 try {
   for (const lang of ["pl", "en"]) {
     const route = lang === "pl" ? "/pl/inwestycje/stock-trading.html" : "/en/investing/stock-trading.html";
-    for (const width of [...widths, 1280]) {
+    for (const width of [...widths, 1280, 1600]) {
       const context = await browser.newContext({
         viewport: { width, height: 812 },
         isMobile: width <= 768,
@@ -28,27 +28,73 @@ try {
         await page.goto(base + route, { waitUntil: "domcontentloaded", timeout: 40_000 });
         await page.locator(".stock-room-hero").waitFor();
         await page.waitForTimeout(350);
-        const glass = await page.evaluate(() => {
+        await page.locator(".str-market-us-panel .str-data-stamp").waitFor({timeout: 15000});
+        // Verify real browser geometry in PL/EN and phone/desktop widths.
+        const statusGeometry = await page.evaluate(() => {
+          const stamp = document.querySelector(".str-market-us-panel .str-data-stamp");
+          const title = document.querySelector(".str-market-us-panel .str-market-status strong");
+          const panel = document.querySelector(".str-market-us-panel > .str-market-status");
+          const gpw = document.querySelector(".str-market-statuses > .str-market-status");
+          const rect = (node) => { const r = node.getBoundingClientRect(); return {top:r.top,bottom:r.bottom,left:r.left,right:r.right}; };
+          const gpwTitle = gpw.querySelector("strong");
+          return {stamp:rect(stamp),title:rect(title),gpwTitle:rect(gpwTitle),
+                  panel:rect(panel),gpw:rect(gpw),
+                  timestamp:stamp.querySelector("strong").textContent.trim(),usa:title.textContent.trim()};
+        });
+        assert.ok(statusGeometry.stamp.bottom <= statusGeometry.title.top + 1,
+          lang + "/" + width + ": portfolio date overlaps USA status: " + JSON.stringify(statusGeometry));
+        assert.ok(statusGeometry.stamp.left >= statusGeometry.panel.left - 1 &&
+                  statusGeometry.stamp.right <= statusGeometry.panel.right + 1,
+          lang + "/" + width + ": portfolio date spills outside USA status column");
+        assert.ok(statusGeometry.timestamp.length > 4, lang + "/" + width + ": missing portfolio date");
+        assert.ok(statusGeometry.usa.includes("USA"), lang + "/" + width + ": missing USA status");
+        // User-reported regression: GPW heading was ~30px ABOVE US heading
+        // while both statuses were split into separate flex/grid structures.
+        if (width > 620) {
+          assert.ok(Math.abs(statusGeometry.gpwTitle.top - statusGeometry.title.top) <= 2,
+            lang + "/" + width + ": GPW and USA status headings are not level: " +
+            JSON.stringify(statusGeometry));
+          assert.ok(statusGeometry.gpw.right <= statusGeometry.title.left + 2,
+            lang + "/" + width + ": GPW and USA status areas overlap");
+        } else {
+          assert.ok(statusGeometry.gpw.bottom <= statusGeometry.stamp.top + 2,
+            lang + "/" + width + ": mobile GPW/status order overlaps");
+        }
+        // Standalone market actions: verify real computed geometry and contrast
+        // affordances in both languages, not the retired shared glass bezel.
+        const buttons = await page.evaluate(() => {
           const nodes = [...document.querySelectorAll(".str-market-tab")];
           return nodes.map(node => {
             const css = getComputedStyle(node);
-            const shine = getComputedStyle(node, "::before");
+            const rect = node.getBoundingClientRect();
             return {
-              height: node.getBoundingClientRect().height,
-              background: css.backgroundImage,
-              shadows: css.boxShadow,
-              shine: shine.backgroundImage,
+              top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom,
+              height: rect.height,
+              background: css.backgroundColor,
+              backgroundImage: css.backgroundImage,
+              border: css.borderTopWidth,
+              borderRadius: css.borderRadius,
+              cursor: css.cursor,
+              pressed: node.getAttribute("aria-pressed"),
             };
           });
         });
-        if (glass.length) {
-          assert.equal(glass.length, 2, `${lang}/${width}: expected GPW and USA market tabs`);
-          for (const btn of glass) {
-            assert.ok(btn.height >= 60, `${lang}/${width}: button size shrunk`);
-            assert.match(btn.background, /linear-gradient/, `${lang}/${width}: missing glass 3D gradient`);
-            assert.match(btn.shadows, /inset/, `${lang}/${width}: missing raised bevel`);
-            assert.match(btn.shine, /linear-gradient/, `${lang}/${width}: missing specular glass shine`);
+        if (buttons.length) {
+          assert.equal(buttons.length, 2, `${lang}/${width}: expected GPW and USA buttons`);
+          for (const btn of buttons) {
+            assert.ok(btn.height >= 60, `${lang}/${width}: touch target too short`);
+            assert.ok(parseFloat(btn.border) >= 1, `${lang}/${width}: missing independent border`);
+            assert.ok(parseFloat(btn.borderRadius) >= 10, `${lang}/${width}: missing button corners`);
+            assert.equal(btn.cursor, "pointer", `${lang}/${width}: missing clickable affordance`);
+            assert.equal(btn.backgroundImage, "none", `${lang}/${width}: legacy glass treatment remains`);
+            assert.notEqual(btn.background, "rgba(0, 0, 0, 0)", `${lang}/${width}: missing button surface`);
+            assert.ok(["true", "false"].includes(btn.pressed), `${lang}/${width}: missing pressed state`);
           }
+          const gap = width <= 620
+            ? buttons[1].top - buttons[0].bottom
+            : buttons[1].left - buttons[0].right;
+          assert.ok(gap >= 10 && gap <= 20,
+            `${lang}/${width}: buttons touch or have excessive spacing: ${gap}px`);
         }
         const sizes = await page.evaluate(() => {
           const history = document.querySelector(".str-history-table");

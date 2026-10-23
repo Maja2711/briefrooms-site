@@ -1,0 +1,104 @@
+name: Stock Trading Company Logo Resolver
+# UI-only metadata and PNG cache; NEVER run stock admission / trading writers.
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/stock-company-logo-resolver.yml"
+      - "scripts/company_logo_resolver.py"
+      - "tests/test_company_logo_resolver.py"
+      - "scripts/stock-trading-company-logos-v2.js"
+      - "tests/stock_trading_company_logos.mjs"
+      - "data/investments/company_logo_cache.json"
+  push:
+    branches: [main]
+    paths:
+      - "data/investments/stock_trading_portfolio.json"
+      - ".github/workflows/stock-company-logo-resolver.yml"
+      - "scripts/company_logo_resolver.py"
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stock-company-logo-cache-writer
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: python -m unittest tests.test_company_logo_resolver -v
+      - run: node --test tests/stock_trading_company_logos.mjs
+      - run: node --check scripts/stock-trading-company-logos-v2.js
+
+  cache:
+    # PR validation has no write access. UI jobs are never trading jobs.
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Start immutable presentation-only run clock
+        # NO RETROACTIVE EXECUTION: this is a UI cache writer, never a trade writer.
+        run: |
+          echo "NO_RETROACTIVE_EXECUTION=1" >> "$GITHUB_ENV"
+          echo "NO_RETROACTIVE_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+      - name: Resolve issuer identities and fetch bounded site icons
+        run: python scripts/company_logo_resolver.py
+      - name: Strictly persist UI-only cache, safely rebase if main advances
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- data/investments/company_logo_cache.json
+          if [[ -d assets/company-logos ]]; then git add -- assets/company-logos; fi
+          if git diff --cached --quiet; then
+            echo "LOGO_CACHE_NO_CHANGES"
+            exit 0
+          fi
+          if git diff --cached --name-only | grep -Ev '^(data/investments/company_logo_cache\.json|assets/company-logos/(gpw|us)/[a-z0-9]+\.png)$'; then
+            echo "Unexpected file in logo-only commit" >&2
+            exit 1
+          fi
+          # NO RETROACTIVE EXECUTION mandatory guard before committing
+          python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
+          git commit -m "ui: cache vetted GPW and US company icons"
+          for attempt in 1 2 3 4; do
+            if git pull --rebase origin main; then
+              # Recheck against rebase parent before publication to main.
+              python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
+              if git push origin HEAD:main; then
+                echo "LOGO_CACHE_PUBLISHED"
+                exit 0
+              fi
+            fi
+            git rebase --abort 2>/dev/null || true
+            git fetch origin main
+            git rebase origin/main
+            python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
+            sleep $((attempt * 2))
+          done
+          echo "Logo cache could not be persisted" >&2
+          exit 1
