@@ -1,0 +1,502 @@
+{
+  "week_id": "2026-W44",
+  "method_version": "2.0.0",
+  "model_status": "paper_trading_rule_based_not_investment_advice",
+  "forecast_created_at": "2026-10-25T01:11:21+02:00",
+  "forecast_locked_at": "2026-10-25T01:11:21+02:00",
+  "forecast_for_week_start": "2026-10-26",
+  "forecast_for_week_end": "2026-10-30",
+  "timezone": "Europe/Warsaw",
+  "market_window": {
+    "entry_target_local": "2026-10-26T08:00:00+01:00",
+    "entry_latest_local": "2026-10-26T10:00:00+01:00",
+    "exit_target_local": "2026-10-30T22:00:00+01:00"
+  },
+  "execution_assumptions": {
+    "entry": "first available 5-minute bar at or after Monday 08:00 Europe/Warsaw",
+    "scheduled_exit": "first available 5-minute bar at or after Friday 22:00 Europe/Warsaw",
+    "same_bar_sl_tp": "stop_loss_first_conservative",
+    "slippage": "not included in live paper log; validation report includes transaction-cost assumptions"
+  },
+  "instruments": [
+    {
+      "instrument_id": "eurusd",
+      "symbol": "EURUSD=X",
+      "label_pl": "EUR/USD",
+      "label_en": "EUR/USD",
+      "direction": "short",
+      "score": -60,
+      "signal_strength": 0.6,
+      "confidence": 0.6,
+      "confidence_type": "heuristic_signal_strength_not_probability",
+      "data_quality": "passed",
+      "quality_reason": "at_least_260_closes_and_complete_volatility_inputs",
+      "signals": {
+        "last_close": 1.12044823,
+        "ema20": 1.12648454,
+        "ema50": 1.13710317,
+        "atr14": 0.00625163,
+        "ret5_pct": -0.0773,
+        "ret20_pct": -1.4969,
+        "vol20_annualized_pct": 4.2434,
+        "vol60_annualized_pct": 4.2095,
+        "volatility_regime_ratio": 1.0081,
+        "volatility_score_scale": 1.0,
+        "range55_position": 0.0839,
+        "components": {
+          "trend_ema": -20.0,
+          "trend_price": -9.66,
+          "momentum5": -1.29,
+          "momentum20": -16.7,
+          "breakout": -12.48,
+          "macro_bias": 0.0,
+          "event_risk_penalty": 0.0
+        },
+        "agreement": {
+          "positive_groups": 0,
+          "negative_groups": 3,
+          "required": 2
+        }
+      },
+      "risk_distance": {
+        "source": "ATR14_sqrt5_frozen_at_forecast",
+        "stop_price_distance": 0.00768849,
+        "take_price_distance": 0.01258117,
+        "stop_units": 76.8849,
+        "take_units": 125.8117,
+        "reward_to_risk": 1.6364
+      },
+      "entry_thresholds": {
+        "long": 35.0,
+        "short": -35.0
+      },
+      "entry_price": null,
+      "entry_captured_at": null,
+      "entry_source": null,
+      "entry_quality_status": "not_due",
+      "trade_status": "planned",
+      "risk_plan": null,
+      "exit_price": null,
+      "exit_captured_at": null,
+      "exit_source": null,
+      "exit_reason": null,
+      "result": null,
+      "result_value": null,
+      "result_percent": null,
+      "rationale_pl": [
+        "Model v2.0.0: short / spadek.",
+        "Score -60; progi: long 35, short -35.",
+        "Siła sygnału jest wskaźnikiem heurystycznym, a nie prawdopodobieństwem powodzenia.",
+        "Zmienność wpływa na score i poziomy ryzyka zapisane przed otwarciem."
+      ],
+      "rationale_en": [
+        "Model v2.0.0: short / bearish.",
+        "Score -60; thresholds: long 35, short -35.",
+        "Signal strength is heuristic, not a probability of success.",
+        "Volatility affects the score and risk levels frozen before entry."
+      ]
+    },
+    {
+      "instrument_id": "sp500_futures",
+      "symbol": "ES=F",
+      "label_pl": "S&P 500 futures",
+      "label_en": "S&P 500 futures",
+      "direction": "neutral",
+      "score": -22,
+      "signal_strength": 0.22,
+      "confidence": 0.22,
+      "confidence_type": "heuristic_signal_strength_not_probability",
+      "data_quality": "passed",
+      "quality_reason": "at_least_260_closes_and_complete_volatility_inputs",
+      "signals": {
+        "last_close": 7659.75,
+        "ema20": 7757.77140209,
+        "ema50": 7720.56986047,
+        "atr14": 80.73214286,
+        "ret5_pct": -0.5776,
+        "ret20_pct": -1.8453,
+        "vol20_annualized_pct": 9.8002,
+        "vol60_annualized_pct": 10.901,
+        "volatility_regime_ratio": 0.899,
+        "volatility_score_scale": 1.0,
+        "range55_position": 0.3252,
+        "components": {
+          "trend_ema": 6.14,
+          "trend_price": -10.0,
+          "momentum5": -4.18,
+          "momentum20": -8.91,
+          "breakout": -5.24,
+          "macro_bias": 0.0,
+          "event_risk_penalty": 0.0
+        },
+        "agreement": {
+          "positive_groups": 0,
+          "negative_groups": 3,
+          "required": 2
+        }
+      },
+      "risk_distance": {
+        "source": "ATR14_sqrt5_frozen_at_forecast",
+        "stop_price_distance": 99.28740767,
+        "take_price_distance": 162.47030346,
+        "stop_units": 99.2874,
+        "take_units": 162.4703,
+        "reward_to_risk": 1.6364
+      },
+      "entry_thresholds": {
+        "long": 35.0,
+        "short": -42.0
+      },
+      "entry_price": null,
+      "entry_captured_at": null,
+      "entry_source": null,
+      "entry_quality_status": "not_applicable_neutral",
+      "trade_status": "no_trade",
+      "risk_plan": null,
+      "exit_price": null,
+      "exit_captured_at": null,
+      "exit_source": null,
+      "exit_reason": null,
+      "result": "no_trade",
+      "result_value": 0.0,
+      "result_percent": 0.0,
+      "rationale_pl": [
+        "Model v2.0.0: neutralnie / obserwacja.",
+        "Score -22; progi: long 35, short -42.",
+        "Siła sygnału jest wskaźnikiem heurystycznym, a nie prawdopodobieństwem powodzenia.",
+        "Zmienność wpływa na score i poziomy ryzyka zapisane przed otwarciem."
+      ],
+      "rationale_en": [
+        "Model v2.0.0: neutral / observation.",
+        "Score -22; thresholds: long 35, short -42.",
+        "Signal strength is heuristic, not a probability of success.",
+        "Volatility affects the score and risk levels frozen before entry."
+      ]
+    },
+    {
+      "instrument_id": "btcusd",
+      "symbol": "BTC-USD",
+      "label_pl": "BTC/USD",
+      "label_en": "BTC/USD",
+      "direction": "neutral",
+      "score": -20,
+      "signal_strength": 0.2,
+      "confidence": 0.2,
+      "confidence_type": "heuristic_signal_strength_not_probability",
+      "data_quality": "passed",
+      "quality_reason": "at_least_260_closes_and_complete_volatility_inputs",
+      "signals": {
+        "last_close": 80510.0078125,
+        "ema20": 82228.09966765,
+        "ema50": 80783.15367309,
+        "atr14": 2138.25725446,
+        "ret5_pct": -1.6414,
+        "ret20_pct": -6.9036,
+        "vol20_annualized_pct": 22.8185,
+        "vol60_annualized_pct": 29.188,
+        "volatility_regime_ratio": 0.7818,
+        "volatility_score_scale": 1.0,
+        "range55_position": 0.4456,
+        "components": {
+          "trend_ema": 9.01,
+          "trend_price": -8.04,
+          "momentum5": -5.11,
+          "momentum20": -14.32,
+          "breakout": -1.63,
+          "macro_bias": 0.0,
+          "event_risk_penalty": 0.0
+        },
+        "agreement": {
+          "positive_groups": 0,
+          "negative_groups": 1,
+          "required": 2
+        }
+      },
+      "risk_distance": {
+        "source": "ATR14_sqrt5_frozen_at_forecast",
+        "stop_price_distance": 2817.85027344,
+        "take_price_distance": 4428.05042969,
+        "stop_units": 3.5,
+        "take_units": 5.5,
+        "reward_to_risk": 1.5714
+      },
+      "entry_thresholds": {
+        "long": 45.0,
+        "short": -45.0
+      },
+      "entry_price": null,
+      "entry_captured_at": null,
+      "entry_source": null,
+      "entry_quality_status": "not_applicable_neutral",
+      "trade_status": "no_trade",
+      "risk_plan": null,
+      "exit_price": null,
+      "exit_captured_at": null,
+      "exit_source": null,
+      "exit_reason": null,
+      "result": "no_trade",
+      "result_value": 0.0,
+      "result_percent": 0.0,
+      "rationale_pl": [
+        "Model v2.0.0: neutralnie / obserwacja.",
+        "Score -20; progi: long 45, short -45.",
+        "Siła sygnału jest wskaźnikiem heurystycznym, a nie prawdopodobieństwem powodzenia.",
+        "Zmienność wpływa na score i poziomy ryzyka zapisane przed otwarciem."
+      ],
+      "rationale_en": [
+        "Model v2.0.0: neutral / observation.",
+        "Score -20; thresholds: long 45, short -45.",
+        "Signal strength is heuristic, not a probability of success.",
+        "Volatility affects the score and risk levels frozen before entry."
+      ]
+    }
+  ],
+  "forecast_hash": "c7be3d2d83aabed0ece69c3382fa3fc63aa59a35dc9a82e09849c6bfda07cf99",
+  "frozen_forecast": {
+    "schema_version": "briefrooms-wes-v5-frozen-forecast-v1",
+    "week_id": "2026-W44",
+    "base_method_version": "2.0.0",
+    "forecast_created_at": "2026-10-25T01:11:21+02:00",
+    "forecast_locked_at": "2026-10-25T01:11:21+02:00",
+    "forecast_for_week_start": "2026-10-26",
+    "forecast_for_week_end": "2026-10-30",
+    "timezone": "Europe/Warsaw",
+    "market_window": {
+      "entry_target_local": "2026-10-26T08:00:00+01:00",
+      "entry_latest_local": "2026-10-26T10:00:00+01:00",
+      "exit_target_local": "2026-10-30T22:00:00+01:00"
+    },
+    "execution_assumptions": {
+      "entry": "first available 5-minute bar at or after Monday 08:00 Europe/Warsaw",
+      "scheduled_exit": "first available 5-minute bar at or after Friday 22:00 Europe/Warsaw",
+      "same_bar_sl_tp": "stop_loss_first_conservative",
+      "slippage": "not included in live paper log; validation report includes transaction-cost assumptions"
+    },
+    "legacy_forecast_hash": "c7be3d2d83aabed0ece69c3382fa3fc63aa59a35dc9a82e09849c6bfda07cf99",
+    "instruments": [
+      {
+        "instrument_id": "eurusd",
+        "symbol": "EURUSD=X",
+        "label_pl": "EUR/USD",
+        "label_en": "EUR/USD",
+        "direction": "short",
+        "score": -60,
+        "signal_strength": 0.6,
+        "confidence": 0.6,
+        "confidence_type": "heuristic_signal_strength_not_probability",
+        "data_quality": "passed",
+        "quality_reason": "at_least_260_closes_and_complete_volatility_inputs",
+        "signals": {
+          "last_close": 1.12044823,
+          "ema20": 1.12648454,
+          "ema50": 1.13710317,
+          "atr14": 0.00625163,
+          "ret5_pct": -0.0773,
+          "ret20_pct": -1.4969,
+          "vol20_annualized_pct": 4.2434,
+          "vol60_annualized_pct": 4.2095,
+          "volatility_regime_ratio": 1.0081,
+          "volatility_score_scale": 1.0,
+          "range55_position": 0.0839,
+          "components": {
+            "trend_ema": -20.0,
+            "trend_price": -9.66,
+            "momentum5": -1.29,
+            "momentum20": -16.7,
+            "breakout": -12.48,
+            "macro_bias": 0.0,
+            "event_risk_penalty": 0.0
+          },
+          "agreement": {
+            "positive_groups": 0,
+            "negative_groups": 3,
+            "required": 2
+          }
+        },
+        "risk_distance": {
+          "source": "ATR14_sqrt5_frozen_at_forecast",
+          "stop_price_distance": 0.00768849,
+          "take_price_distance": 0.01258117,
+          "stop_units": 76.8849,
+          "take_units": 125.8117,
+          "reward_to_risk": 1.6364
+        },
+        "entry_thresholds": {
+          "long": 35.0,
+          "short": -35.0
+        },
+        "rationale_pl": [
+          "Model v2.0.0: short / spadek.",
+          "Score -60; progi: long 35, short -35.",
+          "Siła sygnału jest wskaźnikiem heurystycznym, a nie prawdopodobieństwem powodzenia.",
+          "Zmienność wpływa na score i poziomy ryzyka zapisane przed otwarciem."
+        ],
+        "rationale_en": [
+          "Model v2.0.0: short / bearish.",
+          "Score -60; thresholds: long 35, short -35.",
+          "Signal strength is heuristic, not a probability of success.",
+          "Volatility affects the score and risk levels frozen before entry."
+        ]
+      },
+      {
+        "instrument_id": "sp500_futures",
+        "symbol": "ES=F",
+        "label_pl": "S&P 500 futures",
+        "label_en": "S&P 500 futures",
+        "direction": "neutral",
+        "score": -22,
+        "signal_strength": 0.22,
+        "confidence": 0.22,
+        "confidence_type": "heuristic_signal_strength_not_probability",
+        "data_quality": "passed",
+        "quality_reason": "at_least_260_closes_and_complete_volatility_inputs",
+        "signals": {
+          "last_close": 7659.75,
+          "ema20": 7757.77140209,
+          "ema50": 7720.56986047,
+          "atr14": 80.73214286,
+          "ret5_pct": -0.5776,
+          "ret20_pct": -1.8453,
+          "vol20_annualized_pct": 9.8002,
+          "vol60_annualized_pct": 10.901,
+          "volatility_regime_ratio": 0.899,
+          "volatility_score_scale": 1.0,
+          "range55_position": 0.3252,
+          "components": {
+            "trend_ema": 6.14,
+            "trend_price": -10.0,
+            "momentum5": -4.18,
+            "momentum20": -8.91,
+            "breakout": -5.24,
+            "macro_bias": 0.0,
+            "event_risk_penalty": 0.0
+          },
+          "agreement": {
+            "positive_groups": 0,
+            "negative_groups": 3,
+            "required": 2
+          }
+        },
+        "risk_distance": {
+          "source": "ATR14_sqrt5_frozen_at_forecast",
+          "stop_price_distance": 99.28740767,
+          "take_price_distance": 162.47030346,
+          "stop_units": 99.2874,
+          "take_units": 162.4703,
+          "reward_to_risk": 1.6364
+        },
+        "entry_thresholds": {
+          "long": 35.0,
+          "short": -42.0
+        },
+        "rationale_pl": [
+          "Model v2.0.0: neutralnie / obserwacja.",
+          "Score -22; progi: long 35, short -42.",
+          "Siła sygnału jest wskaźnikiem heurystycznym, a nie prawdopodobieństwem powodzenia.",
+          "Zmienność wpływa na score i poziomy ryzyka zapisane przed otwarciem."
+        ],
+        "rationale_en": [
+          "Model v2.0.0: neutral / observation.",
+          "Score -22; thresholds: long 35, short -42.",
+          "Signal strength is heuristic, not a probability of success.",
+          "Volatility affects the score and risk levels frozen before entry."
+        ]
+      },
+      {
+        "instrument_id": "btcusd",
+        "symbol": "BTC-USD",
+        "label_pl": "BTC/USD",
+        "label_en": "BTC/USD",
+        "direction": "neutral",
+        "score": -20,
+        "signal_strength": 0.2,
+        "confidence": 0.2,
+        "confidence_type": "heuristic_signal_strength_not_probability",
+        "data_quality": "passed",
+        "quality_reason": "at_least_260_closes_and_complete_volatility_inputs",
+        "signals": {
+          "last_close": 80510.0078125,
+          "ema20": 82228.09966765,
+          "ema50": 80783.15367309,
+          "atr14": 2138.25725446,
+          "ret5_pct": -1.6414,
+          "ret20_pct": -6.9036,
+          "vol20_annualized_pct": 22.8185,
+          "vol60_annualized_pct": 29.188,
+          "volatility_regime_ratio": 0.7818,
+          "volatility_score_scale": 1.0,
+          "range55_position": 0.4456,
+          "components": {
+            "trend_ema": 9.01,
+            "trend_price": -8.04,
+            "momentum5": -5.11,
+            "momentum20": -14.32,
+            "breakout": -1.63,
+            "macro_bias": 0.0,
+            "event_risk_penalty": 0.0
+          },
+          "agreement": {
+            "positive_groups": 0,
+            "negative_groups": 1,
+            "required": 2
+          }
+        },
+        "risk_distance": {
+          "source": "ATR14_sqrt5_frozen_at_forecast",
+          "stop_price_distance": 2817.85027344,
+          "take_price_distance": 4428.05042969,
+          "stop_units": 3.5,
+          "take_units": 5.5,
+          "reward_to_risk": 1.5714
+        },
+        "entry_thresholds": {
+          "long": 45.0,
+          "short": -45.0
+        },
+        "rationale_pl": [
+          "Model v2.0.0: neutralnie / obserwacja.",
+          "Score -20; progi: long 45, short -45.",
+          "Siła sygnału jest wskaźnikiem heurystycznym, a nie prawdopodobieństwem powodzenia.",
+          "Zmienność wpływa na score i poziomy ryzyka zapisane przed otwarciem."
+        ],
+        "rationale_en": [
+          "Model v2.0.0: neutral / observation.",
+          "Score -20; thresholds: long 45, short -45.",
+          "Signal strength is heuristic, not a probability of success.",
+          "Volatility affects the score and risk levels frozen before entry."
+        ]
+      }
+    ],
+    "provenance": {
+      "schema_version": "briefrooms-provenance-contract-v1",
+      "artifact_id": "forecast:2026-W44",
+      "artifact_type": "frozen_forecast",
+      "engine_id": "wes",
+      "engine_version": "2.0.0",
+      "created_at": "2026-10-25T01:11:21+02:00",
+      "parent_artifact_ids": [],
+      "source_ids": [],
+      "evidence_ids": [],
+      "belief_ids": [],
+      "decision_id": null,
+      "forecast_id": "forecast:2026-W44",
+      "verification_id": null,
+      "payload_hash": "350ecf398580be79bf1b75ac2e248c8ae5ee0424fbd240409197a274375fe897",
+      "authority": "forecast",
+      "prospective": true,
+      "domain_provenance": {
+        "week_id": "2026-W44",
+        "native_write_time": true,
+        "historical_backfill": false
+      }
+    }
+  },
+  "frozen_forecast_seal": {
+    "schema_version": "briefrooms-wes-v5-history-seal-v1",
+    "artifact_type": "frozen_forecast",
+    "artifact_id": "forecast:2026-W44",
+    "payload_hash": "350ecf398580be79bf1b75ac2e248c8ae5ee0424fbd240409197a274375fe897",
+    "manifest_record_hash": "622c2505957753b029e372e7b58c954d158e4ff5de7b5ebaa9daf37a1b86dbbf",
+    "sealed_at": "2026-10-25T01:11:21+02:00"
+  }
+}
