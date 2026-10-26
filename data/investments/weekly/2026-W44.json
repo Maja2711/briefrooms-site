@@ -276,13 +276,13 @@
       "latest_macro_context": {
         "as_of": "2026-10-26T00:00:00",
         "data_quality": "passed",
-        "macro_score": 10.4632,
+        "macro_score": 10.5076,
         "macro_direction": "long",
         "position_direction": "short",
         "aligned": false,
         "observations": {
-          "oil_1w_percent": -2.2284,
-          "oil_4w_percent": 9.4492,
+          "oil_1w_percent": -2.2574,
+          "oil_4w_percent": 9.4168,
           "us10y_1w_bps": -15.0,
           "us10y_4w_bps": -25.4
         },
@@ -332,7 +332,7 @@
               "slow_trend": -1,
               "price_vs_all": -1,
               "nearest_ma": "ma30",
-              "nearest_ma_distance_atr": 2.7164,
+              "nearest_ma_distance_atr": 2.6872,
               "support_hold_long": false,
               "resistance_hold_short": false
             }
@@ -341,7 +341,7 @@
             "d1_below_all_ma",
             "h1_below_all_ma_timing"
           ],
-          "evaluated_at": "2026-10-27T00:09:13+01:00",
+          "evaluated_at": "2026-10-27T00:17:48+01:00",
           "governance": "bounded_context_only_no_veto_no_standalone_trade_trigger"
         },
         "rule": "Context is recorded immediately; an open weekly position is changed only by the governed review rules."
@@ -1683,10 +1683,23 @@
     "enabled": true,
     "version": "5.9.1-experimental",
     "common_validation_gate": true,
+    "wes_1_3_1_directional_admission": true,
+    "price_aware_entry_engine": true,
+    "hybrid_market_or_frozen_limit_entry": true,
+    "champion_challenger_execution_authority": true,
     "retroactive_entries_forbidden": true,
     "same_week_reentry_block_after_invalidation": true,
     "no_trade_first_class": true,
+    "weekly_candles_used": true,
+    "eurusd_oil_us10y_context_used": true,
+    "contextual_momentum_learning": true,
+    "contextual_multidimensional_learning": true,
+    "counterfactual_candidate_learning": true,
+    "counterfactual_observations_reduce_exploration_only": true,
+    "learning_settlement_archive_before_window_exit": true,
     "execution_parity_report": "data/investments/weekly_execution_parity_v5.json",
-    "last_checked_at": "2026-10-27T00:09:15+01:00"
+    "immutable_decision_ledger": "data/investments/wes_decision_ledger.json",
+    "immutable_decision_ledger_schema": "briefrooms-wes-decision-ledger-v1",
+    "last_checked_at": "2026-10-27T00:17:48+01:00"
   }
 }
