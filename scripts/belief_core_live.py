@@ -936,7 +936,7 @@ def run_cycle(state_dir: Path, now: datetime, client: YahooChartClient) -> Dict[
                 half_slot = floor_half_hour(local)
                 hour_key = f"world:{local.date().isoformat()}:{half_slot.hour:02d}"
                 if half_slot.minute == 0 and hour_key not in completed:
-                                        append_world_state(state_dir, core, now, regime)
+                    append_world_state(state_dir, core, now, regime)
                     completed[hour_key] = iso_z(now)
                     world_count = 1
 
@@ -947,25 +947,25 @@ def run_cycle(state_dir: Path, now: datetime, client: YahooChartClient) -> Dict[
                     target = datetime.combine(local.date(), time(16, 0), tzinfo=NY) if planned.hour < 16 else next_weekday_close(local)
                     key = f"shared:{local.date().isoformat()}:{planned.hour:02d}{planned.minute:02d}"
                     if due_planned_slot(local, planned, key in completed):
-                                                forecast_count += freeze_set(core, snapshot, now, target, "BRACE+BRACE-SPX", key, regime,
+                        forecast_count += freeze_set(core, snapshot, now, target, "BRACE+BRACE-SPX", key, regime,
                                                      persist_each=False)
                         completed[key] = iso_z(now)
 
                     asset_key = f"wes-assets:{local.date().isoformat()}:{planned.hour:02d}{planned.minute:02d}"
                     if due_planned_slot(local, planned, asset_key in completed):
-                                                wes_asset_count += freeze_multihorizon_set(core, snapshot, now, "WES-ASSET-SHADOW", asset_key, regime,
+                        wes_asset_count += freeze_multihorizon_set(core, snapshot, now, "WES-ASSET-SHADOW", asset_key, regime,
                                                                   persist_each=False)
                         completed[asset_key] = iso_z(now)
 
                     candidate_key = f"v3-candidates:{local.date().isoformat()}:{planned.hour:02d}{planned.minute:02d}"
                     if due_planned_slot(local, planned, candidate_key in completed):
-                                                v3_candidate_count += freeze_v3_candidate_set(core, snapshot, now, candidate_key, regime,
+                        v3_candidate_count += freeze_v3_candidate_set(core, snapshot, now, candidate_key, regime,
                                                                     persist_each=False)
                         completed[candidate_key] = iso_z(now)
 
                 wes_key = f"wes:{local.date().isoformat()}:1600"
                 if local.weekday() == 4 and due_planned_slot(local, time(16, 0), wes_key in completed):
-                                        wes_count += freeze_set(core, snapshot, now, weekly_target(local), "WES", wes_key, regime,
+                    wes_count += freeze_set(core, snapshot, now, weekly_target(local), "WES", wes_key, regime,
                                             persist_each=False)
                     completed[wes_key] = iso_z(now)
         else:
