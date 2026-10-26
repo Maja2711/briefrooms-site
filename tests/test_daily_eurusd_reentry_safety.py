@@ -391,7 +391,7 @@ class PostLossTechnicalSafetyTests(unittest.TestCase):
 
     def test_d1_clock_shift_at_midnight_requires_1m_open_proof(self):
         now = datetime(2026, 10, 26, 12, 20, tzinfo=timezone.utc)
-        prior = datetime(2026, 10, 25, 23, tzinfo=timezone.utc)
+        prior = datetime(2026, 10, 24, 23, tzinfo=timezone.utc)
         daily = [
             {"timestamp": stamp(prior - timedelta(days=200 - i)),
              "open": 1.1, "close": 1.1,
