@@ -99,11 +99,15 @@ def _authorized_decision(candidate: Mapping[str, Any], now: datetime) -> dict:
     if not isfinite(anchor_prob) or not (
             anchor_prob <= 0.48 if direction == "SHORT" else anchor_prob >= 0.52):
         return {"available": False, "reason": "trend_anchor_not_aligned"}
+    anchor_at = _time(anchor.get("observed_at"))
+    if anchor_at is None or anchor_at > now or anchor_at > source_at:
+        return {"available": False, "reason": "trend_anchor_evidence_unverified"}
     strong_score = score <= STRONG_SHORT_SCORE if direction == "SHORT" else score >= STRONG_LONG_SCORE
     return {
         "available": True, "reason": "authoritative_fresh",
         "score": score, "confidence": confidence,
         "source_created_at": _iso(source_at), "source_sha256": fingerprint,
+        "anchor_observed_at": _iso(anchor_at),
         "strong_belief": bool(strong_score and confidence >= STRONG_MIN_CONFIDENCE),
     }
 
@@ -144,26 +148,31 @@ def flip_confirmation(
               and previous.get("direction") == direction)
     first = _time(previous.get("first_seen_at")) if stable else None
     first_source = _time(previous.get("first_source_created_at")) if stable else None
-    if (first is None or first_source is None or first > now
-            or first < closed or first_source > now):
+    first_anchor = _time(previous.get("first_anchor_observed_at")) if stable else None
+    if (first is None or first_source is None or first_anchor is None
+            or first > now or first < closed or first_source > now):
         first = now
         first_source = _time(belief["source_created_at"])
+        first_anchor = _time(belief["anchor_observed_at"])
         previous = {}
     current = {
         "schema_version": "eurusd-daily-belief-flip-confirmation-v1",
         "trade_id": trade_id, "direction": direction,
         "first_seen_at": _iso(first),
         "first_source_created_at": _iso(first_source),
+        "first_anchor_observed_at": _iso(first_anchor),
         "first_source_sha256": previous.get("first_source_sha256") or belief["source_sha256"],
         "first_score": previous.get("first_score", belief["score"]),
         "last_observed_at": _iso(now),
         "last_source_sha256": belief["source_sha256"],
         "last_source_created_at": belief["source_created_at"],
+        "last_anchor_observed_at": belief["anchor_observed_at"],
         "confirmed": False,
     }
     elapsed = (now - first).total_seconds() / 60
     distinct = (belief["source_sha256"] != current["first_source_sha256"]
-                and _time(belief["source_created_at"]) > first_source)
+                and _time(belief["source_created_at"]) > first_source
+                and _time(belief["anchor_observed_at"]) > first_anchor)
     if stable and previous.get("confirmed") is True:
         # Previously proved confirmation remains valid only with a currently
         # fresh and aligned authoritative state; never depends on stale evidence.
