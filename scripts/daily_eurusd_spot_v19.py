@@ -34,6 +34,7 @@ import daily_eurusd_decision_record as decision_record
 import daily_eurusd_production_policy as production_policy
 import daily_eurusd_reentry_safety as reentry_safety
 import daily_eurusd_bollinger_h1 as bollinger_h1
+import daily_eurusd_flip_guard as flip_guard
 import daily_eurusd_bollinger_d1 as bollinger_d1
 import daily_eurusd_bollinger_touch as bollinger_touch
 
@@ -133,6 +134,20 @@ def _execution_admission(
 
     bollinger = (candidate.metadata or {}).get("bollinger_h1") or {}
     details["bollinger_h1"] = dict(bollinger)
+    # Belief alone creates the direction; admission may only veto a weak flip.
+    flip = flip_guard.flip_confirmation(
+        candidate.to_dict(), history, observed_at,
+        previous_state=(_cycle_context or {}).get("prior_flip_confirmation"),
+    )
+    whipsaw = flip_guard.cross_direction_whipsaw(
+        candidate.to_dict(), history, observed_at, bollinger,
+    )
+    details["belief_flip_confirmation"] = flip
+    details["cross_direction_whipsaw"] = whipsaw
+    if flip.get("allowed") is not True:
+        reasons.append("belief_flip_" + str(flip.get("reason") or "unconfirmed"))
+    if whipsaw.get("allowed") is not True:
+        reasons.append("cross_direction_" + str(whipsaw.get("reason") or "whipsaw"))
     # Only evaluated, trustworthy technical evidence can veto entry. Missing
     # evidence is observable but must not rewrite established admission contracts.
     if bollinger.get("available") is True and bollinger.get("allowed") is False:
@@ -440,6 +455,11 @@ def build_output(
             history,
             observed_at=observed_at,
         )
+        # Persist a prospective first-seen Belief snapshot even on NO_TRADE.
+        # Never rewrite historical decisions or create an implicit new signal.
+        md["belief_flip_confirmation"] = (
+            md["execution_admission"].get("belief_flip_confirmation") or {}
+        ).get("state")
         guard = (md["execution_admission"].get("same_thesis_reentry_guard") or {})
         if guard:
             md["same_thesis_reentry_guard"] = dict(guard)
@@ -722,7 +742,8 @@ def run_cycle(output_path: Path, history_path: Path, client: Any | None = None) 
             raise
         previous_context = _cycle_context
         _cycle_context = {"policy_state": production_policy.default_state(now), "decision_at": now, "live": live,
-                          "prior_bollinger_touch_state": (previous_metadata.get("bollinger_d1_touch") or {}).get("state")}
+                          "prior_bollinger_touch_state": (previous_metadata.get("bollinger_d1_touch") or {}).get("state"),
+                          "prior_flip_confirmation": previous_metadata.get("belief_flip_confirmation")}
         try:
             output = v18.run_cycle(output_path, history_path, cached)
             metadata = dict(output.metadata)
@@ -740,7 +761,8 @@ def run_cycle(output_path: Path, history_path: Path, client: Any | None = None) 
     previous_context = _cycle_context
     _cycle_context = {"policy_state": policy, "decision_at": now, "live": live,
                       "market_client": cached, "monitor_bars": bars,
-                      "prior_bollinger_touch_state": (previous_metadata.get("bollinger_d1_touch") or {}).get("state")}
+                      "prior_bollinger_touch_state": (previous_metadata.get("bollinger_d1_touch") or {}).get("state"),
+                          "prior_flip_confirmation": previous_metadata.get("belief_flip_confirmation")}
     try:
         output = v18.run_cycle(output_path, history_path, cached)
         metadata = dict(output.metadata)
