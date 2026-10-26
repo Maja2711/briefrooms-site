@@ -146,7 +146,8 @@ def evaluate(bars, direction, observed_at, *, minute_bars=None):
                    and abs(slope_3h_pips) <= FLAT_THREE_HOUR_SLOPE_PIPS)
     oscillating = crossings >= MIN_MIDDLE_CROSSINGS
     range_structure = bool(flat_middle and 12 <= width_pips <= 70
-                           and (width-(prev3_upper-prev3_lower))/PIP <= 6.0)
+                           and (width-(prev3_upper-prev3_lower))/PIP <= 6.0
+                           and (oscillating or abs(slope_3h_pips) <= 2.0))
     range_edge = (_range_edge_reversal(minute_bars, direction, observed_at, lower, upper)
                   if range_structure else {"allowed":False, "reason":"h1_not_flat_range"})
     range_regime = range_structure or bool(
@@ -173,7 +174,7 @@ def evaluate(bars, direction, observed_at, *, minute_bars=None):
         and abs(slope_pips) >= 1.0 and abs(slope_3h_pips) >= 2.0
     )
     reason = ("h1_range_outer_band_bounce" if range_structure and range_edge["allowed"]
-              else "h1_range_wait_for_outer_band" if range_structure
+              else "h1_range_middle_whipsaw" if range_structure
               else "h1_range_middle_whipsaw" if range_regime
               else "h1_middle_break_unconfirmed" if marginal_crossing
               else "outer_band_exhaustion" if exhaustion
