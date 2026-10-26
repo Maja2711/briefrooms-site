@@ -136,7 +136,7 @@ jobs:
         continue-on-error: true
         run: |
           PYTHONPATH=scripts:. python - <<'PY'
-          from datetime import datetime, timezone
+          from datetime import datetime, timezone, timedelta
           from belief_market_data_adapter import YahooChartClient
           from daily_eurusd_reentry_safety import _bars, _number, _time
           from collections import Counter
@@ -150,7 +150,21 @@ jobs:
                   continue
               print("REENTRY_FEED_PROBE",period,interval,"n",len(rows),"first",rows[0].timestamp,"last",rows[-1].timestamp)
               if interval=="1d":
-                  for tail in rows[-7:]:
+                  from datetime import timedelta
+                  observed=now.replace(hour=23,minute=0,second=0,microsecond=0)
+                  if observed>now:
+                      observed-=timedelta(days=1)
+                  try:
+                      minute=client.bars("EURUSD=X","5d","1m")
+                      at=[x for x in minute if x.timestamp==observed]
+                      latest=[x for x in minute if observed<=x.timestamp<=now]
+                      absent=sum((b.timestamp-a.timestamp)!=timedelta(minutes=1) for a,b in zip(latest,latest[1:]))
+                      print("REENTRY_SESSION_PROBE",{"expected":observed.isoformat(),"minute_open":at[0].open if at else None,
+                            "source_preview_open":rows[-1].open,"open_difference_pips":(rows[-1].open-at[0].open)*10000 if at else None,
+                            "minute_count":len(latest),"minute_gaps":absent,"last_minute":latest[-1].timestamp.isoformat() if latest else None})
+                  except Exception as exc:
+                      print("REENTRY_SESSION_PROBE_ERROR",type(exc).__name__,str(exc)[:100])
+                  for tail in rows[-7:
                       print("REENTRY_D1_TAIL",tail.timestamp.isoformat(),tail.open,tail.high,tail.low,tail.close)
               counter=Counter()
               specimens=[]
