@@ -354,6 +354,60 @@ class PostLossTechnicalSafetyTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "live_d1_session_open_not_independently_verified"):
             safety._validated_d1_source(daily, now, minute[:-1])
 
+    def test_dst_sunday_reopen_at_22utc_is_source_proved_not_guessed(self):
+        # Before the autumn timezone change, the canonical Yahoo FX D1
+        # candle starts at 23 UTC. After it, source 1m market reopening may
+        # be at Sunday 22 UTC. Only an independently matching minute may
+        # set the new session boundary.
+        now = datetime(2026, 10, 26, 12, 20, tzinfo=timezone.utc)
+        prior = datetime(2026, 10, 22, 23, tzinfo=timezone.utc)
+        daily = [
+            {"timestamp": stamp(prior - timedelta(days=200 - i)),
+             "open": 1.10, "high": 1.101, "low": 1.099, "close": 1.10}
+            for i in range(201)
+        ]
+        daily.append({"timestamp": stamp(now - timedelta(seconds=20)),
+                      "open": 1.1200, "high": 1.1210,
+                      "low": 1.1190, "close": 1.1201})
+        reopen = datetime(2026, 10, 25, 22, tzinfo=timezone.utc)
+        minute = [
+            {"timestamp": stamp(datetime(2026, 10, 23, 20, 59, tzinfo=timezone.utc)),
+             "open": 1.1197, "high": 1.1198, "low": 1.1196, "close": 1.1197},
+            {"timestamp": stamp(reopen), "open": 1.1200,
+             "high": 1.1201, "low": 1.1199, "close": 1.1200},
+        ]
+        rows, audit = safety._validated_d1_source(daily, now, minute)
+        self.assertEqual(rows[-1]["timestamp"], stamp(prior))
+        self.assertEqual(audit["session"]["timestamp"], stamp(reopen))
+        self.assertEqual(audit["session"]["session_clock_source"],
+                         "D1_PREVIEW_MATCHED_TO_EXACT_1M_SESSION_OPEN")
+        # It is forbidden to substitute the 00 UTC price or infer reopening.
+        original = dict(minute[1])
+        for key in ("open", "high", "low", "close"):
+            minute[1][key] += .0003  # coherent but independently disagreeing 1m quote
+        with self.assertRaisesRegex(ValueError, "live_d1_session_open_not_independently_verified"):
+            safety._validated_d1_source(daily, now, minute)
+        minute[1] = original
+        with self.assertRaisesRegex(ValueError, "live_d1_session_open_not_independently_verified"):
+            safety._validated_d1_source(daily, now, minute[1:])
+
+    def test_d1_clock_shift_at_midnight_requires_1m_open_proof(self):
+        now = datetime(2026, 10, 26, 12, 20, tzinfo=timezone.utc)
+        prior = datetime(2026, 10, 24, 23, tzinfo=timezone.utc)
+        daily = [
+            {"timestamp": stamp(prior - timedelta(days=200 - i)),
+             "open": 1.1, "close": 1.1,
+             "high": 1.101, "low": 1.099} for i in range(201)
+        ]
+        daily.append({"timestamp": stamp(now - timedelta(seconds=15)),
+                      "open": 1.12, "close": 1.1201, "high": 1.121, "low": 1.119})
+        first_minute = {"timestamp": "2026-10-26T00:00:00Z",
+                        "open": 1.12, "close": 1.12, "high": 1.1201, "low": 1.1199}
+        rows, quality = safety._validated_d1_source(daily, now, [first_minute])
+        self.assertEqual(quality["session"]["timestamp"], first_minute["timestamp"])
+        self.assertTrue(quality["live_preview_present"])
+        self.assertFalse(quality["unverified_fields_used_for_pivots_or_atr"])
+
     def test_historical_d1_bad_close_and_future_preview_fail_closed(self):
         data = fixture()
         data[2]["daily_bars"][-50]["close"] = float("nan")
