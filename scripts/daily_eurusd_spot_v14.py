@@ -264,6 +264,50 @@ def _range_edge_whipsaw_grace(position: Mapping[str, Any], bars: Sequence[Bar],
     return lower-buffer <= close <= upper+buffer
 
 
+def _mtf_strong_trend_noise_grace(position: Mapping[str, Any], bars: Sequence[Bar],
+                                 now: datetime, current_r: float) -> bool:
+    """Protect only a *new* manifest-frozen strong H1 trend from one-candle noise.
+
+    Hard SL/TP and macro exits always have first priority. No trend reclassification
+    of legacy positions; no run-time reoptimization of risk geometry.
+    """
+    admission = ((position.get("decision_manifest") or {}).get("execution_admission") or {})
+    mtf = admission.get("multi_timeframe") or {}
+    vol = mtf.get("h1_volatility") or {}
+    if not (mtf.get("version") == "MTF_H1_REGIME_V1"
+            and mtf.get("strategy") == "STRONG_TREND"
+            and mtf.get("direction") == position.get("direction")
+            and admission.get("allowed") is True):
+        return False
+    if current_r < -.60:
+        return False
+    start = _parse(str(position.get("opened_at") or ""))
+    if start is None or not 0 <= (now-start).total_seconds() <= 120*60:
+        return False
+    sample = sorted((bar for bar in bars if bar.timestamp <= now), key=lambda bar: bar.timestamp)[-3:]
+    if len(sample) != 3 or any((b.timestamp-a.timestamp).total_seconds()!=60
+                               for a,b in zip(sample,sample[1:])):
+        return False
+    if (now-sample[-1].timestamp).total_seconds()>180:
+        return False
+    try:
+        typical=float(vol["mean_high_low_pips"])
+        original_risk=abs(float(position["entry"])-float(position["stop"]))/.0001
+        if not math.isfinite(typical) or not 2<=typical<=200 or original_risk<=0:
+            return False
+        if abs(current_r)*original_risk>1.05*typical:
+            return False
+        price=float(sample[-1].close)
+        high=float(vol["last_h1_high"])
+        low=float(vol["last_h1_low"])
+        buffer=.20*typical*.0001
+        if not all(math.isfinite(v) for v in (price,high,low)):
+            return False
+        return price>=low-buffer if position["direction"]=="LONG" else price<=high+buffer
+    except (TypeError,KeyError,ValueError):
+        return False
+
+
 def evaluate_position(
     position: Mapping[str, Any],
     bars: Sequence[Bar],
@@ -344,7 +388,8 @@ def evaluate_position(
     # Do not wait mechanically for -1R when both current P&L and recent
     # directional pace have deteriorated. This is intentionally age-independent.
     if current_r <= LOSS_CONTAINMENT_R and v1 < 0.0 and v3 <= 0.0 and hold_score <= -0.10:
-        if _range_edge_whipsaw_grace(position, relevant, observed_at, current_r):
+        if (_range_edge_whipsaw_grace(position, relevant, observed_at, current_r)
+                or _mtf_strong_trend_noise_grace(position, relevant, observed_at, current_r)):
             return None  # independent macro/event closure remains active in v18
         return _dynamic_close(position, relevant, "DYNAMIC_RISK_EXIT", diagnostics)
 
