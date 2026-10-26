@@ -126,5 +126,63 @@ class RangeAwareProductionExitTests(unittest.TestCase):
         self.assertIn(trade["exit_reason"], {"DYNAMIC_RISK_EXIT", "STOP_LOSS"})
 
 
+    def test_live_h1_range_outer_band_allows_only_belief_aligned_bounce(self):
+        from scripts import daily_eurusd_bollinger_h1 as h1
+        now = OPENED + timedelta(hours=40)
+        candles = []
+        for index in range(40):
+            price = 1.1000 + (0.0006 if index % 2 else -0.0006)
+            for minute in (0, 30):
+                candles.append(bar(OPENED + timedelta(hours=index, minutes=minute), price))
+        baseline = h1.evaluate(candles, "LONG", now)
+        self.assertTrue(baseline["range_structure"], baseline)
+        self.assertFalse(baseline["allowed"])  # no completed 1m evidence
+        lower = baseline["lower"]
+        sample = [bar(now - timedelta(minutes=6 - i), lower + .00002) for i in range(6)]
+        sample[-1] = bar(now - timedelta(minutes=1), lower + .00010)
+        confirmed = h1.evaluate(candles, "LONG", now, minute_bars=sample)
+        self.assertTrue(confirmed["allowed"], confirmed)
+        self.assertEqual(confirmed["reason"], "h1_range_outer_band_bounce")
+        self.assertFalse(h1.evaluate(candles, "SHORT", now, minute_bars=sample)["allowed"])
+
+    def test_incomplete_minute_cannot_authorize_range_entry(self):
+        from scripts import daily_eurusd_bollinger_h1 as h1
+        now = OPENED + timedelta(hours=40)
+        candles = []
+        for index in range(40):
+            price = 1.1000 + (0.0006 if index % 2 else -0.0006)
+            for minute in (0, 30):
+                candles.append(bar(OPENED + timedelta(hours=index, minutes=minute), price))
+        lower = h1.evaluate(candles, "LONG", now)["lower"]
+        minute = [bar(now - timedelta(minutes=6 - i), lower + .00002) for i in range(6)]
+        minute[-1] = bar(now, lower + .00010)  # uncompleted candle: forbidden
+        proof = h1.evaluate(candles, "LONG", now, minute_bars=minute)
+        self.assertFalse(proof["range_edge_entry"]["allowed"])
+
+    def test_early_rpace_grace_only_for_new_verified_band_position(self):
+        now = OPENED + timedelta(minutes=10)
+        pos = position("LONG", entry=1.1000)
+        pos["opened_at"] = OPENED.isoformat().replace("+00:00", "Z")
+        proof = {"range_structure": True, "range_edge_entry": {
+            "allowed": True, "direction": "LONG", "lower": 1.0990, "upper": 1.1010}}
+        pos["decision_manifest"] = {"execution_admission": {"bollinger_h1": proof}}
+        minutes = [bar(now - timedelta(minutes=3-i), 1.0998) for i in range(3)]
+        self.assertTrue(v14._range_edge_whipsaw_grace(pos, minutes, now, -.40))
+        self.assertFalse(v14._range_edge_whipsaw_grace(pos, minutes, now, -.71))
+        pos.pop("decision_manifest")
+        self.assertFalse(v14._range_edge_whipsaw_grace(pos, minutes, now, -.40))
+
+    def test_range_break_cancels_rpace_grace(self):
+        now = OPENED + timedelta(minutes=10)
+        pos = position("SHORT", entry=1.1000)
+        pos["opened_at"] = OPENED.isoformat().replace("+00:00", "Z")
+        pos["decision_manifest"] = {"execution_admission": {"bollinger_h1": {
+            "range_structure": True, "range_edge_entry": {
+                "allowed": True, "direction": "SHORT", "lower": 1.0990, "upper": 1.1010}}}}
+        minutes = [bar(now - timedelta(minutes=3-i), 1.1030) for i in range(3)]
+        self.assertFalse(v14._range_edge_whipsaw_grace(pos, minutes, now, -.40))
+
+
+
 if __name__ == "__main__":
     unittest.main()
