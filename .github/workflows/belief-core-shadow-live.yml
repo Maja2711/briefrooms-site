@@ -38,15 +38,13 @@ on:
       - "tests/test_belief_core_geopolitical_live.py"
       - "docs/BELIEF_GSE_GEOPOLITICAL_ADAPTER.md"
   schedule:
-    # Fallback scheduler. GitHub cron can be delayed, so the workflow is also
-    # triggered by successful quote and Weekly live-execution/price heartbeats below.
-    # This gives Daily EURUSD multiple independent market clocks instead of relying
-    # on one delayed GitHub schedule. Freshness is still validated downstream before
-    # any production dispatch.
-    - cron: "7,37 13-19,22 * * 1-5"
-    # Cover the short 16:00-16:20 NY collection phase in both EDT and EST.
-    # Extra runs retain the same NYSE/phase/freshness gates and serialized writer.
-    - cron: "2,7,12,17,37 20,21 * * 1-5"
+    # Prevent 15-minute Daily freshness breaches even when independent quote
+    # workflow_run notifications are delayed. The FX window is 24x5, not
+    # limited to US cash hours. Inactive FX windows are gated in the collector.
+    # GitHub cron remains best-effort; the independent 5m watchdog is a backup.
+    - cron: "2,12,22,32,42,52 * * * 1-5"
+    # Sunday NY 17:00 reopening is 21:00 UTC (EDT) or 22:00 UTC (EST).
+    - cron: "2,12,22,32,42,52 21-23 * * 0"
   workflow_run:
     workflows:
       - "Update Investment Room Quotes"
@@ -228,7 +226,7 @@ jobs:
             --state-dir "$STATE_DIR" \
             --gse-state-dir "$GSE_STATE_DIR"
 
-      - name: Run 30-minute shadow collection cycle
+      - name: Refresh live Belief evidence and freeze due research forecasts
         run: python scripts/belief_core_live.py --state-dir "$STATE_DIR"
 
       - name: P2 collector-side freeze and verification bridge

@@ -604,5 +604,48 @@ class BeliefCoreLiveTest(unittest.TestCase):
             self.assertTrue(any(x.get("metric")=="calendar_coverage" for x in rows))
 
 
+    def test_live_batch_defers_serialization_without_losing_immutable_forecast_or_verification(self):
+        from belief_core import BeliefCore
+        from belief_core_live import BELIEFS
+        from unittest.mock import patch
+        now = datetime(2026, 10, 26, 10, 0, tzinfo=NY)
+        target = now + timedelta(hours=3)
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            core = BeliefCore(root)
+            core.register_beliefs(BELIEFS)
+            core.recompute(now)
+            with patch.object(core, "save", wraps=core.save) as saved, \
+                 patch.object(core, "write_dashboard", wraps=core.write_dashboard) as dashboard:
+                core.capture_forecast("eurusd.trend.bullish", as_of=now,
+                    target_at=target, forecast_id="prospective-batch-test",
+                    metadata={"shadow_only": True}, persist=False)
+                core.verify_forecast("prospective-batch-test", True,
+                    verified_at=target, outcome_source="test", persist=False)
+                self.assertEqual(saved.call_count, 0)
+                self.assertEqual(dashboard.call_count, 0)
+                core.save()
+                core.write_dashboard(target)
+                self.assertEqual(saved.call_count, 1)
+                self.assertEqual(dashboard.call_count, 1)
+            restored = BeliefCore(root)
+            self.assertIn("prospective-batch-test", restored.forecasts)
+            self.assertTrue(any(v.forecast_id == "prospective-batch-test"
+                                for v in restored.verifications.values()))
+            self.assertTrue(restored.verify_ledger_integrity()["valid"])
+
+    def test_live_belief_24x5_scheduler_has_ten_minute_clock_and_keeps_sla(self):
+        workflow = (Path(__file__).resolve().parents[1] /
+                    ".github/workflows/belief-core-shadow-live.yml").read_text()
+        self.assertIn('cron: "2,12,22,32,42,52 * * * 1-5"', workflow)
+        self.assertIn('cron: "2,12,22,32,42,52 21-23 * * 0"', workflow)
+        watchdog = (Path(__file__).resolve().parents[1] /
+                    ".github/workflows/daily-eurusd-cycle-watchdog.yml").read_text()
+        self.assertIn("--max-age-minutes 15", watchdog)
+        self.assertIn("--belief-max-age-minutes 30", watchdog)
+        self.assertIn("cancel-in-progress: false", workflow)
+
+
+
 if __name__ == "__main__":
     unittest.main()
