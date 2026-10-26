@@ -296,7 +296,8 @@ def build_output(
     try:
         client = (_cycle_context or {}).get("market_client")
         h1_rows = client.bars(base.EURUSD, "60d", "30m") if client is not None else []
-        bollinger = bollinger_h1.evaluate(h1_rows, direction, observed_at) if h1_rows else {
+        bollinger = bollinger_h1.evaluate(h1_rows, direction, observed_at,
+                                         minute_bars=(_cycle_context or {}).get("monitor_bars")) if h1_rows else {
             "available": False, "reason": "h1_history_not_available", "role": "PRIMARY_TECHNICAL"}
     except (ValueError, TypeError, KeyError, OSError, RuntimeError) as exc:
         bollinger = {"available": False, "reason": "h1_history_fetch_failed",
@@ -537,6 +538,28 @@ def prepare_entry_candidate(
     if execution_reason:
         canonical_allowed = False
         admission.update(allowed=False, status="BLOCKED", reasons=[execution_reason])
+    # Outer-band fills demand tighter two-source proof than trend entries.
+    # A live 1m bounce cannot authorize a displaced EPE fill.
+    edge = (admission.get("bollinger_h1") or {}).get("range_edge_entry") or {}
+    if canonical_allowed and edge.get("allowed") is True:
+        reason = None
+        try:
+            gap = float(execution["cross_feed_difference_pips"])
+            fill = float(execution["fill_price"])
+            lower, upper = float(edge["lower"]), float(edge["upper"])
+            width = upper - lower
+            if width <= 0 or not 0 <= gap <= 2.5:
+                reason = "range_edge_cross_feed_unverified"
+            elif candidate.direction == "LONG" and not lower - .0001 <= fill <= lower + .12 * width:
+                reason = "range_edge_long_fill_outside_zone"
+            elif candidate.direction == "SHORT" and not upper - .12 * width <= fill <= upper + .0001:
+                reason = "range_edge_short_fill_outside_zone"
+        except (KeyError, ValueError, TypeError):
+            reason = "range_edge_epe_geometry_missing"
+        if reason:
+            canonical_allowed = False
+            admission.update(allowed=False, status="BLOCKED", reasons=[reason])
+
     evaluations = copy.deepcopy(admission.get("reentry_policy_evaluations") or {})
     for evaluation in evaluations.values():
         error = reentry_safety.check_execution(evaluation["technical"], execution)

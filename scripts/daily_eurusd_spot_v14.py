@@ -19,6 +19,7 @@ probability of reaching TP.
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import math
 from typing import Any, Mapping, Sequence
 
 from belief_market_data_adapter import Bar
@@ -230,6 +231,39 @@ def _dynamic_close(
     return trade
 
 
+
+def _range_edge_whipsaw_grace(position: Mapping[str, Any], bars: Sequence[Bar],
+                             now: datetime, current_r: float) -> bool:
+    """Bounded early R_PACE hold only for verified *new* range-band positions."""
+    admission = ((position.get("decision_manifest") or {}).get("execution_admission") or {})
+    h1 = admission.get("bollinger_h1") or {}
+    edge = h1.get("range_edge_entry") or {}
+    if not (h1.get("range_structure") is True and edge.get("allowed") is True
+            and edge.get("direction") == position.get("direction")):
+        return False
+    if current_r < -0.70:
+        return False
+    opened = _parse(str(position.get("opened_at") or ""))
+    if opened is None or not 0 <= (now - opened).total_seconds() <= 45 * 60:
+        return False
+    last3 = sorted((b for b in bars if b.timestamp <= now),key=lambda b:b.timestamp)[-3:]
+    if len(last3) != 3 or any((b.timestamp-a.timestamp).total_seconds()!=60
+                              for a,b in zip(last3,last3[1:])):
+        return False
+    if (now-last3[-1].timestamp).total_seconds() > 180:
+        return False
+    try:
+        lower, upper = float(edge["lower"]), float(edge["upper"])
+        close = float(last3[-1].close)
+        if upper <= lower or not all(math.isfinite(v) for v in (lower,upper,close)):
+            return False
+    except (KeyError, ValueError, TypeError):
+        return False
+    # A real range break ends the grace; hard SL/TP remain first priority.
+    buffer = min(.0003, (upper-lower)*.06)
+    return lower-buffer <= close <= upper+buffer
+
+
 def evaluate_position(
     position: Mapping[str, Any],
     bars: Sequence[Bar],
@@ -310,6 +344,8 @@ def evaluate_position(
     # Do not wait mechanically for -1R when both current P&L and recent
     # directional pace have deteriorated. This is intentionally age-independent.
     if current_r <= LOSS_CONTAINMENT_R and v1 < 0.0 and v3 <= 0.0 and hold_score <= -0.10:
+        if _range_edge_whipsaw_grace(position, relevant, observed_at, current_r):
+            return None  # independent macro/event closure remains active in v18
         return _dynamic_close(position, relevant, "DYNAMIC_RISK_EXIT", diagnostics)
 
     # Late losing/stalled trades get an additional feasibility-based exit.

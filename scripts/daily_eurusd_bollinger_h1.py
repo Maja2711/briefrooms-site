@@ -24,7 +24,55 @@ OSCILLATION_LOOKBACK_HOURS = 7
 MIN_MIDDLE_CROSSINGS = 2
 
 
-def evaluate(bars, direction, observed_at):
+
+def _range_edge_reversal(bars, direction, now, lower, upper):
+    """Closed 1m bounce at the *frozen* completed-H1 outer band."""
+    deny = {"allowed": False, "reason": "unverified_outer_band_bounce"}
+    if not bars:
+        return deny
+    completed = []
+    for bar in bars:
+        if bar.timestamp.astimezone(timezone.utc) + timedelta(minutes=1) > now:
+            continue
+        if None in (bar.open, bar.high, bar.low, bar.close):
+            continue
+        prices = [float(x) for x in (bar.open,bar.high,bar.low,bar.close)]
+        if not all(isfinite(x) and x > 0 for x in prices):
+            continue
+        if prices[2] > min(prices[0],prices[3]) or prices[1] < max(prices[0],prices[3]):
+            continue
+        completed.append(bar)
+    completed.sort(key=lambda b:b.timestamp)
+    if len(completed) < 6:
+        return deny
+    sample=completed[-6:]
+    if any((b.timestamp-a.timestamp).total_seconds()!=60 for a,b in zip(sample,sample[1:])):
+        return deny
+    last,previous=sample[-1],sample[-2]
+    age=(now-last.timestamp-timedelta(minutes=1)).total_seconds()
+    if age < 0 or age > 180 or upper<=lower:
+        return deny
+    width=upper-lower
+    if direction=="LONG":
+        touch=any(float(b.low)<=lower+.05*width for b in sample)
+        zone=lower-PIP<=float(last.close)<=lower+.12*width
+        reversal=(float(last.close)-float(previous.close))/PIP
+    else:
+        touch=any(float(b.high)>=upper-.05*width for b in sample)
+        zone=upper-.12*width<=float(last.close)<=upper+PIP
+        reversal=(float(previous.close)-float(last.close))/PIP
+    allowed=bool(touch and zone and reversal>=.5)
+    return {
+        "allowed":allowed, "reason":"verified_range_edge_bounce" if allowed else "waiting_for_edge_bounce",
+        "direction":direction, "lower":lower, "upper":upper,
+        "last_completed_1m":last.timestamp.isoformat(),
+        "proof_price":float(last.close), "touch":touch, "near_outer_band":zone,
+        "reversal_pips":round(reversal,3),
+        "direction_mutation_allowed":False, "opens_trade":False,
+    }
+
+
+def evaluate(bars, direction, observed_at, *, minute_bars=None):
     if direction not in ("LONG", "SHORT"):
         return {"available": False, "allowed": False, "reason": "belief_not_directional",
                 "weight": "PRIMARY_TECHNICAL"}
@@ -68,7 +116,7 @@ def evaluate(bars, direction, observed_at):
     mid, upper, lower = band(len(closes) - 1)
     prev_mid, _, _ = band(len(closes) - 2)
     prev2_mid, _, _ = band(len(closes) - 3)
-    prev3_mid, _, _ = band(len(closes) - 4)
+    prev3_mid, prev3_upper, prev3_lower = band(len(closes) - 4)
     price, previous = closes[-1], closes[-2]
     width = upper - lower
     if width <= 1e-10 or not all(isfinite(x) for x in
@@ -97,7 +145,12 @@ def evaluate(bars, direction, observed_at):
     flat_middle = (abs(slope_pips) <= FLAT_MIDDLE_SLOPE_PIPS
                    and abs(slope_3h_pips) <= FLAT_THREE_HOUR_SLOPE_PIPS)
     oscillating = crossings >= MIN_MIDDLE_CROSSINGS
-    range_regime = bool(
+    range_structure = bool(flat_middle and 12 <= width_pips <= 70
+                           and (width-(prev3_upper-prev3_lower))/PIP <= 6.0
+                           and (oscillating or abs(slope_3h_pips) <= 2.0))
+    range_edge = (_range_edge_reversal(minute_bars, direction, observed_at, lower, upper)
+                  if range_structure else {"allowed":False, "reason":"h1_not_flat_range"})
+    range_regime = range_structure or bool(
         (near_middle and flat_middle)
         or (oscillating and abs(middle_gap_pips) <= 0.20 * width_pips
             and abs(slope_3h_pips) <= max(FLAT_THREE_HOUR_SLOPE_PIPS,
@@ -114,12 +167,15 @@ def evaluate(bars, direction, observed_at):
     lower_rejection = previous <= lower and price > previous
     aligned = trend_long if direction == "LONG" else trend_short
     exhaustion = upper_rejection if direction == "LONG" else lower_rejection
-    allowed = bool(aligned and not exhaustion and not range_regime and not marginal_crossing)
+    allowed = bool((aligned and not exhaustion and not range_regime and not marginal_crossing)
+                   or (range_structure and range_edge["allowed"]))
     strong_trend_confirmed = bool(
-        allowed and abs(middle_gap_pips) >= 5.0
+        allowed and not range_structure and abs(middle_gap_pips) >= 5.0
         and abs(slope_pips) >= 1.0 and abs(slope_3h_pips) >= 2.0
     )
-    reason = ("h1_range_middle_whipsaw" if range_regime
+    reason = ("h1_range_outer_band_bounce" if range_structure and range_edge["allowed"]
+              else "h1_range_middle_whipsaw" if range_structure
+              else "h1_range_middle_whipsaw" if range_regime
               else "h1_middle_break_unconfirmed" if marginal_crossing
               else "outer_band_exhaustion" if exhaustion
               else "aligned_h1_trend" if aligned
@@ -135,7 +191,8 @@ def evaluate(bars, direction, observed_at):
         "middle": mid, "upper": upper, "lower": lower, "percent_b": percent_b,
         "middle_slope": slope, "aligned": aligned, "exhaustion": exhaustion,
         "regime": "RANGE" if range_regime else "TREND" if allowed else "TRANSITION",
-        "range_regime": range_regime, "near_middle": near_middle,
+        "range_regime": range_regime, "range_structure": range_structure,
+        "range_edge_entry": range_edge, "near_middle": near_middle,
         "flat_middle": flat_middle, "marginal_crossing": marginal_crossing,
         "middle_crossings_6h": crossings,
         "middle_gap_pips": round(middle_gap_pips, 3),
