@@ -34,6 +34,7 @@ import daily_eurusd_decision_record as decision_record
 import daily_eurusd_production_policy as production_policy
 import daily_eurusd_reentry_safety as reentry_safety
 import daily_eurusd_bollinger_h1 as bollinger_h1
+import daily_eurusd_regime_policy as regime_policy
 import daily_eurusd_flip_guard as flip_guard
 import daily_eurusd_bollinger_d1 as bollinger_d1
 import daily_eurusd_bollinger_touch as bollinger_touch
@@ -152,6 +153,15 @@ def _execution_admission(
     # evidence is observable but must not rewrite established admission contracts.
     if bollinger.get("available") is True and bollinger.get("allowed") is False:
         reasons.append("bollinger_h1_" + str(bollinger.get("reason") or "not_aligned"))
+
+    mtf = (candidate.metadata or {}).get("multi_timeframe") or {}
+    risk_plan = (candidate.metadata or {}).get("h1_volatility_geometry") or {}
+    details["multi_timeframe"] = dict(mtf)
+    details["h1_volatility_geometry"] = dict(risk_plan)
+    if mtf.get("available") is True and mtf.get("block_new_entry") is True:
+        reasons.append("mtf_" + str(mtf.get("strategy") or "not_admitted").lower())
+    if risk_plan.get("allowed") is False:
+        reasons.append("mtf_volatility_geometry_unfavorable")
 
     # Belief alone creates direction. A D1 upper/lower touch can only veto
     # chasing the same direction until a subsequent 50% retracement.
@@ -310,6 +320,24 @@ def build_output(
     except (ValueError, TypeError, KeyError, OSError, RuntimeError) as exc:
         d1_context = {"available": False, "reason": "daily_context_fetch_failed",
                       "error_type": type(exc).__name__, "role": "AUXILIARY_TECHNICAL"}
+    # Multi-timeframe policy consumes ONLY as-of closed H1 and D1; W1 is
+    # assembled from completed D1 and can neither vote direction nor admit.
+    try:
+        mtf = regime_policy.evaluate(h1_rows if 'h1_rows' in locals() else [],
+                                     daily_bars if 'daily_bars' in locals() else [],
+                                     bollinger, d1_context, direction, observed_at)
+    except (ValueError, TypeError, KeyError, OSError, RuntimeError) as exc:
+        mtf = {"available": False, "strategy": "UNVERIFIED",
+               "reason": "mtf_evaluation_failed:" + type(exc).__name__,
+               "direction_authority": False}
+    risk_plan = regime_policy.geometry(mtf, entry, stop, target, direction, bollinger) if (
+        entry is not None and stop is not None and target is not None) else {
+            "applied": False, "allowed": False, "reason": "no_native_direction"}
+    if risk_plan.get("applied") is True:
+        # New-entry only; the paper EPE still performs its mandatory recenter
+        # and quote verification. Never alter open/historical SL/TP.
+        stop, target = risk_plan["stop"], risk_plan["target"]
+
     # Evaluate touches even with Belief FLAT, preserving state in the output.
     try:
         d1_touch = bollinger_touch.update(
@@ -330,6 +358,8 @@ def build_output(
         "market_snapshot_sha256": decision_record.market_snapshot_hash(snapshot),
         "bollinger_h1": bollinger,
         "bollinger_d1": d1_context,
+        "multi_timeframe": mtf,
+        "h1_volatility_geometry": risk_plan,
         "bollinger_d1_touch": d1_touch,
         "market": "FX_SPOT",
         "currency_pair": "EUR/USD",
@@ -411,6 +441,11 @@ def build_output(
             "atr_multiple": 1.35,
             "risk_floor_percent": 0.0027,
             "reward_risk": 1.8,
+            "multi_timeframe_version": regime_policy.VERSION,
+            "strategy_at_decision": mtf.get("strategy"),
+            "hourly_mean_high_low_pips": (mtf.get("h1_volatility") or {}).get("mean_high_low_pips"),
+            "hourly_median_high_low_pips": (mtf.get("h1_volatility") or {}).get("median_high_low_pips"),
+            "volatility_stop_target_applied": risk_plan.get("applied") is True,
             "soft_horizon_hours": 24.0,
             "hard_horizon_hours": 27.0,
         },
