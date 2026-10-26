@@ -712,7 +712,8 @@ class BeliefCore:
     def capture_forecast(self, belief_id: str, as_of: str | datetime | None = None, target_at: str | datetime | None = None,
                          regime: str = "unknown", forecast_id: Optional[str] = None,
                          metadata: Optional[Mapping[str, Any]] = None,
-                         predicted_probability_override: Optional[float] = None) -> ForecastSnapshot:
+                         predicted_probability_override: Optional[float] = None,
+                         *, persist: bool = True) -> ForecastSnapshot:
         if belief_id not in self.beliefs:
             raise KeyError(f"Unknown or not-yet-computed belief: {belief_id}")
         state = self.beliefs[belief_id]; d = self.definitions[belief_id]
@@ -747,7 +748,11 @@ class BeliefCore:
             return existing
         self.forecasts[fid] = snap
         self._append_ledger({"event_type": "forecast_frozen", **snap.to_dict(), "mode": MODE})
-        self.save(); self.write_dashboard(as_dt)
+        # The live collector runs in a disposable, all-or-nothing CI workspace;
+        # serialize the expensive cumulative state only after the full batch.
+        # Immutable per-forecast hash-linked ledger events are still appended.
+        if persist:
+            self.save(); self.write_dashboard(as_dt)
         return snap
 
     def capture_all_forecasts(self, as_of: str | datetime | None = None, regime: str = "unknown") -> List[ForecastSnapshot]:
@@ -759,7 +764,8 @@ class BeliefCore:
     def verify_forecast(self, forecast_id: str, outcome: bool, verified_at: str | datetime | None = None,
                         note: str = "", verification_id: Optional[str] = None,
                         allow_early: bool = False, outcome_source: str = "manual",
-                        outcome_ref: Optional[str] = None) -> Verification:
+                        outcome_ref: Optional[str] = None,
+                        *, persist: bool = True) -> Verification:
         if forecast_id not in self.forecasts:
             raise KeyError(f"Unknown forecast_id: {forecast_id}")
         f = self.forecasts[forecast_id]
@@ -791,7 +797,8 @@ class BeliefCore:
             raise ValueError(f"forecast {forecast_id} is already verified")
         self.verifications[vid] = v
         self._append_ledger({"event_type": "verification", **v.to_dict(), "mode": MODE})
-        self.save(); self.write_dashboard(verified_dt)
+        if persist:
+            self.save(); self.write_dashboard(verified_dt)
         return v
 
     def verify(self, belief_id: str, outcome: bool, verified_at: str | datetime | None = None, note: str = "") -> Verification:
