@@ -111,38 +111,38 @@
         "distinct_target_dates": 10,
         "outcome_conflicts": 0,
         "shadow_oos": {
-          "brier_relative_improvement": 0.22047,
+          "brier_relative_improvement": 0.230644,
           "challenger": {
-            "accuracy": 0.828283,
-            "brier": 0.142682,
-            "ece": 0.018721,
-            "log_loss": 0.460246,
-            "n": 99
+            "accuracy": 0.831683,
+            "brier": 0.140346,
+            "ece": 0.015238,
+            "log_loss": 0.454519,
+            "n": 101
           },
           "chronological_block_relative_improvements": [
             0.444289,
             0.502788,
             -0.210836,
-            0.412775
+            0.43262
           ],
           "control": {
-            "accuracy": 0.828283,
-            "brier": 0.183036,
-            "ece": 0.199171,
-            "log_loss": 0.556043,
-            "n": 99
+            "accuracy": 0.831683,
+            "brier": 0.18242,
+            "ece": 0.202946,
+            "log_loss": 0.554815,
+            "n": 101
           },
           "horizon_checks": [
             {
-              "brier_relative_improvement": 0.015117,
+              "brier_relative_improvement": 0.040455,
               "horizon_bucket": "0.125S_US_SESSION",
-              "n": 24,
+              "n": 25,
               "protected": true
             },
             {
-              "brier_relative_improvement": 0.342693,
+              "brier_relative_improvement": 0.360821,
               "horizon_bucket": "0.5S_US_SESSION",
-              "n": 23,
+              "n": 24,
               "protected": true
             },
             {
@@ -207,26 +207,26 @@
         "distinct_target_dates": 19,
         "outcome_conflicts": 0,
         "shadow_oos": {
-          "brier_relative_improvement": 0.430274,
+          "brier_relative_improvement": 0.431887,
           "challenger": {
-            "accuracy": 0.95,
-            "brier": 0.048895,
-            "ece": 0.007437,
-            "log_loss": 0.215809,
-            "n": 140
+            "accuracy": 0.950355,
+            "brier": 0.04856,
+            "ece": 0.007677,
+            "log_loss": 0.214576,
+            "n": 141
           },
           "chronological_block_relative_improvements": [
             0.524719,
             0.931987,
             0.611056,
-            0.035659
+            0.042496
           ],
           "control": {
-            "accuracy": 0.95,
-            "brier": 0.085822,
-            "ece": 0.17223,
-            "log_loss": 0.33134,
-            "n": 140
+            "accuracy": 0.950355,
+            "brier": 0.085476,
+            "ece": 0.172374,
+            "log_loss": 0.330507,
+            "n": 141
           },
           "horizon_checks": [
             {
@@ -248,9 +248,9 @@
               "protected": true
             },
             {
-              "brier_relative_improvement": 0.93617,
+              "brier_relative_improvement": 0.9366,
               "horizon_bucket": "3H",
-              "n": 29,
+              "n": 30,
               "protected": true
             },
             {
@@ -1046,7 +1046,7 @@
     }
   ],
   "delegated_actions": [],
-  "generated_at": "2026-10-26T17:36:54.479526Z",
+  "generated_at": "2026-10-26T18:28:40.458584Z",
   "hypotheses": [
     {
       "claim": "gpw LONG decisions in regime unknown show recurring adverse outcomes and warrant a bounded challenger",
@@ -1081,6 +1081,26 @@
         "stop_rate": 0.387097
       },
       "hypothesis_id": "hyp-exp-246049137abc24dda412a11e",
+      "kind": "recurring_decision_failure",
+      "next_step": "compile_engine_owned_challenger",
+      "production_authority": false,
+      "source_module": "LE-01",
+      "source_ref": "experience-store://gpw/LONG/unknown",
+      "status": "AUTO_CREATED"
+    },
+    {
+      "claim": "gpw LONG decisions in regime unknown show recurring adverse outcomes and warrant a bounded challenger",
+      "created_at": "2026-10-26T18:28:40.458584Z",
+      "evidence": {
+        "action": "LONG",
+        "engine": "gpw",
+        "mean_net_return_fraction": -0.00376563,
+        "n": 32,
+        "negative_rate": 0.53125,
+        "regime": "unknown",
+        "stop_rate": 0.375
+      },
+      "hypothesis_id": "hyp-exp-3c9acc50dc2c3ac0b6f0fb50",
       "kind": "recurring_decision_failure",
       "next_step": "compile_engine_owned_challenger",
       "production_authority": false,
@@ -1255,26 +1275,6 @@
       "source_module": "EP-09",
       "source_ref": "evidence-pattern://BRP-351325",
       "status": "AUTO_CREATED"
-    },
-    {
-      "claim": "gpw LONG decisions in regime unknown show recurring adverse outcomes and warrant a bounded challenger",
-      "created_at": "2026-10-26T17:36:54.479526Z",
-      "evidence": {
-        "action": "LONG",
-        "engine": "gpw",
-        "mean_net_return_fraction": -0.00376563,
-        "n": 32,
-        "negative_rate": 0.53125,
-        "regime": "unknown",
-        "stop_rate": 0.375
-      },
-      "hypothesis_id": "hyp-exp-3c9acc50dc2c3ac0b6f0fb50",
-      "kind": "recurring_decision_failure",
-      "next_step": "compile_engine_owned_challenger",
-      "production_authority": false,
-      "source_module": "LE-01",
-      "source_ref": "experience-store://gpw/LONG/unknown",
-      "status": "AUTO_CREATED"
     }
   ],
   "production_versions": {
@@ -1325,11 +1325,11 @@
       "observed_sample": 135,
       "segment_checks": [
         {
-          "brier_relative_improvement": -0.017136,
-          "challenger_brier": 0.276895,
-          "control_brier": 0.27223,
-          "ece_delta": -0.098728,
-          "n": 35,
+          "brier_relative_improvement": -0.024533,
+          "challenger_brier": 0.280346,
+          "control_brier": 0.273633,
+          "ece_delta": -0.094173,
+          "n": 36,
           "pass": true,
           "segment": "horizon:0-6H"
         },
@@ -1361,11 +1361,11 @@
           "segment": "horizon:6-24H"
         },
         {
-          "brier_relative_improvement": 0.011557,
-          "challenger_brier": 0.291731,
-          "control_brier": 0.295142,
-          "ece_delta": 0.015416,
-          "n": 135,
+          "brier_relative_improvement": 0.009508,
+          "challenger_brier": 0.292536,
+          "control_brier": 0.295344,
+          "ece_delta": 0.015782,
+          "n": 136,
           "pass": true,
           "segment": "instrument:EURUSD"
         }
@@ -1379,11 +1379,11 @@
       "observed_sample": 50,
       "segment_checks": [
         {
-          "brier_relative_improvement": 0.65326,
-          "challenger_brier": 0.038295,
-          "control_brier": 0.110443,
-          "ece_delta": -0.139332,
-          "n": 35,
+          "brier_relative_improvement": 0.653672,
+          "challenger_brier": 0.038262,
+          "control_brier": 0.110479,
+          "ece_delta": -0.139398,
+          "n": 36,
           "pass": true,
           "segment": "horizon:0-6H"
         },
@@ -1406,11 +1406,11 @@
           "segment": "horizon:6-24H"
         },
         {
-          "brier_relative_improvement": 0.388341,
-          "challenger_brier": 0.082889,
-          "control_brier": 0.135515,
-          "ece_delta": -0.139309,
-          "n": 170,
+          "brier_relative_improvement": 0.389692,
+          "challenger_brier": 0.082621,
+          "control_brier": 0.135376,
+          "ece_delta": -0.139323,
+          "n": 171,
           "pass": true,
           "segment": "instrument:BTC"
         }
@@ -1457,11 +1457,11 @@
       "observed_sample": 1682,
       "segment_checks": [
         {
-          "brier_relative_improvement": -0.01294,
-          "challenger_brier": 0.262942,
-          "control_brier": 0.259583,
-          "ece_delta": 0.029716,
-          "n": 542,
+          "brier_relative_improvement": -0.013769,
+          "challenger_brier": 0.263148,
+          "control_brier": 0.259574,
+          "ece_delta": 0.031344,
+          "n": 551,
           "pass": true,
           "segment": "horizon:0-6H"
         },
@@ -1493,20 +1493,20 @@
           "segment": "horizon:6-24H"
         },
         {
-          "brier_relative_improvement": 0.000514,
-          "challenger_brier": 0.219587,
-          "control_brier": 0.2197,
-          "ece_delta": -0.039918,
-          "n": 820,
+          "brier_relative_improvement": 0.000173,
+          "challenger_brier": 0.219727,
+          "control_brier": 0.219765,
+          "ece_delta": -0.039824,
+          "n": 825,
           "pass": true,
           "segment": "instrument:BTC"
         },
         {
-          "brier_relative_improvement": 0.005131,
-          "challenger_brier": 0.275117,
-          "control_brier": 0.276536,
-          "ece_delta": -0.010354,
-          "n": 624,
+          "brier_relative_improvement": 0.004598,
+          "challenger_brier": 0.275381,
+          "control_brier": 0.276653,
+          "ece_delta": -0.010336,
+          "n": 628,
           "pass": true,
           "segment": "instrument:EURUSD"
         },
@@ -1560,11 +1560,11 @@
       "observed_sample": 110,
       "segment_checks": [
         {
-          "brier_relative_improvement": 0.05159,
-          "challenger_brier": 0.271453,
-          "control_brier": 0.286219,
-          "ece_delta": -0.115158,
-          "n": 23,
+          "brier_relative_improvement": 0.040686,
+          "challenger_brier": 0.276243,
+          "control_brier": 0.287959,
+          "ece_delta": -0.108321,
+          "n": 24,
           "pass": true,
           "segment": "horizon:0-6H"
         },
@@ -1587,11 +1587,11 @@
           "segment": "horizon:6-24H"
         },
         {
-          "brier_relative_improvement": 0.045531,
-          "challenger_brier": 0.267696,
-          "control_brier": 0.280466,
-          "ece_delta": -0.05479,
-          "n": 110,
+          "brier_relative_improvement": 0.043176,
+          "challenger_brier": 0.268766,
+          "control_brier": 0.280894,
+          "ece_delta": -0.053856,
+          "n": 111,
           "pass": true,
           "segment": "instrument:EURUSD"
         }
@@ -1605,11 +1605,11 @@
       "observed_sample": 51,
       "segment_checks": [
         {
-          "brier_relative_improvement": 0.172459,
-          "challenger_brier": 0.187313,
-          "control_brier": 0.226349,
-          "ece_delta": -0.07478,
-          "n": 46,
+          "brier_relative_improvement": 0.178996,
+          "challenger_brier": 0.18584,
+          "control_brier": 0.226357,
+          "ece_delta": -0.075254,
+          "n": 48,
           "pass": true,
           "segment": "horizon:0-6H"
         },
@@ -1641,11 +1641,11 @@
           "segment": "horizon:6-24H"
         },
         {
-          "brier_relative_improvement": 0.208553,
-          "challenger_brier": 0.175626,
-          "control_brier": 0.221905,
-          "ece_delta": -0.0726,
-          "n": 160,
+          "brier_relative_improvement": 0.210076,
+          "challenger_brier": 0.175334,
+          "control_brier": 0.221963,
+          "ece_delta": -0.072768,
+          "n": 162,
           "pass": true,
           "segment": "instrument:BTC"
         }
@@ -1666,11 +1666,11 @@
       "observed_sample": 155,
       "segment_checks": [
         {
-          "brier_relative_improvement": -0.042354,
-          "challenger_brier": 0.262766,
-          "control_brier": 0.252089,
-          "ece_delta": -0.005842,
-          "n": 44,
+          "brier_relative_improvement": -0.047324,
+          "challenger_brier": 0.264552,
+          "control_brier": 0.252598,
+          "ece_delta": 0.018957,
+          "n": 45,
           "pass": true,
           "segment": "horizon:0-6H"
         },
@@ -1702,11 +1702,11 @@
           "segment": "horizon:6-24H"
         },
         {
-          "brier_relative_improvement": -0.023167,
-          "challenger_brier": 0.262079,
-          "control_brier": 0.256145,
-          "ece_delta": 0.062895,
-          "n": 155,
+          "brier_relative_improvement": -0.024713,
+          "challenger_brier": 0.262598,
+          "control_brier": 0.256265,
+          "ece_delta": 0.062885,
+          "n": 156,
           "pass": false,
           "segment": "instrument:BTC"
         }
@@ -1729,11 +1729,11 @@
       "observed_sample": 163,
       "segment_checks": [
         {
-          "brier_relative_improvement": -0.082389,
-          "challenger_brier": 0.300903,
-          "control_brier": 0.277999,
-          "ece_delta": 0.067484,
-          "n": 46,
+          "brier_relative_improvement": -0.080052,
+          "challenger_brier": 0.29964,
+          "control_brier": 0.277431,
+          "ece_delta": 0.058352,
+          "n": 48,
           "pass": false,
           "segment": "horizon:0-6H"
         },
@@ -1765,11 +1765,11 @@
           "segment": "horizon:6-24H"
         },
         {
-          "brier_relative_improvement": -0.114942,
-          "challenger_brier": 0.323894,
-          "control_brier": 0.290503,
-          "ece_delta": 0.034125,
-          "n": 163,
+          "brier_relative_improvement": -0.113934,
+          "challenger_brier": 0.323248,
+          "control_brier": 0.290186,
+          "ece_delta": 0.033587,
+          "n": 165,
           "pass": false,
           "segment": "instrument:EURUSD"
         }
@@ -1789,11 +1789,11 @@
       "observed_sample": 170,
       "segment_checks": [
         {
-          "brier_relative_improvement": 0.037323,
-          "challenger_brier": 0.265564,
-          "control_brier": 0.27586,
-          "ece_delta": -0.086688,
-          "n": 35,
+          "brier_relative_improvement": 0.045582,
+          "challenger_brier": 0.264244,
+          "control_brier": 0.276864,
+          "ece_delta": -0.112769,
+          "n": 36,
           "pass": true,
           "segment": "horizon:0-6H"
         },
@@ -1816,11 +1816,11 @@
           "segment": "horizon:6-24H"
         },
         {
-          "brier_relative_improvement": -0.013928,
-          "challenger_brier": 0.275616,
-          "control_brier": 0.27183,
-          "ece_delta": 0.049583,
-          "n": 170,
+          "brier_relative_improvement": -0.011813,
+          "challenger_brier": 0.275279,
+          "control_brier": 0.272065,
+          "ece_delta": 0.049829,
+          "n": 171,
           "pass": true,
           "segment": "instrument:BTC"
         }
@@ -1880,7 +1880,7 @@
       ],
       "candidate_id": "hch-0bf425a4276053c9e407d399",
       "minimum_sample": 50,
-      "observed_sample": 99,
+      "observed_sample": 101,
       "segment_checks": [
         {
           "block": 1,
@@ -1896,7 +1896,7 @@
         },
         {
           "block": 4,
-          "brier_relative_improvement": 0.412775
+          "brier_relative_improvement": 0.43262
         }
       ],
       "status": "COLLECTING"
@@ -1918,7 +1918,7 @@
       ],
       "candidate_id": "hch-a26038a449bce120ddc5506f",
       "minimum_sample": 50,
-      "observed_sample": 140,
+      "observed_sample": 141,
       "segment_checks": [
         {
           "block": 1,
@@ -1934,7 +1934,7 @@
         },
         {
           "block": 4,
-          "brier_relative_improvement": 0.035659
+          "brier_relative_improvement": 0.042496
         }
       ],
       "status": "COLLECTING"
@@ -1946,7 +1946,7 @@
   "source_status": {
     "belief_calibration": {
       "available": true,
-      "resolved_rows": 2260,
+      "resolved_rows": 2269,
       "scan_status": {
         "__GLOBAL__": {
           "last_discovery_n": null,
