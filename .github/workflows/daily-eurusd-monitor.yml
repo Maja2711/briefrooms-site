@@ -131,6 +131,46 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Diagnose live Yahoo EURUSD D1 and 1m OHLC read-only (PR only)
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        run: |
+          PYTHONPATH=scripts:. python - <<'PY'
+          from datetime import datetime, timezone
+          from belief_market_data_adapter import YahooChartClient
+          from daily_eurusd_reentry_safety import _bars, _number, _time
+          from collections import Counter
+          now=datetime.now(timezone.utc)
+          client=YahooChartClient(timeout=15)
+          for period,interval,minutes in (("2y","1d",None),("5d","1m",1)):
+              try:
+                  rows=client.bars("EURUSD=X",period,interval)
+              except Exception as exc:
+                  print("REENTRY_FEED_PROBE_ERROR",period,interval,type(exc).__name__,str(exc)[:180])
+                  continue
+              print("REENTRY_FEED_PROBE",period,interval,"n",len(rows),"first",rows[0].timestamp,"last",rows[-1].timestamp)
+              counter=Counter()
+              specimens=[]
+              for i,bar in enumerate(rows):
+                  try:
+                      validated=_bars([bar],now,minutes=minutes)
+                      counter["valid" if validated else "incomplete"]+=1
+                  except Exception as exc:
+                      label=f"{type(exc).__name__}:{str(exc)[:80]}"
+                      counter[label]+=1
+                      if len(specimens)<12:
+                          specimens.append({"index":i,"at":bar.timestamp.isoformat(),"open":bar.open,
+                                            "high":bar.high,"low":bar.low,"close":bar.close,
+                                            "error":label})
+              print("REENTRY_FEED_PROBE_SUMMARY",period,interval,dict(counter))
+              for specimen in specimens:
+                  print("REENTRY_FEED_PROBE_INVALID",specimen)
+              try:
+                  full=_bars(rows,now,minutes=minutes)
+                  print("REENTRY_FEED_PROBE_FULL_OK",period,interval,len(full))
+              except Exception as exc:
+                  print("REENTRY_FEED_PROBE_FULL_ERROR",period,interval,type(exc).__name__,str(exc)[:180])
+          PY
       - name: Validate Daily EURUSD code without mutating trading state
         run: |
           set -euo pipefail
