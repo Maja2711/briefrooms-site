@@ -169,7 +169,7 @@ def evaluate(bars, direction, observed_at, *, minute_bars=None):
     allowed = bool((aligned and not exhaustion and not range_regime and not marginal_crossing)
                    or (range_structure and range_edge["allowed"]))
     strong_trend_confirmed = bool(
-        allowed and abs(middle_gap_pips) >= 5.0
+        allowed and not range_structure and abs(middle_gap_pips) >= 5.0
         and abs(slope_pips) >= 1.0 and abs(slope_3h_pips) >= 2.0
     )
     reason = ("h1_range_outer_band_bounce" if range_structure and range_edge["allowed"]
