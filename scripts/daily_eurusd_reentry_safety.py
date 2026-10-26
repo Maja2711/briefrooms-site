@@ -241,24 +241,33 @@ def _validated_d1_source(raw: Sequence[Any], now: datetime,
             at = _time(get("timestamp"))
             if at <= now:
                 minute_clock.append(at)
+            # EUR/USD FX Sunday reopening and the Yahoo D1 boundary can both
+            # shift with US/EU DST. Never assign a fixed 23:00 UTC session
+            # start; find a SOURCE one-minute open corroborating the Yahoo D1
+            # preview. The complete uninterrupted minute path remains mandatory
+            # in evaluate() and this routine grants no authority on its own.
             if (0 <= (now - at).total_seconds() < 24 * 3600
-                    and at.hour in (0, 23) and at.minute == 0 and at.second == 0
-                    and at.microsecond == 0):
+                    and at.hour in (21, 22, 23, 0) and at.minute == 0
+                    and at.second == 0 and at.microsecond == 0):
                 proof = _bars([bar], now, minutes=1)
                 if proof and abs(proof[0]["open"] - preview[0][1]["open"]) <= PIP + EPS:
                     minute_rows.append(proof[0])
         last_canonical = _time(rows[-1]["timestamp"])
-        # A Friday-to-Monday transition requires explicit proof of the weekend
-        # reopening; otherwise a missing hour could masquerade as session open.
+        minute_clock.sort()
+        # When the gap since the last source D1 exceeds the weekend,
+        # a same-price candle at midnight is NOT proof of market reopening.
+        # Require the actual first minute after an observed >=12h market gap.
         if (now - last_canonical).total_seconds() > 48 * 3600:
-            minute_clock.sort()
             reopening = [later for earlier, later in zip(minute_clock, minute_clock[1:])
                          if later - earlier >= timedelta(hours=12)]
             minute_rows = [row for row in minute_rows
                            if reopening and _time(row["timestamp"]) == reopening[-1]]
         else:
+            # Non-weekend D1 session timestamp may move by one UTC hour across
+            # DST. Require a matching 1m source open at the candidate boundary,
+            # not equality with yesterday's clock hour.
             minute_rows = [row for row in minute_rows
-                           if _time(row["timestamp"]).hour == last_canonical.hour]
+                           if _time(row["timestamp"]) > last_canonical]
         if len(minute_rows) != 1:
             raise ValueError("live_d1_session_open_not_independently_verified")
         session_at = _time(minute_rows[0]["timestamp"])
