@@ -22,7 +22,7 @@ CODE_FILES = (
     "daily_eurusd_spot.py", "daily_eurusd_spot_v12.py", "daily_eurusd_spot_v13.py",
     "daily_eurusd_spot_v19.py", "daily_eurusd_bollinger_h1.py", "daily_eurusd_bollinger_d1.py", "daily_eurusd_bollinger_touch.py", "daily_eurusd_belief_decision.py",
     "daily_eurusd_reentry_safety.py", "daily_eurusd_reflection.py", "daily_eurusd_reentry_learning.py",
-    "daily_eurusd_lifecycle.py", "daily_eurusd_spot_v14.py",
+    "daily_eurusd_lifecycle.py", "daily_eurusd_spot_v14.py", "daily_eurusd_range_exit.py",
     "daily_eurusd_production_policy.py", "daily_eurusd_decision_record.py",
     "execution_price_engine.py", "epistemic_consumer_interface.py",
     "daily_eurusd_spot_v15.py", "daily_eurusd_spot_v16.py", "daily_eurusd_spot_v17.py", "daily_eurusd_spot_v18.py",
