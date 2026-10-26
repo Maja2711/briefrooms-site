@@ -7223,7 +7223,7 @@
       "trade_id": "eurusd:20261022T035202Z:LONG"
     },
     {
-      "audited_at": "2026-10-26T11:29:28Z",
+      "audited_at": "2026-10-26T17:37:00Z",
       "automation": {
         "after_close_only": true,
         "alter_r_pace_v1": false,
@@ -7275,16 +7275,14 @@
       "closed_at": "2026-10-26T07:42:44Z",
       "direction": "LONG",
       "existing_exit_review": {
-        "profit_snapshot_count": null,
+        "profit_snapshot_count": 34,
         "review_uses_hindsight_for_later_price_path": true,
-        "reviewed_actual_r": null,
-        "reviewed_exit_reason": null,
-        "status": "PENDING_OR_MISMATCHED"
+        "reviewed_actual_r": -0.3522,
+        "reviewed_exit_reason": "DYNAMIC_RISK_EXIT",
+        "status": "MATCHED_CANONICAL_CLOSE"
       },
       "findings": [
-        "MISSING_OR_LATE_PRE_EXIT_LIVE_SIGNALS",
-        "CHALLENGER_REPORT_PENDING",
-        "EXIT_INTELLIGENCE_REVIEW_PENDING_OR_STALE"
+        "MISSING_OR_LATE_PRE_EXIT_LIVE_SIGNALS"
       ],
       "instrument": "EUR/USD",
       "live_telemetry": {
@@ -7358,18 +7356,52 @@
         "timely_rule": "first_seen_at >= bar_close; <=180s; first_seen_at <= actual_closed_at"
       },
       "opened_at": "2026-10-26T00:16:45Z",
-      "overall_status": "NEEDS_DATA_OR_REVIEW",
+      "overall_status": "AUDITED_WITH_WARNINGS",
       "schema_version": "eurusd-daily-posttrade-audit-v1",
       "shadow_challengers": {
-        "canonical_trade_matched": false,
+        "canonical_trade_matched": true,
         "claimed_winner": null,
-        "results": {},
-        "status": "PENDING_SHADOW_COMPARISON"
+        "comparable_count": 3,
+        "no_auto_strategy_promotion": true,
+        "results": {
+          "CLOSE_TRAIL_035R": {
+            "earlier_simulated_exit_at": "2026-10-26T04:23:00Z",
+            "execution_proven": false,
+            "incremental_r_vs_canonical": 0.513986,
+            "signal_from_historical_replay_not_live_proof": true,
+            "simulated_r": 0.161786,
+            "simulation_status": "EARLIER_RESEARCH_EXIT",
+            "spread_from_recorded_epe": true,
+            "status": "RESEARCH_ONLY_EARLIER_EXIT"
+          },
+          "GIVEBACK_MOMENTUM": {
+            "earlier_simulated_exit_at": "2026-10-26T03:01:00Z",
+            "execution_proven": false,
+            "incremental_r_vs_canonical": 0.553573,
+            "signal_from_historical_replay_not_live_proof": true,
+            "simulated_r": 0.201373,
+            "simulation_status": "EARLIER_RESEARCH_EXIT",
+            "spread_from_recorded_epe": true,
+            "status": "RESEARCH_ONLY_EARLIER_EXIT"
+          },
+          "MOMENTUM_5_15": {
+            "earlier_simulated_exit_at": "2026-10-26T02:58:00Z",
+            "execution_proven": false,
+            "incremental_r_vs_canonical": 0.593234,
+            "signal_from_historical_replay_not_live_proof": true,
+            "simulated_r": 0.241034,
+            "simulation_status": "EARLIER_RESEARCH_EXIT",
+            "spread_from_recorded_epe": true,
+            "status": "RESEARCH_ONLY_EARLIER_EXIT"
+          }
+        },
+        "selection_note": "One observed trade cannot establish superior protection policy",
+        "status": "RESEARCH_COMPARISON_AVAILABLE"
       },
       "trade_id": "eurusd:20261026T001645Z:LONG"
     },
     {
-      "audited_at": "2026-10-26T11:29:28Z",
+      "audited_at": "2026-10-26T17:37:00Z",
       "automation": {
         "after_close_only": true,
         "alter_r_pace_v1": false,
@@ -7421,16 +7453,14 @@
       "closed_at": "2026-10-26T09:12:46Z",
       "direction": "SHORT",
       "existing_exit_review": {
-        "profit_snapshot_count": null,
+        "profit_snapshot_count": 0,
         "review_uses_hindsight_for_later_price_path": true,
-        "reviewed_actual_r": null,
-        "reviewed_exit_reason": null,
-        "status": "PENDING_OR_MISMATCHED"
+        "reviewed_actual_r": -0.3742,
+        "reviewed_exit_reason": "DYNAMIC_RISK_EXIT",
+        "status": "MATCHED_CANONICAL_CLOSE"
       },
       "findings": [
-        "MISSING_OR_LATE_PRE_EXIT_LIVE_SIGNALS",
-        "CHALLENGER_REPORT_PENDING",
-        "EXIT_INTELLIGENCE_REVIEW_PENDING_OR_STALE"
+        "MISSING_OR_LATE_PRE_EXIT_LIVE_SIGNALS"
       ],
       "instrument": "EUR/USD",
       "live_telemetry": {
@@ -7510,13 +7540,47 @@
         "timely_rule": "first_seen_at >= bar_close; <=180s; first_seen_at <= actual_closed_at"
       },
       "opened_at": "2026-10-26T09:02:17Z",
-      "overall_status": "NEEDS_DATA_OR_REVIEW",
+      "overall_status": "AUDITED_WITH_WARNINGS",
       "schema_version": "eurusd-daily-posttrade-audit-v1",
       "shadow_challengers": {
-        "canonical_trade_matched": false,
+        "canonical_trade_matched": true,
         "claimed_winner": null,
-        "results": {},
-        "status": "PENDING_SHADOW_COMPARISON"
+        "comparable_count": 0,
+        "no_auto_strategy_promotion": true,
+        "results": {
+          "CLOSE_TRAIL_035R": {
+            "earlier_simulated_exit_at": null,
+            "execution_proven": false,
+            "incremental_r_vs_canonical": null,
+            "signal_from_historical_replay_not_live_proof": false,
+            "simulated_r": null,
+            "simulation_status": "CENSORED_NO_FULL_ENTRY_TO_EXIT_PATH",
+            "spread_from_recorded_epe": false,
+            "status": "NOT_COMPARABLE"
+          },
+          "GIVEBACK_MOMENTUM": {
+            "earlier_simulated_exit_at": null,
+            "execution_proven": false,
+            "incremental_r_vs_canonical": null,
+            "signal_from_historical_replay_not_live_proof": false,
+            "simulated_r": null,
+            "simulation_status": "CENSORED_NO_FULL_ENTRY_TO_EXIT_PATH",
+            "spread_from_recorded_epe": false,
+            "status": "NOT_COMPARABLE"
+          },
+          "MOMENTUM_5_15": {
+            "earlier_simulated_exit_at": null,
+            "execution_proven": false,
+            "incremental_r_vs_canonical": null,
+            "signal_from_historical_replay_not_live_proof": false,
+            "simulated_r": null,
+            "simulation_status": "CENSORED_NO_FULL_ENTRY_TO_EXIT_PATH",
+            "spread_from_recorded_epe": false,
+            "status": "NOT_COMPARABLE"
+          }
+        },
+        "selection_note": "One observed trade cannot establish superior protection policy",
+        "status": "NO_VALID_COMPARABLE_CHALLENGERS"
       },
       "trade_id": "eurusd:20261026T090217Z:SHORT"
     }
@@ -7542,15 +7606,13 @@
   "latest_trade_summary": {
     "actual_pips": -11.9,
     "actual_r": -0.3742,
-    "audit_status": "NEEDS_DATA_OR_REVIEW",
+    "audit_status": "AUDITED_WITH_WARNINGS",
     "closed_at": "2026-10-26T09:12:46Z",
     "exit_reason": "DYNAMIC_RISK_EXIT",
     "findings": [
-      "MISSING_OR_LATE_PRE_EXIT_LIVE_SIGNALS",
-      "CHALLENGER_REPORT_PENDING",
-      "EXIT_INTELLIGENCE_REVIEW_PENDING_OR_STALE"
+      "MISSING_OR_LATE_PRE_EXIT_LIVE_SIGNALS"
     ],
-    "shadow_status": "PENDING_SHADOW_COMPARISON",
+    "shadow_status": "NO_VALID_COMPARABLE_CHALLENGERS",
     "telemetry_status": "PARTIAL_TIMELY_LIVE_EVIDENCE"
   },
   "mode": "READ_ONLY_POST_CLOSE_AUDIT",
@@ -7560,7 +7622,7 @@
     "audits_with_findings": 47,
     "canonical_closed_trades_in_scope": 53,
     "missing_or_partial_live_evidence": 47,
-    "waiting_for_challengers": 2
+    "waiting_for_challengers": 0
   },
-  "updated_at": "2026-10-26T11:29:28Z"
+  "updated_at": "2026-10-26T17:37:00Z"
 }
