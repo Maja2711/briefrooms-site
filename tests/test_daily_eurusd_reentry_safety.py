@@ -382,10 +382,12 @@ class PostLossTechnicalSafetyTests(unittest.TestCase):
         self.assertEqual(audit["session"]["session_clock_source"],
                          "D1_PREVIEW_MATCHED_TO_EXACT_1M_SESSION_OPEN")
         # It is forbidden to substitute the 00 UTC price or infer reopening.
-        minute[1]["open"] += .0003
+        original = dict(minute[1])
+        for key in ("open", "high", "low", "close"):
+            minute[1][key] += .0003  # coherent but independently disagreeing 1m quote
         with self.assertRaisesRegex(ValueError, "live_d1_session_open_not_independently_verified"):
             safety._validated_d1_source(daily, now, minute)
-        minute[1]["open"] -= .0003
+        minute[1] = original
         with self.assertRaisesRegex(ValueError, "live_d1_session_open_not_independently_verified"):
             safety._validated_d1_source(daily, now, minute[1:])
 
