@@ -106,7 +106,7 @@ def evaluate(h1_halves, daily_bars, h1, d1, direction, at):
         strategy="WAIT_TRANSITION"
     return {**base,"available":True,"h1_regime":regime,"strategy":strategy,
             "direction":direction,"d1":daily,"w1":weekview,"h1_volatility":vol,
-            "block_new_entry":strategy.startswith("WAIT_"),
+            "block_new_entry":bool(h1.get("available") is True and strategy.startswith("WAIT_")),
             "position_management":"TREND_H1_VOLATILITY" if strategy=="STRONG_TREND" else
                                   "RANGE_H1_REVERSION" if strategy=="RANGE_EDGE" else "STANDARD_R_PACE",
             "roles":{"H1":"PRIMARY","D1":"SECONDARY","W1":"OVERVIEW_ONLY"}}
