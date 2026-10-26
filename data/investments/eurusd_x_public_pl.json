@@ -10,7 +10,7 @@
     "rollback_window": 8,
     "scheduler": "hourly_weekdays"
   },
-  "capture_count": 120,
+  "capture_count": 121,
   "champion_setup_id": "X-AUTO-05",
   "engine_version": "eurusd-x-v1.0.0",
   "fixed_core": {
@@ -45,18 +45,18 @@
     ],
     "pivot": "classic_daily_floor_P_R1_R2_R3_S1_S2_S3"
   },
-  "generated_at": "2026-10-26T04:50:22.176166Z",
+  "generated_at": "2026-10-26T11:06:44.282489Z",
   "last_best_setup_id": "X-BASE",
   "latest_prediction": {
     "confidence": 0.0,
     "direction": "FLAT",
-    "market_observed_at": "2026-10-26T04:49:45Z",
-    "probability_long": 0.45032,
-    "reference_price": 1.122334,
-    "score": 44.48,
+    "market_observed_at": "2026-10-26T11:05:43Z",
+    "probability_long": 0.434891,
+    "reference_price": 1.120323,
+    "score": 42.77,
     "setup_id": "X-AUTO-05",
-    "signed_score": -0.110399,
-    "supplementary_score": -0.288754
+    "signed_score": -0.144686,
+    "supplementary_score": 0.204067
   },
   "market_status": "LIVE",
   "mode": "LIVE_SHADOW",
@@ -69,12 +69,6 @@
     "shadow_only": true
   },
   "recent_calibration_events": [
-    {
-      "action": "KEEP",
-      "at": "2026-10-22T10:10:21.147027Z",
-      "champion_after": "X-AUTO-05",
-      "champion_before": "X-AUTO-05"
-    },
     {
       "action": "KEEP",
       "at": "2026-10-22T13:49:12.063016Z",
@@ -138,6 +132,12 @@
     {
       "action": "KEEP",
       "at": "2026-10-26T04:50:22.176166Z",
+      "champion_after": "X-AUTO-05",
+      "champion_before": "X-AUTO-05"
+    },
+    {
+      "action": "KEEP",
+      "at": "2026-10-26T11:06:44.282489Z",
       "champion_after": "X-AUTO-05",
       "champion_before": "X-AUTO-05"
     }
@@ -214,110 +214,132 @@
       "sample": 104,
       "setup_id": "X-AUTO-06",
       "status": "NEW_PROSPECTIVE_CHALLENGER"
+    },
+    {
+      "at": "2026-10-26T11:06:44.282489Z",
+      "correlations": {
+        "bb_trend": -0.072366,
+        "ma_slope_consensus": -0.037591,
+        "macd_mtf": -0.053989,
+        "rsi_mtf": -0.074303
+      },
+      "sample": 120,
+      "setup_id": "X-AUTO-07",
+      "status": "NEW_PROSPECTIVE_CHALLENGER"
     }
   ],
-  "resolved_4h": 119,
+  "resolved_4h": 120,
   "schema_version": "eurusd-x-public-pl-v1",
   "setups": [
     {
-      "brier": 0.258398,
+      "brier": 0.25666,
       "hit_rate": 0.0,
       "label": "Auto anomaly 05",
       "mean_signed_return_bps": -17.3916,
-      "n": 31,
+      "n": 32,
       "origin": "prospective_anomaly_hunter",
       "setup_id": "X-AUTO-05",
       "signal_n": 2
     },
     {
-      "brier": 0.249905,
+      "brier": 0.246619,
       "hit_rate": null,
       "label": "Auto anomaly 06",
       "mean_signed_return_bps": null,
-      "n": 14,
+      "n": 15,
       "origin": "prospective_anomaly_hunter",
       "setup_id": "X-AUTO-06",
       "signal_n": 0
     },
     {
-      "brier": 0.257565,
+      "brier": 0.256496,
       "hit_rate": 0.0,
       "label": "Auto anomaly 04",
       "mean_signed_return_bps": -4.49,
-      "n": 46,
+      "n": 47,
       "origin": "prospective_anomaly_hunter",
       "setup_id": "X-AUTO-04",
       "signal_n": 1
     },
     {
-      "brier": 0.260529,
+      "brier": 0.259696,
       "hit_rate": 0.25,
       "label": "Auto anomaly 03",
       "mean_signed_return_bps": -9.7148,
-      "n": 63,
+      "n": 64,
       "origin": "prospective_anomaly_hunter",
       "setup_id": "X-AUTO-03",
       "signal_n": 12
     },
     {
-      "brier": 0.269631,
+      "brier": 0.26947,
       "hit_rate": 0.457627,
       "label": "Belief-weighted",
       "mean_signed_return_bps": -1.5639,
-      "n": 119,
+      "n": 120,
       "origin": "frozen_challenger",
       "setup_id": "X-BELIEF",
       "signal_n": 59
     },
     {
-      "brier": 0.269971,
+      "brier": 0.269796,
       "hit_rate": 0.448276,
       "label": "Stretch / Mean Reversion",
       "mean_signed_return_bps": -1.9576,
-      "n": 119,
+      "n": 120,
       "origin": "frozen_challenger",
       "setup_id": "X-REV",
       "signal_n": 58
     },
     {
-      "brier": 0.272494,
+      "brier": 0.27239,
       "hit_rate": 0.457627,
       "label": "Trend Continuation",
       "mean_signed_return_bps": -1.6576,
-      "n": 119,
+      "n": 120,
       "origin": "frozen_challenger",
       "setup_id": "X-TREND",
       "signal_n": 59
     },
     {
-      "brier": 0.273812,
+      "brier": 0.273567,
       "hit_rate": 0.461538,
       "label": "Balanced Core + Belief",
       "mean_signed_return_bps": -1.7984,
-      "n": 119,
+      "n": 120,
       "origin": "frozen_baseline",
       "setup_id": "X-BASE",
       "signal_n": 65
     },
     {
-      "brier": 0.283111,
+      "brier": 0.282177,
       "hit_rate": 0.357143,
       "label": "Auto anomaly 02",
       "mean_signed_return_bps": -2.5792,
-      "n": 78,
+      "n": 79,
       "origin": "prospective_anomaly_hunter",
       "setup_id": "X-AUTO-02",
       "signal_n": 42
     },
     {
-      "brier": 0.290671,
+      "brier": 0.289859,
       "hit_rate": 0.322034,
       "label": "Auto anomaly 01",
       "mean_signed_return_bps": -3.9326,
-      "n": 95,
+      "n": 96,
       "origin": "prospective_anomaly_hunter",
       "setup_id": "X-AUTO-01",
       "signal_n": 59
+    },
+    {
+      "brier": null,
+      "hit_rate": null,
+      "label": "Auto anomaly 07",
+      "mean_signed_return_bps": null,
+      "n": 0,
+      "origin": "prospective_anomaly_hunter",
+      "setup_id": "X-AUTO-07",
+      "signal_n": 0
     }
   ],
   "title": "EURUSD X"
