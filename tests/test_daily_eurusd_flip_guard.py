@@ -40,8 +40,9 @@ def historical_loss(now=BASE, direction="LONG", r=-.35):
 
 
 def candidate(now=BASE, direction="SHORT", score=46.2, confidence=.34,
-              source_sha="a"*64, source_at=None):
+              source_sha="a"*64, source_at=None, anchor_at=None):
     source_at = source_at or now - timedelta(minutes=1)
+    anchor_at = anchor_at or source_at
     anchor = .43 if direction == "SHORT" else .57
     final = {
         "direction": direction, "score": score, "confidence": confidence,
@@ -49,7 +50,7 @@ def candidate(now=BASE, direction="SHORT", score=46.2, confidence=.34,
         "epistemic_aggregate_authoritative": True,
         "used_beliefs": [{
             "belief_id": flip.ANCHOR, "probability": anchor,
-            "observed_at": source_at.isoformat(),
+            "observed_at": anchor_at.isoformat(),
         }],
         "epistemic_consumer": {
             "available": True,
@@ -136,6 +137,22 @@ class BeliefFlipConfirmationTests(unittest.TestCase):
         self.assertEqual(second["reason"], "flip_confirmed")
         self.assertTrue(second["state"]["confirmed"])
         self.assertEqual(history, {"trades": [historical_loss()]})
+
+    def test_new_snapshot_without_new_trend_anchor_does_not_confirm(self):
+        history = {"trades": [historical_loss()]}
+        first = flip.flip_confirmation(candidate(), history, BASE)
+        at = BASE + timedelta(minutes=50)
+        recycled = flip.flip_confirmation(
+            candidate(at, source_sha="b"*64, anchor_at=BASE - timedelta(minutes=1)),
+            history, at, first["state"],
+        )
+        self.assertFalse(recycled["allowed"], recycled)
+        self.assertFalse(recycled["new_source_verified"])
+        verified = flip.flip_confirmation(
+            candidate(at, source_sha="c"*64),
+            history, at, first["state"],
+        )
+        self.assertTrue(verified["allowed"], verified)
 
     def test_strong_reversal_still_requires_20_minutes_and_new_evidence(self):
         history = {"trades": [historical_loss()]}
