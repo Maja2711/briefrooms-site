@@ -263,7 +263,7 @@ def evaluate_position(
     # Both normal v1.9 and the fast watcher call this same evaluator.
     try:
         range_signal = range_exit.assess(
-            position, relevant, observed_at,
+            position, bars, observed_at,
             exit_price_at_mid=lifecycle.execution_risk_price,
         )
     except (ValueError, TypeError, KeyError, OverflowError, ArithmeticError):
