@@ -158,7 +158,8 @@ def _bars(raw: Sequence[Any], now: datetime, *, minutes: int | None = None) -> l
     return [result[key] for key in sorted(result)]
 
 
-def _validated_d1_source(raw: Sequence[Any], now: datetime) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+def _validated_d1_source(raw: Sequence[Any], now: datetime,
+                         minute_bars: Sequence[Any] | None = None) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Project only fields actually used by post-loss D1 admission.
 
     Yahoo FX 1d occasionally supplies an open or close slightly outside its
@@ -227,24 +228,50 @@ def _validated_d1_source(raw: Sequence[Any], now: datetime) -> tuple[list[dict[s
                           < _time(row["timestamp"]) + timedelta(days=1)]
     session = session_candidates[-1] if session_candidates else None
     if session is None and preview:
-        # Recover only the session OPEN clock, using the last verified D1
-        # boundary and an independently validated first minute of that session.
-        boundary_hour = _time(rows[-1]["timestamp"]).hour
-        session_at = now.replace(hour=boundary_hour, minute=0, second=0, microsecond=0)
-        if session_at > now:
-            session_at -= timedelta(days=1)
-        if session_at <= _time(rows[-1]["timestamp"]):
-            raise ValueError("d1_session_clock_not_newer_than_history")
-        if not session_at < preview[0][0]:
-            raise ValueError("d1_preview_before_session_open")
+        # Yahoo's FX D1 UTC boundary can shift by one hour over a DST weekend.
+        # Never guess or reuse yesterday's UTC hour. Locate the session first
+        # minute in the 1m SOURCE data and independently corroborate its OPEN
+        # against the Yahoo D1 live-preview OPEN. The full minute path is still
+        # required and checked by evaluate() before any admission.
+        minute_clock = []
+        minute_rows = []
+        for bar in minute_bars or []:
+            get = (bar.get if isinstance(bar, Mapping) else
+                   lambda key, item=bar: getattr(item, key, None))
+            at = _time(get("timestamp"))
+            if at <= now:
+                minute_clock.append(at)
+            if (0 <= (now - at).total_seconds() < 24 * 3600
+                    and at.hour in (0, 23) and at.minute == 0 and at.second == 0
+                    and at.microsecond == 0):
+                proof = _bars([bar], now, minutes=1)
+                if proof and abs(proof[0]["open"] - preview[0][1]["open"]) <= PIP + EPS:
+                    minute_rows.append(proof[0])
+        last_canonical = _time(rows[-1]["timestamp"])
+        # A Friday-to-Monday transition requires explicit proof of the weekend
+        # reopening; otherwise a missing hour could masquerade as session open.
+        if (now - last_canonical).total_seconds() > 48 * 3600:
+            minute_clock.sort()
+            reopening = [later for earlier, later in zip(minute_clock, minute_clock[1:])
+                         if later - earlier >= timedelta(hours=12)]
+            minute_rows = [row for row in minute_rows
+                           if reopening and _time(row["timestamp"]) == reopening[-1]]
+        else:
+            minute_rows = [row for row in minute_rows
+                           if _time(row["timestamp"]).hour == last_canonical.hour]
+        if len(minute_rows) != 1:
+            raise ValueError("live_d1_session_open_not_independently_verified")
+        session_at = _time(minute_rows[0]["timestamp"])
+        if session_at <= last_canonical or not session_at < preview[0][0]:
+            raise ValueError("d1_preview_session_chronology_unverified")
         session = {
             "timestamp": _iso(session_at), "open": preview[0][1]["open"],
             "close": preview[0][1]["close"], "high": None, "low": None,
             "ohlc_verified": False,
-            "session_clock_source": "PREVIOUS_VERIFIED_D1_BOUNDARY",
+            "session_clock_source": "D1_PREVIEW_MATCHED_TO_EXACT_1M_SESSION_OPEN",
             "preview_timestamp": _iso(preview[0][0]),
         }
-        audit["active_session_source"] = "LIVE_D1_OPEN_PLUS_1M_CONFIRMATION_REQUIRED"
+        audit["active_session_source"] = "LIVE_D1_OPEN_INDEPENDENTLY_VERIFIED_1M"
     elif session is not None:
         if preview and abs(float(session["open"]) - preview[0][1]["open"]) > PIP:
             raise ValueError("d1_preview_open_disagrees_with_canonical")
@@ -397,7 +424,9 @@ def evaluate(payload: Mapping[str, Any], history: Mapping[str, Any] | None, *,
                       prior_closed_at=loss.get("closed_at"), prior_r_multiple=loss.get("r_multiple"))
         loss_at = _time(loss["closed_at"])
         context = market_context or {}
-        daily, d1_quality = _validated_d1_source(context.get("daily_bars") or [], now)
+        daily, d1_quality = _validated_d1_source(
+            context.get("daily_bars") or [], now, context.get("minute_bars") or [],
+        )
         result["d1_quality"] = {key: value for key, value in d1_quality.items() if key != "session"}
         session = d1_quality["session"]
         if session is None:
