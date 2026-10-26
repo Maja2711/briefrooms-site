@@ -1,6 +1,6 @@
 {
   "activated_at": "2026-10-20T10:15:57.628497Z",
-  "active_case_id": "eurusd-case-55fdcb85ea1bf8a8dedba5df",
+  "active_case_id": null,
   "active_version_id": "eurusd-policy-b36bdb62278edbd39faee3b9",
   "authority": {
     "abc_writeback": false,
@@ -289,7 +289,7 @@
           },
           "selection_rule": "PASS_ONLY_MAX_LOWER_CI_THEN_MEAN_THEN_LEAST_RESTRICTIVE"
         },
-        "evaluated_at": "2026-10-26T09:06:58.219341Z",
+        "evaluated_at": "2026-10-26T09:18:45.848877Z",
         "evaluator_profile": "eurusd_actual_paired_fixed_blocks_v1",
         "gate_id": "eurusd-gate-c3600ff43c64bad6a9908a71",
         "metrics": {
@@ -795,7 +795,7 @@
           },
           "selection_rule": "PASS_ONLY_MAX_LOWER_CI_THEN_MEAN_THEN_LEAST_RESTRICTIVE"
         },
-        "evaluated_at": "2026-10-26T09:06:58.219341Z",
+        "evaluated_at": "2026-10-26T09:18:45.848877Z",
         "evaluator_profile": "eurusd_actual_paired_fixed_blocks_v1",
         "gate_id": "eurusd-gate-9c7e7c4ad1f499ed7e203e1a",
         "metrics": {
@@ -911,7 +911,7 @@
           },
           "selection_rule": "PASS_ONLY_MAX_LOWER_CI_THEN_MEAN_THEN_LEAST_RESTRICTIVE"
         },
-        "evaluated_at": "2026-10-26T09:06:58.219341Z",
+        "evaluated_at": "2026-10-26T09:18:45.848877Z",
         "evaluator_profile": "eurusd_actual_paired_fixed_blocks_v1",
         "gate_id": "eurusd-gate-7d9396eb1bddfd2b64138e38",
         "metrics": {
@@ -5326,7 +5326,20 @@
       "frozen_sha256": "7a05d4e1bd4a5e7753df38aad64e67e4cf5a8d4634cc46cce75f557370510ccd",
       "last_coverage_at": "2026-10-26T09:06:59.754467Z",
       "mode": "CANONICAL_REFERENCE_ONLY",
-      "outcome": null,
+      "outcome": {
+        "bound_at": "2026-10-26T09:18:45.848877Z",
+        "broker_fill_claim": false,
+        "canonical_actual_reference": true,
+        "closed_at": "2026-10-26T09:12:46Z",
+        "execution_authority": false,
+        "exit_price": 1.12173,
+        "exit_reason": "DYNAMIC_RISK_EXIT",
+        "live_executed": false,
+        "manifest_sha256": "653ee266628fe14d05a3204972e0139556608a5179539fe3c9d4528dba546acc",
+        "net_r": -0.3742138364779299,
+        "source": "CANONICAL_ACTUAL",
+        "trade_sha256": "81b9c8f77347f20192fcba283a1fe2438cb06020ba410f9ba011f7e99564a257"
+      },
       "runtime_position": {
         "_belief_macro_context": {
           "available": true,
@@ -6400,7 +6413,7 @@
         "target": 1.11524,
         "trade_id": "eurusd:20261026T090217Z:SHORT"
       },
-      "status": "OPEN"
+      "status": "CLOSED"
     },
     "eurusd-case-6788aa439a7e43025444b78d": {
       "case_id": "eurusd-case-6788aa439a7e43025444b78d",
@@ -16051,10 +16064,10 @@
     },
     "hypotheses": [
       {
-        "avoided_losses": 1,
-        "changed_admissions": 1,
-        "discovery_mean_delta_r": 0.3522012578616427,
-        "discovery_n": 1,
+        "avoided_losses": 2,
+        "changed_admissions": 2,
+        "discovery_mean_delta_r": 0.3632075471697863,
+        "discovery_n": 2,
         "hypothesis_id": "eurusd-margin-hypothesis-53b5f3b886b719eb7acbb276",
         "lost_winners": 0,
         "minimum_score_distance": 4.0,
@@ -16063,10 +16076,10 @@
         "status": "REQUIRES_FROZEN_PROSPECTIVE_TEST"
       },
       {
-        "avoided_losses": 1,
-        "changed_admissions": 1,
-        "discovery_mean_delta_r": 0.3522012578616427,
-        "discovery_n": 1,
+        "avoided_losses": 2,
+        "changed_admissions": 2,
+        "discovery_mean_delta_r": 0.3632075471697863,
+        "discovery_n": 2,
         "hypothesis_id": "eurusd-margin-hypothesis-39dd5c31d9f81a9d4b6a2e3e",
         "lost_winners": 0,
         "minimum_score_distance": 5.0,
@@ -16075,10 +16088,10 @@
         "status": "REQUIRES_FROZEN_PROSPECTIVE_TEST"
       },
       {
-        "avoided_losses": 1,
-        "changed_admissions": 1,
-        "discovery_mean_delta_r": 0.3522012578616427,
-        "discovery_n": 1,
+        "avoided_losses": 2,
+        "changed_admissions": 2,
+        "discovery_mean_delta_r": 0.3632075471697863,
+        "discovery_n": 2,
         "hypothesis_id": "eurusd-margin-hypothesis-f5432e50670f9a72d165b39f",
         "lost_winners": 0,
         "minimum_score_distance": 6.0,
@@ -19614,6 +19627,284 @@
         "next_action": "TEST_PARALLEL_BOUNDED_CHALLENGERS_AND_REVIEW_FAILED_GATES",
         "number": 20,
         "parent_sha256": "4f80b1700b8188fe846f02c50cc09a0c8979fbe2f44dc337b7d511c9eaf0ac14"
+      },
+      {
+        "at": "2026-10-26T09:18:45.848877Z",
+        "execution_authority": false,
+        "feedback": {
+          "active_version_id": "eurusd-policy-b36bdb62278edbd39faee3b9",
+          "adaptive_reentry": {
+            "active_version_id": "eurusd-reentry-policy-92434b08d7195f2e8324b97b",
+            "candidates": [
+              {
+                "candidate_id": "eurusd-reentry-candidate-225df99d3038edf786ee9d70",
+                "gate_id": "eurusd-reentry-gate-7124f84d4c32c639df8b8c7c",
+                "selected_n": 0,
+                "status": "OOS_RUNNING"
+              },
+              {
+                "candidate_id": "eurusd-reentry-candidate-2e9ff0156fd7457ba535eb47",
+                "gate_id": "eurusd-reentry-gate-7d6ac7ddf6bbc6b5b0fa3e93",
+                "selected_n": 0,
+                "status": "PARKED"
+              },
+              {
+                "candidate_id": "eurusd-reentry-candidate-2eff117ea9a8f69b6a48bdf1",
+                "gate_id": "eurusd-reentry-gate-3b8275d0eb41a04da51033bb",
+                "selected_n": 0,
+                "status": "PARKED"
+              },
+              {
+                "candidate_id": "eurusd-reentry-candidate-3e9df9f2d513365e625e7ba8",
+                "gate_id": "eurusd-reentry-gate-3303f473dc4d17d38ab4f79b",
+                "selected_n": 0,
+                "status": "PARKED"
+              },
+              {
+                "candidate_id": "eurusd-reentry-candidate-459788280da71a77daa74393",
+                "gate_id": "eurusd-reentry-gate-bce1f9a18254fe5e483af3ef",
+                "selected_n": 0,
+                "status": "PARKED"
+              },
+              {
+                "candidate_id": "eurusd-reentry-candidate-6677353b61c2fa71b4e8ca5d",
+                "gate_id": "eurusd-reentry-gate-77355e0c917160e12b59525c",
+                "selected_n": 0,
+                "status": "OOS_RUNNING"
+              },
+              {
+                "candidate_id": "eurusd-reentry-candidate-7e2c53ad502db06913d75532",
+                "gate_id": "eurusd-reentry-gate-fd169737b1c3672caa562454",
+                "selected_n": 0,
+                "status": "OOS_RUNNING"
+              },
+              {
+                "candidate_id": "eurusd-reentry-candidate-85a54523c67f7e5c90e3fdc2",
+                "gate_id": "eurusd-reentry-gate-32d7f118fbf240c29a62f6cb",
+                "selected_n": 0,
+                "status": "PARKED"
+              },
+              {
+                "candidate_id": "eurusd-reentry-candidate-8969e2eb5c5791598a3c8156",
+                "gate_id": "eurusd-reentry-gate-1e1d763018e093d00bc17e19",
+                "selected_n": 0,
+                "status": "PARKED"
+              },
+              {
+                "candidate_id": "eurusd-reentry-candidate-9211fce76b8bc5c64ccc31d5",
+                "gate_id": "eurusd-reentry-gate-7715bb4fdc136f63c1e9ed89",
+                "selected_n": 0,
+                "status": "PARKED"
+              },
+              {
+                "candidate_id": "eurusd-reentry-candidate-9239364f8512d9a5522672a0",
+                "gate_id": "eurusd-reentry-gate-3f473c2984ae7825cd052218",
+                "selected_n": 0,
+                "status": "PARKED"
+              },
+              {
+                "candidate_id": "eurusd-reentry-candidate-a7852144e156e1a661c746ea",
+                "gate_id": "eurusd-reentry-gate-ba6117944642ebe30889976e",
+                "selected_n": 0,
+                "status": "OOS_RUNNING"
+              },
+              {
+                "candidate_id": "eurusd-reentry-candidate-bc1928ea26091ad63d299afb",
+                "gate_id": "eurusd-reentry-gate-211d30ce332586ebaeaea845",
+                "selected_n": 0,
+                "status": "OOS_RUNNING"
+              },
+              {
+                "candidate_id": "eurusd-reentry-candidate-c113b4bc3e1e7b252e491ad8",
+                "gate_id": "eurusd-reentry-gate-63ae907a97536e03f901f425",
+                "selected_n": 0,
+                "status": "PARKED"
+              },
+              {
+                "candidate_id": "eurusd-reentry-candidate-dcbb537a40b5b0007fe4055e",
+                "gate_id": "eurusd-reentry-gate-3a3baff91c1d9c8b0031009a",
+                "selected_n": 0,
+                "status": "OOS_RUNNING"
+              },
+              {
+                "candidate_id": "eurusd-reentry-candidate-e3cab06dcc54a8e0ed0fb52b",
+                "gate_id": "eurusd-reentry-gate-4250fc6d5937632fa0ae4671",
+                "selected_n": 0,
+                "status": "PARKED"
+              },
+              {
+                "candidate_id": "eurusd-reentry-candidate-e8ba262cd294e9ddd3bb900c",
+                "gate_id": "eurusd-reentry-gate-a6e35666c8384e8597415cac",
+                "selected_n": 0,
+                "status": "PARKED"
+              },
+              {
+                "candidate_id": "eurusd-reentry-candidate-f9c5b884a552e7193f8e68fe",
+                "gate_id": "eurusd-reentry-gate-ed87413aac55bc94ba98b6a9",
+                "selected_n": 0,
+                "status": "PARKED"
+              }
+            ],
+            "rollbacks": []
+          },
+          "candidates": [
+            {
+              "blockers": [
+                "fixed_prospective_sample_incomplete"
+              ],
+              "candidate_id": "eurusd-admission-0b33ae7fad2010e13ad43d3e",
+              "gate_id": "eurusd-gate-c2fb53b5db1ceae74b5505b7",
+              "resolved_n": 1,
+              "selected_n": 1,
+              "status": "PARKED"
+            },
+            {
+              "blockers": [
+                "fixed_prospective_sample_incomplete"
+              ],
+              "candidate_id": "eurusd-admission-0b3fa3d5e1ec37eeec8ae8d8",
+              "gate_id": "eurusd-gate-4deb39a13b36c63ccfb96296",
+              "resolved_n": 0,
+              "selected_n": 0,
+              "status": "PARKED"
+            },
+            {
+              "blockers": [
+                "fixed_prospective_sample_incomplete"
+              ],
+              "candidate_id": "eurusd-admission-161c14f97d98bdcd9e7b758b",
+              "gate_id": "eurusd-gate-c3600ff43c64bad6a9908a71",
+              "resolved_n": 1,
+              "selected_n": 1,
+              "status": "OOS_RUNNING"
+            },
+            {
+              "blockers": [
+                "fixed_prospective_sample_incomplete"
+              ],
+              "candidate_id": "eurusd-admission-17722ffcb3b15f9cc2d770cb",
+              "gate_id": "eurusd-gate-728f7ee897be3456fb903047",
+              "resolved_n": 0,
+              "selected_n": 0,
+              "status": "PARKED"
+            },
+            {
+              "blockers": [
+                "fixed_prospective_sample_incomplete"
+              ],
+              "candidate_id": "eurusd-admission-24fbdb7bf2df1d7648db9784",
+              "gate_id": "eurusd-gate-c11a8dfbd32db44b44e5cecb",
+              "resolved_n": 1,
+              "selected_n": 1,
+              "status": "PARKED"
+            },
+            {
+              "blockers": [
+                "fixed_prospective_sample_incomplete"
+              ],
+              "candidate_id": "eurusd-admission-2ae10b659ff0f887b1ee0fc8",
+              "gate_id": "eurusd-gate-f44266c48ff20a103dd5261f",
+              "resolved_n": 0,
+              "selected_n": 0,
+              "status": "PARKED"
+            },
+            {
+              "blockers": [
+                "fixed_prospective_sample_incomplete"
+              ],
+              "candidate_id": "eurusd-admission-471f39372d4610dcc0dfa78a",
+              "gate_id": "eurusd-gate-6fa74d00c7b81018a1a7eb93",
+              "resolved_n": 0,
+              "selected_n": 0,
+              "status": "PARKED"
+            },
+            {
+              "blockers": [
+                "fixed_prospective_sample_incomplete"
+              ],
+              "candidate_id": "eurusd-admission-5556c1ab23516e132af37a92",
+              "gate_id": "eurusd-gate-9c7e7c4ad1f499ed7e203e1a",
+              "resolved_n": 1,
+              "selected_n": 1,
+              "status": "OOS_RUNNING"
+            },
+            {
+              "blockers": [
+                "fixed_prospective_sample_incomplete"
+              ],
+              "candidate_id": "eurusd-admission-776e1a1692b900a4e1545087",
+              "gate_id": "eurusd-gate-7d9396eb1bddfd2b64138e38",
+              "resolved_n": 1,
+              "selected_n": 1,
+              "status": "OOS_RUNNING"
+            },
+            {
+              "blockers": [
+                "fixed_prospective_sample_incomplete"
+              ],
+              "candidate_id": "eurusd-admission-7dbbab728cc6c1b296c8a416",
+              "gate_id": "eurusd-gate-138e08eab8a7866f98f57614",
+              "resolved_n": 0,
+              "selected_n": 0,
+              "status": "PARKED"
+            },
+            {
+              "blockers": [
+                "fixed_prospective_sample_incomplete"
+              ],
+              "candidate_id": "eurusd-admission-8981ddcd2b6f6d9173cc0da2",
+              "gate_id": "eurusd-gate-88bbb411f4049ffa87c2a592",
+              "resolved_n": 0,
+              "selected_n": 0,
+              "status": "PARKED"
+            },
+            {
+              "blockers": [
+                "fixed_prospective_sample_incomplete"
+              ],
+              "candidate_id": "eurusd-admission-8e41657d79b7e6677cb02437",
+              "gate_id": "eurusd-gate-b5afc798f5cf912aaf414186",
+              "resolved_n": 1,
+              "selected_n": 1,
+              "status": "PARKED"
+            },
+            {
+              "blockers": [
+                "fixed_prospective_sample_incomplete"
+              ],
+              "candidate_id": "eurusd-admission-bdf19470af2b79973fc3c422",
+              "gate_id": "eurusd-gate-ff526be4316d0011b4a85fd6",
+              "resolved_n": 1,
+              "selected_n": 1,
+              "status": "PARKED"
+            },
+            {
+              "blockers": [
+                "fixed_prospective_sample_incomplete"
+              ],
+              "candidate_id": "eurusd-admission-f433b6ad6ea3153dc1879813",
+              "gate_id": "eurusd-gate-72f5afa5aac1d4d7738e3e39",
+              "resolved_n": 0,
+              "selected_n": 0,
+              "status": "PARKED"
+            }
+          ],
+          "record_hashes": [
+            "1d30c761a1b0b79f0fccd4f45ad32d547ff4b6cdcf25604c2b97659f19beb593",
+            "68177b731deb5ea9f3482fa9248a3d7c8342af1b318c2d0b34a70eb7ad8b19f6",
+            "a3147881403af95358769ea10f0e145f7639840d8db32388b50570306e93e702",
+            "b96015941c72dd3281c4325ca6bad8e38487fbca4c8d5470473bda20685b3b06",
+            "e4dcd24afe9f1633fa3bff96fa65df64724bf916cad21134ec52be91e5d5ee9a",
+            "f78b617d897ed27076886c07d47787d7784b38a1fc866190e2689c1103ea07e4"
+          ],
+          "rollback_ids": [],
+          "runtime_code_sha256": "2c6a6d1207bd9f2f030961118dd7776b5e51ea9d80b6720b4eedc4806fd20ce9"
+        },
+        "feedback_sha256": "8bb2798d10d88557a84399fc53c553064a9fc2ce298503009d3965d03d0b49d8",
+        "iteration_sha256": "7b4a717b6785713c326e1f003030501111dfab44a434cb170d4f4c6b440a02b0",
+        "next_action": "TEST_PARALLEL_BOUNDED_CHALLENGERS_AND_REVIEW_FAILED_GATES",
+        "number": 21,
+        "parent_sha256": "d90ffa41c0bf77bb5315953c1727010db551a0ac94cb6bc86648ccc55be12e1a"
       }
     ],
     "legacy_trades_without_native_manifest": 47,
@@ -19622,9 +19913,9 @@
         "claim": "Test whether avoiding this context improves future net results.",
         "finding": "LIMITED_EVIDENCE_COVERAGE",
         "lesson_id": "eurusd-lesson-d76dfa929a9a2a859f7908b7",
-        "losses": 1,
-        "mean_net_r": -0.3522012578616427,
-        "n": 1,
+        "losses": 2,
+        "mean_net_r": -0.3632075471697863,
+        "n": 2,
         "production_authority": false,
         "status": "HYPOTHESIS_ONLY",
         "wins": 0
@@ -19633,9 +19924,9 @@
         "claim": "Test whether avoiding this context improves future net results.",
         "finding": "LOW_BELIEF_CONFIDENCE",
         "lesson_id": "eurusd-lesson-0de55867ae155ad9e49aaa0b",
-        "losses": 5,
-        "mean_net_r": -0.3630527789278606,
-        "n": 5,
+        "losses": 6,
+        "mean_net_r": -0.3649129551862054,
+        "n": 6,
         "production_authority": false,
         "status": "REPEATED_ASSOCIATION",
         "wins": 0
@@ -19644,9 +19935,9 @@
         "claim": "Test whether avoiding this context improves future net results.",
         "finding": "NARROW_DIRECTIONAL_MARGIN",
         "lesson_id": "eurusd-lesson-bd0da25dc82221bbeda2abf5",
-        "losses": 2,
-        "mean_net_r": -0.35849056603774965,
-        "n": 2,
+        "losses": 3,
+        "mean_net_r": -0.3637316561844764,
+        "n": 3,
         "production_authority": false,
         "status": "HYPOTHESIS_ONLY",
         "wins": 0
@@ -19805,6 +20096,33 @@
         "source_evidence_sha256": "7ae009edaa57485866412d0ad32586e3288e65825df75dd37a2ecc1e452d36c7",
         "source_trade_sha256": "8e1a7e9280a0b58d493985591d710694363cf1bc568383c7b7cf50ad24edc34f",
         "trade_id": "eurusd:20261026T001645Z:LONG"
+      },
+      "eurusd:20261026T090217Z:SHORT": {
+        "causal_status": "OBSERVED_ASSOCIATION_ONLY",
+        "closed_at": "2026-10-26T09:12:46Z",
+        "confidence": 0.3375,
+        "coverage_weight": 0.622599,
+        "direction": "SHORT",
+        "evidence_use": "DISCOVERY_ONLY_NOT_OOS",
+        "execution_authority": false,
+        "exit_reason": "DYNAMIC_RISK_EXIT",
+        "findings": [
+          "NARROW_DIRECTIONAL_MARGIN",
+          "LOW_BELIEF_CONFIDENCE",
+          "LIMITED_EVIDENCE_COVERAGE"
+        ],
+        "learned_at": "2026-10-26T09:18:45.848877Z",
+        "manifest_sha256": "653ee266628fe14d05a3204972e0139556608a5179539fe3c9d4528dba546acc",
+        "net_r": -0.3742138364779299,
+        "opened_at": "2026-10-26T09:02:17Z",
+        "policy_version_id": "eurusd-policy-b36bdb62278edbd39faee3b9",
+        "prior_loss_trade_id": null,
+        "reflection_sha256": "e4dcd24afe9f1633fa3bff96fa65df64724bf916cad21134ec52be91e5d5ee9a",
+        "runtime_code_sha256": "2c6a6d1207bd9f2f030961118dd7776b5e51ea9d80b6720b4eedc4806fd20ce9",
+        "score": 46.26,
+        "source_evidence_sha256": "b7dfc5e0030e6494d0c81f495e482aac0eaf34093490da2dcabe1193b3a306ed",
+        "source_trade_sha256": "81b9c8f77347f20192fcba283a1fe2438cb06020ba410f9ba011f7e99564a257",
+        "trade_id": "eurusd:20261026T090217Z:SHORT"
       }
     },
     "runtime_code_sha256": "2c6a6d1207bd9f2f030961118dd7776b5e51ea9d80b6720b4eedc4806fd20ce9",
@@ -19858,7 +20176,7 @@
             "selection_rule": "MAX_PASS_LOWER_CI_THEN_MEAN_THEN_CANDIDATE_ID",
             "trial_number": 4
           },
-          "evaluated_at": "2026-10-26T09:06:58.219341Z",
+          "evaluated_at": "2026-10-26T09:18:45.848877Z",
           "evaluator_profile": "eurusd_reentry_prospective_paired_v1",
           "gate_id": "eurusd-reentry-gate-7124f84d4c32c639df8b8c7c",
           "metrics": {
@@ -20339,7 +20657,7 @@
             "selection_rule": "MAX_PASS_LOWER_CI_THEN_MEAN_THEN_CANDIDATE_ID",
             "trial_number": 5
           },
-          "evaluated_at": "2026-10-26T09:06:58.219341Z",
+          "evaluated_at": "2026-10-26T09:18:45.848877Z",
           "evaluator_profile": "eurusd_reentry_prospective_paired_v1",
           "gate_id": "eurusd-reentry-gate-77355e0c917160e12b59525c",
           "metrics": {
@@ -20435,7 +20753,7 @@
             "selection_rule": "MAX_PASS_LOWER_CI_THEN_MEAN_THEN_CANDIDATE_ID",
             "trial_number": 6
           },
-          "evaluated_at": "2026-10-26T09:06:58.219341Z",
+          "evaluated_at": "2026-10-26T09:18:45.848877Z",
           "evaluator_profile": "eurusd_reentry_prospective_paired_v1",
           "gate_id": "eurusd-reentry-gate-fd169737b1c3672caa562454",
           "metrics": {
@@ -20917,7 +21235,7 @@
             "selection_rule": "MAX_PASS_LOWER_CI_THEN_MEAN_THEN_CANDIDATE_ID",
             "trial_number": 2
           },
-          "evaluated_at": "2026-10-26T09:06:58.219341Z",
+          "evaluated_at": "2026-10-26T09:18:45.848877Z",
           "evaluator_profile": "eurusd_reentry_prospective_paired_v1",
           "gate_id": "eurusd-reentry-gate-ba6117944642ebe30889976e",
           "metrics": {
@@ -21013,7 +21331,7 @@
             "selection_rule": "MAX_PASS_LOWER_CI_THEN_MEAN_THEN_CANDIDATE_ID",
             "trial_number": 3
           },
-          "evaluated_at": "2026-10-26T09:06:58.219341Z",
+          "evaluated_at": "2026-10-26T09:18:45.848877Z",
           "evaluator_profile": "eurusd_reentry_prospective_paired_v1",
           "gate_id": "eurusd-reentry-gate-211d30ce332586ebaeaea845",
           "metrics": {
@@ -21205,7 +21523,7 @@
             "selection_rule": "MAX_PASS_LOWER_CI_THEN_MEAN_THEN_CANDIDATE_ID",
             "trial_number": 1
           },
-          "evaluated_at": "2026-10-26T09:06:58.219341Z",
+          "evaluated_at": "2026-10-26T09:18:45.848877Z",
           "evaluator_profile": "eurusd_reentry_prospective_paired_v1",
           "gate_id": "eurusd-reentry-gate-3a3baff91c1d9c8b0031009a",
           "metrics": {
@@ -21561,7 +21879,7 @@
     "rollback_events": [],
     "runtime_code_sha256": "2c6a6d1207bd9f2f030961118dd7776b5e51ea9d80b6720b4eedc4806fd20ce9",
     "schema_version": "eurusd-adaptive-reentry-state-v1",
-    "updated_at": "2026-10-26T09:06:59.754467Z",
+    "updated_at": "2026-10-26T09:18:47.730798Z",
     "versions": {
       "eurusd-reentry-policy-92434b08d7195f2e8324b97b": {
         "activated_at": "2026-10-20T19:17:41.582278Z",
@@ -21604,7 +21922,7 @@
   "research_runtime_code_sha256": "2c6a6d1207bd9f2f030961118dd7776b5e51ea9d80b6720b4eedc4806fd20ce9",
   "rollback_events": [],
   "schema_version": "eurusd-production-policy-state-v1",
-  "updated_at": "2026-10-26T09:06:59.754467Z",
+  "updated_at": "2026-10-26T09:18:47.730798Z",
   "versions": {
     "eurusd-policy-b36bdb62278edbd39faee3b9": {
       "activated_at": "2026-10-20T10:15:57.628497Z",
