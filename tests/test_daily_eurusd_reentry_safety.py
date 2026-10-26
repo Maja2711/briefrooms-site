@@ -284,6 +284,88 @@ class PostLossTechnicalSafetyTests(unittest.TestCase):
                 data[2]["minute_bars"].append(row)
             self.assertFalse(evaluate(data)["allowed"])
 
+    def test_yahoo_historical_d1_range_inconsistency_is_quarantined_not_repaired(self):
+        # A real Yahoo 2y EURUSD 1d quote may have close outside its reported
+        # high/low by a fraction of a pip. Closes support SMA; fabricated
+        # extremes may never support ATR or two-pivot swing confirmation.
+        data = fixture()
+        d1 = data[2]["daily_bars"]
+        d1[-50]["high"] = d1[-50]["close"] - .0002
+        before = copy.deepcopy(d1)
+        result = evaluate(data)
+        self.assertTrue(result["allowed"], result)
+        self.assertEqual(before, d1, "source historical candles must remain unchanged")
+        self.assertEqual(result["d1_quality"]["unverified_completed_ohlc"], 1)
+        self.assertEqual(len(result["d1_quality"]["recent_64_unverified_ohlc"]), 1)
+        self.assertFalse(result["d1_quality"]["unverified_fields_used_for_pivots_or_atr"])
+
+    def test_d1_inconsistency_inside_atr14_window_still_fails_closed(self):
+        data = fixture()
+        d1 = data[2]["daily_bars"]
+        d1[-6]["high"] = d1[-6]["close"] - .0002
+        result = evaluate(data)
+        self.assertFalse(result["allowed"])
+        self.assertEqual(result["reason"],
+                         "post_loss_invalid_market_or_signal_context:recent_d1_ohlc_unverified_for_atr")
+
+    def test_incomplete_active_d1_ohlc_cannot_be_repurposed_as_a_level(self):
+        data = fixture()
+        active = data[2]["daily_bars"][-1]
+        active["high"] = active["open"] - .001
+        result = evaluate(data)
+        self.assertTrue(result["allowed"], result)
+        self.assertEqual(result["session"]["start_provenance"], "SOURCE_CANONICAL_D1_START")
+        self.assertFalse(data[2]["daily_bars"][-1]["high"] >= active["open"])
+
+    def test_yahoo_live_d1_preview_requires_exact_minute_open(self):
+        data = fixture(now=datetime(2026, 10, 26, 11, 45, tzinfo=timezone.utc))
+        preview = data[2]["daily_bars"][-1]
+        preview["timestamp"] = stamp(data[3] - timedelta(seconds=15))
+        result = evaluate(data)
+        self.assertTrue(result["allowed"], result)
+        self.assertEqual(result["session"]["start_provenance"],
+                         "D1_PREVIEW_MATCHED_TO_EXACT_1M_SESSION_OPEN")
+        preview["open"] += .0002
+        blocked = evaluate(data)
+        self.assertFalse(blocked["allowed"], blocked)
+        self.assertEqual(blocked["reason"],
+                         "post_loss_invalid_market_or_signal_context:live_d1_session_open_not_independently_verified")
+
+    def test_dst_weekend_live_preview_uses_proved_minute_reopen_not_stale_d1_hour(self):
+        now = datetime(2026, 10, 26, 11, 40, tzinfo=timezone.utc)
+        last_d1 = datetime(2026, 10, 22, 23, tzinfo=timezone.utc)
+        daily = [{"timestamp": stamp(last_d1 - timedelta(days=200-i)),
+                  "open": 1.10, "high": 1.101, "low": 1.099, "close": 1.10}
+                 for i in range(201)]
+        daily.append({"timestamp": stamp(now - timedelta(seconds=30)),
+                      "open": 1.1000, "high": 1.102, "low": 1.099, "close": 1.1001})
+        minute = [
+            {"timestamp": stamp(datetime(2026, 10, 23, 20, 59, tzinfo=timezone.utc)),
+             "open": 1.0998, "high": 1.0999, "low": 1.0997, "close": 1.0998},
+            {"timestamp": stamp(datetime(2026, 10, 26, 0, 0, tzinfo=timezone.utc)),
+             "open": 1.1000, "high": 1.1001, "low": 1.0999, "close": 1.1000},
+        ]
+        rows, provenance = safety._validated_d1_source(daily, now, minute)
+        self.assertEqual(provenance["session"]["timestamp"], "2026-10-26T00:00:00Z")
+        self.assertEqual(provenance["active_session_source"],
+                         "LIVE_D1_OPEN_INDEPENDENTLY_VERIFIED_1M")
+        self.assertEqual(rows[-1]["timestamp"], "2026-10-22T23:00:00Z")
+        # A missing first minute must never be treated as a complete session.
+        with self.assertRaisesRegex(ValueError, "live_d1_session_open_not_independently_verified"):
+            safety._validated_d1_source(daily, now, minute[:-1])
+
+    def test_historical_d1_bad_close_and_future_preview_fail_closed(self):
+        data = fixture()
+        data[2]["daily_bars"][-50]["close"] = float("nan")
+        result = evaluate(data)
+        self.assertFalse(result["allowed"])
+        self.assertIn("non_finite_number", result["reason"])
+        data = fixture()
+        data[2]["daily_bars"][-1]["timestamp"] = stamp(data[3] - timedelta(hours=3, minutes=15))
+        result = evaluate(data)
+        self.assertFalse(result["allowed"])
+        self.assertIn("unverified_d1_preview_timestamp", result["reason"])
+
     def test_the_same_daily_candle_remains_protected_after_one_hour(self):
         data = fixture()
         data[1]["trades"][0]["closed_at"] = stamp(data[3] - timedelta(hours=2))

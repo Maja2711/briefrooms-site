@@ -25,6 +25,7 @@ MAX_ENTRY_DISTANCE_ATR = .25
 MAX_MARKET_AGE_SECONDS = 180.0
 FIRST_HOUR_SECONDS = 3600.0
 EPS = 1e-10
+PIP = 0.0001
 
 # These are initial criteria, not immutable production thresholds. Only the
 # local learner's prospectively approved version is supplied by the writer.
@@ -157,6 +158,136 @@ def _bars(raw: Sequence[Any], now: datetime, *, minutes: int | None = None) -> l
     return [result[key] for key in sorted(result)]
 
 
+def _validated_d1_source(raw: Sequence[Any], now: datetime,
+                         minute_bars: Sequence[Any] | None = None) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Project only fields actually used by post-loss D1 admission.
+
+    Yahoo FX 1d occasionally supplies an open or close slightly outside its
+    quoted high/low. Such D1 ranges are unverified, NOT repaired or inferred.
+    Their *independent close quote* remains eligible for a 200-session SMA;
+    unverified high/low are never used for ATR or confirmed swing pivots.
+    A live 1d quote may be stamped at update time rather than session OPEN;
+    use its open only after the existing exact 1m-session-open cross-check.
+    """
+    canonical: dict[datetime, dict[str, Any]] = {}
+    preview = []
+    for bar in raw or []:
+        get = (bar.get if isinstance(bar, Mapping) else
+               lambda key, item=bar: getattr(item, key, None))
+        start = _time(get("timestamp"))
+        if start > now:
+            continue
+        opening = _number(get("open"))
+        close = _number(get("close"))
+        if opening <= 0 or close <= 0:
+            raise ValueError("non_positive_d1_open_or_close")
+        # Invalid high/low cannot be used for geometric market confirmation.
+        try:
+            high, low = _number(get("high")), _number(get("low"))
+            verified = (low > 0 and low <= min(opening, close) + EPS
+                        and high + EPS >= max(opening, close) and low <= high)
+        except (TypeError, ValueError):
+            verified = False
+            high = low = None
+        if not verified:
+            high = low = None
+        row = {
+            "timestamp": _iso(start), "open": opening,
+            "high": high, "low": low, "close": close,
+            "ohlc_verified": verified,
+        }
+        if start.minute or start.second or start.microsecond or start.hour not in (0, 23):
+            # Yahoo's trailing 1d candle is sometimes a live quote, not an
+            # actual bar starting at its timestamp. Never backdate its OHLC.
+            preview.append((start, row))
+            continue
+        if start in canonical and canonical[start] != row:
+            raise ValueError("conflicting_duplicate_d1_bar")
+        canonical[start] = row
+    if not canonical:
+        raise ValueError("completed_d1_source_unavailable")
+    rows = [canonical[key] for key in sorted(canonical)]
+    if preview:
+        if len(preview) != 1 or (now - preview[0][0]).total_seconds() > 5 * 60:
+            raise ValueError("unverified_d1_preview_timestamp")
+        if preview[0][0] <= _time(rows[-1]["timestamp"]):
+            raise ValueError("d1_preview_not_after_canonical_history")
+    audit = {
+        "source": "Yahoo EURUSD=X D1",
+        "unverified_completed_ohlc": sum(not row["ohlc_verified"] for row in rows),
+        "recent_64_unverified_ohlc": [
+            row["timestamp"] for row in rows[-64:] if not row["ohlc_verified"]
+        ],
+        "live_preview_present": bool(preview),
+        "live_preview_at": _iso(preview[0][0]) if preview else None,
+        "unverified_fields_used_for_pivots_or_atr": False,
+    }
+    # Preserve chronological integrity. No historical candle is rewritten.
+    session_candidates = [row for row in rows
+                          if _time(row["timestamp"]) <= now
+                          < _time(row["timestamp"]) + timedelta(days=1)]
+    session = session_candidates[-1] if session_candidates else None
+    if session is None and preview:
+        # Yahoo's FX D1 UTC boundary can shift by one hour over a DST weekend.
+        # Never guess or reuse yesterday's UTC hour. Locate the session first
+        # minute in the 1m SOURCE data and independently corroborate its OPEN
+        # against the Yahoo D1 live-preview OPEN. The full minute path is still
+        # required and checked by evaluate() before any admission.
+        minute_clock = []
+        minute_rows = []
+        for bar in minute_bars or []:
+            get = (bar.get if isinstance(bar, Mapping) else
+                   lambda key, item=bar: getattr(item, key, None))
+            at = _time(get("timestamp"))
+            if at <= now:
+                minute_clock.append(at)
+            if (0 <= (now - at).total_seconds() < 24 * 3600
+                    and at.hour in (0, 23) and at.minute == 0 and at.second == 0
+                    and at.microsecond == 0):
+                proof = _bars([bar], now, minutes=1)
+                if proof and abs(proof[0]["open"] - preview[0][1]["open"]) <= PIP + EPS:
+                    minute_rows.append(proof[0])
+        last_canonical = _time(rows[-1]["timestamp"])
+        # A Friday-to-Monday transition requires explicit proof of the weekend
+        # reopening; otherwise a missing hour could masquerade as session open.
+        if (now - last_canonical).total_seconds() > 48 * 3600:
+            minute_clock.sort()
+            reopening = [later for earlier, later in zip(minute_clock, minute_clock[1:])
+                         if later - earlier >= timedelta(hours=12)]
+            minute_rows = [row for row in minute_rows
+                           if reopening and _time(row["timestamp"]) == reopening[-1]]
+        else:
+            minute_rows = [row for row in minute_rows
+                           if _time(row["timestamp"]).hour == last_canonical.hour]
+        if len(minute_rows) != 1:
+            raise ValueError("live_d1_session_open_not_independently_verified")
+        session_at = _time(minute_rows[0]["timestamp"])
+        if session_at <= last_canonical or not session_at < preview[0][0]:
+            raise ValueError("d1_preview_session_chronology_unverified")
+        session = {
+            "timestamp": _iso(session_at), "open": preview[0][1]["open"],
+            "close": preview[0][1]["close"], "high": None, "low": None,
+            "ohlc_verified": False,
+            "session_clock_source": "D1_PREVIEW_MATCHED_TO_EXACT_1M_SESSION_OPEN",
+            "preview_timestamp": _iso(preview[0][0]),
+        }
+        audit["active_session_source"] = "LIVE_D1_OPEN_INDEPENDENTLY_VERIFIED_1M"
+    elif session is not None:
+        if preview and abs(float(session["open"]) - preview[0][1]["open"]) > PIP:
+            raise ValueError("d1_preview_open_disagrees_with_canonical")
+        audit["active_session_source"] = "SOURCE_CANONICAL_D1_START"
+    else:
+        audit["active_session_source"] = "UNAVAILABLE"
+
+    if session is not None:
+        session_start = _time(session["timestamp"])
+        # A malformed D1 preview can only contribute an opening price after
+        # exact 1m boundary + first-open agreement in evaluate().
+        if session_start.minute or session_start.second:
+            raise ValueError("invalid_d1_session_boundary")
+    return rows, {"session": session, **audit}
+
+
 def _strong_signal(payload: Mapping[str, Any], loss_at: datetime, now: datetime, criteria: Mapping[str, Any]) -> dict[str, Any]:
     final = (payload.get("metadata") or {}).get("final_decision") or {}
     direction = str(payload.get("direction") or "")
@@ -204,6 +335,8 @@ def _strong_signal(payload: Mapping[str, Any], loss_at: datetime, now: datetime,
 def _atr(rows: Sequence[Mapping[str, Any]]) -> float:
     if len(rows) < 15:
         raise ValueError("insufficient_completed_d1_for_atr")
+    if any(row.get("ohlc_verified", True) is not True for row in rows[-15:]):
+        raise ValueError("recent_d1_ohlc_unverified_for_atr")
     values = [max(b["high"] - b["low"], abs(b["high"] - a["close"]), abs(b["low"] - a["close"]))
               for a, b in zip(rows[-15:-1], rows[-14:])]
     value = sum(values) / 14
@@ -225,6 +358,9 @@ def _levels(rows: Sequence[Mapping[str, Any]], direction: str, zone: float, peri
     side = "low" if direction == "LONG" else "high"
     pivots = []
     for index in range(2, len(scoped) - 2):
+        window = [scoped[j] for j in (index - 2, index - 1, index, index + 1, index + 2)]
+        if any(row.get("ohlc_verified", True) is not True for row in window):
+            continue  # cannot confirm extrema near an untrusted source D1 range
         value = scoped[index][side]
         neighbours = [scoped[j][side] for j in (index - 2, index - 1, index + 1, index + 2)]
         extreme = value < min(neighbours) if direction == "LONG" else value > max(neighbours)
@@ -288,16 +424,19 @@ def evaluate(payload: Mapping[str, Any], history: Mapping[str, Any] | None, *,
                       prior_closed_at=loss.get("closed_at"), prior_r_multiple=loss.get("r_multiple"))
         loss_at = _time(loss["closed_at"])
         context = market_context or {}
-        daily = _bars(context.get("daily_bars") or [], now)
-        active = [row for row in daily if _time(row["timestamp"]) <= now < _time(row["timestamp"]) + timedelta(days=1)]
-        if not active:
+        daily, d1_quality = _validated_d1_source(
+            context.get("daily_bars") or [], now, context.get("minute_bars") or [],
+        )
+        result["d1_quality"] = {key: value for key, value in d1_quality.items() if key != "session"}
+        session = d1_quality["session"]
+        if session is None:
             return block("post_loss_daily_context_unavailable")
-        session = active[-1]
         start, end = _time(session["timestamp"]), _time(session["timestamp"]) + timedelta(days=1)
         if start.minute or start.second:
             return block("invalid_d1_session_boundary")
         result["session"] = {"start": _iso(start), "end": _iso(end), "open": session["open"],
-                             "basis": "SOURCE_D1_OPEN_TO_PRE_CORRECTION_EXTREME"}
+                             "basis": "SOURCE_D1_OPEN_TO_PRE_CORRECTION_EXTREME",
+                             "start_provenance": session.get("session_clock_source", "SOURCE_CANONICAL_D1_START")}
         # The same D1 candle remains protected beyond the first hour. A loss just
         # before a session rollover is also protected for its complete first hour.
         if loss_at < start and (now - loss_at).total_seconds() > FIRST_HOUR_SECONDS:
@@ -389,7 +528,10 @@ def evaluate(payload: Mapping[str, Any], history: Mapping[str, Any] | None, *,
                 return result
         return block("post_loss_strong_support_or_held_retest_missing")
     except (ValueError, TypeError, KeyError, OverflowError) as exc:
-        return block("post_loss_invalid_market_or_signal_context:" + type(exc).__name__)
+        # Stable source-data reason, not a generic ValueError. No silent
+        # substitution, trading override, or evidence mutation on failure.
+        detail = str(exc) if isinstance(exc, ValueError) else type(exc).__name__
+        return block("post_loss_invalid_market_or_signal_context:" + detail[:96])
 
 
 def check_execution(proof: Mapping[str, Any], execution: Mapping[str, Any]) -> str | None:
