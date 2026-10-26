@@ -1,6 +1,6 @@
 {
   "instrument": "EUR/USD",
-  "timestamp": "2026-10-26T03:47:19.039300Z",
+  "timestamp": "2026-10-26T03:58:55.291900Z",
   "direction": "LONG",
   "score": 53.87,
   "confidence": 0.3439,
@@ -12,27 +12,12 @@
   "status": "OPEN",
   "decision_mode": "WITH",
   "metadata": {
-    "market_snapshot_sha256": "789acfcaae2e21f4a016326e99e098f4151e393ff5cc1e9524688ffdae745303",
+    "market_snapshot_sha256": "328f02c7f0c3a44daa8e3447a2ea07320a6e6654fba07438013f36943b125e5e",
     "bollinger_h1": {
-      "available": true,
+      "available": false,
       "allowed": false,
-      "reason": "h1_trend_not_confirmed",
-      "role": "PRIMARY_TECHNICAL_ADMISSION",
-      "direction_mutation_allowed": false,
-      "weight": "HIGH_VETO_NEW_ENTRY",
-      "period": 30,
-      "deviations": 2.5,
-      "last_closed_h1": "2026-10-26T03:00:00+00:00",
-      "closed_h1": 1395,
-      "age_minutes": 47.32,
-      "close": 1.1224603652954102,
-      "middle": 1.121052130063375,
-      "upper": 1.1237293105780404,
-      "lower": 1.1183749495487094,
-      "percent_b": 0.7630071495592113,
-      "middle_slope": -1.2604395548398983e-05,
-      "aligned": false,
-      "exhaustion": false
+      "reason": "belief_not_directional",
+      "weight": "PRIMARY_TECHNICAL"
     },
     "bollinger_d1": {
       "available": true,
@@ -81,7 +66,7 @@
           "touched_at": null,
           "touched_price": null
         },
-        "last_processed_at": "2026-10-26T03:45:00+00:00"
+        "last_processed_at": "2026-10-26T03:57:00+00:00"
       }
     },
     "market": "FX_SPOT",
@@ -117,16 +102,16 @@
       "owner": "NATIVE_DAILY_EURUSD_BELIEF_FIRST_DECISION_ENGINE",
       "decision_source": "NATIVE_BELIEF_FIRST",
       "epistemic_source": "BELIEF_CORE_CF07",
-      "direction": "LONG",
-      "score": 53.33,
-      "confidence": 0.3422,
+      "direction": "FLAT",
+      "score": 52.7,
+      "confidence": 0.3417,
       "thresholds": {
         "long": 56.0,
         "short": 44.0
       },
       "aggressive_participation": {
         "enabled": true,
-        "threshold_mode": "AGGRESSIVE_ALIGNED",
+        "threshold_mode": "CORE",
         "long": 53.0,
         "short": 47.0,
         "minimum_coverage_weight": 0.55,
@@ -143,30 +128,30 @@
         "short_ready": false,
         "rule": "Narrower Daily participation band applies only to an authoritative, sufficiently covered/confident state with at least three aligned beliefs including the EURUSD trend anchor."
       },
-      "coverage_weight": 0.625132,
+      "coverage_weight": 0.624688,
       "minimum_coverage_weight": 0.45,
       "required_anchor_belief": "eurusd.trend.bullish",
       "used_beliefs": [
         {
           "belief_id": "eurusd.trend.bullish",
-          "probability": 0.555104,
+          "probability": 0.546118,
           "confidence": 0.474223,
-          "directional_support": 0.110208,
-          "effective_support": 0.052263,
+          "directional_support": 0.092236,
+          "effective_support": 0.04374,
           "weight": 0.45,
-          "observed_at": "2026-10-26T03:20:43Z",
-          "age_hours": 0.4433,
+          "observed_at": "2026-10-26T03:55:44Z",
+          "age_hours": 0.0531,
           "source_evidence": [
             {
-              "evidence_id": "ev-0e2e61d8c70d2270596c",
-              "observed_at": "2026-10-26T03:20:43Z",
+              "evidence_id": "ev-158262a4036ccc02460c",
+              "observed_at": "2026-10-26T03:55:44Z",
               "release": {
                 "adapter": "wes_asset_evidence",
-                "observation_id": "obs-077344eb7683042989a7",
+                "observation_id": "obs-0d48b26658fd73342d50",
                 "observation_metric": "eurusd_trend_composite"
               },
               "source": "Derived from Yahoo Finance OHLCV",
-              "source_ref": "derived:yahoo:EURUSD:2026-10-26T03:20:43Z:1.2.0:eurusd_trend_composite",
+              "source_ref": "derived:yahoo:EURUSD:2026-10-26T03:55:44Z:1.2.0:eurusd_trend_composite",
               "source_type": "derived"
             }
           ],
@@ -176,13 +161,13 @@
         },
         {
           "belief_id": "eurusd.usd_environment.supportive",
-          "probability": 0.546431,
-          "confidence": 0.497263,
-          "directional_support": 0.092862,
-          "effective_support": 0.046177,
+          "probability": 0.542967,
+          "confidence": 0.494861,
+          "directional_support": 0.085934,
+          "effective_support": 0.042525,
           "weight": 0.3,
-          "observed_at": "2026-10-26T03:11:11Z",
-          "age_hours": 0.6022,
+          "observed_at": "2026-10-26T03:46:10Z",
+          "age_hours": 0.2126,
           "source_evidence": [
             {
               "evidence_id": "ev-09f1c1ac0305a9cc80b9",
@@ -209,15 +194,15 @@
               "source_type": "derived"
             },
             {
-              "evidence_id": "ev-a275beaf02ee2b037ac5",
-              "observed_at": "2026-10-26T03:11:11Z",
+              "evidence_id": "ev-ccae25ca4dc675dce0c7",
+              "observed_at": "2026-10-26T03:46:10Z",
               "release": {
                 "adapter": "wes_asset_evidence",
-                "observation_id": "obs-636630db4aaf7facc685",
+                "observation_id": "obs-ec1dda1fbe99d08b375d",
                 "observation_metric": "broad_usd_intraday_support_for_eurusd"
               },
               "source": "Derived from Yahoo Finance OHLCV",
-              "source_ref": "derived:yahoo:EURUSD:2026-10-26T03:11:11Z:1.2.0:broad_usd_intraday_support_for_eurusd",
+              "source_ref": "derived:yahoo:EURUSD:2026-10-26T03:46:10Z:1.2.0:broad_usd_intraday_support_for_eurusd",
               "source_type": "derived"
             }
           ],
@@ -227,13 +212,13 @@
         },
         {
           "belief_id": "eurusd.us_rates_pressure.supportive",
-          "probability": 0.578116,
-          "confidence": 0.808397,
-          "directional_support": 0.156232,
-          "effective_support": 0.126297,
+          "probability": 0.55808,
+          "confidence": 0.808149,
+          "directional_support": 0.11616,
+          "effective_support": 0.093875,
           "weight": 0.15,
-          "observed_at": "2026-10-26T03:11:01Z",
-          "age_hours": 0.605,
+          "observed_at": "2026-10-26T03:43:41Z",
+          "age_hours": 0.254,
           "source_evidence": [
             {
               "evidence_id": "ev-18f205d6c6d8ea92ffda",
@@ -257,18 +242,6 @@
               },
               "source": "Gemini interpretation of Federal Reserve speeches and testimony",
               "source_ref": "derived:obs-8118846d4284339b87a3",
-              "source_type": "derived"
-            },
-            {
-              "evidence_id": "ev-2b347ea107c49d2720c4",
-              "observed_at": "2026-10-26T03:09:45Z",
-              "release": {
-                "adapter": "wes_asset_evidence",
-                "observation_id": "obs-cb5caeac39296833a35e",
-                "observation_metric": "fed_funds_intraday_support_for_eurusd"
-              },
-              "source": "Derived from Yahoo Finance OHLCV",
-              "source_ref": "derived:yahoo:EURUSD:2026-10-26T03:09:45Z:1.2.0:fed_funds_intraday_support_for_eurusd",
               "source_type": "derived"
             },
             {
@@ -296,15 +269,27 @@
               "source_type": "derived"
             },
             {
-              "evidence_id": "ev-ff1284f79b6ae6c476df",
-              "observed_at": "2026-10-26T03:11:01Z",
+              "evidence_id": "ev-d61d3d76782dcf8ebef4",
+              "observed_at": "2026-10-26T03:41:26Z",
               "release": {
                 "adapter": "wes_asset_evidence",
-                "observation_id": "obs-c4c60f9dc20bded05180",
+                "observation_id": "obs-aea80555ea3386e83f0d",
+                "observation_metric": "fed_funds_intraday_support_for_eurusd"
+              },
+              "source": "Derived from Yahoo Finance OHLCV",
+              "source_ref": "derived:yahoo:EURUSD:2026-10-26T03:41:26Z:1.2.0:fed_funds_intraday_support_for_eurusd",
+              "source_type": "derived"
+            },
+            {
+              "evidence_id": "ev-f890280ed0461bd4a18a",
+              "observed_at": "2026-10-26T03:43:41Z",
+              "release": {
+                "adapter": "wes_asset_evidence",
+                "observation_id": "obs-29db2be2414821e1adeb",
                 "observation_metric": "us_rates_intraday_futures_support_for_eurusd"
               },
               "source": "Derived from Yahoo Finance OHLCV",
-              "source_ref": "derived:yahoo:EURUSD:2026-10-26T03:11:01Z:1.2.0:us_rates_intraday_futures_support_for_eurusd",
+              "source_ref": "derived:yahoo:EURUSD:2026-10-26T03:43:41Z:1.2.0:us_rates_intraday_futures_support_for_eurusd",
               "source_type": "derived"
             }
           ],
@@ -317,17 +302,19 @@
         {
           "belief_id": "eurusd.macro_surprise.supportive",
           "reason": "stale_or_future_evidence",
-          "age_hours": 1200.0224,
+          "age_hours": 1200.0258,
           "max_age_hours": 12.0
         },
         {
           "belief_id": "eurusd.policy_differential.supportive",
           "reason": "stale_or_future_evidence",
-          "age_hours": 1800.0224,
+          "age_hours": 1800.0258,
           "max_age_hours": 18.0
         }
       ],
-      "reasons": [],
+      "reasons": [
+        "belief_score_neutral"
+      ],
       "routing": [
         "RAW_SOURCES",
         "SPECIALIZED_ADAPTERS",
@@ -345,16 +332,16 @@
         "consumer": "DAILY_EURUSD",
         "available": true,
         "reason": "authoritative_daily_eurusd_epistemic_projection",
-        "source_created_at": "2026-10-26T03:45:58.529080Z",
-        "age_hours": 0.022364,
-        "source_sha256": "886432acbac7b5c6f4427f6c9061ba2857e01912ee88b748d7243fad06b0bac3",
+        "source_created_at": "2026-10-26T03:57:22.359068Z",
+        "age_hours": 0.025815,
+        "source_sha256": "84d47cb48ff1ead12ea48355de6b0f87c8080d4d0161199d0abc45103cad1ad9",
         "aggregate_authoritative": true,
         "consumer_may_override_probability": false,
         "belief_core_writeback_enabled": false,
         "state_count": 5,
-        "aggregate_probability": 0.533311,
-        "aggregate_confidence": 0.342228,
-        "coverage_weight": 0.625132,
+        "aggregate_probability": 0.526972,
+        "aggregate_confidence": 0.34168,
+        "coverage_weight": 0.624688,
         "qualified_state_count": 3,
         "qualified_belief_ids": [
           "eurusd.trend.bullish",
@@ -364,34 +351,34 @@
       },
       "provenance": {
         "schema_version": "briefrooms-provenance-contract-v1",
-        "artifact_id": "daily-eurusd-decision:54d88c1eec551777d83325a8",
+        "artifact_id": "daily-eurusd-decision:3033ae7bed04fca9a49dafa2",
         "artifact_type": "decision",
         "engine_id": "daily_eurusd",
         "engine_version": "belief-first-v1.9",
-        "created_at": "2026-10-26T03:47:19.039300Z",
+        "created_at": "2026-10-26T03:58:55.291900Z",
         "parent_artifact_ids": [
-          "epistemic:estate-1e19d10e6ac58b8c6955",
-          "epistemic:estate-40f86d0f462b19a4e22d",
-          "epistemic:estate-520848c9780d65b313d9"
+          "epistemic:estate-8039f466f4d6e381bd73",
+          "epistemic:estate-a5eb23cbf11c370776e4",
+          "epistemic:estate-e9b3ca000753471e1d0e"
         ],
         "source_ids": [
           "BELIEF_CORE_CF07",
           "NATIVE_BELIEF_FIRST"
         ],
         "evidence_ids": [
-          "epistemic:estate-1e19d10e6ac58b8c6955",
-          "epistemic:estate-40f86d0f462b19a4e22d",
-          "epistemic:estate-520848c9780d65b313d9"
+          "epistemic:estate-8039f466f4d6e381bd73",
+          "epistemic:estate-a5eb23cbf11c370776e4",
+          "epistemic:estate-e9b3ca000753471e1d0e"
         ],
         "belief_ids": [
           "eurusd.trend.bullish",
           "eurusd.us_rates_pressure.supportive",
           "eurusd.usd_environment.supportive"
         ],
-        "decision_id": "daily-eurusd-decision:54d88c1eec551777d83325a8",
+        "decision_id": "daily-eurusd-decision:3033ae7bed04fca9a49dafa2",
         "forecast_id": null,
         "verification_id": null,
-        "payload_hash": "54d88c1eec551777d83325a8471e182369f88bb458a83640ec7d108e9c1a029e",
+        "payload_hash": "3033ae7bed04fca9a49dafa268e40d9ec279dee3e379a793c955f275268f60b5",
         "authority": "decision",
         "prospective": true,
         "domain_provenance": {
@@ -403,9 +390,9 @@
     },
     "candidate": {
       "source": "NATIVE",
-      "direction": "LONG",
-      "score": 53.33,
-      "confidence": 0.3422,
+      "direction": "FLAT",
+      "score": 52.7,
+      "confidence": 0.3417,
       "accepted": false,
       "gate_reasons": [
         "entry_disabled_this_cycle"
@@ -416,7 +403,7 @@
       "single_owner": true,
       "source": "NATIVE_BELIEF_FIRST",
       "epistemic_input": "BELIEF_CORE_CF07",
-      "direction": "LONG",
+      "direction": "FLAT",
       "allowed": true,
       "rule": "Final LONG/SHORT/FLAT is synthesized only after Belief Core; no shadow/fallback may manufacture direction."
     },
@@ -453,7 +440,7 @@
       "enabled": true,
       "evaluated": false,
       "blocked": false,
-      "reason": "awaiting_execution_admission",
+      "reason": "no_directional_candidate",
       "direction_mutation_allowed": false
     },
     "learning": {
@@ -503,9 +490,9 @@
       "recursive_improvement_mode": "AGGRESSIVE_BOUNDED"
     },
     "risk": {
-      "market_observed_at": "2026-10-26T03:46:44Z",
-      "market_reference_mid": 1.1225864887237549,
-      "atr_30m_at_decision": 0.000555584063896766,
+      "market_observed_at": "2026-10-26T03:58:44Z",
+      "market_reference_mid": 1.1224603652954102,
+      "atr_30m_at_decision": 0.0005652858660771296,
       "atr_30m_window": 26,
       "atr_multiple": 1.35,
       "risk_floor_percent": 0.0027,
@@ -524,29 +511,29 @@
     "belief_macro": {
       "enabled": true,
       "available": true,
-      "score": 0.6257,
+      "score": 0.5169,
       "direction": "long",
       "beliefs": [
         {
           "belief_id": "eurusd.trend.bullish",
-          "probability": 0.555104,
+          "probability": 0.546118,
           "confidence": 0.474223,
-          "age_hours": 0.443,
-          "updated_at": "2026-10-26T03:20:43Z"
+          "age_hours": 0.053,
+          "updated_at": "2026-10-26T03:55:44Z"
         },
         {
           "belief_id": "eurusd.usd_environment.supportive",
-          "probability": 0.546431,
-          "confidence": 0.497263,
-          "age_hours": 0.602,
-          "updated_at": "2026-10-26T03:11:11Z"
+          "probability": 0.542967,
+          "confidence": 0.494861,
+          "age_hours": 0.213,
+          "updated_at": "2026-10-26T03:46:10Z"
         },
         {
           "belief_id": "eurusd.us_rates_pressure.supportive",
-          "probability": 0.578116,
-          "confidence": 0.808397,
-          "age_hours": 0.605,
-          "updated_at": "2026-10-26T03:11:01Z"
+          "probability": 0.55808,
+          "confidence": 0.808149,
+          "age_hours": 0.254,
+          "updated_at": "2026-10-26T03:43:41Z"
         }
       ],
       "freshness_max_hours": 8.0,
@@ -592,7 +579,7 @@
       "reasons": [
         "entry_disabled_this_cycle"
       ],
-      "final_direction_preserved": "LONG",
+      "final_direction_preserved": "FLAT",
       "direction_mutation_allowed": false
     },
     "position": {
@@ -1600,14 +1587,14 @@
         "decision_id": "eurusd-production-decision:e16c0ec2905a1c81378313c1",
         "manifest_sha256": "a9bb29d82f82eec043f8a022c5f0161527dcbbde9f8b5b7e883b588db502f2b9"
       },
-      "mark_price": 1.12244,
-      "unrealized_percent": 0.06865
+      "mark_price": 1.12231,
+      "unrealized_percent": 0.05706
     },
     "candidate_at_refresh": {
       "source": "NATIVE",
-      "direction": "LONG",
-      "score": 53.33,
-      "confidence": 0.3422,
+      "direction": "FLAT",
+      "score": 52.7,
+      "confidence": 0.3417,
       "accepted": false,
       "gate_reasons": [
         "entry_disabled_this_cycle"
@@ -1637,15 +1624,15 @@
       "schema_version": "eurusd-production-decision-manifest-v1",
       "engine_version": "eurusd-daily-spot-v1.9.1",
       "instrument": "EUR/USD",
-      "decision_at": "2026-10-26T03:47:19.039300Z",
-      "native_decision_id": "daily-eurusd-decision:54d88c1eec551777d83325a8",
+      "decision_at": "2026-10-26T03:58:55.291900Z",
+      "native_decision_id": "daily-eurusd-decision:3033ae7bed04fca9a49dafa2",
       "policy_version_id": "eurusd-policy-b36bdb62278edbd39faee3b9",
       "policy_sha256": "64fbaf973cfd65c15044b846d9eec0650cfc22eafdafc0ef55ec145191578d2b",
       "policy": {
         "version_id": "eurusd-policy-b36bdb62278edbd39faee3b9",
         "policy_sha256": "64fbaf973cfd65c15044b846d9eec0650cfc22eafdafc0ef55ec145191578d2b",
         "minimum_score_distance": 3.0,
-        "allowed": true,
+        "allowed": false,
         "candidate_id": "eurusd-admission-5556c1ab23516e132af37a92",
         "candidate_ids": [
           "eurusd-admission-5556c1ab23516e132af37a92",
@@ -1683,24 +1670,24 @@
         }
       },
       "runtime_code_sha256": "2c6a6d1207bd9f2f030961118dd7776b5e51ea9d80b6720b4eedc4806fd20ce9",
-      "market_snapshot_sha256": "789acfcaae2e21f4a016326e99e098f4151e393ff5cc1e9524688ffdae745303",
-      "epistemic_snapshot_sha256": "886432acbac7b5c6f4427f6c9061ba2857e01912ee88b748d7243fad06b0bac3",
-      "decision_sha256": "13b2c001abae64f9564d8573113c9ecad742cbe63156bbb1d0d199c7b45ea1b1",
+      "market_snapshot_sha256": "328f02c7f0c3a44daa8e3447a2ea07320a6e6654fba07438013f36943b125e5e",
+      "epistemic_snapshot_sha256": "84d47cb48ff1ead12ea48355de6b0f87c8080d4d0161199d0abc45103cad1ad9",
+      "decision_sha256": "aee4013d4131e41186853e9cd9354cfac3cc191a2a68bb82048dbb55e0167fdc",
       "final_decision": {
         "schema_version": "daily-eurusd-belief-decision-v1",
         "owner": "NATIVE_DAILY_EURUSD_BELIEF_FIRST_DECISION_ENGINE",
         "decision_source": "NATIVE_BELIEF_FIRST",
         "epistemic_source": "BELIEF_CORE_CF07",
-        "direction": "LONG",
-        "score": 53.33,
-        "confidence": 0.3422,
+        "direction": "FLAT",
+        "score": 52.7,
+        "confidence": 0.3417,
         "thresholds": {
           "long": 56.0,
           "short": 44.0
         },
         "aggressive_participation": {
           "enabled": true,
-          "threshold_mode": "AGGRESSIVE_ALIGNED",
+          "threshold_mode": "CORE",
           "long": 53.0,
           "short": 47.0,
           "minimum_coverage_weight": 0.55,
@@ -1717,30 +1704,30 @@
           "short_ready": false,
           "rule": "Narrower Daily participation band applies only to an authoritative, sufficiently covered/confident state with at least three aligned beliefs including the EURUSD trend anchor."
         },
-        "coverage_weight": 0.625132,
+        "coverage_weight": 0.624688,
         "minimum_coverage_weight": 0.45,
         "required_anchor_belief": "eurusd.trend.bullish",
         "used_beliefs": [
           {
             "belief_id": "eurusd.trend.bullish",
-            "probability": 0.555104,
+            "probability": 0.546118,
             "confidence": 0.474223,
-            "directional_support": 0.110208,
-            "effective_support": 0.052263,
+            "directional_support": 0.092236,
+            "effective_support": 0.04374,
             "weight": 0.45,
-            "observed_at": "2026-10-26T03:20:43Z",
-            "age_hours": 0.4433,
+            "observed_at": "2026-10-26T03:55:44Z",
+            "age_hours": 0.0531,
             "source_evidence": [
               {
-                "evidence_id": "ev-0e2e61d8c70d2270596c",
-                "observed_at": "2026-10-26T03:20:43Z",
+                "evidence_id": "ev-158262a4036ccc02460c",
+                "observed_at": "2026-10-26T03:55:44Z",
                 "release": {
                   "adapter": "wes_asset_evidence",
-                  "observation_id": "obs-077344eb7683042989a7",
+                  "observation_id": "obs-0d48b26658fd73342d50",
                   "observation_metric": "eurusd_trend_composite"
                 },
                 "source": "Derived from Yahoo Finance OHLCV",
-                "source_ref": "derived:yahoo:EURUSD:2026-10-26T03:20:43Z:1.2.0:eurusd_trend_composite",
+                "source_ref": "derived:yahoo:EURUSD:2026-10-26T03:55:44Z:1.2.0:eurusd_trend_composite",
                 "source_type": "derived"
               }
             ],
@@ -1750,13 +1737,13 @@
           },
           {
             "belief_id": "eurusd.usd_environment.supportive",
-            "probability": 0.546431,
-            "confidence": 0.497263,
-            "directional_support": 0.092862,
-            "effective_support": 0.046177,
+            "probability": 0.542967,
+            "confidence": 0.494861,
+            "directional_support": 0.085934,
+            "effective_support": 0.042525,
             "weight": 0.3,
-            "observed_at": "2026-10-26T03:11:11Z",
-            "age_hours": 0.6022,
+            "observed_at": "2026-10-26T03:46:10Z",
+            "age_hours": 0.2126,
             "source_evidence": [
               {
                 "evidence_id": "ev-09f1c1ac0305a9cc80b9",
@@ -1783,15 +1770,15 @@
                 "source_type": "derived"
               },
               {
-                "evidence_id": "ev-a275beaf02ee2b037ac5",
-                "observed_at": "2026-10-26T03:11:11Z",
+                "evidence_id": "ev-ccae25ca4dc675dce0c7",
+                "observed_at": "2026-10-26T03:46:10Z",
                 "release": {
                   "adapter": "wes_asset_evidence",
-                  "observation_id": "obs-636630db4aaf7facc685",
+                  "observation_id": "obs-ec1dda1fbe99d08b375d",
                   "observation_metric": "broad_usd_intraday_support_for_eurusd"
                 },
                 "source": "Derived from Yahoo Finance OHLCV",
-                "source_ref": "derived:yahoo:EURUSD:2026-10-26T03:11:11Z:1.2.0:broad_usd_intraday_support_for_eurusd",
+                "source_ref": "derived:yahoo:EURUSD:2026-10-26T03:46:10Z:1.2.0:broad_usd_intraday_support_for_eurusd",
                 "source_type": "derived"
               }
             ],
@@ -1801,13 +1788,13 @@
           },
           {
             "belief_id": "eurusd.us_rates_pressure.supportive",
-            "probability": 0.578116,
-            "confidence": 0.808397,
-            "directional_support": 0.156232,
-            "effective_support": 0.126297,
+            "probability": 0.55808,
+            "confidence": 0.808149,
+            "directional_support": 0.11616,
+            "effective_support": 0.093875,
             "weight": 0.15,
-            "observed_at": "2026-10-26T03:11:01Z",
-            "age_hours": 0.605,
+            "observed_at": "2026-10-26T03:43:41Z",
+            "age_hours": 0.254,
             "source_evidence": [
               {
                 "evidence_id": "ev-18f205d6c6d8ea92ffda",
@@ -1831,18 +1818,6 @@
                 },
                 "source": "Gemini interpretation of Federal Reserve speeches and testimony",
                 "source_ref": "derived:obs-8118846d4284339b87a3",
-                "source_type": "derived"
-              },
-              {
-                "evidence_id": "ev-2b347ea107c49d2720c4",
-                "observed_at": "2026-10-26T03:09:45Z",
-                "release": {
-                  "adapter": "wes_asset_evidence",
-                  "observation_id": "obs-cb5caeac39296833a35e",
-                  "observation_metric": "fed_funds_intraday_support_for_eurusd"
-                },
-                "source": "Derived from Yahoo Finance OHLCV",
-                "source_ref": "derived:yahoo:EURUSD:2026-10-26T03:09:45Z:1.2.0:fed_funds_intraday_support_for_eurusd",
                 "source_type": "derived"
               },
               {
@@ -1870,15 +1845,27 @@
                 "source_type": "derived"
               },
               {
-                "evidence_id": "ev-ff1284f79b6ae6c476df",
-                "observed_at": "2026-10-26T03:11:01Z",
+                "evidence_id": "ev-d61d3d76782dcf8ebef4",
+                "observed_at": "2026-10-26T03:41:26Z",
                 "release": {
                   "adapter": "wes_asset_evidence",
-                  "observation_id": "obs-c4c60f9dc20bded05180",
+                  "observation_id": "obs-aea80555ea3386e83f0d",
+                  "observation_metric": "fed_funds_intraday_support_for_eurusd"
+                },
+                "source": "Derived from Yahoo Finance OHLCV",
+                "source_ref": "derived:yahoo:EURUSD:2026-10-26T03:41:26Z:1.2.0:fed_funds_intraday_support_for_eurusd",
+                "source_type": "derived"
+              },
+              {
+                "evidence_id": "ev-f890280ed0461bd4a18a",
+                "observed_at": "2026-10-26T03:43:41Z",
+                "release": {
+                  "adapter": "wes_asset_evidence",
+                  "observation_id": "obs-29db2be2414821e1adeb",
                   "observation_metric": "us_rates_intraday_futures_support_for_eurusd"
                 },
                 "source": "Derived from Yahoo Finance OHLCV",
-                "source_ref": "derived:yahoo:EURUSD:2026-10-26T03:11:01Z:1.2.0:us_rates_intraday_futures_support_for_eurusd",
+                "source_ref": "derived:yahoo:EURUSD:2026-10-26T03:43:41Z:1.2.0:us_rates_intraday_futures_support_for_eurusd",
                 "source_type": "derived"
               }
             ],
@@ -1891,17 +1878,19 @@
           {
             "belief_id": "eurusd.macro_surprise.supportive",
             "reason": "stale_or_future_evidence",
-            "age_hours": 1200.0224,
+            "age_hours": 1200.0258,
             "max_age_hours": 12.0
           },
           {
             "belief_id": "eurusd.policy_differential.supportive",
             "reason": "stale_or_future_evidence",
-            "age_hours": 1800.0224,
+            "age_hours": 1800.0258,
             "max_age_hours": 18.0
           }
         ],
-        "reasons": [],
+        "reasons": [
+          "belief_score_neutral"
+        ],
         "routing": [
           "RAW_SOURCES",
           "SPECIALIZED_ADAPTERS",
@@ -1919,16 +1908,16 @@
           "consumer": "DAILY_EURUSD",
           "available": true,
           "reason": "authoritative_daily_eurusd_epistemic_projection",
-          "source_created_at": "2026-10-26T03:45:58.529080Z",
-          "age_hours": 0.022364,
-          "source_sha256": "886432acbac7b5c6f4427f6c9061ba2857e01912ee88b748d7243fad06b0bac3",
+          "source_created_at": "2026-10-26T03:57:22.359068Z",
+          "age_hours": 0.025815,
+          "source_sha256": "84d47cb48ff1ead12ea48355de6b0f87c8080d4d0161199d0abc45103cad1ad9",
           "aggregate_authoritative": true,
           "consumer_may_override_probability": false,
           "belief_core_writeback_enabled": false,
           "state_count": 5,
-          "aggregate_probability": 0.533311,
-          "aggregate_confidence": 0.342228,
-          "coverage_weight": 0.625132,
+          "aggregate_probability": 0.526972,
+          "aggregate_confidence": 0.34168,
+          "coverage_weight": 0.624688,
           "qualified_state_count": 3,
           "qualified_belief_ids": [
             "eurusd.trend.bullish",
@@ -1938,34 +1927,34 @@
         },
         "provenance": {
           "schema_version": "briefrooms-provenance-contract-v1",
-          "artifact_id": "daily-eurusd-decision:54d88c1eec551777d83325a8",
+          "artifact_id": "daily-eurusd-decision:3033ae7bed04fca9a49dafa2",
           "artifact_type": "decision",
           "engine_id": "daily_eurusd",
           "engine_version": "belief-first-v1.9",
-          "created_at": "2026-10-26T03:47:19.039300Z",
+          "created_at": "2026-10-26T03:58:55.291900Z",
           "parent_artifact_ids": [
-            "epistemic:estate-1e19d10e6ac58b8c6955",
-            "epistemic:estate-40f86d0f462b19a4e22d",
-            "epistemic:estate-520848c9780d65b313d9"
+            "epistemic:estate-8039f466f4d6e381bd73",
+            "epistemic:estate-a5eb23cbf11c370776e4",
+            "epistemic:estate-e9b3ca000753471e1d0e"
           ],
           "source_ids": [
             "BELIEF_CORE_CF07",
             "NATIVE_BELIEF_FIRST"
           ],
           "evidence_ids": [
-            "epistemic:estate-1e19d10e6ac58b8c6955",
-            "epistemic:estate-40f86d0f462b19a4e22d",
-            "epistemic:estate-520848c9780d65b313d9"
+            "epistemic:estate-8039f466f4d6e381bd73",
+            "epistemic:estate-a5eb23cbf11c370776e4",
+            "epistemic:estate-e9b3ca000753471e1d0e"
           ],
           "belief_ids": [
             "eurusd.trend.bullish",
             "eurusd.us_rates_pressure.supportive",
             "eurusd.usd_environment.supportive"
           ],
-          "decision_id": "daily-eurusd-decision:54d88c1eec551777d83325a8",
+          "decision_id": "daily-eurusd-decision:3033ae7bed04fca9a49dafa2",
           "forecast_id": null,
           "verification_id": null,
-          "payload_hash": "54d88c1eec551777d83325a8471e182369f88bb458a83640ec7d108e9c1a029e",
+          "payload_hash": "3033ae7bed04fca9a49dafa268e40d9ec279dee3e379a793c955f275268f60b5",
           "authority": "decision",
           "prospective": true,
           "domain_provenance": {
@@ -1981,14 +1970,14 @@
         "reasons": [
           "entry_disabled_this_cycle"
         ],
-        "final_direction_preserved": "LONG",
+        "final_direction_preserved": "FLAT",
         "direction_mutation_allowed": false
       },
       "execution_price_engine": {},
       "risk": {
-        "market_observed_at": "2026-10-26T03:46:44Z",
-        "market_reference_mid": 1.1225864887237549,
-        "atr_30m_at_decision": 0.000555584063896766,
+        "market_observed_at": "2026-10-26T03:58:44Z",
+        "market_reference_mid": 1.1224603652954102,
+        "atr_30m_at_decision": 0.0005652858660771296,
         "atr_30m_window": 26,
         "atr_multiple": 1.35,
         "risk_floor_percent": 0.0027,
@@ -2006,8 +1995,8 @@
       },
       "prospective": true,
       "historical_backfill": false,
-      "decision_id": "eurusd-production-decision:b000dad76bb3ab20c3597c56",
-      "manifest_sha256": "d63772058f33c53e04891fb508712cbcb94a0f91740c4c26b07907d5c7b10191"
+      "decision_id": "eurusd-production-decision:25f5ab626d086f7e7ef15bd3",
+      "manifest_sha256": "afde890f83d68e044590850b1896bace5a1658e0d43f2d4f5e44bdefade784a1"
     },
     "production_policy_loop": {
       "schema_version": "eurusd-production-policy-runtime-v1",
