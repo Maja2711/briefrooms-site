@@ -26,6 +26,7 @@ from daily_engine_contract import DailyEngineOutput
 import daily_eurusd_lifecycle as lifecycle
 import daily_eurusd_spot as base
 import daily_eurusd_spot_v13 as v13  # installs PR25 admission/A fallback first
+import daily_eurusd_range_exit as range_exit
 
 ENGINE_VERSION = "eurusd-daily-spot-v1.4.0"
 SOFT_HORIZON_HOURS = 24.0
@@ -257,6 +258,22 @@ def evaluate_position(
     )
     if not relevant:
         return None
+    # Production-only, prospective H1 range exit. Hard SL/TP and the hard
+    # time horizon above always win; incomplete data leave R_PACE unchanged.
+    # Both normal v1.9 and the fast watcher call this same evaluator.
+    try:
+        range_signal = range_exit.assess(
+            position, relevant, observed_at,
+            exit_price_at_mid=lifecycle.execution_risk_price,
+        )
+    except (ValueError, TypeError, KeyError, OverflowError, ArithmeticError):
+        range_signal = {"close": False, "reason": "unavailable_range_signal"}
+    if range_signal.get("close"):
+        return _dynamic_close(
+            position, relevant, "DYNAMIC_RANGE_PROFIT_EXIT",
+            {"policy": "H1_RANGE_AWARE_V1", **range_signal},
+        )
+
     diagnostics = dynamic_exit_diagnostics(position, relevant, observed_at)
     if diagnostics is None:
         return None
