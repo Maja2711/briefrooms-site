@@ -592,7 +592,7 @@ def source_bar_is_fresh(snapshot: MarketSnapshot, symbol: str, now: datetime) ->
 
 
 def freeze_set(core: BeliefCore, snapshot: MarketSnapshot, when: datetime, target: datetime,
-               consumer: str, slot_key: str, regime: str) -> int:
+               consumer: str, slot_key: str, regime: str, *, persist_each: bool = True) -> int:
     count = 0
     for belief_id in _belief_ids_for_consumer(core, consumer):
         market_symbol = belief_market_symbol(belief_id)
@@ -628,13 +628,14 @@ def freeze_set(core: BeliefCore, snapshot: MarketSnapshot, when: datetime, targe
             belief_id, as_of=when, target_at=target, regime=regime,
             forecast_id=forecast_id, metadata=metadata,
             predicted_probability_override=production_p if overlay else None,
+            persist=persist_each,
         )
         count += 1
     return count
 
 
 def freeze_multihorizon_set(core: BeliefCore, snapshot: MarketSnapshot, when: datetime,
-                            consumer: str, slot_key: str, regime: str) -> int:
+                            consumer: str, slot_key: str, regime: str, *, persist_each: bool = True) -> int:
     """Freeze one P/evidence snapshot into clock- or session-aware research horizons."""
     count = 0
     for belief_id in _belief_ids_for_consumer(core, consumer):
@@ -676,13 +677,14 @@ def freeze_multihorizon_set(core: BeliefCore, snapshot: MarketSnapshot, when: da
                 belief_id, as_of=when, target_at=target, regime=regime,
                 forecast_id=forecast_id, metadata=metadata,
                 predicted_probability_override=production_p if overlay else None,
+                persist=persist_each,
             )
             count += 1
     return count
 
 
 def freeze_v3_candidate_set(core: BeliefCore, snapshot: MarketSnapshot, when: datetime,
-                            slot_key: str, regime: str) -> int:
+                            slot_key: str, regime: str, *, persist_each: bool = True) -> int:
     """Freeze READY v3 candidates as isolated 24H prospective SHADOW forecasts."""
     consumer = "BELIEF-V3-CANDIDATE"
     count = 0
@@ -731,13 +733,15 @@ def freeze_v3_candidate_set(core: BeliefCore, snapshot: MarketSnapshot, when: da
             regime=regime,
             forecast_id=forecast_id,
             metadata=metadata,
+            persist=persist_each,
         )
         count += 1
     return count
 
 
 def verify_due(core: BeliefCore, client: YahooChartClient, now: datetime,
-               live_snapshot: Optional[MarketSnapshot], *, time_budget_seconds: float | None = None) -> int:
+               live_snapshot: Optional[MarketSnapshot], *, time_budget_seconds: float | None = None,
+               persist_each: bool = True) -> int:
     verified_ids = {value.forecast_id for value in core.verifications.values() if value.forecast_id}
     count = 0
     verify_started = monotonic_time.perf_counter()
@@ -766,7 +770,8 @@ def verify_due(core: BeliefCore, client: YahooChartClient, now: datetime,
         forecast.metadata["settlement_status"] = "RESOLVED"
         core.verify_forecast(forecast.forecast_id, outcome, verified_at=now,
                              outcome_source="Yahoo Finance chart", outcome_ref=outcome_ref,
-                             note="Automatic deterministic shadow verification; forecast contract remains immutable")
+                             note="Automatic deterministic shadow verification; forecast contract remains immutable",
+                             persist=persist_each)
         count += 1
     return count
 
@@ -931,8 +936,7 @@ def run_cycle(state_dir: Path, now: datetime, client: YahooChartClient) -> Dict[
                 half_slot = floor_half_hour(local)
                 hour_key = f"world:{local.date().isoformat()}:{half_slot.hour:02d}"
                 if half_slot.minute == 0 and hour_key not in completed:
-                    core.recompute(now)
-                    append_world_state(state_dir, core, now, regime)
+                                        append_world_state(state_dir, core, now, regime)
                     completed[hour_key] = iso_z(now)
                     world_count = 1
 
@@ -943,26 +947,26 @@ def run_cycle(state_dir: Path, now: datetime, client: YahooChartClient) -> Dict[
                     target = datetime.combine(local.date(), time(16, 0), tzinfo=NY) if planned.hour < 16 else next_weekday_close(local)
                     key = f"shared:{local.date().isoformat()}:{planned.hour:02d}{planned.minute:02d}"
                     if due_planned_slot(local, planned, key in completed):
-                        core.recompute(now)
-                        forecast_count += freeze_set(core, snapshot, now, target, "BRACE+BRACE-SPX", key, regime)
+                                                forecast_count += freeze_set(core, snapshot, now, target, "BRACE+BRACE-SPX", key, regime,
+                                                     persist_each=False)
                         completed[key] = iso_z(now)
 
                     asset_key = f"wes-assets:{local.date().isoformat()}:{planned.hour:02d}{planned.minute:02d}"
                     if due_planned_slot(local, planned, asset_key in completed):
-                        core.recompute(now)
-                        wes_asset_count += freeze_multihorizon_set(core, snapshot, now, "WES-ASSET-SHADOW", asset_key, regime)
+                                                wes_asset_count += freeze_multihorizon_set(core, snapshot, now, "WES-ASSET-SHADOW", asset_key, regime,
+                                                                  persist_each=False)
                         completed[asset_key] = iso_z(now)
 
                     candidate_key = f"v3-candidates:{local.date().isoformat()}:{planned.hour:02d}{planned.minute:02d}"
                     if due_planned_slot(local, planned, candidate_key in completed):
-                        core.recompute(now)
-                        v3_candidate_count += freeze_v3_candidate_set(core, snapshot, now, candidate_key, regime)
+                                                v3_candidate_count += freeze_v3_candidate_set(core, snapshot, now, candidate_key, regime,
+                                                                    persist_each=False)
                         completed[candidate_key] = iso_z(now)
 
                 wes_key = f"wes:{local.date().isoformat()}:1600"
                 if local.weekday() == 4 and due_planned_slot(local, time(16, 0), wes_key in completed):
-                    core.recompute(now)
-                    wes_count += freeze_set(core, snapshot, now, weekly_target(local), "WES", wes_key, regime)
+                                        wes_count += freeze_set(core, snapshot, now, weekly_target(local), "WES", wes_key, regime,
+                                            persist_each=False)
                     completed[wes_key] = iso_z(now)
         else:
             scheduler.setdefault("gaps", []).append({
@@ -971,7 +975,8 @@ def run_cycle(state_dir: Path, now: datetime, client: YahooChartClient) -> Dict[
             })
 
     with timed_stage("forecast_settlement_verification", timings):
-        verified = verify_due(core, client, now, snapshot, time_budget_seconds=VERIFY_LIVE_BUDGET_SECONDS)
+        verified = verify_due(core, client, now, snapshot, time_budget_seconds=VERIFY_LIVE_BUDGET_SECONDS,
+                              persist_each=False)
     scheduler["schema_version"] = 2
     scheduler["last_run_at"] = iso_z(now)
     scheduler["last_status"] = {
