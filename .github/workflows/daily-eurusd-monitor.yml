@@ -159,6 +159,12 @@ jobs:
                       at=[x for x in minute if x.timestamp==observed]
                       latest=[x for x in minute if observed<=x.timestamp<=now]
                       absent=sum((b.timestamp-a.timestamp)!=timedelta(minutes=1) for a,b in zip(latest,latest[1:]))
+                      midnight=observed+timedelta(hours=1)
+                      midnight_rows=[x for x in minute if x.timestamp==midnight]
+                      print("REENTRY_DST_BOUNDARY_PROBE",{"midnight":midnight.isoformat(),
+                          "open":midnight_rows[0].open if midnight_rows else None,
+                          "source_preview_open":rows[-1].open,
+                          "open_gap_pips":(rows[-1].open-midnight_rows[0].open)*10000 if midnight_rows else None})
                       print("REENTRY_SESSION_PROBE",{"expected":observed.isoformat(),"minute_open":at[0].open if at else None,
                             "source_preview_open":rows[-1].open,"open_difference_pips":(rows[-1].open-at[0].open)*10000 if at else None,
                             "minute_count":len(latest),"minute_gaps":absent,"last_minute":latest[-1].timestamp.isoformat() if latest else None})
