@@ -164,7 +164,7 @@ jobs:
                             "minute_count":len(latest),"minute_gaps":absent,"last_minute":latest[-1].timestamp.isoformat() if latest else None})
                   except Exception as exc:
                       print("REENTRY_SESSION_PROBE_ERROR",type(exc).__name__,str(exc)[:100])
-                  for tail in rows[-7:
+                  for tail in rows[-7:]:
                       print("REENTRY_D1_TAIL",tail.timestamp.isoformat(),tail.open,tail.high,tail.low,tail.close)
               counter=Counter()
               specimens=[]
