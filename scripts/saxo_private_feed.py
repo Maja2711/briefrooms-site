@@ -43,6 +43,26 @@ def _time(value: Any) -> datetime:
         _reject()
 
 
+def validate_private_saxo_snapshot(
+    payload: Mapping[str, Any], *, now: datetime | None = None
+) -> dict[str, Any]:
+    """Validate private SIM bid/ask pair for simulated execution."""
+    mid = validate_private_saxo_quote(payload, now=now)
+    return {
+        "bid": float(payload["bid"]),
+        "ask": float(payload["ask"]),
+        "mid": mid,
+        "observed_at": _time(
+            payload.get("last_updated")
+            or payload.get("last_updated_at")
+            or payload.get("timestamp")
+            or payload.get("LastUpdated")
+        ),
+        "source": "SAXO_SIM",
+        "redistributable": False,
+    }
+
+
 def validate_private_saxo_quote(
     payload: Mapping[str, Any], *, now: datetime | None = None
 ) -> float:
@@ -91,6 +111,31 @@ def validate_private_saxo_quote(
     if age < -MAX_FUTURE_SECONDS or age > MAX_QUOTE_AGE_SECONDS:
         _reject()
     return mid
+
+
+def fetch_private_saxo_quote(*, now: datetime | None = None) -> dict[str, Any]:
+    """Obtain private Bid/Ask/Mid using machine-to-machine Cloudflare auth."""
+    username = os.environ.get("SAXO_PRIVATE_BASIC_USER", "admin")
+    password = os.environ.get("SAXO_PRIVATE_BASIC_PASSWORD", "")
+    if not username or not password or any(ch in username for ch in "\r\n:"):
+        _reject()
+    header = base64.b64encode(f"{username}:{password}".encode("utf-8")).decode("ascii")
+    request = urllib.request.Request(
+        SAXO_WORKER_URL,
+        headers={
+            "Authorization": f"Basic {header}",
+            "Accept": "application/json",
+            "Cache-Control": "no-store",
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=6) as response:
+            if getattr(response, "status", 200) != 200:
+                _reject()
+            payload = json.loads(response.read(16385))
+        return validate_private_saxo_snapshot(payload, now=now)
+    except Exception:
+        _reject()
 
 
 def fetch_private_saxo_mid(*, now: datetime | None = None) -> float:
