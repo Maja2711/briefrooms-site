@@ -48,7 +48,8 @@ jobs:
               SAXO_WORKER_URL, SAXO_PRIVATE_USER_AGENT, validate_private_saxo_snapshot
           )
 
-          base = SAXO_WORKER_URL.rsplit("/", 1)[0]
+          parts = urlsplit(SAXO_WORKER_URL)
+          base = f"{parts.scheme}://{parts.netloc}"  # Origin only; URL already includes /saxo/quote.
           secret = os.environ.get("SAXO_PRIVATE_BASIC_PASSWORD", "")
           if not secret:
               print("RESULT=BLOCKED_MISSING_GITHUB_SECRET")
