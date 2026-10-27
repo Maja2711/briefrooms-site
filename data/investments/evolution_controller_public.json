@@ -77,47 +77,47 @@
           "validation_distinct_target_dates": 9,
           "validation_n": 70
         },
-        "distinct_target_dates": 10,
+        "distinct_target_dates": 11,
         "outcome_conflicts": 0,
         "shadow_oos": {
-          "brier_relative_improvement": 0.236285,
+          "brier_relative_improvement": 0.254127,
           "challenger": {
-            "accuracy": 0.833333,
-            "brier": 0.139229,
-            "ece": 0.013496,
-            "log_loss": 0.4518,
-            "n": 102
+            "accuracy": 0.839623,
+            "brier": 0.134877,
+            "ece": 0.007152,
+            "log_loss": 0.44109,
+            "n": 106
           },
           "chronological_block_relative_improvements": [
             0.444289,
             0.502788,
-            -0.210836,
-            0.443178
+            -0.005415,
+            0.438037
           ],
           "control": {
-            "accuracy": 0.833333,
-            "brier": 0.182305,
-            "ece": 0.205006,
-            "log_loss": 0.5546,
-            "n": 102
+            "accuracy": 0.839623,
+            "brier": 0.180831,
+            "ece": 0.211545,
+            "log_loss": 0.551613,
+            "n": 106
           },
           "horizon_checks": [
             {
-              "brier_relative_improvement": 0.040455,
+              "brier_relative_improvement": 0.06171,
               "horizon_bucket": "0.125S_US_SESSION",
+              "n": 26,
+              "protected": true
+            },
+            {
+              "brier_relative_improvement": 0.377626,
+              "horizon_bucket": "0.5S_US_SESSION",
               "n": 25,
               "protected": true
             },
             {
-              "brier_relative_improvement": 0.360821,
-              "horizon_bucket": "0.5S_US_SESSION",
-              "n": 24,
-              "protected": true
-            },
-            {
-              "brier_relative_improvement": 0.102044,
+              "brier_relative_improvement": 0.126294,
               "horizon_bucket": "1S_US_SESSION",
-              "n": 23,
+              "n": 24,
               "protected": true
             },
             {
@@ -127,9 +127,9 @@
               "protected": true
             },
             {
-              "brier_relative_improvement": 0.828743,
+              "brier_relative_improvement": 0.828603,
               "horizon_bucket": "5S_US_SESSION",
-              "n": 12,
+              "n": 13,
               "protected": true
             }
           ]
@@ -999,26 +999,26 @@
         "distinct_target_dates": 20,
         "outcome_conflicts": 0,
         "shadow_oos": {
-          "brier_relative_improvement": 0.40016,
+          "brier_relative_improvement": 0.401735,
           "challenger": {
-            "accuracy": 0.945578,
-            "brier": 0.053117,
-            "ece": 0.002253,
-            "log_loss": 0.23249,
-            "n": 147
+            "accuracy": 0.945946,
+            "brier": 0.05277,
+            "ece": 0.002516,
+            "log_loss": 0.231203,
+            "n": 148
           },
           "chronological_block_relative_improvements": [
             0.600302,
             0.934044,
             0.569143,
-            -0.009231
+            -0.002978
           ],
           "control": {
-            "accuracy": 0.945578,
-            "brier": 0.088552,
-            "ece": 0.166353,
-            "log_loss": 0.338556,
-            "n": 147
+            "accuracy": 0.945946,
+            "brier": 0.088205,
+            "ece": 0.166531,
+            "log_loss": 0.337713,
+            "n": 148
           },
           "horizon_checks": [
             {
@@ -1028,9 +1028,9 @@
               "protected": true
             },
             {
-              "brier_relative_improvement": 0.93617,
+              "brier_relative_improvement": 0.9366,
               "horizon_bucket": "24H",
-              "n": 29,
+              "n": 30,
               "protected": true
             },
             {
@@ -1171,7 +1171,7 @@
       "route": "Manual Reviewed Belief Probability Overlay"
     }
   ],
-  "generated_at": "2026-10-27T14:11:09.390320Z",
+  "generated_at": "2026-10-27T15:12:48.225464Z",
   "hypotheses": [
     {
       "claim": "gpw LONG decisions in regime unknown show recurring adverse outcomes and warrant a bounded challenger",
@@ -1215,7 +1215,7 @@
     },
     {
       "claim": "gpw LONG decisions in regime unknown show recurring adverse outcomes and warrant a bounded challenger",
-      "created_at": "2026-10-27T14:11:09.390320Z",
+      "created_at": "2026-10-27T15:12:48.225464Z",
       "evidence": {
         "action": "LONG",
         "engine": "gpw",
@@ -1468,7 +1468,8 @@
     },
     {
       "blockers": [
-        "brier_improvement_below_gate"
+        "brier_improvement_below_gate",
+        "protected_slice_degradation:horizon:5D+"
       ],
       "candidate_id": "evo-belief-2c57f753d9bfca21d8e2c0d0",
       "minimum_sample": 50,
@@ -1493,29 +1494,29 @@
           "segment": "horizon:1-5D"
         },
         {
-          "brier_relative_improvement": -0.062447,
-          "challenger_brier": 0.34388,
-          "control_brier": 0.323668,
-          "ece_delta": 0.040544,
-          "n": 18,
-          "pass": true,
+          "brier_relative_improvement": -0.043931,
+          "challenger_brier": 0.33955,
+          "control_brier": 0.325261,
+          "ece_delta": 0.065633,
+          "n": 19,
+          "pass": false,
           "segment": "horizon:5D+"
         },
         {
-          "brier_relative_improvement": 0.027026,
-          "challenger_brier": 0.295754,
-          "control_brier": 0.303969,
-          "ece_delta": 0.009056,
-          "n": 46,
+          "brier_relative_improvement": 0.03617,
+          "challenger_brier": 0.285388,
+          "control_brier": 0.296098,
+          "ece_delta": -0.015377,
+          "n": 49,
           "pass": true,
           "segment": "horizon:6-24H"
         },
         {
-          "brier_relative_improvement": 0.009663,
-          "challenger_brier": 0.293318,
-          "control_brier": 0.29618,
-          "ece_delta": 0.008755,
-          "n": 138,
+          "brier_relative_improvement": 0.015189,
+          "challenger_brier": 0.289569,
+          "control_brier": 0.294035,
+          "ece_delta": 0.009254,
+          "n": 142,
           "pass": true,
           "segment": "instrument:EURUSD"
         }
@@ -1547,20 +1548,20 @@
           "segment": "horizon:1-5D"
         },
         {
-          "brier_relative_improvement": 0.593878,
-          "challenger_brier": 0.046797,
-          "control_brier": 0.115229,
-          "ece_delta": -0.139373,
-          "n": 73,
+          "brier_relative_improvement": 0.594859,
+          "challenger_brier": 0.046665,
+          "control_brier": 0.115182,
+          "ece_delta": -0.139404,
+          "n": 74,
           "pass": true,
           "segment": "horizon:6-24H"
         },
         {
-          "brier_relative_improvement": 0.378223,
-          "challenger_brier": 0.085273,
-          "control_brier": 0.137144,
-          "ece_delta": -0.139343,
-          "n": 177,
+          "brier_relative_improvement": 0.379552,
+          "challenger_brier": 0.085002,
+          "control_brier": 0.137001,
+          "ece_delta": -0.139356,
+          "n": 178,
           "pass": true,
           "segment": "instrument:BTC"
         }
@@ -1635,38 +1636,38 @@
           "segment": "horizon:1-5D"
         },
         {
-          "brier_relative_improvement": 0.011286,
-          "challenger_brier": 0.232941,
-          "control_brier": 0.2356,
-          "ece_delta": -0.039988,
-          "n": 132,
+          "brier_relative_improvement": 0.014135,
+          "challenger_brier": 0.232817,
+          "control_brier": 0.236155,
+          "ece_delta": -0.041025,
+          "n": 136,
           "pass": true,
           "segment": "horizon:5D+"
         },
         {
-          "brier_relative_improvement": -0.016626,
-          "challenger_brier": 0.259694,
-          "control_brier": 0.255447,
-          "ece_delta": -0.038012,
-          "n": 553,
+          "brier_relative_improvement": -0.013384,
+          "challenger_brier": 0.258119,
+          "control_brier": 0.25471,
+          "ece_delta": -0.032595,
+          "n": 567,
           "pass": true,
           "segment": "horizon:6-24H"
         },
         {
-          "brier_relative_improvement": 0.001223,
-          "challenger_brier": 0.219703,
-          "control_brier": 0.219972,
-          "ece_delta": -0.039203,
-          "n": 840,
+          "brier_relative_improvement": 0.002482,
+          "challenger_brier": 0.21943,
+          "control_brier": 0.219976,
+          "ece_delta": -0.039155,
+          "n": 850,
           "pass": true,
           "segment": "instrument:BTC"
         },
         {
-          "brier_relative_improvement": 0.005735,
-          "challenger_brier": 0.274789,
-          "control_brier": 0.276374,
-          "ece_delta": -0.009066,
-          "n": 637,
+          "brier_relative_improvement": 0.007246,
+          "challenger_brier": 0.274005,
+          "control_brier": 0.276005,
+          "ece_delta": -0.009199,
+          "n": 645,
           "pass": true,
           "segment": "instrument:EURUSD"
         },
@@ -1781,29 +1782,29 @@
           "segment": "horizon:1-5D"
         },
         {
-          "brier_relative_improvement": 0.3013,
-          "challenger_brier": 0.142428,
-          "control_brier": 0.203847,
-          "ece_delta": -0.07118,
-          "n": 25,
+          "brier_relative_improvement": 0.29975,
+          "challenger_brier": 0.142052,
+          "control_brier": 0.202859,
+          "ece_delta": -0.070669,
+          "n": 26,
           "pass": true,
           "segment": "horizon:5D+"
         },
         {
-          "brier_relative_improvement": 0.193994,
-          "challenger_brier": 0.181012,
-          "control_brier": 0.224579,
-          "ece_delta": -0.072039,
-          "n": 48,
+          "brier_relative_improvement": 0.200642,
+          "challenger_brier": 0.178997,
+          "control_brier": 0.223926,
+          "ece_delta": -0.072426,
+          "n": 51,
           "pass": true,
           "segment": "horizon:6-24H"
         },
         {
-          "brier_relative_improvement": 0.211361,
-          "challenger_brier": 0.175305,
-          "control_brier": 0.222288,
-          "ece_delta": -0.073005,
-          "n": 163,
+          "brier_relative_improvement": 0.213322,
+          "challenger_brier": 0.174537,
+          "control_brier": 0.221866,
+          "ece_delta": -0.073014,
+          "n": 167,
           "pass": true,
           "segment": "instrument:BTC"
         }
@@ -1842,29 +1843,29 @@
           "segment": "horizon:1-5D"
         },
         {
-          "brier_relative_improvement": -0.043048,
-          "challenger_brier": 0.261099,
-          "control_brier": 0.250323,
-          "ece_delta": 0.031776,
-          "n": 24,
+          "brier_relative_improvement": -0.036417,
+          "challenger_brier": 0.261377,
+          "control_brier": 0.252193,
+          "ece_delta": 0.031346,
+          "n": 25,
           "pass": true,
           "segment": "horizon:5D+"
         },
         {
-          "brier_relative_improvement": -0.047707,
-          "challenger_brier": 0.280602,
-          "control_brier": 0.267825,
-          "ece_delta": -0.000669,
-          "n": 47,
+          "brier_relative_improvement": -0.032668,
+          "challenger_brier": 0.273686,
+          "control_brier": 0.265028,
+          "ece_delta": 0.036252,
+          "n": 50,
           "pass": true,
           "segment": "horizon:6-24H"
         },
         {
-          "brier_relative_improvement": -0.025409,
-          "challenger_brier": 0.263165,
-          "control_brier": 0.256644,
-          "ece_delta": 0.056016,
-          "n": 158,
+          "brier_relative_improvement": -0.020087,
+          "challenger_brier": 0.261384,
+          "control_brier": 0.256237,
+          "ece_delta": 0.055645,
+          "n": 162,
           "pass": false,
           "segment": "instrument:BTC"
         }
@@ -1877,7 +1878,6 @@
         "ece_degradation",
         "log_loss_not_better",
         "protected_slice_degradation:horizon:0-6H",
-        "protected_slice_degradation:horizon:5D+",
         "protected_slice_degradation:horizon:6-24H",
         "protected_slice_degradation:instrument:EURUSD",
         "stability_less_than_3_of_4"
@@ -1905,29 +1905,29 @@
           "segment": "horizon:1-5D"
         },
         {
-          "brier_relative_improvement": -0.101777,
-          "challenger_brier": 0.254364,
-          "control_brier": 0.230867,
-          "ece_delta": 0.004133,
-          "n": 25,
-          "pass": false,
+          "brier_relative_improvement": -0.097431,
+          "challenger_brier": 0.251585,
+          "control_brier": 0.229249,
+          "ece_delta": 0.003675,
+          "n": 26,
+          "pass": true,
           "segment": "horizon:5D+"
         },
         {
-          "brier_relative_improvement": -0.155525,
-          "challenger_brier": 0.406872,
-          "control_brier": 0.35211,
-          "ece_delta": 0.050237,
-          "n": 50,
+          "brier_relative_improvement": -0.147969,
+          "challenger_brier": 0.400919,
+          "control_brier": 0.349242,
+          "ece_delta": 0.04745,
+          "n": 53,
           "pass": false,
           "segment": "horizon:6-24H"
         },
         {
-          "brier_relative_improvement": -0.114392,
-          "challenger_brier": 0.32347,
-          "control_brier": 0.290266,
-          "ece_delta": 0.033681,
-          "n": 166,
+          "brier_relative_improvement": -0.111734,
+          "challenger_brier": 0.322255,
+          "control_brier": 0.289867,
+          "ece_delta": 0.032861,
+          "n": 170,
           "pass": false,
           "segment": "instrument:EURUSD"
         }
@@ -1966,20 +1966,20 @@
           "segment": "horizon:1-5D"
         },
         {
-          "brier_relative_improvement": 0.009242,
-          "challenger_brier": 0.26951,
-          "control_brier": 0.272024,
-          "ece_delta": -0.063665,
-          "n": 73,
+          "brier_relative_improvement": 0.013755,
+          "challenger_brier": 0.268815,
+          "control_brier": 0.272564,
+          "ece_delta": -0.076664,
+          "n": 74,
           "pass": true,
           "segment": "horizon:6-24H"
         },
         {
-          "brier_relative_improvement": -0.019642,
-          "challenger_brier": 0.276633,
-          "control_brier": 0.271304,
-          "ece_delta": 0.050277,
-          "n": 177,
+          "brier_relative_improvement": -0.017574,
+          "challenger_brier": 0.276304,
+          "control_brier": 0.271532,
+          "ece_delta": 0.050509,
+          "n": 178,
           "pass": false,
           "segment": "instrument:BTC"
         }
@@ -2039,7 +2039,7 @@
       ],
       "candidate_id": "hch-0bf425a4276053c9e407d399",
       "minimum_sample": 50,
-      "observed_sample": 102,
+      "observed_sample": 106,
       "segment_checks": [
         {
           "block": 1,
@@ -2051,11 +2051,11 @@
         },
         {
           "block": 3,
-          "brier_relative_improvement": -0.210836
+          "brier_relative_improvement": -0.005415
         },
         {
           "block": 4,
-          "brier_relative_improvement": 0.443178
+          "brier_relative_improvement": 0.438037
         }
       ],
       "status": "COLLECTING"
@@ -2075,7 +2075,7 @@
       "blockers": [],
       "candidate_id": "hch-a26038a449bce120ddc5506f",
       "minimum_sample": 50,
-      "observed_sample": 147,
+      "observed_sample": 148,
       "segment_checks": [
         {
           "block": 1,
@@ -2091,7 +2091,7 @@
         },
         {
           "block": 4,
-          "brier_relative_improvement": -0.009231
+          "brier_relative_improvement": -0.002978
         }
       ],
       "status": "PASS"
@@ -2103,7 +2103,7 @@
   "source_status": {
     "belief_calibration": {
       "available": true,
-      "resolved_rows": 2305,
+      "resolved_rows": 2326,
       "scan_status": {
         "__GLOBAL__": {
           "last_discovery_n": null,
