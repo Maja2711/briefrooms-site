@@ -68,9 +68,12 @@ class PrivateSaxoExitTests(unittest.TestCase):
         self.assertEqual(trade["exit_price"], 1.11372)
 
     def test_normal_daily_and_fast_use_same_saxo_exit_settlement(self):
+        # The runtime's close quote must be fresh against the actual wall clock;
+        # the other deterministic tests explicitly inject a frozen clock.
+        live_quote = {**self.quote, "observed_at": datetime.now(timezone.utc) - timedelta(seconds=1)}
         with patch.dict(os.environ, self.env), patch(
             "daily_eurusd_spot_v18._original_evaluate_position", return_value=self.trigger
-        ), patch("saxo_private_feed.fetch_private_saxo_quote", return_value=self.quote):
+        ), patch("saxo_private_feed.fetch_private_saxo_quote", return_value=live_quote):
             trade = v18._evaluate_position(self.position, [], self.now)
         self.assertEqual(trade["exit_price"], self.quote["bid"])
         self.assertIs(fast.v18, v18)
