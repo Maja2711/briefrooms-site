@@ -113,6 +113,30 @@ def validate_private_saxo_quote(
     return mid
 
 
+def assert_private_state_destination(
+    position: Mapping[str, Any], output_path: Any, history_path: Any = None
+) -> None:
+    """Never let Saxo-derived positions be persisted in a public checkout."""
+    from pathlib import Path
+
+    execution = position.get("execution_price_engine") or {}
+    if not isinstance(execution, Mapping) or execution.get("private_saxo_primary") is not True:
+        return
+    if (os.environ.get("SAXO_PRIVATE_PRIMARY") != "1"
+            or os.environ.get("BRIEFROOMS_PRIVATE_RUNTIME") != "1"):
+        raise ValueError("private Saxo exit needs private runtime")
+    root_name = os.environ.get("BRIEFROOMS_PRIVATE_DATA_DIR", "")
+    if not root_name or not Path(root_name).is_absolute():
+        raise ValueError("private Saxo exit needs absolute off-repository state")
+    root = Path(root_name).resolve()
+    repository = Path(__file__).resolve().parents[1]
+    if root == repository or root.is_relative_to(repository):
+        raise ValueError("private Saxo state cannot be stored in public repository")
+    paths = [output_path] + ([history_path] if history_path is not None else [])
+    if any(not Path(p).resolve().is_relative_to(root) for p in paths):
+        raise ValueError("private Saxo state must stay in private directory")
+
+
 def private_saxo_exit_record(
     position: Mapping[str, Any], trigger: Mapping[str, Any], *,
     now: datetime | None = None,
