@@ -27,6 +27,36 @@
 
 The Cloudflare Worker `briefrooms-saxo-eurusd` has working Saxo SIM OAuth and its own D1 token storage. The Python adapter currently expects HTTP Basic (`SAXO_PRIVATE_BASIC_USER`, `SAXO_PRIVATE_BASIC_PASSWORD` = password set as Worker's `SAXO_ADMIN_PASSWORD`). Browser access may be authorized by a cookie instead of Basic; this needs a separate real machine-to-machine test **before** enabling automatic trading simulation. Never paste API client secrets or the Saxo account password into chat, code or public Actions logs.
 
+## Diagnosing authenticated HTTP 401/403 (read-only)
+
+GitHub Actions workflow `saxo-private-connection-diagnostic.yml` runs **only**
+on manual `workflow_dispatch`. Run it from the default `main` branch after
+setting `SAXO_PRIVATE_BASIC_PASSWORD`. A stored secret proves nothing about
+the downstream Worker auth contract.
+
+- `BLOCKED_MISSING_GITHUB_SECRET`: secret unavailable to this run; check repo/environment scope.
+- `STATUS_ENDPOINT=HTTP_401` or `HTTP_403`: GitHub reached an HTTP denial.
+  It does **not** prove the password is wrong. Inspect the Worker's authentication
+  handler and any Cloudflare Access / WAF policies for `/status`.
+- `AUTH_STATUS_CHALLENGE_SCHEME` and `AUTH_STATUS_CF_CHALLENGE` report only
+  safe header classifications. `ANONYMOUS_STATUS_ENDPOINT` and
+  `SAME_HTTP_STATUS_WITHOUT_BASIC` compare HTTP codes with/without Basic.
+  Identical HTTP codes **do not** prove the same authentication path.
+- Only `STATUS_ENDPOINT=AUTHORIZED_SIM_CONNECTED` and
+  `QUOTE_ENDPOINT=FRESH_BID_ASK_VALIDATED` with
+  `PASS_AUTHENTICATED_PRIVATE_SAXO_SIM_READ` establish a successful
+  independent, private machine-to-machine read.
+
+The test must never print Basic passwords, OAuth credentials, raw response
+bodies, Saxo BID/ASK or private P&L. Do not disable the Worker's access
+checks to make the test pass. If Cloudflare Access fronts the Worker,
+configure an appropriately scoped service-to-service policy/credential
+instead of relying on an interactive browser cookie.
+
+A passing read test is **not** a private scheduler or live paper position
+lifecycle. Continuous isolated runtime/storage, token refresh, read-side
+freshness, and controlled paper open/close must still be verified independently.
+
 ## Private standalone Windows example
 
 The `SAXO_PRIVATE_PRIMARY` env flag alone does **not** switch public GitHub Daily to Saxo. Keep Saxo-derived state and history strictly in a private directory:
