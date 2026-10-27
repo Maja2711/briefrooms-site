@@ -1,0 +1,65 @@
+name: Diagnose Saxo Private Worker Connectivity (read only)
+
+on:
+  push:
+    branches:
+      - diagnose-saxo-worker-connection-20261027
+
+permissions:
+  contents: read
+
+concurrency:
+  group: saxo-private-worker-connectivity-test
+  cancel-in-progress: true
+
+jobs:
+  private-worker-connectivity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    env:
+      PYTHONPATH: scripts
+      SAXO_PRIVATE_BASIC_USER: admin
+      SAXO_PRIVATE_BASIC_PASSWORD: ${{ secrets.SAXO_PRIVATE_BASIC_PASSWORD }}
+    steps:
+      - name: Checkout diagnostic adapter
+        uses: actions/checkout@v4
+      - name: Python runtime
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Probe Worker network and private credentials without recording quotes
+        shell: bash
+        run: |
+          set -eu
+          python - <<'PY'
+          import os
+          import urllib.request
+          import urllib.error
+          from saxo_private_feed import SAXO_WORKER_URL, fetch_private_saxo_quote
+
+          status_url = SAXO_WORKER_URL.rsplit("/", 1)[0] + "/status"
+          try:
+              req = urllib.request.Request(status_url, headers={"Accept": "application/json"})
+              with urllib.request.urlopen(req, timeout=8) as response:
+                  print("WORKER_HTTP_NO_AUTH_STATUS=" + str(response.status))
+          except urllib.error.HTTPError as e:
+              # Do not log response body or sensitive header values.
+              print("WORKER_HTTP_NO_AUTH_STATUS=" + str(e.code))
+          except Exception as e:
+              print("WORKER_NETWORK=" + type(e).__name__)
+
+          if not os.environ.get("SAXO_PRIVATE_BASIC_PASSWORD"):
+              print("BRs_TO_SAXO_RESULT=BLOCKED_MISSING_GITHUB_ACTIONS_SECRET")
+              raise SystemExit(2)
+
+          try:
+              quote = fetch_private_saxo_quote()
+              assert quote.get("source") == "SAXO_SIM"
+              assert quote.get("redistributable") is False
+              print("BRs_TO_SAXO_RESULT=PASS_FRESH_PRIVATE_QUOTE")
+          except Exception:
+              # Never log stack traces that could contain private quote,
+              # Authorization header, username, token, or raw provider data.
+              print("BRs_TO_SAXO_RESULT=FAILED_AUTH_OR_QUOTE_CONTRACT")
+              raise SystemExit(3)
+          PY
