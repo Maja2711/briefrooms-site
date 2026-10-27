@@ -1,0 +1,764 @@
+#!/usr/bin/env python3
+"""Promote fresh Stock Trading v2 opportunities into the canonical portfolio.
+
+V2 research artifacts are intentionally non-executable.  This bridge is the
+production boundary: it revalidates opportunity age, eligibility, live session,
+quote freshness and risk geometry before a canonical admission.  It never stops
+at rank #1: rejected candidates are audited and the next eligible candidate is
+checked until capacity is filled or the frontier is exhausted.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import math
+import tempfile
+from copy import deepcopy
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Callable, Mapping
+
+try:
+    import provenance_contract as provenance
+except ImportError:
+    from scripts import provenance_contract as provenance
+
+try:
+    from scripts import stock_trading_portfolio as portfolio
+    from scripts import stock_trading_quote_enricher as quotes
+    from scripts import stock_trading_v2_reentry_learning as reentry_learning
+except ModuleNotFoundError:  # pragma: no cover
+    import stock_trading_portfolio as portfolio
+    import stock_trading_quote_enricher as quotes
+    import stock_trading_v2_reentry_learning as reentry_learning
+
+ROOT = Path(__file__).resolve().parents[1]
+CONFIG_PATH = ROOT / "data/investments/stock_trading_v2_production_config.json"
+STATE_PATH = ROOT / "data/investments/stock_trading_v2_production_state.json"
+PORTFOLIO_PATH = ROOT / "data/investments/stock_trading_portfolio.json"
+UTC = timezone.utc
+
+
+def _load(path: Path, default: Any = None) -> Any:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        return default
+
+
+def _atomic(path: Path, payload: Mapping[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    text = json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=path.parent, delete=False) as handle:
+        handle.write(text)
+        name = handle.name
+    Path(name).replace(path)
+
+
+def _float(value: Any) -> float | None:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if math.isfinite(number) else None
+
+
+def _parse_iso(value: Any) -> datetime | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
+
+
+def load_config(path: Path = CONFIG_PATH) -> dict[str, Any]:
+    cfg = _load(path, {})
+    if not isinstance(cfg, dict) or cfg.get("enabled") is not True:
+        raise RuntimeError("v2 production bridge is disabled or misconfigured")
+    if cfg.get("champion_engine") != "v2" or cfg.get("challenger_engine") != "v1":
+        raise RuntimeError("Champion Inversion contract is invalid")
+    if int(cfg.get("canary_max_open_positions_per_market") or 0) != 1:
+        raise RuntimeError("technical canary must be limited to one position per market")
+    if int(cfg.get("full_max_open_positions_per_market") or 0) != 3:
+        raise RuntimeError("full v2 production cap must be three positions per market")
+    if float(cfg.get("maximum_execution_quote_age_minutes") or 0) <= 0:
+        raise RuntimeError("default execution quote freshness limit must be positive")
+    per_market_age = cfg.get("maximum_execution_quote_age_minutes_by_market") or {}
+    if not isinstance(per_market_age, Mapping):
+        raise RuntimeError("per-market execution quote freshness config must be an object")
+    for market in ("GPW", "US"):
+        raw_limit = per_market_age.get(market, cfg.get("maximum_execution_quote_age_minutes"))
+        if float(raw_limit or 0) <= 0:
+            raise RuntimeError(f"execution quote freshness limit must be positive for {market}")
+    if int(cfg.get("full_cycle_max_new_positions_per_market") or 0) != 3:
+        raise RuntimeError("FULL cycle must be able to fill all three market slots")
+    if int(cfg.get("healthy_sessions_per_market_required") or 0) != 1:
+        raise RuntimeError("technical canary must promote after one healthy cycle per market")
+    return cfg
+
+
+def _execution_quote_max_age_seconds(market: str, config: Mapping[str, Any]) -> int:
+    """Resolve the prospective execution-quote age gate without weakening other markets."""
+    market = market.upper()
+    per_market = config.get("maximum_execution_quote_age_minutes_by_market") or {}
+    raw_minutes = (
+        per_market.get(market, config.get("maximum_execution_quote_age_minutes"))
+        if isinstance(per_market, Mapping)
+        else config.get("maximum_execution_quote_age_minutes")
+    )
+    return max(1, int(round(float(raw_minutes) * 60.0)))
+
+
+def load_runtime(config: Mapping[str, Any], path: Path = STATE_PATH) -> dict[str, Any]:
+    state = _load(path)
+    if isinstance(state, dict) and state.get("schema_version") == "stock-trading-v2-production-state-v1":
+        state.setdefault("healthy_market_sessions", [])
+        state.setdefault("audit", [])
+        state.setdefault("phase", str(config.get("initial_phase") or "CANARY").upper())
+        return state
+    return {
+        "schema_version": "stock-trading-v2-production-state-v1",
+        "champion_engine": "v2",
+        "challenger_engine": "v1",
+        "phase": str(config.get("initial_phase") or "CANARY").upper(),
+        "healthy_market_sessions": [],
+        "promoted_to_full_at": None,
+        "last_run_at": None,
+        "audit": [],
+    }
+
+
+def candidate_frontier(opportunity: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """Return every eligible candidate, best utility first, with rank-1 included."""
+    rows: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    decision_candidate = ((opportunity.get("decision") or {}).get("candidate") or {})
+    raw = []
+    if isinstance(decision_candidate, Mapping):
+        raw.append(dict(decision_candidate))
+    raw.extend(dict(row) for row in (opportunity.get("evaluated_candidates") or []) if isinstance(row, Mapping))
+    for row in raw:
+        symbol = str(row.get("market_data_symbol") or row.get("symbol") or "").upper()
+        if not symbol or symbol in seen or row.get("eligible") is not True:
+            continue
+        seen.add(symbol)
+        rows.append(row)
+    rows.sort(key=lambda row: (_float(row.get("utility")) or -1e9, -int(row.get("deep_rank") or 999999)), reverse=True)
+    return rows
+
+
+def _opportunity_age_minutes(opportunity: Mapping[str, Any], now_utc: datetime) -> float | None:
+    generated = _parse_iso(opportunity.get("generated_at"))
+    if generated is None:
+        return None
+    return max(0.0, (now_utc - generated).total_seconds() / 60.0)
+
+
+def _preflight_candidate(
+    market: str,
+    candidate: Mapping[str, Any],
+    *,
+    config: Mapping[str, Any],
+    now_utc: datetime,
+    quote_fetcher: Callable[..., dict[str, Any]],
+    production_policy: Mapping[str, Any] | None = None,
+) -> tuple[dict[str, Any] | None, str, dict[str, Any] | None]:
+    plan = candidate.get("research_risk_plan") or {}
+    risk = _float(plan.get("risk_percent"))
+    rr = _float(plan.get("reward_risk"))
+    if risk is None or risk <= 0 or risk > float(config["maximum_risk_percent"]):
+        return None, "research_risk_invalid", None
+    if rr is None or rr < float(config["minimum_reward_risk"]):
+        return None, "research_reward_risk_invalid", None
+    symbol = str(candidate.get("market_data_symbol") or candidate.get("symbol") or "").upper()
+    if not symbol:
+        return None, "symbol_missing", None
+    max_age_seconds = _execution_quote_max_age_seconds(market, config)
+    try:
+        quote = quote_fetcher(
+            symbol,
+            market,
+            now_utc=now_utc,
+            maximum_age_seconds=max_age_seconds,
+        )
+    except quotes.ExecutionQuoteUnavailable as exc:
+        return None, "execution_quote_waiting_fresh", {
+            "provider_candidates": list(exc.diagnostics),
+            "execution_quote_error": str(exc),
+        }
+    except Exception as exc:
+        return None, f"quote_error:{type(exc).__name__}", None
+    if config.get("require_regular_session_for_new_entry") is True and quote.get("market_state") != "REGULAR":
+        return None, f"market_not_regular:{quote.get('market_state')}", quote
+    capture_age = _float(quote.get("capture_age_seconds"))
+    max_age = float(max_age_seconds)
+    if capture_age is not None and capture_age > max_age:
+        return None, "execution_quote_stale", quote
+    entry = _float(quote.get("price"))
+    if entry is None or entry <= 0:
+        return None, "execution_price_invalid", quote
+    market_policy = ((production_policy or {}).get("markets") or {}).get(market) or {}
+    refresh = market_policy.get("analysis_refresh") or {}
+    reference = _float(plan.get("reference_price"))
+    if refresh.get("enabled") is True:
+        maximum_units = _float(refresh.get("maximum_reference_deviation_risk_units"))
+        if reference is None or reference <= 0 or maximum_units is None or maximum_units <= 0:
+            return None, "analysis_refresh_contract_missing", quote
+        deviation_units = abs(entry / reference - 1.0) / risk
+        if deviation_units > maximum_units:
+            return None, "analysis_refresh_required_price_changed", {
+                **quote, "analysis_reference_price": reference,
+                "analysis_deviation_risk_units": round(deviation_units, 8),
+            }
+    stop = entry * (1.0 - risk)
+    target = entry + (entry - stop) * rr
+    if not portfolio.valid_long_risk(entry, stop, target, max_risk_percent=float(config["maximum_risk_percent"])):
+        return None, "fresh_risk_geometry_invalid", quote
+    selection = {
+        "symbol": symbol,
+        "ticker": candidate.get("symbol") or symbol,
+        "name": candidate.get("name") or candidate.get("symbol") or symbol,
+        "sector": candidate.get("sector"),
+        "sector_provenance": deepcopy(candidate.get("sector_provenance") or {}),
+        "score": round(_float(candidate.get("utility")) or 0.0, 6),
+        "research_reference_price": _float(plan.get("reference_price")),
+        "execution_price": round(entry, 8),
+        "reference_price": round(entry, 8),
+        "stop": round(stop, 8),
+        "target": round(target, 8),
+        "risk_percent": round(risk, 6),
+        "reward_risk": round(rr, 6),
+        "selection_mode": "V2_PRODUCTION_REVALIDATED",
+        "holding_policy": "OPEN_ENDED_MODEL_CONTROLLED",
+        "valid_until": None,
+        "time_stop": None,
+        "early_exit": "Canonical model-controlled SL/TP and thesis invalidation.",
+        "v2_deep_rank": candidate.get("deep_rank"),
+        "v2_utility": candidate.get("utility"),
+        "v2_evidence_status": candidate.get("evidence_status"),
+        "market_snapshot": {
+            "provider": quote.get("provider"),
+            "symbol": symbol,
+            "date": now_utc.astimezone(portfolio.MARKET_TZ[market]).date().isoformat(),
+            "observed_at": quote.get("observed_at") or quote.get("received_at"),
+            "last": round(entry, 8),
+            "status": quote.get("market_state"),
+            "capture_age_seconds": quote.get("capture_age_seconds"),
+            "delay_status": quote.get("delay_status"),
+            "is_realtime": quote.get("is_realtime"),
+            "execution_quote_policy": quote.get("execution_quote_policy"),
+            "execution_mode": quote.get("execution_mode"),
+        },
+        "execution_quote": {
+            "provider": quote.get("provider"),
+            "observed_at": quote.get("observed_at"),
+            "received_at": quote.get("received_at"),
+            "capture_age_seconds": quote.get("capture_age_seconds"),
+            "delay_status": quote.get("delay_status"),
+            "delay_minutes": quote.get("delay_minutes"),
+            "execution_mode": quote.get("execution_mode"),
+        },
+    }
+    return selection, "execution_revalidated", quote
+
+
+def _candidate_payload(market: str, selection: Mapping[str, Any], opportunity: Mapping[str, Any], now_utc: datetime) -> dict[str, Any]:
+    return {
+        "schema_version": "stock-trading-v2-production-candidate-v1",
+        "policy_version": "stock-trading-v2-champion",
+        "date": now_utc.astimezone(portfolio.MARKET_TZ[market]).date().isoformat(),
+        "generated_at": opportunity.get("generated_at") or now_utc.isoformat(),
+        "decision": "TRANSAKCJA" if market == "GPW" else "TRADE",
+        "reason": "Prospectively revalidated Stock Trading v2 Champion paper opportunity.",
+        "selection": dict(selection),
+        "data_quality": {"status": "healthy", "source": "v2_opportunity_plus_execution_quote"},
+    }
+
+
+def _tag_opened_position(state: dict[str, Any], market: str, action: Mapping[str, Any], candidate: Mapping[str, Any], quote: Mapping[str, Any] | None, phase: str) -> None:
+    if action.get("action") != "open":
+        return
+    position_id = action.get("position_id")
+    row = portfolio.market_state(state, market)
+    for position in row.get("open_positions") or []:
+        if position.get("position_id") != position_id:
+            continue
+        position["source_engine"] = "stock_trading_v2"
+        position["champion_role"] = phase
+        position["v2_deep_rank"] = candidate.get("deep_rank")
+        position["v2_utility"] = candidate.get("utility")
+        position["v2_evidence_status"] = candidate.get("evidence_status")
+        position["entry_validation"] = dict(quote or {})
+        break
+
+
+def _market_session_key(market: str, now_utc: datetime) -> str:
+    return f"{market}:{now_utc.astimezone(portfolio.MARKET_TZ[market]).date().isoformat()}"
+
+
+
+def _reentry_evidence_by_symbol(
+    market: str, opportunity: Mapping[str, Any], evidence_path: Path | None
+) -> dict[str, dict[str, Any]]:
+    """Accept only evidence whose native content hash matches the opportunity."""
+    if evidence_path is None:
+        return {}
+    evidence = _load(evidence_path, {})
+    if not isinstance(evidence, Mapping) or evidence.get("market") != market:
+        return {}
+    expected_sha = str(opportunity.get("source_evidence_sha256") or "")
+    reported_sha = str(evidence.get("evidence_sha256") or "")
+    if not expected_sha or expected_sha != reported_sha:
+        return {}
+    if evidence.get("generated_at") != opportunity.get("source_evidence_generated_at"):
+        return {}
+    try:
+        from scripts import stock_trading_v2_contracts as contracts
+    except ModuleNotFoundError:
+        import stock_trading_v2_contracts as contracts
+    body = dict(evidence)
+    body.pop("evidence_sha256", None)
+    if contracts.payload_sha256(body) != reported_sha:
+        return {}
+    bound: dict[str, dict[str, Any]] = {}
+    for candidate in evidence.get("candidates") or []:
+        if not isinstance(candidate, Mapping):
+            continue
+        symbol = portfolio._reentry_symbol(candidate.get("market_data_symbol") or candidate.get("symbol"))
+        if not symbol or candidate.get("evidence_status") == "DATA_ERROR":
+            continue
+        items = candidate.get("evidence") or []
+        if isinstance(items, list):
+            bound[symbol] = {
+                "evidence": [dict(item) for item in items if isinstance(item, Mapping)],
+                "features": dict(candidate.get("features") or {}),
+            }
+    return bound
+
+
+def process_market(
+    canonical: dict[str, Any],
+    market: str,
+    opportunity: Mapping[str, Any],
+    *,
+    config: Mapping[str, Any],
+    runtime: dict[str, Any],
+    now_utc: datetime,
+    quote_fetcher: Callable[..., dict[str, Any]] = quotes.execution_quote_for_symbol,
+    reentry_evidence_by_symbol: Mapping[str, Mapping[str, Any]] | None = None,
+    production_policy: Mapping[str, Any] | None = None,
+    decision_clock: Callable[[], datetime] | None = None,
+    production_manifest: Mapping[str, Any] | None = None,
+    decision_observer: Callable[[str, str, datetime], None] | None = None,
+    reentry_feature_fetcher: Callable[..., Any] | None = None,
+) -> tuple[dict[str, Any], list[dict[str, Any]], bool]:
+    market = market.upper()
+    audits: list[dict[str, Any]] = []
+    age = _opportunity_age_minutes(opportunity, now_utc)
+    if age is None:
+        return canonical, [{"market": market, "action": "skip", "reason": "opportunity_timestamp_missing"}], False
+    if age > float(config["maximum_opportunity_age_minutes"]):
+        return canonical, [{"market": market, "action": "skip", "reason": "opportunity_stale", "age_minutes": round(age, 2)}], False
+    research_action = str((opportunity.get("decision") or {}).get("action") or "").upper()
+    if research_action not in {"BUY", "CASH", "HOLD", "REPLACE"}:
+        return canonical, [{"market": market, "action": "skip", "reason": "unsupported_research_action"}], False
+
+    phase = str(runtime.get("phase") or "CANARY").upper()
+    phase_cap = int(config["canary_max_open_positions_per_market"] if phase == "CANARY" else config["full_max_open_positions_per_market"])
+    current_count = len(portfolio.open_positions(canonical, market))
+    if current_count >= phase_cap:
+        return canonical, [{"market": market, "action": "hold_capacity", "phase": phase, "open_positions": current_count}], True
+
+    production_policy = dict(production_policy) if production_policy is not None else portfolio.load_policy()
+    frontier = candidate_frontier(opportunity)
+    if not frontier:
+        return canonical, [{"market": market, "action": "cash", "reason": "eligible_frontier_empty"}], True
+
+    healthy = False
+    cash = opportunity.get("cash") or {}
+    cash_utility = _float(production_policy.get("cash_utility"))
+    market_policy = (production_policy.get("markets") or {}).get(market) or {}
+    edge = _float(market_policy.get("minimum_cash_edge_points"))
+    if cash_utility is None:
+        cash_utility = _float(cash.get("utility"))
+    if edge is None:
+        edge = _float(cash.get("minimum_new_position_edge_points"))
+    minimum_utility = (cash_utility if cash_utility is not None else 50.0) + (edge if edge is not None else 5.0)
+    opened_this_cycle = 0
+    max_new_this_cycle = 1 if phase == "CANARY" else int(config.get("full_cycle_max_new_positions_per_market") or 3)
+
+    for candidate in frontier:
+        if len(portfolio.open_positions(canonical, market)) >= phase_cap or opened_this_cycle >= max_new_this_cycle:
+            break
+        candidate_utility = _float(candidate.get("utility"))
+        symbol = candidate.get("market_data_symbol") or candidate.get("symbol")
+        if candidate_utility is None or candidate_utility < minimum_utility:
+            if decision_observer is not None:
+                rejected_at = decision_clock() if decision_clock is not None else now_utc
+                decision_observer(str(symbol), market, rejected_at)
+            audits.append({
+                "market": market,
+                "symbol": symbol,
+                "action": "reject_continue",
+                "reason": "candidate_does_not_beat_cash_edge",
+                "utility": candidate_utility,
+                "minimum_utility": round(minimum_utility, 6),
+            })
+            continue
+        selection, reason, quote = _preflight_candidate(
+            market,
+            candidate,
+            config=config,
+            now_utc=now_utc,
+            quote_fetcher=quote_fetcher,
+            production_policy=production_policy,
+        )
+        if selection is None:
+            if quote is not None and decision_observer is not None:
+                rejected_at = decision_clock() if decision_clock is not None else now_utc
+                decision_observer(str(symbol), market, rejected_at)
+            if reason == "execution_quote_waiting_fresh":
+                plan = candidate.get("research_risk_plan") or {}
+                audits.append({
+                    "market": market,
+                    "symbol": symbol,
+                    "ticker": candidate.get("symbol") or symbol,
+                    "name": candidate.get("name") or candidate.get("symbol") or symbol,
+                    "action": "ready_waiting_fresh_quote",
+                    "reason": reason,
+                    "deep_rank": candidate.get("deep_rank"),
+                    "utility": candidate_utility,
+                    "risk_percent": _float(plan.get("risk_percent")),
+                    "reward_risk": _float(plan.get("reward_risk")),
+                    "opportunity_generated_at": opportunity.get("generated_at"),
+                    "quote_diagnostics": (quote or {}).get("provider_candidates") or [],
+                })
+            else:
+                audits.append({"market": market, "symbol": symbol, "action": "reject_continue", "reason": reason})
+            continue
+        healthy = True
+        selection["reentry_atr_fraction"] = (candidate.get("research_risk_plan") or {}).get("atr_fraction")
+        ticker_key = portfolio._reentry_symbol(symbol)
+        evidence_bundle = (reentry_evidence_by_symbol or {}).get(ticker_key) or {}
+        if evidence_bundle:
+            selection["reentry_evidence_verified"] = True
+            selection["reentry_evidence"] = evidence_bundle.get("evidence") or []
+        stop = reentry_learning.recent_stop(canonical, market, symbol, now_utc)
+        if stop is not None and evidence_bundle:
+            risk_plan = candidate.get("research_risk_plan") or {}
+            market_features = evidence_bundle.get("features") or {}
+            # Candles are fetched only for candidates with a recent stop-loss.
+            learned_features = (reentry_feature_fetcher or reentry_learning.quote_features)(
+                market, symbol, stop, float(selection["execution_price"]),
+                str((quote or {}).get("observed_at") or ""),
+                risk_plan.get("atr_fraction"), market_features.get("volume_ratio_20d"),
+            )
+            if learned_features is not None:
+                selection["reentry_research_features_verified"] = True
+                selection["reentry_research_features"] = learned_features
+        decision_now = (decision_clock() if decision_clock is not None else now_utc).astimezone(UTC)
+        if decision_observer is not None:
+            decision_observer(str(symbol), market, decision_now)
+        payload = _candidate_payload(market, selection, opportunity, decision_now)
+        canonical, action = portfolio.admit_candidate(
+            canonical,
+            market,
+            payload,
+            now=decision_now.astimezone(portfolio.MARKET_TZ[market]),
+            policy=production_policy,
+            authority="v2_production_bridge",
+        )
+        action = {**action, "source_engine": "v2", "phase": phase, "deep_rank": candidate.get("deep_rank"), "utility": candidate.get("utility")}
+        if action.get("action") == "open":
+            # The production-state audit is itself scanned by the NO RETROACTIVE
+            # EXECUTION airlock.  Every newly recorded open event therefore needs
+            # explicit execution provenance, not only the canonical position.
+            opened_at = decision_now.astimezone(portfolio.MARKET_TZ[market]).isoformat()
+            position_id = action.get("position_id")
+            for position in portfolio.open_positions(canonical, market):
+                if position.get("position_id") == position_id and position.get("opened_at"):
+                    opened_at = str(position["opened_at"])
+                    break
+            action["opened_at"] = opened_at
+            action["entry_decision_at"] = opened_at
+            action["execution_provenance"] = {
+                "source": "stock_trading_v2_production_bridge",
+                "quote_observed_at": (quote or {}).get("observed_at"),
+                "quote_received_at": (quote or {}).get("received_at"),
+                "recorded_at": decision_now.isoformat().replace("+00:00", "Z"),
+            }
+        audits.append(action)
+        _tag_opened_position(canonical, market, action, candidate, quote, phase)
+        if action.get("action") == "open":
+            for position in portfolio.market_state(canonical, market).get("open_positions") or []:
+                if position.get("position_id") == action.get("position_id"):
+                    position["source_opportunity_sha256"] = opportunity.get("opportunity_sha256")
+                    position["source_evidence_sha256"] = opportunity.get("source_evidence_sha256")
+                    position["entry_policy_sha256"] = provenance.payload_hash(production_policy)
+                    position["entry_cash_utility"] = cash_utility
+                    position["entry_minimum_cash_edge_points"] = edge
+                    position["entry_manifest"] = deepcopy(dict(production_manifest or {}))
+                    break
+        if action.get("action") == "open":
+            opened_this_cycle += 1
+        # A rejection here is not terminal.  Keep searching the ranked frontier.
+        if action.get("action") in {"cash", "candidate_already_reviewed", "hold_existing_symbol"}:
+            continue
+    return canonical, audits, healthy
+
+
+def maybe_promote(runtime: dict[str, Any], config: Mapping[str, Any], healthy_sessions: list[str], now_utc: datetime) -> None:
+    runtime["healthy_market_sessions"] = sorted(set(healthy_sessions))
+    counts = {"GPW": 0, "US": 0}
+    for item in runtime["healthy_market_sessions"]:
+        if ":" not in item:
+            continue
+        market = item.split(":", 1)[0]
+        if market in counts:
+            counts[market] += 1
+    runtime["canary_health_counts"] = counts
+    if str(runtime.get("phase") or "").upper() != "CANARY" or config.get("auto_promote_canary") is not True:
+        return
+
+    required_each = int(config.get("healthy_sessions_per_market_required") or 1)
+    if config.get("require_both_markets_before_full") is True:
+        if not all(counts[market] >= required_each for market in ("GPW", "US")):
+            return
+    else:
+        if sum(counts.values()) < required_each:
+            return
+
+    runtime["phase"] = "FULL"
+    runtime["promoted_to_full_at"] = now_utc.isoformat().replace("+00:00", "Z")
+
+
+def _attach_audit_provenance(
+    action: Mapping[str, Any],
+    *,
+    now_utc: datetime,
+    phase: str | None,
+    index: int = 0,
+) -> dict[str, Any]:
+    raw_action = dict(action)
+    action_type = str(raw_action.get("action") or "artifact")
+    position_id = raw_action.get("position_id")
+    artifact_id = (
+        f"stock-trading-v2:{action_type}:{position_id}"
+        if position_id
+        else f"stock-trading-v2:{action_type}:{provenance.payload_hash(raw_action)[:24]}"
+    )
+    execution = raw_action.get("execution_provenance") if isinstance(raw_action.get("execution_provenance"), Mapping) else {}
+    return provenance.attach_native(
+        raw_action,
+        artifact_id=artifact_id,
+        artifact_type=f"stock_{action_type}",
+        engine_id="stock_trading_v2",
+        engine_version="v2",
+        created_at=str(
+            raw_action.get("opened_at")
+            or raw_action.get("entry_decision_at")
+            or now_utc.isoformat().replace("+00:00", "Z")
+        ),
+        authority="execution" if action_type in {"open", "close"} else "decision",
+        source_ids=[
+            str(value)
+            for value in (raw_action.get("source_engine"), execution.get("source"))
+            if value
+        ],
+        decision_id=str(position_id) if position_id else artifact_id,
+        prospective=True,
+        domain_provenance={
+            "market": raw_action.get("market"),
+            "phase": raw_action.get("phase") or phase,
+            "native_write_time": True,
+            "legacy_execution_provenance_preserved": bool(execution),
+            "audit_index": index,
+        },
+    )
+
+
+def _capture_benchmarks(now_utc: datetime) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Read observed market benchmarks and provider session-close receipts."""
+    benchmarks: dict[str, Any] = {}
+    sessions: dict[str, Any] = {}
+    for market, symbol in (("GPW", "WIG20.WA"), ("US", "SPY")):
+        try:
+            quote = quotes.quote_for_symbol(symbol, market, now_utc=now_utc)
+        except Exception as exc:
+            benchmarks[market] = {"status": "UNAVAILABLE", "reason": type(exc).__name__}
+            continue
+        benchmarks[market] = {
+            "symbol": symbol, "price": quote.get("price"), "observed_at": quote.get("observed_at"),
+            "received_at": quote.get("received_at"), "provider": quote.get("provider"),
+            "price_kind": quote.get("price_kind"), "status": "OBSERVED",
+        }
+        regular = (quote.get("session_periods") or {}).get("REGULAR") or {}
+        start, end = _parse_iso(regular.get("start")), _parse_iso(regular.get("end"))
+        if start is not None and end is not None:
+            local_date = start.astimezone(portfolio.MARKET_TZ[market]).date().isoformat()
+            sessions[market] = {
+                "date": local_date, "regular_start": start.isoformat(), "regular_end": end.isoformat(),
+                "state": quote.get("market_state"), "provider": quote.get("provider"),
+                "received_at": quote.get("received_at"), "source": quote.get("state_source"),
+                "closed": end <= now_utc and quote.get("market_state") in {"POST", "CLOSED"},
+            }
+    return benchmarks, sessions
+
+
+def run(opportunity_paths: Mapping[str, Path], *, now_utc: datetime | None = None, evidence_paths: Mapping[str, Path] | None = None, capture_root: Path | None = None) -> dict[str, Any]:
+    real_clock = now_utc is None
+    now_utc = (now_utc or datetime.now(UTC)).astimezone(UTC)
+    config = load_config()
+    runtime = load_runtime(config)
+    production_policy = portfolio.load_policy()
+    canonical = portfolio.load_state(PORTFOLIO_PATH, now=now_utc, policy=production_policy)
+    before_state = deepcopy(canonical)
+    before_runtime = deepcopy(runtime)
+    manifest = _load(ROOT / "data/investments/stock_trading_champion_manifest.json", {})
+    input_opportunities: dict[str, Any] = {}
+    input_quotes: dict[str, dict[str, Any]] = {}
+    reentry_inputs: dict[str, Any] = {"evidence": {}, "features": {}}
+    quote_errors: dict[str, list[dict[str, Any]]] = {}
+    evaluated_quotes: set[tuple[str, str]] = set()
+    def captured_quote(symbol: str, market: str, **kwargs: Any) -> dict[str, Any]:
+        cache = input_quotes.setdefault(market, {})
+        if symbol not in cache:
+            kwargs["now_utc"] = datetime.now(UTC) if real_clock else now_utc
+            cache[symbol] = quotes.execution_quote_for_symbol(symbol, market, **kwargs)
+            if real_clock:
+                received_at = datetime.now(UTC)
+                cache[symbol]["received_at"] = received_at.isoformat()
+                observed = _parse_iso(cache[symbol].get("observed_at"))
+                if observed is not None:
+                    cache[symbol]["capture_age_seconds"] = (received_at - observed).total_seconds()
+            cache[symbol].setdefault("decision_at", cache[symbol].get("received_at") or now_utc.isoformat())
+        return deepcopy(cache[symbol])
+    def capture_reentry_features(market: str, symbol: str, *args: Any, **kwargs: Any) -> Any:
+        result = reentry_learning.quote_features(market, symbol, *args, **kwargs)
+        reentry_inputs["features"].setdefault(market, {})[symbol] = deepcopy(result)
+        return result
+    def capture_decision(symbol: str, market: str, decision_at: datetime) -> None:
+        if symbol in input_quotes.get(market, {}):
+            input_quotes[market][symbol]["decision_at"] = decision_at.isoformat()
+            input_quotes[market][symbol]["decision_basis"] = "PRODUCTION_EVALUATION"
+            evaluated_quotes.add((market, symbol))
+    all_audits: list[dict[str, Any]] = []
+    healthy_sessions = list(runtime.get("healthy_market_sessions") or [])
+
+    for market in ("GPW", "US"):
+        path = opportunity_paths.get(market)
+        opportunity = _load(path, {}) if path else {}
+        if not isinstance(opportunity, Mapping) or not opportunity:
+            all_audits.append({"market": market, "action": "skip", "reason": "opportunity_file_missing"})
+            continue
+        input_opportunities[market] = deepcopy(dict(opportunity))
+        # Observe the one-point neighbourhood prospectively. Rejected quotes
+        # have no execution authority; they permit an honest later CASH test.
+        market_policy = (production_policy.get("markets") or {}).get(market) or {}
+        threshold = float(production_policy.get("cash_utility", 50)) + float(market_policy.get("minimum_cash_edge_points", 5)) - 1.0
+        for candidate in candidate_frontier(opportunity):
+            if (_float(candidate.get("utility")) or 0.0) < threshold:
+                continue
+            symbol = str(candidate.get("market_data_symbol") or candidate.get("symbol") or "")
+            try:
+                captured_quote(symbol, market, maximum_age_seconds=_execution_quote_max_age_seconds(market, config))
+                if threshold <= (_float(candidate.get("utility")) or 0.0) < threshold + 2.0:
+                    from scripts import stock_trading_v2_production_replay as replay
+                    replay.register_replay_watch(
+                        market=market, symbol=symbol,
+                        decision_at=input_quotes[market][symbol]["decision_at"],
+                    )
+            except Exception as exc:
+                quote_errors.setdefault(market, []).append({"symbol": symbol, "reason": type(exc).__name__})
+        reentry_evidence = _reentry_evidence_by_symbol(market, opportunity, (evidence_paths or {}).get(market))
+        reentry_inputs["evidence"][market] = deepcopy(reentry_evidence)
+        canonical, audits, healthy = process_market(
+            canonical,
+            market,
+            opportunity,
+            config=config,
+            runtime=runtime,
+            now_utc=now_utc,
+            quote_fetcher=captured_quote,
+            production_policy=production_policy,
+            production_manifest=manifest,
+            decision_observer=capture_decision,
+            decision_clock=(lambda: datetime.now(UTC)) if real_clock else None,
+            reentry_evidence_by_symbol=reentry_evidence,
+            reentry_feature_fetcher=capture_reentry_features,
+        )
+        all_audits.extend(audits)
+        finalized_at = datetime.now(UTC) if real_clock else now_utc
+        for symbol, quote in input_quotes.get(market, {}).items():
+            # Capacity can stop the real frontier before a counterfactual
+            # symbol is evaluated. Its final prospective collection receipt is
+            # a simulation input, never a claim of a real production decision.
+            if (market, symbol) not in evaluated_quotes:
+                quote["decision_at"] = finalized_at.isoformat()
+                quote["decision_basis"] = "COUNTERFACTUAL_COLLECTION_RECEIPT"
+        if healthy:
+            healthy_sessions.append(_market_session_key(market, now_utc))
+
+    all_audits = [
+        _attach_audit_provenance(
+            action,
+            now_utc=now_utc,
+            phase=str(runtime.get("phase") or ""),
+            index=index,
+        )
+        for index, action in enumerate(all_audits)
+    ]
+
+    maybe_promote(runtime, config, healthy_sessions, now_utc)
+    verified = portfolio.verify_state(canonical, production_policy)
+    if verified["status"] != "OK":
+        raise RuntimeError("canonical portfolio invariant violation: " + "; ".join(verified["errors"]))
+    portfolio.save_state(canonical, PORTFOLIO_PATH, now=now_utc)
+    runtime["last_run_at"] = now_utc.isoformat().replace("+00:00", "Z")
+    runtime["audit"] = (list(runtime.get("audit") or []) + [{"run_at": runtime["last_run_at"], "phase": runtime["phase"], "actions": all_audits}])[-100:]
+    _atomic(STATE_PATH, runtime)
+    from scripts import stock_trading_v2_production_replay as replay
+    captured_at = datetime.now(UTC) if real_clock else now_utc
+    benchmarks, sessions = _capture_benchmarks(captured_at)
+    captured_at = datetime.now(UTC) if real_clock else now_utc
+    frame = replay.capture_frame(
+        capture_root or replay.DEFAULT_FRAME_ROOT,
+        kind="ADMISSION", observed_at=captured_at.isoformat(), policy=production_policy,
+        initial_state=before_state, opportunities=input_opportunities, quotes=input_quotes,
+        bridge_config=config, runtime=before_runtime, manifest=manifest, benchmark=benchmarks,
+        market_sessions=sessions,
+        reentry_inputs=reentry_inputs,
+        decision_started_at=now_utc,
+    )
+    # Supplemental receipt belongs to the frozen frame, never a synthetic
+    # exchange calendar or a historical fill. capture_frame owns hashing.
+    return {"champion": "v2", "phase": runtime["phase"], "actions": all_audits,
+            "replay_frame": frame.get("frame_id"), "quote_observation_errors": quote_errors,
+            "market_session_receipts": sessions, **verified}
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--gpw-opportunity", type=Path)
+    parser.add_argument("--us-opportunity", type=Path)
+    parser.add_argument("--gpw-evidence", type=Path)
+    parser.add_argument("--us-evidence", type=Path)
+    parser.add_argument("--verify", action="store_true")
+    args = parser.parse_args()
+    if args.verify:
+        cfg = load_config()
+        state = load_runtime(cfg)
+        print(json.dumps({"status": "OK", "champion": "v2", "phase": state.get("phase")}, ensure_ascii=False))
+        return 0
+    result = run({"GPW": args.gpw_opportunity, "US": args.us_opportunity}, evidence_paths={"GPW": args.gpw_evidence, "US": args.us_evidence})
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

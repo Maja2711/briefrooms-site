@@ -1,6 +1,9 @@
 name: Stock Trading v2 Continuous Discovery
 
 on:
+  workflow_run:
+    workflows: ["Stock Trading v2 Production Champion"]
+    types: [completed]
   workflow_dispatch:
     inputs:
       market:
@@ -37,11 +40,25 @@ permissions:
   actions: write
 
 concurrency:
-  group: stock-trading-v2-continuous-discovery
-  cancel-in-progress: true
+  group: stock-trading-v2-research-writer
+  cancel-in-progress: false
 
 jobs:
+  validate_push:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate changed research code without collecting or dispatching
+        run: python -B -m unittest tests.test_stock_trading_v2_opportunity_engine tests.test_stock_trading_v2_opportunity_experience
+
   discover:
+    if: github.event_name != 'workflow_run' && github.event_name != 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
@@ -120,11 +137,26 @@ jobs:
           if git cat-file -e "origin/main:data/investments/stock_trading_policy.json" 2>/dev/null; then
             git show "origin/main:data/investments/stock_trading_policy.json" > /tmp/stock-trading-v2-production-policy.json
           fi
+          git show origin/main:data/investments/stock_trading_champion_manifest.json > /tmp/stock-trading-v2-production-manifest.json
+          git show origin/main:data/investments/stock_trading_v2_production_config.json > /tmp/stock-trading-v2-production-bridge-config.json
+          if git cat-file -e origin/main:data/investments/stock_trading_component_trials.json 2>/dev/null; then
+            git show origin/main:data/investments/stock_trading_component_trials.json > /tmp/stock-trading-v2-trial-receipts.json
+          else
+            printf '{"schema_version":"stock-trading-component-trials-v1","trials":{}}\n' > /tmp/stock-trading-v2-trial-receipts.json
+          fi
           if git cat-file -e "origin/main:data/investments/event_intelligence.json" 2>/dev/null; then
             git show "origin/main:data/investments/event_intelligence.json" > /tmp/briefrooms-event-intelligence.json
           else
             printf '{"events":[]}\n' > /tmp/briefrooms-event-intelligence.json
           fi
+
+          mkdir -p /tmp/stock-trading-v2-native-inputs
+          if git cat-file -e origin/main:data/investments/stock_trading_v2_production_replay_frames 2>/dev/null; then
+            git archive origin/main data/investments/stock_trading_v2_production_replay_frames | tar -x -C /tmp/stock-trading-v2-native-inputs
+          fi
+
+      - name: Activate prospective admission epoch before collecting decisions
+        run: python scripts/stock_trading_v2_admission_ledger.py --policy /tmp/stock-trading-v2-production-policy.json --activate-epoch
 
       - name: US broad stage-zero Opportunity Frontier Deep Evidence and portfolio comparison
         if: steps.market_window.outputs.us == 'true'
@@ -160,6 +192,9 @@ jobs:
             --market US \
             --evidence data/investments/stock_trading_v2_evidence/us.json \
             --portfolio /tmp/stock-trading-v2-production-portfolio.json \
+            --policy-snapshot /tmp/stock-trading-v2-production-policy.json \
+            --manifest-snapshot /tmp/stock-trading-v2-production-manifest.json \
+            --bridge-config-snapshot /tmp/stock-trading-v2-production-bridge-config.json \
             --output data/investments/stock_trading_v2_opportunity/us.json
           python scripts/stock_trading_v2_opportunity_experience.py \
             --market US \
@@ -181,6 +216,9 @@ jobs:
             --market GPW \
             --evidence data/investments/stock_trading_v2_evidence/gpw.json \
             --portfolio /tmp/stock-trading-v2-production-portfolio.json \
+            --policy-snapshot /tmp/stock-trading-v2-production-policy.json \
+            --manifest-snapshot /tmp/stock-trading-v2-production-manifest.json \
+            --bridge-config-snapshot /tmp/stock-trading-v2-production-bridge-config.json \
             --output data/investments/stock_trading_v2_opportunity/gpw.json
           python scripts/stock_trading_v2_opportunity_experience.py \
             --market GPW \
@@ -195,6 +233,18 @@ jobs:
           else
             python scripts/stock_trading_v2_admission_ledger.py
           fi
+
+      - name: Freeze registered experiment members before any outcome settlement
+        run: |
+          python scripts/stock_trading_v2_exact_challenger_eval.py \
+            --challengers data/investments/stock_trading_v2_challengers \
+            --experience-root data/investments/stock_trading_v2_experience \
+            --admission-root data/investments/stock_trading_v2_admission \
+            --outcome-root data/investments/stock_trading_v2_outcomes \
+            --output-root data/investments/stock_trading_v2_challenger_evaluations \
+            --trial-receipts /tmp/stock-trading-v2-trial-receipts.json \
+            --replay-frame-root /tmp/stock-trading-v2-native-inputs/data/investments/stock_trading_v2_production_replay_frames \
+            --freeze-cohorts-only
 
       - name: Validate generated frontiers evidence opportunity decisions and immutable stores
         env:
@@ -267,17 +317,22 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
+          for path in \
             data/investments/stock_trading_v2_frontier \
             data/investments/stock_trading_v2_evidence \
             data/investments/stock_trading_v2_opportunity \
             data/investments/stock_trading_v2_experience \
             data/investments/stock_trading_v2_admission \
+            data/investments/stock_trading_v2_admission_epochs \
+            data/investments/stock_trading_v2_admission_retrospective \
+            data/investments/stock_trading_v2_challenger_evaluations \
+            data/investments/stock_trading_v2_challengers \
             data/investments/market_relationship_trigger \
             data/investments/market_relationship_trigger_history \
             data/investments/market_relationship_deep_belief \
-            data/investments/market_relationship_deep_belief_history \
-            2>/dev/null || true
+            data/investments/market_relationship_deep_belief_history; do
+              [[ ! -e "$path" ]] || git add -- "$path"
+          done
           if git diff --cached --quiet; then
             echo "No shadow opportunity changes to commit."
             exit 0
@@ -296,7 +351,7 @@ jobs:
 
 
       - name: Hand off fresh opportunity directly to Production Champion
-        if: steps.market_window.outputs.gpw == 'true' || steps.market_window.outputs.us == 'true'
+        if: github.event_name != 'push' && (steps.market_window.outputs.gpw == 'true' || steps.market_window.outputs.us == 'true')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -308,3 +363,52 @@ jobs:
           fi
           echo "Dispatching Production Champion after successful Stock Trading v2 discovery."
           gh workflow run stock-trading-v2-production.yml --ref main
+
+  freeze_native_cohorts:
+    # A production input receipt can enroll promptly without another live scan
+    # or another dispatch back to production. This job writes research only.
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event != 'push' && github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: stock-trading-v2
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Read main trial registrations and native input data only
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git show origin/main:data/investments/stock_trading_component_trials.json > /tmp/stock-trading-trials.json
+          mkdir -p /tmp/stock-trading-native
+          if git cat-file -e origin/main:data/investments/stock_trading_v2_production_replay_frames 2>/dev/null; then
+            git archive origin/main data/investments/stock_trading_v2_production_replay_frames | tar -x -C /tmp/stock-trading-native
+          fi
+      - name: Freeze first eligible native-observed members without evaluating results
+        run: |
+          python scripts/stock_trading_v2_exact_challenger_eval.py \
+            --challengers data/investments/stock_trading_v2_challengers \
+            --experience-root data/investments/stock_trading_v2_experience \
+            --admission-root data/investments/stock_trading_v2_admission \
+            --outcome-root data/investments/stock_trading_v2_outcomes \
+            --output-root data/investments/stock_trading_v2_challenger_evaluations \
+            --trial-receipts /tmp/stock-trading-trials.json \
+            --replay-frame-root /tmp/stock-trading-native/data/investments/stock_trading_v2_production_replay_frames \
+            --freeze-cohorts-only
+      - name: Persist only immutable cohort evidence on the research branch
+        run: |
+          set -euo pipefail
+          path=data/investments/stock_trading_v2_challenger_evaluations/.cohorts
+          [[ -d "$path" ]] || exit 0
+          git add -- "$path"
+          git diff --cached --quiet && exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Stock Trading: freeze native-observed prospective cohorts"
+          git pull --rebase origin stock-trading-v2
+          git push origin HEAD:stock-trading-v2

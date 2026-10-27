@@ -11,6 +11,7 @@ import json
 import math
 import statistics
 import tempfile
+import hashlib
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -103,12 +104,19 @@ def candidate_metrics(candidate: Mapping[str, Any], samples: list[Mapping[str, A
 
 
 def make_challenger(candidate: Mapping[str, Any], tournament_sha: str, promotion_config: Mapping[str, Any], *, start_at: str) -> dict[str, Any]:
+    cash_code = {
+        name: hashlib.sha256((ROOT / "scripts" / name).read_bytes()).hexdigest()
+        for name in exact.CASH_FINGERPRINT_FILES
+        if (ROOT / "scripts" / name).exists()
+    } if (candidate.get("replay_contract") or {}).get("adapter") == "cash_edge_v2" else {}
     identity = {
         "deployment_sha256": candidate["deployment_sha256"],
         "base_manifest_revision": candidate["base_manifest_revision"],
         "base_component_version": candidate["base_component_version"],
         "horizon_sessions": candidate["horizon_sessions"],
     }
+    if cash_code:
+        identity["code_fingerprints"] = cash_code
     challenger_id = "stchallv2-exact-" + contracts.payload_sha256(identity)[:20]
     payload: dict[str, Any] = {
         "schema_version": learner.SCHEMA_VERSION,
@@ -163,13 +171,45 @@ def make_challenger(candidate: Mapping[str, Any], tournament_sha: str, promotion
             "tournament_is_discovery_only": True,
         },
     }
+    if (candidate.get("replay_contract") or {}).get("adapter") == "cash_edge_v2":
+        payload["champion"].update({
+            "policy_sha256": candidate["champion_policy_sha256"],
+            "policy_snapshot": candidate["champion_policy_snapshot"],
+            "manifest_snapshot": candidate["champion_manifest_snapshot"],
+        })
+        payload["protocol"] = {
+            "schema_version": "stock-trading-cash-edge-protocol-v1",
+            "fixed_paired_n": max(30, int(promotion_config.get("fixed_paired_n") or 30)),
+            "maximum_censored": 0,
+            "membership": "chronological_eligible_episode_before_outcome",
+            "outcome_missing": "WAIT_THEN_TERMINAL_CENSOR_NO_REPLACEMENT",
+            "enrollment_deadline_hours": 24,
+            "outcome_deadline_days": 180,
+            "block_hours": 168,
+            "horizon_sessions": int(candidate["horizon_sessions"]),
+            "session_horizon_rule": "first_sourced_regular_closes_after_decision",
+            "family_id": "stock-trading-v2-cash-edge-lifetime-v1",
+            "lifetime_max_tests": 24,
+            "family_alpha": 0.05,
+            "alpha": 0.05 / 24,
+            "bootstrap_draws": 20000,
+            "min_unique_symbols": 5,
+            "min_span_days": 10,
+            "max_single_positive_share": 0.5,
+            "max_drawdown_increase_pct": 0.0,
+            "min_mean_incremental_pct": 0.0,
+            "single_formal_look": True,
+            "execution_semantics": "production_lifecycle_v1",
+        }
+        payload["protocol_sha256"] = contracts.payload_sha256(payload["protocol"])
+        payload["code_fingerprints"] = cash_code
     body = dict(payload)
     payload["challenger_sha256"] = contracts.payload_sha256(body)
     learner.validate_challenger(payload)
     return payload
 
 
-def run(*, candidate_root: Path, experience_root: Path, admission_root: Path, outcome_root: Path, promotion_config_path: Path, challenger_root: Path, tournament_root: Path = TOURNAMENT_ROOT) -> dict[str, Any]:
+def run(*, candidate_root: Path, experience_root: Path, admission_root: Path, outcome_root: Path, promotion_config_path: Path, challenger_root: Path, tournament_root: Path = TOURNAMENT_ROOT, replay_frame_root: Path | None = None) -> dict[str, Any]:
     events, admissions, outcomes = _iter(experience_root), _iter(admission_root), _iter(outcome_root)
     candidate_files = sorted(candidate_root.glob("*.json")) if candidate_root.exists() else []
     candidates: list[dict[str, Any]] = []
@@ -186,7 +226,10 @@ def run(*, candidate_root: Path, experience_root: Path, admission_root: Path, ou
     rows: list[dict[str, Any]] = []
     for candidate in current_candidates:
         try:
-            samples = exact.collect_entry_threshold_samples(candidate=candidate, events=events, admissions=admissions, outcomes=outcomes)
+            cash_adapter = (candidate.get("replay_contract") or {}).get("adapter") == "cash_edge_v2"
+            samples = (exact.collect_cash_edge_samples(candidate=candidate, events=events, admissions=admissions, outcomes=outcomes,
+                                                       replay_frames=_iter(replay_frame_root) if replay_frame_root else [])
+                       if cash_adapter else exact.collect_entry_threshold_samples(candidate=candidate, events=events, admissions=admissions, outcomes=outcomes))
             metrics = candidate_metrics(candidate, samples)
             rows.append({
                 "candidate_id": candidate["candidate_id"],
@@ -212,9 +255,10 @@ def run(*, candidate_root: Path, experience_root: Path, admission_root: Path, ou
             })
 
     robust = [row for row in rows if (row.get("metrics") or {}).get("robustness_pass") is True]
-    grouped: dict[tuple[str, int], list[dict[str, Any]]] = {}
+    grouped: dict[tuple[str, int, str], list[dict[str, Any]]] = {}
     for row in robust:
-        key = (str(row.get("production_component") or ""), int(row.get("horizon_sessions") or 0))
+        source = next(item for item in current_candidates if item["candidate_id"] == row["candidate_id"])
+        key = (str(row.get("production_component") or ""), int(row.get("horizon_sessions") or 0), str(source.get("market") or ""))
         grouped.setdefault(key, []).append(row)
     winners: list[dict[str, Any]] = []
     for group_rows in grouped.values():
@@ -251,6 +295,18 @@ def run(*, candidate_root: Path, experience_root: Path, admission_root: Path, ou
         challenger_ids.append(str(challenger["challenger_id"]))
         if learner.persist(challenger_root, challenger):
             created += 1
+    # CASH-edge variants are predeclared bounded hypotheses, not selected from
+    # returns. Discovery can be unavailable while prospective collection is
+    # already useful. Each registered variant spends its lifetime test slot;
+    # none can reach production before its own fixed future cohort completes.
+    for candidate in current_candidates:
+        if (candidate.get("replay_contract") or {}).get("adapter") != "cash_edge_v2":
+            continue
+        challenger = make_challenger(candidate, payload["tournament_sha256"], promotion_config, start_at=payload["generated_at"])
+        if str(challenger["challenger_id"]) not in challenger_ids:
+            challenger_ids.append(str(challenger["challenger_id"]))
+            if learner.persist(challenger_root, challenger):
+                created += 1
     return {
         "schema_version": "stock-trading-v2-replay-tournament-run-v1",
         "base_manifest_revision": current_revision or None,
@@ -272,8 +328,9 @@ def main() -> int:
     parser.add_argument("--promotion-config", type=Path, required=True)
     parser.add_argument("--challengers", type=Path, default=learner.DEFAULT_ROOT)
     parser.add_argument("--tournament-root", type=Path, default=TOURNAMENT_ROOT)
+    parser.add_argument("--replay-frame-root", type=Path)
     args = parser.parse_args()
-    result = run(candidate_root=args.candidates, experience_root=args.experience_root, admission_root=args.admission_root, outcome_root=args.outcome_root, promotion_config_path=args.promotion_config, challenger_root=args.challengers, tournament_root=args.tournament_root)
+    result = run(candidate_root=args.candidates, experience_root=args.experience_root, admission_root=args.admission_root, outcome_root=args.outcome_root, promotion_config_path=args.promotion_config, challenger_root=args.challengers, tournament_root=args.tournament_root, replay_frame_root=args.replay_frame_root)
     print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
     return 0
 

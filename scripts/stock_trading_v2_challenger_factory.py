@@ -23,6 +23,7 @@ SCHEMA_VERSION = "stock-trading-v2-factory-candidate-v1"
 # horizons remain valuable research evidence, but may not manufacture a
 # production-deployable artifact for this system.
 DEPLOYABLE_HORIZONS = frozenset({1, 2})
+CASH_COMPONENT = "cash_admission_margin"
 
 
 def _read(path: Path) -> dict[str, Any]:
@@ -116,6 +117,59 @@ def _entry_threshold_candidates(*, hypothesis: Mapping[str, Any], manifest: Mapp
     return rows
 
 
+def _cash_edge_candidates(*, hypothesis: Mapping[str, Any], manifest: Mapping[str, Any], policy: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """One production parameter, a predeclared two-member family, no gate edits."""
+    revision = int(manifest.get("revision") or 0)
+    base_version = str(((manifest.get("components") or {}).get("entry") or {}).get("version") or "")
+    if revision < 1 or not base_version:
+        raise contracts.ContractError("production Champion entry baseline missing")
+    horizon = int(hypothesis.get("horizon_sessions") or 0)
+    if horizon not in DEPLOYABLE_HORIZONS:
+        raise contracts.ContractError("CASH edge horizon must be 1 or 2 sessions")
+    market = str(hypothesis.get("market") or (hypothesis.get("evidence") or {}).get("market") or "").upper()
+    if market not in {"GPW", "US"}:
+        raise contracts.ContractError("CASH edge hypothesis requires exact market")
+    baseline = float(((policy.get("markets") or {}).get(market) or {})["minimum_cash_edge_points"])
+    if not 1 <= baseline <= 15:
+        raise contracts.ContractError("production CASH edge outside bounded domain")
+    rows = []
+    for delta in (-1, 1):
+        value = baseline + delta
+        if not 1 <= value <= 15:
+            continue
+        spec = {
+            "component": "entry", "version": f"cash-edge-{market.lower()}-{value:g}-r{revision}",
+            "type": "config_patch", "targets": {"stock_trading_policy": [{
+                "op": "replace", "path": ["markets", market, "minimum_cash_edge_points"], "value": value,
+            }]},
+        }
+        spec_sha = deployment_sha256(spec)
+        identity = {"deployment_sha256": spec_sha, "base_manifest_revision": revision,
+                    "base_component_version": base_version, "horizon_sessions": horizon,
+                    "champion_policy_sha256": contracts.payload_sha256(policy)}
+        row = {
+            "schema_version": SCHEMA_VERSION, "candidate_id": "stfactv2-" + contracts.payload_sha256(identity)[:24],
+            "created_at": str(hypothesis.get("generated_at") or contracts.iso_utc()),
+            "research_component": CASH_COMPONENT, "production_component": "entry", "market": market,
+            "horizon_sessions": horizon, "base_manifest_revision": revision, "base_component_version": base_version,
+            "champion_policy_snapshot": dict(policy), "champion_policy_sha256": contracts.payload_sha256(policy),
+            "champion_manifest_snapshot": dict(manifest),
+            "deployment_id": "stdep-entry-" + spec_sha[:20], "deployment_sha256": spec_sha, "deployment_spec": spec,
+            "replay_contract": {"adapter": "cash_edge_v2", "market": market,
+                                "champion_cash_edge_points": baseline, "challenger_cash_edge_points": value,
+                                "requires_free_slot": True, "requires_production_lifecycle": True,
+                                "policy_sha256": contracts.payload_sha256(policy)},
+            "origin_evidence": hypothesis.get("evidence"),
+            "governance": {"production_decision_influence": False, "automatic_policy_writeback": False,
+                           "exact_artifact_required": True, "bounded_parameter_search": True,
+                           "production_horizon_sessions": [1, 2], "predeclared_family": [-1, 1]},
+        }
+        row["candidate_sha256"] = contracts.payload_sha256(row)
+        validate_candidate(row)
+        rows.append(row)
+    return rows
+
+
 def validate_candidate(payload: Mapping[str, Any]) -> None:
     if payload.get("schema_version") != SCHEMA_VERSION:
         raise contracts.ContractError("factory candidate schema mismatch")
@@ -132,6 +186,15 @@ def validate_candidate(payload: Mapping[str, Any]) -> None:
         raise contracts.ContractError("factory candidate deployment hash mismatch")
     if str(spec.get("component") or "") != str(payload.get("production_component") or ""):
         raise contracts.ContractError("factory candidate component mismatch")
+    if (payload.get("replay_contract") or {}).get("adapter") == "cash_edge_v2":
+        replay = payload["replay_contract"]
+        market = str(replay.get("market") or "")
+        base, value = float(replay.get("champion_cash_edge_points")), float(replay.get("challenger_cash_edge_points"))
+        expected = {"stock_trading_policy": [{"op": "replace", "path": ["markets", market, "minimum_cash_edge_points"], "value": value}]}
+        if market not in {"GPW", "US"} or abs(value - base) != 1 or not 1 <= value <= 15 or spec.get("targets") != expected:
+            raise contracts.ContractError("CASH edge deployment is not one bounded market mutation")
+        if contracts.payload_sha256(payload.get("champion_policy_snapshot") or {}) != payload.get("champion_policy_sha256"):
+            raise contracts.ContractError("CASH edge baseline hash mismatch")
     governance = payload.get("governance") or {}
     if governance.get("production_decision_influence") is not False or governance.get("automatic_policy_writeback") is not False:
         raise contracts.ContractError("factory candidate escaped research governance")
@@ -156,10 +219,32 @@ def build_candidates(*, report: Mapping[str, Any], manifest: Mapping[str, Any], 
                 "reason": "outside_1_2_session_production_mandate",
             })
             continue
-        if component == "entry_score_below_threshold":
+        if component == CASH_COMPONENT:
+            generated.extend(_cash_edge_candidates(hypothesis=raw, manifest=manifest, policy=policy))
+        elif component == "entry_score_below_threshold" and policy.get("champion_engine") != "v2":
             generated.extend(_entry_threshold_candidates(hypothesis=raw, manifest=manifest, gpw_config=gpw_config, policy=policy))
         else:
             unsupported.append({"research_component": component, "reason": "exact_replay_adapter_not_yet_available"})
+    if policy.get("champion_engine") == "v2":
+        # Initial collection must not depend on exact tapes which can exist only
+        # after the first prospective trial. The two bounded deltas are fixed
+        # research declarations, independently of historical return rankings.
+        # Historical evidence remains useful for diagnostics; all formal
+        # members begin after main's registration receipt.
+        declared = {(str(row.get("market")), int(row["horizon_sessions"])) for row in generated
+                    if row.get("research_component") == CASH_COMPONENT}
+        for market in ("GPW", "US"):
+            if not ((policy.get("markets") or {}).get(market) or {}).get("minimum_cash_edge_points"):
+                continue
+            for horizon in sorted(DEPLOYABLE_HORIZONS):
+                if (market, horizon) in declared:
+                    continue
+                generated.extend(_cash_edge_candidates(hypothesis={
+                    "component": CASH_COMPONENT, "market": market, "horizon_sessions": horizon,
+                    "evidence": {"market": market, "diagnostic_only": True,
+                                 "formal_holdout_reuse_forbidden": True,
+                                 "initialization": "predeclared_bounded_family_before_outcomes"},
+                }, manifest=manifest, policy=policy))
     return generated, unsupported
 
 

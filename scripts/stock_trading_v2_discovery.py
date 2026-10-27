@@ -9,6 +9,8 @@ no global morning cutoff.
 """
 from __future__ import annotations
 
+from copy import deepcopy
+
 import argparse
 import json
 import math
@@ -452,6 +454,10 @@ def build_frontier(
                 "exchange": instrument.get("exchange"),
                 "security_type": instrument.get("security_type"),
                 "sector": stage_row.get("sector") or instrument.get("sector"),
+                "sector_provenance": (
+                    {"source": "Nasdaq screener", "observed_at": _iso(generated)}
+                    if stage_row.get("sector") else deepcopy(instrument.get("sector_provenance") or {})
+                ),
                 "industry": stage_row.get("industry") or instrument.get("industry"),
                 "country": stage_row.get("country") or instrument.get("country"),
                 "opportunity_score": round(score, 6),
@@ -508,6 +514,7 @@ def build_frontier(
             "name": row.get("name"),
             "exchange": row.get("exchange"),
             "sector": row.get("sector"),
+            "sector_provenance": deepcopy(row.get("sector_provenance") or {}),
             "industry": row.get("industry"),
             "country": row.get("country"),
             "relationship_rank": row.get("relationship_rank"),

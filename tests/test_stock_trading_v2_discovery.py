@@ -155,6 +155,37 @@ class StockTradingV2DiscoveryTests(unittest.TestCase):
         self.assertEqual(payload["candidates"][0]["admission"]["status"], "PENDING_DEEP_EVIDENCE_AND_RISK_PLAN")
         discovery.validate_frontier(payload)
 
+    def test_sector_provenance_survives_frontier_and_relationship_pool(self):
+        snapshot = universe_snapshot()
+        snapshot["instruments"][0].update({
+            "sector": "Technology",
+            "sector_provenance": {"source": "registry", "observed_at": "2026-09-15T12:00:00Z"},
+            "industry": "Software",
+            "country": "United States",
+        })
+        snapshot = universe._finalize_snapshot(snapshot)
+        feature = discovery.compute_features(bars(slope=0.002), config={**CONFIG, **CONFIG["markets"]["US"]})
+        generated = datetime(2026, 9, 16, 16, 0, tzinfo=timezone.utc)
+        for stage_sector in (None, "Healthcare"):
+            with self.subTest(stage_sector=stage_sector):
+                stage_zero = {"candidates": [{"symbol": "UP", "sector": stage_sector}]}
+                payload = discovery.build_frontier(
+                    snapshot, {"UP": feature}, CONFIG, market="US", stage_zero=stage_zero, generated_at=generated,
+                )
+                expected = (
+                    {"source": "Nasdaq screener", "observed_at": "2026-09-16T16:00:00Z"}
+                    if stage_sector else snapshot["instruments"][0]["sector_provenance"]
+                )
+                for rows in (payload["candidates"], payload["relationship_pool"]):
+                    self.assertEqual(rows[0]["sector"], stage_sector or "Technology")
+                    self.assertEqual(rows[0]["sector_provenance"], expected)
+                    self.assertEqual(rows[0]["industry"], "Software")
+                    self.assertEqual(rows[0]["country"], "United States")
+                    self.assertEqual(rows[0]["relationship_rank"], 1)
+                payload["relationship_pool"][0]["sector_provenance"]["source"] = "changed"
+                self.assertEqual(payload["candidates"][0]["sector_provenance"], expected)
+                self.assertEqual(snapshot["instruments"][0]["sector_provenance"]["source"], "registry")
+
     def test_tamper_is_detected(self):
         snapshot = universe_snapshot()
         feature = discovery.compute_features(bars(slope=0.002), config={**CONFIG, **CONFIG["markets"]["US"]})
