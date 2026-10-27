@@ -30,7 +30,7 @@ REQUIRED_CANDIDATE_FIELDS = (
     "base_component_version",
     "deployment_sha256",
 )
-EXACT_SEMANTICS = "exact_shadow_replay"
+EXACT_SEMANTICS = "production_lifecycle_v1"
 
 
 class EvidenceBindingError(RuntimeError):
@@ -110,6 +110,9 @@ def stage_bound_evidence(
     evaluations: Path,
     registry_path: Path,
     output_root: Path,
+    source_root: Path | None = None,
+    frames_root: Path | None = None,
+    trials_path: Path | None = None,
 ) -> dict[str, Any]:
     registry = router.load_registry(registry_path)
     out_challengers = output_root / "challengers"
@@ -127,7 +130,7 @@ def stage_bound_evidence(
             continue
         challenger = _read(challenger_path)
         try:
-            promotion.validate_research_pair(challenger, evaluation)
+            promotion.validate_research_pair(challenger, evaluation, source_root=source_root, frames_root=frames_root, trials_path=trials_path)
             validate_exact_binding(challenger, evaluation, registry)
         except (promotion.PromotionError, EvidenceBindingError, router.RouterError) as exc:
             rejected.append({"challenger_id": challenger_id, "reason": str(exc)})
@@ -162,6 +165,8 @@ def run_bound(
             evaluations=evaluations,
             registry_path=registry_path,
             output_root=Path(tmp),
+            source_root=kwargs.get("source_root"), frames_root=kwargs.get("frames_root"),
+            trials_path=kwargs.get("trials_path"),
         )
         if staged["accepted"] == 0:
             return {
@@ -191,8 +196,12 @@ def main() -> int:
     parser.add_argument("--gpw-config", type=Path)
     parser.add_argument("--policy", type=Path)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--source-root", type=Path)
+    parser.add_argument("--frames-root", type=Path)
+    parser.add_argument("--trials", type=Path)
     args = parser.parse_args()
     kwargs: dict[str, Any] = {"dry_run": args.dry_run}
+    kwargs.update(source_root=args.source_root, frames_root=args.frames_root, trials_path=args.trials)
     if args.manifest is not None:
         kwargs["manifest_path"] = args.manifest
     if args.history is not None:

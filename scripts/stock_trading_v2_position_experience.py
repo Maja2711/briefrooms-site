@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import tempfile
 from copy import deepcopy
 from datetime import datetime
@@ -26,6 +27,8 @@ except ModuleNotFoundError:  # pragma: no cover
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_ROOT = ROOT / "data/investments/stock_trading_v2_position_experience"
 SCHEMA_VERSION = "stock-trading-v2-position-decision-v1"
+OBSERVATION_SCHEMA_VERSION = "stock-trading-v2-position-read-observation-v1"
+DEFAULT_OBSERVATION_ROOT = ROOT / "data/investments/stock_trading_v2_position_observations"
 
 
 class ImmutablePositionExperienceConflict(RuntimeError):
@@ -168,17 +171,75 @@ def event_path(root: Path, payload: Mapping[str, Any]) -> Path:
     return root / str(payload["market"]).lower() / session / f"{payload['event_id']}.json"
 
 
-def persist(root: Path, payload: Mapping[str, Any]) -> bool:
+def _decision_body(payload: Mapping[str, Any]) -> dict[str, Any]:
+    """Exclude only collection metadata, never a position or decision field."""
+    body = deepcopy(dict(payload))
+    for key in ("recorded_at", "event_sha256", "portfolio_updated_at"):
+        body.pop(key, None)
+    return body
+
+
+def observation_root_for(root: Path) -> Path:
+    return root.parent / ("stock_trading_v2_position_observations" if root.name == DEFAULT_ROOT.name else root.name + "_observations")
+
+
+def _observe(root: Path, frozen: Mapping[str, Any], incoming: Mapping[str, Any]) -> bool:
+    identity = {
+        "source_event_id": frozen["event_id"],
+        "source_event_sha256": frozen["event_sha256"],
+        "portfolio_updated_at": incoming.get("portfolio_updated_at"),
+    }
+    observation_id = "stposreadv2-" + contracts.payload_sha256(identity)[:24]
+    payload = {
+        "schema_version": OBSERVATION_SCHEMA_VERSION,
+        "observation_id": observation_id,
+        **identity,
+        "observed_at": incoming["recorded_at"],
+        "governance": {"immutable": True, "production_decision_influence": False, "decision_rewrite": False},
+    }
+    payload["observation_sha256"] = contracts.payload_sha256(payload)
+    path = root / str(frozen["market"]).lower() / f"{observation_id}.json"
+    if path.exists():
+        prior = _read_json(path)
+        validate_read_observation(prior)
+        if any(prior.get(key) != value for key, value in identity.items()):
+            raise ImmutablePositionExperienceConflict("position observation identity collision")
+        return False
+    path.parent.mkdir(parents=True, exist_ok=True)
+    # Exclusive create prevents a concurrent retry from replacing immutable bytes.
+    try:
+        with path.open("x", encoding="utf-8", newline="\n") as handle:
+            handle.write(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n")
+    except FileExistsError:
+        return _observe(root, frozen, incoming)
+    return True
+
+
+def validate_read_observation(payload: Mapping[str, Any]) -> None:
+    if payload.get("schema_version") != OBSERVATION_SCHEMA_VERSION:
+        raise contracts.ContractError("position read observation schema mismatch")
+    for key in ("observation_id", "source_event_id", "source_event_sha256", "observed_at"):
+        if not str(payload.get(key) or "").strip():
+            raise contracts.ContractError(f"position read observation missing {key}")
+    identity = {key: payload.get(key) for key in ("source_event_id", "source_event_sha256", "portfolio_updated_at")}
+    if payload["observation_id"] != "stposreadv2-" + contracts.payload_sha256(identity)[:24]:
+        raise contracts.ContractError("position read observation identity mismatch")
+    if payload.get("governance") != {"immutable": True, "production_decision_influence": False, "decision_rewrite": False}:
+        raise contracts.ContractError("position read observation governance mismatch")
+    body = dict(payload)
+    digest = body.pop("observation_sha256", None)
+    if digest != contracts.payload_sha256(body):
+        raise contracts.ContractError("position read observation hash mismatch")
+
+
+def persist(root: Path, payload: Mapping[str, Any], *, observation_root: Path | None = None) -> bool:
     validate_event(payload)
     path = event_path(root, payload)
     if path.exists():
         existing = _read_json(path)
         validate_event(existing)
-        left, right = deepcopy(existing), deepcopy(dict(payload))
-        for body in (left, right):
-            body.pop("recorded_at", None)
-            body.pop("event_sha256", None)
-        if left == right:
+        if _decision_body(existing) == _decision_body(payload):
+            _observe(observation_root or observation_root_for(root), existing, payload)
             return False
         raise ImmutablePositionExperienceConflict(f"refusing to mutate {payload['event_id']}")
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -186,7 +247,18 @@ def persist(root: Path, payload: Mapping[str, Any]) -> bool:
     with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=path.parent, delete=False) as handle:
         handle.write(text)
         temp = Path(handle.name)
-    temp.replace(path)
+    try:
+        # Windows rename refuses an existing destination; POSIX link supplies
+        # the same exclusive publish contract without replacing old bytes.
+        if os.name == "nt":
+            temp.rename(path)
+        else:
+            os.link(temp, path)
+    except FileExistsError:
+        return persist(root, payload, observation_root=observation_root)
+    finally:
+        temp.unlink(missing_ok=True)
+    _observe(observation_root or observation_root_for(root), payload, payload)
     return True
 
 
@@ -240,6 +312,7 @@ def ingest(
     *,
     state_path: Path = portfolio.STATE_PATH,
     root: Path = DEFAULT_ROOT,
+    observation_root: Path | None = None,
 ) -> dict[str, Any]:
     state = _read_json(state_path)
     events = events_from_portfolio_state(state)
@@ -247,7 +320,7 @@ def ingest(
     actions = {"HOLD": 0, "EXIT": 0}
     for event in events:
         actions[str(event["action"])] += 1
-        if persist(root, event):
+        if persist(root, event, observation_root=observation_root):
             written += 1
         else:
             existing += 1
@@ -257,6 +330,7 @@ def ingest(
         "written": written,
         "existing": existing,
         "actions": actions,
+        "observation_root": str(observation_root or observation_root_for(root)),
         "production_decision_influence": False,
     }
 
@@ -267,8 +341,9 @@ def iter_files(root: Path = DEFAULT_ROOT) -> Iterable[Path]:
     return sorted(root.rglob("*.json"))
 
 
-def verify(root: Path = DEFAULT_ROOT) -> dict[str, Any]:
+def verify(root: Path = DEFAULT_ROOT, *, observation_root: Path | None = None) -> dict[str, Any]:
     ids: set[str] = set()
+    hashes: dict[str, str] = {}
     count = 0
     actions = {"HOLD": 0, "EXIT": 0}
     for path in iter_files(root):
@@ -277,18 +352,29 @@ def verify(root: Path = DEFAULT_ROOT) -> dict[str, Any]:
         if payload["event_id"] in ids:
             raise contracts.ContractError("duplicate position experience event")
         ids.add(payload["event_id"])
+        hashes[str(payload["event_id"])] = str(payload["event_sha256"])
         actions[str(payload["action"])] += 1
         count += 1
-    return {"schema_version": SCHEMA_VERSION, "ok": True, "count": count, "actions": actions, "production_decision_influence": False}
+    reads = 0
+    for path in sorted((observation_root or observation_root_for(root)).rglob("*.json")):
+        row = _read_json(path)
+        validate_read_observation(row)
+        if row["source_event_id"] not in ids:
+            raise contracts.ContractError("position read observation missing source event")
+        if row["source_event_sha256"] != hashes[row["source_event_id"]]:
+            raise contracts.ContractError("position read observation source hash mismatch")
+        reads += 1
+    return {"schema_version": SCHEMA_VERSION, "ok": True, "count": count, "actions": actions, "read_observations": reads, "production_decision_influence": False}
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--state", type=Path, default=portfolio.STATE_PATH)
     parser.add_argument("--root", type=Path, default=DEFAULT_ROOT)
+    parser.add_argument("--observation-root", type=Path)
     parser.add_argument("--verify", action="store_true")
     args = parser.parse_args()
-    result = verify(args.root) if args.verify else ingest(state_path=args.state, root=args.root)
+    result = verify(args.root, observation_root=args.observation_root) if args.verify else ingest(state_path=args.state, root=args.root, observation_root=args.observation_root)
     print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
     return 0
 

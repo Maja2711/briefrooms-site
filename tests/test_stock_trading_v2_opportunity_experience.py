@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 
 from scripts import stock_trading_v2_contracts as contracts
@@ -62,7 +63,8 @@ def evidence_snapshot() -> dict:
 
 def opportunity_snapshot(evidence: dict) -> dict:
     config = opportunity.load_config()
-    return opportunity.compare_opportunities(evidence, {"markets": {"US": {"open_positions": []}}}, config)
+    return opportunity.compare_opportunities(evidence, {"markets": {"US": {"open_positions": []}}}, config,
+        generated_at=datetime.fromisoformat(evidence["generated_at"].replace("Z", "+00:00")))
 
 
 class StockTradingV2OpportunityExperienceTests(unittest.TestCase):
@@ -154,10 +156,19 @@ class StockTradingV2OpportunityExperienceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             first = freeze.ingest(opp, evidence, root=root, candidates_per_cycle=2)
+            original = {path.name: path.read_bytes() for path in freeze.store.iter_event_files(root)}
             second = freeze.ingest(opp, evidence, root=root, candidates_per_cycle=2)
             self.assertEqual(first["events_written"], 2)
             self.assertEqual(second["events_written"], 0)
             self.assertEqual(second["events_skipped_daily_duplicate"], 2)
+            later = opportunity.compare_opportunities(evidence, {"markets": {"US": {"open_positions": []}}},
+                opportunity.load_config(), generated_at=datetime(2026, 9, 16, 16, 0, tzinfo=timezone.utc))
+            self.assertNotEqual(opp["opportunity_sha256"], later["opportunity_sha256"])
+            third = freeze.ingest(later, evidence, root=root, candidates_per_cycle=2)
+            self.assertEqual(third["events_written"], 0)
+            self.assertEqual(third["events_skipped_daily_duplicate"], 2)
+            self.assertEqual(third["events_skipped_source_duplicate"], 0)
+            self.assertEqual({path.name: path.read_bytes() for path in freeze.store.iter_event_files(root)}, original)
 
 
 if __name__ == "__main__":

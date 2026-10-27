@@ -51,6 +51,16 @@ def _blocker(event: Mapping[str, Any]) -> str:
     state = event.get("candidate_state") or {}
     path = state.get("decision_path") or {}
     value = path.get("first_blocking_gate") or state.get("first_blocking_gate")
+    if isinstance(value, Mapping):
+        # Rejected-candidate freezes store the canonical blocker as a structured
+        # gate object. Attribution must use its stable gate name, never the
+        # string representation of the whole dictionary.
+        name = str(value.get("name") or "").strip()
+        if name:
+            return name
+        reason = str(value.get("reason") or "").strip()
+        if reason:
+            return reason
     if value:
         return str(value)
     return "selected_candidate" if event.get("selected") else "unspecified_rejection"
@@ -78,6 +88,67 @@ def _admission_maps(root: Path) -> dict[str, dict[str, Any]]:
     for row in _iter_json(root):
         admission.validate_observation(row)
         result[str(row["source_event_id"])] = row
+    return result
+
+
+def _cash_margin_hypotheses(events: Mapping[str, Mapping[str, Any]], settled: Mapping[tuple[str, int], Mapping[str, Any]],
+                            config: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """Discovery attribution for the *active* v2 admission parameter only.
+
+    Winner/loser outcomes explain a hypothesis; they never enter its formal
+    future cohort. Rotation and lower-ranked candidates have no CASH causality.
+    """
+    cfg = config.get("learning") or {}
+    grouped: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
+    seen: set[tuple[str, str]] = set()
+    for event_id, event in sorted(events.items(), key=lambda item: str(item[1].get("decision_at"))):
+        state = event.get("candidate_state") or {}
+        context = state.get("decision_context") or {}
+        path = state.get("decision_path") or {}
+        if not context.get("policy_snapshot") or context.get("policy_sha256") != contracts.payload_sha256(context["policy_snapshot"]):
+            continue
+        if path.get("eligible") is not True or path.get("already_held") or int(path.get("available_slots") or 0) <= 0:
+            continue
+        try:
+            edge = float(path["minimum_cash_edge_points"])
+            margin = float((state.get("score_state") or {}).get("utility")) - float(path["cash_utility"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        selected = event.get("selected") is True and path.get("portfolio_action") == "BUY"
+        if not ((selected and edge <= margin < edge + 1) or (path.get("cash_margin_only_blocker") is True and edge - 1 <= margin < edge)):
+            continue
+        outcome = settled.get((event_id, 2))  # One horizon, no duplicate tests.
+        net = _learning_net_r(outcome or {})
+        if net is None:
+            continue
+        group = _source_group(event)
+        key = (str(event["market"]), group)
+        if key in seen:
+            continue
+        seen.add(key)
+        grouped[(str(event["market"]), str(context["policy_sha256"]))].append({
+            "event_id": event_id, "symbol": event["symbol"], "session_date": event["session_date"],
+            "signal_improvement_r": -net if selected else net,
+            "error_direction": "tighten" if selected else "relax", "source_group": group,
+        })
+    result = []
+    for (market, policy_sha), samples in sorted(grouped.items()):
+        values = [float(row["signal_improvement_r"]) for row in samples]
+        symbols = {str(row["symbol"]) for row in samples}
+        minimum = int(cfg.get("minimum_observations_for_hypothesis") or 12)
+        if len(samples) < minimum or len(symbols) < int(cfg.get("minimum_unique_symbols") or 5) or statistics.mean(values) <= 0:
+            continue
+        result.append({
+            "component": "cash_admission_margin", "market": market, "horizon_sessions": 2,
+            "status": "ELIGIBLE_FOR_CHALLENGER_HOLDOUT" if len(samples) >= int(cfg.get("minimum_observations_for_challenger") or 30) else "HYPOTHESIS_ONLY",
+            "evidence": {"market": market, "policy_sha256": policy_sha, "observations": len(samples),
+                         "unique_symbols": len(symbols), "mean_discovery_improvement_r": statistics.mean(values),
+                         "causal_event_ids": [row["event_id"] for row in samples],
+                         "diagnostic_only": True, "formal_holdout_reuse_forbidden": True},
+            "suggested_experiment": {"type": "bounded_cash_edge_v2", "parameter": "minimum_cash_edge_points",
+                                     "predeclared_deltas": [-1, 1], "bounds": [1, 15], "safety_gates_unchanged": True},
+            "automatic_production_change": False,
+        })
     return result
 
 
@@ -246,6 +317,11 @@ def build_report(
                 }
             )
 
+    # New v2 hypotheses use their exact free-slot CASH context. Legacy gate
+    # attribution stays available as descriptive evidence without aliasing it
+    # into the active entry component.
+    hypotheses = [row for row in hypotheses if row.get("component") != "cash_admission_margin"]
+    hypotheses.extend(_cash_margin_hypotheses(events_by_id, settled, config))
     payload: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
         "generated_at": generated_at or contracts.iso_utc(),

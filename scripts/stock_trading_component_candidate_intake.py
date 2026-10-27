@@ -136,7 +136,11 @@ def validate_bounded_deployment(spec: Mapping[str, Any], *, gpw_config: Mapping[
             old = _get(base, path)
             new = patch.get("value")
             label = f"{target}:{'.'.join(path)}"
-            if path in {("minimum_composite_score",), ("markets", "GPW", "minimum_entry_score"), ("markets", "US", "minimum_entry_score")}:
+            if path in {("markets", "GPW", "minimum_cash_edge_points"), ("markets", "US", "minimum_cash_edge_points")}:
+                if component != "entry" or patch_count != 1:
+                    raise IntakeError("cash edge proposals must change exactly one entry parameter")
+                _bounded_delta(old, new, maximum=1.0, low=1.0, high=15.0, label=label)
+            elif path in {("minimum_composite_score",), ("markets", "GPW", "minimum_entry_score"), ("markets", "US", "minimum_entry_score")}:
                 _bounded_delta(old, new, maximum=3.0, low=60.0, high=85.0, label=label)
             elif len(path) == 2 and path[0] == "weights":
                 _bounded_delta(old, new, maximum=5.0, low=0.0, high=50.0, label=label)
@@ -178,12 +182,19 @@ def validate_bounded_deployment(spec: Mapping[str, Any], *, gpw_config: Mapping[
             raise IntakeError(f"candidate would violate {market} maximum_risk_percent invariant")
 
 
-def approve_proposals(*, challengers: Path, evaluations: Path, registry_path: Path, manifest_path: Path, gpw_config_path: Path, policy_path: Path, output_path: Path) -> dict[str, Any]:
+def approve_proposals(*, challengers: Path, evaluations: Path, registry_path: Path, manifest_path: Path, gpw_config_path: Path, policy_path: Path, output_path: Path,
+                      source_root: Path | None = None, frames_root: Path | None = None, trials_path: Path | None = None) -> dict[str, Any]:
     registry = router.load_registry(registry_path)
     approved = copy.deepcopy(registry)
     manifest = champion.load_manifest(manifest_path)
     gpw = _read(gpw_config_path)
-    policy = _read(policy_path)
+    policy = router.load_effective_json_config(policy_path, target="stock_trading_policy",
+        manifest_path=manifest_path, registry_path=registry_path)
+    from scripts import stock_trading_component_evidence as evidence
+    trial_registration = evidence.register_trials(
+        challengers, policy=policy, manifest=manifest, path=trials_path or evidence.TRIALS_PATH,
+        cohort_root=evaluations / ".cohorts",
+    )
     accepted: list[str] = []
     rejected: list[dict[str, str]] = []
     proposals: dict[str, dict[str, Any]] = {}
@@ -198,7 +209,11 @@ def approve_proposals(*, challengers: Path, evaluations: Path, registry_path: Pa
             continue
         challenger = _read(challenger_path)
         try:
-            promotion.validate_research_pair(challenger, evaluation)
+            promotion.validate_research_pair(
+                challenger, evaluation, source_root=source_root or challengers.parent,
+                frames_root=frames_root, trials_path=trials_path,
+                current_policy=policy,
+            )
             horizon = int(challenger.get("horizon_sessions") or 0)
             if horizon not in REQUIRED_PRODUCTION_HORIZONS:
                 raise IntakeError("formal PASS horizon is outside the 1-2 session production mandate")
@@ -256,7 +271,7 @@ def approve_proposals(*, challengers: Path, evaluations: Path, registry_path: Pa
         accepted.append(deployment_id)
 
     _atomic(output_path, approved)
-    return {"accepted": accepted, "rejected": rejected, "output_registry": str(output_path)}
+    return {"accepted": accepted, "rejected": rejected, "output_registry": str(output_path), "trial_registration": trial_registration}
 
 
 def persist_active(*, approved_registry_path: Path, registry_path: Path, manifest_path: Path) -> dict[str, Any]:
@@ -294,6 +309,9 @@ def main() -> int:
     parser.add_argument("--output-registry", type=Path)
     parser.add_argument("--persist-active", action="store_true")
     parser.add_argument("--approved-registry", type=Path)
+    parser.add_argument("--source-root", type=Path)
+    parser.add_argument("--frames-root", type=Path)
+    parser.add_argument("--trials", type=Path)
     args = parser.parse_args()
     if args.persist_active:
         if args.approved_registry is None:
@@ -310,6 +328,7 @@ def main() -> int:
             gpw_config_path=args.gpw_config,
             policy_path=args.policy,
             output_path=args.output_registry,
+            source_root=args.source_root, frames_root=args.frames_root, trials_path=args.trials,
         )
     print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
     return 0

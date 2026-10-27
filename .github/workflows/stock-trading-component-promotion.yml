@@ -3,7 +3,7 @@ name: Stock Trading Component Promotion
 on:
   workflow_dispatch:
   workflow_run:
-    workflows: ["Stock Trading v2 Closed Learning Loop", "BriefRooms Evolution Controller"]
+    workflows: ["Stock Trading v2 Closed Learning Loop", "Stock Trading v2 Continuous Discovery", "BriefRooms Evolution Controller"]
     types: [completed]
   schedule:
     # Safety net if workflow_run is skipped. Runs after the v2 daily learning loop.
@@ -13,12 +13,12 @@ permissions:
   contents: write
 
 concurrency:
-  group: stock-trading-component-promotion
+  group: stock-trading-state-writer
   cancel-in-progress: false
 
 jobs:
   promote:
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event != 'push') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -52,6 +52,7 @@ jobs:
             scripts/stock_trading_component_promotion.py \
             scripts/stock_trading_component_bound_promotion.py \
             scripts/stock_trading_component_candidate_intake.py \
+            scripts/stock_trading_component_evidence.py \
             scripts/test_stock_trading_component_candidate_intake.py
           python scripts/stock_trading_component_champion.py --verify
           python scripts/test_stock_trading_component_promotion.py
@@ -68,12 +69,16 @@ jobs:
           print('COMPONENT_PROMOTION_CONFIG_OK')
           PY
 
+      - name: Monitor deployed net results and enforce predeclared future-only rollback
+        run: python scripts/stock_trading_component_monitor.py
+
       - name: Independently approve bounded exact deployment proposals
         run: |
           set -euo pipefail
           python scripts/stock_trading_component_candidate_intake.py \
             --challengers /tmp/stock-trading-v2-research/data/investments/stock_trading_v2_challengers \
             --evaluations /tmp/stock-trading-v2-research/data/investments/stock_trading_v2_challenger_evaluations \
+            --source-root /tmp/stock-trading-v2-research/data/investments \
             --output-registry /tmp/stock-trading-approved-registry.json \
             | tee /tmp/stock-trading-candidate-intake-result.json
           python - <<'PY'
@@ -89,6 +94,7 @@ jobs:
           python scripts/stock_trading_component_bound_promotion.py \
             --challengers /tmp/stock-trading-v2-research/data/investments/stock_trading_v2_challengers \
             --evaluations /tmp/stock-trading-v2-research/data/investments/stock_trading_v2_challenger_evaluations \
+            --source-root /tmp/stock-trading-v2-research/data/investments \
             --registry /tmp/stock-trading-approved-registry.json \
             | tee /tmp/stock-trading-component-promotion-result.json
 
@@ -139,14 +145,17 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
+          for path in \
             data/investments/stock_trading_champion_manifest.json \
             data/investments/stock_trading_champion_history \
             data/investments/stock_trading_component_promotion_audit.jsonl \
             data/investments/stock_trading_component_deployments.json \
+            data/investments/stock_trading_component_trials.json \
+            data/investments/stock_trading_component_monitor \
             data/investments/gpw_daily_pick_config.json \
-            data/investments/stock_trading_policy.json \
-            2>/dev/null || true
+            data/investments/stock_trading_policy.json; do
+              [[ ! -e "$path" ]] || git add -- "$path"
+          done
           if git diff --cached --quiet; then
             echo "No production component promotion to commit."
             exit 0

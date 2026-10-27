@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import hashlib
 from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
@@ -169,14 +170,27 @@ def compare_opportunities(
     config: Mapping[str, Any],
     *,
     generated_at: datetime | None = None,
+    policy_snapshot: Mapping[str, Any] | None = None,
+    champion_manifest: Mapping[str, Any] | None = None,
+    bridge_config_snapshot: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     evidence_engine.validate_deep_evidence(deep_evidence)
     market = str(deep_evidence.get("market") or "").upper()
     generated = generated_at or datetime.now(timezone.utc)
     cash_utility = float(config.get("cash_utility") or 50.0)
     edge = float(config.get("minimum_new_position_edge_points") or 5.0)
+    if policy_snapshot is not None:
+        market_policy = (policy_snapshot.get("markets") or {}).get(market) or {}
+        edge = float(market_policy["minimum_cash_edge_points"])
+        cash_utility = float(policy_snapshot.get("cash_utility", 50.0))
+        if cash_utility != 50.0:
+            raise contracts.ContractError("production CASH utility must equal frozen neutral baseline 50")
+        if not math.isfinite(edge) or not 1.0 <= edge <= 15.0:
+            raise contracts.ContractError("production CASH edge must be finite and in [1, 15]")
     replacement_hysteresis = float(config.get("replacement_hysteresis_points") or 8.0)
     cap = int(config.get("maximum_open_positions_per_market") or 3)
+    if policy_snapshot is not None:
+        cap = int(market_policy.get("max_open_positions") or cap)
 
     positions = market_positions(portfolio, market)
     held = [held_position_utility(position, config) for position in positions]
@@ -195,6 +209,8 @@ def compare_opportunities(
                 "symbol": candidate.get("symbol"),
                 "market_data_symbol": candidate.get("market_data_symbol"),
                 "name": candidate.get("name"),
+                "sector": candidate.get("sector"),
+                "sector_provenance": deepcopy(candidate.get("sector_provenance")),
                 "deep_rank": candidate.get("deep_rank"),
                 "utility": round(utility, 6),
                 "eligible": bool(ok),
@@ -273,6 +289,29 @@ def compare_opportunities(
             "production_promotion_requires_separate_statistical_gate": True,
         },
     }
+    # New evidence carries the complete point-in-time inputs. Historical
+    # opportunities/events remain byte-for-byte untouched and cannot be
+    # upgraded into prospective evidence by filling these fields later.
+    if policy_snapshot is not None:
+        payload["decision_context"] = {
+            "schema_version": "stock-trading-v2-decision-context-v1",
+            "decision_at": _iso(generated),
+            "market": market,
+            "policy_snapshot": deepcopy(dict(policy_snapshot)),
+            "policy_sha256": contracts.payload_sha256(policy_snapshot),
+            "champion_manifest": deepcopy(dict(champion_manifest or {})),
+            "champion_manifest_sha256": contracts.payload_sha256(champion_manifest or {}),
+            "bridge_config_snapshot": deepcopy(dict(bridge_config_snapshot or {})),
+            "bridge_config_sha256": contracts.payload_sha256(bridge_config_snapshot or {}),
+            "opportunity_config_snapshot": deepcopy(dict(config)),
+            "opportunity_config_sha256": contracts.payload_sha256(config),
+            "portfolio_snapshot": deepcopy(dict(portfolio or {})),
+            "portfolio_sha256": contracts.payload_sha256(portfolio or {}),
+            "evidence_snapshot": deepcopy(dict(deep_evidence)),
+            "code_fingerprints": {
+                Path(__file__).name: hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+            },
+        }
     payload["opportunity_sha256"] = contracts.payload_sha256(payload)
     validate_opportunity(payload)
     return payload
@@ -315,6 +354,9 @@ def run_market(
     evidence_path: Path | None = None,
     portfolio_path: Path | None = None,
     config_path: Path = CONFIG_PATH,
+    policy_snapshot_path: Path | None = None,
+    champion_manifest_path: Path | None = None,
+    bridge_config_snapshot_path: Path | None = None,
 ) -> dict[str, Any]:
     market = str(market).upper()
     config = load_config(config_path)
@@ -325,7 +367,12 @@ def run_market(
     portfolio = _read_json(portfolio_path or DEFAULT_PORTFOLIO, {})
     if not isinstance(portfolio, Mapping):
         portfolio = {}
-    return compare_opportunities(deep_evidence, portfolio, config)
+    policy = _read_json(policy_snapshot_path) if policy_snapshot_path else None
+    manifest = _read_json(champion_manifest_path) if champion_manifest_path else None
+    if policy_snapshot_path and not isinstance(policy, Mapping):
+        raise contracts.ContractError("production policy snapshot missing")
+    bridge_config = _read_json(bridge_config_snapshot_path) if bridge_config_snapshot_path else None
+    return compare_opportunities(deep_evidence, portfolio, config, policy_snapshot=policy, champion_manifest=manifest, bridge_config_snapshot=bridge_config)
 
 
 def main() -> int:
@@ -334,6 +381,9 @@ def main() -> int:
     parser.add_argument("--evidence", type=Path)
     parser.add_argument("--portfolio", type=Path)
     parser.add_argument("--config", type=Path, default=CONFIG_PATH)
+    parser.add_argument("--policy-snapshot", type=Path)
+    parser.add_argument("--champion-manifest", "--manifest-snapshot", dest="champion_manifest", type=Path)
+    parser.add_argument("--bridge-config-snapshot", type=Path)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     market = str(args.market).upper()
@@ -342,6 +392,9 @@ def main() -> int:
         evidence_path=args.evidence,
         portfolio_path=args.portfolio,
         config_path=args.config,
+        policy_snapshot_path=args.policy_snapshot,
+        champion_manifest_path=args.champion_manifest,
+        bridge_config_snapshot_path=args.bridge_config_snapshot,
     )
     output = args.output or (OUTPUT_ROOT / f"{market.lower()}.json")
     output.parent.mkdir(parents=True, exist_ok=True)

@@ -1,8 +1,8 @@
 # Kanoniczna mapa architektury BriefRooms — PL
 
-**Wersja mapy:** 1.42
+**Wersja mapy:** 1.43
 
-**Stan na:** 2026-10-21
+**Stan na:** 2026-10-27
 
 **Bazowy commit `main`:** `7dff7b1d71b333f9029c661b251b01243a189897`
 
@@ -316,6 +316,18 @@ Experience
 ```
 
 Nie każdy silnik implementuje dziś każdy krok w identyczny sposób. `LE-11` implementuje wspólny lifecycle i routing authority ponad tymi lokalnymi pętlami. Discovery/OOS pozostają w source modules, a produkcyjna materializacja jest wykonywana wyłącznie przez uprawnionego writera danego komponentu.
+
+### TR-04 / LE-01..06, LE-09, LE-11 — naprawa uczenia CASH v2
+
+Decyzje HOLD/EXIT i terminalne rozliczenia są niezmienne. Zmienny `portfolio_updated_at` trafia do odrębnych append-only obserwacji odczytu; nie zmienia źródłowej decyzji. Nowy epoch admission powstaje przed discovery; dawne admission pozostają historyczne i nie uzyskują prospektywnej eligibility. `stock_trading_v2_learning_health.py` rozdziela rzeczywisty postęp outcome, regret i ocen Challengerów od ponownego zapisu czasu raportu.
+
+Jedyną automatycznie uczoną zmianą v2 jest `markets.<GPW|US>.minimum_cash_edge_points`: jeden rynek, jedna zmienna, krok ±1 w granicach 1..15. Nie zmienia ona hard gates, wag rankingu ani rotacji. Pełna polityka, manifest i kontekst okazji są zamrożone przed wynikiem. Rejestr prób i potwierdzenia kohort są main-owned; rodzina ma dożywotni budżet 24 testów i alpha 0,05/24. Każdy wymagany horyzont 1/2 sesji ma stałe N≥30, rozłączne epizody 168h i pojedynczy terminalny werdykt. Brak wyniku nie pozwala wymienić członka próby.
+
+`stock_trading_component_evidence.py` niezależnie odtwarza pełny dowód na przejrzanym kodzie main i main-owned natywnych danych, sprawdza kompletną chronologię okazji, wcześniejsze przyjęcie kohorty, pełny aktualny hash Championa, wynik netto i statystykę. Flaga PASS i hash nie upoważniają do promocji. Research nie dostarcza wykonywalnego kodu produkcji.
+
+`stock_trading_v2_production_replay.py` wywołuje rzeczywisty bridge/lifecycle, uwzględnia CANARY/FULL, sloty, ratchet SL, profit-runner i jawne koszty. Natywne ramy i ograniczony watchlist służą wyłącznie obserwacji; provider potwierdza zamknięcia sesji, nie upływ 24h. Braki danych, nieznane koszty legacy i brak wymaganych danych wirtualnego re-entry pozostają PENDING. Portfolio admission kontroluje sumę straty przy SL oraz zweryfikowane sektory. Znaczne oddalenie kursu od analizy wymaga odświeżenia.
+
+`stock_trading_component_monitor.py` zamraża kontrakt przyszłych wyników przy promocji: 30 dni, minimum 2 porównania, rollback przy DD≥5% lub końcowym pogorszeniu netto >1 pp. Jedynie uprawniony writer main może przywrócić poprzedni komponent entry i skalar CASH w nowej rewizji manifestu; historia i pozycje pozostają identyczne. Wszystkie produkcyjne ścieżki zapisu korzystają ze wspólnego locka. Szczegóły: `STOCK_TRADING_LEARNING_PERSISTENCE.md`, `STOCK_TRADING_CASH_EDGE_LEARNING.md`, `STOCK_TRADING_PORTFOLIO_EVALUATION.md`.
 
 ## 8. Content / research publication layer
 

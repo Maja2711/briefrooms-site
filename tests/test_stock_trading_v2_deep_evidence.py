@@ -131,6 +131,30 @@ class StockTradingV2DeepEvidenceTests(unittest.TestCase):
         self.assertEqual(row["evidence_status"], "DATA_ERROR")
         self.assertLess(row["deep_opportunity_score"], row["opportunity_score"])
 
+    def test_shared_candidate_builder_preserves_sector_and_relationship_identity(self):
+        source_frontier = frontier()
+        candidate = source_frontier["candidates"][0]
+        candidate.update({
+            "sector": "Technology",
+            "sector_provenance": {"source": "registry", "observed_at": "2026-09-15T12:00:00Z"},
+            "relationship_rank": 3,
+        })
+        body = dict(source_frontier)
+        body.pop("frontier_sha256")
+        source_frontier["frontier_sha256"] = contracts.payload_sha256(body)
+        providers = {"primary": {"ok": True}, "secondary": {"ok": True}}
+        single = evidence.build_candidate_evidence(candidate, [], providers, market="US", config=self.config)
+        broad = evidence.build_deep_evidence(source_frontier, {"ACME": ([], providers)}, self.config)["candidates"][0]
+        broad.pop("deep_rank")
+        self.assertEqual(single, broad)
+        self.assertEqual(single["sector"], "Technology")
+        self.assertEqual(single["sector_provenance"], candidate["sector_provenance"])
+        self.assertEqual(single["relationship_rank"], 3)
+        self.assertFalse(single["admission"]["production_decision_influence"])
+        single["sector_provenance"]["source"] = "changed"
+        self.assertEqual(candidate["sector_provenance"]["source"], "registry")
+        self.assertEqual(broad["sector_provenance"]["source"], "registry")
+
     def test_tamper_is_detected(self):
         providers = {"primary": {"ok": True}, "secondary": {"ok": True}}
         payload = evidence.build_deep_evidence(frontier(), {"ACME": ([], providers)}, self.config)
