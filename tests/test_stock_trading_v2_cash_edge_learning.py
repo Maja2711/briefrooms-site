@@ -100,6 +100,19 @@ def native_frames(*events):
 
 
 class CashEdgeLearningTests(unittest.TestCase):
+    def test_changed_full_policy_starts_distinct_trial_without_rewriting_old_one(self):
+        old_candidate = candidates()[0]
+        changed_policy = deepcopy(POLICY)
+        changed_policy["policy_version"] = "changed-full-production-baseline"
+        new_candidate = factory._cash_edge_candidates(
+            hypothesis={"component": "cash_admission_margin", "market": "US", "horizon_sessions": 2},
+            manifest=MANIFEST, policy=changed_policy)[0]
+        old = tournament.make_challenger(old_candidate, "discovery", {}, start_at=START.isoformat())
+        new = tournament.make_challenger(new_candidate, "discovery", {}, start_at=START.isoformat())
+        self.assertEqual(old["production_candidate"], new["production_candidate"])
+        self.assertNotEqual(old["challenger_id"], new["challenger_id"])
+        self.assertNotEqual(old["champion"]["policy_sha256"], new["champion"]["policy_sha256"])
+
     def test_native_completed_close_censors_before_descriptive_settlement(self):
         item, event = challenger(horizon=1), event_at()
         frames = native_frames(event)

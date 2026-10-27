@@ -117,6 +117,7 @@ def make_challenger(candidate: Mapping[str, Any], tournament_sha: str, promotion
     }
     if cash_code:
         identity["code_fingerprints"] = cash_code
+        identity["champion_policy_sha256"] = candidate["champion_policy_sha256"]
     challenger_id = "stchallv2-exact-" + contracts.payload_sha256(identity)[:20]
     payload: dict[str, Any] = {
         "schema_version": learner.SCHEMA_VERSION,
