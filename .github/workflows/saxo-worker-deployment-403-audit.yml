@@ -1,0 +1,100 @@
+name: Saxo Worker deployment and 403 classification (no credentials disclosed)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/saxo-worker-deployment-403-audit.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  check-live-deployment:
+    if: github.repository == 'Maja2711/briefrooms-site' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      SAXO_PRIVATE_BASIC_PASSWORD: ${{ secrets.SAXO_PRIVATE_BASIC_PASSWORD }}
+    steps:
+      - name: Compare latest Worker version with active deployed version
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64
+          import json
+          import os
+          import urllib.error
+          import urllib.request
+
+          account = os.environ.get("CLOUDFLARE_ACCOUNT_ID") or ""
+          token = os.environ.get("CLOUDFLARE_API_TOKEN") or ""
+          password = os.environ.get("SAXO_PRIVATE_BASIC_PASSWORD") or ""
+          if not all((account, token, password)):
+              print("RESULT=BLOCKED_MISSING_SECRETS")
+              raise SystemExit(2)
+
+          base = "https://api.cloudflare.com/client/v4/accounts/" + account + "/workers/scripts/briefrooms-saxo-eurusd"
+          def get(url, headers):
+              request = urllib.request.Request(url, headers=headers)
+              try:
+                  with urllib.request.urlopen(request, timeout=12) as response:
+                      return response.status, dict(response.headers.items()), response.read(1000000)
+              except urllib.error.HTTPError as e:
+                  return e.code, dict(e.headers.items()), e.read(32768)
+              except Exception:
+                  return -1, {}, b""
+
+          auth_headers = {"Authorization": "Bearer " + token, "Accept": "application/json"}
+          latest_http, _, latest_body = get(base + "/versions?per_page=5", auth_headers)
+          active_http, _, active_body = get(base + "/deployments?per_page=5", auth_headers)
+          print("VERSIONS_API_STATUS=" + str(latest_http))
+          print("DEPLOYMENTS_API_STATUS=" + str(active_http))
+          if latest_http == 200 and active_http == 200:
+              try:
+                  version_result = json.loads(latest_body).get("result") or {}
+                  deployment_result = json.loads(active_body).get("result") or {}
+                  versions = version_result if isinstance(version_result, list) else (
+                      version_result.get("items") or version_result.get("versions") or []
+                  )
+                  deployments = deployment_result if isinstance(deployment_result, list) else (
+                      deployment_result.get("deployments") or deployment_result.get("items") or []
+                  )
+                  print("WORKER_VERSION_COUNT=" + str(len(versions)))
+                  print("WORKER_DEPLOYMENT_COUNT=" + str(len(deployments)))
+                  if versions and deployments:
+                      latest_id = str(versions[0].get("id") or "")
+                      active = deployments[0].get("versions") or []
+                      active_ids = [str(v.get("version_id") or "") for v in active]
+                      print("LATEST_VERSION_ACTIVE=" + str(latest_id in active_ids).upper())
+                      print("ACTIVE_TRAFFIC_PERCENTAGES=" + ",".join(str(v.get("percentage", "?")) for v in active))
+                      print("LATEST_VERSION_SOURCE=" + str((versions[0].get("metadata") or {}).get("source") or "UNKNOWN"))
+                      print("LATEST_VERSION_CREATED_ON=" + str((versions[0].get("metadata") or {}).get("created_on") or "UNKNOWN"))
+                      print("LAST_DEPLOYMENT_CREATED_ON=" + str(deployments[0].get("created_on") or "UNKNOWN"))
+              except Exception:
+                  print("VERSION_DEPLOYMENT_PARSE=UNAVAILABLE")
+
+          basic = "Basic " + base64.b64encode(("admin:" + password).encode("utf-8")).decode("ascii")
+          status_url = "https://briefrooms-saxo-eurusd.szczerbinski0577.workers.dev/status"
+          for mode, h in (
+              ("AUTH", {"Authorization": basic, "Accept": "application/json", "Cache-Control": "no-store"}),
+              ("ANON", {"Accept": "application/json", "Cache-Control": "no-store"})
+          ):
+              http, headers, body = get(status_url, h)
+              lower = {k.lower(): v for k, v in headers.items()}
+              content_type = lower.get("content-type", "").split(";", 1)[0].lower()
+              if content_type not in ("application/json", "text/plain", "text/html"):
+                  content_type = "OTHER"
+              print(mode + "_HTTP_STATUS=" + str(http))
+              print(mode + "_CONTENT_TYPE=" + content_type)
+              print(mode + "_SERVER_IS_CLOUDFLARE=" + str("cloudflare" in lower.get("server", "").lower()).upper())
+              print(mode + "_HAS_CF_RAY=" + str(bool(lower.get("cf-ray"))).upper())
+              print(mode + "_BODY_IS_JSON=" + str(body.lstrip().startswith(b"{")).upper())
+              print(mode + "_BODY_IS_HTML=" + str(body.lstrip().lower().startswith(b"<!doctype html") or body.lstrip().lower().startswith(b"<html")).upper())
+              print(mode + "_BODY_LENGTH_BAND=" + ("SMALL" if len(body) < 200 else "MEDIUM" if len(body) < 2000 else "LARGE"))
+          print("RESULT=READ_ONLY_WORKER_DEPLOYMENT_HTTP_CLASSIFICATION_COMPLETE")
+          PY
