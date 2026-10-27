@@ -32,6 +32,8 @@ jobs:
   validate-routing:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      PYTHONPATH: ${{ github.workspace }}
     steps:
       - name: Checkout tested ref
         uses: actions/checkout@v4

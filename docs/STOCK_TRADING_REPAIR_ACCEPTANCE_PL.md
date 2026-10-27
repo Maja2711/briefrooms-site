@@ -46,7 +46,7 @@ Testy na rzeczywistych, skopiowanych ledgerach porównują oryginalne bajty, nie
 
 ## Kolejność wydania i wycofanie zmian
 
-Najpierw należy przejrzeć i wydać PR do `main`, ustanawiający bramki, rejestr i zbieranie natywnych danych; następnie zgodny PR do `stock-trading-v2`. Zestaw 20 audytowanych plików musi mieć identyczną zawartość na obu gałęziach. Samo otwarcie PR nie wdraża tych zmian.
+Najpierw należy wydać zgodną część research w PR #982, następnie ponowić kontrolę zgodności gałęzi i wydać PR #981 do `main`. Do powstania rejestru main nowa część research oczekuje na receipt i nie może uzyskać formalnej promocji. Guard nadal porównuje rzeczywistą gałąź research: nie zastępuje się jej wygodnym snapshotem z PR. Zestaw 20 audytowanych plików musi mieć identyczną zawartość na obu gałęziach. Samo otwarcie PR nie wdraża tych zmian.
 
 Wycofanie kodu i konfiguracji nie usuwa nowych ledgerów ani nie cofa historii. Terminalne dowody pozostają niezmienne; nowe polityki działają wyłącznie na przyszłe decyzje. Brakującego rejestru prób nie wolno zastąpić pustym plikiem. Odzyskuje się jego zachowaną wersję.
 
