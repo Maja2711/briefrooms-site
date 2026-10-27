@@ -1,0 +1,121 @@
+name: Diagnose Saxo Worker auth function in memory (read only)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/saxo-worker-auth-function-selftest.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  analyze-auth:
+    if: github.repository == 'Maja2711/briefrooms-site' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Test extracted Worker auth helpers with artificial credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          import subprocess
+          import urllib.request
+          import urllib.error
+
+          account = os.environ.get("CLOUDFLARE_ACCOUNT_ID") or ""
+          token = os.environ.get("CLOUDFLARE_API_TOKEN") or ""
+          if not account or not token:
+              print("RESULT=NO_CLOUDFLARE_READ_PERMISSION")
+              raise SystemExit(2)
+
+          src_url = "https://api.cloudflare.com/client/v4/accounts/" + account + "/workers/scripts/briefrooms-saxo-eurusd"
+          req = urllib.request.Request(src_url, headers={"Authorization": "Bearer " + token})
+          try:
+              with urllib.request.urlopen(req, timeout=15) as response:
+                  source = response.read(2000000).decode("utf-8", errors="replace")
+          except Exception:
+              print("RESULT=WORKER_SOURCE_NOT_ACCESSIBLE")
+              raise SystemExit(3)
+
+          def function_source(name):
+              match = re.search(r'function\s+' + re.escape(name) + r'\s*\([^)]*\)\s*\{', source)
+              if not match:
+                  return None
+              start = match.start()
+              level = 0
+              for pos in range(match.end()-1, len(source)):
+                  if source[pos] == "{":
+                      level += 1
+                  elif source[pos] == "}":
+                      level -= 1
+                      if level == 0:
+                          return source[start:pos+1]
+              return None
+
+          functions = {name: function_source(name) for name in ("unb64", "constantTimeEqual", "authorized")}
+          for name, js in functions.items():
+              print("FUNCTION_" + name.upper() + "_PRESENT=" + ("TRUE" if js else "FALSE"))
+          if not all(functions.values()):
+              print("RESULT=INCOMPLETE_AUTH_HELPER_EXTRACTION")
+              raise SystemExit(4)
+
+          # Real Worker source stays inside this runner and is never printed or persisted.
+          testcase = r"""
+          const synthetic = "x".repeat(48);
+          const correct = "Basic " + Buffer.from("admin:" + synthetic, "utf8").toString("base64");
+          const bad = "Basic " + Buffer.from("admin:wrong", "utf8").toString("base64");
+          function request(header) { return {headers:{get:(key)=>key.toLowerCase()==="authorization"?header:null}}; }
+          const good = authorized(request(correct), {SAXO_ADMIN_PASSWORD: synthetic});
+          const negative = authorized(request(bad), {SAXO_ADMIN_PASSWORD: synthetic});
+          console.log("SYNTHETIC_AUTH_ACCEPT=" + (good === true ? "TRUE" : "FALSE"));
+          console.log("SYNTHETIC_AUTH_REJECT=" + (negative === false ? "TRUE" : "FALSE"));
+          """
+          js = "\n".join(functions.values()) + "\n" + testcase
+          try:
+              process = subprocess.run(["node", "-"], input=js, text=True, capture_output=True, timeout=10)
+              if process.returncode == 0:
+                  for line in process.stdout.splitlines():
+                      if re.fullmatch(r"SYNTHETIC_AUTH_(ACCEPT|REJECT)=(TRUE|FALSE)", line):
+                          print(line)
+              else:
+                  print("RESULT=AUTH_FUNCTION_LOCAL_TEST_EXECUTION_FAILED")
+          except Exception:
+              print("RESULT=AUTH_FUNCTION_LOCAL_TEST_UNAVAILABLE")
+
+          # Do not print response bodies. Only categorize known error types, and
+          # detect whether the 403 is explicitly JSON from Worker code.
+          url = "https://briefrooms-saxo-eurusd.szczerbinski0577.workers.dev/status"
+          try:
+              with urllib.request.urlopen(urllib.request.Request(url,headers={"Accept":"application/json"}),timeout=10) as response:
+                  status=response.status
+                  body=response.read(8192)
+          except urllib.error.HTTPError as error:
+              status=error.code
+              body=error.read(8192)
+          except Exception:
+              status=-1
+              body=b""
+          print("ANONYMOUS_STATUS_HTTP=" + str(status))
+          try:
+              obj=json.loads(body)
+              if isinstance(obj, dict):
+                  print("ERROR_JSON_KEYS_PRESENT=" + ",".join(k for k in ("error","message","reason","code","status","details") if k in obj))
+                  string_values = [str(obj.get(k, "")).lower().strip() for k in ("error","reason","code","status")]
+                  matches = {"forbidden","unauthorized","not_authorized","invalid_credentials","access_denied","auth_required"}
+                  print("KNOWN_ERROR_CLASS=" + next((s for s in string_values if s in matches), "OTHER"))
+              else:
+                  print("ERROR_JSON_SHAPE=OTHER")
+          except Exception:
+              print("ERROR_JSON_SHAPE=INVALID")
+          print("SOURCE_DISCLOSURE=NONE")
+          print("RESULT=READ_ONLY_AUTH_FUNCTION_AUDIT_COMPLETE")
+          PY
