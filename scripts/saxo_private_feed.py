@@ -113,6 +113,69 @@ def validate_private_saxo_quote(
     return mid
 
 
+def private_saxo_exit_record(
+    position: Mapping[str, Any], trigger: Mapping[str, Any], *,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    """Settle a privately triggered paper exit at fresh Saxo SIM BID/ASK.
+
+    Yahoo/Belief/macro may establish *why* exit is necessary. Saxo alone sets
+    the current exit price. No trade is written if the Saxo quote fails.
+    """
+    from daily_eurusd_lifecycle import _close_record, parse_iso
+
+    execution = position.get("execution_price_engine") or {}
+    if not isinstance(execution, Mapping) or execution.get("private_saxo_primary") is not True:
+        raise PrivateSaxoFeedError("private_saxo_position_required")
+    if (os.environ.get("SAXO_PRIVATE_PRIMARY") != "1"
+            or os.environ.get("BRIEFROOMS_PRIVATE_RUNTIME") != "1"):
+        raise PrivateSaxoFeedError("private_saxo_runtime_required")
+    clock = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    quote = fetch_private_saxo_quote(now=clock)
+    stamp = quote["observed_at"]
+    if not isinstance(stamp, datetime) or not 0 <= (clock - stamp).total_seconds() <= 15:
+        _reject()
+    opened = parse_iso(str(position.get("opened_at") or ""))
+    if opened is None or stamp <= opened:
+        _reject()
+    direction = str(position.get("direction") or "").upper()
+    if direction not in ("LONG", "SHORT"):
+        _reject()
+    price = round(float(quote["bid"] if direction == "LONG" else quote["ask"]), 5)
+    reason = str(trigger.get("exit_reason") or "")
+    if not reason:
+        _reject()
+    result = _close_record(
+        position, exit_reason=reason, exit_price=price,
+        exited_at=stamp, exit_bar=None,
+    )
+    # Preserve non-price trigger diagnostics without treating the Yahoo bar
+    # as the execution quote or backdating a private Saxo fill.
+    source_monitor = trigger.get("monitor") or {}
+    if isinstance(source_monitor, Mapping):
+        for name in ("dynamic_exit", "macro_event", "event_intelligence"):
+            if name in source_monitor:
+                result["monitor"][name] = source_monitor[name]
+    for name in (
+        "entry_thesis", "execution_price_engine", "decision_manifest",
+        "contextual_entry_policy_at_entry",
+    ):
+        if name in position and isinstance(position[name], Mapping):
+            result[name] = dict(position[name])
+    result["monitor"].update({
+        "source": "Saxo OpenAPI SIM:EUR/USD (private indicative quote)",
+        "trigger_source": "Yahoo 1m OHLC / macro / exit policy",
+        "exit_price_basis": "SAXO_SIM_BID_FOR_LONG_ASK_FOR_SHORT",
+        "quote_timestamp": stamp.isoformat().replace("+00:00", "Z"),
+        "private_saxo_bid": quote["bid"],
+        "private_saxo_ask": quote["ask"],
+        "redistributable": False,
+        "no_broker_order": True,
+        "trigger_closed_at_proposed": trigger.get("closed_at"),
+    })
+    return result
+
+
 def fetch_private_saxo_quote(*, now: datetime | None = None) -> dict[str, Any]:
     """Obtain private Bid/Ask/Mid using machine-to-machine Cloudflare auth."""
     username = os.environ.get("SAXO_PRIVATE_BASIC_USER", "admin")
