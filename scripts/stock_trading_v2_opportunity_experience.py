@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """Freeze Stock Trading v2 Opportunity decisions into the immutable Experience Store.
 
-Continuous discovery may run many times per session. To avoid overweighting the
-same intraday observation, this adapter records at most one rejected and one
-selected observation per market/symbol/UTC decision date. A later transition
-from REJECTED to SELECTED is therefore learnable, while repeated identical
-hourly states are not multiplied.
+Prospective decisions carrying a frozen decision context retain every distinct
+source opportunity; a later CASH-margin observation must survive an earlier
+scan of the same symbol. Repeating the same source remains idempotent. Legacy
+contextless records retain the historical market/symbol/day/selected dedupe.
 """
 from __future__ import annotations
 
@@ -50,8 +49,17 @@ def _day(value: Any) -> str:
         return str(value or "")[:10]
 
 
-def _existing_keys(root: Path) -> set[tuple[str, str, str, bool]]:
-    keys: set[tuple[str, str, str, bool]] = set()
+def _dedupe_key(event: Mapping[str, Any]) -> tuple[str, str, str, bool, str]:
+    prospective = isinstance((event.get("candidate_state") or {}).get("decision_context"), Mapping)
+    source_sha = str((event.get("source") or {}).get("payload_sha256") or "") if prospective else ""
+    if prospective and not source_sha:
+        raise contracts.ContractError("prospective opportunity source hash required")
+    return (str(event.get("market") or ""), str(event.get("symbol") or ""),
+            _day(event.get("decision_at")), bool(event.get("selected")), source_sha)
+
+
+def _existing_keys(root: Path) -> set[tuple[str, str, str, bool, str]]:
+    keys: set[tuple[str, str, str, bool, str]] = set()
     for path in store.iter_event_files(root):
         try:
             event = _read_json(path)
@@ -61,12 +69,7 @@ def _existing_keys(root: Path) -> set[tuple[str, str, str, bool]]:
         source = event.get("source") or {}
         if source.get("engine") != SOURCE_ENGINE:
             continue
-        keys.add((
-            str(event.get("market") or ""),
-            str(event.get("symbol") or ""),
-            _day(event.get("decision_at")),
-            bool(event.get("selected")),
-        ))
+        keys.add(_dedupe_key(event))
     return keys
 
 
@@ -96,6 +99,8 @@ def _rejection_blocker(evaluated: Mapping[str, Any], portfolio_action: str) -> s
     """
     if evaluated.get("eligible") is not True:
         return str(evaluated.get("eligibility_reason") or "candidate_hard_gate_rejected")
+    if evaluated.get("already_held") is True:
+        return "opportunity_already_held"
     if str(portfolio_action).upper() in {"BUY", "REPLACE"}:
         return "opportunity_ranked_below_selected_candidate"
     return "opportunity_did_not_clear_cash_or_replacement_edge"
@@ -114,6 +119,8 @@ def candidate_state(
     return {
         "identity": {
             "name": evaluated.get("name") or evidence_row.get("name"),
+            "sector": evaluated.get("sector") or evidence_row.get("sector"),
+            "sector_provenance": deepcopy(evaluated.get("sector_provenance") or evidence_row.get("sector_provenance")),
             "ticker": evaluated.get("symbol") or evidence_row.get("symbol"),
             "market_data_symbol": evaluated.get("market_data_symbol") or evidence_row.get("market_data_symbol"),
         },
@@ -126,6 +133,8 @@ def candidate_state(
         },
         "score_state": {
             "score": evaluated.get("utility"),
+            "utility": evaluated.get("utility"),
+            "portfolio_utility": evaluated.get("utility"),
             "opportunity_score": evidence_row.get("opportunity_score"),
             "deep_opportunity_score": evidence_row.get("deep_opportunity_score"),
             "deep_rank": evidence_row.get("deep_rank"),
@@ -192,6 +201,8 @@ def events_from_snapshots(
         raise contracts.ContractError("opportunity generated_at is required")
     decision_day = _day(decision_at)
     rows = list(opportunity_payload.get("evaluated_candidates") or [])[: max(1, int(candidates_per_cycle))]
+    best_new = next((row for row in opportunity_payload.get("evaluated_candidates") or []
+                     if row.get("eligible") is True and row.get("already_held") is not True), None)
     events: list[dict[str, Any]] = []
     source_sha = str(opportunity_payload.get("opportunity_sha256") or "")
     for evaluated in rows:
@@ -208,6 +219,34 @@ def events_from_snapshots(
             portfolio_action=str(decision.get("action") or "CASH"),
             opportunity_reason=str(decision.get("reason") or ""),
         )
+        if isinstance(opportunity_payload.get("decision_context"), Mapping):
+            context = deepcopy(dict(opportunity_payload["decision_context"]))
+            context["opportunity_sha256"] = contracts.payload_sha256(opportunity_payload)
+            # The source context has no opportunity_snapshot, so this is finite
+            # and preserves the original opportunity's integrity hash.
+            context["opportunity_snapshot"] = deepcopy(dict(opportunity_payload))
+            state["decision_context"] = context
+            cash = opportunity_payload.get("cash") or {}
+            portfolio_state = opportunity_payload.get("portfolio") or {}
+            path = state["decision_path"]
+            margin_only = (
+                evaluated.get("eligible") is True
+                and not evaluated.get("already_held")
+                and int(portfolio_state.get("available_slots") or 0) > 0
+                and decision.get("action") in {"CASH", "HOLD"}
+                and best_new is not None and best_new.get("symbol") == evaluated.get("symbol")
+                and float(evaluated.get("utility") or 0) < float(cash.get("utility") or 50) + float(cash.get("minimum_new_position_edge_points") or 5)
+            )
+            path.update({
+                "cash_utility": cash.get("utility"),
+                "minimum_cash_edge_points": cash.get("minimum_new_position_edge_points"),
+                "available_slots": portfolio_state.get("available_slots"),
+                "eligible": evaluated.get("eligible") is True,
+                "already_held": evaluated.get("already_held") is True,
+                "cash_margin_only_blocker": bool(margin_only),
+            })
+            if margin_only:
+                path["first_blocking_gate"] = "cash_admission_margin"
         # GPW/US legacy admission adapters key off market-specific producer
         # decision labels only for selected candidates.
         state["decision_path"]["producer_decision"] = (
@@ -246,16 +285,14 @@ def ingest(
         candidates_per_cycle=candidates_per_cycle,
     )
     existing_keys = _existing_keys(root)
-    written = skipped_daily_duplicate = existing = 0
+    written = skipped_daily_duplicate = skipped_source_duplicate = existing = 0
     for event in events:
-        key = (
-            str(event["market"]),
-            str(event["symbol"]),
-            _day(event["decision_at"]),
-            bool(event["selected"]),
-        )
+        key = _dedupe_key(event)
         if key in existing_keys:
-            skipped_daily_duplicate += 1
+            if key[-1]:
+                skipped_source_duplicate += 1
+            else:
+                skipped_daily_duplicate += 1
             continue
         if store.persist_event(root, event):
             written += 1
@@ -269,6 +306,7 @@ def ingest(
         "events_written": written,
         "events_existing": existing,
         "events_skipped_daily_duplicate": skipped_daily_duplicate,
+        "events_skipped_source_duplicate": skipped_source_duplicate,
         "production_decision_influence": False,
     }
 

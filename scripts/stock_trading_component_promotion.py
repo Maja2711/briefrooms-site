@@ -27,6 +27,7 @@ except ModuleNotFoundError:  # pragma: no cover
 ROOT = Path(__file__).resolve().parents[1]
 GPW_CONFIG_PATH = ROOT / "data/investments/gpw_daily_pick_config.json"
 POLICY_PATH = ROOT / "data/investments/stock_trading_policy.json"
+REQUIRED_PRODUCTION_HORIZONS = frozenset({1, 2})
 
 
 class PromotionError(RuntimeError):
@@ -61,7 +62,10 @@ def _hash_without(payload: Mapping[str, Any], field: str) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
-def validate_research_pair(challenger: Mapping[str, Any], evaluation: Mapping[str, Any]) -> None:
+def validate_research_pair(challenger: Mapping[str, Any], evaluation: Mapping[str, Any], *,
+                           source_root: Path | None = None, frames_root: Path | None = None,
+                           trials_path: Path | None = None,
+                           current_policy: Mapping[str, Any] | None = None) -> None:
     if challenger.get("schema_version") != "stock-trading-v2-challenger-policy-v1":
         raise PromotionError("Unsupported Challenger schema")
     if evaluation.get("schema_version") != "stock-trading-v2-challenger-evaluation-v1":
@@ -79,6 +83,15 @@ def validate_research_pair(challenger: Mapping[str, Any], evaluation: Mapping[st
         raise PromotionError("Evaluation has not passed the formal holdout")
     if not str(evaluation.get("state") or "").startswith("RESEARCH_PASS"):
         raise PromotionError("Evaluation state is not a research PASS")
+    from scripts import stock_trading_component_evidence as evidence
+    try:
+        evidence.validate_proof(
+            challenger, evaluation, source_root=source_root or evidence.DATA,
+            frames_root=frames_root, trials_path=trials_path or evidence.TRIALS_PATH,
+            current_policy=current_policy,
+        )
+    except (evidence.EvidenceError, ValueError, KeyError, TypeError, OSError) as exc:
+        raise PromotionError("Independent production proof rejected: " + str(exc)) from exc
 
 
 def production_candidate(challenger: Mapping[str, Any]) -> dict[str, Any] | None:
@@ -176,11 +189,26 @@ def run(
     gpw_config_path: Path = GPW_CONFIG_PATH,
     policy_path: Path = POLICY_PATH,
     dry_run: bool = False,
+    source_root: Path | None = None,
+    frames_root: Path | None = None,
+    trials_path: Path | None = None,
+    monitor_root: Path | None = None,
+    portfolio_path: Path | None = None,
+    bridge_config_path: Path | None = None,
+    runtime_path: Path | None = None,
 ) -> dict[str, Any]:
     current = champion.load_manifest(manifest_path)
     registry = router.load_registry(registry_path)
+    effective_policy = router.load_effective_json_config(
+        policy_path, target="stock_trading_policy", manifest_path=manifest_path, registry_path=registry_path,
+    )
     skipped: list[dict[str, str]] = []
     eligible: list[tuple[dict[str, Any], dict[str, Any], dict[str, Any], dict[str, Any]]] = []
+    baseline_sha256 = hashlib.sha256(json.dumps(
+        {"manifest": current, "policy": effective_policy}, ensure_ascii=False,
+        sort_keys=True, separators=(",", ":"), allow_nan=False,
+    ).encode("utf-8")).hexdigest()
+    passed_horizons: dict[tuple[str, str, str], set[int]] = {}
 
     for evaluation_path in _candidate_paths(evaluations):
         evaluation = _read_json(evaluation_path)
@@ -190,9 +218,12 @@ def run(
             skipped.append({"challenger_id": challenger_id, "reason": "challenger_missing"})
             continue
         challenger = _read_json(challenger_path)
+        from scripts import stock_trading_component_bound_promotion as bound
         try:
-            validate_research_pair(challenger, evaluation)
-        except PromotionError as exc:
+            validate_research_pair(challenger, evaluation, source_root=source_root, frames_root=frames_root,
+                                   trials_path=trials_path, current_policy=effective_policy)
+            bound.validate_exact_binding(challenger, evaluation, registry)
+        except (PromotionError, bound.EvidenceBindingError, router.RouterError) as exc:
             skipped.append({"challenger_id": challenger_id, "reason": str(exc)})
             continue
         candidate = production_candidate(challenger)
@@ -217,7 +248,30 @@ def run(
         if current["components"][component].get("deployment_id") == deployment_id:
             skipped.append({"challenger_id": challenger_id, "reason": "already_active"})
             continue
+        try:
+            horizon = int(challenger.get("horizon_sessions") or 0)
+        except (TypeError, ValueError):
+            horizon = 0
+        if horizon not in REQUIRED_PRODUCTION_HORIZONS:
+            skipped.append({"challenger_id": challenger_id, "reason": "formal_PASS_horizon_outside_1_2_session_mandate"})
+            continue
+        key = (deployment_id, str(candidate["deployment_sha256"]), baseline_sha256)
+        passed_horizons.setdefault(key, set()).add(horizon)
         eligible.append((challenger, evaluation, candidate, dict(deployment)))
+
+    # Registry approval persists across generations. It cannot substitute for
+    # two independently verified horizon proofs against this complete baseline.
+    complete = []
+    for item in eligible:
+        candidate = item[2]
+        key = (str(candidate["deployment_id"]), str(candidate["deployment_sha256"]), baseline_sha256)
+        missing = REQUIRED_PRODUCTION_HORIZONS - passed_horizons[key]
+        if missing:
+            skipped.append({"challenger_id": str(item[0]["challenger_id"]),
+                            "reason": "missing exact fresh-holdout PASS for production horizon(s): " + ",".join(str(value) for value in sorted(missing))})
+        else:
+            complete.append(item)
+    eligible = complete
 
     if not eligible:
         return {"status": "NO_PROMOTION", "revision": current["revision"], "skipped": skipped}
@@ -272,6 +326,16 @@ def run(
             gpw_config_path=gpw_config_path,
             policy_path=policy_path,
         )
+        from scripts import stock_trading_component_monitor as monitor
+        from scripts import stock_trading_v2_production_bridge as bridge
+        monitored = monitor.register_activation(
+            previous_policy=effective_policy, previous_manifest=prior,
+            activated_policy=_read_json(policy_path), activated_manifest=promoted,
+            initial_state=_read_json(portfolio_path or bridge.PORTFOLIO_PATH),
+            bridge_config=_read_json(bridge_config_path or bridge.CONFIG_PATH),
+            runtime=_read_json(runtime_path or bridge.STATE_PATH),
+            root=monitor_root or monitor.MONITOR_ROOT,
+        )
     except Exception as exc:
         _atomic_json(gpw_config_path, gpw_before)
         _atomic_json(policy_path, policy_before)
@@ -298,6 +362,7 @@ def run(
         "to_revision": promoted["revision"],
         "promotion_id": promotion_id,
         "health": health,
+        "monitoring": monitored,
         "skipped": skipped,
     }
 
@@ -313,6 +378,13 @@ def main() -> int:
     parser.add_argument("--gpw-config", type=Path, default=GPW_CONFIG_PATH)
     parser.add_argument("--policy", type=Path, default=POLICY_PATH)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--source-root", type=Path)
+    parser.add_argument("--frames-root", type=Path)
+    parser.add_argument("--trials", type=Path)
+    parser.add_argument("--monitor-root", type=Path)
+    parser.add_argument("--portfolio", type=Path)
+    parser.add_argument("--bridge-config", type=Path)
+    parser.add_argument("--runtime", type=Path)
     args = parser.parse_args()
     result = run(
         challengers=args.challengers,
@@ -324,6 +396,9 @@ def main() -> int:
         gpw_config_path=args.gpw_config,
         policy_path=args.policy,
         dry_run=args.dry_run,
+        source_root=args.source_root, frames_root=args.frames_root, trials_path=args.trials,
+        monitor_root=args.monitor_root, portfolio_path=args.portfolio,
+        bridge_config_path=args.bridge_config, runtime_path=args.runtime,
     )
     print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
     return 0

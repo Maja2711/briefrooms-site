@@ -153,6 +153,8 @@ For new v2 admissions the production bridge requires a prospectively observed ex
 
 ## Learning / challenger boundary
 
+The prospective CASH repair is governed by `STOCK_TRADING_LEARNING_PERSISTENCE.md`, `STOCK_TRADING_CASH_EDGE_LEARNING.md`, `STOCK_TRADING_PORTFOLIO_EVALUATION.md` and the acceptance record `STOCK_TRADING_REPAIR_ACCEPTANCE_PL.md`. Full proof verification, trial/member receipt ownership and economic rollback remain main-owned. Research freezes cohorts only after main observes native admission inputs; its post-production freeze-only job has no trading or redispatch authority. Push jobs validate without performing discovery, learning settlement or production admission.
+
 Stock Trading v2 is now the engine-level production Champion. V1 is the registered Challenger.
 
 Component-level changes inside v2 still follow governed future-only learning:

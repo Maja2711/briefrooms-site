@@ -31,6 +31,19 @@ DEFAULT_ROOT = ROOT / "data/investments/stock_trading_v2_challengers"
 SCHEMA_VERSION = "stock-trading-v2-challenger-policy-v1"
 
 
+def validate_test_family(row: Mapping[str, Any], *, challenger_id: str | None = None, protocol_sha256: str | None = None) -> None:
+    body = dict(row)
+    digest = body.pop("reservation_sha256", None)
+    if (digest != contracts.payload_sha256(body)
+            or row.get("family_id") != "stock-trading-v2-cash-edge-lifetime-v1"
+            or row.get("lifetime_max_tests") != 24
+            or not isinstance(row.get("test_index"), int) or not 1 <= row["test_index"] <= 24
+            or row.get("alpha") != 0.05 / 24
+            or (challenger_id is not None and row.get("challenger_id") != challenger_id)
+            or (protocol_sha256 is not None and row.get("protocol_sha256") != protocol_sha256)):
+        raise contracts.ContractError("invalid lifetime CASH test reservation")
+
+
 def _read_json(path: Path) -> dict[str, Any]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
@@ -138,6 +151,39 @@ def persist(root: Path, payload: Mapping[str, Any]) -> bool:
         # Created-at is tied to the first qualifying report. Never move the
         # holdout boundary later just because more historical evidence arrives.
         return False
+    payload = dict(payload)
+    if (payload.get("exact_replay") or {}).get("adapter") == "cash_edge_v2":
+        protocol = payload.get("protocol") or {}
+        budget_root = root / ".test-budget"
+        budget_root.mkdir(parents=True, exist_ok=True)
+        existing_slots = [_read_json(p) for p in sorted(budget_root.glob("*.json"))]
+        for slot in existing_slots:
+            validate_test_family(slot)
+        if len({row["test_index"] for row in existing_slots}) != len(existing_slots) or len({row["challenger_id"] for row in existing_slots}) != len(existing_slots):
+            raise contracts.ContractError("duplicate lifetime CASH test reservation")
+        reservation = next((row for row in existing_slots if row.get("challenger_id") == payload["challenger_id"]), None)
+        if reservation is None:
+            used = {int(row["test_index"]) for row in existing_slots}
+            for index in range(1, int(protocol.get("lifetime_max_tests") or 24) + 1):
+                if index in used:
+                    continue
+                reservation = {"family_id": "stock-trading-v2-cash-edge-lifetime-v1", "test_index": index,
+                               "challenger_id": payload["challenger_id"], "protocol_sha256": payload["protocol_sha256"],
+                               "reserved_at": contracts.iso_utc(), "lifetime_max_tests": 24, "alpha": 0.05 / 24}
+                reservation["reservation_sha256"] = contracts.payload_sha256(reservation)
+                try:
+                    with (budget_root / f"{index:03d}.json").open("x", encoding="utf-8") as handle:
+                        handle.write(json.dumps(reservation, ensure_ascii=False, sort_keys=True, indent=2) + "\n")
+                    break
+                except FileExistsError:
+                    reservation = None
+                    continue
+            if reservation is None:
+                return False  # Budget exhausted; generations cannot reset N/alpha.
+        payload["test_family"] = reservation
+        payload.pop("challenger_sha256", None)
+        payload["challenger_sha256"] = contracts.payload_sha256(payload)
+        validate_challenger(payload)
     root.mkdir(parents=True, exist_ok=True)
     text = json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=root, delete=False) as handle:
@@ -160,7 +206,9 @@ def create_from_report(
     regret.validate_report(report)
     champion = _read_json(champion_policy_path)
     promotion = _read_json(promotion_config_path)
-    eligible = [row for row in report.get("challenger_hypotheses") or [] if isinstance(row, Mapping) and row.get("status") == "ELIGIBLE_FOR_CHALLENGER_HOLDOUT"]
+    eligible = [row for row in report.get("challenger_hypotheses") or [] if isinstance(row, Mapping)
+                and row.get("status") == "ELIGIBLE_FOR_CHALLENGER_HOLDOUT"
+                and row.get("component") != "cash_admission_margin"]
     created = existing = 0
     ids: list[str] = []
     for hypothesis in eligible:

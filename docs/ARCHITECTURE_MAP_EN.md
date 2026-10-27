@@ -1,8 +1,8 @@
 # BriefRooms Canonical Architecture Map — EN
 
-**Map version:** 1.42
+**Map version:** 1.43
 
-**Snapshot date:** 2026-10-21
+**Snapshot date:** 2026-10-27
 
 **Base `main` commit:** `7dff7b1d71b333f9029c661b251b01243a189897`
 
@@ -316,6 +316,18 @@ Experience
 ```
 
 Not every engine implements each step identically. `LE-11` now implements the shared lifecycle and authority routing above those local loops. Discovery/OOS remains owned by source modules, while production materialization is performed only by the authorized writer for that component.
+
+### TR-04 / LE-01..06, LE-09, LE-11 — v2 CASH learning repair
+
+HOLD/EXIT decisions and terminal settlements are immutable. Volatile `portfolio_updated_at` belongs to separate append-only read observations and cannot alter the original decision. A new admission epoch is activated before discovery; historical admissions never acquire prospective eligibility. `stock_trading_v2_learning_health.py` separates actual outcome, regret and Challenger-evaluation progress from report timestamp rewrites.
+
+The only automatically learned v2 change is `markets.<GPW|US>.minimum_cash_edge_points`: one market, one variable, ±1 step within 1..15. Hard gates, ranking weights and rotation are unchanged. Full policy, manifest and opportunity context are frozen before outcomes. Main owns trial registration and cohort receipts; the family has a lifetime limit of 24 tests and alpha 0.05/24. Each required 1/2-session horizon uses fixed N≥30, disjoint 168h episodes and one terminal verdict. Missing outcomes cannot replace cohort members.
+
+`stock_trading_component_evidence.py` independently reproduces the complete proof using reviewed main code and main-owned native inputs, checking complete opportunity chronology, prereceived cohort membership, the full current Champion hash, net economics and statistics. A PASS flag and hash do not authorize promotion. Research cannot supply production executable code.
+
+`stock_trading_v2_production_replay.py` calls the actual bridge/lifecycle, including CANARY/FULL, capacity, SL ratchets, profit runners and explicit costs. Native frames and bounded watches collect observations only; provider receipts establish session closes rather than elapsed 24h. Missing data, unknown legacy costs and missing virtual re-entry inputs remain PENDING. Portfolio admission checks aggregate SL downside and verified sectors. Material price drift requires refreshed analysis.
+
+`stock_trading_component_monitor.py` freezes a future-results contract at promotion: 30 days, at least two paired observations, rollback at DD≥5% or final net underperformance greater than 1 pp. Only the authorized main writer may restore the previous entry component and CASH scalar at a new manifest revision; positions and history remain identical. Production writers share one concurrency lock. Details: `STOCK_TRADING_LEARNING_PERSISTENCE.md`, `STOCK_TRADING_CASH_EDGE_LEARNING.md`, `STOCK_TRADING_PORTFOLIO_EVALUATION.md`.
 
 ## 8. Content / research publication layer
 

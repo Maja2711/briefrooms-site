@@ -240,6 +240,8 @@ def _bootstrap_lower_bound(values: Sequence[float], *, confidence: float, draws:
 
 def evaluate_samples(challenger: Mapping[str, Any], samples: Sequence[Mapping[str, Any]], *, generated_at: str | None = None) -> dict[str, Any]:
     learner.validate_challenger(challenger)
+    if (challenger.get("exact_replay") or {}).get("adapter") == "cash_edge_v2":
+        raise contracts.ContractError("CASH formal evaluation requires the prospective cohort and production lifecycle evaluator")
     holdout = challenger.get("holdout") or {}
     required_n = int(holdout.get("fixed_paired_n") or 30)
     ordered = sorted((dict(row) for row in samples), key=lambda row: (str(row.get("decision_at")), str(row.get("source_group"))))
@@ -341,9 +343,20 @@ def run_all(
     for challenger_path in sorted(challenger_root.glob("*.json")) if challenger_root.exists() else []:
         challenger = _read_json(challenger_path)
         learner.validate_challenger(challenger)
+        if challenger.get("exact_replay"):
+            # Exact candidates have a separate persisted prospective cohort.
+            # The diagnostic evaluator may never overwrite that formal report.
+            continue
+        path = output_root / f"{challenger['challenger_id']}.json"
+        if path.exists():
+            previous = _read_json(path)
+            validate_evaluation(previous)
+            if previous.get("state") != "COLLECTING_FRESH_HOLDOUT":
+                states[str(previous["state"])] += 1
+                count += 1
+                continue
         samples = collect_samples(challenger, events, admissions, outcome_rows)
         report = evaluate_samples(challenger, samples)
-        path = output_root / f"{challenger['challenger_id']}.json"
         path.write_text(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         states[str(report["state"])] += 1
         count += 1

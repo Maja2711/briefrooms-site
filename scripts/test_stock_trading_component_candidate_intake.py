@@ -1,17 +1,26 @@
 #!/usr/bin/env python3
-"""Synthetic safety tests for production-side exact Challenger intake."""
+"""Bounded CASH intake unit tests with only independent proof mocked.
+
+The unmocked evidence suite verifies full prospective native replay. These
+fixtures exercise single-path CASH bounds, two-horizon identity, current
+Champion checks, hashes and registry persistence using isolated temporary files.
+"""
 from __future__ import annotations
 
 import copy
 import json
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
 from scripts import stock_trading_component_bound_promotion as bound
 from scripts import stock_trading_component_candidate_intake as intake
 from scripts import stock_trading_component_champion as champion
 from scripts import stock_trading_component_promotion as promotion
 from scripts import stock_trading_component_router as router
+from scripts import stock_trading_component_evidence as evidence
+from scripts import stock_trading_v2_challenger_factory as factory
+from scripts import stock_trading_v2_replay_tournament as tournament
 
 
 def _write(path: Path, payload: dict) -> None:
@@ -21,16 +30,21 @@ def _write(path: Path, payload: dict) -> None:
 
 def _policy() -> dict:
     return {
+        "policy_version": "intake-unit-v2",
+        "champion_engine": "v2",
+        "cash_utility": 50,
         "forced_trade_allowed": False,
         "markets": {
             "GPW": {
-                "minimum_entry_score": 72,
+                "minimum_entry_score": 0,
+                "minimum_cash_edge_points": 5,
                 "max_open_positions": 3,
                 "minimum_reward_risk": 1.5,
                 "maximum_risk_percent": 0.07,
             },
             "US": {
-                "minimum_entry_score": 72,
+                "minimum_entry_score": 0,
+                "minimum_cash_edge_points": 5,
                 "max_open_positions": 3,
                 "minimum_reward_risk": 1.5,
                 "maximum_risk_percent": 0.07,
@@ -40,7 +54,7 @@ def _policy() -> dict:
 
 
 def _gpw() -> dict:
-    return {"minimum_composite_score": 72}
+    return {"minimum_composite_score": 0}
 
 
 def _registry() -> dict:
@@ -56,46 +70,37 @@ def _registry() -> dict:
     }
 
 
-def _spec(threshold: int) -> dict:
+def _spec(cash_edge: int) -> dict:
     return {
         "component": "entry",
-        "version": f"entry-threshold-{threshold}-r1",
+        "version": f"cash-edge-gpw-{cash_edge}-r1",
         "type": "config_patch",
         "targets": {
-            "gpw_daily_config": [
-                {"op": "replace", "path": ["minimum_composite_score"], "value": threshold},
-            ],
             "stock_trading_policy": [
-                {"op": "replace", "path": ["markets", "GPW", "minimum_entry_score"], "value": threshold},
+                {"op": "replace", "path": ["markets", "GPW", "minimum_cash_edge_points"], "value": cash_edge},
             ],
         },
     }
 
 
-def _pair(name: str, *, threshold: int, horizon: int, revision: int = 1, tamper_hash: bool = False) -> tuple[dict, dict, str]:
-    spec = _spec(threshold)
+def _pair(name: str, *, cash_edge: int, horizon: int, revision: int = 1, tamper_hash: bool = False) -> tuple[dict, dict, str]:
+    spec = _spec(cash_edge)
     deployment_sha = bound.deployment_sha256(spec)
     deployment_id = f"stdep-entry-{deployment_sha[:20]}"
-    candidate = {
-        "component": "entry",
-        "deployment_id": deployment_id,
-        "base_manifest_revision": revision,
-        "base_component_version": "v1",
-        "deployment_sha256": ("0" * 64) if tamper_hash else deployment_sha,
-        "deployment_spec": spec,
-    }
-    challenger = {
-        "schema_version": "stock-trading-v2-challenger-policy-v1",
-        "challenger_id": name,
-        "component": "entry_score_below_threshold",
-        "horizon_sessions": horizon,
-        "production_candidate": copy.deepcopy(candidate),
-    }
+    base = factory._cash_edge_candidates(hypothesis={"component": "cash_admission_margin", "market": "GPW", "horizon_sessions": 1},
+        manifest=champion.bootstrap_manifest(created_at="2026-09-17T00:00:00Z"), policy=_policy())[0]
+    base.update(deployment_id=deployment_id, base_manifest_revision=revision, horizon_sessions=horizon,
+        deployment_sha256=("0" * 64) if tamper_hash else deployment_sha, deployment_spec=spec)
+    base["replay_contract"]["challenger_cash_edge_points"] = cash_edge
+    base["candidate_sha256"] = promotion._hash_without(base, "candidate_sha256")
+    challenger = tournament.make_challenger(base, "intake-unit-discovery", {}, start_at="2026-09-17T00:00:00Z")
+    challenger["challenger_id"] = name
     challenger["challenger_sha256"] = promotion._hash_without(challenger, "challenger_sha256")
+    candidate = challenger["production_candidate"]
     evaluation = {
         "schema_version": "stock-trading-v2-challenger-evaluation-v1",
         "challenger_id": name,
-        "component": "entry_score_below_threshold",
+        "component": "cash_admission_margin",
         "horizon_sessions": horizon,
         "state": "RESEARCH_PASS_EXACT_HOLDOUT",
         "metrics": {"formal_pass": True},
@@ -112,7 +117,8 @@ def _pair(name: str, *, threshold: int, horizon: int, revision: int = 1, tamper_
     return challenger, evaluation, deployment_id
 
 
-def main() -> int:
+@patch.object(evidence, "validate_proof", return_value={"verified": True})
+def main(proof_mock) -> int:
     with tempfile.TemporaryDirectory(prefix="component-intake-test-") as tmp:
         root = Path(tmp)
         challengers = root / "challengers"
@@ -124,6 +130,8 @@ def main() -> int:
         gpw_path = root / "gpw.json"
         policy_path = root / "policy.json"
         approved_path = root / "approved.json"
+        trials_path = root / "trials.json"
+        evidence.initialize_trials(trials_path)
 
         base_manifest = champion.bootstrap_manifest(created_at="2026-09-17T00:00:00Z")
         _write(manifest_path, base_manifest)
@@ -134,7 +142,7 @@ def main() -> int:
         fixtures: list[tuple[str, dict, dict]] = []
         valid_ids: list[str] = []
         for horizon in (1, 2):
-            ch, ev, deployment_id = _pair(f"valid-h{horizon}", threshold=70, horizon=horizon)
+            ch, ev, deployment_id = _pair(f"valid-h{horizon}", cash_edge=4, horizon=horizon)
             fixtures.append((f"valid-h{horizon}", ch, ev))
             valid_ids.append(deployment_id)
         assert valid_ids[0] == valid_ids[1]
@@ -142,26 +150,31 @@ def main() -> int:
 
         # A short-only PASS is deliberately insufficient: the exact same
         # deployment must also PASS the other production holding horizon.
-        short_only_ch, short_only_ev, short_only_id = _pair("short-only", threshold=71, horizon=1)
+        short_only_ch, short_only_ev, short_only_id = _pair("short-only", cash_edge=6, horizon=1)
         fixtures.append(("short-only", short_only_ch, short_only_ev))
 
         too_large_ids: list[str] = []
         for horizon in (1, 2):
-            ch, ev, deployment_id = _pair(f"too-large-h{horizon}", threshold=68, horizon=horizon)
+            ch, ev, deployment_id = _pair(f"too-large-h{horizon}", cash_edge=3, horizon=horizon)
             fixtures.append((f"too-large-h{horizon}", ch, ev))
             too_large_ids.append(deployment_id)
         too_large_id = too_large_ids[0]
 
-        tampered_ch, tampered_ev, tampered_id = _pair("tampered", threshold=69, horizon=1, tamper_hash=True)
-        stale_ch, stale_ev, stale_id = _pair("stale", threshold=69, horizon=2, revision=2)
-        long_ch, long_ev, long_id = _pair("long-horizon", threshold=69, horizon=20)
+        tampered_ch, tampered_ev, tampered_id = _pair("tampered", cash_edge=2, horizon=1, tamper_hash=True)
+        stale_ch, stale_ev, stale_id = _pair("stale", cash_edge=2, horizon=2, revision=2)
+        long_ch, long_ev, long_id = _pair("long-horizon", cash_edge=2, horizon=20)
         fixtures.extend([
             ("tampered", tampered_ch, tampered_ev),
             ("stale", stale_ch, stale_ev),
             ("long-horizon", long_ch, long_ev),
         ])
 
-        for name, ch, ev in fixtures:
+        for index, (name, ch, ev) in enumerate(fixtures, 1):
+            family = {"family_id": evidence.FAMILY_ID, "test_index": index, "challenger_id": ch["challenger_id"],
+                "protocol_sha256": ch["protocol_sha256"], "reserved_at": ch["created_at"], "lifetime_max_tests": 24, "alpha": 0.05 / 24}
+            family["reservation_sha256"] = promotion._hash_without(family, "reservation_sha256")
+            ch["test_family"] = family
+            ch["challenger_sha256"] = promotion._hash_without(ch, "challenger_sha256")
             _write(challengers / f"{name}.json", ch)
             _write(evaluations / f"{name}.json", ev)
 
@@ -173,6 +186,7 @@ def main() -> int:
             gpw_config_path=gpw_path,
             policy_path=policy_path,
             output_path=approved_path,
+            source_root=root / "source", frames_root=root / "frames", trials_path=trials_path,
         )
         assert result["accepted"] == [valid_id]
         reason_text = "\n".join(row["reason"] for row in result["rejected"])
@@ -207,6 +221,9 @@ def main() -> int:
         assert persist["persisted"] == [valid_id]
         production_registry = router.load_registry(registry_path)
         assert set(production_registry["deployments"]) == {valid_id}
+        assert proof_mock.call_count == len(fixtures)
+        assert approved["deployments"][valid_id]["targets"] == {
+            "stock_trading_policy": [{"op": "replace", "path": ["markets", "GPW", "minimum_cash_edge_points"], "value": 4}]}
 
     print("COMPONENT_CANDIDATE_INTAKE_TESTS_OK")
     return 0

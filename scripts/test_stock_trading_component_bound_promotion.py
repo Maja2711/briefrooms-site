@@ -1,13 +1,19 @@
 #!/usr/bin/env python3
-"""Tests for exact Challenger/evaluation/deployment binding."""
+"""Exact binding unit tests with only independent proof verification mocked.
+
+Full native proof rejection/replay is covered by the unmocked evidence suite.
+This file checks the production-owned artifact identity and staging mechanics.
+"""
 from __future__ import annotations
 
 import hashlib
 import json
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
 from scripts import stock_trading_component_bound_promotion as bound
+from scripts import stock_trading_component_evidence as evidence
 
 
 def _hash_without(payload: dict, field: str) -> str:
@@ -22,13 +28,17 @@ def _write(path: Path, payload: dict) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
-def run() -> None:
+@patch.object(evidence, "validate_proof", return_value={"verified": True})
+def run(proof_mock) -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         challengers = root / "challengers"
         evaluations = root / "evaluations"
         registry_path = root / "registry.json"
         challengers.mkdir(); evaluations.mkdir()
+        trials = root / "trials.json"
+        evidence.initialize_trials(trials)
+        fixture_paths = dict(source_root=root / "source", frames_root=root / "frames", trials_path=trials)
 
         deployment = {
             "component": "ranking",
@@ -52,7 +62,8 @@ def run() -> None:
             "deployment_id": "ranking-v2-exact-test",
             "base_manifest_revision": 1,
             "base_component_version": "v1",
-            "deployment_sha256": dep_sha
+            "deployment_sha256": dep_sha,
+            "deployment_spec": deployment,
         }
         challenger = {
             "schema_version": "stock-trading-v2-challenger-policy-v1",
@@ -77,6 +88,7 @@ def run() -> None:
             evaluations=evaluations,
             registry_path=registry_path,
             output_root=root / "stage1",
+            **fixture_paths,
         )
         assert first["accepted"] == 0
         assert first["rejected"]
@@ -93,6 +105,7 @@ def run() -> None:
             evaluations=evaluations,
             registry_path=registry_path,
             output_root=root / "stage2",
+            **fixture_paths,
         )
         assert second["accepted"] == 1, second
 
@@ -105,9 +118,11 @@ def run() -> None:
             evaluations=evaluations,
             registry_path=registry_path,
             output_root=root / "stage3",
+            **fixture_paths,
         )
         assert third["accepted"] == 0
         assert any("deployment_sha256" in row["reason"] or "hash" in row["reason"] for row in third["rejected"])
+        assert proof_mock.call_count == 3
 
     print("COMPONENT_BOUND_PROMOTION_TESTS_OK")
 

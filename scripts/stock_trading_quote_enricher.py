@@ -269,6 +269,10 @@ def quote_for_symbol(symbol: str, market: str, *, now_utc: datetime | None = Non
         "is_realtime": bool(is_realtime),
         "source_verified": True,
         "capture_age_seconds": capture_age,
+        "session_periods": {
+            phase: {"start": _observed_iso(bounds[0], market), "end": _observed_iso(bounds[1], market)}
+            for phase, bounds in periods.items()
+        },
     }
 
 

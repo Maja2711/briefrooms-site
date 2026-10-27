@@ -154,12 +154,15 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
+          for path in \
             data/investments/stock_trading_portfolio.json \
             data/investments/stock_trading_v2_production_state.json \
             data/investments/stock_trading_reentry_learning.json \
-            data/investments/stock_trading_policy.json \
-            2>/dev/null || true
+            data/investments/stock_trading_v2_production_replay_frames \
+            data/investments/stock_trading_v2_replay_watchlist.json \
+            data/investments/stock_trading_policy.json; do
+              [[ ! -e "$path" ]] || git add -- "$path"
+          done
           if git diff --cached --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0

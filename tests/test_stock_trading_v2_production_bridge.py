@@ -45,7 +45,7 @@ class V2ProductionBridgeTests(unittest.TestCase):
             "utility": utility,
             "eligible": True,
             "evidence_status": "COMPLETE",
-            "research_risk_plan": {"risk_percent": risk, "reward_risk": 2.0},
+            "research_risk_plan": {"reference_price": 100.0, "risk_percent": risk, "reward_risk": 2.0},
         }
 
 

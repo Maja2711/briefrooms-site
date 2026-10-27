@@ -28,7 +28,7 @@ import urllib.request
 from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Iterable, Mapping
+from typing import Any, Callable, Iterable, Mapping
 from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -43,7 +43,7 @@ DECISIONS = {"GPW": "TRANSAKCJA", "US": "TRADE"}
 POSITION_CURRENCY = {"GPW": "PLN", "US": "USD"}
 FIXED_NOTIONAL_POLICY_VERSION = "FIXED_NOTIONAL_V1"
 HISTORY_NOTIONAL_NORMALIZATION_VERSION = "FIXED_NOTIONAL_HISTORY_V1"
-RETRIABLE_POLICY_REJECTIONS = {"forced_daily_candidate_rejected", "entry_score_below_threshold", "reentry_material_change_required", "reentry_post_sl_quote_unverified", "reentry_price_provenance_missing"}
+RETRIABLE_POLICY_REJECTIONS = {"forced_daily_candidate_rejected", "entry_score_below_threshold", "reentry_material_change_required", "reentry_post_sl_quote_unverified", "reentry_price_provenance_missing", "portfolio_stop_loss_budget_exceeded", "portfolio_sector_concentration_exceeded", "portfolio_unknown_sector_limit_exceeded", "portfolio_risk_data_missing"}
 
 
 def _load(path: Path, default: Any = None) -> Any:
@@ -284,6 +284,110 @@ def available_slots(state: Mapping[str, Any], market: str, policy: Mapping[str, 
     return max(0, cap - len(open_positions(state, market)))
 
 
+def transaction_cost(notional: float, model: Mapping[str, Any]) -> float:
+    """Cost of ONE leg under the frozen explicit paper execution assumption.
+
+    Half-spread and slippage are charged per leg, as is commission.  A quote's
+    price remains the recorded observation; costs do not manufacture fills.
+    """
+    required = ("commission_bps_per_side", "half_spread_bps_per_side", "slippage_bps_per_side", "fixed_fee_per_side")
+    if not str(model.get("version") or "").strip():
+        raise ValueError("transaction cost model version missing")
+    values = {key: _float(model.get(key)) for key in required}
+    if any(value is None or value < 0 for value in values.values()):
+        raise ValueError("transaction cost model requires explicit nonnegative costs for every leg")
+    amount = _float(notional)
+    if amount is None or amount < 0:
+        raise ValueError("transaction cost notional invalid")
+    return amount * sum(float(values[key]) for key in required[:3]) / 10000.0 + float(values[required[3]])
+
+
+def sector_identity(position: Mapping[str, Any], *, now: datetime | None = None) -> str:
+    """Read sourced sector metadata; missing provenance remains explicitly UNKNOWN."""
+    sector = str(position.get("sector") or "").strip()
+    provenance = position.get("sector_provenance") or {}
+    if not sector or sector.upper() in {"UNKNOWN", "N/A", "NONE", "NULL"} or not isinstance(provenance, Mapping):
+        return "UNKNOWN"
+    source = str(provenance.get("source") or "").strip()
+    observed = _market_datetime(provenance.get("observed_at"), str(position.get("market") or ""))
+    if not source or observed is None or (now is not None and observed > now):
+        return "UNKNOWN"
+    return sector.casefold()
+
+
+def portfolio_admission_risk(
+    state: Mapping[str, Any], market: str, selection: Mapping[str, Any], *,
+    policy: Mapping[str, Any] | None = None, now: datetime | None = None,
+) -> dict[str, Any]:
+    """Prospective per-currency stop budget and sourced-sector admission gate.
+
+    Existing records are read, never enriched in place.  Stop risk is downside
+    from current marks (not just the original entry), including the remaining
+    exit cost; a new position additionally bears both transaction legs.
+    """
+    market = market.upper()
+    policy = policy or load_policy()
+    cfg = policy["markets"][market]
+    limits = cfg.get("portfolio_risk") or {}
+    positions = open_positions(state, market)
+    counts: dict[str, int] = {}
+    existing_risk = 0.0
+    invalid: list[str] = []
+    for position in positions:
+        sector = sector_identity(position, now=now)
+        counts[sector] = counts.get(sector, 0) + 1
+        mark = _float(position.get("last_mark") or position.get("entry"))
+        stop = _float(position.get("stop"))
+        quantity = _float(position.get("quantity"))
+        if mark is None or mark <= 0 or stop is None or stop <= 0 or quantity is None or quantity <= 0:
+            invalid.append(str(position.get("position_id") or position.get("symbol") or "unknown"))
+            continue
+        existing_risk += max(0.0, mark - stop) * quantity
+        frozen_model = position.get("transaction_cost_model")
+        if isinstance(frozen_model, Mapping):
+            existing_risk += transaction_cost(stop * quantity, frozen_model)
+    snapshot = selection.get("market_snapshot") or {}
+    entry = _float(snapshot.get("last") or selection.get("reference_price"))
+    stop = _float(selection.get("stop"))
+    candidate_risk = None
+    model = cfg.get("transaction_costs")
+    if entry is not None and entry > 0 and stop is not None and 0 < stop < entry:
+        quantity = round(float(cfg.get("target_position_notional") or 5000.0) / entry, int(cfg.get("quantity_precision") or 8))
+        candidate_risk = (entry - stop) * quantity
+        if isinstance(model, Mapping):
+            candidate_risk += transaction_cost(entry * quantity, model) + transaction_cost(stop * quantity, model)
+    candidate_sector = sector_identity({**dict(selection), "market": market}, now=now)
+    proposed_counts = {**counts, candidate_sector: counts.get(candidate_sector, 0) + 1}
+    result = {
+        "allowed": True, "reason": "portfolio_risk_not_configured", "market": market,
+        "currency": POSITION_CURRENCY[market], "risk_basis": "CURRENT_MARK_TO_STOP_PLUS_REMAINING_COSTS",
+        "aggregate_stop_loss_cash": round(existing_risk, 4),
+        "candidate_stop_loss_cash": round(candidate_risk, 4) if candidate_risk is not None else None,
+        "proposed_aggregate_stop_loss_cash": round(existing_risk + candidate_risk, 4) if candidate_risk is not None else None,
+        "candidate_sector": candidate_sector, "sector_positions": counts, "proposed_sector_positions": proposed_counts,
+        "unknown_sector_positions": counts.get("UNKNOWN", 0), "missing_risk_position_ids": invalid,
+    }
+    if not limits or limits.get("enabled") is not True:
+        return result
+    max_risk = _float(limits.get("max_aggregate_stop_loss_cash"))
+    max_sector = _float(limits.get("max_sector_positions"))
+    max_unknown = _float(limits.get("max_unknown_sector_positions"))
+    if max_risk is None or max_risk <= 0 or max_sector is None or max_sector < 1 or max_unknown is None or max_unknown < 0:
+        raise ValueError("enabled portfolio risk requires explicit aggregate, sector and UNKNOWN limits")
+    result["limits"] = deepcopy(dict(limits))
+    reason = "portfolio_risk_within_limits"
+    if invalid or candidate_risk is None:
+        reason = "portfolio_risk_data_missing"
+    elif existing_risk + candidate_risk > max_risk + 1e-8:
+        reason = "portfolio_stop_loss_budget_exceeded"
+    elif candidate_sector == "UNKNOWN" and proposed_counts["UNKNOWN"] > max_unknown:
+        reason = "portfolio_unknown_sector_limit_exceeded"
+    elif candidate_sector != "UNKNOWN" and proposed_counts[candidate_sector] > max_sector:
+        reason = "portfolio_sector_concentration_exceeded"
+    result.update(allowed=reason == "portfolio_risk_within_limits", reason=reason)
+    return result
+
+
 def valid_long_risk(entry: Any, stop: Any, target: Any, *, max_risk_percent: float = 1.0) -> bool:
     entry_f, stop_f, target_f = _float(entry), _float(stop), _float(target)
     if entry_f is None or stop_f is None or target_f is None or entry_f <= 0:
@@ -404,7 +508,7 @@ def position_from_candidate(market: str, payload: Mapping[str, Any], *, now: dat
     if quantity <= 0:
         raise ValueError("fixed-notional quantity must be positive")
     entry_notional = float(entry) * quantity
-    return {
+    position = {
         "position_id": f"{market.lower()}:{now.strftime('%Y%m%dT%H%M%S')}:{symbol}",
         "market": market,
         "status": "OPEN",
@@ -446,6 +550,17 @@ def position_from_candidate(market: str, payload: Mapping[str, Any], *, now: dat
         "peak_mark": round(entry, 8),
         "peak_thesis_score": score,
     }
+    # Only new positions freeze the supplied metadata and costs.  A missing
+    # sourced sector stays UNKNOWN in the risk view; history is never backfilled.
+    if isinstance(selection.get("sector_provenance"), Mapping):
+        position["sector_provenance"] = deepcopy(dict(selection["sector_provenance"]))
+    model = cfg.get("transaction_costs")
+    if isinstance(model, Mapping):
+        position["transaction_cost_model"] = deepcopy(dict(model))
+        position["cost_model_version"] = model.get("version")
+        position["entry_cost_amount"] = round(transaction_cost(entry_notional, model), 8)
+        position["cost_basis"] = "FROZEN_PAPER_ASSUMPTION_NOT_BROKER_ACTUAL"
+    return position
 
 
 def upgrade_open_position_geometry(position: Mapping[str, Any], market_cfg: Mapping[str, Any]) -> dict[str, Any]:
@@ -654,12 +769,18 @@ def admit_candidate(
         return updated, {"action": "hold_existing_symbol", "market": market, "symbol": symbol}
     if available_slots(updated, market, policy) <= 0:
         return updated, {"action": "portfolio_full", "market": market, "reason": "market_cap_3"}
+    portfolio_risk = portfolio_admission_risk(updated, market, selection, policy=policy, now=now)
+    if not portfolio_risk["allowed"]:
+        row["last_candidate_decision"] = "CASH"
+        row["last_candidate_reason"] = portfolio_risk["reason"]
+        return updated, {"action": "portfolio_risk_blocked", "market": market, **portfolio_risk}
     reentry = reentry_after_stop_loss(updated, market, selection, now=now, policy=policy)
     if not reentry["allowed"]:
         row["last_candidate_decision"] = "CASH"
         row["last_candidate_reason"] = str(reentry["reason"])
         return updated, {"action": "reentry_blocked", "market": market, **reentry}
     position = position_from_candidate(market, payload, now=now, market_cfg=policy["markets"][market])
+    position["portfolio_risk_at_admission"] = portfolio_risk
     if reentry.get("reason") not in {"no_previous_stop_loss", "guard_not_configured"}:
         position["reentry_justification"] = dict(reentry)
     row["open_positions"] = open_positions(updated, market) + [position]
@@ -673,6 +794,7 @@ def admit_candidate(
         "position_currency": position["position_currency"],
         "quantity": position["quantity"],
         "reentry_justification": position.get("reentry_justification"),
+        "portfolio_risk": portfolio_risk,
     }
 
 
@@ -713,6 +835,16 @@ def _closure(position: Mapping[str, Any], *, now: datetime, exit_price: float, r
     if pnl_amount is not None:
         closure["pnl_amount"] = round(pnl_amount, 2)
         closure["exit_notional"] = round(exit_notional, 2)
+        frozen_costs = position.get("transaction_cost_model")
+        if isinstance(frozen_costs, Mapping):
+            entry_cost = _float(position.get("entry_cost_amount"))
+            if entry_cost is None:
+                raise ValueError("frozen cost model requires the original entry cost")
+            exit_cost = transaction_cost(float(exit_notional), frozen_costs)
+            closure["exit_cost_amount"] = round(exit_cost, 8)
+            closure["roundtrip_cost_amount"] = round(entry_cost + exit_cost, 8)
+            closure["net_pnl_amount"] = round(float(pnl_amount) - entry_cost - exit_cost, 8)
+            closure["net_return_percent"] = round(closure["net_pnl_amount"] / (entry * quantity) * 100.0, 8)
     closure.update(history_normalized_metrics(closure, str(position.get("market") or "")))
     return closure
 
@@ -733,7 +865,7 @@ def close_position(state: Mapping[str, Any], market: str, position_id: str, *, n
     row["open_positions"] = remaining
     closed = [dict(item) for item in row.get("closed_positions") or [] if isinstance(item, Mapping)]
     closed.append(closure)
-    row["closed_positions"] = closed[-300:]
+    row["closed_positions"] = closed
     return updated, {"action": "close", "market": market, "position_id": position_id, "reason": reason, "exit_price": exit_price}
 
 
@@ -971,7 +1103,7 @@ def review_market(state: Mapping[str, Any], market: str, *, observations: Mappin
         elif current is not None:
             kept.append(current)
     row["open_positions"] = kept
-    row["closed_positions"] = closed[-300:]
+    row["closed_positions"] = closed
     row["last_portfolio_review_at"] = _iso(now)
     return updated, audits
 
@@ -1068,6 +1200,51 @@ def _chart(symbol: str, *, interval: str, range_value: str) -> dict[str, Any]:
     raise RuntimeError(f"Yahoo chart unavailable for {symbol}: {'|'.join(failures)}")
 
 
+def snapshot_from_source_bars(
+    source_bars: Iterable[Mapping[str, Any]], market: str, *, now: datetime,
+    opened_at: str | None = None, risk_effective_at: str | None = None,
+) -> dict[str, Any]:
+    """Project the canonical trigger window from already observed source bars.
+
+    The same helper serves live lifecycle and frozen-input replay, including
+    virtual positions whose entry or ratcheted stop differs from the real book.
+    Bar values are only usable once their actual collection receipt is known.
+    """
+    market = market.upper()
+    tz = MARKET_TZ[market]
+    effective = [_market_datetime(value, market) for value in (opened_at, risk_effective_at)]
+    trigger_from = max(value for value in effective if value is not None) if any(value is not None for value in effective) else None
+    points: list[tuple[datetime, float, float, float, datetime]] = []
+    for bar in source_bars:
+        start = _market_datetime(bar.get("start"), market)
+        receipt = _market_datetime(bar.get("observed_at"), market)
+        high, low, close = (_float(bar.get(key)) for key in ("high", "low", "close"))
+        if start is None or receipt is None or any(value is None or value <= 0 for value in (high, low, close)):
+            raise ValueError("invalid_frozen_source_bar")
+        if receipt < start or receipt > now or start > now:
+            raise ValueError("future_or_inverted_source_bar")
+        if low > high or not low <= close <= high:
+            raise ValueError("invalid_frozen_source_bar_geometry")
+        if start.date() != now.astimezone(tz).date() or not _regular_session_open(market, start):
+            continue
+        if trigger_from is not None and start < trigger_from:
+            continue
+        points.append((start, high, low, close, receipt))
+    points.sort(key=lambda item: item[0])
+    if not points:
+        raise RuntimeError("no_current_regular_session_intraday_bar")
+    if len({point[0] for point in points}) != len(points):
+        raise ValueError("duplicate_frozen_source_bar")
+    return {
+        "high": max(point[1] for point in points), "low": min(point[2] for point in points),
+        "last": points[-1][3], "observed_at": _iso(points[-1][0]), "provider": "Yahoo",
+        "source_received_at": _iso(max(point[4] for point in points)),
+        "trigger_window_start": _iso(points[0][0]),
+        "trigger_effective_from": _iso(trigger_from) if trigger_from is not None else None,
+        "post_effective_only": True,
+    }
+
+
 def _daily_observation(
     symbol: str,
     market: str,
@@ -1075,6 +1252,7 @@ def _daily_observation(
     *,
     opened_at: str | None = None,
     risk_effective_at: str | None = None,
+    collection_clock: Callable[[], datetime] | None = None,
 ) -> dict[str, Any]:
     if not _regular_session_open(market, now):
         raise RuntimeError("market_not_in_regular_session")
@@ -1104,11 +1282,8 @@ def _daily_observation(
     istamps = intraday.get("timestamp") or []
     iquote = ((intraday.get("indicators") or {}).get("quote") or [{}])[0]
     tz = MARKET_TZ[market]
-    points: list[tuple[datetime, float, float, float]] = []
-    opened_dt = _market_datetime(opened_at, market)
-    risk_effective_dt = _market_datetime(risk_effective_at, market)
-    trigger_candidates = [value for value in (opened_dt, risk_effective_dt) if value is not None]
-    trigger_from = max(trigger_candidates) if trigger_candidates else None
+    received_at = collection_clock() if collection_clock is not None else now
+    source_bars: list[dict[str, Any]] = []
     for index, stamp in enumerate(istamps):
         try:
             high = float((iquote.get("high") or [])[index])
@@ -1117,37 +1292,16 @@ def _daily_observation(
         except (TypeError, ValueError, IndexError):
             continue
         dt = datetime.fromtimestamp(int(stamp), tz)
-        if dt.date() != now.astimezone(tz).date():
+        if dt.date() != received_at.astimezone(tz).date() or dt > received_at:
             continue
         minute = dt.hour * 60 + dt.minute
         if market == "US" and not (9 * 60 + 30 <= minute < 16 * 60):
             continue
         if market == "GPW" and not (9 * 60 <= minute < 17 * 60):
             continue
-        # The current SL/TP geometry may only see candles that began after the
-        # geometry became effective.  This blocks both pre-entry fills and the
-        # subtler case where a newly ratcheted stop is applied to an earlier
-        # same-day low.
-        if trigger_from is not None and trigger_from.date() == now.date() and dt < trigger_from:
-            continue
-        points.append((dt, high, low, close))
-    if points:
-        snapshot = {
-            "high": max(item[1] for item in points),
-            "low": min(item[2] for item in points),
-            "last": points[-1][3],
-            "observed_at": _iso(points[-1][0]),
-            "provider": "Yahoo",
-            "trigger_window_start": _iso(points[0][0]),
-            "trigger_effective_from": _iso(trigger_from) if trigger_from is not None else None,
-            "post_effective_only": True,
-        }
-    else:
-        # Never use a previous daily candle as an executable intraday snapshot.
-        # That would allow yesterday's low/high to trigger today's SL/TP and is
-        # a retroactive execution violation.
-        raise RuntimeError("no_current_regular_session_intraday_bar")
-    return {"snapshot": snapshot, "closes": closes, "atr": atr}
+        source_bars.append({"start": _iso(dt), "high": high, "low": low, "close": close, "observed_at": _iso(received_at), "provider": "Yahoo"})
+    snapshot = snapshot_from_source_bars(source_bars, market, now=received_at, opened_at=opened_at, risk_effective_at=risk_effective_at)
+    return {"snapshot": snapshot, "source_bars": source_bars, "closes": closes, "closes_as_of": _iso(received_at), "atr": atr}
 
 
 def bootstrap_legacy_positions(state: dict[str, Any], *, now: datetime, policy: Mapping[str, Any]) -> None:
@@ -1180,23 +1334,76 @@ def bootstrap_legacy_positions(state: dict[str, Any], *, now: datetime, policy: 
             market_state(state, "US")["open_positions"] = [position]
 
 
-def run_market(state: Mapping[str, Any], market: str, *, now: datetime, policy: Mapping[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+def run_market(
+    state: Mapping[str, Any], market: str, *, now: datetime, policy: Mapping[str, Any],
+    capture_root: Path | None = None, watch_path: Path | None = None,
+    collection_clock: Callable[[], datetime] | None = None,
+    benchmark_fetcher: Callable[[datetime], tuple[dict[str, Any], dict[str, Any]]] | None = None,
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     market = market.upper()
     observations: dict[str, dict[str, Any]] = {}
+    review_observations: dict[str, dict[str, Any]] = {}
     audits: list[dict[str, Any]] = []
-    for position in open_positions(state, market):
-        symbol = str(position.get("symbol") or "")
+    positions = open_positions(state, market)
+    symbols = {str(position.get("symbol") or "") for position in positions}
+    production_replay = None
+    if capture_root is not None:
         try:
+            from scripts import stock_trading_v2_production_replay as production_replay
+        except ModuleNotFoundError:  # pragma: no cover
+            import stock_trading_v2_production_replay as production_replay
+        try:
+            watches = production_replay.active_replay_watches(
+                now=now, market=market, root=watch_path or production_replay.DEFAULT_WATCH_PATH,
+            )
+            symbols.update(str(watch["symbol"]) for watch in watches)
+        except (ValueError, KeyError, TypeError, OSError) as exc:
+            audits.append({"action": "replay_watchlist_error", "market": market, "error": type(exc).__name__})
+    for symbol in sorted(symbols - {""}):
+        try:
+            # Preserve the full observed session, including bars preceding the
+            # real book's entry/ratchet. A simulated book has its own boundary.
             observations[symbol] = _daily_observation(
-                symbol,
-                market,
-                now,
-                opened_at=position.get("opened_at"),
-                risk_effective_at=position.get("risk_last_changed_at"),
+                symbol, market, now, collection_clock=collection_clock,
             )
         except Exception as exc:
             audits.append({"action": "observation_error", "market": market, "symbol": symbol, "error": f"{type(exc).__name__}:{str(exc)[:160]}"})
-    updated, review_audit = review_market(state, market, observations=observations, now=now, policy=policy)
+    benchmarks: dict[str, Any] = {}
+    sessions: dict[str, Any] = {}
+    if capture_root is not None and production_replay is not None:
+        if benchmark_fetcher is None:
+            try:
+                from scripts.stock_trading_v2_production_bridge import _capture_benchmarks
+            except ModuleNotFoundError:  # pragma: no cover
+                from stock_trading_v2_production_bridge import _capture_benchmarks
+            benchmark_fetcher = _capture_benchmarks
+        benchmarks, sessions = benchmark_fetcher(collection_clock() if collection_clock is not None else now)
+    review_now = (collection_clock() if collection_clock is not None else now).astimezone(MARKET_TZ[market])
+    for position in positions:
+        symbol = str(position.get("symbol") or "")
+        raw = observations.get(symbol)
+        if not isinstance(raw, Mapping):
+            continue
+        try:
+            projected = deepcopy(dict(raw))
+            projected["snapshot"] = snapshot_from_source_bars(
+                raw.get("source_bars") or [], market, now=review_now,
+                opened_at=position.get("opened_at"), risk_effective_at=position.get("risk_last_changed_at"),
+            )
+            review_observations[symbol] = projected
+        except (RuntimeError, ValueError) as exc:
+            audits.append({"action": "observation_error", "market": market, "symbol": symbol, "error": f"{type(exc).__name__}:{str(exc)[:160]}"})
+    if capture_root is not None and production_replay is not None:
+        captured_at = collection_clock() if collection_clock is not None else review_now
+        receipt = production_replay.capture_frame(
+            kind="portfolio_lifecycle", observed_at=review_now, policy=policy, initial_state=state,
+            observations={market: observations}, root=capture_root,
+            benchmark={market: benchmarks[market]} if market in benchmarks else {},
+            market_sessions={market: sessions[market]} if market in sessions else {},
+            recorded_at=captured_at if collection_clock is not None else None,
+        )
+        audits.append({"action": "production_replay_inputs_frozen", "market": market, "frame_sha256": receipt["frame_sha256"]})
+    updated, review_audit = review_market(state, market, observations=review_observations, now=review_now, policy=policy)
     audits.extend(review_audit)
     if candidate_admission_authorized(policy, "legacy"):
         payload = _load(_candidate_path(market, policy), {})
@@ -1222,7 +1429,11 @@ def run(markets: Iterable[str] = ("GPW", "US"), *, state_path: Path = STATE_PATH
         market = market.upper()
         now = (now_map or {}).get(market) if now_map else None
         now = now or datetime.now(MARKET_TZ[market])
-        state, actions = run_market(state, market, now=now, policy=policy)
+        state, actions = run_market(
+            state, market, now=now, policy=policy,
+            capture_root=ROOT / "data/investments/stock_trading_v2_production_replay_frames",
+            collection_clock=(lambda: datetime.now(ZoneInfo("UTC"))) if now_map is None else None,
+        )
         report["actions"].extend(actions)
     verify = verify_state(state, policy)
     if verify["status"] != "OK":

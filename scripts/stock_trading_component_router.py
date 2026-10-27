@@ -55,6 +55,8 @@ ALLOWED_PATHS: dict[str, dict[str, set[tuple[str, ...]]]] = {
         "entry": {
             ("markets", "GPW", "minimum_entry_score"),
             ("markets", "US", "minimum_entry_score"),
+            ("markets", "GPW", "minimum_cash_edge_points"),
+            ("markets", "US", "minimum_cash_edge_points"),
         },
         "risk": {
             ("markets", "GPW", "atr_multiple"),

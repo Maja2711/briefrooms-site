@@ -1,0 +1,43 @@
+name: Stock Trading v2 Replay Close Receipts
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Cover GPW and both US daylight-saving offsets; provider dates are authority.
+    - cron: "5,20,35,50 15-22 * * 1-5"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: stock-trading-state-writer
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Collect benchmark and provider close metadata without trading
+        run: python scripts/stock_trading_v2_replay_capture.py
+      - name: Persist only non-executable native input receipts
+        run: |
+          set -euo pipefail
+          path=data/investments/stock_trading_v2_production_replay_frames
+          [[ -d "$path" ]] || exit 0
+          git add -- "$path"
+          git diff --cached --quiet && exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Stock Trading: record sourced replay session closes"
+          git pull --rebase origin main
+          git push origin HEAD:main

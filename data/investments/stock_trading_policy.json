@@ -8,6 +8,7 @@
   "score_policy": "ranking_not_hard_admission_gate",
   "forced_trade_allowed": false,
   "cash_is_valid_position": true,
+  "cash_utility": 50.0,
   "fixed_holding_deadline": null,
   "daily_risk_review": true,
   "stop_loss_required": true,
@@ -20,6 +21,25 @@
     "GPW": {
       "max_open_positions": 3,
       "minimum_entry_score": 0,
+      "minimum_cash_edge_points": 5.0,
+      "analysis_refresh": {
+        "enabled": true,
+        "maximum_reference_deviation_risk_units": 1.0
+      },
+      "portfolio_risk": {
+        "enabled": true,
+        "max_aggregate_stop_loss_cash": 1050.0,
+        "max_sector_positions": 2,
+        "max_unknown_sector_positions": 3
+      },
+      "transaction_costs": {
+        "version": "STOCK_PAPER_COST_STRESS_V1",
+        "kind": "ASSUMPTION_NOT_BROKER_FILL",
+        "commission_bps_per_side": 0.0,
+        "half_spread_bps_per_side": 5.0,
+        "slippage_bps_per_side": 5.0,
+        "fixed_fee_per_side": 0.0
+      },
       "minimum_reward_risk": 1.5,
       "maximum_risk_percent": 0.07,
       "atr_multiple": 1.1,
@@ -53,6 +73,25 @@
     "US": {
       "max_open_positions": 3,
       "minimum_entry_score": 0,
+      "minimum_cash_edge_points": 5.0,
+      "analysis_refresh": {
+        "enabled": true,
+        "maximum_reference_deviation_risk_units": 1.0
+      },
+      "portfolio_risk": {
+        "enabled": true,
+        "max_aggregate_stop_loss_cash": 1050.0,
+        "max_sector_positions": 2,
+        "max_unknown_sector_positions": 3
+      },
+      "transaction_costs": {
+        "version": "STOCK_PAPER_COST_STRESS_V1",
+        "kind": "ASSUMPTION_NOT_BROKER_FILL",
+        "commission_bps_per_side": 0.0,
+        "half_spread_bps_per_side": 2.5,
+        "slippage_bps_per_side": 2.5,
+        "fixed_fee_per_side": 0.0
+      },
       "minimum_reward_risk": 1.5,
       "maximum_risk_percent": 0.07,
       "atr_multiple": 1.05,

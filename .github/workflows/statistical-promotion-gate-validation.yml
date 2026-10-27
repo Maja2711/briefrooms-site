@@ -63,11 +63,13 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          wf=Path('.github/workflows/autonomous-policy-promotion.yml').read_text()
-          assert 'statistical_promotion_gate.py' in wf
-          assert 'statistical_policy_materializer.py' in wf
-          materialize=wf.index('statistical_policy_materializer.py')
-          gate=wf.index('statistical_promotion_gate.py')
-          assert gate < materialize
-          print('PR36_PRODUCTION_ORDER_PASS')
+          legacy=Path('.github/workflows/autonomous-policy-promotion.yml').read_text()
+          assert 'stock-trading-component-promotion.yml' in legacy
+          assert 'statistical_policy_materializer.py' not in legacy
+          wf=Path('.github/workflows/stock-trading-component-promotion.yml').read_text()
+          intake=wf.index('stock_trading_component_candidate_intake.py')
+          binding=wf.index('python scripts/stock_trading_component_bound_promotion.py')
+          assert intake < binding
+          assert 'stock_trading_component_evidence.py' in wf
+          print('MAIN_OWNED_COMPONENT_PRODUCTION_ORDER_PASS')
           PY

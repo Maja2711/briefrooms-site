@@ -49,7 +49,10 @@ jobs:
           assert 'policy_repo_materializer' not in source
           assert 'statistical_policy_materializer' not in source
           wf=Path('.github/workflows/autonomous-policy-promotion.yml').read_text()
-          assert 'autonomous_policy_observatory.py' in wf
-          assert 'data/public/autonomous_policy_observatory.json' in wf
+          assert 'stock-trading-component-promotion.yml' in wf
+          assert 'statistical_policy_materializer.py' not in wf
+          closed=Path('.github/workflows/autonomous-policy-closed-loop.yml').read_text()
+          assert 'LEGACY_STOCK_POLICY_PRODUCTION_WRITE_DISABLED' in closed
+          assert 'data/public/autonomous_policy_observatory.json' in closed
           print('PR37_READ_ONLY_OBSERVATORY_PASS')
           PY
