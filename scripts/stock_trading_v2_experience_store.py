@@ -17,9 +17,9 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping
 
 try:
-    import stock_trading_v2_contracts as contracts
-except ModuleNotFoundError:  # pragma: no cover
     from scripts import stock_trading_v2_contracts as contracts
+except ModuleNotFoundError:  # pragma: no cover
+    import stock_trading_v2_contracts as contracts
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_STORE_ROOT = ROOT / "data/investments/stock_trading_v2_experience"

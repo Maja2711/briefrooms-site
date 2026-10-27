@@ -47,7 +47,7 @@ Stock Trading v2 optimizes net expectancy with explicit opportunity cost. Empty 
    - Maximum one research action per market cycle.
 9. **Immutable learning loop**
    - Selected and rejected candidates are frozen prospectively into the same Experience Store.
-   - Continuous intraday observations are deduplicated by market/symbol/day/selection state to avoid overweighting repeated scans.
+   - New decisions with a frozen production context retain every distinct source opportunity; replaying the same source is idempotent. Historical contextless records retain their daily deduplication. Formal independent N is counted by disjoint episodes, not repeated scans.
    - Canonical Champion admission is frozen before outcomes are known.
    - Counterfactual replay settles 1/2/5/10/20/60/120-session outcomes.
    - Opportunity Regret attributes false positives and false negatives to decision gates.
@@ -62,6 +62,8 @@ Stock Trading v2 optimizes net expectancy with explicit opportunity cost. Empty 
    - Arbitrary source-code generation, self-modifying production code and direct pushes from this branch to production state are forbidden.
 
 ## Operational workflows
+
+Current learning contracts are documented in `STOCK_TRADING_LEARNING_PERSISTENCE.md`, `STOCK_TRADING_CASH_EDGE_LEARNING.md` and `STOCK_TRADING_PORTFOLIO_EVALUATION.md`. Cohort membership requires an actual main-native admission input receipt. The post-production freeze-only job never dispatches production again. Push jobs only validate code. Tracked policy defaults are a reviewed snapshot for compatibility; runtime research reads full current main snapshots and cannot write main policy. The default research production bridge remains disabled; replay tests use a frozen test fixture.
 
 - `.github/workflows/stock-trading-v2-universe-refresh.yml` — audited dynamic universe refresh.
 - `.github/workflows/stock-trading-v2-continuous-discovery.yml` — continuous session-time discovery → relationship/trigger attention → max-two targeted deep-research shadow arm → broad Champion evidence → portfolio comparison → experience/admission freeze.

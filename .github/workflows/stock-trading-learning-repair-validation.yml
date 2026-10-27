@@ -1,0 +1,53 @@
+name: Stock Trading Learning Integrity Validation
+
+on:
+  pull_request:
+    branches: [main, stock-trading-v2]
+    paths:
+      - "scripts/stock_trading*.py"
+      - "scripts/test_stock_trading*.py"
+      - "tests/test_stock_trading*.py"
+      - "data/investments/stock_trading*config.json"
+      - "data/investments/stock_trading_policy.json"
+      - "data/investments/stock_trading_component_trials.json"
+      - "docs/ARCHITECTURE_MAP_*.md"
+      - ".github/workflows/stock-trading*.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+      STOCK_TRADING_LEGACY_FIXTURE_ROOT: ${{ github.workspace }}/.legacy-research-fixture/data/investments
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: stock-trading-v2
+          path: .legacy-research-fixture
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run immutable-history and native economics regressions offline
+        run: |
+          set -euo pipefail
+          python -B -m unittest discover -s tests -p 'test_stock_trading*.py'
+      - name: Check production history and notification airlocks
+        if: github.base_ref == 'main' || github.ref == 'refs/heads/main'
+        run: |
+          set -euo pipefail
+          python -B -m unittest tests.test_no_retroactive_execution tests.test_trading_push_handoff
+      - name: Check production promotion transaction mechanics
+        if: github.base_ref == 'main' || github.ref == 'refs/heads/main'
+        run: |
+          set -euo pipefail
+          python -B scripts/test_stock_trading_component_promotion.py
+          python -B scripts/test_stock_trading_component_bound_promotion.py
+          python -B scripts/test_stock_trading_component_candidate_intake.py
+          python -B scripts/validate_architecture_bootstrap.py

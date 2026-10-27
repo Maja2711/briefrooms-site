@@ -1,6 +1,6 @@
 {
   "schema_version": "stock-trading-v2-learning-config-v1",
-  "version": "2.0.0-phase3a",
+  "version": "2.1.0-cash-edge-prospective",
   "mode": "shadow_closed_loop",
   "horizons_sessions": [1, 2, 5, 10, 20, 60, 120],
   "replay": {
@@ -26,15 +26,9 @@
     "minimum_unique_symbols": 5,
     "minimum_span_days": 10,
     "learnable_components": [
-      "entry_score_below_threshold",
-      "non_positive_conservative_expected_value",
-      "opening_confirmation",
-      "relative_momentum_weight",
-      "catalyst_weight",
-      "historical_expectancy_weight",
-      "admission_margin",
-      "rotation_threshold"
+      "cash_admission_margin"
     ],
+    "legacy_components_diagnostic_only": ["entry_score_below_threshold", "non_positive_conservative_expected_value", "opening_confirmation", "relative_momentum_weight", "catalyst_weight", "historical_expectancy_weight", "admission_margin", "rotation_threshold"],
     "immutable_safety_components": [
       "data_freshness",
       "data_integrity",
@@ -53,6 +47,25 @@
     "production_writeback_enabled": false,
     "champion_challenger_required": true,
     "fresh_holdout_required": true
+  },
+  "cash_edge_learning": {
+    "parameter": "stock_trading_policy.markets.MARKET.minimum_cash_edge_points",
+    "initial_baseline_points": 5,
+    "predeclared_deltas": [-1, 1],
+    "bounds_points": [1, 15],
+    "production_horizons_sessions": [1, 2],
+    "formal_adapter": "cash_edge_v2",
+    "formal_execution_semantics": "production_lifecycle_v1",
+    "formal_paired_n": 30,
+    "independent_episode_hours": 168,
+    "family_id": "stock-trading-v2-cash-edge-lifetime-v1",
+    "lifetime_max_tests": 24,
+    "family_alpha": 0.05,
+    "trial_alpha": 0.0020833333333333333,
+    "production_trial_receipt_required": true,
+    "freeze_before_post_session_outcomes": true,
+    "terminal_verdict_immutable": true,
+    "historical_discovery_is_formal_evidence": false
   },
   "governance": {
     "production_decision_influence": false,

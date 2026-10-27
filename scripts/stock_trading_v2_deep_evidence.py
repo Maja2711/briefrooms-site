@@ -622,6 +622,8 @@ def build_candidate_evidence(
         "symbol": str(candidate.get("symbol") or "").upper(),
         "market_data_symbol": candidate.get("market_data_symbol"),
         "name": candidate.get("name"),
+        "sector": candidate.get("sector"),
+        "sector_provenance": deepcopy(candidate.get("sector_provenance") or {}),
         "frontier_rank": candidate.get("frontier_rank"),
         "relationship_rank": candidate.get("relationship_rank"),
         "opportunity_score": round(base_score, 6),

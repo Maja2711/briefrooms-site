@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import tempfile
 from collections import defaultdict
 from copy import deepcopy
@@ -318,6 +319,17 @@ def outcome_path(root: Path, payload: Mapping[str, Any]) -> Path:
     return root / str(payload["market"]).lower() / str(payload["session_date"]) / f"{payload['outcome_id']}.json"
 
 
+def validate_source_binding(payload: Mapping[str, Any], event: Mapping[str, Any]) -> None:
+    """Check the immutable source, independently of a valid outcome digest."""
+    contracts.validate_experience_event(event)
+    bindings = {
+        "source_event_id": "event_id", "source_event_sha256": "event_sha256", "market": "market", "symbol": "symbol",
+        "session_date": "session_date", "decision_at": "decision_at", "candidate_decision": "decision",
+    }
+    if any(payload.get(key) != event.get(source_key) for key, source_key in bindings.items()):
+        raise contracts.ContractError("settled outcome immutable source binding mismatch")
+
+
 def persist(root: Path, payload: Mapping[str, Any]) -> bool:
     validate_outcome(payload)
     path = outcome_path(root, payload)
@@ -337,7 +349,15 @@ def persist(root: Path, payload: Mapping[str, Any]) -> bool:
     with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=path.parent, delete=False) as handle:
         handle.write(text)
         temp = Path(handle.name)
-    temp.replace(path)
+    try:
+        if os.name == "nt":
+            temp.rename(path)
+        else:
+            os.link(temp, path)
+    except FileExistsError:
+        return persist(root, payload)
+    finally:
+        temp.unlink(missing_ok=True)
     return True
 
 
@@ -362,10 +382,44 @@ def settle_store(
     config = load_config(config_path)
     admissions = _load_admissions(admission_root)
     events = [_read_json(path) for path in experience.iter_event_files(experience_root)]
-    by_market_symbol: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
+    events_by_id: dict[str, dict[str, Any]] = {}
     for event in events:
         contracts.validate_experience_event(event)
-        by_market_symbol[(str(event["market"]), str(event["symbol"]))].append(event)
+        event_id = str(event["event_id"])
+        if event_id in events_by_id:
+            raise contracts.ContractError("duplicate source event during settlement")
+        events_by_id[event_id] = event
+
+    # Terminal evidence is authoritative. Provider revisions, a later admission
+    # snapshot or a changed replay config may never reinterpret an already
+    # settled source/horizon in the same immutable ledger.
+    terminal: dict[tuple[str, int], dict[str, Any]] = {}
+    for row in iter_outcomes(outcome_root):
+        validate_outcome(row)
+        source_id = str(row.get("source_event_id") or "")
+        event = events_by_id.get(source_id)
+        if event is None:
+            raise contracts.ContractError("settled outcome missing immutable source event")
+        validate_source_binding(row, event)
+        key = (source_id, int(row["horizon_sessions"]))
+        if key in terminal:
+            raise contracts.ContractError("duplicate settled source/horizon; use a separate root for a new replay methodology")
+        terminal[key] = row
+
+    pending_horizons: dict[str, list[int]] = {}
+    existing = 0
+    for event in events:
+        source_id = str(event["event_id"])
+        pending_horizons[source_id] = []
+        for horizon in config["horizons_sessions"]:
+            if (source_id, int(horizon)) in terminal:
+                existing += 1
+            else:
+                pending_horizons[source_id].append(int(horizon))
+    by_market_symbol: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
+    for event in events:
+        if pending_horizons[str(event["event_id"])]:
+            by_market_symbol[(str(event["market"]), str(event["symbol"]))].append(event)
 
     network = _read_json(ROOT / "data/investments/stock_trading_v2_discovery_config.json").get("network") or {}
     hosts = [str(value) for value in network.get("provider_hosts") or ["query1.finance.yahoo.com", "query2.finance.yahoo.com"]]
@@ -386,17 +440,20 @@ def settle_store(
         except Exception as exc:
             provider_failures[f"{market}:{symbol}"] = f"{type(exc).__name__}: {' '.join(str(exc).split())}"[:600]
 
-    written = existing = unresolved = unplayable = 0
+    written = unresolved = unplayable = 0
     for event in events:
+        horizons = pending_horizons[str(event["event_id"])]
+        if not horizons:
+            continue
         key = (str(event["market"]), str(event["symbol"]))
         bars = bars_cache.get(key)
         if not bars:
-            unresolved += len(config["horizons_sessions"])
+            unresolved += len(horizons)
             continue
         market_cost = float((config.get("cost_stress_percent") or {}).get(event["market"], 0.0))
         replay_version = str((config.get("replay") or {}).get("version") or "unknown")
         champion = admissions.get(str(event["event_id"]))
-        for horizon in config["horizons_sessions"]:
+        for horizon in horizons:
             replay = replay_horizon(
                 event,
                 bars,
@@ -419,8 +476,10 @@ def settle_store(
         "schema_version": "stock-trading-v2-outcome-settlement-run-v1",
         "events": len(events),
         "symbols_with_history": len(bars_cache),
+        "symbols_requiring_history": len(by_market_symbol),
         "outcomes_written": written,
         "outcomes_existing": existing,
+        "immutable_outcomes_reused": existing,
         "unresolved_horizons": unresolved,
         "unplayable_horizons": unplayable,
         "provider_failures": provider_failures,

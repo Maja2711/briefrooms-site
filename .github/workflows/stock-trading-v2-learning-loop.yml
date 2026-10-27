@@ -15,11 +15,25 @@ permissions:
   contents: write
 
 concurrency:
-  group: stock-trading-v2-learning-loop
+  group: stock-trading-v2-research-writer
   cancel-in-progress: false
 
 jobs:
+  validate_push:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate learning code without settling or writing evidence
+        run: python -B -m unittest tests.test_stock_trading_v2_cash_edge_learning tests.test_stock_trading_v2_learning_health
+
   learn:
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -46,6 +60,8 @@ jobs:
             data/investments/us_daily_stock.json \
             data/investments/stock_trading_portfolio.json \
             data/investments/stock_trading_policy.json \
+            data/investments/stock_trading_component_trials.json \
+            data/investments/stock_trading_v2_production_config.json \
             data/investments/gpw_daily_pick_config.json \
             data/investments/stock_trading_champion_manifest.json; do
               if git cat-file -e "origin/main:$path" 2>/dev/null; then
@@ -55,6 +71,14 @@ jobs:
           test -f /tmp/stock-trading-v2-production/stock_trading_champion_manifest.json
           test -f /tmp/stock-trading-v2-production/gpw_daily_pick_config.json
           test -f /tmp/stock-trading-v2-production/stock_trading_policy.json
+          if [[ ! -f /tmp/stock-trading-v2-production/stock_trading_component_trials.json ]]; then
+            printf '{"schema_version":"stock-trading-component-trials-v1","trials":{}}\n' > /tmp/stock-trading-v2-production/stock_trading_component_trials.json
+          fi
+          # Read data only from the pinned main commit. Never execute research-supplied code as main.
+          mkdir -p /tmp/stock-trading-v2-native-inputs
+          if git cat-file -e origin/main:data/investments/stock_trading_v2_production_replay_frames 2>/dev/null; then
+            git archive origin/main data/investments/stock_trading_v2_production_replay_frames | tar -x -C /tmp/stock-trading-v2-native-inputs
+          fi
           ls -la /tmp/stock-trading-v2-production
 
       - name: Verify v2 learning machinery before mutation
@@ -119,6 +143,18 @@ jobs:
           else
             echo "No production portfolio state available; skipping position-experience ingest."
           fi
+
+      - name: Freeze registered cohorts before settlement
+        run: |
+          python scripts/stock_trading_v2_exact_challenger_eval.py \
+            --challengers data/investments/stock_trading_v2_challengers \
+            --experience-root data/investments/stock_trading_v2_experience \
+            --admission-root data/investments/stock_trading_v2_admission \
+            --outcome-root data/investments/stock_trading_v2_outcomes \
+            --output-root data/investments/stock_trading_v2_challenger_evaluations \
+            --trial-receipts /tmp/stock-trading-v2-production/stock_trading_component_trials.json \
+            --replay-frame-root /tmp/stock-trading-v2-native-inputs/data/investments/stock_trading_v2_production_replay_frames \
+            --freeze-cohorts-only
 
       - name: Settle matured multi-horizon actual and counterfactual outcomes
         run: |
@@ -185,6 +221,7 @@ jobs:
             --admission-root data/investments/stock_trading_v2_admission \
             --outcome-root data/investments/stock_trading_v2_outcomes \
             --promotion-config data/investments/statistical_promotion_gate_v2_config.json \
+            --replay-frame-root /tmp/stock-trading-v2-native-inputs/data/investments/stock_trading_v2_production_replay_frames \
             --challengers data/investments/stock_trading_v2_challengers
 
       - name: Evaluate fresh holdouts and cryptographically bind exact artifacts
@@ -204,6 +241,8 @@ jobs:
             --experience-root data/investments/stock_trading_v2_experience \
             --admission-root data/investments/stock_trading_v2_admission \
             --outcome-root data/investments/stock_trading_v2_outcomes \
+            --replay-frame-root /tmp/stock-trading-v2-native-inputs/data/investments/stock_trading_v2_production_replay_frames \
+            --trial-receipts /tmp/stock-trading-v2-production/stock_trading_component_trials.json \
             --output-root data/investments/stock_trading_v2_challenger_evaluations
 
       - name: Verify all immutable stores
@@ -215,7 +254,14 @@ jobs:
           python scripts/stock_trading_v2_outcome_replay.py --verify
           python scripts/stock_trading_v2_policy_learner.py --verify
 
-      - name: Commit closed-loop research evidence
+      - name: Record separate settlement regret and evaluation watermarks even after failure
+        if: always()
+        env:
+          LEARNING_JOB_STATUS: ${{ job.status }}
+        run: python scripts/stock_trading_v2_learning_health.py --workflow-status "$LEARNING_JOB_STATUS"
+
+      - name: Commit closed-loop research evidence and diagnostic progress
+        if: always()
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -223,7 +269,10 @@ jobs:
           for path in \
             data/investments/stock_trading_v2_experience \
             data/investments/stock_trading_v2_admission \
+            data/investments/stock_trading_v2_admission_epochs \
+            data/investments/stock_trading_v2_admission_retrospective \
             data/investments/stock_trading_v2_position_experience \
+            data/investments/stock_trading_v2_position_observations \
             data/investments/stock_trading_v2_outcomes \
             data/investments/stock_trading_v2_learning \
             data/investments/stock_trading_v2_factory_candidates \
