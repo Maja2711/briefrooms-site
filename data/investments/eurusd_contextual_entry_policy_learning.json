@@ -3392,9 +3392,112 @@
       "reward_risk": 1.8,
       "risk_distance": 0.0030286,
       "schema_version": "eurusd-contextual-entry-policy-episode-v1",
-      "settlement": null,
+      "settlement": {
+        "bars": 288,
+        "outcomes": {
+          "CONTINUATION_NOW": {
+            "direction": "SHORT",
+            "entered_at": "2026-10-26T09:12:46Z",
+            "entry_mid": 1.12170506,
+            "exit_price": 1.11625,
+            "exit_reason": "TAKE_PROFIT",
+            "exit_side": "ASK",
+            "exited_at": "2026-10-27T07:00:00Z",
+            "fill_price": 1.12163,
+            "fill_side": "BID",
+            "mae_r": -0.132638,
+            "mfe_r": 1.89285,
+            "net_r": 1.776398,
+            "status": "RESOLVED",
+            "stop": 1.12473,
+            "synthetic_spread_pips": 1.5,
+            "target": 1.11625
+          },
+          "FLAT": {
+            "direction": "FLAT",
+            "entry_status": "NO_TRADE",
+            "mae_r": 0.0,
+            "mfe_r": 0.0,
+            "net_r": 0.0,
+            "status": "RESOLVED",
+            "synthetic_spread_pips": 0.0
+          },
+          "PULLBACK_20_ATR": {
+            "direction": "SHORT",
+            "entered_at": "2026-10-26T09:20:00Z",
+            "entry_mid": 1.1218134,
+            "entry_status": "TRIGGERED",
+            "exit_price": 1.11636,
+            "exit_reason": "TAKE_PROFIT",
+            "exit_side": "ASK",
+            "exited_at": "2026-10-27T07:00:00Z",
+            "fill_price": 1.12174,
+            "fill_side": "BID",
+            "mae_r": -0.096317,
+            "mfe_r": 1.92917,
+            "net_r": 1.776398,
+            "pullback_depth_atr": 0.2,
+            "status": "RESOLVED",
+            "stop": 1.12484,
+            "synthetic_spread_pips": 1.5,
+            "target": 1.11636,
+            "trigger_mid": 1.1218134
+          },
+          "PULLBACK_35_ATR": {
+            "direction": "SHORT",
+            "entered_at": "2026-10-26T09:20:00Z",
+            "entry_mid": 1.12189465,
+            "entry_status": "TRIGGERED",
+            "exit_price": 1.11644,
+            "exit_reason": "TAKE_PROFIT",
+            "exit_side": "ASK",
+            "exited_at": "2026-10-27T07:00:00Z",
+            "fill_price": 1.12182,
+            "fill_side": "BID",
+            "mae_r": -0.069902,
+            "mfe_r": 1.955585,
+            "net_r": 1.776398,
+            "pullback_depth_atr": 0.35,
+            "status": "RESOLVED",
+            "stop": 1.12492,
+            "synthetic_spread_pips": 1.5,
+            "target": 1.11644,
+            "trigger_mid": 1.12189465
+          },
+          "PULLBACK_50_ATR": {
+            "direction": "SHORT",
+            "entry_status": "NOT_TRIGGERED",
+            "mae_r": 0.0,
+            "mfe_r": 0.0,
+            "net_r": 0.0,
+            "status": "RESOLVED",
+            "synthetic_spread_pips": 0.0,
+            "trigger_mid": 1.1219759
+          },
+          "REVERSAL_NOW": {
+            "direction": "LONG",
+            "entered_at": "2026-10-26T09:12:46Z",
+            "entry_mid": 1.12170506,
+            "exit_price": 1.11868,
+            "exit_reason": "STOP_LOSS",
+            "exit_side": "BID",
+            "exited_at": "2026-10-26T13:25:00Z",
+            "fill_price": 1.12178,
+            "fill_side": "ASK",
+            "mae_r": -1.12655,
+            "mfe_r": 0.033582,
+            "net_r": -1.023575,
+            "status": "RESOLVED",
+            "stop": 1.11868,
+            "synthetic_spread_pips": 1.5,
+            "target": 1.12716
+          }
+        },
+        "settled_at": "2026-10-27T14:08:17Z",
+        "target_at": "2026-10-27T09:12:46Z"
+      },
       "source_id": "eurusd:20261026T090217Z:SHORT",
-      "status": "PENDING",
+      "status": "RESOLVED",
       "target_at": "2026-10-27T09:12:46Z"
     }
   ],
@@ -3444,12 +3547,12 @@
     "uncertainty_penalty": 1.0
   },
   "latest_context": {
-    "atr_30m": 0.00038405,
+    "atr_30m": 0.00058406,
     "belief_probability_curve": {
       "available": true,
-      "confidence": 0.474159,
-      "current_p_up": 0.451663,
-      "delta_p_up": 1.4999999999987246e-05,
+      "confidence": 0.474232,
+      "current_p_up": 0.428243,
+      "delta_p_up": -0.04736600000000002,
       "horizons": {
         "12": {
           "confidence": 0.474242,
@@ -3482,21 +3585,21 @@
           "target_at": "2026-10-29T20:14:59Z"
         }
       },
-      "previous_p_up": 0.451648
+      "previous_p_up": 0.475609
     },
     "daily": {
       "candidate": {
-        "confidence": 0.3519,
-        "direction": "FLAT",
-        "score": 48.2,
+        "confidence": 0.3542,
+        "direction": "SHORT",
+        "score": 45.34,
         "source": "NATIVE"
       },
-      "confidence": 0.3519,
+      "confidence": 0.3542,
       "decision_source": "NATIVE",
       "direction": "FLAT",
-      "score": 48.2
+      "score": 45.34
     },
-    "ema20": 1.11724891,
+    "ema20": 1.11558419,
     "event": {
       "available": false,
       "confidence": null,
@@ -3505,37 +3608,37 @@
       "score_delta": null
     },
     "features": {
-      "belief_confidence": 0.474159,
-      "belief_macro_score": -0.4409,
-      "daily_confidence": 0.3519,
-      "daily_score_signed": -0.036,
-      "ema20_distance_atr": -1.118727,
-      "fse_hurst_q2": 0.479408,
-      "fse_risk_score": 0.434449,
-      "move_12h_atr": -3.251436,
-      "move_24h_atr": -10.430047,
-      "move_3h_atr": -0.974655,
+      "belief_confidence": 0.474232,
+      "belief_macro_score": -1.0518,
+      "daily_confidence": 0.3542,
+      "daily_score_signed": -0.0932,
+      "ema20_distance_atr": -0.65752,
+      "fse_hurst_q2": 0.485753,
+      "fse_risk_score": 0.404755,
+      "move_12h_atr": -4.054355,
+      "move_24h_atr": -5.980908,
+      "move_3h_atr": 0.0,
       "p_up_12h": 0.442993,
       "p_up_24h": 0.442993,
       "p_up_3h": 0.442993,
-      "p_up_current": 0.451663,
-      "p_up_delta": 1.5e-05
+      "p_up_current": 0.428243,
+      "p_up_delta": -0.047366
     },
     "fse": {
       "analogues_n": 0,
       "available": true,
-      "mean_hurst_q2": 0.479407591438787,
+      "mean_hurst_q2": 0.4857525944801737,
       "mean_similarity": null,
       "median_forward_return": null,
       "median_forward_return_atr": null,
-      "observed_at": "2026-10-27T06:22:43Z",
+      "observed_at": "2026-10-27T13:19:42Z",
       "p_up_4h": null,
       "production_impact": false,
       "regime": "STABLE",
-      "risk_score": 0.43444940887384276
+      "risk_score": 0.4047548486637001
     },
-    "observed_at": "2026-10-27T07:45:44Z",
-    "reference_mid": 1.11681926
+    "observed_at": "2026-10-27T14:07:43Z",
+    "reference_mid": 1.11520016
   },
   "latest_recommendation": {
     "application_edge_hurdle_r": 0.1,
@@ -3545,72 +3648,72 @@
     "automatic_rollback": false,
     "decision_influence": true,
     "direction_mutation_allowed": false,
-    "edge_vs_second_r": 0.413535,
+    "edge_vs_second_r": 0.325976,
     "evidence_components": {
-      "edge_strength": 1.0,
-      "sample_strength": 0.967624,
+      "edge_strength": 0.93136,
+      "sample_strength": 0.972885,
       "stability": 1.0
     },
-    "evidence_confidence": 0.967624,
+    "evidence_confidence": 0.906106,
     "expected_r": 0.0,
-    "neighbors": 13,
+    "neighbors": 14,
     "policy_stats": {
       "CONTINUATION_NOW": {
-        "effective_neighbors": 10.291,
-        "expected_r": -0.067679,
-        "raw_neighbors": 13,
-        "uncertainty_penalized_r": -0.413535,
-        "weighted_mean_net_r": -0.067679,
-        "weighted_sd_r": 1.109503
+        "effective_neighbors": 10.823,
+        "expected_r": 0.022789,
+        "raw_neighbors": 14,
+        "uncertainty_penalized_r": -0.325976,
+        "weighted_mean_net_r": 0.022789,
+        "weighted_sd_r": 1.147378
       },
       "FLAT": {
-        "effective_neighbors": 10.291,
+        "effective_neighbors": 10.823,
         "expected_r": 0.0,
-        "raw_neighbors": 13,
+        "raw_neighbors": 14,
         "uncertainty_penalized_r": 0.0,
         "weighted_mean_net_r": 0.0,
         "weighted_sd_r": 0.0
       },
       "PULLBACK_20_ATR": {
-        "effective_neighbors": 10.291,
-        "expected_r": -0.3021,
-        "raw_neighbors": 13,
-        "uncertainty_penalized_r": -0.560076,
-        "weighted_mean_net_r": -0.3021,
-        "weighted_sd_r": 0.827585
+        "effective_neighbors": 10.823,
+        "expected_r": -0.197551,
+        "raw_neighbors": 14,
+        "uncertainty_penalized_r": -0.477256,
+        "weighted_mean_net_r": -0.197551,
+        "weighted_sd_r": 0.920183
       },
       "PULLBACK_35_ATR": {
-        "effective_neighbors": 10.291,
-        "expected_r": -0.229753,
-        "raw_neighbors": 13,
-        "uncertainty_penalized_r": -0.506288,
-        "weighted_mean_net_r": -0.229753,
-        "weighted_sd_r": 0.887123
+        "effective_neighbors": 10.823,
+        "expected_r": -0.129241,
+        "raw_neighbors": 14,
+        "uncertainty_penalized_r": -0.421861,
+        "weighted_mean_net_r": -0.129241,
+        "weighted_sd_r": 0.96267
       },
       "PULLBACK_50_ATR": {
-        "effective_neighbors": 10.291,
-        "expected_r": -0.305254,
-        "raw_neighbors": 13,
-        "uncertainty_penalized_r": -0.548695,
-        "weighted_mean_net_r": -0.305254,
-        "weighted_sd_r": 0.780958
+        "effective_neighbors": 10.823,
+        "expected_r": -0.294277,
+        "raw_neighbors": 14,
+        "uncertainty_penalized_r": -0.522608,
+        "weighted_mean_net_r": -0.294277,
+        "weighted_sd_r": 0.751167
       },
       "REVERSAL_NOW": {
-        "effective_neighbors": 10.291,
-        "expected_r": 0.158003,
-        "raw_neighbors": 13,
-        "uncertainty_penalized_r": -0.129836,
-        "weighted_mean_net_r": 0.158003,
-        "weighted_sd_r": 0.923388
+        "effective_neighbors": 10.823,
+        "expected_r": 0.106883,
+        "raw_neighbors": 14,
+        "uncertainty_penalized_r": -0.179545,
+        "weighted_mean_net_r": 0.106883,
+        "weighted_sd_r": 0.942296
       }
     },
     "recommended_family": "FLAT",
     "recommended_policy_id": "FLAT",
     "research_best_policy_id": "FLAT",
     "research_reversal_is_non_authoritative": false,
-    "resolved_episodes": 13,
+    "resolved_episodes": 14,
     "status": "AUTONOMOUS_POLICY_EDGE"
   },
   "schema_version": "eurusd-contextual-entry-policy-learning-v2",
-  "updated_at": "2026-10-27T07:46:24Z"
+  "updated_at": "2026-10-27T14:08:17Z"
 }
