@@ -123,6 +123,54 @@ class MultiTimeframeTests(unittest.TestCase):
         pos["decision_manifest"]={}
         self.assertFalse(v14._mtf_strong_trend_noise_grace(pos,bars,NOW,-.4))
 
+    def test_oct27_145838_short_soft_exit_not_triggered_after_126_seconds(self):
+        """Regression: actual 2026-10-27 EURUSD SHORT, -0.4692R at 126 sec.
+
+        Entry-time H1/D1/W1 all agreed SHORT; the old three-contiguous-minute
+        gate was impossible to satisfy reliably at this position age.
+        Only the early *soft* risk exit may be deferred; hard stops remain.
+        """
+        now=datetime(2026,10,27,15,0,44,tzinfo=timezone.utc)
+        opened=datetime(2026,10,27,14,58,38,tzinfo=timezone.utc)
+        mtf={"version":"MTF_H1_REGIME_V1","strategy":"STRONG_TREND",
+             "direction":"SHORT","h1_volatility":{
+                "mean_high_low_pips":7.692,
+                "last_h1_high":1.1155734062194824,
+                "last_h1_low":1.1145787239074707}}
+        pos={"status":"OPEN", "trade_id":"eurusd:20261027T145838Z:SHORT",
+             "direction":"SHORT","opened_at":opened.isoformat(),
+             "entry":1.11474,"stop":1.11604,"target":1.11281,
+             "decision_manifest":{"execution_admission":{
+                 "allowed":True,"multi_timeframe":mtf}}}
+        # The recorded Yahoo 1m monitor had sparse/nonuniform recent bars.
+        # Two OHLC observations are sufficient only in the first 5 minutes.
+        rows=[bar(now-timedelta(minutes=1,seconds=14),1.11505),
+              bar(now,1.115200161933899)]
+        self.assertTrue(v14._mtf_strong_trend_noise_grace(pos,rows,now,-.4692))
+        self.assertIsNone(v14.evaluate_position(pos,rows,now))
+
+    def test_early_strong_trend_grace_never_overrides_hard_risk_or_stale_quotes(self):
+        now=datetime(2026,10,27,15,0,44,tzinfo=timezone.utc)
+        opened=now-timedelta(seconds=126)
+        mtf={"version":"MTF_H1_REGIME_V1","strategy":"STRONG_TREND",
+             "direction":"SHORT","h1_volatility":{
+                "mean_high_low_pips":7.692,
+                "last_h1_high":1.1155734062194824,
+                "last_h1_low":1.1145787239074707}}
+        pos={"status":"OPEN", "trade_id":"early-short-risk-contract",
+             "direction":"SHORT","opened_at":opened.isoformat(),
+             "entry":1.11474,"stop":1.11604,"target":1.11281,
+             "decision_manifest":{"execution_admission":{
+                 "allowed":True,"multi_timeframe":mtf}}}
+        recent=[bar(now,1.115200161933899)]
+        self.assertFalse(v14._mtf_strong_trend_noise_grace(pos,recent,now,-.61))
+        self.assertFalse(v14._mtf_strong_trend_noise_grace(
+            pos,[bar(now-timedelta(minutes=3),1.11520)],now,-.4692))
+        self.assertFalse(v14._mtf_strong_trend_noise_grace(
+            pos,[bar(now,1.11620)],now,-.4692))
+        pos["decision_manifest"]={}
+        self.assertFalse(v14._mtf_strong_trend_noise_grace(pos,recent,now,-.4692))
+
     def test_preexisting_trend_geometry_remains_unchanged_without_h1_proof(self):
         self.assertFalse(p.geometry({"available":False},1.1,1.097,1.105,"LONG",{})["applied"])
 
