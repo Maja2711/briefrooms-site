@@ -54,15 +54,14 @@ jobs:
               f"{username}:{secret}".encode("utf-8")
           ).decode("ascii")
 
-          def read(endpoint):
-              req = urllib.request.Request(
-                  endpoint,
-                  headers={
-                      "Authorization": authorization,
-                      "Accept": "application/json",
-                      "Cache-Control": "no-store",
-                  },
-              )
+          def read(endpoint, *, authenticated=True):
+              headers = {
+                  "Accept": "application/json",
+                  "Cache-Control": "no-store",
+              }
+              if authenticated:
+                  headers["Authorization"] = authorization
+              req = urllib.request.Request(endpoint, headers=headers)
               try:
                   with urllib.request.urlopen(req, timeout=8) as res:
                       if res.status != 200:
@@ -70,6 +69,16 @@ jobs:
                       payload = json.loads(res.read(16385))
                       return "OK", payload
               except urllib.error.HTTPError as e:
+                  if endpoint == base + "/status":
+                      # Only print safe classifications, never challenge content.
+                      challenge = str(e.headers.get("WWW-Authenticate", "")).strip()
+                      scheme = challenge.split(" ", 1)[0].upper() if challenge else "NONE"
+                      if scheme not in {"BASIC", "BEARER", "DIGEST", "NONE"}:
+                          scheme = "OTHER"
+                      prefix = "AUTH" if authenticated else "ANON"
+                      print(prefix + "_STATUS_CHALLENGE_SCHEME=" + scheme)
+                      mitigated = str(e.headers.get("Cf-Mitigated", "")).lower() == "challenge"
+                      print(prefix + "_STATUS_CF_CHALLENGE=" + ("YES" if mitigated else "NO"))
                   return "HTTP_" + str(e.code), None
               except urllib.error.URLError:
                   return "NETWORK_ERROR", None
@@ -81,6 +90,10 @@ jobs:
           status, status_payload = read(base + "/status")
           if status != "OK":
               print("STATUS_ENDPOINT=" + status)
+              if status in {"HTTP_401", "HTTP_403"}:
+                  anonymous_status, _ = read(base + "/status", authenticated=False)
+                  print("ANONYMOUS_STATUS_ENDPOINT=" + anonymous_status)
+                  print("SAME_HTTP_STATUS_WITHOUT_BASIC=" + str(status == anonymous_status).upper())
               print("RESULT=BLOCKED_WORKER_AUTH_OR_NETWORK")
               raise SystemExit(4)
 
