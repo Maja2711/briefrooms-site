@@ -284,12 +284,38 @@ def _mtf_strong_trend_noise_grace(position: Mapping[str, Any], bars: Sequence[Ba
     start = _parse(str(position.get("opened_at") or ""))
     if start is None or not 0 <= (now-start).total_seconds() <= 120*60:
         return False
-    sample = sorted((bar for bar in bars if bar.timestamp <= now), key=lambda bar: bar.timestamp)[-3:]
-    if len(sample) != 3 or any((b.timestamp-a.timestamp).total_seconds()!=60
-                               for a,b in zip(sample,sample[1:])):
+    # The prior code required three exact 60-second intervals even for a
+    # position opened two minutes ago. Sparse Yahoo 1m delivery thereby
+    # disabled the strong-trend grace and let R_PACE extrapolate a tiny
+    # 2-minute adverse move into an unjustified hourly pace.
+    #
+    # Until five minutes after entry, a freshly observed, structurally valid
+    # market bar is sufficient to *defer only the soft -0.35R exit*. A hard
+    # SL/TP is still handled above, and the macro event check remains below.
+    # Beyond five minutes retain the more demanding continuous-path proof.
+    sample = sorted((bar for bar in bars if start <= bar.timestamp <= now),
+                    key=lambda bar: bar.timestamp)[-3:]
+    if not sample:
         return False
-    if (now-sample[-1].timestamp).total_seconds()>180:
+    last = sample[-1]
+    if last.timestamp.tzinfo is None:
         return False
+    freshness = (now-last.timestamp).total_seconds()
+    if not 0 <= freshness <= 120:
+        return False
+    try:
+        op, hi, lo, price = (float(getattr(last, field))
+                             for field in ("open", "high", "low", "close"))
+        if (not all(math.isfinite(v) and v > 0 for v in (op, hi, lo, price))
+                or lo > min(op, price) or hi < max(op, price)):
+            return False
+    except (ValueError, TypeError, AttributeError):
+        return False
+    age_seconds = (now-start).total_seconds()
+    if age_seconds > 5*60:
+        if len(sample) != 3 or any((b.timestamp-a.timestamp).total_seconds()!=60
+                                   for a,b in zip(sample,sample[1:])):
+            return False
     try:
         typical=float(vol["mean_high_low_pips"])
         original_risk=abs(float(position["entry"])-float(position["stop"]))/.0001
