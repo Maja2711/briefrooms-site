@@ -22,6 +22,13 @@
       "component_id": "belief_probability:btc.liquidity.supportive",
       "event": "EVOLUTION_PROMOTION",
       "version_id": "prod-belief-59426e0cde73933d2ba29e59"
+    },
+    {
+      "at": "2026-10-27T07:46:59.001885Z",
+      "candidate_id": "evo-belief-938c74f60b3937dbaae305a0",
+      "component_id": "belief_probability:eurusd.trend.bullish",
+      "event": "EVOLUTION_PROMOTION",
+      "version_id": "prod-belief-7e58db72f89c387b0d537a1f"
     }
   ],
   "overrides": {
@@ -234,8 +241,113 @@
         "type": "logit_affine_v1"
       },
       "version": "prod-belief-947d74fff04abd1da12c9b7f"
+    },
+    "eurusd.trend.bullish": {
+      "active": true,
+      "belief_id": "eurusd.trend.bullish",
+      "candidate_id": "evo-belief-938c74f60b3937dbaae305a0",
+      "evolution_controller": "briefrooms-evolution-controller-v1",
+      "promoted_at": "2026-10-27T07:46:59.001885Z",
+      "prospective_gate": {
+        "blockers": [],
+        "candidate_id": "evo-belief-938c74f60b3937dbaae305a0",
+        "criteria": {
+          "brier_relative_improvement_min": 0.05,
+          "log_loss_must_improve": true,
+          "max_accuracy_degradation": 0.03,
+          "max_ece_degradation": 0.01,
+          "protected_slice_max_brier_degradation": 0.1,
+          "stability": "3_of_4"
+        },
+        "evaluated_at": "2026-10-27T07:46:59.001885Z",
+        "evaluator_profile": "belief_calibration_v1",
+        "gate_id": "evo-gate-c0ed37969538a6ba2989a2af",
+        "metrics": {
+          "brier_relative_improvement": 0.051322,
+          "challenger": {
+            "accuracy": 0.543103,
+            "brier": 0.264039,
+            "ece": 0.167849,
+            "log_loss": 0.722914,
+            "n": 116
+          },
+          "control": {
+            "accuracy": 0.344828,
+            "brier": 0.278323,
+            "ece": 0.2042,
+            "log_loss": 0.751324,
+            "n": 116
+          },
+          "stability": {
+            "blocks": 4,
+            "improved": 3,
+            "relative_improvements": [
+              -0.134585,
+              0.130068,
+              0.157637,
+              0.081169
+            ],
+            "worst_relative_degradation": 0.134585
+          }
+        },
+        "minimum_sample": 50,
+        "observed_sample": 116,
+        "prospective_only": true,
+        "segment_checks": [
+          {
+            "brier_relative_improvement": 0.053645,
+            "challenger_brier": 0.266925,
+            "control_brier": 0.282056,
+            "ece_delta": -0.064055,
+            "n": 26,
+            "pass": true,
+            "segment": "horizon:0-6H"
+          },
+          {
+            "brier_relative_improvement": 0.087388,
+            "challenger_brier": 0.259493,
+            "control_brier": 0.284341,
+            "ece_delta": -0.050704,
+            "n": 41,
+            "pass": true,
+            "segment": "horizon:1-5D"
+          },
+          {
+            "brier_relative_improvement": 0.011367,
+            "challenger_brier": 0.268055,
+            "control_brier": 0.271137,
+            "ece_delta": -0.007731,
+            "n": 48,
+            "pass": true,
+            "segment": "horizon:6-24H"
+          },
+          {
+            "brier_relative_improvement": 0.051322,
+            "challenger_brier": 0.264039,
+            "control_brier": 0.278323,
+            "ece_delta": -0.036351,
+            "n": 116,
+            "pass": true,
+            "segment": "instrument:EURUSD"
+          }
+        ],
+        "source_sha256": "5713a93ca7d907144ea4937fbd9b5890873a5bdda6d643e05feef89e1bb9dfc2",
+        "status": "PASS"
+      },
+      "raw_control_preserved": true,
+      "rollback": {
+        "brier_relative_degradation": 0.05,
+        "ece_degradation": 0.05,
+        "minimum_post_promotion_n": 30
+      },
+      "transform": {
+        "intercept": -0.35,
+        "slope": 0.5,
+        "type": "logit_affine_v1"
+      },
+      "version": "prod-belief-7e58db72f89c387b0d537a1f"
     }
   },
   "schema_version": "belief-core-production-overrides-v1",
-  "updated_at": "2026-10-27T06:08:25.055964Z"
+  "updated_at": "2026-10-27T07:46:59.001885Z"
 }
