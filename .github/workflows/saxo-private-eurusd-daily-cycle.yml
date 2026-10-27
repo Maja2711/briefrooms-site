@@ -42,6 +42,30 @@ jobs:
           python -m unittest tests.test_saxo_private_daily_runner tests.test_saxo_private_feed tests.test_saxo_private_primary tests.test_saxo_private_execution_exit -q
           python -m py_compile scripts/saxo_private_daily_runner.py
 
+  private-storage-preflight:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    env:
+      PRIVATE_ENABLED: ${{ vars.SAXO_PRIVATE_AUTO_ENABLED }}
+      PRIVATE_BUCKET: ${{ vars.SAXO_PRIVATE_R2_BUCKET }}
+      PRIVATE_ACCESS: ${{ secrets.SAXO_PRIVATE_R2_ACCESS_KEY_ID }}
+      PRIVATE_SECRET: ${{ secrets.SAXO_PRIVATE_R2_SECRET_ACCESS_KEY }}
+    steps:
+      - name: Report only private R2 activation readiness
+        shell: bash
+        run: |
+          if [ -n "$PRIVATE_BUCKET" ] && [ -n "$PRIVATE_ACCESS" ] && [ -n "$PRIVATE_SECRET" ]; then
+            echo "PRIVATE_R2_CREDENTIALS_CONFIGURED=TRUE"
+          else
+            echo "PRIVATE_R2_CREDENTIALS_CONFIGURED=FALSE"
+          fi
+          if [ "$PRIVATE_ENABLED" = "true" ]; then
+            echo "PRIVATE_AUTO_SCHEDULE_ENABLED=TRUE"
+          else
+            echo "PRIVATE_AUTO_SCHEDULE_ENABLED=FALSE"
+          fi
+
   private-paper-cycle:
     # Activation is an explicit owner opt-in after isolated R2 bucket is ready.
     # Never execute on PRs or code push; do not bypass the enable flag.
