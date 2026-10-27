@@ -56,7 +56,7 @@ class PrivateDailyStateTests(unittest.TestCase):
             self.make_state(root)
             client = Mock()
             client.get_object.return_value = {
-                "Body": Mock(read=lambda *_: runner.encode_state(root, 4))
+                "Body": Mock(read=lambda *_: client.put_object.call_args.kwargs["Body"])
             }
             runner.save_r2_state(client, "private-bucket", root, 3, '"old"')
             params = client.put_object.call_args.kwargs
