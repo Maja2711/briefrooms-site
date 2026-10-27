@@ -47,7 +47,7 @@ jobs:
               raise SystemExit(3)
 
           def function_source(name):
-              match = re.search(r'function\\s+' + re.escape(name) + r'\\s*\\([^)]*\\)\\s*\\{', source)
+              match = re.search(r'function\s+' + re.escape(name) + r'\s*\([^)]*\)\s*\{', source)
               if not match:
                   return None
               start = match.start()
