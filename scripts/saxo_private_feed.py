@@ -43,6 +43,26 @@ def _time(value: Any) -> datetime:
         _reject()
 
 
+def validate_private_saxo_snapshot(
+    payload: Mapping[str, Any], *, now: datetime | None = None
+) -> dict[str, Any]:
+    """Validate private SIM bid/ask pair for simulated execution."""
+    mid = validate_private_saxo_quote(payload, now=now)
+    return {
+        "bid": float(payload["bid"]),
+        "ask": float(payload["ask"]),
+        "mid": mid,
+        "observed_at": _time(
+            payload.get("last_updated")
+            or payload.get("last_updated_at")
+            or payload.get("timestamp")
+            or payload.get("LastUpdated")
+        ),
+        "source": "SAXO_SIM",
+        "redistributable": False,
+    }
+
+
 def validate_private_saxo_quote(
     payload: Mapping[str, Any], *, now: datetime | None = None
 ) -> float:
@@ -91,6 +111,118 @@ def validate_private_saxo_quote(
     if age < -MAX_FUTURE_SECONDS or age > MAX_QUOTE_AGE_SECONDS:
         _reject()
     return mid
+
+
+def assert_private_state_destination(
+    position: Mapping[str, Any], output_path: Any, history_path: Any = None
+) -> None:
+    """Never let Saxo-derived positions be persisted in a public checkout."""
+    from pathlib import Path
+
+    execution = position.get("execution_price_engine") or {}
+    if not isinstance(execution, Mapping) or execution.get("private_saxo_primary") is not True:
+        return
+    if (os.environ.get("SAXO_PRIVATE_PRIMARY") != "1"
+            or os.environ.get("BRIEFROOMS_PRIVATE_RUNTIME") != "1"):
+        raise ValueError("private Saxo exit needs private runtime")
+    root_name = os.environ.get("BRIEFROOMS_PRIVATE_DATA_DIR", "")
+    if not root_name or not Path(root_name).is_absolute():
+        raise ValueError("private Saxo exit needs absolute off-repository state")
+    root = Path(root_name).resolve()
+    repository = Path(__file__).resolve().parents[1]
+    if root == repository or root.is_relative_to(repository):
+        raise ValueError("private Saxo state cannot be stored in public repository")
+    paths = [output_path] + ([history_path] if history_path is not None else [])
+    if any(not Path(p).resolve().is_relative_to(root) for p in paths):
+        raise ValueError("private Saxo state must stay in private directory")
+
+
+def private_saxo_exit_record(
+    position: Mapping[str, Any], trigger: Mapping[str, Any], *,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    """Settle a privately triggered paper exit at fresh Saxo SIM BID/ASK.
+
+    Yahoo/Belief/macro may establish *why* exit is necessary. Saxo alone sets
+    the current exit price. No trade is written if the Saxo quote fails.
+    """
+    from daily_eurusd_lifecycle import _close_record, parse_iso
+
+    execution = position.get("execution_price_engine") or {}
+    if not isinstance(execution, Mapping) or execution.get("private_saxo_primary") is not True:
+        raise PrivateSaxoFeedError("private_saxo_position_required")
+    if (os.environ.get("SAXO_PRIVATE_PRIMARY") != "1"
+            or os.environ.get("BRIEFROOMS_PRIVATE_RUNTIME") != "1"):
+        raise PrivateSaxoFeedError("private_saxo_runtime_required")
+    clock = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    quote = fetch_private_saxo_quote(now=clock)
+    stamp = quote["observed_at"]
+    if not isinstance(stamp, datetime) or not 0 <= (clock - stamp).total_seconds() <= 15:
+        _reject()
+    opened = parse_iso(str(position.get("opened_at") or ""))
+    if opened is None or stamp <= opened:
+        _reject()
+    direction = str(position.get("direction") or "").upper()
+    if direction not in ("LONG", "SHORT"):
+        _reject()
+    price = round(float(quote["bid"] if direction == "LONG" else quote["ask"]), 5)
+    reason = str(trigger.get("exit_reason") or "")
+    if not reason:
+        _reject()
+    result = _close_record(
+        position, exit_reason=reason, exit_price=price,
+        exited_at=stamp, exit_bar=None,
+    )
+    # Preserve non-price trigger diagnostics without treating the Yahoo bar
+    # as the execution quote or backdating a private Saxo fill.
+    source_monitor = trigger.get("monitor") or {}
+    if isinstance(source_monitor, Mapping):
+        for name in ("dynamic_exit", "macro_event", "event_intelligence"):
+            if name in source_monitor:
+                result["monitor"][name] = source_monitor[name]
+    for name in (
+        "entry_thesis", "execution_price_engine", "decision_manifest",
+        "contextual_entry_policy_at_entry",
+    ):
+        if name in position and isinstance(position[name], Mapping):
+            result[name] = dict(position[name])
+    result["monitor"].update({
+        "source": "Saxo OpenAPI SIM:EUR/USD (private indicative quote)",
+        "trigger_source": "Yahoo 1m OHLC / macro / exit policy",
+        "exit_price_basis": "SAXO_SIM_BID_FOR_LONG_ASK_FOR_SHORT",
+        "quote_timestamp": stamp.isoformat().replace("+00:00", "Z"),
+        "private_saxo_bid": quote["bid"],
+        "private_saxo_ask": quote["ask"],
+        "redistributable": False,
+        "no_broker_order": True,
+        "trigger_closed_at_proposed": trigger.get("closed_at"),
+    })
+    return result
+
+
+def fetch_private_saxo_quote(*, now: datetime | None = None) -> dict[str, Any]:
+    """Obtain private Bid/Ask/Mid using machine-to-machine Cloudflare auth."""
+    username = os.environ.get("SAXO_PRIVATE_BASIC_USER", "admin")
+    password = os.environ.get("SAXO_PRIVATE_BASIC_PASSWORD", "")
+    if not username or not password or any(ch in username for ch in "\r\n:"):
+        _reject()
+    header = base64.b64encode(f"{username}:{password}".encode("utf-8")).decode("ascii")
+    request = urllib.request.Request(
+        SAXO_WORKER_URL,
+        headers={
+            "Authorization": f"Basic {header}",
+            "Accept": "application/json",
+            "Cache-Control": "no-store",
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=6) as response:
+            if getattr(response, "status", 200) != 200:
+                _reject()
+            payload = json.loads(response.read(16385))
+        return validate_private_saxo_snapshot(payload, now=now)
+    except Exception:
+        _reject()
 
 
 def fetch_private_saxo_mid(*, now: datetime | None = None) -> float:
