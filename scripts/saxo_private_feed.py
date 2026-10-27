@@ -22,6 +22,17 @@ SAXO_WORKER_URL = (
 MAX_QUOTE_AGE_SECONDS = 90.0
 MAX_FUTURE_SECONDS = 30.0
 
+# Cloudflare rejects the default Python-urllib User-Agent for this Worker.
+# Verified from GitHub Actions: Python-urllib -> 403, standard browser UA -> 200.
+# Keep an explicit User-Agent for this *authenticated private* read-only API.
+# No quote data or Saxo credentials may be logged or redistributed.
+SAXO_PRIVATE_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/131.0.0.0 Safari/537.36"
+)
+
+
 
 class PrivateSaxoFeedError(ValueError):
     """Fixed, non-sensitive failure; never attach broker response or credentials."""
@@ -213,6 +224,7 @@ def fetch_private_saxo_quote(*, now: datetime | None = None) -> dict[str, Any]:
             "Authorization": f"Basic {header}",
             "Accept": "application/json",
             "Cache-Control": "no-store",
+            "User-Agent": SAXO_PRIVATE_USER_AGENT,
         },
     )
     try:
@@ -243,6 +255,7 @@ def fetch_private_saxo_mid(*, now: datetime | None = None) -> float:
             "Authorization": f"Basic {header}",
             "Accept": "application/json",
             "Cache-Control": "no-store",
+            "User-Agent": SAXO_PRIVATE_USER_AGENT,
         },
     )
     try:
