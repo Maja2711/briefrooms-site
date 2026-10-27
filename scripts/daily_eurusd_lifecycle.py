@@ -101,6 +101,7 @@ def _synthetic_execution_config(position: Mapping[str, Any]) -> dict[str, float]
         "MID_VERIFIED_SYNTHETIC_SPREAD",
         "PUBLIC_CURRENT_MID_PLUS_CONSERVATIVE_BUFFER",
         "LIVE_CONSENSUS_MID_PLUS_CONSERVATIVE_BUFFER",
+        "SAXO_SIM_BID_ASK_INDICATIVE_PRIVATE",
     }
     if versioned and price_type not in supported:
         raise ValueError("unsupported price type for Daily execution cost contract")
