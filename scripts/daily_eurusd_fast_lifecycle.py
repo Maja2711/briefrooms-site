@@ -21,6 +21,7 @@ import daily_eurusd_spot_v14 as v14
 import daily_eurusd_spot_v16 as v16
 import daily_eurusd_spot_v18 as v18
 from daily_eurusd_decision_record import ENGINE_VERSION as PRODUCTION_ENGINE_VERSION
+from saxo_private_feed import assert_private_state_destination
 
 DEFAULT_OUTPUT = Path("data/investments/eurusd_daily_spot.json")
 DEFAULT_HISTORY = Path("data/investments/eurusd_daily_history.json")
@@ -162,6 +163,7 @@ def probe(output_path: Path, client: Any | None = None) -> dict[str, Any]:
     position = _open_position(payload)
     if position is None:
         return {"position_open": False, "exit_triggered": False}
+    assert_private_state_destination(position, output_path)
     bars = fetch_bars(client)
     observed_at = bars[-1].timestamp.astimezone(timezone.utc)
     trade = evaluate_open_position(payload, bars, observed_at)
@@ -181,6 +183,7 @@ def apply_if_triggered(output_path: Path, history_path: Path, client: Any | None
     position = _open_position(payload)
     if position is None:
         return {"changed": False, "reason": "no_open_position"}
+    assert_private_state_destination(position, output_path, history_path)
 
     bars = fetch_bars(client)
     observed_at = bars[-1].timestamp.astimezone(timezone.utc)
@@ -223,6 +226,9 @@ def main() -> int:
     history_path = Path(args.history)
 
     if args.probe_json:
+        prior = _open_position(_load(output_path))
+        if prior is not None:
+            assert_private_state_destination(prior, args.probe_json)
         result = probe(output_path)
         Path(args.probe_json).write_text(json.dumps(result, ensure_ascii=False) + "\n", encoding="utf-8")
         print("EURUSD_REALTIME_PROBE", json.dumps(result, sort_keys=True))
