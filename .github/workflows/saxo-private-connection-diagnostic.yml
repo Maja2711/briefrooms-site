@@ -45,7 +45,7 @@ jobs:
           import re
           from urllib.parse import urlsplit
           from saxo_private_feed import (
-              SAXO_WORKER_URL, validate_private_saxo_snapshot
+              SAXO_WORKER_URL, SAXO_PRIVATE_USER_AGENT, validate_private_saxo_snapshot
           )
 
           base = SAXO_WORKER_URL.rsplit("/", 1)[0]
@@ -67,6 +67,7 @@ jobs:
               headers = {
                   "Accept": "application/json",
                   "Cache-Control": "no-store",
+                "User-Agent": SAXO_PRIVATE_USER_AGENT,
               }
               if authenticated:
                   headers["Authorization"] = authorization
@@ -100,7 +101,7 @@ jobs:
           # Probe the public root without a password: it bypasses Basic auth
           # but not the Worker's strict origin check.
           def root_http():
-              req = urllib.request.Request(base + "/", headers={"Accept": "text/plain"})
+              req = urllib.request.Request(base + "/", headers={"Accept": "text/plain", "User-Agent": SAXO_PRIVATE_USER_AGENT})
               try:
                   with urllib.request.urlopen(req, timeout=8) as response:
                       return "HTTP_" + str(response.status)
