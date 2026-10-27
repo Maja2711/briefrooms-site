@@ -1,28 +1,63 @@
-# Saxo SIM → BriefRooms EUR/USD Daily — prywatny adapter (disabled by default)
+# Saxo SIM EUR/USD → prywatny BRs Daily: PRIMARY dla papierowego EPE
 
-## Co działa, a czego nie wolno mylić
+## Dwa różne uruchomienia
 
-Cloudflare Worker `briefrooms-saxo-eurusd` ma własne OAuth SIM, rotację tokenów w D1 i cykliczny Cron. Odrębne repozytorium GitHub **nie otrzymuje automatycznie** sekretów Workera ani danych z jego bazy D1.
+**Publiczny BRs Daily** (standardowy `.github/workflows/daily-eurusd-monitor.yml`) nadal wyznacza papierowe ceny z publicznych źródeł i publikuje swoje artefakty. Nie publikuje ani nie wybiera cen Saxo.
 
-Ten patch łączy kod EURUSD Daily EPE z prywatnym adapterem, **ale domyślnie nie wysyła żądań do Saxo**. Dotychczasowe publiczne feedy (Stooq / fxapi / Currency Exchange Tool / Yahoo) nadal wyliczają cenę do papierowego EPE.
+**Prywatny BRs Daily** uruchamiany poza katalogiem publicznego repozytorium może używać **Saxo SIM jako źródła podstawowego** dla bieżącej symulowanej ceny wejścia EPE. Ma własne, lokalne `eurusd_daily_spot.json`, `eurusd_daily_history.json`, policy i ledger, które nigdy nie są commitowane do GitHub. Żadnych zleceń brokerskich.
 
-Saxo SIM zwraca `PRIVATE_TEST_SIM_ONLY` i `redistributable: false`: nie wolno publikować surowych kwotowań, strumienia, cache, publicznych plików JSON, historii cen, wykresów ani reklamować ich jako licencjonowanego źródła publicznego. Nie aktywuj private gate w **publicznym** Daily bez zgody Saxo obejmującej konkretny sposób użycia. Pośrednia kontrola jakości decyzji również może podlegać warunkom dostawcy.
+Nie jest to przełączenie całej analizy na dane Saxo: H1/D1/W1 oraz ukończone 1m świece nadal są pobierane dotychczasowym modułem (Yahoo), bo Worker Saxo obsługuje teraz wyłącznie **aktualny bid/ask/mid EUR/USD**, a nie Saxo OHLC. Kierunek nadal zatwierdza Belief Core.
 
-## Mechanizm w repo
+## Ścieżka papierowego fill (tylko private runtime)
 
-- `scripts/saxo_private_feed.py`: wymaga HTTPS do jednego, stałego hosta Worker; odczytuje Basic Auth z sekretu procesu, nie z plików; waliduje SIM, spread, instrument, timing UTC, świeżość ≤90s, `redistributable: false`, zero delay oraz wyłączony handel; nie loguje odpowiedzi ani sekretów.
-- `scripts/execution_price_engine.py`: gdy `SAXO_PRIVATE_QUALITY_GATE=1`, podczas zwykłego cyklu Daily z natywnymi publicznymi feedami i **już zweryfikowaną** publiczną ceną porównuje ją w pamięci z prywatnym mid Saxo. Rozbieżność >2,5 pipsa lub problem dostępu blokuje nową papierową pozycję. Nie wybiera Saxo jako primary fill; nie serializuje Saxo bid/ask/mid, spread, timestamp ani różnicy do publicznego artefaktu.
-- Inny horyzont (H1/D1/1m), natywna decyzja Belief, istniejący SL/TP i ścieżka wyjścia z **otwartej** pozycji nie są modyfikowane.
-- `tests/test_saxo_private_feed.py`: sprawdza izolację, brak wycieku sekretu, staleness i veto. Włączono do Daily validation CI.
+1. Standardowe feedy publiczne muszą dostarczyć dwie niezależne, świeże, zgodne referencje. Brak → NO_FILL.
+2. Worker Saxo `/saxo/quote` jest odczytywany przez prywatny adapter (HTTPS + administrator). Sprawdzamy wyłącznie `source=SAXO_SIM`, `EUR/USD`, otwarty rynek, zero opóźnienia, świeżość ≤90s, spójny BID/ASK/MID, `trading_enabled=false`, `redistributable=false`. Błąd → NO_FILL.
+3. MID Saxo musi zgadzać się z wynikiem publicznej kontroli w granicach 2,5 pipsa; inaczej NO_FILL.
+4. MID Saxo zostaje **ceną bazową papierowego wejścia**; dodajemy dotychczasowy konserwatywny bufor 1,5 pipsa na stronę. To symulacja, nie broker-verified executable fill. Lokalny, prywatny history/position przechowuje wynik z identyfikacją Saxo.
+5. Zasady H1 range, stop loss, profit protection, SL/TP, Belief Direction oraz ochrona makro pozostają bez zmian.
 
-## Gdyby uprawnienia umożliwiały prywatne testowanie przez GitHub Actions
+## Ustawienie prywatne na Windows (PowerShell)
 
-1. GitHub → repo → Settings → Secrets and variables → Actions → **New repository secret**: `SAXO_PRIVATE_BASIC_PASSWORD` = hasło Basic Auth dla **Cloudflare Workera**, zgodne z Worker Secret `SAXO_ADMIN_PASSWORD`. To **nie** jest hasło konta Saxo ani `SAXO_APP_SECRET`.
-2. Repo → Settings → Secrets and variables → Actions → **Variables**: `SAXO_PRIVATE_QUALITY_GATE=1` wyłącznie po potwierdzeniu uprawnień do takiego sposobu użycia. **Pozostaw nieustawione / 0 dla publicznego BRs Daily**.
-3. Następny prawdziwy cykl `daily-eurusd-monitor.yml` może uruchomić prywatną kontrolę w `Reconcile position...`. GitHub nie kopiuje automatycznie haseł z Cloudflare.
-4. Kontrola jakości: Actions success + EPE `private_saxo_gate: PASS_NO_PRICE_REDISTRIBUTION` przy kwalifikującym się nowym wejściu. Brak pozycji/FLAT oznacza, że bramka nie musiała się uruchomić; brak wpisu **nie** dowodzi awarii.
-5. Każdy błąd pobrania w trybie włączonym blokuje tylko **nowy** fill (`private_saxo_quote_unavailable`), nie zmienia SL/TP istniejących pozycji. Wyłączenie: ustaw zmienną `SAXO_PRIVATE_QUALITY_GATE=0`.
+Warunki: repo lokalnie na dysku, Python 3.11+; aktywny Worker Cloudflare z odświeżaniem OAuth i danymi EUR/USD; prywatny odczyt endpointu z działającym mechanizmem autoryzacji. Wykorzystuj jedynie do swoich prywatnych, niekomercyjnych obliczeń. Nie kopiuj wyniku do publicznego GitHub/BRs.
 
-## Warunek publicznej integracji źródła cen
+Uruchom PowerShell w katalogu repo:
 
-Aby silnik publicznego BRs EURUSD Daily naprawdę używał **cen Saxo jako podstawowego feedu**, potrzebne jest odpowiednie źródło LIVE/market-data entitlement i prawo do zamierzonego wykorzystania/redystrybucji (w tym prezentacji cen i cen wynikowych). Wtedy trzeba osobno zrewidować kontrakt EPE i prawa do publikacji artefaktów. Obecny SIM nie uprawnia do ogłoszenia takiej integracji.
+```powershell
+$env:BRIEFROOMS_PRIVATE_RUNTIME = "1"
+$env:SAXO_PRIVATE_PRIMARY = "1"
+$env:SAXO_PRIVATE_QUALITY_GATE = "0"
+$env:BRIEFROOMS_PRIVATE_DATA_DIR = Join-Path $HOME "BRsPrivateSaxoEURUSD"
+$env:SAXO_PRIVATE_BASIC_USER = "admin"
+New-Item -ItemType Directory -Force -Path $env:BRIEFROOMS_PRIVATE_DATA_DIR | Out-Null
+$securePassword = Read-Host "Haslo prywatnego Workera Cloudflare (NIE haslo Saxo)" -AsSecureString
+$ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePassword)
+try {
+    $env:SAXO_PRIVATE_BASIC_PASSWORD = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr)
+} finally {
+    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr)
+}
+python scripts/daily_eurusd_spot_v19.py `
+  --output "$env:BRIEFROOMS_PRIVATE_DATA_DIR/eurusd_daily_spot.json" `
+  --history "$env:BRIEFROOMS_PRIVATE_DATA_DIR/eurusd_daily_history.json"
+Remove-Item Env:SAXO_PRIVATE_BASIC_PASSWORD
+```
+
+**Ważne o logowaniu Workera:** obecny adapter zakłada uwierzytelnienie HTTP Basic. Wcześniejsze testy przeglądarkowe mogły korzystać z ciasteczka sesyjnego (administrator login). Należy sprawdzić implementację `worker.js` i potwierdzić, że endpoint akceptuje Basic; samo działanie endpointu w zalogowanej przeglądarce tego **nie potwierdza**. Nie umieszczaj hasła ani cookie w repo/chat.
+
+Gdy Worker wymaga wyłącznie sesji cookie, adapter Basic nie jest jeszcze gotowym produkcyjnym połączeniem. Wprowadzenie osobnego, ograniczonego read-only dostępu maszynowego w Cloudflare Worker jest wtedy kolejnym etapem. Nie używaj publicznego endpointu bez autoryzacji jako obejścia.
+
+## Zabezpieczenia
+
+- Ustawienia `SAXO_PRIVATE_PRIMARY=1` oraz `BRIEFROOMS_PRIVATE_RUNTIME=1` są wymagane jednocześnie. Dodatkowo `BRIEFROOMS_PRIVATE_DATA_DIR` musi być absolutną ścieżką **poza repo**; oba argumenty `--output` i `--history` muszą wskazywać pliki wewnątrz tej ścieżki. Runtime sprawdza to jeszcze przed pobraniem danych rynkowych.
+- Przy braku hasła, błędzie Workera, starym kursie albo rozbieżności dwóch źródeł silnik nie tworzy nowego papierowego fill (fail closed).
+- Nie ustawiaj `SAXO_PRIVATE_PRIMARY=1` w standardowym publicznym workflow GitHub. Nie uploaduj prywatnych plików przez GitHub Actions artifact, nie publikuj ich przez Pages i nie wypychaj Web Push z prywatnymi cenami.
+- Sama integracja nie dowodzi niezawodności SIM. Saxo może mieć infrastrukturę SIM o innym SLA niż LIVE; monitorowanie feedu i quality metrics należy prowadzić prywatnie.
+
+## Kontrola poprawności
+
+```powershell
+$env:PYTHONPATH = "scripts"
+python -m unittest tests.test_saxo_private_feed tests.test_saxo_private_primary -v
+```
+
+Kryterium końcowe to: autoryzowany odczyt rzeczywistego Workera, świeży Saxo MID, dwie zgodne niezależne referencje, wynik papierowy w katalogu prywatnym z `private_saxo_primary: true`, a **brak** zmian zawierających kurs Saxo w publicznych artefaktach. Gdy decyzja Belief = FLAT, bez otwarcia nowej pozycji, brak znacznika `private_saxo_primary` nie oznacza jeszcze awarii konektora.
