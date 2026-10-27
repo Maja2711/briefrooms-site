@@ -1,0 +1,178 @@
+name: Private Saxo SIM EURUSD Daily cycle (isolated R2)
+# No broker orders, no private data in Git or Actions artifacts.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/5 * * * *"
+  pull_request:
+    paths:
+      - "scripts/saxo_private_daily_runner.py"
+      - "tests/test_saxo_private_daily_runner.py"
+      - ".github/workflows/saxo-private-eurusd-daily-cycle.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/saxo_private_daily_runner.py"
+      - "tests/test_saxo_private_daily_runner.py"
+      - ".github/workflows/saxo-private-eurusd-daily-cycle.yml"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: isolated-private-saxo-eurusd-daily-cycle
+  cancel-in-progress: false
+
+jobs:
+  regression:
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Offline validation without broker or R2 access
+        run: |
+          set -euo pipefail
+          python -m unittest tests.test_saxo_private_daily_runner tests.test_saxo_private_feed tests.test_saxo_private_primary tests.test_saxo_private_execution_exit -q
+          python -m py_compile scripts/saxo_private_daily_runner.py
+
+  private-storage-preflight:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    env:
+      PRIVATE_ENABLED: ${{ vars.SAXO_PRIVATE_AUTO_ENABLED }}
+      PRIVATE_BUCKET: ${{ vars.SAXO_PRIVATE_R2_BUCKET }}
+      PRIVATE_ACCESS: ${{ secrets.SAXO_PRIVATE_R2_ACCESS_KEY_ID }}
+      PRIVATE_SECRET: ${{ secrets.SAXO_PRIVATE_R2_SECRET_ACCESS_KEY }}
+    steps:
+      - name: Report only private R2 activation readiness
+        shell: bash
+        run: |
+          if [ -n "$PRIVATE_BUCKET" ] && [ -n "$PRIVATE_ACCESS" ] && [ -n "$PRIVATE_SECRET" ]; then
+            echo "PRIVATE_R2_CREDENTIALS_CONFIGURED=TRUE"
+          else
+            echo "PRIVATE_R2_CREDENTIALS_CONFIGURED=FALSE"
+          fi
+          if [ "$PRIVATE_ENABLED" = "true" ]; then
+            echo "PRIVATE_AUTO_SCHEDULE_ENABLED=TRUE"
+          else
+            echo "PRIVATE_AUTO_SCHEDULE_ENABLED=FALSE"
+          fi
+
+  private-paper-cycle:
+    # Activation is an explicit owner opt-in after isolated R2 bucket is ready.
+    # Never execute on PRs or code push; do not bypass the enable flag.
+    if: >-
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+      && github.ref == 'refs/heads/main'
+      && vars.SAXO_PRIVATE_AUTO_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+      BRIEFROOMS_PRIVATE_RUNTIME: "1"
+      SAXO_PRIVATE_PRIMARY: "1"
+      SAXO_PRIVATE_QUALITY_GATE: "0"
+      SAXO_PRIVATE_AUTO_ENABLED: ${{ vars.SAXO_PRIVATE_AUTO_ENABLED }}
+      SAXO_PRIVATE_BASIC_USER: admin
+      SAXO_PRIVATE_BASIC_PASSWORD: ${{ secrets.SAXO_PRIVATE_BASIC_PASSWORD }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      SAXO_PRIVATE_R2_BUCKET: ${{ vars.SAXO_PRIVATE_R2_BUCKET }}
+      BRS_R2_PILOT_BUCKET: ${{ vars.BRS_R2_PILOT_BUCKET }}
+      SAXO_PRIVATE_R2_ACCESS_KEY_ID: ${{ secrets.SAXO_PRIVATE_R2_ACCESS_KEY_ID }}
+      SAXO_PRIVATE_R2_SECRET_ACCESS_KEY: ${{ secrets.SAXO_PRIVATE_R2_SECRET_ACCESS_KEY }}
+      AWS_EC2_METADATA_DISABLED: "true"
+    steps:
+      - name: Checkout private runtime code, never store Saxo states in checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install S3 client (no private payload to artifacts)
+        run: python -m pip install --quiet "boto3>=1.35,<2"
+      - name: Restore the same upstream Belief and Epistemic context as public Daily
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import io
+          import json
+          import os
+          import pathlib
+          import tarfile
+          import urllib.request
+          import zipfile
+
+          repo = os.environ["GITHUB_REPOSITORY"]
+          token = os.environ["GH_TOKEN"]
+          temp = pathlib.Path(os.environ["RUNNER_TEMP"])
+          headers = {"Authorization": "Bearer " + token,
+                     "Accept": "application/vnd.github+json",
+                     "User-Agent": "BriefRoomsPrivateSaxoDaily/1"}
+          def api(url):
+              with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=20) as res:
+                  return res.read(50_000_000)
+
+          for label, artifact, tar_name, destination, env_key, state_name in (
+              ("BELIEF", "belief-core-shadow-state", "belief-core-state.tgz",
+               "belief_core_state", "BELIEF_CORE_STATE", "state.json"),
+              ("EPISTEMIC", "belief-epistemic-state", "belief-epistemic-state.tgz",
+               "belief_epistemic_state", "BELIEF_EPISTEMIC_STATE", "epistemic_state.json"),
+          ):
+              result = json.loads(api(f"https://api.github.com/repos/{repo}/actions/artifacts?name={artifact}&per_page=100"))
+              rows = [item for item in result.get("artifacts", []) if not item.get("expired")]
+              rows.sort(key=lambda r: r.get("created_at", ""), reverse=True)
+              if not rows:
+                  print(label + "_CONTEXT=UNAVAILABLE")
+                  continue
+              payload = api(f"https://api.github.com/repos/{repo}/actions/artifacts/{rows[0]['id']}/zip")
+              with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+                  data = archive.read(tar_name)
+              target = temp / destination
+              target.mkdir(parents=True, exist_ok=True)
+              # Reject links, absolute paths, parent traversal and unexpected files.
+              with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as tar:
+                  for member in tar.getmembers():
+                      resolved = (target / member.name).resolve()
+                      if not resolved.is_relative_to(target.resolve()) or member.issym() or member.islnk():
+                          raise ValueError("unsafe_context_archive")
+                  tar.extractall(target)
+              file = target / state_name
+              if not file.is_file() or not file.stat().st_size:
+                  raise ValueError("missing_context_state")
+              with pathlib.Path(os.environ["GITHUB_ENV"]).open("a") as out:
+                  out.write(env_key + "=" + str(file) + "\n")
+              print(label + "_CONTEXT=RESTORED")
+          PY
+      - name: Set strict live and epistemic execution guards
+        shell: bash
+        run: |
+          echo "DAILY_EURUSD_REQUIRE_EPISTEMIC=1" >> "$GITHUB_ENV"
+          echo "NO_RETROACTIVE_EXECUTION=1" >> "$GITHUB_ENV"
+          echo "NO_RETROACTIVE_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+      - name: Read sealed private state; run EURUSD Daily; verify conditional R2 commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/saxo_private_daily_runner.py
+      - name: Confirm no private state can be committed to public checkout
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! git diff --quiet -- data/investments/eurusd_daily_spot.json data/investments/eurusd_daily_history.json; then
+            echo "RESULT=BLOCKED_PUBLIC_DAILY_ARTIFACT_MUTATED" >&2
+            exit 1
+          fi
+          echo "PUBLIC_DAILY_ARTIFACTS_UNMODIFIED=TRUE"

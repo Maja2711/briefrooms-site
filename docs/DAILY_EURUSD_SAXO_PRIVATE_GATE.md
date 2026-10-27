@@ -97,3 +97,73 @@ python -m unittest tests.test_saxo_private_feed tests.test_saxo_private_primary 
 ```
 
 The merger never auto-enables private mode or copies Cloudflare credentials to GitHub. A complete live validation requires: authenticated Worker fetch from an independent process (no browser cookie), stable token renewal, a real private entry + a real private exit in a controlled simulated trade, and confirmation that public artifacts continue to use only independently permitted public display data.
+
+
+## Scheduled private Saxo EURUSD Daily — dedicated R2 state
+
+The authenticated Saxo SIM Worker connectivity test passed on 2026-10-27
+(`PASS_AUTHENTICATED_PRIVATE_SAXO_SIM_READ`). This proves the feed, not a
+persisted trading lifecycle. The dedicated workflow
+`.github/workflows/saxo-private-eurusd-daily-cycle.yml` is the automatic,
+**private PAPER-only** companion of the public EURUSD Daily. It does not
+modify public Yahoo pricing or other instruments.
+
+Every 5-minute GitHub Actions schedule (subject to GitHub scheduling delays):
+1. Obtain credentials from the Actions secret store; use a dedicated **private**
+   R2 bucket, with its own bucket-scoped Object Read/Write key.
+2. Restore the private output, history, canonical policy and decision ledger to
+   a transient runner directory **outside** the Git checkout, checking SHA-256
+   for each persisted JSON file.
+3. Run the existing v1.9 Daily Belief → EPE → lifecycle in
+   `BRIEFROOMS_PRIVATE_RUNTIME=1`, `SAXO_PRIVATE_PRIMARY=1`. New private
+   entries use fresh Saxo SIM ASK for LONG and BID for SHORT; open position
+   management can close using the separately validated Saxo BID/ASK.
+4. Run the exit-only fast lifecycle evaluator for any still-open private paper
+   position, without creating a second directional decision.
+5. Write one complete next-generation private snapshot back to R2 using atomic
+   conditional `If-Match` / `If-None-Match`; GET-readback must match the
+   original SHA-256. Any invalid state, authentication failure, stale quote,
+   concurrent write, or missing snapshot after initialization is a **hard
+   fail-closed**, never a reset of history.
+6. Never upload artifacts, print private prices, publish private P&L or push
+   Saxo-derived output to the public GitHub repo.
+
+This is a **five-minute control loop**, not the public five-second realtime
+watcher or broker-guaranteed stop loss. GitHub Actions scheduling is best
+effort; an open simulated position can miss fast exits while the runner is
+unavailable. No real broker orders are sent.
+
+### Activation — separate infrastructure, explicit opt-in
+
+Cloudflare:
+- Create a **new private R2 bucket** for this personal Saxo paper journal,
+  distinct from `BRS_R2_PILOT_BUCKET`. Do not expose it through an R2 public
+  domain or an R2.dev public URL.
+- Create a dedicated bucket-scoped R2 API token with **Object Read & Write**
+  and generate the R2 S3 Access Key ID / Secret Access Key. Do not use the
+  OAuth Saxo tokens as S3 credentials.
+
+GitHub Actions repository **variables**:
+- `SAXO_PRIVATE_R2_BUCKET`: exact dedicated private bucket name.
+- `SAXO_PRIVATE_AUTO_ENABLED`: initially `false`, then `true` only
+  after storage and security validation.
+
+GitHub Actions repository **secrets**:
+- `SAXO_PRIVATE_R2_ACCESS_KEY_ID`: R2 bucket-scoped Access Key ID.
+- `SAXO_PRIVATE_R2_SECRET_ACCESS_KEY`: corresponding R2 Secret Access Key.
+- Existing `SAXO_PRIVATE_BASIC_PASSWORD` and `CLOUDFLARE_ACCOUNT_ID`
+  remain in use.
+
+Do not paste credentials into tickets, chat, GitHub source or workflow logs.
+
+The workflow runs offline regression checks on pushes and PRs. The scheduled
+private cycle **will not run at all** unless
+`SAXO_PRIVATE_AUTO_ENABLED=true`. Following activation, trigger
+`workflow_dispatch` from `main`; require the log line
+`RESULT=PRIVATE_SAXO_DAILY_CYCLE_PASS`, verify there are no public Git diffs,
+and inspect subsequent consecutive runs and eventual private paper open AND
+close before declaring the *automatic trading simulation* operational.
+
+Manual disable/rollback: set `SAXO_PRIVATE_AUTO_ENABLED=false`. Leave R2
+state untouched for audit and restart. The existing public EURUSD Daily
+workflow continues independently.
