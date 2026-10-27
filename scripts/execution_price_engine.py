@@ -20,6 +20,7 @@ import csv
 import io
 import json
 import math
+import os
 import statistics
 from decimal import Decimal, ROUND_HALF_UP
 import urllib.parse
@@ -720,6 +721,25 @@ def daily_eurusd_market_fill(
     result = verify_daily_live_quotes(direction, quotes, now=current)
     if errors:
         result = {**result, "provider_errors": errors}
+
+    # Explicit opt-in only. Saxo SIM data is non-redistributable: NEVER use it
+    # as a primary fill or expose its price/timestamp in the public Daily state.
+    # It can only veto a proposed paper entry in an authorized private test.
+    # Default production (and deterministic injected-fetcher tests) are unchanged.
+    private_gate = os.environ.get("SAXO_PRIVATE_QUALITY_GATE") == "1"
+    default_sources = fetchers is None and primary_fetcher is None and reference_fetchers is None
+    if private_gate and default_sources and result.get("verified") is True:
+        try:
+            from saxo_private_feed import fetch_private_saxo_mid
+            saxo_mid = fetch_private_saxo_mid(now=current)
+        except Exception:
+            return blocked("private_saxo_quote_unavailable", mode="MARKET_NOW")
+        # Do not record Saxo numbers, gaps, timestamps, response, credentials
+        # or vendor metadata anywhere in persisted/public EPE evidence.
+        public_mid = float(result["selected_mid_price"])
+        if abs(saxo_mid - public_mid) / EURUSD_PIP > 2.5:
+            return blocked("private_saxo_public_consensus_mismatch", mode="MARKET_NOW")
+        result = {**result, "private_saxo_gate": "PASS_NO_PRICE_REDISTRIBUTION"}
     return result
 
 
