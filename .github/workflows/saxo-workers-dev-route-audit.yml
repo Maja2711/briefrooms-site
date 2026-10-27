@@ -1,0 +1,80 @@
+name: Diagnose Saxo Worker workers.dev route and Access (read-only)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/saxo-workers-dev-route-audit.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    if: github.repository == 'Maja2711/briefrooms-site' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Probe Cloudflare routing and Access metadata without secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import urllib.request
+          import urllib.error
+          account=os.environ.get("CLOUDFLARE_ACCOUNT_ID") or ""
+          token=os.environ.get("CLOUDFLARE_API_TOKEN") or ""
+          if not account or not token:
+              print("RESULT=BLOCKED_MISSING_CLOUDFLARE_CREDS")
+              raise SystemExit(2)
+          base="https://api.cloudflare.com/client/v4/accounts/"+account
+          headers={"Authorization":"Bearer "+token,"Accept":"application/json"}
+          def read(url):
+              req=urllib.request.Request(url,headers=headers)
+              try:
+                  with urllib.request.urlopen(req,timeout=15) as response:
+                      return response.status,json.loads(response.read(150000))
+              except urllib.error.HTTPError as e:
+                  return e.code,None
+              except Exception:
+                  return -1,None
+          script="briefrooms-saxo-eurusd"
+          status,resp=read(base+"/workers/scripts/"+script+"/subdomain")
+          print("WORKERS_DEV_ROUTE_API_STATUS="+str(status))
+          if status==200 and isinstance(resp,dict) and resp.get("success"):
+              result=resp.get("result") or {}
+              print("WORKERS_DEV_ENABLED="+str(result.get("enabled")).upper())
+              print("PREVIEW_WORKERS_DEV_ENABLED="+str(result.get("previews_enabled")).upper())
+
+          status,apps=read(base+"/access/apps?per_page=100")
+          print("ACCESS_APPS_API_STATUS="+str(status))
+          if status==200 and isinstance(apps,dict) and apps.get("success"):
+              res=apps.get("result") or []
+              if isinstance(res,dict):
+                  res=res.get("items") or []
+              print("ACCESS_APP_COUNT="+str(len(res)))
+              protected_all=False
+              protected_worker=False
+              for app in res:
+                  if not isinstance(app,dict):
+                      continue
+                  for dest in app.get("destinations") or []:
+                      if not isinstance(dest,dict):
+                          continue
+                      typ=str(dest.get("type") or "")
+                      uri=str(dest.get("uri") or "")
+                      wid=str(dest.get("worker_id") or "")
+                      if typ=="all_workers":
+                          protected_all=True
+                      if typ=="worker" or ("briefrooms-saxo-eurusd" in uri) or wid==script:
+                          protected_worker=True
+              print("ACCOUNT_WIDE_WORKER_ACCESS_RULE_PRESENT="+str(protected_all).upper())
+              print("WORKER_ACCESS_RULE_POSSIBLE="+str(protected_worker).upper())
+          print("RESULT=ROUTING_ACCESS_METADATA_AUDIT_COMPLETE")
+          PY
