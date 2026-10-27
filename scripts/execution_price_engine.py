@@ -734,41 +734,43 @@ def daily_eurusd_market_fill(
         if result.get("verified") is not True:
             return result  # never use Saxo alone without two independent quotes
         try:
-            from saxo_private_feed import fetch_private_saxo_mid
-            saxo_mid = float(fetch_private_saxo_mid(now=current))
+            from saxo_private_feed import fetch_private_saxo_quote
+            saxo = fetch_private_saxo_quote(now=current)
+            saxo_mid = float(saxo["mid"])
+            saxo_bid = float(saxo["bid"])
+            saxo_ask = float(saxo["ask"])
         except Exception:
             return blocked("private_saxo_quote_unavailable", mode="MARKET_NOW")
         public_mid = float(result["selected_mid_price"])
         difference_pips = abs(saxo_mid - public_mid) / EURUSD_PIP
         if difference_pips > 2.5:
             return blocked("private_saxo_public_consensus_mismatch", mode="MARKET_NOW")
-        # All exact Saxo-derived prices remain exclusively in private state.
-        # The existing 1.5-pip-per-side modeled buffer is retained (SIM mid
-        # is indicative and NOT an executable Saxo LIVE fill).
-        price = Decimal(str(saxo_mid))
-        buffer = Decimal("0.00015")
+        # Private only: use the Saxo SIM *actual quoted side* (NOT a synthetic
+        # mid plus arbitrary buffer) for paper-entry simulation. No real order.
         side = str(direction).upper()
-        fill = fx_price_5(price + buffer if side == "LONG" else price - buffer)
+        fill = fx_price_5(saxo_ask if side == "LONG" else saxo_bid)
         result = {
             **result,
             "selected_mid_price": round(saxo_mid, 8),
             "fill_price": fill,
-            "price_type": "PRIVATE_SAXO_SIM_INDICATIVE_MID_PLUS_PAPER_BUFFER",
+            "fill_side": "ASK" if side == "LONG" else "BID",
+            "price_type": "SAXO_SIM_BID_ASK_INDICATIVE_PRIVATE",
             "verification_quality": "PRIVATE_SAXO_PRIMARY_PUBLIC_TWO_SOURCE_CHECK",
             "selected_quote": {
-                "source": "Saxo SIM:EUR/USD:private-mid",
+                "source": "Saxo SIM:EUR/USD:private-bid-ask",
                 "price": round(saxo_mid, 8),
-                "received_at": iso_z(current),
+                "received_at": iso_z(saxo["observed_at"]),
                 "private_only": True,
             },
-            "synthetic_bid": fx_price_5(price - buffer),
-            "synthetic_ask": fx_price_5(price + buffer),
+            "private_saxo_bid": fx_price_5(saxo_bid),
+            "private_saxo_ask": fx_price_5(saxo_ask),
+            "private_saxo_observed_at": iso_z(saxo["observed_at"]),
             "cross_feed_difference_pips": round(difference_pips, 3),
             "private_saxo_primary": True,
             "redistributable": False,
             "executable_bid_ask_available": False,
             "paper_trading_only": True,
-            "policy": "private_saxo_mid_plus_paper_buffer_independently_cross_checked",
+            "policy": "private_saxo_sim_bid_ask_public_two_source_check",
         }
         return result
 
