@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 import daily_eurusd_spot_v19 as v19
 import execution_price_engine as epe
+import saxo_private_feed as private_feed
 
 
 class SaxoPrivatePrimaryTests(unittest.TestCase):
@@ -129,6 +130,51 @@ class SaxoPrivatePrimaryTests(unittest.TestCase):
                 v19._assert_private_saxo_runtime_paths(
                     Path("/tmp/daily-spot.json"), Path("/tmp/daily-history.json")
                 )
+
+
+    def test_private_http_transport_uses_known_good_user_agent(self):
+        class FakeResponse:
+            status = 200
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def read(self, _max_bytes):
+                return json.dumps({
+                    "source": "SAXO_SIM", "instrument": "EUR/USD",
+                    "redistributable": False, "trading_enabled": False,
+                    "market_state": "open", "delayed_by_minutes": 0,
+                    "bid": 1.1135, "mid": 1.1136, "ask": 1.1137,
+                    "last_updated": self_now.isoformat().replace("+00:00", "Z"),
+                }).encode()
+
+        self_now = self.now
+        requests = []
+
+        def fake_open(request, timeout):
+            requests.append(request)
+            self.assertEqual(timeout, 6)
+            return FakeResponse()
+
+        with patch.dict(os.environ, {
+            "SAXO_PRIVATE_BASIC_USER": "admin",
+            "SAXO_PRIVATE_BASIC_PASSWORD": "ONLY_FOR_THIS_TEST",
+        }), patch.object(private_feed.urllib.request, "urlopen", side_effect=fake_open):
+            quote = private_feed.fetch_private_saxo_quote(now=self.now)
+            mid = private_feed.fetch_private_saxo_mid(now=self.now)
+
+        self.assertEqual(quote["bid"], 1.1135)
+        self.assertEqual(mid, 1.1136)
+        self.assertEqual(len(requests), 2)
+        for request in requests:
+            self.assertEqual(request.full_url, private_feed.SAXO_WORKER_URL)
+            self.assertEqual(
+                request.get_header("User-agent"), private_feed.SAXO_PRIVATE_USER_AGENT
+            )
+            self.assertTrue(request.get_header("Authorization").startswith("Basic "))
 
 
 if __name__ == "__main__":
