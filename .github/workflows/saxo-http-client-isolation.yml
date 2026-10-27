@@ -1,0 +1,92 @@
+name: Diagnose Saxo Worker GitHub HTTP client vs browser
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [".github/workflows/saxo-http-client-isolation.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  safe-http-probe:
+    if: github.repository == 'Maja2711/briefrooms-site' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      SAXO_PRIVATE_BASIC_PASSWORD: ${{ secrets.SAXO_PRIVATE_BASIC_PASSWORD }}
+    steps:
+      - name: Compare public root via Python, curl and Chrome User-Agent
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64
+          import json
+          import os
+          import subprocess
+          import urllib.error
+          import urllib.request
+
+          root = "https://briefrooms-saxo-eurusd.szczerbinski0577.workers.dev/"
+          status_endpoint = root + "saxo/status"
+          expected = b"BRs Saxo SIM connector: private, read-only; not yet public market data."
+          chrome_ua = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                       "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
+          print("PROXY_CONFIGURATION_PRESENT=" + str(bool(urllib.request.getproxies())).upper())
+
+          def python_read(label, url, ua, auth=None, no_proxy=False):
+              headers = {"Accept": "text/plain" if url == root else "application/json",
+                         "User-Agent": ua, "Cache-Control": "no-cache"}
+              if auth:
+                  headers["Authorization"] = auth
+              request = urllib.request.Request(url, headers=headers)
+              try:
+                  opener = urllib.request.build_opener(urllib.request.ProxyHandler({})) if no_proxy else urllib.request.build_opener()
+                  with opener.open(request, timeout=10) as response:
+                      status, resp_headers, body = response.status, response.headers, response.read(16384)
+              except urllib.error.HTTPError as e:
+                  status, resp_headers, body = e.code, e.headers, e.read(16384)
+              except Exception:
+                  print(label + "=NETWORK_ERROR")
+                  return
+              print(label + "_HTTP=" + str(status))
+              print(label + "_CONTENT_TYPE=" + str(resp_headers.get("Content-Type", "")).split(";", 1)[0][:32])
+              if url == root:
+                  print(label + "_EXPECTED_ROOT_BODY=" + str(body.strip() == expected).upper())
+              elif status == 200:
+                  try:
+                      payload=json.loads(body)
+                      print(label + "_SIM_CONNECTED=" + str(payload.get("connected") is True).upper())
+                      print(label + "_READ_ONLY=" + str(payload.get("trading_enabled") is False).upper())
+                  except Exception:
+                      print(label + "_JSON_VALID=FALSE")
+
+          def curl_public(label, browser=False, force_direct=False):
+              cmd = ["curl", "-sS", "-L", "--max-time", "12", "-o", "/dev/null", "-w", "%{http_code}",
+                     "--header", "Accept: text/plain", "--header", "Cache-Control: no-cache"]
+              if browser:
+                  cmd += ["--user-agent", chrome_ua]
+              if force_direct:
+                  cmd += ["--noproxy", "*"]
+              cmd.append(root)
+              result = subprocess.run(cmd, text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=15)
+              code = result.stdout.strip()
+              print(label + "_HTTP=" + (code if result.returncode == 0 and code.isdigit() else "NETWORK_ERROR"))
+
+          python_read("PYTHON_DEFAULT", root, "Python-urllib/3.11")
+          python_read("PYTHON_BROWSER_UA", root, chrome_ua)
+          python_read("PYTHON_DIRECT", root, "Python-urllib/3.11", no_proxy=True)
+          curl_public("CURL_DEFAULT")
+          curl_public("CURL_BROWSER_UA", browser=True)
+          curl_public("CURL_DIRECT", force_direct=True)
+
+          password = os.environ.get("SAXO_PRIVATE_BASIC_PASSWORD", "")
+          if password:
+              auth = "Basic " + base64.b64encode(("admin:" + password).encode("utf-8")).decode("ascii")
+              python_read("STATUS_BROWSER_UA_AUTH", status_endpoint, chrome_ua, auth=auth)
+          else:
+              print("STATUS_BROWSER_UA_AUTH=MISSING_GITHUB_SECRET")
+          print("RESULT=PUBLIC_WORKER_HTTP_CLIENT_PROBE_COMPLETE")
+          PY
