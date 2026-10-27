@@ -1,0 +1,61 @@
+name: Verify Saxo Worker account namespace matches quote URL
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/saxo-account-namespace-audit.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - name: Check configured Cloudflare account worker namespace without printing credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import urllib.error
+          import urllib.request
+
+          account=os.environ.get("CLOUDFLARE_ACCOUNT_ID") or ""
+          token=os.environ.get("CLOUDFLARE_API_TOKEN") or ""
+          if not account or not token:
+              print("RESULT=MISSING_CLOUDFLARE_API_ACCESS")
+              raise SystemExit(2)
+
+          # The account ID here came from the dashboard URL shown by the user.
+          # Print match booleans only.
+          print("MATCH_DASHBOARD_ACCOUNT="+str(account.lower()=="3b665d606c5d5ea0dbdae4a357ddb49d").upper())
+          url="https://api.cloudflare.com/client/v4/accounts/"+account+"/workers/subdomain"
+          req=urllib.request.Request(url,headers={"Authorization":"Bearer "+token,"Accept":"application/json"})
+          try:
+              with urllib.request.urlopen(req,timeout=15) as response:
+                  status=response.status
+                  data=json.loads(response.read(65536))
+          except urllib.error.HTTPError as e:
+              status=e.code
+              data={}
+          except Exception:
+              status=-1
+              data={}
+          print("ACCOUNT_SUBDOMAIN_API_STATUS="+str(status))
+          if status==200 and data.get("success"):
+              result=data.get("result") or {}
+              subdomain=str(result.get("subdomain") or "").lower()
+              print("MATCH_EXPECTED_WORKERS_DEV_SUBDOMAIN="+str(subdomain=="szczerbinski0577").upper())
+          else:
+              print("RESULT=ACCOUNT_SUBDOMAIN_NOT_READABLE")
+              raise SystemExit(3)
+          print("RESULT=ACCOUNT_TO_WORKERS_DEV_NAMESPACE_AUDIT_COMPLETE")
+          PY
