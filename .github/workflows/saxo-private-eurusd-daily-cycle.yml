@@ -18,6 +18,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: isolated-private-saxo-eurusd-daily-cycle
@@ -74,6 +75,68 @@ jobs:
           python-version: "3.11"
       - name: Install S3 client (no private payload to artifacts)
         run: python -m pip install --quiet "boto3>=1.35,<2"
+      - name: Restore the same upstream Belief and Epistemic context as public Daily
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import io
+          import json
+          import os
+          import pathlib
+          import tarfile
+          import urllib.request
+          import zipfile
+
+          repo = os.environ["GITHUB_REPOSITORY"]
+          token = os.environ["GH_TOKEN"]
+          temp = pathlib.Path(os.environ["RUNNER_TEMP"])
+          headers = {"Authorization": "Bearer " + token,
+                     "Accept": "application/vnd.github+json",
+                     "User-Agent": "BriefRoomsPrivateSaxoDaily/1"}
+          def api(url):
+              with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=20) as res:
+                  return res.read(50_000_000)
+
+          for label, artifact, tar_name, destination, env_key, state_name in (
+              ("BELIEF", "belief-core-shadow-state", "belief-core-state.tgz",
+               "belief_core_state", "BELIEF_CORE_STATE", "state.json"),
+              ("EPISTEMIC", "belief-epistemic-state", "belief-epistemic-state.tgz",
+               "belief_epistemic_state", "BELIEF_EPISTEMIC_STATE", "epistemic_state.json"),
+          ):
+              result = json.loads(api(f"https://api.github.com/repos/{repo}/actions/artifacts?name={artifact}&per_page=100"))
+              rows = [item for item in result.get("artifacts", []) if not item.get("expired")]
+              rows.sort(key=lambda r: r.get("created_at", ""), reverse=True)
+              if not rows:
+                  print(label + "_CONTEXT=UNAVAILABLE")
+                  continue
+              payload = api(f"https://api.github.com/repos/{repo}/actions/artifacts/{rows[0]['id']}/zip")
+              with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+                  data = archive.read(tar_name)
+              target = temp / destination
+              target.mkdir(parents=True, exist_ok=True)
+              # Reject links, absolute paths, parent traversal and unexpected files.
+              with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as tar:
+                  for member in tar.getmembers():
+                      resolved = (target / member.name).resolve()
+                      if not resolved.is_relative_to(target.resolve()) or member.issym() or member.islnk():
+                          raise ValueError("unsafe_context_archive")
+                  tar.extractall(target)
+              file = target / state_name
+              if not file.is_file() or not file.stat().st_size:
+                  raise ValueError("missing_context_state")
+              with pathlib.Path(os.environ["GITHUB_ENV"]).open("a") as out:
+                  out.write(env_key + "=" + str(file) + "\n")
+              print(label + "_CONTEXT=RESTORED")
+          PY
+      - name: Set strict live and epistemic execution guards
+        shell: bash
+        run: |
+          echo "DAILY_EURUSD_REQUIRE_EPISTEMIC=1" >> "$GITHUB_ENV"
+          echo "NO_RETROACTIVE_EXECUTION=1" >> "$GITHUB_ENV"
+          echo "NO_RETROACTIVE_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
       - name: Read sealed private state; run EURUSD Daily; verify conditional R2 commit
         shell: bash
         run: |
