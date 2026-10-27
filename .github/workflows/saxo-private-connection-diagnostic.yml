@@ -1,0 +1,114 @@
+name: Verify private Saxo Worker connection (no quotes in logs)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-private-saxo-worker
+  cancel-in-progress: true
+
+jobs:
+  authenticated-read-only-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    env:
+      PYTHONPATH: scripts
+      SAXO_PRIVATE_BASIC_USER: admin
+      SAXO_PRIVATE_BASIC_PASSWORD: ${{ secrets.SAXO_PRIVATE_BASIC_PASSWORD }}
+    steps:
+      - name: Checkout production adapter
+        uses: actions/checkout@v4
+      - name: Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Check actual GitHub runner to Cloudflare Worker connectivity
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64
+          import json
+          import os
+          import urllib.error
+          import urllib.request
+          from saxo_private_feed import (
+              SAXO_WORKER_URL, validate_private_saxo_snapshot
+          )
+
+          base = SAXO_WORKER_URL.rsplit("/", 1)[0]
+          secret = os.environ.get("SAXO_PRIVATE_BASIC_PASSWORD", "")
+          if not secret:
+              print("RESULT=BLOCKED_MISSING_GITHUB_SECRET")
+              raise SystemExit(2)
+
+          username = os.environ.get("SAXO_PRIVATE_BASIC_USER", "admin")
+          if not username or ":" in username or any(c in username for c in "\r\n"):
+              print("RESULT=INVALID_AUTH_CONFIGURATION")
+              raise SystemExit(3)
+
+          authorization = "Basic " + base64.b64encode(
+              f"{username}:{secret}".encode("utf-8")
+          ).decode("ascii")
+
+          def read(endpoint):
+              req = urllib.request.Request(
+                  endpoint,
+                  headers={
+                      "Authorization": authorization,
+                      "Accept": "application/json",
+                      "Cache-Control": "no-store",
+                  },
+              )
+              try:
+                  with urllib.request.urlopen(req, timeout=8) as res:
+                      if res.status != 200:
+                          return "HTTP_" + str(res.status), None
+                      payload = json.loads(res.read(16385))
+                      return "OK", payload
+              except urllib.error.HTTPError as e:
+                  return "HTTP_" + str(e.code), None
+              except urllib.error.URLError:
+                  return "NETWORK_ERROR", None
+              except (ValueError, TypeError):
+                  return "INVALID_JSON", None
+              except Exception:
+                  return "UNAVAILABLE", None
+
+          status, status_payload = read(base + "/status")
+          if status != "OK":
+              print("STATUS_ENDPOINT=" + status)
+              print("RESULT=BLOCKED_WORKER_AUTH_OR_NETWORK")
+              raise SystemExit(4)
+
+          if not isinstance(status_payload, dict) or not (
+              status_payload.get("connected") is True
+              and status_payload.get("environment") == "SIM"
+              and status_payload.get("trading_enabled") is False
+          ):
+              print("STATUS_ENDPOINT=INVALID_OR_DISCONNECTED")
+              print("RESULT=BLOCKED_SAXO_OAUTH_STATUS")
+              raise SystemExit(5)
+          print("STATUS_ENDPOINT=AUTHORIZED_SIM_CONNECTED")
+
+          status, quote_payload = read(SAXO_WORKER_URL)
+          if status != "OK":
+              print("QUOTE_ENDPOINT=" + status)
+              print("RESULT=BLOCKED_WORKER_QUOTE")
+              raise SystemExit(6)
+
+          try:
+              quote = validate_private_saxo_snapshot(quote_payload)
+              assert quote["source"] == "SAXO_SIM"
+              assert quote["redistributable"] is False
+          except Exception:
+              print("QUOTE_ENDPOINT=INVALID_PRIVATE_QUOTE_CONTRACT")
+              print("RESULT=BLOCKED_QUOTE_VALIDATION")
+              raise SystemExit(7)
+          # Never print private prices, raw response, tokens or Basic credentials.
+          print("QUOTE_ENDPOINT=FRESH_BID_ASK_VALIDATED")
+          print("RESULT=PASS_AUTHENTICATED_PRIVATE_SAXO_SIM_READ")
+          PY
