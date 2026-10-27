@@ -1,4 +1,4 @@
-"""Saxo mid is the paper fill *only* in private, off-repository Daily runtime."""
+"""Saxo SIM bid/ask is the private paper fill, with no broker order."""
 from __future__ import annotations
 
 import json
@@ -17,6 +17,13 @@ class SaxoPrivatePrimaryTests(unittest.TestCase):
     def setUp(self):
         self.now = datetime(2026, 10, 27, 19, 10, 15, tzinfo=timezone.utc)
 
+    def _saxo(self, mid=1.11362):
+        return {
+            "mid": mid, "bid": mid - 0.00010, "ask": mid + 0.00010,
+            "observed_at": self.now - timedelta(seconds=1),
+            "redistributable": False,
+        }
+
     def _run(self):
         q1 = epe.Quote(1.11360, self.now - timedelta(seconds=2), "Stooq:EURUSD:live")
         q2 = epe.Quote(1.11361, self.now - timedelta(seconds=3), "fxapi.app:EUR/USD:mid")
@@ -32,12 +39,14 @@ class SaxoPrivatePrimaryTests(unittest.TestCase):
         with patch.dict(os.environ, {
             "SAXO_PRIVATE_PRIMARY": "1", "BRIEFROOMS_PRIVATE_RUNTIME": "1",
             "SAXO_PRIVATE_QUALITY_GATE": "0"
-        }), patch("saxo_private_feed.fetch_private_saxo_mid", return_value=1.11362):
+        }), patch("saxo_private_feed.fetch_private_saxo_quote", return_value=self._saxo()):
             result = self._run()
         self.assertTrue(result["verified"])
         self.assertTrue(result["private_saxo_primary"])
         self.assertEqual(result["selected_mid_price"], 1.11362)
-        self.assertEqual(result["fill_price"], 1.11377)
+        self.assertEqual(result["fill_price"], 1.11372)
+        self.assertEqual(result["fill_side"], "ASK")
+        self.assertEqual(result["price_type"], "SAXO_SIM_BID_ASK_INDICATIVE_PRIVATE")
         self.assertEqual(result["selected_quote"]["price"], 1.11362)
         self.assertFalse(result["redistributable"])
         self.assertFalse(result["executable_bid_ask_available"])
@@ -47,7 +56,7 @@ class SaxoPrivatePrimaryTests(unittest.TestCase):
     def test_private_mode_fails_closed_without_explicit_private_runtime(self):
         with patch.dict(os.environ, {
             "SAXO_PRIVATE_PRIMARY": "1", "BRIEFROOMS_PRIVATE_RUNTIME": "0"
-        }), patch("saxo_private_feed.fetch_private_saxo_mid") as fetch:
+        }), patch("saxo_private_feed.fetch_private_saxo_quote") as fetch:
             result = self._run()
         self.assertFalse(result["verified"])
         self.assertEqual(result["reason"], "saxo_private_runtime_required")
@@ -56,7 +65,7 @@ class SaxoPrivatePrimaryTests(unittest.TestCase):
     def test_private_mode_fails_closed_when_saxo_unavailable(self):
         with patch.dict(os.environ, {
             "SAXO_PRIVATE_PRIMARY": "1", "BRIEFROOMS_PRIVATE_RUNTIME": "1"
-        }), patch("saxo_private_feed.fetch_private_saxo_mid", side_effect=RuntimeError(
+        }), patch("saxo_private_feed.fetch_private_saxo_quote", side_effect=RuntimeError(
             "NEVER_LEAK_PRIVATE_WORKER_PASSWORD"
         )):
             result = self._run()
@@ -67,7 +76,7 @@ class SaxoPrivatePrimaryTests(unittest.TestCase):
     def test_private_mode_rejects_divergence(self):
         with patch.dict(os.environ, {
             "SAXO_PRIVATE_PRIMARY": "1", "BRIEFROOMS_PRIVATE_RUNTIME": "1"
-        }), patch("saxo_private_feed.fetch_private_saxo_mid", return_value=1.11402):
+        }), patch("saxo_private_feed.fetch_private_saxo_quote", return_value=self._saxo(1.11402)):
             result = self._run()
         self.assertFalse(result["verified"])
         self.assertEqual(result["reason"], "private_saxo_public_consensus_mismatch")
@@ -75,7 +84,7 @@ class SaxoPrivatePrimaryTests(unittest.TestCase):
     def test_public_default_never_uses_private_saxo(self):
         with patch.dict(os.environ, {"SAXO_PRIVATE_PRIMARY": "0",
                                      "SAXO_PRIVATE_QUALITY_GATE": "0"}), patch(
-            "saxo_private_feed.fetch_private_saxo_mid",
+            "saxo_private_feed.fetch_private_saxo_quote",
             side_effect=AssertionError("must not read")
         ) as fetch:
             result = self._run()
