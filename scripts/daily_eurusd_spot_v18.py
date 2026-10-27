@@ -514,6 +514,13 @@ def _evaluate_position(position: Mapping[str, Any], bars: Sequence[Bar], observe
         trade = macro_event_risk.maybe_close_position(position, bars, observed_at)
     if trade is None:
         return None
+    # The same position evaluator is used by the 5-minute Daily monitor and
+    # the five-second exit-only watcher. A Saxo-backed private position can
+    # never be settled at a Yahoo trigger price, stop level or Yahoo mark.
+    execution = position.get("execution_price_engine") or {}
+    if isinstance(execution, Mapping) and execution.get("private_saxo_primary") is True:
+        from saxo_private_feed import private_saxo_exit_record
+        trade = private_saxo_exit_record(position, trade)
     enriched = dict(trade)
     policy = position.get("contextual_entry_policy_at_entry")
     if isinstance(policy, Mapping):
