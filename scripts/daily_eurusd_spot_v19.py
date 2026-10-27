@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import copy
 import json
+import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Mapping
@@ -754,6 +755,26 @@ class _CycleClient:
         return self.cache[key]
 
 
+def _assert_private_saxo_runtime_paths(output_path: Path, history_path: Path) -> None:
+    """Prevent Saxo-derived trade prices from reaching public Git-tracked state."""
+    if os.environ.get("SAXO_PRIVATE_PRIMARY") != "1":
+        return
+    if os.environ.get("BRIEFROOMS_PRIVATE_RUNTIME") != "1":
+        raise ValueError("private Saxo primary requires standalone private runtime")
+    raw_root = os.environ.get("BRIEFROOMS_PRIVATE_DATA_DIR", "")
+    if not raw_root or not Path(raw_root).is_absolute():
+        raise ValueError("private Saxo primary requires absolute private output directory")
+    root = Path(raw_root).resolve()
+    repository = Path(__file__).resolve().parents[1]
+    if root == repository or root.is_relative_to(repository):
+        raise ValueError("private Saxo output directory cannot be inside public repository")
+    resolved = [Path(path).resolve() for path in (output_path, history_path)]
+    if any(not path.is_relative_to(root) for path in resolved):
+        raise ValueError("private Saxo state/history must both be inside private directory")
+    if resolved[0] == resolved[1]:
+        raise ValueError("private Saxo output and history must be separate files")
+
+
 def run_cycle(output_path: Path, history_path: Path, client: Any | None = None) -> DailyEngineOutput:
     """Single production owner for decision records and bounded policy changes.
 
@@ -762,6 +783,7 @@ def run_cycle(output_path: Path, history_path: Path, client: Any | None = None) 
     in the same guarded Git persistence transaction as the Daily output.
     """
     global _cycle_context
+    _assert_private_saxo_runtime_paths(output_path, history_path)
     live = client is None
     cached = _CycleClient(client or base.YahooChartClient(timeout=15), live=live)
     bars = cached.bars(base.EURUSD, "5d", "1m")
