@@ -1,0 +1,90 @@
+name: Private Saxo SIM EURUSD Daily cycle (isolated R2)
+# No broker orders, no private data in Git or Actions artifacts.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/5 * * * *"
+  pull_request:
+    paths:
+      - "scripts/saxo_private_daily_runner.py"
+      - "tests/test_saxo_private_daily_runner.py"
+      - ".github/workflows/saxo-private-eurusd-daily-cycle.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/saxo_private_daily_runner.py"
+      - "tests/test_saxo_private_daily_runner.py"
+      - ".github/workflows/saxo-private-eurusd-daily-cycle.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: isolated-private-saxo-eurusd-daily-cycle
+  cancel-in-progress: false
+
+jobs:
+  regression:
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Offline validation without broker or R2 access
+        run: |
+          set -euo pipefail
+          python -m unittest tests.test_saxo_private_daily_runner tests.test_saxo_private_feed tests.test_saxo_private_primary tests.test_saxo_private_execution_exit -q
+          python -m py_compile scripts/saxo_private_daily_runner.py
+
+  private-paper-cycle:
+    # Activation is an explicit owner opt-in after isolated R2 bucket is ready.
+    # Never execute on PRs or code push; do not bypass the enable flag.
+    if: >-
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+      && github.ref == 'refs/heads/main'
+      && vars.SAXO_PRIVATE_AUTO_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+      BRIEFROOMS_PRIVATE_RUNTIME: "1"
+      SAXO_PRIVATE_PRIMARY: "1"
+      SAXO_PRIVATE_QUALITY_GATE: "0"
+      SAXO_PRIVATE_AUTO_ENABLED: ${{ vars.SAXO_PRIVATE_AUTO_ENABLED }}
+      SAXO_PRIVATE_BASIC_USER: admin
+      SAXO_PRIVATE_BASIC_PASSWORD: ${{ secrets.SAXO_PRIVATE_BASIC_PASSWORD }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      SAXO_PRIVATE_R2_BUCKET: ${{ vars.SAXO_PRIVATE_R2_BUCKET }}
+      SAXO_PRIVATE_R2_ACCESS_KEY_ID: ${{ secrets.SAXO_PRIVATE_R2_ACCESS_KEY_ID }}
+      SAXO_PRIVATE_R2_SECRET_ACCESS_KEY: ${{ secrets.SAXO_PRIVATE_R2_SECRET_ACCESS_KEY }}
+      AWS_EC2_METADATA_DISABLED: "true"
+    steps:
+      - name: Checkout private runtime code, never store Saxo states in checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install S3 client (no private payload to artifacts)
+        run: python -m pip install --quiet "boto3>=1.35,<2"
+      - name: Read sealed private state; run EURUSD Daily; verify conditional R2 commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/saxo_private_daily_runner.py
+      - name: Confirm no private state can be committed to public checkout
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! git diff --quiet -- data/investments/eurusd_daily_spot.json data/investments/eurusd_daily_history.json; then
+            echo "RESULT=BLOCKED_PUBLIC_DAILY_ARTIFACT_MUTATED" >&2
+            exit 1
+          fi
+          echo "PUBLIC_DAILY_ARTIFACTS_UNMODIFIED=TRUE"
