@@ -722,20 +722,65 @@ def daily_eurusd_market_fill(
     if errors:
         result = {**result, "provider_errors": errors}
 
-    # Explicit opt-in only. Saxo SIM data is non-redistributable: NEVER use it
-    # as a primary fill or expose its price/timestamp in the public Daily state.
-    # It can only veto a proposed paper entry in an authorized private test.
-    # Default production (and deterministic injected-fetcher tests) are unchanged.
-    private_gate = os.environ.get("SAXO_PRIVATE_QUALITY_GATE") == "1"
+    # Private standalone engine ONLY. Saxo is the PRIMARY paper entry price,
+    # but public quote sources must independently agree. No broker orders.
+    # v19.run_cycle validates that every written state file lives OUTSIDE repo.
+    private_primary = os.environ.get("SAXO_PRIVATE_PRIMARY") == "1"
+    private_runtime = os.environ.get("BRIEFROOMS_PRIVATE_RUNTIME") == "1"
     default_sources = fetchers is None and primary_fetcher is None and reference_fetchers is None
+    if private_primary:
+        if not private_runtime or not default_sources:
+            return blocked("saxo_private_runtime_required", mode="MARKET_NOW")
+        if result.get("verified") is not True:
+            return result  # never use Saxo alone without two independent quotes
+        try:
+            from saxo_private_feed import fetch_private_saxo_mid
+            saxo_mid = float(fetch_private_saxo_mid(now=current))
+        except Exception:
+            return blocked("private_saxo_quote_unavailable", mode="MARKET_NOW")
+        public_mid = float(result["selected_mid_price"])
+        difference_pips = abs(saxo_mid - public_mid) / EURUSD_PIP
+        if difference_pips > 2.5:
+            return blocked("private_saxo_public_consensus_mismatch", mode="MARKET_NOW")
+        # All exact Saxo-derived prices remain exclusively in private state.
+        # The existing 1.5-pip-per-side modeled buffer is retained (SIM mid
+        # is indicative and NOT an executable Saxo LIVE fill).
+        price = Decimal(str(saxo_mid))
+        buffer = Decimal("0.00015")
+        side = str(direction).upper()
+        fill = fx_price_5(price + buffer if side == "LONG" else price - buffer)
+        result = {
+            **result,
+            "selected_mid_price": round(saxo_mid, 8),
+            "fill_price": fill,
+            "price_type": "PRIVATE_SAXO_SIM_INDICATIVE_MID_PLUS_PAPER_BUFFER",
+            "verification_quality": "PRIVATE_SAXO_PRIMARY_PUBLIC_TWO_SOURCE_CHECK",
+            "selected_quote": {
+                "source": "Saxo SIM:EUR/USD:private-mid",
+                "price": round(saxo_mid, 8),
+                "received_at": iso_z(current),
+                "private_only": True,
+            },
+            "synthetic_bid": fx_price_5(price - buffer),
+            "synthetic_ask": fx_price_5(price + buffer),
+            "cross_feed_difference_pips": round(difference_pips, 3),
+            "private_saxo_primary": True,
+            "redistributable": False,
+            "executable_bid_ask_available": False,
+            "paper_trading_only": True,
+            "policy": "private_saxo_mid_plus_paper_buffer_independently_cross_checked",
+        }
+        return result
+
+    # Backwards-compatible optional private quality veto; never chooses Saxo
+    # for public Daily fills and never logs/serializes broker quote values.
+    private_gate = os.environ.get("SAXO_PRIVATE_QUALITY_GATE") == "1"
     if private_gate and default_sources and result.get("verified") is True:
         try:
             from saxo_private_feed import fetch_private_saxo_mid
             saxo_mid = fetch_private_saxo_mid(now=current)
         except Exception:
             return blocked("private_saxo_quote_unavailable", mode="MARKET_NOW")
-        # Do not record Saxo numbers, gaps, timestamps, response, credentials
-        # or vendor metadata anywhere in persisted/public EPE evidence.
         public_mid = float(result["selected_mid_price"])
         if abs(saxo_mid - public_mid) / EURUSD_PIP > 2.5:
             return blocked("private_saxo_public_consensus_mismatch", mode="MARKET_NOW")
