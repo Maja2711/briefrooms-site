@@ -2,6 +2,11 @@ name: Verify private Saxo Worker connection (no quotes in logs)
 
 on:
   workflow_dispatch:
+  # Validate the corrected endpoint once after merging this scoped diagnostic.
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/saxo-private-connection-diagnostic.yml"
 
 permissions:
   contents: read
@@ -17,6 +22,8 @@ jobs:
     env:
       PYTHONPATH: scripts
       SAXO_PRIVATE_BASIC_USER: admin
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       SAXO_PRIVATE_BASIC_PASSWORD: ${{ secrets.SAXO_PRIVATE_BASIC_PASSWORD }}
     steps:
       - name: Checkout production adapter
@@ -35,6 +42,8 @@ jobs:
           import os
           import urllib.error
           import urllib.request
+          import re
+          from urllib.parse import urlsplit
           from saxo_private_feed import (
               SAXO_WORKER_URL, validate_private_saxo_snapshot
           )
@@ -69,7 +78,7 @@ jobs:
                       payload = json.loads(res.read(16385))
                       return "OK", payload
               except urllib.error.HTTPError as e:
-                  if endpoint == base + "/status":
+                  if endpoint == base + "/saxo/status":
                       # Only print safe classifications, never challenge content.
                       challenge = str(e.headers.get("WWW-Authenticate", "")).strip()
                       scheme = challenge.split(" ", 1)[0].upper() if challenge else "NONE"
@@ -87,13 +96,54 @@ jobs:
               except Exception:
                   return "UNAVAILABLE", None
 
-          status, status_payload = read(base + "/status")
+          # The real Worker route is /saxo/status, not /status.
+          # Probe the public root without a password: it bypasses Basic auth
+          # but not the Worker's strict origin check.
+          def root_http():
+              req = urllib.request.Request(base + "/", headers={"Accept": "text/plain"})
+              try:
+                  with urllib.request.urlopen(req, timeout=8) as response:
+                      return "HTTP_" + str(response.status)
+              except urllib.error.HTTPError as error:
+                  return "HTTP_" + str(error.code)
+              except Exception:
+                  return "UNAVAILABLE"
+          print("PUBLIC_ROOT_ENDPOINT=" + root_http())
+
+          # Check hardcoded CALLBACK origin against the configured Worker host
+          # without revealing source code, URLs, tokens or other Worker secrets.
+          cf_account = os.environ.get("CLOUDFLARE_ACCOUNT_ID", "")
+          cf_token = os.environ.get("CLOUDFLARE_API_TOKEN", "")
+          if cf_account and cf_token:
+              try:
+                  source_req = urllib.request.Request(
+                      "https://api.cloudflare.com/client/v4/accounts/" + cf_account
+                      + "/workers/scripts/briefrooms-saxo-eurusd",
+                      headers={"Authorization": "Bearer " + cf_token},
+                  )
+                  with urllib.request.urlopen(source_req, timeout=12) as response:
+                      source = response.read(2000000).decode("utf-8", "replace")
+                  callback = re.search(r"""\bconst\s+CALLBACK\s*=\s*(['"\x60])([^'"\x60]+)\1""", source)
+                  print("CALLBACK_LITERAL_FOUND=" + str(bool(callback)).upper())
+                  if callback:
+                      actual = urlsplit(base)
+                      expected = urlsplit(callback.group(2))
+                      is_match = (actual.scheme, actual.netloc) == (expected.scheme, expected.netloc)
+                      print("CALLBACK_ORIGIN_MATCH=" + str(is_match).upper())
+              except Exception:
+                  print("CALLBACK_ORIGIN_AUDIT=UNAVAILABLE")
+          else:
+              print("CALLBACK_ORIGIN_AUDIT=MISSING_API_ACCESS")
+
+          status, status_payload = read(base + "/saxo/status")
           if status != "OK":
               print("STATUS_ENDPOINT=" + status)
               if status in {"HTTP_401", "HTTP_403"}:
-                  anonymous_status, _ = read(base + "/status", authenticated=False)
+                  anonymous_status, _ = read(base + "/saxo/status", authenticated=False)
                   print("ANONYMOUS_STATUS_ENDPOINT=" + anonymous_status)
                   print("SAME_HTTP_STATUS_WITHOUT_BASIC=" + str(status == anonymous_status).upper())
+              quote_status, _ = read(SAXO_WORKER_URL)
+              print("QUOTE_ENDPOINT_ON_STATUS_FAILURE=" + quote_status)
               print("RESULT=BLOCKED_WORKER_AUTH_OR_NETWORK")
               raise SystemExit(4)
 
