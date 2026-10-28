@@ -1,0 +1,82 @@
+name: Stock Trading Risk Metadata Refresh
+# NO RETROACTIVE EXECUTION: classification observations only, no trading.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: stock-trading-state-writer
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Start immutable observation and airlock clock
+        run: |
+          echo "NO_RETROACTIVE_EXECUTION=1" >> "$GITHUB_ENV"
+          echo "NO_RETROACTIVE_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+      - name: Collect verified classification without trading
+        run: |
+          set -euo pipefail
+          python -B scripts/stock_trading_us_sector_collector.py
+          python -B scripts/stock_trading_sourced_metadata.py
+      - name: Verify positions prices policies and learning registry are unchanged
+        run: |
+          git diff --exit-code -- \
+            data/investments/stock_trading_portfolio.json \
+            data/investments/stock_trading_policy.json \
+            data/investments/stock_trading_champion_manifest.json \
+            data/investments/stock_trading_component_trials.json \
+            data/investments/stock_trading_v2_production_state.json
+      - name: Persist only classification observations and coverage reports
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for path in \
+            data/investments/stock_trading_sourced_metadata.json \
+            data/investments/stock_trading_risk_data_coverage.json \
+            data/investments/stock_trading_us_sector_collection.json; do
+            [[ ! -e "$path" ]] || git add -- "$path"
+          done
+          git diff --cached --quiet && exit 0
+          python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
+          git commit -m "Stock Trading: refresh sourced sector classifications"
+          git pull --rebase origin main
+          python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
+          git push origin HEAD:main
+      - name: Verify US holdings have current sector coverage
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path('data/investments/stock_trading_risk_data_coverage.json').read_text())
+          rows = report['markets']['US']
+          risk = report['current_portfolio_risk']['US']
+          assert all(row['sector'] != 'UNKNOWN' and row['sector_observation_id'] for row in rows), 'US sector coverage remains incomplete'
+          assert risk['unknown_sector_positions'] == 0, 'US risk view has an unclassified holding'
+          print(json.dumps({'US_holdings': len(rows), 'verified_sectors': len(rows), 'sector_positions': risk['sector_positions']}))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: stock-trading-sector-coverage-${{ github.run_id }}
+          path: |
+            data/investments/stock_trading_risk_data_coverage.json
+            data/investments/stock_trading_us_sector_collection.json
+          if-no-files-found: warn
+          retention-days: 14

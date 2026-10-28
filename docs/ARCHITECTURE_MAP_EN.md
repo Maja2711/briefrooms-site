@@ -1,6 +1,6 @@
 # BriefRooms Canonical Architecture Map — EN
 
-**Map version:** 1.44
+**Map version:** 1.45
 
 **Snapshot date:** 2026-10-28
 
@@ -326,6 +326,8 @@ The only automatically learned v2 change is `markets.<GPW|US>.minimum_cash_edge_
 That v1 protocol remains immutable for existing trials. New v2 trials freeze the first eligible opportunity and the complete future 60-session tape against a prereceived official GPW/NYSE calendar. Two portfolio books run continuously; 1/2-session horizons produce 60/30 windows without resetting positions or forcing exits. A single terminal test uses weekly whole-portfolio net increments and an e-value for an explicitly bounded conditional mean, without assuming independent symbols. Economic return, concentration and drawdown have separate gates; block bootstrap is sensitivity analysis. The 24-test lifetime budget and alpha never reset. Missing expected closes or calendar disagreement remain PENDING.
 
 Health distinguishes frozen cohorts from evaluations and future-tape collection from evaluated samples. The workflow retains diagnostics even after persistence failure; modifying an existing immutable record blocks the commit. `stock_trading_sourced_metadata.py` records sourced sector and available bid/ask observations separately from history for prospective risk views. Missing verified spreads never become zero costs. In v2, shared initial holdings may be assessed from a frozen opening valuation with explicit prospective stress costs, without reconstructing unknown historical costs. Details and operational evidence: `STOCK_TRADING_STAGE2_ACCEPTANCE_PL.md`.
+
+`stock_trading_us_sector_collector.py` extends the existing metadata adapter: before the bulk screener download it verifies the small Nasdaq `company-profile` and `summary` endpoints, binding ticker, issuer name, listing exchange and matching sector against the official universe. It appends observations to the same ledger with both response hashes and actual receipt times. Fresh observations are reused; failure permits the existing collector to try its screener path. The manual `Stock Trading Risk Metadata Refresh` workflow persists only metadata and reports under the shared writer lock, checking that portfolio, policy and trial registry remain unchanged. It invokes neither admission nor lifecycle. The sector-validation contract, 25 audited CASH sources and trial budget remain identical. Details: `STOCK_TRADING_US_SECTOR_RECOVERY.md`.
 
 `stock_trading_component_evidence.py` independently reproduces the complete proof using reviewed main code and main-owned native inputs, checking complete opportunity chronology, prereceived cohort membership, the full current Champion hash, net economics and statistics. A PASS flag and hash do not authorize promotion. Research cannot supply production executable code.
 

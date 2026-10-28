@@ -1,6 +1,6 @@
 # Kanoniczna mapa architektury BriefRooms — PL
 
-**Wersja mapy:** 1.44
+**Wersja mapy:** 1.45
 
 **Stan na:** 2026-10-28
 
@@ -326,6 +326,8 @@ Jedyną automatycznie uczoną zmianą v2 jest `markets.<GPW|US>.minimum_cash_edg
 Powyższy protokół v1 pozostaje niezmienny dla istniejących prób. Nowe próby protokołu v2 zamrażają pierwszą kwalifikowaną okazję i całą przyszłą taśmę 60 sesji z wcześniej zapisanym oficjalnym kalendarzem GPW/NYSE. Dwie książki portfela są prowadzone ciągle; horyzonty 1/2 sesji dają 60/30 okien bez resetów pozycji i wymuszonych wyjść. Jedyny końcowy test używa tygodniowych przyrostów netto całego portfela i e-value dla jawnie ograniczonej warunkowej średniej, bez założenia niezależności spółek. Wynik ekonomiczny, koncentracja i obsunięcie mają osobne bramki; bootstrap blokowy jest analizą wrażliwości. Budżet 24 prób i alpha nie resetują się. Brak zamknięcia oczekiwanej sesji lub rozbieżny kalendarz daje PENDING.
 
 Monitor odróżnia zamrożone kohorty od ocen oraz zbieranie przyszłej taśmy od ocenionych próbek. Workflow zachowuje diagnostykę także po błędzie zapisu, a zmiana istniejących niezmiennych rekordów blokuje commit. `stock_trading_sourced_metadata.py` zapisuje źródłowe obserwacje sektora i dostępnego bid/ask osobno od historii; risk view korzysta z nich prospektywnie. Brak potwierdzonego spreadu nie staje się kosztem zerowym. Dla v2 wspólne pozycje początkowe mogą być oceniane od zamrożonej wyceny początkowej, z jawnymi przyszłymi kosztami stresowymi, bez odtwarzania nieznanych kosztów historycznych. Szczegóły i dowody operacyjne: `STOCK_TRADING_STAGE2_ACCEPTANCE_PL.md`.
+
+`stock_trading_us_sector_collector.py` uzupełnia istniejący adapter metadanych: przed pobraniem dużego skanera weryfikuje małe endpointy Nasdaq `company-profile` i `summary`, wiążąc ticker, nazwę emitenta, giełdę i zgodny sektor z oficjalnym universe. Zapisuje wyłącznie nowe obserwacje w tym samym ledgerze, z hashami obu odpowiedzi i rzeczywistym czasem odbioru. Świeże obserwacje są ponownie używane; niepowodzenie pozwala dotychczasowemu kolektorowi spróbować skanera. Ręczny workflow `Stock Trading Risk Metadata Refresh` zapisuje tylko metadane i raporty pod wspólnym lockiem writera oraz sprawdza niezmienność portfela, polityki i rejestru prób. Nie wywołuje admission ani lifecycle. Kontrakt walidacji sektorów, 25 audytowanych plików CASH i budżet prób pozostają identyczne. Szczegóły: `STOCK_TRADING_US_SECTOR_RECOVERY.md`.
 
 `stock_trading_component_evidence.py` niezależnie odtwarza pełny dowód na przejrzanym kodzie main i main-owned natywnych danych, sprawdza kompletną chronologię okazji, wcześniejsze przyjęcie kohorty, pełny aktualny hash Championa, wynik netto i statystykę. Flaga PASS i hash nie upoważniają do promocji. Research nie dostarcza wykonywalnego kodu produkcji.
 
