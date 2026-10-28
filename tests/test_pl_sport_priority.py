@@ -80,6 +80,18 @@ class PLPrioritySportTests(unittest.TestCase):
             ("Hurkacz kontra Rune. Dziś mecz ATP", ARTICLE),
         ])
 
+    def test_generic_athlete_talk_is_not_reserved_as_a_fixture(self) -> None:
+        patterns = priority._athlete_patterns()
+        self.assertFalse(priority.is_tracked_story(
+            "Uczestniczka WTA Finals zaczęła mówić o Świątek", patterns
+        ))
+        self.assertFalse(priority.is_tracked_story(
+            "Trener rozmawia o Hurkaczu i turnieju", patterns
+        ))
+        self.assertTrue(priority.is_tracked_story(
+            "Hurkacz kontra Rune: dziś mecz o ćwierćfinał", patterns
+        ))
+
     def test_priority_event_receives_a_slot_before_generic_sport(self) -> None:
         now = NOW
         generic = [{
