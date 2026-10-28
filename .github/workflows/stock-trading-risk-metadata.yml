@@ -1,4 +1,5 @@
 name: Stock Trading Risk Metadata Refresh
+# NO RETROACTIVE EXECUTION: classification observations only, no trading.
 
 on:
   workflow_dispatch:
@@ -24,6 +25,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Start immutable observation and airlock clock
+        run: |
+          echo "NO_RETROACTIVE_EXECUTION=1" >> "$GITHUB_ENV"
+          echo "NO_RETROACTIVE_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
       - name: Collect verified classification without trading
         run: |
           set -euo pipefail
@@ -49,8 +54,10 @@ jobs:
             [[ ! -e "$path" ]] || git add -- "$path"
           done
           git diff --cached --quiet && exit 0
+          python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
           git commit -m "Stock Trading: refresh sourced sector classifications"
           git pull --rebase origin main
+          python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD^ --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
           git push origin HEAD:main
       - name: Verify US holdings have current sector coverage
         run: |

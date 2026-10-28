@@ -60,6 +60,8 @@ and production runtime bytes before persisting only the ledger and reports.
 It invokes no admission, lifecycle, fills or learning experiment registration.
 The final check requires all currently open US holdings to have verified
 classifications in the actual risk view. Reports are retained as an artifact.
+The existing derived coverage report is regenerated after deployment rather
+than replaced by a stale PR snapshot while the live portfolio keeps updating.
 
 ## Acceptance
 
