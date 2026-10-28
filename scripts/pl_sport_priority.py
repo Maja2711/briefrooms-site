@@ -35,10 +35,9 @@ SPORT_LISTINGS = (
 )
 SPORT_FIXTURE_RE = re.compile(
     r"\b(?:mecz\w*|zagra\w*|gra\s+dziś|gra\s+dzisiaj|"
-    r"zmierz\w*|startuj\w*|wystąpi\w*|turniej\w*|"
+    r"zmierz\w*|startuj\w*|wystąpi\w*|"
     r"ćwierćfinał\w*|półfinał\w*|finał\w*|"
-    r"na\s+żywo|relacj\w*|ATP|WTA|transmisj\w*|"
-    r"puchar\w*|mistrzostw\w*)\b", re.I
+    r"na\s+żywo|relacj\w*|transmisj\w*)\b", re.I
 )
 ANCHOR_RE = re.compile(r"<a\b([^>]*?)>(.*?)</a\s*>", re.I | re.S)
 HREF_RE = re.compile(r"\bhref\s*=\s*(['\"])(.*?)\1", re.I | re.S)
