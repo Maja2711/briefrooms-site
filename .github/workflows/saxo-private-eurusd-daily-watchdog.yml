@@ -18,7 +18,6 @@ on:
 
 permissions:
   contents: read
-  actions: write
 
 concurrency:
   group: saxo-eurusd-private-d1-watchdog
@@ -43,6 +42,9 @@ jobs:
           python -m py_compile scripts/saxo_private_daily_watchdog.py
 
   check-private-d1-liveness:
+    permissions:
+      contents: read
+      actions: write
     if: >-
       (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'push')
       && github.ref == 'refs/heads/main'
