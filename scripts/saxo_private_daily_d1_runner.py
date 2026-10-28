@@ -186,6 +186,12 @@ def main(argv: list[str] | None = None) -> int:
             raise PrivateStateFailure("private_d1_runtime_not_enabled")
         if not os.environ.get("SAXO_PRIVATE_BASIC_PASSWORD"):
             raise PrivateStateFailure("private_saxo_auth_missing")
+        # A five-minute schedule continues over weekends. Do not manufacture
+        # an indicative trade or treat the closed FX market as a failed cycle.
+        from daily_eurusd_cycle_watchdog import fx_market_active
+        if not fx_market_active(datetime.now(timezone.utc)):
+            print("RESULT=PRIVATE_SAXO_D1_MARKET_INACTIVE_NOOP")
+            return 0
         with tempfile.TemporaryDirectory(prefix="brs-saxo-d1-private-") as name:
             directory = Path(name).resolve()
             repo = Path(__file__).resolve().parents[1]
