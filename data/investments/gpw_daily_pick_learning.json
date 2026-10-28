@@ -1,17 +1,17 @@
 {
   "schema_version": "gpw-daily-learning-v1",
-  "updated_at": "2026-10-27T22:28:02+01:00",
-  "resolved_trades": 33,
+  "updated_at": "2026-10-28T14:43:19+01:00",
+  "resolved_trades": 34,
   "adaptation_active": true,
   "minimum_sample": 8,
   "method": "bayesian_shrinkage_historical_overlay_v1",
   "automatic_weight_changes": false,
-  "global_average_r": 0.184,
-  "recent_average_r": 0.325,
+  "global_average_r": 0.194,
+  "recent_average_r": 0.355,
   "recent_window": 20,
-  "win_rate": 0.4848,
-  "stop_rate": 0.3636,
-  "target_rate": 0.303,
+  "win_rate": 0.5,
+  "stop_rate": 0.3529,
+  "target_rate": 0.2941,
   "sector_expectancy": [
     {
       "sector": "banki",
@@ -39,9 +39,9 @@
     },
     {
       "sector": "handel",
-      "sample": 15,
-      "average_r": 0.384,
-      "shrunk_r": 0.23
+      "sample": 16,
+      "average_r": 0.391,
+      "shrunk_r": 0.241
     },
     {
       "sector": "handel internetowy",
@@ -57,41 +57,18 @@
     }
   ],
   "last_lesson": {
-    "date": "2026-10-22",
-    "symbol": "ALE",
-    "sector": "handel internetowy",
-    "return_percent": -2.623,
-    "r_multiple": -1.0,
-    "exit_reason": "stop",
-    "lesson": "ALE: pozycja zakończyła się stopem (-1.00R). Pojedyncza strata nie zmienia wag; dopiero zbiorcza próba obniża ocenę podobnych układów."
+    "date": "2026-10-23",
+    "symbol": "PCO",
+    "sector": "handel",
+    "return_percent": 1.329,
+    "r_multiple": 0.5,
+    "exit_reason": "koniec_horyzontu",
+    "lesson": "PCO: horyzont zakończył się dodatnio (0.50R). Wynik zasila oczekiwaną skuteczność podobnych układów po shrinkage."
   },
   "guardrails": {
     "weights_frozen": true,
     "historical_component_weight_percent": 10.0,
     "max_historical_score_adjustment": 12.0,
     "single_trade_weight_mutation": false
-  },
-  "event_expectancy": [
-    {
-      "event_type": "earnings",
-      "label": "wyniki / raport okresowy",
-      "sample": 1,
-      "minimum_sample": 6,
-      "active": false,
-      "average_r": 1.792,
-      "shrunk_r": 0.0,
-      "catalyst_adjustment": 0.0
-    },
-    {
-      "event_type": "regulatory",
-      "label": "regulacja / spór prawny",
-      "sample": 1,
-      "minimum_sample": 6,
-      "active": false,
-      "average_r": 1.799,
-      "shrunk_r": 0.0,
-      "catalyst_adjustment": 0.0
-    }
-  ],
-  "event_learning_method": "event_family_bayesian_shrinkage_v1"
+  }
 }
