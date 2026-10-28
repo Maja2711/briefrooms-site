@@ -1,8 +1,8 @@
 # BriefRooms Canonical Architecture Map — EN
 
-**Map version:** 1.43
+**Map version:** 1.44
 
-**Snapshot date:** 2026-10-27
+**Snapshot date:** 2026-10-28
 
 **Base `main` commit:** `7dff7b1d71b333f9029c661b251b01243a189897`
 
@@ -322,6 +322,10 @@ Not every engine implements each step identically. `LE-11` now implements the sh
 HOLD/EXIT decisions and terminal settlements are immutable. Volatile `portfolio_updated_at` belongs to separate append-only read observations and cannot alter the original decision. A new admission epoch is activated before discovery; historical admissions never acquire prospective eligibility. `stock_trading_v2_learning_health.py` separates actual outcome, regret and Challenger-evaluation progress from report timestamp rewrites.
 
 The only automatically learned v2 change is `markets.<GPW|US>.minimum_cash_edge_points`: one market, one variable, ±1 step within 1..15. Hard gates, ranking weights and rotation are unchanged. Full policy, manifest and opportunity context are frozen before outcomes. Main owns trial registration and cohort receipts; the family has a lifetime limit of 24 tests and alpha 0.05/24. Each required 1/2-session horizon uses fixed N≥30, disjoint 168h episodes and one terminal verdict. Missing outcomes cannot replace cohort members.
+
+That v1 protocol remains immutable for existing trials. New v2 trials freeze the first eligible opportunity and the complete future 60-session tape against a prereceived official GPW/NYSE calendar. Two portfolio books run continuously; 1/2-session horizons produce 60/30 windows without resetting positions or forcing exits. A single terminal test uses weekly whole-portfolio net increments and an e-value for an explicitly bounded conditional mean, without assuming independent symbols. Economic return, concentration and drawdown have separate gates; block bootstrap is sensitivity analysis. The 24-test lifetime budget and alpha never reset. Missing expected closes or calendar disagreement remain PENDING.
+
+Health distinguishes frozen cohorts from evaluations and future-tape collection from evaluated samples. The workflow retains diagnostics even after persistence failure; modifying an existing immutable record blocks the commit. `stock_trading_sourced_metadata.py` records sourced sector and available bid/ask observations separately from history for prospective risk views. Missing verified spreads never become zero costs. In v2, shared initial holdings may be assessed from a frozen opening valuation with explicit prospective stress costs, without reconstructing unknown historical costs. Details and operational evidence: `STOCK_TRADING_STAGE2_ACCEPTANCE_PL.md`.
 
 `stock_trading_component_evidence.py` independently reproduces the complete proof using reviewed main code and main-owned native inputs, checking complete opportunity chronology, prereceived cohort membership, the full current Champion hash, net economics and statistics. A PASS flag and hash do not authorize promotion. Research cannot supply production executable code.
 

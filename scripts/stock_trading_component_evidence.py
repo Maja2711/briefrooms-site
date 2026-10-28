@@ -67,6 +67,11 @@ def _modules():
 
 
 def validate_protocol(protocol: Mapping[str, Any]) -> None:
+    if protocol.get("schema_version") == "stock-trading-cash-edge-protocol-v2":
+        _, exact, _, _ = _modules()
+        if protocol != exact.continuous_cash_protocol(int(protocol.get("horizon_sessions") or 0)):
+            raise EvidenceError("unapproved continuous prospective experiment protocol")
+        return
     if (protocol.get("schema_version") != "stock-trading-cash-edge-protocol-v1"
             or protocol.get("family_id") != FAMILY_ID or protocol.get("lifetime_max_tests") != MAX_TESTS
             or protocol.get("maximum_censored") != 0 or protocol.get("single_formal_look") is not True
@@ -318,6 +323,10 @@ def validate_proof(challenger: Mapping[str, Any], evaluation: Mapping[str, Any],
     fingerprints = proof.get("code_fingerprints") or {}
     if fingerprints != challenger.get("code_fingerprints") or not evaluator._code_unchanged(challenger):
         raise EvidenceError("audited runtime/evaluator code changed")
+    if protocol.get("schema_version") == exact.CONTINUOUS_PROTOCOL:
+        return _validate_continuous_proof(challenger, evaluation, proof=proof, protocol=protocol,
+            registry=registry, trial=trial, source_root=source_root,
+            frames_root=frames_root or DATA / "stock_trading_v2_production_replay_frames")
     cohort = proof.get("cohort") or {}
     _hash_field(cohort, "cohort_sha256")
     if cohort.get("cohort_sha256") != proof.get("cohort_sha256") or not cohort.get("membership_closed"):
@@ -411,3 +420,77 @@ def validate_proof(challenger: Mapping[str, Any], evaluation: Mapping[str, Any],
     if metrics != proof.get("metrics") or metrics != evaluation.get("metrics") or metrics.get("formal_pass") is not True:
         raise EvidenceError("independently recomputed statistical gate did not pass")
     return {"verified": True, "paired_n": n, "proof_sha256": proof["proof_sha256"], "trial_index": trial["test_index"]}
+
+
+def _validate_continuous_proof(challenger: Mapping[str, Any], evaluation: Mapping[str, Any], *,
+                               proof: Mapping[str, Any], protocol: Mapping[str, Any],
+                               registry: Mapping[str, Any], trial: Mapping[str, Any],
+                               source_root: Path, frames_root: Path) -> dict[str, Any]:
+    """Main replays its entire fixed calendar tape; research cannot select it."""
+    evaluator, exact, contracts, ledger = _modules()
+    cohort = proof.get("cohort") or {}
+    _hash_field(cohort, "cohort_sha256")
+    members = cohort.get("members") or []
+    if (cohort.get("cohort_sha256") != proof.get("cohort_sha256") or not cohort.get("membership_closed")
+            or len(members) != 1 or cohort.get("required_n") != 1 or proof.get("source_refs") != members
+            or cohort.get("production_trial_receipt") != trial):
+        raise EvidenceError("continuous trial requires its single immutable registered anchor")
+    member = members[0]
+    _hash_field(member, "member_sha256")
+    if (member.get("index") != 1 or member.get("enrollment_status") != "FROZEN_BEFORE_OUTCOME"
+            or member.get("fixed_regular_sessions") != protocol["fixed_regular_sessions"]):
+        raise EvidenceError("continuous anchor was not prospective")
+    decision, frozen = _time(member["decision_at"]), _time(member["frozen_at"])
+    start = max(_time(challenger["validation_start_at"]), _time(trial["registered_at"]))
+    if decision < start or not decision <= frozen <= decision + timedelta(hours=int(protocol["enrollment_deadline_hours"])):
+        raise EvidenceError("continuous anchor enrollment time invalid")
+    as_of = _time(evaluation["generated_at"])
+    if as_of > datetime.now(timezone.utc):
+        raise EvidenceError("formal evaluation clock is in the future")
+    frames = [_read(path) for path in sorted(frames_root.rglob("*.json"))]
+    frames = [row for row in frames if _time(row["observed_at"]) <= as_of and _time(row["recorded_at"]) <= as_of]
+    native = _native_eligible_events(challenger, frames, start=start, end=decision, policy_sha256=trial["policy_sha256"])
+    chronological = sorted(native.values(), key=lambda row: (_time(row["decision_at"]), str(row["event_id"])))
+    if not chronological or chronological[0]["event_id"] != member["source_event_id"]:
+        raise EvidenceError("continuous anchor omitted an earlier native eligible opportunity")
+    events, admissions = [], []
+    for path in (source_root / "stock_trading_v2_experience").rglob("*.json"):
+        row = _read(path)
+        if row.get("event_id") == member["source_event_id"]:
+            events.append(row)
+    for path in (source_root / "stock_trading_v2_admission").rglob("*.json"):
+        row = _read(path)
+        if row.get("source_event_id") == member["source_event_id"] and ledger.is_formal_observation(row):
+            admissions.append(row)
+    if len(events) != 1 or len(admissions) != 1:
+        raise EvidenceError("continuous source/admission missing or ambiguous")
+    event, admission = events[0], admissions[0]
+    contracts.validate_experience_event(event)
+    ledger.validate_observation(admission)
+    context = (event.get("candidate_state") or {}).get("decision_context") or {}
+    if (digest(event) != member.get("event_sha256") or digest(admission) != member.get("admission_sha256")
+            or _event_content(event) != _event_content(chronological[0])
+            or event["decision_at"] != member["decision_at"]
+            or admission["source_event_sha256"] != event["event_sha256"]
+            or context.get("policy_sha256") != trial["policy_sha256"]
+            or context.get("policy_sha256") != proof.get("champion_policy_sha256")
+            or _time(admission["recorded_at"]) > frozen):
+        raise EvidenceError("continuous source/baseline differs from registered native decision")
+    tape = exact.continuous_trial_input(event, frames, protocol=protocol, as_of=as_of)
+    if tape.get("status") != "COMPLETE":
+        raise EvidenceError("complete native calendar/tape required: " + str(tape.get("reason")))
+    first_close = _time(tape["schedule"][0]["regular_end"])
+    receipt = registry.get("members", {}).get(str(challenger["challenger_id"]) + ":" + member["member_sha256"])
+    if frozen >= first_close or not receipt or _time(receipt["registered_at"]) >= first_close:
+        raise EvidenceError("main did not receive the continuous anchor before its first sourced close")
+    computed = exact.collect_cash_edge_samples(candidate=evaluator._exact_candidate(challenger), events=events,
+        admissions=admissions, outcomes=[], cohort=members, replay_frames=frames)
+    n = int(protocol["fixed_paired_n"])
+    if len(computed) != n or computed != proof.get("paired_samples") or computed != evaluation.get("formal_samples"):
+        raise EvidenceError("independent continuous production replay differs from submitted proof")
+    metrics = evaluator.formal_metrics(computed, protocol, seed=str(challenger["challenger_id"]))
+    if metrics != proof.get("metrics") or metrics != evaluation.get("metrics") or metrics.get("formal_pass") is not True:
+        raise EvidenceError("independent continuous statistical/economic gate did not pass")
+    return {"verified": True, "paired_n": n, "fixed_regular_sessions": protocol["fixed_regular_sessions"],
+            "proof_sha256": proof["proof_sha256"], "trial_index": trial["test_index"],
+            "execution_semantics": protocol["execution_semantics"], "calendar_sha256": tape["calendar_sha256"]}

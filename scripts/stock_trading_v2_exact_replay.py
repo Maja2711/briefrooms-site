@@ -34,7 +34,50 @@ CASH_FINGERPRINT_FILES = (
     "stock_trading_v2_policy_learner.py", "stock_trading_v2_challenger_factory.py",
     "stock_trading_v2_replay_tournament.py", "stock_trading_v2_regret_engine.py",
     "stock_trading_v2_outcome_replay.py", "provenance_contract.py",
+    "stock_trading_sourced_metadata.py", "company_logo_resolver.py",
+    "stock_trading_session_calendar.py", "nyse_session_calendar.py",
+    "stock_trading_v2_replay_capture.py",
 )
+
+CONTINUOUS_PROTOCOL = "stock-trading-cash-edge-protocol-v2"
+
+
+def continuous_cash_protocol(horizon_sessions: int) -> dict[str, Any]:
+    """Predeclared forward experiment; changing a constant needs a new version.
+
+    The weekly betting score tests a *clipped conditional-mean* null, not an
+    unconditional mean or future profitability guarantee. Portfolio economics
+    and risk have their own, unclipped gates. No independence of names, weeks
+    or overlapping positions is asserted.
+    """
+    if horizon_sessions not in {1, 2}:
+        raise ValueError("continuous CASH horizon must be 1 or 2 sessions")
+    return {
+        "schema_version": CONTINUOUS_PROTOCOL,
+        "fixed_regular_sessions": 60, "fixed_paired_n": 60 // horizon_sessions,
+        "horizon_sessions": horizon_sessions, "maximum_censored": 0,
+        "membership": "first_eligible_anchor_freezes_complete_future_tape",
+        "outcome_missing": "WAIT_THEN_TERMINAL_CENSOR_NO_REPLACEMENT",
+        "enrollment_deadline_hours": 24, "outcome_deadline_days": 180,
+        "session_horizon_rule": "first_60_preregistered_calendar_regular_closes",
+        "calendar_requirement": "native_preregistered_complete_session_calendar_v1",
+        "execution_semantics": "continuous_production_lifecycle_v2",
+        "initial_valuation": "shared_initial_mark_to_liquidation_policy_stress_no_historical_fill_claim",
+        "close_valuation": "every_open_position_exact_sourced_regular_close_bar_mark_only",
+        "maximum_close_receipt_delay_hours": 24,
+        "family_id": "stock-trading-v2-cash-edge-lifetime-v1",
+        "lifetime_max_tests": 24, "family_alpha": 0.05, "alpha": 0.05 / 24,
+        "single_formal_look": True,
+        "statistical_unit": "calendar_week_whole_portfolio_net_increment",
+        "statistical_test": "bounded_conditional_mean_e_value_v1",
+        "conditional_null": "E[clip(weekly_net_delta_percent/1pp,-1,1)|past]<=0",
+        "bet_fraction": 0.9, "clip_scale_percent": 1.0,
+        "min_calendar_week_groups": 10, "bootstrap_draws": 20000,
+        "bootstrap_block_weeks": 2, "bootstrap_role": "DESCRIPTIVE_SENSITIVITY_ONLY",
+        "min_unique_symbols": 5, "min_span_days": 60,
+        "max_single_positive_share": 0.5,
+        "max_drawdown_increase_pct": 0.0, "min_mean_incremental_pct": 0.0,
+    }
 
 
 def parse_dt(value: Any) -> datetime:
@@ -384,6 +427,9 @@ def collect_cash_edge_samples(*, candidate: Mapping[str, Any], events: Iterable[
     This function can also produce descriptive discovery samples, but cannot
     grant a formal PASS on its own.
     """
+    if (candidate.get("prospective_protocol") or {}).get("schema_version") == CONTINUOUS_PROTOCOL and cohort is not None:
+        return collect_continuous_cash_samples(candidate=candidate, events=events, cohort=cohort,
+                                               replay_frames=replay_frames)
     champion, challenger = cash_edge_policy_pair(candidate)
     try:
         from scripts import stock_trading_v2_production_replay as production_replay
@@ -459,3 +505,181 @@ def collect_cash_edge_samples(*, candidate: Mapping[str, Any], events: Iterable[
             "champion_max_drawdown_percent", "challenger_max_drawdown_percent")):
             samples.append(sample)
     return sorted(samples, key=lambda row: (str(row["decision_at"]), str(row["source_event_id"])))
+
+
+def continuous_trial_input(event: Mapping[str, Any], frames: Iterable[Mapping[str, Any]], *,
+                           protocol: Mapping[str, Any], as_of: datetime | None = None) -> dict[str, Any]:
+    """Freeze one future calendar/tape, never skip an absent expected session.
+
+    The first main frame owns the calendar. Later calendar revisions cannot
+    move the endpoint or replace a missing close. A calendar is a scheduled
+    coverage contract, not proof that the exchange actually opened: each of
+    its dates additionally needs matching native provider close metadata.
+    """
+    market, start = str(event["market"]), parse_dt(event["decision_at"])
+    native = []
+    for raw in frames:
+        frame = dict(raw.get("frame") or raw)
+        try:
+            observed, recorded = parse_dt(frame["observed_at"]), parse_dt(frame["recorded_at"])
+        except (KeyError, ValueError, TypeError):
+            return {"status": "PENDING", "reason": "native_frame_clock_invalid"}
+        if as_of is None or (observed <= as_of and recorded <= as_of):
+            native.append(frame)
+    native.sort(key=lambda row: (parse_dt(row["observed_at"]), parse_dt(row["recorded_at"]), row.get("frame_sha256", "")))
+    source_sha = (event.get("source") or {}).get("payload_sha256")
+    first_index = next((i for i, row in enumerate(native) if parse_dt(row["observed_at"]) >= start
+        and ((row.get("opportunities") or {}).get(market) or {}).get("opportunity_sha256") == source_sha), None)
+    if first_index is None:
+        return {"status": "PENDING", "reason": "native_anchor_frame_missing"}
+    first = native[first_index]
+    calendar = (first.get("session_calendar") or {}).get(market)
+    try:
+        from scripts import stock_trading_portfolio as portfolio
+        from zoneinfo import ZoneInfo
+        body = dict(calendar or {})
+        stored = body.pop("calendar_sha256", None)
+        if (not stored or stored != contracts.payload_sha256(body)
+                or body.get("schema_version") != "stock-trading-session-calendar-v1"
+                or body.get("market") != market or not body.get("source")
+                or not body.get("source_url") or not body.get("calendar_id")
+                or ZoneInfo(str(body.get("timezone"))) != portfolio.MARKET_TZ[market]
+                or not parse_dt(body["observed_at"]) <= parse_dt(body["received_at"]) <= start
+                or not parse_dt(body["coverage_start"]) <= start < parse_dt(body["coverage_end"])):
+            raise ValueError("calendar not prospectively bound")
+        schedule = []
+        previous = None
+        for session in body["sessions"]:
+            opening, close = parse_dt(session["regular_start"]), parse_dt(session["regular_end"])
+            if (not opening < close or session["date"] != close.astimezone(portfolio.MARKET_TZ[market]).date().isoformat()
+                    or (previous is not None and opening <= previous)
+                    or not parse_dt(body["coverage_start"]) <= opening < close <= parse_dt(body["coverage_end"])):
+                raise ValueError("calendar schedule invalid")
+            previous = close
+            if close > start:
+                schedule.append(dict(session))
+        schedule = schedule[:int(protocol["fixed_regular_sessions"])]
+        if len(schedule) != int(protocol["fixed_regular_sessions"]):
+            raise ValueError("calendar does not cover fixed endpoint")
+    except (KeyError, ValueError, TypeError):
+        return {"status": "PENDING", "reason": "preregistered_session_calendar_missing_or_invalid"}
+    expected = {row["date"]: row for row in schedule}
+    following_opens = {row["date"]: parse_dt(schedule[index + 1]["regular_start"])
+                       for index, row in enumerate(schedule[:-1])}
+    close_frames, selected = {}, []
+    final_close = parse_dt(schedule[-1]["regular_end"])
+    for frame in native[first_index:]:
+        selected.append(frame)
+        session = (frame.get("market_sessions") or {}).get(market) or {}
+        if session:
+            try:
+                close = parse_dt(session["regular_end"])
+                opening = parse_dt(session["regular_start"])
+                date = str(session["date"])
+                stamp, receipt = parse_dt(frame["observed_at"]), parse_dt(frame["recorded_at"])
+                if start < close <= final_close:
+                    entry = expected.get(date)
+                    if (not entry or opening != parse_dt(entry["regular_start"])
+                            or close != parse_dt(entry["regular_end"])):
+                        return {"status": "PENDING", "reason": "provider_calendar_disagreement"}
+                    if (market in (frame.get("close_observations") or {})
+                            and session.get("source") and opening < close <= stamp <= receipt
+                            and session.get("state") in {"POST", "POSTPOST", "CLOSED", "REGULAR_CLOSED"}):
+                        if (receipt > close + timedelta(hours=int(protocol["maximum_close_receipt_delay_hours"]))
+                                or (date in following_opens and receipt >= following_opens[date])):
+                            return {"status": "PENDING", "reason": "session_close_receipt_after_next_session_or_deadline"}
+                        close_frames.setdefault(date, frame)
+            except (KeyError, ValueError, TypeError):
+                return {"status": "PENDING", "reason": "native_session_metadata_invalid"}
+        if all(row["date"] in close_frames for row in schedule):
+            # The endpoint is the first receipt of the predeclared 60th close.
+            endpoint = close_frames[schedule[-1]["date"]]
+            if endpoint is not frame:
+                return {"status": "PENDING", "reason": "earlier_session_close_arrived_after_fixed_endpoint"}
+            horizon = int(protocol["horizon_sessions"])
+            return {"status": "COMPLETE", "initial_state": first.get("initial_state"), "frames": selected,
+                    "bridge_config": first.get("bridge_config"), "runtime": first.get("runtime"),
+                    "source_frame_sha256": first.get("frame_sha256"), "calendar_sha256": stored,
+                    "schedule": schedule, "regular_end": schedule[-1]["regular_end"],
+                    "episode_end_at": frame["observed_at"],
+                    "boundaries": [{"session": schedule[index], "frame": close_frames[schedule[index]["date"]]}
+                                   for index in range(horizon - 1, len(schedule), horizon)]}
+        # A later receipt cannot repair an expected missing earlier close.
+        if parse_dt(frame["observed_at"]) >= final_close and schedule[-1]["date"] in close_frames:
+            return {"status": "PENDING", "reason": "expected_session_close_missing_at_fixed_endpoint"}
+    return {"status": "PENDING", "reason": "waiting_for_all_predeclared_session_closes",
+            "expected_sessions": len(schedule), "observed_closes": len(close_frames),
+            "regular_end": schedule[-1]["regular_end"], "calendar_sha256": stored}
+
+
+def collect_continuous_cash_samples(*, candidate: Mapping[str, Any], events: Iterable[Mapping[str, Any]],
+                                    cohort: Iterable[Mapping[str, Any]],
+                                    replay_frames: Iterable[Mapping[str, Any]],
+                                    coverage_diagnostics: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    """One pair of books, one immutable tape, consecutive NAV differences.
+
+    There is exactly one starting canonical book. Later canonical snapshots
+    never reset either alternative; stops, costs, runners, cash and runtime
+    all remain inside the single production runner invocation.
+    """
+    from scripts import stock_trading_v2_production_replay as replay
+    diagnostics = coverage_diagnostics if coverage_diagnostics is not None else {}
+    champion, challenger = cash_edge_policy_pair(candidate)
+    members = list(cohort)
+    if len(members) != 1:
+        diagnostics.update(status="PENDING", reason="awaiting_single_registered_continuous_anchor")
+        return []
+    member = members[0]
+    event = next((dict(row) for row in events if row.get("event_id") == member["source_event_id"]), None)
+    if not event or not cash_edge_eligible(event, candidate):
+        diagnostics.update(status="PENDING", reason="registered_continuous_anchor_source_missing")
+        return []
+    protocol = candidate["prospective_protocol"]
+    tape = continuous_trial_input(event, replay_frames, protocol=protocol)
+    if tape["status"] != "COMPLETE" or not tape.get("bridge_config"):
+        diagnostics.update(status="PENDING", reason=tape.get("reason", "native_bridge_config_missing"))
+        return []
+    market = str(event["market"])
+    try:
+        pair = replay.compare_policies(tape.get("initial_state") or {}, tape["frames"],
+            champion_policy=champion, challenger_policy=challenger,
+            bridge_config=tape["bridge_config"], runtime=tape.get("runtime"), markets=[market],
+            prospective_initial_basis=True)
+    except (ValueError, TypeError, KeyError) as exc:
+        diagnostics.update(status="PENDING", reason="continuous_native_replay_invalid", detail=str(exc))
+        return []
+    if pair.get("formal_evidence_eligible") is not True:
+        diagnostics.update(status="PENDING", reason="continuous_portfolio_input_coverage_incomplete",
+            champion=(pair.get("champion") or {}).get("diagnostics") or [],
+            challenger=(pair.get("challenger") or {}).get("diagnostics") or [])
+        return []
+    curves = {name: {row["observed_at"]: row for row in pair[name]["curves_by_market"][market]}
+              for name in ("champion", "challenger")}
+    samples, previous = [], {"champion": 0.0, "challenger": 0.0}
+    previous_end = event["decision_at"]
+    for index, boundary in enumerate(tape["boundaries"], 1):
+        stamp = boundary["frame"]["observed_at"]
+        left, right = curves["champion"].get(stamp), curves["challenger"].get(stamp)
+        if left is None or right is None:
+            diagnostics.update(status="PENDING", reason="continuous_boundary_nav_missing")
+            return []
+        control = float(left["net_return_percent"]) - previous["champion"]
+        alternative = float(right["net_return_percent"]) - previous["challenger"]
+        samples.append({"source_group": source_group(event), "source_event_id": event["event_id"],
+            "source_event_sha256": event.get("event_sha256"), "decision_at": previous_end,
+            "anchor_decision_at": event["decision_at"], "symbol": event["symbol"], "market": market,
+            "block_id": f"{member['block_id']}:{index:04d}", "episode_end_at": stamp,
+            "sourced_regular_end": boundary["session"]["regular_end"],
+            "horizon_completed_sessions": int(protocol["horizon_sessions"]),
+            "source_frame_sha256": tape["source_frame_sha256"], "calendar_sha256": tape["calendar_sha256"],
+            "champion_net_return_percent": control, "challenger_net_return_percent": alternative,
+            "incremental_net_return_percent": alternative - control,
+            "benchmark_return_percent": left.get("benchmark_return_percent"),
+            "execution_semantics": "continuous_production_lifecycle_v2",
+            "production_replay": {"formal_evidence_eligible": True, "input_sha256": pair["input_sha256"]}})
+        previous = {"champion": float(left["net_return_percent"]), "challenger": float(right["net_return_percent"])}
+        previous_end = stamp
+    if samples:
+        samples[-1]["continuous_replay"] = pair
+    diagnostics.update(status="COMPLETE", paired_windows=len(samples))
+    return samples

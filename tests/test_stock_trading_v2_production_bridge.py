@@ -1,5 +1,5 @@
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from scripts import stock_trading_portfolio as portfolio
 from scripts import stock_trading_v2_production_bridge as bridge
@@ -52,6 +52,45 @@ class V2ProductionBridgeTests(unittest.TestCase):
     def test_execution_quote_age_is_market_specific(self):
         self.assertEqual(1200, bridge._execution_quote_max_age_seconds("GPW", self.cfg))
         self.assertEqual(120, bridge._execution_quote_max_age_seconds("US", self.cfg))
+
+    def test_actual_decision_clock_rechecks_cached_age_without_changing_market_limits(self):
+        self.now = datetime(2026, 9, 17, 14, tzinfo=timezone.utc)
+        policy = portfolio.load_policy()
+        candidate = self.candidate("AAA", 1, 85)
+        opportunity = {"generated_at": self.now.isoformat(), "decision": {"action": "BUY", "candidate": candidate}, "evaluated_candidates": [candidate]}
+        for market, seconds, expected_open in (("US", 120, True), ("US", 121, False), ("US", 300, False), ("GPW", 300, True), ("GPW", 1201, False)):
+            with self.subTest(market=market, delay=seconds):
+                initial = portfolio.empty_state(self.now, policy)
+                result, actions, _ = bridge.process_market(initial, market, opportunity, config=self.cfg, runtime={"phase": "FULL"},
+                    now_utc=self.now, quote_fetcher=lambda *args, **kwargs: {**self.quote(*args, **kwargs), "capture_age_seconds": 0},
+                    decision_clock=lambda: self.now + timedelta(seconds=seconds), production_policy=policy)
+                self.assertEqual(int(expected_open), len(portfolio.open_positions(result, market)))
+                if expected_open:
+                    self.assertEqual(seconds, portfolio.open_positions(result, market)[0]["entry_validation"]["decision_age_seconds"])
+                else:
+                    self.assertTrue(any(action.get("reason") == "execution_quote_stale_at_decision" for action in actions))
+
+    def test_actual_decision_clock_cannot_cross_regular_close_or_published_early_close(self):
+        policy = portfolio.load_policy()
+        cases = (
+            ("US", "2026-09-17T19:59:30Z", "2026-09-17T20:00:00Z", "2026-09-17T13:30:00Z", "2026-09-17T20:00:00Z", False),
+            ("US", "2026-11-27T17:59:30Z", "2026-11-27T18:00:30Z", "2026-11-27T14:30:00Z", "2026-11-27T18:00:00Z", False),
+            ("GPW", "2026-09-17T14:59:30Z", "2026-09-17T15:00:00Z", "2026-09-17T07:00:00Z", "2026-09-17T15:05:00Z", False),
+            ("US", "2026-11-27T17:58:00Z", "2026-11-27T17:59:59Z", "2026-11-27T14:30:00Z", "2026-11-27T18:00:00Z", True),
+        )
+        for market, observed, decided, opening, closing, admitted in cases:
+            with self.subTest(market=market, decision_at=decided):
+                self.now = bridge._parse_iso(observed)
+                candidate = self.candidate("AAA", 1, 85)
+                opportunity = {"generated_at": observed, "decision": {"action": "BUY", "candidate": candidate}, "evaluated_candidates": [candidate]}
+                result, actions, _ = bridge.process_market(portfolio.empty_state(self.now, policy), market, opportunity,
+                    config=self.cfg, runtime={"phase": "FULL"}, now_utc=self.now, production_policy=policy,
+                    quote_fetcher=lambda *args, **kwargs: {**self.quote(*args, **kwargs), "capture_age_seconds": 0,
+                        "session_periods": {"REGULAR": {"start": opening, "end": closing}}},
+                    decision_clock=lambda: bridge._parse_iso(decided))
+                self.assertEqual(int(admitted), len(portfolio.open_positions(result, market)))
+                if not admitted:
+                    self.assertTrue(any(action.get("reason") == "market_not_regular_at_decision" for action in actions))
 
     def test_frontier_deduplicates_and_sorts(self):
         a = self.candidate("AAA", 1, 80)
@@ -171,6 +210,7 @@ class V2ProductionBridgeTests(unittest.TestCase):
         self.assertTrue(any(row.get("reason") == "candidate_does_not_beat_cash_edge" for row in audits))
 
     def test_bridge_passes_exact_gpw_delayed_paper_quote_limit(self):
+        self.now = datetime(2026, 9, 17, 14, 0, tzinfo=timezone.utc)
         policy = portfolio.load_policy()
         state = portfolio.empty_state(now=self.now, policy=policy)
         candidate = self.candidate("ASB.WA", 1, 95)

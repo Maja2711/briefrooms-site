@@ -118,6 +118,8 @@ def make_challenger(candidate: Mapping[str, Any], tournament_sha: str, promotion
     if cash_code:
         identity["code_fingerprints"] = cash_code
         identity["champion_policy_sha256"] = candidate["champion_policy_sha256"]
+        if promotion_config.get("cash_protocol_version") != "legacy_v1":
+            identity["prospective_protocol"] = exact.continuous_cash_protocol(int(candidate["horizon_sessions"]))
     challenger_id = "stchallv2-exact-" + contracts.payload_sha256(identity)[:20]
     payload: dict[str, Any] = {
         "schema_version": learner.SCHEMA_VERSION,
@@ -202,6 +204,9 @@ def make_challenger(candidate: Mapping[str, Any], tournament_sha: str, promotion
             "single_formal_look": True,
             "execution_semantics": "production_lifecycle_v1",
         }
+        if promotion_config.get("cash_protocol_version") != "legacy_v1":
+            payload["protocol"] = exact.continuous_cash_protocol(int(candidate["horizon_sessions"]))
+            payload["holdout"]["fixed_paired_n"] = payload["protocol"]["fixed_paired_n"]
         payload["protocol_sha256"] = contracts.payload_sha256(payload["protocol"])
         payload["code_fingerprints"] = cash_code
     body = dict(payload)

@@ -87,6 +87,92 @@ def market_economics(
     }
 
 
+def prospective_period_economics(
+    state: Mapping[str, Any], initial_state: Mapping[str, Any], market: str, *,
+    policy: Mapping[str, Any], initial_capital: float,
+) -> dict[str, Any]:
+    """Future-only economics from a frozen inherited book, without cost backfill.
+
+    Past entry costs are outside this registered period, whether known or not.
+    Inherited positions start at their frozen initial mark and liquidation
+    reserve. Only subsequent mark/exit changes and reserve changes contribute.
+    A missing legacy exit model uses the trial's explicit prospective stress
+    assumption; no synthetic historical entry_cost_amount/model is constructed.
+    Positions opened after this boundary retain full two-leg frozen economics.
+    """
+    market = market.upper()
+    if not math.isfinite(float(initial_capital)) or initial_capital <= 0:
+        raise ValueError("initial capital must be finite and positive")
+    initial_row = portfolio.market_state(initial_state, market)
+    initial_open = portfolio.open_positions(initial_state, market)
+    inherited = {str(item.get("position_id") or ""): item for item in initial_open}
+    ignored_closed = {str(item.get("position_id")) for item in initial_row.get("closed_positions") or []}
+    current_row = portfolio.market_state(state, market)
+    positions = portfolio.open_positions(state, market) + [dict(item) for item in current_row.get("closed_positions") or []
+                if isinstance(item, Mapping) and str(item.get("position_id")) not in ignored_closed]
+    details, missing, seen = [], [], set()
+    if "" in inherited or len(inherited) != len(initial_open):
+        missing.append({"reason": "initial_position_identity_missing_or_duplicated"})
+    for position in positions:
+        position_id = str(position.get("position_id") or "")
+        if not position_id or position_id in seen:
+            missing.append({"position_id": position_id, "reason": "period_position_identity_missing_or_duplicated"})
+            continue
+        seen.add(position_id)
+        anchor = inherited.get(position_id)
+        if anchor is None:
+            result = position_economics(position)
+            if result["status"] != "COMPLETE":
+                missing.append(result)
+            else:
+                details.append(result)
+            continue
+        quantity, initial_quantity = _number(position.get("quantity")), _number(anchor.get("quantity"))
+        initial_mark = _number(anchor.get("last_mark"))
+        closed = str(position.get("status") or "OPEN").upper() == "CLOSED"
+        mark = _number(position.get("exit_price") if closed else position.get("last_mark"))
+        model = anchor.get("transaction_cost_model")
+        cost_basis = "INHERITED_FROZEN_ENTRY_EXIT_MODEL"
+        if not isinstance(model, Mapping):
+            model = (policy.get("markets") or {}).get(market, {}).get("transaction_costs")
+            cost_basis = "FROZEN_TRIAL_PROSPECTIVE_EXIT_STRESS_NOT_HISTORICAL_ENTRY_COST"
+        if (initial_mark is None or initial_mark <= 0 or mark is None or mark <= 0
+                or quantity is None or quantity <= 0 or quantity != initial_quantity
+                or position.get("symbol") != anchor.get("symbol")):
+            missing.append({"position_id": position_id, "reason": "frozen_initial_mark_quantity_or_identity_missing"})
+            continue
+        try:
+            initial_reserve = portfolio.transaction_cost(initial_mark * quantity, model or {})
+            exit_stress = portfolio.transaction_cost(mark * quantity, model or {})
+        except (ValueError, TypeError):
+            missing.append({"position_id": position_id, "reason": "frozen_prospective_exit_cost_assumption_missing"})
+            continue
+        gross, reserve_change = (mark - initial_mark) * quantity, exit_stress - initial_reserve
+        details.append({
+            "status": "COMPLETE", "position_id": position_id, "symbol": position.get("symbol"), "is_closed": closed,
+            "gross_pnl_amount": gross, "net_pnl_amount": gross - reserve_change, "cost_amount": reserve_change,
+            "initial_mark": initial_mark, "initial_liquidation_cost_reserve": initial_reserve,
+            "prospective_exit_cost_amount": exit_stress, "prospective_exit_cost_change_amount": reserve_change,
+            "cost_basis": cost_basis, "historical_entry_cost_status": "OUTSIDE_PROSPECTIVE_PERIOD_NOT_ESTIMATED",
+            "valuation_basis": "FUTURE_MARK_CHANGE_LESS_EXIT_RESERVE_CHANGE_FROM_FROZEN_INITIAL_BOOK",
+        })
+    for position_id in inherited.keys() - seen:
+        missing.append({"position_id": position_id, "reason": "inherited_position_disappeared_without_exit_record"})
+    if missing:
+        return {"status": "UNSCORABLE", "market": market, "missing": missing, "net_nav": None}
+    gross, costs = sum(item["gross_pnl_amount"] for item in details), sum(item["cost_amount"] for item in details)
+    net = gross - costs
+    realised = sum(item["net_pnl_amount"] for item in details if item["is_closed"])
+    return {
+        "status": "COMPLETE", "market": market, "currency": portfolio.POSITION_CURRENCY[market],
+        "economic_basis": "FROZEN_PROSPECTIVE_INITIAL_MARK_AND_EXIT_RESERVE",
+        "initial_capital": float(initial_capital), "net_nav": float(initial_capital) + net,
+        "gross_pnl_amount": gross, "net_pnl_amount": net, "cost_amount": costs,
+        "realized_net_pnl_amount": realised, "unrealized_liquidation_net_pnl_amount": net - realised,
+        "net_return_percent": net / initial_capital * 100.0, "positions": details,
+    }
+
+
 def curve_metrics(curve: Sequence[Mapping[str, Any]], *, initial_capital: float, positions: Sequence[Mapping[str, Any]] = ()) -> dict[str, Any]:
     """Drawdown includes open positions; winner dependency includes their marks."""
     peak = float(initial_capital)

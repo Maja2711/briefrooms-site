@@ -202,6 +202,44 @@ def _delay_metadata(meta: Mapping[str, Any]) -> tuple[str, int | None, bool]:
     return "delayed", minutes, False
 
 
+def spread_observation(meta: Mapping[str, Any], symbol: str, market: str, *, now_utc: datetime) -> dict[str, Any]:
+    """Measure explicit provider BBO only, never infer spread from OHLC/last.
+
+    Last-trade time is not a bid/ask timestamp. Providers without explicit BBO
+    time remain unavailable, independently of the existing execution gates.
+    """
+    result: dict[str, Any] = {
+        "status": "UNAVAILABLE", "measurement": "PROVIDER_BID_ASK_NOT_BROKER_FILL",
+        "source": "Yahoo Finance chart", "symbol": symbol, "market": market,
+        "source_url": "https://query1.finance.yahoo.com/v8/finance/chart/" + urllib.parse.quote(symbol, safe=""),
+        "received_at": _iso(now_utc), "reason": "provider_bid_ask_or_explicit_bbo_timestamp_missing",
+    }
+    if str(meta.get("symbol") or "").upper() != symbol.upper():
+        result.update(status="INVALID", reason="provider_symbol_identity_mismatch")
+        return result
+    bid, ask = _float(meta.get("bid")), _float(meta.get("ask"))
+    bid_time = _float(meta.get("bidTime") or meta.get("bidAskTime"))
+    ask_time = _float(meta.get("askTime") or meta.get("bidAskTime"))
+    if bid is None or ask is None or bid_time is None or ask_time is None:
+        return result
+    if bid <= 0 or ask <= 0 or ask < bid or bid_time != ask_time:
+        result.update(status="INVALID", reason="invalid_crossed_or_asynchronous_bid_ask")
+        return result
+    observed = _observed_iso(int(bid_time), market)
+    age = now_utc.timestamp() - bid_time
+    if observed is None or age < 0:
+        result.update(status="INVALID", reason="future_or_invalid_bid_ask_time")
+        return result
+    if age > 300:
+        result.update(status="STALE", reason="bid_ask_older_than_300_seconds", observed_at=observed, age_seconds=age)
+        return result
+    midpoint = (bid + ask) / 2
+    result.update(status="OBSERVED", reason="explicit_synchronous_provider_bid_ask", observed_at=observed,
+                  bid=bid, ask=ask, spread=round(ask - bid, 10),
+                  spread_bps=round((ask - bid) / midpoint * 10000, 6), age_seconds=age)
+    return result
+
+
 def quote_for_symbol(symbol: str, market: str, *, now_utc: datetime | None = None) -> dict[str, Any]:
     market = market.upper()
     if market not in MARKET_TZ:
@@ -269,6 +307,7 @@ def quote_for_symbol(symbol: str, market: str, *, now_utc: datetime | None = Non
         "is_realtime": bool(is_realtime),
         "source_verified": True,
         "capture_age_seconds": capture_age,
+        "spread_observation": spread_observation(meta, symbol, market, now_utc=now_utc),
         "session_periods": {
             phase: {"start": _observed_iso(bounds[0], market), "end": _observed_iso(bounds[1], market)}
             for phase, bounds in periods.items()

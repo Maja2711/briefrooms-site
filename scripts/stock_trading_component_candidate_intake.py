@@ -221,7 +221,7 @@ def approve_proposals(*, challengers: Path, evaluations: Path, registry_path: Pa
             evaluated = evaluation.get("evaluated_production_candidate")
             if not isinstance(candidate, Mapping) or not isinstance(evaluated, Mapping):
                 raise IntakeError("exact production candidate binding missing")
-            if evaluated.get("execution_semantics") != bound.EXACT_SEMANTICS:
+            if evaluated.get("execution_semantics") != bound.expected_execution_semantics(challenger, evaluation):
                 raise IntakeError("evaluation did not use exact_shadow_replay semantics")
             for key in bound.REQUIRED_CANDIDATE_FIELDS:
                 if str(candidate.get(key)) != str(evaluated.get(key)):
@@ -248,7 +248,7 @@ def approve_proposals(*, challengers: Path, evaluations: Path, registry_path: Pa
             proposals[deployment_id] = copy.deepcopy(dict(spec))
             passed_horizons.setdefault(deployment_id, set()).add(horizon)
             proposal_challengers.setdefault(deployment_id, []).append(challenger_id)
-        except (promotion.PromotionError, router.RouterError, IntakeError, KeyError, ValueError, TypeError) as exc:
+        except (promotion.PromotionError, router.RouterError, bound.EvidenceBindingError, IntakeError, KeyError, ValueError, TypeError) as exc:
             rejected.append({"challenger_id": challenger_id, "reason": str(exc)})
 
     for deployment_id in sorted(proposals):

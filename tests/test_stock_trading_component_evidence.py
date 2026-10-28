@@ -43,7 +43,7 @@ def make_challenger(policy: dict) -> dict:
         hypothesis={"component": "cash_admission_margin", "market": "US", "horizon_sessions": 1},
         manifest=MANIFEST, policy=policy,
     )[1]  # Tighter CASH edge avoids a future loss under the actual lifecycle.
-    item = tournament.make_challenger(candidate, "diagnostic-only", {}, start_at=(START - timedelta(hours=2)).isoformat())
+    item = tournament.make_challenger(candidate, "diagnostic-only", {"cash_protocol_version": "legacy_v1"}, start_at=(START - timedelta(hours=2)).isoformat())
     family = {"family_id": evidence.FAMILY_ID, "test_index": 1, "challenger_id": item["challenger_id"],
               "protocol_sha256": item["protocol_sha256"], "reserved_at": item["created_at"],
               "lifetime_max_tests": 24, "alpha": 0.05 / 24}
