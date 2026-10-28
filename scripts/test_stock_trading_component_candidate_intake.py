@@ -93,7 +93,7 @@ def _pair(name: str, *, cash_edge: int, horizon: int, revision: int = 1, tamper_
         deployment_sha256=("0" * 64) if tamper_hash else deployment_sha, deployment_spec=spec)
     base["replay_contract"]["challenger_cash_edge_points"] = cash_edge
     base["candidate_sha256"] = promotion._hash_without(base, "candidate_sha256")
-    challenger = tournament.make_challenger(base, "intake-unit-discovery", {}, start_at="2026-09-17T00:00:00Z")
+    challenger = tournament.make_challenger(base, "intake-unit-discovery", {"cash_protocol_version": "legacy_v1"}, start_at="2026-09-17T00:00:00Z")
     challenger["challenger_id"] = name
     challenger["challenger_sha256"] = promotion._hash_without(challenger, "challenger_sha256")
     candidate = challenger["production_candidate"]

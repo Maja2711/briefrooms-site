@@ -42,6 +42,12 @@ def _rows(root: Path) -> list[dict[str, Any]]:
     return [_read(path) for path in sorted(root.rglob("*.json"))] if root.exists() else []
 
 
+def _evaluation_rows(root: Path) -> list[dict[str, Any]]:
+    # Evaluators write reports at the root. The reserved .cohorts subtree is an
+    # enrollment ledger, not an evaluation; its presence must not break health.
+    return [_read(path) for path in sorted(root.glob("*.json"))] if root.exists() else []
+
+
 def _utc(raw: str) -> datetime:
     value = datetime.fromisoformat(raw.replace("Z", "+00:00"))
     if value.tzinfo is None:
@@ -53,6 +59,8 @@ def _stage(name: str, identities: Iterable[Any], *, source_time: str | None, pre
     keys = sorted({contracts.canonical_json(value) for value in identities})
     digest = contracts.payload_sha256(keys)
     old = (previous.get("stages") or {}).get(name) or {}
+    if not old.get("has_valid_baseline", True):
+        old = {}
     old_keys = set(old.get("seen_progress_keys") or old.get("progress_keys") or [])
     added = len(set(keys) - old_keys)
     # A rewrite, a changed PASS flag or removal of old evidence is not progress.
@@ -62,6 +70,7 @@ def _stage(name: str, identities: Iterable[Any], *, source_time: str | None, pre
     age = max(0.0, (_utc(now) - _utc(last_progress or baseline)).total_seconds() / 3600)
     return {
         "progress_count": len(keys), "new_progress_items": added if old else 0,
+        "has_valid_baseline": True,
         "progress_keys": keys, "seen_progress_keys": sorted(old_keys | set(keys)), "progress_sha256": digest,
         "latest_source_decision_at": source_time,
         "last_progress_observed_at": last_progress,
@@ -154,12 +163,49 @@ def build_report(
     evaluation_times: list[str] = []
     states: Counter[str] = Counter()
     evaluation_count = 0
+    prospective_collection: list[dict[str, Any]] = []
+    waiting_continuous = active_other = 0
     for row in evaluations:
         evaluation.validate_evaluation(row)
         evaluation_count += 1
         states[str(row["state"])] += 1
+        protocol = (row.get("formal_proof") or {}).get("protocol") or {}
+        continuous = protocol.get("schema_version") == "stock-trading-cash-edge-protocol-v2"
+        if continuous:
+            metrics = row.get("metrics") or {}
+            coverage = metrics.get("coverage") or {}
+            cohort = (row.get("formal_proof") or {}).get("cohort") or {}
+            prospective_collection.append({
+                "challenger_id": row["challenger_id"], "evaluation_state": row["state"],
+                "awaiting_production_trial_receipt": bool(metrics.get("awaiting_production_trial_receipt")),
+                "frozen_anchors": len(cohort.get("members") or []),
+                "required_regular_sessions": protocol.get("fixed_regular_sessions"),
+                "coverage": {key: coverage[key] for key in (
+                    "status", "reason", "expected_sessions", "observed_closes", "regular_end", "calendar_sha256"
+                ) if key in coverage},
+                "formal_evaluation_progress_credited": False,
+            })
+            if row["state"] == "COLLECTING_FRESH_HOLDOUT":
+                expected = coverage.get("expected_sessions")
+                observed = coverage.get("observed_closes")
+                waiting_for_future = (coverage.get("status") == "PENDING"
+                    and coverage.get("reason") == "waiting_for_all_predeclared_session_closes"
+                    and expected == protocol.get("fixed_regular_sessions")
+                    and isinstance(expected, int) and not isinstance(expected, bool) and expected > 0
+                    and isinstance(observed, int) and not isinstance(observed, bool) and 0 <= observed < expected
+                    and bool(coverage.get("calendar_sha256")) and bool(cohort.get("members")))
+                waiting_continuous += int(waiting_for_future)
+                active_other += int(not waiting_for_future)
+        elif row["state"] == "COLLECTING_FRESH_HOLDOUT":
+            active_other += 1
         for sample in row.get("formal_samples") or []:
             source = sample.get("source_event_id") or sample.get("event_id") or sample.get("source_group")
+            if sample.get("execution_semantics") == "continuous_production_lifecycle_v2":
+                if not source or not sample.get("block_id"):
+                    raise contracts.ContractError("continuous evaluation sample requires source and stable block_id")
+                # Every fixed window shares one source anchor. Its immutable
+                # block identifies the distinct actual evaluation observation.
+                source = (source, sample["block_id"])
             if not source:
                 # Full sample content, excluding generated timestamps, remains a
                 # deterministic fallback for preserved legacy evaluations.
@@ -170,12 +216,47 @@ def build_report(
     evaluation_stage = _stage("evaluations", evaluation_keys,
         source_time=max(evaluation_times, key=_utc) if evaluation_times else None,
         previous=previous, now=stamp, stale_after_hours=stale_after_hours,
-        details={"challengers": evaluation_count, "expected_work": evaluation_count > 0, "states": dict(states), "generated_at_is_progress": False})
+        details={"challengers": evaluation_count, "expected_work": evaluation_count > 0, "states": dict(states),
+            "generated_at_is_progress": False, "prospective_collection": prospective_collection})
+    if waiting_continuous and not active_other and not evaluation_stage["new_progress_items"]:
+        # A fixed 60-session tape cannot produce formal samples on each daily
+        # run. Preserve the true watermark and expose collection separately.
+        evaluation_stage["state"] = "COLLECTING_PROSPECTIVE_TAPE"
     report = {
         "schema_version": SCHEMA_VERSION, "generated_at": stamp,
         "events": len(by_id), "stages": {"outcomes": outcome_stage, "regret": regret_stage, "evaluations": evaluation_stage},
         "workflow_status": workflow_status,
+        "source_integrity": {"status": "VALID"},
         "attention_required": workflow_status in {"failure", "cancelled"} or mature > 0 or any(stage["state"] in {"STALLED", "EMPTY_STALLED"} for stage in (outcome_stage, regret_stage, evaluation_stage)),
+        "governance": {"production_decision_influence": False, "source_artifacts_read_only": True, "automatic_policy_writeback": False},
+    }
+    report["health_sha256"] = contracts.payload_sha256(report)
+    validate_report(report)
+    return report
+
+
+def build_failure_report(error: Exception, *, previous: Mapping[str, Any] | None = None,
+                         now: str | None = None, workflow_status: str = "failure") -> dict[str, Any]:
+    """Persist diagnostics without crediting unreadable evidence as progress."""
+    stamp = now or contracts.iso_utc()
+    _utc(stamp)
+    previous = previous or {}
+    if previous:
+        validate_report(previous)
+    stages = {}
+    for name in ("outcomes", "regret", "evaluations"):
+        old = (previous.get("stages") or {}).get(name)
+        stage = dict(old) if old else _stage(name, [], source_time=None, previous={}, now=stamp,
+            stale_after_hours=72, details={"expected_work": False})
+        stage.update(state="UNAVAILABLE", new_progress_items=0,
+                     has_valid_baseline=bool(old and old.get("has_valid_baseline", True)))
+        stages[name] = stage
+    report = {
+        "schema_version": SCHEMA_VERSION, "generated_at": stamp,
+        "events": previous.get("events", 0), "stages": stages,
+        "workflow_status": "cancelled" if workflow_status == "cancelled" else "failure",
+        "source_integrity": {"status": "FAILED", "error_type": type(error).__name__, "message": str(error)[:2000]},
+        "attention_required": True,
         "governance": {"production_decision_influence": False, "source_artifacts_read_only": True, "automatic_policy_writeback": False},
     }
     report["health_sha256"] = contracts.payload_sha256(report)
@@ -213,14 +294,23 @@ def main() -> int:
         source_files.add(args.session_calendar.resolve())
     if output in source_files or any(output.is_relative_to(path.resolve()) for path in (args.experience_root, args.outcome_root, args.evaluations)):
         raise contracts.ContractError("health output overlaps read-only source artifacts")
-    previous = _read(args.output) if args.output.exists() else None
-    report = build_report(_rows(args.experience_root), _rows(args.outcome_root), _read(args.regret) if args.regret.exists() else None,
-        _rows(args.evaluations), horizons=outcomes.load_config(args.config)["horizons_sessions"], previous=previous,
-        sessions_by_market=_read(args.session_calendar) if args.session_calendar else None, stale_after_hours=args.stale_after_hours, workflow_status=args.workflow_status)
+    previous = None
+    exit_code = 0
+    try:
+        if args.output.exists():
+            candidate = _read(args.output)
+            validate_report(candidate)
+            previous = candidate
+        report = build_report(_rows(args.experience_root), _rows(args.outcome_root), _read(args.regret) if args.regret.exists() else None,
+            _evaluation_rows(args.evaluations), horizons=outcomes.load_config(args.config)["horizons_sessions"], previous=previous,
+            sessions_by_market=_read(args.session_calendar) if args.session_calendar else None, stale_after_hours=args.stale_after_hours, workflow_status=args.workflow_status)
+    except (contracts.ContractError, ValueError, KeyError, TypeError, OSError) as error:
+        report = build_failure_report(error, previous=previous, workflow_status=args.workflow_status)
+        exit_code = 1
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps({"events": report["events"], "attention_required": report["attention_required"], "stages": {key: {field: value[field] for field in ("state", "progress_count", "latest_source_decision_at", "last_progress_observed_at")} for key, value in report["stages"].items()}}, ensure_ascii=False, indent=2))
-    return 0
+    return exit_code
 
 
 if __name__ == "__main__":

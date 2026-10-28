@@ -16,7 +16,7 @@ concurrency:
 jobs:
   capture:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 12
     env:
       PYTHONPATH: ${{ github.workspace }}
     steps:
@@ -28,13 +28,16 @@ jobs:
         with:
           python-version: "3.11"
       - name: Collect benchmark and provider close metadata without trading
-        run: python scripts/stock_trading_v2_replay_capture.py
+        run: |
+          python -B scripts/stock_trading_session_calendar.py
+          python scripts/stock_trading_v2_replay_capture.py
       - name: Persist only non-executable native input receipts
         run: |
           set -euo pipefail
-          path=data/investments/stock_trading_v2_production_replay_frames
-          [[ -d "$path" ]] || exit 0
-          git add -- "$path"
+          for path in data/investments/stock_trading_v2_production_replay_frames \
+            data/investments/stock_trading_session_calendars; do
+            [[ ! -e "$path" ]] || git add -- "$path"
+          done
           git diff --cached --quiet && exit 0
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

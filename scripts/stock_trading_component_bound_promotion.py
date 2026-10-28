@@ -37,6 +37,24 @@ class EvidenceBindingError(RuntimeError):
     pass
 
 
+def expected_execution_semantics(challenger: Mapping[str, Any], evaluation: Mapping[str, Any]) -> str:
+    """A new runner label is authority only with its approved frozen protocol."""
+    protocol = challenger.get("protocol") or {}
+    if protocol.get("schema_version") != "stock-trading-cash-edge-protocol-v2":
+        return EXACT_SEMANTICS
+    from scripts import stock_trading_component_evidence as evidence
+    proof = evaluation.get("formal_proof") or {}
+    try:
+        evidence.validate_protocol(protocol)
+    except (ValueError, TypeError, KeyError) as exc:
+        raise EvidenceBindingError("continuous execution protocol is not approved") from exc
+    if (evidence.digest(protocol) != challenger.get("protocol_sha256")
+            or proof.get("protocol") != protocol or proof.get("protocol_sha256") != challenger.get("protocol_sha256")
+            or protocol.get("horizon_sessions") != challenger.get("horizon_sessions")):
+        raise EvidenceBindingError("continuous execution is not bound to its preregistered protocol")
+    return str(protocol["execution_semantics"])
+
+
 def _read(path: Path) -> dict[str, Any]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
@@ -83,7 +101,7 @@ def validate_exact_binding(
         evaluation.get("evaluated_production_candidate"),
         label="evaluated_production_candidate",
     )
-    if evaluated.get("execution_semantics") != EXACT_SEMANTICS:
+    if evaluated.get("execution_semantics") != expected_execution_semantics(challenger, evaluation):
         raise EvidenceBindingError("evaluation did not use exact_shadow_replay semantics")
     for key in REQUIRED_CANDIDATE_FIELDS:
         if str(candidate[key]) != str(evaluated[key]):

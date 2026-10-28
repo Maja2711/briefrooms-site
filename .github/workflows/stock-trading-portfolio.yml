@@ -99,6 +99,7 @@ jobs:
       - name: Review positions and refresh session-aware quotes
         run: |
           set -euo pipefail
+          python -B scripts/stock_trading_sourced_metadata.py
           python scripts/stock_trading_portfolio.py --mode run --market "${{ steps.market.outputs.value }}"
           python scripts/stock_trading_quote_enricher.py --market "${{ steps.market.outputs.value }}" --verify
           python scripts/stock_trading_portfolio.py --mode verify
@@ -112,7 +113,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -- data/investments/stock_trading_portfolio.json
-          for path in data/investments/stock_trading_v2_production_replay_frames; do
+          for path in data/investments/stock_trading_v2_production_replay_frames \
+            data/investments/stock_trading_sourced_metadata.json \
+            data/investments/stock_trading_risk_data_coverage.json; do
             [[ ! -e "$path" ]] || git add -- "$path"
           done
           if git diff --cached --quiet; then

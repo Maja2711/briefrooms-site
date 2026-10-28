@@ -122,7 +122,16 @@ class StockTradingV2AdmissionLedgerTests(unittest.TestCase):
             store, root = base / "experience", base / "admission"
             shutil.copytree(original_store, store)
             shutil.copytree(original_admission_root, root)
-            before = {path: path.read_bytes() for directory in (store, root) for path in directory.rglob("*.json")}
+            # The live fixture now contains prospective v2 admissions too.
+            # Their original epoch is part of the immutable source contract;
+            # omitting it would manufacture a different activation in this copy.
+            original_epochs = fixture_data / "stock_trading_v2_admission_epochs"
+            epochs = base / "admission_epochs"
+            if original_epochs.exists():
+                shutil.copytree(original_epochs, epochs)
+            expected_formal = sum(admission.is_formal_observation(json.loads(path.read_text(encoding="utf-8")))
+                                  for path in original_admissions)
+            before = {path: path.read_bytes() for directory in (store, root, epochs) for path in directory.rglob("*.json")}
             policy = deepcopy(POLICY)
             policy["schema_version"] = "stock-trading-policy-v1"
             policy_path = base / "policy.json"
@@ -136,7 +145,7 @@ class StockTradingV2AdmissionLedgerTests(unittest.TestCase):
             self.assertEqual({path: path.read_bytes() for path in before}, before)
             self.assertEqual(experience.verify_store(store)["event_count"], len(original_events))
             self.assertEqual(admission.verify(root)["count"], len(original_admissions))
-            self.assertEqual(admission.verify(root)["formal_count"], 0)
+            self.assertEqual(admission.verify(root)["formal_count"], expected_formal)
 
     def test_actual_v2_opportunity_adapter_produces_admissible_frozen_context(self):
         from scripts import stock_trading_v2_opportunity_engine as opportunity

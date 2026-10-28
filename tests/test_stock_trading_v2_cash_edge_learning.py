@@ -55,7 +55,7 @@ def challenger(horizon=2):
     candidate = factory._cash_edge_candidates(
         hypothesis={"component": "cash_admission_margin", "market": "US", "horizon_sessions": horizon},
         manifest=MANIFEST, policy=POLICY)[0]
-    row = tournament.make_challenger(candidate, "discovery-sha", {}, start_at=START.isoformat().replace("+00:00", "Z"))
+    row = tournament.make_challenger(candidate, "discovery-sha", {"cash_protocol_version": "legacy_v1"}, start_at=START.isoformat().replace("+00:00", "Z"))
     family = {"family_id": "stock-trading-v2-cash-edge-lifetime-v1", "test_index": 1,
               "challenger_id": row["challenger_id"], "protocol_sha256": row["protocol_sha256"],
               "reserved_at": START.isoformat(), "lifetime_max_tests": 24, "alpha": 0.05 / 24}

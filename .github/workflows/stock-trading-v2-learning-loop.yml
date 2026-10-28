@@ -40,6 +40,7 @@ jobs:
       PYTHONPATH: ${{ github.workspace }}
     steps:
       - name: Check out Stock Trading v2 with production history available
+        id: research_checkout
         uses: actions/checkout@v4
         with:
           ref: stock-trading-v2
@@ -254,14 +255,39 @@ jobs:
           python scripts/stock_trading_v2_outcome_replay.py --verify
           python scripts/stock_trading_v2_policy_learner.py --verify
 
+      - name: Verify original immutable research history bytes before persistence
+        id: immutable_history
+        if: always() && steps.research_checkout.outcome == 'success'
+        run: |
+          set -euo pipefail
+          # New append-only evidence is allowed. Previously tracked decisions,
+          # admissions and terminal outcomes must remain byte-identical to HEAD.
+          paths=(
+            data/investments/stock_trading_v2_experience
+            data/investments/stock_trading_v2_admission
+            data/investments/stock_trading_v2_admission_epochs
+            data/investments/stock_trading_v2_admission_retrospective
+            data/investments/stock_trading_v2_position_experience
+            data/investments/stock_trading_v2_position_observations
+            data/investments/stock_trading_v2_outcomes
+          )
+          if ! git diff --quiet --diff-filter=DMRTUXB HEAD -- "${paths[@]}"; then
+            git diff --name-only --diff-filter=DMRTUXB HEAD -- "${paths[@]}"
+            echo "IMMUTABLE_HISTORY_CHANGED: refusing research persistence."
+            exit 1
+          fi
+          git ls-files -s -- "${paths[@]}" > /tmp/stock-trading-v2-immutable-history.txt
+          echo "IMMUTABLE_HISTORY_PRESERVED"
+
       - name: Record separate settlement regret and evaluation watermarks even after failure
-        if: always()
+        if: always() && steps.research_checkout.outcome == 'success'
         env:
           LEARNING_JOB_STATUS: ${{ job.status }}
         run: python scripts/stock_trading_v2_learning_health.py --workflow-status "$LEARNING_JOB_STATUS"
 
       - name: Commit closed-loop research evidence and diagnostic progress
-        if: always()
+        id: persist_evidence
+        if: always() && steps.research_checkout.outcome == 'success' && steps.immutable_history.outcome == 'success'
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
@@ -301,3 +327,18 @@ jobs:
             sleep $((attempt*3))
           done
           exit 1
+
+      - name: Record failed persistence in retained health diagnostics
+        if: always() && steps.research_checkout.outcome == 'success' && steps.persist_evidence.outcome == 'failure'
+        run: python scripts/stock_trading_v2_learning_health.py --workflow-status failure
+
+      - name: Preserve learning diagnostics even when evidence cannot be pushed
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stock-trading-v2-learning-health-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            data/investments/stock_trading_v2_learning/learning_health.json
+            /tmp/stock-trading-v2-immutable-history.txt
+          if-no-files-found: warn
+          retention-days: 14

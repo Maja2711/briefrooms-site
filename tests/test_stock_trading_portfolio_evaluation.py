@@ -203,9 +203,10 @@ class PortfolioEvaluationTests(unittest.TestCase):
             self.assertEqual(first["watch"], repeat["watch"])
             self.assertEqual(original, path.read_bytes())
             replay.register_replay_watch(market="US", symbol="BBB", decision_at=self.now, root=path)
-            self.assertEqual("CAPACITY_REACHED", replay.register_replay_watch(market="US", symbol="CCC", decision_at=self.now, root=path)["status"])
+            self.assertEqual("CAPACITY_REACHED", replay.register_replay_watch(market="US", symbol="CCC", decision_at=self.now, root=path, maximum_new_symbols_per_market_per_week=2)["status"])
             self.assertEqual(2, len(replay.active_replay_watches(now=self.now, root=path)))
-            self.assertEqual([], replay.active_replay_watches(now=self.now + timedelta(hours=168), root=path))
+            self.assertEqual(2, len(replay.active_replay_watches(now=self.now + timedelta(hours=168), root=path)))
+            self.assertEqual([], replay.active_replay_watches(now=self.now + timedelta(days=180), root=path))
             payload = json.loads(path.read_text(encoding="utf-8"))
             payload["watches"][0]["symbol"] = "UNVERIFIED"
             path.write_text(json.dumps(payload), encoding="utf-8")

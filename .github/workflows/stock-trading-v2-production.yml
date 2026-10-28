@@ -130,6 +130,8 @@ jobs:
       - name: Revalidate and admit v2 Champion opportunities
         run: |
           set -euo pipefail
+          python -B scripts/stock_trading_sourced_metadata.py
+          python -B scripts/stock_trading_session_calendar.py
           ARGS=()
           [[ -f /tmp/v2-gpw.json ]] && ARGS+=(--gpw-opportunity /tmp/v2-gpw.json)
           [[ -f /tmp/v2-us.json ]] && ARGS+=(--us-opportunity /tmp/v2-us.json)
@@ -160,6 +162,9 @@ jobs:
             data/investments/stock_trading_reentry_learning.json \
             data/investments/stock_trading_v2_production_replay_frames \
             data/investments/stock_trading_v2_replay_watchlist.json \
+            data/investments/stock_trading_sourced_metadata.json \
+            data/investments/stock_trading_risk_data_coverage.json \
+            data/investments/stock_trading_session_calendars \
             data/investments/stock_trading_policy.json; do
               [[ ! -e "$path" ]] || git add -- "$path"
           done

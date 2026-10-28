@@ -10,6 +10,7 @@ an exception can be activated in production policy.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import statistics
@@ -83,6 +84,68 @@ def recent_stop(state: Mapping[str, Any], market: str, symbol: str, now: datetim
         if closed and 0 <= (now - closed).total_seconds() <= days * 86400:
             valid.append((closed, entry))
     return max(valid, key=lambda pair: pair[0])[1] if valid else None
+
+
+def _chart_hash(chart: Mapping[str, Any]) -> str:
+    return hashlib.sha256(json.dumps(chart, sort_keys=True, separators=(",", ":"),
+                                     ensure_ascii=False, allow_nan=False).encode()).hexdigest()
+
+
+def freeze_chart(market: str, symbol: str, chart: Mapping[str, Any], *, received_at: datetime) -> dict[str, Any]:
+    """Freeze bounded raw formed 15m bars before any actual/virtual stop query."""
+    meta = chart.get("meta") or {}
+    if (market not in TZ or received_at.tzinfo is None
+            or str(meta.get("symbol") or "").upper() != symbol.upper()
+            or (market == "GPW") != symbol.upper().endswith(".WA")
+            or meta.get("currency") != {"GPW": "PLN", "US": "USD"}[market]):
+        raise ValueError("native reentry chart issuer identity invalid")
+    quote = ((chart.get("indicators") or {}).get("quote") or [{}])[0]
+    if not isinstance(quote, Mapping):
+        raise ValueError("native reentry chart quote invalid")
+    selected: list[tuple[int, int]] = []
+    for index, value in enumerate(chart.get("timestamp") or []):
+        try:
+            stamp = int(value)
+            end = datetime.fromtimestamp(stamp, timezone.utc) + timedelta(minutes=15)
+            if received_at - timedelta(days=32) <= end <= received_at:
+                selected.append((index, stamp))
+        except (ValueError, TypeError, OSError, OverflowError):
+            continue
+    if not selected or len({stamp for _, stamp in selected}) != len(selected):
+        raise ValueError("native reentry chart formed candles missing or duplicated")
+    selected.sort(key=lambda pair: pair[1])
+    frozen = {"meta": {"symbol": symbol, "currency": meta["currency"]},
+              "timestamp": [stamp for _, stamp in selected], "indicators": {"quote": [{
+                  key: [values[index] if index < len(values) else None for index, _ in selected]
+                  for key in ("open", "high", "low", "close", "volume")
+                  for values in [quote.get(key) or []]
+              }]}}
+    observed = datetime.fromtimestamp(selected[-1][1], timezone.utc) + timedelta(minutes=15)
+    return {"schema_version": "stock-trading-reentry-chart-v1", "market": market, "symbol": symbol,
+            "source": "Yahoo Finance chart", "interval_seconds": 900,
+            "source_url": "https://query1.finance.yahoo.com/v8/finance/chart/" + symbol,
+            "observed_at": observed.isoformat(), "received_at": received_at.isoformat(),
+            "chart": frozen, "chart_sha256": _chart_hash(frozen)}
+
+
+def features_from_chart(receipt: Any, market: str, symbol: str, stop: Mapping[str, Any], price: float,
+                        quote_observed_at: str, atr_fraction: Any, volume_ratio: Any,
+                        *, decision_at: datetime) -> dict[str, float] | None:
+    """Replay derives features for its OWN stopped position, without networking."""
+    if not isinstance(receipt, Mapping):
+        raise ValueError("native reentry chart receipt missing")
+    observed, received = _dt(receipt.get("observed_at")), _dt(receipt.get("received_at"))
+    chart = receipt.get("chart") or {}
+    if (receipt.get("schema_version") != "stock-trading-reentry-chart-v1"
+            or receipt.get("market") != market or receipt.get("symbol") != symbol
+            or receipt.get("source") != "Yahoo Finance chart" or receipt.get("interval_seconds") != 900
+            or _chart_hash(chart) != receipt.get("chart_sha256")
+            or (chart.get("meta") or {}).get("symbol") != symbol
+            or (chart.get("meta") or {}).get("currency") != {"GPW": "PLN", "US": "USD"}.get(market)
+            or observed is None or received is None or not observed <= received <= decision_at
+            or decision_at - received > timedelta(minutes=20)):
+        raise ValueError("native reentry chart receipt identity/time/hash invalid")
+    return quote_features(market, symbol, stop, price, quote_observed_at, atr_fraction, volume_ratio, chart=chart)
 
 
 def quote_features(
