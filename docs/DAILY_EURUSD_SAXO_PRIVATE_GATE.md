@@ -21,7 +21,7 @@
 4. Private paper entry: LONG at Saxo ASK, SHORT at Saxo BID. No artificial 1.5-pip buffer added on top of Saxo spread. Frozen synthetic spread in execution-cost contract remains a **risk-estimation proxy for analytical Yahoo OHLC**; never reinterpret it as a real broker execution.
 5. Exit triggers come from existing SL/TP/dynamic/macro event evaluator using Yahoo 1m bars and decision stack. If it requests closure, obtain **another Saxo quote** no older than 15 seconds. LONG exits at Saxo BID, SHORT at Saxo ASK. Close timestamp is the actual Saxo quote timestamp; the original Yahoo trigger is kept solely for private diagnostic context.
 6. **Fail closed:** if Saxo is unavailable/stale or the private runtime flag is missing, do not record a fabricated Yahoo-priced Saxo closure. The position remains OPEN and must be supervised. Since this is paper trading, this is **not** guaranteed protective live SL execution; outage and quote gaps can lead to materially worse paper exit.
-7. Until a separate private scheduler/persistent store is configured, no continuously running private Saxo executor is guaranteed. Existing public schedule cannot write private Saxo entry/exit prices to GitHub history. A successful merge is not proof of a live cycle.
+7. A dedicated private D1 scheduler exists but starts only after explicit activation and successful D1 initialization. Public Daily cannot write Saxo prices/history to GitHub. A successful code merge alone does not prove live automation.
 
 ## Required private authentication
 
@@ -29,8 +29,8 @@ The Cloudflare Worker `briefrooms-saxo-eurusd` has working Saxo SIM OAuth and it
 
 ## Diagnosing authenticated HTTP 401/403 (read-only)
 
-GitHub Actions workflow `saxo-private-connection-diagnostic.yml` runs **only**
-on manual `workflow_dispatch`. Run it from the default `main` branch after
+GitHub Actions workflow `saxo-private-connection-diagnostic.yml` runs manually and on a scoped
+push that changes its diagnostic workflow. Run it from the default `main` branch after
 setting `SAXO_PRIVATE_BASIC_PASSWORD`. A stored secret proves nothing about
 the downstream Worker auth contract.
 
@@ -99,71 +99,83 @@ python -m unittest tests.test_saxo_private_feed tests.test_saxo_private_primary 
 The merger never auto-enables private mode or copies Cloudflare credentials to GitHub. A complete live validation requires: authenticated Worker fetch from an independent process (no browser cookie), stable token renewal, a real private entry + a real private exit in a controlled simulated trade, and confirmation that public artifacts continue to use only independently permitted public display data.
 
 
-## Scheduled private Saxo EURUSD Daily — dedicated R2 state
+## Automatic Saxo EURUSD Daily — D1 Free, EURUSD only
 
-The authenticated Saxo SIM Worker connectivity test passed on 2026-10-27
-(`PASS_AUTHENTICATED_PRIVATE_SAXO_SIM_READ`). This proves the feed, not a
-persisted trading lifecycle. The dedicated workflow
-`.github/workflows/saxo-private-eurusd-daily-cycle.yml` is the automatic,
-**private PAPER-only** companion of the public EURUSD Daily. It does not
-modify public Yahoo pricing or other instruments.
+**R2 was superseded.** Do not activate an R2 paid subscription or configure
+R2 keys for this strategy. The old R2 Saxo scheduler has been removed; its
+unused runner source remains only for offline snapshot encoding and the
+private v1.9 lifecycle helper.
 
-Every 5-minute GitHub Actions schedule (subject to GitHub scheduling delays):
-1. Obtain credentials from the Actions secret store; use a dedicated **private**
-   R2 bucket, with its own bucket-scoped Object Read/Write key.
-2. Restore the private output, history, canonical policy and decision ledger to
-   a transient runner directory **outside** the Git checkout, checking SHA-256
-   for each persisted JSON file.
-3. Run the existing v1.9 Daily Belief → EPE → lifecycle in
-   `BRIEFROOMS_PRIVATE_RUNTIME=1`, `SAXO_PRIVATE_PRIMARY=1`. New private
-   entries use fresh Saxo SIM ASK for LONG and BID for SHORT; open position
-   management can close using the separately validated Saxo BID/ASK.
-4. Run the exit-only fast lifecycle evaluator for any still-open private paper
-   position, without creating a second directional decision.
-5. Write one complete next-generation private snapshot back to R2 using atomic
-   conditional `If-Match` / `If-None-Match`; GET-readback must match the
-   original SHA-256. Any invalid state, authentication failure, stale quote,
-   concurrent write, or missing snapshot after initialization is a **hard
-   fail-closed**, never a reset of history.
-6. Never upload artifacts, print private prices, publish private P&L or push
-   Saxo-derived output to the public GitHub repo.
+The correct workflow is
+`.github/workflows/saxo-private-eurusd-daily-d1-cycle.yml`.
+It is an isolated five-minute **paper** EURUSD cycle (not live broker orders).
+The existing public Yahoo Daily and every other instrument remain unchanged.
 
-This is a **five-minute control loop**, not the public five-second realtime
-watcher or broker-guaranteed stop loss. GitHub Actions scheduling is best
-effort; an open simulated position can miss fast exits while the runner is
-unavailable. No real broker orders are sent.
+### One private D1 database
 
-### Activation — separate infrastructure, explicit opt-in
+Create exactly one separate Cloudflare D1 database,
+`brs-saxo-eurusd-private`. Do **not** write this state into the existing
+`briefrooms-saxo-oauth` D1 database, which stores Saxo OAuth tokens.
+A separate database isolates both privileges and backup/restore operations.
+On the Cloudflare Workers Free plan, the database limit is 500 MB, the
+account-wide D1 storage allowance is 5 GB, and exceeding daily usage limits
+causes query failures rather than automatic overage charges. Keep the
+account on Workers Free; do not activate the Workers Paid plan.
 
-Cloudflare:
-- Create a **new private R2 bucket** for this personal Saxo paper journal,
-  distinct from `BRS_R2_PILOT_BUCKET`. Do not expose it through an R2 public
-  domain or an R2.dev public URL.
-- Create a dedicated bucket-scoped R2 API token with **Object Read & Write**
-  and generate the R2 S3 Access Key ID / Secret Access Key. Do not use the
-  OAuth Saxo tokens as S3 credentials.
+The database stores one **compressed, checksum-protected** state row only:
+private EURUSD Daily position, append-only completed-trade history, policy
+state and decision ledger. There is no archival write for every five-minute
+market quote. A single database row's capacity is limited to 2 MB by D1;
+the runner stops (fail-closed) before an encoded state exceeds 1.5 MB, so
+long-lived history may eventually need an archival design. Do not treat D1
+as infinite storage.
 
-GitHub Actions repository **variables**:
-- `SAXO_PRIVATE_R2_BUCKET`: exact dedicated private bucket name.
-- `SAXO_PRIVATE_AUTO_ENABLED`: initially `false`, then `true` only
-  after storage and security validation.
+Cloudflare dashboard:
+1. Storage & databases → D1 SQL Database → Create database.
+2. Name it `brs-saxo-eurusd-private` and retain its UUID/database ID.
+3. Create a scoped Cloudflare API token with D1 **Write** permissions
+   for this account. Store token securely; do not use the Saxo account
+   password or the OAuth client secret.
 
-GitHub Actions repository **secrets**:
-- `SAXO_PRIVATE_R2_ACCESS_KEY_ID`: R2 bucket-scoped Access Key ID.
-- `SAXO_PRIVATE_R2_SECRET_ACCESS_KEY`: corresponding R2 Secret Access Key.
-- Existing `SAXO_PRIVATE_BASIC_PASSWORD` and `CLOUDFLARE_ACCOUNT_ID`
-  remain in use.
+GitHub → Settings → Secrets and variables → Actions:
 
-Do not paste credentials into tickets, chat, GitHub source or workflow logs.
+- Repository **variable** `SAXO_PRIVATE_D1_DATABASE_ID` = database UUID.
+- Repository **secret** `SAXO_PRIVATE_D1_API_TOKEN` = scoped D1 API token.
+- Existing `CLOUDFLARE_ACCOUNT_ID`, `SAXO_PRIVATE_BASIC_PASSWORD` remain.
+- Repository **variable** `SAXO_PRIVATE_AUTO_ENABLED` = `false` initially.
 
-The workflow runs offline regression checks on pushes and PRs. The scheduled
-private cycle **will not run at all** unless
-`SAXO_PRIVATE_AUTO_ENABLED=true`. Following activation, trigger
-`workflow_dispatch` from `main`; require the log line
-`RESULT=PRIVATE_SAXO_DAILY_CYCLE_PASS`, verify there are no public Git diffs,
-and inspect subsequent consecutive runs and eventual private paper open AND
-close before declaring the *automatic trading simulation* operational.
+### Bootstrap (manual once) and activation
 
-Manual disable/rollback: set `SAXO_PRIVATE_AUTO_ENABLED=false`. Leave R2
-state untouched for audit and restart. The existing public EURUSD Daily
-workflow continues independently.
+The D1 journal is initialized **only by an explicit operator action**. Open
+the GitHub Actions workflow `Private Saxo SIM EURUSD Daily cycle (isolated
+D1 Free)`, select `Run workflow → main → operation: initialize`.
+This creates one empty genesis state and never rewrites an existing state.
+The private cycle is still disabled while `SAXO_PRIVATE_AUTO_ENABLED=false`.
+
+After successful initialization and review, set the same GitHub variable to
+`true`, then choose `Run workflow → operation: run` once. Look for
+`RESULT=PRIVATE_SAXO_D1_DAILY_CYCLE_PASS` and
+`PUBLIC_DAILY_ARTIFACTS_UNMODIFIED=TRUE`. Confirm a second scheduled run,
+private decision history durability and first actual simulated open and close
+before claiming complete operational integration.
+
+Every run:
+1. Fetch authoritative Belief Core / Epistemic state just like public Daily,
+   with enforced no-retroactive-execution flags.
+2. Restore the D1 snapshot into a temporary directory outside Git checkout,
+   validating SHA-256 for each file and the whole compressed bundle.
+3. Run existing v1.9 Belief/EPE admission and exit-only v1.8 lifecycle,
+   priced privately from fresh Saxo SIM ASK/BID (and fresh Yahoo technical
+   triggers) under `SAXO_PRIVATE_PRIMARY=1`.
+4. Save the complete next state by a **single atomic SQL UPDATE with
+   compare-and-swap** generation and checksum guards; verify readback.
+   Missing/corrupt state, concurrent modifications, missing credentials,
+   stale quotes and D1 Free limit errors fail closed without fabricating a
+   close or resetting the trading journal.
+5. Print only bounded status codes, never private quotes, credentials, Saxo
+   tokens, trade fills, prices or P/L to logs/artifacts or public pages.
+
+Disable immediately by setting `SAXO_PRIVATE_AUTO_ENABLED=false`;
+the private D1 history is preserved. A five-minute GitHub Actions schedule
+is best effort and **cannot** replace the fast five-second exit monitor or
+provide real SL execution during outages. No claim of broker execution.
