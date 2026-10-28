@@ -19,6 +19,8 @@ on:
       - "scripts/publish_live_news_filtered.py"
       - "scripts/publish_curated_news.py"
       - "scripts/publish_source_expansion_v3.py"
+      - "scripts/pl_sport_priority.py"
+      - "data/news/pl_sport_priority_events.json"
       - "scripts/news_source_architecture.py"
       - "scripts/news_source_expansion_v3.py"
       - "scripts/news_event_intelligence_v4.py"
@@ -36,6 +38,7 @@ on:
       - "tests/__init__.py"
       - "tests/test_publish_live_news.py"
       - "tests/test_news_sport_diversity.py"
+      - "tests/test_pl_sport_priority.py"
       - "tests/test_news_source_architecture.py"
       - "tests/test_source_expansion_v3.py"
       - "tests/test_event_intelligence_v4.py"
@@ -101,6 +104,7 @@ jobs:
             scripts/validate_live_news_health.py \
             scripts/publish_live_news_filtered.py \
             scripts/publish_curated_news.py \
+            scripts/pl_sport_priority.py \
             scripts/publish_source_expansion_v3.py \
             scripts/news_source_architecture.py \
             scripts/news_source_expansion_v3.py \
@@ -115,6 +119,7 @@ jobs:
           python -m unittest \
             tests.test_publish_live_news \
             tests.test_validate_live_news_health \
+            tests.test_pl_sport_priority \
             tests.test_news_sport_diversity \
             tests.test_news_source_architecture \
             tests.test_source_expansion_v3 \
