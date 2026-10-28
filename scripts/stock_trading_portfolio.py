@@ -26,7 +26,7 @@ import time
 import urllib.parse
 import urllib.request
 from copy import deepcopy
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping
 from zoneinfo import ZoneInfo
@@ -310,7 +310,7 @@ def sector_identity(position: Mapping[str, Any], *, now: datetime | None = None)
         return "UNKNOWN"
     source = str(provenance.get("source") or "").strip()
     observed = _market_datetime(provenance.get("observed_at"), str(position.get("market") or ""))
-    if not source or observed is None or (now is not None and observed > now):
+    if not source or observed is None or (now is not None and (observed > now or now - observed > timedelta(days=30))):
         return "UNKNOWN"
     return sector.casefold()
 
@@ -318,6 +318,7 @@ def sector_identity(position: Mapping[str, Any], *, now: datetime | None = None)
 def portfolio_admission_risk(
     state: Mapping[str, Any], market: str, selection: Mapping[str, Any], *,
     policy: Mapping[str, Any] | None = None, now: datetime | None = None,
+    risk_metadata: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Prospective per-currency stop budget and sourced-sector admission gate.
 
@@ -333,8 +334,22 @@ def portfolio_admission_risk(
     counts: dict[str, int] = {}
     existing_risk = 0.0
     invalid: list[str] = []
+    remaining_cost_basis: dict[str, str] = {}
+    sector_receipts: dict[str, Any] = {}
+    def current_sector(position: Mapping[str, Any]) -> str:
+        if risk_metadata is not None and now is not None:
+            try:
+                from scripts import stock_trading_sourced_metadata as sourced
+            except ModuleNotFoundError:
+                import stock_trading_sourced_metadata as sourced
+            resolved = sourced.risk_sector(position, market, risk_metadata, now=now)
+            if resolved is not None:
+                key = str(position.get("position_id") or position.get("symbol") or position.get("ticker"))
+                sector_receipts[key] = resolved["sector_provenance"]["observation_id"]
+                return sector_identity({**dict(position), **resolved, "market": market}, now=now)
+        return sector_identity(position, now=now)
     for position in positions:
-        sector = sector_identity(position, now=now)
+        sector = current_sector(position)
         counts[sector] = counts.get(sector, 0) + 1
         mark = _float(position.get("last_mark") or position.get("entry"))
         stop = _float(position.get("stop"))
@@ -344,8 +359,18 @@ def portfolio_admission_risk(
             continue
         existing_risk += max(0.0, mark - stop) * quantity
         frozen_model = position.get("transaction_cost_model")
+        position_key = str(position.get("position_id") or position.get("symbol") or "unknown")
         if isinstance(frozen_model, Mapping):
             existing_risk += transaction_cost(stop * quantity, frozen_model)
+            remaining_cost_basis[position_key] = "FROZEN_ENTRY_PAPER_ASSUMPTION"
+        elif isinstance(cfg.get("transaction_costs"), Mapping):
+            # Only the future exit leg is stress-tested under current policy.
+            # Historical entry/fill costs remain unknown and unscorable.
+            existing_risk += transaction_cost(stop * quantity, cfg["transaction_costs"])
+            remaining_cost_basis[position_key] = "CURRENT_PROSPECTIVE_EXIT_STRESS_NOT_HISTORICAL_COST"
+        else:
+            invalid.append(position_key)
+            remaining_cost_basis[position_key] = "UNKNOWN"
     snapshot = selection.get("market_snapshot") or {}
     entry = _float(snapshot.get("last") or selection.get("reference_price"))
     stop = _float(selection.get("stop"))
@@ -356,7 +381,7 @@ def portfolio_admission_risk(
         candidate_risk = (entry - stop) * quantity
         if isinstance(model, Mapping):
             candidate_risk += transaction_cost(entry * quantity, model) + transaction_cost(stop * quantity, model)
-    candidate_sector = sector_identity({**dict(selection), "market": market}, now=now)
+    candidate_sector = current_sector({**dict(selection), "market": market})
     proposed_counts = {**counts, candidate_sector: counts.get(candidate_sector, 0) + 1}
     result = {
         "allowed": True, "reason": "portfolio_risk_not_configured", "market": market,
@@ -366,6 +391,8 @@ def portfolio_admission_risk(
         "proposed_aggregate_stop_loss_cash": round(existing_risk + candidate_risk, 4) if candidate_risk is not None else None,
         "candidate_sector": candidate_sector, "sector_positions": counts, "proposed_sector_positions": proposed_counts,
         "unknown_sector_positions": counts.get("UNKNOWN", 0), "missing_risk_position_ids": invalid,
+        "current_sector_observation_ids": sector_receipts,
+        "remaining_exit_cost_basis": remaining_cost_basis,
     }
     if not limits or limits.get("enabled") is not True:
         return result
@@ -737,6 +764,7 @@ def admit_candidate(
     now: datetime,
     policy: Mapping[str, Any] | None = None,
     authority: str = "legacy",
+    risk_metadata: Mapping[str, Any] | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     market = market.upper()
     policy = policy or load_policy()
@@ -769,7 +797,7 @@ def admit_candidate(
         return updated, {"action": "hold_existing_symbol", "market": market, "symbol": symbol}
     if available_slots(updated, market, policy) <= 0:
         return updated, {"action": "portfolio_full", "market": market, "reason": "market_cap_3"}
-    portfolio_risk = portfolio_admission_risk(updated, market, selection, policy=policy, now=now)
+    portfolio_risk = portfolio_admission_risk(updated, market, selection, policy=policy, now=now, risk_metadata=risk_metadata)
     if not portfolio_risk["allowed"]:
         row["last_candidate_decision"] = "CASH"
         row["last_candidate_reason"] = portfolio_risk["reason"]

@@ -47,7 +47,7 @@ Stock Trading v2 optimizes net expectancy with explicit opportunity cost. Empty 
    - Maximum one research action per market cycle.
 9. **Immutable learning loop**
    - Selected and rejected candidates are frozen prospectively into the same Experience Store.
-   - New decisions with a frozen production context retain every distinct source opportunity; replaying the same source is idempotent. Historical contextless records retain their daily deduplication. Formal independent N is counted by disjoint episodes, not repeated scans.
+   - New decisions with a frozen production context retain every distinct source opportunity; replaying the same source is idempotent. Historical contextless records retain their daily deduplication. Existing v1 formal trials retain disjoint 168-hour episodes. New v2 trials freeze one first-eligible main-native anchor and its complete 60-session future calendar/tape, replay continuous paired books and aggregate whole-portfolio NAV by calendar week; repeated scans and correlated names are never independent formal N.
    - Canonical Champion admission is frozen before outcomes are known.
    - Counterfactual replay settles 1/2/5/10/20/60/120-session outcomes.
    - Opportunity Regret attributes false positives and false negatives to decision gates.
@@ -55,7 +55,7 @@ Stock Trading v2 optimizes net expectancy with explicit opportunity cost. Empty 
    - Trigger-directed deep research is joined to 1/3/5/20-session Trigger outcomes by exact observation ID; the report measures evidence yield, score update and directional-update/outcome agreement without claiming causality.
 10. **Policy learning and promotion boundary**
    - Learning creates future-only Challenger policies and exact Factory deployment artifacts.
-   - Replay Tournament and the fixed-N fresh prospective holdout remain research gates on this branch.
+   - Replay Tournament and the fixed-N fresh prospective holdout remain research gates on this branch. New CASH protocol v2 ends at the predeclared 60th actual regular close (h1=60 windows, h2=30), requires exact close valuation and complete native replay coverage, uses a bounded weekly conditional-mean e-value plus separate unclipped net, drawdown and concentration gates, and labels block bootstrap as descriptive sensitivity only. Old v1 verdicts/reservations remain immutable; both versions share lifetime 24/alpha 0.05/24 and main-owned receipts. See `STOCK_TRADING_CASH_EDGE_LEARNING.md` for the exact hypothesis and limitations.
    - A formal PASS is evidence only; this branch cannot materialize it into production.
    - A Challenger may nominate only an exact bounded deployment artifact that can be independently revalidated by `main`.
    - Production admission is owned exclusively by `.github/workflows/stock-trading-component-promotion.yml` on `main`, which performs candidate intake, exact binding, current-Champion checks, health checks and rollback.

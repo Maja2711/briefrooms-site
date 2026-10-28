@@ -43,6 +43,9 @@ def production_code_sha256() -> str:
         "stock_trading_quote_enricher.py", "stock_trading_v2_reentry_learning.py",
         "stock_trading_portfolio_analytics.py", "stock_trading_v2_production_replay.py",
         "provenance_contract.py", "stock_trading_v2_contracts.py",
+        "stock_trading_sourced_metadata.py", "company_logo_resolver.py",
+        "stock_trading_session_calendar.py", "nyse_session_calendar.py",
+        "stock_trading_v2_replay_capture.py",
     ))
     return payload_sha256({path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in paths})
 
@@ -69,9 +72,13 @@ def active_replay_watches(*, now: datetime, market: str | None = None, root: Pat
     for item in payload.get("watches") or []:
         body = dict(item)
         digest = body.pop("watch_id", None)
+        duration = _time(item["expires_at"]) - _time(item["decision_at"])
+        retention = item.get("retention_contract")
+        valid_retention = (duration == timedelta(hours=168) and retention is None) or (
+            duration == timedelta(days=180) and retention == "FROZEN_PROSPECTIVE_60_SESSIONS_MAX_180_DAYS_V1")
         if (digest != payload_sha256(body) or item.get("market") not in portfolio.MARKET_TZ
                 or item.get("symbol") != str(item.get("symbol") or "").upper().strip()
-                or not item.get("symbol") or _time(item["expires_at"]) - _time(item["decision_at"]) != timedelta(hours=168)):
+                or not item.get("symbol") or not valid_retention):
             raise ValueError("native replay watch receipt invalid")
         if market is not None and item.get("market") != market.upper():
             continue
@@ -82,7 +89,7 @@ def active_replay_watches(*, now: datetime, market: str | None = None, root: Pat
 
 def register_replay_watch(
     *, market: str, symbol: str, decision_at: str | datetime, root: Path = DEFAULT_WATCH_PATH,
-    expires_hours: int = 168, maximum_new_symbols_per_market_per_week: int = 2,
+    expires_hours: int = 180 * 24, maximum_new_symbols_per_market_per_week: int = 40,
 ) -> dict[str, Any]:
     """The sole main bridge writer subscribes bounded future input collection.
 
@@ -93,20 +100,27 @@ def register_replay_watch(
     moment = decision_at if isinstance(decision_at, datetime) else _time(decision_at)
     if market not in portfolio.MARKET_TZ or not symbol or moment.tzinfo is None:
         raise ValueError("invalid replay watch identity")
-    if expires_hours != 168 or not 1 <= maximum_new_symbols_per_market_per_week <= 2:
-        raise ValueError("replay watches require 168h and at most two new symbols per market/week")
+    weekly_cap = 2 if expires_hours == 168 else 40
+    if expires_hours not in {168, 180 * 24} or not 1 <= maximum_new_symbols_per_market_per_week <= weekly_cap:
+        raise ValueError("replay watch requires legacy 168h/2 weekly or bounded 180d/40 weekly")
     path = Path(root)
     payload = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {"schema_version": "stock-trading-v2-replay-watchlist-v1", "authority": "NON_EXECUTABLE_RESEARCH_COLLECTION_ONLY", "watches": []}
     if payload.get("schema_version") != "stock-trading-v2-replay-watchlist-v1":
         raise ValueError("native replay watchlist schema invalid")
-    for watch in active_replay_watches(now=moment, market=market, root=path):
-        if watch["symbol"] == symbol:
+    active = active_replay_watches(now=moment, market=market, root=path)
+    for watch in active:
+        enough_remaining = expires_hours == 168 or _time(watch["expires_at"]) - moment >= timedelta(days=120)
+        if watch["symbol"] == symbol and enough_remaining and _time(watch["expires_at"]) - _time(watch["decision_at"]) >= timedelta(hours=expires_hours):
             return {"status": "EXISTING", "watch": watch}
+    if symbol not in {watch["symbol"] for watch in active} and len({watch["symbol"] for watch in active}) >= 40:
+        return {"status": "ACTIVE_CAPACITY_REACHED", "market": market, "maximum_active_symbols": 40}
     week = moment.astimezone(portfolio.MARKET_TZ[market]).isocalendar()[:2]
     same_week = {item["symbol"] for item in payload["watches"] if item["market"] == market and _time(item["decision_at"]).astimezone(portfolio.MARKET_TZ[market]).isocalendar()[:2] == week}
     if symbol not in same_week and len(same_week) >= maximum_new_symbols_per_market_per_week:
         return {"status": "CAPACITY_REACHED", "market": market, "symbols": sorted(same_week)}
     body = {"market": market, "symbol": symbol, "decision_at": _iso(moment), "expires_at": _iso(moment + timedelta(hours=expires_hours)), "purpose": "FUTURE_LIFECYCLE_INPUT_COLLECTION_ONLY"}
+    if expires_hours == 180 * 24:
+        body["retention_contract"] = "FROZEN_PROSPECTIVE_60_SESSIONS_MAX_180_DAYS_V1"
     watch = {**body, "watch_id": payload_sha256(body)}
     payload["watches"].append(watch)
     portfolio._atomic(path, payload)
@@ -120,6 +134,10 @@ def capture_frame(
     runtime: Mapping[str, Any] | None = None, manifest: Mapping[str, Any] | None = None,
     benchmark: Mapping[str, Any] | None = None, market_sessions: Mapping[str, Any] | None = None,
     reentry_inputs: Mapping[str, Any] | None = None,
+    risk_metadata: Mapping[str, Any] | None = None,
+    session_calendar: Mapping[str, Any] | None = None,
+    close_observations: Mapping[str, Any] | None = None,
+    collection_coverage: Mapping[str, Any] | None = None,
     decision_started_at: str | datetime | None = None,
     recorded_at: datetime | None = None,
 ) -> dict[str, Any]:
@@ -146,6 +164,10 @@ def capture_frame(
         "manifest": deepcopy(dict(manifest or {})), "benchmark": deepcopy(dict(benchmark or {})),
         "market_sessions": deepcopy(dict(market_sessions or {})),
         "reentry_inputs": deepcopy(dict(reentry_inputs or {})),
+        "risk_metadata": deepcopy(dict(risk_metadata or {})),
+        "session_calendar": deepcopy(dict(session_calendar or {})),
+        "close_observations": deepcopy(dict(close_observations or {})),
+        "collection_coverage": deepcopy(dict(collection_coverage or {})),
     }
     digest = payload_sha256(body)
     frame = {**body, "frame_sha256": digest}
@@ -165,6 +187,68 @@ def _frame(raw: Mapping[str, Any]) -> dict[str, Any]:
     return deepcopy(dict(raw.get("frame") or raw))
 
 
+def mark_at_sourced_close(state: dict[str, Any], market: str, session: Mapping[str, Any],
+                         observations: Mapping[str, Any], *, now: datetime) -> list[dict[str, Any]]:
+    """Mark only the virtual book at an exact formed regular-close bar.
+
+    No lifecycle rule, stop, target, quantity, position status or execution fact
+    changes. Validate the whole open book before applying any valuation.
+    """
+    positions = portfolio.open_positions(state, market)
+    errors, valuations = [], {}
+    try:
+        opening, closing = _time(session["regular_start"]), _time(session["regular_end"])
+        received = _time(session["received_at"])
+        if (session.get("closed") is not True or session.get("state") not in {"POST", "CLOSED"}
+                or not session.get("source") or not session.get("provider")
+                or not opening < closing <= received <= now
+                or session.get("date") != opening.astimezone(portfolio.MARKET_TZ[market]).date().isoformat()):
+            raise ValueError("close session invalid")
+    except (KeyError, TypeError, ValueError):
+        return [{"market": market, "reason": "native_close_valuation_session_invalid"}]
+    for position in positions:
+        symbol = str(position.get("symbol") or "")
+        observation = observations.get(symbol)
+        try:
+            if (not isinstance(observation, Mapping) or observation.get("symbol") != symbol
+                    or observation.get("market") != market or observation.get("currency") != portfolio.POSITION_CURRENCY[market]
+                    or not observation.get("provider") or not str(observation.get("source_url") or "").startswith("https://query1.finance.yahoo.com/v8/finance/chart/")):
+                raise ValueError("close quote identity missing")
+            quote_received = _time(observation["received_at"])
+            if not closing <= quote_received <= now:
+                raise ValueError("close quote receipt invalid")
+            candidates = []
+            for bar in observation.get("source_bars") or []:
+                start, end, receipt = _time(bar["start"]), _time(bar["end"]), _time(bar["observed_at"])
+                if end != closing:
+                    continue
+                high, low, close = (portfolio._float(bar.get(key)) for key in ("high", "low", "close"))
+                if (bar.get("interval_seconds") != 300 or end - start != timedelta(minutes=5)
+                        or not opening <= start < end <= receipt <= quote_received or not bar.get("provider")
+                        or any(value is None or value <= 0 for value in (high, low, close))
+                        or not low <= close <= high):
+                    raise ValueError("close bar invalid")
+                candidates.append((close, receipt))
+            if len(candidates) != 1:
+                raise ValueError("exact terminal close bar missing or duplicated")
+            opened = portfolio._market_datetime(position.get("opened_at"), market)
+            if opened is not None and opened >= closing:
+                raise ValueError("position opened after sourced close")
+            valuations[str(position["position_id"])] = {"price": candidates[0][0], "regular_end": _iso(closing),
+                "received_at": _iso(candidates[0][1]), "provider": observation["provider"],
+                "basis": "VIRTUAL_MARK_ONLY_EXACT_FORMED_REGULAR_CLOSE_BAR", "live_execution_claim": False}
+        except (KeyError, TypeError, ValueError):
+            errors.append({"market": market, "symbol": symbol, "reason": "native_exact_close_bar_missing_or_invalid"})
+    if errors:
+        return errors
+    for position in portfolio.market_state(state, market).get("open_positions") or []:
+        value = valuations.get(str(position.get("position_id")))
+        if value is not None:
+            position["last_mark"] = value["price"]
+            position["replay_close_valuation"] = value
+    return []
+
+
 def _validate_frame(frame: Mapping[str, Any], code: str) -> list[str]:
     failures = []
     body = dict(frame)
@@ -181,6 +265,45 @@ def _validate_frame(frame: Mapping[str, Any], code: str) -> list[str]:
     except (ValueError, KeyError, TypeError):
         failures.append("frame_timestamps_invalid")
     return failures
+
+
+def anchor_regular_interval(anchor: Mapping[str, Any], frame: Mapping[str, Any], market: str,
+                            *, now: datetime) -> tuple[bool | None, str | None]:
+    """Research expectation from the calendar frozen before the trial only.
+
+    This narrows the existing executable-input window on holidays/early closes;
+    it grants no new production session or entry authority.
+    """
+    receipt = (anchor.get("session_calendar") or {}).get(market)
+    if not isinstance(receipt, Mapping):
+        return None, None
+    try:
+        body = dict(receipt)
+        digest = body.pop("calendar_sha256", None)
+        available_at = _time(anchor.get("decision_started_at", anchor["observed_at"]))
+        if (digest != payload_sha256(body) or receipt.get("schema_version") != "stock-trading-session-calendar-v1"
+                or receipt.get("market") != market or receipt.get("timezone") != str(portfolio.MARKET_TZ[market])
+                or not receipt.get("source") or not receipt.get("source_url")
+                or not _time(receipt["observed_at"]) <= _time(receipt["received_at"]) <= available_at
+                or not _time(receipt["coverage_start"]) <= now < _time(receipt["coverage_end"])):
+            raise ValueError("anchor calendar invalid")
+        date = now.astimezone(portfolio.MARKET_TZ[market]).date().isoformat()
+        sessions = [row for row in receipt.get("sessions") or [] if row.get("date") == date]
+        if len(sessions) > 1:
+            raise ValueError("duplicate calendar session")
+        session = (frame.get("market_sessions") or {}).get(market) or {}
+        if session.get("date") == date and session.get("source") and session.get("provider"):
+            if (not sessions or _time(session["regular_start"]) != _time(sessions[0]["regular_start"])
+                    or _time(session["regular_end"]) != _time(sessions[0]["regular_end"])):
+                return None, "provider_calendar_disagreement"
+        if not sessions:
+            return False, None
+        opening, closing = _time(sessions[0]["regular_start"]), _time(sessions[0]["regular_end"])
+        if opening >= closing or opening.astimezone(portfolio.MARKET_TZ[market]).date().isoformat() != date:
+            raise ValueError("calendar session bounds invalid")
+        return opening <= now < closing, None
+    except (KeyError, TypeError, ValueError):
+        return None, "native_anchor_session_calendar_invalid_or_uncovered"
 
 
 def _observation_errors(position: Mapping[str, Any], observation: Mapping[str, Any], now: datetime) -> list[str]:
@@ -252,6 +375,7 @@ def replay_portfolio(
     initial_capital_by_market: Mapping[str, float] | None = None,
     benchmark_start_by_market: Mapping[str, Any] | None = None,
     markets: Sequence[str] | None = None,
+    prospective_initial_basis: bool = False,
 ) -> dict[str, Any]:
     """Run exact canonical functions over strictly chronological native receipts.
 
@@ -271,7 +395,11 @@ def replay_portfolio(
         raise ValueError("unknown replay market")
     capital = {market: float((initial_capital_by_market or {}).get(market, int(policy["markets"][market]["max_open_positions"]) * 5000.0)) for market in markets}
     baseline_closed = {market: {str(position.get("position_id")) for position in portfolio.market_state(state, market).get("closed_positions") or []} for market in markets}
-    base_economics = {market: analytics.market_economics(state, market, initial_capital=capital[market], baseline_closed_ids=baseline_closed[market]) for market in markets}
+    def economics(book: Mapping[str, Any], market: str) -> dict[str, Any]:
+        if prospective_initial_basis:
+            return analytics.prospective_period_economics(book, initial_state, market, policy=policy, initial_capital=capital[market])
+        return analytics.market_economics(book, market, initial_capital=capital[market], baseline_closed_ids=baseline_closed[market])
+    base_economics = {market: economics(state, market) for market in markets}
     curves: dict[str, list[dict[str, Any]]] = {market: [] for market in markets}
     previous_nav = dict(capital)
     increments, diagnostics, actions = [], [], []
@@ -312,6 +440,12 @@ def replay_portfolio(
             review_due = market in (frame.get("observations") or {})
             if review_due:
                 regular_review = portfolio._regular_session_open(market, now)
+                if prospective_initial_basis:
+                    expected_regular, calendar_error = anchor_regular_interval(native[0], frame, market, now=now)
+                    if calendar_error:
+                        diagnostics.append({"frame": index, "market": market, "reason": calendar_error})
+                    if expected_regular is not None:
+                        regular_review = regular_review and expected_regular
                 for position in positions:
                     symbol = str(position.get("symbol") or "")
                     if not regular_review:
@@ -347,12 +481,27 @@ def replay_portfolio(
                 reentry = frame.get("reentry_inputs") or {}
                 evidence = (reentry.get("evidence") or {}).get(market)
                 features = (reentry.get("features") or {}).get(market) or {}
+                charts = (reentry.get("charts") or {}).get(market) or {}
                 if evidence is None and any(bridge.reentry_learning.recent_stop(state, market, str(candidate.get("market_data_symbol") or candidate.get("symbol") or ""), now) is not None for candidate in bridge.candidate_frontier(opportunity)):
                     diagnostics.append({"frame": index, "market": market, "reason": "native_reentry_evidence_input_missing"})
 
                 def frozen_reentry_features(requested_market: str, symbol: str, *args: Any, **kwargs: Any) -> Any:
+                    if symbol in charts:
+                        try:
+                            return bridge.reentry_learning.features_from_chart(
+                                charts[symbol], requested_market, symbol, *args, **kwargs, decision_at=decision_at)
+                        except (ValueError, TypeError, KeyError):
+                            diagnostics.append({"frame": index, "market": market, "symbol": symbol, "reason": "native_reentry_chart_invalid"})
+                            return None
                     if symbol not in features:
                         diagnostics.append({"frame": index, "market": market, "symbol": symbol, "reason": "native_reentry_features_missing"})
+                        return None
+                    # Legacy calculated features belong only to the exact
+                    # real stop frozen in that frame, never another virtual SL.
+                    actual_stop = bridge.reentry_learning.recent_stop(frame.get("initial_state") or {}, market, symbol, now)
+                    virtual_stop = args[0] if args else None
+                    if actual_stop is None or payload_sha256(actual_stop) != payload_sha256(virtual_stop):
+                        diagnostics.append({"frame": index, "market": market, "symbol": symbol, "reason": "native_reentry_features_stop_context_mismatch"})
                         return None
                     return deepcopy(features[symbol])
 
@@ -384,15 +533,23 @@ def replay_portfolio(
                     decision_clock=lambda: decision_at,
                     reentry_evidence_by_symbol=deepcopy(dict(evidence or {})),
                     reentry_feature_fetcher=frozen_reentry_features,
+                    risk_metadata=deepcopy(dict(frame.get("risk_metadata") or {})),
                 )
                 actions.extend({"frame": index, **item} for item in audit)
                 if healthy:
                     healthy_sessions.append(bridge._market_session_key(market, now))
-            snapshot = analytics.market_economics(state, market, initial_capital=capital[market], baseline_closed_ids=baseline_closed[market])
+            if prospective_initial_basis and (market in (frame.get("close_observations") or {}) or frame.get("kind") == "SESSION_CLOSE"):
+                close_errors = mark_at_sourced_close(state, market, (frame.get("market_sessions") or {}).get(market) or {},
+                    (frame.get("close_observations") or {}).get(market) or {}, now=now)
+                if close_errors:
+                    diagnostics.extend({"frame": index, **item} for item in close_errors)
+                    continue
+            snapshot = economics(state, market)
             if snapshot["status"] != "COMPLETE":
                 diagnostics.append({"frame": index, "market": market, "reason": "portfolio_economics_unscorable"})
                 continue
-            snapshot = _period_economics(snapshot, base_economics[market], capital[market])
+            if not prospective_initial_basis:
+                snapshot = _period_economics(snapshot, base_economics[market], capital[market])
             benchmark = (frame.get("benchmark") or {}).get(market)
             snapshot["benchmark_return_percent"] = None
             if isinstance(benchmark, Mapping):
@@ -415,10 +572,15 @@ def replay_portfolio(
         if admission_due:
             bridge.maybe_promote(run_state, bridge_config, healthy_sessions, _time(frame.get("decision_started_at", frame["observed_at"])))
     metrics = {}
+    period_contributions = {}
     for market in markets:
-        final_economics = analytics.market_economics(state, market, initial_capital=capital[market], baseline_closed_ids=baseline_closed[market])
+        final_economics = economics(state, market)
         if final_economics["status"] == "COMPLETE":
-            final_economics = _period_economics(final_economics, base_economics[market], capital[market])
+            if not prospective_initial_basis:
+                final_economics = _period_economics(final_economics, base_economics[market], capital[market])
+            period_contributions[market] = deepcopy(final_economics.get("positions") or [])
+        else:
+            period_contributions[market] = []
         metrics[market] = analytics.curve_metrics(curves[market], initial_capital=capital[market], positions=final_economics.get("positions") or [])
         if not curves[market]:
             diagnostics.append({"market": market, "reason": "no_scorable_portfolio_curve"})
@@ -430,10 +592,12 @@ def replay_portfolio(
         "schema_version": REPLAY_SCHEMA, "classification": "COUNTERFACTUAL_PRODUCTION_POLICY_REPLAY",
         "status": "PENDING" if diagnostics else "COMPLETE", "formal_evidence_eligible": not diagnostics,
         "formal_registration_required_separately": True, "live_execution_claim": False,
+        "prospective_initial_basis": prospective_initial_basis,
         "input_sha256": payload_sha256({"initial_state": initial_state, "frames": native}),
         "policy_sha256": payload_sha256(policy), "code_sha256": code,
         "cost_model_sha256": payload_sha256({market: policy["markets"][market].get("transaction_costs") for market in markets}),
         "curves_by_market": curves, "metrics_by_market": metrics,
+        "period_position_contributions_by_market": period_contributions,
         "increments": increments, "final_state": state, "final_runtime": run_state,
         "diagnostics": diagnostics, "actions": actions,
     }
@@ -445,9 +609,10 @@ def compare_policies(
     runtime: Mapping[str, Any] | None = None, initial_capital_by_market: Mapping[str, float] | None = None,
     benchmark_start_by_market: Mapping[str, Any] | None = None,
     markets: Sequence[str] | None = None,
+    prospective_initial_basis: bool = False,
 ) -> dict[str, Any]:
     """Pair the same prospective quote tape and whole-portfolio NAV increments."""
-    kwargs = dict(bridge_config=bridge_config, runtime=runtime, initial_capital_by_market=initial_capital_by_market, benchmark_start_by_market=benchmark_start_by_market, markets=markets)
+    kwargs = dict(bridge_config=bridge_config, runtime=runtime, initial_capital_by_market=initial_capital_by_market, benchmark_start_by_market=benchmark_start_by_market, markets=markets, prospective_initial_basis=prospective_initial_basis)
     champion = replay_portfolio(initial_state, frames, policy=champion_policy, **kwargs)
     challenger = replay_portfolio(initial_state, frames, policy=challenger_policy, **kwargs)
     markets = sorted(set(champion["metrics_by_market"]) | set(challenger["metrics_by_market"]))

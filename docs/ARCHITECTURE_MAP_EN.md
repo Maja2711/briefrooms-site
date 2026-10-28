@@ -1,0 +1,571 @@
+# BriefRooms Canonical Architecture Map — EN
+
+**Map version:** 1.44
+
+**Snapshot date:** 2026-10-28
+
+**Base `main` commit:** `7dff7b1d71b333f9029c661b251b01243a189897`
+
+**Repository:** `Maja2711/briefrooms-site`
+
+## 0. Purpose of this document
+
+This document is the **canonical navigation map of the BriefRooms architecture**. It answers: which modules exist, which component owns decision authority, how data flows, where code and documentation live, and which safety boundaries are non-negotiable.
+
+Runtime code remains the implementation source of truth. If the map and code diverge, that is **architecture drift** and either the map or implementation must be corrected. The map does not replace detailed module documents; it places them in the system-wide architecture.
+
+### Mandatory maintenance rule
+
+Every PR that changes BriefRooms architecture MUST update, in the same PR:
+
+- `docs/ARCHITECTURE_MAP_EN.md`,
+- `docs/ARCHITECTURE_MAP_PL.md`.
+
+Architecture changes include, in particular: a changed contract, authority boundary, data-flow boundary, adapter, engine, learning/verification loop, persistence semantics, production/shadow boundary, promotion/rollback rule, or safety invariant.
+
+### Mandatory AI / agent bootstrap
+
+Every AI/coding agent making an architecture or investment-logic change must start from repository-root `AGENTS.md`, then open this map, identify the affected `module_id` set, read the referenced detailed documentation, and only then inspect the code. Architecture must not be reconstructed from conversational memory, and a new subsystem must not be created before checking for existing overlapping capability. `scripts/validate_architecture_bootstrap.py` and the `Architecture Bootstrap Guard` workflow protect this mechanism from silent removal or PL/EN map-version drift.
+
+## 1. L0 — whole-system map
+
+```text
+EXTERNAL / PRIMARY / MARKET SOURCES
+        |
+        v
+SOURCE + EVIDENCE ADAPTERS
+        |
+        v
+OBSERVATIONS / NORMALIZED EVIDENCE
+        |
+        +-------------------------------+
+        |                               |
+        v                               v
+EVENT / DOMAIN INTELLIGENCE      CANONICAL MARKET FACTS
+News / Events / GSE / BRACE      InstrumentRegistry
+Entity / Macro / Technical       CanonicalMarketSnapshot
+        |                               |
+        +---------------+---------------+
+                        v
+                 EPISTEMIC LAYER
+        EpistemicState / Causal Graph
+                        |
+                        v
+                   BELIEF CORE
+        probability != evidence confidence
+                        |
+              frozen forecasts / audit
+                        |
+        +---------------+----------------+
+        |                                |
+        v                                v
+READ-ONLY BRIDGES / CONSUMERS       VERIFICATION
+        |                            + calibration
+        v                                |
+DECISION / RESEARCH ENGINES              |
+Stock Trading v2 / EURUSD / WES /         |
+Portfolio10K / BRACE                      |
+        |                                 |
+        v                                 |
+CANONICAL DECISION ENVELOPE               |
+        |                                 |
+        v                                 |
+PER-ENGINE RISK POLICY                    |
+        |                                 |
+        v                                 |
+EXECUTION / PAPER / SHADOW / PUBLICATION  |
+        |                                 |
+        v                                 |
+OUTCOMES ---------------------------------+
+        |
+        v
+SHARED LEARNING / EVOLUTION FABRIC
+Experience Store / Learning Ledger / MISS / Regret
+Hypotheses / Experiments / Replay / Counterfactuals
+Statistical Gates / Shadow / Promotion / Rollback
+        |
+        +---- future-only policy/component changes ----> engines
+```
+
+**Core point:** BriefRooms is not one AI model. It is a system of contracts, adapters, epistemic engines, decision engines, experience ledgers, learning loops and governed promotion gates.
+
+## 2. Canonical contracts and identity layer
+
+| ID | Module | Responsibility | Main implementation / documentation | State / authority |
+|---|---|---|---|---|
+| `CF-01` | Instrument Registry | Stable instrument identity and symbol routing | `scripts/instrument_registry.py`, `docs/CANONICAL_INSTRUMENT_REGISTRY.md` | Authority for governed static instruments; dynamic equities use deterministic scoped IDs during migration |
+| `CF-02` | Canonical MarketSnapshot | Immutable point-in-time market fact, provenance, timestamp lineage and DataQuality | `scripts/canonical_market_snapshot.py`, `scripts/market_snapshot_adapters.py`, `docs/CANONICAL_MARKET_SNAPSHOT.md` | Does not rank or decide; fails closed on invalid data quality |
+| `CF-03` | Daily Engine Contract (legacy compatibility) | Historical normalization contract for former GPW/US Daily paths and Daily EUR/USD | `scripts/daily_engine_contract.py`, `scripts/daily_engine_adapters.py`, `docs/DAILY_TRADING_ARCHITECTURE.md` | Compatibility/migration only for stocks; active stock product authority is `TR-04` Stock Trading v2 |
+| `CF-04` | Canonical Epistemic State | Canonical epistemic-state snapshot for consumers | `scripts/canonical_epistemic_state.py`, `scripts/canonical_epistemic_state_builder.py`, canonical epistemic-state docs | Information layer, not execution authority |
+| `CF-05` | DecisionEnvelope | Binds a decision to engine/version/time/snapshot/risk/lineage | `scripts/decision_envelope.py`, `scripts/decision_envelope_adapters.py`, `docs/CANONICAL_DECISION_ENVELOPE.md` | Standardizes the decision record; does not originate a decision |
+| `CF-06` | RiskPolicy Contract | Shared assessment shape while preserving independent per-engine limits | `scripts/risk_policy_contract.py` plus GPW/US/etc. policies | There is no one global BriefRooms risk threshold |
+| `CF-07` | Epistemic Consumer Interface | Governed interface between epistemic state and consumers | `scripts/epistemic_consumer_interface.py`, `scripts/epistemic_consumer_live.py`, `docs/EPISTEMIC_CONSUMER_INTERFACE.md` | Limits coupling between Belief and decision engines |
+
+### Current DecisionEnvelope / MarketSnapshot rollout
+
+- Legacy GPW Daily final-decision path: **canonicalized**, but it is no longer an active trading product.
+- Legacy US Daily new-entry / FLAT path: **canonicalized**; post-entry HOLD/CLOSE: **partial**. It is no longer the active stock product authority.
+- Stock Trading v2: **production Champion**; production routing and portfolio state are handled by `stock_trading_v2_production_bridge.py`, `stock_trading_portfolio.py` and the NO RETROACTIVE airlock. Full P0.2/P0.3 rollout for every internal v2 event remains a separate migration concern and must not be conflated with the former Daily GPW/US labels.
+- Daily EUR/USD: **partial**.
+- WES: **partial**.
+- BRACE-SPX: **not yet canonicalized** on the DecisionEnvelope/MarketSnapshot path.
+
+Migration is prospective. Legacy records do not receive fabricated identifiers or timestamps.
+
+## 3. Adapter layer — real BriefRooms adapters
+
+An adapter is not a decision engine. Its primary job is to translate a source into an Observation, Evidence or canonical contract while preserving provenance and data quality.
+
+| ID | Adapter / family | Main files | Contract / role |
+|---|---|---|---|
+| `AD-01` | Belief Adapter Contract | `scripts/belief_adapter_contract.py` | `RAW SOURCE -> Observation -> EvidenceAssessment -> Evidence` |
+| `AD-02` | Market Data Adapter | `scripts/belief_market_data_adapter.py` | OHLCV and market facts; does not invent bid/ask |
+| `AD-03` | Technical Adapter | `scripts/belief_technical_adapter.py` | Momentum, RSI, MA, breakout, VWAP, ATR, deterministic trend evidence |
+| `AD-04` | Liquidity Adapter | `scripts/belief_liquidity_adapter.py` | RVOL, turnover, price-impact proxy, credit/liquidity evidence |
+| `AD-05` | Regime / Cross-Asset Adapter | `scripts/belief_regime_adapter.py` | Breadth, volatility, financial conditions, `risk_on/neutral/risk_off/high_vol` |
+| `AD-06` | News / Event Adapter | `scripts/belief_news_event_adapter.py` | News/event observations with provenance; downstream assessment retains authority |
+| `AD-07` | Macro adapters | `scripts/belief_macro_calendar_adapter.py`, `scripts/belief_macro_data_adapter.py`, `scripts/belief_macro_expectations_collector.py`, `scripts/belief_macro_expectations_adapter.py`, `scripts/belief_macro_forecaster_skill.py`, `scripts/daily_eurusd_macro_fast.py` | Calendar, official actuals and source-first expectations; BriefRooms keeps a prospective institution × indicator skill ledger (MAE/RMSE/bias), while any external ranking is only a sourced cold-start prior. Post-release fast lane requires fresh official actuals |
+| `AD-08` | Geopolitical adapter | `scripts/belief_geopolitical_forecast_adapter.py`, `scripts/belief_geopolitical_live.py` | Translates GSE/geopolitical state into the governed Belief layer |
+| `AD-09` | WES Assets Adapter | `scripts/belief_wes_assets_adapter.py` | WES asset coverage for Belief |
+| `AD-10` | Data Quality Adapter | `scripts/belief_data_quality_adapter.py` | Explicit quality/missingness; absent data is not a neutral signal |
+| `AD-11` | Daily Engine Adapters (legacy) | `scripts/daily_engine_adapters.py` | Compatibility normalization for former GPW/US paths; not the active stock decision path |
+| `AD-12` | Market/Decision canonical adapters | `scripts/market_snapshot_adapters.py`, `scripts/decision_envelope_adapters.py` | Converts native payloads to canonical contracts without changing decisions |
+| `AD-13` | Legacy GPW / US Daily domain adapters | `scripts/daily_stock_gpw_adapter.py`, `scripts/daily_stock_us_adapter.py` | Historical contracts, lineage, settlement and compatibility; no production stock authority after v2 promotion |
+
+### Hard adapter rules
+
+- An Observation does not change a Belief by existing; an explicit EvidenceAssessment is required.
+- `unavailable`, `stale`, and `invalid` observations do not become Evidence.
+- Missing fields are never invented.
+- Provenance and `observed_at` must survive transformation.
+- An adapter does not gain trade-execution authority merely because it supplies a signal.
+
+## 4. Epistemic / Belief architecture
+
+| ID | Module | Function | Implementation / notes |
+|---|---|---|---|
+| `EP-01` | Observation + Evidence Store | Durable auditable observation/Evidence representation | `belief_adapter_contract.py`, Belief Core state/ledger |
+| `EP-02` | Provenance & Independence Audit | Cluster de-duplication, source-ref collisions, lineage cycles, conflict, look-ahead rejection | Belief Core audit path |
+| `EP-03` | Epistemic State | Structures current knowledge independently of decisions | `belief_epistemic_state.py`, `belief_epistemic_live.py` |
+| `EP-04` | Epistemic Causal Graph | Explicit causal/relational semantics in the epistemic layer | `belief_epistemic_causal_graph.py`, `belief_epistemic_causal_graph_semantic.py` |
+| `EP-05` | Belief Core v2 | Probability, separate evidence confidence, freshness decay, support/opposition, alternatives | `belief_core.py`, `belief_core_live.py`, `docs/BELIEF_CORE.md`; engineering-complete for shadow data collection |
+| `EP-06` | Frozen Forecast + Verification | Freezes probability/evidence before outcome and verifies later; outcome contracts distinguish elapsed-time clocks from US regular-session equivalents without retroactively rewriting frozen targets | `belief_core_shadow.py`, `belief_core_verify.py`, `belief_core_live.py`, `docs/BELIEF_CORE.md` |
+| `EP-07` | Calibration | Brier, log loss, ECE/MCE, slices, drift and source diagnostics; separate buckets for elapsed-time and session-aware horizons (`1S_US_SESSION`, etc.) | `belief_calibration.py`, `belief_calibration_foundation.py`; recommendations without silent auto-tuning |
+| `EP-08` | Read-only Belief Bridges | Deliver epistemic/belief state to selected engines in governed modes | WES/BRACE/SPX bridge files; decision influence depends on the explicit gate |
+| `EP-09` | Belief ARIS Research | Read-only Evidence representation research plus prospective ARIS-PATTERN-1: frozen Evidence combinations -> later outcome, MDL gain, residual and chronological holdout/OOS | `scripts/belief_aris_shadow.py`, `scripts/belief_aris_pattern.py`, `docs/BELIEF_ARIS_SHADOW.md`, `docs/BELIEF_ARIS_PATTERN.md`; `research_shadow`, `ASSOCIATION_ONLY`, no Belief/causal writeback, consumer export, decision influence or auto-promotion |
+
+### Belief Core is not a “constitution”
+
+`Belief Core` is an **epistemic engine**: it maintains and calibrates beliefs from Evidence. Safety and authority rules are a separate governance layer. Belief Core cannot independently trade, alter sizing, or silently retune its own weights.
+
+## 5. Intelligence / world-model layer
+
+| ID | Module | Role | Implementation / status |
+|---|---|---|---|
+| `IN-01` | News Claim / Event Intelligence | Claim/event extraction and structuring, source quality and dedupe | `news_claim_intelligence.py`, `news_event_intelligence_v4.py`, source architecture |
+| `IN-02` | Investment Event Intelligence | Corporate/market events and bridges into stock/weekly engines | `investment_event_intelligence.py`, `investment_corporate_event_intelligence.py`, `investment_event_stock_bridge.py`, `investment_event_weekly_bridge.py` |
+| `IN-03` | Geopolitical Scenario Engine (GSE) | Two separated probability layers: `Evidence -> precursor features -> P(event) -> frozen event forecast -> verification -> Brier/log loss`, plus the existing `Scenario -> Transmission Graph -> Multi-Asset Forecast -> Verification -> Calibration`; followed by prospective GSE v2 learning and sanitized publication | `geopolitical_scenario_engine.py` remains the v1 market-reaction foundation; `gse_event_probability_threat_engine.py` adds the shadow-only Event Probability / Threat Engine with 7d/30d/90d horizons and Brier versus stored prior; active runtime: `.github/workflows/gse-hourly-cycle-v2.yml`; details: `docs/GEOPOLITICAL_SCENARIO_ENGINE.md`, `docs/GSE_EVENT_PROBABILITY_THREAT_ENGINE.md`; no execution/decision/Belief-writeback/auto-promotion authority |
+| `IN-04` | BRACE Entity Intelligence | Company entity framework, primary-source evidence, disagreement, interpretation, belief-state forecast, calibration | `brace_entity_*` family |
+| `IN-05` | Broad/Sector Market Beliefs | Broad-market and sector/factor beliefs for BRACE | `brace_broad_market_belief.py`, `brace_sector_factor_belief.py` |
+| `IN-06` | Investment Semantics / World State | Semantic representation of investment state | `INVESTMENT_SEMANTICS_WORLD_STATE.md` and related modules |
+| `IN-07` | TimesFM Shadow Forecaster | Independent research/shadow forecaster and benchmark | `timesfm_shadow_forecaster.py`, `timesfm3_internal_benchmark.py`; not standalone production authority |
+| `IN-08` | Market Relationship / Trigger Engine | `EVENT × ENTITY × PEERS × MARKET REACTION × TIME -> ATTENTION`; scarce research routing for Stock Trading v2 | Research branch `stock-trading-v2`: `scripts/briefrooms_market_relationship_trigger.py`, `briefrooms_market_relationship_outcomes.py`, `briefrooms_trigger_deep_belief.py`, `briefrooms_trigger_deep_belief_learning.py`; max 6 attention (4 trigger + 2 exploration), max 2 Deep BELIEF proxy, zero production decision authority |\n| `IN-09` | FSE — Fractal Structure Engine | Core: multiscale geometry `scale + persistence + multifractality proxy + tails -> structural risk/regime` plus Fractal Memory. `FSE-PHASE` component: `1m -> 5m -> 15m -> 1h -> 4h -> 1d -> 1w`, Phase Engine, Intrabar Formation, Cross-Scale Alignment, Phase Fractal Memory and bounded Regime-Phase P Calibration Challenger; `FSE-ADAPTIVE-3.0`: frozen prospective Adaptive Ensemble (Deep/Phase/Regime-Phase) and separate calibrated P(large move), backed by immutable settlements, non-overlapping training blocks and HSE2 OOS | `scripts/fractal_structure_engine.py`, `scripts/fractal_structure_engine_v2.py`, workflows `fse-fractal-structure-engine.yml` + `fse-v2-deep-fractal-memory.yml`; the lightweight 1m/5m/15m/1h projection uses an Edge-primary runtime in `workers/fse-fast-edge` (Cloudflare Worker, five-minute freshness target, on-demand cache) with `scripts/fse_intraday_fast.py` + `.github/workflows/fse-intraday-fast.yml` as the static fallback; both are isolated from WES/Weekly and have no durable Evidence/HSE2 writes; `docs/FRACTAL_STRUCTURE_ENGINE_EN.md`; entire module remains `SHADOW_ONLY`; HSE2 reads core + phase as one FSE source and credits forward evidence only after freeze; `P_challenger` is capped at ±6 pp with no source-P overwrite; promotion can only reach manual review before an explicit per-engine bridge/gate; zero execution/policy/ranking/sizing/stop write authority |
+
+
+### IN-09 — FSE contract after audit repair
+
+**Retained 2.0 audit timing and integrity contract:** `FSE-CORE-2.0`, `FSE-PHASE-2.0`, `FSE-ADAPTIVE-2.0` and presentation-only `FSE-FAST-2.0`. Canonical timestamps denote bar opens; quote, freeze and outcome-close clocks are separate. The adapter normalizes/deduplicates OHLC, resampling keeps stable time/SPY-session boundaries, and settlement waits for all four forward bars to actually close. Historical daily context contains only days completed at that historical instant. Phase probability for the next four bars is separate from descriptive probability to motif completion. Corrected versions exclude earlier cohorts from training: prior ledgers remain unchanged while new IDs/methodologies start their own measurement. HSE2 archives earlier FSE verdicts outside current formal statistics without rewriting epochs/evidence/results. ASD collection depends on backend validation rather than presentation tests; existing Shadow Observatory also monitors ASD catalogue freshness. Fast selection validates each instrument/scale with bounded requests and never attaches stale memory to a new descriptor. All components retain `SHADOW_ONLY` and zero production authority. Details: `FRACTAL_STRUCTURE_ENGINE_EN.md`, version 2.0 contract section.
+
+### IN-09 — structure search 3.0 / ASD 2.0
+
+HSE reads the complete FSE contract (6 Core + 15 Phase/Adaptive/ablation metrics); the public instrument comes from explicit `details.instrument`, without inferring it from claim prose.
+
+Current research versions are `FSE-CORE-3.0`, `FSE-PHASE-3.0`, `FSE-ADAPTIVE-3.0` and `FSE-ASD-2.0`; transport remains `FSE-FAST-2.0`. Analogue feature/outcome windows cannot overlap the live query, and multiple windows from one episode cannot manufacture independent support. Deep/Phase/Core require at least eight independent matches and a quality rule learned from prior data without outcome optimization. No reliable match produces explicit `ABSTAIN` and `P=null`, never fabricated 50% or directional Brier credit. Full geometry is compared with a simple exact z-normalized Euclidean shape distance profile: a query/history reference, not a full all-pairs Matrix Profile. Paired ablation freezes both probabilities against the same future target; formal N counts disjoint outcome blocks. ASD uses density cores, independent support, query exclusion and an ambiguity threshold. Selection preregisters its sample and a shared lifetime budget of 24 trials × 2 endpoints, without per-cycle resets. Existing family definitions, snapshots, outcomes and lessons retain their hashes; previous cohorts/catalogue remain historical, while current HSE has a new freeze. The module remains SHADOW_ONLY with no production EURUSD, Belief, position or promotion authority. Details: `FRACTAL_STRUCTURE_ENGINE_EN.md`, section 13.
+
+### L3 — autonomous experience acquisition
+
+| ID | Module | Function | Authority |
+|---|---|---|---|
+| `L3-01` | Production Question Engine | Epistemic State -> question ranking using an Expected Information Value proxy | May select questions and initiate research; no probability override, trade execution, or policy writeback |
+| `L3-02` | Autonomous Experience Acquisition Orchestrator / Executor | Question -> preregistered research intent -> execution through existing approved source/Evidence adapters -> deterministic diff of newly acquired Evidence | Max 3 active intents/cycle; may initiate approved research but cannot directly set P, mutate model/policy/code, or execute trades |
+| `L3-03` | Existing Research / Experiment Fabric | Research Lab, Lesson/Hypothesis Registry, Experiment Compiler/Registry, Learning Ledger, Statistical Gates; unsupported intents end as WAITING_FOR_CAPABILITY | Prospective evidence/outcomes and evaluation; production promotion only through the existing domain controller |
+| `L3-04` | Experience Lineage / Value Attribution | `question_id -> intent_id -> new Evidence IDs -> P_before/P_after/DeltaP -> frozen forecast -> real Verification -> Brier/log-loss -> counterfactual Brier of old P`; implementation: `scripts/l3a_research_executor.py`, `scripts/l3a_experience_lineage.py`, `scripts/l3a_settlement.py`, workflows `L3 Autonomous Experience Acquisition` and `L3-A Experience Value Settlement` | Measurement/provenance for future L3-B. Brier comes only from canonical real Verification; L3-A has no probability/policy/trade/promotion authority |
+
+Canonical L3-A loop: `Epistemic State -> Question Engine -> research intent -> approved adapters -> Observation/Evidence -> Belief Core recompute -> attributed frozen forecast -> canonical Verification -> Brier/log-loss -> experience value`. **Belief Core may normally change P from newly accepted Evidence; L3-01/L3-02 may not override P directly.** A point-in-time Belief state is saved before research and attribution includes only Evidence IDs absent from that state. The forecast is frozen prospectively and settlement never binds an outcome retroactively. Missing new Evidence, an outcome contract, or capability is recorded explicitly and never converted into a fabricated result.
+
+
+## 6. Decision / trading engines
+
+| ID | Engine | Horizon / role | Architectural state |
+|---|---|---|---|
+| `TR-01` | Legacy GPW Daily pipeline | Historical GPW Daily candidate research, settlement, lineage and MISS/rejected-candidate memory | **DEPRECATED AS PRODUCT / REPLACED_BY `TR-04`**. Code/workflows may remain for legacy research/settlement compatibility, but are not the production Champion and may not admit positions into the v2 portfolio |
+| `TR-02` | Legacy US Daily pipeline | Historical US Daily lifecycle/risk/memory | **DEPRECATED AS PRODUCT / REPLACED_BY `TR-04`**. Retained for migration/history compatibility; active stock authority belongs to v2 |
+| `TR-03` | Daily EUR/USD Spot | Intraday–27h; Belief-first final decision plus canonical lifecycle | **Runtime v1.9 BELIEF_FIRST**: every new production decision follows `RAW SOURCES -> SPECIALIZED ADAPTERS -> Observation -> EvidenceAssessment -> Belief Core -> EpistemicState -> CF-07 Epistemic Consumer Interface (DAILY_EURUSD) -> NATIVE Daily EUR/USD Belief-First Decision Engine -> FINAL LONG/SHORT/FLAT -> execution admission -> EPE -> lifecycle`. The former direct `EURUSD + UUP + TLT -> score` path no longer has direction authority; UUP/TLT exist only as upstream Evidence and preserve their own source timestamps. EUR/USD market Evidence refreshes across the FX 24x5 week while stale cross-asset Evidence decays naturally. Missing/stale Evidence reduces coverage and never becomes a neutral vote. If a qualified Epistemic State is unavailable while flat, a new 50/0 FLAT remains diagnostic only and may not overwrite the last canonical Daily state. Official Fed/ECB/news/macro inputs enter through adapters/Belief before the final decision. A/B/C, FSE, EURUSD X, A_TECHNICAL_FALLBACK and LOW_EDGE_LEARNING_EXPLORATION have zero production direction/timing authority. The legacy v1.8 Contextual Entry Policy is reset to SHADOW after migration, so FSE no longer has indirect production timing influence. After the final decision only execution/safety admission (including calendar/re-entry controls) and EPE with at least two independent agreeing feeds remain. Open-position risk may still close an existing trade on new information; it cannot manufacture a new direction. For an already persisted OPEN position, `scripts/daily_eurusd_fast_lifecycle.py` is additionally run by `.github/workflows/daily-eurusd-realtime-lifecycle.yml`: this is **exit-only authority** with no right to create LONG/SHORT or a new fill. While active, the watcher checks the existing position every 5 seconds using the same SL/TP, R_PACE dynamic-exit, soft-24h and hard-27h rule family; before every write it refreshes `main`, re-evaluates the condition and remains subject to NO RETROACTIVE. The main monitor remains the full reconciliation / Belief / macro-event path and recovery mechanism for the watcher. **TR-03 liveness is independent of WES/TR-05**: it has its own five-minute Cloudflare heartbeat, with GitHub cron as fallback. The watchdog checks Belief (30m), Epistemic (20m), then canonical Daily (15m) in dependency order and dispatches exactly one recovery stage `BELIEF -> EPISTEMIC -> DAILY`; after a successful Belief refresh, Epistemic is explicitly started through `workflow_dispatch`, and when `DAILY_EURUSD ready=true` Epistemic explicitly dispatches Daily, so TR-03 recovery does not depend on GitHub `workflow_run` delivery from Belief Core. A fresh Epistemic projection with `ready=false` is a valid unqualified/no-trade state, not an infrastructure failure. The heartbeat has no direction, risk, or execution authority. History remains immutable / NO RETROACTIVE and code pushes are validation-only. |
+| `TR-04` | Stock Trading v2 | Unified active stock engine for GPW and US: Dynamic Universe, Opportunity Frontier, Trigger research, Deep Evidence, Fixed Notional Sizing, Portfolio Opportunity Engine | **PRODUCTION CHAMPION — FULL**. Every new position uses `FIXED_NOTIONAL_V1`: PLN 5,000 on GPW or USD 5,000 in US; `champion_engine=v2`, `challenger_engine=v1`, `legacy_candidate_admission_enabled=false`; `main` is production authority, `stock-trading-v2` is research/evidence runtime |
+| `TR-05` | Weekly Positions / WES family | EUR/USD, S&P 500 futures, BTC/USD; governed paper/research plus WES memory/counterfactual/belief bridges | Runtime policy v5.9.1 / **WES 1.3.1**: every new entry requires Directional Admission; `delta` may be bypassed only by the scaled absolute-strength gate; direction and execution style are separate decisions; `inverse_v2` remains Challenger/Shadow; the Entry Engine is Weekly-primary — Weekly/utility/confirmations/momentum form the primary MARKET/LIMIT score with an overextension penalty, while Daily remains independent and acts only as a bounded confirmation/timing modifier; persistent LIMIT plans extend validity only and never move the frozen target; recent frozen-plan touches are resolved inside the global NO RETROACTIVE window; the normal WES entry cycle follows the 5-minute risk watch with an independent 15-minute fallback; canonical SL/TP safety runs every 5 minutes 24/7 |
+| `TR-06` | Portfolio 10K baseline | Long-horizon portfolio, historical champion/baseline | Preserved production baseline and BRACE fallback |
+| `TR-07` | BRACE Portfolio Engine | Portfolio research/control with optimizer, governance and separate model paper portfolio | **PROBATIONARY_CONTROL**; paper-only, deterministic controller, immutable Portfolio10K baseline as fallback; LLM cannot promote |
+| `TR-08` | BRACE-SPX / Long View | Read-only/forecast-oriented SPX long-view family | Uses its point-in-time state plus epistemic state; canonical DecisionEnvelope rollout incomplete |
+
+### TR-03 v1.9.1 — closed production admission-policy loop
+
+The watchdog reads the expected runtime version from the same `daily_eurusd_decision_record.ENGINE_VERSION` contract as the canonical writer. A fresh current-version OPEN or NO_TRADE state with healthy upstream does not raise an SLA alarm or request recovery. Obsolete/unknown versions and actual states older than 15 minutes still fail closed. PR validation checks the proposed code; the production watchdog remains pinned to `main`.
+
+The re-entry guard and position writer share the `NATIVE_BELIEF_FIRST` thesis family and latest meaningful loss. `daily_eurusd_reentry_safety.py` consumes versioned local `LE-08` criteria: initially a 30% correction, SMA60/100/200 or structural D1 support, 60/40 score and 0.50 confidence. These are starting values, not permanent invariants. `daily_eurusd_reentry_learning.py` may prospectively loosen or tighten correction, support definition/parameters, signal/source-evidence requirements, waiting/confirmation and thesis-improvement criteria. It runs up to six parallel challengers while preserving native direction, EPE, authentic timestamps and SL/TP risk. Initial criteria apply until an alternative earns formal promotion. Details: `docs/DAILY_EURUSD_POST_LOSS_REENTRY.md`, `docs/DAILY_EURUSD_ADAPTIVE_REENTRY.md`.
+
+`TR-03` retains one Belief-first direction authority. `daily_eurusd_decision_record.py` freezes decision identity, native provenance, policy version/hash, code/data hashes, EPE and initial risk geometry. The manifest passes unchanged from OPEN into canonical history; legacy trades are never reconstructed. New entries use explicit `DAILY_EURUSD_BID_ASK_V1`, while Evidence freshness uses source time rather than projection refresh time.
+
+`daily_eurusd_production_policy.py` is an `LE-08` local learning component reusing existing `LE-11` contracts and shared statistics. It may only increase the minimum score distance from 50 within `3/4/5/6`; it tests up to three stricter variants in parallel and cannot change direction, risk or execution. Promotion requires the first 40 prospectively selected canonical actual admissions, purged by 27h and bound to the exact same runtime code. A fixed gate checks net results, uncertainty, slices and drawdown. Fixed subsequent windows of 20 observations monitor each promotion and can trigger automatic rollback. Code changes roll back incompatible policies before new admission; unresolved skipped opportunities from obsolete code become `CENSORED` with no fabricated result.
+
+`AGGRESSIVE_BOUNDED` adds reflection memory inside the existing policy state: canonical actual outcomes -> observed failures and winners -> hypotheses -> parallel tests -> exact promotion -> monitoring/rollback -> next iteration. `daily_eurusd_reflection.py` has no execution authority; native admission freezes references to known similar losses and original Evidence. Historical data is discovery only. The shared budget is three attempts per target floor in one code/evaluator cohort, at most nine in total, without resetting on parent-policy changes. Select among PASS gates by highest lower CI, then mean delta, then least restrictive policy. Re-entry criteria are learned by a separate component inside the same state/writer; 30% and the other thresholds are starting values. Rejected opportunities are prospectively frozen with verified EPE and explicitly virtual outcomes. Criteria promotion requires 40 purged opportunities, 15 days, correction for 18 tests, slice safety and a predeclared 2R incremental-drawdown limit; monitoring uses fixed 20-observation windows. Historical outcomes are not OOS. Details: `docs/DAILY_EURUSD_ADAPTIVE_REENTRY.md`. Details: `docs/DAILY_EURUSD_RECURSIVE_IMPROVEMENT.md`.
+
+Only the main monitor on `main` writes `eurusd_production_policy_state.json` and `eurusd_production_decisions.json`. Realtime exits cannot mutate these files. `validate_daily_eurusd_persistence.py` guards initial persistence, retries and rebases alike: append-only history/ledger, actual-result reconciliation, policy identity, and promotion/rollback event authorization. Unchanged corrupt learning data permits only management of an already persisted position, with no new admission. A/B/C, FSE and X do not participate. Measurement limits and implementation: [DAILY_EURUSD_PRODUCTION_LOOP.md](DAILY_EURUSD_PRODUCTION_LOOP.md).
+
+### EURUSD X — adaptive shadow track
+
+`EURUSD X` belongs to `TR-03`, but it is not Arm D of the A/B/C experiment and has no production authority. Its full view lives inside the existing EUR/USD A/B/C Research Lab, where X is visually marked with red typography.
+
+The fixed X contract is MA30/60/100/200 on H1/D1/W1/M1, classic daily Pivot, Bollinger(20, 2.5σ) on H1/D1, plus read-only BriefRooms Belief Core. Calibration may not mutate these parameters. X may prospectively create additional technical challengers/anomaly setups, but a new setup receives credit only from captures made after its creation. On weekdays X captures hourly, and after the primary 4h outcome resolves it compares Champion and Challenger on the same frozen prospective sample. Deterioration may trigger rollback to the last proven setup. All promotions and rollbacks are X-local shadow only.
+
+Implementation: `scripts/daily_eurusd_x_shadow.py`, `.github/workflows/daily-eurusd-x-shadow.yml`, `data/investments/eurusd_x_public_pl.json`, `docs/DAILY_EURUSD_X_SHADOW.md`.
+
+### Stock Trading v2 internal decomposition
+
+```text
+Dynamic Universe
+ -> Broad Discovery / Fast Scan
+ -> Opportunity Frontier / Ranking
+ -> Market Relationship / Trigger research (US)
+      max 6 attention = max 4 trigger + 2 exploration
+      max 2 targeted Deep BELIEF proxy
+ -> Broad Deep Evidence Champion
+ -> Research Risk Plan
+ -> Fixed Notional Sizing
+      GPW = PLN 5,000 / company
+      US  = USD 5,000 / company
+ -> Portfolio Opportunity Engine
+      BUY / REPLACE / HOLD / CASH
+ -> Experience Freeze (selected + rejected)
+ -> Outcome Replay
+ -> Opportunity Regret
+ -> Challenger learning/evaluation
+ -> Statistical promotion gate
+```
+
+Main implementation families: `stock_trading_v2_*`, `stock_trading_component_*`, `stock_trading_portfolio.py`. Sizing and history-normalization contract: `docs/STOCK_TRADING_FIXED_NOTIONAL_EN.md` / `_PL.md`. Public history displays 5K notional, fractional analytical quantity and P&L calculated from that common base.
+
+**TR-04 execution/paper policy:** new admissions remain prospective and are allowed only during the `REGULAR` session. US keeps a 2-minute maximum execution-quote age. GPW, as paper trading, may use a current-session Yahoo or other eligible-provider observation up to 20 minutes old and records the fill as `DELAYED_PAPER`; older observations, closed-session prices and research reference prices cannot open a position. This change grants no execution authority to other markets or instruments.
+
+**TR-04 profit realization policy:** production uses `LET_WINNERS_RUN_THESIS_CONTROLLED`. `target` is a profit checkpoint rather than an unconditional take-profit. When the checkpoint is reached and the thesis score still clears the configured profit-runner threshold, the position remains open, SL/risk is ratcheted, and the next target is moved above the current high. There is no fixed upside cap; stop loss, thesis invalidation and material momentum reversal remain valid exits. This prevents a strong winner from being automatically cut merely because it has reached a modest preset gain.
+
+### Stock Trading v2 branch/runtime authority
+
+```text
+main
+  = production + governance + default-branch orchestration
+        |
+        | frozen production snapshots
+        v
+stock-trading-v2
+  = research/evidence runtime
+  = discovery / Trigger / Deep BELIEF proxy / outcomes / regret / Challengers
+        |
+        | exact bounded evaluated candidate
+        v
+main: Stock Trading Component Promotion
+  = sole component production-promotion authority
+```
+
+Scheduled workflow definitions are maintained on `main`, while research jobs explicitly check out `stock-trading-v2`. The research branch may not directly push a production mutation to `main`.
+After a successful active `Stock Trading v2 Continuous Discovery` cycle, the workflow explicitly dispatches `stock-trading-v2-production.yml` on `main`; the liveness watchdog and Production Champion schedule remain recovery paths. A separate `workflow_run` trigger is intentionally disabled so one discovery cycle cannot launch duplicate production runs. This dispatch gives the research branch no portfolio-write authority: canonical mutation still occurs only through the production bridge on `main`.
+
+## 7. Shared Learning / Evolution Fabric
+
+**Current state:** a distributed, actually implemented learning layer exists together with a shared governance/orchestration runtime, `BriefRooms Evolution Controller`. The Controller does not replace local loops or engine-owned writers and is not a monolithic `AXIOM Evolution Kernel` model.
+
+| ID | Module | Responsibility | Example implementation |
+|---|---|---|---|
+| `LE-01` | Experience Store | Prospective selected/rejected/position experience | `experience_store.py`, `experience_store_multi_source.py`, `stock_trading_v2_experience_store.py` |
+| `LE-02` | Learning Ledger / Outcome Loop | Immutable decision/forecast before outcome, later outcome binding | `learning_ledger.py`, `learning_outcome_loop.py`, `LEARNING_OUTCOME_LOOP_INTEGRATION.md` |
+| `LE-03` | MISS / Regret | Error analysis including candidates that were NOT selected | `daily_stock_miss_engine.py`, `stock_trading_v2_regret_engine.py`, rejected-candidate outcome/attribution modules |
+| `LE-04` | Hypothesis / Experiment Registry | Hypothesis -> experiment -> lesson | `lesson_hypothesis_registry.py`, `hypothesis_experiment_compiler.py`, `experiment_registry.py`, `experiment_result_lesson_loop.py` |
+| `LE-05` | Replay / Counterfactual Labs | Evaluate alternatives without rewriting true history | `stock_trading_v2_outcome_replay.py`, `gpw_loco_counterfactual_replay.py`, `investments_wes_counterfactual.py`, `brace_portfolio_counterfactual_lab.py`, `counterfactual_decision_gate_diagnostics.py` |
+| `LE-06` | Champion / Challenger + Statistical Gate | Prospective challenger comparison, sample gates, OOS/holdout and controlled promotion | `stock_trading_component_champion.py`, `stock_trading_component_candidate_intake.py`, `stock_trading_component_bound_promotion.py`, `statistical_promotion_gate.py`, `statistical_promotion_gate_v2.py`; Stock Trading production promotion is main-owned |
+| `LE-07` | Autonomous Policy Loop (legacy/research) | PR35/PR36 observatory, prospective calibration research and preserved historical actuator lineage | `autonomous_policy_observatory.py`, `autonomous_policy_promotion.py`, `autonomous_policy_closed_loop.py`; after Reconciliation 1.5 `automatic_materialization_enabled=false` for Stock Trading — no production write authority |
+| `LE-08` | Engine-specific self-learning | Local loops for BRACE, Daily Stock, EURUSD, WES, etc. | `brace_portfolio_self_learning.py`, `daily_stock_self_improvement.py`, `daily_eurusd_abc_learning.py`, `gse_v2_learning_loop.py` |
+| `LE-09` | Integrity / anti-hindsight | No retroactive live history, timestamp integrity, activation boundaries, workflow airlocks | `no_retroactive_execution.py`, `daily_stock_timestamp_integrity.py`, `promotion_learning_integrity.py`, verification scripts |
+| `LE-10` | Shared Learning Loop v2 Diagnostics | Shared read-only primitives: ex-ante decision quality, ex-post outcome quality, near-miss/shadow, calibration/model-ablation/evidence-delta diagnostics | `scripts/learning_loop_v2.py`, `scripts/learning_loop_v2_observer.py`; challenger/observer has zero production authority and does not rewrite decisions or thresholds |
+| `LE-11` | BriefRooms Evolution Controller | Canonical lifecycle above the fabric: `EvolutionCandidate -> PromotionGate -> ProductionVersion -> monitor -> RollbackEvent/retirement`; connects Belief calibration, v3, Evidence Patterns, Experience Store and trading regret without taking execution authority | `scripts/briefrooms_evolution_contracts.py`, `scripts/briefrooms_evolution_controller.py`, `.github/workflows/briefrooms-evolution-controller.yml`, `docs/BRIEFROOMS_EVOLUTION_CONTROLLER_EN.md`; bounded write for Belief overlay/v3 registry, Stock Trading only through main-owned Component Promotion |
+
+### Canonical evolution loop
+
+```text
+Experience
+ -> Outcome / Verification
+ -> MISS / Regret / Attribution
+ -> Hypothesis
+ -> Challenger
+ -> Replay / Counterfactual
+ -> OOS / Holdout
+ -> Shadow / Canary
+ -> Statistical / Governance Gate
+ -> Promotion OR Reject
+ -> Champion
+ -> Monitor
+ -> Rollback if invariants fail
+```
+
+Not every engine implements each step identically. `LE-11` now implements the shared lifecycle and authority routing above those local loops. Discovery/OOS remains owned by source modules, while production materialization is performed only by the authorized writer for that component.
+
+### TR-04 / LE-01..06, LE-09, LE-11 — v2 CASH learning repair
+
+HOLD/EXIT decisions and terminal settlements are immutable. Volatile `portfolio_updated_at` belongs to separate append-only read observations and cannot alter the original decision. A new admission epoch is activated before discovery; historical admissions never acquire prospective eligibility. `stock_trading_v2_learning_health.py` separates actual outcome, regret and Challenger-evaluation progress from report timestamp rewrites.
+
+The only automatically learned v2 change is `markets.<GPW|US>.minimum_cash_edge_points`: one market, one variable, ±1 step within 1..15. Hard gates, ranking weights and rotation are unchanged. Full policy, manifest and opportunity context are frozen before outcomes. Main owns trial registration and cohort receipts; the family has a lifetime limit of 24 tests and alpha 0.05/24. Each required 1/2-session horizon uses fixed N≥30, disjoint 168h episodes and one terminal verdict. Missing outcomes cannot replace cohort members.
+
+That v1 protocol remains immutable for existing trials. New v2 trials freeze the first eligible opportunity and the complete future 60-session tape against a prereceived official GPW/NYSE calendar. Two portfolio books run continuously; 1/2-session horizons produce 60/30 windows without resetting positions or forcing exits. A single terminal test uses weekly whole-portfolio net increments and an e-value for an explicitly bounded conditional mean, without assuming independent symbols. Economic return, concentration and drawdown have separate gates; block bootstrap is sensitivity analysis. The 24-test lifetime budget and alpha never reset. Missing expected closes or calendar disagreement remain PENDING.
+
+Health distinguishes frozen cohorts from evaluations and future-tape collection from evaluated samples. The workflow retains diagnostics even after persistence failure; modifying an existing immutable record blocks the commit. `stock_trading_sourced_metadata.py` records sourced sector and available bid/ask observations separately from history for prospective risk views. Missing verified spreads never become zero costs. In v2, shared initial holdings may be assessed from a frozen opening valuation with explicit prospective stress costs, without reconstructing unknown historical costs. Details and operational evidence: `STOCK_TRADING_STAGE2_ACCEPTANCE_PL.md`.
+
+`stock_trading_component_evidence.py` independently reproduces the complete proof using reviewed main code and main-owned native inputs, checking complete opportunity chronology, prereceived cohort membership, the full current Champion hash, net economics and statistics. A PASS flag and hash do not authorize promotion. Research cannot supply production executable code.
+
+`stock_trading_v2_production_replay.py` calls the actual bridge/lifecycle, including CANARY/FULL, capacity, SL ratchets, profit runners and explicit costs. Native frames and bounded watches collect observations only; provider receipts establish session closes rather than elapsed 24h. Missing data, unknown legacy costs and missing virtual re-entry inputs remain PENDING. Portfolio admission checks aggregate SL downside and verified sectors. Material price drift requires refreshed analysis.
+
+`stock_trading_component_monitor.py` freezes a future-results contract at promotion: 30 days, at least two paired observations, rollback at DD≥5% or final net underperformance greater than 1 pp. Only the authorized main writer may restore the previous entry component and CASH scalar at a new manifest revision; positions and history remain identical. Production writers share one concurrency lock. Details: `STOCK_TRADING_LEARNING_PERSISTENCE.md`, `STOCK_TRADING_CASH_EDGE_LEARNING.md`, `STOCK_TRADING_PORTFOLIO_EVALUATION.md`.
+
+## 8. Content / research publication layer
+
+| ID | Module | Role | Main elements |
+|---|---|---|---|
+| `CT-01` | News pipeline | Bilingual news ingestion, quality, dedupe, summaries/publication plus a global hard 24h public-exposure cap | `publish_source_expansion_v3.py`, `enforce_homepage_max_age.py`, `render_live_news_static.py`, `news-live.js`, news source/quality/intelligence modules |
+| `CT-02` | AI Outlook | Governed daily outlook, provider/freshness/status/metrics | `ai_outlook_engine.py` plus `ai-outlook-*` workflows/data |
+| `CT-03` | AI Tournament | Independent comparison/submission/round/public-UI layer | `ai_tournament_engine.py`, intake/bootstrap/UI modules |
+| `CT-04` | AXIOM Thought | Thought/motto publication with quality guard | `axiom_thought_guard.py`, `publish_axiom_thought.py` |
+| `CT-05` | Public projections / UI | Sanitized JSON/JS -> PL/EN pages | multiple `*_public_projection.py`, JS renderers, `pl/`, `en/` |
+| `CT-06` | Home / editorial | Home brief, market signal, Hot X, editorial rules | home build pipelines, `briefrooms_editorial_rules.md`, content contracts |
+
+The publication layer **must not become a hidden authority source for a decision engine**. A public renderer displays state; it must not originate or retroactively alter an economic decision.
+
+### CT-01 — hard public-news freshness invariant
+
+**Urgent news — isolated 15-minute lane:** `.github/workflows/publish-urgent-news.yml` runs `scripts/publish_urgent_news.py` at UTC minutes 02/17/32/47. Only selected PL/EN RSS feeds are sampled, applying the existing editorial quality gate, source timestamps no older than 75 minutes, material-event classification, lineage, Event Intelligence v4 and Claim Intelligence. Admission needs one direct primary institution or two independent evidence roots. Only `data/news/urgent.json` and `data/news/urgent_state.json` are updated. `scripts/urgent-news-live.js` renders up to three events in an independent rail, polled every three minutes with a 45-minute heartbeat and 90-minute exposure cap. It cannot alter the 6–15 section cards, 12-card homepage, canonical hourly publication or Belief/trading authority. No verified event means no urgent rail (fail-closed). GitHub Actions cron is best effort, not a hard 15-minute SLA.
+
+
+
+**Shared PL/EN section-card policy:** `scripts/news_section_limits.py` defines editorial minimum coverage of **6** and hard maximum of **15** cards for every news section. Publisher, filter, public-exposure guard, watchdog, and production verifier reuse these values. Underfill is observable as `underfilled/degraded` rather than padding with stale/unqualified stories; hard maximum is enforced. Separate **12**-card homepage and publisher-diversity caps remain independent.
+
+
+
+Every publicly visible news card — section pages `/pl/aktualnosci` / `/en/news`, homepage, and homepage reserve — shares one exposure clock. Maximum public display time is **24 hours**. The source `published_at` must also be no older than 24 hours. Canonical fields are `news_first_seen_at` and `news_expires_at`; legacy homepage fields remain compatibility aliases only. After expiry a story is removed rather than retained to preserve card counts. **Freshness > fullness**: section/homepage underfill is allowed, stale backfill is forbidden. The guard runs server-side before static rendering and again in `news-live.js` so a failed subsequent refresh cannot keep an expired story visible in the browser.
+
+## 9. Runtime / automation layer
+
+`GitHub Actions` is a material part of BriefRooms runtime. Workflow families cover, among others:
+
+- Belief Core / Epistemic / causal graph / calibration,
+- BRACE entity + portfolio,
+- legacy GPW/US Daily compatibility and settlement workflows,
+- Daily EUR/USD,
+- Stock Trading v2 discovery/learning/validation/production,
+- Weekly/WES,
+- GSE,
+- Autonomous Policy Observatory/Promotion/Closed Loop,
+- Learning Outcome Loop,
+- BriefRooms Evolution Controller,
+- AI Outlook,
+- AI Tournament,
+- AXIOM Thought,
+- publication, freshness guardians and automation health.
+
+**Shadow Engines Observatory (`scripts/build_shadow_engines_public.py`, `.github/workflows/shadow-engines-observatory.yml`) is status-only/read-only.** It may read workflow statuses and publish the sanitized `shadow_engines_public.json` projection, but must never execute WES/Weekly, change positions, risk state or engine-owned lifecycle. An unmapped registry entry or one unavailable workflow is explicitly reported without blocking other shadow status rows. `scripts/publish_shadow_snapshot.py` writes only `data/investments/shadow_engines_public.json` with SHA-based single-file optimistic concurrency and never replaces a newer snapshot with an older one. The logically separate `.github/workflows/shadow-engines-watchdog.yml` reads remote `main` and GitHub Actions history every 5 minutes, opens a deduplicated GitHub Issue after 20 minutes of stale publication and closes it after a verified fresh report. The watchdog has `contents: read`, `actions: read`, `issues: write`; it has no execution, engine-state or promotion authority. Both workflows share GitHub Actions infrastructure, so this is not external monitoring of a total GitHub outage.
+
+**P2 source-slot recovery (`EP-05`, `EP-06`, `LE-06`, `LE-09`)**: the independent read-only watchdog may only request the existing Belief collector to collect a live, unrecorded NYSE slot from planned time +2 minutes until two minutes before its original phase ends. For regular close, attempts occur at 16:02/07/12/17 NY; the alarm still matures after +55 minutes. Queued/running collection suppresses duplicates; a completed same-phase attempt has a five-minute cooldown, while an older heartbeat cannot block a new slot. The monitor also checks failed workflow completions. Additional 20/21 UTC schedules cover EDT/EST, but GitHub Actions cannot guarantee a hard SLA. The existing collector retains exclusive source/forecast writer ownership, gates and lock. Historical gaps remain `FAIL`; no backdating, receipt overwrite, promotion, Belief writeback or execution authority. Details: `docs/P2_SHADOW_WATCHDOG_P21.md`.
+
+### State boundaries
+
+1. **Public repository state** — data intended for versioning/public projection only.
+2. **Private GitHub Actions artifacts** — raw/cumulative learning history and shadow state where architecture requires privacy/durability boundaries.
+3. **Append-only / hash-chained ledgers** — where history integrity is contractual.
+4. **Cache** — never authority for economic-decision history.
+5. **Public projection** — sanitized derivative, never the primary decision ledger.
+
+Examples of private durable state include the Learning Outcome Loop and GSE/Belief shadow artifacts. Portfolio10K/BRACE has explicitly documented registry, shadow log, promotion history and paper-portfolio state.
+
+## 10. Non-negotiable system invariants
+
+1. **NO RETROACTIVE LIVE HISTORY.** A trade/forecast/decision is real only if frozen prospectively before its outcome. Post-hoc replay is `SIMULATED/COUNTERFACTUAL`, never `LIVE/EXECUTED`.
+2. **Point-in-time lineage.** `observed_at <= received_at <= created_at <= decision_at` on the applicable canonical path, subject only to explicitly configured clock-skew tolerance.
+3. **Frozen means immutable.** Frozen forecasts, admissions, closed-trade history and immutable decision events cannot be rewritten after outcomes are known.
+4. **Missing != neutral.** Missing data does not become `0`, neutral Evidence or a synthetic quote.
+5. **Source engine owns the decision.** Adapter, DecisionEnvelope, renderer and Learning Ledger do not take authority from the source engine.
+6. **Risk remains per-engine.** The common contract does not homogenize GPW, US, EURUSD, WES, BRACE, etc. thresholds.
+7. **Belief influence is gated.** Belief Core existence alone does not authorize decision influence. `TR-03` v1.9 has an explicit production gate `Belief Core -> EpistemicState -> CF-07 DAILY_EURUSD -> NATIVE`; Belief/CF-07 remain read-only and never gain execution authority.
+8. **No silent auto-tuning.** Belief calibration may recommend; production policy change requires the relevant challenger/promotion loop. In `TR-03` v1.9 the legacy v1.8 Contextual Entry Policy is SHADOW after migration and has no production timing/direction authority.
+9. **No hindsight learning.** An outcome can bind to a decision/forecast only if the upstream event existed before the outcome under the activation boundary.
+10. **Selected AND rejected matter.** Where supported, rejected candidates are frozen and analyzed for MISS/opportunity regret.
+11. **Production vs shadow is explicit.** Shadow output cannot be presented as a historically executed production trade.
+12. **PL/EN architecture sync.** Every architecture change updates both map versions and required detailed documentation.
+13. **Stock Trading fixed notional + normalized history.** Every new `TR-04` position uses a fixed nominal size of PLN 5,000 (GPW) or USD 5,000 (US) through `FIXED_NOTIONAL_V1`. Closed history, including legacy history, is compared through explicit `FIXED_NOTIONAL_HISTORY_V1` derived analytics with `history_normalized_quantity = 5000 / entry`; prices, timestamps and execution facts remain immutable.
+14. **Architecture bootstrap before architecture work.** An AI/agent starts an architecture change from `AGENTS.md` and the canonical map, not from conversational memory or an isolated code search.
+15. **Main owns Stock Trading production; the research branch owns research only.** `stock-trading-v2` may generate Evidence, Trigger state and Challengers, but may not directly mutate production `main`.
+16. **Single Stock Trading promotion writer.** Stock Trading component production promotion flows only through the main-owned `Stock Trading Component Promotion`; the legacy Autonomous Policy Loop has `automatic_materialization_enabled=false`.
+17. **Trigger attention is research authority, not trade authority.** `IN-08` may allocate at most 6 attention slots and at most 2 targeted Deep BELIEF proxy slots, but cannot open positions, write policy or promote itself into production.
+18. **Frozen Weekly risk must be recoverable.** For `TR-05`, SL/TP levels are frozen before outcome, monitored every 5 minutes 24/7, and rescanned from risk-plan activation. Scheduler delay must not lose a transient threshold touch; missing data means fail-closed retry, never an assumed `no hit`.
+19. **WES 1.1 Directional Admission is mandatory for every new entry.** A forecast, research ranking or Challenger result is not execution authorization. Entry requires an execution-authorized Champion-pool method, a valid authorization for the exact method/direction and at least two independent directional confirmations; a candidate opposing aligned Daily+Weekly evidence is blocked.
+20. **Method names never decide market direction.** Within `TR-05`, opposing execution candidates in a tie/near-tie resolve to `NO_TRADE`; `inverse_v2` remains Challenger/Shadow until explicit governed promotion.
+21. **WES 1.3.1 Adaptive Entry Plan is mandatory.** Directional Admission authorizes a LONG/SHORT thesis, not an immediate fill. Before every new entry WES freezes a price target from the decision-time reference price, ATR14, EMA20, ret5/ret20, 55-day range position and post-stop state. The executor may fill a fresh MARKET entry on a completed 5m bar after a passing composite score, or the frozen price-improving BUY LIMIT / SELL LIMIT after a 5m touch. An active LIMIT target may never chase the market; the same thesis may only extend plan validity or promote one-way from LIMIT to MARKET. The absolute-strength bypass applies only to `delta` and never bypasses Directional Admission or EPE.
+22. **An instrument-scoped change must not mutate other instruments.** For `TR-05`, code/UI/test/documentation pushes are validation-only. Paper position state may change only from scheduled runtime, explicit manual dispatch, or a governed workflow-run execution path. An S&P quote/feed change must not recalculate BTC or EUR/USD as a side effect.
+23. **Evolution Controller does not take source-engine authority.** `LE-11` may normalize lifecycle, evaluate prospective/OOS evidence, materialize only explicitly bounded Belief overlay/v3 registry changes, and delegate actions. It may not execute trades, alter sizing/risk limits, or directly mutate Stock Trading production.
+24. **Promotion requires a prospective boundary and segment safety.** Discovery data before `activation_boundary` cannot count as formal OOS promotion evidence; the central gate must also block material degradation in protected slices even if aggregate metrics improve.
+25. **EURUSD v1.9 decides direction only after the epistemic layer.** `TR-03` may not create a production LONG/SHORT before `Belief Core -> EpistemicState -> CF-07 DAILY_EURUSD`. The legacy Contextual Entry Policy remains SHADOW until a new prospective promotion under v1.9 semantics; FSE therefore has no indirect production timing influence during this migration.
+
+## 11. Authority map — what each layer may NOT do
+
+```text
+Adapter              -> may translate/assess data; does NOT trade
+Belief Core           -> may maintain beliefs/forecasts; does NOT execute trades
+Epistemic Bridge      -> may deliver state; does NOT take decision authority without a gate
+DecisionEnvelope      -> records lineage; does NOT rank or select instruments
+RiskPolicy Contract   -> standardizes assessment; does NOT impose one global limit
+Learning Ledger       -> observes/freezes/binds outcomes; does NOT rewrite source state
+Replay/Counterfactual -> simulates alternatives; does NOT create historical live trades
+LLM                   -> may interpret/propose; does NOT self-promote where governance requires
+                         deterministic/statistical approval
+Research branch       -> may generate evidence/challengers; does NOT directly mutate production main
+Public UI             -> renders state; is NOT a decision source
+```
+
+## 12. Important subsystem status at map snapshot 1.5
+
+- **Belief Core v2:** engineering-complete for shadow data collection; decision-independent.
+- **Evidence adapters:** real modular layer; core market/technical/liquidity/regime adapters are deterministic.
+- **GSE:** v1 remains the forecasting foundation; active hourly research/learning runtime is **GSE v2**, still without execution authority.
+- **Legacy Daily GPW / US:** no longer active stock-trading products; retained as deprecated migration/research/settlement paths.
+- **Daily EUR/USD:** runtime v1.9 is production `BELIEF_FIRST`: adapters build Observation/Evidence, Belief Core maintains beliefs, EpistemicState + CF-07 `DAILY_EURUSD` provide the bounded read-only projection, and only then does NATIVE v1.9 emit final `LONG/SHORT/FLAT`. Legacy Contextual Entry Policy, FSE, A/B/C and EURUSD X have no production direction/timing authority.
+- **Stock Trading v2:** **active production Champion in FULL** for GPW and US. `main` is production/governance authority, `stock-trading-v2` is research/evidence runtime; v1 remains Challenger/rollback lineage.
+- **Weekly/WES:** experimental governed paper layer; current policy v5.6.x, `NO_TRADE` active, exposure is not mandatory.
+- **Portfolio 10K:** preserved baseline/champion.
+- **BRACE Portfolio:** **PROBATIONARY_CONTROL**, paper-only; deterministic controller and immutable Portfolio10K fallback baseline.
+- **Shared learning fabric:** exists and is actively developed; `LE-11 BriefRooms Evolution Controller` is the shared lifecycle/governance runtime above the fabric. It is not a single decision model or an `AXIOM Evolution Kernel`.
+
+## 13. Layer above the Evolution Controller
+
+### `FUT-01` — AXIOM Meta-Exploration
+
+Status: **future architectural direction above implemented `LE-11`; not production authority**.
+
+`LE-11` already implements shared lifecycle, promotion routing, monitoring, rollback and retirement. `FUT-01` concerns the future choice of **which** module should be explored next based on expected improvement, rather than rebuilding the lifecycle:
+
+```text
+Experience Graph / Learning Fabric
+ -> Regret & failure attribution
+ -> choose the module with highest expected improvement
+ -> bounded Challenger Factory for that module
+ -> Replay / Holdout / Shadow
+ -> component-level Promotion Gate
+ -> Composite Champion
+```
+
+Candidate evolution targets include adapters, evidence assessment, belief update/calibration, candidate discovery, ranking, entry, risk, exit, portfolio and event intelligence. Each component needs both a local quality metric and an end-to-end system-impact metric.
+
+## 14. How AXIOM and other agents should use this map
+
+Every new session or agent working on BriefRooms architecture starts from repository-root `AGENTS.md`. Then:
+
+1. Open this canonical map before designing the change.
+2. Identify the affected stable `module_id` set.
+3. Open the referenced detailed documents instead of reconstructing architecture from conversational memory.
+4. Inspect actual runtime code, readers/writers, workflows, state and tests, and search for existing/overlapping capability.
+5. Establish the impact surface: contracts, authority, state ownership, upstream/downstream consumers, migration, rollback and required tests.
+6. When architecture changes, update the relevant PL+EN map sections in the same PR.
+7. Create a new subsystem only after demonstrating that equivalent capability does not already exist; assign a stable `module_id` and document responsibility, authority, inputs, outputs, state, learning mode, safety invariants and code/docs references.
+
+## 15. Source documents for map v1.0
+
+Primary detailed documents used to build and maintain the current map:
+
+- `AGENTS.md`
+- `scripts/validate_architecture_bootstrap.py`
+- `ARCHITECTURE_DOCUMENTATION_POLICY_EN.md` / `_PL.md`
+- `ARCHITECTURE_RECONCILIATION_1_5_EN.md` / `_PL.md`
+- `scripts/validate_architecture_reconciliation.py`
+- `BELIEF_CORE.md`
+- `BELIEF_ARIS_SHADOW.md`
+- `BELIEF_ARIS_PATTERN.md`
+- `BELIEF_EVIDENCE_ADAPTERS.md`
+- `BELIEF_EPISTEMIC_STATE.md`
+- `BELIEF_EPISTEMIC_CAUSAL_GRAPH.md`
+- `CANONICAL_INSTRUMENT_REGISTRY.md`
+- `CANONICAL_MARKET_SNAPSHOT.md`
+- `CANONICAL_DECISION_ENVELOPE.md`
+- `DAILY_TRADING_ARCHITECTURE.md`\23. **EURUSD X fixed core is immutable.** Within `TR-03`, X calibration may not change MA30/60/100/200, H1/D1/W1/M1, classic daily Pivot, or Bollinger(20, 2.5σ) H1/D1. Champion/Challenger, anomaly discovery and rollback are X-local shadow only and have no production/A-B-C/Belief writeback.\nn- `DAILY_EURUSD_X_SHADOW.md`
+- `stock-trading-v2-architecture.md`
+- `stock-trading-v2-production-promotion.md`
+- `STOCK_TRADING_FIXED_NOTIONAL_EN.md` / `_PL.md`
+- `LEARNING_OUTCOME_LOOP_INTEGRATION.md`
+- `CHAMPION_CHALLENGER_STATISTICAL_GATE_V1.md`
+- `AUTONOMOUS_POLICY_OBSERVATORY_V1.md`
+- `AUTONOMOUS_POLICY_PROMOTION_V1.md`
+- `BRACE_SELF_LEARNING.md`
+- `BRACE_PORTFOLIO_ENGINE.md`
+- `GEOPOLITICAL_SCENARIO_ENGINE.md`
+- `GSE_V2_ADVANCED_LEARNING_LOOP.md`
+- `WES_HISTORICAL_MEMORY.md`
+- `WES_COUNTERFACTUAL_INCREMENTAL_ALPHA.md`
+- `weekly_trading_methodology_v4.md`
+- `ai-outlook-engine-v1.md`
+- `ai-tournament-methodology-v1.md`
+- `BRIEFROOMS_CHANGE_RULES.md`
+
+## 16. Migration record — Stock Trading consolidation
+
+- 2026-09-18: active stock-trading architecture was consolidated under `TR-04 Stock Trading v2`.
+- `TR-01 Daily GPW` and `TR-02 Daily US` retain stable IDs only for traceability and are marked `DEPRECATED AS PRODUCT / REPLACED_BY TR-04`.
+- Their code and historical ledgers are retained where they still serve research, settlement, compatibility or rollback lineage. Their output cannot be treated as v2 production admission.
+- Production authority is defined by `data/investments/stock_trading_policy.json`: `champion_engine=v2`, `challenger_engine=v1`, `legacy_candidate_admission_enabled=false`.
+- 2026-09-19: Architecture Reconciliation 1.5 separated authority: `main` = production/governance/orchestration, `stock-trading-v2` = research/evidence runtime.
+- Trigger/Relationship plus targeted Deep BELIEF proxy were wired into default-branch schedulers without granting production decision authority.
+- The direct research-branch auto-promoter was removed; Stock Trading Component Promotion on `main` is the sole production-promotion authority.
+- The legacy Autonomous Policy Closed Loop retains research lineage but stock `automatic_materialization_enabled=false`.
+- 2026-09-21: `TR-05` gained a canonical five-minute 24/7 risk safety path. The legacy lifecycle delegates to the same monitor; BTC execution evidence is Coinbase-primary, and delayed runs recover historical frozen SL/TP touches from 5-minute data instead of relying on the current tick.
+- 2026-09-21: WES 1.1 removed arbitrary `method_id` tie-breaking, introduced Directional Admission for all entries, and separated Champion execution authority from Challenger/Shadow research; `inverse_v2` cannot open a position without explicit promotion.
+- 2026-10-10: the external **DeepBook Predict Shadow** experiment was removed from the active architecture (`DECOMMISSION ACTIVE / RETAIN RESEARCH EVIDENCE`). Automated cron/push collection, the active Shadow Engine registry entry, and dedicated `@mysten/deepbook-v3` / `@mysten/sui` root dependencies were removed. `data/investments/deepbook_predict_shadow.json` remains a frozen audit artifact with the historical `n=37` result; it has no frontend, Belief Core, execution, or promotion authority. The workflow with that filename is now manual archive verification only and performs no live DeepBook collection.
+
+---
+
+**Maintenance invariant:** this file and `ARCHITECTURE_MAP_PL.md` are one logical artifact. Updating only one version is not allowed.
+- 2026-09-21: WES 1.3.1 separated direction from entry price. Every new trade requires a frozen price-aware Entry Price Plan, and the executor may no longer take the first available market price.
+- 2026-09-29: WES closed the Entry Price Plan expiry boundary: before refreshing a plan it resolves a recent touch of the previous frozen target within the global `NO RETROACTIVE EXECUTION` window; `Weekly Engine Star` keeps the primary trigger after the five-minute risk watch and now has an independent 15-minute fallback.
+
+- 2026-09-21: Weekly/WES/Risk pushes are validation-only; position execution is isolated from UI, quote-feed, test and documentation changes. Instrument-scoped change isolation is now a runtime invariant.
+
+
+## 13. Trading notifications
+
+| ID | Module | Role | Implementation / authority |
+|---|---|---|---|
+| `NT-01` | Trading Notifications | Read-only projection of persisted position transitions into OPEN/CLOSE events, per-device preferences and background Web Push | `scripts/build_trading_notification_events.py`, `scripts/trading-notifications.js`, `br-trading-sw.js`, `workers/trading-push/*`, `data/notifications/*`, `docs/TRADING_NOTIFICATIONS_PL.md` / `_EN.md`; **zero execution/decision/risk authority** |
+
+`NT-01` only reads already persisted state owned by `TR-03`, `TR-04` and `TR-05`. It cannot invoke lifecycle logic, create fills, mutate positions or influence models. The production Web Push path is commit-bound for **every channel**: Daily EUR/USD, Weekly EUR/USD, Weekly BTC/USD, Weekly S&P 500 futures, and Stock Trading GPW/US. After a successful canonical write, every writer uses the shared `scripts/sync_trading_push_commit.sh` handoff to send only the exact commit SHA and channel to `/sync-trading`. The Worker accepts the current head or a recent ancestor of current `main`, compares that commit's state with its direct parent, and emits only real `absent -> OPEN` / `OPEN -> CLOSED` transitions. Weekly is wired at every writer that can mutate position state: WES, full maintenance, freshness recovery, the live-price/risk writer, Event Intelligence and the five-minute risk path; Stock Trading is wired at v2 production admission, canonical portfolio lifecycle and the Event Intelligence overlay; Daily uses the same path from its realtime watcher as well. Deterministic `event_id = engine + event_type + position_id` prevents duplicates. Language and destination URL are selected per device subscription (PL/EN). Public `/ingest` is disabled; internal-only ingest plus the canonical feed remain recovery-only. Access configuration supports `PUBLIC | AUTHENTICATED | PAID`. GitHub Pages remains the frontend; background Web Push is handled by an isolated Cloudflare Worker with a Durable Object, while private VAPID material remains only in Worker Secrets.
+
+
+### NT-01 — immediate handoff and durable retry
+
+Authenticated `GET /verify-commit?sha=...` is a read-only Actions → Cloudflare → GitHub connection check, with no state writes, synchronization or delivery. Deployment checks this endpoint, and publication parity covers both notification scripts. Handoff failures have a separate timestamp and allowlisted code; they neither overwrite the last confirmed success nor expose tokens or raw responses.
+
+After canonical commit persistence, each writer immediately calls time-bounded `/sync-trading`. The GitHub Actions token travels only over HTTPS to the owned Worker and is used only within that request to read the fixed repository through GitHub's API; it is never stored or logged. This avoids anonymous API limits (`403`) without changing model authority. Receipts reconcile exact SHA/channels and provider acceptance or a durable queue with a scheduled retry. Explicit `429/5xx` rejections use bounded Durable Object alarm retries independently of recovery feed success; missing device ACK never authorizes replay of an accepted alert. Delivery and recipient initialization are serialized, and ACK proves completed display rather than an identifier reservation. PL/EN copy contains no delay suffix through five minutes inclusive; original timestamps and diagnostics remain. Deployment sends no test events and preserves the existing VAPID pair; a partial pair blocks rotation. Notification code pushes run writer validation only, with no trading entry/exit execution. Details: `TRADING_NOTIFICATIONS_PL.md` / `_EN.md`.
+
+## LE-12 — History Integrity Guard (code stage; no independent archive yet)
+
+`scripts/history_integrity_guard.py`, `tests/test_history_integrity_guard.py`, `docs/HISTORY_INTEGRITY_GUARD.md`. Read-only SHA-256 snapshot/verify for explicitly selected frozen files. **Not yet an operational WORM protection**: independent store, trusted timestamp, and promotion-blocking integration are not provisioned. A repo-local manifest is not an independent anchor. No trade execution, historical rewrite, calibration, promotion or rollback authority. Independent archive permissions, actual external roundtrip and fail-closed end-to-end tests are required before production-control claims.
+
+**Company Logo Resolver — presentation-only cache:** `scripts/company_logo_resolver.py`, `data/investments/company_logo_cache.json`, `assets/company-logos/{gpw,us}/*.png` and `.github/workflows/stock-company-logo-resolver.yml`. Reads only TR-04 canonical open positions; verifies issuer name, ticker and market via Wikidata P414/P249/P856, validates PNG and publishes a local GitHub Pages cache. No portfolio, quote, decision, execution or Belief write authority. Unknown issuer → ticker fallback.
+
+### TR-03 — Bollinger H1 admission (proposed change)
+
+After the final Belief-first direction, Daily EUR/USD evaluates completed H1 bars and Bollinger SMA(30) ± 2.5σ in `scripts/daily_eurusd_bollinger_h1.py`. This is the primary technical filter for new entries: it can veto admission when trend confirmation fails, momentum is exhausted, or source bars are incomplete/stale. It cannot generate or reverse direction, change EPE, SL/TP, open-position lifecycle, or any other instrument. The module is covered by the immutable runtime code fingerprint. Promotion to `main` requires PR review and tests; no automatic promotion.
+
+Auxiliary D1 observation: `scripts/daily_eurusd_bollinger_d1.py` calculates SMA(30) ± 2.5σ using completed daily candles, middle-band crossings, slope and band proximity. Its result is recorded in `metadata.bollinger_d1`; it has no entry veto, direction or exit authority. Missing data yields `available=false`, not a fabricated signal.
+
+New TR-03 D1-touch rule: after a verified completed M1 candle touches the D1 upper band, new LONGs are vetoed until a later correction of ≥50% of the *current* Upper–Middle distance; a lower-band touch likewise vetoes SHORTs until a ≥50% Lower–Middle rebound. Each newly closed D1 bar recalculates bands and release thresholds; the Daily output persists only the touch/block state, touch timestamp, and last-processed M1 watermark. The rule never creates countertrend positions, overrides Belief direction, or changes already-open positions. Reaching the correction level only removes the veto; current Belief and EPE still govern a new admission. Processing errors veto new entries (fail-closed); missing D1 data retains any existing block.
+

@@ -356,6 +356,7 @@ def process_market(
     production_manifest: Mapping[str, Any] | None = None,
     decision_observer: Callable[[str, str, datetime], None] | None = None,
     reentry_feature_fetcher: Callable[..., Any] | None = None,
+    risk_metadata: Mapping[str, Any] | None = None,
 ) -> tuple[dict[str, Any], list[dict[str, Any]], bool]:
     market = market.upper()
     audits: list[dict[str, Any]] = []
@@ -452,7 +453,7 @@ def process_market(
         if stop is not None and evidence_bundle:
             risk_plan = candidate.get("research_risk_plan") or {}
             market_features = evidence_bundle.get("features") or {}
-            # Candles are fetched only for candidates with a recent stop-loss.
+            # The native collector also freezes charts for virtual-stop replay.
             learned_features = (reentry_feature_fetcher or reentry_learning.quote_features)(
                 market, symbol, stop, float(selection["execution_price"]),
                 str((quote or {}).get("observed_at") or ""),
@@ -464,6 +465,36 @@ def process_market(
         decision_now = (decision_clock() if decision_clock is not None else now_utc).astimezone(UTC)
         if decision_observer is not None:
             decision_observer(str(symbol), market, decision_now)
+        # Raw/evidence collection and earlier candidates can consume time after
+        # quote receipt. Revalidate at this actual admission clock, independently
+        # of the cached capture_age_seconds supplied by any provider.
+        quote_observed = _parse_iso((quote or {}).get("observed_at"))
+        decision_age = (decision_now - quote_observed).total_seconds() if quote_observed is not None else None
+        maximum_age = _execution_quote_max_age_seconds(market, config)
+        if decision_age is None or decision_age < 0 or decision_age > maximum_age:
+            audits.append({"market": market, "symbol": symbol, "action": "reject_continue",
+                           "reason": "execution_quote_stale_at_decision", "decision_age_seconds": decision_age,
+                           "maximum_age_seconds": maximum_age, "decision_at": decision_now.isoformat()})
+            continue
+        if quote is not None:
+            quote["decision_age_seconds"] = decision_age
+            quote["decision_at"] = decision_now.isoformat()
+        if config.get("require_regular_session_for_new_entry") is True:
+            clock_regular = portfolio._regular_session_open(market, decision_now)
+            periods = (quote or {}).get("session_periods")
+            provider_regular = True
+            if periods:
+                period = periods.get("REGULAR") if isinstance(periods, Mapping) else None
+                opening = _parse_iso(period.get("start")) if isinstance(period, Mapping) else None
+                closing = _parse_iso(period.get("end")) if isinstance(period, Mapping) else None
+                provider_regular = opening is not None and closing is not None and opening <= decision_now < closing
+            if not clock_regular or not provider_regular:
+                audits.append({"market": market, "symbol": symbol, "action": "reject_continue",
+                    "reason": "market_not_regular_at_decision", "decision_at": decision_now.isoformat(),
+                    "existing_session_clock_regular": clock_regular, "provider_regular_period_valid": provider_regular})
+                continue
+        selection["market_snapshot"]["decision_age_seconds"] = decision_age
+        selection["execution_quote"]["decision_age_seconds"] = decision_age
         payload = _candidate_payload(market, selection, opportunity, decision_now)
         canonical, action = portfolio.admit_candidate(
             canonical,
@@ -472,6 +503,7 @@ def process_market(
             now=decision_now.astimezone(portfolio.MARKET_TZ[market]),
             policy=production_policy,
             authority="v2_production_bridge",
+            risk_metadata=risk_metadata,
         )
         action = {**action, "source_engine": "v2", "phase": phase, "deep_rank": candidate.get("deep_rank"), "utility": candidate.get("utility")}
         if action.get("action") == "open":
@@ -610,20 +642,33 @@ def _capture_benchmarks(now_utc: datetime) -> tuple[dict[str, Any], dict[str, An
     return benchmarks, sessions
 
 
-def run(opportunity_paths: Mapping[str, Path], *, now_utc: datetime | None = None, evidence_paths: Mapping[str, Path] | None = None, capture_root: Path | None = None) -> dict[str, Any]:
+def run(opportunity_paths: Mapping[str, Path], *, now_utc: datetime | None = None, evidence_paths: Mapping[str, Path] | None = None, capture_root: Path | None = None, session_calendar: Mapping[str, Any] | None = None) -> dict[str, Any]:
     real_clock = now_utc is None
     now_utc = (now_utc or datetime.now(UTC)).astimezone(UTC)
+    if session_calendar is None:
+        try:
+            from scripts import stock_trading_session_calendar as calendars
+        except ModuleNotFoundError:  # pragma: no cover - direct script execution
+            import stock_trading_session_calendar as calendars
+        session_calendar = calendars.load_receipts(now=now_utc)
     config = load_config()
     runtime = load_runtime(config)
     production_policy = portfolio.load_policy()
     canonical = portfolio.load_state(PORTFOLIO_PATH, now=now_utc, policy=production_policy)
     before_state = deepcopy(canonical)
     before_runtime = deepcopy(runtime)
+    try:
+        from scripts import stock_trading_sourced_metadata as sourced_metadata
+    except ModuleNotFoundError:
+        import stock_trading_sourced_metadata as sourced_metadata
+    risk_metadata = sourced_metadata.load_ledger()
     manifest = _load(ROOT / "data/investments/stock_trading_champion_manifest.json", {})
     input_opportunities: dict[str, Any] = {}
     input_quotes: dict[str, dict[str, Any]] = {}
-    reentry_inputs: dict[str, Any] = {"evidence": {}, "features": {}}
+    reentry_inputs: dict[str, Any] = {"evidence": {}, "features": {}, "charts": {}}
+    reentry_chart_errors: list[dict[str, Any]] = []
     quote_errors: dict[str, list[dict[str, Any]]] = {}
+    collection_coverage: dict[str, Any] = {}
     evaluated_quotes: set[tuple[str, str]] = set()
     def captured_quote(symbol: str, market: str, **kwargs: Any) -> dict[str, Any]:
         cache = input_quotes.setdefault(market, {})
@@ -638,8 +683,21 @@ def run(opportunity_paths: Mapping[str, Path], *, now_utc: datetime | None = Non
                     cache[symbol]["capture_age_seconds"] = (received_at - observed).total_seconds()
             cache[symbol].setdefault("decision_at", cache[symbol].get("received_at") or now_utc.isoformat())
         return deepcopy(cache[symbol])
+    def capture_reentry_chart(market: str, symbol: str) -> Mapping[str, Any] | None:
+        cache = reentry_inputs["charts"].setdefault(market, {})
+        if symbol not in cache:
+            try:
+                chart = portfolio._chart(symbol, interval="15m", range_value="1mo")
+                received_at = datetime.now(UTC) if real_clock else now_utc
+                cache[symbol] = reentry_learning.freeze_chart(market, symbol, chart, received_at=received_at)
+            except Exception as exc:
+                cache[symbol] = None
+                reentry_chart_errors.append({"market": market, "symbol": symbol, "reason": type(exc).__name__})
+        return cache[symbol]
     def capture_reentry_features(market: str, symbol: str, *args: Any, **kwargs: Any) -> Any:
-        result = reentry_learning.quote_features(market, symbol, *args, **kwargs)
+        receipt = capture_reentry_chart(market, symbol)
+        # No second network attempt or fallback to a later, unfrozen chart.
+        result = reentry_learning.quote_features(market, symbol, *args, **kwargs, chart=(receipt or {}).get("chart") or {})
         reentry_inputs["features"].setdefault(market, {})[symbol] = deepcopy(result)
         return result
     def capture_decision(symbol: str, market: str, decision_at: datetime) -> None:
@@ -651,6 +709,11 @@ def run(opportunity_paths: Mapping[str, Path], *, now_utc: datetime | None = Non
     healthy_sessions = list(runtime.get("healthy_market_sessions") or [])
 
     for market in ("GPW", "US"):
+        from scripts import stock_trading_v2_production_replay as replay
+        # Existing bounded research watches collect raw re-entry inputs even
+        # while their real production counterpart has no stopped position.
+        for watch in replay.active_replay_watches(now=now_utc, market=market):
+            capture_reentry_chart(market, str(watch["symbol"]))
         path = opportunity_paths.get(market)
         opportunity = _load(path, {}) if path else {}
         if not isinstance(opportunity, Mapping) or not opportunity:
@@ -666,13 +729,18 @@ def run(opportunity_paths: Mapping[str, Path], *, now_utc: datetime | None = Non
                 continue
             symbol = str(candidate.get("market_data_symbol") or candidate.get("symbol") or "")
             try:
+                # Collected before the quote/evaluation so it was available at
+                # the prospective decision, including a virtual recent stop.
+                if threshold <= (_float(candidate.get("utility")) or 0.0) < threshold + 2.0:
+                    capture_reentry_chart(market, symbol)
                 captured_quote(symbol, market, maximum_age_seconds=_execution_quote_max_age_seconds(market, config))
                 if threshold <= (_float(candidate.get("utility")) or 0.0) < threshold + 2.0:
                     from scripts import stock_trading_v2_production_replay as replay
-                    replay.register_replay_watch(
+                    watch_result = replay.register_replay_watch(
                         market=market, symbol=symbol,
                         decision_at=input_quotes[market][symbol]["decision_at"],
                     )
+                    collection_coverage.setdefault(market, []).append({"symbol": symbol, **watch_result})
             except Exception as exc:
                 quote_errors.setdefault(market, []).append({"symbol": symbol, "reason": type(exc).__name__})
         reentry_evidence = _reentry_evidence_by_symbol(market, opportunity, (evidence_paths or {}).get(market))
@@ -691,6 +759,7 @@ def run(opportunity_paths: Mapping[str, Path], *, now_utc: datetime | None = Non
             decision_clock=(lambda: datetime.now(UTC)) if real_clock else None,
             reentry_evidence_by_symbol=reentry_evidence,
             reentry_feature_fetcher=capture_reentry_features,
+            risk_metadata=risk_metadata,
         )
         all_audits.extend(audits)
         finalized_at = datetime.now(UTC) if real_clock else now_utc
@@ -733,12 +802,16 @@ def run(opportunity_paths: Mapping[str, Path], *, now_utc: datetime | None = Non
         bridge_config=config, runtime=before_runtime, manifest=manifest, benchmark=benchmarks,
         market_sessions=sessions,
         reentry_inputs=reentry_inputs,
+        risk_metadata=risk_metadata,
+        session_calendar=session_calendar,
+        collection_coverage=collection_coverage,
         decision_started_at=now_utc,
     )
     # Supplemental receipt belongs to the frozen frame, never a synthetic
     # exchange calendar or a historical fill. capture_frame owns hashing.
     return {"champion": "v2", "phase": runtime["phase"], "actions": all_audits,
             "replay_frame": frame.get("frame_id"), "quote_observation_errors": quote_errors,
+            "reentry_chart_errors": reentry_chart_errors,
             "market_session_receipts": sessions, **verified}
 
 
