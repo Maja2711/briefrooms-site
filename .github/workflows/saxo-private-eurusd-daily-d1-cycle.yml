@@ -1,27 +1,36 @@
-name: Private Saxo SIM EURUSD Daily cycle (isolated R2)
+name: Private Saxo SIM EURUSD Daily cycle (isolated D1 Free)
 # No broker orders, no private data in Git or Actions artifacts.
 on:
   workflow_dispatch:
+    inputs:
+      operation:
+        description: 'Select initial D1 schema setup or one private EURUSD cycle'
+        required: true
+        type: choice
+        default: run
+        options:
+          - run
+          - initialize
   schedule:
     - cron: "*/5 * * * *"
   pull_request:
     paths:
-      - "scripts/saxo_private_daily_runner.py"
-      - "tests/test_saxo_private_daily_runner.py"
-      - ".github/workflows/saxo-private-eurusd-daily-cycle.yml"
+      - "scripts/saxo_private_daily_d1_runner.py"
+      - "tests/test_saxo_private_daily_d1_runner.py"
+      - ".github/workflows/saxo-private-eurusd-daily-d1-cycle.yml"
   push:
     branches: [main]
     paths:
-      - "scripts/saxo_private_daily_runner.py"
-      - "tests/test_saxo_private_daily_runner.py"
-      - ".github/workflows/saxo-private-eurusd-daily-cycle.yml"
+      - "scripts/saxo_private_daily_d1_runner.py"
+      - "tests/test_saxo_private_daily_d1_runner.py"
+      - ".github/workflows/saxo-private-eurusd-daily-d1-cycle.yml"
 
 permissions:
   contents: read
   actions: read
 
 concurrency:
-  group: isolated-private-saxo-eurusd-daily-cycle
+  group: isolated-private-saxo-eurusd-daily-d1-cycle
   cancel-in-progress: false
 
 jobs:
@@ -36,11 +45,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Offline validation without broker or R2 access
+      - name: Offline validation without Saxo or D1 network access
         run: |
           set -euo pipefail
-          python -m unittest tests.test_saxo_private_daily_runner tests.test_saxo_private_feed tests.test_saxo_private_primary tests.test_saxo_private_execution_exit -q
-          python -m py_compile scripts/saxo_private_daily_runner.py
+          python -m unittest tests.test_saxo_private_daily_d1_runner tests.test_saxo_private_daily_runner tests.test_saxo_private_feed tests.test_saxo_private_primary tests.test_saxo_private_execution_exit -q
+          python -m py_compile scripts/saxo_private_daily_runner.py scripts/saxo_private_daily_d1_runner.py
 
   private-storage-preflight:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -48,17 +57,16 @@ jobs:
     timeout-minutes: 2
     env:
       PRIVATE_ENABLED: ${{ vars.SAXO_PRIVATE_AUTO_ENABLED }}
-      PRIVATE_BUCKET: ${{ vars.SAXO_PRIVATE_R2_BUCKET }}
-      PRIVATE_ACCESS: ${{ secrets.SAXO_PRIVATE_R2_ACCESS_KEY_ID }}
-      PRIVATE_SECRET: ${{ secrets.SAXO_PRIVATE_R2_SECRET_ACCESS_KEY }}
+      PRIVATE_DATABASE: ${{ vars.SAXO_PRIVATE_D1_DATABASE_ID }}
+      PRIVATE_TOKEN: ${{ secrets.SAXO_PRIVATE_D1_API_TOKEN }}
     steps:
-      - name: Report only private R2 activation readiness
+      - name: Report only private D1 activation readiness
         shell: bash
         run: |
-          if [ -n "$PRIVATE_BUCKET" ] && [ -n "$PRIVATE_ACCESS" ] && [ -n "$PRIVATE_SECRET" ]; then
-            echo "PRIVATE_R2_CREDENTIALS_CONFIGURED=TRUE"
+          if [ -n "$PRIVATE_DATABASE" ] && [ -n "$PRIVATE_TOKEN" ]; then
+            echo "PRIVATE_D1_CREDENTIALS_CONFIGURED=TRUE"
           else
-            echo "PRIVATE_R2_CREDENTIALS_CONFIGURED=FALSE"
+            echo "PRIVATE_D1_CREDENTIALS_CONFIGURED=FALSE"
           fi
           if [ "$PRIVATE_ENABLED" = "true" ]; then
             echo "PRIVATE_AUTO_SCHEDULE_ENABLED=TRUE"
@@ -66,11 +74,35 @@ jobs:
             echo "PRIVATE_AUTO_SCHEDULE_ENABLED=FALSE"
           fi
 
+  initialize-private-d1:
+    # A missing persisted state is never auto-reinitialized by the scheduler.
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      && github.ref == 'refs/heads/main'
+      && inputs.operation == 'initialize'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      SAXO_PRIVATE_D1_DATABASE_ID: ${{ vars.SAXO_PRIVATE_D1_DATABASE_ID }}
+      SAXO_PRIVATE_D1_API_TOKEN: ${{ secrets.SAXO_PRIVATE_D1_API_TOKEN }}
+      SAXO_PRIVATE_D1_BOOTSTRAP_ALLOWED: "true"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Initialize private EURUSD-only D1 row exactly once
+        run: python scripts/saxo_private_daily_d1_runner.py --initialize
+
   private-paper-cycle:
-    # Activation is an explicit owner opt-in after isolated R2 bucket is ready.
+    # Activation is an explicit owner opt-in after isolated D1 database is ready.
     # Never execute on PRs or code push; do not bypass the enable flag.
     if: >-
-      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+      (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.operation == 'run'))
       && github.ref == 'refs/heads/main'
       && vars.SAXO_PRIVATE_AUTO_ENABLED == 'true'
     runs-on: ubuntu-latest
@@ -84,11 +116,8 @@ jobs:
       SAXO_PRIVATE_BASIC_USER: admin
       SAXO_PRIVATE_BASIC_PASSWORD: ${{ secrets.SAXO_PRIVATE_BASIC_PASSWORD }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      SAXO_PRIVATE_R2_BUCKET: ${{ vars.SAXO_PRIVATE_R2_BUCKET }}
-      BRS_R2_PILOT_BUCKET: ${{ vars.BRS_R2_PILOT_BUCKET }}
-      SAXO_PRIVATE_R2_ACCESS_KEY_ID: ${{ secrets.SAXO_PRIVATE_R2_ACCESS_KEY_ID }}
-      SAXO_PRIVATE_R2_SECRET_ACCESS_KEY: ${{ secrets.SAXO_PRIVATE_R2_SECRET_ACCESS_KEY }}
-      AWS_EC2_METADATA_DISABLED: "true"
+      SAXO_PRIVATE_D1_DATABASE_ID: ${{ vars.SAXO_PRIVATE_D1_DATABASE_ID }}
+      SAXO_PRIVATE_D1_API_TOKEN: ${{ secrets.SAXO_PRIVATE_D1_API_TOKEN }}
     steps:
       - name: Checkout private runtime code, never store Saxo states in checkout
         uses: actions/checkout@v4
@@ -97,8 +126,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install S3 client (no private payload to artifacts)
-        run: python -m pip install --quiet "boto3>=1.35,<2"
       - name: Restore the same upstream Belief and Epistemic context as public Daily
         env:
           GH_TOKEN: ${{ github.token }}
@@ -161,11 +188,11 @@ jobs:
           echo "DAILY_EURUSD_REQUIRE_EPISTEMIC=1" >> "$GITHUB_ENV"
           echo "NO_RETROACTIVE_EXECUTION=1" >> "$GITHUB_ENV"
           echo "NO_RETROACTIVE_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
-      - name: Read sealed private state; run EURUSD Daily; verify conditional R2 commit
+      - name: Read sealed private D1 state; run EURUSD Daily; verify atomic conditional D1 commit
         shell: bash
         run: |
           set -euo pipefail
-          python scripts/saxo_private_daily_runner.py
+          python scripts/saxo_private_daily_d1_runner.py
       - name: Confirm no private state can be committed to public checkout
         if: always()
         shell: bash
