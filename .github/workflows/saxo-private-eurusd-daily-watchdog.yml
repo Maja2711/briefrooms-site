@@ -1,0 +1,68 @@
+name: Saxo private EURUSD Daily D1 liveness and recovery
+# Dedicated observer; never reads or publishes private quote/position payloads.
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/saxo-private-eurusd-daily-watchdog.yml"
+      - "scripts/saxo_private_daily_watchdog.py"
+      - "tests/test_saxo_private_daily_watchdog.py"
+  pull_request:
+    paths:
+      - ".github/workflows/saxo-private-eurusd-daily-watchdog.yml"
+      - "scripts/saxo_private_daily_watchdog.py"
+      - "tests/test_saxo_private_daily_watchdog.py"
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: saxo-eurusd-private-d1-watchdog
+  cancel-in-progress: false
+
+jobs:
+  regression:
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Check liveness and recovery invariants offline
+        run: |
+          set -euo pipefail
+          python -m unittest tests.test_saxo_private_daily_watchdog -v
+          python -m py_compile scripts/saxo_private_daily_watchdog.py
+
+  check-private-d1-liveness:
+    if: >-
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'push')
+      && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+      SAXO_PRIVATE_AUTO_ENABLED: ${{ vars.SAXO_PRIVATE_AUTO_ENABLED }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      SAXO_PRIVATE_D1_DATABASE_ID: ${{ vars.SAXO_PRIVATE_D1_DATABASE_ID }}
+      SAXO_PRIVATE_D1_API_TOKEN: ${{ secrets.SAXO_PRIVATE_D1_API_TOKEN }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Verify recent committed EURUSD state and request one recovery if stale
+        run: |
+          set -euo pipefail
+          python scripts/saxo_private_daily_watchdog.py
