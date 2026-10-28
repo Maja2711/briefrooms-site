@@ -22,7 +22,7 @@ class StripCrossOriginAuthorization(urllib.request.HTTPRedirectHandler):
             raise ValueError("artifact_redirect_must_be_https")
         if (target.hostname, target.port) != (original.hostname, original.port):
             redirected.remove_header("Authorization")
-            redirected.remove_unredirected_header("Authorization")
+            redirected.unredirected_hdrs.pop("Authorization", None)
         return redirected
 
 
