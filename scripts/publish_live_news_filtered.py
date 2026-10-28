@@ -790,6 +790,23 @@ def select_sections(
                     live_entities_seen.update(entities)
             return "added"
 
+        # PL athlete coverage: source-verified fixtures on today's calendar
+        # have a dedicated editorial reservation ahead of general sport ranking.
+        # Maximum two slots; all normal image, topic, athlete and source limits
+        # remain in force. A fixture is NOT labeled live unless confirmed.
+        if pl_mode and sport_mode:
+            reserved_fixtures = 0
+            for fixture in candidates:
+                if not fixture.get("sport_priority_fixture"):
+                    continue
+                if try_add(
+                    fixture, discipline_cap=False,
+                    source_cap=preferred_source_cap,
+                ) == "added":
+                    reserved_fixtures += 1
+                if reserved_fixtures >= 2:
+                    break
+
         # EN Middle East contract: Al Jazeera English is a preferred regional
         # source. Reserve up to three distinct cards before general ranking, while
         # retaining the normal same-topic and per-source diversity caps.
