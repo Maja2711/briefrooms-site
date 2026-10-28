@@ -420,6 +420,11 @@ def refresh_one(instrument_id: str, previous: Dict[str, Any]) -> Dict[str, Any]:
         elif new_stamp is None or (old_stamp is not None and old_stamp > new_stamp):
             chosen = old
 
+    if instrument_id == "eurusd" and chosen is None and old and valid_quote(instrument_id, old):
+        # A provider outage must not erase the last known EURUSD number. Its
+        # original timestamp remains intact; it is not a new executable quote.
+        chosen = old
+
     attempt_at = now_local().isoformat(timespec="seconds")
     if not chosen:
         return {
@@ -435,10 +440,12 @@ def refresh_one(instrument_id: str, previous: Dict[str, Any]) -> Dict[str, Any]:
     stamp = parse_iso(chosen.get("current_price_updated_at") or chosen.get("timestamp"))
     age = now_local() - stamp if stamp else timedelta.max
     fresh = timedelta(seconds=-60) <= age <= cfg.max_age
+    if instrument_id == "eurusd" and chosen is old and not old_aligned_for_eurusd:
+        fresh = False
     note = str(chosen.get("note") or "")
     if errors and not fresh:
         note = "; ".join(errors[-4:])
-    return {
+    result = {
         "price": safe_float(chosen.get("price")),
         "timestamp": stamp.isoformat(timespec="seconds") if stamp else str(chosen.get("timestamp") or attempt_at),
         "current_price_updated_at": stamp.isoformat(timespec="seconds") if stamp else str(chosen.get("timestamp") or attempt_at),
@@ -447,6 +454,12 @@ def refresh_one(instrument_id: str, previous: Dict[str, Any]) -> Dict[str, Any]:
         "last_attempt_at": attempt_at,
         "note": note,
     }
+    if instrument_id == "eurusd":
+        # Current providers publish chart/MID marks, not verified BID/ASK fills.
+        result.update(fresh_for_execution=False, quote_kind="PAPER_MID_PROXY",
+                      price_watchdog_status="FRESH" if fresh else "STALE",
+                      recovery_required=not fresh)
+    return result
 
 
 def main() -> None:
@@ -492,6 +505,15 @@ def main() -> None:
         [sys.executable, str(ROOT / "scripts/audit_intraday_risk_exits.py"), "--persist-report", "on_close"],
         cwd=str(ROOT), env=env, check=True,
     )
+    # Observation-only EURUSD refresh on every fast cycle, including when WES
+    # entry admission is disabled/outside its active window. Hard exits ran first.
+    try:
+        from eurusd_weekly_cb_event_adapter import evaluate_current_week
+        assessment = evaluate_current_week(root=ROOT, now=now_local())
+        if assessment:
+            print("EURUSD_CB_SHADOW", assessment.get("immutable_id"), assessment.get("action"))
+    except Exception as exc:
+        print("EURUSD_CB_MONITOR_ERROR", type(exc).__name__, "PROTECTION_PENDING")
 
 
 if __name__ == "__main__":

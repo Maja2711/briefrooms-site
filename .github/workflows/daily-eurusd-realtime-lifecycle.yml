@@ -89,3 +89,12 @@ jobs:
           path: ${{ runner.temp }}/eurusd-realtime-live-evidence.json
           if-no-files-found: ignore
           retention-days: 14
+
+      - name: Preserve prospective central-bank SHADOW assessments
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eurusd-cb-realtime-audit-${{ github.run_id }}
+          path: ${{ runner.temp }}/eurusd-cb-audit/
+          if-no-files-found: ignore
+          retention-days: 90

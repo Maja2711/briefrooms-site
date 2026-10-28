@@ -1,6 +1,6 @@
 # Kanoniczna mapa architektury BriefRooms — PL
 
-**Wersja mapy:** 1.45
+**Wersja mapy:** 1.46
 
 **Stan na:** 2026-10-28
 
@@ -575,3 +575,8 @@ Dodatkowy filtr obserwacyjny D1: `scripts/daily_eurusd_bollinger_d1.py` wylicza 
 
 Nowa reguła TR-03 D1-touch: gdy wiarygodna zamknięta świeca M1 dotknie górnej bandy D1, zabronione jest otwieranie LONG aż do późniejszej korekty o ≥50% bieżącego odstępu Upper–Middle; dla dolnej bandy analogicznie blokowany jest SHORT do odbicia ≥50% Lower–Middle. Przy każdej nowej zamkniętej świecy D1 silnik oblicza nowe bandy i aktualizuje poziomy odblokowania; utrwala wyłącznie stan blokady, czas dotknięcia oraz watermark ostatniej zweryfikowanej M1 w publicznym artefakcie EURUSD Daily. Nie tworzy transakcji kontrariańskich, nie zmienia kierunku Belief i nie wpływa na pozycje już otwarte. Osiągnięcie progu oznacza wyłącznie zdjęcie veta; aktualny Belief i EPE muszą nadal dopuścić nowe wejście. Błąd przetwarzania blokuje nowe wejścia (fail-closed), a przy niedostępności D1 zachowywana jest już istniejąca blokada.
 
+
+
+### AD-06 / AD-07 → TR-03 / TR-05 — wspólny kanał Fed/EBC dla EURUSD
+
+Jeden `eurusd_central_bank_wire.py` dostarcza wersjonowane publikacje oficjalne, weryfikację dokumentów, kalendarz i receipt-time lineage do dwóch niezależnych adapterów EURUSD. `eurusd_central_bank_event_risk.py` ocenia własną geometrię i wykonywalność ceny każdego silnika; nowe CLOSE/PROTECT pozostają wyłącznie SHADOW, bez execution/stop authority i bez automatycznej promocji. Osobna flaga admission guard jest przygotowana, początkowo wyłączona; po walidacji blokuje nowe wejścia przy oknie high impact lub krytycznie nieświeżych danych, zachowując exit-only i EPE. Brak potwierdzonego końca konferencji wymaga jawnego recovery/manual review, a nie samego upływu 30 minut. Daily rozróżnia `AWAITING_OFFICIAL_DECISION` i prawdziwe official `POST_RELEASE/READY`; direction authority nadal należy do Belief/CF-07. Audyt jest prospektywny i odrębny od historii pozycji. BTC, S&P500 i pozostałe instrumenty nie otrzymują nowego kanału ani zmiany polityki. Dedykowany collector/cache EURUSD nie dzieli namespace ze wspólnymi Workerami; brak wdrożenia w tym PR. Kontrakt, flagi, źródła i wymagania aktywacji: `docs/EURUSD_CENTRAL_BANK_EVENT_RISK.md`.

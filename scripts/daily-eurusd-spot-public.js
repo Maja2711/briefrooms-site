@@ -210,6 +210,7 @@
       <details class="brfx-history-details" ${trades.length ? "open" : ""}><summary>${esc(T.history)}</summary>${historyRows(trades)}</details>
       <p class="brfx-foot">${esc(payload.engine_version || "")} · ${esc(date(payload.timestamp))}</p>
     </article>`;
+    document.dispatchEvent(new CustomEvent('br:eurusd-daily-rendered'));
   }
 
   const style = document.createElement("style");

@@ -1,6 +1,6 @@
 # BriefRooms Canonical Architecture Map — EN
 
-**Map version:** 1.45
+**Map version:** 1.46
 
 **Snapshot date:** 2026-10-28
 
@@ -571,3 +571,8 @@ Auxiliary D1 observation: `scripts/daily_eurusd_bollinger_d1.py` calculates SMA(
 
 New TR-03 D1-touch rule: after a verified completed M1 candle touches the D1 upper band, new LONGs are vetoed until a later correction of ≥50% of the *current* Upper–Middle distance; a lower-band touch likewise vetoes SHORTs until a ≥50% Lower–Middle rebound. Each newly closed D1 bar recalculates bands and release thresholds; the Daily output persists only the touch/block state, touch timestamp, and last-processed M1 watermark. The rule never creates countertrend positions, overrides Belief direction, or changes already-open positions. Reaching the correction level only removes the veto; current Belief and EPE still govern a new admission. Processing errors veto new entries (fail-closed); missing D1 data retains any existing block.
 
+
+
+### AD-06 / AD-07 → TR-03 / TR-05 — shared EURUSD Fed/ECB wire
+
+One `eurusd_central_bank_wire.py` provides versioned official publications, document verification, calendar and receipt-time lineage to two independent EURUSD adapters. `eurusd_central_bank_event_risk.py` assesses each engine's own geometry and quote executability; new CLOSE/PROTECT remain SHADOW only, without execution/stop authority or automatic promotion. A separate admission-guard flag is prepared and initially disabled; after validation it can veto new entries around high-impact events or critical stale data while preserving exit-only management and EPE. An unconfirmed conference end requires explicit recovery/manual review, rather than a 30-minute clock expiry. Daily distinguishes `AWAITING_OFFICIAL_DECISION` from genuine official `POST_RELEASE/READY`; direction authority remains Belief/CF-07. Audit is prospective and separate from position history. BTC, S&P500 and all other instruments receive no new feed or policy change. The dedicated EURUSD collector/cache shares no namespace with existing Workers; this PR does not deploy it. Contract, flags, sources and activation requirements: `docs/EURUSD_CENTRAL_BANK_EVENT_RISK.md`.

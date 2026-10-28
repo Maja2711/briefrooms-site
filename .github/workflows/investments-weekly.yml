@@ -198,6 +198,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git restore --worktree -- data/investments/live_prices.json
+          for cb_path in data/investments/eurusd_weekly_cb_event_risk.json data/investments/eurusd_cb_audit/weekly; do
+            if [ -e "$cb_path" ]; then git add -- "$cb_path"; fi
+          done
           git add data/investments/weekly \
                   data/investments/daily_review_report.json data/investments/daily_review_completeness.json \
                   data/investments/event_exit_requests.json data/investments/model_audit.json data/investments/closed_week_manifest.json \

@@ -23,6 +23,38 @@ from belief_macro_calendar_adapter import MacroEventCalendarAdapter
 from belief_macro_data_adapter import MacroDataAdapter
 from belief_macro_expectations_adapter import MacroExpectationsAdapter
 
+
+def _central_bank_type(event: Mapping[str, Any]) -> str | None:
+    title = str(event.get("title") or "").lower()
+    if "fomc" in title or "federal open market committee" in title:
+        return "FOMC_DECISION"
+    if "ecb" in title and any(term in title for term in ("decision", "monetary", "rate")):
+        return "ECB_DECISION"
+    return None
+
+
+def _central_bank_actuals(wire: Mapping[str, Any], event: Mapping[str, Any], now: datetime) -> list[Observation]:
+    """Read the common verified document; never apply BLS month semantics."""
+    from eurusd_central_bank_wire import official_actuals
+    rows = official_actuals(wire, event, now)
+    result = []
+    for row in rows:
+        published = row.get("published_at")
+        source_ref = row.get("source_url") or row.get("source_ref")
+        if not published or not source_ref:
+            continue
+        result.append(Observation.make(
+            adapter="eurusd_central_bank_wire", metric=str(row.get("metric") or "central_bank_rate_decision"),
+            entity="EURUSD", observed_at=str(published), value=row.get("value", row.get("facts")),
+            unit=str(row.get("unit") or "percent"), source=str(row.get("bank") or "Official central bank"),
+            source_type="primary", source_ref=str(source_ref), reliability=0.99,
+            independence_cluster="central_bank:" + str(row.get("event_id") or event.get("uid")),
+            metadata={**dict(row), "event_uid": event.get("uid"), "event_at": event.get("event_at"),
+                "published_at": published, "phase": "POST_RELEASE", "actual_count": len(rows),
+                "actual_period_contract": "OFFICIAL_CENTRAL_BANK_DOCUMENT"},
+        ))
+    return result
+
 EURUSD_EVENT_TERMS = (
     "employment situation",
     "consumer price index",
@@ -69,7 +101,11 @@ def _high_impact_events(observations: Sequence[Observation], now: datetime) -> l
         if event_at is None:
             continue
         hours_until = (event_at - now.astimezone(timezone.utc)).total_seconds() / 3600.0
-        if -ACTIVE_AFTER_HOURS <= hours_until <= ACTIVE_BEFORE_HOURS:
+        # A central-bank press conference may still be unverified after the
+        # old one-hour release window. Keep that event visible for monitoring;
+        # the shared risk policy decides cooldown/manual-review, not this age.
+        after_hours = 12.0 if _central_bank_type({"title": title}) else ACTIVE_AFTER_HOURS
+        if -after_hours <= hours_until <= ACTIVE_BEFORE_HOURS:
             rows.append({
                 "uid": meta.get("uid"),
                 "title": title,
@@ -120,6 +156,7 @@ def _actual_payload(obs: Observation) -> dict[str, Any]:
 def _expectation_for_event(
     observations: Sequence[Observation],
     event: Mapping[str, Any],
+    now: datetime | None = None,
 ) -> Observation | None:
     event_at = _dt(event.get("event_at"))
     if event_at is None:
@@ -132,6 +169,14 @@ def _expectation_for_event(
         obs_event = _dt(meta.get("event_at"))
         if obs_event is None:
             continue
+        if _central_bank_type(event):
+            # Time proximity alone could attach a payroll forecast to a rate
+            # decision. Central-bank consensus needs the exact sourced event.
+            seen = _dt(obs.observed_at)
+            if (not event.get("uid") or meta.get("event_uid", meta.get("uid")) != event.get("uid")
+                    or seen is None or seen > min(event_at, now or event_at)
+                    or not str(obs.source_ref).startswith("https://")):
+                continue
         delta = abs((obs_event - event_at).total_seconds())
         if delta <= 2 * 3600:
             candidates.append((delta, obs))
@@ -145,6 +190,8 @@ def _macro_actuals_for_event(
     title = str(event.get("title") or "").lower()
     event_at = _dt(event.get("event_at"))
     if event_at is None:
+        return []
+    if _central_bank_type(event):
         return []
     expected_period = _previous_month(event_at)
     wanted: set[str] = set()
@@ -263,6 +310,7 @@ def build_context(
     expectations: MacroExpectationsAdapter,
     interpreter: GeminiEvidenceInterpreter,
     previous: Mapping[str, Any] | None = None,
+    wire: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     now = now.astimezone(timezone.utc)
     calendar_result = calendar.run(now)
@@ -290,11 +338,18 @@ def build_context(
     assert event_at is not None
     hours_until = (event_at - now).total_seconds() / 3600.0
     phase = "PRE_RELEASE" if hours_until >= 0 else "POST_RELEASE"
+    central_bank = _central_bank_type(event)
 
     expectation_result = expectations.run(now)
-    expectation = _expectation_for_event(expectation_result.observations, event)
-    macro_result = macro_data.run(now)
-    actuals = _macro_actuals_for_event(macro_result.observations, event) if phase == "POST_RELEASE" else []
+    expectation = _expectation_for_event(expectation_result.observations, event, now)
+    if central_bank:
+        if wire is None:
+            from eurusd_central_bank_wire import load_wire
+            wire = load_wire(Path(__file__).resolve().parents[1] / "data/investments/eurusd_central_bank_wire.json", now=now)
+        actuals = _central_bank_actuals(wire, event, now) if phase == "POST_RELEASE" else []
+    else:
+        macro_result = macro_data.run(now)
+        actuals = _macro_actuals_for_event(macro_result.observations, event) if phase == "POST_RELEASE" else []
 
     package = _composite_observation(
         now=now,
@@ -344,21 +399,30 @@ def build_context(
     if llm is None and package is not None and interpreter.available:
         llm = _llm_payload(interpreter.interpret(package))
 
-    score = float((llm or {}).get("eurusd_score") or 0.0)
-    post_release_ready = phase == "POST_RELEASE" and bool(actuals) and llm is not None
+    # The new wire is context-only. In particular its LLM summary cannot flow
+    # through the legacy macro side channel and acquire thesis-close authority.
+    score = 0.0 if central_bank else float((llm or {}).get("eurusd_score") or 0.0)
+    post_release_ready = phase == "POST_RELEASE" and bool(actuals) and (bool(central_bank) or llm is not None)
+    status = ("AWAITING_OFFICIAL_DECISION" if central_bank and phase == "POST_RELEASE" and not actuals else phase)
     return {
         "schema_version": "daily-eurusd-macro-fast-v1",
-        "status": phase,
+        "status": status,
+        "phase": phase,
         "event": {**event, "hours_until_at_check": round(hours_until, 4)},
         "expectations": expectation_summary,
         "expectations_status": "READY" if expectation is not None else "MISSING",
         "actuals": actual_summary,
-        "actuals_status": "READY" if actuals else ("WAITING" if phase == "POST_RELEASE" else "NOT_APPLICABLE"),
+        "actuals_status": "READY" if actuals else ("AWAITING_OFFICIAL_DECISION" if central_bank and phase == "POST_RELEASE" else "WAITING" if phase == "POST_RELEASE" else "NOT_APPLICABLE"),
         "llm_key": data_key,
         "llm": llm,
         "eurusd_score": round(score, 4),
-        "decision_influence": bool(llm),
+        "decision_influence": bool(llm) and not bool(central_bank),
         "post_release_ready": post_release_ready,
+        "central_bank_event": central_bank,
+        "central_bank_wire": ({"schema_version": wire.get("schema_version"),
+            "as_of": wire.get("as_of"), "overall_status": wire.get("overall_status"),
+            "snapshot_sha256": (wire.get("integrity") or {}).get("snapshot_sha256"),
+            "event_window": wire.get("event_window")} if central_bank and wire is not None else None),
         "calendar_coverage": calendar_coverage,
         "rules": {
             "no_invented_consensus": True,
@@ -366,7 +430,7 @@ def build_context(
             "pre_event_expectations_require_sourced_bundle": True,
             "missing_expectations_fail_closed": True,
             "post_release_requires_official_actuals": True,
-            "official_actual_period_contract": "BLS_YYYY-MMM",
+            "official_actual_period_contract": "OFFICIAL_CENTRAL_BANK_DOCUMENT" if central_bank else "BLS_YYYY-MMM",
         },
     }
 
