@@ -12,6 +12,7 @@ try:
     from . import publish_live_news_filtered as filtered
     from . import publish_curated_news as curated
     from . import enforce_homepage_max_age as public_freshness
+    from . import pl_sport_priority
     from .news_claim_intelligence import (
         CLAIM_INTELLIGENCE_VERSION,
         CONTRADICTION_DETECTION_VERSION,
@@ -44,6 +45,7 @@ except ImportError:
     import publish_live_news_filtered as filtered
     import publish_curated_news as curated
     import enforce_homepage_max_age as public_freshness
+    import pl_sport_priority
     from news_claim_intelligence import (
         CLAIM_INTELLIGENCE_VERSION,
         CONTRADICTION_DETECTION_VERSION,
@@ -158,6 +160,18 @@ def _annotate_grouped(grouped: dict[str, list[dict[str, Any]]]) -> dict[str, lis
 
 def fetch_all(config: Any, now: Any):
     grouped, labels, errors = _original_fetch_all(config, now)
+    # PL sport only. Publisher-led athlete fixture discovery runs after the
+    # ordinary RSS pool, before provenance, freshness and canonical-event dedupe.
+    # A broken additional listing must not stop PL, EN or unrelated sections.
+    if "polityka" in grouped and "sport" in grouped:
+        try:
+            priority, warnings = pl_sport_priority.collect(now)
+            grouped["sport"].extend(priority)
+            for warning in warnings:
+                print(f"::warning::PL top-athlete fixture discovery: {warning}")
+            print(f"PL_SPORT_FIXTURE_DISCOVERY candidates={len(priority)}")
+        except Exception as exc:
+            print(f"::warning::PL sport priority discovery unavailable: {type(exc).__name__}")
     return _annotate_grouped(grouped), labels, errors
 
 
@@ -393,6 +407,10 @@ def _homepage_score(
 ) -> float:
     score = source_expansion_editorial_score(story, section_id, now) + _homepage_summary_bonus(story)
     if section_id == "sport":
+        if story.get("sport_priority_fixture"):
+            # A current, source-verified fixture must beat generic sports chatter
+            # when Sport receives its normal homepage editorial slot.
+            score += 620.0
         try:
             hot = filtered.sport_hot_score(story, now, sport_support or {})
             if (
