@@ -179,3 +179,28 @@ Disable immediately by setting `SAXO_PRIVATE_AUTO_ENABLED=false`;
 the private D1 history is preserved. A five-minute GitHub Actions schedule
 is best effort and **cannot** replace the fast five-second exit monitor or
 provide real SL execution during outages. No claim of broker execution.
+
+
+### Private EURUSD D1 watchdog and bounded recovery
+
+`.github/workflows/saxo-private-eurusd-daily-watchdog.yml` is an
+independent observer scheduled every 10 minutes. During the active EURUSD
+market it reads **only** the D1 generation and last successful update time
+(no trades, prices, positions or P/L in GitHub logs). A private state older
+than 20 minutes triggers **at most one** workflow_dispatch recovery after
+checking that the private Daily is not already queued or running. The
+watchdog reports a failed Actions run even if dispatch succeeds, so
+operational failures remain visible. Missing/corrupt D1 state never triggers
+automatic reinitialization or new trades.
+
+The private five-minute engine skips cycles outside the configured FX market
+window and does not rewrite D1 during a closed-market no-op. Recovery cannot
+guarantee execution: both GitHub schedules are best effort, and full
+broker-style five-second SL/TP protection is not supplied by this setup.
+
+Owner operational review: open both Actions workflow histories. A green
+manual `workflow_dispatch` is not proof that `schedule` runs; require
+an actual successful `event=schedule`, followed by a subsequent successful
+D1 write with an increased generation. The first true private simulated
+entry and exit must still be checked before claiming the entire trade
+lifecycle has been witnessed.
