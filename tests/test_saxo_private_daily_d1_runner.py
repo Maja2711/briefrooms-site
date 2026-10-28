@@ -72,6 +72,23 @@ class IsolatedD1Tests(unittest.TestCase):
             with patch.object(d1_runner, "D1", return_value=MemoryD1()):
                 self.assertEqual(d1_runner.main(["--initialize"]), 1)
 
+    def test_inactive_market_never_reads_or_writes_private_state(self):
+        with patch.dict(os.environ, {
+            "BRIEFROOMS_PRIVATE_RUNTIME": "1",
+            "SAXO_PRIVATE_PRIMARY": "1",
+            "SAXO_PRIVATE_AUTO_ENABLED": "true",
+            "SAXO_PRIVATE_BASIC_PASSWORD": "test-only",
+        }):
+            with patch("daily_eurusd_cycle_watchdog.fx_market_active", return_value=False):
+                with patch.object(d1_runner, "private_cycle") as cycle:
+                    with patch.object(d1_runner, "load") as load:
+                        with patch.object(d1_runner, "save") as save:
+                            with patch.object(d1_runner, "D1", return_value=MemoryD1()):
+                                self.assertEqual(d1_runner.main([]), 0)
+                            cycle.assert_not_called()
+                            load.assert_not_called()
+                            save.assert_not_called()
+
     def test_private_cycle_off_by_default(self):
         with patch.dict(os.environ, {
             "SAXO_PRIVATE_AUTO_ENABLED": "false",
