@@ -1,0 +1,61 @@
+name: Saxo EURUSD Chart 1m 30m Read-Only Probe
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Saxo EURUSD Native WebSocket Streaming - Private"]
+    types: [completed]
+permissions:
+  contents: read
+jobs:
+  private-chart:
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.conclusion == 'success'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      PRIVATE_PASSWORD: ${{ secrets.SAXO_PRIVATE_BASIC_PASSWORD }}
+    steps:
+      - name: Check Saxo SIM Chart entitlement and current completed samples
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64, json, os, urllib.request, urllib.error
+          from datetime import datetime, timezone
+          root="https://briefrooms-saxo-eurusd-stream.szczerbinski0577.workers.dev"
+          password=os.environ.get("PRIVATE_PASSWORD") or ""
+          if not password:
+              print("SAXO_CHART_AUTH=MISSING")
+              raise SystemExit(2)
+          header="Basic "+base64.b64encode(("admin:"+password).encode()).decode("ascii")
+          failed=False
+          for horizon in (1,30):
+              req=urllib.request.Request(root+f"/saxo/chart?horizon={horizon}&count=120",
+                  headers={"Authorization":header,"Accept":"application/json",
+                           "Cache-Control":"no-store","User-Agent":"BriefRoomsPrivateChartProbe/1"})
+              try:
+                  with urllib.request.urlopen(req,timeout=18) as res:
+                      data=json.loads(res.read(250000))
+                  samples=data.get("data",[])
+                  valid=(data.get("source")=="SAXO_SIM_CHART" and
+                         data.get("delayed_by_minutes")==0 and
+                         data.get("redistributable") is False and
+                         data.get("horizon_minutes")==horizon and
+                         isinstance(samples,list) and len(samples)>=2)
+                  # Deliberately never log sample timestamps, OHLC, instrument
+                  # response bodies, OAuth context or account identifiers.
+                  print(f"SAXO_CHART_{horizon}M_CONTRACT="+("PASS" if valid else "FAIL"))
+                  if not valid: failed=True
+              except urllib.error.HTTPError as error:
+                  print(f"SAXO_CHART_{horizon}M_HTTP="+str(error.code))
+                  failed=True
+              except Exception:
+                  print(f"SAXO_CHART_{horizon}M_STATUS=UNAVAILABLE")
+                  failed=True
+          print("SAXO_CHART_READONLY="+("PASS" if not failed else "BLOCKED"))
+          if failed:
+              raise SystemExit(1)
+          PY

@@ -1,0 +1,48 @@
+name: Saxo EURUSD Single-Ledger Read-Only Audit
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/saxo_daily_canonical_audit.py"
+      - "tests/test_saxo_daily_canonical_audit.py"
+      - ".github/workflows/saxo-eurusd-single-ledger-readonly-audit.yml"
+  pull_request:
+    paths:
+      - "scripts/saxo_daily_canonical_audit.py"
+      - "tests/test_saxo_daily_canonical_audit.py"
+      - ".github/workflows/saxo-eurusd-single-ledger-readonly-audit.yml"
+permissions:
+  contents: read
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Verify fail-closed ledger comparison without network
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts
+        run: python -m unittest tests.test_saxo_daily_canonical_audit -v
+  compare:
+    needs: unit
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      SAXO_PRIVATE_D1_DATABASE_ID: ${{ vars.SAXO_PRIVATE_D1_DATABASE_ID }}
+      SAXO_PRIVATE_D1_API_TOKEN: ${{ secrets.SAXO_PRIVATE_D1_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Strict private D1 versus public ledger parity (read only)
+        run: python scripts/saxo_daily_canonical_audit.py

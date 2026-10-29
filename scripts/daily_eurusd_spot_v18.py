@@ -554,7 +554,12 @@ def run_cycle(output_path: Path, history_path: Path, client: Any | None = None) 
     # is materially stale, so a different point feed cannot override healthy
     # Yahoo high/low history.
     yahoo_age_seconds = (datetime.now(timezone.utc) - yahoo_observed_at).total_seconds()
-    if yahoo_age_seconds > 120.0:
+    if os.environ.get("SAXO_CHART_PRIMARY") == "1" and os.environ.get("SAXO_PRIVATE_PRIMARY") == "1":
+        # Private 1m highs/lows MUST remain Saxo observations. Never insert a
+        # synthetic Stooq tick into the Saxo candle series.
+        if yahoo_age_seconds > 180.0:
+            raise ValueError("private_saxo_1m_observation_stale")
+    elif yahoo_age_seconds > 120.0:
         try:
             if injected_client:
                 raise RuntimeError("skip_external_stooq_for_injected_test_client")
