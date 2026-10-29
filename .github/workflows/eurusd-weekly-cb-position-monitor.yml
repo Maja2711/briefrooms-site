@@ -1,0 +1,134 @@
+name: EURUSD Weekly Fed ECB Position Monitor
+
+# Read-only EURUSD Weekly CB risk observer. It never executes, opens, closes
+# or changes any positions or SL/TP; no Saxo/private quotes are read or logged.
+on:
+  workflow_dispatch:
+  schedule:
+    # Offset from the official Fed/ECB wire collector (minute 3,8,13,...).
+    - cron: "4-59/5 * * * 1-5"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/eurusd-weekly-cb-position-monitor.yml"
+      - "scripts/eurusd_weekly_cb_event_adapter.py"
+  pull_request:
+    paths:
+      - ".github/workflows/eurusd-weekly-cb-position-monitor.yml"
+      - "scripts/eurusd_weekly_cb_event_adapter.py"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eurusd-weekly-cb-position-monitor
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate EURUSD-only observer and lifecycle boundaries
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          python -m unittest tests.test_eurusd_weekly_cb_event_adapter tests.test_eurusd_cb_event_risk -q
+          python -m py_compile scripts/eurusd_weekly_cb_event_adapter.py
+
+  observe:
+    # Independent of WES price/ENTRY/SL/TP and of heavy CI validation.
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'push')
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Assess active Weekly EURUSD position using official CB wire
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from datetime import datetime, timezone
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+          from eurusd_weekly_cb_event_adapter import evaluate_current_week
+          now = datetime.now(timezone.utc)
+          iso = now.astimezone(ZoneInfo("Europe/Warsaw")).isocalendar()
+          path = Path(f"data/investments/weekly/{iso.year}-W{iso.week:02d}.json")
+          if not path.is_file():
+              raise SystemExit("EURUSD_WEEKLY_CB=RECOVERY_REQUIRED_CURRENT_WEEK_MISSING")
+          week = json.loads(path.read_text(encoding="utf-8"))
+          eurusd = [v for v in week.get("instruments", ()) if v.get("instrument_id") == "eurusd"]
+          if len(eurusd) != 1:
+              raise SystemExit("EURUSD_WEEKLY_CB=RECOVERY_REQUIRED_EURUSD_UNIQUE_POSITION")
+          item = eurusd[0]
+          if item.get("trade_status") != "open":
+              print("EURUSD_WEEKLY_CB=NO_OPEN_POSITION")
+          else:
+              decision = evaluate_current_week(now=now, persist=True, week=week)
+              if not decision or not decision.get("immutable_id") or decision.get("execution_authority") is not False:
+                  raise SystemExit("EURUSD_WEEKLY_CB=RECOVERY_REQUIRED_INVALID_ASSESSMENT")
+              if decision.get("position_id") is None:
+                  raise SystemExit("EURUSD_WEEKLY_CB=RECOVERY_REQUIRED_POSITION_ID_MISSING")
+              report = Path("data/investments/eurusd_weekly_cb_event_risk.json")
+              if not report.is_file():
+                  raise SystemExit("EURUSD_WEEKLY_CB=RECOVERY_REQUIRED_REPORT_NOT_SAVED")
+              saved = json.loads(report.read_text(encoding="utf-8"))
+              if saved.get("immutable_id") != decision["immutable_id"]:
+                  raise SystemExit("EURUSD_WEEKLY_CB=RECOVERY_REQUIRED_REPORT_MISMATCH")
+              print("EURUSD_WEEKLY_CB=RECORDED")
+              print("EURUSD_WEEKLY_CB_ACTION=" + str(decision.get("action")))
+              print("EURUSD_WEEKLY_CB_WIRE_HEALTH=" + str((decision.get("diagnostics") or {}).get("wire_health")))
+              print("EURUSD_WEEKLY_CB_EXECUTION_AUTHORITY=FALSE")
+          PY
+
+      - name: Publish EURUSD-only CB assessment without changing trading state
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ -e data/investments/eurusd_weekly_cb_event_risk.json ]; then
+            git add -- data/investments/eurusd_weekly_cb_event_risk.json
+          fi
+          if [ -d data/investments/eurusd_cb_audit/weekly ]; then
+            git add -- data/investments/eurusd_cb_audit/weekly
+          fi
+          if git diff --cached --quiet; then
+            echo "EURUSD_WEEKLY_CB=UNCHANGED"
+            exit 0
+          fi
+          # Only the two EURUSD risk locations are staged, never trade state.
+          git diff --cached --name-only | while IFS= read -r p; do
+            case "$p" in
+              data/investments/eurusd_weekly_cb_event_risk.json|data/investments/eurusd_cb_audit/weekly/*) ;;
+              *) echo "UNEXPECTED_CB_FILE=$p" >&2; exit 1 ;;
+            esac
+          done
+          git commit -m "Observe EURUSD Weekly Fed ECB risk (no trade changes)"
+          for attempt in 1 2 3; do
+            if git pull --rebase origin main && git push origin HEAD:main; then
+              echo "EURUSD_WEEKLY_CB=PUBLISHED"
+              exit 0
+            fi
+            git rebase --abort 2>/dev/null || true
+            sleep "$attempt"
+          done
+          echo "EURUSD_WEEKLY_CB=PUBLICATION_FAILED" >&2
+          exit 1
