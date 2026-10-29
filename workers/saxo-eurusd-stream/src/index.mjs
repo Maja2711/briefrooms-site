@@ -57,7 +57,10 @@ export function parseSaxoBinaryMessages(data) {
   return messages;
 }
 export function projectQuote(previous, payload, receivedAt) {
-  const source = payload?.Snapshot || payload;
+  const source = payload?.Snapshot || payload?.Data || payload;
+  if ((source?.Uic != null && source.Uic !== 21) ||
+      (source?.AssetType != null && source.AssetType !== "FxSpot") ||
+      source?.InstrumentPriceDetails?.IsMarketOpen === false) return null;
   const q = source?.Quote;
   if (!q || typeof q !== "object") return null;
   const merged = copyPartial(previous?.raw, q);
@@ -71,13 +74,21 @@ export function projectQuote(previous, payload, receivedAt) {
   const bidAt = validFloat(q.Bid) ? receivedAt : previous?.bidAt;
   const askAt = validFloat(q.Ask) ? receivedAt : previous?.askAt;
   if (!Number.isFinite(bidAt) || !Number.isFinite(askAt)) return null;
-  return {raw:merged, bidAt, askAt};
+  const sourceTimestamp = source.LastUpdated || source.Timestamp;
+  const sourceAt = sourceTimestamp ? Date.parse(sourceTimestamp) :
+    (validFloat(q.Bid) || validFloat(q.Ask) ? receivedAt : previous?.sourceAt);
+  // The first subscription snapshot may describe an OLD quote even though
+  // it was received just now. Validate its Saxo timestamp independently.
+  if (!Number.isFinite(sourceAt) || receivedAt < sourceAt - 30000 ||
+      receivedAt - sourceAt > QUOTE_MAX_AGE) return null;
+  return {raw:merged, bidAt, askAt, sourceAt};
 }
 export function quoteFresh(quote, now) {
   return Boolean(quote && validQuoteValues(quote.raw?.Bid, quote.raw?.Ask)
     && now >= quote.bidAt && now >= quote.askAt
     && now - quote.bidAt <= QUOTE_MAX_AGE
-    && now - quote.askAt <= QUOTE_MAX_AGE);
+    && now - quote.askAt <= QUOTE_MAX_AGE
+    && now >= quote.sourceAt && now - quote.sourceAt <= QUOTE_MAX_AGE);
 }
 async function matchSecret(candidate, expected) {
   if (!candidate || !expected) return false;
@@ -260,6 +271,7 @@ export class EurusdSaxoStream {
       }
       const next=projectQuote(this.quote,message.payload,receivedAt);
       if (next) this.quote=next;
+      else if (message.payload?.Quote || message.payload?.Data?.Quote) this.quote=null;
       if (message.payload?.Quote?.PriceTypeBid === "OldIndicative" ||
           message.payload?.Quote?.PriceTypeAsk === "OldIndicative" ||
           message.payload?.Quote?.DelayedByMinutes > 0) this.quote=null;
