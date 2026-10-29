@@ -43,6 +43,7 @@ concurrency:
 
 jobs:
   validate:
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -66,8 +67,10 @@ jobs:
           node --test tests/test_eurusd_cb_risk_public.js tests/test_eurusd_cb_wire_worker.js tests/test_investments_weekly_public.js
 
   collect:
-    needs: validate
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    # Poll on schedule independently of heavy PR/commit validation; on a
+    # relevant main push run once to bootstrap/recover source collection.
+    # This job never executes a trading engine or writes a trade.
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'push')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
