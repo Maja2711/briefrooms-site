@@ -67,6 +67,18 @@ class Client:
 
 
 class ProductionDecisionRecordTests(unittest.TestCase):
+    def setUp(self):
+        # These legacy contract scenarios isolate their own historical calendar.
+        # The production Fed/ECB entry veto is covered by dedicated CB tests;
+        # it must not be driven by today's main-branch RSS state here.
+        from eurusd_central_bank_event_risk import DEFAULT_POLICY
+        context = patch(
+            "eurusd_central_bank_event_risk.load_policy",
+            return_value=dict(DEFAULT_POLICY),
+        )
+        context.start()
+        self.addCleanup(context.stop)
+
     def test_snapshot_delay_never_refreshes_original_evidence(self):
         source = datetime(2026, 10, 20, 12, tzinfo=UTC)
         original = source - timedelta(minutes=1)
