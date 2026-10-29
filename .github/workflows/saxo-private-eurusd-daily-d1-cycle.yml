@@ -68,7 +68,20 @@ jobs:
       PRIVATE_DATABASE: ${{ vars.SAXO_PRIVATE_D1_DATABASE_ID }}
       PRIVATE_TOKEN: ${{ secrets.SAXO_PRIVATE_D1_API_TOKEN }}
       STREAM_PASSWORD: ${{ secrets.SAXO_PRIVATE_BASIC_PASSWORD }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      SAXO_PRIVATE_D1_DATABASE_ID: ${{ vars.SAXO_PRIVATE_D1_DATABASE_ID }}
+      SAXO_PRIVATE_D1_API_TOKEN: ${{ secrets.SAXO_PRIVATE_D1_API_TOKEN }}
+      SAXO_PRIVATE_BASIC_PASSWORD: ${{ secrets.SAXO_PRIVATE_BASIC_PASSWORD }}
+      SAXO_STREAM_PRIMARY: "1"
+      SAXO_PRIVATE_STREAM_URL: "https://briefrooms-saxo-eurusd-stream.szczerbinski0577.workers.dev/saxo/quote"
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
       - name: Report only private D1 activation readiness
         shell: bash
         run: |
@@ -87,6 +100,33 @@ jobs:
           else
             echo "PRIVATE_AUTO_SCHEDULE_ENABLED=FALSE"
           fi
+      - name: Read-only private D1 initialization and live streaming quote checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os
+          from datetime import datetime, timezone
+          # These checks never create state, persist quotes, print prices or
+          # write to public repositories. Errors carry fixed categories only.
+          try:
+              from saxo_private_daily_d1_runner import D1
+              result=D1().query("SELECT generation FROM private_saxo_eurusd_daily WHERE id=1")
+              rows=result.get("results",[])
+              ok=len(rows)==1 and type(rows[0].get("generation")) is int and rows[0]["generation"]>=0
+          except Exception:
+              ok=False
+          print("PRIVATE_D1_ROW_INITIALIZED=" + str(ok).upper())
+          try:
+              from saxo_private_feed import fetch_private_saxo_quote
+              now=datetime.now(timezone.utc)
+              q=fetch_private_saxo_quote(now=now)
+              age=(now-q["observed_at"]).total_seconds()
+              ok=(0 <= age <= 15 and 0.8 < q["bid"] < q["ask"] < 1.5)
+          except Exception:
+              ok=False
+          print("PRIVATE_SAXO_STREAM_BID_ASK_FRESH=" + str(ok).upper())
+          PY
 
   initialize-private-d1:
     # A missing persisted state is never auto-reinitialized by the scheduler.
