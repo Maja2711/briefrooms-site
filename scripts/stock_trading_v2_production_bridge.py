@@ -788,7 +788,12 @@ def run(opportunity_paths: Mapping[str, Path], *, now_utc: datetime | None = Non
     if verified["status"] != "OK":
         raise RuntimeError("canonical portfolio invariant violation: " + "; ".join(verified["errors"]))
     portfolio.save_state(canonical, PORTFOLIO_PATH, now=now_utc)
-    runtime["last_run_at"] = now_utc.isoformat().replace("+00:00", "Z")
+    # This is the persistence/finalization clock, not the initial evaluation
+    # clock. Actual decisions may happen many seconds after run() starts.
+    # If run_at is backdated to the start, the fail-closed provenance auditor
+    # rejects legitimate decisions with created_at > run_at + 5 seconds.
+    finalized_run_at = datetime.now(UTC) if real_clock else now_utc
+    runtime["last_run_at"] = finalized_run_at.isoformat().replace("+00:00", "Z")
     runtime["audit"] = (list(runtime.get("audit") or []) + [{"run_at": runtime["last_run_at"], "phase": runtime["phase"], "actions": all_audits}])[-100:]
     _atomic(STATE_PATH, runtime)
     from scripts import stock_trading_v2_production_replay as replay
