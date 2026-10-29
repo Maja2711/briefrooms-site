@@ -171,7 +171,8 @@ def event_state(wire: Mapping, events: Sequence[Mapping], policy: Mapping, now: 
         if bank == 'ECB' and (source == ecb_calendar or row.get('calendar_source_url') == ecb_calendar) and row.get('schedule_kind') != 'UNSCHEDULED_RELEASE':
             label = str(row.get('title') or row.get('event_id') or row.get('uid') or '').lower()
             if not ('governing council' in label and
-                    ('(day 2)' in label or 'press conference following' in label)):
+                    ('monetary policy meeting' in label or 'press conference following' in label)
+                    and '(day 1)' not in label):
                 continue
         first_seen = parse_time(row.get('first_seen_at') or row.get('observed_at') or row.get('calendar_checked_at'))
         observed = parse_time(row.get('calendar_checked_at') or row.get('observed_at') or row.get('first_seen_at'))
