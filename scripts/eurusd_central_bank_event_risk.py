@@ -164,6 +164,15 @@ def event_state(wire: Mapping, events: Sequence[Mapping], policy: Mapping, now: 
         source = row.get('source_url') or row.get('source_ref') or row.get('calendar_source')
         if not source:
             source = row.get('calendar_source_url')
+        # The general ECB HTML calendar can return a dated navigation menu.
+        # A monetary-policy risk window needs a real Council Day-2 meeting or
+        # its press conference, not any ECB-labelled page or Day-1 meeting.
+        ecb_calendar = 'https://www.ecb.europa.eu/press/calendars/mgcgc/html/index.en.html'
+        if bank == 'ECB' and (source == ecb_calendar or row.get('calendar_source_url') == ecb_calendar) and row.get('schedule_kind') != 'UNSCHEDULED_RELEASE':
+            label = str(row.get('title') or row.get('event_id') or row.get('uid') or '').lower()
+            if not ('governing council' in label and
+                    ('(day 2)' in label or 'press conference following' in label)):
+                continue
         first_seen = parse_time(row.get('first_seen_at') or row.get('observed_at') or row.get('calendar_checked_at'))
         observed = parse_time(row.get('calendar_checked_at') or row.get('observed_at') or row.get('first_seen_at'))
         calendar_fresh = bool(at and bank and official_url(source) and first_seen and first_seen <= now and observed and observed <= now
