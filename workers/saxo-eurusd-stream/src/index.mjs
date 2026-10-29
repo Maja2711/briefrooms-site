@@ -137,7 +137,9 @@ export class EurusdSaxoStream {
     // Private, credential-free diagnostics: never retain OAuth values or quotes.
     this.phase = "starting"; this.lastFailure = "none";
     ctx.blockConcurrencyWhile(async()=> {
-      await ctx.storage.setAlarm(Date.now() + 1000);
+      // Preserve an existing alarm across Durable Object re-instantiation.
+      if (await ctx.storage.getAlarm() === null)
+        await ctx.storage.setAlarm(Date.now() + 1000);
     });
   }
   async fetch(request) {
@@ -148,7 +150,8 @@ export class EurusdSaxoStream {
         fresh:quoteFresh(this.quote, now),
         environment:"SIM", instrument:"EUR/USD",
         trading_enabled:false, streaming:true,
-        phase:this.phase, last_failure:this.lastFailure
+        phase:this.phase, last_failure:this.lastFailure,
+        diagnostics_revision:"oauth_recovery_v1"
       }), {headers:{"Content-Type":"application/json","Cache-Control":"no-store"}});
     }
     if (path !== "/saxo/quote" || !this.connected || !this.subscribed ||
@@ -200,26 +203,43 @@ export class EurusdSaxoStream {
   async refreshToken() {
     if (this.token && this.tokenExpiresAt > Date.now() + 90000) return this.token;
     this.phase="oauth_refresh";
-    const refresh = await this.ctx.storage.get("oauth_refresh_token")
-      || this.env.SAXO_STREAM_REFRESH_TOKEN;
-    if (!refresh || !this.env.SAXO_STREAM_APP_KEY || !this.env.SAXO_STREAM_APP_SECRET)
+    const stored = await this.ctx.storage.get("oauth_refresh_token");
+    const configured = this.env.SAXO_STREAM_REFRESH_TOKEN;
+    if ((!stored && !configured) || !this.env.SAXO_STREAM_APP_KEY || !this.env.SAXO_STREAM_APP_SECRET)
       throw Error("oauth_not_configured");
     const auth = btoa(this.env.SAXO_STREAM_APP_KEY + ":" + this.env.SAXO_STREAM_APP_SECRET);
-    const body = new URLSearchParams({grant_type:"refresh_token",refresh_token:refresh});
-    const response = await fetch(TOKEN_URL, {
-      method:"POST", headers:{"Authorization":"Basic " + auth,
-        "Content-Type":"application/x-www-form-urlencoded"},body
-    });
-    if (!response.ok) throw Error("oauth_http_" + response.status);
-    const data = await response.json();
-    if (!data.access_token || !data.refresh_token ||
-        !Number.isFinite(data.expires_in) || data.expires_in < 120)
-      throw Error("oauth_response_incomplete");
-    // OAuth refresh tokens rotate; persist the NEW token before use.
-    await this.ctx.storage.put("oauth_refresh_token", data.refresh_token);
-    this.token = data.access_token;
-    this.tokenExpiresAt = Date.now() + data.expires_in * 1000;
-    return this.token;
+    // Prefer the last successfully rotated token. If it is rejected as
+    // invalid and the operator installed a DIFFERENT GitHub refresh token,
+    // make one controlled recovery attempt with that new token.
+    // Never retry configured (older) credentials when a stored token works.
+    const candidates = stored ? [stored] : [configured];
+    if (stored && configured && stored !== configured) candidates.push(configured);
+    for (let i = 0; i < candidates.length; i++) {
+      const body = new URLSearchParams({
+        grant_type:"refresh_token",refresh_token:candidates[i]
+      });
+      const response = await fetch(TOKEN_URL, {
+        method:"POST", headers:{"Authorization":"Basic " + auth,
+          "Content-Type":"application/x-www-form-urlencoded"},body
+      });
+      if (!response.ok) {
+        // OAuth invalid_grant/credentials: only a rotated token from storage
+        // can fall back to a DIFFERENT freshly configured credential.
+        if (i === 0 && stored && candidates.length > 1 &&
+            (response.status === 400 || response.status === 401)) continue;
+        throw Error("oauth_http_" + response.status);
+      }
+      const data = await response.json();
+      if (!data.access_token || !data.refresh_token ||
+          !Number.isFinite(data.expires_in) || data.expires_in < 120)
+        throw Error("oauth_response_incomplete");
+      // Persist every newly rotated refresh token BEFORE using the access token.
+      await this.ctx.storage.put("oauth_refresh_token", data.refresh_token);
+      this.token = data.access_token;
+      this.tokenExpiresAt = Date.now() + data.expires_in * 1000;
+      return this.token;
+    }
+    throw Error("oauth_refresh_failed");
   }
   reset() {
     this.connected = false; this.subscribed = false; this.quote = null;
