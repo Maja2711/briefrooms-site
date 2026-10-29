@@ -90,7 +90,8 @@ class SaxoPrivateFeedTests(unittest.TestCase):
         ) as opener:
             response = MagicMock()
             response.status=200
-            response.read.return_value=json.dumps(self.payload).encode("utf8")
+            payload = dict(self.payload, timestamp_origin="SAXO_STREAM_PRICE_SIDE_RECEIVED_AT")
+            response.read.return_value=json.dumps(payload).encode("utf8")
             response.__enter__.return_value=response
             opener.return_value=response
             quote=saxo.fetch_private_saxo_quote(now=self.now)
