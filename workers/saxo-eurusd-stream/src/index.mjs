@@ -134,6 +134,8 @@ export class EurusdSaxoStream {
     this.token = null; this.tokenExpiresAt = 0;
     this.connectionStarted = 0; this.connectionEpoch = 0;
     this.lastFrameAt = 0; this.retryAfter = 0; this.failures = 0;
+    // Private, credential-free diagnostics: never retain OAuth values or quotes.
+    this.phase = "starting"; this.lastFailure = "none";
     ctx.blockConcurrencyWhile(async()=> {
       await ctx.storage.setAlarm(Date.now() + 1000);
     });
@@ -145,7 +147,8 @@ export class EurusdSaxoStream {
         connected:this.connected, subscribed:this.subscribed,
         fresh:quoteFresh(this.quote, now),
         environment:"SIM", instrument:"EUR/USD",
-        trading_enabled:false, streaming:true
+        trading_enabled:false, streaming:true,
+        phase:this.phase, last_failure:this.lastFailure
       }), {headers:{"Content-Type":"application/json","Cache-Control":"no-store"}});
     }
     if (path !== "/saxo/quote" || !this.connected || !this.subscribed ||
@@ -168,15 +171,25 @@ export class EurusdSaxoStream {
     try {
       // A dead TCP connection can remain open without price updates. The
       // Saxo stream normally emits heartbeats; silence must trigger recovery.
-      if (this.connected && Date.now() - this.lastFrameAt > 60000) this.reset();
+      if (this.connected && Date.now() - this.lastFrameAt > 60000) {
+        this.lastFailure="websocket_idle"; this.reset();
+      }
       if (this.connected && this.tokenExpiresAt < Date.now() + 90000) {
         const token = await this.refreshToken();
         const url = STREAM + "/authorize?contextid=" + encodeURIComponent(this.contextId);
         const response = await fetch(url, {method:"PUT",headers:{"Authorization":"Bearer " + token}});
-        if (response.status !== 202) this.reset();
+        if (response.status !== 202) {
+          this.lastFailure="websocket_reauthorize_http_" + response.status;
+          this.reset();
+        }
       }
       if (!this.connected && Date.now() >= this.retryAfter) await this.connect();
-    } catch {
+    } catch (error) {
+      // Allow only fixed machine-readable error categories: no Saxo bodies,
+      // token values, request URLs or exception messages in diagnostics.
+      const category=String(error?.message || "");
+      this.lastFailure=/^[a-z_]+(?:_http_[0-9]{3})?$/.test(category) && category.length < 80
+        ? category : this.phase + "_exception";
       this.reset(); // credentials/stream error: never use an old price
       this.failures = Math.min(this.failures + 1, 6);
       this.retryAfter = Date.now() + Math.min(60000, 1000 * 2 ** this.failures);
@@ -186,6 +199,7 @@ export class EurusdSaxoStream {
   }
   async refreshToken() {
     if (this.token && this.tokenExpiresAt > Date.now() + 90000) return this.token;
+    this.phase="oauth_refresh";
     const refresh = await this.ctx.storage.get("oauth_refresh_token")
       || this.env.SAXO_STREAM_REFRESH_TOKEN;
     if (!refresh || !this.env.SAXO_STREAM_APP_KEY || !this.env.SAXO_STREAM_APP_SECRET)
@@ -196,7 +210,7 @@ export class EurusdSaxoStream {
       method:"POST", headers:{"Authorization":"Basic " + auth,
         "Content-Type":"application/x-www-form-urlencoded"},body
     });
-    if (!response.ok) throw Error("oauth_refresh_failed");
+    if (!response.ok) throw Error("oauth_http_" + response.status);
     const data = await response.json();
     if (!data.access_token || !data.refresh_token ||
         !Number.isFinite(data.expires_in) || data.expires_in < 120)
@@ -217,6 +231,7 @@ export class EurusdSaxoStream {
   }
   async connect() {
     const token = await this.refreshToken();
+    this.phase="websocket_connect";
     // Never reuse a stale context without a valid delta/resumption snapshot.
     const context = "BRSEURUSD" + crypto.randomUUID().replace(/-/g,"").slice(0,28);
     const url = STREAM + "/connect?contextId=" + encodeURIComponent(context);
@@ -224,7 +239,7 @@ export class EurusdSaxoStream {
       headers:{"Upgrade":"websocket","Authorization":"Bearer "+token}
     });
     if (response.status !== 101 || !response.webSocket)
-      throw Error("saxo_websocket_rejected");
+      throw Error("websocket_http_" + response.status);
     const socket = response.webSocket;
     socket.accept();
     const epoch = this.connectionEpoch;
@@ -238,14 +253,15 @@ export class EurusdSaxoStream {
         if (typeof event.data === "string") throw Error("unexpected_text");
         const messages=parseSaxoBinaryMessages(event.data);
         for (const item of messages) this.onMessage(item);
-      } catch { this.reset(); }
+      } catch { this.lastFailure="stream_frame_invalid"; this.reset(); }
     });
     for (const eventName of ["close","error"]) socket.addEventListener(eventName,()=>{
       if (epoch === this.connectionEpoch) {
-        this.reset();
+        this.lastFailure="websocket_closed"; this.reset();
         this.ctx.storage.setAlarm(Date.now()+1000).catch(()=>{});
       }
     });
+    this.phase="price_subscription";
     const subscription = await fetch(GATEWAY + "/trade/v1/prices/subscriptions",{
       method:"POST",
       headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"},
@@ -255,11 +271,12 @@ export class EurusdSaxoStream {
         Format:"application/json"
       })
     });
-    if (subscription.status !== 201) { this.reset(); throw Error("subscription_rejected"); }
+    if (subscription.status !== 201) { this.reset(); throw Error("subscription_http_" + subscription.status); }
     const payload = await subscription.json();
     if (epoch !== this.connectionEpoch) return;
+    this.phase="initial_quote";
     const initial=projectQuote(null,payload.Snapshot || payload,Date.now());
-    if (!initial) { this.reset(); throw Error("initial_quote_not_valid"); }
+    if (!initial) { this.reset(); throw Error("initial_quote_invalid"); }
     this.quote=initial;
     // Saxo can send deltas before the subscription snapshot response. Apply
     // them in arrival order; do not drop them or overwrite a newer side.
@@ -269,6 +286,7 @@ export class EurusdSaxoStream {
     }
     this.pendingDeltas=[];
     this.subscribed=true;
+    this.phase="subscribed"; this.lastFailure="none";
     this.failures=0;this.retryAfter=0;
   }
   onMessage(message) {
