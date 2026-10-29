@@ -67,6 +67,7 @@ jobs:
       PRIVATE_ENABLED: ${{ vars.SAXO_PRIVATE_AUTO_ENABLED }}
       PRIVATE_DATABASE: ${{ vars.SAXO_PRIVATE_D1_DATABASE_ID }}
       PRIVATE_TOKEN: ${{ secrets.SAXO_PRIVATE_D1_API_TOKEN }}
+      STREAM_PASSWORD: ${{ secrets.SAXO_STREAM_BASIC_PASSWORD }}
     steps:
       - name: Report only private D1 activation readiness
         shell: bash
@@ -75,6 +76,11 @@ jobs:
             echo "PRIVATE_D1_CREDENTIALS_CONFIGURED=TRUE"
           else
             echo "PRIVATE_D1_CREDENTIALS_CONFIGURED=FALSE"
+          fi
+          if [ -n "$STREAM_PASSWORD" ]; then
+            echo "PRIVATE_SAXO_STREAM_AUTH_CONFIGURED=TRUE"
+          else
+            echo "PRIVATE_SAXO_STREAM_AUTH_CONFIGURED=FALSE"
           fi
           if [ "$PRIVATE_ENABLED" = "true" ]; then
             echo "PRIVATE_AUTO_SCHEDULE_ENABLED=TRUE"
@@ -119,14 +125,15 @@ jobs:
       PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
       BRIEFROOMS_PRIVATE_RUNTIME: "1"
       SAXO_PRIVATE_PRIMARY: "1"
-      # SAXO_STREAM_PRIMARY=1 forbids fallback to slower REST and requires
-      # a licensed private Saxo WebSocket Worker endpoint.
-      SAXO_STREAM_PRIMARY: ${{ vars.SAXO_STREAM_PRIMARY }}
-      SAXO_PRIVATE_STREAM_URL: ${{ vars.SAXO_PRIVATE_STREAM_URL }}
+      # Dedicated Saxo SIM STREAM is mandatory for private Daily EPE.
+      # Not used in the public Daily price widget or any other instrument.
+      SAXO_STREAM_PRIMARY: "1"
+      SAXO_PRIVATE_STREAM_URL: "https://briefrooms-saxo-eurusd-stream.szczerbinski0577.workers.dev/saxo/quote"
       SAXO_PRIVATE_QUALITY_GATE: "0"
       SAXO_PRIVATE_AUTO_ENABLED: ${{ vars.SAXO_PRIVATE_AUTO_ENABLED }}
       SAXO_PRIVATE_BASIC_USER: admin
-      SAXO_PRIVATE_BASIC_PASSWORD: ${{ secrets.SAXO_PRIVATE_BASIC_PASSWORD }}
+      # Same secret used by the isolated WebSocket Worker; not the legacy REST password.
+      SAXO_PRIVATE_BASIC_PASSWORD: ${{ secrets.SAXO_STREAM_BASIC_PASSWORD }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       SAXO_PRIVATE_D1_DATABASE_ID: ${{ vars.SAXO_PRIVATE_D1_DATABASE_ID }}
       SAXO_PRIVATE_D1_API_TOKEN: ${{ secrets.SAXO_PRIVATE_D1_API_TOKEN }}
