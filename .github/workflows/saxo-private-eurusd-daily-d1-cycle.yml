@@ -119,6 +119,10 @@ jobs:
       PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
       BRIEFROOMS_PRIVATE_RUNTIME: "1"
       SAXO_PRIVATE_PRIMARY: "1"
+      # SAXO_STREAM_PRIMARY=1 forbids fallback to slower REST and requires
+      # a licensed private Saxo WebSocket Worker endpoint.
+      SAXO_STREAM_PRIMARY: ${{ vars.SAXO_STREAM_PRIMARY }}
+      SAXO_PRIVATE_STREAM_URL: ${{ vars.SAXO_PRIVATE_STREAM_URL }}
       SAXO_PRIVATE_QUALITY_GATE: "0"
       SAXO_PRIVATE_AUTO_ENABLED: ${{ vars.SAXO_PRIVATE_AUTO_ENABLED }}
       SAXO_PRIVATE_BASIC_USER: admin
