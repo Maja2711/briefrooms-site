@@ -67,7 +67,7 @@ jobs:
       PRIVATE_ENABLED: ${{ vars.SAXO_PRIVATE_AUTO_ENABLED }}
       PRIVATE_DATABASE: ${{ vars.SAXO_PRIVATE_D1_DATABASE_ID }}
       PRIVATE_TOKEN: ${{ secrets.SAXO_PRIVATE_D1_API_TOKEN }}
-      STREAM_PASSWORD: ${{ secrets.SAXO_STREAM_BASIC_PASSWORD }}
+      STREAM_PASSWORD: ${{ secrets.SAXO_PRIVATE_BASIC_PASSWORD }}
     steps:
       - name: Report only private D1 activation readiness
         shell: bash
@@ -132,8 +132,9 @@ jobs:
       SAXO_PRIVATE_QUALITY_GATE: "0"
       SAXO_PRIVATE_AUTO_ENABLED: ${{ vars.SAXO_PRIVATE_AUTO_ENABLED }}
       SAXO_PRIVATE_BASIC_USER: admin
-      # Same secret used by the isolated WebSocket Worker; not the legacy REST password.
-      SAXO_PRIVATE_BASIC_PASSWORD: ${{ secrets.SAXO_STREAM_BASIC_PASSWORD }}
+      # Native streaming workflow binds this existing GitHub secret to
+      # the isolated worker SAXO_STREAM_BASIC_PASSWORD internally.
+      SAXO_PRIVATE_BASIC_PASSWORD: ${{ secrets.SAXO_PRIVATE_BASIC_PASSWORD }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       SAXO_PRIVATE_D1_DATABASE_ID: ${{ vars.SAXO_PRIVATE_D1_DATABASE_ID }}
       SAXO_PRIVATE_D1_API_TOKEN: ${{ secrets.SAXO_PRIVATE_D1_API_TOKEN }}
