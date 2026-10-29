@@ -1,6 +1,6 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {parseSaxoBinaryMessages,projectQuote,quoteFresh} from "../src/index.mjs";
+import {parseSaxoBinaryMessages,projectQuote,quoteFresh,EurusdSaxoStream} from "../src/index.mjs";
 
 function frame(referenceId, payload, id=11n) {
   const ref = Buffer.from(referenceId,"ascii");
@@ -84,4 +84,71 @@ test("correct Saxo wrapped Data deltas carry price not synthetic MID",()=>{
   assert.equal(second.askAt,at+3000);
   assert.equal(second.bidAt,at);
   assert.equal(quoteFresh(second,at+4000),true);
+});
+
+function oauthHarness(persistedToken, githubToken) {
+  const calls = [], writes = [];
+  const ctx = {
+    storage:{
+      get:async()=>persistedToken,
+      put:async(k,v)=>writes.push({k,v}),
+      getAlarm:async()=>null,
+      setAlarm:async()=>{}
+    },
+    blockConcurrencyWhile:fn=>fn()
+  };
+  const env = {
+    SAXO_STREAM_APP_KEY:"example-app",
+    SAXO_STREAM_APP_SECRET:"example-secret",
+    SAXO_STREAM_REFRESH_TOKEN:githubToken
+  };
+  return {worker:new EurusdSaxoStream(ctx,env),calls,writes};
+}
+test("invalid persisted OAuth token falls back once to freshly configured token",async()=>{
+  const {worker,writes}=oauthHarness("revoked-stored","new-github-token");
+  const seen=[];
+  const prev=globalThis.fetch;
+  globalThis.fetch=async (_url,{body})=>{
+    const token=new URLSearchParams(body).get("refresh_token");
+    seen.push(token);
+    if(token==="revoked-stored") return {ok:false,status:400};
+    return {ok:true,json:async()=>({
+      access_token:"access-ok",refresh_token:"rotated-ok",expires_in:1200
+    })};
+  };
+  try {
+    assert.equal(await worker.refreshToken(),"access-ok");
+    assert.deepEqual(seen,["revoked-stored","new-github-token"]);
+    assert.deepEqual(writes,[{k:"oauth_refresh_token",v:"rotated-ok"}]);
+  } finally {globalThis.fetch=prev;}
+});
+test("temporary Saxo server failure never consumes alternate refresh token",async()=>{
+  const {worker,writes}=oauthHarness("stored-token","new-github-token");
+  const seen=[];
+  const prev=globalThis.fetch;
+  globalThis.fetch=async (_url,{body})=>{
+    seen.push(new URLSearchParams(body).get("refresh_token"));
+    return {ok:false,status:503};
+  };
+  try {
+    await assert.rejects(worker.refreshToken(),/oauth_http_503/);
+    assert.deepEqual(seen,["stored-token"]);
+    assert.equal(writes.length,0);
+  } finally {globalThis.fetch=prev;}
+});
+test("working rotated token is preferred without replaying older GitHub token",async()=>{
+  const {worker,writes}=oauthHarness("working-rotated","older-github-token");
+  const seen=[];
+  const prev=globalThis.fetch;
+  globalThis.fetch=async (_url,{body})=>{
+    seen.push(new URLSearchParams(body).get("refresh_token"));
+    return {ok:true,json:async()=>({
+      access_token:"access-ok",refresh_token:"next-rotated",expires_in:1200
+    })};
+  };
+  try {
+    assert.equal(await worker.refreshToken(),"access-ok");
+    assert.deepEqual(seen,["working-rotated"]);
+    assert.deepEqual(writes,[{k:"oauth_refresh_token",v:"next-rotated"}]);
+  } finally {globalThis.fetch=prev;}
 });
