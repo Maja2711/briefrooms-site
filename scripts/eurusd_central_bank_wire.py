@@ -386,6 +386,16 @@ def _unresolved_windows(previous: Mapping[str, Any], current: Sequence[Mapping[s
     for raw in [*old_windows, *current]:
         if not isinstance(raw, Mapping) or not raw.get("event_id") or not dt(raw.get("scheduled_at")):
             continue
+        # Retire prior false ECB calendar windows produced from website nav.
+        # These have a canonical HTML-calendar UID, no separate release proof,
+        # and cannot be mistaken for verified official monetary decisions.
+        uid = str(raw.get("event_id") or "")
+        if (raw.get("bank") == "ECB" and raw.get("schedule_kind") != "UNSCHEDULED_RELEASE"
+                and raw.get("calendar_source_url") == "https://www.ecb.europa.eu/press/calendars/mgcgc/html/index.en.html"
+                and uid.startswith("eu:European Central Bank:")
+                and not ("governing council" in uid.lower() and
+                         ("(day 2)" in uid.lower() or "press conference following" in uid.lower()))):
+            continue
         row = _compact_window(raw)
         if len(json.dumps(row, ensure_ascii=False).encode()) > MAX_UNRESOLVED_BYTES:
             overflow = True
@@ -481,6 +491,14 @@ def collect_calendars(*, now: datetime, client: HttpClient | None = None,
     old_rows = {row.get("uid"): row for row in (previous or {}).get("calendar_events", [])}
     rows = []
     for event in calendar:
+        if event.source_ref == ECB_CALENDAR:
+            # The generic ECB HTML parser can mistake navigation/breadcrumb
+            # text for a dated event. Only Day-2 monetary decisions and the
+            # matching Governing Council press conference are risk windows.
+            title = event.title.lower()
+            if not ("governing council" in title and
+                    ("(day 2)" in title or "press conference following" in title)):
+                continue
         first = old_rows.get(event.uid, {}).get("first_seen_at") or receipts[event.source_ref]
         calendar_row = {"uid": event.uid, "title": event.title, "event_at": iso(event.event_at),
                         "bank": "FED" if event.source_ref == FOMC_CALENDAR else "ECB",
