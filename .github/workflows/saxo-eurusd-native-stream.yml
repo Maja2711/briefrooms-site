@@ -134,6 +134,22 @@ jobs:
                         f"subscribed_{status.get('subscribed') is True};" +
                         f"fresh_{status.get('fresh') is True};" +
                         f"phase_{safe_phase};failure_{safe_failure}")
+                  # Strict allowlist of private telemetry. NEVER log prices,
+                  # token content, provider response bodies or session IDs.
+                  if attempt in (0, 5):
+                      fields = ("frames_received", "price_messages_received",
+                                "prices_accepted", "heartbeats_received",
+                                "last_frame_age_seconds", "bid_age_seconds",
+                                "ask_age_seconds", "source_age_seconds")
+                      stats = []
+                      for field in fields:
+                          value = status.get(field)
+                          if type(value) is int and 0 <= value <= 10000000:
+                              stats.append(field + "_" + str(value))
+                          else:
+                              stats.append(field + "_missing")
+                      stats.append("quote_present_" + str(status.get("quote_present") is True))
+                      print("SAXO_STREAM_TELEMETRY=" + ";".join(stats))
                   if status.get("connected") is True and status.get("subscribed") is True:
                       quote = read("/saxo/quote")
                       if (quote.get("source") == "SAXO_SIM"
