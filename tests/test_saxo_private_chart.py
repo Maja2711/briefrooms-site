@@ -29,13 +29,24 @@ class ChartTests(unittest.TestCase):
         self.assertTrue(bar.high > bar.close > bar.low)
         self.assertAlmostEqual(bar.close,1.1211)
 
-    def test_actual_close_spread_cannot_be_treated_as_tradable(self):
+    def test_historical_close_side_delta_does_not_represent_execution_spread(self):
         d={"Time":"2026-10-29T20:10:00Z",
            "OpenBid":1.12,"OpenAsk":1.1202,
-           "HighBid":1.122,"HighAsk":1.1222,
+           "HighBid":1.123,"HighAsk":1.1232,
            "LowBid":1.119,"LowAsk":1.1192,
-           "CloseBid":1.120,"CloseAsk":1.123}
-        with self.assertRaisesRegex(SaxoChartUnavailable,"invalid_open_close_spread"):
+           "CloseBid":1.120,"CloseAsk":1.122}
+        bar=_bar(d)
+        self.assertAlmostEqual(bar.close,1.121)
+        # EPE live BID/ASK spread rules are validated separately in
+        # tests.test_saxo_private_primary and tests.test_saxo_private_feed.
+
+    def test_historical_sides_still_must_be_positive_and_ordered(self):
+        d={"Time":"2026-10-29T20:10:00Z",
+           "OpenBid":1.12,"OpenAsk":1.1202,
+           "HighBid":1.123,"HighAsk":1.1232,
+           "LowBid":1.119,"LowAsk":1.1192,
+           "CloseBid":1.122,"CloseAsk":1.120}
+        with self.assertRaisesRegex(SaxoChartUnavailable,"invalid_bid_ask_ohlc"):
             _bar(d)
 
     def test_rejects_absent_ask_and_corrupt_ohlc(self):
