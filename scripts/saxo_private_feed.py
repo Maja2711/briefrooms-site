@@ -13,12 +13,31 @@ import json
 import math
 import os
 import urllib.request
+import urllib.parse
 from datetime import datetime, timezone
 from typing import Any, Mapping
 
 SAXO_WORKER_URL = (
     "https://briefrooms-saxo-eurusd.szczerbinski0577.workers.dev/saxo/quote"
 )
+
+
+def _private_quote_endpoint() -> str:
+    """Prefer real WebSocket-fed side quotes ONLY when explicitly activated.
+
+    Missing or malformed streaming configuration must not quietly fall back
+    to the old intermittent REST quote and pretend the stream is running.
+    """
+    if os.environ.get("SAXO_STREAM_PRIMARY") != "1":
+        return SAXO_WORKER_URL
+    value = os.environ.get("SAXO_PRIVATE_STREAM_URL", "").strip()
+    parsed = urllib.parse.urlsplit(value)
+    if (parsed.scheme != "https" or not parsed.hostname or
+        not parsed.hostname.endswith(".workers.dev") or
+        parsed.username or parsed.password or parsed.port not in (None, 443)
+        or parsed.path != "/saxo/quote" or parsed.query or parsed.fragment):
+        raise PrivateSaxoFeedError("private_saxo_stream_endpoint_not_configured")
+    return value
 MAX_QUOTE_AGE_SECONDS = 90.0
 MAX_FUTURE_SECONDS = 30.0
 
@@ -219,7 +238,7 @@ def fetch_private_saxo_quote(*, now: datetime | None = None) -> dict[str, Any]:
         _reject()
     header = base64.b64encode(f"{username}:{password}".encode("utf-8")).decode("ascii")
     request = urllib.request.Request(
-        SAXO_WORKER_URL,
+        _private_quote_endpoint(),
         headers={
             "Authorization": f"Basic {header}",
             "Accept": "application/json",
@@ -250,7 +269,7 @@ def fetch_private_saxo_mid(*, now: datetime | None = None) -> float:
         _reject()
     header = base64.b64encode(f"{username}:{password}".encode("utf-8")).decode("ascii")
     request = urllib.request.Request(
-        SAXO_WORKER_URL,
+        _private_quote_endpoint(),
         headers={
             "Authorization": f"Basic {header}",
             "Accept": "application/json",
