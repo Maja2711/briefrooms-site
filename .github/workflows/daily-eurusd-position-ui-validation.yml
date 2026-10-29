@@ -1,0 +1,24 @@
+name: Validate Daily EURUSD Public Position UI
+on:
+  pull_request:
+    paths:
+      - "scripts/daily-eurusd-spot-public.js"
+      - "pl/inwestycje/daily-trading.html"
+      - "en/investing/daily-trading.html"
+      - "tests/daily-eurusd-position-ui.test.mjs"
+      - ".github/workflows/daily-eurusd-position-ui-validation.yml"
+permissions:
+  contents: read
+jobs:
+  render-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Syntax validation and PL/EN public rendering contracts
+        run: |
+          node --check scripts/daily-eurusd-spot-public.js
+          node --test tests/daily-eurusd-position-ui.test.mjs
