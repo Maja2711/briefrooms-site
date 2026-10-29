@@ -162,3 +162,24 @@ test("Cloudflare Blob frames cannot silently produce zero decoded messages",()=>
   assert.equal(decoded.length,1);
   assert.equal(decoded[0].referenceId,"EURUSD_SPOT_21");
 });
+
+test("private chart endpoint rejects invalid query and never returns provider payload",async()=>{
+  const calls=[];
+  const worker=(await import("../src/index.mjs")).default;
+  const env={SAXO_STREAM_BASIC_PASSWORD:"test-pass",
+    EURUSD_SAXO_STREAM:{getByName:()=>({fetch:async(request)=>{
+      calls.push(request.url);
+      return new Response("test-only");
+    }})}};
+  const basic="Basic "+btoa("admin:test-pass");
+  const request=(query,auth=basic)=>new Request("https://unit.test/saxo/chart"+query,
+      {headers:{"Authorization":auth}});
+  assert.equal((await worker.fetch(request("?horizon=1&count=1201"),env)).status,404);
+  assert.equal((await worker.fetch(request("?horizon=1&count=100&uic=999"),env)).status,404);
+  assert.equal((await worker.fetch(request("?horizon=30&count=200","Basic "+
+      btoa("admin:wrong")),env)).status,403);
+  assert.equal(calls.length,0);
+  const ok=await worker.fetch(request("?horizon=30&count=200"),env);
+  assert.equal(ok.status,200);
+  assert.deepEqual(calls,["https://private.internal/saxo/chart?horizon=30&count=200"]);
+});
