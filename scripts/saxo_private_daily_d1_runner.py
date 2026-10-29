@@ -184,6 +184,16 @@ def main(argv: list[str] | None = None) -> int:
                 or os.environ.get("SAXO_PRIVATE_PRIMARY") != "1"
                 or os.environ.get("SAXO_PRIVATE_AUTO_ENABLED") != "true"):
             raise PrivateStateFailure("private_d1_runtime_not_enabled")
+        # A private Daily cycle cannot silently revert to the legacy REST
+        # Saxo Worker after the native SIM WebSocket stream was commissioned.
+        from saxo_private_feed import _private_quote_endpoint, SAXO_STREAM_WORKER_URL, PrivateSaxoFeedError
+        if os.environ.get("SAXO_STREAM_PRIMARY") != "1":
+            raise PrivateStateFailure("private_d1_stream_not_enabled")
+        try:
+            if _private_quote_endpoint() != SAXO_STREAM_WORKER_URL:
+                raise PrivateSaxoFeedError("private_saxo_stream_endpoint_not_configured")
+        except PrivateSaxoFeedError:
+            raise PrivateStateFailure("private_d1_stream_endpoint_invalid") from None
         if not os.environ.get("SAXO_PRIVATE_BASIC_PASSWORD"):
             raise PrivateStateFailure("private_saxo_auth_missing")
         # A five-minute schedule continues over weekends. Do not manufacture
