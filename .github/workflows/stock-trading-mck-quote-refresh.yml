@@ -4,6 +4,10 @@ name: Stock Trading MCK Quote Refresh
 # decisions. NEVER changes fills, SL/TP, last_mark, or non-MCK symbols.
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/stock-trading-mck-quote-refresh.yml"
   schedule:
     - cron: "*/5 13-21 * * 1-5"
   workflow_run:
