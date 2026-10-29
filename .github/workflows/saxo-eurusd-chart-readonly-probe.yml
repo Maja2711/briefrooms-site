@@ -51,6 +51,11 @@ jobs:
                   if not valid: failed=True
               except urllib.error.HTTPError as error:
                   print(f"SAXO_CHART_{horizon}M_HTTP="+str(error.code))
+                  reason=error.headers.get("X-BRS-Chart-Status","UNKNOWN")
+                  if not (reason.isascii() and reason.replace("_","").isalnum()
+                          and reason.upper()==reason and len(reason)<48):
+                      reason="UNKNOWN"
+                  print(f"SAXO_CHART_{horizon}M_REASON="+reason)
                   failed=True
               except Exception:
                   print(f"SAXO_CHART_{horizon}M_STATUS=UNAVAILABLE")

@@ -183,3 +183,18 @@ test("private chart endpoint rejects invalid query and never returns provider pa
   assert.equal(ok.status,200);
   assert.deepEqual(calls,["https://private.internal/saxo/chart?horizon=30&count=200"]);
 });
+
+test("private chart diagnostic exposes only an upstream HTTP error class",async()=>{
+  const {EurusdSaxoStream}=await import("../src/index.mjs");
+  const worker=Object.create(EurusdSaxoStream.prototype);
+  worker.refreshToken=async()=> "test-placeholder-token";
+  const prior=globalThis.fetch;
+  globalThis.fetch=async()=> new Response("provider secret body", {status:403});
+  try{
+    const response=await worker.readChart(
+      new URL("https://private.internal/saxo/chart?horizon=1&count=100"));
+    assert.equal(response.status,503);
+    assert.equal(response.headers.get("X-BRS-Chart-Status"),"UPSTREAM_HTTP_403");
+    assert.doesNotMatch(await response.text(),/provider secret body/);
+  } finally {globalThis.fetch=prior;}
+});
