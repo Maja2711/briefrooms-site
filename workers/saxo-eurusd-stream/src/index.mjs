@@ -15,6 +15,13 @@ const decoder = new TextDecoder();
 const fail = (status) => new Response(JSON.stringify({status:"UNAVAILABLE"}), {
   status, headers: {"Content-Type":"application/json", "Cache-Control":"no-store"}
 });
+function chartFail(kind) {
+  // Only fixed machine-readable error classes; no provider responses or keys.
+  return new Response(JSON.stringify({status:"UNAVAILABLE"}),{
+    status:503, headers:{"Content-Type":"application/json","Cache-Control":"no-store",
+      "X-BRS-Chart-Status":kind}
+  });
+}
 function validFloat(x) {
   return typeof x === "number" && Number.isFinite(x);
 }
@@ -230,13 +237,22 @@ export class EurusdSaxoStream {
       const response=await fetch(endpoint.toString(),{
         headers:{"Authorization":"Bearer "+token,"Accept":"application/json"},
       });
-      if (!response.ok) return fail(503);
+      if (!response.ok) {
+        const status=[400,401,403,404,429,500,503].includes(response.status) ?
+          response.status : 0;
+        return chartFail("UPSTREAM_HTTP_" + status);
+      }
       const payload=await response.json();
-      if (payload?.ChartInfo?.Horizon !== horizon ||
-          payload?.ChartInfo?.DelayedByMinutes !== 0 ||
-          !Number.isInteger(payload?.DataVersion) ||
-          !Array.isArray(payload?.Data) || !payload.Data.length ||
-          payload.Data.length > count) return fail(503);
+      if (!payload?.ChartInfo || !Array.isArray(payload?.Data))
+        return chartFail("MISSING_CHART_STRUCTURE");
+      if (payload.ChartInfo.Horizon !== horizon)
+        return chartFail("INVALID_HORIZON");
+      if (payload.ChartInfo.DelayedByMinutes !== 0)
+        return chartFail("DELAYED_OR_UNVERIFIED");
+      if (!Number.isInteger(payload.DataVersion))
+        return chartFail("MISSING_DATA_VERSION");
+      if (!payload.Data.length || payload.Data.length > count)
+        return chartFail("INVALID_DATA_LENGTH");
       // Return ONLY this Saxo UIC's chart data, with explicit private metadata.
       return new Response(JSON.stringify({
         source:"SAXO_SIM_CHART",instrument:"EUR/USD",
@@ -246,7 +262,7 @@ export class EurusdSaxoStream {
       }),{headers:{"Content-Type":"application/json","Cache-Control":"no-store"}});
     } catch {
       // No Saxo response bodies, chart samples, auth data or remote URL in logs.
-      return fail(503);
+      return chartFail("CHART_REQUEST_EXCEPTION");
     }
   }
   async alarm() {
