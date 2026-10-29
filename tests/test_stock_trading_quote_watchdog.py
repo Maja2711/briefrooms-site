@@ -124,6 +124,142 @@ class StockTradingQuoteWatchdogTests(unittest.TestCase):
             self.assertEqual(first, second)
             self.assertEqual(state, json.loads(portfolio.read_text(encoding="utf-8")))
 
+    def test_watchlist_automatically_includes_new_unpurchased_eligible_candidates(self):
+        now = datetime(2026, 10, 29, 19, 30, tzinfo=UTC)
+        frontier = {
+            "schema_version": "stock-trading-v2-portfolio-opportunity-v1",
+            "market": "US", "generated_at": "2026-10-29T19:22:00Z",
+            "decision": {"action": "BUY", "candidate": {
+                "symbol": "CAI", "market_data_symbol": "CAI", "eligible": True}},
+            "evaluated_candidates": [
+                {"symbol": "CAI", "market_data_symbol": "CAI", "eligible": True},
+                {"symbol": "CACI", "market_data_symbol": "CACI", "eligible": True},
+                {"symbol": "CCI", "market_data_symbol": "CCI", "eligible": True},
+                {"symbol": "CLF", "market_data_symbol": "CLF", "eligible": False},
+            ],
+        }
+        state = {"markets": {"US": {"open_positions": [position(
+            "CCI", mark(95, "2026-10-29T19:29:00Z"))]}, "GPW": {"open_positions": []}}}
+        with patch.object(wd.provider, "quote_for_symbol", return_value=mark(
+                106, "2026-10-29T19:29:00Z")) as get_quote:
+            updated, report = wd.monitor(
+                state, now=now, frontiers={"US": frontier},
+            )
+        names = [row["symbol"] for row in report["candidates"]]
+        self.assertEqual(["CAI", "CACI"], names)
+        self.assertEqual(2, get_quote.call_count)
+        self.assertEqual(2, report["candidates_checked"])
+        self.assertTrue(all(row["status"] == "OBSERVED" for row in report["candidates"]))
+        self.assertTrue(all(row["authority"] == "MONITOR_ONLY" for row in report["candidates"]))
+        self.assertEqual("READ_ONLY_MONITORING_NOT_EXECUTION", report["candidate_quote_authority"])
+        self.assertEqual(state, updated)
+        self.assertFalse(any("CAI" == p["symbol"] for p in updated["markets"]["US"]["open_positions"]))
+
+    def test_candidate_list_rotates_automatically_without_hardcoded_tickers(self):
+        now = datetime(2026, 10, 29, 19, 30, tzinfo=UTC)
+        def frontier(symbol):
+            return {
+                "schema_version": "stock-trading-v2-portfolio-opportunity-v1",
+                "market": "US", "generated_at": "2026-10-29T19:25:00Z",
+                "evaluated_candidates": [
+                    {"symbol": symbol, "market_data_symbol": symbol, "eligible": True}],
+            }
+        state = {"markets": {"US": {"open_positions": []}, "GPW": {"open_positions": []}}}
+        with patch.object(wd.provider, "quote_for_symbol", return_value=mark(
+                125, "2026-10-29T19:29:00Z")):
+            _, first = wd.monitor(state, now=now, frontiers={"US": frontier("NVDA")})
+            _, second = wd.monitor(state, now=now, frontiers={"US": frontier("MSFT")},
+                                   previous_health=first)
+        self.assertEqual(["NVDA"], [x["symbol"] for x in first["candidates"]])
+        self.assertEqual(["MSFT"], [x["symbol"] for x in second["candidates"]])
+        self.assertFalse(any(x["symbol"] == "NVDA" for x in second["candidates"]))
+
+    def test_research_candidate_never_uses_stale_quote_for_execution(self):
+        now = datetime(2026, 10, 29, 19, 30, tzinfo=UTC)
+        frontier = {
+            "schema_version": "stock-trading-v2-portfolio-opportunity-v1",
+            "market": "US", "generated_at": "2026-10-29T19:25:00Z",
+            "evaluated_candidates": [{"symbol": "CAI", "eligible": True}],
+        }
+        state = {"markets": {"US": {"open_positions": []}, "GPW": {"open_positions": []}}}
+        stale = mark(55, "2026-10-29T14:30:00Z")
+        with patch.object(wd.provider, "quote_for_symbol", return_value=stale):
+            updated, report = wd.monitor(state, now=now, frontiers={"US": frontier})
+        self.assertEqual("ALERT_NO_VERIFIED_PRICE", report["candidates"][0]["status"])
+        self.assertNotIn("quote", report["candidates"][0])
+        self.assertEqual(1, report["candidate_alerts"])
+        self.assertEqual(state, updated)
+
+    def test_expired_or_missing_frontier_does_not_watch_old_candidates(self):
+        now = datetime(2026, 10, 29, 19, 30, tzinfo=UTC)
+        old = {
+            "schema_version": "stock-trading-v2-portfolio-opportunity-v1",
+            "market": "US", "generated_at": "2026-10-29T10:00:00Z",
+            "evaluated_candidates": [{"symbol": "CAI", "eligible": True}],
+        }
+        state = {"markets": {"US": {"open_positions": []}, "GPW": {"open_positions": []}}}
+        with patch.object(wd.provider, "quote_for_symbol") as get_quote:
+            _, report = wd.monitor(state, now=now, frontiers={"US": old})
+        get_quote.assert_not_called()
+        self.assertEqual("FRONTIER_STALE", report["frontiers"]["US"])
+        self.assertEqual([], report["candidates"])
+        self.assertEqual("ALERT", report["status"])
+
+    def test_dynamic_prepurchase_gpw_ticker_uses_yahoo_wa_symbol(self):
+        symbols, status = wd.discover_candidates({
+            "schema_version": "stock-trading-v2-portfolio-opportunity-v1",
+            "market": "GPW", "generated_at": "2026-10-29T13:20:00Z",
+            "evaluated_candidates": [
+                {"symbol": "PCO", "market_data_symbol": "PCO.WA", "eligible": True},
+                {"symbol": "MIL", "eligible": True},
+            ],
+        }, "GPW", datetime(2026, 10, 29, 13, 30, tzinfo=UTC))
+        self.assertEqual("OK", status)
+        self.assertEqual(["PCO.WA", "MIL.WA"], symbols)
+
+    def test_candidate_quote_receipt_reuses_timestamp_not_receive_clock(self):
+        now = datetime(2026, 10, 29, 19, 30, tzinfo=UTC)
+        frontier = {
+            "schema_version": "stock-trading-v2-portfolio-opportunity-v1",
+            "market": "US", "generated_at": "2026-10-29T19:25:00Z",
+            "evaluated_candidates": [{"symbol": "CAI", "eligible": True}],
+        }
+        state = {"markets": {"US": {"open_positions": []}, "GPW": {"open_positions": []}}}
+        fresh = mark(101, "2026-10-29T19:29:00Z")
+        with patch.object(wd.provider, "quote_for_symbol", return_value=fresh):
+            _, first = wd.monitor(state, now=now, frontiers={"US": frontier})
+        later = datetime(2026, 10, 29, 19, 45, tzinfo=UTC)
+        with patch.object(wd.provider, "quote_for_symbol",
+                          side_effect=RuntimeError("upstream unavailable")):
+            _, second = wd.monitor(state, now=later, frontiers={"US": frontier}, previous_health=first)
+        self.assertEqual("ALERT_STALE", second["candidates"][0]["status"])
+        self.assertEqual("2026-10-29T19:29:00Z", second["candidates"][0]["quote"]["observed_at"])
+        self.assertEqual(1, second["candidate_alerts"])
+
+    def test_publish_reads_new_frontier_files_without_adding_positions(self):
+        now = datetime(2026, 10, 29, 19, 30, tzinfo=UTC)
+        state = {"markets": {"US": {"open_positions": []}, "GPW": {"open_positions": []}}}
+        frontier = {
+            "schema_version": "stock-trading-v2-portfolio-opportunity-v1",
+            "market": "US", "generated_at": "2026-10-29T19:25:00Z",
+            "evaluated_candidates": [{"symbol": "CAI", "eligible": True}],
+        }
+        with tempfile.TemporaryDirectory() as folder:
+            directory = Path(folder)
+            portfolio, health = directory / "portfolio.json", directory / "health.json"
+            research = directory / "frontiers"
+            research.mkdir()
+            portfolio.write_text(json.dumps(state), encoding="utf-8")
+            (research / "us.json").write_text(json.dumps(frontier), encoding="utf-8")
+            with patch.object(wd.provider, "quote_for_symbol", return_value=mark(
+                    120, "2026-10-29T19:29:00Z")):
+                result = wd.publish(now, portfolio_path=portfolio, health_path=health,
+                                    frontier_root=research)
+            self.assertEqual(state, json.loads(portfolio.read_text(encoding="utf-8")))
+            self.assertEqual(["CAI"], [x["symbol"] for x in result["candidates"]])
+            self.assertEqual("OBSERVED", result["candidates"][0]["status"])
+
+
     def test_no_extra_stale_text_on_public_mck_card(self):
         root = Path(__file__).resolve().parents[1]
         source = (root / "scripts/stock-trading-live-refresh.js").read_text(encoding="utf-8")
