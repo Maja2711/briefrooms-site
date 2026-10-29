@@ -112,6 +112,11 @@ def validate_private_saxo_quote(
         _reject()
     if payload.get("trading_enabled") is not False:
         _reject()
+    # In stream-primary mode, reject old REST-like responses even when they
+    # have the same BID/ASK fields. Never silently fake a WebSocket feed.
+    if (os.environ.get("SAXO_STREAM_PRIMARY") == "1"
+            and payload.get("timestamp_origin") != "SAXO_STREAM_PRICE_SIDE_RECEIVED_AT"):
+        _reject()
     if str(payload.get("market_state") or "").lower() != "open":
         _reject()
     try:
