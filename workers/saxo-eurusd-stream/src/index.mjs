@@ -117,6 +117,7 @@ export class EurusdSaxoStream {
     this.ctx = ctx; this.env = env;
     this.ws = null; this.contextId = null;
     this.quote = null; this.connected = false; this.subscribed = false;
+    this.pendingDeltas = [];
     this.token = null; this.tokenExpiresAt = 0;
     this.connectionStarted = 0; this.connectionEpoch = 0;
     ctx.blockConcurrencyWhile(async()=> {
@@ -190,6 +191,7 @@ export class EurusdSaxoStream {
   reset() {
     this.connected = false; this.subscribed = false; this.quote = null;
     this.contextId = null;
+    this.pendingDeltas = [];
     this.connectionEpoch += 1;
     const socket = this.ws; this.ws = null;
     try { if (socket) socket.close(1000,"reconnect"); } catch {}
@@ -208,7 +210,8 @@ export class EurusdSaxoStream {
     socket.accept();
     const epoch = this.connectionEpoch;
     this.ws=socket;this.contextId=context;this.connected=true;
-    this.subscribed=false;this.quote=null;this.connectionStarted=Date.now();
+    this.subscribed=false;this.quote=null;this.pendingDeltas=[];
+    this.connectionStarted=Date.now();
     socket.addEventListener("message", event=>{
       if (epoch !== this.connectionEpoch) return;
       try {
@@ -236,13 +239,30 @@ export class EurusdSaxoStream {
     const payload = await subscription.json();
     if (epoch !== this.connectionEpoch) return;
     const initial=projectQuote(null,payload.Snapshot || payload,Date.now());
-    if (initial) this.quote=initial;
+    if (!initial) { this.reset(); throw Error("initial_quote_not_valid"); }
+    this.quote=initial;
+    // Saxo can send deltas before the subscription snapshot response. Apply
+    // them in arrival order; do not drop them or overwrite a newer side.
+    for (const pending of this.pendingDeltas) {
+      const next=projectQuote(this.quote,pending.payload,pending.receivedAt);
+      if (next) this.quote=next;
+    }
+    this.pendingDeltas=[];
     this.subscribed=true;
   }
   onMessage(message) {
     if (message.referenceId === REF) {
-      const next=projectQuote(this.quote,message.payload,Date.now());
+      const receivedAt=Date.now();
+      if (!this.subscribed) {
+        if (this.pendingDeltas.length >= 64) { this.reset(); return; }
+        this.pendingDeltas.push({payload:message.payload,receivedAt});
+        return;
+      }
+      const next=projectQuote(this.quote,message.payload,receivedAt);
       if (next) this.quote=next;
+      if (message.payload?.Quote?.PriceTypeBid === "OldIndicative" ||
+          message.payload?.Quote?.PriceTypeAsk === "OldIndicative" ||
+          message.payload?.Quote?.DelayedByMinutes > 0) this.quote=null;
     } else if (message.referenceId === "_resetsubscriptions" ||
                message.referenceId === "_disconnect" ||
                message.referenceId === "_subscriptiontemporarilydisabled") {
