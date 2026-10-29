@@ -72,6 +72,45 @@ class StockTradingQuoteEnricherTests(unittest.TestCase):
         self.assertEqual('PRE', enriched['markets']['US']['quote_session']['market_state'])
         self.assertEqual('quote_enriched', audits[0]['action'])
 
+    def test_targeted_mck_refresh_does_not_change_other_instruments(self):
+        now = datetime(2026, 10, 29, 18, 0, tzinfo=UTC)
+        old = {'price': 969.02, 'observed_at': '2026-10-29T09:56:22-04:00'}
+        untouched = {'price': 108.10, 'observed_at': '2026-10-29T13:45:00-04:00'}
+        state = {'quote_enriched_at': 'old', 'markets': {
+            'US': {'quote_session': {'market_state': 'REGULAR', 'as_of': 'old'},
+                   'open_positions': [
+                       {'symbol': 'MCK', 'status': 'OPEN', 'current_mark': old},
+                       {'symbol': 'CCI', 'status': 'OPEN', 'current_mark': untouched},
+                   ]},
+            'GPW': {'open_positions': [{'symbol': 'LPP.WA', 'status': 'OPEN', 'current_mark': untouched}]},
+        }}
+        fresh = {'price': 967.57, 'observed_at': '2026-10-29T13:59:00-04:00',
+                 'received_at': '2026-10-29T18:00:00+00:00',
+                 'market_state': 'REGULAR', 'state_source': 'provider.currentTradingPeriod',
+                 'provider': 'Yahoo Finance chart', 'delay_status': 'unverified',
+                 'delay_minutes': None, 'is_realtime': False, 'price_kind': 'regular'}
+        with patch.object(quotes, 'quote_for_symbol', return_value=fresh) as provider:
+            result, audit = quotes.enrich(state, markets=['US'], symbols=['MCK'], now_utc=now)
+        provider.assert_called_once_with('MCK', 'US', now_utc=now)
+        self.assertEqual(967.57, result['markets']['US']['open_positions'][0]['current_mark']['price'])
+        self.assertEqual(untouched, result['markets']['US']['open_positions'][1]['current_mark'])
+        self.assertEqual(state['markets']['GPW'], result['markets']['GPW'])
+        self.assertEqual(state['markets']['US']['quote_session'], result['markets']['US']['quote_session'])
+        self.assertEqual('old', result['quote_enriched_at'])
+        self.assertEqual('quote_enriched', audit[0]['action'])
+
+    def test_targeted_mck_refresh_never_regresses_to_older_quote(self):
+        now = datetime(2026, 10, 29, 18, 0, tzinfo=UTC)
+        original = {'price': 967.57, 'observed_at': '2026-10-29T13:59:00-04:00'}
+        state = {'markets': {'US': {'open_positions': [
+            {'symbol': 'MCK', 'status': 'OPEN', 'current_mark': original}]}}}
+        older = {'price': 969.02, 'observed_at': '2026-10-29T09:56:22-04:00'}
+        with patch.object(quotes, 'quote_for_symbol', return_value=older):
+            result, audit = quotes.enrich(state, markets=['US'], symbols=['MCK'], now_utc=now)
+        self.assertEqual(original, result['markets']['US']['open_positions'][0]['current_mark'])
+        self.assertEqual('quote_error', audit[0]['action'])
+        self.assertIn('older_than_persisted', result['markets']['US']['open_positions'][0]['quote_refresh_error']['error'])
+
     def test_stooq_gpw_symbol_is_bare_ticker(self):
         self.assertEqual('LPP', quotes._stooq_symbol('LPP.WA', 'GPW'))
         self.assertEqual('PGE', quotes._stooq_symbol('PGE', 'GPW'))
