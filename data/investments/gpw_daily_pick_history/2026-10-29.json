@@ -1,0 +1,715 @@
+{
+  "schema_version": "gpw-daily-pick-v1",
+  "policy_version": "gpw-short-horizon-pl-v1.5-ranking-gates-momentum",
+  "date": "2026-10-29",
+  "generated_at": "2026-10-29T15:22:04+01:00",
+  "timezone": "Europe/Warsaw",
+  "publication_cutoff": "10:00",
+  "decision": "TRANSAKCJA",
+  "reason": "Końcowy wybór dnia: pełny ranking P0.3 połączono z P0.4 data gates, Opening Confirmation oraz empirycznym Expected Value dla horyzontu 1–2 sesji.",
+  "locked": true,
+  "selection": {
+    "symbol": "PCO.WA",
+    "ticker": "PCO",
+    "name": "Pepco Group",
+    "sector": "handel",
+    "score": 73.55,
+    "legacy_composite_score": 70.71,
+    "opening_adjusted_score": 76.45,
+    "quant_pre_score": 77.61,
+    "quant_rank": 2,
+    "relative_momentum_detail": {
+      "engine": "cross-sectional-multihorizon-v2",
+      "relative_returns": {
+        "1d": 0.03004,
+        "5d": 0.0535,
+        "20d": 0.10846
+      },
+      "sector_relative_5d": 0.04491,
+      "risk_adjusted_5d": 1.6877,
+      "components": {
+        "rank_1d": 90.32,
+        "rank_5d": 93.55,
+        "rank_20d": 87.1,
+        "rank_risk_adjusted_5d": 93.55,
+        "rank_sector_5d": 96.77
+      },
+      "weights": {
+        "rank_1d": 0.1,
+        "rank_5d": 0.35,
+        "rank_20d": 0.2,
+        "rank_risk_adjusted_5d": 0.2,
+        "rank_sector_5d": 0.15
+      }
+    },
+    "historical_data_gate": {
+      "status": "fresh",
+      "accepted": true,
+      "reason": null,
+      "expected_session": "2026-10-28",
+      "latest_session": "2026-10-28",
+      "feature_session": "2026-10-28",
+      "lag_sessions": 0
+    },
+    "execution_data_gate": {
+      "engine": "gpw-data-gates-v1",
+      "status": "accepted",
+      "session": "2026-10-29",
+      "observed_at": "2026-10-29T15:06:45+01:00",
+      "age_minutes": 15.32,
+      "crosscheck_status": "single_source",
+      "provider": "Yahoo"
+    },
+    "opening_confirmation_score": 93.65,
+    "opening_confirmation": {
+      "engine": "gpw-opening-confirmation-v1",
+      "score": 93.65,
+      "gap": -0.0054,
+      "open_return": 0.01488,
+      "intraday_position": 0.85,
+      "distance_from_high": -0.00355,
+      "components": {
+        "open_return": 99.77,
+        "intraday_position": 85.0,
+        "distance_from_high": 91.11,
+        "gap_quality": 100.0
+      },
+      "component_weights": {
+        "open_return": 0.3,
+        "intraday_position": 0.3,
+        "distance_from_high": 0.2,
+        "gap_quality": 0.2
+      },
+      "observed_at": "2026-10-29T15:06:45+01:00"
+    },
+    "selection_mode": "MANDATORY_DAILY_FINAL",
+    "reference_price": 50.46,
+    "entry_zone": [
+      50.31,
+      50.76
+    ],
+    "skip_above": 50.76,
+    "activation": "Wybór dnia po otwarciu; nie gonić ceny powyżej górnej granicy strefy wejścia.",
+    "stop": 48.72,
+    "target": 53.51,
+    "risk_percent": 0.0345,
+    "reward_risk": 1.75,
+    "valid_until": "2026-11-02",
+    "time_stop": "Maksymalnie 2 sesje od dnia wyboru.",
+    "early_exit": "Wyjście przy SL, unieważnieniu setupu lub pogorszeniu danych wykonawczych; nie rozszerzać SL.",
+    "thesis": "Pepco Group ma najwyższy końcowy ranking po połączeniu P0.5 relative momentum, pozostałych czynników ilościowych, bieżącej sesji i empirycznego EV.",
+    "why_now": "P0.5 porównuje relatywną siłę 1D/5D/20D, zwrot 5D skorygowany o ATR i siłę względem sektora. P0.4 wymaga wspólnej świeżości danych, a target wybiera P0.2 walk-forward EV.",
+    "risk_factors": [
+      "Opening Confirmation jest krótkoterminowym overlayem i nie może dominować bazowego rankingu.",
+      "Empiryczne prawdopodobieństwa TP/SL nie są skalibrowaną prognozą.",
+      "Dla świecy z jednoczesnym TP i SL model konserwatywnie przyjmuje SL jako pierwszy.",
+      "Minimalna płynność, P0.4 freshness i maksymalne ryzyko pozostają twardymi bramkami."
+    ],
+    "expected_value_score": 61.97,
+    "expected_value_model": {
+      "engine": "gpw-empirical-ev-v1",
+      "status": "ready",
+      "horizon_sessions": 2,
+      "rr_grid": [
+        1.5,
+        1.75,
+        2.0,
+        2.25,
+        2.5
+      ],
+      "same_bar_policy": "stop_first_conservative",
+      "entry_proxy": "next_session_open",
+      "cost_assumption_percent": 0.38,
+      "role": "empirical_target_and_bounded_reranking_overlay",
+      "analogue_count": 32,
+      "selected_reward_risk": 1.75,
+      "expected_gross_r": 0.5215,
+      "expected_net_r": 0.3988,
+      "conservative_ev_r": 0.3419,
+      "standard_error_r": 0.1626,
+      "effective_sample_size": 30.62,
+      "tp_before_sl_probability": 0.1461,
+      "sl_before_tp_probability": 0.126,
+      "time_exit_probability": 0.7279,
+      "score": 61.97,
+      "confidence": 1.0,
+      "grid": [
+        {
+          "reward_risk": 1.5,
+          "expected_gross_r": 0.4944,
+          "expected_net_r": 0.3718,
+          "conservative_ev_r": 0.3174,
+          "standard_error_r": 0.1554,
+          "effective_sample_size": 30.62,
+          "tp_before_sl_probability": 0.2919,
+          "sl_before_tp_probability": 0.126,
+          "time_exit_probability": 0.5821
+        },
+        {
+          "reward_risk": 1.75,
+          "expected_gross_r": 0.5215,
+          "expected_net_r": 0.3988,
+          "conservative_ev_r": 0.3419,
+          "standard_error_r": 0.1626,
+          "effective_sample_size": 30.62,
+          "tp_before_sl_probability": 0.1461,
+          "sl_before_tp_probability": 0.126,
+          "time_exit_probability": 0.7279
+        },
+        {
+          "reward_risk": 2.0,
+          "expected_gross_r": 0.4995,
+          "expected_net_r": 0.3769,
+          "conservative_ev_r": 0.3209,
+          "standard_error_r": 0.1598,
+          "effective_sample_size": 30.62,
+          "tp_before_sl_probability": 0.0702,
+          "sl_before_tp_probability": 0.126,
+          "time_exit_probability": 0.8038
+        },
+        {
+          "reward_risk": 2.25,
+          "expected_gross_r": 0.4815,
+          "expected_net_r": 0.3588,
+          "conservative_ev_r": 0.3041,
+          "standard_error_r": 0.1563,
+          "effective_sample_size": 30.62,
+          "tp_before_sl_probability": 0.032,
+          "sl_before_tp_probability": 0.126,
+          "time_exit_probability": 0.842
+        },
+        {
+          "reward_risk": 2.5,
+          "expected_gross_r": 0.4895,
+          "expected_net_r": 0.3668,
+          "conservative_ev_r": 0.311,
+          "standard_error_r": 0.1594,
+          "effective_sample_size": 30.62,
+          "tp_before_sl_probability": 0.032,
+          "sl_before_tp_probability": 0.126,
+          "time_exit_probability": 0.842
+        }
+      ],
+      "analogue_distance_median": 0.4418
+    },
+    "expected_value_weight": 0.2,
+    "target_method": "gpw-empirical-ev-v1",
+    "scores": {
+      "relative_momentum": 92.42,
+      "volume_liquidity": 94.29,
+      "market_context": 47.36,
+      "risk_reward": 84.1,
+      "historical_expectancy": 58.6,
+      "expected_value": 61.97,
+      "catalyst": 50.0,
+      "opening_confirmation": 93.65
+    },
+    "sources": [
+      {
+        "id": "market-open:PCO.WA:2026-10-29",
+        "title": "Yahoo — bieżące kwotowanie PCO.WA",
+        "publisher": "Yahoo",
+        "url": "https://finance.yahoo.com/quote/PCO.WA",
+        "source_kind": "market_quote",
+        "channel": "Yahoo",
+        "published_at": "2026-10-29T15:06:45+01:00",
+        "age_hours": 0,
+        "materiality": 0
+      }
+    ],
+    "review": {
+      "approved": true,
+      "mode": "mandatory_daily_final_p03_p04_p05_opening_empirical_ev",
+      "reason": "Najwyższy bezpieczny wynik po pełnym rankingu i wspólnych data gates.",
+      "supported_source_ids": [
+        "market-open:PCO.WA:2026-10-29"
+      ]
+    },
+    "market_snapshot": {
+      "provider": "Yahoo",
+      "symbol": "PCO.WA",
+      "date": "2026-10-29",
+      "observed_at": "2026-10-29T15:06:45+01:00",
+      "open": 49.72,
+      "high": 50.64,
+      "low": 49.44,
+      "last": 50.46,
+      "volume": 1581987,
+      "crosscheck": {
+        "available_providers": [
+          "Yahoo"
+        ],
+        "errors": [
+          "Stooq:PublicationError"
+        ],
+        "status": "single_source"
+      },
+      "data_gate": {
+        "engine": "gpw-data-gates-v1",
+        "status": "accepted",
+        "session": "2026-10-29",
+        "observed_at": "2026-10-29T15:06:45+01:00",
+        "age_minutes": 15.32,
+        "crosscheck_status": "single_source",
+        "provider": "Yahoo"
+      },
+      "market_snapshot_id": "mkt-131d75ec9c0be7d20f0381c7",
+      "market_snapshot_hash": "131d75ec9c0be7d20f0381c79c346c4b376911cb8eb2dece4577525f8da10d22",
+      "canonical_market_snapshot": {
+        "snapshot_id": "mkt-131d75ec9c0be7d20f0381c7",
+        "snapshot_hash": "131d75ec9c0be7d20f0381c79c346c4b376911cb8eb2dece4577525f8da10d22",
+        "instrument_id": "equity.pl.pco",
+        "provider": "yahoo",
+        "provider_symbol": "PCO.WA",
+        "source_ref": "https://finance.yahoo.com/quote/PCO.WA",
+        "observed_at": "2026-10-29T14:06:45.000000Z",
+        "received_at": "2026-10-29T14:22:04.237371Z",
+        "created_at": "2026-10-29T14:22:04.237371Z",
+        "market_status": "OPEN",
+        "quote_kind": "INTRADAY_OHLC_LAST",
+        "bid": null,
+        "ask": null,
+        "last": 50.46,
+        "open": 49.72,
+        "high": 50.64,
+        "low": 49.44,
+        "close": null,
+        "volume": 1581987.0,
+        "source_schema": "legacy-opening-snapshot",
+        "contract_version": "briefrooms-market-snapshot-v1"
+      },
+      "canonical_data_quality": {
+        "status": "OK",
+        "decision_status": "ALLOWED",
+        "policy_id": "gpw-daily-execution-market-snapshot-v1",
+        "assessed_at": "2026-10-29T14:22:04.237371Z",
+        "age_seconds": 919.237371,
+        "stale": false,
+        "missing_fields": [],
+        "reasons": [],
+        "timestamp_lineage_valid": true,
+        "contract_version": "briefrooms-market-data-quality-v1"
+      }
+    },
+    "forced_from_reason": "Brak dzisiaj wyboru — sygnał po otwarciu nie został potwierdzony przed 10:00.",
+    "quant_engine": "daily-stock-core-v1-final-selector",
+    "opening_confirmation_engine": "gpw-opening-confirmation-v1",
+    "expected_value_engine": "gpw-empirical-ev-v1",
+    "historical_feature_session": "2026-10-28",
+    "historical_feature_lag_sessions": 0,
+    "decision_envelope_id": "dec-c0fdb7b825cee0d34471f9e7",
+    "risk_assessment_id": "risk-821a1f1e24757ddd6e45583c",
+    "market_snapshot_id": "mkt-131d75ec9c0be7d20f0381c7",
+    "instrument_id": "equity.pl.pco"
+  },
+  "data_quality": {
+    "status": "healthy",
+    "failed_stage": "missed_cutoff_guardian",
+    "control_loop_attempts": 0,
+    "expected_session": "2026-10-28",
+    "data_gate_engine": "gpw-data-gates-v1",
+    "market_coverage": 0.95,
+    "mandatory_selection": {
+      "applied": true,
+      "market_coverage": 0.95,
+      "ranked_candidates": 32,
+      "opening_candidates_evaluated": 8,
+      "selected_rank": 1,
+      "selected_quant_rank": 2,
+      "opening_confirmation_score": 93.65,
+      "opening_adjusted_score": 76.45,
+      "expected_value_score": 61.97,
+      "expected_value_r": 0.3988,
+      "conservative_ev_r": 0.3419,
+      "selected_reward_risk": 1.75,
+      "tp_before_sl_probability": 0.1461,
+      "sl_before_tp_probability": 0.126,
+      "time_exit_probability": 0.7279,
+      "final_score": 73.55,
+      "historical_feature_session": "2026-10-28",
+      "historical_feature_lag_sessions": 0,
+      "execution_quote_age_minutes": 15.32,
+      "candidate_failures_before_selection": {},
+      "late_recovery": true,
+      "ignored_non_trade_history_records": 11
+    },
+    "decision_envelope": "CANONICALIZED"
+  },
+  "methodology": {
+    "horizon": "1-2 sesje GPW",
+    "weights": {
+      "catalyst": 25,
+      "relative_momentum": 20,
+      "volume_liquidity": 15,
+      "market_context": 15,
+      "risk_reward": 15,
+      "historical_expectancy": 10
+    },
+    "minimum_score": 0.0,
+    "minimum_reward_risk": 1.5,
+    "universe_size": 40,
+    "gemini_role": "analiza katalizatora i niezależna recenzja; decyzję końcową blokują reguły kodu",
+    "learning_overlay": {
+      "method": "bayesian_shrinkage_historical_overlay_v1",
+      "active": true,
+      "minimum_sample": 8,
+      "weights_frozen": true
+    },
+    "event_layer": {
+      "enabled": true,
+      "channels": [
+        "ESPI/EBI przez PAP",
+        "niezależne newsy"
+      ],
+      "market_reaction": "ostatnia zakończona sesja: cena, relatywny zwrot i wolumen",
+      "event_learning": "bayesian shrinkage po typie zdarzenia",
+      "weights_frozen": true
+    },
+    "market_data": {
+      "historical_provider_order": [
+        "Yahoo",
+        "Stooq"
+      ],
+      "historical_ranking_session": "ostatnia zakończona sesja GPW",
+      "opening_quote_providers": [
+        "Yahoo",
+        "Stooq"
+      ],
+      "opening_quote_not_before": "09:05 Europe/Warsaw",
+      "publication_cutoff": "10:00 Europe/Warsaw",
+      "crosscheck_max_deviation": 0.02
+    },
+    "daily_stock_core": {
+      "core": "daily-stock-core-v1",
+      "market": "GPW",
+      "currency": "PLN",
+      "weights": {
+        "catalyst": 25,
+        "relative_momentum": 20,
+        "volume_liquidity": 15,
+        "market_context": 15,
+        "risk_reward": 15,
+        "historical_expectancy": 10
+      },
+      "minimum_reward_risk": 1.5,
+      "maximum_risk_percent": 0.07,
+      "relative_momentum": {
+        "enabled": true,
+        "engine": "cross-sectional-multihorizon-v2",
+        "weights": {
+          "rank_1d": 0.10000000000000002,
+          "rank_5d": 0.35000000000000003,
+          "rank_20d": 0.20000000000000004,
+          "rank_risk_adjusted_5d": 0.20000000000000004,
+          "rank_sector_5d": 0.15000000000000002
+        }
+      },
+      "learning": {
+        "method": "bayesian_shrinkage_historical_overlay_v1",
+        "weights_frozen": true,
+        "market_memory_isolated": true
+      },
+      "adapter": {
+        "calendar": "GPW / Europe-Warsaw",
+        "session_confirmation": "09:05 Europe/Warsaw",
+        "currency": "PLN",
+        "official_channels": [
+          "ESPI",
+          "EBI",
+          "PAP MediaRoom",
+          "Biznes PAP"
+        ],
+        "legacy_learning_preserved": true,
+        "event_learning_preserved": true,
+        "legacy_quant_fallback": true,
+        "automatic_no_trade_retries": true,
+        "non_trade_history_filtered": true
+      }
+    },
+    "score_policy": "mandatory_daily_p03_p04_p05_opening_empirical_ev",
+    "data_gates": {
+      "engine": "gpw-data-gates-v1",
+      "minimum_market_coverage": 0.8,
+      "maximum_historical_lag_sessions": 1,
+      "require_current_session_quote": true,
+      "maximum_execution_quote_age_minutes": 20,
+      "maximum_future_clock_skew_minutes": 2,
+      "reject_crosscheck_statuses": [
+        "conflict",
+        "rejected"
+      ],
+      "role": "single_source_of_truth_for_gpw_freshness_and_data_quality"
+    },
+    "relative_momentum": {
+      "enabled": true,
+      "engine": "cross-sectional-multihorizon-v2",
+      "weights": {
+        "rank_1d": 0.1,
+        "rank_5d": 0.35,
+        "rank_20d": 0.2,
+        "rank_risk_adjusted_5d": 0.2,
+        "rank_sector_5d": 0.15
+      },
+      "role": "robust_cross_sectional_relative_strength_not_absolute_return"
+    },
+    "full_ranking": {
+      "enabled": true,
+      "engine": "gpw-full-ranking-v1",
+      "artifact": "data/investments/gpw_daily_candidate_ranking.json",
+      "include_rejected_universe": true,
+      "role": "canonical_pre_news_quant_ranking_for_entire_gpw_universe"
+    },
+    "expected_value": {
+      "enabled": true,
+      "engine": "gpw-empirical-ev-v1",
+      "horizon_sessions": 2,
+      "rr_grid": [
+        1.5,
+        1.75,
+        2.0,
+        2.25,
+        2.5
+      ],
+      "minimum_analogs": 16,
+      "maximum_analogs": 32,
+      "cost_assumption_percent": 0.38,
+      "score_weight": 0.2,
+      "uncertainty_penalty": 0.35,
+      "confidence_sample": 28,
+      "role": "empirical_target_and_bounded_reranking_overlay",
+      "same_bar_policy": "stop_first_conservative",
+      "entry_proxy": "next_session_open",
+      "target_selection": "maximize_uncertainty_adjusted_net_expected_R"
+    },
+    "mandatory_daily_selection": {
+      "enabled": true,
+      "integrated_final_stage": true,
+      "trigger": "primary_not_transaction_after_not_before",
+      "minimum_median_turnover_pln": 1000000.0,
+      "maximum_published_risk_percent": 0.07,
+      "data_gate_engine": "gpw-data-gates-v1",
+      "opening_confirmation": {
+        "engine": "gpw-opening-confirmation-v1",
+        "weight": 0.25,
+        "top_candidates": 8,
+        "component_weights": {
+          "open_return": 0.3,
+          "intraday_position": 0.3,
+          "distance_from_high": 0.2,
+          "gap_quality": 0.2
+        }
+      },
+      "expected_value": {
+        "engine": "gpw-empirical-ev-v1",
+        "enabled": true,
+        "effective_selected_weight": 0.2
+      },
+      "recovery_cutoff": "16:30",
+      "late_recovery": true
+    },
+    "hard_admission_gates": [
+      "gpw_data_gates_v1_historical_freshness",
+      "gpw_data_gates_v1_market_coverage",
+      "minimum_liquidity",
+      "finite_atr_and_price",
+      "gpw_data_gates_v1_execution_freshness",
+      "bounded_published_risk",
+      "expected_value_history_quality"
+    ]
+  },
+  "metrics": {
+    "resolved_trades": 35,
+    "not_activated": 1,
+    "win_rate": 0.5143,
+    "average_r": 0.198,
+    "average_return_percent": -0.169,
+    "automatic_weight_changes": false
+  },
+  "disclaimer": "Materiał badawczy dotyczący daily tradingu. To nie jest rekomendacja inwestycyjna ani obietnica wyniku.",
+  "learning": {
+    "method": "bayesian_shrinkage_historical_overlay_v1",
+    "resolved_trades": 35,
+    "adaptation_active": true,
+    "minimum_sample": 8,
+    "recent_average_r": 0.297,
+    "last_lesson": {
+      "date": "2026-10-26",
+      "symbol": "ALE",
+      "sector": "handel internetowy",
+      "return_percent": 0.508,
+      "r_multiple": 0.347,
+      "exit_reason": "koniec_horyzontu",
+      "lesson": "ALE: horyzont zakończył się dodatnio (0.35R). Wynik zasila oczekiwaną skuteczność podobnych układów po shrinkage."
+    },
+    "weights_frozen": true,
+    "event_learning_method": "event_family_bayesian_shrinkage_v1",
+    "event_expectancy": [
+      {
+        "event_type": "earnings",
+        "label": "wyniki / raport okresowy",
+        "sample": 1,
+        "minimum_sample": 6,
+        "active": false,
+        "average_r": 1.792,
+        "shrunk_r": 0.0,
+        "catalyst_adjustment": 0.0
+      },
+      {
+        "event_type": "regulatory",
+        "label": "regulacja / spór prawny",
+        "sample": 1,
+        "minimum_sample": 6,
+        "active": false,
+        "average_r": 1.799,
+        "shrunk_r": 0.0,
+        "catalyst_adjustment": 0.0
+      }
+    ]
+  },
+  "candidate_ranking": {
+    "engine": "gpw-full-ranking-v1",
+    "date": "2026-10-29",
+    "generated_at": "2026-10-29T15:21:53+01:00",
+    "expected_session": "2026-10-28",
+    "universe_size": 40,
+    "ranked_count": 32,
+    "artifact": "/data/investments/gpw_daily_candidate_ranking.json"
+  },
+  "outcome": {
+    "status": "PENDING",
+    "activated": null
+  },
+  "decision_envelope": {
+    "envelope_id": "dec-c0fdb7b825cee0d34471f9e7",
+    "envelope_hash": "c0fdb7b825cee0d34471f9e712ba795f95dda6da9bd17fb66e9245ac5d6ebbdc",
+    "engine_id": "gpw_daily",
+    "engine_version": "gpw-short-horizon-pl-v1.5-ranking-gates-momentum",
+    "decision_at": "2026-10-29T14:22:04.000000Z",
+    "native_decision": "TRANSAKCJA",
+    "action": "LONG",
+    "instrument_id": "equity.pl.pco",
+    "market_snapshot_id": "mkt-131d75ec9c0be7d20f0381c7",
+    "market_snapshot_hash": "131d75ec9c0be7d20f0381c79c346c4b376911cb8eb2dece4577525f8da10d22",
+    "market_data_policy_id": "gpw-daily-execution-market-snapshot-v1",
+    "market_data_quality_status": "OK",
+    "risk_assessment_id": "risk-821a1f1e24757ddd6e45583c",
+    "risk_assessment_hash": "821a1f1e24757ddd6e45583c3c173e55d52b9b7746b97fb3b82ebb3c1cf18a47",
+    "risk_policy_id": "gpw-daily-risk-policy-v1",
+    "risk_policy_version": "gpw-short-horizon-pl-v1.5-ranking-gates-momentum|risk-v1",
+    "epistemic_state_id": null,
+    "horizon": "1-2 GPW sessions",
+    "confidence": 73.55,
+    "position_plan": {
+      "reference_price": 50.46,
+      "entry_zone": [
+        50.31,
+        50.76
+      ],
+      "skip_above": 50.76,
+      "stop": 48.72,
+      "target": 53.51,
+      "risk_percent": 0.0345,
+      "reward_risk": 1.75,
+      "valid_until": "2026-11-02",
+      "time_stop": "Maksymalnie 2 sesje od dnia wyboru.",
+      "early_exit": "Wyjście przy SL, unieważnieniu setupu lub pogorszeniu danych wykonawczych; nie rozszerzać SL."
+    },
+    "authority": {
+      "decision_authority": "SOURCE_ENGINE",
+      "risk_limit_authority": "SOURCE_ENGINE_RISK_POLICY",
+      "envelope_decision_authority": false,
+      "trade_execution": false
+    },
+    "contract_version": "briefrooms-decision-envelope-v1"
+  },
+  "decision_envelope_id": "dec-c0fdb7b825cee0d34471f9e7",
+  "decision_envelope_hash": "c0fdb7b825cee0d34471f9e712ba795f95dda6da9bd17fb66e9245ac5d6ebbdc",
+  "risk_assessment": {
+    "risk_assessment_id": "risk-821a1f1e24757ddd6e45583c",
+    "risk_assessment_hash": "821a1f1e24757ddd6e45583c3c173e55d52b9b7746b97fb3b82ebb3c1cf18a47",
+    "engine_id": "gpw_daily",
+    "policy_id": "gpw-daily-risk-policy-v1",
+    "policy_version": "gpw-short-horizon-pl-v1.5-ranking-gates-momentum|risk-v1",
+    "policy_fingerprint": "d0e3fa626654dbc13e95b5415657a7da8746c90a586158a847bb1dbd14e7c67a",
+    "assessed_at": "2026-10-29T14:22:04.000000Z",
+    "action": "LONG",
+    "status": "APPROVED",
+    "checks": [
+      {
+        "check_id": "reference_price_positive",
+        "passed": true,
+        "observed": 50.46,
+        "limit": 0.0,
+        "operator": ">",
+        "reason": null
+      },
+      {
+        "check_id": "entry_zone_ordered",
+        "passed": true,
+        "observed": [
+          50.31,
+          50.76
+        ],
+        "limit": "0 < low <= high",
+        "operator": "geometry",
+        "reason": null
+      },
+      {
+        "check_id": "stop_below_reference",
+        "passed": true,
+        "observed": 48.72,
+        "limit": 50.46,
+        "operator": "<",
+        "reason": null
+      },
+      {
+        "check_id": "target_above_reference",
+        "passed": true,
+        "observed": 53.51,
+        "limit": 50.46,
+        "operator": ">",
+        "reason": null
+      },
+      {
+        "check_id": "minimum_reward_risk",
+        "passed": true,
+        "observed": 1.75,
+        "limit": 1.5,
+        "operator": ">=",
+        "reason": null
+      },
+      {
+        "check_id": "maximum_risk_percent",
+        "passed": true,
+        "observed": 0.0345,
+        "limit": 0.07,
+        "operator": "<=",
+        "reason": null
+      },
+      {
+        "check_id": "skip_above_not_below_entry_high",
+        "passed": true,
+        "observed": 50.76,
+        "limit": 50.76,
+        "operator": ">=",
+        "reason": null
+      },
+      {
+        "check_id": "time_horizon_present",
+        "passed": true,
+        "observed": "2026-11-02",
+        "limit": "1-2 GPW sessions",
+        "operator": "present",
+        "reason": null
+      }
+    ],
+    "contract_version": "briefrooms-risk-assessment-v1"
+  },
+  "risk_assessment_id": "risk-821a1f1e24757ddd6e45583c",
+  "risk_assessment_hash": "821a1f1e24757ddd6e45583c3c173e55d52b9b7746b97fb3b82ebb3c1cf18a47",
+  "risk_policy_id": "gpw-daily-risk-policy-v1",
+  "risk_policy_version": "gpw-short-horizon-pl-v1.5-ranking-gates-momentum|risk-v1",
+  "market_snapshot_id": "mkt-131d75ec9c0be7d20f0381c7",
+  "instrument_id": "equity.pl.pco",
+  "decision_envelope_coverage": "CANONICALIZED"
+}
