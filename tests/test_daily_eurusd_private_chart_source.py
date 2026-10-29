@@ -9,9 +9,29 @@ import daily_eurusd_spot_v19 as daily
 
 
 class PrivateSaxoDataAuthorityTests(unittest.TestCase):
-    def test_private_runtime_refuses_yahoo_when_chart_source_disabled(self):
+    def test_chart_opt_in_makes_private_daily_never_read_yahoo(self):
         with tempfile.TemporaryDirectory() as folder:
-            root = Path(folder).resolve()
+            root=Path(folder).resolve()
+            with patch.dict(os.environ,{
+                "SAXO_PRIVATE_PRIMARY":"1",
+                "SAXO_STREAM_PRIMARY":"1",
+                "BRIEFROOMS_PRIVATE_RUNTIME":"1",
+                "BRIEFROOMS_PRIVATE_DATA_DIR":str(root),
+                "SAXO_CHART_PRIMARY":"1",
+                "SAXO_PRIVATE_BASIC_PASSWORD":"test"
+            }):
+                with patch.object(daily.base,"YahooChartClient",
+                                  side_effect=AssertionError("Yahoo forbidden")) as yahoo:
+                    with patch("saxo_private_chart.SaxoPrivateChartClient",
+                               side_effect=RuntimeError("private Saxo chart invoked")) as source:
+                        with self.assertRaisesRegex(RuntimeError,"private Saxo chart invoked"):
+                            daily.run_cycle(root/"eurusd_daily_spot.json",root/"eurusd_daily_history.json")
+                        source.assert_called_once()
+                        yahoo.assert_not_called()
+
+    def test_private_chart_disabled_preserves_existing_staging_runtime(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder).resolve()
             with patch.dict(os.environ,{
                 "SAXO_PRIVATE_PRIMARY":"1",
                 "BRIEFROOMS_PRIVATE_RUNTIME":"1",
@@ -19,10 +39,9 @@ class PrivateSaxoDataAuthorityTests(unittest.TestCase):
                 "SAXO_CHART_PRIMARY":"0"
             }):
                 with patch.object(daily.base,"YahooChartClient",
-                                  side_effect=AssertionError("Yahoo forbidden")) as yahoo:
-                    with self.assertRaisesRegex(ValueError,"private_saxo_chart_not_enabled"):
+                                  side_effect=RuntimeError("legacy staging price invoked")):
+                    with self.assertRaisesRegex(RuntimeError,"legacy staging price invoked"):
                         daily.run_cycle(root/"eurusd_daily_spot.json",root/"eurusd_daily_history.json")
-                    yahoo.assert_not_called()
 
     def test_public_client_path_does_not_change_on_private_chart_flag(self):
         with patch.dict(os.environ,{
