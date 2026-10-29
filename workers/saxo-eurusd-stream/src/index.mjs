@@ -34,7 +34,12 @@ function validQuoteValues(bid, ask) {
     && ask < 1.5 && ask - bid <= 0.0015;
 }
 export function parseSaxoBinaryMessages(data) {
+  // A Blob must never be silently treated as a zero-length Uint8Array.
+  // Cloudflare WebSocket receives ArrayBuffer when binaryType is explicitly set.
+  if (!(data instanceof Uint8Array) && !(data instanceof ArrayBuffer))
+    throw Error("unexpected_binary_payload_type");
   const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
+  if (bytes.byteLength === 0) throw Error("empty_binary_frame");
   if (bytes.byteLength > MAX_FRAME) throw Error("frame_exceeds_limit");
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const messages = [];
@@ -273,6 +278,9 @@ export class EurusdSaxoStream {
     if (response.status !== 101 || !response.webSocket)
       throw Error("websocket_http_" + response.status);
     const socket = response.webSocket;
+    // Cloudflare (compatibility date >= 2026-03-17) defaults to Blob frames.
+    // Our synchronous Saxo binary parser REQUIRES ArrayBuffer. Set BEFORE accept.
+    socket.binaryType = "arraybuffer";
     socket.accept();
     const epoch = this.connectionEpoch;
     this.ws=socket;this.contextId=context;this.connected=true;
