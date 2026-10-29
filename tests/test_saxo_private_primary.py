@@ -82,6 +82,27 @@ class SaxoPrivatePrimaryTests(unittest.TestCase):
         self.assertFalse(result["verified"])
         self.assertEqual(result["reason"], "private_saxo_public_consensus_mismatch")
 
+    def test_private_entry_rejects_saxo_quote_older_than_15_seconds(self):
+        quote = self._saxo()
+        quote["observed_at"] = self.now - timedelta(seconds=16)
+        with patch.dict(os.environ, {
+            "SAXO_PRIVATE_PRIMARY": "1", "BRIEFROOMS_PRIVATE_RUNTIME": "1",
+        }), patch("saxo_private_feed.fetch_private_saxo_quote", return_value=quote):
+            result = self._run()
+        self.assertFalse(result["verified"])
+        self.assertEqual(result["reason"], "private_saxo_quote_not_fresh_for_fill")
+        self.assertNotIn("fill_price", result)
+
+    def test_private_entry_rejects_future_dated_saxo_quote(self):
+        quote = self._saxo()
+        quote["observed_at"] = self.now + timedelta(seconds=1)
+        with patch.dict(os.environ, {
+            "SAXO_PRIVATE_PRIMARY": "1", "BRIEFROOMS_PRIVATE_RUNTIME": "1",
+        }), patch("saxo_private_feed.fetch_private_saxo_quote", return_value=quote):
+            result = self._run()
+        self.assertFalse(result["verified"])
+        self.assertEqual(result["reason"], "private_saxo_quote_not_fresh_for_fill")
+
     def test_public_default_never_uses_private_saxo(self):
         with patch.dict(os.environ, {"SAXO_PRIVATE_PRIMARY": "0",
                                      "SAXO_PRIVATE_QUALITY_GATE": "0"}), patch(
