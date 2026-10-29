@@ -278,6 +278,29 @@
 
     metrics[1].querySelectorAll('small').forEach(node => node.remove());
     metrics[1].title = [quote.provider, quote.observedAt || quote.receivedAt].filter(Boolean).join(' · ');
+    if (market === 'US' && positionSymbol(position) === 'MCK') {
+      // Only MCK: a 15-second JSON poll is NOT evidence that a quote is fresh.
+      // Preserve the last observed price, but disclose its source observation age.
+      const observedMs = Date.parse(quote.observedAt || '');
+      const ageMs = Date.now() - observedMs;
+      const validAge = Number.isFinite(observedMs) && Number.isFinite(ageMs) && ageMs >= -60_000;
+      const minutesOld = validAge ? Math.max(0, Math.floor(ageMs / 60_000)) : null;
+      const nyTime = localTime(quote.observedAt, 'US');
+      const clock = nyTime ? ` · ${nyTime} NY` : '';
+      let status;
+      if (minutesOld === null) {
+        status = isPl ? 'Brak potwierdzonego czasu kursu' : 'Quote timestamp unverified';
+      } else if (minutesOld > 10) {
+        const ageLabel = minutesOld >= 60
+          ? `${Math.floor(minutesOld / 60)}h ${minutesOld % 60}min`
+          : `${minutesOld} min`;
+        status = isPl ? `Kurs nieaktualny (${ageLabel})${clock}` : `Stale quote (${ageLabel})${clock}`;
+      } else {
+        status = `${quoteNote(quote, market)} · ${minutesOld} min`;
+      }
+      setSmall(metrics[1], status, minutesOld !== null && minutesOld <= 10 && quote.isRealtime);
+      metrics[1].dataset.quoteStale = String(minutesOld === null || minutesOld > 10);
+    }
 
     const pnl = card.querySelector('.str-pnl');
     if (pnl && entry !== null && entry !== 0 && mark !== null) {
