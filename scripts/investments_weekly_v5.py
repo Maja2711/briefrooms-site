@@ -17,6 +17,7 @@ import execution_price_engine as epe
 import wes_notification_outbox as wes_outbox
 import wes_decision_ledger as decision_ledger
 import wes_v5_history_seal as history_seal
+import eurusd_weekly_cb_event_adapter as cb_event
 
 ROOT = Path(__file__).resolve().parents[1]
 METHOD = ROOT / "data/investments/methodology.json"
@@ -1574,6 +1575,13 @@ def ensure_all() -> Dict[str, Any]:
     if not path or not path.exists():
         report["reason"] = "current_week_missing"; write(REPORT, report); return report
     week = read(path, {})
+    # EURUSD hard SL/TP always has priority over its optional CB context. The
+    # default all-instrument safety monitor and other instruments are unchanged.
+    if any(isinstance(row, dict) and row.get("instrument_id") == "eurusd" and open_position(row)
+           for row in week.get("instruments", [])):
+        import audit_intraday_risk_exits as hard_risk
+        hard_risk.audit(path=path, now=now, persist_report="on_close", instrument_id="eurusd")
+        week = read(path, {})
     archived_after_close = archive_closed_learning_samples(week, policy)
     if archived_after_close:
         write(path, week)
@@ -1593,8 +1601,35 @@ def ensure_all() -> Dict[str, Any]:
     changed = False
     for p_cfg in v4.policy_instruments(policy):
         iid = str(p_cfg.get("instrument_id")); cfg = v4.instrument_cfg(method, iid); item = items.get(iid)
+        cb_review = None
         if not cfg or item is None:
             report["actions"].append({"instrument_id": iid, "action": "skip", "reason": "missing_config"}); continue
+        if iid == "eurusd":
+            # Keep prospective observations outside the immutable WES decision,
+            # forecast and closed-position history. Never create an exit request.
+            try:
+                cb_review = cb_event.evaluate_weekly_cb_event(
+                    item, week_id=str(week.get("week_id") or ""), now=now,
+                )
+                if cb_review is not None:
+                    cb_event.persist_weekly_assessment(cb_review)
+                    report["eurusd_central_bank_event_risk"] = cb_review
+                    state["eurusd_central_bank_event_risk"] = cb_review
+                    if cb_review.get("entry_guard_enforced") and not open_position(item):
+                        state["instruments"][iid] = {"central_bank_event_risk": cb_review,
+                            "next_entry_status": "blocked_by_central_bank_event_risk"}
+                        report["actions"].append({"instrument_id": iid, "action": "block_new_entry",
+                            "reason": "central_bank_event_risk", "decision_id": cb_review.get("immutable_id")})
+                        continue
+            except Exception as exc:
+                # A broken news path must never prevent existing hard exits or
+                # turn into a synthetic position close. Fail closed for entries.
+                report["actions"].append({"instrument_id": iid, "action": "cb_monitor_error",
+                    "error_type": type(exc).__name__, "reason": "PROTECTION_PENDING"})
+                from eurusd_central_bank_event_risk import load_policy as cb_policy
+                if cb_policy().get("entry_guard_enabled") and not open_position(item):
+                    state["instruments"][iid] = {"next_entry_status": "blocked_cb_monitor_error"}
+                    continue
         if closed_position(item) and archive_leg_with_contextual_outcomes(item, p_cfg, week_id=str(week.get("week_id") or "")): changed = True
         allowed, c = gate(item, method, iid); changed |= c
         blocked, c = lock_reentry(item, week, now); changed |= c
@@ -1651,6 +1686,12 @@ def ensure_all() -> Dict[str, Any]:
         recovered = recover_frozen_pending_touch(item, str(cfg.get("symbol") or ""), now)
         if recovered is not None:
             pending, point = recovered
+            if iid == "eurusd":
+                cb_fill_allowed, cb_fill_reason = cb_event.entry_fill_allowed(point, cb_review, now=now)
+                if not cb_fill_allowed:
+                    report["actions"].append({"instrument_id": iid, "action": "wait_for_cb_safe_entry",
+                        "reason": cb_fill_reason, "price_observed_at": point.get("timestamp")})
+                    continue
             entry_plan = pending.get("entry_price_plan") if isinstance(pending.get("entry_price_plan"), dict) else {}
             point, execution_verification = epe_verified_entry_point(pending, point, now)
             execution_mode = str(entry_plan.get("execution_mode") or "limit_pullback")
@@ -1792,6 +1833,12 @@ def ensure_all() -> Dict[str, Any]:
                 "market_entry_diagnostics": entry_plan.get("market_entry_diagnostics"),
             })
             continue
+        if iid == "eurusd":
+            cb_fill_allowed, cb_fill_reason = cb_event.entry_fill_allowed(point, cb_review, now=now)
+            if not cb_fill_allowed:
+                report["actions"].append({"instrument_id": iid, "action": "wait_for_cb_safe_entry",
+                    "reason": cb_fill_reason, "price_observed_at": point.get("timestamp")})
+                continue
         point, execution_verification = epe_verified_entry_point(pending, point, now)
         if point is None:
             item["execution_price_engine"] = execution_verification

@@ -573,6 +573,7 @@ def calendar_safety(
 
     now = observed_at.astimezone(timezone.utc)
     events: list[dict[str, Any]] = []
+    central_bank_events: list[dict[str, Any]] = []
     latest_coverage: dict[str, Any] | None = None
     latest_coverage_at: Optional[datetime] = None
     try:
@@ -597,6 +598,16 @@ def calendar_safety(
             if event_at is None:
                 continue
             hours = (event_at - now).total_seconds() / 3600.0
+            title = str(meta.get("title") or "").lower()
+            if -24.0 <= hours <= 24.0 and any(term in title for term in ("fomc", "federal open market committee", "ecb")):
+                central_bank_events.append({
+                    "event_id": meta.get("uid") or meta.get("event_uid"),
+                    "title": meta.get("title"), "scheduled_at": meta.get("event_at"),
+                    "event_type": "ECB_DECISION" if "ecb" in title else "FOMC_DECISION",
+                    "source_ref": row.get("source_ref"),
+                    "observed_at": row.get("observed_at"),
+                    "time_precision": meta.get("time_precision") or "unknown",
+                })
             if -0.5 <= hours <= 24.0:
                 events.append({
                     "title": meta.get("title"),
@@ -654,10 +665,17 @@ def calendar_safety(
         if not any(release_matches(item) for item in release_proofs):
             post_release_pending = True
 
+    # The wire is an execution-safety input only. It never supplies a Belief
+    # direction or releases the existing post-release Evidence requirement.
+    from eurusd_daily_cb_event_adapter import safe_evaluate_daily
+    cb_risk = safe_evaluate_daily(None, (), now, calendar_events=central_bank_events)
+    cb_blocked = cb_risk.get("entry_guard_enforced") is True and cb_risk.get("block_new_entry") is True
     coverage_failed = not coverage_complete
-    blocked = bool(imminent or post_release_pending or coverage_failed)
+    blocked = bool(imminent or post_release_pending or coverage_failed or cb_blocked)
     reason = (
-        "belief_high_impact_event_imminent"
+        "central_bank_event_risk_entry_guard"
+        if cb_blocked
+        else "belief_high_impact_event_imminent"
         if imminent
         else "belief_post_release_evidence_pending"
         if post_release_pending
@@ -675,6 +693,7 @@ def calendar_safety(
         "reason": reason,
         "imminent": bool(imminent),
         "post_release_evidence_pending": post_release_pending,
+        "central_bank_event_risk": cb_risk,
         "calendar_coverage": {
             "complete": coverage_complete,
             "observed_at": (

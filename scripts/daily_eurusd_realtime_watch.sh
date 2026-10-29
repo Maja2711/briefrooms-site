@@ -132,7 +132,7 @@ while [ "$(date +%s)" -lt "$deadline" ]; do
     next_repo_refresh=$((now + 30))
   fi
 
-  if ! python scripts/daily_eurusd_fast_lifecycle.py     --output data/investments/eurusd_daily_spot.json     --history data/investments/eurusd_daily_history.json     --probe-json "$RUNNER_TEMP/eurusd-realtime-probe.json"; then
+  if ! python scripts/daily_eurusd_fast_lifecycle.py     --output data/investments/eurusd_daily_spot.json     --history data/investments/eurusd_daily_history.json     --cb-audit-dir "$RUNNER_TEMP/eurusd-cb-audit" --probe-json "$RUNNER_TEMP/eurusd-realtime-probe.json"; then
     echo "Realtime probe source error; retrying after 15 seconds."
     sleep 15
     continue
@@ -164,7 +164,7 @@ done
 
 git fetch --quiet origin main || true
 git reset --hard origin/main >/dev/null || true
-python scripts/daily_eurusd_fast_lifecycle.py   --output data/investments/eurusd_daily_spot.json   --history data/investments/eurusd_daily_history.json   --probe-json "$RUNNER_TEMP/eurusd-realtime-final.json" || true
+python scripts/daily_eurusd_fast_lifecycle.py   --output data/investments/eurusd_daily_spot.json   --history data/investments/eurusd_daily_history.json   --cb-audit-dir "$RUNNER_TEMP/eurusd-cb-audit" --probe-json "$RUNNER_TEMP/eurusd-realtime-final.json" || true
 
 still_open=$(python - "$RUNNER_TEMP/eurusd-realtime-final.json" <<'PY'
 import json, sys
@@ -184,7 +184,7 @@ fi
 
 handoff_end=$(( $(date +%s) + handoff_seconds ))
 while [ "$(date +%s)" -lt "$handoff_end" ] && [ "$still_open" = "1" ]; do
-  if python scripts/daily_eurusd_fast_lifecycle.py     --output data/investments/eurusd_daily_spot.json     --history data/investments/eurusd_daily_history.json     --probe-json "$RUNNER_TEMP/eurusd-realtime-handoff.json"; then
+  if python scripts/daily_eurusd_fast_lifecycle.py     --output data/investments/eurusd_daily_spot.json     --history data/investments/eurusd_daily_history.json     --cb-audit-dir "$RUNNER_TEMP/eurusd-cb-audit" --probe-json "$RUNNER_TEMP/eurusd-realtime-handoff.json"; then
     read -r _ triggered <<<"$(probe_flags "$RUNNER_TEMP/eurusd-realtime-handoff.json")"
     if [ "$triggered" = "1" ]; then
       set +e

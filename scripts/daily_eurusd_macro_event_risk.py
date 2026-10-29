@@ -27,6 +27,24 @@ POST_EVENT_MAX_CURRENT_R = 0.25
 BELIEF_CONFLICT_SCORE = 6.0
 
 
+def assess_central_bank_position(
+    position: Mapping[str, Any] | None,
+    bars: Sequence[Bar],
+    observed_at: datetime,
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """Shared T-120/pre/during/post evaluation, separated from legacy exits.
+
+    New central-bank CLOSE/PROTECT suggestions are audit-only SHADOW. This
+    function cannot emit a lifecycle trade or change a protective level.
+    """
+    from eurusd_daily_cb_event_adapter import safe_evaluate_daily
+    context = (position or {}).get("_belief_macro_context") or {}
+    calendar = context.get("macro_calendar") or {}
+    kwargs.setdefault("calendar_events", calendar.get("events") or ())
+    return safe_evaluate_daily(position, bars, observed_at, **kwargs)
+
+
 def _direction_sign(direction: str) -> float:
     return 1.0 if str(direction).upper() == "LONG" else -1.0
 

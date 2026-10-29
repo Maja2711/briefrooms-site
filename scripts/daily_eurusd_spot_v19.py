@@ -39,6 +39,7 @@ import daily_eurusd_regime_policy as regime_policy
 import daily_eurusd_flip_guard as flip_guard
 import daily_eurusd_bollinger_d1 as bollinger_d1
 import daily_eurusd_bollinger_touch as bollinger_touch
+import daily_eurusd_macro_event_risk as macro_event_risk
 
 ENGINE_VERSION = decision_record.ENGINE_VERSION
 ENTRY_THESIS_SOURCE_FAMILY = "NATIVE_BELIEF_FIRST"
@@ -468,6 +469,9 @@ def build_output(
         "direction_decision_influence": False,
         "role": "OPEN_POSITION_RISK_ONLY",
     }
+    metadata["central_bank_event_risk"] = macro_event_risk.assess_central_bank_position(
+        None, rows, (_cycle_context or {}).get("decision_at") or observed_at,
+    )
 
     provisional = DailyEngineOutput(
         instrument="EUR/USD",
@@ -943,6 +947,15 @@ def _open_output_v19(
         "decision_mode": "WITH",
         "historical_position_rewritten": False,
     }
+    context = _cycle_context or {}
+    metadata["central_bank_event_risk"] = macro_event_risk.assess_central_bank_position(
+        position, context.get("monitor_bars") or (),
+        context.get("decision_at") or belief_decision._parse_time(output.timestamp),
+    )
+    metadata["event_wire_provenance"] = {
+        "snapshot_sha256": metadata["central_bank_event_risk"].get("wire_snapshot_sha256"),
+        "decision_id": metadata["central_bank_event_risk"].get("decision_id"),
+    }
     return _clone(output, metadata=metadata)
 
 
@@ -957,6 +970,12 @@ def _closed_output_v19(
         "engine_version": ENGINE_VERSION,
         "decision_mode": "WITH",
         "historical_trade_rewritten": False,
+    }
+    metadata["central_bank_event_risk"] = {
+        **dict(metadata.get("central_bank_event_risk") or {}),
+        "existing_lifecycle_exit_has_priority": True,
+        "existing_exit_reason": trade.get("exit_reason"),
+        "execution_authority": False, "executed_at": None,
     }
     return _clone(output, metadata=metadata)
 

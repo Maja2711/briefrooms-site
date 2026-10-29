@@ -392,7 +392,12 @@ def audit(
     *,
     now: Optional[datetime] = None,
     persist_report: str = "on_close",
+    instrument_id: Optional[str] = None,
 ) -> dict[str, Any]:
+    # Optional EURUSD-only preflight preserves the universal default monitor.
+    # It grants no new authority or changed execution semantics to other assets.
+    if instrument_id not in (None, "eurusd"):
+        raise ValueError("only EURUSD scoped preflight is supported")
     checked_at = (now or datetime.now(UTC)).astimezone(UTC)
     report: dict[str, Any] = {
         "schema_version": "2.0",
@@ -414,6 +419,8 @@ def audit(
         if not isinstance(item, dict):
             continue
         iid = str(item.get("instrument_id") or "")
+        if instrument_id is not None and iid != instrument_id:
+            continue
         side = str(item.get("direction") or "")
         if (
             side not in {"long", "short"}
