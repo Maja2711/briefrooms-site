@@ -82,7 +82,7 @@ class SaxoPrivateFeedTests(unittest.TestCase):
                 saxo._private_quote_endpoint()
 
     def test_stream_endpoint_is_pinned_and_private(self):
-        url = "https://briefrooms-saxo-eurusd-stream.example.workers.dev/saxo/quote"
+        url = saxo.SAXO_STREAM_WORKER_URL
         with patch.dict(os.environ, {"SAXO_STREAM_PRIMARY":"1",
                                   "SAXO_PRIVATE_STREAM_URL":url,
                                   "SAXO_PRIVATE_BASIC_PASSWORD":"test-secret"}), patch(
@@ -97,6 +97,14 @@ class SaxoPrivateFeedTests(unittest.TestCase):
             quote=saxo.fetch_private_saxo_quote(now=self.now)
             self.assertEqual(quote["source"], "SAXO_SIM")
             self.assertEqual(opener.call_args.args[0].full_url, url)
+
+    def test_stream_endpoint_rejects_other_workers_dev_hosts(self):
+        with patch.dict(os.environ, {
+            "SAXO_STREAM_PRIMARY": "1",
+            "SAXO_PRIVATE_STREAM_URL": "https://other-site.workers.dev/saxo/quote"
+        }):
+            with self.assertRaises(saxo.PrivateSaxoFeedError):
+                saxo._private_quote_endpoint()
 
     def test_external_error_is_sanitized(self):
         with patch.dict(os.environ, {"SAXO_PRIVATE_BASIC_PASSWORD": "very-secret"}), patch(

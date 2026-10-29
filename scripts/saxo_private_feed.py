@@ -20,6 +20,8 @@ from typing import Any, Mapping
 SAXO_WORKER_URL = (
     "https://briefrooms-saxo-eurusd.szczerbinski0577.workers.dev/saxo/quote"
 )
+# Single explicitly approved private stream endpoint, not a user-supplied URL.
+SAXO_STREAM_WORKER_URL = "https://briefrooms-saxo-eurusd-stream.szczerbinski0577.workers.dev/saxo/quote"
 
 
 def _private_quote_endpoint() -> str:
@@ -32,8 +34,7 @@ def _private_quote_endpoint() -> str:
         return SAXO_WORKER_URL
     value = os.environ.get("SAXO_PRIVATE_STREAM_URL", "").strip()
     parsed = urllib.parse.urlsplit(value)
-    if (parsed.scheme != "https" or not parsed.hostname or
-        not parsed.hostname.endswith(".workers.dev") or
+    if (parsed.scheme != "https" or value != SAXO_STREAM_WORKER_URL or
         parsed.username or parsed.password or parsed.port not in (None, 443)
         or parsed.path != "/saxo/quote" or parsed.query or parsed.fragment):
         raise PrivateSaxoFeedError("private_saxo_stream_endpoint_not_configured")

@@ -78,6 +78,8 @@ class IsolatedD1Tests(unittest.TestCase):
             "SAXO_PRIVATE_PRIMARY": "1",
             "SAXO_PRIVATE_AUTO_ENABLED": "true",
             "SAXO_PRIVATE_BASIC_PASSWORD": "test-only",
+            "SAXO_STREAM_PRIMARY":"1",
+            "SAXO_PRIVATE_STREAM_URL":"https://briefrooms-saxo-eurusd-stream.szczerbinski0577.workers.dev/saxo/quote",
         }):
             with patch("daily_eurusd_cycle_watchdog.fx_market_active", return_value=False):
                 with patch.object(d1_runner, "private_cycle") as cycle:
@@ -88,6 +90,27 @@ class IsolatedD1Tests(unittest.TestCase):
                             cycle.assert_not_called()
                             load.assert_not_called()
                             save.assert_not_called()
+
+    def test_private_cycle_must_not_fallback_to_legacy_rest(self):
+        with patch.dict(os.environ, {
+            "SAXO_PRIVATE_AUTO_ENABLED": "true",
+            "BRIEFROOMS_PRIVATE_RUNTIME": "1",
+            "SAXO_PRIVATE_PRIMARY": "1",
+            "SAXO_STREAM_PRIMARY": "0",
+            "SAXO_PRIVATE_BASIC_PASSWORD": "test-only"
+        }), patch.object(d1_runner, "D1", return_value=MemoryD1()):
+            self.assertEqual(d1_runner.main([]), 1)
+
+    def test_private_cycle_refuses_unapproved_stream_hostname(self):
+        with patch.dict(os.environ, {
+            "SAXO_PRIVATE_AUTO_ENABLED": "true",
+            "BRIEFROOMS_PRIVATE_RUNTIME": "1",
+            "SAXO_PRIVATE_PRIMARY": "1",
+            "SAXO_STREAM_PRIMARY": "1",
+            "SAXO_PRIVATE_STREAM_URL": "https://attacker.workers.dev/saxo/quote",
+            "SAXO_PRIVATE_BASIC_PASSWORD": "test-only"
+        }), patch.object(d1_runner, "D1", return_value=MemoryD1()):
+            self.assertEqual(d1_runner.main([]), 1)
 
     def test_private_cycle_off_by_default(self):
         with patch.dict(os.environ, {
