@@ -134,7 +134,8 @@
   function livePositionPercent(position, mark) {
     const entry = Number(position?.entry);
     const current = Number(mark);
-    if (!Number.isFinite(entry) || entry <= 0 || !Number.isFinite(current)) return position?.unrealized_percent;
+    if (position?.entry == null || mark == null || !Number.isFinite(entry) || entry <= 0
+        || !Number.isFinite(current) || current <= 0) return null;
     const sign = String(position?.direction || "").toUpperCase() === "SHORT" ? -1 : 1;
     return sign * ((current - entry) / entry) * 100;
   }
