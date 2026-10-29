@@ -101,4 +101,42 @@ jobs:
             printf %s "${!name}" | npx --yes wrangler@4 secret put "$name" --config workers/saxo-eurusd-stream/wrangler.toml >/dev/null
           done
           echo "SAXO_STREAM=DEPLOYED_WITH_PRIVATE_OAUTH"
-          echo "SAXO_STREAM=NOT_YET_CONFIRMED_CONNECTED"
+      - name: Verify real Saxo subscription and fresh BID ASK privately
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64, json, os, time, urllib.request
+          base = "https://briefrooms-saxo-eurusd-stream.szczerbinski0577.workers.dev"
+          password = os.environ.get("SAXO_STREAM_BASIC_PASSWORD", "")
+          auth = base64.b64encode(("admin:" + password).encode()).decode()
+          def read(path):
+              request = urllib.request.Request(base + path, headers={
+                  "Authorization": "Basic " + auth,
+                  "Cache-Control": "no-store",
+                  "Accept": "application/json",
+                  "User-Agent": "BriefRoomsSaxoStream/1.0",
+              })
+              with urllib.request.urlopen(request, timeout=8) as response:
+                  return json.loads(response.read(8192))
+          for attempt in range(6):
+              try:
+                  status = read("/saxo/status")
+                  if status.get("connected") is True and status.get("subscribed") is True:
+                      quote = read("/saxo/quote")
+                      if (quote.get("source") == "SAXO_SIM"
+                          and quote.get("delayed_by_minutes") == 0
+                          and quote.get("redistributable") is False
+                          and quote.get("trading_enabled") is False
+                          and isinstance(quote.get("bid"), (int,float))
+                          and isinstance(quote.get("ask"), (int,float))
+                          and quote["bid"] < quote["ask"]):
+                          print("SAXO_STREAM=CONNECTED_SUBSCRIBED_FRESH_BID_ASK")
+                          break
+              except Exception:
+                  pass
+              if attempt == 5:
+                  print("SAXO_STREAM=DEPLOYED_BUT_NO_VERIFIED_LIVE_QUOTE")
+                  raise SystemExit(1)
+              time.sleep(5)
+          PY
