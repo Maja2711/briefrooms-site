@@ -2,7 +2,7 @@
 
 **Map version:** 1.46
 
-**Snapshot date:** 2026-10-28
+**Snapshot date:** 2026-10-29
 
 **Base `main` commit:** `7dff7b1d71b333f9029c661b251b01243a189897`
 

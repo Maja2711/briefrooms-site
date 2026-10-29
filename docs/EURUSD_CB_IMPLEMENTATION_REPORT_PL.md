@@ -21,11 +21,13 @@ Nowe zamknięcia i zmiany stopa nie mają uprawnień wykonawczych. Parametry pro
 
 ## Walidacja
 
-Wcześniejszy pełny zestaw: 336/336 Python PASS, przy identycznym hashu kodu przed i po teście. Po ostatnich rozszerzeniach końcowy lokalny przebieg wykonał 303 testy: 301 PASS i dwa błędy importu zależności pandas zablokowanej przez Windows App Control; brak niepowodzeń asercji. Końcowy pełny zestaw jest uruchamiany w workflow walidacyjnym PR na Linux.
+Końcowy pełny zestaw Python: **351/351 PASS lokalnie**, 0 błędów, 0 pominięć, 30,47 s. Hash kodu przed i po całym teście identyczny: `faba481bc935746b5a6df3c7a6c529d48b91a4d4ae1aa0e7579e40e3ababc7fa`. Uruchomienie korzysta z dołączonych pakietów NumPy/pandas.
+
+**GitHub Actions na Linux: 351/351 Python PASS** (grupy 88 + 62 + 201), **26/26 JavaScript PASS**; kolektor produkcyjny w PR został pominięty. Dowód: [EURUSD Fed ECB Wire SHADOW — run 40846422757](https://github.com/Maja2711/briefrooms-site/actions/runs/40846422757), job `123354909529`, przetestowany commit `532e0711feac73f1dcd6e7236eabdbed7a8c52bd`. Pozostałe walidacje PR, w tym NO RETROACTIVE, Belief-first i Stock Trading Learning Integrity, również przeszły.
 
 JavaScript: 26/26 PASS, w tym 9 testów odizolowanego Workera, 3 widoku ryzyka i 14 istniejących testów Weekly. Podgląd PL/EN Daily/Weekly: 12/12 wariantów (1366, 768, 390 px), bez błędów JavaScript i poziomego przewijania. Sprawdzono obraz na desktopie i telefonie. Składnia 8 workflow i 85 bloków bash oraz watcher: PASS. Architecture Bootstrap 1.46 i Architecture Reconciliation: PASS. `git diff --check`: PASS.
 
-Końcowy wynik CI zostanie dopisany po ukończeniu uruchomienia PR. Testy obejmują NO RETROACTIVE, EPE, stare SL/TP, niezmienne manifesty, awarię feedu, korekty i deduplikację, przyszłe publikacje, DST, nieaktualne ceny, niezaplanowane decyzje oraz izolację innych instrumentów.
+Testy obejmują NO RETROACTIVE, EPE, stare SL/TP, niezmienne manifesty, awarię feedu, korekty i deduplikację, przyszłe publikacje, DST, nieaktualne ceny, niezaplanowane decyzje oraz izolację innych instrumentów.
 
 ## Rzeczywisty dowód źródeł i SHADOW
 
@@ -38,6 +40,8 @@ Oba adaptery potwierdziły identyczny hash paczki faktów. Odczyt istniejącego,
 Nie ma jeszcze kwalifikującej się rzeczywistej próby prospektywnej dla automatycznego zamykania. Nie podano wyniku backtestu z wymyślonych cen. Silnik rozkładów obsługuje sześć okien 1–120 min, odrębne banki/typy/reżimy, niezależność zdarzeń i koszty. Bez odpowiednich danych zwraca RISK_MODEL_UNCALIBRATED i null; większa próba pozostaje EMPIRICAL_UNVALIDATED, bez uprawnień wykonawczych. Replay zamraża skład i reguły przed wynikami; raport nie może automatycznie promować polityki.
 
 Wdrożenie wymaga prospektywnego zbierania danych, oceny netto i ryzyka, parytetu z rzeczywistym lifecycle, kontroli kosztów/opóźnień, budżetu przechowywania audytu oraz jawnego zatwierdzenia operatora. Konfiguracja Workera nie zawiera sekretu, konta ani fikcyjnego endpointu. Google News pozostaje opcjonalne i wyłączone; brak deklaracji licencji na artykuły wydawców. Powiadomienia pozycyjne nadal wynikają wyłącznie z rzeczywistych zmian kanonicznego stanu.
+
+Pull Request: [#1017](https://github.com/Maja2711/briefrooms-site/pull/1017). Bez merge i aktywacji produkcyjnej.
 
 Pełny kontrakt i flagi: [EURUSD_CENTRAL_BANK_EVENT_RISK.md](EURUSD_CENTRAL_BANK_EVENT_RISK.md).
 
