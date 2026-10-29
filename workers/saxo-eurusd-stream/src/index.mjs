@@ -131,6 +131,7 @@ export class EurusdSaxoStream {
     this.pendingDeltas = [];
     this.token = null; this.tokenExpiresAt = 0;
     this.connectionStarted = 0; this.connectionEpoch = 0;
+    this.lastFrameAt = 0; this.retryAfter = 0; this.failures = 0;
     ctx.blockConcurrencyWhile(async()=> {
       await ctx.storage.setAlarm(Date.now() + 1000);
     });
@@ -163,15 +164,20 @@ export class EurusdSaxoStream {
   }
   async alarm() {
     try {
+      // A dead TCP connection can remain open without price updates. The
+      // Saxo stream normally emits heartbeats; silence must trigger recovery.
+      if (this.connected && Date.now() - this.lastFrameAt > 60000) this.reset();
       if (this.connected && this.tokenExpiresAt < Date.now() + 90000) {
         const token = await this.refreshToken();
         const url = STREAM + "/authorize?contextid=" + encodeURIComponent(this.contextId);
         const response = await fetch(url, {method:"PUT",headers:{"Authorization":"Bearer " + token}});
         if (response.status !== 202) this.reset();
       }
-      if (!this.connected) await this.connect();
+      if (!this.connected && Date.now() >= this.retryAfter) await this.connect();
     } catch {
       this.reset(); // credentials/stream error: never use an old price
+      this.failures = Math.min(this.failures + 1, 6);
+      this.retryAfter = Date.now() + Math.min(60000, 1000 * 2 ** this.failures);
     } finally {
       await this.ctx.storage.setAlarm(Date.now() + HEARTBEAT_POLL_MS);
     }
@@ -222,10 +228,11 @@ export class EurusdSaxoStream {
     const epoch = this.connectionEpoch;
     this.ws=socket;this.contextId=context;this.connected=true;
     this.subscribed=false;this.quote=null;this.pendingDeltas=[];
-    this.connectionStarted=Date.now();
+    this.connectionStarted=Date.now();this.lastFrameAt=Date.now();
     socket.addEventListener("message", event=>{
       if (epoch !== this.connectionEpoch) return;
       try {
+        this.lastFrameAt=Date.now();
         if (typeof event.data === "string") throw Error("unexpected_text");
         const messages=parseSaxoBinaryMessages(event.data);
         for (const item of messages) this.onMessage(item);
@@ -260,6 +267,7 @@ export class EurusdSaxoStream {
     }
     this.pendingDeltas=[];
     this.subscribed=true;
+    this.failures=0;this.retryAfter=0;
   }
   onMessage(message) {
     if (message.referenceId === REF) {
