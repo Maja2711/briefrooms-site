@@ -1,0 +1,31 @@
+name: Saxo Chart One-Time Durable Object Runtime Activation
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/saxo-chart-one-time-activate-runtime.yml"]
+permissions:
+  contents: read
+jobs:
+  activate:
+    if: github.repository == 'Maja2711/briefrooms-site' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: "22"}
+      - name: Activate existing authenticated EURUSD streaming Worker Chart method immediately
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          npx --yes wrangler@4 versions deploy a3dd57bc-929c-4c28-84fb-4447a3ad3539@100% \
+            --name briefrooms-saxo-eurusd-stream \
+            --config workers/saxo-eurusd-stream/wrangler.toml \
+            --durable-objects-code-update-mode immediate \
+            --yes
+          echo "SAXO_CHART_DO_CODE=EXISTING_VERSION_IMMEDIATE"
