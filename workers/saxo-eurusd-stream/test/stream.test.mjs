@@ -152,3 +152,13 @@ test("working rotated token is preferred without replaying older GitHub token",a
     assert.deepEqual(writes,[{k:"oauth_refresh_token",v:"next-rotated"}]);
   } finally {globalThis.fetch=prev;}
 });
+
+test("Cloudflare Blob frames cannot silently produce zero decoded messages",()=>{
+  const bytes=frame("EURUSD_SPOT_21",{Data:{Quote:{Bid:1.12,Ask:1.1202}}});
+  const blob=new Blob([bytes]);
+  assert.throws(()=>parseSaxoBinaryMessages(blob),/unexpected_binary_payload_type/);
+  assert.throws(()=>parseSaxoBinaryMessages(new ArrayBuffer(0)),/empty_binary_frame/);
+  const decoded=parseSaxoBinaryMessages(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength));
+  assert.equal(decoded.length,1);
+  assert.equal(decoded[0].referenceId,"EURUSD_SPOT_21");
+});
