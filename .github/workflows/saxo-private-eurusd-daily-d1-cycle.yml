@@ -186,6 +186,26 @@ jobs:
           echo "DAILY_EURUSD_REQUIRE_EPISTEMIC=1" >> "$GITHUB_ENV"
           echo "NO_RETROACTIVE_EXECUTION=1" >> "$GITHUB_ENV"
           echo "NO_RETROACTIVE_RUN_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+      - name: Check current private Saxo SIM BID/ASK without exposing prices or credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from datetime import datetime, timezone
+          from saxo_private_feed import fetch_private_saxo_quote
+          # This check runs only in the opted-in private process. Execution
+          # obtains a fresh quote again; this does not authorize broker orders.
+          clock = datetime.now(timezone.utc)
+          try:
+              quote = fetch_private_saxo_quote(now=clock)
+              age = (clock - quote["observed_at"]).total_seconds()
+              assert 0 <= age <= 15, "quote_stale_for_private_paper_execution"
+              assert 0.8 < float(quote["bid"]) < float(quote["ask"]) < 1.5
+          except Exception:
+              print("SAXO_PRIVATE_SIM_BID_ASK=UNAVAILABLE_OR_STALE")
+              raise SystemExit(1)
+          print("SAXO_PRIVATE_SIM_BID_ASK=FRESH_NONREDISTRIBUTABLE_SIM")
+          PY
       - name: Read sealed private D1 state; run EURUSD Daily; verify atomic conditional D1 commit
         shell: bash
         run: |
