@@ -46,12 +46,11 @@ def _side(sample: dict, field: str) -> float:
         raise SaxoChartUnavailable("saxo_chart_missing_bid_ask_ohlc")
     if not (0.8 < bid < ask < 1.5):
         raise SaxoChartUnavailable("saxo_chart_invalid_bid_ask_ohlc")
-    # HighBid/HighAsk and LowBid/LowAsk are separate candle extrema, and may
-    # have happened at DIFFERENT moments. Their difference is NOT a quote
-    # spread. Only open/close prices can be sanity checked as indicative sides;
-    # executable spread is ALWAYS independently checked by EPE live BID/ASK.
-    if field in ("Open", "Close") and ask - bid > 0.0015:
-        raise SaxoChartUnavailable("saxo_chart_invalid_open_close_spread")
+    # Chart OHLC Bid/Ask are sampled price-SIDE series, not a synchronized
+    # price for execution. Even Open/Close sides may be observed at different
+    # instants in historical chart aggregation. DO NOT interpret their gap as
+    # the live Saxo quote spread. Entry/exit/EPE independently validate the
+    # actual synchronous WebSocket bid/ask, age and executable spread.
     return (bid + ask) / 2.0
 
 
