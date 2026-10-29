@@ -3227,7 +3227,7 @@
           },
           "selection_rule": "PASS_ONLY_MAX_LOWER_CI_THEN_MEAN_THEN_LEAST_RESTRICTIVE"
         },
-        "evaluated_at": "2026-10-29T00:02:24.991340Z",
+        "evaluated_at": "2026-10-29T00:07:48.248724Z",
         "evaluator_profile": "eurusd_actual_paired_fixed_blocks_v1",
         "gate_id": "eurusd-gate-7b1cd5e780a7b1d45f8c74d5",
         "metrics": {
@@ -3678,7 +3678,7 @@
           },
           "selection_rule": "PASS_ONLY_MAX_LOWER_CI_THEN_MEAN_THEN_LEAST_RESTRICTIVE"
         },
-        "evaluated_at": "2026-10-29T00:02:24.991340Z",
+        "evaluated_at": "2026-10-29T00:07:48.248724Z",
         "evaluator_profile": "eurusd_actual_paired_fixed_blocks_v1",
         "gate_id": "eurusd-gate-e32709bcb7a07aa19ec0ad5e",
         "metrics": {
@@ -3905,7 +3905,7 @@
           },
           "selection_rule": "PASS_ONLY_MAX_LOWER_CI_THEN_MEAN_THEN_LEAST_RESTRICTIVE"
         },
-        "evaluated_at": "2026-10-29T00:02:24.991340Z",
+        "evaluated_at": "2026-10-29T00:07:48.248724Z",
         "evaluator_profile": "eurusd_actual_paired_fixed_blocks_v1",
         "gate_id": "eurusd-gate-5c7104583c39dd6c16fe334e",
         "metrics": {
@@ -6672,10 +6672,100 @@
         }
       },
       "frozen_sha256": "a6c84d3f0eeed4b327dffc37de1c8c3b53f4c70d6647425624775b94a531ebc2",
-      "last_coverage_at": "2026-10-29T00:02:32.077609Z",
+      "last_coverage_at": "2026-10-29T00:07:51.026118Z",
       "mode": "CANONICAL_REFERENCE_ONLY",
       "outcome": null,
       "runtime_position": {
+        "_belief_macro_context": {
+          "available": true,
+          "beliefs": [
+            {
+              "age_hours": 0.435,
+              "belief_id": "eurusd.trend.bullish",
+              "confidence": 0.47425,
+              "probability": 0.548761,
+              "updated_at": "2026-10-28T23:41:42Z"
+            },
+            {
+              "age_hours": 2.047,
+              "belief_id": "eurusd.usd_environment.supportive",
+              "confidence": 0.585294,
+              "probability": 0.559512,
+              "updated_at": "2026-10-28T22:04:58Z"
+            },
+            {
+              "age_hours": 0.606,
+              "belief_id": "eurusd.us_rates_pressure.supportive",
+              "confidence": 0.587137,
+              "probability": 0.584004,
+              "updated_at": "2026-10-28T23:31:26Z"
+            }
+          ],
+          "direction": "long",
+          "direction_decision_influence": false,
+          "enabled": true,
+          "fast_context": {},
+          "freshness_max_hours": 8.0,
+          "macro_calendar": {
+            "available": true,
+            "events": [
+              {
+                "event_at": "2026-10-29T12:30:00Z",
+                "hours_until": 12.37,
+                "source": "U.S. Bureau of Economic Analysis",
+                "source_ref": "https://www.bea.gov/news/schedule",
+                "title": "Personal Income and Outlays, September 2026"
+              },
+              {
+                "event_at": "2026-10-29T18:00:00Z",
+                "hours_until": 17.87,
+                "source": "Federal Open Market Committee",
+                "source_ref": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
+                "title": "FOMC meeting decision window — October 28-29"
+              },
+              {
+                "event_at": "2026-10-29T23:00:00Z",
+                "hours_until": 22.87,
+                "source": "Eurostat",
+                "source_ref": "https://ec.europa.eu/eurostat/o/calendars/eventsIcal?theme=&category=",
+                "title": "Preliminary flash estimate GDP - EU and euro area"
+              },
+              {
+                "event_at": "2026-10-29T23:00:00Z",
+                "hours_until": 22.87,
+                "source": "Eurostat",
+                "source_ref": "https://ec.europa.eu/eurostat/o/calendars/eventsIcal?theme=&category=",
+                "title": "Unemployment"
+              }
+            ],
+            "imminent": false,
+            "source": "belief_macro_calendar_adapter",
+            "status": "calendar_clear_or_not_imminent"
+          },
+          "release_context": {
+            "fast_lane_post_release_ready": false,
+            "latest_macro_evidence_at": null,
+            "post_release_guard_minutes": 30,
+            "post_release_macro_evidence_fresh": false,
+            "recent_high_impact_event": null
+          },
+          "role": "OPEN_POSITION_RISK_ONLY",
+          "rule": "fresh bounded EURUSD beliefs with event fast lane; no standalone execution authority",
+          "score": 0.6279,
+          "score_cap": 10.0,
+          "source": "belief_core"
+        },
+        "_management_asof": "2026-10-29T00:07:51.026118+00:00",
+        "_management_candidate": {
+          "accepted": false,
+          "confidence": 0.3561,
+          "direction": "LONG",
+          "gate_reasons": [
+            "entry_disabled_this_cycle"
+          ],
+          "score": 53.09,
+          "source": "NATIVE"
+        },
         "decision_manifest": {
           "decision_at": "2026-10-29T00:02:24.991340Z",
           "decision_id": "eurusd-production-decision:503ee8a35fbf75ce8c1957db",
@@ -54369,7 +54459,7 @@
             "selection_rule": "MAX_PASS_LOWER_CI_THEN_MEAN_THEN_CANDIDATE_ID",
             "trial_number": 1
           },
-          "evaluated_at": "2026-10-29T00:02:24.991340Z",
+          "evaluated_at": "2026-10-29T00:07:48.248724Z",
           "evaluator_profile": "eurusd_reentry_prospective_paired_v1",
           "gate_id": "eurusd-reentry-gate-5bf65eba28c808f3c11396c0",
           "metrics": {
@@ -55715,7 +55805,7 @@
             "selection_rule": "MAX_PASS_LOWER_CI_THEN_MEAN_THEN_CANDIDATE_ID",
             "trial_number": 2
           },
-          "evaluated_at": "2026-10-29T00:02:24.991340Z",
+          "evaluated_at": "2026-10-29T00:07:48.248724Z",
           "evaluator_profile": "eurusd_reentry_prospective_paired_v1",
           "gate_id": "eurusd-reentry-gate-6b7002b5aa513f92f795e890",
           "metrics": {
@@ -56003,7 +56093,7 @@
             "selection_rule": "MAX_PASS_LOWER_CI_THEN_MEAN_THEN_CANDIDATE_ID",
             "trial_number": 3
           },
-          "evaluated_at": "2026-10-29T00:02:24.991340Z",
+          "evaluated_at": "2026-10-29T00:07:48.248724Z",
           "evaluator_profile": "eurusd_reentry_prospective_paired_v1",
           "gate_id": "eurusd-reentry-gate-e3c342906998a0bb698a8301",
           "metrics": {
@@ -58888,7 +58978,7 @@
             "selection_rule": "MAX_PASS_LOWER_CI_THEN_MEAN_THEN_CANDIDATE_ID",
             "trial_number": 4
           },
-          "evaluated_at": "2026-10-29T00:02:24.991340Z",
+          "evaluated_at": "2026-10-29T00:07:48.248724Z",
           "evaluator_profile": "eurusd_reentry_prospective_paired_v1",
           "gate_id": "eurusd-reentry-gate-41a7e49caef18e219635cdb4",
           "metrics": {
@@ -59560,7 +59650,7 @@
             "selection_rule": "MAX_PASS_LOWER_CI_THEN_MEAN_THEN_CANDIDATE_ID",
             "trial_number": 5
           },
-          "evaluated_at": "2026-10-29T00:02:24.991340Z",
+          "evaluated_at": "2026-10-29T00:07:48.248724Z",
           "evaluator_profile": "eurusd_reentry_prospective_paired_v1",
           "gate_id": "eurusd-reentry-gate-8c664362485a9fdfe86a78c0",
           "metrics": {
@@ -59945,7 +60035,7 @@
             "selection_rule": "MAX_PASS_LOWER_CI_THEN_MEAN_THEN_CANDIDATE_ID",
             "trial_number": 6
           },
-          "evaluated_at": "2026-10-29T00:02:24.991340Z",
+          "evaluated_at": "2026-10-29T00:07:48.248724Z",
           "evaluator_profile": "eurusd_reentry_prospective_paired_v1",
           "gate_id": "eurusd-reentry-gate-14929503cf96c2f60a1e3a7a",
           "metrics": {
@@ -61072,7 +61162,7 @@
     "rollback_events": [],
     "runtime_code_sha256": "b9f718baa595a522adb62486c7b003d17dbcbce8f575ac63ea185aeb3c0f5be4",
     "schema_version": "eurusd-adaptive-reentry-state-v1",
-    "updated_at": "2026-10-29T00:02:32.077609Z",
+    "updated_at": "2026-10-29T00:07:51.026118Z",
     "versions": {
       "eurusd-reentry-policy-92434b08d7195f2e8324b97b": {
         "activated_at": "2026-10-20T19:17:41.582278Z",
@@ -61115,7 +61205,7 @@
   "research_runtime_code_sha256": "b9f718baa595a522adb62486c7b003d17dbcbce8f575ac63ea185aeb3c0f5be4",
   "rollback_events": [],
   "schema_version": "eurusd-production-policy-state-v1",
-  "updated_at": "2026-10-29T00:02:32.077609Z",
+  "updated_at": "2026-10-29T00:07:51.026118Z",
   "versions": {
     "eurusd-policy-b36bdb62278edbd39faee3b9": {
       "activated_at": "2026-10-20T10:15:57.628497Z",
