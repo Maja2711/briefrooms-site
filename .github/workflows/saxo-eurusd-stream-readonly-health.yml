@@ -1,0 +1,92 @@
+name: Saxo EURUSD Stream Read-Only Health Probe
+
+# Independent probe: no wrangler deploy, no secret rotation, no public quotes.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/saxo-eurusd-stream-readonly-health.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    if: github.repository == 'Maja2711/briefrooms-site' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    env:
+      STREAM_PASSWORD: ${{ secrets.SAXO_PRIVATE_BASIC_PASSWORD }}
+    steps:
+      - name: Probe isolated Saxo stream without redeploy or changing state
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64, json, os, time, urllib.request, urllib.error
+          password=os.environ.get("STREAM_PASSWORD") or ""
+          if not password:
+              print("PROBE_RESULT=MISSING_CREDENTIAL")
+              raise SystemExit(2)
+          root="https://briefrooms-saxo-eurusd-stream.szczerbinski0577.workers.dev"
+          basic=base64.b64encode(("admin:"+password).encode("utf-8")).decode("ascii")
+          def read(path):
+              req=urllib.request.Request(root+path,headers={
+                  "Authorization":"Basic "+basic,
+                  "Accept":"application/json",
+                  "Cache-Control":"no-store",
+                  "User-Agent":"BriefRoomsSaxoStream/1.0",
+              })
+              with urllib.request.urlopen(req,timeout=8) as response:
+                  return json.loads(response.read(8192))
+          for attempt in range(4):
+              try:
+                  status=read("/saxo/status")
+                  print("PROBE_STATUS="+
+                        f"connected_{status.get('connected') is True};"+
+                        f"subscribed_{status.get('subscribed') is True};"+
+                        f"fresh_{status.get('fresh') is True}")
+                  # Strict allowlist: only non-sensitive version and aggregates.
+                  revision=status.get("diagnostics_revision")
+                  if revision in ("saxo_price_telemetry_v1","oauth_recovery_v1"):
+                      print("PROBE_CODE_REVISION="+revision)
+                  else:
+                      print("PROBE_CODE_REVISION=UNKNOWN_OR_OLD")
+                  for field in (
+                      "frames_received","price_messages_received","prices_accepted",
+                      "heartbeats_received","last_frame_age_seconds",
+                      "bid_age_seconds","ask_age_seconds","source_age_seconds",
+                  ):
+                      value=status.get(field)
+                      if type(value) is int and 0 <= value <= 10000000:
+                          print("PROBE_METRIC_"+field.upper()+"="+str(value))
+                      else:
+                          print("PROBE_METRIC_"+field.upper()+"=UNAVAILABLE")
+                  print("PROBE_QUOTE_PRESENT="+str(status.get("quote_present") is True))
+                  if status.get("connected") is True and status.get("subscribed") is True:
+                      try:
+                          quote=read("/saxo/quote")
+                          ok=(quote.get("source")=="SAXO_SIM"
+                              and quote.get("timestamp_origin")=="SAXO_STREAM_PRICE_SIDE_RECEIVED_AT"
+                              and quote.get("redistributable") is False
+                              and quote.get("trading_enabled") is False
+                              and quote.get("delayed_by_minutes")==0
+                              and isinstance(quote.get("bid"),(int,float))
+                              and isinstance(quote.get("ask"),(int,float))
+                              and quote["bid"]<quote["ask"])
+                          if ok:
+                              print("PROBE_RESULT=FRESH_PRIVATE_BID_ASK_VERIFIED")
+                              raise SystemExit(0)
+                          print("PROBE_QUOTE=CONTRACT_INVALID")
+                      except urllib.error.HTTPError as err:
+                          print("PROBE_QUOTE_HTTP="+str(err.code))
+              except urllib.error.HTTPError as err:
+                  print("PROBE_STATUS_HTTP="+str(err.code))
+              except Exception:
+                  print("PROBE_STATUS=UNAVAILABLE")
+              if attempt<3:
+                  time.sleep(10)
+          print("PROBE_RESULT=NO_VERIFIED_FRESH_QUOTE")
+          raise SystemExit(1)
+          PY
