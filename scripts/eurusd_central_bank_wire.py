@@ -394,7 +394,8 @@ def _unresolved_windows(previous: Mapping[str, Any], current: Sequence[Mapping[s
                 and raw.get("calendar_source_url") == "https://www.ecb.europa.eu/press/calendars/mgcgc/html/index.en.html"
                 and uid.startswith("eu:European Central Bank:")
                 and not ("governing council" in uid.lower() and
-                         ("(day 2)" in uid.lower() or "press conference following" in uid.lower()))):
+                         ("monetary policy meeting" in uid.lower() or "press conference following" in uid.lower())
+                         and "(day 1)" not in uid.lower())):
             continue
         row = _compact_window(raw)
         if len(json.dumps(row, ensure_ascii=False).encode()) > MAX_UNRESOLVED_BYTES:
@@ -497,7 +498,8 @@ def collect_calendars(*, now: datetime, client: HttpClient | None = None,
             # matching Governing Council press conference are risk windows.
             title = event.title.lower()
             if not ("governing council" in title and
-                    ("(day 2)" in title or "press conference following" in title)):
+                    ("monetary policy meeting" in title or "press conference following" in title)
+                    and "(day 1)" not in title):
                 continue
         first = old_rows.get(event.uid, {}).get("first_seen_at") or receipts[event.source_ref]
         calendar_row = {"uid": event.uid, "title": event.title, "event_at": iso(event.event_at),
