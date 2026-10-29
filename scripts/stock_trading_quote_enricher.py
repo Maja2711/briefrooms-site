@@ -470,9 +470,10 @@ def execution_quote_for_symbol(
     return chosen
 
 
-def enrich(state: Mapping[str, Any], *, markets: list[str] | None = None, now_utc: datetime | None = None) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+def enrich(state: Mapping[str, Any], *, markets: list[str] | None = None, now_utc: datetime | None = None, symbols: list[str] | None = None) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     now_utc = (now_utc or datetime.now(UTC)).astimezone(UTC)
     selected_markets = [m.upper() for m in (markets or ["GPW", "US"])]
+    targeted_symbols = {s.strip().upper() for s in symbols if s.strip()} if symbols is not None else None
     payload = json.loads(json.dumps(state))
     audits: list[dict[str, Any]] = []
     market_rows = payload.setdefault("markets", {})
@@ -489,8 +490,26 @@ def enrich(state: Mapping[str, Any], *, markets: list[str] | None = None, now_ut
             symbol = str(position.get("symbol") or position.get("ticker") or "").strip().upper()
             if not symbol:
                 continue
+            if targeted_symbols is not None and symbol not in targeted_symbols and str(position.get("ticker") or "").upper() not in targeted_symbols:
+                continue
             try:
                 current_mark = quote_for_symbol(symbol, market, now_utc=now_utc)
+                if targeted_symbols is not None:
+                    # Quote-only publisher may not replace an observed quote with
+                    # older Yahoo data or refresh its received_at artificially.
+                    previous = position.get("current_mark") or {}
+                    observed = current_mark.get("observed_at")
+                    if not observed:
+                        raise ValueError("targeted_quote_missing_observation_time")
+                    current_at = datetime.fromisoformat(str(observed).replace("Z", "+00:00"))
+                    previous_observed = previous.get("observed_at") if isinstance(previous, Mapping) else None
+                    if previous_observed:
+                        previous_at = datetime.fromisoformat(str(previous_observed).replace("Z", "+00:00"))
+                        if current_at < previous_at:
+                            raise ValueError("targeted_quote_older_than_persisted_observation")
+                        if current_at == previous_at:
+                            audits.append({"market": market, "symbol": symbol, "action": "quote_unchanged"})
+                            continue
                 position["current_mark"] = current_mark
                 position["quote_refresh_error"] = None
                 provider_session = {
@@ -511,6 +530,10 @@ def enrich(state: Mapping[str, Any], *, markets: list[str] | None = None, now_ut
                 }
                 audits.append({"market": market, "symbol": symbol, "action": "quote_error", "error": f"{type(exc).__name__}:{str(exc)[:120]}"})
 
+        if targeted_symbols is not None:
+            # Keep market-wide session and unrelated positions byte-for-byte
+            # unchanged during a single-symbol quote refresh.
+            continue
         row["quote_session"] = provider_session or {
             "market_state": _clock_fallback_state(market, now_utc),
             "state_source": "clock_fallback",
@@ -521,19 +544,27 @@ def enrich(state: Mapping[str, Any], *, markets: list[str] | None = None, now_ut
             "delay_minutes": None,
             "is_realtime": False,
         }
-    payload["quote_enriched_at"] = _iso(now_utc)
+    if targeted_symbols is None:
+        payload["quote_enriched_at"] = _iso(now_utc)
     return payload, audits
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--market", choices=["all", "GPW", "US"], default="all")
+    parser.add_argument("--symbol", action="append", default=None, help="Refresh only the selected open-position ticker; may be repeated")
     parser.add_argument("--verify", action="store_true")
     args = parser.parse_args()
     state = _load(STATE_PATH)
     markets = ["GPW", "US"] if args.market == "all" else [args.market]
-    enriched, audits = enrich(state, markets=markets)
-    if args.verify:
+    enriched, audits = enrich(state, markets=markets, symbols=args.symbol)
+    if args.verify and args.symbol is not None:
+        requested = {s.strip().upper() for s in args.symbol if s.strip()}
+        if not requested or {a["symbol"].upper() for a in audits} != requested:
+            raise SystemExit("Targeted symbol not found in open positions")
+        if any(a["action"] == "quote_error" for a in audits):
+            raise SystemExit("Targeted quote provider refresh failed")
+    if args.verify and args.symbol is None:
         for market in markets:
             session = ((enriched.get("markets") or {}).get(market) or {}).get("quote_session") or {}
             if _normalise_state(session.get("market_state")) not in VALID_STATES:
