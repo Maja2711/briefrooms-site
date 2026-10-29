@@ -95,7 +95,7 @@ class SaxoPrivateChartClient:
             with urllib.request.urlopen(req, timeout=self.timeout) as response:
                 if getattr(response, "status", 200) != 200:
                     raise ValueError("bad response")
-                data = json.loads(response.read(250_000))
+                data = json.loads(response.read(1_500_000))
             if (data.get("source") != "SAXO_SIM_CHART" or
                 data.get("instrument") != "EUR/USD" or
                 data.get("redistributable") is not False or
@@ -121,13 +121,12 @@ class SaxoPrivateChartClient:
         cutoff = now - timedelta(days=5 if horizon == 1 else 10)
         collected: dict[datetime, Bar] = {}
         previous_first = None
-        version = None
         page_limit = 9 if horizon == 1 else 2
         for _ in range(page_limit):
-            data_version, samples, _count = self._page(horizon, 1200, previous_first)
-            if version is not None and data_version != version:
-                raise SaxoChartUnavailable("saxo_chart_version_changed")
-            version = data_version
+            _data_version, samples, _count = self._page(horizon, 1200, previous_first)
+            # Chart DataVersion can legitimately increment while a live bar
+            # forms between pages. Check overlap content instead of demanding
+            # a globally frozen version across multiple API calls.
             page = [_bar(item) for item in samples]
             page.sort(key=lambda x: x.timestamp)
             if not page:
