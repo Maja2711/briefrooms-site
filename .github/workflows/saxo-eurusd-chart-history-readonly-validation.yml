@@ -1,0 +1,50 @@
+name: Saxo EURUSD Chart Full History Read-Only Validation
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [".github/workflows/saxo-eurusd-chart-history-readonly-validation.yml"]
+permissions:
+  contents: read
+jobs:
+  check:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts
+      BRIEFROOMS_PRIVATE_RUNTIME: "1"
+      SAXO_PRIVATE_PRIMARY: "1"
+      SAXO_STREAM_PRIMARY: "1"
+      SAXO_CHART_PRIMARY: "1"
+      SAXO_PRIVATE_BASIC_PASSWORD: ${{ secrets.SAXO_PRIVATE_BASIC_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate complete private 5d 1m and 10d 30m Chart history, no persistence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from saxo_private_chart import SaxoPrivateChartClient
+          client=SaxoPrivateChartClient()
+          failed=False
+          for range_,interval in (("5d","1m"),("10d","30m")):
+              try:
+                  bars=client.bars("EURUSD=X",range_,interval)
+                  # Never print source prices, times, count, symbols or Saxo headers.
+                  ok=len(bars)>=(200 if interval=="1m" else 65)
+              except Exception:
+                  ok=False
+              print("SAXO_PRIVATE_CHART_FULL_"+interval.upper()+"="+
+                    ("PASS" if ok else "BLOCKED"))
+              if not ok: failed=True
+          print("SAXO_PRIVATE_CHART_FULL_HISTORY="+
+                ("PASS" if not failed else "BLOCKED"))
+          if failed:
+              raise SystemExit(1)
+          PY
