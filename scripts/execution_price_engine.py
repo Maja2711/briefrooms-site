@@ -739,8 +739,15 @@ def daily_eurusd_market_fill(
             saxo_mid = float(saxo["mid"])
             saxo_bid = float(saxo["bid"])
             saxo_ask = float(saxo["ask"])
+            saxo_age = (current - saxo["observed_at"].astimezone(timezone.utc)).total_seconds()
         except Exception:
             return blocked("private_saxo_quote_unavailable", mode="MARKET_NOW")
+        # Entry and exit use the same 15-second point-in-time Saxo contract.
+        # The Saxo adapter's 90-second transport health bound alone is NOT
+        # an execution-admission guarantee. Missing/stale/future quotes veto
+        # a private paper fill; no MID, fallback, or backdated execution.
+        if not (0.0 <= saxo_age <= 15.0):
+            return blocked("private_saxo_quote_not_fresh_for_fill", mode="MARKET_NOW")
         public_mid = float(result["selected_mid_price"])
         difference_pips = abs(saxo_mid - public_mid) / EURUSD_PIP
         if difference_pips > 2.5:
