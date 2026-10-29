@@ -90,6 +90,18 @@ def _snapshot(now: datetime) -> MarketSnapshot:
 
 
 class BeliefDecisionTest(unittest.TestCase):
+    def setUp(self):
+        # These legacy contract scenarios isolate their own historical calendar.
+        # The production Fed/ECB entry veto is covered by dedicated CB tests;
+        # it must not be driven by today's main-branch RSS state here.
+        from eurusd_central_bank_event_risk import DEFAULT_POLICY
+        context = mock.patch(
+            "eurusd_central_bank_event_risk.load_policy",
+            return_value=dict(DEFAULT_POLICY),
+        )
+        context.start()
+        self.addCleanup(context.stop)
+
     def test_final_direction_is_synthesized_from_belief_core(self):
         now = datetime(2026, 10, 2, 18, 0, tzinfo=UTC)
         state = _state(now, {
