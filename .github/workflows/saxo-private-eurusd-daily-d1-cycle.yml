@@ -21,6 +21,8 @@ on:
       - "tests/test_saxo_private_execution_exit.py"
       - "scripts/execution_price_engine.py"
       - "scripts/saxo_private_feed.py"
+      - "scripts/saxo_private_chart.py"
+      - "tests/test_saxo_private_chart.py"
       - ".github/workflows/saxo-private-eurusd-daily-d1-cycle.yml"
   push:
     branches: [main]
@@ -31,6 +33,8 @@ on:
       - "tests/test_saxo_private_execution_exit.py"
       - "scripts/execution_price_engine.py"
       - "scripts/saxo_private_feed.py"
+      - "scripts/saxo_private_chart.py"
+      - "tests/test_saxo_private_chart.py"
       - ".github/workflows/saxo-private-eurusd-daily-d1-cycle.yml"
 
 permissions:
@@ -56,8 +60,8 @@ jobs:
       - name: Offline validation without Saxo or D1 network access
         run: |
           set -euo pipefail
-          python -m unittest tests.test_saxo_private_github_artifacts tests.test_saxo_private_daily_d1_runner tests.test_saxo_private_daily_runner tests.test_saxo_private_feed tests.test_saxo_private_primary tests.test_saxo_private_execution_exit -q
-          python -m py_compile scripts/saxo_private_daily_runner.py scripts/saxo_private_daily_d1_runner.py scripts/saxo_private_github_artifacts.py
+          python -m unittest tests.test_saxo_private_github_artifacts tests.test_saxo_private_daily_d1_runner tests.test_saxo_private_daily_runner tests.test_saxo_private_feed tests.test_saxo_private_primary tests.test_saxo_private_execution_exit tests.test_saxo_private_chart -q
+          python -m py_compile scripts/saxo_private_daily_runner.py scripts/saxo_private_daily_d1_runner.py scripts/saxo_private_github_artifacts.py scripts/saxo_private_chart.py
 
   private-storage-preflight:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -165,6 +169,8 @@ jobs:
       PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
       BRIEFROOMS_PRIVATE_RUNTIME: "1"
       SAXO_PRIVATE_PRIMARY: "1"
+      # Keep off until private Chart API entitlements + history cutover are proven.
+      SAXO_CHART_PRIMARY: ${{ vars.SAXO_CHART_PRIMARY }}
       # Dedicated Saxo SIM STREAM is mandatory for private Daily EPE.
       # Not used in the public Daily price widget or any other instrument.
       SAXO_STREAM_PRIMARY: "1"
