@@ -10,6 +10,9 @@ on:
       - ".github/workflows/stock-trading-quote-watchdog.yml"
   schedule:
     - cron: "*/5 6-22 * * 1-5"
+  workflow_run:
+    workflows: ["Stock Trading v2 Continuous Discovery"]
+    types: [completed]
 
 permissions:
   contents: write
@@ -21,6 +24,7 @@ concurrency:
 
 jobs:
   quote-watchdog:
+    if: github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event != 'push')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
@@ -41,7 +45,21 @@ jobs:
           python -m unittest tests.test_stock_trading_quote_watchdog tests.test_stock_trading_quote_enricher -v
           node --check scripts/stock-trading-live-refresh.js
 
-      - name: Check and recover every stale open-position quote
+      - name: Read current v2 research candidates without merging research into production
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/stock-trading-v2-quote-frontiers
+          git fetch origin stock-trading-v2
+          for market in gpw us; do
+            path="data/investments/stock_trading_v2_opportunity/${market}.json"
+            if git cat-file -e "origin/stock-trading-v2:${path}" 2>/dev/null; then
+              git show "origin/stock-trading-v2:${path}" > "/tmp/stock-trading-v2-quote-frontiers/${market}.json"
+            else
+              echo "::warning::Missing opportunity frontier for ${market}"
+            fi
+          done
+
+      - name: Check open positions and unpurchased v2 research candidates
         id: publish
         shell: bash
         run: |
@@ -53,7 +71,7 @@ jobs:
             git reset --hard origin/main
             export NO_RETROACTIVE_EXECUTION=1
             export NO_RETROACTIVE_RUN_STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-            python scripts/stock_trading_quote_watchdog.py | tee /tmp/stock-quote-watchdog.json
+            python scripts/stock_trading_quote_watchdog.py --frontier-root /tmp/stock-trading-v2-quote-frontiers | tee /tmp/stock-quote-watchdog.json
             ALERTS="$(python -c 'import json; print(json.load(open("/tmp/stock-quote-watchdog.json"))["alerts"])')"
             echo "alerts=$ALERTS" >> "$GITHUB_OUTPUT"
             CHANGED_PORTFOLIO=false
@@ -102,5 +120,5 @@ jobs:
         env:
           ALERTS: ${{ steps.publish.outputs.alerts }}
         run: |
-          echo "::error::Stock quote freshness ALERT: ${ALERTS} unresolved open-position observation(s). See data/investments/stock_trading_quote_watchdog.json."
+          echo "::error::Stock quote freshness ALERT: ${ALERTS} unresolved open-position/candidate observation(s). See data/investments/stock_trading_quote_watchdog.json."
           exit 1
