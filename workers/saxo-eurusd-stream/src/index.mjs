@@ -113,9 +113,27 @@ async function matchSecret(candidate, expected) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    // Chart access is a private, read-only internal data channel. No public
+    // chart data or raw Saxo quotes are written to GitHub or Pages.
+    const chart = url.pathname === "/saxo/chart";
     if (request.method !== "GET" ||
-        !["/saxo/quote", "/saxo/status"].includes(url.pathname) ||
-        url.search || !env.SAXO_STREAM_BASIC_PASSWORD) return fail(404);
+        !(chart || ["/saxo/quote", "/saxo/status"].includes(url.pathname)) ||
+        (!chart && url.search) || !env.SAXO_STREAM_BASIC_PASSWORD) return fail(404);
+    let chartQuery = "";
+    if (chart) {
+      const values = url.searchParams;
+      const horizon = values.get("horizon"), count = values.get("count");
+      const time = values.get("time");
+      if (![ "1","30" ].includes(horizon) ||
+          !/^[1-9][0-9]{0,3}$/.test(count || "") ||
+          Number(count) > 1200 ||
+          [...values.keys()].some(k=>!["horizon","count","time"].includes(k)) ||
+          [...values.keys()].length !== new Set(values.keys()).size ||
+          (time !== null && (!/^20\d\d-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z$/.test(time) ||
+              !Number.isFinite(Date.parse(time))))) return fail(404);
+      chartQuery = "?horizon=" + horizon + "&count=" + count +
+          (time ? "&time=" + encodeURIComponent(time) : "");
+    }
     const header = request.headers.get("Authorization") || "";
     let pass = "";
     if (header.startsWith("Basic ")) {
@@ -127,7 +145,7 @@ export default {
     if (!await matchSecret(pass, env.SAXO_STREAM_BASIC_PASSWORD)) return fail(403);
     const stub = env.EURUSD_SAXO_STREAM.getByName("eurusd-sim-uic21");
     // Strip caller auth before invoking Durable Object; the edge gate is final.
-    return stub.fetch(new Request("https://private.internal" + url.pathname));
+    return stub.fetch(new Request("https://private.internal" + url.pathname + chartQuery));
   },
 };
 export class EurusdSaxoStream {
@@ -152,6 +170,7 @@ export class EurusdSaxoStream {
   }
   async fetch(request) {
     const now = Date.now(), path = new URL(request.url).pathname;
+    if (path === "/saxo/chart") return this.readChart(new URL(request.url));
     if (path === "/saxo/status") {
       return new Response(JSON.stringify({
         connected:this.connected, subscribed:this.subscribed,
@@ -186,6 +205,49 @@ export class EurusdSaxoStream {
       price_type_bid:this.quote.raw.PriceTypeBid || null,
       price_type_ask:this.quote.raw.PriceTypeAsk || null
     }), {headers:{"Content-Type":"application/json","Cache-Control":"no-store"}});
+  }
+  async readChart(url) {
+    // Same rotating OAuth source as the private WebSocket. No second engine,
+    // independent Saxo application, or public-data publication path.
+    const horizon=Number(url.searchParams.get("horizon"));
+    const count=Number(url.searchParams.get("count"));
+    if (![1,30].includes(horizon) || !Number.isInteger(count) ||
+        count < 1 || count > 1200) return fail(404);
+    const time=url.searchParams.get("time");
+    const endpoint=new URL(GATEWAY + "/chart/v3/charts");
+    endpoint.searchParams.set("AssetType","FxSpot");
+    endpoint.searchParams.set("Uic","21");
+    endpoint.searchParams.set("Horizon",String(horizon));
+    endpoint.searchParams.set("Count",String(count));
+    endpoint.searchParams.set("FieldGroups","Data,ChartInfo");
+    if (time) {
+      if (!Number.isFinite(Date.parse(time))) return fail(404);
+      endpoint.searchParams.set("Mode","UpTo");
+      endpoint.searchParams.set("Time",time);
+    }
+    try {
+      const token=await this.refreshToken();
+      const response=await fetch(endpoint.toString(),{
+        headers:{"Authorization":"Bearer "+token,"Accept":"application/json"},
+      });
+      if (!response.ok) return fail(503);
+      const payload=await response.json();
+      if (payload?.ChartInfo?.Horizon !== horizon ||
+          payload?.ChartInfo?.DelayedByMinutes !== 0 ||
+          !Number.isInteger(payload?.DataVersion) ||
+          !Array.isArray(payload?.Data) || !payload.Data.length ||
+          payload.Data.length > count) return fail(503);
+      // Return ONLY this Saxo UIC's chart data, with explicit private metadata.
+      return new Response(JSON.stringify({
+        source:"SAXO_SIM_CHART",instrument:"EUR/USD",
+        redistributable:false,trading_enabled:false,
+        delayed_by_minutes:0,horizon_minutes:horizon,
+        data_version:payload.DataVersion,data:payload.Data,
+      }),{headers:{"Content-Type":"application/json","Cache-Control":"no-store"}});
+    } catch {
+      // No Saxo response bodies, chart samples, auth data or remote URL in logs.
+      return fail(503);
+    }
   }
   async alarm() {
     try {
