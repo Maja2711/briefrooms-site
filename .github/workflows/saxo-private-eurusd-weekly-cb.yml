@@ -1,0 +1,86 @@
+name: Private Saxo SIM EURUSD Weekly Fed ECB BID ASK Monitor
+
+# Isolated private quote observer. No real Saxo orders, no WES trading edits.
+# Nonredistributable Saxo prices remain inside the private D1 journal.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "4-59/5 * * * 1-5"
+  pull_request:
+    paths:
+      - "scripts/saxo_private_weekly_cb_d1.py"
+      - "tests/test_saxo_private_weekly_cb_d1.py"
+      - ".github/workflows/saxo-private-eurusd-weekly-cb.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/saxo_private_weekly_cb_d1.py"
+      - "tests/test_saxo_private_weekly_cb_d1.py"
+      - ".github/workflows/saxo-private-eurusd-weekly-cb.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: private-saxo-eurusd-weekly-cb-observer
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Verify the private-only Weekly quote and immutable D1 boundaries
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          python -m unittest tests.test_saxo_private_weekly_cb_d1 -v
+          python -m py_compile scripts/saxo_private_weekly_cb_d1.py
+
+  private-weekly-observe:
+    # Reuse the existing owner-opted-in Saxo private SIM environment.
+    # Do not enable this for an unconfigured account or on pull requests.
+    if: >-
+      github.ref == 'refs/heads/main'
+      && vars.SAXO_PRIVATE_AUTO_ENABLED == 'true'
+      && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+      SAXO_PRIVATE_AUTO_ENABLED: ${{ vars.SAXO_PRIVATE_AUTO_ENABLED }}
+      BRIEFROOMS_PRIVATE_RUNTIME: "1"
+      SAXO_PRIVATE_PRIMARY: "1"
+      SAXO_PRIVATE_BASIC_USER: admin
+      SAXO_PRIVATE_BASIC_PASSWORD: ${{ secrets.SAXO_PRIVATE_BASIC_PASSWORD }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      SAXO_PRIVATE_D1_DATABASE_ID: ${{ vars.SAXO_PRIVATE_D1_DATABASE_ID }}
+      SAXO_PRIVATE_D1_API_TOKEN: ${{ secrets.SAXO_PRIVATE_D1_API_TOKEN }}
+    steps:
+      - name: Checkout latest WES state and Fed ECB official wire (read-only)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Privately observe current Weekly EURUSD at Saxo BID ASK
+        run: |
+          set -euo pipefail
+          python scripts/saxo_private_weekly_cb_d1.py
+      - name: Enforce zero modifications to public WES state
+        if: always()
+        run: |
+          set -euo pipefail
+          if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+            echo "PRIVATE_WEEKLY_SAXO=BLOCKED_PUBLIC_REPOSITORY_MUTATION" >&2
+            exit 1
+          fi
+          echo "PRIVATE_WEEKLY_SAXO=PUBLIC_REPOSITORY_UNMODIFIED"
