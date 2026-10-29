@@ -106,7 +106,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 - <<'PY'
-          import base64, json, os, time, urllib.request
+          import base64, json, os, time, urllib.request, urllib.error
           base = "https://briefrooms-saxo-eurusd-stream.szczerbinski0577.workers.dev"
           password = os.environ.get("SAXO_STREAM_BASIC_PASSWORD", "")
           auth = base64.b64encode(("admin:" + password).encode()).decode()
@@ -122,6 +122,18 @@ jobs:
           for attempt in range(6):
               try:
                   status = read("/saxo/status")
+                  # Diagnostics include ONLY fixed status categories, never quote values.
+                  safe_phase = str(status.get("phase", "unknown"))
+                  safe_failure = str(status.get("last_failure", "unknown"))
+                  if not safe_phase.replace("_", "").isalpha():
+                      safe_phase = "unknown"
+                  if not all(c.islower() or c.isdigit() or c == "_" for c in safe_failure):
+                      safe_failure = "unknown"
+                  print("SAXO_STREAM_PROBE=" +
+                        f"attempt_{attempt+1};connected_{status.get('connected') is True};" +
+                        f"subscribed_{status.get('subscribed') is True};" +
+                        f"fresh_{status.get('fresh') is True};" +
+                        f"phase_{safe_phase};failure_{safe_failure}")
                   if status.get("connected") is True and status.get("subscribed") is True:
                       quote = read("/saxo/quote")
                       if (quote.get("source") == "SAXO_SIM"
@@ -133,8 +145,12 @@ jobs:
                           and quote["bid"] < quote["ask"]):
                           print("SAXO_STREAM=CONNECTED_SUBSCRIBED_FRESH_BID_ASK")
                           break
+              except urllib.error.HTTPError as error:
+                  print(f"SAXO_STREAM_PROBE_HTTP={error.code}")
+              except urllib.error.URLError:
+                  print("SAXO_STREAM_PROBE_NETWORK=UNAVAILABLE")
               except Exception:
-                  pass
+                  print("SAXO_STREAM_PROBE=UNEXPECTED_RESPONSE")
               if attempt == 5:
                   print("SAXO_STREAM=DEPLOYED_BUT_NO_VERIFIED_LIVE_QUOTE")
                   raise SystemExit(1)
