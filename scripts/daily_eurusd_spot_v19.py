@@ -789,6 +789,14 @@ def run_cycle(output_path: Path, history_path: Path, client: Any | None = None) 
     global _cycle_context
     _assert_private_saxo_runtime_paths(output_path, history_path)
     live = client is None
+    if client is None and os.environ.get("SAXO_PRIVATE_PRIMARY") == "1":
+        # One private Saxo-sourced market observation path. No implicit Yahoo
+        # fallback for an authorized private paper engine.
+        if os.environ.get("SAXO_CHART_PRIMARY") != "1":
+            raise ValueError("private_saxo_chart_not_enabled")
+        from saxo_private_chart import SaxoPrivateChartClient
+        client = SaxoPrivateChartClient()
+        live = True
     cached = _CycleClient(client or base.YahooChartClient(timeout=15), live=live)
     bars = cached.bars(base.EURUSD, "5d", "1m")
     if not bars:
