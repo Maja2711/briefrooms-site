@@ -1,0 +1,14 @@
+name = "briefrooms-saxo-eurusd-stream"
+main = "src/index.mjs"
+compatibility_date = "2026-10-29"
+workers_dev = true
+
+# Saxo market-data stream: one EURUSD-only singleton.
+# Private OAuth, never broker orders. SQLite DO supported on Workers Free.
+[[durable_objects.bindings]]
+name = "EURUSD_SAXO_STREAM"
+class_name = "EurusdSaxoStream"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["EurusdSaxoStream"]

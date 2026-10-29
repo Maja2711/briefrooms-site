@@ -1,0 +1,142 @@
+name: Saxo EURUSD Native WebSocket Streaming - Private
+
+# Read-only SaaS SIM stream: no public quote publishing, no broker orders.
+# Distinct Saxo OAuth session/refresh token required. Never print secrets.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "workers/saxo-eurusd-stream/**"
+      - "scripts/saxo_private_feed.py"
+      - "tests/test_saxo_private_feed.py"
+      - ".github/workflows/saxo-eurusd-native-stream.yml"
+  pull_request:
+    paths:
+      - "workers/saxo-eurusd-stream/**"
+      - "scripts/saxo_private_feed.py"
+      - "tests/test_saxo_private_feed.py"
+      - ".github/workflows/saxo-eurusd-native-stream.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: saxo-eurusd-native-stream-deployment
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate Saxo WebSocket binary frames and stale-data safety
+        env:
+          PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          node --test workers/saxo-eurusd-stream/test/stream.test.mjs
+          node --check workers/saxo-eurusd-stream/src/index.mjs
+          python -m unittest tests.test_saxo_private_feed -q
+          python -m py_compile scripts/saxo_private_feed.py
+
+  credential-preflight:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    env:
+      CF_API: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      OAUTH_APP: ${{ secrets.SAXO_STREAM_APP_KEY }}
+      OAUTH_SECRET: ${{ secrets.SAXO_STREAM_APP_SECRET }}
+      OAUTH_REFRESH: ${{ secrets.SAXO_STREAM_REFRESH_TOKEN }}
+      STREAM_PASSWORD: ${{ secrets.SAXO_PRIVATE_BASIC_PASSWORD }}
+    steps:
+      - id: check
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "$CF_API" ] && [ -n "$CF_ACCOUNT" ] && [ -n "$OAUTH_APP" ] && [ -n "$OAUTH_SECRET" ] && [ -n "$OAUTH_REFRESH" ] && [ -n "$STREAM_PASSWORD" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "SAXO_STREAM_CREDENTIALS=CONFIGURED"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "SAXO_STREAM_DEPLOY=DISABLED_MISSING_DEDICATED_OAUTH_CREDS"
+          fi
+
+  deploy:
+    needs: [validate, credential-preflight]
+    if: github.ref == 'refs/heads/main' && needs.credential-preflight.outputs.ready == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      SAXO_STREAM_APP_KEY: ${{ secrets.SAXO_STREAM_APP_KEY }}
+      SAXO_STREAM_APP_SECRET: ${{ secrets.SAXO_STREAM_APP_SECRET }}
+      SAXO_STREAM_REFRESH_TOKEN: ${{ secrets.SAXO_STREAM_REFRESH_TOKEN }}
+      SAXO_STREAM_BASIC_PASSWORD: ${{ secrets.SAXO_PRIVATE_BASIC_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Deploy isolated, read-only Saxo WebSocket Worker
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 deploy --config workers/saxo-eurusd-stream/wrangler.toml
+      - name: Install all streaming-only secrets without printing values
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in SAXO_STREAM_BASIC_PASSWORD SAXO_STREAM_APP_KEY SAXO_STREAM_APP_SECRET SAXO_STREAM_REFRESH_TOKEN; do
+            printf %s "${!name}" | npx --yes wrangler@4 secret put "$name" --config workers/saxo-eurusd-stream/wrangler.toml >/dev/null
+          done
+          echo "SAXO_STREAM=DEPLOYED_WITH_PRIVATE_OAUTH"
+      - name: Verify real Saxo subscription and fresh BID ASK privately
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64, json, os, time, urllib.request
+          base = "https://briefrooms-saxo-eurusd-stream.szczerbinski0577.workers.dev"
+          password = os.environ.get("SAXO_STREAM_BASIC_PASSWORD", "")
+          auth = base64.b64encode(("admin:" + password).encode()).decode()
+          def read(path):
+              request = urllib.request.Request(base + path, headers={
+                  "Authorization": "Basic " + auth,
+                  "Cache-Control": "no-store",
+                  "Accept": "application/json",
+                  "User-Agent": "BriefRoomsSaxoStream/1.0",
+              })
+              with urllib.request.urlopen(request, timeout=8) as response:
+                  return json.loads(response.read(8192))
+          for attempt in range(6):
+              try:
+                  status = read("/saxo/status")
+                  if status.get("connected") is True and status.get("subscribed") is True:
+                      quote = read("/saxo/quote")
+                      if (quote.get("source") == "SAXO_SIM"
+                          and quote.get("delayed_by_minutes") == 0
+                          and quote.get("redistributable") is False
+                          and quote.get("trading_enabled") is False
+                          and isinstance(quote.get("bid"), (int,float))
+                          and isinstance(quote.get("ask"), (int,float))
+                          and quote["bid"] < quote["ask"]):
+                          print("SAXO_STREAM=CONNECTED_SUBSCRIBED_FRESH_BID_ASK")
+                          break
+              except Exception:
+                  pass
+              if attempt == 5:
+                  print("SAXO_STREAM=DEPLOYED_BUT_NO_VERIFIED_LIVE_QUOTE")
+                  raise SystemExit(1)
+              time.sleep(5)
+          PY

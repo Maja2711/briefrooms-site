@@ -70,6 +70,34 @@ class SaxoPrivateFeedTests(unittest.TestCase):
         self.assertEqual(base64.b64decode(req.get_header("Authorization").split()[1]).decode(),
                          "admin:private-password")
 
+    def test_private_stream_activation_does_not_fallback_to_legacy_rest(self):
+        with patch.dict(os.environ, {"SAXO_STREAM_PRIMARY":"1",
+                                  "SAXO_PRIVATE_STREAM_URL":""}):
+            with self.assertRaisesRegex(saxo.PrivateSaxoFeedError,
+                                        "stream_endpoint_not_configured"):
+                saxo._private_quote_endpoint()
+        with patch.dict(os.environ, {"SAXO_STREAM_PRIMARY":"1",
+                                  "SAXO_PRIVATE_STREAM_URL":"http://evil.example/saxo/quote"}):
+            with self.assertRaises(saxo.PrivateSaxoFeedError):
+                saxo._private_quote_endpoint()
+
+    def test_stream_endpoint_is_pinned_and_private(self):
+        url = "https://briefrooms-saxo-eurusd-stream.example.workers.dev/saxo/quote"
+        with patch.dict(os.environ, {"SAXO_STREAM_PRIMARY":"1",
+                                  "SAXO_PRIVATE_STREAM_URL":url,
+                                  "SAXO_PRIVATE_BASIC_PASSWORD":"test-secret"}), patch(
+            "saxo_private_feed.urllib.request.urlopen"
+        ) as opener:
+            response = MagicMock()
+            response.status=200
+            payload = dict(self.payload, timestamp_origin="SAXO_STREAM_PRICE_SIDE_RECEIVED_AT")
+            response.read.return_value=json.dumps(payload).encode("utf8")
+            response.__enter__.return_value=response
+            opener.return_value=response
+            quote=saxo.fetch_private_saxo_quote(now=self.now)
+            self.assertEqual(quote["source"], "SAXO_SIM")
+            self.assertEqual(opener.call_args.args[0].full_url, url)
+
     def test_external_error_is_sanitized(self):
         with patch.dict(os.environ, {"SAXO_PRIVATE_BASIC_PASSWORD": "very-secret"}), patch(
             "saxo_private_feed.urllib.request.urlopen", side_effect=RuntimeError("very-secret")
