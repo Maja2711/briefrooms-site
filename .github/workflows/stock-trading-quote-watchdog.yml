@@ -1,0 +1,106 @@
+name: Stock Trading All-Symbol Quote Freshness Watchdog
+
+# Monitoring/recovery only. NO RETROACTIVE EXECUTION.
+# Examines observed_at of every currently OPEN GPW/NYSE position.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/stock-trading-quote-watchdog.yml"
+  schedule:
+    - cron: "*/5 6-22 * * 1-5"
+
+permissions:
+  contents: write
+  pages: write
+
+concurrency:
+  group: stock-trading-state-writer
+  cancel-in-progress: false
+
+jobs:
+  quote-watchdog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Verify all-symbol watchdog and quote isolation tests
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/stock_trading_quote_watchdog.py scripts/stock_trading_quote_enricher.py
+          python -m unittest tests.test_stock_trading_quote_watchdog tests.test_stock_trading_quote_enricher -v
+          node --check scripts/stock-trading-live-refresh.js
+
+      - name: Check and recover every stale open-position quote
+        id: publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2 3 4; do
+            git fetch origin main
+            git reset --hard origin/main
+            export NO_RETROACTIVE_EXECUTION=1
+            export NO_RETROACTIVE_RUN_STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            python scripts/stock_trading_quote_watchdog.py | tee /tmp/stock-quote-watchdog.json
+            ALERTS="$(python -c 'import json; print(json.load(open("/tmp/stock-quote-watchdog.json"))["alerts"])')"
+            echo "alerts=$ALERTS" >> "$GITHUB_OUTPUT"
+            CHANGED_PORTFOLIO=false
+            if ! git diff --quiet -- data/investments/stock_trading_portfolio.json; then
+              CHANGED_PORTFOLIO=true
+            fi
+            git add -- data/investments/stock_trading_portfolio.json data/investments/stock_trading_quote_watchdog.json
+            if git diff --cached --quiet; then
+              echo "changed=false" >> "$GITHUB_OUTPUT"
+              echo "portfolio_changed=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            python scripts/verify_no_retroactive_execution.py --baseline-ref HEAD --run-start "$NO_RETROACTIVE_RUN_STARTED_AT"
+            git commit -m "Stock Trading: monitor and recover open-position quote freshness"
+            if git push origin HEAD:main; then
+              echo "changed=true" >> "$GITHUB_OUTPUT"
+              echo "portfolio_changed=$CHANGED_PORTFOLIO" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "Concurrent writer; reload latest portfolio before retry $attempt/4"
+            sleep $((attempt*2))
+          done
+          echo "::error::Quote freshness watchdog could not persist diagnostics"
+          exit 1
+
+      - name: Publish refreshed prices to Pages
+        if: steps.publish.outputs.portfolio_changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 12); do
+            CODE=$(curl -sS -o /tmp/pages.json -w '%{http_code}' -X POST \
+              -H 'Accept: application/vnd.github+json' \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/pages/builds")
+            [[ "$CODE" == "201" ]] && exit 0
+            [[ "$CODE" != "409" ]] && { cat /tmp/pages.json; exit 1; }
+            sleep 10
+          done
+          exit 1
+
+      - name: Fail monitoring status if any active quote remains stale
+        if: steps.publish.outputs.alerts != '0'
+        env:
+          ALERTS: ${{ steps.publish.outputs.alerts }}
+        run: |
+          echo "::error::Stock quote freshness ALERT: ${ALERTS} unresolved open-position observation(s). See data/investments/stock_trading_quote_watchdog.json."
+          exit 1
