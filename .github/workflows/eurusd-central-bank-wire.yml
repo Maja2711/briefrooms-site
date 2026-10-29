@@ -16,6 +16,7 @@ on:
       - "scripts/investments_weekly_v5.py"
       - "scripts/eurusd-cb-risk-public.js"
       - "workers/eurusd-cb-wire/**"
+      - "docs/EURUSD*"
       - "tests/test_eurusd*"
       - "tests/test_daily_eurusd*"
       - "data/investments/eurusd_cb_risk_policy.json"
@@ -28,6 +29,7 @@ on:
       - "scripts/publish_eurusd_cb_wire.py"
       - "scripts/eurusd-cb-risk-public.js"
       - "workers/eurusd-cb-wire/**"
+      - "docs/EURUSD*"
       - "tests/test_eurusd_cb*"
       - "data/investments/eurusd_cb_risk_policy.json"
       - ".github/workflows/eurusd-central-bank-wire.yml"
@@ -58,7 +60,7 @@ jobs:
         run: |
           python -m unittest discover -s tests -p 'test_eurusd_cb*.py' -v
           python -m unittest tests.test_eurusd_central_bank_wire tests.test_eurusd_weekly_cb_event_adapter tests.test_eurusd_daily_cb_event_adapter -v
-          python -m unittest tests.test_daily_eurusd_macro_fast tests.test_daily_eurusd_macro_event_risk tests.test_daily_eurusd_fast_lifecycle tests.test_daily_eurusd_persistence tests.test_audit_intraday_risk_exits tests.test_no_retroactive_execution -v
+          python -m unittest tests.test_daily_eurusd_belief_first tests.test_daily_eurusd_lifecycle tests.test_daily_eurusd_macro_fast tests.test_daily_eurusd_macro_event_risk tests.test_daily_eurusd_fast_lifecycle tests.test_daily_eurusd_persistence tests.test_daily_eurusd_production_record tests.test_daily_eurusd_production_policy_integration tests.test_daily_eurusd_execution_cost_integration tests.test_audit_intraday_risk_exits tests.test_investments_weekly_v5 tests.test_no_retroactive_execution tests.test_wes_v5_history_seal tests.test_execution_price_engine -v
           python scripts/validate_architecture_bootstrap.py
           node --check scripts/eurusd-cb-risk-public.js
           node --test tests/test_eurusd_cb_risk_public.js tests/test_eurusd_cb_wire_worker.js tests/test_investments_weekly_public.js

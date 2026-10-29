@@ -50,6 +50,12 @@ def collected(client=None, previous=None, now=NOW, calendar=CALENDAR):
 
 
 class WireTests(unittest.TestCase):
+    def test_descending_calendar_years_do_not_become_current_year_dates(self):
+        html='<h2>2027 FOMC Meetings</h2><p>November 2-3</p><h2>2026 FOMC Meetings</h2><p>October 27-28 December 8-9</p><h2>2025 FOMC Meetings</h2><p>October 28-29 November 19 December 9-10</p>'
+        rows=wire._parse_wire_fomc_calendar(html,now=NOW)
+        self.assertEqual([row.uid for row in rows],['fomc:2026-10-28','fomc:2026-12-09'])
+        self.assertEqual(wire._parse_wire_fomc_calendar('<h2>2025 FOMC Meetings</h2>',now=NOW),[])
+
     def test_one_canonical_snapshot_for_both_consumers_and_official_actuals(self):
         result = collected()
         self.assertTrue(wire.validate_snapshot(result, NOW))
@@ -75,8 +81,69 @@ class WireTests(unittest.TestCase):
         client = Client({wire.OFFICIAL_RSS["fed_monetary"]: feed(), wire.OFFICIAL_RSS["fed_speeches"]: feed(guid="other-guid"), URL: DOC})
         result = collected(client)
         self.assertEqual(len(result["events"]), 1)
+        self.assertEqual(sum(url == URL for url, _ in client.calls), 1)
+        self.assertEqual(result["sources"][1]["document_cache_hit_count"], 1)
         repeat = collected(client, result, now=NOW + timedelta(minutes=1))
         self.assertEqual(repeat["events"], result["events"])
+
+    def test_balanced_budget_prioritizes_ecb_decision_and_both_conferences(self):
+        def combined(items):
+            return b"<rss><channel>" + b"".join(item.split(b"<channel>", 1)[1].split(b"</channel>", 1)[0] for item in items) + b"</channel></rss>"
+        fed_conference = "https://www.federalreserve.gov/newsevents/press-conference-fixture.htm"
+        ecb_conference = "https://www.ecb.europa.eu/press/press-conference-fixture.html"
+        old_ecb_decision = "https://www.ecb.europa.eu/press/old-decision-fixture.html"
+        fed_speeches, ecb_speeches = [], []
+        bodies = {URL: DOC, fed_conference: b"<p>Synthetic conference document.</p>",
+                  ecb_conference: b"<p>Synthetic conference document.</p>",
+                  ECB_URL: b"The Governing Council decided to keep rates unchanged. The interest rates on the deposit facility, the main refinancing operations and the marginal lending facility will remain unchanged at 2.00%, 2.15% and 2.40% respectively."}
+        bodies[old_ecb_decision] = bodies[ECB_URL]
+        for index in range(16):
+            url = f"https://www.federalreserve.gov/newsevents/speech-fixture-{index}.htm"
+            fed_speeches.append(feed(title=f"Speech on synthetic context {index}", url=url, guid=f"fed-{index}", published="Tue, 27 Oct 2026 18:00:00 GMT"))
+            bodies[url] = b"<p>Old synthetic context speech.</p>"
+        # The conference deliberately follows old speeches in RSS order.
+        fed_speeches.append(feed(title="Press conference", url=fed_conference, guid="fed-conference"))
+        for index in range(8):
+            url = f"https://www.ecb.europa.eu/press/speech-fixture-{index}.html"
+            ecb_speeches.append(feed(title=f"Speech on synthetic context {index}", url=url, guid=f"ecb-{index}", published="Tue, 27 Oct 2026 18:00:00 GMT"))
+            bodies[url] = b"<p>Old synthetic context speech.</p>"
+        # Rate decisions and conference must beat all this older context.
+        ecb_speeches.extend([feed(title="Monetary policy decisions", url=old_ecb_decision, guid="old-ecb-decision", published="Tue, 27 Oct 2026 18:00:00 GMT"),
+                             feed(title="Press conference", url=ecb_conference, guid="ecb-conference"),
+                             feed(title="Monetary policy decisions", url=ECB_URL, guid="latest-ecb-decision")])
+        bodies.update({wire.OFFICIAL_RSS["fed_monetary"]: feed(),
+                       wire.OFFICIAL_RSS["fed_speeches"]: combined(fed_speeches),
+                       wire.OFFICIAL_RSS["fed_speeches_testimony"]: combined(fed_speeches),
+                       wire.OFFICIAL_RSS["ecb_press_speeches"]: combined(ecb_speeches)})
+        calendar = CALENDAR + [{**CALENDAR[0], "uid": "fixture:ecb", "bank": "ECB", "title": "ECB monetary policy decisions",
+                                "source_ref": "https://www.ecb.europa.eu/press/calendars/mgcgc/html/index.en.html"}]
+        client = Client(bodies)
+        result = collected(client, calendar=calendar)
+        requests = [url for url, _ in client.calls if url not in wire.OFFICIAL_RSS.values()]
+        self.assertEqual(len(requests), wire.MAX_DOCUMENT_FETCHES)
+        self.assertEqual(result["document_budget"]["fetched_by_bank"], {"FED": 6, "ECB": 6})
+        self.assertLess(requests.index(fed_conference), min(requests.index(url) for url in requests if "/speech-fixture-" in url and "federalreserve.gov" in url))
+        ecb_requests = [url for url in requests if "ecb.europa.eu" in url]
+        self.assertEqual(ecb_requests[:3], [ECB_URL, old_ecb_decision, ecb_conference])
+        self.assertTrue(any(row["source_url"] == ECB_URL and row["statement_verified"] for row in result["events"]))
+        self.assertEqual(wire.official_actuals(result, calendar[-1], NOW)[0]["value"]["deposit_facility"], 2.)
+        self.assertTrue(any(row.get("document_error") == "BANK_DOCUMENT_BUDGET_EXHAUSTED" for row in result["events"]))
+        self.assertTrue(wire.validate_snapshot(result, NOW))
+
+    def test_duplicate_document_errors_are_cached_and_skipped_context_is_explicit(self):
+        def combined(items):
+            return b"<rss><channel>" + b"".join(item.split(b"<channel>", 1)[1].split(b"</channel>", 1)[0] for item in items) + b"</channel></rss>"
+        items = [feed(title=f"Speech on context {index}", url=f"https://www.federalreserve.gov/newsevents/fixture-{index}.htm", guid=f"speech-{index}") for index in range(8)]
+        client = Client({wire.OFFICIAL_RSS["fed_speeches"]: combined(items),
+                         wire.OFFICIAL_RSS["fed_speeches_testimony"]: combined(items),
+                         "https://www.federalreserve.gov/newsevents/fixture-0.htm": urllib.error.URLError("synthetic outage")})
+        result = collected(client)
+        requests = [url for url, _ in client.calls if url not in wire.OFFICIAL_RSS.values()]
+        self.assertEqual(len(requests), 4)
+        self.assertEqual(len(requests), len(set(requests)))
+        self.assertEqual(result["sources"][2]["document_cache_hit_count"], 4)
+        self.assertTrue(any(row.get("document_error") == "CRITICAL_DOCUMENT_RESERVE_RETAINED" for row in result["events"]))
+        self.assertEqual(result["document_budget"]["fetched_by_bank"]["ECB"], 0)
 
     def test_correction_preserves_original_event_and_first_receipt(self):
         original = collected()

@@ -46,6 +46,10 @@ MAX_ITEMS_PER_FEED = 40
 MAX_EVENTS = 1000
 MAX_DOCUMENT_FETCHES = 12
 SOURCE_SLA_SECONDS = 900
+MAX_UNRESOLVED_WINDOWS = 32
+MAX_UNRESOLVED_BYTES = 30_000
+# Retain proof through the longest cooldown currently allowed by risk policy.
+UNRESOLVED_END_COOLDOWN_MINUTES = 120
 UTC = timezone.utc
 
 
@@ -270,6 +274,9 @@ def event_window(calendar_events: Sequence[Mapping[str, Any]], events: Sequence[
         if bank and scheduled and observed and timedelta(0) <= now - observed <= timedelta(hours=24) and -24 * 3600 <= (scheduled - now).total_seconds() <= 120 * 60:
             candidates.append((abs((scheduled - now).total_seconds()), event, bank, scheduled))
     if not candidates:
+        releases = _unscheduled_release_windows(calendar_events, events, now)
+        if releases:
+            return releases[0]
         return {"event_id": None, "scheduled_at": None, "phase": "UNKNOWN", "bank": None,
                 "last_authoritative_update_at": None, "conference_status": "UNKNOWN", "calendar_verified": False}
     _, event, bank, scheduled = min(candidates, key=lambda pair: pair[0])
@@ -309,17 +316,136 @@ def event_window(calendar_events: Sequence[Mapping[str, Any]], events: Sequence[
             "last_authoritative_update_at": max((row["ingested_at"] for row in official + conferences), default=None)}
 
 
+def _unscheduled_release_windows(calendar_events: Sequence[Mapping[str, Any]], events: Sequence[Mapping[str, Any]], now: datetime) -> list[dict]:
+    """A verified release is an event even when no calendar predicted it."""
+    known = {str(row.get("uid") or row.get("event_id")) for row in calendar_events
+             if _calendar_bank(row) and dt(row.get("event_at") or row.get("scheduled_at"))
+             and dt(row.get("calendar_checked_at") or row.get("observed_at") or row.get("first_seen_at"))}
+    windows = {}
+    for row in sorted(events, key=lambda value: (str(value.get("ingested_at", "")), str(value.get("event_id", "")))):
+        if row.get("event_type") not in {"FOMC_DECISION", "ECB_DECISION"} or row.get("statement_verified") is not True or row.get("source_class") == "SECONDARY_HEADLINE":
+            continue
+        published, first, received = (dt(row.get(key)) for key in ("published_at", "first_seen_at", "ingested_at"))
+        if not published or not first or not received or not published <= first <= received <= now or now - published > timedelta(hours=24):
+            continue
+        if row.get("related_calendar_event_id") in known:
+            continue
+        try:
+            url = canonical_url(row["source_url"])
+        except (ValueError, KeyError):
+            continue
+        if urllib.parse.urlsplit(url).hostname.removeprefix("www.") != ("federalreserve.gov" if row.get("bank") == "FED" else "ecb.europa.eu"):
+            continue
+        identity = "cb-release:" + str(row.get("dedup_key") or digest({"url": url}))[:32]
+        proof = {key: row.get(key) for key in ("event_id", "source_url", "published_at", "first_seen_at", "ingested_at", "document_sha256", "statement_verified")}
+        windows[identity] = {"event_id": identity, "bank": row["bank"], "event_type": row["event_type"],
+            "scheduled_at": row["published_at"], "phase": "RELEASED", "schedule_kind": "UNSCHEDULED_RELEASE",
+            "release_event_id": row["event_id"], "release_published_at": row["published_at"], "release_proof": proof,
+            "source_url": url, "first_seen_at": row["first_seen_at"], "observed_at": row["ingested_at"],
+            "calendar_verified": False, "time_precision": "exact", "conference_status": "UNKNOWN",
+            "conference_ended_at": None, "last_authoritative_update_at": row["ingested_at"]}
+    return sorted(windows.values(), key=lambda row: (row["scheduled_at"], row["event_id"]), reverse=True)
+
+
+def _verified_conference_end(window: Mapping[str, Any], now: datetime) -> bool:
+    proof = window.get("conference_end_evidence")
+    ended = dt(window.get("conference_ended_at"))
+    if window.get("conference_status") != "ENDED" or not isinstance(proof, Mapping) or not ended:
+        return False
+    published, first, received = (dt(proof.get(key)) for key in ("published_at", "first_seen_at", "ingested_at"))
+    if not published or not first or not received or not ended <= published <= first <= received <= now or proof.get("statement_verified") is not True or proof.get("event_id") != window.get("event_id"):
+        return False
+    try:
+        source = canonical_url(proof["source_url"])
+    except (ValueError, KeyError):
+        return False
+    return urllib.parse.urlsplit(source).hostname.removeprefix("www.") == ("federalreserve.gov" if window.get("bank") == "FED" else "ecb.europa.eu")
+
+
+def _compact_window(window: Mapping[str, Any]) -> dict:
+    fields = ("event_id", "bank", "event_type", "scheduled_at", "phase", "schedule_kind", "release_event_id", "release_published_at",
+              "source_url", "calendar_source_url", "calendar_verified", "calendar_checked_at", "calendar_time_precision", "time_precision",
+              "first_seen_at", "observed_at", "conference_status", "conference_ended_at", "conference_status_verified_at",
+              "conference_status_source_url", "last_authoritative_update_at")
+    result = {key: copy.deepcopy(window[key]) for key in fields if key in window and isinstance(window[key], (str, bool, type(None)))}
+    for key in ("release_proof", "conference_end_evidence"):
+        proof = window.get(key)
+        if isinstance(proof, Mapping):
+            result[key] = {field: proof[field] for field in ("event_id", "source_url", "published_at", "first_seen_at", "ingested_at", "document_sha256", "statement_verified")
+                           if field in proof and isinstance(proof[field], (str, bool, type(None)))}
+    return result
+
+
+def _unresolved_windows(previous: Mapping[str, Any], current: Sequence[Mapping[str, Any]], now: datetime) -> tuple[list[dict], bool]:
+    """Prospectively retain UNKNOWN conferences; clock expiry is not evidence."""
+    merged = {}
+    old_windows = list(previous.get("unresolved_event_windows") or [])
+    if isinstance(previous.get("event_window"), Mapping):
+        old_windows.append(previous["event_window"])
+    overflow = previous.get("unresolved_event_windows_overflow") is True
+    for raw in [*old_windows, *current]:
+        if not isinstance(raw, Mapping) or not raw.get("event_id") or not dt(raw.get("scheduled_at")):
+            continue
+        row = _compact_window(raw)
+        if len(json.dumps(row, ensure_ascii=False).encode()) > MAX_UNRESOLVED_BYTES:
+            overflow = True
+            continue
+        identity = row["event_id"]
+        old = merged.get(identity)
+        if old:
+            # A routine calendar refresh says UNKNOWN; it cannot erase a real
+            # recorded end. Conversely, a new valid end supersedes old UNKNOWN.
+            if _verified_conference_end(old, now) and not _verified_conference_end(row, now):
+                for key in ("conference_status", "conference_ended_at", "conference_status_verified_at", "conference_status_source_url", "conference_end_evidence"):
+                    if key in old:
+                        row[key] = old[key]
+            first = [dt(value) for value in (old.get("first_seen_at"), row.get("first_seen_at")) if dt(value)]
+            if first:
+                row["first_seen_at"] = iso(min(first))
+        merged[identity] = row
+    retained = []
+    for row in sorted(merged.values(), key=lambda row: (row["scheduled_at"], row["event_id"])):
+        # Keep resolved proof beyond the source calendar's one-day lookback:
+        # a fresh UNKNOWN calendar row must not resurrect an already ended event.
+        if _verified_conference_end(row, now) and now >= dt(row["conference_ended_at"]) + timedelta(days=7):
+            continue
+        candidate = [*retained, row]
+        if len(candidate) > MAX_UNRESOLVED_WINDOWS or len(json.dumps(candidate, ensure_ascii=False).encode()) > MAX_UNRESOLVED_BYTES:
+            overflow = True
+            continue
+        retained.append(row)
+    return retained, overflow
+
+
 def _empty(now: datetime, reason: str = "NOT_COLLECTED") -> dict[str, Any]:
     payload = {"schema_version": SCHEMA_VERSION, "generated_at": iso(now), "as_of": iso(now),
                "overall_status": "UNAVAILABLE", "sources": [], "events": [],
                "event_window": event_window((), (), now), "consumers": {"weekly": {"last_seen_at": None}, "daily": {"last_seen_at": None}},
                "integrity": {"source_count": 0, "fresh_source_count": 0}, "health_reasons": [reason],
+               "unresolved_event_windows": [], "unresolved_event_windows_overflow": False,
                "producer_sha": runtime_commit(),
                "producer_code_sha256": digest({name: hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest()
                    for name in ('eurusd_central_bank_wire.py','eurusd_central_bank_news_interpreter.py')}),
                "latency_claim": "BEST_EFFORT_POLLING_NOT_LIVE_SPEECH"}
     payload["integrity"]["snapshot_sha256"] = snapshot_hash(payload)
     return payload
+
+
+def _parse_wire_fomc_calendar(text: str, *, now: datetime):
+    """Scope the inherited parser to this year's section, including descending pages.
+
+    Fed lists multiple years. A previous-year heading must end this section too;
+    its November/December dates must never become invented current-year events.
+    This wrapper changes only the EURUSD wire, not other calendar consumers.
+    """
+    from belief_macro_calendar_adapter import _strip_html, parse_fomc_calendar, NY
+    year=now.astimezone(NY).year
+    clean=_strip_html(text)
+    start=re.search(rf'\b{year}\s+FOMC\s+Meetings\b',clean)
+    if not start:return []
+    tail=clean[start.end():]
+    end=re.search(r'\b20\d{2}\s+FOMC\s+Meetings\b',tail)
+    return parse_fomc_calendar(f'{year} FOMC Meetings '+(tail[:end.start()] if end else tail),now=now)
 
 
 def collect_calendars(*, now: datetime, client: HttpClient | None = None,
@@ -345,7 +471,7 @@ def collect_calendars(*, now: datetime, client: HttpClient | None = None,
     adapter = MacroEventCalendarAdapter(client=BoundedCalendarClient())
     calendar = []
     calendar.extend(adapter._collect(key="FOMC", url=FOMC_CALENDAR, require_events=True,
-        loader=lambda text: parse_fomc_calendar(text, now=now)))
+        loader=lambda text: _parse_wire_fomc_calendar(text, now=now)))
     calendar.extend(adapter._collect(key="ECB", url=ECB_CALENDAR, require_events=True,
         loader=lambda text: parse_eu_calendar_text(text, now=now, source="European Central Bank", source_ref=ECB_CALENDAR, horizon_days=240)))
     statuses = adapter.source_status()["sources"]
@@ -405,6 +531,23 @@ def validate_snapshot(snapshot: Mapping[str, Any], now: datetime | None = None) 
             return False
         if snapshot.get("integrity", {}).get("source_count") != len(snapshot.get("sources", [])):
             return False
+        windows = snapshot.get('unresolved_event_windows', [])
+        overflow = snapshot.get('unresolved_event_windows_overflow', False)
+        if (not isinstance(windows,list) or len(windows)>MAX_UNRESOLVED_WINDOWS
+            or len(json.dumps(windows,ensure_ascii=False).encode())>MAX_UNRESOLVED_BYTES
+            or type(overflow) is not bool or overflow and snapshot.get('overall_status')=='FRESH'):
+            return False
+        window_ids=set()
+        for window in windows:
+            if (not isinstance(window,Mapping) or not isinstance(window.get('event_id'),str)
+                or not 0<len(window['event_id'])<=256 or window['event_id'] in window_ids
+                or window.get('bank') not in {'FED','ECB'} or not dt(window.get('scheduled_at'))):
+                return False
+            canonical_url(window.get('source_url') or window.get('calendar_source_url') or '')
+            for field in ('first_seen_at','observed_at','calendar_checked_at'):
+                if window.get(field) is not None and (not dt(window[field]) or dt(window[field])>generated):
+                    return False
+            window_ids.add(window['event_id'])
         sources = snapshot.get("sources", [])
         if not isinstance(sources, list) or len(sources) > len(OFFICIAL_RSS) + 1:
             return False
@@ -475,6 +618,13 @@ def collect(*, now: datetime, previous: Mapping[str, Any] | None = None,
     previous_sources = {row["source_id"]: row for row in previous.get("sources", [])}
     sources = []
     fetched_documents = 0
+    documents_per_bank = {"FED": 0, "ECB": 0}
+    context_documents_per_bank = {"FED": 0, "ECB": 0}
+    bank_document_limit = MAX_DOCUMENT_FETCHES // 2
+    # Leave room for a decision and conference discovered in a later feed.
+    bank_context_limit = max(0, bank_document_limit - 2)
+    document_cache: dict[str, tuple[str | None, str | None, datetime]] = {}
+    critical_kinds = {"FOMC_DECISION", "ECB_DECISION", "PRESS_CONFERENCE"}
     feeds = dict(OFFICIAL_RSS)
     if include_secondary:
         feeds["google_news"] = SECONDARY_RSS
@@ -490,6 +640,7 @@ def collect(*, now: datetime, previous: Mapping[str, Any] | None = None,
                   "last_item_published_at": old.get("last_item_published_at"),
                   "last_item_first_seen_at": old.get("last_item_first_seen_at"), "latency_seconds": None,
                   "error": None, "etag": old.get("etag"), "last_modified": old.get("last_modified")}
+        status.update(document_fetch_count=0, document_cache_hit_count=0, document_budget_skip_count=0)
         try:
             response = client.get(url, headers=headers, max_bytes=MAX_XML_BYTES)
             received = dt(response.received_at) or checked
@@ -505,6 +656,11 @@ def collect(*, now: datetime, previous: Mapping[str, Any] | None = None,
                 raise ValueError(f"HTTP {response.status}")
             canonical_url(response.url, secondary=source_id == "google_news")
             rows = parse_feed(response.body, source_id=source_id, now=received)
+            # RSS order is not a priority guarantee. An older speech must not
+            # consume the finite document budget ahead of a current decision.
+            rows.sort(key=lambda row: (0 if classify(row["headline"], row["bank"]) in {"FOMC_DECISION", "ECB_DECISION"}
+                                       else 1 if classify(row["headline"], row["bank"]) == "PRESS_CONFERENCE" else 2,
+                                       -dt(row["published_at"]).timestamp(), row["source_url"]))
             status.update(status="OK", last_successful_check_at=iso(checked), not_modified=False,
                           etag=response.headers.get("ETag") or response.headers.get("etag"),
                           last_modified=response.headers.get("Last-Modified") or response.headers.get("last-modified"),
@@ -519,17 +675,36 @@ def collect(*, now: datetime, previous: Mapping[str, Any] | None = None,
                 # Recheck decision documents for corrections; reuse a known
                 # document on a duplicate speech to avoid needless requests.
                 needs_document = kind in {"FOMC_DECISION", "ECB_DECISION", "PRESS_CONFERENCE", "SPEECH", "INTERVIEW"}
-                if not secondary and needs_document and fetched_documents < MAX_DOCUMENT_FETCHES:
-                    fetched_documents += 1
-                    try:
-                        doc = client.get(row["source_url"], max_bytes=MAX_DOCUMENT_BYTES)
-                        if doc.status != 200 or urllib.parse.urlsplit(doc.url).hostname.removeprefix("www.") != urllib.parse.urlsplit(row["source_url"]).hostname.removeprefix("www."):
-                            raise ValueError("unverified document response")
-                        document = doc.body.decode("utf-8", "replace")
-                        ingested = dt(doc.received_at) or received
-                        checked = max(checked, ingested)
-                    except (OSError, ValueError, urllib.error.URLError) as error:
-                        document_error = type(error).__name__
+                if not secondary and needs_document:
+                    cached = document_cache.get(row["source_url"])
+                    bank = row["bank"]
+                    if cached is not None:
+                        document, document_error, document_received = cached
+                        ingested = max(received, document_received)
+                        status["document_cache_hit_count"] += 1
+                    elif fetched_documents >= MAX_DOCUMENT_FETCHES or documents_per_bank[bank] >= bank_document_limit:
+                        document_error = "BANK_DOCUMENT_BUDGET_EXHAUSTED"
+                        status["document_budget_skip_count"] += 1
+                    elif kind not in critical_kinds and context_documents_per_bank[bank] >= bank_context_limit:
+                        document_error = "CRITICAL_DOCUMENT_RESERVE_RETAINED"
+                        status["document_budget_skip_count"] += 1
+                    else:
+                        fetched_documents += 1
+                        documents_per_bank[bank] += 1
+                        context_documents_per_bank[bank] += int(kind not in critical_kinds)
+                        status["document_fetch_count"] += 1
+                        try:
+                            doc = client.get(row["source_url"], max_bytes=MAX_DOCUMENT_BYTES)
+                            if doc.status != 200 or urllib.parse.urlsplit(doc.url).hostname.removeprefix("www.") != urllib.parse.urlsplit(row["source_url"]).hostname.removeprefix("www."):
+                                raise ValueError("unverified document response")
+                            document = doc.body.decode("utf-8", "replace")
+                            ingested = dt(doc.received_at) or received
+                            checked = max(checked, ingested)
+                        except (OSError, ValueError, urllib.error.URLError) as error:
+                            document_error = type(error).__name__
+                        # Failures are cached too: duplicate feeds cannot turn
+                        # one publication into repeated requests in this poll.
+                        document_cache[row["source_url"]] = (document, document_error, ingested)
                 source_class = "SECONDARY_HEADLINE" if secondary else "OFFICIAL_SPEECH" if kind in {"SPEECH", "INTERVIEW", "PRESS_CONFERENCE"} or "speech" in source_id else "OFFICIAL_STATEMENT"
                 interpretation = interpret_document(bank=row["bank"], headline=row["headline"], source_url=row["source_url"], document=document, source_class=source_class)
                 # Stable content fingerprint does not include ingestion time.
@@ -570,12 +745,25 @@ def collect(*, now: datetime, previous: Mapping[str, Any] | None = None,
     fresh = sum(source["status"] == "OK" for source in primary)
     payload = _empty(checked)
     calendar_ok = _calendar_coverage_valid(calendar_coverage, checked)
-    payload.update(sources=sources, events=events, event_window=event_window(calendar_events, events, checked),
+    calendar_window=event_window(calendar_events, events, checked)
+    release_windows=_unscheduled_release_windows(calendar_events,events,checked)
+    current_windows=[row for row in [calendar_window,*release_windows] if row.get('event_id')]
+    unresolved,overflow=_unresolved_windows(previous,current_windows,checked)
+    selected=release_windows[0] if release_windows else calendar_window
+    if not selected.get('event_id') and unresolved:
+        selected=max(unresolved,key=lambda row:(row['scheduled_at'],row['event_id']))
+    status="FRESH" if fresh == len(primary) and calendar_ok else "PARTIAL" if fresh else "UNAVAILABLE"
+    if overflow and status=='FRESH':status='PARTIAL'
+    payload.update(sources=sources, events=events, event_window=selected,
+                   unresolved_event_windows=unresolved,unresolved_event_windows_overflow=overflow,
                    calendar_coverage=dict(calendar_coverage or {"complete": False, "reason": "CALENDAR_NOT_CHECKED"}),
                    calendar_events=copy.deepcopy(list(calendar_events)),
-                   overall_status="FRESH" if fresh == len(primary) and calendar_ok else "PARTIAL" if fresh else "UNAVAILABLE",
-                   health_reasons=([] if fresh == len(primary) else ["PRIMARY_SOURCE_FAILURE"]) + ([] if calendar_ok else ["CALENDAR_UNAVAILABLE"]),
+                   overall_status=status,
+                   health_reasons=([] if fresh == len(primary) else ["PRIMARY_SOURCE_FAILURE"]) + ([] if calendar_ok else ["CALENDAR_UNAVAILABLE"]) + (["UNRESOLVED_WINDOW_CAP_MANUAL_RECOVERY_REQUIRED"] if overflow else []),
                    retention={"snapshot_max_events": MAX_EVENTS, "journal_is_append_only": True},
+                   document_budget={"maximum_requests": MAX_DOCUMENT_FETCHES, "maximum_requests_per_bank": bank_document_limit,
+                                    "reserved_critical_slots_per_bank": bank_document_limit - bank_context_limit,
+                                    "fetched_by_bank": documents_per_bank},
                    secondary_policy={"enabled": include_secondary, "coverage": "HEADLINES_ONLY_NO_ARTICLE_FETCH",
                                      "authority": "CONTEXT_ONLY", "publisher_attribution_verified": False})
     payload["integrity"].update(source_count=len(sources), fresh_source_count=fresh)

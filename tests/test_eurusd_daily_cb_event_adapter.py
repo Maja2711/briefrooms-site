@@ -124,6 +124,57 @@ class DailyCBIntegrationTests(unittest.TestCase):
         self.assertEqual(context["actuals"], [])
         self.assertFalse(context["post_release_ready"])
 
+    def test_unscheduled_official_decision_is_ready_without_calendar_or_direction(self):
+        for bank in ("FED", "ECB"):
+            with self.subTest(bank=bank):
+                facts = synthetic_wire(bank=bank)
+                facts["event_window"] = wire_module.event_window((), facts["events"], NOW)
+                facts["integrity"]["snapshot_sha256"] = wire_module.snapshot_hash(facts)
+                with mock.patch.object(macro.MacroDataAdapter, "run", side_effect=AssertionError("CB must not fetch BLS")), mock.patch.object(wire_module.HttpClient, "get", side_effect=AssertionError("consumer must not fetch wire")):
+                    context = macro.build_context(NOW, calendar=StaticAdapter(), macro_data=macro.MacroDataAdapter(),
+                        expectations=StaticAdapter(), interpreter=NoInterpreter(), wire=facts)
+                self.assertEqual(context["status"], "POST_RELEASE")
+                self.assertTrue(context["post_release_ready"])
+                self.assertEqual(context["actuals_status"], "READY")
+                self.assertEqual(context["event"]["schedule_kind"], "UNSCHEDULED_RELEASE")
+                self.assertEqual(context["event"]["event_at"], facts["events"][0]["published_at"])
+                self.assertEqual(context["actuals"][0]["source_ref"], facts["events"][0]["source_url"])
+                self.assertFalse(context["decision_influence"])
+                self.assertEqual(context["eurusd_score"], 0)
+
+    def test_unscheduled_statement_at_exact_publication_time_is_post_release(self):
+        facts = synthetic_wire()
+        for field in ("published_at", "first_seen_at", "ingested_at"):
+            facts["events"][0][field] = stamp(NOW)
+        facts["event_window"] = wire_module.event_window((), facts["events"], NOW)
+        facts["integrity"]["snapshot_sha256"] = wire_module.snapshot_hash(facts)
+        context = macro.build_context(NOW, calendar=StaticAdapter(), macro_data=StaticAdapter(),
+            expectations=StaticAdapter(), interpreter=NoInterpreter(), wire=facts)
+        self.assertEqual(context["status"], "POST_RELEASE")
+        self.assertTrue(context["post_release_ready"])
+        self.assertEqual(context["event"]["hours_until_at_check"], 0)
+
+    def test_stale_unverified_or_corrupt_wire_cannot_create_unscheduled_event(self):
+        original = synthetic_wire()
+        original["event_window"] = wire_module.event_window((), original["events"], NOW)
+        for failure in ("stale_asof", "unverified_document", "corrupt_hash", "unavailable"):
+            with self.subTest(failure=failure):
+                facts = copy.deepcopy(original)
+                if failure == "stale_asof":
+                    facts["as_of"] = stamp(NOW - timedelta(minutes=30))
+                elif failure == "unverified_document":
+                    facts["events"][0]["statement_verified"] = False
+                elif failure == "unavailable":
+                    facts["overall_status"] = "UNAVAILABLE"
+                facts["integrity"]["snapshot_sha256"] = wire_module.snapshot_hash(facts)
+                if failure == "corrupt_hash":
+                    facts["integrity"]["snapshot_sha256"] = "0" * 64
+                context = macro.build_context(NOW, calendar=StaticAdapter(), macro_data=StaticAdapter(),
+                    expectations=StaticAdapter(), interpreter=NoInterpreter(), wire=facts)
+                self.assertIsNone(context["event"])
+                self.assertEqual(context["actuals"], [])
+                self.assertFalse(context["decision_influence"])
+
     def test_time_proximity_cannot_attach_unrelated_consensus_to_fomc(self):
         expectation = Observation.make(adapter="macro_expectations", metric="macro_expectation_distribution",
             entity="EURUSD", observed_at=stamp(NOW - timedelta(hours=1)), value={"consensus": 3.25},

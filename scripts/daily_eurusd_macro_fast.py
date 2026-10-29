@@ -25,11 +25,49 @@ from belief_macro_expectations_adapter import MacroExpectationsAdapter
 
 
 def _central_bank_type(event: Mapping[str, Any]) -> str | None:
+    if event.get("event_type") in {"FOMC_DECISION", "ECB_DECISION"}:
+        return str(event["event_type"])
     title = str(event.get("title") or "").lower()
     if "fomc" in title or "federal open market committee" in title:
         return "FOMC_DECISION"
     if "ecb" in title and any(term in title for term in ("decision", "monetary", "rate")):
         return "ECB_DECISION"
+    return None
+
+
+def _wire_release_event(snapshot: Mapping[str, Any], now: datetime) -> dict[str, Any] | None:
+    """An unexpected verified release is an event even without calendar rows.
+
+    The document's real publication/receipt times replace no scheduled time.
+    A headline, stale cache or an unverified window cannot manufacture a release.
+    """
+    from eurusd_central_bank_wire import SOURCE_SLA_SECONDS, validate_snapshot
+    if not validate_snapshot(snapshot, now=now) or snapshot.get("overall_status") not in {"FRESH", "PARTIAL"}:
+        return None
+    as_of = _dt(snapshot.get("as_of"))
+    if as_of is None or not 0 <= (now - as_of).total_seconds() <= SOURCE_SLA_SECONDS:
+        return None
+    window = snapshot.get("event_window") or {}
+    if not isinstance(window, Mapping) or window.get("schedule_kind") != "UNSCHEDULED_RELEASE":
+        return None
+    scheduled = _dt(window.get("scheduled_at"))
+    for document in snapshot.get("events") or []:
+        if (document.get("event_id") != window.get("release_event_id")
+                or document.get("event_type") not in {"FOMC_DECISION", "ECB_DECISION"}
+                or document.get("statement_verified") is not True
+                or document.get("source_class") != "OFFICIAL_STATEMENT"):
+            continue
+        published = _dt(document.get("published_at"))
+        if published is None or published != scheduled or not 0 <= (now - published).total_seconds() <= 12 * 3600:
+            continue
+        return {"uid": window.get("event_id"), "title": document.get("headline"),
+            "event_at": iso_z(published), "published_at": document.get("published_at"),
+            "first_seen_at": document.get("first_seen_at"), "ingested_at": document.get("ingested_at"),
+            "event_type": document["event_type"], "bank": document.get("bank"),
+            "source": document.get("bank"), "source_ref": document.get("source_url"),
+            "importance": "high", "schedule_kind": "UNSCHEDULED_RELEASE",
+            "release_event_id": document["event_id"],
+            "hours_until_at_check": round((published - now).total_seconds() / 3600.0, 4)}
     return None
 
 
@@ -234,7 +272,7 @@ def _composite_observation(
             "source_ref": expectation.source_ref,
         }
 
-    phase = "POST_RELEASE" if float(event.get("hours_until_at_check") or 0.0) < 0 else "PRE_RELEASE"
+    phase = "POST_RELEASE" if actuals or float(event.get("hours_until_at_check") or 0.0) < 0 else "PRE_RELEASE"
     document = {
         "task_context": "EUR/USD high-impact macro event",
         "phase": phase,
@@ -317,6 +355,13 @@ def build_context(
     calendar_coverage = calendar.source_status() if hasattr(calendar, "source_status") else {"complete": False, "sources": {}}
     events = _high_impact_events(calendar_result.observations, now)
     if not events:
+        if wire is None:
+            from eurusd_central_bank_wire import load_wire
+            wire = load_wire(Path(__file__).resolve().parents[1] / "data/investments/eurusd_central_bank_wire.json", now=now)
+        released_event = _wire_release_event(wire, now)
+        if released_event is not None:
+            events = [released_event]
+    if not events:
         return {
             "schema_version": "daily-eurusd-macro-fast-v1",
             "status": ("CLEAR" if calendar_coverage.get("complete") is True
@@ -337,7 +382,7 @@ def build_context(
     event_at = _dt(event["event_at"])
     assert event_at is not None
     hours_until = (event_at - now).total_seconds() / 3600.0
-    phase = "PRE_RELEASE" if hours_until >= 0 else "POST_RELEASE"
+    phase = "POST_RELEASE" if event.get("schedule_kind") == "UNSCHEDULED_RELEASE" else "PRE_RELEASE" if hours_until >= 0 else "POST_RELEASE"
     central_bank = _central_bank_type(event)
 
     expectation_result = expectations.run(now)

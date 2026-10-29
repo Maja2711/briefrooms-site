@@ -91,6 +91,12 @@ class CentralBankRiskTests(unittest.TestCase):
         self.assertTrue(result.block_new_entry)
         self.assertIn('RECOVERY_REQUIRED_CONFERENCE_UNCONFIRMED',result.reasons)
 
+    def test_unresolved_guard_survives_next_day_and_fresh_calendar_poll(self):
+        parts=fixture();parts[3][0]['scheduled_at']=risk.iso(NOW-timedelta(days=2))
+        result=self.assess(parts)
+        self.assertTrue(result.block_new_entry)
+        self.assertIn('RECOVERY_REQUIRED_CONFERENCE_UNCONFIRMED',result.reasons)
+
     def test_verified_end_needs_cooldown(self):
         parts=fixture();parts[3][0].update(scheduled_at=risk.iso(NOW-timedelta(hours=2)),
             conference_status='ENDED',conference_ended_at=risk.iso(NOW-timedelta(minutes=20)))

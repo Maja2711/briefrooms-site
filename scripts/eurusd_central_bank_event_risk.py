@@ -125,17 +125,44 @@ def _event_kind(row: Mapping) -> str | None:
     return None
 
 
+def confirmed_conference_end(row: Mapping, now: datetime) -> datetime | None:
+    """A dated official end remains a known fact after calendar freshness ages."""
+    proof = row.get('conference_end_evidence') or {}
+    ended = parse_time(row.get('conference_ended_at'))
+    published, seen, received = [parse_time(proof.get(key)) for key in ('published_at','first_seen_at','ingested_at')]
+    bank = _event_kind(row)
+    host = urlparse(str(proof.get('source_url') or '')).hostname or ''
+    if (row.get('conference_status') == 'ENDED' and proof.get('statement_verified') is True
+        and official_url(proof.get('source_url')) and host.removeprefix('www.') == ('federalreserve.gov' if bank == 'FED' else 'ecb.europa.eu')
+        and proof.get('event_id') == (row.get('event_id') or row.get('uid'))
+        and ended and published and seen and received and ended <= published <= seen <= received <= now):
+        return ended
+    return None
+
+
 def event_state(wire: Mapping, events: Sequence[Mapping], policy: Mapping, now: datetime) -> dict:
     """Calendar time never implies that a conference ended or a rate was released."""
     candidates = []
     window = wire.get('event_window') or {}
+    # Fresh calendar polling cannot erase a previously verified end, and a
+    # missing next-day calendar row cannot silently clear an unresolved event.
+    identities = {}
     for row in [*events, window]:
+        if not isinstance(row, Mapping):
+            continue
+        identity = row.get('event_id') or row.get('uid') or canonical_hash(dict(row))
+        prior = identities.get(identity)
+        rank = (confirmed_conference_end(row, now) is not None,
+                parse_time(row.get('calendar_checked_at') or row.get('observed_at') or row.get('first_seen_at')) or datetime.min.replace(tzinfo=UTC))
+        if prior is None or rank >= prior[0]:
+            identities[identity] = (rank,row)
+    for _, row in identities.values():
         if not isinstance(row, Mapping):
             continue
         at = parse_time(row.get('scheduled_at') or row.get('event_at'))
         bank = _event_kind(row)
         source = row.get('source_url') or row.get('source_ref') or row.get('calendar_source')
-        if not source and row is window:
+        if not source:
             source = row.get('calendar_source_url')
         first_seen = parse_time(row.get('first_seen_at') or row.get('observed_at') or row.get('calendar_checked_at'))
         observed = parse_time(row.get('calendar_checked_at') or row.get('observed_at') or row.get('first_seen_at'))
@@ -144,7 +171,10 @@ def event_state(wire: Mapping, events: Sequence[Mapping], policy: Mapping, now: 
         event_id = row.get('event_id') or row.get('uid')
         release_verified = bool(event_id) and any(
             doc.get('statement_verified') is True and doc.get('bank') == bank
-            and doc.get('related_calendar_event_id') == event_id and official_url(doc.get('source_url'))
+            and (doc.get('related_calendar_event_id') == event_id or
+                 row.get('schedule_kind') == 'UNSCHEDULED_RELEASE' and doc.get('event_id') == row.get('release_event_id')
+                 and parse_time(doc.get('published_at')) == at)
+            and official_url(doc.get('source_url'))
             and (published := parse_time(doc.get('published_at'))) is not None
             and (seen := parse_time(doc.get('version_first_seen_at') or doc.get('first_seen_at'))) is not None
             and (received := parse_time(doc.get('ingested_at'))) is not None
@@ -156,33 +186,29 @@ def event_state(wire: Mapping, events: Sequence[Mapping], policy: Mapping, now: 
         minutes = (at-now).total_seconds()/60
         # Keep an unconfirmed conference fail-closed after timeout until explicit
         # operator resolution, rather than silently ending a guard after 30m.
-        if minutes > policy['pre_event_minutes'] or minutes < -1440:
+        if minutes > policy['pre_event_minutes']:
             continue
-        ended_at = parse_time(row.get('conference_ended_at'))
-        end_proof = row.get('conference_end_evidence') or {}
-        proof_published = parse_time(end_proof.get('published_at'))
-        proof_seen = parse_time(end_proof.get('first_seen_at'))
-        proof_received = parse_time(end_proof.get('ingested_at'))
-        ended = bool(valid and row.get('conference_status') == 'ENDED' and ended_at and ended_at <= now
-                     and end_proof.get('statement_verified') is True and official_url(end_proof.get('source_url'))
-                     and end_proof.get('event_id') == row.get('event_id')
-                     and proof_published and proof_seen and proof_received
-                     and ended_at <= proof_published <= proof_seen <= proof_received <= now)
+        ended_at = confirmed_conference_end(row, now)
+        ended = ended_at is not None
         cooled = ended and now >= ended_at + timedelta(minutes=policy['conference_cooldown_minutes'])
         active = not cooled
         phase = ('PRE_EVENT' if minutes > 0 else
                  'ENDED' if cooled else 'POST_EVENT' if ended else
-                 'PRESS_CONFERENCE' if row.get('conference_status') == 'IN_PROGRESS' else 'RELEASED')
+                 'PRESS_CONFERENCE' if row.get('conference_status') == 'IN_PROGRESS' else 'RELEASED' if release_verified else 'UNKNOWN')
         candidates.append(dict(event_id=row.get('event_id') or row.get('uid') or canonical_hash([bank,iso(at)]),
-            bank=bank, scheduled_at=iso(at), minutes_until=minutes, event_verified=valid,
-            phase=phase, active=active, source_url=source, conference_status=row.get('conference_status','UNKNOWN'),
+            bank=bank, scheduled_at=iso(at), minutes_until=minutes, event_verified=valid or ended,
+            release_verified=release_verified,
+            phase=phase, active=active, source_url=source,
+            conference_status='UNKNOWN' if row.get('conference_status')=='ENDED' and not ended else row.get('conference_status','UNKNOWN'),
             manual_review_required=bool(active and minutes < -policy['post_event_timeout_minutes'])))
     if not candidates:
         return {'event_id': None, 'bank': None, 'phase': 'UNKNOWN', 'active': False,
                 'event_verified': False, 'conference_status': 'UNKNOWN'}
     # An unresolved past event takes priority over a subsequent upcoming event.
     candidates.sort(key=lambda x: (not x['active'], x['minutes_until'] > 0, abs(x['minutes_until'])))
-    return candidates[0]
+    selected = candidates[0]
+    selected['active_event_ids'] = sorted({row['event_id'] for row in candidates if row['active']})
+    return selected
 
 
 @dataclass(frozen=True)
@@ -238,7 +264,8 @@ def assess_pre_event(position: Mapping | None, quote: Mapping | None, wire: Mapp
     wire_age = (now-wire_asof).total_seconds() if wire_asof else None
     wire_fresh = bool(wire_age is not None and 0 <= wire_age <= p['wire_max_age_seconds']
                       and wire.get('overall_status') == 'FRESH')
-    event = event_state(wire if wire_valid else {}, calendar_events, p, now)
+    shared_events = [*wire.get('calendar_events',()), *wire.get('unresolved_event_windows',())] if wire_valid else []
+    event = event_state(wire if wire_valid else {}, [*calendar_events,*shared_events], p, now)
     active = event['active']
     blocked = bool(active or not wire_fresh or p.get('policy_status') == 'INVALID_OR_MISSING')
     reasons = ['RISK_MODEL_UNCALIBRATED']
@@ -333,6 +360,7 @@ def assess_pre_event(position: Mapping | None, quote: Mapping | None, wire: Mapp
         reasons.append('EMPIRICAL_UNVALIDATED_NO_EXECUTION_AUTHORITY')
     diagnostic = dict(current_event_id=event['event_id'],bank=event['bank'],phase=event['phase'],
         minutes_until=event.get('minutes_until'),conference_status=event['conference_status'],
+        active_event_ids=event.get('active_event_ids',[]),
         headline_count_30m=len({row.get('dedup_key') or row.get('event_id') for row in recent}),latest_headline=latest.get('headline'),
         latest_official_document=latest_official.get('source_url'),speaker_verified=latest.get('speaker_verified',False),
         source_age_seconds=wire_age,
