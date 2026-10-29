@@ -57,3 +57,31 @@ test("delayed, inverted, too-wide and old indicative prices are rejected",()=>{
     {...base,Ask:1.123},{...base,PriceTypeBid:"OldIndicative"}
   ]) assert.equal(projectQuote(null,{Quote:bad},t),null);
 });
+
+test("old subscription Snapshot.LastUpdated is not treated as fresh",()=>{
+  const at=Date.UTC(2026,9,29,12,0,0);
+  const stale=new Date(at-60000).toISOString();
+  const result=projectQuote(null,{Snapshot:{
+    Uic:21,AssetType:"FxSpot",LastUpdated:stale,
+    Quote:{Bid:1.12,Ask:1.1202,DelayedByMinutes:0}
+  }},at);
+  assert.equal(result,null);
+});
+test("correct Saxo wrapped Data deltas carry price not synthetic MID",()=>{
+  const at=Date.UTC(2026,9,29,12,0,0);
+  let first=projectQuote(null,{Data:{
+    Uic:21,AssetType:"FxSpot",
+    LastUpdated:new Date(at).toISOString(),
+    Quote:{Bid:1.12,Ask:1.1202,DelayedByMinutes:0}
+  }},at);
+  assert.ok(first);
+  const second=projectQuote(first,{Data:{
+    LastUpdated:new Date(at+3000).toISOString(),
+    Quote:{Ask:1.12025}
+  }},at+3000);
+  assert.equal(second.raw.Ask,1.12025);
+  assert.equal(second.raw.Bid,1.12);
+  assert.equal(second.askAt,at+3000);
+  assert.equal(second.bidAt,at);
+  assert.equal(quoteFresh(second,at+4000),true);
+});
