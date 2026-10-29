@@ -136,6 +136,9 @@ export class EurusdSaxoStream {
     this.lastFrameAt = 0; this.retryAfter = 0; this.failures = 0;
     // Private, credential-free diagnostics: never retain OAuth values or quotes.
     this.phase = "starting"; this.lastFailure = "none";
+    // Counters contain no quotes, credentials or session identifiers.
+    this.frameCount=0; this.priceMessageCount=0;
+    this.acceptedPriceCount=0; this.heartbeatCount=0;
     ctx.blockConcurrencyWhile(async()=> {
       // Preserve an existing alarm across Durable Object re-instantiation.
       if (await ctx.storage.getAlarm() === null)
@@ -151,7 +154,16 @@ export class EurusdSaxoStream {
         environment:"SIM", instrument:"EUR/USD",
         trading_enabled:false, streaming:true,
         phase:this.phase, last_failure:this.lastFailure,
-        diagnostics_revision:"oauth_recovery_v1"
+        diagnostics_revision:"saxo_price_telemetry_v1",
+        quote_present:Boolean(this.quote),
+        frames_received:this.frameCount,
+        price_messages_received:this.priceMessageCount,
+        prices_accepted:this.acceptedPriceCount,
+        heartbeats_received:this.heartbeatCount,
+        last_frame_age_seconds:this.lastFrameAt ? Math.floor((now-this.lastFrameAt)/1000) : null,
+        bid_age_seconds:this.quote ? Math.floor((now-this.quote.bidAt)/1000) : null,
+        ask_age_seconds:this.quote ? Math.floor((now-this.quote.askAt)/1000) : null,
+        source_age_seconds:this.quote ? Math.floor((now-this.quote.sourceAt)/1000) : null
       }), {headers:{"Content-Type":"application/json","Cache-Control":"no-store"}});
     }
     if (path !== "/saxo/quote" || !this.connected || !this.subscribed ||
@@ -269,7 +281,7 @@ export class EurusdSaxoStream {
     socket.addEventListener("message", event=>{
       if (epoch !== this.connectionEpoch) return;
       try {
-        this.lastFrameAt=Date.now();
+        this.lastFrameAt=Date.now();this.frameCount++;
         if (typeof event.data === "string") throw Error("unexpected_text");
         const messages=parseSaxoBinaryMessages(event.data);
         for (const item of messages) this.onMessage(item);
@@ -297,12 +309,12 @@ export class EurusdSaxoStream {
     this.phase="initial_quote";
     const initial=projectQuote(null,payload.Snapshot || payload,Date.now());
     if (!initial) { this.reset(); throw Error("initial_quote_invalid"); }
-    this.quote=initial;
+    this.quote=initial;this.acceptedPriceCount++;
     // Saxo can send deltas before the subscription snapshot response. Apply
     // them in arrival order; do not drop them or overwrite a newer side.
     for (const pending of this.pendingDeltas) {
       const next=projectQuote(this.quote,pending.payload,pending.receivedAt);
-      if (next) this.quote=next;
+      if (next) {this.quote=next;this.acceptedPriceCount++;}
     }
     this.pendingDeltas=[];
     this.subscribed=true;
@@ -311,6 +323,7 @@ export class EurusdSaxoStream {
   }
   onMessage(message) {
     if (message.referenceId === REF) {
+      this.priceMessageCount++;
       const receivedAt=Date.now();
       if (!this.subscribed) {
         if (this.pendingDeltas.length >= 64) { this.reset(); return; }
@@ -318,11 +331,13 @@ export class EurusdSaxoStream {
         return;
       }
       const next=projectQuote(this.quote,message.payload,receivedAt);
-      if (next) this.quote=next;
+      if (next) {this.quote=next;this.acceptedPriceCount++;}
       else if (message.payload?.Quote || message.payload?.Data?.Quote) this.quote=null;
       if (message.payload?.Quote?.PriceTypeBid === "OldIndicative" ||
           message.payload?.Quote?.PriceTypeAsk === "OldIndicative" ||
           message.payload?.Quote?.DelayedByMinutes > 0) this.quote=null;
+    } else if (message.referenceId === "_heartbeat") {
+      this.heartbeatCount++;
     } else if (message.referenceId === "_resetsubscriptions" ||
                message.referenceId === "_disconnect" ||
                message.referenceId === "_subscriptiontemporarilydisabled") {
