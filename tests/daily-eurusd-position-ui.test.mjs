@@ -71,6 +71,7 @@ test("OPEN missing entry price is a dash, never fabricated zero", async () => {
   });
   assert.match(html, /<strong>OPEN<\/strong>/);
   assert.doesNotMatch(html, /0,00000/);
+  assert.doesNotMatch(html, /-100,00%/);
   assert.match(html, /Wejście: <b>—<\/b>/);
 });
 
