@@ -2,7 +2,9 @@
 // Private-only, indicative paper quotes. This Worker NEVER places orders,
 // publishes quotes to public files, or asserts a broker execution.
 const GATEWAY = "https://gateway.saxobank.com/sim/openapi";
-const STREAM = "https://streaming.saxobank.com/sim/openapi/streamingws";
+// Saxo deprecated streaming.saxobank.com/sim/openapi/streamingws on 2025-12-06.
+// Use the currently documented SIM streaming host for both connect and authorize.
+const STREAM = "https://sim-streaming.saxobank.com/sim/oapi/streaming/ws";
 const TOKEN_URL = "https://sim.logonvalidation.net/token";
 const REF = "EURUSD_SPOT_21";
 const MAX_FRAME = 65536;
