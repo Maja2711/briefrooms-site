@@ -1,7 +1,7 @@
 {
   "authority": "SHADOW_RESEARCH_ONLY",
   "automatic_promotion": false,
-  "generated_at": "2026-10-28T19:25:44Z",
+  "generated_at": "2026-10-29T02:32:46Z",
   "reviews": [
     {
       "actual_exit_reason": "STOP_LOSS",
@@ -8229,36 +8229,16 @@
       "research_only": true,
       "risk_bounded_hold": {
         "plus_1h": {
-          "at": "2026-10-22T07:44:00Z",
-          "execution_proven": false,
-          "exit_mid": 1.123974323272705,
-          "indicative_pips": -13.407,
-          "status": "SIMULATED_HORIZON_EXIT"
+          "status": "DATA_UNAVAILABLE"
         },
         "plus_24h": {
-          "at": "2026-10-22T10:02:00Z",
-          "execution_proven": false,
-          "indicative_pips": -31.8,
-          "reason": "STOP_LOSS",
-          "same_bar_conservative": true,
-          "simulated_exit": 1.12206,
-          "status": "SIMULATED_RISK_EXIT"
+          "status": "INSUFFICIENT_CONTIGUOUS_PATH"
         },
         "plus_3h": {
-          "at": "2026-10-22T09:44:00Z",
-          "execution_proven": false,
-          "exit_mid": 1.1230907440185547,
-          "indicative_pips": -22.243,
-          "status": "SIMULATED_HORIZON_EXIT"
+          "status": "DATA_UNAVAILABLE"
         },
         "plus_6h": {
-          "at": "2026-10-22T10:02:00Z",
-          "execution_proven": false,
-          "indicative_pips": -31.8,
-          "reason": "STOP_LOSS",
-          "same_bar_conservative": true,
-          "simulated_exit": 1.12206,
-          "status": "SIMULATED_RISK_EXIT"
+          "status": "DATA_UNAVAILABLE"
         }
       },
       "trade_id": "eurusd:20261022T035202Z:LONG"
@@ -9946,6 +9926,107 @@
         }
       },
       "trade_id": "eurusd:20261028T044647Z:SHORT"
+    },
+    {
+      "actual_exit_reason": "DYNAMIC_RISK_EXIT",
+      "actual_r": -0.4209,
+      "closed_at": "2026-10-29T00:16:43Z",
+      "counterfactual_status": "RESEARCH_ONLY_NOT_POLICY_AUTHORITY",
+      "data_audit": {
+        "do_not_infer_no_signal_from_missing_data": true,
+        "evidence_of_actionable_profit_alert": "UNKNOWN_NO_PRE_EXIT_PROFIT_SNAPSHOTS",
+        "profit_snapshots_at_least_8p": 0,
+        "snapshots_before_exit": 12
+      },
+      "decision_mutation_allowed": false,
+      "direction": "LONG",
+      "entry": 1.11576,
+      "entry_timing": {
+        "delay_15m": {
+          "status": "NOT_OBSERVED"
+        },
+        "delay_30m": {
+          "status": "NOT_OBSERVED"
+        },
+        "delay_5m": {
+          "entry_mid": 1.1153244972229004,
+          "indicative_pips_to_actual_exit": -8.945,
+          "quote_at": "2026-10-29T00:07:00Z",
+          "status": "RETROSPECTIVE_MID_PROXY",
+          "warning": "not_a_fill_not_same_risk_geometry_or_execution_cost"
+        }
+      },
+      "exit_price": 1.11443,
+      "opened_at": "2026-10-29T00:02:28Z",
+      "outcome": "LOSS",
+      "post_exit_path": {
+        "plus_1h": {
+          "exit_mid": 1.1148271560668945,
+          "indicative_hold_minus_actual_pips": 3.222,
+          "indicative_hold_pips": -10.078,
+          "price_at": "2026-10-29T01:16:00Z",
+          "status": "RETROSPECTIVE_MID_PROXY",
+          "warning": "hypothetical_uninterrupted_hold_ignores_intervening_SL_TP_and_slippage"
+        },
+        "plus_24h": {
+          "status": "PENDING"
+        },
+        "plus_3h": {
+          "status": "PENDING"
+        },
+        "plus_6h": {
+          "status": "PENDING"
+        }
+      },
+      "profit_protection": {
+        "correction_signals_not_exit_proof": true,
+        "downswing_correction_live_signals": [],
+        "dynamic_exit_at_close": {
+          "age_hours": 0.237,
+          "bar_timestamp": "2026-10-29T00:16:43Z",
+          "blended_velocity_rph": -1.3704,
+          "current_r": -0.4209,
+          "giveback_r": 0.3133,
+          "hard_horizon_reached": false,
+          "hold_score": -0.9122,
+          "mark_price": 1.11443,
+          "mfe_r": -0.1076,
+          "policy": "R_PACE_V1",
+          "projected_hours_to_target": null,
+          "remaining_hard_hours": 26.762,
+          "remaining_r_to_target": 2.0918,
+          "required_velocity_rph": 0.0782,
+          "soft_horizon_reached": false,
+          "target_r": 1.6709,
+          "tp_feasibility_ratio": 0.0,
+          "velocity_1h_rph": -1.3704,
+          "velocity_3h_rph": -1.3704
+        },
+        "early_exit_proven": false,
+        "historic_max_favorable_pips": -1.87,
+        "historic_max_mfe_is_an_oracle_not_a_tradeable_exit": true,
+        "pre_exit_profit_alerts": []
+      },
+      "research_only": true,
+      "risk_bounded_hold": {
+        "plus_1h": {
+          "at": "2026-10-29T01:16:00Z",
+          "execution_proven": false,
+          "exit_mid": 1.1148271560668945,
+          "indicative_pips": -10.078,
+          "status": "SIMULATED_HORIZON_EXIT"
+        },
+        "plus_24h": {
+          "status": "PENDING"
+        },
+        "plus_3h": {
+          "status": "PENDING"
+        },
+        "plus_6h": {
+          "status": "PENDING"
+        }
+      },
+      "trade_id": "eurusd:20261029T000228Z:LONG"
     }
   ],
   "schema_version": "eurusd-exit-intelligence-v2",
