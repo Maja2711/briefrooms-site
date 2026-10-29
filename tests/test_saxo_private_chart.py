@@ -19,6 +19,25 @@ class ChartTests(unittest.TestCase):
         self.assertAlmostEqual(b.close,1.1206)
         self.assertEqual(b.timestamp.isoformat(),"2026-10-29T20:10:00+00:00")
 
+    def test_extrema_are_not_misclassified_as_a_live_spread(self):
+        d={"Time":"2026-10-29T20:10:00Z",
+           "OpenBid":1.12,"OpenAsk":1.1202,
+           "HighBid":1.122,"HighAsk":1.1245,
+           "LowBid":1.117,"LowAsk":1.1195,
+           "CloseBid":1.121,"CloseAsk":1.1212}
+        bar=_bar(d)
+        self.assertTrue(bar.high > bar.close > bar.low)
+        self.assertAlmostEqual(bar.close,1.1211)
+
+    def test_actual_close_spread_cannot_be_treated_as_tradable(self):
+        d={"Time":"2026-10-29T20:10:00Z",
+           "OpenBid":1.12,"OpenAsk":1.1202,
+           "HighBid":1.122,"HighAsk":1.1222,
+           "LowBid":1.119,"LowAsk":1.1192,
+           "CloseBid":1.120,"CloseAsk":1.123}
+        with self.assertRaisesRegex(SaxoChartUnavailable,"invalid_open_close_spread"):
+            _bar(d)
+
     def test_rejects_absent_ask_and_corrupt_ohlc(self):
         d={"Time":"2026-10-29T20:10:00Z","OpenBid":1.12,"OpenAsk":1.1202}
         with self.assertRaises(SaxoChartUnavailable):
