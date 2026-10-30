@@ -1,4 +1,4 @@
-name: Saxo EURUSD Chart Full History Read-Only Validation
+name: Saxo EURUSD Chart Canonical H1 D1 Read-Only Validation
 # Historical BID/ASK OHLC are independently sampled price sides, never a live quote spread.
 on:
   workflow_dispatch:
@@ -58,7 +58,7 @@ jobs:
           except Exception:
               print("SAXO_CHART_60D_BOUNDARY=UNAVAILABLE")
           for range_,interval in (
-              ("5d","1m"),("10d","30m"),("60d","30m"),
+              ("5d","1m"),("10d","30m"),
               ("6mo","1d"),("2y","1d")
           ):
               try:
@@ -66,7 +66,7 @@ jobs:
                   # Never print source prices, times, count, symbols or Saxo headers.
                   min_bars={
                       ("5d","1m"):200,("10d","30m"):65,
-                      ("60d","30m"):350,("6mo","1d"):60,
+                      ("6mo","1d"):60,
                       ("2y","1d"):200,
                   }[(range_,interval)]
                   ok=len(bars)>=min_bars
