@@ -88,6 +88,14 @@ def evaluate(week, prices, previous, now):
         elif not fresh:
             result["state"] = "PRICE_UNVERIFIED"
             result["warnings"].append("OPEN_POSITION_QUOTE_STALE_OR_MISSING")
+            # Keep verified peaks through outages without using stale prices as evidence.
+            entry = number(row.get("entry_price"))
+            identity = "|".join([str(week.get("week_id")), iid,
+                                 str(row.get("entry_captured_at")), str(entry)])
+            old_item = old.get(iid, {})
+            if old_item.get("position_identity") == identity:
+                result["position_identity"] = identity
+                result["peak_favorable_R"] = old_item.get("peak_favorable_R")
         else:
             entry = number(row.get("entry_price"))
             opened = stamp(row.get("entry_captured_at"))
