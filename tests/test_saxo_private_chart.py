@@ -54,6 +54,43 @@ class ChartTests(unittest.TestCase):
         with self.assertRaises(SaxoChartUnavailable):
             _bar(d)
 
+    def test_all_required_canonical_daily_timeframes_use_saxo(self):
+        # Deterministic, no-network mock with >2y of daily bars. This verifies
+        # the new 1440-minute request is made for real Daily D1 indicators.
+        from saxo_private_chart import SaxoPrivateChartClient
+        from datetime import datetime, timedelta, timezone
+        now=datetime.now(timezone.utc)
+        samples=[]
+        for days_ago in range(750,0,-1):
+            at=now-timedelta(days=days_ago)
+            point={"Time":at.isoformat().replace("+00:00","Z")}
+            for key,bid,ask in (("Open",1.12,1.1202),
+                                ("High",1.121,1.1212),
+                                ("Low",1.119,1.1192),
+                                ("Close",1.1205,1.1207)):
+                point[key+"Bid"]=bid
+                point[key+"Ask"]=ask
+            samples.append(point)
+        client=object.__new__(SaxoPrivateChartClient)
+        requested=[]
+        def page(horizon,count,time):
+            requested.append((horizon,count,time))
+            return 1,samples,len(samples)
+        with patch.object(client,"_page",side_effect=page):
+            bars=client.bars("EURUSD=X","2y","1d")
+        self.assertGreaterEqual(len(bars),200)
+        self.assertEqual(requested[0][0],1440)
+        self.assertTrue(all(bars[i].timestamp < bars[i+1].timestamp for i in range(len(bars)-1)))
+
+    def test_daily_chart_rejects_unapproved_symbols_and_intervals(self):
+        client=object.__new__(SaxoPrivateChartClient)
+        for symbol,rng,interval in (
+            ("BTC-USD","2y","1d"),("EURUSD=X","2y","5m"),
+            ("EURUSD=X","1y","1d"),("SPY","5d","1m"),
+        ):
+            with self.assertRaises(SaxoChartUnavailable):
+                client.bars(symbol,rng,interval)
+
     def test_only_private_enabled_runtime(self):
         with patch.dict(os.environ,{"BRIEFROOMS_PRIVATE_RUNTIME":"0",
             "SAXO_PRIVATE_PRIMARY":"1","SAXO_STREAM_PRIMARY":"1",
