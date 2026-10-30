@@ -175,8 +175,11 @@ jobs:
       PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
       BRIEFROOMS_PRIVATE_RUNTIME: "1"
       SAXO_PRIVATE_PRIMARY: "1"
-      # Keep off until private Chart API entitlements + history cutover are proven.
-      SAXO_CHART_PRIMARY: ${{ vars.SAXO_CHART_PRIMARY }}
+      # Private SIM Chart has passed all actual Daily market-history windows
+      # (5d/1m, 10d/30m, 6mo/1d, 2y/1d). Fail closed: no Yahoo/Stooq
+      # fallback in private technical and lifecycle market observations.
+      # This does NOT migrate the public ledger or re-author market Belief.
+      SAXO_CHART_PRIMARY: "1"
       # Dedicated Saxo SIM STREAM is mandatory for private Daily EPE.
       # Not used in the public Daily price widget or any other instrument.
       SAXO_STREAM_PRIMARY: "1"
