@@ -1,0 +1,120 @@
+name: Saxo Private Daily Full Readonly Engine Probe
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/saxo-private-daily-readonly-engine-probe.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  verify-no-write:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
+      BRIEFROOMS_PRIVATE_RUNTIME: "1"
+      SAXO_PRIVATE_PRIMARY: "1"
+      SAXO_STREAM_PRIMARY: "1"
+      SAXO_CHART_PRIMARY: "1"
+      SAXO_PRIVATE_AUTO_ENABLED: "true"
+      SAXO_PRIVATE_QUALITY_GATE: "0"
+      SAXO_PRIVATE_STREAM_URL: "https://briefrooms-saxo-eurusd-stream.szczerbinski0577.workers.dev/saxo/quote"
+      SAXO_PRIVATE_BASIC_USER: admin
+      SAXO_PRIVATE_BASIC_PASSWORD: ${{ secrets.SAXO_PRIVATE_BASIC_PASSWORD }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      SAXO_PRIVATE_D1_DATABASE_ID: ${{ vars.SAXO_PRIVATE_D1_DATABASE_ID }}
+      SAXO_PRIVATE_D1_API_TOKEN: ${{ secrets.SAXO_PRIVATE_D1_API_TOKEN }}
+      DAILY_EURUSD_REQUIRE_EPISTEMIC: "1"
+      NO_RETROACTIVE_EXECUTION: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Restore the same upstream Belief and Epistemic context as public Daily
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import io
+          import json
+          import os
+          import pathlib
+          import tarfile
+          import urllib.request
+          import zipfile
+
+          repo = os.environ["GITHUB_REPOSITORY"]
+          token = os.environ["GH_TOKEN"]
+          temp = pathlib.Path(os.environ["RUNNER_TEMP"])
+          from saxo_private_github_artifacts import read_github_api
+
+          def api(url):
+              return read_github_api(url, token)
+
+          for label, artifact, tar_name, destination, env_key, state_name in (
+              ("BELIEF", "belief-core-shadow-state", "belief-core-state.tgz",
+               "belief_core_state", "BELIEF_CORE_STATE", "state.json"),
+              ("EPISTEMIC", "belief-epistemic-state", "belief-epistemic-state.tgz",
+               "belief_epistemic_state", "BELIEF_EPISTEMIC_STATE", "epistemic_state.json"),
+          ):
+              result = json.loads(api(f"https://api.github.com/repos/{repo}/actions/artifacts?name={artifact}&per_page=100"))
+              rows = [item for item in result.get("artifacts", []) if not item.get("expired")]
+              rows.sort(key=lambda r: r.get("created_at", ""), reverse=True)
+              if not rows:
+                  print(label + "_CONTEXT=UNAVAILABLE")
+                  continue
+              payload = api(f"https://api.github.com/repos/{repo}/actions/artifacts/{rows[0]['id']}/zip")
+              with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+                  data = archive.read(tar_name)
+              target = temp / destination
+              target.mkdir(parents=True, exist_ok=True)
+              # Reject links, absolute paths, parent traversal and unexpected files.
+              with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as tar:
+                  for member in tar.getmembers():
+                      resolved = (target / member.name).resolve()
+                      if not resolved.is_relative_to(target.resolve()) or member.issym() or member.islnk():
+                          raise ValueError("unsafe_context_archive")
+                  tar.extractall(target)
+              file = target / state_name
+              if not file.is_file() or not file.stat().st_size:
+                  raise ValueError("missing_context_state")
+              with pathlib.Path(os.environ["GITHUB_ENV"]).open("a") as out:
+                  out.write(env_key + "=" + str(file) + "\n")
+              print(label + "_CONTEXT=RESTORED")
+          PY
+      - name: Read existing private state, execute whole Saxo Chart Daily in temporary memory only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os
+          import pathlib
+          import tempfile
+          from saxo_private_daily_d1_runner import D1, load
+          from saxo_private_daily_runner import private_cycle
+          try:
+              with tempfile.TemporaryDirectory(prefix="brs-saxo-readonly-engine-") as tmp:
+                  root=pathlib.Path(tmp).resolve()
+                  repo=pathlib.Path.cwd().resolve()
+                  if root == repo or root.is_relative_to(repo):
+                      raise RuntimeError("unsafe_state_directory")
+                  os.environ["BRIEFROOMS_PRIVATE_DATA_DIR"]=str(root)
+                  load(D1(),root)
+                  # Updates only temporary files, NO D1 save and NO Git push.
+                  outcome=private_cycle(root)
+                  if outcome not in ("EXIT","EVALUATED"):
+                      raise RuntimeError("invalid_cycle_outcome")
+              print("SAXO_PRIVATE_DAILY_FULL_CHART_ENGINE=PASS_NO_PERSISTENCE")
+          except Exception:
+              # No exception values, Saxo quotes, timestamps, trade identifiers
+              # or private position details in GitHub Actions output.
+              print("SAXO_PRIVATE_DAILY_FULL_CHART_ENGINE=BLOCKED")
+              raise SystemExit(1)
+          PY
