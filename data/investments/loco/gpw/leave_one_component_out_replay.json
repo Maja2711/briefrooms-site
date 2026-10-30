@@ -1,6 +1,6 @@
 {
   "schema_version": "gpw-loco-counterfactual-replay-v1",
-  "generated_at": "2026-10-29T20:32:48.143848Z",
+  "generated_at": "2026-10-30T20:05:06.215166Z",
   "market": "gpw",
   "method": {
     "name": "leave_one_component_out_counterfactual_replay_v1",
@@ -12,10 +12,10 @@
     "historical_backfill": false
   },
   "coverage": {
-    "snapshot_count": 32,
-    "validated_snapshot_count": 32,
+    "snapshot_count": 33,
+    "validated_snapshot_count": 33,
     "invalid_snapshot_count": 0,
-    "missing_outcome_record_count": 0,
+    "missing_outcome_record_count": 1,
     "resolved_decision_count": 30,
     "supported_components": [
       "catalyst",
@@ -146,8 +146,8 @@
       "neutral_count": 28,
       "beneficial_rate": 0.066667,
       "harmful_rate": 0.0,
-      "marginal_value_percent_sum": 4.9887,
-      "mean_marginal_value_percent": 0.16629,
+      "marginal_value_percent_sum": 5.7018,
+      "mean_marginal_value_percent": 0.19006,
       "median_marginal_value_percent": 0.0,
       "evidence_status": "EARLY_SIGNAL"
     },
@@ -157,13 +157,13 @@
       "decision_change_count": 9,
       "decision_change_rate": 0.3,
       "plan_change_count": 30,
-      "beneficial_count": 1,
-      "harmful_count": 0,
-      "neutral_count": 29,
-      "beneficial_rate": 0.033333,
-      "harmful_rate": 0.0,
-      "marginal_value_percent_sum": 4.7307,
-      "mean_marginal_value_percent": 0.15769,
+      "beneficial_count": 2,
+      "harmful_count": 2,
+      "neutral_count": 26,
+      "beneficial_rate": 0.066667,
+      "harmful_rate": 0.066667,
+      "marginal_value_percent_sum": 2.6096,
+      "mean_marginal_value_percent": 0.086987,
       "median_marginal_value_percent": 0.0,
       "evidence_status": "EARLY_SIGNAL"
     }
@@ -10668,14 +10668,14 @@
         {
           "component": "expected_value",
           "status": "RESOLVED",
-          "classification": "NEUTRAL_COMPONENT",
+          "classification": "HARMFUL_COMPONENT",
           "full_selected_symbol": "ALE.WA",
           "without_selected_symbol": "ALE.WA",
           "decision_changed": false,
           "plan_changed": true,
           "full_t2_net_return_percent": -0.2601,
-          "without_component_t2_net_return_percent": -0.2601,
-          "marginal_value_percent": 0.0,
+          "without_component_t2_net_return_percent": 0.0,
+          "marginal_value_percent": -0.2601,
           "full_plan": {
             "action": "LONG",
             "symbol": "ALE.WA",
@@ -10722,17 +10722,10 @@
                 "status": "RESOLVED",
                 "horizon_sessions": 2,
                 "session": "2026-10-23",
-                "activated": true,
-                "activated_at": "2026-10-23T09:00:00+02:00",
-                "activation_evidence": "first_post_decision_5m_touch_from_above",
-                "entry_price": 58.37,
-                "exit_price": 58.44,
-                "exit_reason": "horizon_close",
-                "exit_at": null,
-                "gross_return_percent": 0.1199,
-                "net_return_percent": -0.2601,
-                "r_multiple": 0.0414,
-                "cost_assumption_percent": 0.38
+                "activated": false,
+                "net_return_percent": 0.0,
+                "gross_return_percent": 0.0,
+                "exit_reason": "not_activated_by_horizon"
               }
             ]
           }
@@ -11045,14 +11038,14 @@
         {
           "component": "expected_value",
           "status": "RESOLVED",
-          "classification": "NEUTRAL_COMPONENT",
+          "classification": "HARMFUL_COMPONENT",
           "full_selected_symbol": "ALE.WA",
           "without_selected_symbol": "ALE.WA",
           "decision_changed": false,
           "plan_changed": true,
           "full_t2_net_return_percent": -2.3252,
-          "without_component_t2_net_return_percent": -2.3252,
-          "marginal_value_percent": 0.0,
+          "without_component_t2_net_return_percent": 0.0,
+          "marginal_value_percent": -2.3252,
           "full_plan": {
             "action": "LONG",
             "symbol": "ALE.WA",
@@ -11090,33 +11083,19 @@
                 "status": "RESOLVED",
                 "horizon_sessions": 1,
                 "session": "2026-10-23",
-                "activated": true,
-                "activated_at": "2026-10-23T10:00:00+02:00",
-                "activation_evidence": "first_post_decision_5m_touch_from_below",
-                "entry_price": 59.12,
-                "exit_price": 57.97,
-                "exit_reason": "stop",
-                "exit_at": "2026-10-23T10:35:00+02:00",
-                "gross_return_percent": -1.9452,
-                "net_return_percent": -2.3252,
-                "r_multiple": -1.0,
-                "cost_assumption_percent": 0.38
+                "activated": false,
+                "net_return_percent": 0.0,
+                "gross_return_percent": 0.0,
+                "exit_reason": "not_activated_by_horizon"
               },
               {
                 "status": "RESOLVED",
                 "horizon_sessions": 2,
                 "session": "2026-10-26",
-                "activated": true,
-                "activated_at": "2026-10-23T10:00:00+02:00",
-                "activation_evidence": "first_post_decision_5m_touch_from_below",
-                "entry_price": 59.12,
-                "exit_price": 57.97,
-                "exit_reason": "stop",
-                "exit_at": "2026-10-23T10:35:00+02:00",
-                "gross_return_percent": -1.9452,
-                "net_return_percent": -2.3252,
-                "r_multiple": -1.0,
-                "cost_assumption_percent": 0.38
+                "activated": false,
+                "net_return_percent": 0.0,
+                "gross_return_percent": 0.0,
+                "exit_reason": "not_activated_by_horizon"
               }
             ]
           }
@@ -11393,8 +11372,8 @@
           "decision_changed": true,
           "plan_changed": true,
           "full_t2_net_return_percent": 1.329,
-          "without_component_t2_net_return_percent": 1.1043,
-          "marginal_value_percent": 0.2247,
+          "without_component_t2_net_return_percent": 0.3912,
+          "marginal_value_percent": 0.9378,
           "full_plan": {
             "action": "LONG",
             "symbol": "PCO.WA",
@@ -11433,15 +11412,15 @@
                 "horizon_sessions": 1,
                 "session": "2026-10-26",
                 "activated": true,
-                "activated_at": "2026-10-23T14:40:00+02:00",
-                "activation_evidence": "first_post_decision_5m_open_in_zone",
-                "entry_price": 57.94,
+                "activated_at": "2026-10-26T09:00:00+01:00",
+                "activation_evidence": "first_post_decision_5m_touch_from_above",
+                "entry_price": 58.35,
                 "exit_price": 59.0,
                 "exit_reason": "horizon_close",
                 "exit_at": null,
-                "gross_return_percent": 1.8295,
-                "net_return_percent": 1.4495,
-                "r_multiple": 0.8154,
+                "gross_return_percent": 1.114,
+                "net_return_percent": 0.734,
+                "r_multiple": 0.3801,
                 "cost_assumption_percent": 0.38
               },
               {
@@ -11449,15 +11428,15 @@
                 "horizon_sessions": 2,
                 "session": "2026-10-27",
                 "activated": true,
-                "activated_at": "2026-10-23T14:40:00+02:00",
-                "activation_evidence": "first_post_decision_5m_open_in_zone",
-                "entry_price": 57.94,
+                "activated_at": "2026-10-26T09:00:00+01:00",
+                "activation_evidence": "first_post_decision_5m_touch_from_above",
+                "entry_price": 58.35,
                 "exit_price": 58.8,
                 "exit_reason": "horizon_close",
                 "exit_at": null,
-                "gross_return_percent": 1.4843,
-                "net_return_percent": 1.1043,
-                "r_multiple": 0.6615,
+                "gross_return_percent": 0.7712,
+                "net_return_percent": 0.3912,
+                "r_multiple": 0.2632,
                 "cost_assumption_percent": 0.38
               }
             ]
@@ -11466,14 +11445,14 @@
         {
           "component": "expected_value",
           "status": "RESOLVED",
-          "classification": "NEUTRAL_COMPONENT",
+          "classification": "BENEFICIAL_COMPONENT",
           "full_selected_symbol": "PCO.WA",
           "without_selected_symbol": "PCO.WA",
           "decision_changed": false,
           "plan_changed": true,
           "full_t2_net_return_percent": 1.329,
-          "without_component_t2_net_return_percent": 1.329,
-          "marginal_value_percent": 0.0,
+          "without_component_t2_net_return_percent": 0.8648,
+          "marginal_value_percent": 0.4642,
           "full_plan": {
             "action": "LONG",
             "symbol": "PCO.WA",
@@ -11512,15 +11491,15 @@
                 "horizon_sessions": 1,
                 "session": "2026-10-26",
                 "activated": true,
-                "activated_at": "2026-10-23T14:40:00+02:00",
+                "activated_at": "2026-10-26T09:00:00+01:00",
                 "activation_evidence": "first_post_decision_5m_open_in_zone",
-                "entry_price": 47.98,
+                "entry_price": 48.2,
                 "exit_price": 48.63,
                 "exit_reason": "horizon_close",
                 "exit_at": null,
-                "gross_return_percent": 1.3547,
-                "net_return_percent": 0.9747,
-                "r_multiple": 0.3963,
+                "gross_return_percent": 0.8921,
+                "net_return_percent": 0.5121,
+                "r_multiple": 0.2312,
                 "cost_assumption_percent": 0.38
               },
               {
@@ -11528,15 +11507,15 @@
                 "horizon_sessions": 2,
                 "session": "2026-10-27",
                 "activated": true,
-                "activated_at": "2026-10-23T14:40:00+02:00",
+                "activated_at": "2026-10-26T09:00:00+01:00",
                 "activation_evidence": "first_post_decision_5m_open_in_zone",
-                "entry_price": 47.98,
+                "entry_price": 48.2,
                 "exit_price": 48.8,
                 "exit_reason": "horizon_close",
                 "exit_at": null,
-                "gross_return_percent": 1.709,
-                "net_return_percent": 1.329,
-                "r_multiple": 0.5,
+                "gross_return_percent": 1.2448,
+                "net_return_percent": 0.8648,
+                "r_multiple": 0.3226,
                 "cost_assumption_percent": 0.38
               }
             ]
@@ -12473,6 +12452,12 @@
       "status": "PENDING_OR_DATA_GAP",
       "reason": "t_plus_2_not_complete",
       "variants": []
+    },
+    {
+      "snapshot_id": "gpw-loco-58359a85d22e2125459a",
+      "decision_date": "2026-10-30",
+      "status": "PENDING_OUTCOME_RECORD",
+      "variants": []
     }
   ],
   "governance": {
@@ -12486,5 +12471,5 @@
     "automatic_component_removal": false,
     "historical_backfill": false
   },
-  "artifact_sha256": "f097d941e4d0f753eb449bcf15d77ca0bedc35224d13866809f634211ad39ca7"
+  "artifact_sha256": "442fcc213b9c2addc3a9c084c73fc53d00d88d45ecd343884810877d8d63a582"
 }
