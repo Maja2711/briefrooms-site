@@ -257,6 +257,20 @@ def _execution_admission(
     }
 
 
+def _h1_market_history_range() -> str:
+    """Private Saxo H1 uses verified recent 30m candles.
+
+    Admission requires 34 completed H1 hours, NOT 60 calendar days.
+    Chart pagination beyond 1200 30m samples has a demonstrated material
+    overlap inconsistency. Never silently accept or stitch that history.
+    Public legacy and injected-test client semantics remain untouched.
+    """
+    if (os.environ.get("SAXO_PRIVATE_PRIMARY") == "1"
+            and os.environ.get("SAXO_CHART_PRIMARY") == "1"):
+        return "10d"
+    return "60d"
+
+
 def build_output(
     snapshot: Any,
     history: Mapping[str, Any] | None = None,
@@ -307,7 +321,7 @@ def build_output(
     # Keep this optional until verified against real feed timestamps and CI fixtures.
     try:
         client = (_cycle_context or {}).get("market_client")
-        h1_rows = client.bars(base.EURUSD, "60d", "30m") if client is not None else []
+        h1_rows = client.bars(base.EURUSD, _h1_market_history_range(), "30m") if client is not None else []
         bollinger = bollinger_h1.evaluate(h1_rows, direction, observed_at,
                                          minute_bars=(_cycle_context or {}).get("monitor_bars")) if h1_rows else {
             "available": False, "reason": "h1_history_not_available", "role": "PRIMARY_TECHNICAL"}
