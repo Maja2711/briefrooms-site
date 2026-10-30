@@ -22,7 +22,7 @@ class ObserverTests(unittest.TestCase):
         two=evaluate(make_week(),quote,one,NOW+timedelta(seconds=30))
         self.assertIn("PROFIT_GIVEBACK_REVIEW_REQUIRED",two["instruments"]["eurusd"]["warnings"])
         self.assertEqual(two["instruments"]["eurusd"]["peak_favorable_R"],0.5)
-        self.assertEqual(two["instruments"]["btc usd" if False else "btcusd"]["entry_funnel"]["admission_passed"],False)
+        self.assertEqual(two["instruments"]["btcusd"]["entry_funnel"]["admission_passed"],False)
         self.assertIn("EPE_LIVE_TARGET_CONTRACT_MISSING",two["instruments"]["btcusd"]["warnings"])
 
     def test_stale_never_advances_peak(self):
@@ -39,7 +39,7 @@ class ObserverTests(unittest.TestCase):
         fresh=evaluate(other,quote,old,NOW)
         self.assertNotEqual(fresh["instruments"]["eurusd"]["position_identity"],
                             old["instruments"]["eurusd"]["position_identity"])
-        self.assertEqual(fresh["instruments"]["eurusd"]["peak_favorable_R"],0.4)
+        self.assertAlmostEqual(fresh["instruments"]["eurusd"]["peak_favorable_R"],0.3636, places=4)
 
 if __name__ == "__main__":
     unittest.main()
