@@ -1088,7 +1088,10 @@ def _canonical_live_entry_point(
     # The public target remains executable until it is filled or explicitly
     # replaced/cancelled. A stale scheduler expiry must never leave a visible
     # target that cannot execute.
-    if stamp < start or stamp > checked_at:
+    if stamp < start or stamp > checked_at + timedelta(seconds=30):
+        return None
+    # Do not execute an expired frozen LIMIT from a late arriving live quote.
+    if expires is None or stamp > expires or checked_at > expires + no_retro.MAX_LIVE_MARKET_DATA_LAG:
         return None
     max_age = timedelta(minutes=6)
     if checked_at - stamp > max_age or stamp - checked_at > timedelta(seconds=30):
@@ -1277,9 +1280,23 @@ def epe_verified_entry_point(
 
     target = sf(plan.get("target_price"))
     live_price = sf(point.get("canonical_live_price"))
+    # Historical OHLC can prove a *possible* touch but is not a live
+    # executable quote. Keep NO_FILL and distinguish this from absent plans.
+    if live_price is None and "frozen_entry_target_touch" in str(point.get("source") or ""):
+        verification = epe.blocked("historical_target_touch_not_live_executable_quote",
+                                   mode="CANONICAL_LIVE_TARGET", instrument="WES")
+        return None, verification
     if direction not in {"long", "short"} or target is None or live_price is None or stamp is None:
         verification = epe.blocked("missing_canonical_live_target_contract", mode="CANONICAL_LIVE_TARGET", instrument="WES")
         return None, verification
+    start = parse_dt(plan.get("entry_not_before") or pending.get("entry_not_before"))
+    expires = parse_dt(plan.get("expires_at"))
+    if start is None or expires is None or stamp < start:
+        return None, epe.blocked("limit_quote_predates_authorization", mode="CANONICAL_LIVE_TARGET", instrument="WES")
+    if stamp > expires or checked_at > expires + no_retro.MAX_LIVE_MARKET_DATA_LAG:
+        return None, epe.blocked("limit_quote_after_frozen_plan_expiry", mode="CANONICAL_LIVE_TARGET", instrument="WES")
+    if stamp > checked_at + timedelta(seconds=30) or checked_at - stamp > timedelta(minutes=6):
+        return None, epe.blocked("limit_canonical_quote_stale_or_future", mode="CANONICAL_LIVE_TARGET", instrument="WES")
     marketable = live_price <= target if direction == "long" else live_price >= target
     if not marketable:
         verification = epe.blocked("canonical_live_price_has_not_reached_target", mode="CANONICAL_LIVE_TARGET", instrument="WES")
