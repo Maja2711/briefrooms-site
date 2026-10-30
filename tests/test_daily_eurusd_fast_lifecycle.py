@@ -108,9 +108,6 @@ class DailyEurusdFastLifecycleTests(unittest.TestCase):
         self.assertFalse(out["metadata"]["fast_lifecycle"]["entry_authority"])
 
 
-if __name__ == "__main__":
-    unittest.main()
-
     def test_private_chart_exit_watcher_uses_saxo_only(self):
         import os
         from unittest.mock import patch
@@ -128,3 +125,6 @@ if __name__ == "__main__":
                         watcher.fetch_bars()
                     sax.assert_called_once()
                     yahoo.assert_not_called()
+
+if __name__ == "__main__":
+    unittest.main()
