@@ -117,6 +117,21 @@ def evaluate(week, prices, previous, now):
                               current_R=round(current_r, 4),
                               peak_favorable_R=round(peak, 4),
                               giveback_R=round(max(0, peak-current_r), 4))
+                # Proposed protection is advisory, not an executable stop.
+                # For short: lock half the observed peak with a BUY stop below entry.
+                # For long: lock half the observed peak with a SELL stop above entry.
+                if peak >= MIN_PROFIT_R:
+                    protected_r = 0.5 * peak
+                    suggested = entry + (protected_r * risk if row["direction"] == "long"
+                                         else -protected_r * risk)
+                    result["profit_protection_shadow"] = {
+                        "mode": "PROPOSAL_ONLY",
+                        "protected_R": round(protected_r, 4),
+                        "suggested_stop_price": round(suggested, 8),
+                        "basis": "prospective_fresh_snapshot_MFE",
+                        "requires_execution_authority": True,
+                        "broker_executable_quote_verified": False,
+                    }
                 if peak >= MIN_PROFIT_R and peak-current_r >= max(0.25, peak*GIVEBACK_ALERT_FRACTION):
                     result["warnings"].append("PROFIT_GIVEBACK_REVIEW_REQUIRED")
         outcome["instruments"][iid] = result
