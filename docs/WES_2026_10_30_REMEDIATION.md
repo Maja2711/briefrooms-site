@@ -21,3 +21,11 @@ This deployment adds **prospective read-only** monitoring for EURUSD, BTCUSD and
 - `python -m unittest discover -s tests -p test_wes_risk_observatory.py -v`
 - `python scripts/wes_risk_observatory.py` (reads current weekly state and canonical prices)
 - Review GitHub Actions warnings and the persisted JSON after a scheduled execution.
+
+## Follow-up implementation (same day)
+- WES LIMIT EPE now explicitly validates the frozen target's authorization start, expiry, current quote age, and future timestamp tolerance for all instruments.
+- BTC and S&P canonical live LIMIT touches remain eligible for EPE verification; historical bar touches fail with a distinct reason `historical_target_touch_not_live_executable_quote` rather than a generic missing contract. No fake historical fills are created.
+- The observer now emits `PENDING_ENTRY_QUOTE_STALE_OR_MISSING` on missing fresh marks with active entry decisions, and records `EPE_HISTORICAL_TOUCH_NOT_EXECUTABLE` separately.
+- The observer proposes a monotone 50%-of-peak favorable stop in `profit_protection_shadow` from prospective valid price marks only. It has **no** authorization to modify a stop or close a position. A proposal is *not* an executable or cost-adjusted quote.
+- Regression tests `tests/test_wes_limit_contract_hardening.py` cover BTC and S&P canonical fills, expired plans and historical bar rejection. These are included in push and scheduled workflow validation.
+- Historical missed trades and actual Fed-day market reversal cannot be reconstructed from these tests alone; full archived workflow logs and verified executable quotes remain required before live profit-stop authority.
