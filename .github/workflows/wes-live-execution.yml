@@ -11,6 +11,8 @@ on:
       - "scripts/audit_provenance.py"
       - "scripts/provenance_contract.py"
       - "scripts/audit_intraday_risk_exits.py"
+      - "scripts/wes_risk_observatory.py"
+      - "tests/test_wes_risk_observatory.py"
       - "scripts/wes_notification_outbox.py"
       - "scripts/wes_decision_ledger.py"
       - "scripts/wes_v5_history_seal.py"
@@ -85,6 +87,11 @@ jobs:
           set -euo pipefail
           python -m py_compile scripts/audit_intraday_risk_exits.py scripts/wes_notification_outbox.py
           python scripts/audit_intraday_risk_exits.py --persist-report on_close
+      - name: Observe WES profit giveback and rejected entry funnel
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s tests -p test_wes_risk_observatory.py -v
+          python scripts/wes_risk_observatory.py
       - name: Enforce native provenance before WES persistence
         run: |
           set -euo pipefail
@@ -105,6 +112,7 @@ jobs:
           git add data/investments/live_prices.json \
                   data/investments/weekly \
                   data/investments/intraday_risk_audit.json \
+                  data/investments/wes_risk_observatory.json \
                   data/investments/multi_instrument_exposure_state_v5.json \
                   data/investments/multi_instrument_exposure_report_v5.json \
                   data/investments/wes_decision_ledger.json \
