@@ -85,6 +85,10 @@ def evaluate(week, prices, previous, now):
             }
             if epe.get("reason") == "missing_canonical_live_target_contract":
                 result["warnings"].append("EPE_LIVE_TARGET_CONTRACT_MISSING")
+            elif epe.get("reason") == "historical_target_touch_not_live_executable_quote":
+                result["warnings"].append("EPE_HISTORICAL_TOUCH_NOT_EXECUTABLE")
+            if (row.get("pending_entry_decision") or row.get("wes_entry_authorization")) and not fresh:
+                result["warnings"].append("PENDING_ENTRY_QUOTE_STALE_OR_MISSING")
         elif not fresh:
             result["state"] = "PRICE_UNVERIFIED"
             result["warnings"].append("OPEN_POSITION_QUOTE_STALE_OR_MISSING")
