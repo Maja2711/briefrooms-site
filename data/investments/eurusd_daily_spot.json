@@ -1,6 +1,6 @@
 {
   "instrument": "EUR/USD",
-  "timestamp": "2026-10-30T22:18:48.050724Z",
+  "timestamp": "2026-10-30T23:26:59.231175Z",
   "direction": "FLAT",
   "score": 56.31,
   "confidence": 0.3925,
@@ -14,41 +14,12 @@
   "metadata": {
     "market_snapshot_sha256": "365ddca0c4519666ad254d79ebc9646cbf060db8f2104aa6c2717a93c7966a73",
     "bollinger_h1": {
-      "available": true,
+      "available": false,
       "allowed": false,
-      "reason": "h1_trend_not_confirmed",
-      "role": "PRIMARY_TECHNICAL_ADMISSION",
-      "direction_mutation_allowed": false,
-      "weight": "HIGH_VETO_NEW_ENTRY",
-      "period": 30,
-      "deviations": 2.5,
-      "last_closed_h1": "2026-10-30T21:00:00+00:00",
+      "reason": "stale_h1_bollinger",
       "closed_h1": 1415,
-      "age_minutes": 78.8,
-      "close": 1.1161960363388062,
-      "middle": 1.1180118322372437,
-      "upper": 1.1219358128532997,
-      "lower": 1.1140878516211876,
-      "percent_b": 0.26862832973643175,
-      "middle_slope": -8.308887481600635e-06,
-      "aligned": false,
-      "exhaustion": false,
-      "regime": "TRANSITION",
-      "range_regime": false,
-      "range_structure": false,
-      "range_edge_entry": {
-        "allowed": false,
-        "reason": "h1_not_flat_range"
-      },
-      "near_middle": false,
-      "flat_middle": true,
-      "marginal_crossing": false,
-      "middle_crossings_6h": 0,
-      "middle_gap_pips": -18.158,
-      "middle_slope_pips_per_h": -0.083,
-      "middle_slope_3h_pips": 2.322,
-      "width_pips": 78.48,
-      "strong_trend_confirmed": false
+      "last_closed_h1": "2026-10-30T21:00:00+00:00",
+      "age_minutes": 146.99
     },
     "bollinger_d1": {
       "available": true,
@@ -72,43 +43,23 @@
     },
     "multi_timeframe": {
       "version": "MTF_H1_REGIME_V1",
-      "available": true,
-      "h1_regime": "TRANSITION",
-      "strategy": "WAIT_TRANSITION",
+      "available": false,
+      "h1_regime": "UNVERIFIED",
+      "strategy": "NO_NEW_ADMISSION",
       "direction_authority": false,
       "w1": {
-        "available": true,
-        "trend": "DOWN",
-        "last_closed_w1": "2026-10-26T00:00:00+00:00",
-        "sma4_change_pips": -39.133,
-        "veto_authority": false
+        "available": false,
+        "trend": "UNVERIFIED"
       },
       "h1_volatility": {
-        "available": true,
-        "mean_high_low_pips": 13.281,
-        "median_high_low_pips": 11.87,
-        "p75_high_low_pips": 18.698,
-        "atr_true_range_pips": 13.646,
-        "sample_closed_hours": 24,
-        "last_completed_h1": "2026-10-30T21:00:00+00:00",
-        "last_h1_high": 1.1173185110092163,
-        "last_h1_low": 1.1161960363388062,
-        "executable_spread_proven": false
+        "available": false
       },
       "d1": {
-        "trend": "DOWN",
-        "strong": true,
-        "middle_slope_pips_per_day": -10.471,
-        "last_completed_d1": "2026-10-29T00:00:00+00:00"
+        "trend": "UNVERIFIED",
+        "strong": false
       },
-      "direction": "LONG",
-      "block_new_entry": true,
-      "position_management": "STANDARD_R_PACE",
-      "roles": {
-        "H1": "PRIMARY",
-        "D1": "SECONDARY",
-        "W1": "OVERVIEW_ONLY"
-      }
+      "reason": "missing_or_stale_closed_h1",
+      "completed_h1": 1415
     },
     "h1_volatility_geometry": {
       "applied": false,
@@ -216,7 +167,7 @@
           "effective_support": 0.032128,
           "weight": 0.45,
           "observed_at": "2026-10-30T20:38:42Z",
-          "age_hours": 1.6683,
+          "age_hours": 2.8048,
           "source_evidence": [
             {
               "evidence_id": "ev-12f78be4164730e17f57",
@@ -243,7 +194,7 @@
           "effective_support": 0.111886,
           "weight": 0.3,
           "observed_at": "2026-10-30T20:29:26Z",
-          "age_hours": 1.8228,
+          "age_hours": 2.9592,
           "source_evidence": [
             {
               "evidence_id": "ev-09f1c1ac0305a9cc80b9",
@@ -294,7 +245,7 @@
           "effective_support": 0.429019,
           "weight": 0.15,
           "observed_at": "2026-10-30T20:29:15Z",
-          "age_hours": 1.8258,
+          "age_hours": 2.9623,
           "source_evidence": [
             {
               "evidence_id": "ev-11af2cf3a0bb48a27502",
@@ -378,13 +329,13 @@
         {
           "belief_id": "eurusd.macro_surprise.supportive",
           "reason": "stale_or_future_evidence",
-          "age_hours": 1200.6778,
+          "age_hours": 1200.0258,
           "max_age_hours": 12.0
         },
         {
           "belief_id": "eurusd.policy_differential.supportive",
           "reason": "stale_or_future_evidence",
-          "age_hours": 1800.6778,
+          "age_hours": 1800.0258,
           "max_age_hours": 18.0
         }
       ],
@@ -406,9 +357,9 @@
         "consumer": "DAILY_EURUSD",
         "available": true,
         "reason": "authoritative_daily_eurusd_epistemic_projection",
-        "source_created_at": "2026-10-30T21:38:08.111406Z",
-        "age_hours": 0.677761,
-        "source_sha256": "37da523c3e31e7259e5cd82965c4cb5ff1eb5a9a90a00e7236dea01dfdb9c350",
+        "source_created_at": "2026-10-30T23:25:26.251065Z",
+        "age_hours": 0.025828,
+        "source_sha256": "e74341283ecf009fdcfc94a7d8acc3dc71fb771f3e52ac965889d8db16206e85",
         "aggregate_authoritative": true,
         "consumer_may_override_probability": false,
         "belief_core_writeback_enabled": false,
@@ -425,11 +376,11 @@
       },
       "provenance": {
         "schema_version": "briefrooms-provenance-contract-v1",
-        "artifact_id": "daily-eurusd-decision:ad20e2f8d5af8b484231c7fb",
+        "artifact_id": "daily-eurusd-decision:2e7354d6873ed571054f7b25",
         "artifact_type": "decision",
         "engine_id": "daily_eurusd",
         "engine_version": "belief-first-v1.9",
-        "created_at": "2026-10-30T22:18:48.050724Z",
+        "created_at": "2026-10-30T23:26:59.231175Z",
         "parent_artifact_ids": [
           "epistemic:estate-0bbde7155db720c621e3",
           "epistemic:estate-6e6cf04d1a06a8a7d416",
@@ -449,10 +400,10 @@
           "eurusd.us_rates_pressure.supportive",
           "eurusd.usd_environment.supportive"
         ],
-        "decision_id": "daily-eurusd-decision:ad20e2f8d5af8b484231c7fb",
+        "decision_id": "daily-eurusd-decision:2e7354d6873ed571054f7b25",
         "forecast_id": null,
         "verification_id": null,
-        "payload_hash": "ad20e2f8d5af8b484231c7fb427d9997091a85c5635e741c204caf758f11c374",
+        "payload_hash": "2e7354d6873ed571054f7b256c442b8a73e9178f837de7d923172769cd613b4e",
         "authority": "decision",
         "prospective": true,
         "domain_provenance": {
@@ -469,8 +420,6 @@
       "confidence": 0.3925,
       "accepted": false,
       "gate_reasons": [
-        "bollinger_h1_h1_trend_not_confirmed",
-        "mtf_wait_transition",
         "central_bank_event_risk_entry_guard"
       ]
     },
@@ -590,9 +539,9 @@
       "risk_floor_percent": 0.0027,
       "reward_risk": 1.8,
       "multi_timeframe_version": "MTF_H1_REGIME_V1",
-      "strategy_at_decision": "WAIT_TRANSITION",
-      "hourly_mean_high_low_pips": 13.281,
-      "hourly_median_high_low_pips": 11.87,
+      "strategy_at_decision": "NO_NEW_ADMISSION",
+      "hourly_mean_high_low_pips": null,
+      "hourly_median_high_low_pips": null,
       "volatility_stop_target_applied": false,
       "soft_horizon_hours": 24.0,
       "hard_horizon_hours": 27.0,
@@ -615,21 +564,21 @@
           "belief_id": "eurusd.trend.bullish",
           "probability": 0.533877,
           "confidence": 0.474187,
-          "age_hours": 1.668,
+          "age_hours": 2.805,
           "updated_at": "2026-10-30T20:38:42Z"
         },
         {
           "belief_id": "eurusd.usd_environment.supportive",
           "probability": 0.594203,
           "confidence": 0.593856,
-          "age_hours": 1.823,
+          "age_hours": 2.959,
           "updated_at": "2026-10-30T20:29:26Z"
         },
         {
           "belief_id": "eurusd.us_rates_pressure.supportive",
           "probability": 0.765352,
           "confidence": 0.808396,
-          "age_hours": 1.826,
+          "age_hours": 2.962,
           "updated_at": "2026-10-30T20:29:15Z"
         }
       ],
@@ -657,7 +606,7 @@
     },
     "central_bank_event_risk": {
       "event_id": "cb-release:c327a2d24023c0ee6f4bb75322f74f2c",
-      "evaluated_at": "2026-10-30T22:18:48.050724Z",
+      "evaluated_at": "2026-10-30T23:26:59.231175Z",
       "scope": "EURUSD_DAILY",
       "position_id": null,
       "action": "BLOCK_NEW_ENTRY",
@@ -675,8 +624,11 @@
         "cb:1028108059029c4a9ece9ce340354d4b",
         "cb:13afc9c74506a04cf303c528cee2e79a",
         "cb:14f7f0ea2992c1a2474c2f979e6ae1d8",
+        "cb:1efed8f0b7e87ed4d8e13afe8a6e02c7",
+        "cb:233c4d48649ac7ae1036dd9d73140f28",
         "cb:26b34243d9a4a54ca243de2a45ddcf06",
         "cb:2fee17f5897b77de815cb9b9c74c77c0",
+        "cb:385910b538ae9532509d736cf2eeedd9",
         "cb:427d57800daf2935eb5fc7646f0cb7ef",
         "cb:42907e5d9d1eeb12ce622628184ccbd6",
         "cb:47c929c0938684546712dd8f8d862133",
@@ -726,7 +678,7 @@
         "current_event_id": "cb-release:c327a2d24023c0ee6f4bb75322f74f2c",
         "bank": "ECB",
         "phase": "RELEASED",
-        "minutes_until": -1983.8008454,
+        "minutes_until": -2051.98718625,
         "conference_status": "UNKNOWN",
         "active_event_ids": [
           "cb-release:c327a2d24023c0ee6f4bb75322f74f2c",
@@ -736,10 +688,10 @@
         "latest_headline": "Philip R. Lane: AI adoption in Europe",
         "latest_official_document": "https://www.ecb.europa.eu//press/pr/date/2026/html/ecb.mp261029~9a493adf17.en.html",
         "speaker_verified": false,
-        "source_age_seconds": 10914.050724,
+        "source_age_seconds": 1465.231175,
         "wire_health": "STALE",
         "producer_wire_health": "FRESH",
-        "latest_decision_headline_age_seconds": 22128.050724,
+        "latest_decision_headline_age_seconds": 26219.231175,
         "position_profit_pips": null,
         "current_net_R": null,
         "profit_at_risk_pips": null,
@@ -750,7 +702,7 @@
         "mfe_R": null,
         "remaining_upside_R": null,
         "reward_to_downside": null,
-        "quote_age_seconds": 2945.050724,
+        "quote_age_seconds": 7036.231175,
         "current_executable_exit_price": null,
         "paper_proxy_price": 1.1165698766708374,
         "paper_proxy_uncertain": true,
@@ -801,22 +753,22 @@
       "audit": {
         "policy_version": "1.0.0",
         "policy_hash": "f3536a02e7152c611dcdbc00cf5a78122a678a62d71d2af39c5583a03e7b64e1",
-        "data_as_of": "2026-10-30T19:16:54Z",
+        "data_as_of": "2026-10-30T23:02:34Z",
         "first_seen_at": "2026-10-30T19:16:52Z",
-        "producer_sha": "af34fd308ae9964caf57f386e6e3b8a7a5dcc4dc",
-        "consumer_sha": "0c5e0a5508762335a2cd05109c35a1cbf75f66ca",
-        "snapshot_sha256": "cbd5b409af5a86af57b920c5f0ca4ecbf7f3e813344502c4d5a6875a287a5be6",
+        "producer_sha": "c42cd1312e9f660092b60ec4b89337bbe5bca049",
+        "consumer_sha": "69e19b6937e15f7d2a5515c4549bf216a9c9d01c",
+        "snapshot_sha256": "7e17c5d3095617c4b181a8c7ee4e9f7ca031453047a65edefb996873ba1d1107",
         "executed_at": null,
         "execution_price_source": null,
         "execution_authorized": false,
         "latency_breakdown": {
           "source_to_seen_seconds": 11212.0,
-          "snapshot_to_consumer_seconds": 10914.050724,
+          "snapshot_to_consumer_seconds": 1465.231175,
           "decision_to_execution_seconds": null
         },
         "risk_model_sample_sha256": null,
         "consumer_code_sha256": "cee3814b4cf02eff167412d3f01cdde87cff0b77e3e0e82cf9ca0e5b42f56cb5",
-        "immutable_id": "6c2d915f3291bfb679563f7fba43bb7b3cb226959a06ef63f60a267b3bece157"
+        "immutable_id": "25503abaa5c6df4b1953d931db3e7337cb5f3560b78a59cfc8ce3b329c97696e"
       },
       "decision_mode": "SHADOW",
       "decision": "BLOCK_NEW_ENTRY",
@@ -828,9 +780,9 @@
         "NO_EXECUTABLE_QUOTE",
         "EXECUTION_COSTS_UNKNOWN"
       ],
-      "immutable_id": "6c2d915f3291bfb679563f7fba43bb7b3cb226959a06ef63f60a267b3bece157",
-      "wire_snapshot_sha256": "cbd5b409af5a86af57b920c5f0ca4ecbf7f3e813344502c4d5a6875a287a5be6",
-      "decision_id": "6c2d915f3291bfb679563f7fba43bb7b3cb226959a06ef63f60a267b3bece157",
+      "immutable_id": "25503abaa5c6df4b1953d931db3e7337cb5f3560b78a59cfc8ce3b329c97696e",
+      "wire_snapshot_sha256": "7e17c5d3095617c4b181a8c7ee4e9f7ca031453047a65edefb996873ba1d1107",
+      "decision_id": "25503abaa5c6df4b1953d931db3e7337cb5f3560b78a59cfc8ce3b329c97696e",
       "engine": "EURUSD_DAILY",
       "lifecycle": "v1.9.1",
       "direction_authority": false,
@@ -859,48 +811,17 @@
       "allowed": false,
       "status": "BLOCKED",
       "reasons": [
-        "bollinger_h1_h1_trend_not_confirmed",
-        "mtf_wait_transition",
         "central_bank_event_risk_entry_guard"
       ],
       "final_direction_preserved": "LONG",
       "direction_mutation_allowed": false,
       "bollinger_h1": {
-        "available": true,
+        "available": false,
         "allowed": false,
-        "reason": "h1_trend_not_confirmed",
-        "role": "PRIMARY_TECHNICAL_ADMISSION",
-        "direction_mutation_allowed": false,
-        "weight": "HIGH_VETO_NEW_ENTRY",
-        "period": 30,
-        "deviations": 2.5,
-        "last_closed_h1": "2026-10-30T21:00:00+00:00",
+        "reason": "stale_h1_bollinger",
         "closed_h1": 1415,
-        "age_minutes": 78.8,
-        "close": 1.1161960363388062,
-        "middle": 1.1180118322372437,
-        "upper": 1.1219358128532997,
-        "lower": 1.1140878516211876,
-        "percent_b": 0.26862832973643175,
-        "middle_slope": -8.308887481600635e-06,
-        "aligned": false,
-        "exhaustion": false,
-        "regime": "TRANSITION",
-        "range_regime": false,
-        "range_structure": false,
-        "range_edge_entry": {
-          "allowed": false,
-          "reason": "h1_not_flat_range"
-        },
-        "near_middle": false,
-        "flat_middle": true,
-        "marginal_crossing": false,
-        "middle_crossings_6h": 0,
-        "middle_gap_pips": -18.158,
-        "middle_slope_pips_per_h": -0.083,
-        "middle_slope_3h_pips": 2.322,
-        "width_pips": 78.48,
-        "strong_trend_confirmed": false
+        "last_closed_h1": "2026-10-30T21:00:00+00:00",
+        "age_minutes": 146.99
       },
       "belief_flip_confirmation": {
         "allowed": true,
@@ -916,43 +837,23 @@
       },
       "multi_timeframe": {
         "version": "MTF_H1_REGIME_V1",
-        "available": true,
-        "h1_regime": "TRANSITION",
-        "strategy": "WAIT_TRANSITION",
+        "available": false,
+        "h1_regime": "UNVERIFIED",
+        "strategy": "NO_NEW_ADMISSION",
         "direction_authority": false,
         "w1": {
-          "available": true,
-          "trend": "DOWN",
-          "last_closed_w1": "2026-10-26T00:00:00+00:00",
-          "sma4_change_pips": -39.133,
-          "veto_authority": false
+          "available": false,
+          "trend": "UNVERIFIED"
         },
         "h1_volatility": {
-          "available": true,
-          "mean_high_low_pips": 13.281,
-          "median_high_low_pips": 11.87,
-          "p75_high_low_pips": 18.698,
-          "atr_true_range_pips": 13.646,
-          "sample_closed_hours": 24,
-          "last_completed_h1": "2026-10-30T21:00:00+00:00",
-          "last_h1_high": 1.1173185110092163,
-          "last_h1_low": 1.1161960363388062,
-          "executable_spread_proven": false
+          "available": false
         },
         "d1": {
-          "trend": "DOWN",
-          "strong": true,
-          "middle_slope_pips_per_day": -10.471,
-          "last_completed_d1": "2026-10-29T00:00:00+00:00"
+          "trend": "UNVERIFIED",
+          "strong": false
         },
-        "direction": "LONG",
-        "block_new_entry": true,
-        "position_management": "STANDARD_R_PACE",
-        "roles": {
-          "H1": "PRIMARY",
-          "D1": "SECONDARY",
-          "W1": "OVERVIEW_ONLY"
-        }
+        "reason": "missing_or_stale_closed_h1",
+        "completed_h1": 1415
       },
       "h1_volatility_geometry": {
         "applied": false,
@@ -997,7 +898,7 @@
         "post_release_evidence_pending": false,
         "central_bank_event_risk": {
           "event_id": "cb-release:c327a2d24023c0ee6f4bb75322f74f2c",
-          "evaluated_at": "2026-10-30T22:18:48.050724Z",
+          "evaluated_at": "2026-10-30T23:26:59.231175Z",
           "scope": "EURUSD_DAILY",
           "position_id": null,
           "action": "BLOCK_NEW_ENTRY",
@@ -1015,8 +916,11 @@
             "cb:1028108059029c4a9ece9ce340354d4b",
             "cb:13afc9c74506a04cf303c528cee2e79a",
             "cb:14f7f0ea2992c1a2474c2f979e6ae1d8",
+            "cb:1efed8f0b7e87ed4d8e13afe8a6e02c7",
+            "cb:233c4d48649ac7ae1036dd9d73140f28",
             "cb:26b34243d9a4a54ca243de2a45ddcf06",
             "cb:2fee17f5897b77de815cb9b9c74c77c0",
+            "cb:385910b538ae9532509d736cf2eeedd9",
             "cb:427d57800daf2935eb5fc7646f0cb7ef",
             "cb:42907e5d9d1eeb12ce622628184ccbd6",
             "cb:47c929c0938684546712dd8f8d862133",
@@ -1066,7 +970,7 @@
             "current_event_id": "cb-release:c327a2d24023c0ee6f4bb75322f74f2c",
             "bank": "ECB",
             "phase": "RELEASED",
-            "minutes_until": -1983.8008454,
+            "minutes_until": -2051.98718625,
             "conference_status": "UNKNOWN",
             "active_event_ids": [
               "cb-release:c327a2d24023c0ee6f4bb75322f74f2c",
@@ -1076,10 +980,10 @@
             "latest_headline": "Philip R. Lane: AI adoption in Europe",
             "latest_official_document": "https://www.ecb.europa.eu//press/pr/date/2026/html/ecb.mp261029~9a493adf17.en.html",
             "speaker_verified": false,
-            "source_age_seconds": 10914.050724,
+            "source_age_seconds": 1465.231175,
             "wire_health": "STALE",
             "producer_wire_health": "FRESH",
-            "latest_decision_headline_age_seconds": 22128.050724,
+            "latest_decision_headline_age_seconds": 26219.231175,
             "position_profit_pips": null,
             "current_net_R": null,
             "profit_at_risk_pips": null,
@@ -1141,22 +1045,22 @@
           "audit": {
             "policy_version": "1.0.0",
             "policy_hash": "f3536a02e7152c611dcdbc00cf5a78122a678a62d71d2af39c5583a03e7b64e1",
-            "data_as_of": "2026-10-30T19:16:54Z",
+            "data_as_of": "2026-10-30T23:02:34Z",
             "first_seen_at": "2026-10-30T19:16:52Z",
-            "producer_sha": "af34fd308ae9964caf57f386e6e3b8a7a5dcc4dc",
-            "consumer_sha": "0c5e0a5508762335a2cd05109c35a1cbf75f66ca",
-            "snapshot_sha256": "cbd5b409af5a86af57b920c5f0ca4ecbf7f3e813344502c4d5a6875a287a5be6",
+            "producer_sha": "c42cd1312e9f660092b60ec4b89337bbe5bca049",
+            "consumer_sha": "69e19b6937e15f7d2a5515c4549bf216a9c9d01c",
+            "snapshot_sha256": "7e17c5d3095617c4b181a8c7ee4e9f7ca031453047a65edefb996873ba1d1107",
             "executed_at": null,
             "execution_price_source": null,
             "execution_authorized": false,
             "latency_breakdown": {
               "source_to_seen_seconds": 11212.0,
-              "snapshot_to_consumer_seconds": 10914.050724,
+              "snapshot_to_consumer_seconds": 1465.231175,
               "decision_to_execution_seconds": null
             },
             "risk_model_sample_sha256": null,
             "consumer_code_sha256": "cee3814b4cf02eff167412d3f01cdde87cff0b77e3e0e82cf9ca0e5b42f56cb5",
-            "immutable_id": "d687774a4d52c243b6764dcd7c1c512f7b748065ec6cbdce50472862c8710e34"
+            "immutable_id": "5391404ac58e895ff415cc9a49bdc1358ae7f1fb363187ad7dadb2eac0afcc3f"
           },
           "decision_mode": "SHADOW",
           "decision": "BLOCK_NEW_ENTRY",
@@ -1168,9 +1072,9 @@
             "NO_EXECUTABLE_QUOTE",
             "EXECUTION_COSTS_UNKNOWN"
           ],
-          "immutable_id": "d687774a4d52c243b6764dcd7c1c512f7b748065ec6cbdce50472862c8710e34",
-          "wire_snapshot_sha256": "cbd5b409af5a86af57b920c5f0ca4ecbf7f3e813344502c4d5a6875a287a5be6",
-          "decision_id": "d687774a4d52c243b6764dcd7c1c512f7b748065ec6cbdce50472862c8710e34",
+          "immutable_id": "5391404ac58e895ff415cc9a49bdc1358ae7f1fb363187ad7dadb2eac0afcc3f",
+          "wire_snapshot_sha256": "7e17c5d3095617c4b181a8c7ee4e9f7ca031453047a65edefb996873ba1d1107",
+          "decision_id": "5391404ac58e895ff415cc9a49bdc1358ae7f1fb363187ad7dadb2eac0afcc3f",
           "engine": "EURUSD_DAILY",
           "lifecycle": "v1.9.1",
           "direction_authority": false,
@@ -1183,7 +1087,7 @@
         "calendar_coverage": {
           "complete": false,
           "observed_at": "2026-10-30T20:39:23.723857Z",
-          "age_minutes": 99.405,
+          "age_minutes": 167.592,
           "source_status": {
             "BEA": {
               "error_type": null,
@@ -1619,8 +1523,8 @@
       "schema_version": "eurusd-production-decision-manifest-v1",
       "engine_version": "eurusd-daily-spot-v1.9.1",
       "instrument": "EUR/USD",
-      "decision_at": "2026-10-30T22:18:48.050724Z",
-      "native_decision_id": "daily-eurusd-decision:ad20e2f8d5af8b484231c7fb",
+      "decision_at": "2026-10-30T23:26:59.231175Z",
+      "native_decision_id": "daily-eurusd-decision:2e7354d6873ed571054f7b25",
       "policy_version_id": "eurusd-policy-b36bdb62278edbd39faee3b9",
       "policy_sha256": "64fbaf973cfd65c15044b846d9eec0650cfc22eafdafc0ef55ec145191578d2b",
       "policy": {
@@ -1666,8 +1570,8 @@
       },
       "runtime_code_sha256": "ed314c3450ecc0617c99e4172455ec52cda78ce4c2b4ee0043f6ccc2b5a30663",
       "market_snapshot_sha256": "365ddca0c4519666ad254d79ebc9646cbf060db8f2104aa6c2717a93c7966a73",
-      "epistemic_snapshot_sha256": "37da523c3e31e7259e5cd82965c4cb5ff1eb5a9a90a00e7236dea01dfdb9c350",
-      "decision_sha256": "ff75aaef039d778a2d1112c4e02f9655614b4dd264b7988c25159db9de8adbfb",
+      "epistemic_snapshot_sha256": "e74341283ecf009fdcfc94a7d8acc3dc71fb771f3e52ac965889d8db16206e85",
+      "decision_sha256": "3dc3c3d8e4e297ac112e165180cbf29889ce49f31a2ddfc5a9d354b4a442a46f",
       "final_decision": {
         "schema_version": "daily-eurusd-belief-decision-v1",
         "owner": "NATIVE_DAILY_EURUSD_BELIEF_FIRST_DECISION_ENGINE",
@@ -1711,7 +1615,7 @@
             "effective_support": 0.032128,
             "weight": 0.45,
             "observed_at": "2026-10-30T20:38:42Z",
-            "age_hours": 1.6683,
+            "age_hours": 2.8048,
             "source_evidence": [
               {
                 "evidence_id": "ev-12f78be4164730e17f57",
@@ -1738,7 +1642,7 @@
             "effective_support": 0.111886,
             "weight": 0.3,
             "observed_at": "2026-10-30T20:29:26Z",
-            "age_hours": 1.8228,
+            "age_hours": 2.9592,
             "source_evidence": [
               {
                 "evidence_id": "ev-09f1c1ac0305a9cc80b9",
@@ -1789,7 +1693,7 @@
             "effective_support": 0.429019,
             "weight": 0.15,
             "observed_at": "2026-10-30T20:29:15Z",
-            "age_hours": 1.8258,
+            "age_hours": 2.9623,
             "source_evidence": [
               {
                 "evidence_id": "ev-11af2cf3a0bb48a27502",
@@ -1873,13 +1777,13 @@
           {
             "belief_id": "eurusd.macro_surprise.supportive",
             "reason": "stale_or_future_evidence",
-            "age_hours": 1200.6778,
+            "age_hours": 1200.0258,
             "max_age_hours": 12.0
           },
           {
             "belief_id": "eurusd.policy_differential.supportive",
             "reason": "stale_or_future_evidence",
-            "age_hours": 1800.6778,
+            "age_hours": 1800.0258,
             "max_age_hours": 18.0
           }
         ],
@@ -1901,9 +1805,9 @@
           "consumer": "DAILY_EURUSD",
           "available": true,
           "reason": "authoritative_daily_eurusd_epistemic_projection",
-          "source_created_at": "2026-10-30T21:38:08.111406Z",
-          "age_hours": 0.677761,
-          "source_sha256": "37da523c3e31e7259e5cd82965c4cb5ff1eb5a9a90a00e7236dea01dfdb9c350",
+          "source_created_at": "2026-10-30T23:25:26.251065Z",
+          "age_hours": 0.025828,
+          "source_sha256": "e74341283ecf009fdcfc94a7d8acc3dc71fb771f3e52ac965889d8db16206e85",
           "aggregate_authoritative": true,
           "consumer_may_override_probability": false,
           "belief_core_writeback_enabled": false,
@@ -1920,11 +1824,11 @@
         },
         "provenance": {
           "schema_version": "briefrooms-provenance-contract-v1",
-          "artifact_id": "daily-eurusd-decision:ad20e2f8d5af8b484231c7fb",
+          "artifact_id": "daily-eurusd-decision:2e7354d6873ed571054f7b25",
           "artifact_type": "decision",
           "engine_id": "daily_eurusd",
           "engine_version": "belief-first-v1.9",
-          "created_at": "2026-10-30T22:18:48.050724Z",
+          "created_at": "2026-10-30T23:26:59.231175Z",
           "parent_artifact_ids": [
             "epistemic:estate-0bbde7155db720c621e3",
             "epistemic:estate-6e6cf04d1a06a8a7d416",
@@ -1944,10 +1848,10 @@
             "eurusd.us_rates_pressure.supportive",
             "eurusd.usd_environment.supportive"
           ],
-          "decision_id": "daily-eurusd-decision:ad20e2f8d5af8b484231c7fb",
+          "decision_id": "daily-eurusd-decision:2e7354d6873ed571054f7b25",
           "forecast_id": null,
           "verification_id": null,
-          "payload_hash": "ad20e2f8d5af8b484231c7fb427d9997091a85c5635e741c204caf758f11c374",
+          "payload_hash": "2e7354d6873ed571054f7b256c442b8a73e9178f837de7d923172769cd613b4e",
           "authority": "decision",
           "prospective": true,
           "domain_provenance": {
@@ -1961,48 +1865,17 @@
         "allowed": false,
         "status": "BLOCKED",
         "reasons": [
-          "bollinger_h1_h1_trend_not_confirmed",
-          "mtf_wait_transition",
           "central_bank_event_risk_entry_guard"
         ],
         "final_direction_preserved": "LONG",
         "direction_mutation_allowed": false,
         "bollinger_h1": {
-          "available": true,
+          "available": false,
           "allowed": false,
-          "reason": "h1_trend_not_confirmed",
-          "role": "PRIMARY_TECHNICAL_ADMISSION",
-          "direction_mutation_allowed": false,
-          "weight": "HIGH_VETO_NEW_ENTRY",
-          "period": 30,
-          "deviations": 2.5,
-          "last_closed_h1": "2026-10-30T21:00:00+00:00",
+          "reason": "stale_h1_bollinger",
           "closed_h1": 1415,
-          "age_minutes": 78.8,
-          "close": 1.1161960363388062,
-          "middle": 1.1180118322372437,
-          "upper": 1.1219358128532997,
-          "lower": 1.1140878516211876,
-          "percent_b": 0.26862832973643175,
-          "middle_slope": -8.308887481600635e-06,
-          "aligned": false,
-          "exhaustion": false,
-          "regime": "TRANSITION",
-          "range_regime": false,
-          "range_structure": false,
-          "range_edge_entry": {
-            "allowed": false,
-            "reason": "h1_not_flat_range"
-          },
-          "near_middle": false,
-          "flat_middle": true,
-          "marginal_crossing": false,
-          "middle_crossings_6h": 0,
-          "middle_gap_pips": -18.158,
-          "middle_slope_pips_per_h": -0.083,
-          "middle_slope_3h_pips": 2.322,
-          "width_pips": 78.48,
-          "strong_trend_confirmed": false
+          "last_closed_h1": "2026-10-30T21:00:00+00:00",
+          "age_minutes": 146.99
         },
         "belief_flip_confirmation": {
           "allowed": true,
@@ -2018,43 +1891,23 @@
         },
         "multi_timeframe": {
           "version": "MTF_H1_REGIME_V1",
-          "available": true,
-          "h1_regime": "TRANSITION",
-          "strategy": "WAIT_TRANSITION",
+          "available": false,
+          "h1_regime": "UNVERIFIED",
+          "strategy": "NO_NEW_ADMISSION",
           "direction_authority": false,
           "w1": {
-            "available": true,
-            "trend": "DOWN",
-            "last_closed_w1": "2026-10-26T00:00:00+00:00",
-            "sma4_change_pips": -39.133,
-            "veto_authority": false
+            "available": false,
+            "trend": "UNVERIFIED"
           },
           "h1_volatility": {
-            "available": true,
-            "mean_high_low_pips": 13.281,
-            "median_high_low_pips": 11.87,
-            "p75_high_low_pips": 18.698,
-            "atr_true_range_pips": 13.646,
-            "sample_closed_hours": 24,
-            "last_completed_h1": "2026-10-30T21:00:00+00:00",
-            "last_h1_high": 1.1173185110092163,
-            "last_h1_low": 1.1161960363388062,
-            "executable_spread_proven": false
+            "available": false
           },
           "d1": {
-            "trend": "DOWN",
-            "strong": true,
-            "middle_slope_pips_per_day": -10.471,
-            "last_completed_d1": "2026-10-29T00:00:00+00:00"
+            "trend": "UNVERIFIED",
+            "strong": false
           },
-          "direction": "LONG",
-          "block_new_entry": true,
-          "position_management": "STANDARD_R_PACE",
-          "roles": {
-            "H1": "PRIMARY",
-            "D1": "SECONDARY",
-            "W1": "OVERVIEW_ONLY"
-          }
+          "reason": "missing_or_stale_closed_h1",
+          "completed_h1": 1415
         },
         "h1_volatility_geometry": {
           "applied": false,
@@ -2099,7 +1952,7 @@
           "post_release_evidence_pending": false,
           "central_bank_event_risk": {
             "event_id": "cb-release:c327a2d24023c0ee6f4bb75322f74f2c",
-            "evaluated_at": "2026-10-30T22:18:48.050724Z",
+            "evaluated_at": "2026-10-30T23:26:59.231175Z",
             "scope": "EURUSD_DAILY",
             "position_id": null,
             "action": "BLOCK_NEW_ENTRY",
@@ -2117,8 +1970,11 @@
               "cb:1028108059029c4a9ece9ce340354d4b",
               "cb:13afc9c74506a04cf303c528cee2e79a",
               "cb:14f7f0ea2992c1a2474c2f979e6ae1d8",
+              "cb:1efed8f0b7e87ed4d8e13afe8a6e02c7",
+              "cb:233c4d48649ac7ae1036dd9d73140f28",
               "cb:26b34243d9a4a54ca243de2a45ddcf06",
               "cb:2fee17f5897b77de815cb9b9c74c77c0",
+              "cb:385910b538ae9532509d736cf2eeedd9",
               "cb:427d57800daf2935eb5fc7646f0cb7ef",
               "cb:42907e5d9d1eeb12ce622628184ccbd6",
               "cb:47c929c0938684546712dd8f8d862133",
@@ -2168,7 +2024,7 @@
               "current_event_id": "cb-release:c327a2d24023c0ee6f4bb75322f74f2c",
               "bank": "ECB",
               "phase": "RELEASED",
-              "minutes_until": -1983.8008454,
+              "minutes_until": -2051.98718625,
               "conference_status": "UNKNOWN",
               "active_event_ids": [
                 "cb-release:c327a2d24023c0ee6f4bb75322f74f2c",
@@ -2178,10 +2034,10 @@
               "latest_headline": "Philip R. Lane: AI adoption in Europe",
               "latest_official_document": "https://www.ecb.europa.eu//press/pr/date/2026/html/ecb.mp261029~9a493adf17.en.html",
               "speaker_verified": false,
-              "source_age_seconds": 10914.050724,
+              "source_age_seconds": 1465.231175,
               "wire_health": "STALE",
               "producer_wire_health": "FRESH",
-              "latest_decision_headline_age_seconds": 22128.050724,
+              "latest_decision_headline_age_seconds": 26219.231175,
               "position_profit_pips": null,
               "current_net_R": null,
               "profit_at_risk_pips": null,
@@ -2243,22 +2099,22 @@
             "audit": {
               "policy_version": "1.0.0",
               "policy_hash": "f3536a02e7152c611dcdbc00cf5a78122a678a62d71d2af39c5583a03e7b64e1",
-              "data_as_of": "2026-10-30T19:16:54Z",
+              "data_as_of": "2026-10-30T23:02:34Z",
               "first_seen_at": "2026-10-30T19:16:52Z",
-              "producer_sha": "af34fd308ae9964caf57f386e6e3b8a7a5dcc4dc",
-              "consumer_sha": "0c5e0a5508762335a2cd05109c35a1cbf75f66ca",
-              "snapshot_sha256": "cbd5b409af5a86af57b920c5f0ca4ecbf7f3e813344502c4d5a6875a287a5be6",
+              "producer_sha": "c42cd1312e9f660092b60ec4b89337bbe5bca049",
+              "consumer_sha": "69e19b6937e15f7d2a5515c4549bf216a9c9d01c",
+              "snapshot_sha256": "7e17c5d3095617c4b181a8c7ee4e9f7ca031453047a65edefb996873ba1d1107",
               "executed_at": null,
               "execution_price_source": null,
               "execution_authorized": false,
               "latency_breakdown": {
                 "source_to_seen_seconds": 11212.0,
-                "snapshot_to_consumer_seconds": 10914.050724,
+                "snapshot_to_consumer_seconds": 1465.231175,
                 "decision_to_execution_seconds": null
               },
               "risk_model_sample_sha256": null,
               "consumer_code_sha256": "cee3814b4cf02eff167412d3f01cdde87cff0b77e3e0e82cf9ca0e5b42f56cb5",
-              "immutable_id": "d687774a4d52c243b6764dcd7c1c512f7b748065ec6cbdce50472862c8710e34"
+              "immutable_id": "5391404ac58e895ff415cc9a49bdc1358ae7f1fb363187ad7dadb2eac0afcc3f"
             },
             "decision_mode": "SHADOW",
             "decision": "BLOCK_NEW_ENTRY",
@@ -2270,9 +2126,9 @@
               "NO_EXECUTABLE_QUOTE",
               "EXECUTION_COSTS_UNKNOWN"
             ],
-            "immutable_id": "d687774a4d52c243b6764dcd7c1c512f7b748065ec6cbdce50472862c8710e34",
-            "wire_snapshot_sha256": "cbd5b409af5a86af57b920c5f0ca4ecbf7f3e813344502c4d5a6875a287a5be6",
-            "decision_id": "d687774a4d52c243b6764dcd7c1c512f7b748065ec6cbdce50472862c8710e34",
+            "immutable_id": "5391404ac58e895ff415cc9a49bdc1358ae7f1fb363187ad7dadb2eac0afcc3f",
+            "wire_snapshot_sha256": "7e17c5d3095617c4b181a8c7ee4e9f7ca031453047a65edefb996873ba1d1107",
+            "decision_id": "5391404ac58e895ff415cc9a49bdc1358ae7f1fb363187ad7dadb2eac0afcc3f",
             "engine": "EURUSD_DAILY",
             "lifecycle": "v1.9.1",
             "direction_authority": false,
@@ -2285,7 +2141,7 @@
           "calendar_coverage": {
             "complete": false,
             "observed_at": "2026-10-30T20:39:23.723857Z",
-            "age_minutes": 99.405,
+            "age_minutes": 167.592,
             "source_status": {
               "BEA": {
                 "error_type": null,
@@ -2689,9 +2545,9 @@
         "risk_floor_percent": 0.0027,
         "reward_risk": 1.8,
         "multi_timeframe_version": "MTF_H1_REGIME_V1",
-        "strategy_at_decision": "WAIT_TRANSITION",
-        "hourly_mean_high_low_pips": 13.281,
-        "hourly_median_high_low_pips": 11.87,
+        "strategy_at_decision": "NO_NEW_ADMISSION",
+        "hourly_mean_high_low_pips": null,
+        "hourly_median_high_low_pips": null,
         "volatility_stop_target_applied": false,
         "soft_horizon_hours": 24.0,
         "hard_horizon_hours": 27.0,
@@ -2706,8 +2562,8 @@
       },
       "prospective": true,
       "historical_backfill": false,
-      "decision_id": "eurusd-production-decision:0ee6035167d1aaa364046d07",
-      "manifest_sha256": "93592f46a0fc514139638a88cd5025188e30126aa87de3030ad8d5a71869f18d"
+      "decision_id": "eurusd-production-decision:f834985a990aeec3e1608717",
+      "manifest_sha256": "a0cd3d6d85518131007e6bb8782a0415486bd293183f498693d6b4ae50b1561d"
     },
     "production_policy_loop": {
       "schema_version": "eurusd-production-policy-runtime-v1",
