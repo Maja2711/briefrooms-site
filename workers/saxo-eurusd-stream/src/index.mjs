@@ -131,7 +131,7 @@ export default {
       const values = url.searchParams;
       const horizon = values.get("horizon"), count = values.get("count");
       const time = values.get("time");
-      if (![ "1","30" ].includes(horizon) ||
+      if (![ "1","30","1440" ].includes(horizon) ||
           !/^[1-9][0-9]{0,3}$/.test(count || "") ||
           Number(count) > 1200 ||
           [...values.keys()].some(k=>!["horizon","count","time"].includes(k)) ||
@@ -218,7 +218,7 @@ export class EurusdSaxoStream {
     // independent Saxo application, or public-data publication path.
     const horizon=Number(url.searchParams.get("horizon"));
     const count=Number(url.searchParams.get("count"));
-    if (![1,30].includes(horizon) || !Number.isInteger(count) ||
+    if (![1,30,1440].includes(horizon) || !Number.isInteger(count) ||
         count < 1 || count > 1200) return fail(404);
     const time=url.searchParams.get("time");
     const endpoint=new URL(GATEWAY + "/chart/v3/charts");
