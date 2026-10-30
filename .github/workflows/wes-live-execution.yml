@@ -53,6 +53,8 @@ jobs:
           set -euo pipefail
           bash -n scripts/sync_trading_push_commit.sh
           python -m unittest tests.test_trading_push_handoff -v
+          python -m unittest discover -s tests -p test_wes_risk_observatory.py -v
+          python -m py_compile scripts/wes_risk_observatory.py
 
   execute:
     if: github.event_name != 'push'
