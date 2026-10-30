@@ -1,5 +1,8 @@
-name: Saxo EURUSD Chart 1m 30m Read-Only Probe
+name: Saxo EURUSD Chart 1m 30m D1 Read-Only Probe
 on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/saxo-eurusd-chart-readonly-probe.yml"]
   workflow_dispatch:
   workflow_run:
     workflows: ["Saxo EURUSD Native WebSocket Streaming - Private"]
@@ -11,6 +14,7 @@ jobs:
     if: >-
       github.ref == 'refs/heads/main' &&
       (github.event_name == 'workflow_dispatch' ||
+       github.event_name == 'push' ||
        (github.event.workflow_run.head_branch == 'main' &&
         github.event.workflow_run.conclusion == 'success'))
     runs-on: ubuntu-latest
@@ -32,7 +36,7 @@ jobs:
               raise SystemExit(2)
           header="Basic "+base64.b64encode(("admin:"+password).encode()).decode("ascii")
           failed=False
-          for horizon in (1,30):
+          for horizon in (1,30,1440):
               req=urllib.request.Request(root+f"/saxo/chart?horizon={horizon}&count=120",
                   headers={"Authorization":header,"Accept":"application/json",
                            "Cache-Control":"no-store","User-Agent":"BriefRoomsPrivateChartProbe/1"})
