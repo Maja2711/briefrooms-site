@@ -18,6 +18,10 @@ class ObserverTests(unittest.TestCase):
         quote={"prices":{"eurusd":{"price":1.115,"timestamp":NOW.isoformat(),"source":"test"}}}
         one=evaluate(make_week(),quote,{},NOW)
         self.assertEqual(one["instruments"]["eurusd"]["peak_favorable_R"],0.5)
+        proposal=one["instruments"]["eurusd"]["profit_protection_shadow"]
+        self.assertEqual(proposal["mode"],"PROPOSAL_ONLY")
+        self.assertAlmostEqual(proposal["suggested_stop_price"],1.1175)
+        self.assertFalse(proposal["broker_executable_quote_verified"])
         quote["prices"]["eurusd"]["price"]=1.118
         two=evaluate(make_week(),quote,one,NOW+timedelta(seconds=30))
         self.assertIn("PROFIT_GIVEBACK_REVIEW_REQUIRED",two["instruments"]["eurusd"]["warnings"])
