@@ -1,0 +1,33 @@
+name: Saxo EURUSD Chart D1 One-Time Durable Object Cutover
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/saxo-eurusd-chart-d1-code-activate-once.yml"
+permissions:
+  contents: read
+jobs:
+  cutover:
+    if: github.ref == 'refs/heads/main' && github.repository == 'Maja2711/briefrooms-site'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@v4
+        with: {node-version: "22"}
+      - name: Activate already-deployed UIC21 Chart D1 code on isolated Durable Object
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN"
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          npx --yes wrangler@4 versions deploy e96cb6e5-5b30-442f-83cb-9ff26f83434a@100% \
+            --name briefrooms-saxo-eurusd-stream \
+            --config workers/saxo-eurusd-stream/wrangler.toml \
+            --durable-objects-code-update-mode immediate \
+            --yes
+          echo "SAXO_CHART_D1_CODE=ACTIVATED"
