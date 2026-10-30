@@ -135,6 +135,8 @@ def main():
     OUTPUT.write_text(json.dumps(result, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(json.dumps({"week": result["week_id"], "mode": result["mode"],
                       "alerts": result["alerts"]}, ensure_ascii=False))
+    for alert in result["alerts"]:
+        print(f"::warning title=WES {alert['instrument_id']}::{alert['code']}")
 
 
 if __name__ == "__main__":
