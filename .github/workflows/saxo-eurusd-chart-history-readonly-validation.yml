@@ -34,6 +34,29 @@ jobs:
           from saxo_private_chart import SaxoPrivateChartClient
           client=SaxoPrivateChartClient()
           failed=False
+          # Private diagnostics classify *only the magnitude* of a page
+          # boundary revision. No market prices/timestamps or raw payloads.
+          try:
+              first_version,first,_=client._page(30,1200,None)
+              first_oldest=first[0]
+              second_version,second,_=client._page(30,1200,first_oldest["Time"])
+              overlap=[x for x in second if x.get("Time")==first_oldest.get("Time")]
+              fields=("OpenBid","OpenAsk","HighBid","HighAsk",
+                      "LowBid","LowAsk","CloseBid","CloseAsk")
+              if len(overlap)!=1:
+                  kind="BOUNDARY_MISSING_OR_DUPLICATE"
+              else:
+                  d=max(abs(float(overlap[0][field])-float(first_oldest[field]))
+                        for field in fields)
+                  kind=("EXACT" if d==0 else
+                        "ROUNDING_LT_1E6" if d<0.000001 else
+                        "SMALL_LT_1E5" if d<0.00001 else
+                        "MEDIUM_LT_1E4" if d<0.0001 else "MATERIAL_GTE_1E4")
+              print("SAXO_CHART_60D_BOUNDARY="+kind)
+              print("SAXO_CHART_60D_VERSION="+
+                    ("SAME" if first_version==second_version else "CHANGED"))
+          except Exception:
+              print("SAXO_CHART_60D_BOUNDARY=UNAVAILABLE")
           for range_,interval in (
               ("5d","1m"),("10d","30m"),("60d","30m"),
               ("6mo","1d"),("2y","1d")
