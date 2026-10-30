@@ -13,6 +13,7 @@ on:
       - "scripts/audit_intraday_risk_exits.py"
       - "scripts/wes_risk_observatory.py"
       - "tests/test_wes_risk_observatory.py"
+      - "tests/test_wes_limit_contract_hardening.py"
       - "scripts/wes_notification_outbox.py"
       - "scripts/wes_decision_ledger.py"
       - "scripts/wes_v5_history_seal.py"
@@ -54,6 +55,7 @@ jobs:
           bash -n scripts/sync_trading_push_commit.sh
           python -m unittest tests.test_trading_push_handoff -v
           python -m unittest discover -s tests -p test_wes_risk_observatory.py -v
+          python -m unittest discover -s tests -p test_wes_limit_contract_hardening.py -v
           python -m py_compile scripts/wes_risk_observatory.py
 
   execute:
@@ -93,6 +95,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m unittest discover -s tests -p test_wes_risk_observatory.py -v
+          python -m unittest discover -s tests -p test_wes_limit_contract_hardening.py -v
           python scripts/wes_risk_observatory.py
       - name: Enforce native provenance before WES persistence
         run: |
