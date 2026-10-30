@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import copy
 import json
+import math
 import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -51,6 +52,77 @@ _cycle_context: dict[str, Any] | None = None
 
 def _policy_state(when: datetime) -> Mapping[str, Any]:
     return (_cycle_context or {}).get("policy_state") or production_policy.default_state(when)
+
+
+def _recent_loss_admission(history: Mapping[str, Any] | None, observed_at: datetime,
+                           *, score: float, confidence: float) -> dict[str, Any]:
+    """Bounded, causal response to realized EURUSD Daily losses (entry-only).
+
+    This is an operational safety adaptation, not proof that any new strategy
+    has positive expectancy. It never moves exits, creates directions or
+    mutates immutable trade history. An old streak expires after seven days.
+    """
+    closed: list[tuple[datetime, str, float, str]] = []
+    for trade in (history or {}).get("trades") or []:
+        if not isinstance(trade, Mapping):
+            continue
+        instrument = str(trade.get("instrument") or "EUR/USD").upper().replace("_", "/")
+        if instrument not in {"EUR/USD", "EURUSD", "EURUSD=X"}:
+            continue
+        stamp = belief_decision._parse_time(trade.get("closed_at"))
+        if stamp is None or stamp > observed_at:
+            continue  # never consume a future or unclosed outcome
+        try:
+            multiple = float(trade["r_multiple"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if not math.isfinite(multiple):
+            continue
+        closed.append((stamp, str(trade.get("trade_id") or ""), multiple,
+                       str(trade.get("exit_reason") or "")))
+    closed.sort(key=lambda row: (row[0], row[1]))
+    consecutive = 0
+    for row in reversed(closed):
+        if row[2] >= 0:
+            break
+        consecutive += 1
+    latest = closed[-1] if closed else None
+    if latest is not None and observed_at - latest[0] > timedelta(days=7):
+        consecutive = 0
+    cooldown_minutes = (1440 if consecutive >= 5 else 180 if consecutive >= 3
+                        else 30 if consecutive >= 2 else 0)
+    confidence_floor = (0.50 if consecutive >= 5 else 0.45 if consecutive >= 3
+                        else 0.40 if consecutive >= 2 else 0.0)
+    margin_floor = (6.0 if consecutive >= 5 else 4.5 if consecutive >= 3
+                    else 4.0 if consecutive >= 2 else 0.0)
+    remaining_minutes = (max(0.0, cooldown_minutes -
+                         (observed_at - latest[0]).total_seconds() / 60.0)
+                         if latest is not None else 0.0)
+    margin = abs(float(score) - 50.0)
+    blockers = []
+    if remaining_minutes > 0:
+        blockers.append("recent_loss_cooldown")
+    if float(confidence) < confidence_floor:
+        blockers.append("post_loss_confidence_insufficient")
+    if margin < margin_floor:
+        blockers.append("post_loss_directional_margin_insufficient")
+    return {
+        "policy": "EURUSD_DAILY_CAUSAL_LOSS_ADMISSION_V1",
+        "consecutive_realized_losses": consecutive,
+        "latest_closed_trade_id": latest[1] if latest else None,
+        "latest_closed_at": latest[0].isoformat() if latest else None,
+        "recent_exits": [row[3] for row in closed[-5:]],
+        "cooldown_minutes": cooldown_minutes,
+        "remaining_cooldown_minutes": round(remaining_minutes, 2),
+        "minimum_confidence": confidence_floor,
+        "minimum_score_distance_from_neutral": margin_floor,
+        "actual_confidence": round(float(confidence), 4),
+        "actual_score_distance_from_neutral": round(margin, 4),
+        "allowed": not blockers,
+        "reasons": blockers,
+        "direction_mutation_allowed": False,
+        "existing_position_exit_mutation_allowed": False,
+    }
 
 
 def _decision_manifest(candidate: DailyEngineOutput) -> dict[str, Any]:
@@ -153,14 +225,18 @@ def _execution_admission(
         reasons.append("cross_direction_" + str(whipsaw.get("reason") or "whipsaw"))
     # Only evaluated, trustworthy technical evidence can veto entry. Missing
     # evidence is observable but must not rewrite established admission contracts.
-    if bollinger.get("available") is True and bollinger.get("allowed") is False:
+    if bollinger.get("available") is not True:
+        reasons.append("bollinger_h1_unverified")
+    elif bollinger.get("allowed") is False:
         reasons.append("bollinger_h1_" + str(bollinger.get("reason") or "not_aligned"))
 
     mtf = (candidate.metadata or {}).get("multi_timeframe") or {}
     risk_plan = (candidate.metadata or {}).get("h1_volatility_geometry") or {}
     details["multi_timeframe"] = dict(mtf)
     details["h1_volatility_geometry"] = dict(risk_plan)
-    if mtf.get("available") is True and mtf.get("block_new_entry") is True:
+    if mtf.get("available") is not True:
+        reasons.append("mtf_h1_unverified")
+    elif mtf.get("block_new_entry") is True:
         reasons.append("mtf_" + str(mtf.get("strategy") or "not_admitted").lower())
     if risk_plan.get("allowed") is False:
         reasons.append("mtf_volatility_geometry_unfavorable")
@@ -183,6 +259,14 @@ def _execution_admission(
     details["belief_calendar_safety"] = calendar
     if calendar.get("blocked") is True:
         reasons.append(str(calendar.get("reason") or "belief_calendar_safety_block"))
+
+    # Learn from actual settled losses immediately, without auto-changing the
+    # direction model or letting research candidates bypass the admission veto.
+    loss_safety = _recent_loss_admission(history, observed_at,
+        score=float(candidate.score), confidence=float(candidate.confidence))
+    details["realized_loss_admission"] = loss_safety
+    if loss_safety["allowed"] is not True:
+        reasons.extend(loss_safety["reasons"])
 
     # Re-use only the history/thesis-change part of the legacy re-entry guard.
     # v1.8 allowed macro/event side channels to count as "fresh external
@@ -573,6 +657,18 @@ def prepare_entry_candidate(
     prepared = _clone(prepared)
     metadata = dict(prepared.metadata)
     execution = metadata.get("execution_price_engine") or {}
+    # Public paper execution cannot be marked VERIFIED when the very quotes
+    # used for entry and Yahoo exit disagree beyond the established warning.
+    # Private Saxo BID/ASK execution stays isolated in its private runtime.
+    if canonical_allowed and execution.get("private_saxo_primary") is not True:
+        try:
+            feed_gap = float(execution["cross_feed_difference_pips"])
+        except (KeyError, ValueError, TypeError):
+            feed_gap = float("inf")
+        if not math.isfinite(feed_gap) or feed_gap < 0 or feed_gap > 1.5:
+            canonical_allowed = False
+            admission.update(allowed=False, status="BLOCKED",
+                             reasons=[*admission.get("reasons", []), "public_epe_feeds_not_coherent"])
     proof = admission.get("post_loss_technical_guard") or {}
     execution_reason = reentry_safety.check_execution(proof, execution) if canonical_allowed else None
     if execution_reason:
