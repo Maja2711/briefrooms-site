@@ -110,3 +110,21 @@ class DailyEurusdFastLifecycleTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+    def test_private_chart_exit_watcher_uses_saxo_only(self):
+        import os
+        from unittest.mock import patch
+        from scripts import daily_eurusd_fast_lifecycle as watcher
+        with patch.dict(os.environ, {
+            "SAXO_PRIVATE_PRIMARY":"1","SAXO_STREAM_PRIMARY":"1",
+            "SAXO_CHART_PRIMARY":"1","BRIEFROOMS_PRIVATE_RUNTIME":"1",
+            "SAXO_PRIVATE_BASIC_PASSWORD":"test",
+        }):
+            with patch.object(watcher.base,"YahooChartClient",
+                              side_effect=AssertionError("Yahoo must not be called")) as yahoo:
+                with patch("saxo_private_chart.SaxoPrivateChartClient",
+                           side_effect=RuntimeError("saxo_chart_watcher")) as sax:
+                    with self.assertRaisesRegex(RuntimeError,"saxo_chart_watcher"):
+                        watcher.fetch_bars()
+                    sax.assert_called_once()
+                    yahoo.assert_not_called()
