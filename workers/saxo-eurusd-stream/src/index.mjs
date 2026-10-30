@@ -152,7 +152,14 @@ export default {
     if (!await matchSecret(pass, env.SAXO_STREAM_BASIC_PASSWORD)) return fail(403);
     const stub = env.EURUSD_SAXO_STREAM.getByName("eurusd-sim-uic21");
     // Strip caller auth before invoking Durable Object; the edge gate is final.
-    return stub.fetch(new Request("https://private.internal" + url.pathname + chartQuery));
+    const upstream = await stub.fetch(new Request("https://private.internal" + url.pathname + chartQuery));
+    if (!chart) return upstream;
+    // Non-sensitive build marker on authenticated Chart requests only.
+    // If present with a 404, the active Durable Object is still old code;
+    // if absent, the edge Worker version itself is stale.
+    const headers = new Headers(upstream.headers);
+    headers.set("X-BRS-Saxo-Chart-Edge-Revision", "chart_d1_1440_v2");
+    return new Response(upstream.body, {status:upstream.status, headers});
   },
 };
 export class EurusdSaxoStream {

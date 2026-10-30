@@ -60,6 +60,9 @@ jobs:
                           and reason.upper()==reason and len(reason)<48):
                       reason="UNKNOWN"
                   print(f"SAXO_CHART_{horizon}M_REASON="+reason)
+                  edge=error.headers.get("X-BRS-Saxo-Chart-Edge-Revision","UNKNOWN")
+                  print(f"SAXO_CHART_{horizon}M_EDGE="+
+                        ("NEW" if edge=="chart_d1_1440_v2" else "OLD_OR_UNKNOWN"))
                   failed=True
               except Exception:
                   print(f"SAXO_CHART_{horizon}M_STATUS=UNAVAILABLE")
