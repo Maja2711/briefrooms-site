@@ -43,6 +43,16 @@ class PrivateSaxoDataAuthorityTests(unittest.TestCase):
                     with self.assertRaisesRegex(RuntimeError,"legacy staging price invoked"):
                         daily.run_cycle(root/"eurusd_daily_spot.json",root/"eurusd_daily_history.json")
 
+    def test_private_h1_history_uses_verified_completed_10d_30m(self):
+        with patch.dict(os.environ, {
+            "SAXO_PRIVATE_PRIMARY":"1","SAXO_CHART_PRIMARY":"1"
+        }):
+            self.assertEqual(daily._h1_market_history_range(),"10d")
+        with patch.dict(os.environ, {
+            "SAXO_PRIVATE_PRIMARY":"0","SAXO_CHART_PRIMARY":"1"
+        }):
+            self.assertEqual(daily._h1_market_history_range(),"60d")
+
     def test_public_client_path_does_not_change_on_private_chart_flag(self):
         with patch.dict(os.environ,{
             "SAXO_PRIVATE_PRIMARY":"0",
