@@ -29,7 +29,7 @@ class ObserverTests(unittest.TestCase):
         old=evaluate(make_week(),{"prices":{"eurusd":{"price":1.115,"timestamp":NOW.isoformat()}}},{},NOW)
         stale=evaluate(make_week(),{"prices":{"eurusd":{"price":1.10,"timestamp":NOW.isoformat()}}},old,NOW+timedelta(hours=2))
         self.assertEqual(stale["instruments"]["eurusd"]["state"],"PRICE_UNVERIFIED")
-        self.assertNotIn("peak_favorable_R",stale["instruments"]["eurusd"])
+        self.assertEqual(stale["instruments"]["eurusd"]["peak_favorable_R"],0.5)
 
     def test_no_cross_position_peak_reuse(self):
         quote={"prices":{"eurusd":{"price":1.115,"timestamp":NOW.isoformat()}}}
