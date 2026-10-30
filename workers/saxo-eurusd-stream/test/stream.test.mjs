@@ -198,3 +198,28 @@ test("private chart diagnostic exposes only an upstream HTTP error class",async(
     assert.doesNotMatch(await response.text(),/provider secret body/);
   } finally {globalThis.fetch=prior;}
 });
+
+test("daily 1440m chart query is private, allowed, and pinned to EURUSD FX UIC21", async()=>{
+  const worker=(await import("../src/index.mjs")).default;
+  const forwarded=[];
+  const env={
+    SAXO_STREAM_BASIC_PASSWORD:"private-only",
+    EURUSD_SAXO_STREAM:{getByName:()=>({fetch:async(req)=>{
+      forwarded.push(req.url);
+      return new Response(JSON.stringify({ok:true}),{status:200});
+    }})}
+  };
+  const auth="Basic "+btoa("admin:private-only");
+  const allowed=await worker.fetch(new Request(
+    "https://example.test/saxo/chart?horizon=1440&count=740",
+    {headers:{Authorization:auth}}
+  ),env);
+  assert.equal(allowed.status,200);
+  assert.deepEqual(forwarded,["https://private.internal/saxo/chart?horizon=1440&count=740"]);
+  const invalid=await worker.fetch(new Request(
+    "https://example.test/saxo/chart?horizon=1440&count=1201",
+    {headers:{Authorization:auth}}
+  ),env);
+  assert.equal(invalid.status,404);
+  assert.equal(forwarded.length,1);
+});

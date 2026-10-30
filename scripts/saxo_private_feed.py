@@ -224,7 +224,10 @@ def private_saxo_exit_record(
             result[name] = dict(position[name])
     result["monitor"].update({
         "source": "Saxo OpenAPI SIM:EUR/USD (private indicative quote)",
-        "trigger_source": "Yahoo 1m OHLC / macro / exit policy",
+        "trigger_source": ("Saxo SIM private 1m chart / macro / exit policy"
+                           if os.environ.get("SAXO_PRIVATE_PRIMARY") == "1"
+                           and os.environ.get("SAXO_CHART_PRIMARY") == "1"
+                           else "Yahoo 1m OHLC / macro / exit policy"),
         "exit_price_basis": "SAXO_SIM_BID_FOR_LONG_ASK_FOR_SHORT",
         "quote_timestamp": stamp.isoformat().replace("+00:00", "Z"),
         "private_saxo_bid": quote["bid"],

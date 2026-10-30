@@ -22,6 +22,8 @@ on:
       - "scripts/execution_price_engine.py"
       - "scripts/saxo_private_feed.py"
       - "scripts/saxo_private_chart.py"
+      - "scripts/daily_eurusd_fast_lifecycle.py"
+      - "tests/test_daily_eurusd_fast_lifecycle.py"
       - "tests/test_saxo_private_chart.py"
       - "tests/test_daily_eurusd_private_chart_source.py"
       - ".github/workflows/saxo-private-eurusd-daily-d1-cycle.yml"
@@ -35,6 +37,8 @@ on:
       - "scripts/execution_price_engine.py"
       - "scripts/saxo_private_feed.py"
       - "scripts/saxo_private_chart.py"
+      - "scripts/daily_eurusd_fast_lifecycle.py"
+      - "tests/test_daily_eurusd_fast_lifecycle.py"
       - "tests/test_saxo_private_chart.py"
       - "tests/test_daily_eurusd_private_chart_source.py"
       - ".github/workflows/saxo-private-eurusd-daily-d1-cycle.yml"
@@ -62,7 +66,7 @@ jobs:
       - name: Offline validation without Saxo or D1 network access
         run: |
           set -euo pipefail
-          python -m unittest tests.test_saxo_private_github_artifacts tests.test_saxo_private_daily_d1_runner tests.test_saxo_private_daily_runner tests.test_saxo_private_feed tests.test_saxo_private_primary tests.test_saxo_private_execution_exit tests.test_saxo_private_chart tests.test_daily_eurusd_private_chart_source -q
+          python -m unittest tests.test_saxo_private_github_artifacts tests.test_saxo_private_daily_d1_runner tests.test_saxo_private_daily_runner tests.test_saxo_private_feed tests.test_saxo_private_primary tests.test_saxo_private_execution_exit tests.test_saxo_private_chart tests.test_daily_eurusd_private_chart_source tests.test_daily_eurusd_fast_lifecycle -q
           python -m py_compile scripts/saxo_private_daily_runner.py scripts/saxo_private_daily_d1_runner.py scripts/saxo_private_github_artifacts.py scripts/saxo_private_chart.py
 
   private-storage-preflight:

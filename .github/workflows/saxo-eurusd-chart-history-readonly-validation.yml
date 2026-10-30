@@ -34,21 +34,29 @@ jobs:
           from saxo_private_chart import SaxoPrivateChartClient
           client=SaxoPrivateChartClient()
           failed=False
-          for range_,interval in (("5d","1m"),("10d","30m")):
+          for range_,interval in (
+              ("5d","1m"),("10d","30m"),("60d","30m"),
+              ("6mo","1d"),("2y","1d")
+          ):
               try:
                   bars=client.bars("EURUSD=X",range_,interval)
                   # Never print source prices, times, count, symbols or Saxo headers.
-                  ok=len(bars)>=(200 if interval=="1m" else 65)
+                  min_bars={
+                      ("5d","1m"):200,("10d","30m"):65,
+                      ("60d","30m"):350,("6mo","1d"):60,
+                      ("2y","1d"):200,
+                  }[(range_,interval)]
+                  ok=len(bars)>=min_bars
               except Exception as error:
                   ok=False
                   # The adapter uses only predefined non-sensitive codes.
                   from saxo_private_chart import SaxoChartUnavailable
                   reason=str(error) if isinstance(error,SaxoChartUnavailable) else "unknown_failure"
                   if reason.startswith("saxo_chart_") and reason.replace("_","").islower() and len(reason)<70:
-                      print("SAXO_PRIVATE_CHART_"+interval.upper()+"_REASON="+reason)
+                      print("SAXO_PRIVATE_CHART_"+range_.upper()+"_"+interval.upper()+"_REASON="+reason)
                   else:
-                      print("SAXO_PRIVATE_CHART_"+interval.upper()+"_REASON=unknown_failure")
-              print("SAXO_PRIVATE_CHART_FULL_"+interval.upper()+"="+
+                      print("SAXO_PRIVATE_CHART_"+range_.upper()+"_"+interval.upper()+"_REASON=unknown_failure")
+              print("SAXO_PRIVATE_CHART_FULL_"+range_.upper()+"_"+interval.upper()+"="+
                     ("PASS" if ok else "BLOCKED"))
               if not ok: failed=True
           print("SAXO_PRIVATE_CHART_FULL_HISTORY="+

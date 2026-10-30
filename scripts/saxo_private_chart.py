@@ -117,16 +117,23 @@ class SaxoPrivateChartClient:
             raise SaxoChartUnavailable("saxo_chart_private_page_unavailable") from None
 
     def bars(self, symbol: str, range_: str = "10d", interval: str = "30m") -> list[Bar]:
-        if symbol != INSTRUMENT or (range_, interval) not in (
-            ("5d", "1m"), ("10d", "30m")
-        ):
+        # Exactly the horizons requested by canonical Daily TR-03. The
+        # 1440-minute Saxo bar is DAILY, and is never an executable quote.
+        # No other instruments may be requested by this dedicated private adapter.
+        requests = {
+            ("5d", "1m"): (1, 5, 9, 200, timedelta(minutes=3)),
+            ("10d", "30m"): (30, 10, 3, 65, timedelta(minutes=65)),
+            ("60d", "30m"): (30, 60, 5, 350, timedelta(minutes=65)),
+            ("6mo", "1d"): (1440, 190, 3, 60, timedelta(days=5)),
+            ("2y", "1d"): (1440, 735, 3, 200, timedelta(days=5)),
+        }
+        if symbol != INSTRUMENT or (range_, interval) not in requests:
             raise SaxoChartUnavailable("saxo_chart_unsupported_market_request")
-        horizon = 1 if interval == "1m" else 30
+        horizon, lookback_days, page_limit, minimum, max_age = requests[(range_,interval)]
         now = datetime.now(timezone.utc)
-        cutoff = now - timedelta(days=5 if horizon == 1 else 10)
+        cutoff = now - timedelta(days=lookback_days)
         collected: dict[datetime, Bar] = {}
         previous_first = None
-        page_limit = 9 if horizon == 1 else 2
         for _ in range(page_limit):
             _data_version, samples, _count = self._page(horizon, 1200, previous_first)
             # Chart DataVersion can legitimately increment while a live bar
@@ -151,9 +158,8 @@ class SaxoPrivateChartClient:
         else:
             raise SaxoChartUnavailable("saxo_chart_insufficient_pagination")
         out = sorted(collected.values(), key=lambda x: x.timestamp)
-        if len(out) < (200 if horizon == 1 else 65):
+        if len(out) < minimum:
             raise SaxoChartUnavailable("saxo_chart_insufficient_history")
-        max_age = timedelta(minutes=3 if horizon == 1 else 65)
         if now - (out[-1].timestamp + timedelta(minutes=horizon)) > max_age:
             raise SaxoChartUnavailable("saxo_chart_latest_bar_stale")
         return out

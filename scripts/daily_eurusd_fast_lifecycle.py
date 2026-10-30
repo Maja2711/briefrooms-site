@@ -10,6 +10,7 @@ import argparse
 import copy
 import hashlib
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -181,6 +182,12 @@ def close_output(
 
 
 def fetch_bars(client: Any | None = None) -> list[Bar]:
+    # Private D1's exit-only path must use the SAME candle source as its
+    # decision cycle. Never mix Yahoo triggers with Saxo paper execution.
+    if (client is None and os.environ.get("SAXO_PRIVATE_PRIMARY") == "1"
+            and os.environ.get("SAXO_CHART_PRIMARY") == "1"):
+        from saxo_private_chart import SaxoPrivateChartClient
+        client = SaxoPrivateChartClient()
     client = client or base.YahooChartClient(timeout=8)
     bars = list(client.bars(base.EURUSD, "5d", "1m"))
     if not bars:
