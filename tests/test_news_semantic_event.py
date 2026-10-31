@@ -36,7 +36,15 @@ class SharedSemanticEventTests(unittest.TestCase):
             "TVP Sport", "2026-10-31T06:14:00+00:00",
         )
         self.assertTrue(same_specific_event(first, score_omitted))
-        self.assertEqual(len(cluster_events([first, second, score_omitted])[0]), 1)
+        another_publisher = article(
+            "Pajor była tak blisko Złotej Piłki. Ujawnili punktację, już wszystko jasne",
+            "Gala Złotej Piłki przyniosła wielkie emocje. "
+            "Ewa Pajor walczyła o nagrodę z Alexią Putellas, a France Football "
+            "ujawniło, ile punktów zabrakło reprezentantce.",
+            "Interia Sport", "2026-10-30T21:43:47+00:00",
+        )
+        self.assertTrue(same_specific_event(first, another_publisher))
+        self.assertEqual(len(cluster_events([first, second, score_omitted, another_publisher])[0]), 1)
         rows, diag = cluster_events([first, second])
         self.assertEqual(len(rows), 1)
         self.assertEqual(diag["event_duplicates_suppressed"], 1)
