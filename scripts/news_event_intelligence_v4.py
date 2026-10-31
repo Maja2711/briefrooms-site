@@ -17,6 +17,7 @@ try:
     )
     from .news_source_architecture import source_profile, source_authority_bonus
     from .news_source_expansion_v3 import dispatch_similarity, same_dispatch
+    from .dedupe_home_brief_stories import same_reported_statement
 except ImportError:
     from news_claim_intelligence import (
         CLAIM_INTELLIGENCE_VERSION,
@@ -28,6 +29,7 @@ except ImportError:
     )
     from news_source_architecture import source_profile, source_authority_bonus
     from news_source_expansion_v3 import dispatch_similarity, same_dispatch
+    from dedupe_home_brief_stories import same_reported_statement
 
 EVENT_INTELLIGENCE_VERSION = "event-intelligence-v4"
 EVIDENCE_MODEL_VERSION = "evidence-corroboration-v1"
@@ -109,6 +111,8 @@ def _event_similarity(first: Mapping[str, Any], second: Mapping[str, Any]) -> fl
 
 def same_event(first: Mapping[str, Any], second: Mapping[str, Any]) -> bool:
     """Broader than dispatch dedupe: cluster independent coverage of one event."""
+    if same_reported_statement(dict(first), dict(second)):
+        return True
     similarity = _event_similarity(first, second)
     roots_differ = evidence_root(first) != evidence_root(second)
     if roots_differ:
