@@ -15,10 +15,12 @@ try:
     from .news_section_limits import NEWS_SECTION_MINIMUM, NEWS_SECTION_MAXIMUM
     from . import enforce_homepage_max_age as freshness
     from .dedupe_home_brief_stories import same_reported_statement
+    from .news_semantic_event import duplicate_pairs
 except ImportError:
     from news_section_limits import NEWS_SECTION_MINIMUM, NEWS_SECTION_MAXIMUM
     import enforce_homepage_max_age as freshness
     from dedupe_home_brief_stories import same_reported_statement
+    from news_semantic_event import duplicate_pairs
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = ROOT / "data" / "system" / "news_live_health.json"
@@ -196,6 +198,33 @@ def validate_local(root: Path, now: datetime, max_age_minutes: int) -> dict[str,
                     if isinstance(earlier, dict)
                 ):
                     lang_reasons.append(f"duplicate_public_statement:{scope}")
+
+        # Independent, global uniqueness audit. It checks all displayed desks,
+        # not just each section or matching canonical event IDs. Home and
+        # reserve are checked together; their intentional copies of section
+        # articles are not counted as duplicate publications.
+        sections_flat = [
+            {**story, "_news_section": section_id}
+            for section_id, rows in sections.items()
+            if isinstance(rows, list)
+            for story in rows if isinstance(story, dict)
+        ]
+        for previous_index, current_index, signature in duplicate_pairs(sections_flat):
+            previous = sections_flat[previous_index]
+            current = sections_flat[current_index]
+            lang_reasons.append(
+                "duplicate_semantic_event:"
+                + str(previous["_news_section"]) + ":"
+                + str(current["_news_section"]) + ":" + signature
+            )
+        homepage_candidates = [
+            story
+            for scope in ("home", "home_reserve")
+            for story in (feed.get(scope) or [])
+            if isinstance(story, dict)
+        ]
+        if duplicate_pairs(homepage_candidates):
+            lang_reasons.append("duplicate_semantic_event:homepage_or_reserve")
 
         feed_health = feed.get("health") if isinstance(feed.get("health"), dict) else {}
         if feed_health.get("status") == "degraded":
