@@ -30,6 +30,13 @@ class SharedSemanticEventTests(unittest.TestCase):
         )
         self.assertTrue(same_specific_event(first, second))
         self.assertTrue(same_topic(first, second))
+        score_omitted = article(
+            "Znamy dokładne wyniki Złotej Piłki. Niewielka różnica między Ewą Pajor a Alexią Putellas",
+            "Znamy dokładne wyniki Złotej Piłki. Niewielka różnica między Ewą Pajor a Alexią Putellas",
+            "TVP Sport", "2026-10-31T06:14:00+00:00",
+        )
+        self.assertTrue(same_specific_event(first, score_omitted))
+        self.assertEqual(len(cluster_events([first, second, score_omitted])[0]), 1)
         rows, diag = cluster_events([first, second])
         self.assertEqual(len(rows), 1)
         self.assertEqual(diag["event_duplicates_suppressed"], 1)
