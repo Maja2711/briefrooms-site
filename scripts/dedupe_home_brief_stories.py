@@ -193,6 +193,42 @@ def _published_epoch(item: dict) -> float | None:
     return parsed.astimezone(timezone.utc).timestamp()
 
 
+# A statement may be paraphrased so differently by independent publishers that
+# headline token overlap is almost zero. Detect a *specific speaker + issue +
+# statement* frame, never just the broad topic (e.g. all Constitutional Court
+# stories), and limit the match to a shared publication window.
+_US_AMBASSADOR_RE = re.compile(r"\\bambasador\\w*\\s+usa\\b|\\bambasador\\w*\\s+stanow\\s+zjednoczon\\w*", re.I)
+_ROSE_RE = re.compile(r"\\b(?:tom|thomas)\\s+rose\\b", re.I)
+_CONSTITUTIONAL_COURT_RE = re.compile(
+    r"\\btk\\b|\\btrybunal\\w*\\s+konstytucyjn\\w*", re.I
+)
+_REPORTED_STATEMENT_RE = re.compile(
+    r"\\b(?:oswiadcz\\w*|ocenil|reaguj\\w*|koment\\w*|odniosl|"
+    r"napisal|apel\\w*|przestrzeg\\w*|ostrzeg\\w*|konfrontacj\\w*)\\b", re.I
+)
+
+
+def _statement_frame(item: dict) -> str:
+    text = clean(f"{item.get('title') or ''} {item.get('summary') or ''}")
+    if (
+        _US_AMBASSADOR_RE.search(text)
+        and _ROSE_RE.search(text)
+        and _CONSTITUTIONAL_COURT_RE.search(text)
+        and _REPORTED_STATEMENT_RE.search(text)
+    ):
+        return "pl:us-ambassador-thomas-rose:constitutional-court:public-statement"
+    return ""
+
+
+def same_reported_statement(a: dict, b: dict) -> bool:
+    """High-precision cross-publisher statement match; never merge by TK alone."""
+    frame_a = _statement_frame(a)
+    if not frame_a or frame_a != _statement_frame(b):
+        return False
+    ta, tb = _published_epoch(a), _published_epoch(b)
+    return ta is not None and tb is not None and abs(ta - tb) <= 18 * 3600
+
+
 def same_topic(a: dict, b: dict) -> bool:
     """Homepage-level guard: one reader-visible topic/event gets one card."""
     link_a = str(a.get("link") or "").strip()
@@ -203,6 +239,9 @@ def same_topic(a: dict, b: dict) -> bool:
     event_a = str(a.get("canonical_event_id") or "")
     event_b = str(b.get("canonical_event_id") or "")
     if event_a and event_b and event_a == event_b:
+        return True
+
+    if same_reported_statement(a, b):
         return True
 
     # Same Nobel prize announcement can have radically different headlines:
