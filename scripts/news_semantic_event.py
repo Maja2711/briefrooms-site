@@ -55,6 +55,10 @@ def _ballot_subject(row: Mapping[str, Any]) -> str:
     )
     for match in proper_name.finditer(full_text):
         surname = _plain(match.group(1))
+        phrase = _plain(match.group(0))
+        # The title of an award (e.g. Złota Piłka) is not the athlete.
+        if _has(phrase, r"^zlot\\w* pilk\\w*$|^ballon d.or$"):
+            continue
         if surname in headline:
             return surname
     return ""
