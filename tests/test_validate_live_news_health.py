@@ -166,6 +166,34 @@ class LiveNewsHealthTests(unittest.TestCase):
         self.assertEqual("failed", report["status"])
         self.assertIn("pl:source_story_over_24h:polityka", report["reasons"])
 
+    def test_independent_watchdog_detects_statement_duplication_with_different_event_ids(self) -> None:
+        from tests.test_public_statement_dedupe import reports
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_fixture(root)
+            feed_path = root / health.LANGUAGES["pl"]["feed"]
+            payload = json.loads(feed_path.read_text(encoding="utf-8"))
+            statement_rows = reports()[:2]
+            for index, row in enumerate(statement_rows):
+                row["canonical_event_id"] = f"evt_distinct_{index}"
+                row["news_first_seen_at"] = NOW.isoformat()
+                row["news_expires_at"] = (
+                    NOW + timedelta(hours=24)
+                ).isoformat()
+            # Independently verify semantics, not the equal-ID check.
+            payload["sections"]["polityka"][:2] = statement_rows
+            payload["home"] = list(statement_rows)
+            feed_path.write_text(json.dumps(payload), encoding="utf-8")
+            report = health.assess(root, now=NOW, max_age_minutes=120)
+
+        self.assertIn(
+            "pl:duplicate_public_statement:polityka", report["reasons"]
+        )
+        self.assertIn(
+            "pl:duplicate_public_statement:homepage", report["reasons"]
+        )
+
     def test_stale_publication_fails_at_two_hours(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
