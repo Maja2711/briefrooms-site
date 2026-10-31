@@ -57,7 +57,7 @@ def _ballot_subject(row: Mapping[str, Any]) -> str:
         surname = _plain(match.group(1))
         phrase = _plain(match.group(0))
         # The title of an award (e.g. Złota Piłka) is not the athlete.
-        if _has(phrase, r"^zlot\\w* pilk\\w*$|^ballon d.or$"):
+        if _has(phrase, r"^zlot\w* pilk\w*$|^ballon d.or$"):
             continue
         if surname in headline:
             return surname
