@@ -17,6 +17,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
+try:
+    from .news_semantic_event import same_specific_event
+except ImportError:
+    from news_semantic_event import same_specific_event
+
 FILES = [Path("pl/home_brief.json"), Path("en/home_brief.json")]
 
 STOPWORDS = set("""
@@ -241,7 +246,7 @@ def same_topic(a: dict, b: dict) -> bool:
     if event_a and event_b and event_a == event_b:
         return True
 
-    if same_reported_statement(a, b):
+    if same_reported_statement(a, b) or same_specific_event(a, b):
         return True
 
     # Same Nobel prize announcement can have radically different headlines:
