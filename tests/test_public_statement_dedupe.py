@@ -75,6 +75,7 @@ class StatementDedupeRegressionTests(unittest.TestCase):
         president = deepcopy(ambassador)
         president.update(
             source="Polsat News",
+            link="https://www.polsatnews.pl/wiadomosc/prezydent-spotkanie-tk/",
             title="Prezydent Karol Nawrocki spotka się z sędziami Trybunału Konstytucyjnego",
             summary="Prezydent Nawrocki ogłosił spotkanie w budynku TK.",
         )
