@@ -225,8 +225,9 @@ class LiveNewsHealthTests(unittest.TestCase):
             report = health.assess(root, now=NOW, max_age_minutes=120)
 
         self.assertTrue(any(
-            "en:duplicate_semantic_event:world-news:europe:arms-sale:"
-            in reason for reason in report["reasons"]
+            reason.startswith("en:duplicate_semantic_event:")
+            and ":arms-sale:ukraine:patriot:500" in reason
+            for reason in report["reasons"]
         ))
 
     def test_stale_publication_fails_at_two_hours(self) -> None:
