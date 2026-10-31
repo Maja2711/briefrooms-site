@@ -14,9 +14,11 @@ from urllib.request import Request, urlopen
 try:
     from .news_section_limits import NEWS_SECTION_MINIMUM, NEWS_SECTION_MAXIMUM
     from . import enforce_homepage_max_age as freshness
+    from .dedupe_home_brief_stories import same_reported_statement
 except ImportError:
     from news_section_limits import NEWS_SECTION_MINIMUM, NEWS_SECTION_MAXIMUM
     import enforce_homepage_max_age as freshness
+    from dedupe_home_brief_stories import same_reported_statement
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = ROOT / "data" / "system" / "news_live_health.json"
@@ -174,6 +176,26 @@ def validate_local(root: Path, now: datetime, max_age_minutes: int) -> dict[str,
                 if expires != expected_expiry or expires > first_seen + MAX_PUBLIC_DISPLAY_AGE:
                     lang_reasons.append(f"invalid_24h_expiry:{section_id}")
                     break
+
+        # Independent newsroom audit: canonical-event IDs alone are not proof
+        # that differently worded publishers cover different events. Detect a
+        # repeated source-backed public statement even when both clustering and
+        # homepage ranking accidentally assigned different identifiers.
+        if lang == "pl":
+            for scope, stories in (
+                ("polityka", sections.get("polityka") or []),
+                ("homepage", feed.get("home") or []),
+            ):
+                if not isinstance(stories, list):
+                    continue
+                if any(
+                    same_reported_statement(current, earlier)
+                    for index, current in enumerate(stories)
+                    if isinstance(current, dict)
+                    for earlier in stories[:index]
+                    if isinstance(earlier, dict)
+                ):
+                    lang_reasons.append(f"duplicate_public_statement:{scope}")
 
         feed_health = feed.get("health") if isinstance(feed.get("health"), dict) else {}
         if feed_health.get("status") == "degraded":
