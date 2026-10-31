@@ -197,14 +197,14 @@ def _published_epoch(item: dict) -> float | None:
 # headline token overlap is almost zero. Detect a *specific speaker + issue +
 # statement* frame, never just the broad topic (e.g. all Constitutional Court
 # stories), and limit the match to a shared publication window.
-_US_AMBASSADOR_RE = re.compile(r"\\bambasador\\w*\\s+usa\\b|\\bambasador\\w*\\s+stanow\\s+zjednoczon\\w*", re.I)
-_ROSE_RE = re.compile(r"\\b(?:tom|thomas)\\s+rose\\b", re.I)
+_US_AMBASSADOR_RE = re.compile(r"\bambasador\w*\s+usa\b|\bambasador\w*\s+stanow\s+zjednoczon\w*", re.I)
+_ROSE_RE = re.compile(r"\b(?:tom|thomas)\s+rose\b", re.I)
 _CONSTITUTIONAL_COURT_RE = re.compile(
-    r"\\btk\\b|\\btrybunal\\w*\\s+konstytucyjn\\w*", re.I
+    r"\btk\b|\btrybunal\w*\s+konstytucyjn\w*", re.I
 )
 _REPORTED_STATEMENT_RE = re.compile(
-    r"\\b(?:oswiadcz\\w*|ocenil|reaguj\\w*|koment\\w*|odniosl|"
-    r"napisal|apel\\w*|przestrzeg\\w*|ostrzeg\\w*|konfrontacj\\w*)\\b", re.I
+    r"\b(?:oswiadcz\w*|ocenil|reaguj\w*|koment\w*|odniosl|"
+    r"napisal|apel\w*|przestrzeg\w*|ostrzeg\w*|konfrontacj\w*)\b", re.I
 )
 
 
