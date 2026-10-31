@@ -177,9 +177,10 @@ class LiveNewsHealthTests(unittest.TestCase):
             statement_rows = reports()[:2]
             for index, row in enumerate(statement_rows):
                 row["canonical_event_id"] = f"evt_distinct_{index}"
+                row["published_at"] = (NOW - timedelta(minutes=index + 1)).isoformat()
                 row["news_first_seen_at"] = NOW.isoformat()
-                row["news_expires_at"] = (
-                    NOW + timedelta(hours=24)
+                row["news_expires_at"] = health.freshness._public_expiry(
+                    row, NOW, "pl", "polityka"
                 ).isoformat()
             # Independently verify semantics, not the equal-ID check.
             payload["sections"]["polityka"][:2] = statement_rows
