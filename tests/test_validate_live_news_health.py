@@ -195,6 +195,40 @@ class LiveNewsHealthTests(unittest.TestCase):
             "pl:duplicate_public_statement:homepage", report["reasons"]
         )
 
+    def test_global_audit_detects_cross_section_en_duplicate_even_with_distinct_ids(self) -> None:
+        from tests.test_news_semantic_event import article
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_fixture(root)
+            feed_path = root / health.LANGUAGES["en"]["feed"]
+            payload = json.loads(feed_path.read_text(encoding="utf-8"))
+            row_a = article(
+                "US approves sale of 500 Patriot missiles to Ukraine",
+                "American interceptors will defend Ukraine", "BBC News"
+            )
+            row_b = article(
+                "Ukraine's Zelenskyy praises US over $2.1bn Patriot missile deal",
+                "US approved sale of 500 Patriot PAC-3 missiles to Ukraine",
+                "The Guardian"
+            )
+            for i, row in enumerate((row_a, row_b)):
+                row["published_at"] = (NOW - timedelta(minutes=5+i)).isoformat()
+                row["news_first_seen_at"] = NOW.isoformat()
+                row["news_expires_at"] = (
+                    NOW + timedelta(hours=24)
+                ).isoformat()
+                row["canonical_event_id"] = f"evt_distinct_{i}"
+            payload["sections"]["world-news"][0] = row_a
+            payload["sections"]["europe"][0] = row_b
+            feed_path.write_text(json.dumps(payload), encoding="utf-8")
+            report = health.assess(root, now=NOW, max_age_minutes=120)
+
+        self.assertTrue(any(
+            "en:duplicate_semantic_event:world-news:europe:arms-sale:"
+            in reason for reason in report["reasons"]
+        ))
+
     def test_stale_publication_fails_at_two_hours(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
