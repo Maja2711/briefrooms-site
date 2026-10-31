@@ -44,19 +44,21 @@ def _media_name(text: str) -> str:
     match = re.search(r"\b([a-z][a-z'-]{3,}\s+(?:gazeta|times|journal|daily|tribune))\b", text)
     return match.group(1) if match else ""
 
-def _ballot_subject(title: str, text: str) -> str:
-    # The same award night can report distinct athletes. Require one subject.
-    # Prefer an explicit athlete named in the headline, not another player
-    # mentioned in the source summary as comparison/background.
-    for surname in re.findall(r"\b[a-z]{5,}\b", title):
-        if surname in {"pajor", "mbappe"}:  # fallback retained below as generic tokens
+def _ballot_subject(row: Mapping[str, Any]) -> str:
+    # Match a surname mentioned in the headline to a capitalized full name in
+    # the article. The rule is independent of a hardcoded athlete roster.
+    headline = set(re.findall(r"[a-z]{4,}", _title(row)))
+    full_text = f"{row.get('title') or ''} {row.get('summary') or ''}"
+    proper_name = re.compile(
+        r"\b[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]{2,}\s+"
+        r"([A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]{3,})\b"
+    )
+    for match in proper_name.finditer(full_text):
+        surname = _plain(match.group(1))
+        if surname in headline:
             return surname
-    match = re.search(r"\b(?:ewa|magdalena|kylian|harry|alexia)\s+([a-z]{4,})\b", title)
-    if match:
-        return match.group(1)
-    # A specific repeated last name + score can still match without a first name.
-    # The generic score and award are stricter anchors than general award coverage.
     return ""
+
 
 def event_signature(row: Mapping[str, Any]) -> str:
     title, text = _title(row), _text(row)
@@ -70,7 +72,7 @@ def event_signature(row: Mapping[str, Any]) -> str:
         and (m := re.search(r"\b(\d{1,3})\s*(?:pkt\b|punkt\w*|points?\b)", text))):
         # Surname is inferred from named entities, not from the publisher.
         # This stops coverage of separate athletes in the same ceremony merging.
-        person = _ballot_subject(title, text)
+        person = _ballot_subject(row)
         if person:
             return f"award-ballot:ballon-dor:{person}:{m.group(1)}"
 
@@ -105,7 +107,7 @@ def event_signature(row: Mapping[str, Any]) -> str:
 
     # Specific physical entry to an institution (not a statement about it,
     # consultation, protest, judicial ruling or broad overnight news liveblog).
-    if (_has(text, r"\bnawrocki\b")
+    if (_has(text, r"\bprezydent\w*\b|\bpresident\b")
         and _has(text, r"\btk\b|trybunal\w*\s+konstytucyjn\w*")
         and _has(title, r"wdarl\w*|wszedl\w*|wejsc\w*|entered\s+the\s+court")
         and not _has(title, r"relacja\s+na\s+zywo|wydarzylo\s+sie\s+w\s+nocy|podsumow\w*")):
