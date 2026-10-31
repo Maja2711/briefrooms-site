@@ -57,6 +57,11 @@ def _ballot_subject(row: Mapping[str, Any]) -> str:
         surname = _plain(match.group(1))
         phrase = _plain(match.group(0))
         # The title of an award (e.g. Złota Piłka) is not the athlete.
+        first_name = _plain(match.group(0).split()[0])
+        # Award and ceremony labels may be capitalized mid-sentence but
+        # are not personal names (e.g. 'Gala Złotej', 'Złotej Piłki').
+        if first_name in {"gala", "ceremonia", "plebiscyt", "wyniki", "turniej"}:
+            continue
         if _has(phrase, r"^zlot\w* pilk\w*$|^ballon d.or$"):
             continue
         if surname in headline:
