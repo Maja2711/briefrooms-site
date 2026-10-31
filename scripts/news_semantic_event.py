@@ -65,16 +65,14 @@ def event_signature(row: Mapping[str, Any]) -> str:
     if not title:
         return ""
 
-    # Named competition + same reported vote margin. The score alone never
-    # conflates an unrelated sporting result.
+    # The same announced ballot result can be reported with or without
+    # the winning margin. Require a named person in the title, the same award
+    # and explicit result/vote language. Different athletes remain separate.
     if (_has(text, r"zlot\w*\s+pilk\w*|ballon\s+d.or")
-        and _has(text, r"glos\w*|wynik\w*\s+glos|punkt\w*|\bpkt\b|vot\w*")
-        and (m := re.search(r"\b(\d{1,3})\s*(?:pkt\b|punkt\w*|points?\b)", text))):
-        # Surname is inferred from named entities, not from the publisher.
-        # This stops coverage of separate athletes in the same ceremony merging.
+        and _has(text, r"glos\w*|wynik\w*|punkt\w*|\bpkt\b|vot\w*")):
         person = _ballot_subject(row)
         if person:
-            return f"award-ballot:ballon-dor:{person}:{m.group(1)}"
+            return f"award-ballot:ballon-dor:{person}"
 
     # One statistical release, referenced by the same period. Exclude commentary
     # on policy/interest rate decisions (a separate event).
