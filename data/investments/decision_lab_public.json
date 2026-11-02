@@ -7,7 +7,7 @@
   "automatic_tuning": false,
   "automatic_promotion": false,
   "promotion_policy": "v3_candidates_manual; probability_recalibration_closed_loop_governed",
-  "generated_at": "2026-11-02T00:32:46.752732Z",
+  "generated_at": "2026-11-02T00:35:02.431865Z",
   "evolution_controller": {
     "authority": {
       "belief_evidence_mutation": false,
@@ -2353,8 +2353,7 @@
   "closed_loop": {
     "active_production_overrides": [
       "btc.liquidity.supportive",
-      "btc.volatility.benign",
-      "eurusd.trend.bullish"
+      "btc.volatility.benign"
     ],
     "authority": {
       "automatic_candidate_creation": true,
@@ -2806,9 +2805,11 @@
             "worst_relative_degradation": 0.134585
           }
         },
+        "rediscovery_after_n": 324,
         "rollback_reason": "post_promotion_degradation",
         "rollback_recommended_at": "2026-11-02T00:02:17.492173Z",
-        "status": "rollback_recommended",
+        "rolled_back_at": "2026-11-02T00:03:14.128985Z",
+        "status": "rolled_back_by_evolution_controller",
         "transform": {
           "intercept": -0.35,
           "slope": 0.5,
@@ -3217,14 +3218,7 @@
         ]
       }
     },
-    "events_this_run": [
-      {
-        "at": "2026-11-02T00:02:17.492173Z",
-        "belief_id": "eurusd.trend.bullish",
-        "event": "ROLLBACK_RECOMMENDED",
-        "reason": "post_promotion_degradation"
-      }
-    ],
+    "events_this_run": [],
     "gates": {
       "global_discovery_minimum_n": 100,
       "max_accuracy_degradation": 0.03,
@@ -3235,7 +3229,7 @@
       "promotion_brier_relative_improvement": 0.05,
       "stability_blocks_required": "3_of_4"
     },
-    "generated_at": "2026-11-02T00:02:17.492173Z",
+    "generated_at": "2026-11-02T00:35:18.313522Z",
     "global_control_metrics": {
       "accuracy": 0.557325,
       "brier": 0.247043,
@@ -3250,7 +3244,7 @@
     {
       "instrument": "BTC/USD",
       "trend_belief_id": "btc.trend.bullish",
-      "calculated_at": "2026-11-02T00:32:46.752732Z",
+      "calculated_at": "2026-11-02T00:35:02.431865Z",
       "as_of": "2026-10-30T17:15:20Z",
       "target_at": "2026-10-31T17:15:20Z",
       "horizon_label": "24H",
@@ -3276,7 +3270,7 @@
     {
       "instrument": "EUR/USD",
       "trend_belief_id": "eurusd.trend.bullish",
-      "calculated_at": "2026-11-02T00:32:46.752732Z",
+      "calculated_at": "2026-11-02T00:35:02.431865Z",
       "as_of": "2026-10-30T17:15:20Z",
       "target_at": "2026-10-31T17:15:20Z",
       "horizon_label": "24H",
@@ -3302,7 +3296,7 @@
     {
       "instrument": "S&P 500",
       "trend_belief_id": "spx.trend.bullish",
-      "calculated_at": "2026-11-02T00:32:46.752732Z",
+      "calculated_at": "2026-11-02T00:35:02.431865Z",
       "as_of": "2026-10-30T17:15:20Z",
       "target_at": "2026-10-30T20:00:00Z",
       "horizon_label": "3H",
@@ -17324,7 +17318,7 @@
   },
   "hypothesis_utility": {
     "schema_version": "briefrooms-hypothesis-utility-v1",
-    "generated_at": "2026-11-02T00:02:12.849902Z",
+    "generated_at": "2026-11-02T00:35:11.919224Z",
     "status": "SHADOW_READ_ONLY",
     "authority": {
       "production_writeback": false,
@@ -18617,7 +18611,7 @@
   },
   "hypothesis_challengers": {
     "schema_version": "briefrooms-hypothesis-challenger-v1",
-    "generated_at": "2026-11-02T00:02:15.713972Z",
+    "generated_at": "2026-11-02T00:35:15.634183Z",
     "status": "SHADOW_OOS_GOVERNED",
     "summary": {
       "candidates_total": 3,
@@ -18819,7 +18813,7 @@
   },
   "p2_shadow_watchdog": {
     "schema_version": "briefrooms-p2-shadow-watchdog-v1",
-    "generated_at": "2026-11-02T00:02:16.552496Z",
+    "generated_at": "2026-11-02T00:35:16.916895Z",
     "status": "FAIL",
     "readiness": "REAL_SETTLEMENT_VERIFIED",
     "production_e2e_status": "BLOCKED",
