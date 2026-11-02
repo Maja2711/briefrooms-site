@@ -116,31 +116,18 @@
       "next_entry_status": "no_trade",
       "continuous_exposure_active": false,
       "continuous_exposure_status": "no_trade",
-      "wes_last_review_at": "2026-11-02T11:01:09+01:00",
+      "wes_last_review_at": "2026-11-02T19:26:41+01:00",
       "wes_trigger_candidate": {
-        "direction": "short",
-        "strategy_id": "weekly_trend",
-        "raw_score": 51.0,
-        "utility": 7.3376,
+        "direction": "neutral",
+        "strategy_id": "no_trade",
+        "raw_score": 0.0,
+        "utility": 6.6518,
         "signal_delta_from_initial": 0.0,
-        "confirmations": 2,
-        "confirmation_sources": [
-          "daily",
-          "weekly"
-        ],
-        "entry_class": "monday_weekly",
-        "execution_authority": "champion_execution",
-        "directional_admission": {
-          "version": "WES-1.3.1",
-          "direction": "short",
-          "confirmations": 2,
-          "confirmation_sources": [
-            "daily",
-            "weekly"
-          ],
-          "execution_authority": "champion_execution",
-          "passed": true
-        },
+        "confirmations": 0,
+        "confirmation_sources": [],
+        "entry_class": "midweek_trigger",
+        "execution_authority": null,
+        "directional_admission": {},
         "delta_gate": {
           "delta": 0.0,
           "required_delta": 15.0,
@@ -148,22 +135,22 @@
           "absolute_strength_bypass": {
             "version": "WES-1.3.1",
             "eligible": false,
-            "raw": 51.0,
-            "required_raw": 65.0,
+            "raw": 0.0,
+            "required_raw": 53.3,
             "raw_multiplier": 1.3,
-            "utility": 7.3376,
+            "utility": 6.6518,
             "required_utility": 9.75,
             "utility_multiplier": 1.3,
-            "confirmations": 2,
+            "confirmations": 0,
             "required_confirmations": 2,
-            "confirmation_sources": [
-              "daily",
-              "weekly"
-            ],
+            "confirmation_sources": [],
             "require_daily_weekly_confirmation": true,
             "reasons": [
+              "directional_admission_not_passed",
               "raw_below_scaled_absolute_strength",
-              "utility_below_scaled_absolute_strength"
+              "utility_below_scaled_absolute_strength",
+              "insufficient_confirmations_for_absolute_strength",
+              "daily_weekly_confirmation_required"
             ]
           },
           "persistent_plan_reaffirmed": false,
@@ -173,11 +160,11 @@
       },
       "wes_required_trigger": {
         "allowed": true,
-        "raw": 50.0,
+        "raw": 41.0,
         "utility": 7.5,
         "confirmations": 2,
         "delta": 15.0,
-        "learning_threshold_adjustment": 6.0
+        "learning_threshold_adjustment": -3.0
       }
     },
     {
@@ -268,16 +255,16 @@
       "continuous_exposure_active": false,
       "continuous_exposure_status": "no_trade",
       "wes_status": "no_trade_monitoring_trigger",
-      "wes_last_review_at": "2026-11-02T11:01:09+01:00",
+      "wes_last_review_at": "2026-11-02T19:26:41+01:00",
       "wes_trigger_candidate": {
         "direction": "neutral",
         "strategy_id": "no_trade",
         "raw_score": 0.0,
-        "utility": 5.9547,
+        "utility": 6.4526,
         "signal_delta_from_initial": 0.0,
         "confirmations": 0,
         "confirmation_sources": [],
-        "entry_class": "monday_weekly",
+        "entry_class": "midweek_trigger",
         "execution_authority": null,
         "directional_admission": {
           "version": "WES-1.3.1",
@@ -295,9 +282,9 @@
             "version": "WES-1.3.1",
             "eligible": false,
             "raw": 0.0,
-            "required_raw": 65.0,
+            "required_raw": 53.3,
             "raw_multiplier": 1.3,
-            "utility": 5.9547,
+            "utility": 6.4526,
             "required_utility": 9.75,
             "utility_multiplier": 1.3,
             "confirmations": 0,
@@ -326,11 +313,11 @@
       },
       "wes_required_trigger": {
         "allowed": true,
-        "raw": 50.0,
+        "raw": 41.0,
         "utility": 7.5,
         "confirmations": 2,
         "delta": 15.0,
-        "learning_threshold_adjustment": 6.0
+        "learning_threshold_adjustment": -3.0
       }
     },
     {
@@ -421,16 +408,16 @@
       "continuous_exposure_active": false,
       "continuous_exposure_status": "no_trade",
       "wes_status": "no_trade_monitoring_trigger",
-      "wes_last_review_at": "2026-11-02T11:01:09+01:00",
+      "wes_last_review_at": "2026-11-02T19:26:41+01:00",
       "wes_trigger_candidate": {
         "direction": "neutral",
         "strategy_id": "no_trade",
         "raw_score": 0.0,
-        "utility": 7.5038,
+        "utility": 8.5538,
         "signal_delta_from_initial": 0.0,
         "confirmations": 0,
         "confirmation_sources": [],
-        "entry_class": "monday_weekly",
+        "entry_class": "midweek_trigger",
         "execution_authority": null,
         "directional_admission": {
           "version": "WES-1.3.1",
@@ -450,9 +437,9 @@
             "version": "WES-1.3.1",
             "eligible": false,
             "raw": 0.0,
-            "required_raw": 65.0,
+            "required_raw": 53.3,
             "raw_multiplier": 1.3,
-            "utility": 7.5038,
+            "utility": 8.5538,
             "required_utility": 9.75,
             "utility_multiplier": 1.3,
             "confirmations": 0,
@@ -481,11 +468,11 @@
       },
       "wes_required_trigger": {
         "allowed": true,
-        "raw": 50.0,
+        "raw": 41.0,
         "utility": 7.5,
         "confirmations": 2,
         "delta": 15.0,
-        "learning_threshold_adjustment": 6.0
+        "learning_threshold_adjustment": -3.0
       }
     }
   ],
@@ -757,8 +744,8 @@
     "replacement_holding_days": 7,
     "replacement_weekend_carry": true,
     "material_event_reentry": false,
-    "last_preflight_at": "2026-11-02T11:01:09+01:00",
-    "last_postflight_at": "2026-11-02T11:01:14+01:00",
+    "last_preflight_at": "2026-11-02T19:26:41+01:00",
+    "last_postflight_at": "2026-11-02T19:26:47+01:00",
     "dynamic_risk": true,
     "learning_by_entry_class": true
   },
