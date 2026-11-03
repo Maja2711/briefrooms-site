@@ -116,16 +116,17 @@
       "next_entry_status": "no_trade",
       "continuous_exposure_active": false,
       "continuous_exposure_status": "no_trade",
-      "wes_last_review_at": "2026-11-03T08:54:55+01:00",
+      "wes_last_review_at": "2026-11-03T10:53:05+01:00",
       "wes_trigger_candidate": {
         "direction": "short",
         "strategy_id": "weekly_trend",
-        "raw_score": 58.0,
-        "utility": 8.0735,
-        "signal_delta_from_initial": 5.0,
-        "confirmations": 2,
+        "raw_score": 60.0,
+        "utility": 8.8193,
+        "signal_delta_from_initial": 7.0,
+        "confirmations": 3,
         "confirmation_sources": [
           "daily",
+          "ma_structure",
           "weekly"
         ],
         "entry_class": "midweek_trigger",
@@ -133,36 +134,37 @@
         "directional_admission": {
           "version": "WES-1.3.1",
           "direction": "short",
-          "confirmations": 2,
+          "confirmations": 3,
           "confirmation_sources": [
             "daily",
+            "ma_structure",
             "weekly"
           ],
           "execution_authority": "champion_execution",
           "passed": true
         },
         "delta_gate": {
-          "delta": 5.0,
+          "delta": 7.0,
           "required_delta": 15.0,
           "passed": false,
           "absolute_strength_bypass": {
             "version": "WES-1.3.1",
             "eligible": false,
-            "raw": 58.0,
+            "raw": 60.0,
             "required_raw": 58.5,
             "raw_multiplier": 1.3,
-            "utility": 8.0735,
+            "utility": 8.8193,
             "required_utility": 10.4,
             "utility_multiplier": 1.3,
-            "confirmations": 2,
+            "confirmations": 3,
             "required_confirmations": 2,
             "confirmation_sources": [
               "daily",
+              "ma_structure",
               "weekly"
             ],
             "require_daily_weekly_confirmation": true,
             "reasons": [
-              "raw_below_scaled_absolute_strength",
               "utility_below_scaled_absolute_strength"
             ]
           },
@@ -234,7 +236,7 @@
       "entry_price": null,
       "entry_captured_at": null,
       "entry_source": null,
-      "entry_quality_status": "wes_1_3_1_waiting_for_frozen_entry_target",
+      "entry_quality_status": "wes_1_3_1_persistent_plan_reaffirmed",
       "trade_status": "pending",
       "risk_plan": null,
       "exit_price": null,
@@ -262,7 +264,7 @@
       "wes_methodology": "WES-1.3.1",
       "wes_initial_no_trade_score": 26.0,
       "pending_entry_decision": {
-        "decided_at": "2026-11-03T10:07:38+01:00",
+        "decided_at": "2026-11-03T10:53:05+01:00",
         "entry_not_before": "2026-11-03T10:07:38+01:00",
         "decision": {
           "direction": "short",
@@ -521,7 +523,7 @@
               }
             }
           },
-          "decided_at": "2026-11-03T10:07:38+01:00",
+          "decided_at": "2026-11-03T10:53:05+01:00",
           "validation_gate": "enabled_for_paper_trading"
         },
         "fresh_signal": {
@@ -612,7 +614,7 @@
           "reference_price": 7559.5,
           "reference_source": "fresh_signal.signals.last_close",
           "entry_not_before": "2026-11-03T10:07:38+01:00",
-          "expires_at": "2026-11-03T11:07:38+01:00",
+          "expires_at": "2026-11-03T11:53:05+01:00",
           "execution_bar_interval_minutes": 5,
           "fill_rule": "For EURUSD Weekly only, MARKET mode hits a fresh post-authorization canonical live price immediately when available, with the freshest completed 5m bar as bounded fallback, all verified by EPE; the archived LIMIT target never gates that EURUSD MARKET execution. Other WES instruments retain their existing execution contract. LIMIT mode still fills only when the frozen target is touched. Persistent LIMIT reaffirmation may extend time but may never move the frozen target. No analytical or retroactive price may be fabricated.",
           "inputs": {
@@ -669,7 +671,10 @@
             "reasons": [
               "market_score_below_threshold"
             ]
-          }
+          },
+          "last_reaffirmed_at": "2026-11-03T10:53:05+01:00",
+          "reaffirmation_count": 1,
+          "persistence_policy": "same_thesis_reaffirmation_extends_time_only_never_moves_frozen_target"
         },
         "authorization_basis": {
           "authorized_at": "2026-11-03T10:07:38+01:00",
@@ -678,56 +683,60 @@
           "directional_admission_passed": true
         },
         "rule": "execute_only_when_frozen_entry_target_is_touched_after_decision",
-        "decision_id": "wes-dec-3cc7c53418fd47e6f17d75992d5c",
-        "payload_hash": "541857e572955c539c9e41bf22568752b79e9eb58f0adb7d31ab1a8d19b1f247",
-        "decision_kind": "ENTRY_FREEZE",
-        "predecessor_decision_id": null,
-        "ledger_record_hash": "9dbe4107514f458bdf57acfa1325a4cd798b866a409ffa911f717b7fb139539b",
+        "decision_id": "wes-dec-cbbca942c2215064ef1baa675db3",
+        "payload_hash": "d771dc678c2c9953d7123824df7b89c4938ac4525b9a701236d57c5be2ada1ac",
+        "decision_kind": "TIME_ONLY_REAFFIRMATION",
+        "predecessor_decision_id": "wes-dec-3cc7c53418fd47e6f17d75992d5c",
+        "ledger_record_hash": "464d721983c9c2a804d6bfe319789b3f74310ac99709aab47f6bc8a4e4ada30e",
         "ledger_schema_version": "briefrooms-wes-decision-ledger-v1",
         "provenance": {
           "schema_version": "briefrooms-provenance-contract-v1",
-          "artifact_id": "wes-dec-3cc7c53418fd47e6f17d75992d5c",
+          "artifact_id": "wes-dec-cbbca942c2215064ef1baa675db3",
           "artifact_type": "wes_frozen_decision",
           "engine_id": "wes",
           "engine_version": "briefrooms-wes-frozen-decision-v1",
-          "created_at": "2026-11-03T10:07:38+01:00",
-          "parent_artifact_ids": [],
+          "created_at": "2026-11-03T10:53:05+01:00",
+          "parent_artifact_ids": [
+            "wes-dec-3cc7c53418fd47e6f17d75992d5c"
+          ],
           "source_ids": [
-            "ENTRY_FREEZE",
+            "TIME_ONLY_REAFFIRMATION",
             "champion_execution"
           ],
           "evidence_ids": [],
           "belief_ids": [],
-          "decision_id": "wes-dec-3cc7c53418fd47e6f17d75992d5c",
+          "decision_id": "wes-dec-cbbca942c2215064ef1baa675db3",
           "forecast_id": null,
           "verification_id": null,
-          "payload_hash": "60829d3143a0fff75d9109f86e36f96424f4075ffb5068de42bb47d14638f822",
+          "payload_hash": "f85e485241768d44f23a5fc2c950927c7014135768fb5e81f64cc5aeb615e8ba",
           "authority": "decision",
           "prospective": true,
           "domain_provenance": {
             "week_id": "2026-W45",
             "instrument_id": "sp500_futures",
-            "decision_kind": "ENTRY_FREEZE",
-            "ledger_payload_hash": "541857e572955c539c9e41bf22568752b79e9eb58f0adb7d31ab1a8d19b1f247",
+            "decision_kind": "TIME_ONLY_REAFFIRMATION",
+            "ledger_payload_hash": "d771dc678c2c9953d7123824df7b89c4938ac4525b9a701236d57c5be2ada1ac",
             "native_write_time": true
           }
         }
       },
       "wes_entry_authorization": {
-        "authorized_at": "2026-11-03T10:07:38+01:00",
-        "expires_at": "2026-11-03T11:07:38+01:00",
-        "authorization_type": "live_reauthorization_after_missed_execution_window",
+        "authorized_at": "2026-11-03T10:53:05+01:00",
+        "expires_at": "2026-11-03T11:53:05+01:00",
+        "authorization_type": "no_trade_trigger",
         "directional_admission_passed": true,
         "candidate": {
           "direction": "short",
           "strategy_id": "base_v2",
-          "raw_score": 56.0,
-          "utility": 9.3449,
+          "raw_score": 55.0,
+          "utility": 9.1949,
+          "signal_delta_from_initial": 29.0,
           "confirmations": 2,
           "confirmation_sources": [
             "daily",
             "weekly"
           ],
+          "entry_class": "midweek_trigger",
           "execution_authority": "champion_execution",
           "directional_admission": {
             "version": "WES-1.3.1",
@@ -739,18 +748,47 @@
             ],
             "execution_authority": "champion_execution",
             "passed": true
+          },
+          "delta_gate": {
+            "delta": 29.0,
+            "required_delta": 15.0,
+            "passed": true,
+            "absolute_strength_bypass": {
+              "version": "WES-1.3.1",
+              "eligible": false,
+              "raw": 55.0,
+              "required_raw": 58.5,
+              "raw_multiplier": 1.3,
+              "utility": 9.1949,
+              "required_utility": 10.4,
+              "utility_multiplier": 1.3,
+              "confirmations": 2,
+              "required_confirmations": 2,
+              "confirmation_sources": [
+                "daily",
+                "weekly"
+              ],
+              "require_daily_weekly_confirmation": true,
+              "reasons": [
+                "raw_below_scaled_absolute_strength",
+                "utility_below_scaled_absolute_strength"
+              ]
+            },
+            "persistent_plan_reaffirmed": true,
+            "decision_id": "wes-dec-cbbca942c2215064ef1baa675db3",
+            "decision_payload_hash": "d771dc678c2c9953d7123824df7b89c4938ac4525b9a701236d57c5be2ada1ac"
           }
         },
         "required": {
           "allowed": true,
-          "raw": 35.0,
-          "utility": 6.0,
-          "confirmations": 2
+          "raw": 45.0,
+          "utility": 8.0,
+          "confirmations": 2,
+          "delta": 15.0,
+          "learning_threshold_adjustment": -3.0
         },
         "source_exit_at": null,
-        "source_exit_reason": null,
-        "prospective_only": true,
-        "no_retroactive_execution": true
+        "source_exit_reason": null
       },
       "next_entry_status": "waiting_for_entry_target",
       "continuous_exposure_active": false,
@@ -810,7 +848,7 @@
       "reentry_lock": {
         "active": false,
         "scope": "wes_directional_admission",
-        "released_at": "2026-11-03T08:54:55+01:00",
+        "released_at": "2026-11-03T10:53:05+01:00",
         "reason": "wes_1_3_1_directional_admission_qualified"
       },
       "wes_required_trigger": {
@@ -821,8 +859,8 @@
         "delta": 15.0,
         "learning_threshold_adjustment": -3.0
       },
-      "current_decision_id": "wes-dec-3cc7c53418fd47e6f17d75992d5c",
-      "current_decision_payload_hash": "541857e572955c539c9e41bf22568752b79e9eb58f0adb7d31ab1a8d19b1f247",
+      "current_decision_id": "wes-dec-cbbca942c2215064ef1baa675db3",
+      "current_decision_payload_hash": "d771dc678c2c9953d7123824df7b89c4938ac4525b9a701236d57c5be2ada1ac",
       "decision_ledger_schema_version": "briefrooms-wes-decision-ledger-v1"
     },
     {
@@ -912,7 +950,7 @@
       "continuous_exposure_active": false,
       "continuous_exposure_status": "no_trade",
       "wes_status": "no_trade_monitoring_trigger",
-      "wes_last_review_at": "2026-11-03T08:54:55+01:00",
+      "wes_last_review_at": "2026-11-03T10:53:05+01:00",
       "wes_trigger_candidate": {
         "direction": "neutral",
         "strategy_id": "no_trade",
@@ -1239,8 +1277,8 @@
     "replacement_holding_days": 7,
     "replacement_weekend_carry": true,
     "material_event_reentry": false,
-    "last_preflight_at": "2026-11-03T08:54:55+01:00",
-    "last_postflight_at": "2026-11-03T08:55:01+01:00",
+    "last_preflight_at": "2026-11-03T10:53:05+01:00",
+    "last_postflight_at": "2026-11-03T10:53:12+01:00",
     "dynamic_risk": true,
     "learning_by_entry_class": true
   },
@@ -1283,10 +1321,23 @@
     "enabled": true,
     "version": "5.9.1-experimental",
     "common_validation_gate": true,
+    "wes_1_3_1_directional_admission": true,
+    "price_aware_entry_engine": true,
+    "hybrid_market_or_frozen_limit_entry": true,
+    "champion_challenger_execution_authority": true,
     "retroactive_entries_forbidden": true,
     "same_week_reentry_block_after_invalidation": true,
     "no_trade_first_class": true,
+    "weekly_candles_used": true,
+    "eurusd_oil_us10y_context_used": true,
+    "contextual_momentum_learning": true,
+    "contextual_multidimensional_learning": true,
+    "counterfactual_candidate_learning": true,
+    "counterfactual_observations_reduce_exploration_only": true,
+    "learning_settlement_archive_before_window_exit": true,
     "execution_parity_report": "data/investments/weekly_execution_parity_v5.json",
-    "last_checked_at": "2026-11-03T10:30:24+01:00"
+    "immutable_decision_ledger": "data/investments/wes_decision_ledger.json",
+    "immutable_decision_ledger_schema": "briefrooms-wes-decision-ledger-v1",
+    "last_checked_at": "2026-11-03T10:53:09+01:00"
   }
 }
