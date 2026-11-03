@@ -1,43 +1,40 @@
 {
   "schema_version": "stock-trading-quote-freshness-watchdog-v1",
-  "checked_at_bucket": "2026-11-03T13:00:00Z",
+  "checked_at_bucket": "2026-11-03T14:00:00Z",
   "max_age_seconds": {
     "GPW": 1200,
     "US": 600
   },
-  "status": "ALERT",
+  "status": "OK",
   "active_positions_checked": 3,
-  "positions_recovered": 3,
-  "alerts": 2,
+  "positions_recovered": 0,
+  "alerts": 0,
   "positions": [
     {
       "market": "GPW",
       "symbol": "LPP.WA",
       "session": "ACTIVE",
-      "precheck": "STALE",
-      "recovery_attempted": true,
-      "status": "RECOVERED",
-      "observed_at": "2026-11-03T13:53:45+01:00",
+      "precheck": "FRESH",
+      "status": "FRESH",
+      "observed_at": "2026-11-03T14:45:27+01:00",
       "provider": "Yahoo Finance chart"
     },
     {
       "market": "GPW",
       "symbol": "ALE.WA",
       "session": "ACTIVE",
-      "precheck": "STALE",
-      "recovery_attempted": true,
-      "status": "RECOVERED",
-      "observed_at": "2026-11-03T13:54:17+01:00",
+      "precheck": "FRESH",
+      "status": "FRESH",
+      "observed_at": "2026-11-03T14:45:56+01:00",
       "provider": "Yahoo Finance chart"
     },
     {
       "market": "GPW",
       "symbol": "OPL.WA",
       "session": "ACTIVE",
-      "precheck": "STALE",
-      "recovery_attempted": true,
-      "status": "RECOVERED",
-      "observed_at": "2026-11-03T13:54:11+01:00",
+      "precheck": "FRESH",
+      "status": "FRESH",
+      "observed_at": "2026-11-03T14:45:24+01:00",
       "provider": "Yahoo Finance chart"
     },
     {
@@ -45,7 +42,7 @@
       "symbol": "CCI",
       "session": "CLOSED",
       "status": "OUT_OF_SESSION",
-      "observed_at": "2026-11-03T07:28:06-05:00",
+      "observed_at": "2026-11-03T07:28:00-05:00",
       "provider": "Yahoo Finance chart"
     },
     {
@@ -53,7 +50,7 @@
       "symbol": "CCL",
       "session": "CLOSED",
       "status": "OUT_OF_SESSION",
-      "observed_at": "2026-11-03T07:38:10-05:00",
+      "observed_at": "2026-11-03T09:00:02-05:00",
       "provider": "Yahoo Finance chart"
     },
     {
@@ -61,7 +58,7 @@
       "symbol": "COST",
       "session": "CLOSED",
       "status": "OUT_OF_SESSION",
-      "observed_at": "2026-11-03T07:40:25-05:00",
+      "observed_at": "2026-11-03T08:56:53-05:00",
       "provider": "Yahoo Finance chart"
     }
   ],
@@ -70,46 +67,51 @@
     "GPW": "OK",
     "US": "FRONTIER_STALE"
   },
-  "candidates_checked": 6,
-  "candidate_quotes_observed": 4,
-  "candidate_alerts": 2,
+  "candidates_checked": 7,
+  "candidate_quotes_observed": 7,
+  "candidate_alerts": 0,
   "candidates": [
     {
       "market": "GPW",
-      "symbol": "MBK.WA",
+      "symbol": "PCO.WA",
       "role": "UNPURCHASED_CANDIDATE",
       "session": "ACTIVE",
       "authority": "MONITOR_ONLY",
-      "frontier_generated_at": "2026-11-03T12:44:21.608356Z",
-      "precheck": "NO_VERIFIED_PRICE",
+      "frontier_generated_at": "2026-11-03T13:56:09.394737Z",
+      "precheck": "STALE",
       "recovery_attempted": true,
       "quote": {
-        "price": 1586.5,
-        "observed_at": "2026-11-03T13:53:22+01:00",
-        "received_at": "2026-11-03T13:09:39+00:00",
+        "price": 47.54000092,
+        "observed_at": "2026-11-03T14:46:44+01:00",
+        "received_at": "2026-11-03T14:01:57+00:00",
         "market_state": "REGULAR",
         "provider": "Yahoo Finance chart",
         "delay_status": "unverified",
         "is_realtime": false
       },
       "status": "OBSERVED",
-      "age_seconds": 978
+      "age_seconds": 914
     },
     {
       "market": "GPW",
-      "symbol": "CAR.WA",
+      "symbol": "MBK.WA",
       "role": "UNPURCHASED_CANDIDATE",
       "session": "ACTIVE",
       "authority": "MONITOR_ONLY",
-      "frontier_generated_at": "2026-11-03T12:44:21.608356Z",
-      "precheck": "NO_VERIFIED_PRICE",
+      "frontier_generated_at": "2026-11-03T13:56:09.394737Z",
+      "precheck": "STALE",
       "recovery_attempted": true,
-      "status": "ALERT_NO_VERIFIED_PRICE",
-      "diagnostic": [
-        "Yahoo Finance chart: STALE",
-        "Stooq.pl current quote: RuntimeError:Stooq.pl quote unavailable for CAR.WA: HTTPError:HTTP Error 404: Not Found|HTTPError:HTTP Error 404:"
-      ],
-      "age_seconds": null
+      "quote": {
+        "price": 1609.0,
+        "observed_at": "2026-11-03T14:46:49+01:00",
+        "received_at": "2026-11-03T14:01:57+00:00",
+        "market_state": "REGULAR",
+        "provider": "Yahoo Finance chart",
+        "delay_status": "unverified",
+        "is_realtime": false
+      },
+      "status": "OBSERVED",
+      "age_seconds": 909
     },
     {
       "market": "GPW",
@@ -117,15 +119,20 @@
       "role": "UNPURCHASED_CANDIDATE",
       "session": "ACTIVE",
       "authority": "MONITOR_ONLY",
-      "frontier_generated_at": "2026-11-03T12:44:21.608356Z",
+      "frontier_generated_at": "2026-11-03T13:56:09.394737Z",
       "precheck": "NO_VERIFIED_PRICE",
       "recovery_attempted": true,
-      "status": "ALERT_NO_VERIFIED_PRICE",
-      "diagnostic": [
-        "Yahoo Finance chart: STALE",
-        "Stooq.pl current quote: RuntimeError:Stooq.pl quote unavailable for BFT.WA: HTTPError:HTTP Error 404: Not Found|HTTPError:HTTP Error 404:"
-      ],
-      "age_seconds": null
+      "quote": {
+        "price": 5820.0,
+        "observed_at": "2026-11-03T14:46:39+01:00",
+        "received_at": "2026-11-03T14:01:57+00:00",
+        "market_state": "REGULAR",
+        "provider": "Yahoo Finance chart",
+        "delay_status": "unverified",
+        "is_realtime": false
+      },
+      "status": "OBSERVED",
+      "age_seconds": 919
     },
     {
       "market": "GPW",
@@ -133,34 +140,34 @@
       "role": "UNPURCHASED_CANDIDATE",
       "session": "ACTIVE",
       "authority": "MONITOR_ONLY",
-      "frontier_generated_at": "2026-11-03T12:44:21.608356Z",
-      "precheck": "NO_VERIFIED_PRICE",
+      "frontier_generated_at": "2026-11-03T13:56:09.394737Z",
+      "precheck": "STALE",
       "recovery_attempted": true,
       "quote": {
-        "price": 37.99000168,
-        "observed_at": "2026-11-03T13:54:40+01:00",
-        "received_at": "2026-11-03T13:09:39+00:00",
+        "price": 38.02000046,
+        "observed_at": "2026-11-03T14:46:26+01:00",
+        "received_at": "2026-11-03T14:01:57+00:00",
         "market_state": "REGULAR",
         "provider": "Yahoo Finance chart",
         "delay_status": "unverified",
         "is_realtime": false
       },
       "status": "OBSERVED",
-      "age_seconds": 900
+      "age_seconds": 932
     },
     {
       "market": "GPW",
-      "symbol": "MIL.WA",
+      "symbol": "CAR.WA",
       "role": "UNPURCHASED_CANDIDATE",
       "session": "ACTIVE",
       "authority": "MONITOR_ONLY",
-      "frontier_generated_at": "2026-11-03T12:44:21.608356Z",
+      "frontier_generated_at": "2026-11-03T13:56:09.394737Z",
       "precheck": "NO_VERIFIED_PRICE",
       "recovery_attempted": true,
       "quote": {
-        "price": 22.61000061,
-        "observed_at": "2026-11-03T13:54:38+01:00",
-        "received_at": "2026-11-03T13:09:39+00:00",
+        "price": 1042.0,
+        "observed_at": "2026-11-03T14:46:56+01:00",
+        "received_at": "2026-11-03T14:01:57+00:00",
         "market_state": "REGULAR",
         "provider": "Yahoo Finance chart",
         "delay_status": "unverified",
@@ -171,24 +178,45 @@
     },
     {
       "market": "GPW",
-      "symbol": "PCO.WA",
+      "symbol": "MIL.WA",
       "role": "UNPURCHASED_CANDIDATE",
       "session": "ACTIVE",
       "authority": "MONITOR_ONLY",
-      "frontier_generated_at": "2026-11-03T12:44:21.608356Z",
-      "precheck": "NO_VERIFIED_PRICE",
+      "frontier_generated_at": "2026-11-03T13:56:09.394737Z",
+      "precheck": "STALE",
       "recovery_attempted": true,
       "quote": {
-        "price": 47.11999893,
-        "observed_at": "2026-11-03T13:54:01+01:00",
-        "received_at": "2026-11-03T13:09:39+00:00",
+        "price": 22.61000061,
+        "observed_at": "2026-11-03T14:46:52+01:00",
+        "received_at": "2026-11-03T14:01:57+00:00",
         "market_state": "REGULAR",
         "provider": "Yahoo Finance chart",
         "delay_status": "unverified",
         "is_realtime": false
       },
       "status": "OBSERVED",
-      "age_seconds": 939
+      "age_seconds": 906
+    },
+    {
+      "market": "GPW",
+      "symbol": "BNP.WA",
+      "role": "UNPURCHASED_CANDIDATE",
+      "session": "ACTIVE",
+      "authority": "MONITOR_ONLY",
+      "frontier_generated_at": "2026-11-03T13:56:09.394737Z",
+      "precheck": "NO_VERIFIED_PRICE",
+      "recovery_attempted": true,
+      "quote": {
+        "price": 167.3999939,
+        "observed_at": "2026-11-03T14:44:04+01:00",
+        "received_at": "2026-11-03T14:01:57+00:00",
+        "market_state": "REGULAR",
+        "provider": "Yahoo Finance chart",
+        "delay_status": "unverified",
+        "is_realtime": false
+      },
+      "status": "OBSERVED",
+      "age_seconds": 1074
     }
   ],
   "candidate_quote_authority": "READ_ONLY_MONITORING_NOT_EXECUTION"
