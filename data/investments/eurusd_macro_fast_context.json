@@ -1,15 +1,59 @@
 {
   "schema_version": "daily-eurusd-macro-fast-v1",
-  "status": "CLEAR",
-  "event": null,
+  "status": "PRE_RELEASE",
+  "phase": "PRE_RELEASE",
+  "event": {
+    "uid": "fomc:2026-11-03",
+    "title": "FOMC meeting decision window — November 2-3",
+    "event_at": "2026-11-03T19:00:00Z",
+    "hours_until_at_check": 0.3815,
+    "source": "Federal Open Market Committee",
+    "source_ref": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
+    "importance": "high"
+  },
   "expectations": null,
-  "expectations_status": "NOT_APPLICABLE",
+  "expectations_status": "MISSING",
   "actuals": [],
   "actuals_status": "NOT_APPLICABLE",
+  "llm_key": "{\"actuals\": [], \"event_uid\": \"fomc:2026-11-03\", \"expectation_fingerprint\": null, \"phase\": \"PRE_RELEASE\"}",
   "llm": null,
   "eurusd_score": 0.0,
   "decision_influence": false,
-  "calendar_coverage_complete": true,
+  "post_release_ready": false,
+  "central_bank_event": "FOMC_DECISION",
+  "central_bank_wire": {
+    "schema_version": "eurusd-central-bank-wire-v1",
+    "as_of": "2026-11-03T18:30:55Z",
+    "overall_status": "FRESH",
+    "snapshot_sha256": "2e0c39ed9ef1c529e7adc0e119794d7369d40d0d90a7dfdb9ce945b74d3c07f1",
+    "event_window": {
+      "bank": "ECB",
+      "calendar_verified": false,
+      "conference_ended_at": null,
+      "conference_status": "UNKNOWN",
+      "event_id": "cb-release:c327a2d24023c0ee6f4bb75322f74f2c",
+      "event_type": "ECB_DECISION",
+      "first_seen_at": "2026-10-29T16:26:18Z",
+      "last_authoritative_update_at": "2026-10-30T07:07:11Z",
+      "observed_at": "2026-10-30T07:07:11Z",
+      "phase": "RELEASED",
+      "release_event_id": "cb:0fb701c544c0888da0090041b05aa1db",
+      "release_proof": {
+        "document_sha256": "c542e323d0135179369a248b66fbe679dc1621f944b73b26bd46fc415211f0af",
+        "event_id": "cb:0fb701c544c0888da0090041b05aa1db",
+        "first_seen_at": "2026-10-29T16:26:18Z",
+        "ingested_at": "2026-10-30T07:07:11Z",
+        "published_at": "2026-10-29T13:15:00Z",
+        "source_url": "https://www.ecb.europa.eu//press/pr/date/2026/html/ecb.mp261029~9a493adf17.en.html",
+        "statement_verified": true
+      },
+      "release_published_at": "2026-10-29T13:15:00Z",
+      "schedule_kind": "UNSCHEDULED_RELEASE",
+      "scheduled_at": "2026-10-29T13:15:00Z",
+      "source_url": "https://www.ecb.europa.eu//press/pr/date/2026/html/ecb.mp261029~9a493adf17.en.html",
+      "time_precision": "exact"
+    }
+  },
   "calendar_coverage": {
     "schema_version": "macro-calendar-coverage-v1",
     "required_sources": [
@@ -23,7 +67,7 @@
       "BLS": {
         "status": "ok",
         "source_ref": "https://www.bls.gov/schedule/news_release/bls.ics",
-        "event_count": 20,
+        "event_count": 22,
         "error_type": null
       },
       "BEA": {
@@ -41,7 +85,7 @@
       "EUROSTAT": {
         "status": "ok",
         "source_ref": "https://ec.europa.eu/eurostat/o/calendars/eventsIcal?theme=&category=",
-        "event_count": 25,
+        "event_count": 24,
         "error_type": null
       },
       "ECB": {
@@ -53,6 +97,20 @@
     },
     "complete": true
   },
-  "generated_at": "2026-11-03T11:24:30.551040Z",
-  "checked_at": "2026-11-03T11:24:30.551040Z"
+  "rules": {
+    "no_invented_consensus": true,
+    "eurusd_only_llm_beliefs": [
+      "eurusd.trend.bullish",
+      "eurusd.usd_environment.supportive",
+      "eurusd.us_rates_pressure.supportive",
+      "eurusd.macro_surprise.supportive",
+      "eurusd.policy_differential.supportive"
+    ],
+    "pre_event_expectations_require_sourced_bundle": true,
+    "missing_expectations_fail_closed": true,
+    "post_release_requires_official_actuals": true,
+    "official_actual_period_contract": "OFFICIAL_CENTRAL_BANK_DOCUMENT"
+  },
+  "generated_at": "2026-11-03T18:37:06.556185Z",
+  "checked_at": "2026-11-03T18:37:06.556185Z"
 }
