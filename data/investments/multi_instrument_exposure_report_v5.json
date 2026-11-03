@@ -1,17 +1,62 @@
 {
   "layer_version": "5.9.1-experimental",
-  "checked_at": "2026-11-03T04:29:54+01:00",
+  "checked_at": "2026-11-03T08:54:58+01:00",
   "actions": [
     {
       "instrument_id": "eurusd",
       "action": "block_new_entry",
       "reason": "central_bank_event_risk",
-      "decision_id": "b1a4a7c99463ec3da603c2dce47274a4ea64bcd11c87c97462eed6f01a12a169"
+      "decision_id": "ba5bf45535712340815ae876535de18a5348afadd63866120eb7a9695a8fed72"
     },
     {
       "instrument_id": "sp500_futures",
-      "action": "no_trade",
-      "reason": "gate_or_reentry_lock"
+      "action": "wait_for_entry_target",
+      "direction": "short",
+      "target_price": 7594.16031848,
+      "reference_price": 7553.5,
+      "order_type": "sell_limit",
+      "expires_at": "2026-11-03T09:54:58+01:00",
+      "overextension_score": 0.648429,
+      "market_entry_diagnostics": {
+        "version": "WES-1.3.1",
+        "scoring_model": "weekly_primary_daily_confirmation_modifier",
+        "direction": "short",
+        "daily_score": -57.0,
+        "weekly_score": -20.0,
+        "selected_utility": 9.4949,
+        "confirmations": 2,
+        "ret5_pct": -2.6391,
+        "ret20_pct": -4.0704,
+        "overextension_score": 0.648429,
+        "daily_aligned": true,
+        "weekly_aligned": true,
+        "daily_opposed": false,
+        "weekly_opposed": false,
+        "momentum_aligned": true,
+        "momentum_opposed": false,
+        "primary_score_components": {
+          "weekly": 0.3636,
+          "utility": 0.6782,
+          "confirmations": 0.5,
+          "momentum": 1.0
+        },
+        "primary_market_score": 0.5582,
+        "overextension_penalty": 0.1297,
+        "score_before_daily_modifier": 0.4285,
+        "daily_confirmation_modifier": 0.08,
+        "daily_confirmation_state": "aligned_bonus",
+        "daily_modifier_bounds": {
+          "aligned_bonus_max": 0.08,
+          "opposed_penalty_max": 0.1,
+          "strong_opposition_veto_abs_score": 55.0
+        },
+        "market_score": 0.5085,
+        "minimum_market_score": 0.6,
+        "eligible": false,
+        "reasons": [
+          "market_score_below_threshold"
+        ]
+      }
     },
     {
       "instrument_id": "btcusd",
@@ -22,7 +67,7 @@
   "status": "completed",
   "eurusd_central_bank_event_risk": {
     "event_id": "cb-release:c327a2d24023c0ee6f4bb75322f74f2c",
-    "evaluated_at": "2026-11-03T03:29:54.683904Z",
+    "evaluated_at": "2026-11-03T07:54:58.482070Z",
     "scope": "EURUSD_WEEKLY",
     "position_id": null,
     "action": "BLOCK_NEW_ENTRY",
@@ -66,6 +111,7 @@
       "cb:9c2146443ef06c5fcf0f4046925c6201",
       "cb:a05d9031d0714e17880076ad21a13cfa",
       "cb:a0e22d4587c11d989fc0b90239de56bc",
+      "cb:a7aaa0a277fc34b522d94a31e9a93fe4",
       "cb:a9cfa76c2046628b0e1775d6402a1338",
       "cb:aab8db80d4302ff010882a97c9c99df1",
       "cb:b00926cce11a1814cf2f217a131b5c54",
@@ -76,6 +122,7 @@
       "cb:c557449f1107b6cd4566af05e52ed570",
       "cb:c6e7944f1404e219a7bbd87a04ee5904",
       "cb:c95f82e4f96170a9bf10c18f207fdfbc",
+      "cb:cdfb36e8f9f231f25e8dde119a9a827f",
       "cb:d7f1b3ea0d4fc93ba6a710ef0e481bee",
       "cb:d83f7ab0520077c3814d32d38d9213dc",
       "cb:d9b1f2c024b765d33ba863710dfb0e72",
@@ -105,7 +152,7 @@
       "current_event_id": "cb-release:c327a2d24023c0ee6f4bb75322f74f2c",
       "bank": "ECB",
       "phase": "RELEASED",
-      "minutes_until": -6614.9113984,
+      "minutes_until": -6879.974701166667,
       "conference_status": "UNKNOWN",
       "active_event_ids": [
         "cb-release:c327a2d24023c0ee6f4bb75322f74f2c",
@@ -115,10 +162,10 @@
       "latest_headline": "Boris Vujčić: Integrated, open and resilient: Europe’s strengths in a fragmenting world",
       "latest_official_document": "https://www.ecb.europa.eu//press/pr/date/2026/html/ecb.mp261029~9a493adf17.en.html",
       "speaker_verified": false,
-      "source_age_seconds": 18007.683904,
+      "source_age_seconds": 15303.48207,
       "wire_health": "STALE",
       "producer_wire_health": "FRESH",
-      "latest_decision_headline_age_seconds": 64794.683904,
+      "latest_decision_headline_age_seconds": 80698.48207,
       "position_profit_pips": null,
       "current_net_R": null,
       "profit_at_risk_pips": null,
@@ -129,9 +176,9 @@
       "mfe_R": null,
       "remaining_upside_R": null,
       "reward_to_downside": null,
-      "quote_age_seconds": 29.683904,
+      "quote_age_seconds": 33.48207,
       "current_executable_exit_price": null,
-      "paper_proxy_price": 1.1186933517456055,
+      "paper_proxy_price": 1.1200717687606812,
       "paper_proxy_uncertain": true,
       "spread_pips": null,
       "spread_multiple": null,
@@ -180,22 +227,22 @@
     "audit": {
       "policy_version": "1.0.0",
       "policy_hash": "f3536a02e7152c611dcdbc00cf5a78122a678a62d71d2af39c5583a03e7b64e1",
-      "data_as_of": "2026-11-02T22:29:47Z",
+      "data_as_of": "2026-11-03T03:39:55Z",
       "first_seen_at": "2026-11-02T13:49:21Z",
-      "producer_sha": "d8258601bfbdab595902d2f971dc8ef36e8ca476",
-      "consumer_sha": "892901608786a5f2d78da73fde1c1e413e7f4a28",
-      "snapshot_sha256": "22807bcf7044aa9c223b122fd04470a351c04156563a14e4eb57c6cf6210b5fc",
+      "producer_sha": "d73c171c565cdf1c56c7aef9e43c3290e2e6664b",
+      "consumer_sha": "a4c0a23fb4768b89ef0c4fe41b55bec6641ab851",
+      "snapshot_sha256": "3487b4738157178c2c4a771754037b7faadd17b08ceff3fc93a4137ac05cd735",
       "executed_at": null,
       "execution_price_source": null,
       "execution_authorized": false,
       "latency_breakdown": {
         "source_to_seen_seconds": 15561.0,
-        "snapshot_to_consumer_seconds": 18007.683904,
+        "snapshot_to_consumer_seconds": 15303.48207,
         "decision_to_execution_seconds": null
       },
       "risk_model_sample_sha256": null,
       "consumer_code_sha256": "cee3814b4cf02eff167412d3f01cdde87cff0b77e3e0e82cf9ca0e5b42f56cb5",
-      "immutable_id": "b1a4a7c99463ec3da603c2dce47274a4ea64bcd11c87c97462eed6f01a12a169"
+      "immutable_id": "ba5bf45535712340815ae876535de18a5348afadd63866120eb7a9695a8fed72"
     },
     "decision_mode": "SHADOW",
     "decision": "BLOCK_NEW_ENTRY",
@@ -207,7 +254,7 @@
       "NO_EXECUTABLE_QUOTE",
       "EXECUTION_COSTS_UNKNOWN"
     ],
-    "immutable_id": "b1a4a7c99463ec3da603c2dce47274a4ea64bcd11c87c97462eed6f01a12a169",
+    "immutable_id": "ba5bf45535712340815ae876535de18a5348afadd63866120eb7a9695a8fed72",
     "executed_at": null,
     "execution_price_source": null,
     "execution_authority": false,
@@ -221,15 +268,15 @@
       "exit_price": null
     },
     "entry_guard_enabled": true,
-    "consumer_sha": "892901608786a5f2d78da73fde1c1e413e7f4a28",
+    "consumer_sha": "a4c0a23fb4768b89ef0c4fe41b55bec6641ab851",
     "consumer_code_sha256": "f6f2e41ea17d983296cbad4072601d0875443b3eb739e1c98b3e2a384ffad20f",
     "price_watchdog": {
       "instrument_id": "eurusd",
-      "price_observed_at": "2026-11-03T04:29:25+01:00",
-      "price_age_seconds": 29.683904,
+      "price_observed_at": "2026-11-03T08:54:25+01:00",
+      "price_age_seconds": 33.48207,
       "fresh_for_display_mark": true,
       "fresh_for_execution": false,
-      "last_known_price": 1.1186933517456055,
+      "last_known_price": 1.1200717687606812,
       "status": "FRESH",
       "alerts": [],
       "recovery_required": false
