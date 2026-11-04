@@ -1,14 +1,14 @@
 {
   "schema_version": "stock-trading-quote-freshness-watchdog-v1",
-  "checked_at_bucket": "2026-11-04T14:00:00Z",
+  "checked_at_bucket": "2026-11-04T15:00:00Z",
   "max_age_seconds": {
     "GPW": 1200,
     "US": 600
   },
-  "status": "OK",
-  "active_positions_checked": 3,
-  "positions_recovered": 0,
-  "alerts": 0,
+  "status": "ALERT",
+  "active_positions_checked": 6,
+  "positions_recovered": 1,
+  "alerts": 1,
   "positions": [
     {
       "market": "GPW",
@@ -16,16 +16,17 @@
       "session": "ACTIVE",
       "precheck": "FRESH",
       "status": "FRESH",
-      "observed_at": "2026-11-04T14:58:48+01:00",
+      "observed_at": "2026-11-04T15:53:59+01:00",
       "provider": "Yahoo Finance chart"
     },
     {
       "market": "GPW",
       "symbol": "MBK.WA",
       "session": "ACTIVE",
-      "precheck": "FRESH",
-      "status": "FRESH",
-      "observed_at": "2026-11-04T14:59:14+01:00",
+      "precheck": "STALE",
+      "recovery_attempted": true,
+      "status": "RECOVERED",
+      "observed_at": "2026-11-04T15:58:11+01:00",
       "provider": "Yahoo Finance chart"
     },
     {
@@ -34,31 +35,34 @@
       "session": "ACTIVE",
       "precheck": "FRESH",
       "status": "FRESH",
-      "observed_at": "2026-11-04T14:59:08+01:00",
+      "observed_at": "2026-11-04T15:53:52+01:00",
       "provider": "Yahoo Finance chart"
     },
     {
       "market": "US",
       "symbol": "COST",
-      "session": "CLOSED",
-      "status": "OUT_OF_SESSION",
-      "observed_at": "2026-11-04T09:10:34-05:00",
+      "session": "ACTIVE",
+      "precheck": "FRESH",
+      "status": "FRESH",
+      "observed_at": "2026-11-04T10:08:00-05:00",
       "provider": "Yahoo Finance chart"
     },
     {
       "market": "US",
       "symbol": "AZN",
-      "session": "CLOSED",
-      "status": "OUT_OF_SESSION",
-      "observed_at": "2026-11-04T09:10:41-05:00",
+      "session": "ACTIVE",
+      "precheck": "FRESH",
+      "status": "FRESH",
+      "observed_at": "2026-11-04T10:08:56-05:00",
       "provider": "Yahoo Finance chart"
     },
     {
       "market": "US",
       "symbol": "CBOE",
-      "session": "CLOSED",
-      "status": "OUT_OF_SESSION",
-      "observed_at": null,
+      "session": "ACTIVE",
+      "precheck": "FRESH",
+      "status": "FRESH",
+      "observed_at": "2026-11-04T10:08:42-05:00",
       "provider": "Yahoo Finance chart"
     }
   ],
@@ -69,7 +73,7 @@
   },
   "candidates_checked": 6,
   "candidate_quotes_observed": 6,
-  "candidate_alerts": 0,
+  "candidate_alerts": 1,
   "candidates": [
     {
       "market": "GPW",
@@ -81,16 +85,16 @@
       "precheck": "STALE",
       "recovery_attempted": true,
       "quote": {
-        "price": 59.49000168,
-        "observed_at": "2026-11-04T15:00:36+01:00",
-        "received_at": "2026-11-04T14:15:46+00:00",
+        "price": 60.02999878,
+        "observed_at": "2026-11-04T15:58:40+01:00",
+        "received_at": "2026-11-04T15:13:43+00:00",
         "market_state": "REGULAR",
         "provider": "Yahoo Finance chart",
         "delay_status": "unverified",
         "is_realtime": false
       },
       "status": "OBSERVED",
-      "age_seconds": 910
+      "age_seconds": 903
     },
     {
       "market": "GPW",
@@ -102,16 +106,16 @@
       "precheck": "STALE",
       "recovery_attempted": true,
       "quote": {
-        "price": 38.29000092,
-        "observed_at": "2026-11-04T15:00:15+01:00",
-        "received_at": "2026-11-04T14:15:46+00:00",
+        "price": 38.15000153,
+        "observed_at": "2026-11-04T15:58:19+01:00",
+        "received_at": "2026-11-04T15:13:43+00:00",
         "market_state": "REGULAR",
         "provider": "Yahoo Finance chart",
         "delay_status": "unverified",
         "is_realtime": false
       },
       "status": "OBSERVED",
-      "age_seconds": 931
+      "age_seconds": 924
     },
     {
       "market": "GPW",
@@ -123,16 +127,16 @@
       "precheck": "STALE",
       "recovery_attempted": true,
       "quote": {
-        "price": 1080.0,
-        "observed_at": "2026-11-04T15:00:42+01:00",
-        "received_at": "2026-11-04T14:15:46+00:00",
+        "price": 1076.0,
+        "observed_at": "2026-11-04T15:57:12+01:00",
+        "received_at": "2026-11-04T15:13:43+00:00",
         "market_state": "REGULAR",
         "provider": "Yahoo Finance chart",
         "delay_status": "unverified",
         "is_realtime": false
       },
       "status": "OBSERVED",
-      "age_seconds": 904
+      "age_seconds": 991
     },
     {
       "market": "GPW",
@@ -141,19 +145,19 @@
       "session": "ACTIVE",
       "authority": "MONITOR_ONLY",
       "frontier_generated_at": "2026-11-04T14:08:14.393011Z",
-      "precheck": "NO_VERIFIED_PRICE",
+      "precheck": "STALE",
       "recovery_attempted": true,
       "quote": {
-        "price": 751.20001221,
-        "observed_at": "2026-11-04T15:00:43+01:00",
-        "received_at": "2026-11-04T14:15:46+00:00",
+        "price": 751.59997559,
+        "observed_at": "2026-11-04T15:58:38+01:00",
+        "received_at": "2026-11-04T15:13:43+00:00",
         "market_state": "REGULAR",
         "provider": "Yahoo Finance chart",
         "delay_status": "unverified",
         "is_realtime": false
       },
       "status": "OBSERVED",
-      "age_seconds": 903
+      "age_seconds": 905
     },
     {
       "market": "GPW",
@@ -165,16 +169,16 @@
       "precheck": "STALE",
       "recovery_attempted": true,
       "quote": {
-        "price": 240.0,
-        "observed_at": "2026-11-04T15:00:37+01:00",
-        "received_at": "2026-11-04T14:15:46+00:00",
+        "price": 238.80000305,
+        "observed_at": "2026-11-04T15:58:42+01:00",
+        "received_at": "2026-11-04T15:13:43+00:00",
         "market_state": "REGULAR",
         "provider": "Yahoo Finance chart",
         "delay_status": "unverified",
         "is_realtime": false
       },
       "status": "OBSERVED",
-      "age_seconds": 909
+      "age_seconds": 901
     },
     {
       "market": "GPW",
@@ -183,19 +187,19 @@
       "session": "ACTIVE",
       "authority": "MONITOR_ONLY",
       "frontier_generated_at": "2026-11-04T14:08:14.393011Z",
-      "precheck": "NO_VERIFIED_PRICE",
+      "precheck": "STALE",
       "recovery_attempted": true,
       "quote": {
-        "price": 16.77000046,
-        "observed_at": "2026-11-04T15:00:02+01:00",
-        "received_at": "2026-11-04T14:15:46+00:00",
+        "price": 16.80500031,
+        "observed_at": "2026-11-04T15:58:44+01:00",
+        "received_at": "2026-11-04T15:13:43+00:00",
         "market_state": "REGULAR",
         "provider": "Yahoo Finance chart",
         "delay_status": "unverified",
         "is_realtime": false
       },
       "status": "OBSERVED",
-      "age_seconds": 944
+      "age_seconds": 899
     }
   ],
   "candidate_quote_authority": "READ_ONLY_MONITORING_NOT_EXECUTION"
