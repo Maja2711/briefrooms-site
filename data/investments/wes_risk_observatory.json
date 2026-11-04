@@ -1,21 +1,21 @@
 {
   "schema_version": "wes-risk-observatory-v1",
   "mode": "OBSERVE_ONLY",
-  "checked_at": "2026-11-03T22:19:33.841587+00:00",
+  "checked_at": "2026-11-04T02:29:11.085596+00:00",
   "week_id": "2026-W45",
   "instruments": {
     "eurusd": {
       "trade_status": "no_trade",
       "quote_fresh": true,
-      "quote_age_seconds": 5.8,
+      "quote_age_seconds": 42.1,
       "quote_source": "Yahoo Finance:EURUSD=X:chart:1d:1m",
       "state": "NO_OPEN_POSITION",
       "warnings": [],
       "entry_funnel": {
-        "candidate_direction": "short",
-        "candidate_raw": 60.0,
-        "confirmations": 3,
-        "admission_passed": true,
+        "candidate_direction": "neutral",
+        "candidate_raw": 0.0,
+        "confirmations": 0,
+        "admission_passed": false,
         "delta_gate_passed": false,
         "epe_status": null,
         "epe_reason": null,
@@ -26,7 +26,7 @@
     "btcusd": {
       "trade_status": "no_trade",
       "quote_fresh": true,
-      "quote_age_seconds": 5.8,
+      "quote_age_seconds": 5.1,
       "quote_source": "Yahoo Finance:BTC-USD:chart:1d:1m",
       "state": "NO_OPEN_POSITION",
       "warnings": [],
@@ -34,7 +34,7 @@
         "candidate_direction": "neutral",
         "candidate_raw": 0.0,
         "confirmations": 0,
-        "admission_passed": false,
+        "admission_passed": null,
         "delta_gate_passed": false,
         "epe_status": null,
         "epe_reason": null,
@@ -43,12 +43,14 @@
       }
     },
     "sp500_futures": {
-      "trade_status": "no_trade",
+      "trade_status": "pending",
       "quote_fresh": false,
-      "quote_age_seconds": 1175.8,
+      "quote_age_seconds": 602.1,
       "quote_source": "Yahoo Finance:ES=F:chart:1d:1m",
       "state": "NO_OPEN_POSITION",
-      "warnings": [],
+      "warnings": [
+        "PENDING_ENTRY_QUOTE_STALE_OR_MISSING"
+      ],
       "entry_funnel": {
         "candidate_direction": "neutral",
         "candidate_raw": 0.0,
@@ -57,10 +59,15 @@
         "delta_gate_passed": false,
         "epe_status": null,
         "epe_reason": null,
-        "pending_authorization": false,
-        "pending_decision": false
+        "pending_authorization": true,
+        "pending_decision": true
       }
     }
   },
-  "alerts": []
+  "alerts": [
+    {
+      "instrument_id": "sp500_futures",
+      "code": "PENDING_ENTRY_QUOTE_STALE_OR_MISSING"
+    }
+  ]
 }
