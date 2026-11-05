@@ -116,12 +116,12 @@
       "next_entry_status": "no_trade",
       "continuous_exposure_active": false,
       "continuous_exposure_status": "no_trade",
-      "wes_last_review_at": "2026-11-05T12:35:59+01:00",
+      "wes_last_review_at": "2026-11-05T17:47:57+01:00",
       "wes_trigger_candidate": {
         "direction": "neutral",
         "strategy_id": "no_trade",
         "raw_score": 0.0,
-        "utility": 4.8908,
+        "utility": 4.5146,
         "signal_delta_from_initial": 0.0,
         "confirmations": 0,
         "confirmation_sources": [],
@@ -148,7 +148,7 @@
             "raw": 0.0,
             "required_raw": 67.6,
             "raw_multiplier": 1.3,
-            "utility": 4.8908,
+            "utility": 4.5146,
             "required_utility": 12.35,
             "utility_multiplier": 1.3,
             "confirmations": 0,
@@ -264,50 +264,54 @@
       "continuous_exposure_active": false,
       "continuous_exposure_status": "no_trade",
       "wes_status": "no_trade_monitoring_trigger",
-      "wes_last_review_at": "2026-11-05T12:35:59+01:00",
+      "wes_last_review_at": "2026-11-05T17:47:57+01:00",
       "wes_trigger_candidate": {
-        "direction": "neutral",
-        "strategy_id": "no_trade",
-        "raw_score": 0.0,
-        "utility": 7.9771,
-        "signal_delta_from_initial": 0.0,
-        "confirmations": 0,
-        "confirmation_sources": [],
+        "direction": "short",
+        "strategy_id": "weekly_trend",
+        "raw_score": 27.0,
+        "utility": 9.0271,
+        "signal_delta_from_initial": 1.0,
+        "confirmations": 2,
+        "confirmation_sources": [
+          "daily",
+          "weekly"
+        ],
         "entry_class": "midweek_trigger",
-        "execution_authority": null,
+        "execution_authority": "champion_execution",
         "directional_admission": {
           "version": "WES-1.3.1",
-          "direction": "long",
-          "confirmations": 1,
+          "direction": "short",
+          "confirmations": 2,
           "confirmation_sources": [
+            "daily",
             "weekly"
           ],
           "execution_authority": "champion_execution",
-          "passed": false
+          "passed": true
         },
         "delta_gate": {
-          "delta": 0.0,
+          "delta": 1.0,
           "required_delta": 18.0,
           "passed": false,
           "absolute_strength_bypass": {
             "version": "WES-1.3.1",
             "eligible": false,
-            "raw": 0.0,
+            "raw": 27.0,
             "required_raw": 67.6,
             "raw_multiplier": 1.3,
-            "utility": 7.9771,
+            "utility": 9.0271,
             "required_utility": 12.35,
             "utility_multiplier": 1.3,
-            "confirmations": 0,
+            "confirmations": 2,
             "required_confirmations": 2,
-            "confirmation_sources": [],
+            "confirmation_sources": [
+              "daily",
+              "weekly"
+            ],
             "require_daily_weekly_confirmation": true,
             "reasons": [
-              "directional_admission_not_passed",
               "raw_below_scaled_absolute_strength",
-              "utility_below_scaled_absolute_strength",
-              "insufficient_confirmations_for_absolute_strength",
-              "daily_weekly_confirmation_required"
+              "utility_below_scaled_absolute_strength"
             ]
           },
           "persistent_plan_reaffirmed": false,
@@ -669,12 +673,12 @@
       "continuous_exposure_active": false,
       "continuous_exposure_status": "no_trade",
       "wes_status": "no_trade_monitoring_trigger",
-      "wes_last_review_at": "2026-11-05T12:35:59+01:00",
+      "wes_last_review_at": "2026-11-05T17:47:57+01:00",
       "wes_trigger_candidate": {
         "direction": "neutral",
         "strategy_id": "no_trade",
         "raw_score": 0.0,
-        "utility": 5.5538,
+        "utility": 6.7538,
         "signal_delta_from_initial": 0.0,
         "confirmations": 0,
         "confirmation_sources": [],
@@ -683,10 +687,8 @@
         "directional_admission": {
           "version": "WES-1.3.1",
           "direction": "long",
-          "confirmations": 1,
-          "confirmation_sources": [
-            "weekly"
-          ],
+          "confirmations": 0,
+          "confirmation_sources": [],
           "execution_authority": "champion_execution",
           "passed": false
         },
@@ -700,7 +702,7 @@
             "raw": 0.0,
             "required_raw": 67.6,
             "raw_multiplier": 1.3,
-            "utility": 5.5538,
+            "utility": 6.7538,
             "required_utility": 12.35,
             "utility_multiplier": 1.3,
             "confirmations": 0,
@@ -1005,8 +1007,8 @@
     "replacement_holding_days": 7,
     "replacement_weekend_carry": true,
     "material_event_reentry": false,
-    "last_preflight_at": "2026-11-05T12:35:59+01:00",
-    "last_postflight_at": "2026-11-05T12:36:07+01:00",
+    "last_preflight_at": "2026-11-05T17:47:57+01:00",
+    "last_postflight_at": "2026-11-05T17:48:06+01:00",
     "dynamic_risk": true,
     "learning_by_entry_class": true
   },
