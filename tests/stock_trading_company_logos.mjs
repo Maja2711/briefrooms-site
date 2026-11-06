@@ -128,7 +128,7 @@ for (const position of positions.slice(-2)) {
 }
 for (const route of ['pl/inwestycje/stock-trading.html', 'en/investing/stock-trading.html']) {
   const html = readFileSync(join(rootDir, route), 'utf8');
-  assert.ok(html.includes('/scripts/stock-trading-company-logos-v2.js?v=20261022-logo-cache-1'));
+  assert.ok(html.includes('/scripts/stock-trading-company-logos-v2.js?v=20261106-logo-coverage-2'));
   assert.ok(!html.includes('/scripts/stock-trading-company-logos-v2.js?v=20260918-4'));
 }
 console.log('PASS US logos: ASO, WMG, SAP, CBOE, STE; GPW isolated; source fallback; PL/EN cache version');
