@@ -15,6 +15,7 @@
     MRK:'merck.com', ABBV:'abbvie.com', TMO:'thermofisher.com', UNH:'unitedhealthgroup.com', HD:'homedepot.com',
     MPC:'marathonpetroleum.com', NTRA:'natera.com', NET:'cloudflare.com',
 
+    PCO:'pepcogroup.eu', BFT:'benefitsystems.pl',
     JSW:'jsw.pl', PKN:'orlen.pl', ORLEN:'orlen.pl', KGHM:'kghm.com', PKO:'pkobp.pl', PZU:'pzu.pl', PEO:'pekao.com.pl',
     MBK:'mbank.pl', ALR:'aliorbank.pl', ING:'ing.pl', SAN:'santander.pl', SPL:'santander.pl', CDR:'cdprojekt.com', LPP:'lppsa.com',
     DNP:'grupadino.pl', CCC:'ccc.eu', OPL:'orange.pl', CPS:'grupapolsatplus.pl', PGE:'gkpge.pl', TPE:'tauron.pl', ENA:'enea.pl',
@@ -22,7 +23,7 @@
     BDX:'budimex.pl', BUD:'budimex.pl', ATT:'grupaazoty.com', PKP:'pkpcargo.com'
   };
 
-  const GPW_TICKERS = new Set('JSW PKN ORLEN KGHM PKO PZU PEO MBK ALR ING SAN SPL CDR LPP DNP CCC OPL CPS PGE TPE ENA ALE XTB ACP ASB EUR KRU MIL BDX BUD ATT PKP'.split(' '));
+  const GPW_TICKERS = new Set('PCO BFT JSW PKN ORLEN KGHM PKO PZU PEO MBK ALR ING SAN SPL CDR LPP DNP CCC OPL CPS PGE TPE ENA ALE XTB ACP ASB EUR KRU MIL BDX BUD ATT PKP'.split(' '));
   const GPW_DOMAINS = Object.freeze(Object.fromEntries(Object.entries(DOMAINS).filter(([ticker]) => GPW_TICKERS.has(ticker))));
   const US_BASE_DOMAINS = Object.freeze(Object.fromEntries(Object.entries(DOMAINS).filter(([ticker]) => !GPW_TICKERS.has(ticker))));
 
