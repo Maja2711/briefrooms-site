@@ -56,24 +56,8 @@
     // ticker's domain for an unrelated US issuer (or vice versa).
     if (market === 'GPW' && GPW_DOMAINS[t]) return GPW_DOMAINS[t];
     if (market === 'US' && US_BASE_DOMAINS[t]) return US_BASE_DOMAINS[t];
-    const n = String(name || '').toLowerCase();
-    if (market === 'US' && n.includes('micron')) return 'micron.com';
-    if (n.includes('nvidia')) return 'nvidia.com';
-    if (n.includes('apple')) return 'apple.com';
-    if (n.includes('microsoft')) return 'microsoft.com';
-    if (n.includes('amazon')) return 'amazon.com';
-    if (n.includes('alphabet') || n.includes('google')) return 'google.com';
-    if (n.includes('meta platform')) return 'meta.com';
-    if (n.includes('tesla')) return 'tesla.com';
-    if (n.includes('jsw') || n.includes('jastrzęb') || n.includes('jastrzeb')) return 'jsw.pl';
-    if (n.includes('orlen')) return 'orlen.pl';
-    if (n.includes('kghm')) return 'kghm.com';
-    if (n.includes('pko')) return 'pkobp.pl';
-    if (n.includes('pekao')) return 'pekao.com.pl';
-    if (n.includes('pzu')) return 'pzu.pl';
-    if (n.includes('cd projekt')) return 'cdprojekt.com';
-    if (n.includes('allegro')) return 'allegro.eu';
-    if (n.includes('xtb')) return 'xtb.com';
+    // Never infer issuer identity from a substring of the display name.
+    // Unmapped issuers rely on vetted market-scoped cache, else letters.
     return '';
   }
 
