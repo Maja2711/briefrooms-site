@@ -66,7 +66,11 @@ const positions = [
   new Position('ASO', 'Academy Sports and Outdoors, Inc.', 'US'),
   new Position('WMG', 'Warner Music Group Corp.', 'US', 'str-overview-position'),
   new Position('SAP', 'SAP SE ADS', 'US'),
+  new Position('CBOE', 'Cboe Global Markets, Inc.', 'US'),
+  new Position('STE', 'STERIS plc', 'US'),
   new Position('LPP', 'LPP Spółka Akcyjna', 'GPW'),
+  new Position('PCO', 'PEPCO GROUP N.V.', 'GPW'),
+  new Position('BFT', 'BENEFIT SYSTEMS SPÓŁKA AKCYJNA', 'GPW'),
   new Position('SAP', 'Polska spółka o takim tickerze', 'GPW'),
   new Position('ZZZNEW', 'Unmapped USA issuer', 'US'),
 ];
@@ -95,7 +99,11 @@ const expected = [
   ['ASO', 'academy.com'],
   ['WMG', 'wmg.com'],
   ['SAP', 'sap.com'],
-  ['LPP', 'lppsa.com']
+  ['CBOE', 'cboe.com'],
+  ['STE', 'steris.com'],
+  ['LPP', 'lppsa.com'],
+  ['PCO', 'pepcogroup.eu'],
+  ['BFT', 'benefitsystems.pl']
 ];
 for (const [index, pair] of expected.entries()) {
   const [ticker, domain] = pair;
@@ -124,10 +132,10 @@ for (const position of positions.slice(-2)) {
 }
 for (const route of ['pl/inwestycje/stock-trading.html', 'en/investing/stock-trading.html']) {
   const html = readFileSync(join(rootDir, route), 'utf8');
-  assert.ok(html.includes('/scripts/stock-trading-company-logos-v2.js?v=20261022-logo-cache-1'));
+  assert.ok(html.includes('/scripts/stock-trading-company-logos-v2.js?v=20261106-logo-coverage-2'));
   assert.ok(!html.includes('/scripts/stock-trading-company-logos-v2.js?v=20260918-4'));
 }
-console.log('PASS US logos: ASO, WMG, SAP; GPW isolated; source fallback; PL/EN cache version');
+console.log('PASS US logos: ASO, WMG, SAP, CBOE, STE; GPW isolated; source fallback; PL/EN cache version');
 
 
 const cachePositions = [

@@ -15,18 +15,24 @@
     MRK:'merck.com', ABBV:'abbvie.com', TMO:'thermofisher.com', UNH:'unitedhealthgroup.com', HD:'homedepot.com',
     MPC:'marathonpetroleum.com', NTRA:'natera.com', NET:'cloudflare.com',
 
-    JSW:'jsw.pl', PKN:'orlen.pl', ORLEN:'orlen.pl', KGHM:'kghm.com', PKO:'pkobp.pl', PZU:'pzu.pl', PEO:'pekao.com.pl',
+    JSW:'jsw.pl', PCO:'pepcogroup.eu', BFT:'benefitsystems.pl', PKN:'orlen.pl', ORLEN:'orlen.pl', KGHM:'kghm.com', PKO:'pkobp.pl', PZU:'pzu.pl', PEO:'pekao.com.pl',
     MBK:'mbank.pl', ALR:'aliorbank.pl', ING:'ing.pl', SAN:'santander.pl', SPL:'santander.pl', CDR:'cdprojekt.com', LPP:'lppsa.com',
     DNP:'grupadino.pl', CCC:'ccc.eu', OPL:'orange.pl', CPS:'grupapolsatplus.pl', PGE:'gkpge.pl', TPE:'tauron.pl', ENA:'enea.pl',
     ALE:'allegro.eu', XTB:'xtb.com', ACP:'asseco.com', ASB:'assecobs.pl', EUR:'eurocash.pl', KRU:'kruk.eu', MIL:'bankmillennium.pl',
     BDX:'budimex.pl', BUD:'budimex.pl', ATT:'grupaazoty.com', PKP:'pkpcargo.com'
   };
 
+  const GPW_TICKERS = new Set('PCO BFT JSW PKN ORLEN KGHM PKO PZU PEO MBK ALR ING SAN SPL CDR LPP DNP CCC OPL CPS PGE TPE ENA ALE XTB ACP ASB EUR KRU MIL BDX BUD ATT PKP'.split(' '));
+  const GPW_DOMAINS = Object.freeze(Object.fromEntries(Object.entries(DOMAINS).filter(([ticker]) => GPW_TICKERS.has(ticker))));
+  const US_BASE_DOMAINS = Object.freeze(Object.fromEntries(Object.entries(DOMAINS).filter(([ticker]) => !GPW_TICKERS.has(ticker))));
+
   // Known, verified US listings only. Do not override identically named GPW tickers.
   const US_DOMAINS = Object.freeze({
     ASO: 'academy.com', // Academy Sports + Outdoors
     WMG: 'wmg.com',     // Warner Music Group
-    SAP: 'sap.com'      // SAP SE ADS
+    SAP: 'sap.com',     // SAP SE ADS
+    CBOE: 'cboe.com',  // Cboe Global Markets
+    STE: 'steris.com'  // STERIS plc
   });
 
   // The optional same-origin logo cache is published by a separate read-only
@@ -46,25 +52,12 @@
   function resolveDomain(ticker, name, market) {
     const t = normalizeTicker(ticker);
     if (market === 'US' && US_DOMAINS[t]) return US_DOMAINS[t];
-    if (DOMAINS[t]) return DOMAINS[t];
-    const n = String(name || '').toLowerCase();
-    if (n.includes('micron')) return 'micron.com';
-    if (n.includes('nvidia')) return 'nvidia.com';
-    if (n.includes('apple')) return 'apple.com';
-    if (n.includes('microsoft')) return 'microsoft.com';
-    if (n.includes('amazon')) return 'amazon.com';
-    if (n.includes('alphabet') || n.includes('google')) return 'google.com';
-    if (n.includes('meta platform')) return 'meta.com';
-    if (n.includes('tesla')) return 'tesla.com';
-    if (n.includes('jsw') || n.includes('jastrzęb') || n.includes('jastrzeb')) return 'jsw.pl';
-    if (n.includes('orlen')) return 'orlen.pl';
-    if (n.includes('kghm')) return 'kghm.com';
-    if (n.includes('pko')) return 'pkobp.pl';
-    if (n.includes('pekao')) return 'pekao.com.pl';
-    if (n.includes('pzu')) return 'pzu.pl';
-    if (n.includes('cd projekt')) return 'cdprojekt.com';
-    if (n.includes('allegro')) return 'allegro.eu';
-    if (n.includes('xtb')) return 'xtb.com';
+    // The generic table is split at the GPW boundary; never reuse a GPW
+    // ticker's domain for an unrelated US issuer (or vice versa).
+    if (market === 'GPW' && GPW_DOMAINS[t]) return GPW_DOMAINS[t];
+    if (market === 'US' && US_BASE_DOMAINS[t]) return US_BASE_DOMAINS[t];
+    // Never infer issuer identity from a substring of the display name.
+    // Unmapped issuers rely on vetted market-scoped cache, else letters.
     return '';
   }
 

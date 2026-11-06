@@ -25,7 +25,7 @@ MANIFEST = ROOT / "data/investments/company_logo_cache.json"
 ASSET_ROOT = ROOT / "assets/company-logos"
 USER_AGENT = "BriefRooms-CompanyLogoResolver/1.0 (public presentation metadata; contact https://briefrooms.com)"
 MAX_IMAGE_BYTES = 300_000
-MAX_LOOKUPS = 15
+MAX_LOOKUPS = 100
 # Exchange identification is REQUIRED. Ticker alone is never an identity proof.
 EXCHANGES = {"GPW": {"Q849235"}, "US": {"Q13677", "Q82059"}}
 STOP = {"inc", "incorporated", "corporation", "corp", "co", "company", "limited",
@@ -124,6 +124,8 @@ def verified_identity(entity: dict, market: str, ticker: str, company_name: str)
 def search_queries(name: str) -> list[str]:
     text = re.sub(r"\s*[-–]\s*(?:class\s+[a-z]\s+)?(?:common|ordinary)\s+stock.*$", "", name, flags=re.I)
     text = re.sub(r"\s+(?:ADS|ADR)$", "", text, flags=re.I)
+    text = re.sub(r"\s*\((?:Ireland|[A-Za-z ]+)\)\s+Ordinary Shares$", "", text, flags=re.I)
+    text = re.sub(r"\s+Common Stock$", "", text, flags=re.I)
     clean = re.sub(r"\s+", " ", text).strip(" ,.")
     return [clean] if clean else []
 
