@@ -15,8 +15,7 @@
     MRK:'merck.com', ABBV:'abbvie.com', TMO:'thermofisher.com', UNH:'unitedhealthgroup.com', HD:'homedepot.com',
     MPC:'marathonpetroleum.com', NTRA:'natera.com', NET:'cloudflare.com',
 
-    PCO:'pepcogroup.eu', BFT:'benefitsystems.pl',
-    JSW:'jsw.pl', PKN:'orlen.pl', ORLEN:'orlen.pl', KGHM:'kghm.com', PKO:'pkobp.pl', PZU:'pzu.pl', PEO:'pekao.com.pl',
+    JSW:'jsw.pl', PCO:'pepcogroup.eu', BFT:'benefitsystems.pl', PKN:'orlen.pl', ORLEN:'orlen.pl', KGHM:'kghm.com', PKO:'pkobp.pl', PZU:'pzu.pl', PEO:'pekao.com.pl',
     MBK:'mbank.pl', ALR:'aliorbank.pl', ING:'ing.pl', SAN:'santander.pl', SPL:'santander.pl', CDR:'cdprojekt.com', LPP:'lppsa.com',
     DNP:'grupadino.pl', CCC:'ccc.eu', OPL:'orange.pl', CPS:'grupapolsatplus.pl', PGE:'gkpge.pl', TPE:'tauron.pl', ENA:'enea.pl',
     ALE:'allegro.eu', XTB:'xtb.com', ACP:'asseco.com', ASB:'assecobs.pl', EUR:'eurocash.pl', KRU:'kruk.eu', MIL:'bankmillennium.pl',
