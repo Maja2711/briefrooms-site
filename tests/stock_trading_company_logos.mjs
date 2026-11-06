@@ -69,6 +69,8 @@ const positions = [
   new Position('CBOE', 'Cboe Global Markets, Inc.', 'US'),
   new Position('STE', 'STERIS plc', 'US'),
   new Position('LPP', 'LPP Spółka Akcyjna', 'GPW'),
+  new Position('PCO', 'PEPCO GROUP N.V.', 'GPW'),
+  new Position('BFT', 'BENEFIT SYSTEMS SPÓŁKA AKCYJNA', 'GPW'),
   new Position('SAP', 'Polska spółka o takim tickerze', 'GPW'),
   new Position('ZZZNEW', 'Unmapped USA issuer', 'US'),
 ];
@@ -99,7 +101,9 @@ const expected = [
   ['SAP', 'sap.com'],
   ['CBOE', 'cboe.com'],
   ['STE', 'steris.com'],
-  ['LPP', 'lppsa.com']
+  ['LPP', 'lppsa.com'],
+  ['PCO', 'pepcogroup.eu'],
+  ['BFT', 'benefitsystems.pl']
 ];
 for (const [index, pair] of expected.entries()) {
   const [ticker, domain] = pair;
