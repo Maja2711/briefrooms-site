@@ -22,11 +22,17 @@
     BDX:'budimex.pl', BUD:'budimex.pl', ATT:'grupaazoty.com', PKP:'pkpcargo.com'
   };
 
+  const GPW_TICKERS = new Set('JSW PKN ORLEN KGHM PKO PZU PEO MBK ALR ING SAN SPL CDR LPP DNP CCC OPL CPS PGE TPE ENA ALE XTB ACP ASB EUR KRU MIL BDX BUD ATT PKP'.split(' '));
+  const GPW_DOMAINS = Object.freeze(Object.fromEntries(Object.entries(DOMAINS).filter(([ticker]) => GPW_TICKERS.has(ticker))));
+  const US_BASE_DOMAINS = Object.freeze(Object.fromEntries(Object.entries(DOMAINS).filter(([ticker]) => !GPW_TICKERS.has(ticker))));
+
   // Known, verified US listings only. Do not override identically named GPW tickers.
   const US_DOMAINS = Object.freeze({
     ASO: 'academy.com', // Academy Sports + Outdoors
     WMG: 'wmg.com',     // Warner Music Group
-    SAP: 'sap.com'      // SAP SE ADS
+    SAP: 'sap.com',     // SAP SE ADS
+    CBOE: 'cboe.com',  // Cboe Global Markets
+    STE: 'steris.com'  // STERIS plc
   });
 
   // The optional same-origin logo cache is published by a separate read-only
@@ -46,9 +52,12 @@
   function resolveDomain(ticker, name, market) {
     const t = normalizeTicker(ticker);
     if (market === 'US' && US_DOMAINS[t]) return US_DOMAINS[t];
-    if (DOMAINS[t]) return DOMAINS[t];
+    // The generic table is split at the GPW boundary; never reuse a GPW
+    // ticker's domain for an unrelated US issuer (or vice versa).
+    if (market === 'GPW' && GPW_DOMAINS[t]) return GPW_DOMAINS[t];
+    if (market === 'US' && US_BASE_DOMAINS[t]) return US_BASE_DOMAINS[t];
     const n = String(name || '').toLowerCase();
-    if (n.includes('micron')) return 'micron.com';
+    if (market === 'US' && n.includes('micron')) return 'micron.com';
     if (n.includes('nvidia')) return 'nvidia.com';
     if (n.includes('apple')) return 'apple.com';
     if (n.includes('microsoft')) return 'microsoft.com';
