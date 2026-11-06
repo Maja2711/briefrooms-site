@@ -66,6 +66,8 @@ const positions = [
   new Position('ASO', 'Academy Sports and Outdoors, Inc.', 'US'),
   new Position('WMG', 'Warner Music Group Corp.', 'US', 'str-overview-position'),
   new Position('SAP', 'SAP SE ADS', 'US'),
+  new Position('CBOE', 'Cboe Global Markets, Inc.', 'US'),
+  new Position('STE', 'STERIS plc', 'US'),
   new Position('LPP', 'LPP Spółka Akcyjna', 'GPW'),
   new Position('SAP', 'Polska spółka o takim tickerze', 'GPW'),
   new Position('ZZZNEW', 'Unmapped USA issuer', 'US'),
@@ -95,6 +97,8 @@ const expected = [
   ['ASO', 'academy.com'],
   ['WMG', 'wmg.com'],
   ['SAP', 'sap.com'],
+  ['CBOE', 'cboe.com'],
+  ['STE', 'steris.com'],
   ['LPP', 'lppsa.com']
 ];
 for (const [index, pair] of expected.entries()) {
@@ -127,7 +131,7 @@ for (const route of ['pl/inwestycje/stock-trading.html', 'en/investing/stock-tra
   assert.ok(html.includes('/scripts/stock-trading-company-logos-v2.js?v=20261022-logo-cache-1'));
   assert.ok(!html.includes('/scripts/stock-trading-company-logos-v2.js?v=20260918-4'));
 }
-console.log('PASS US logos: ASO, WMG, SAP; GPW isolated; source fallback; PL/EN cache version');
+console.log('PASS US logos: ASO, WMG, SAP, CBOE, STE; GPW isolated; source fallback; PL/EN cache version');
 
 
 const cachePositions = [
