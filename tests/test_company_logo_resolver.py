@@ -63,10 +63,18 @@ class ResolverTests(unittest.TestCase):
         self.assertEqual(resolver.curated_domain("US", "ASO"), "academy.com")
         self.assertEqual(resolver.curated_domain("US", "WMG"), "wmg.com")
         self.assertEqual(resolver.curated_domain("US", "SAP"), "sap.com")
+        self.assertEqual(resolver.curated_domain("US", "CBOE"), "cboe.com")
+        self.assertEqual(resolver.curated_domain("US", "STE"), "steris.com")
         self.assertIsNone(resolver.curated_domain("US", "LPP"))
         self.assertIsNone(resolver.curated_domain("GPW", "ASO"))
         self.assertIsNone(resolver.curated_domain("GPW", "SAP"))
+        self.assertIsNone(resolver.curated_domain("GPW", "CBOE"))
+        self.assertIsNone(resolver.curated_domain("GPW", "STE"))
         self.assertIsNone(resolver.curated_domain("US", "UNKNOWN2026"))
+
+    def test_name_cleanup_for_wikidata(self):
+        self.assertEqual(resolver.search_queries("Cboe Global Markets, Inc. Common Stock"), ["Cboe Global Markets, Inc."])
+        self.assertEqual(resolver.search_queries("STERIS plc (Ireland) Ordinary Shares"), ["STERIS plc"])
 
     def test_open_positions_scope_and_dedup(self):
         rows = resolver.open_positions({"markets": {
