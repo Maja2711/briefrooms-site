@@ -7,8 +7,8 @@
   "holdout_accessed": false,
   "live_orders": false,
   "autonomous_trading": false,
-  "updated_at": "2026-11-06T01:47:08+00:00",
-  "observations_collected": 69,
+  "updated_at": "2026-11-07T01:08:29+00:00",
+  "observations_collected": 70,
   "warmup_required": 70,
   "source_families": [
     "price_trend",
@@ -16,9 +16,121 @@
     "liquidity",
     "options_vix"
   ],
-  "status": "warming_up",
-  "observations_remaining": 1,
-  "latest_market_date": "2026-11-05",
-  "candidate_snapshots": [],
-  "policy": "Count clean post-holdout observations; do not emit exposures before warm-up."
+  "status": "shadow_active_no_orders",
+  "observations_remaining": 0,
+  "latest_market_date": "2026-11-06",
+  "latest_regime": "stress",
+  "family_scores": {
+    "price_trend": -0.530836,
+    "rates": 0.17735,
+    "liquidity": -0.452416,
+    "options_vix": -0.736079
+  },
+  "candidate_snapshots": [
+    {
+      "candidate_name": "g6-price-trend",
+      "families": [
+        "price_trend"
+      ],
+      "signal": -0.530836,
+      "regime": "stress",
+      "target_exposure_next_session": -1.0,
+      "applied_exposure_latest_session": -0.5,
+      "shadow_cumulative_return": 0.012696,
+      "shadow_turnover": 1.5
+    },
+    {
+      "candidate_name": "g6-rates",
+      "families": [
+        "rates"
+      ],
+      "signal": 0.17735,
+      "regime": "stress",
+      "target_exposure_next_session": 0.0,
+      "applied_exposure_latest_session": 0.0,
+      "shadow_cumulative_return": -0.002934,
+      "shadow_turnover": 4.0
+    },
+    {
+      "candidate_name": "g6-liquidity",
+      "families": [
+        "liquidity"
+      ],
+      "signal": -0.452416,
+      "regime": "stress",
+      "target_exposure_next_session": -1.0,
+      "applied_exposure_latest_session": -0.5,
+      "shadow_cumulative_return": 0.024728,
+      "shadow_turnover": 3.5
+    },
+    {
+      "candidate_name": "g6-options-vix",
+      "families": [
+        "options_vix"
+      ],
+      "signal": -0.736079,
+      "regime": "stress",
+      "target_exposure_next_session": -1.0,
+      "applied_exposure_latest_session": 0.0,
+      "shadow_cumulative_return": -0.00279,
+      "shadow_turnover": 4.0
+    },
+    {
+      "candidate_name": "g6-trend-rates",
+      "families": [
+        "price_trend",
+        "rates"
+      ],
+      "signal": -0.176743,
+      "regime": "stress",
+      "target_exposure_next_session": -0.5,
+      "applied_exposure_latest_session": 0.0,
+      "shadow_cumulative_return": 0.005291,
+      "shadow_turnover": 1.0
+    },
+    {
+      "candidate_name": "g6-trend-liquidity",
+      "families": [
+        "price_trend",
+        "liquidity"
+      ],
+      "signal": -0.491626,
+      "regime": "stress",
+      "target_exposure_next_session": -1.0,
+      "applied_exposure_latest_session": -0.5,
+      "shadow_cumulative_return": 0.018262,
+      "shadow_turnover": 1.5
+    },
+    {
+      "candidate_name": "g6-defensive-macro",
+      "families": [
+        "rates",
+        "liquidity",
+        "options_vix"
+      ],
+      "signal": -0.337048,
+      "regime": "stress",
+      "target_exposure_next_session": -0.5,
+      "applied_exposure_latest_session": 0.0,
+      "shadow_cumulative_return": 0.008705,
+      "shadow_turnover": 1.0
+    },
+    {
+      "candidate_name": "g6-equal-four",
+      "families": [
+        "price_trend",
+        "rates",
+        "liquidity",
+        "options_vix"
+      ],
+      "signal": -0.385495,
+      "regime": "stress",
+      "target_exposure_next_session": -0.5,
+      "applied_exposure_latest_session": 0.0,
+      "shadow_cumulative_return": 0.008705,
+      "shadow_turnover": 1.0
+    }
+  ],
+  "single_champion_selected": false,
+  "policy": "Track all eight predeclared candidates in parallel; never place orders or mutate parameters."
 }
