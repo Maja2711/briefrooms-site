@@ -50,7 +50,7 @@
       },
       "family": "Geopolitics",
       "id": "gse-v2-learning-lab",
-      "last_updated": "2026-11-06T18:02:10.978923Z",
+      "last_updated": "2026-11-07T02:52:28.837752Z",
       "max_drawdown": null,
       "minimum_sample": 60,
       "name": "GSE v2 Learning Lab",
@@ -83,7 +83,7 @@
       },
       "family": "Weekly Investments",
       "id": "strategy-research-lab",
-      "last_updated": "2026-11-05T08:55:14+01:00",
+      "last_updated": "2026-11-06T20:58:24+01:00",
       "max_drawdown": null,
       "minimum_sample": 30,
       "name": "Autonomous Strategy Research Lab",
@@ -99,7 +99,7 @@
       },
       "production_impact": false,
       "purpose": "Autonomiczne generowanie i filtrowanie kandydatów strategii bez prawa do produkcyjnej aktywacji.",
-      "sample_count": 254,
+      "sample_count": 255,
       "sample_unit": "research_cycles",
       "source": "data/investments/research_lab_report.json",
       "stage": "SHADOW",
@@ -156,13 +156,13 @@
       "delta_vs_benchmark": null,
       "details": {
         "live_orders": false,
-        "observations_remaining": 1,
-        "shadow_status": "warming_up",
+        "observations_remaining": 0,
+        "shadow_status": "shadow_active_no_orders",
         "strict_gate_passed": false
       },
       "family": "SPX",
       "id": "brace-spx-generation6",
-      "last_updated": "2026-11-06T01:47:08+00:00",
+      "last_updated": "2026-11-07T01:08:29+00:00",
       "max_drawdown": null,
       "minimum_sample": 70,
       "name": "BRACE-SPX Generation 6",
@@ -173,16 +173,16 @@
         "interpretation": "Nie jest to wynik PnL; pełna ocena następuje po wymaganej liczbie obserwacji.",
         "label": "Postęp warm-up",
         "unit": "fraction",
-        "value": 0.9857142857142858
+        "value": 1.0
       },
       "production_impact": false,
       "purpose": "Zamrożony challenger BRACE-SPX z ortogonalnymi rodzinami sygnałów, działający bez zleceń live.",
-      "sample_count": 69,
+      "sample_count": 70,
       "sample_unit": "shadow_sessions",
       "source": "data/public/brace_spx_generation6_public.json",
       "stage": "SHADOW",
       "started_at": "2026-08-03",
-      "status": "INSUFFICIENT_DATA",
+      "status": "RUNNING",
       "system_class": "LAB",
       "version": "spx-orthogonal-core-v6"
     },
@@ -194,22 +194,22 @@
       "details": {
         "arms": {
           "A": {
-            "directional_accuracy_1h": 0.4,
-            "mean_signed_return_bps_1h": -1.3289489795918368,
+            "directional_accuracy_1h": 0.43333333333333335,
+            "mean_signed_return_bps_1h": -0.6710755102040816,
             "resolved_1h": 30
           },
           "B": {
-            "directional_accuracy_1h": 0.5238095238095238,
-            "mean_signed_return_bps_1h": -0.2486897959183673,
-            "resolved_1h": 42
+            "directional_accuracy_1h": 0.5348837209302325,
+            "mean_signed_return_bps_1h": 0.36418979591836736,
+            "resolved_1h": 43
           },
           "C": {
-            "directional_accuracy_1h": 0.30434782608695654,
-            "mean_signed_return_bps_1h": -2.0349591836734695,
+            "directional_accuracy_1h": 0.34782608695652173,
+            "mean_signed_return_bps_1h": -1.3770857142857142,
             "resolved_1h": 23
           }
         },
-        "captures": 217,
+        "captures": 218,
         "learning_loop": {
           "arms": {
             "A": {
@@ -340,7 +340,7 @@
       },
       "family": "EURUSD",
       "id": "eurusd-abc-live-shadow",
-      "last_updated": "2026-11-06T12:56:02.315364Z",
+      "last_updated": "2026-11-06T19:56:58.309508Z",
       "max_drawdown": null,
       "minimum_sample": 40,
       "name": "EURUSD A/B/C Live Shadow",
@@ -354,7 +354,7 @@
         "interpretation": "Forecast skill; nie jest automatycznie formalną alpha ani wynikiem transakcyjnym po kosztach.",
         "label": "Najlepsza trafność kierunku 1h",
         "unit": "fraction",
-        "value": 0.5238095238095238
+        "value": 0.5348837209302325
       },
       "production_impact": false,
       "purpose": "Prospektywne porównanie trzech wariantów: technicznego, Belief-only i hybrydowego.",
@@ -373,9 +373,9 @@
       "category": "trading",
       "delta_vs_benchmark": null,
       "details": {
-        "brier": 0.261162,
+        "brier": 0.258991,
         "calibration_block_resolved": null,
-        "captures": 175,
+        "captures": 177,
         "challenger": "X-AUTO-06",
         "champion": "X-AUTO-08",
         "discovery_layer": null,
@@ -411,15 +411,15 @@
           ],
           "pivot": "classic_daily_floor_P_R1_R2_R3_S1_S2_S3"
         },
-        "hit_rate": 0.4,
-        "mean_signed_return_bps": -0.754,
-        "resolved": 174,
+        "hit_rate": 0.4375,
+        "mean_signed_return_bps": -0.4284,
+        "resolved": 175,
         "rollback": null,
-        "signal_n": 15
+        "signal_n": 16
       },
       "family": "EURUSD",
       "id": "eurusd-x-adaptive-shadow",
-      "last_updated": "2026-11-06T18:00:25.324354Z",
+      "last_updated": "2026-11-07T02:50:18.472251Z",
       "max_drawdown": null,
       "minimum_sample": 30,
       "name": "EURUSD X Adaptive Shadow",
@@ -432,21 +432,21 @@
         "interpretation": "Niższy Brier jest lepszy; liczony na prospektywnie rozstrzygniętych prognozach Championa dla horyzontu 4h.",
         "label": "Brier Championa (4h)",
         "unit": "score",
-        "value": 0.261162
+        "value": 0.258991
       },
       "production_impact": false,
       "purpose": "Szybko kalibrowany EUR/USD shadow challenger ze stałym core technicznym, BRs Belief Core, wersjonowanymi eksperymentalnymi dodatkami i automatycznym rollbackiem do ostatniego Championa.",
-      "sample_count": 38,
+      "sample_count": 39,
       "sample_unit": "resolved_champion_4h_outcomes",
       "source": "data/investments/eurusd_x_public_pl.json",
       "stage": "SHADOW",
-      "started_at": "2026-11-06T18:00:25.324354Z",
+      "started_at": "2026-11-07T02:50:18.472251Z",
       "status": "RUNNING",
       "system_class": "LAB",
       "version": "eurusd-x-v1.0.0"
     }
   ],
-  "generated_at": "2026-11-06T18:02:10.978923Z",
+  "generated_at": "2026-11-07T02:52:28.837752Z",
   "schema_version": "briefrooms-experiment-registry-v1",
   "status_policy": {
     "allowed": [
@@ -469,8 +469,8 @@
     }
   },
   "summary": {
-    "active": 3,
-    "awaiting_evidence": 3,
+    "active": 4,
+    "awaiting_evidence": 2,
     "errors": 0,
     "parked_or_killed": 0,
     "promotion_candidates": 0,
