@@ -1,20 +1,49 @@
 name: Publish Monthly S&P 500 House View (read-only)
 
 on:
+  pull_request:
+    paths:
+      - ".github/workflows/house-view-monthly.yml"
+      - "scripts/publish_monthly_house_view.py"
+      - "scripts/house-view-monthly.js"
+      - "assets/house-view-monthly.css"
+      - "tests/test_house_view_monthly.py"
+      - "pl/inwestycje/long-view.html"
+      - "en/investing/long-view.html"
+      - "pl/inwestycje/spx-scenariusze-2026.html"
+      - "en/investing/spx-scenarios-2026.html"
   workflow_dispatch:
   schedule:
     # UTC: 8th, 10th and 12th. Re-tries are idempotent and never rewrite a frozen month.
     - cron: "17 9 8,10,12 * *"
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: monthly-spx-house-view-publication
   cancel-in-progress: false
 
 jobs:
+  validate-pr:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate monthly publisher without contacting external sources
+        run: |
+          python -m unittest tests/test_house_view_monthly.py -v
+          python -m py_compile scripts/publish_monthly_house_view.py
+          node --check scripts/house-view-monthly.js
+
   publish:
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
