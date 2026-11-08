@@ -1,113 +1,209 @@
-(()=> {
+/* BriefRooms House View v2 — bilingual, evidence-bound, read-only publication UI. */
+(()=>{
   'use strict';
-  const holder=document.querySelector('[data-house-view-monthly]');
-  if(!holder)return;
+  const mount=document.querySelector('[data-house-view-monthly]');
+  if(!mount)return;
   const pl=(document.documentElement.lang||'pl').toLowerCase().startsWith('pl');
-  const copy=pl?{
-    title:'S&P 500 · miesięczny House View',badge:'Automatyczny przegląd danych · research-only',
-    intro:'Bieżący, źródłowy bilans ryzyka makro i taktyki. Nie jest to pełna wycena fundamentalna ani rekomendacja transakcji.',
-    date:'Stan danych',conviction:'Siła oceny',score:'Bilans czynników',
-    sources:'Źródła i daty obserwacji',changed:'Zmiana wobec poprzedniej publikacji',
-    archived:'Archiwum: poniższa ręcznie opracowana analiza pochodzi z października 2026 r. Aktualny miesięczny przegląd znajduje się powyżej.',
-    notReady:'Nie opublikowano jeszcze zweryfikowanego przeglądu miesięcznego. Widoczna niżej analiza jest archiwalna i zachowuje swoją pierwotną datę.',
-    stale:'UWAGA: ostatni zweryfikowany raport miesięczny jest starszy niż 45 dni. Nie przedstawiamy go jako aktualnego.',
-    noMomentum:'Brak świeżego odczytu S&P 500 — horyzont 1M pozostaje bez oceny.',
-    caveat:'Skala kierunkowa jest regułą heurystyczną, a nie prognozą prawdopodobieństwa. Brak danych o bieżących wycenach i zyskach spółek ogranicza ocenę 6M/12M; maksymalna deklarowana siła to 3/10.',
-    labels:{defensive:'defensywny',neutral:'neutralny',mild_positive:'lekko pozytywny',unassessed:'brak oceny'},
-    gdp:'PKB USA q/q SAAR',headline:'Inflacja PCE r/r',core:'Inflacja bazowa PCE r/r',ten:'Rentowność 10Y USA',oil:'Brent USD/bbl',momentum:'S&P futures · 20 sesji',noPrior:'Pierwszy przegląd według nowej metodologii',
-    previous:'Poprzednio',current:'Teraz',none:'brak danych',source:'Źródło',archiveLink:'Archiwum miesięczne'
+  const lang=pl?'pl':'en';
+  const labels=pl?{
+    title:'S&P 500 · House View',tag:'Miesięczna analiza źródłowa · research-only',
+    asOf:'Data analizy',age:'Raport ma więcej niż 45 dni i nie jest aktualny',
+    h:'Horyzont',score:'Bilans czynników',conv:'Siła oceny (limit heurystyczny)',
+    sections:{thesis:'Główna teza',growth_and_inflation:'Wzrost i inflacja',
+      rates_and_energy:'Stopy i energia',earnings_and_valuation:'Wyniki spółek i wyceny',
+      tactical_and_models:'Taktyka i silniki BRs',disagreements:'Konflikty dowodów'},
+    models:'Cross-check silników BriefRooms',scenarios:'Scenariusze warunkowe',
+    gates:'Warunki zmiany tezy',delta:'Zmiany w danych od poprzedniego miesiąca',
+    metrics:'Dane źródłowe',sources:'Dowody i pochodzenie',coverage:'Zakres i braki danych',
+    source:'Zobacz źródło',missing:'Brak zweryfikowanego aktualnego źródła',
+    noChanges:'Pierwszy raport v2 lub brak porównywalnych zmian w obserwacjach.',
+    unavailable:'Brak opublikowanej i zweryfikowanej analizy miesięcznej. Dostępna jest archiwalna analiza poniżej.',
+    modelNote:'Odczyty badawcze nie głosują w modelu makro. ABSTAIN, brak danych i status challengera nie są sygnałem kierunku.',
+    limitation:'Oceny są niewalidowaną heurystyką, nie prawdopodobieństwami ani targetami indeksu. Brak wycen i EPS ogranicza ocenę 6M/12M.',
+    values:{defensive:'defensywny',neutral:'neutralny',mild_positive:'lekko pozytywny',unassessed:'brak oceny'},
+    data:{gdp_qoq_saar_pct:'PKB USA q/q SAAR',pce_yoy_pct:'PCE r/r',core_pce_yoy_pct:'Core PCE r/r',
+      us_10y_pct:'UST 10Y',brent_usd_bbl:'Brent USD/bbl',spx_futures_20d_return_pct:'S&P futures 20 sesji'},
+    fundamental:'Weryfikacja EPS/P-E',belief:'Publiczny Belief SPX',months:'Archiwum JSON',
+    note:'Pojedyncze źródło/miesiąc jest zamrażane. Historia redakcyjna poniżej ma zachowaną oryginalną datę.'
   }:{
-    title:'S&P 500 · monthly House View',badge:'Automated source review · research-only',
-    intro:'Current, source-based macro and tactical risk balance. Not a complete fundamental valuation or trading recommendation.',
-    date:'Data as of',conviction:'Assessment strength',score:'Factor balance',
-    sources:'Sources and observation dates',changed:'Change since the previous publication',
-    archived:'Archive: the manually prepared analysis below is dated October 2026. The current monthly review is displayed above.',
-    notReady:'No verified monthly review has been published yet. The analysis below is historical and retains its original date.',
-    stale:'WARNING: the latest verified monthly review is over 45 days old. It is not represented as current.',
-    noMomentum:'No fresh S&P 500 observation — the 1M horizon remains unassessed.',
-    caveat:'Directional scores are unvalidated heuristics, not probabilities. Missing current valuation/earnings coverage limits the 6M/12M assessment; declared conviction is capped at 3/10.',
-    labels:{defensive:'defensive',neutral:'neutral',mild_positive:'mildly positive',unassessed:'unassessed'},
-    gdp:'U.S. GDP q/q SAAR',headline:'Headline PCE y/y',core:'Core PCE y/y',ten:'U.S. Treasury 10Y',oil:'Brent USD/bbl',momentum:'S&P futures · 20 sessions',noPrior:'First review under this methodology',
-    previous:'Previously',current:'Now',none:'unavailable',source:'Source',archiveLink:'Monthly archive'
+    title:'S&P 500 · House View',tag:'Monthly source-grounded analysis · research-only',
+    asOf:'Analysis as of',age:'Report is older than 45 days and is not current',
+    h:'Horizon',score:'Factor balance',conv:'Assessment strength (heuristic cap)',
+    sections:{thesis:'Core thesis',growth_and_inflation:'Growth and inflation',
+      rates_and_energy:'Rates and energy',earnings_and_valuation:'Earnings and valuation',
+      tactical_and_models:'Tactics and BRs engines',disagreements:'Evidence conflicts'},
+    models:'BriefRooms engine cross-check',scenarios:'Conditional scenarios',
+    gates:'Thesis-change conditions',delta:'Observed changes since the prior month',
+    metrics:'Source observations',sources:'Evidence and provenance',coverage:'Coverage and gaps',
+    source:'Open source',missing:'No verified current source',
+    noChanges:'First v2 publication or no comparable observed changes.',
+    unavailable:'No verified monthly research has yet been published. The archived editorial analysis remains below.',
+    modelNote:'Research engine readings do not vote in the macro model. ABSTAIN, missing data and challenger status are not directional signals.',
+    limitation:'Views are unvalidated heuristics, not probabilities or index targets. Missing earnings and valuation coverage limits the 6M/12M case.',
+    values:{defensive:'defensive',neutral:'neutral',mild_positive:'mildly positive',unassessed:'unassessed'},
+    data:{gdp_qoq_saar_pct:'U.S. GDP q/q SAAR',pce_yoy_pct:'PCE y/y',core_pce_yoy_pct:'Core PCE y/y',
+      us_10y_pct:'UST 10Y',brent_usd_bbl:'Brent USD/bbl',spx_futures_20d_return_pct:'S&P futures 20 sessions'},
+    fundamental:'EPS/P-E coverage',belief:'Public SPX Belief',months:'Frozen JSON archive',
+    note:'Each monthly source set is frozen. The older editorial report below retains its original date.'
   };
-  const element=(tag,cls,content)=>{
-    const n=document.createElement(tag);
-    if(cls)n.className=cls;
-    if(content!==undefined)n.textContent=String(content);
-    return n;
+  const node=(tag,cls,text)=>{
+    const el=document.createElement(tag);
+    if(cls)el.className=cls;
+    if(text!==undefined&&text!==null)el.textContent=String(text);
+    return el;
   };
-  const add=(parent,tag,cls,content)=>{const n=element(tag,cls,content);parent.appendChild(n);return n;};
-  const isValid=(x)=>{
-    if(!x||x.schema_version!=='1.0'||x.status!=='published_research_only'||!/^20\d{2}-(0[1-9]|1[0-2])$/.test(x.month||''))return false;
-    if(!/^20\d{2}-\d{2}-\d{2}$/.test(x.as_of||''))return false;
-    if(!x.views||!x.inputs||!Array.isArray(x.indicators)||x.indicators.length!==5)return false;
-    return ['1M','6M','12M'].every(k=>x.views[k]&&Object.hasOwn(copy.labels,x.views[k].bias));
+  const add=(parent,tag,cls,text)=>{const el=node(tag,cls,text);parent.appendChild(el);return el;};
+  const num=(x)=>typeof x==='number'&&Number.isFinite(x)?x.toLocaleString(pl?'pl-PL':'en-US',{maximumFractionDigits:2}):'—';
+  const valid=(d)=>{
+    if(!d||!/^20\d{2}-(0[1-9]|1[0-2])$/.test(d.month||'')||
+       !/^20\d{2}-\d{2}-\d{2}$/.test(d.as_of||'')||!d.views||!d.inputs||!Array.isArray(d.indicators))return false;
+    if(!['1M','6M','12M'].every(h=>d.views[h]&&Object.hasOwn(labels.values,d.views[h].bias)))return false;
+    if(d.schema_version==='1.0')return d.status==='published_research_only';
+    if(d.schema_version!=='2.0'||d.status!=='published_research_only'||!d.research)return false;
+    const r=d.research,required=Object.keys(labels.sections);
+    return Array.isArray(r.sections)&&r.sections.length===required.length&&
+      required.every(id=>r.sections.some(s=>s.id===id&&typeof s.pl==='string'&&typeof s.en==='string'))&&
+      Array.isArray(r.scenarios)&&r.scenarios.length===3&&
+      Array.isArray(r.engine_crosscheck)&&r.engine_crosscheck.length===5&&
+      Array.isArray(r.evidence)&&r.evidence.length>=5&&Array.isArray(r.thesis_change_gates);
   };
-  const appendArchiveNotice=()=>{
-    const archive=document.querySelector('.lv-snapshot')||document.getElementById('house-view');
-    if(archive){
-      const label=element('p','hvm-archive',copy.archived);
-      archive.parentNode.insertBefore(label,archive);
-    }
+  const safeUrl=(value)=>{
+    if(typeof value!=='string')return null;
+    if(/^https:\/\/fred\.stlouisfed\.org\/graph\/fredgraph\.csv\?id=(GDPC1|PCEPI|PCEPILFE|DGS10|DCOILBRENTEU)$/.test(value))return value;
+    if(/^\/data\/(gse\/gse_v2_lab_public|investments\/fse_public|public\/brace_spx_platform_public|investments\/weekly\/20\d\d-W\d\d)\.json$/.test(value))return value;
+    try{
+      const u=new URL(value);
+      if(u.protocol==='https:'&&['insight.factset.com','www.spglobal.com','www.yardeni.com'].includes(u.hostname))return value;
+    }catch(_){}
+    return null;
   };
-  function render(doc){
-    holder.replaceChildren();
-    const root=add(holder,'section','hvm-card');
-    const head=add(root,'div','hvm-head');
-    add(head,'span','hvm-kicker',copy.badge);
-    add(head,'h2','',copy.title);
-    add(head,'p','',copy.intro);
-    const asOf=new Date(doc.as_of+'T00:00:00Z');
-    const diffDays=Math.floor((Date.now()-asOf.getTime())/86400000);
-    if(!Number.isFinite(diffDays)||diffDays<0){throw Error('invalid published date');}
-    add(root,'p','hvm-date',copy.date+': '+doc.as_of+' · '+doc.month);
-    if(diffDays>45)add(root,'p','hvm-stale',copy.stale);
-    const grid=add(root,'div','hvm-grid');
+  const section=(parent,title,cls='hvm-pane')=>{
+    const el=add(parent,'section',cls);
+    add(el,'h3','hvm-title',title);
+    return el;
+  };
+  const markStaleness=(card,doc)=>{
+    const dt=new Date(doc.as_of+'T00:00:00Z');
+    const days=Math.floor((Date.now()-dt.getTime())/86400000);
+    if(!Number.isFinite(days)||days<0)throw new Error('invalid as-of');
+    add(card,'p','hvm-date',labels.asOf+': '+doc.as_of+' · '+doc.month);
+    if(days>45)add(card,'p','hvm-stale',labels.age);
+  };
+  const horizonCards=(card,doc)=>{
+    const grid=add(card,'div','hvm-grid');
     ['1M','6M','12M'].forEach(h=>{
-      const v=doc.views[h],c=add(grid,'article','hvm-horizon');
-      add(c,'small','',h);
-      add(c,'strong','hvm-'+v.bias,copy.labels[v.bias]);
-      add(c,'span','',copy.score+': '+(Number.isInteger(v.risk_balance_score)?v.risk_balance_score:'—'));
-      add(c,'span','',copy.conviction+': '+(Number.isInteger(v.conviction)?v.conviction+'/10':'—'));
+      const x=doc.views[h],tile=add(grid,'article','hvm-horizon');
+      add(tile,'small','',labels.h+' '+h);
+      add(tile,'strong','hvm-'+x.bias,labels.values[x.bias]);
+      add(tile,'span','',labels.score+': '+(Number.isInteger(x.risk_balance_score)?x.risk_balance_score:'—'));
+      add(tile,'span','',labels.conv+': '+(Number.isInteger(x.conviction)?x.conviction+'/10':'—'));
     });
-    if(doc.views['1M'].bias==='unassessed')add(root,'p','hvm-note',copy.noMomentum);
-    const f=doc.inputs, metrics=[
-      [copy.gdp,f.gdp_qoq_saar_pct,'%'],[copy.headline,f.pce_yoy_pct,'%'],[copy.core,f.core_pce_yoy_pct,'%'],
-      [copy.ten,f.us_10y_pct,'%'],[copy.oil,f.brent_usd_bbl,' USD'],
-      [copy.momentum,f.spx_futures_20d_return_pct,'%']
-    ];
-    const fields=add(root,'div','hvm-fields');
-    metrics.forEach(([label,value,unit])=>{
-      const box=add(fields,'div','hvm-field');
-      add(box,'small','',label);
-      add(box,'b','',typeof value==='number'&&Number.isFinite(value)?value.toLocaleString(pl?'pl-PL':'en-US',{maximumFractionDigits:2})+unit:copy.none);
+  };
+  const observations=(card,doc)=>{
+    const panel=section(card,labels.metrics);
+    const grid=add(panel,'div','hvm-fields');
+    Object.entries(labels.data).forEach(([id,label])=>{
+      const tile=add(grid,'div','hvm-field'),v=doc.inputs[id];
+      add(tile,'small','',label);
+      add(tile,'b','',num(v)+(typeof v==='number'?(id==='brent_usd_bbl'?' USD':'%'):''));
     });
-    const diff=doc.change_vs_previous||{},prior=diff.bias_changes||{};
-    const block=add(root,'div','hvm-changes');
-    add(block,'b','',copy.changed);
-    if(!Object.keys(prior).length)add(block,'p','',copy.noPrior);
-    else ['1M','6M','12M'].forEach(h=>{
-      const entry=prior[h];
-      if(entry&&copy.labels[entry.previous_bias]&&copy.labels[entry.current_bias])
-        add(block,'p','',h+': '+copy.previous+' '+copy.labels[entry.previous_bias]+' → '+copy.current+' '+copy.labels[entry.current_bias]);
+  };
+  const addLink=(parent,value,text)=>{
+    const safe=safeUrl(value);
+    if(!safe)return false;
+    const a=add(parent,'a','',text);
+    a.href=safe;
+    a.rel='noopener noreferrer';
+    if(safe.startsWith('https://'))a.target='_blank';
+    return true;
+  };
+  const legacyOpened=(open)=>{
+    const archive=document.querySelector('[data-house-view-legacy]');
+    if(archive)archive.open=Boolean(open);
+  };
+  const renderV1=(doc)=>{
+    const card=add(mount,'section','hvm-card');
+    const head=add(card,'header','hvm-head');
+    add(head,'span','hvm-kicker',labels.tag);
+    add(head,'h2','',labels.title);
+    add(head,'p','',labels.limitation);
+    markStaleness(card,doc);
+    horizonCards(card,doc);
+    observations(card,doc);
+    add(card,'p','hvm-note',labels.note);
+    // V1 has no full sourced narrative: keep older editorial report visible.
+    legacyOpened(true);
+  };
+  const renderV2=(doc)=>{
+    const r=doc.research,card=add(mount,'article','hvm-card');
+    const head=add(card,'header','hvm-head');
+    add(head,'span','hvm-kicker',labels.tag);
+    add(head,'h2','',labels.title+' · '+doc.month);
+    add(head,'p','',r.sections.find(x=>x.id==='thesis')[lang]);
+    markStaleness(card,doc);
+    horizonCards(card,doc);
+    observations(card,doc);
+    const stories=add(card,'div','hvm-prose-grid');
+    r.sections.filter(x=>x.id!=='thesis').forEach(item=>{
+      const panel=section(stories,labels.sections[item.id]||item.id);
+      add(panel,'p','',item[lang]);
+      const foot=add(panel,'small','hvm-cite',item.source_ids.length?item.source_ids.join(' · '):labels.missing);
     });
-    add(root,'p','hvm-note',copy.caveat);
-    const sources=add(root,'div','hvm-sources');
-    add(sources,'b','',copy.sources);
-    const list=add(sources,'ul','');
-    doc.indicators.forEach(row=>{
-      if(!/^(GDPC1|PCEPI|PCEPILFE|DGS10|DCOILBRENTEU)$/.test(row.id||''))return;
-      if(row.source_url!=='https://fred.stlouisfed.org/graph/fredgraph.csv?id='+row.id)return;
-      const item=add(list,'li','');
-      const link=add(item,'a','',row.source+' · '+row.id+' · '+row.observation_date);
-      link.href=row.source_url;link.target='_blank';link.rel='noopener noreferrer';
+    const scenarios=section(card,labels.scenarios);
+    const scenarioGrid=add(scenarios,'div','hvm-triptych');
+    r.scenarios.forEach(item=>{
+      const el=add(scenarioGrid,'article','hvm-scenario');
+      add(el,'span','hvm-kicker',item.id.toUpperCase());
+      add(el,'p','',item[lang]);
+      add(el,'small','hvm-cite',item.watch_ids.join(' · '));
     });
-    const archive=add(root,'a','hvm-archive-link',copy.archiveLink+' · '+doc.month);
-    archive.href='/data/investments/house_view_monthly_archive/'+doc.month+'.json';
-    appendArchiveNotice();
-  }
+    const cross=section(card,labels.models);
+    add(cross,'p','hvm-note',labels.modelNote);
+    const engines=add(cross,'div','hvm-engines');
+    r.engine_crosscheck.forEach(item=>{
+      const el=add(engines,'article','hvm-engine');
+      add(el,'strong','',item.id);
+      add(el,'small','hvm-status',item.status+' · '+(item.as_of||'—'));
+      add(el,'p','',item[lang]);
+    });
+    const change=section(card,labels.delta);
+    if(!r.change_in_observed_factors.length)add(change,'p','hvm-note',labels.noChanges);
+    r.change_in_observed_factors.forEach(item=>{
+      add(change,'p','hvm-delta',item.source_id+': '+num(item.previous)+' → '+num(item.current)+' ('+(item.delta>0?'+':'')+num(item.delta)+')');
+    });
+    const gates=section(card,labels.gates);
+    const list=add(gates,'ul','hvm-gates');
+    r.thesis_change_gates.forEach(item=>add(list,'li','',item[lang]));
+    const coverage=section(card,labels.coverage);
+    const cov=r.coverage||{};
+    add(coverage,'p','',labels.fundamental+': '+(cov.earnings_valuation||'unavailable')+' · '+labels.belief+': '+(cov.belief||'unavailable'));
+    add(coverage,'p','hvm-note',labels.limitation);
+    const evidence=section(card,labels.sources);
+    const refs=add(evidence,'ul','hvm-evidence');
+    r.evidence.forEach(item=>{
+      const li=add(refs,'li','');
+      add(li,'strong','',item.id+' · '+item.status);
+      add(li,'small','',item.observed_at||'—');
+      const origin=item.document_url||item.source;
+      if(origin)addLink(li,origin,labels.source);
+      if(item.sha256)add(li,'small','hvm-digest','SHA-256 '+item.sha256.slice(0,16)+'…');
+    });
+    const end=add(card,'div','hvm-publication-end');
+    const a=add(end,'a','',labels.months+' · '+doc.month);
+    a.href='/data/investments/house_view_monthly_archive/'+doc.month+'.json';
+    add(end,'p','hvm-note',labels.note);
+    legacyOpened(false);
+  };
   fetch('/data/investments/house_view_monthly_current.json?v='+Date.now(),{cache:'no-store'})
-    .then(r=>{if(!r.ok)throw Error('missing');return r.json();})
-    .then(doc=>{if(!isValid(doc))throw Error('invalid');render(doc);})
-    .catch(()=>{holder.replaceChildren(element('p','hvm-unavailable',copy.notReady));});
+    .then(res=>{if(!res.ok)throw Error('unpublished');return res.json();})
+    .then(doc=>{
+      if(!valid(doc))throw Error('invalid source report');
+      mount.replaceChildren();
+      if(doc.schema_version==='2.0')renderV2(doc);
+      else renderV1(doc);
+    })
+    .catch(()=>{
+      mount.replaceChildren(node('p','hvm-unavailable',labels.unavailable));
+      legacyOpened(true);
+    });
 })();

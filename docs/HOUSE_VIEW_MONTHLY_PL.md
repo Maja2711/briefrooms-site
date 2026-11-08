@@ -1,38 +1,33 @@
-# BriefRooms S&P 500 — automatyczny miesięczny House View (research-only)
+# BriefRooms House View Intelligence v2 — miesięczny S&P 500 (PL)
 
-## Cel i zakres
-Miesięczny, źródłowy bilans ryzyka na 1M/6M/12M w pokoju Inwestycje / Long View. Jest to **automatyczny przegląd makro + taktyki**, a nie pełna wycena S&P 500, nie target indeksu, nie rekomendacja i nie wynik o zweryfikowanej trafności. Pierwotny redakcyjny House View z października 2026 pozostaje oznaczony jako archiwalny.
+## Cel i granice
+TR-08 (Long View / BRACE-SPX) i CT-05 (publiczna projekcja) publikują co miesiąc pełną **strukturę bieżącej analizy** w istniejącym pokoju Inwestycje: teza 1M/6M/12M, obserwacje makro, uzasadnienie, sekcja wyników i wycen, scenariusze, porównanie miesiąca, konflikty modeli, warunki zmiany tezy, źródła i luki pokrycia. Polskie i angielskie warianty mają tę samą strukturę.
 
-**Module IDs:** `TR-08` (czytany wyłącznie informacyjnie), `CT-05` (publikacja); **bez ingerencji** w `TR-05` WES/Weekly, `EP-05`, `IN-03`, `IN-09`, pozycje, risk policy lub dane wykonawcze.
+v2 jest deterministyczną, źródłowo ograniczoną syntezą, **nie** redaktorem LLM, zwalidowaną prognozą, rekomendacją inwestycyjną ani modelem wycen. Brak źródła pozostaje jawnym brakiem, nigdy domniemanym konsensusem.
 
-## Źródła
-Bez klucza API pobierane są surowe szeregi CSV FRED (Federal Reserve Bank of St. Louis), z przypisanym źródłem pierwotnym:
-- `GDPC1`: BEA real GDP (poziom, najnowszy kwartał; obliczenie q/q SAAR).
-- `PCEPI`, `PCEPILFE`: BEA headline i core PCE (zmiana r/r na bazie obserwacji sprzed 12 miesięcy).
-- `DGS10`: rentowność 10Y USA (Treasury).
-- `DCOILBRENTEU`: Brent EIA (USD/bbl).
-- Opcjonalnie `data/investments/weekly/<week>.json`: ostatni zweryfikowany snapshot futures S&P 500, wyłącznie historyczna obserwacja `signals.ret20_pct`, a nie transakcyjny sygnał WES.
+## Implementacja
+- Workflow: .github/workflows/house-view-monthly.yml, 8., 10., 12. dzień miesiąca, 09:17 UTC i workflow_dispatch.
+- Makro: scripts/publish_monthly_house_view.py zachowuje stały v1 bilans ryzyka 1M/6M/12M. Obowiązkowe FRED GDPC1 (max 200 dni), PCEPI/PCEPILFE (100), DGS10 (15), DCOILBRENTEU (22). Headline i core PCE muszą mieć ten sam miesiąc. Brak, wartość nieprawdopodobna, zbyt stara lub przyszła => NO PUBLICATION.
+- Synteza: scripts/house_view_research_v2.py odczytuje publiczne, istniejące projekcje GSE (3 dni), FSE (7 dni), BRACE-SPX (14 dni) i opcjonalny zamrożony WES SPX (14 dni). Odczyt bez kwalifikowanego źródła/czasu nie jest uznawany za aktualny.
+- Widok: scripts/house-view-monthly.js oraz assets/house-view-monthly.css. Cały nowy artykuł jest generowany w istniejącej stylistyce; dawna analiza z października 2026 jest w rozwijanym archiwum, otwartym, gdy brak aktualnego zweryfikowanego reportu.
+- Zamrożony zapis: data/investments/house_view_monthly_archive/YYYY-MM.json oraz wskaźnik house_view_monthly_current.json. Nie przepisujemy miesiąca ani świadomego ręcznego rollbacku; wcześniej zamrożony schemat v1 pozostaje historią.
 
-**Każda liczba ma datę obserwacji.** Data pobrania nie jest mylona z datą obserwacji ani release timestamp; nie prowadzimy nieudokumentowanego backfillu "co znano tego dnia". Filtr wieku: GDP ≤200 dni, PCE ≤100 dni, UST10Y ≤15 dni, Brent ≤22 dni, WES opcjonalnie zakończony tydzień ≤21 dni. Brak jednej z pięciu serii podstawowych, brak bazy rocznej, przyszła data lub anomalia zakresu -> **NO PUBLICATION**, stary snapshot i oryginalne daty pozostają.
+## Rola silników BRs
+- **WES**: wyłącznie zamrożone, zweryfikowane momentum futures SPX ret20_pct. To jedyny wkład do bazowej punktacji 1M. Forecast freeze nie jest czasem ticku; price_tick_at=null.
+- **GSE**: snapshot SPX/720h z co najmniej 10 efektywnymi klastrami, research_only=true, decision_influence=false i świeżym forecast_at. DOWN i raportowany odczyt co najmniej 0,60 to wyłącznie **flaga ryzyka geopolitycznego**, nie samodzielne ani skalibrowane prawdopodobieństwo spadku indeksu.
+- **FSE**: SPX risk_score i reżim; ostrożność przy ryzyku >=0,65 lub TURBULENT. ABSTAIN = brak kierunku. Cena SPY nie jest publikowana jako cena indeksu.
+- **BRACE-SPX**: status badawczy, bramka promotora i stan challengera; brak uprawnionego jednego kierunku bez single_champion_authorized. Status challengera nie tworzy głosu w House View.
+- **Belief Core**: prywatne mosty SPX nie mają tutaj kompletnego publicznego kontraktu point-in-time. Wyświetlamy brak pokrycia, nie odtwarzamy P ani nie czytamy prywatnych artefaktów.
+- **Konflikty**: sprzeczne horyzonty, GSE DOWN kontra wzrost momentum WES i strukturalne ryzyka FSE są opisywane, a nie bezrefleksyjnie uśredniane, mnożone lub stosowane jako trading veto.
 
-## Sygnał i ograniczenia
-Wersja `monthly_macro_risk_balance_v1` nie estymuje prawdopodobieństw.
-- Wzrost q/q SAAR: +1 przy ≥2%, -1 przy <1%, -2 przy <0%, inaczej 0.
-- Core PCE r/r: -2 przy ≥3,5%, -1 przy ≥2,7%, +1 przy ≤2,3%, inaczej 0.
-- UST 10Y: -1 przy ≥5%, +1 przy ≤3,5%, inaczej 0.
-- Brent: -1 przy ≥110 USD, +1 przy ≤70 USD, inaczej 0.
-- Dynamika futures S&P (20 sesji): +1 przy ≥+3%, -1 przy ≤-3%, inaczej 0.
-- `1M = 2×momentum + core + UST10Y + Brent`; bez świeżego momentum `unassessed`.
-- `6M = 2×growth + 2×core + UST10Y + Brent`.
-- `12M = growth + core + UST10Y + Brent`.
-- Wynik ≥2 = umiarkowanie pozytywny, ≤-2 = defensywny, inaczej neutralny. **Neutralny to wynik z dostępnych czynników, nie prognoza zerowej stopy zwrotu**.
-- `conviction=3/10` to jawny limit prezentacyjny, nie model statystyczny ani confidence z Belief.
-- Brak aktualnego konsensusu EPS, wycen i forward multiples blokuje silne 6M/12M tezy. Nie wolno opisywać tego generatora jako walidowanego prognostyka. Cross-check WES/BRACE/GSE w dotychczasowych panelach pozostaje oddzielny.
+## EPS / wyceny — obecnie jawny brak automatycznego źródła
+Nie istnieje zatwierdzony w tym workflow automatyczny feed aktualnego indeksowego EPS/revisions/forward P/E. Nie wolno zastępować go październikowym FactSet, wyceną pojedynczych spółek, ceną SPY ani wymyślonym targetem.
 
-## Publikacja i rollback
-`.github/workflows/house-view-monthly.yml` wykonuje pierwszą próbę 8. dnia miesiąca, ponawia 10. i 12. (09:17 UTC) i dopuszcza `workflow_dispatch`. `scripts/publish_monthly_house_view.py` zapisuje `data/investments/house_view_monthly_archive/YYYY-MM.json` (immutable na miesiąc) i `house_view_monthly_current.json`. Ponowne uruchomienie tego miesiąca jest idempotentne; archiwum nie jest przepisywane. Jeżeli bieżący wskaźnik świadomie cofnięto na starszy miesiąc, workflow go nie nadpisuje (wymaga ręcznej weryfikacji). Zapisywany commit zawiera tylko te dwa typy danych i nie wywołuje wykonania transakcji.
+Opcjonalnie można wprowadzić **ręcznie zrecenzowany** plik data/investments/house_view_fundamentals.json o schemacie 1.0: generated_at i source_published_at ISO 8601 z timezone, source_document_url HTTPS z domen insight.factset.com / www.spglobal.com / www.yardeni.com, liczbowe forward_pe i forward_eps_growth_pct; max 45 dni. Brak, przeterminowanie lub zła domena => earnings_valuation=unavailable i brak silnej tezy 6M/12M. To źródło kuratorowane, nie feed live.
 
-`scripts/house-view-monthly.js` prezentuje czytany JSON po polsku i angielsku na czterech stronach oraz ostrzega po 45 dniach. Gdy publikacja nie powiedzie się, nie zmienia starej analizy. Rollback polega na cofnięciu PR lub wskazaniu poprzedniego poprawnego zamrożonego JSON przez zmianę wskaźnika `current` w kontrolowanym commicie; **nigdy nie edytować historycznego pliku miesiąca**. Monitoring błędów: status czerwony GitHub Actions, bez fałszywej zielonej publikacji.
+## Audyt i bezpieczeństwo
+Sekcje mają source_ids, pliki projekcji SHA-256 i timestamps, makro ma datę obserwacji i URL; historia jest immutable. Scenariusze warunkowe nie mają przypisanych prawdopodobieństw. Conviction 3/10 to limit niewalidowanej heurystyki, nie Belief confidence. Klient ostrzega, gdy raport ma ponad 45 dni.
 
-## Testy i niezależność
-`python -m unittest tests/test_house_view_monthly.py -v` oraz `node --check scripts/house-view-monthly.js`. Bez Internetu testy korzystają z małych deterministycznych fixture'ów; fetch FRED odbywa się wyłącznie w realnym harmonogramie. Kontrakty wejść/wyjść nie mają pól order, stop, fill, risk-policy, champion. Publikacja jest odseparowana od trading execution.
+Testy: python -m unittest tests/test_house_view_monthly.py tests/test_house_view_research_v2.py -v; python -m py_compile scripts/publish_monthly_house_view.py scripts/house_view_research_v2.py; node --check scripts/house-view-monthly.js; Architecture Bootstrap Guard.
+
+Brak prawa do zapisu TR-05, Belief, EP/IN, BRACE/WES/FSE/GSE, pozycji, risk policy, orderów, produkcyjnego promotora lub autodyfuzji metod. Reguły punktowe nie są automatycznie modyfikowane. Rollback: kontrolowany wskaźnik current lub revert kodu, nigdy edycja zamrożonego archiwum.
