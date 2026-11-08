@@ -1,0 +1,55 @@
+name: Publish Monthly S&P 500 House View (read-only)
+
+on:
+  workflow_dispatch:
+  schedule:
+    # UTC: 8th, 10th and 12th. Re-tries are idempotent and never rewrite a frozen month.
+    - cron: "17 9 8,10,12 * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: monthly-spx-house-view-publication
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Check out canonical main (no trading execution)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Use Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run deterministic data-quality and isolation tests
+        run: |
+          python -m unittest tests/test_house_view_monthly.py -v
+          python -m py_compile scripts/publish_monthly_house_view.py
+          node --check scripts/house-view-monthly.js
+
+      - name: Freeze monthly source observations and publish a research-only snapshot
+        run: python scripts/publish_monthly_house_view.py
+
+      - name: Commit only monthly publication files; no trading-state writes
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/investments/house_view_monthly_current.json
+          git add data/investments/house_view_monthly_archive/*.json
+          if git diff --cached --quiet; then
+            echo "Monthly snapshot unchanged; no commit."
+            exit 0
+          fi
+          git commit -m "data(house-view): publish frozen monthly S&P 500 macro research"
+          # Never force-push or touch WES, Weekly, risk, execution, BRACE or policy state.
+          git pull --rebase origin main
+          git push origin HEAD:main
