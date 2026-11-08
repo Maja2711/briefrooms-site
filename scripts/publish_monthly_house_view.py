@@ -219,8 +219,12 @@ def publish(today: date, data_dir: Path = DATA) -> str:
         parsed = json.loads(stored)
         if parsed.get("month") != month or parsed.get("schema_version") != "1.0":
             raise PublicationBlocked("Archive collision / invalid frozen snapshot")
-        if not current.exists() or json.loads(current.read_text(encoding="utf-8")).get("month") != month:
+        if not current.exists():
             current.write_text(stored, encoding="utf-8")
+        elif json.loads(current.read_text(encoding="utf-8")).get("month") != month:
+            # A controlled rollback may intentionally point to an older frozen month.
+            # Never silently re-promote the newest archive over that manual decision.
+            return f"skipped: {month} frozen; current pointer differs (manual review required)"
         return f"skipped: {month} archive already frozen"
     previous = None
     if current.exists():
