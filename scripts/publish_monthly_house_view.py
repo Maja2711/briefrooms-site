@@ -107,14 +107,24 @@ def qoq_saar(points: list[tuple[date, float]]) -> float:
 
 
 def weekly_spx_market_observation(today: date, data_dir: Path) -> dict | None:
+    """Read the latest WES freeze as historical context; never use execution state.
+
+    The forecast freeze time is NOT passed off as the price tick time.
+    A forecast may belong to an unfinished week; it is still frozen evidence.
+    """
     try:
         report = json.loads((data_dir / "wes_report.json").read_text(encoding="utf-8"))
         week = report["week_id"]
         if not isinstance(week, str) or not __import__("re").fullmatch(r"20\d{2}-W\d{2}", week):
             return None
         weekly = json.loads((data_dir / "weekly" / (week + ".json")).read_text(encoding="utf-8"))
-        end = date.fromisoformat(weekly["forecast_for_week_end"])
-        if weekly.get("week_id") != week or not 0 <= (today - end).days <= 21:
+        if weekly.get("week_id") != week:
+            return None
+        frozen_at = datetime.fromisoformat(weekly["forecast_created_at"])
+        if frozen_at.tzinfo is None:
+            return None
+        freeze_date = frozen_at.astimezone(timezone.utc).date()
+        if not 0 <= (today - freeze_date).days <= 14:
             return None
         spx = next((x for x in weekly.get("instruments", []) if x.get("instrument_id") == "sp500_futures"), None)
         if not spx or spx.get("data_quality") != "passed":
@@ -124,11 +134,11 @@ def weekly_spx_market_observation(today: date, data_dir: Path) -> dict | None:
         close = float(signals["last_close"])
         if not (math.isfinite(ret) and -70 < ret < 70 and math.isfinite(close) and close > 0):
             return None
-        return {"week_id": week, "week_end": end.isoformat(), "ret20_pct": round(ret, 2),
-                "futures_last_close": round(close, 2), "source": f"/data/investments/weekly/{week}.json"}
+        return {"week_id": week, "forecast_frozen_at": frozen_at.isoformat(), "price_tick_at": None,
+                "ret20_pct": round(ret, 2), "futures_last_close_at_freeze": round(close, 2),
+                "source": f"/data/investments/weekly/{week}.json"}
     except (OSError, KeyError, ValueError, TypeError, StopIteration):
         return None
-
 
 def category(score: int | None) -> str:
     if score is None:
@@ -185,7 +195,7 @@ def build_snapshot(observations: dict[str, list[tuple[date, float]]], today: dat
         and h in previous["views"] and isinstance(previous["views"][h], dict)
     }
     return {
-        "schema_version": "1.0", "product": "BRIEFROOMS_SXP_MONTHLY_MACRO_HOUSE_VIEW",
+        "schema_version": "1.0", "product": "BRIEFROOMS_SPX_MONTHLY_MACRO_HOUSE_VIEW",
         "month": today.strftime("%Y-%m"), "published_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "status": "published_research_only", "method": "monthly_macro_risk_balance_v1",
         "as_of": today.isoformat(), "scope": "macro_and_tactical_risk_balance_not_earnings_or_valuation_forecast",
