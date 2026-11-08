@@ -22,6 +22,8 @@ on:
       - "scripts/execution_price_engine.py"
       - "scripts/saxo_private_feed.py"
       - "scripts/saxo_private_chart.py"
+      - "scripts/saxo_private_belief.py"
+      - "tests/test_saxo_private_belief.py"
       - "scripts/daily_eurusd_fast_lifecycle.py"
       - "tests/test_daily_eurusd_fast_lifecycle.py"
       - "tests/test_saxo_private_chart.py"
@@ -37,6 +39,8 @@ on:
       - "scripts/execution_price_engine.py"
       - "scripts/saxo_private_feed.py"
       - "scripts/saxo_private_chart.py"
+      - "scripts/saxo_private_belief.py"
+      - "tests/test_saxo_private_belief.py"
       - "scripts/daily_eurusd_fast_lifecycle.py"
       - "tests/test_daily_eurusd_fast_lifecycle.py"
       - "tests/test_saxo_private_chart.py"
@@ -66,8 +70,8 @@ jobs:
       - name: Offline validation without Saxo or D1 network access
         run: |
           set -euo pipefail
-          python -m unittest tests.test_saxo_private_github_artifacts tests.test_saxo_private_daily_d1_runner tests.test_saxo_private_daily_runner tests.test_saxo_private_feed tests.test_saxo_private_primary tests.test_saxo_private_execution_exit tests.test_saxo_private_chart tests.test_daily_eurusd_private_chart_source tests.test_daily_eurusd_fast_lifecycle -q
-          python -m py_compile scripts/saxo_private_daily_runner.py scripts/saxo_private_daily_d1_runner.py scripts/saxo_private_github_artifacts.py scripts/saxo_private_chart.py
+          python -m unittest tests.test_saxo_private_github_artifacts tests.test_saxo_private_daily_d1_runner tests.test_saxo_private_daily_runner tests.test_saxo_private_feed tests.test_saxo_private_primary tests.test_saxo_private_execution_exit tests.test_saxo_private_chart tests.test_saxo_private_belief tests.test_daily_eurusd_private_chart_source tests.test_daily_eurusd_fast_lifecycle -q
+          python -m py_compile scripts/saxo_private_daily_runner.py scripts/saxo_private_daily_d1_runner.py scripts/saxo_private_github_artifacts.py scripts/saxo_private_chart.py scripts/saxo_private_belief.py
 
   private-storage-preflight:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -180,6 +184,9 @@ jobs:
       # fallback in private technical and lifecycle market observations.
       # This does NOT migrate the public ledger or re-author market Belief.
       SAXO_CHART_PRIMARY: "1"
+      # Private CF-07 projection rebuilds EURUSD trend evidence only from Saxo
+      # completed bars. Other provider data retain their own provenance.
+      SAXO_PRIVATE_BELIEF_PRIMARY: "1"
       # Dedicated Saxo SIM STREAM is mandatory for private Daily EPE.
       # Not used in the public Daily price widget or any other instrument.
       SAXO_STREAM_PRIMARY: "1"
