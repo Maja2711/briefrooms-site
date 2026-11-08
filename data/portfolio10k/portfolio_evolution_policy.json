@@ -1,17 +1,19 @@
 {
   "schema_version": "brace-portfolio-evolution-policy-v1",
-  "generated_at": "2026-11-01T16:50:15+00:00",
-  "status": "WARMUP",
+  "generated_at": "2026-11-08T15:34:56+00:00",
+  "status": "PORTFOLIO_CHALLENGER",
   "apply_to_engine_portfolio_policy": true,
   "never_apply_to_real_broker": true,
   "base_config_sha256": "c97aade159f6245e8be5d32f74cd4357899e55dc453411d7428bb93c15011a93",
   "active_overrides": {},
-  "candidate_overrides": {},
-  "candidate_signature": null,
-  "consecutive_confirmations": 0,
+  "candidate_overrides": {
+    "portfolio_cash_floor": 0.05
+  },
+  "candidate_signature": "5ab32aec7f86e0b91331c2f5a3672d3ad711e99f783f2be06da249069b7ebc0a",
+  "consecutive_confirmations": 1,
   "required_confirmations": 2,
   "minimum_economic_samples": 8,
-  "learning_reason": "NO_NEW_MATURE_PROSPECTIVE_PORTFOLIO_OUTCOMES",
+  "learning_reason": "REPEATED_PROSPECTIVE_COUNTERFACTUAL_REGRET",
   "bounds": {
     "portfolio_risk_aversion": [
       0.2,
@@ -73,18 +75,18 @@
     "safety_kernel_mutable_by_learner": false
   },
   "statistics": {
-    "economic_samples": 7,
-    "mean_regret": 0.0088072565,
-    "selected_vs_current_mean": -0.004781984,
-    "selected_beats_current_rate": 0.285714,
+    "economic_samples": 8,
+    "mean_regret": 0.0115733919,
+    "selected_vs_current_mean": 5.92781e-05,
+    "selected_beats_current_rate": 0.375,
     "winner_frequencies": {
       "conviction_growth": 1,
-      "current": 2,
       "maximum_sharpe": 3,
-      "minimum_variance": 1
+      "minimum_variance": 3,
+      "return_risk_turnover": 1
     },
     "longest_horizon_days": 30,
     "sample_semantics": "one economic portfolio decision contributes one latest matured horizon"
   },
-  "content_sha256": "ab4be5cfd999d77b4d03bddf02b1d8fcbabd7af638f87057faff5837cafa9b03"
+  "content_sha256": "1fa7483b4ba8963a7ff008b7f83a492615d40da9ab17e9d3c99f44a8dab75027"
 }
