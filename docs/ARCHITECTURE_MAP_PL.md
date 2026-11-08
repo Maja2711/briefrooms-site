@@ -1,8 +1,8 @@
 # Kanoniczna mapa architektury BriefRooms — PL
 
-**Wersja mapy:** 1.46
+**Wersja mapy:** 1.47
 
-**Stan na:** 2026-10-29
+**Stan na:** 2026-11-08
 
 **Bazowy commit `main`:** `7dff7b1d71b333f9029c661b251b01243a189897`
 
@@ -346,6 +346,8 @@ Monitor odróżnia zamrożone kohorty od ocen oraz zbieranie przyszłej taśmy o
 | `CT-05` | Public projections / UI | Sanitized JSON/JS -> PL/EN pages | liczne `*_public_projection.py`, JS renderers, `pl/`, `en/` |
 | `CT-06` | Home / editorial | Home brief, market signal, Hot X, editorial rules | home build pipelines, `briefrooms_editorial_rules.md`, content contracts |
 
+**CT-05 / TR-08 — miesięczna publikacja S&P 500 House View (research-only):** `scripts/publish_monthly_house_view.py` pobiera szeregi FRED z udokumentowaną proweniencją BEA/Treasury/EIA i opcjonalnie czyta zamrożony, historyczny zwrot SPX z WES. `.github/workflows/house-view-monthly.yml` zapisuje wyłącznie wersjonowane `data/investments/house_view_monthly_archive/YYYY-MM.json` i bieżący wskaźnik `house_view_monthly_current.json`. `scripts/house-view-monthly.js` prezentuje nowy miesiąc PL/EN ponad wyraźnie oznaczonym archiwum redakcyjnym. Jest to niewalidowany, konserwatywny bilans czynników, **nie** pełny model EPS/wycen i nie prognoza prawdopodobieństwa. Brak świeżych danych blokuje nową publikację; brak prawa do transakcji, risk policy, Belief writeback, orderów lub promocji research. Kontrakt, ograniczenia, rollback: `docs/HOUSE_VIEW_MONTHLY_PL.md` / `_EN.md`. 
+
 Warstwa publikacyjna **nie może stać się ukrytym źródłem authority dla silnika decyzyjnego**. Publiczny renderer pokazuje stan; nie powinien tworzyć lub retroaktywnie zmieniać decyzji ekonomicznej.
 
 ### CT-01 — twardy invariant świeżości publicznych wiadomości
@@ -522,6 +524,7 @@ Najważniejsze dokumenty szczegółowe użyte do budowy i utrzymania aktualnej m
 - `ai-outlook-engine-v1.md`
 - `ai-tournament-methodology-v1.md`
 - `BRIEFROOMS_CHANGE_RULES.md`
+- `HOUSE_VIEW_MONTHLY_PL.md` / `HOUSE_VIEW_MONTHLY_EN.md`
 
 ## 16. Migration record — Stock Trading consolidation
 
