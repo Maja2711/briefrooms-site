@@ -1,8 +1,8 @@
 # BriefRooms Canonical Architecture Map — EN
 
-**Map version:** 1.46
+**Map version:** 1.47
 
-**Snapshot date:** 2026-10-29
+**Snapshot date:** 2026-11-08
 
 **Base `main` commit:** `7dff7b1d71b333f9029c661b251b01243a189897`
 
@@ -346,6 +346,8 @@ Health distinguishes frozen cohorts from evaluations and future-tape collection 
 | `CT-05` | Public projections / UI | Sanitized JSON/JS -> PL/EN pages | multiple `*_public_projection.py`, JS renderers, `pl/`, `en/` |
 | `CT-06` | Home / editorial | Home brief, market signal, Hot X, editorial rules | home build pipelines, `briefrooms_editorial_rules.md`, content contracts |
 
+**CT-05 / TR-08 — monthly S&P 500 House View publication (research-only):** `scripts/publish_monthly_house_view.py` retrieves date-stamped FRED series with BEA/Treasury/EIA lineage and may read the frozen historical SPX return from WES. `.github/workflows/house-view-monthly.yml` writes only frozen `data/investments/house_view_monthly_archive/YYYY-MM.json` plus the `house_view_monthly_current.json` pointer. `scripts/house-view-monthly.js` shows the newest PL/EN research snapshot above an explicitly labeled editorial archive. This is an unvalidated capped macro-factor balance, **not** an EPS/valuation model or a probability forecast. Missing/stale inputs block publication. No trading, risk-policy, Belief writeback, order, or research promotion authority. Contract, limitations and rollback: `docs/HOUSE_VIEW_MONTHLY_PL.md` / `_EN.md`.
+
 The publication layer **must not become a hidden authority source for a decision engine**. A public renderer displays state; it must not originate or retroactively alter an economic decision.
 
 ### CT-01 — hard public-news freshness invariant
@@ -518,6 +520,7 @@ Primary detailed documents used to build and maintain the current map:
 - `ai-outlook-engine-v1.md`
 - `ai-tournament-methodology-v1.md`
 - `BRIEFROOMS_CHANGE_RULES.md`
+- `HOUSE_VIEW_MONTHLY_PL.md` / `HOUSE_VIEW_MONTHLY_EN.md`
 
 ## 16. Migration record — Stock Trading consolidation
 
