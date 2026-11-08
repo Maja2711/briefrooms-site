@@ -1,6 +1,6 @@
 # BriefRooms Canonical Architecture Map — EN
 
-**Map version:** 1.47
+**Map version:** 1.48
 
 **Snapshot date:** 2026-11-08
 
@@ -346,7 +346,7 @@ Health distinguishes frozen cohorts from evaluations and future-tape collection 
 | `CT-05` | Public projections / UI | Sanitized JSON/JS -> PL/EN pages | multiple `*_public_projection.py`, JS renderers, `pl/`, `en/` |
 | `CT-06` | Home / editorial | Home brief, market signal, Hot X, editorial rules | home build pipelines, `briefrooms_editorial_rules.md`, content contracts |
 
-**CT-05 / TR-08 — monthly S&P 500 House View publication (research-only):** `scripts/publish_monthly_house_view.py` retrieves date-stamped FRED series with BEA/Treasury/EIA lineage and may read the frozen historical SPX return from WES. `.github/workflows/house-view-monthly.yml` writes only frozen `data/investments/house_view_monthly_archive/YYYY-MM.json` plus the `house_view_monthly_current.json` pointer. `scripts/house-view-monthly.js` shows the newest PL/EN research snapshot above an explicitly labeled editorial archive. This is an unvalidated capped macro-factor balance, **not** an EPS/valuation model or a probability forecast. Missing/stale inputs block publication. No trading, risk-policy, Belief writeback, order, or research promotion authority. Contract, limitations and rollback: `docs/HOUSE_VIEW_MONTHLY_PL.md` / `_EN.md`.
+**CT-05 / TR-08 — monthly S&P 500 House View publication (research-only):** v2: scripts/publish_monthly_house_view.py retains mandatory provenance-checked FRED sources and the unchanged macro 1M/6M/12M balance. scripts/house_view_research_v2.py generates deterministic bilingual research based on read-only public GSE (geopolitics), FSE (structure/risk), BRACE-SPX (regime gate) and frozen WES SPX (momentum). GSE/FSE/BRACE never become authorized directional votes; private Belief Core observations are not reconstructed. No approved automated index-level EPS/forward P/E feed is claimed; only documented curated inputs can be used. Every month freezes a report with evidence source IDs, public-projection SHA-256, timestamps and age status. scripts/house-view-monthly.js renders the complete current House View and retains the October editorial article in an expandable archive. .github/workflows/house-view-monthly.yml writes only house_view_monthly_current.json and frozen house_view_monthly_archive/YYYY-MM.json, with no trading, Belief, policy, engine or auto-promotion writeback. Contract and limitations: docs/HOUSE_VIEW_MONTHLY_PL.md and _EN.md.
 
 The publication layer **must not become a hidden authority source for a decision engine**. A public renderer displays state; it must not originate or retroactively alter an economic decision.
 

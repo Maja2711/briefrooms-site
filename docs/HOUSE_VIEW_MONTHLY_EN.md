@@ -1,28 +1,33 @@
-# BriefRooms S&P 500 — automated monthly House View (research-only)
+# BriefRooms House View Intelligence v2 — monthly S&P 500 (EN)
 
-## Scope and authority
-A monthly, source-based 1M/6M/12M macro/tactical risk balance in Investing / Long View. **Not** a complete S&P 500 valuation model, target price, trading recommendation, or statistically validated forecast. The original October 2026 editorial House View remains clearly identified as an archive.
+## Purpose and boundaries
+TR-08 (Long View / BRACE-SPX) and CT-05 (public projection) publish a **complete analysis structure** monthly in the existing Investing room: 1M/6M/12M thesis, macro observations, rationale, earnings/valuation section, conditional scenarios, monthly changes, model disagreements, thesis-change gates, source provenance and coverage gaps. Polish and English share the same structure.
 
-**Module IDs:** `TR-08` for contextual consumption, `CT-05` for public display. Never write `TR-05` WES/Weekly execution or risk state, `EP-05`, `IN-03`, `IN-09`, positions, policy, or promotion metadata.
+v2 is deterministic source-bounded synthesis, **not** an LLM editor, a validated probability forecast, a valuation model or investment advice. Missing source data is disclosed; it is never replaced by invented consensus.
 
-## Provenance and freshness
-FRED CSV observations sourced from BEA GDP (`GDPC1`), headline/core PCE (`PCEPI`, `PCEPILFE`), Treasury 10Y (`DGS10`), and EIA Brent (`DCOILBRENTEU`). An optional frozen WES weekly SPX futures return `signals.ret20_pct` is **market context only**, not an executable signal. Observation dates are preserved and distinguished from retrieval/publishing time. GDP max observation age 200 days, PCE 100 days, 10Y 15 days, oil 22 days, weekly SPX 21 days. Missing/stale/implausible primary values, missing year-ago baseline, or future observation dates BLOCK publication, retaining the last frozen report.
+## Implementation
+- Workflow: .github/workflows/house-view-monthly.yml, UTC 09:17 on day 8, 10 and 12; manual workflow_dispatch supported.
+- Macro: scripts/publish_monthly_house_view.py retains the fixed v1 1M/6M/12M factor balance. Mandatory FRED GDPC1 (max age 200d), PCEPI/PCEPILFE (100d), DGS10 (15d), DCOILBRENTEU (22d). Headline and core PCE must cover the same month. Missing, implausible, future or stale => NO PUBLICATION.
+- Synthesis: scripts/house_view_research_v2.py consumes existing read-only GSE (3d), FSE (7d), BRACE-SPX (14d) and optional frozen WES SPX (14d) projections; nonqualifying observations cannot be treated as current.
+- UI: scripts/house-view-monthly.js and assets/house-view-monthly.css render the entire current article in the established design. The October 2026 editorial is inside an expandable archive, open if no verified new report exists.
+- Immutable monthly files: data/investments/house_view_monthly_archive/YYYY-MM.json and house_view_monthly_current.json pointer. A frozen v1 month and a deliberately rolled-back pointer are never overwritten.
 
-## Published method and limits
-`monthly_macro_risk_balance_v1` is a deterministic unvalidated heuristic, not an estimated probability.
-- Growth q/q SAAR: +1 if ≥2%, -1 if <1%, -2 if <0%, else 0.
-- Core PCE y/y: -2 if ≥3.5%, -1 if ≥2.7%, +1 if ≤2.3%, else 0.
-- U.S. 10Y: -1 if ≥5%, +1 if ≤3.5%, else 0.
-- Brent: -1 if ≥$110, +1 if ≤$70, else 0.
-- S&P futures 20-session return: +1 if ≥3%, -1 if ≤-3%, else 0.
-- `1M = 2×momentum + core + 10Y + Brent`; `unassessed` without fresh SPX observation.
-- `6M = 2×growth + 2×core + 10Y + Brent`.
-- `12M = growth + core + 10Y + Brent`.
-- Score ≥2 is mildly positive, ≤-2 defensive, otherwise neutral; neutral is NOT a projected zero return.
-- Fixed `conviction=3/10` is an explicit presentational cap, not Belief confidence.
-- Without fresh earnings and valuation inputs, stronger medium-term conclusions are unsupported. WES, GSE, FSE and BRACE cross-checks remain independent read-only panels.
+## Existing engine authority
+- **WES**: only verified frozen SPX futures 20-session return ret20_pct contributes to the baseline 1M balance. Forecast freeze time is not a market tick (price_tick_at=null).
+- **GSE**: fresh SPX/720h source, at least 10 effective clusters, research_only=true, decision_influence=false. DOWN with model reading >=0.60 yields only a **geopolitical caution flag**, not a calibrated index downside probability.
+- **FSE**: SPX risk_score/regime; caution at risk >=0.65 or regime TURBULENT. ABSTAIN stays no opinion. SPY price is not passed off as an SPX index value.
+- **BRACE-SPX**: research/candidate and promotion gate only; no single authorized direction without single_champion_authorized. Challenger status cannot vote in the House View.
+- **Belief Core**: private SPX bridges do not expose a qualified complete public point-in-time contract for this report. Missing coverage is disclosed; no probabilities are reconstructed and no private artifacts are read.
+- **Conflicts**: overlapping signals and mismatched horizons are described without averaging, duplicate evidence-counting or turning cross-checks into trading vetoes.
 
-## Workflow, archival and rollback
-`.github/workflows/house-view-monthly.yml` runs at 09:17 UTC on the 8th, 10th and 12th of each month, or manually. The publisher writes immutable `data/investments/house_view_monthly_archive/YYYY-MM.json` then `house_view_monthly_current.json`; reruns are idempotent and restore a missing pointer, but never silently overrule an existing pointer intentionally rolled back to an older month. Only these publication files are included in the commit. The bilingual browser reader shows the snapshot on all four relevant pages and flags it stale after 45 days. Failures are reported through GitHub Actions; no new report/date is silently invented.
+## EPS and valuation — explicit unautomated coverage gap
+This pipeline has no approved automated index-wide EPS consensus, earnings revisions or forward P/E feed. It must not republish October FactSet numbers, single-stock figures, SPY pricing or invented index targets as current.
 
-Tests: `python -m unittest tests/test_house_view_monthly.py -v`; `node --check scripts/house-view-monthly.js`. To roll back publication, make a controlled commit restoring the last verified `current` snapshot; never rewrite a month's frozen archive.
+An optional **manually reviewed** file data/investments/house_view_fundamentals.json (schema 1.0) may provide timezone-aware generated_at and source_published_at, source_document_url HTTPS on insight.factset.com / www.spglobal.com / www.yardeni.com, and numeric forward_pe and forward_eps_growth_pct (max age 45d). Missing, stale or unapproved documents yield earnings_valuation=unavailable and no strong 6M/12M fundamental thesis. This is curated evidence, not a live feed.
+
+## Provenance and safety
+Sections carry source_ids; local engine projections carry SHA-256 hashes, observation timestamps and freshness status; macro values carry dated FRED source URLs. Each month's evidence is frozen. Conditional scenarios do not invent probabilities. Conviction 3/10 is a cap on unvalidated heuristic claims, not Belief confidence. The UI warns on reports over 45 days old.
+
+Checks: python -m unittest tests/test_house_view_monthly.py tests/test_house_view_research_v2.py -v; Python compilation; node --check scripts/house-view-monthly.js; Architecture Bootstrap Guard.
+
+No WES, BRACE, GSE, FSE, Belief, risk-policy, positions, orders, research promotion or other production state writeback. Factor scoring weights cannot self-modify. Rollback changes current pointer or reverts the code, never edits frozen monthly archives.

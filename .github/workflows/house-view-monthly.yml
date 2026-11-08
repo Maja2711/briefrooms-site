@@ -5,9 +5,11 @@ on:
     paths:
       - ".github/workflows/house-view-monthly.yml"
       - "scripts/publish_monthly_house_view.py"
+      - "scripts/house_view_research_v2.py"
       - "scripts/house-view-monthly.js"
       - "assets/house-view-monthly.css"
       - "tests/test_house_view_monthly.py"
+      - "tests/test_house_view_research_v2.py"
       - "pl/inwestycje/long-view.html"
       - "en/investing/long-view.html"
       - "pl/inwestycje/spx-scenariusze-2026.html"
@@ -36,8 +38,8 @@ jobs:
           python-version: "3.11"
       - name: Validate monthly publisher without contacting external sources
         run: |
-          python -m unittest tests/test_house_view_monthly.py -v
-          python -m py_compile scripts/publish_monthly_house_view.py
+          python -m unittest tests/test_house_view_monthly.py tests/test_house_view_research_v2.py -v
+          python -m py_compile scripts/publish_monthly_house_view.py scripts/house_view_research_v2.py
           node --check scripts/house-view-monthly.js
 
   publish:
@@ -60,12 +62,16 @@ jobs:
 
       - name: Run deterministic data-quality and isolation tests
         run: |
-          python -m unittest tests/test_house_view_monthly.py -v
-          python -m py_compile scripts/publish_monthly_house_view.py
+          python -m unittest tests/test_house_view_monthly.py tests/test_house_view_research_v2.py -v
+          python -m py_compile scripts/publish_monthly_house_view.py scripts/house_view_research_v2.py
           node --check scripts/house-view-monthly.js
 
-      - name: Freeze monthly source observations and publish a research-only snapshot
+      - name: Publish immutable bilingual House View v2 (macro + read-only engine context)
         run: python scripts/publish_monthly_house_view.py
+
+      - name: Check source-backed report contract after publication
+        run: |
+          python -c "import json; from pathlib import Path; from scripts.house_view_research_v2 import validate_research; validate_research(json.loads(Path(\"data/investments/house_view_monthly_current.json\").read_text(encoding=\"utf-8\")))"
 
       - name: Commit only monthly publication files; no trading-state writes
         run: |

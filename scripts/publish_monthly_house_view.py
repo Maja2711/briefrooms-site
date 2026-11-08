@@ -19,6 +19,11 @@ import urllib.request
 from datetime import date, datetime, timezone
 from pathlib import Path
 
+try:
+    from scripts.house_view_research_v2 import enrich_monthly_snapshot
+except ModuleNotFoundError:
+    from house_view_research_v2 import enrich_monthly_snapshot
+
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data" / "investments"
 PUBLIC = DATA / "house_view_monthly_current.json"
@@ -217,7 +222,7 @@ def publish(today: date, data_dir: Path = DATA) -> str:
     if target.exists():
         stored = target.read_text(encoding="utf-8")
         parsed = json.loads(stored)
-        if parsed.get("month") != month or parsed.get("schema_version") != "1.0":
+        if parsed.get("month") != month or parsed.get("schema_version") not in ("1.0", "2.0"):
             raise PublicationBlocked("Archive collision / invalid frozen snapshot")
         if not current.exists():
             current.write_text(stored, encoding="utf-8")
@@ -234,6 +239,7 @@ def publish(today: date, data_dir: Path = DATA) -> str:
     observations = {code: fetch_series(code) for code in SERIES}
     weekly = weekly_spx_market_observation(today, data_dir)
     snapshot = build_snapshot(observations, today, weekly, previous)
+    snapshot = enrich_monthly_snapshot(snapshot, today, data_dir, previous)
     result = json.dumps(snapshot, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     archives.mkdir(parents=True, exist_ok=True)
     # Persist frozen archive first; a re-run heals the 'current' pointer after interruption.
