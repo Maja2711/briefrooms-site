@@ -209,6 +209,12 @@ def main(argv: list[str] | None = None) -> int:
                 raise PrivateStateFailure("private_d1_directory_not_isolated")
             os.environ["BRIEFROOMS_PRIVATE_DATA_DIR"] = str(directory)
             generation, previous_digest = load(d1, directory)
+            # Saxo-derived private EUR/USD price evidence must reach Belief
+            # BEFORE the single Daily decision. The public Epistemic artifact
+            # is input context only, never the final private price authority.
+            if os.environ.get("SAXO_PRIVATE_BELIEF_PRIMARY") == "1":
+                from saxo_private_belief import build_private_saxo_epistemic
+                build_private_saxo_epistemic(directory)
             outcome = private_cycle(directory)
             save(d1, directory, generation, previous_digest)
         print("PRIVATE_SAXO_DAILY_CYCLE=" + outcome)
