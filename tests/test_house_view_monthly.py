@@ -75,6 +75,36 @@ class MonthlyHouseViewTests(unittest.TestCase):
                 self.assertIn("skipped", m.publish(TODAY, root))
             self.assertEqual((root / "house_view_monthly_current.json").read_text(encoding="utf-8"), frozen)
 
+    def test_mismatched_pce_reporting_months_block_publication(self):
+        s = sources()
+        s["PCEPI"] = [(date(2025, 8, 1), 100.0), (date(2026, 8, 1), 103.4)]
+        with self.assertRaises(m.PublicationBlocked):
+            m.build_snapshot(s, TODAY, None)
+
+    def test_weekly_freeze_is_context_even_before_forecast_week_ends(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            (base / "weekly").mkdir()
+            (base / "wes_report.json").write_text(json.dumps({"week_id": "2026-W45"}))
+            payload = {"week_id":"2026-W45", "forecast_created_at":"2026-11-07T01:00:00+00:00",
+                "forecast_for_week_end":"2026-11-13",
+                "instruments":[{"instrument_id":"sp500_futures","data_quality":"passed",
+                                "signals":{"ret20_pct":-3.5,"last_close":7600.0}}]}
+            (base / "weekly" / "2026-W45.json").write_text(json.dumps(payload))
+            observed = m.weekly_spx_market_observation(TODAY, base)
+            self.assertEqual(observed["ret20_pct"], -3.5)
+            self.assertIsNone(observed["price_tick_at"])
+            self.assertIn("forecast_frozen_at", observed)
+
+    def test_all_four_pages_have_bilingual_monthly_reader(self):
+        for path in ("pl/inwestycje/long-view.html", "en/investing/long-view.html",
+                     "pl/inwestycje/spx-scenariusze-2026.html", "en/investing/spx-scenarios-2026.html"):
+            with self.subTest(path=path):
+                text = (m.ROOT / path).read_text(encoding="utf-8")
+                self.assertIn("data-house-view-monthly", text)
+                self.assertIn("/scripts/house-view-monthly.js", text)
+                self.assertIn("/assets/house-view-monthly.css", text)
+
     def test_future_series_observation_is_blocked(self):
         s = sources()
         s["DGS10"] = [(date(2026, 11, 9), 4.9)]
