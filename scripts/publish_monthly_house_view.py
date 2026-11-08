@@ -163,7 +163,7 @@ def factor_values(gdp: float, core: float, ten: float, oil: float, momentum: flo
 def build_snapshot(observations: dict[str, list[tuple[date, float]]], today: date, weekly: dict | None,
                    previous: dict | None = None) -> dict:
     latest = {code: checked_latest(code, observations[code], today) for code in SERIES}
-    if abs((latest["PCEPI"][0] - latest["PCEPILFE"][0]).days) > 35:
+    if (latest["PCEPI"][0].year, latest["PCEPI"][0].month) != (latest["PCEPILFE"][0].year, latest["PCEPILFE"][0].month):
         raise PublicationBlocked("Headline and core PCE vintages diverge")
     gdp = qoq_saar(observations["GDPC1"])
     headline = yoy(observations["PCEPI"])
