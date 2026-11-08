@@ -105,6 +105,20 @@ class MonthlyHouseViewTests(unittest.TestCase):
                 self.assertIn("/scripts/house-view-monthly.js", text)
                 self.assertIn("/assets/house-view-monthly.css", text)
 
+    def test_manual_rollback_pointer_is_never_silently_overridden(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            (root / "house_view_monthly_archive").mkdir()
+            latest = m.build_snapshot(sources(), TODAY, None)
+            latest_frozen = json.dumps(latest) + "\n"
+            (root / "house_view_monthly_archive" / "2026-11.json").write_text(latest_frozen, encoding="utf-8")
+            previous = dict(latest, month="2026-10")
+            previous_frozen = json.dumps(previous) + "\n"
+            (root / "house_view_monthly_current.json").write_text(previous_frozen, encoding="utf-8")
+            with patch.object(m, "fetch_series", side_effect=AssertionError("no request")):
+                self.assertIn("manual review", m.publish(TODAY, root))
+            self.assertEqual((root / "house_view_monthly_current.json").read_text(encoding="utf-8"), previous_frozen)
+
     def test_future_series_observation_is_blocked(self):
         s = sources()
         s["DGS10"] = [(date(2026, 11, 9), 4.9)]
