@@ -1315,29 +1315,29 @@
           "validation_distinct_target_dates": 9,
           "validation_n": 70
         },
-        "distinct_target_dates": 19,
+        "distinct_target_dates": 20,
         "outcome_conflicts": 0,
         "shadow_oos": {
-          "brier_relative_improvement": 0.336175,
+          "brier_relative_improvement": 0.344061,
           "challenger": {
-            "accuracy": 0.859155,
-            "brier": 0.121853,
-            "ece": 0.015063,
-            "log_loss": 0.409714,
-            "n": 213
+            "accuracy": 0.861751,
+            "brier": 0.120069,
+            "ece": 0.017702,
+            "log_loss": 0.405337,
+            "n": 217
           },
           "chronological_block_relative_improvements": [
-            0.511823,
-            0.145442,
-            0.223277,
-            0.642871
+            0.48601,
+            0.126803,
+            0.306374,
+            0.619563
           ],
           "control": {
-            "accuracy": 0.859155,
-            "brier": 0.183562,
-            "ece": 0.243115,
-            "log_loss": 0.557884,
-            "n": 213
+            "accuracy": 0.861751,
+            "brier": 0.183049,
+            "ece": 0.245905,
+            "log_loss": 0.556851,
+            "n": 217
           },
           "horizon_checks": [
             {
@@ -1347,27 +1347,27 @@
               "protected": true
             },
             {
-              "brier_relative_improvement": 0.356405,
+              "brier_relative_improvement": 0.365237,
               "horizon_bucket": "0.5S_US_SESSION",
+              "n": 47,
+              "protected": true
+            },
+            {
+              "brier_relative_improvement": 0.30468,
+              "horizon_bucket": "1S_US_SESSION",
               "n": 46,
               "protected": true
             },
             {
-              "brier_relative_improvement": 0.295327,
-              "horizon_bucket": "1S_US_SESSION",
-              "n": 45,
-              "protected": true
-            },
-            {
-              "brier_relative_improvement": 0.323039,
+              "brier_relative_improvement": 0.334445,
               "horizon_bucket": "3S_US_SESSION",
-              "n": 40,
+              "n": 41,
               "protected": true
             },
             {
-              "brier_relative_improvement": 0.413014,
+              "brier_relative_improvement": 0.42322,
               "horizon_bucket": "5S_US_SESSION",
-              "n": 35,
+              "n": 36,
               "protected": true
             }
           ]
@@ -1386,7 +1386,7 @@
       "source_module": "L3-P2",
       "source_ref": "hypothesis-challenger://hch-0bf425a4276053c9e407d399",
       "source_sha256": "20a934ec8ba0775ffb1babed981412e697e8f358957fffcd7e1a8d38a5fbbde7",
-      "status": "OOS_RUNNING",
+      "status": "PROMOTION_ELIGIBLE",
       "target_module": "EP-05",
       "trade_execution_authority": false
     },
@@ -1608,6 +1608,14 @@
       "materialization_authority": false,
       "reason": "P2 prospective OOS gate PASS; implementation requires separate owner approval",
       "route": "Manual Reviewed Belief Probability Overlay"
+    },
+    {
+      "action": "REQUEST_OWNER_REVIEW_AND_CONTROLLED_PROMOTION",
+      "at": "2026-11-09T16:02:52.786301Z",
+      "candidate_id": "hch-0bf425a4276053c9e407d399",
+      "materialization_authority": false,
+      "reason": "P2 prospective OOS gate PASS; implementation requires separate owner approval",
+      "route": "Manual Reviewed Belief Probability Overlay"
     }
   ],
   "hypotheses": {
@@ -1813,7 +1821,7 @@
     },
     "hyp-exp-ae19a3cafdf9c37fc911592d": {
       "claim": "gpw LONG decisions in regime unknown show recurring adverse outcomes and warrant a bounded challenger",
-      "created_at": "2026-11-09T12:07:24.010622Z",
+      "created_at": "2026-11-09T16:02:52.786301Z",
       "evidence": {
         "action": "LONG",
         "engine": "gpw",
@@ -1987,7 +1995,7 @@
         "protected_slice_max_brier_degradation": 0.1,
         "stability": "3_of_4"
       },
-      "evaluated_at": "2026-11-09T12:07:24.010622Z",
+      "evaluated_at": "2026-11-09T16:02:52.786301Z",
       "evaluator_profile": "belief_calibration_v1",
       "gate_id": "evo-gate-8e89ace7e3a53e7622f96ba9",
       "metrics": {
@@ -2057,7 +2065,7 @@
         "protected_slice_max_brier_degradation": 0.1,
         "stability": "3_of_4"
       },
-      "evaluated_at": "2026-11-09T12:07:24.010622Z",
+      "evaluated_at": "2026-11-09T16:02:52.786301Z",
       "evaluator_profile": "belief_calibration_v1",
       "gate_id": "evo-gate-777a5a63e2672a6a971188fe",
       "metrics": {
@@ -2102,20 +2110,20 @@
           "segment": "horizon:0-6H"
         },
         {
-          "brier_relative_improvement": 0.048822,
-          "challenger_brier": 0.272347,
-          "control_brier": 0.286326,
-          "ece_delta": -0.069529,
-          "n": 56,
+          "brier_relative_improvement": 0.04368,
+          "challenger_brier": 0.283504,
+          "control_brier": 0.296453,
+          "ece_delta": -0.066261,
+          "n": 59,
           "pass": true,
           "segment": "horizon:1-5D"
         },
         {
-          "brier_relative_improvement": -0.042346,
-          "challenger_brier": 0.318173,
-          "control_brier": 0.305247,
-          "ece_delta": -0.02229,
-          "n": 47,
+          "brier_relative_improvement": -0.036117,
+          "challenger_brier": 0.315966,
+          "control_brier": 0.304952,
+          "ece_delta": -0.042664,
+          "n": 48,
           "pass": true,
           "segment": "horizon:5D+"
         },
@@ -2129,11 +2137,11 @@
           "segment": "horizon:6-24H"
         },
         {
-          "brier_relative_improvement": 0.016837,
-          "challenger_brier": 0.280808,
-          "control_brier": 0.285617,
-          "ece_delta": -0.021997,
-          "n": 251,
+          "brier_relative_improvement": 0.017254,
+          "challenger_brier": 0.283021,
+          "control_brier": 0.28799,
+          "ece_delta": -0.022022,
+          "n": 255,
           "pass": true,
           "segment": "instrument:EURUSD"
         }
@@ -2152,7 +2160,7 @@
         "protected_slice_max_brier_degradation": 0.1,
         "stability": "3_of_4"
       },
-      "evaluated_at": "2026-11-09T12:07:24.010622Z",
+      "evaluated_at": "2026-11-09T16:02:52.786301Z",
       "evaluator_profile": "belief_calibration_v1",
       "gate_id": "evo-gate-2406896f6a30ed877a458aa4",
       "metrics": {
@@ -2197,11 +2205,11 @@
           "segment": "horizon:0-6H"
         },
         {
-          "brier_relative_improvement": 0.118469,
-          "challenger_brier": 0.154044,
-          "control_brier": 0.174746,
-          "ece_delta": -0.079843,
-          "n": 109,
+          "brier_relative_improvement": 0.108656,
+          "challenger_brier": 0.1567,
+          "control_brier": 0.175802,
+          "ece_delta": -0.083261,
+          "n": 111,
           "pass": true,
           "segment": "horizon:1-5D"
         },
@@ -2215,11 +2223,11 @@
           "segment": "horizon:6-24H"
         },
         {
-          "brier_relative_improvement": 0.30998,
-          "challenger_brier": 0.099258,
-          "control_brier": 0.143848,
-          "ece_delta": -0.139449,
-          "n": 287,
+          "brier_relative_improvement": 0.303253,
+          "challenger_brier": 0.100657,
+          "control_brier": 0.144467,
+          "ece_delta": -0.139442,
+          "n": 289,
           "pass": true,
           "segment": "instrument:BTC"
         }
@@ -2240,7 +2248,7 @@
         "protected_slice_max_brier_degradation": 0.1,
         "stability": "3_of_4"
       },
-      "evaluated_at": "2026-11-09T12:07:24.010622Z",
+      "evaluated_at": "2026-11-09T16:02:52.786301Z",
       "evaluator_profile": "belief_calibration_v1",
       "gate_id": "evo-gate-602fea76e72a5495964cb072",
       "metrics": {
@@ -2319,7 +2327,7 @@
         "protected_slice_max_brier_degradation": 0.1,
         "stability": "3_of_4"
       },
-      "evaluated_at": "2026-11-09T12:07:24.010622Z",
+      "evaluated_at": "2026-11-09T16:02:52.786301Z",
       "evaluator_profile": "belief_calibration_v1",
       "gate_id": "evo-gate-72927125fdc8b0d5590558bc",
       "metrics": {
@@ -2389,7 +2397,7 @@
         "protected_slice_max_brier_degradation": 0.1,
         "stability": "3_of_4"
       },
-      "evaluated_at": "2026-11-09T12:07:24.010622Z",
+      "evaluated_at": "2026-11-09T16:02:52.786301Z",
       "evaluator_profile": "belief_calibration_v1",
       "gate_id": "evo-gate-048d65e82a7421ceba174353",
       "metrics": {
@@ -2434,20 +2442,20 @@
           "segment": "horizon:0-6H"
         },
         {
-          "brier_relative_improvement": 0.028458,
-          "challenger_brier": 0.235668,
-          "control_brier": 0.242571,
-          "ece_delta": -0.057991,
-          "n": 681,
+          "brier_relative_improvement": 0.028881,
+          "challenger_brier": 0.237731,
+          "control_brier": 0.244801,
+          "ece_delta": -0.053691,
+          "n": 699,
           "pass": true,
           "segment": "horizon:1-5D"
         },
         {
-          "brier_relative_improvement": 0.013434,
-          "challenger_brier": 0.248963,
-          "control_brier": 0.252353,
-          "ece_delta": -0.038359,
-          "n": 248,
+          "brier_relative_improvement": 0.015184,
+          "challenger_brier": 0.248079,
+          "control_brier": 0.251904,
+          "ece_delta": -0.038127,
+          "n": 252,
           "pass": true,
           "segment": "horizon:5D+"
         },
@@ -2461,20 +2469,20 @@
           "segment": "horizon:6-24H"
         },
         {
-          "brier_relative_improvement": 0.009408,
-          "challenger_brier": 0.222156,
-          "control_brier": 0.224266,
-          "ece_delta": -0.044748,
-          "n": 1282,
+          "brier_relative_improvement": 0.010482,
+          "challenger_brier": 0.22242,
+          "control_brier": 0.224776,
+          "ece_delta": -0.044662,
+          "n": 1294,
           "pass": true,
           "segment": "instrument:BTC"
         },
         {
-          "brier_relative_improvement": 0.008011,
-          "challenger_brier": 0.270674,
-          "control_brier": 0.27286,
-          "ece_delta": -0.018412,
-          "n": 972,
+          "brier_relative_improvement": 0.007986,
+          "challenger_brier": 0.271431,
+          "control_brier": 0.273616,
+          "ece_delta": -0.020386,
+          "n": 982,
           "pass": true,
           "segment": "instrument:EURUSD"
         },
@@ -2504,7 +2512,7 @@
         "protected_slice_max_brier_degradation": 0.1,
         "stability": "3_of_4"
       },
-      "evaluated_at": "2026-11-09T12:07:24.010622Z",
+      "evaluated_at": "2026-11-09T16:02:52.786301Z",
       "evaluator_profile": "belief_calibration_v1",
       "gate_id": "evo-gate-b4e8840657afab8cf1abfa2d",
       "metrics": {
@@ -2658,7 +2666,7 @@
         "protected_slice_max_brier_degradation": 0.1,
         "stability": "3_of_4"
       },
-      "evaluated_at": "2026-11-09T12:07:24.010622Z",
+      "evaluated_at": "2026-11-09T16:02:52.786301Z",
       "evaluator_profile": "belief_calibration_v1",
       "gate_id": "evo-gate-41bba3bfffcb2775dfbedc0b",
       "metrics": {
@@ -2703,20 +2711,20 @@
           "segment": "horizon:0-6H"
         },
         {
-          "brier_relative_improvement": 0.218817,
-          "challenger_brier": 0.181043,
-          "control_brier": 0.231755,
-          "ece_delta": -0.07639,
-          "n": 61,
+          "brier_relative_improvement": 0.224927,
+          "challenger_brier": 0.179917,
+          "control_brier": 0.232129,
+          "ece_delta": -0.077164,
+          "n": 64,
           "pass": true,
           "segment": "horizon:1-5D"
         },
         {
-          "brier_relative_improvement": 0.271754,
-          "challenger_brier": 0.168814,
-          "control_brier": 0.231809,
-          "ece_delta": -0.08291,
-          "n": 54,
+          "brier_relative_improvement": 0.272767,
+          "challenger_brier": 0.168505,
+          "control_brier": 0.231707,
+          "ece_delta": -0.082965,
+          "n": 55,
           "pass": true,
           "segment": "horizon:5D+"
         },
@@ -2730,11 +2738,11 @@
           "segment": "horizon:6-24H"
         },
         {
-          "brier_relative_improvement": 0.232722,
-          "challenger_brier": 0.179118,
-          "control_brier": 0.233446,
-          "ece_delta": -0.080609,
-          "n": 274,
+          "brier_relative_improvement": 0.234299,
+          "challenger_brier": 0.178782,
+          "control_brier": 0.233488,
+          "ece_delta": -0.080761,
+          "n": 278,
           "pass": true,
           "segment": "instrument:BTC"
         }
@@ -2748,6 +2756,7 @@
         "ece_degradation",
         "log_loss_not_better",
         "protected_slice_degradation:horizon:0-6H",
+        "protected_slice_degradation:horizon:1-5D",
         "stability_less_than_3_of_4"
       ],
       "candidate_id": "evo-belief-9d601a8fb0294b9c1d6298fb",
@@ -2759,7 +2768,7 @@
         "protected_slice_max_brier_degradation": 0.1,
         "stability": "3_of_4"
       },
-      "evaluated_at": "2026-11-09T12:07:24.010622Z",
+      "evaluated_at": "2026-11-09T16:02:52.786301Z",
       "evaluator_profile": "belief_calibration_v1",
       "gate_id": "evo-gate-2758256e74065ad52f872eed",
       "metrics": {
@@ -2804,20 +2813,20 @@
           "segment": "horizon:0-6H"
         },
         {
-          "brier_relative_improvement": 0.02657,
-          "challenger_brier": 0.247627,
-          "control_brier": 0.254386,
-          "ece_delta": 0.041195,
-          "n": 60,
-          "pass": true,
+          "brier_relative_improvement": 0.010344,
+          "challenger_brier": 0.256697,
+          "control_brier": 0.25938,
+          "ece_delta": 0.070968,
+          "n": 63,
+          "pass": false,
           "segment": "horizon:1-5D"
         },
         {
-          "brier_relative_improvement": -0.061052,
-          "challenger_brier": 0.279635,
-          "control_brier": 0.263545,
-          "ece_delta": 0.046678,
-          "n": 53,
+          "brier_relative_improvement": -0.058314,
+          "challenger_brier": 0.279977,
+          "control_brier": 0.26455,
+          "ece_delta": 0.045485,
+          "n": 54,
           "pass": true,
           "segment": "horizon:5D+"
         },
@@ -2831,11 +2840,11 @@
           "segment": "horizon:6-24H"
         },
         {
-          "brier_relative_improvement": -0.021499,
-          "challenger_brier": 0.266028,
-          "control_brier": 0.260429,
-          "ece_delta": 0.033454,
-          "n": 269,
+          "brier_relative_improvement": -0.024109,
+          "challenger_brier": 0.268036,
+          "control_brier": 0.261726,
+          "ece_delta": 0.035951,
+          "n": 273,
           "pass": true,
           "segment": "instrument:BTC"
         }
@@ -2856,7 +2865,7 @@
         "protected_slice_max_brier_degradation": 0.1,
         "stability": "3_of_4"
       },
-      "evaluated_at": "2026-11-09T12:07:24.010622Z",
+      "evaluated_at": "2026-11-09T16:02:52.786301Z",
       "evaluator_profile": "belief_calibration_v1",
       "gate_id": "evo-gate-d11a733c5c47efe0318f6e06",
       "metrics": {
@@ -2905,7 +2914,7 @@
         "protected_slice_max_brier_degradation": 0.1,
         "stability": "3_of_4"
       },
-      "evaluated_at": "2026-11-09T12:07:24.010622Z",
+      "evaluated_at": "2026-11-09T16:02:52.786301Z",
       "evaluator_profile": "belief_calibration_v1",
       "gate_id": "evo-gate-d2ae7194cb13826a267e2171",
       "metrics": {
@@ -2950,20 +2959,20 @@
           "segment": "horizon:0-6H"
         },
         {
-          "brier_relative_improvement": -0.096008,
-          "challenger_brier": 0.306173,
-          "control_brier": 0.279353,
-          "ece_delta": 0.008366,
-          "n": 62,
+          "brier_relative_improvement": -0.098531,
+          "challenger_brier": 0.31057,
+          "control_brier": 0.282714,
+          "ece_delta": -0.000424,
+          "n": 65,
           "pass": true,
           "segment": "horizon:1-5D"
         },
         {
-          "brier_relative_improvement": -0.069363,
-          "challenger_brier": 0.264447,
-          "control_brier": 0.247294,
-          "ece_delta": 0.012694,
-          "n": 54,
+          "brier_relative_improvement": -0.066701,
+          "challenger_brier": 0.260178,
+          "control_brier": 0.243909,
+          "ece_delta": 0.011098,
+          "n": 55,
           "pass": true,
           "segment": "horizon:5D+"
         },
@@ -2977,11 +2986,11 @@
           "segment": "horizon:6-24H"
         },
         {
-          "brier_relative_improvement": -0.097847,
-          "challenger_brier": 0.312356,
-          "control_brier": 0.284517,
-          "ece_delta": 0.026226,
-          "n": 278,
+          "brier_relative_improvement": -0.097935,
+          "challenger_brier": 0.312301,
+          "control_brier": 0.284444,
+          "ece_delta": 0.026613,
+          "n": 282,
           "pass": true,
           "segment": "instrument:EURUSD"
         }
@@ -3007,7 +3016,7 @@
         "protected_slice_max_brier_degradation": 0.1,
         "stability": "3_of_4"
       },
-      "evaluated_at": "2026-11-09T12:07:24.010622Z",
+      "evaluated_at": "2026-11-09T16:02:52.786301Z",
       "evaluator_profile": "belief_calibration_v1",
       "gate_id": "evo-gate-f50d7da232e5b887b645b042",
       "metrics": {
@@ -3052,11 +3061,11 @@
           "segment": "horizon:0-6H"
         },
         {
-          "brier_relative_improvement": -0.107622,
-          "challenger_brier": 0.293635,
-          "control_brier": 0.265104,
-          "ece_delta": 0.028934,
-          "n": 109,
+          "brier_relative_improvement": -0.108954,
+          "challenger_brier": 0.294109,
+          "control_brier": 0.265213,
+          "ece_delta": 0.027113,
+          "n": 111,
           "pass": false,
           "segment": "horizon:1-5D"
         },
@@ -3070,11 +3079,11 @@
           "segment": "horizon:6-24H"
         },
         {
-          "brier_relative_improvement": -0.025899,
-          "challenger_brier": 0.273481,
-          "control_brier": 0.266577,
-          "ece_delta": 0.025904,
-          "n": 287,
+          "brier_relative_improvement": -0.026983,
+          "challenger_brier": 0.273802,
+          "control_brier": 0.266608,
+          "ece_delta": 0.025226,
+          "n": 289,
           "pass": true,
           "segment": "instrument:BTC"
         }
@@ -3171,9 +3180,7 @@
       "status": "FAIL"
     },
     "hch-0bf425a4276053c9e407d399": {
-      "blockers": [
-        "minimum_distinct_target_dates"
-      ],
+      "blockers": [],
       "candidate_id": "hch-0bf425a4276053c9e407d399",
       "criteria": {
         "brier_relative_gain": 0.05,
@@ -3185,30 +3192,30 @@
         "min_positive_chronological_blocks": 3,
         "min_target_dates": 20
       },
-      "evaluated_at": "2026-11-09T12:07:24.010622Z",
+      "evaluated_at": "2026-11-09T16:02:52.786301Z",
       "evaluator_profile": "hypothesis_shadow_oos_gate_v1",
-      "gate_id": "hgate-78d351088c187b68ea217077",
+      "gate_id": "hgate-8bf4e3cffb4bbae43c70056c",
       "metrics": {
-        "brier_relative_improvement": 0.336175,
+        "brier_relative_improvement": 0.344061,
         "challenger": {
-          "accuracy": 0.859155,
-          "brier": 0.121853,
-          "ece": 0.015063,
-          "log_loss": 0.409714,
-          "n": 213
+          "accuracy": 0.861751,
+          "brier": 0.120069,
+          "ece": 0.017702,
+          "log_loss": 0.405337,
+          "n": 217
         },
         "chronological_block_relative_improvements": [
-          0.511823,
-          0.145442,
-          0.223277,
-          0.642871
+          0.48601,
+          0.126803,
+          0.306374,
+          0.619563
         ],
         "control": {
-          "accuracy": 0.859155,
-          "brier": 0.183562,
-          "ece": 0.243115,
-          "log_loss": 0.557884,
-          "n": 213
+          "accuracy": 0.861751,
+          "brier": 0.183049,
+          "ece": 0.245905,
+          "log_loss": 0.556851,
+          "n": 217
         },
         "horizon_checks": [
           {
@@ -3218,54 +3225,54 @@
             "protected": true
           },
           {
-            "brier_relative_improvement": 0.356405,
+            "brier_relative_improvement": 0.365237,
             "horizon_bucket": "0.5S_US_SESSION",
+            "n": 47,
+            "protected": true
+          },
+          {
+            "brier_relative_improvement": 0.30468,
+            "horizon_bucket": "1S_US_SESSION",
             "n": 46,
             "protected": true
           },
           {
-            "brier_relative_improvement": 0.295327,
-            "horizon_bucket": "1S_US_SESSION",
-            "n": 45,
-            "protected": true
-          },
-          {
-            "brier_relative_improvement": 0.323039,
+            "brier_relative_improvement": 0.334445,
             "horizon_bucket": "3S_US_SESSION",
-            "n": 40,
+            "n": 41,
             "protected": true
           },
           {
-            "brier_relative_improvement": 0.413014,
+            "brier_relative_improvement": 0.42322,
             "horizon_bucket": "5S_US_SESSION",
-            "n": 35,
+            "n": 36,
             "protected": true
           }
         ]
       },
       "minimum_sample": 50,
-      "observed_sample": 213,
+      "observed_sample": 217,
       "prospective_only": true,
       "segment_checks": [
         {
           "block": 1,
-          "brier_relative_improvement": 0.511823
+          "brier_relative_improvement": 0.48601
         },
         {
           "block": 2,
-          "brier_relative_improvement": 0.145442
+          "brier_relative_improvement": 0.126803
         },
         {
           "block": 3,
-          "brier_relative_improvement": 0.223277
+          "brier_relative_improvement": 0.306374
         },
         {
           "block": 4,
-          "brier_relative_improvement": 0.642871
+          "brier_relative_improvement": 0.619563
         }
       ],
-      "source_sha256": "e67392699d714aa7b0b7c2f2b322772917c75bf6b6c6eae05d8833b9c767e6d1",
-      "status": "COLLECTING"
+      "source_sha256": "96f3ad1324921242f2f83fc65ec542491a8f3fccea198c44bf806444300d08cc",
+      "status": "PASS"
     },
     "hch-7f1e97d5c373f298140f8c30": {
       "blockers": [
@@ -3283,7 +3290,7 @@
         "min_positive_chronological_blocks": 3,
         "min_target_dates": 20
       },
-      "evaluated_at": "2026-11-09T12:07:24.010622Z",
+      "evaluated_at": "2026-11-09T16:02:52.786301Z",
       "evaluator_profile": "hypothesis_shadow_oos_gate_v1",
       "gate_id": "hgate-775c3360e5ba65f20066c5bb",
       "metrics": {
@@ -3316,7 +3323,7 @@
       "observed_sample": 41,
       "prospective_only": true,
       "segment_checks": [],
-      "source_sha256": "362318d28f0ec5b8aa4da80d932aa1d28d36b9c5ea7d0bc316114e047aebd3f1",
+      "source_sha256": "88d7fd9234f0ba7e8bea9732cf2ebfff07a002a4f80f783f2d824a3164ea8e09",
       "status": "COLLECTING"
     },
     "hch-a26038a449bce120ddc5506f": {
@@ -3332,7 +3339,7 @@
         "min_positive_chronological_blocks": 3,
         "min_target_dates": 20
       },
-      "evaluated_at": "2026-11-09T12:07:24.010622Z",
+      "evaluated_at": "2026-11-09T16:02:52.786301Z",
       "evaluator_profile": "hypothesis_shadow_oos_gate_v1",
       "gate_id": "hgate-d9316e449b8761cd0a3d7409",
       "metrics": {
@@ -3417,7 +3424,7 @@
           "brier_relative_improvement": 0.128122
         }
       ],
-      "source_sha256": "e1cf778bda39c40e431cc144e2cf94bc8f85e1bd5a3b9af9dba897ee5c16c253",
+      "source_sha256": "8594f966cdafe72ce5c98e1618ae37e0ba588f26431e411c4c74b86e90c03d66",
       "status": "PASS"
     }
   },
@@ -3468,7 +3475,7 @@
   "source_status": {
     "belief_calibration": {
       "available": true,
-      "resolved_rows": 3292,
+      "resolved_rows": 3316,
       "scan_status": {
         "__GLOBAL__": {
           "last_discovery_n": null,
@@ -3613,7 +3620,7 @@
       "available": true,
       "candidates": 3,
       "gate_hold": 0,
-      "gate_pass": 1
+      "gate_pass": 2
     },
     "trading_regret": {
       "available": true,
@@ -3623,15 +3630,15 @@
   "summary": {
     "active_production_versions": 2,
     "candidates_total": 19,
-    "delegated_actions": 1,
-    "gate_pass": 4,
+    "delegated_actions": 2,
+    "gate_pass": 5,
     "hypotheses": 14,
-    "oos_running": 15,
+    "oos_running": 14,
     "promoted": 0,
-    "promotion_eligible": 2,
+    "promotion_eligible": 3,
     "retired_or_rolled_back": 2,
     "retirement_actions": 1,
     "rollback_events": 1
   },
-  "updated_at": "2026-11-09T12:07:24.010622Z"
+  "updated_at": "2026-11-09T16:02:52.786301Z"
 }
