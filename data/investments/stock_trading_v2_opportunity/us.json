@@ -4,23 +4,57 @@
     "utility": 50.0
   },
   "decision": {
-    "action": "HOLD",
-    "candidate": null,
-    "reason": "no_new_opportunity_clears_cash_or_replacement_edge",
-    "replace": null,
-    "strongest_held": {
-      "components": {
-        "entry": 96.126265,
-        "mark": 53.214038,
-        "thesis": 100.0
+    "action": "REPLACE",
+    "candidate": {
+      "already_held": false,
+      "deep_rank": 1,
+      "eligibility_reason": "eligible_shadow_opportunity",
+      "eligible": true,
+      "evidence_metrics": {
+        "directional_overlay_points": 0.0,
+        "evidence_quality_score": 86.0905,
+        "explicit_directional_event_present": false,
+        "material_event_present": true,
+        "maximum_materiality": 5,
+        "primary_count": 2,
+        "reaction_overlay_points": 3.0,
+        "secondary_count": 6,
+        "total_overlay_points": 3.0
       },
-      "entry": 345.35998535,
-      "last_mark": 354.60998535,
-      "position_id": "us:20261103T150539:CBOE",
-      "symbol": "CBOE",
-      "symbol_key": "CBOE",
-      "unrealized_return": 0.02678365,
-      "utility": 91.626298
+      "evidence_status": "COMPLETE",
+      "market_data_symbol": "ABNB",
+      "name": "Airbnb, Inc. - Class A Common Stock",
+      "research_risk_plan": {
+        "atr_fraction": 0.03604453,
+        "execution_ready": false,
+        "execution_requirement": "fresh_quote_and_intraday_risk_revalidation",
+        "holding_policy": "OPEN_ENDED_MODEL_CONTROLLED",
+        "reference_price": 193.13999939,
+        "reward_risk": 2.0,
+        "risk_percent": 0.037847,
+        "status": "VALID_RESEARCH_REFERENCE",
+        "stop": 185.83027687,
+        "target": 207.75944443
+      },
+      "sector": null,
+      "sector_provenance": {},
+      "symbol": "ABNB",
+      "utility": 89.611493
+    },
+    "reason": "new_opportunity_exceeds_weakest_position_with_hysteresis",
+    "replace": {
+      "components": {
+        "entry": 94.0775,
+        "mark": 49.708148,
+        "thesis": 69.0125
+      },
+      "entry": 339.20498657,
+      "last_mark": 338.38000488,
+      "position_id": "us:20261106T101134:INTU",
+      "symbol": "INTU",
+      "symbol_key": "INTU",
+      "unrealized_return": -0.0024321,
+      "utility": 74.889597
     }
   },
   "decision_context": {
@@ -131,7 +165,7 @@
     "code_fingerprints": {
       "stock_trading_v2_opportunity_engine.py": "e9e9f3073db08160682373fa95663781f0d4aa4084466e4df42a2b8102cdd127"
     },
-    "decision_at": "2026-11-09T15:49:01.924846Z",
+    "decision_at": "2026-11-09T18:50:34.846822Z",
     "evidence_snapshot": {
       "candidate_count": 10,
       "candidates": [
@@ -140,135 +174,163 @@
             "production_decision_influence": false,
             "status": "PENDING_SHADOW_PORTFOLIO_COMPARISON"
           },
-          "deep_opportunity_score": 89.775028,
+          "deep_opportunity_score": 89.611493,
           "deep_rank": 1,
           "evidence": [
             {
-              "age_hours": 79.817,
+              "age_hours": 93.69,
+              "authority": "primary",
+              "direction": 0,
+              "event_type": "earnings",
+              "evidence_id": "ev-f57d4f7dfe2ffc927d6e",
+              "form": "10-Q",
+              "materiality": 5,
+              "provider": "SEC_EDGAR",
+              "published_at": "2026-11-05T21:09:09Z",
+              "source_kind": "regulatory_filing",
+              "title": "SEC 10-Q — 10-Q",
+              "url": "https://www.sec.gov/Archives/edgar/data/1559720/000155972026000032/abnb-20260930.htm"
+            },
+            {
+              "age_hours": 93.806,
+              "authority": "primary",
+              "direction": 0,
+              "event_type": "other",
+              "evidence_id": "ev-fb9ffee9acfaedda3f20",
+              "form": "8-K",
+              "materiality": 5,
+              "provider": "SEC_EDGAR",
+              "published_at": "2026-11-05T21:02:09Z",
+              "source_kind": "regulatory_filing",
+              "title": "SEC 8-K — 8-K",
+              "url": "https://www.sec.gov/Archives/edgar/data/1559720/000119312526449727/d437988d8k.htm"
+            },
+            {
+              "age_hours": 68.519,
               "authority": "secondary",
               "direction": 0,
               "event_type": "guidance",
-              "evidence_id": "ev-7f0382941da84ad4afce",
+              "evidence_id": "ev-18475cc5403f8d975bb7",
               "materiality": 5,
-              "provider": "MarketBeat",
-              "published_at": "2026-11-06T08:00:00Z",
+              "provider": "StockInvest.us",
+              "published_at": "2026-11-06T22:19:23Z",
               "source_kind": "news",
-              "title": "Ulta Beauty (ULTA) Stock Forecast and Price Target 2026 $ULTA - MarketBeat",
-              "url": "https://news.google.com/rss/articles/CBMiZkFVX3lxTE40T0E4WHNHV292aWhTVHFsaEFFY2pVUHdSeHBGOXR4NlFqamV5S00xSUdFTFNlMmpfbmhHU1BualdDLUJwMkhQbHBVVXRSZmN4Wm9NbXlTcXZlNXM4MzdpQ1BlMWVfZw?oc=5"
+              "title": "Airbnb Stock Price Forecast. Should You Buy ABNB? - StockInvest.us",
+              "url": "https://news.google.com/rss/articles/CBMiSEFVX3lxTE1oRVJFT2VRQ1RPM0hoTEZoblU5TXF1ZGJHcmZZbzdGLVB6Z3RsSmRsTUlmQ2lJZ19aeFdCWVdkb2ZEakJiZHlUSQ?oc=5"
             },
             {
-              "age_hours": 2.457,
+              "age_hours": 119.015,
+              "authority": "secondary",
+              "direction": 0,
+              "event_type": "earnings",
+              "evidence_id": "ev-8f24e729835f2e031d0e",
+              "materiality": 5,
+              "provider": "Barchart.com",
+              "published_at": "2026-11-04T19:49:39Z",
+              "source_kind": "news",
+              "title": "Ahead of Airbnb Earnings, Here's What Barchart Data Says Comes Next for ABNB Stock - Barchart.com",
+              "url": "https://news.google.com/rss/articles/CBMiwwFBVV95cUxNWWYycklfV3phblpDQ3dGazJPSU81OXR2OXlfRkJ5SWNDc181dUUwUDktNy1zeXVpWXlFU1dicnJKMVJfZ3lWckNXMmJJVnIyRGFYbERpVHFmdElKbXdfdExkdDA3Nm1NZDRkdUx3WXJiVjE0QjZqQkpnd2NGZ1FWcXB5MnZOMW5YVXNsNENVczl5aE5fTC1ZbEYxYU1kR0NUNlMyYWUyaGJQTHRubTJEc25lakRHeGtQT0JWc25pM0F4eVk?oc=5"
+            },
+            {
+              "age_hours": 55.556,
               "authority": "secondary",
               "direction": 0,
               "event_type": "other",
-              "evidence_id": "ev-8df8d5d63cf5e4d93e87",
+              "evidence_id": "ev-b54ade2bb7dd21a9f9fa",
               "materiality": 2,
-              "provider": "TradingView",
-              "published_at": "2026-11-09T13:21:36Z",
+              "provider": "Trefis",
+              "published_at": "2026-11-07T11:17:11Z",
               "source_kind": "news",
-              "title": "Take the Zacks Approach to Beat the Markets: Ulta Beauty, Accenture, HCA in Focus - TradingView",
-              "url": "https://news.google.com/rss/articles/CBMizwFBVV95cUxOdEVpYjd2dXNaZlF2RllYcGpGUUZHWEMwdW83eXdQRTFsM2I3NkRSaTRONThBWkxFNGttZnJLRTJEV2FIR0VBX1lZU1dQbHoyZjlQU25QakJMR2dVVkNDUm5NZVg1TGx4SE5JbnNocVhIYnlISUp3RDRHaVJsOW0zcnQxNU1ZZ29LR2c0MFZJSmwzZWhUNUNrQllraG9nZVVqd21xa2owdDAzZWI0eVgwWmdBV2M4MHBSYnRaWm9wamtXeFBzV3czTWRpbTNENm8?oc=5"
+              "title": "What Just Happened To Airbnb Stock? - Trefis",
+              "url": "https://news.google.com/rss/articles/CBMimwFBVV95cUxPWV84ZXFVY2w2Y1RIdXZVV2hmMHUwbm5rOHRkeVFzUkV0d1NGeXY0Yjd3dDVXdGxZVkRWOWtINXE3OGt5czNfdTVjTXl3LWFVeWZ6WE1ka3B1YjNEMHNGdlJzeE50M1lYMDY3dWhqckhTcHhVbG5qN3hrMEg2eHdramNLbkF0Wm45V3Vtdk84eDdTekFGT3QzQWJJUQ?oc=5"
             },
             {
-              "age_hours": 70.537,
+              "age_hours": 55.701,
               "authority": "secondary",
               "direction": 0,
               "event_type": "other",
-              "evidence_id": "ev-4b7059aeb1cfecbab054",
+              "evidence_id": "ev-2f05a19657230a70a832",
               "materiality": 2,
               "provider": "Yahoo Finance",
-              "published_at": "2026-11-06T17:16:46Z",
+              "published_at": "2026-11-07T11:08:28Z",
               "source_kind": "news",
-              "title": "Ulta Beauty (ULTA) Is Getting Fresh Attention, What Is The Market Weighing? - Yahoo Finance",
-              "url": "https://news.google.com/rss/articles/CBMiqAFBVV95cUxNaGpHRVlDUWpOV1dPUTh5UzRJRWVnNlVKNjAybmpuZ0hhU01pakpDaHItMWs1Q2hsX21uTk4tNzV2OFZ2ZVVTOGk4YW1sWjV6dHZobnNhVnVYVEJ0UEV1VUc2X2xwYi1VZkd4WTM3RFMxVlprQmdVQXd4Sm1yT0dXQTAwS3FwRmZRLXBBVnphLUFnemRSWkw3UEZIZ0VIRlVfRHhDT09VS1k?oc=5"
+              "title": "Airbnb (ABNB) Stock Could Be Cheap After A 61% Run - Yahoo Finance",
+              "url": "https://news.google.com/rss/articles/CBMimgFBVV95cUxNb09LRUFIejI2VjVkWFhKYWdPUlRrdTNCb19mb01JNTJKTExGb0VnelFlRkdXVFRaZnFYc3pkN3VOU0VmZG5OMXNDOVV5ZF9MNHVQMVhiM2htSktZM0IzLUVsSFFKYVZ5ekJBRXNoUnhWVEtwaFEzVGV1Z2RQdDc0OE9PaDJZRVdTTkhVb0ZNSFN2al90VGZnNk1B?oc=5"
             },
             {
-              "age_hours": 90.066,
+              "age_hours": 77.802,
               "authority": "secondary",
               "direction": 0,
               "event_type": "other",
-              "evidence_id": "ev-b9a77b86fd924c5584ac",
+              "evidence_id": "ev-89681e119806b3ddb857",
               "materiality": 2,
-              "provider": "Yahoo Finance",
-              "published_at": "2026-11-05T21:45:03Z",
+              "provider": "Benzinga",
+              "published_at": "2026-11-06T13:02:24Z",
               "source_kind": "news",
-              "title": "Ulta Beauty (ULTA) Stock Moves -1.65%: What You Should Know - Yahoo Finance",
-              "url": "https://news.google.com/rss/articles/CBMimAFBVV95cUxOOVdBTjY2UDYyLXdVb01oWVlSaXF6QmVPcTBhZFdfWlJpQlNPcTFvSHYwWGVJMEpEWlhMbWNSNHBqT1UwYzg5LWg5SVJWWnloMWttYmdxdkNLbmc2YTBJLWpSbm1qOFR2VGNCQ3FrRXRhektiR0pjZ0N6aHFuLTdocVdDaXR4MkpoeDdQVGMzZXBrZG1CSjIxSw?oc=5"
+              "title": "Airbnb Stock Hits 52-Week High - Here's Why - Airbnb (NASDAQ:ABNB) - Benzinga",
+              "url": "https://news.google.com/rss/articles/CBMiowFBVV95cUxQUnNwTEkwWlZHTXpvOW13UEN0UHJmV3lFSC1fNTNJYlVzRlltOHctTGduTUJ4MXhackZTR0RSclhoRWY4YzItTzZWbXhZT2N0bXljVG54czhDbTJhVjhLcmZsakJpSmhkTWdkR2dIMTl0MENFR1AxMWdCVHJJeHMwcVV3dnliN2F6RnpydVZlTjhSUm1xbVc5NEhMOTBUTmh2eEJr?oc=5"
             },
             {
-              "age_hours": 124.817,
+              "age_hours": 92.712,
               "authority": "secondary",
               "direction": 0,
               "event_type": "other",
-              "evidence_id": "ev-484df1227b837976e374",
+              "evidence_id": "ev-f9692ed686b4c2db4864",
               "materiality": 2,
-              "provider": "The Atlanta Journal-Constitution",
-              "published_at": "2026-11-04T11:00:00Z",
+              "provider": "CNBC",
+              "published_at": "2026-11-05T22:07:49Z",
               "source_kind": "news",
-              "title": "Nedra Rhone: Black women are flocking to Ulta salons. That’s not a solution. - The Atlanta Journal-Constitution",
-              "url": "https://news.google.com/rss/articles/CBMia0FVX3lxTE5IMWRTYjZ3R0w0VG9HV01uZk5IRl9OdjBhRElQQ0REWGRQMXRFdDFOUVM5U21iMHd6Z244NDIySENyOG1na0owZkRxdVlkSFpnNUl0X2R3TmFkb2p4LURjei05eGRZMXFKZFd3?oc=5"
-            },
-            {
-              "age_hours": 127.817,
-              "authority": "secondary",
-              "direction": 0,
-              "event_type": "other",
-              "evidence_id": "ev-407c10a7fb50989126c4",
-              "materiality": 2,
-              "provider": "The New York Times",
-              "published_at": "2026-11-04T08:00:00Z",
-              "source_kind": "news",
-              "title": "Can a Corporate Chain Be a Great Black Hair Salon? - The New York Times",
-              "url": "https://news.google.com/rss/articles/CBMid0FVX3lxTE43NXJ0WGZNLXhjNWZ3LTljOFVSOWtVekEwaWxrZFRib3N3SGREVlhtanBjWXVva3k0WVZwbXJ4MmNYSkdxRTZ6UTdwaFFPVmZqdTlWNmNsX1B5ZjRUWGhwb1F2UmJpeUtKMHBqdHF3WE1LMV9TWWRz?oc=5"
+              "title": "Stocks making the biggest moves after hours: DraftKings, Cloudflare, Airbnb, Atlassian & more - CNBC",
+              "url": "https://news.google.com/rss/articles/CBMioAFBVV95cUxNS3J0dEdreXBZOHdlc3N2d3JPWDN0ZG5wSXpRTy1aam45VjBlMGNBa1E0NVI1T0R1Z3lQYnAtRkd5RGN0WVgtNlMyX2JLMlNheGhBd2VXUGFwWHF5alc0aXkxUjJXbjlmaTA1R2ZEUGtNOEJWZ2tqNU1TNEJSZEVsdWJsTUxWd0R5Zmp4WFNSSExkTlczNktHQlAwSDhNdHIz?oc=5"
             }
           ],
           "evidence_metrics": {
             "directional_overlay_points": 0.0,
-            "evidence_quality_score": 74.0674,
+            "evidence_quality_score": 86.0905,
             "explicit_directional_event_present": false,
             "material_event_present": true,
             "maximum_materiality": 5,
-            "primary_count": 0,
+            "primary_count": 2,
             "reaction_overlay_points": 3.0,
             "secondary_count": 6,
             "total_overlay_points": 3.0
           },
           "evidence_status": "COMPLETE",
           "features": {
-            "atr_fraction": 0.029730472494686647,
-            "last_close": 659.1599731445312,
+            "atr_fraction": 0.03604452995863216,
+            "last_close": 193.13999938964844,
             "latest_session": "2026-11-09",
-            "median_turnover_20d": 285793784.54589844,
+            "median_turnover_20d": 599716847.7998657,
             "returns": {
-              "1": 0.022333834544330244,
-              "20": 0.1615768360884322,
-              "5": 0.03386289438382173,
-              "60": 0.2905726346442119
+              "1": 0.01657978738569854,
+              "20": 0.18128439993668777,
+              "5": 0.12874758167679023,
+              "60": 0.04933175025259984
             },
-            "volume_ratio_20d": 0.19990635888501743
+            "volume_ratio_20d": 0.8695122164813031
           },
           "freshness": {
             "global_cutoff": null,
             "latest_session": "2026-11-09",
-            "observed_at": "2026-11-09T15:48:59.569324Z",
-            "recheck_after": "2026-11-09T17:03:59.569324Z"
+            "observed_at": "2026-11-09T18:50:31.698020Z",
+            "recheck_after": "2026-11-09T20:05:31.698020Z"
           },
           "frontier_rank": 1,
           "liquidity": {
             "discovery_pass": true,
-            "median_turnover": 285793784.55,
+            "median_turnover": 599716847.8,
             "production_reference": 25000000.0,
             "production_reference_pass": true
           },
-          "market_data_symbol": "ULTA",
-          "name": "Ulta Beauty, Inc. - Common Stock",
-          "opportunity_score": 86.775028,
+          "market_data_symbol": "ABNB",
+          "name": "Airbnb, Inc. - Class A Common Stock",
+          "opportunity_score": 86.611493,
           "provider_health": {
             "primary": {
-              "cik": 1403568,
+              "cik": 1559720,
               "ok": true,
               "provider": "SEC_EDGAR",
-              "recent_relevant": 0
+              "recent_relevant": 2
             },
             "secondary": {
               "ok": true,
@@ -278,180 +340,566 @@
           },
           "relationship_rank": 1,
           "research_risk_plan": {
-            "atr_fraction": 0.02973047,
+            "atr_fraction": 0.03604453,
             "execution_ready": false,
             "execution_requirement": "fresh_quote_and_intraday_risk_revalidation",
             "holding_policy": "OPEN_ENDED_MODEL_CONTROLLED",
-            "reference_price": 659.15997314,
+            "reference_price": 193.13999939,
             "reward_risk": 2.0,
-            "risk_percent": 0.031217,
+            "risk_percent": 0.037847,
             "status": "VALID_RESEARCH_REFERENCE",
-            "stop": 638.58297882,
-            "target": 700.31396179
+            "stop": 185.83027687,
+            "target": 207.75944443
           },
           "sector": null,
           "sector_provenance": {},
-          "symbol": "ULTA"
+          "symbol": "ABNB"
         },
         {
           "admission": {
             "production_decision_influence": false,
             "status": "PENDING_SHADOW_PORTFOLIO_COMPARISON"
           },
-          "deep_opportunity_score": 89.274784,
+          "deep_opportunity_score": 88.84884,
           "deep_rank": 2,
           "evidence": [
             {
-              "age_hours": 114.641,
+              "age_hours": 100.161,
               "authority": "primary",
               "direction": 0,
               "event_type": "earnings",
-              "evidence_id": "ev-dbbce207de2a4de0cd53",
+              "evidence_id": "ev-be5cbc83a90f51fca66a",
               "form": "10-Q",
               "materiality": 5,
               "provider": "SEC_EDGAR",
-              "published_at": "2026-11-04T21:10:32Z",
+              "published_at": "2026-11-05T14:40:53Z",
               "source_kind": "regulatory_filing",
               "title": "SEC 10-Q — 10-Q",
-              "url": "https://www.sec.gov/Archives/edgar/data/1069878/000119312526447251/trex-20260930.htm"
+              "url": "https://www.sec.gov/Archives/edgar/data/935036/000093503626000035/aciw-20260930.htm"
             },
             {
-              "age_hours": 124.313,
+              "age_hours": 101.931,
               "authority": "primary",
               "direction": 0,
               "event_type": "other",
-              "evidence_id": "ev-a27fb29ca47bfcf99e20",
+              "evidence_id": "ev-af9e6bd569d8499cbba8",
               "form": "8-K",
               "materiality": 5,
               "provider": "SEC_EDGAR",
-              "published_at": "2026-11-04T11:30:15Z",
+              "published_at": "2026-11-05T12:54:42Z",
               "source_kind": "regulatory_filing",
               "title": "SEC 8-K — 8-K",
-              "url": "https://www.sec.gov/Archives/edgar/data/1069878/000119312526446144/trex-20261104.htm"
+              "url": "https://www.sec.gov/Archives/edgar/data/935036/000093503626000033/aciw-20261105.htm"
             },
             {
-              "age_hours": 99.524,
+              "age_hours": 82.842,
               "authority": "secondary",
-              "direction": 1,
+              "direction": 0,
               "event_type": "guidance",
-              "evidence_id": "ev-3d7019d73b92f74ea926",
+              "evidence_id": "ev-575d34a61df1d13f2387",
               "materiality": 5,
-              "provider": "Yahoo Finance",
-              "published_at": "2026-11-05T12:17:33Z",
+              "provider": "Simply Wall St",
+              "published_at": "2026-11-06T08:00:00Z",
               "source_kind": "news",
-              "title": "Is Trex Company (TREX) Fully Valued As Record Revenue Lifts Guidance? - Yahoo Finance",
-              "url": "https://news.google.com/rss/articles/CBMimwFBVV95cUxQTWxQdW84aWhTUFVUV1hfY2E2TGtMM21fT2p2d1h1ZWNUdEFUeGdaNEFIQkJwd1JieXdtWUMzV3RneDY1WmVPRGpwOVUtVWtVdzN2Tkkyem9GLWlRTlIwWU9zVlBMYjFkYWE4VnotWDNfRkFRcjE2cU5ndjhHWUZWOHdlclFDZTdwOXpGMDNsbnh2RUc5eGlEaDlVTQ?oc=5"
+              "title": "ACI Worldwide (NasdaqGS:ACIW) Stock Forecast & Analyst Predictions - Simply Wall St",
+              "url": "https://news.google.com/rss/articles/CBMifkFVX3lxTE5qY05NdG03RjFoazlMaVdnbzFzYVNjbHQzal9aQlV0OTluYWQzTld4RnlFOER1di1KMnU2bVlBTGpZOV9yckZUM1k3YkFHbGFUTkxhNjdrY0hvV1l2N2tCczdKcjdtLVJBTEVVOVdGazZKcFFRRDVNdThWZ1pLQQ?oc=5"
             },
             {
-              "age_hours": 100.076,
-              "authority": "secondary",
-              "direction": 1,
-              "event_type": "earnings",
-              "evidence_id": "ev-973500ee52835dd372f8",
-              "materiality": 5,
-              "provider": "Investing.com",
-              "published_at": "2026-11-05T11:44:27Z",
-              "source_kind": "news",
-              "title": "BofA upgrades Trex stock rating on earnings beat, raises guidance - Investing.com",
-              "url": "https://news.google.com/rss/articles/CBMiwgFBVV95cUxNbGJmTmlwNHJhOWxaYTBsa1dleWRwdlFtMVhXRTloRkFaWGJxb2NvYUQwelhuUUdTQXdvLWpoWlZtc3FKYVBxR0dOcHpUdGxKOElqdGJHNnZPbjhCREEzMjRXblhFb1FqZ2pQdGhvdjZmbDJIekxHbGg4eDR6OFZtdmtqMGs2UDNOc3Q1dG4taGtDd3NCY3YyRzc5N1VodHRpRkFzVV9DTDZFWVRaTUthUUhBTHJyWUxyTzN5ZExKNVRqdw?oc=5"
-            },
-            {
-              "age_hours": 124.156,
+              "age_hours": 83.372,
               "authority": "secondary",
               "direction": 0,
               "event_type": "earnings",
-              "evidence_id": "ev-76d9aa7805a8beef6369",
+              "evidence_id": "ev-32d78bdda09553d9c900",
               "materiality": 5,
-              "provider": "Yahoo Finance",
-              "published_at": "2026-11-04T11:39:39Z",
-              "source_kind": "news",
-              "title": "Trex: Q3 Earnings Snapshot - Yahoo Finance",
-              "url": "https://news.google.com/rss/articles/CBMilAFBVV95cUxQN3FhaE9JT2VfMlVMaERxN1BEVF9sZzFiS2V1eG1jakZuTjQ4ZUJ4MklVaTQ2MWgzajJYNGhkVGU1dUNGTmh3bXl0eDd1eU9HWW9ZelN2SjZER0t5NHBzR2FWUTVhTVhOclMtTjdtOE5jYkpIYmQwOXJvbFJTNVpKdHdQVDVNTUVzY1JGUndIODhvY0Y5?oc=5"
-            },
-            {
-              "age_hours": 65.756,
-              "authority": "secondary",
-              "direction": 0,
-              "event_type": "other",
-              "evidence_id": "ev-6e629aaf218ce9db3910",
-              "materiality": 2,
-              "provider": "Nasdaq",
-              "published_at": "2026-11-06T22:03:39Z",
-              "source_kind": "news",
-              "title": "TRex Bio Rings the Nasdaq Stock Market Closing Bell - Nasdaq",
-              "url": "https://news.google.com/rss/articles/CBMigwFBVV95cUxNZTNHaDdWc01hQmJwRnQzM1pfSFRRZjQ5ODVUZGVJUFg2bzZzRzJXelNPT3Z3SWtMU2ItRnVkZkNZYmZseUl4MDNVRGVkODFHMnhCb3RScnJHcFE2bVducWZYa3RLc0N5SXVRaWFUWVpFaVB2b1h1dE4wZXktRHp0QjBMMA?oc=5"
-            },
-            {
-              "age_hours": 94.814,
-              "authority": "secondary",
-              "direction": 0,
-              "event_type": "other",
-              "evidence_id": "ev-335ea655a57eabe2cf2a",
-              "materiality": 2,
               "provider": "GuruFocus",
-              "published_at": "2026-11-05T17:00:11Z",
+              "published_at": "2026-11-06T07:28:14Z",
               "source_kind": "news",
-              "title": "TREX Upgraded by B of A Securities -- Price Target Raised to $65 - GuruFocus",
-              "url": "https://news.google.com/rss/articles/CBMioAFBVV95cUxOd1VsRDR1TnhkdWVURS01b01FX0xfQ1YycUUxY2NBRlo4NWNXbDNOQkJpODNRX1p5VjkyVzA3NmZSUkROUVlueFBQSk5FWEEwZFBMNGJYdEt3YmZwTFNNVk5LZ0dyeWZEc3BsOTctUzdLdkRPenpQRWY2Y1VqVjdSLUdMM0Y4TkFuOWtNazRjRURDSW5zdjNRVzltdm13Y3lk?oc=5"
+              "title": "ACIW SWOT Analysis: Financial Performance Declines Amidst Growth Opportunities Revealed in 10-Q Filing - GuruFocus",
+              "url": "https://news.google.com/rss/articles/CBMi1gFBVV95cUxNZnJ4M3lhNHFBUGxRTVRNNlhtTFJ3eU9vRkhWajQ1aWJsc1UtdDE0cXdKaGE5bEdNM3pkSEhILTdOS0RIYUcxUDNhMktSOU0wSjZEWWY3cWZCZHg4V0ZqUGhUYUxmQmt1S01icnFNS3JhVk5nYWlHVDdpWTBOazA3WWU2eVV6eHZrcDFiR0ZjaXlqbEoyUVZHanh0TzJuZ2Qyb3MyQUxwc3pNdWVEVUVjRUpPM0R3Nng5T1ktN0hLTUl1Ym5mMG1vcmZCZ3FqLS05bm5RaHJ3?oc=5"
             },
             {
-              "age_hours": 113.483,
+              "age_hours": 102.479,
+              "authority": "secondary",
+              "direction": 0,
+              "event_type": "guidance",
+              "evidence_id": "ev-6b78bd3165e782812cf1",
+              "materiality": 5,
+              "provider": "ChartMill",
+              "published_at": "2026-11-05T12:21:47Z",
+              "source_kind": "news",
+              "title": "ACI Worldwide (NASDAQ:ACIW) Surges as Q3 Adjusted EPS Beat and Raised EBITDA Outlook Offset Revenue Miss - ChartMill",
+              "url": "https://news.google.com/rss/articles/CBMi6AFBVV95cUxNNVg5ZlhnNEM1dWYxMGU4NG00MWJKYzIzVkJieUFDZEFKbE94UWNmQWREbDhSRUM1SmdOUjZJNFlqT0RpdjFUdjlFY0RKWFZ4RkduN19KM2puX3Qxa29XblhIYkN3WjkwWGVHVWVROVpkcmU3Z0lack85UzlFSV9fWmRzeDZ2dENIS1F0LXFaNHhkWTdpOU5SMUVneXI1Y3pLbjJKQk1wQ0JMeFI1MVJvNUJHeWRQNy0yMWJZcTVhcktnSGhINlVYUUtaempnY1EybWVLVHhLZ01ZRUFsWlVhNzlfZDgyM2Zf?oc=5"
+            },
+            {
+              "age_hours": 47.489,
               "authority": "secondary",
               "direction": 0,
               "event_type": "other",
-              "evidence_id": "ev-ac5228e9a60bc8bddb08",
+              "evidence_id": "ev-8679f6b1903b52f8c689",
               "materiality": 2,
-              "provider": "TradingView",
-              "published_at": "2026-11-04T22:20:00Z",
+              "provider": "Yahoo Finance UK",
+              "published_at": "2026-11-07T19:21:12Z",
               "source_kind": "news",
-              "title": "Trex Company, Inc. Stock 12‑Month Price Target Raised to $56.32, Implies 13% Upside - TradingView",
-              "url": "https://news.google.com/rss/articles/CBMi1wFBVV95cUxOakFQTU4zRXotbmNfZVBqYzF5RFllQXc4QVR2NUM5NU9JSlVLUHptX05sSGZIeE1uSl9vRTROY0lDbkItRU1QVU52Mnhld0t2aW40TWxDbW9EY3VVVFo4bzNNZmNHQTVvR2xXYXRQMzZMMWFYYlMwYklwWmFtVWVkTVFZdWhVYTY0ZkJ0Ykp6WnJ0VG0xeHJEM2IybFNWSHpSb29yaFZpZzFuaVFQN3hzQ0VaanlaUkhhQThCOEo0YVRvaHNlYkl5a2JHZUEwRGZ5d29zNlVMUQ?oc=5"
+              "title": "ACI Worldwide, Inc. (ACIW) stock price, news, quote and history - Yahoo Finance UK",
+              "url": "https://news.google.com/rss/articles/CBMiUkFVX3lxTFAtUVJVclRZejhQUzd3SmgwdEl2ekVxMHZ0YW91NXNCYXpfeGFlQmhVZjVCNXpfRkZqb3JTVzFnZWhlNmJQb2ROYTRmWjJpeFlKYkE?oc=5"
+            },
+            {
+              "age_hours": 70.555,
+              "authority": "secondary",
+              "direction": 0,
+              "event_type": "other",
+              "evidence_id": "ev-d71cb19a720c8feee0bd",
+              "materiality": 2,
+              "provider": "Yahoo Finance",
+              "published_at": "2026-11-06T20:17:13Z",
+              "source_kind": "news",
+              "title": "ACI Worldwide (ACIW) Stock Looks Fully Valued After Its 128% Run - Yahoo Finance",
+              "url": "https://news.google.com/rss/articles/CBMimwFBVV95cUxNYlR3cUF2QnYzOENaLVU2cUlGNVJEYjdfYjBRSU9DNDM3VVlVVFhKYkNFN0JLai1VZHdMdjdVZVJLbGk5SHlPaV9HRUFVVkJqUGFXZUdqUjVCQThSOGZYMmJuOEtIbThwVnFpZXF2OEV5NWFNOWdHMC1HWVdsbW5XOXlvb2hDVDVhSWc2aVNOSllYWF9zdEVpTklhcw?oc=5"
+            },
+            {
+              "age_hours": 101.368,
+              "authority": "secondary",
+              "direction": 0,
+              "event_type": "other",
+              "evidence_id": "ev-b9d7d7e033717b5d56bb",
+              "materiality": 2,
+              "provider": "Stocktwits",
+              "published_at": "2026-11-05T13:28:29Z",
+              "source_kind": "news",
+              "title": "ACIW: ACI Worldwide Inc Latest Stock Price, Analysis, News and Trading Ideas - Stocktwits",
+              "url": "https://news.google.com/rss/articles/CBMiSkFVX3lxTFB5OEFqSVdKa3NLNVUtXzlVSUpCM0VHQVBPUEdoYjFiV18tODhpZ3hWWE5rbHI0RFhDaEJ1OUlOT2c4SWxTNkIxajR3?oc=5"
             }
           ],
           "evidence_metrics": {
-            "directional_overlay_points": 8.0,
-            "evidence_quality_score": 85.0193,
-            "explicit_directional_event_present": true,
+            "directional_overlay_points": 0.0,
+            "evidence_quality_score": 85.8917,
+            "explicit_directional_event_present": false,
             "material_event_present": true,
             "maximum_materiality": 5,
             "primary_count": 2,
-            "reaction_overlay_points": 0.0,
+            "reaction_overlay_points": 3.0,
             "secondary_count": 6,
-            "total_overlay_points": 8.0
+            "total_overlay_points": 3.0
           },
           "evidence_status": "COMPLETE",
           "features": {
-            "atr_fraction": 0.04279045349211046,
-            "last_close": 57.84000015258789,
+            "atr_fraction": 0.03157699736150701,
+            "last_close": 61.36000061035156,
             "latest_session": "2026-11-09",
-            "median_turnover_20d": 86993776.42326355,
+            "median_turnover_20d": 46960302.57472992,
             "returns": {
-              "1": 0.056631318579965395,
-              "20": 0.30035972904328534,
-              "5": 0.14444002977486647,
-              "60": 0.16542411661859036
+              "1": 0.02232589374155136,
+              "20": 0.20172344222552985,
+              "5": 0.050684914505712664,
+              "60": 0.14820363374194034
             },
-            "volume_ratio_20d": 0.13803416673588614
+            "volume_ratio_20d": 1.3621829988193626
           },
           "freshness": {
             "global_cutoff": null,
             "latest_session": "2026-11-09",
-            "observed_at": "2026-11-09T15:48:59.569324Z",
-            "recheck_after": "2026-11-09T17:03:59.569324Z"
+            "observed_at": "2026-11-09T18:50:31.698020Z",
+            "recheck_after": "2026-11-09T20:05:31.698020Z"
+          },
+          "frontier_rank": 2,
+          "liquidity": {
+            "discovery_pass": true,
+            "median_turnover": 46960302.57,
+            "production_reference": 25000000.0,
+            "production_reference_pass": true
+          },
+          "market_data_symbol": "ACIW",
+          "name": "ACI Worldwide, Inc. - Common Stock",
+          "opportunity_score": 85.84884,
+          "provider_health": {
+            "primary": {
+              "cik": 935036,
+              "ok": true,
+              "provider": "SEC_EDGAR",
+              "recent_relevant": 2
+            },
+            "secondary": {
+              "ok": true,
+              "provider": "GOOGLE_NEWS_RSS",
+              "recent_relevant": 6
+            }
+          },
+          "relationship_rank": 2,
+          "research_risk_plan": {
+            "atr_fraction": 0.031577,
+            "execution_ready": false,
+            "execution_requirement": "fresh_quote_and_intraday_risk_revalidation",
+            "holding_policy": "OPEN_ENDED_MODEL_CONTROLLED",
+            "reference_price": 61.36000061,
+            "reward_risk": 2.0,
+            "risk_percent": 0.033156,
+            "status": "VALID_RESEARCH_REFERENCE",
+            "stop": 59.3255578,
+            "target": 65.42888622
+          },
+          "sector": null,
+          "sector_provenance": {},
+          "symbol": "ACIW"
+        },
+        {
+          "admission": {
+            "production_decision_influence": false,
+            "status": "PENDING_SHADOW_PORTFOLIO_COMPARISON"
+          },
+          "deep_opportunity_score": 87.116366,
+          "deep_rank": 3,
+          "evidence": [
+            {
+              "age_hours": 141.569,
+              "authority": "primary",
+              "direction": 0,
+              "event_type": "earnings",
+              "evidence_id": "ev-02231eeaf16985451f52",
+              "form": "10-Q",
+              "materiality": 5,
+              "provider": "SEC_EDGAR",
+              "published_at": "2026-11-03T21:16:24Z",
+              "source_kind": "regulatory_filing",
+              "title": "SEC 10-Q — 10-Q",
+              "url": "https://www.sec.gov/Archives/edgar/data/1512673/000162828026069524/xyz-20260930.htm"
+            },
+            {
+              "age_hours": 141.628,
+              "authority": "primary",
+              "direction": 0,
+              "event_type": "other",
+              "evidence_id": "ev-dcd545ed8aef004a7ec9",
+              "form": "8-K",
+              "materiality": 5,
+              "provider": "SEC_EDGAR",
+              "published_at": "2026-11-03T21:12:52Z",
+              "source_kind": "regulatory_filing",
+              "title": "SEC 8-K — 8-K",
+              "url": "https://www.sec.gov/Archives/edgar/data/1512673/000162828026069513/xyz-20261103.htm"
+            },
+            {
+              "age_hours": 165.399,
+              "authority": "primary",
+              "direction": 0,
+              "event_type": "other",
+              "evidence_id": "ev-ba181991eb52870db694",
+              "form": "8-K",
+              "materiality": 5,
+              "provider": "SEC_EDGAR",
+              "published_at": "2026-11-02T21:26:37Z",
+              "source_kind": "regulatory_filing",
+              "title": "SEC 8-K — 8-K",
+              "url": "https://www.sec.gov/Archives/edgar/data/1512673/000119312526443728/d180541d8k.htm"
+            },
+            {
+              "age_hours": 116.696,
+              "authority": "secondary",
+              "direction": 0,
+              "event_type": "earnings",
+              "evidence_id": "ev-d637cfcdc6a0e5f007c6",
+              "materiality": 5,
+              "provider": "Seeking Alpha",
+              "published_at": "2026-11-04T22:08:46Z",
+              "source_kind": "news",
+              "title": "Block jumps 15% on strong Q3 results, robust Q4 outlook (XYZ:NYSE) - Seeking Alpha",
+              "url": "https://news.google.com/rss/articles/CBMioAFBVV95cUxOdTllZXF4NHkxV3U2YWNWOHItalNjekp3UElxM1FIU3BDOVFLNDVKX2I2VlYyTV8yMlVjMWFwWUUwZXZqcU1qTjYzQlJxbGpIbEItMU54VnR2Rnl2ckZFUzI0XzJyeGdQWFgyUFF2TjRkWTNxV0tJSHU0TlBYRUFFMWp1Q0dIbXR5aU13bU5YanhxOXhfdktPVkRFZExhUjFy?oc=5"
+            },
+            {
+              "age_hours": 154.022,
+              "authority": "secondary",
+              "direction": 0,
+              "event_type": "earnings",
+              "evidence_id": "ev-bd377db599967e2a7d63",
+              "materiality": 5,
+              "provider": "Benzinga",
+              "published_at": "2026-11-03T08:49:14Z",
+              "source_kind": "news",
+              "title": "XYZ Stock Has Climbed 18% in 2026 — Jack Dorsey's Block Eyes 6th Straight Earnings Beat Ahead of Q3 Results - Benzinga",
+              "url": "https://news.google.com/rss/articles/CBMipgFBVV95cUxPbDRfNVU1OHFPS01majF1em9zdHRTY1RIX0lsTVVjcTZyMjhReEJEYW1IVS1ETVVWRzBNTW1jVWoxN0Zxa2hfZnFMbmF3c0hnSk1pYjlUcTFaU1dqckxHU3gtV0RvaHNjaVd0bGJ2cmVpeTAzTUxkWjJQSktRU0NkV1lXY3pUN1ZQWi03NUFfeGpaVl83aU5RSWtSYnFEYzlfTFdwdExn?oc=5"
+            },
+            {
+              "age_hours": 101.905,
+              "authority": "secondary",
+              "direction": 0,
+              "event_type": "management",
+              "evidence_id": "ev-06dd3484017f96424001",
+              "materiality": 3,
+              "provider": "Yahoo Finance",
+              "published_at": "2026-11-05T12:56:14Z",
+              "source_kind": "news",
+              "title": "XYZ’s Latest Target Hike From Barclays Implies Over 20% Upside Potential – What CEO Jack Dorsey Said In Shareholder Letter - Yahoo Finance",
+              "url": "https://news.google.com/rss/articles/CBMinAFBVV95cUxNOU9Ba0xEQ3cxTzByZGJCN2Z5a0dwTXYyVlptMlp2UTcxZk42eGFGNzZWT3dVSzcxaXdzVEZJR0hBd0hJMS1UX3o4bFU4Q0lhbnIzd2hNekhSZGlHaHR0ZUxhT0QxYUNndjJRMG4tZkVscDREekNQOVdGSC1qMUF0bGNuMDBCanQyQm9LcDlpSl9DT0hMeVByTnBjUUQ?oc=5"
+            },
+            {
+              "age_hours": 35.562,
+              "authority": "secondary",
+              "direction": 0,
+              "event_type": "other",
+              "evidence_id": "ev-6df21cf98809b3182dce",
+              "materiality": 2,
+              "provider": "Moomoo",
+              "published_at": "2026-11-08T07:16:50Z",
+              "source_kind": "news",
+              "title": "XYZ 261106 86.00P (XYZ261106P86000) Stock Options Chain | Quotes & News - Moomoo",
+              "url": "https://news.google.com/rss/articles/CBMiqgJBVV95cUxQTlVyQU5lM1hlbVlUOU9XMVJPMGQxRVkwVzBPeXI0U2g4dkFPSkd6MzVZTi1BSjRqaWlTSjhYbEdfczgxN3ZmN18wcHVqd1VQeEVtRTZZbTVQVEtqRTZPZmJMUnhXdHV3NW1rYjB6bzRqblJRZGVNVWxzREFmdDRSMEZfY29lb3d3QUdoME90OUJKUTVaUUx1TGlqaGx4aHllSzZFcGRoYnV1NEVwMUtSNmE5ZldXN3BZa3YwSnV6aFdOSmxPblhLeE91ZHNsWFc3V3YtUERsc0lDLVdCclo3RHRvbV9RbXJFVm1tWVB1eHFGSUs4UkpNTGlHY0puVnR3RDcyYnNXcDAwSkk3VlBpeTZ3Z1hQTWwwUEgwa2lDeTNFT1FqaUNyVC13?oc=5"
+            },
+            {
+              "age_hours": 101.096,
+              "authority": "secondary",
+              "direction": 0,
+              "event_type": "other",
+              "evidence_id": "ev-8028e57ed2094dcc1bd0",
+              "materiality": 2,
+              "provider": "Trefis",
+              "published_at": "2026-11-05T13:44:45Z",
+              "source_kind": "news",
+              "title": "Why Is Block Stock Going Up? - Trefis",
+              "url": "https://news.google.com/rss/articles/CBMikAFBVV95cUxPZjgzUjFIaXVCdmw4NWczQ2sxN01wdS12cFZiTnNEay11UFpxVlJ0ckczRWF6bXg1ZExMdU45UmNOenZFYm5Xc2RZNHV4QkV2ZS1oUUxFQkhZT0xBRTY5MDh0YlpNYzF1YjdidFZLaGltUGluYlBENEVXWkZoMDdHaVJPN3ZacVIyTlltMjBfQS0?oc=5"
+            },
+            {
+              "age_hours": 103.434,
+              "authority": "secondary",
+              "direction": 0,
+              "event_type": "other",
+              "evidence_id": "ev-e2e1a9d20fa79dda1671",
+              "materiality": 2,
+              "provider": "The Globe and Mail",
+              "published_at": "2026-11-05T11:24:29Z",
+              "source_kind": "news",
+              "title": "Analysts Are Bullish on These Technology Stocks: Block (XYZ), Advanced Micro Devices (AMD) - The Globe and Mail",
+              "url": "https://news.google.com/rss/articles/CBMi_AFBVV95cUxOWUg4bEs5WkF6akhra25OTDU5N1VSaWJXMVZ1aHU2LWtyQlVEXzN0WkRrb1lRamhJaDZ2eGRzcEUtZk9iLVZXZlVTdFdUVjMzVHhaT0RhV0pkTDJtV1hVWHE3aTZpU25ObzZVWHFxQmxKNWhOZ2tHcXE5TENoM3VYN3puN2hSbUt2RDhsUV9XWUh2bzl0TzQ1TkdZODg4aUVkclhuSGE1VjhQQTFVb3pXVjNLYUZ4bE5uNHN6TjF0eDZOYXZ6TWNpTjlCY0JjQWlVOE1EUFViMDFzc1RfWlI0VHZzZGlGenVfNlFJbzlkcUR1RGZMS0FBWEZ4R1Y?oc=5"
+            }
+          ],
+          "evidence_metrics": {
+            "directional_overlay_points": 0.0,
+            "evidence_quality_score": 90.3846,
+            "explicit_directional_event_present": false,
+            "material_event_present": true,
+            "maximum_materiality": 5,
+            "primary_count": 3,
+            "reaction_overlay_points": 3.0,
+            "secondary_count": 6,
+            "total_overlay_points": 3.0
+          },
+          "evidence_status": "COMPLETE",
+          "features": {
+            "atr_fraction": 0.03911096405131731,
+            "last_close": 88.91000366210938,
+            "latest_session": "2026-11-09",
+            "median_turnover_20d": 388188863.420105,
+            "returns": {
+              "1": 0.04012634733825804,
+              "20": 0.15738094266224945,
+              "5": 0.15347692721886408,
+              "60": 0.07275587124181193
+            },
+            "volume_ratio_20d": 0.6775891642514935
+          },
+          "freshness": {
+            "global_cutoff": null,
+            "latest_session": "2026-11-09",
+            "observed_at": "2026-11-09T18:50:31.698020Z",
+            "recheck_after": "2026-11-09T20:05:31.698020Z"
+          },
+          "frontier_rank": 4,
+          "liquidity": {
+            "discovery_pass": true,
+            "median_turnover": 388188863.42,
+            "production_reference": 25000000.0,
+            "production_reference_pass": true
+          },
+          "market_data_symbol": "XYZ",
+          "name": "Block, Inc. Class A Common Stock,",
+          "opportunity_score": 84.116366,
+          "provider_health": {
+            "primary": {
+              "cik": 1512673,
+              "ok": true,
+              "provider": "SEC_EDGAR",
+              "recent_relevant": 3
+            },
+            "secondary": {
+              "ok": true,
+              "provider": "GOOGLE_NEWS_RSS",
+              "recent_relevant": 6
+            }
+          },
+          "relationship_rank": 4,
+          "research_risk_plan": {
+            "atr_fraction": 0.03911096,
+            "execution_ready": false,
+            "execution_requirement": "fresh_quote_and_intraday_risk_revalidation",
+            "holding_policy": "OPEN_ENDED_MODEL_CONTROLLED",
+            "reference_price": 88.91000366,
+            "reward_risk": 2.0,
+            "risk_percent": 0.041067,
+            "status": "VALID_RESEARCH_REFERENCE",
+            "stop": 85.25877991,
+            "target": 96.21245117
+          },
+          "sector": null,
+          "sector_provenance": {},
+          "symbol": "XYZ"
+        },
+        {
+          "admission": {
+            "production_decision_influence": false,
+            "status": "PENDING_SHADOW_PORTFOLIO_COMPARISON"
+          },
+          "deep_opportunity_score": 86.401947,
+          "deep_rank": 4,
+          "evidence": [
+            {
+              "age_hours": 117.331,
+              "authority": "primary",
+              "direction": 0,
+              "event_type": "earnings",
+              "evidence_id": "ev-5e9f0917404ba7d03cec",
+              "form": "10-Q",
+              "materiality": 5,
+              "provider": "SEC_EDGAR",
+              "published_at": "2026-11-04T21:30:40Z",
+              "source_kind": "regulatory_filing",
+              "title": "SEC 10-Q — 10-Q",
+              "url": "https://www.sec.gov/Archives/edgar/data/1520697/000119312526447412/achc-20260930.htm"
+            },
+            {
+              "age_hours": 117.666,
+              "authority": "primary",
+              "direction": 0,
+              "event_type": "other",
+              "evidence_id": "ev-4ad6d93a2daccd50a652",
+              "form": "8-K",
+              "materiality": 5,
+              "provider": "SEC_EDGAR",
+              "published_at": "2026-11-04T21:10:35Z",
+              "source_kind": "regulatory_filing",
+              "title": "SEC 8-K — FORM 8-K",
+              "url": "https://www.sec.gov/Archives/edgar/data/1520697/000143774926034941/achc20261104_8k.htm"
+            },
+            {
+              "age_hours": 100.242,
+              "authority": "secondary",
+              "direction": 0,
+              "event_type": "earnings",
+              "evidence_id": "ev-c8fdc7275b108e419cd0",
+              "materiality": 5,
+              "provider": "Seeking Alpha",
+              "published_at": "2026-11-05T14:36:00Z",
+              "source_kind": "news",
+              "title": "Acadia Healthcare Company, Inc. 2026 Q3 - Results - Earnings Call Presentation (NASDAQ:ACHC) 2026-11-05 - Seeking Alpha",
+              "url": "https://news.google.com/rss/articles/CBMiswFBVV95cUxQbExDNjJucHE3VXNBTEtKM1hheG4wd3FMME1NakdnOHkyeVBhVGRVcl9SWFRkN0VGUjlrWmlGVkhRZlNWVGZaVnRkT3Y3azRFbnZSNWtyQjlxUW9HTGJURnV6LW1aSVd5cWxnV3FoNkNnM3Y0aGtENThmS0FKbktKbjVGRno5d0FScnRoLWxjb1pFSUZBRUZzZGI1QWtkTnZkcWtYOXJ6NzFBUG03OHF4UkR5QQ?oc=5"
+            },
+            {
+              "age_hours": 159.576,
+              "authority": "secondary",
+              "direction": 0,
+              "event_type": "earnings",
+              "evidence_id": "ev-39d0670459967dda452d",
+              "materiality": 5,
+              "provider": "TradingView",
+              "published_at": "2026-11-03T03:16:00Z",
+              "source_kind": "news",
+              "title": "Acadia Healthcare (ACHC) to report earnings tomorrow: here is what to expect - TradingView",
+              "url": "https://news.google.com/rss/articles/CBMizwFBVV95cUxNbUtlNnQ5ZUNvQjVKVy1SVDR5OUJPb083OElNWHZXclhoZ0U4aWtrU1F5cGhZVlVfU3k0cXZXRVQwN2ZYaGdBZTFkU1NQQUt1T0xLZ0d3aTVucWdFaXZmSVU0TThiVWxMMjFKUWJuQ2VwRHh1eEgwcHRsYnZfNGExX0t4YmJwUzl1d2VmN09IQzdXN1NWV1lHNTM4NXhTWG5mblVPdjk4aXBqTWhjN2NRUndWa3VBeE1MQjNwVDYyYlJTR09pbV8wc0tFU0NLTmc?oc=5"
+            },
+            {
+              "age_hours": 72.702,
+              "authority": "secondary",
+              "direction": 0,
+              "event_type": "other",
+              "evidence_id": "ev-7d47d0ad9435a4fa2444",
+              "materiality": 2,
+              "provider": "Yahoo! Finance Canada",
+              "published_at": "2026-11-06T18:08:25Z",
+              "source_kind": "news",
+              "title": "Acadia Healthcare Company, Inc. (ACHC) Stock Price, News, Quote & History - Yahoo! Finance Canada",
+              "url": "https://news.google.com/rss/articles/CBMiUkFVX3lxTE1ONG1yNmtJNU1lSHpzSGlIOFB1MGJzNGY1QVZGMXF1MUxCZTFLb2VfOXljNUpqcFlCUktPWUg4MWpOS0xjSmF2R0lWU3ZhbFpselE?oc=5"
+            },
+            {
+              "age_hours": 73.024,
+              "authority": "secondary",
+              "direction": 0,
+              "event_type": "other",
+              "evidence_id": "ev-763b281329eca02e8151",
+              "materiality": 2,
+              "provider": "GuruFocus",
+              "published_at": "2026-11-06T17:49:05Z",
+              "source_kind": "news",
+              "title": "ACHC Maintained by Guggenheim -- Price Target Raised to $41 - GuruFocus",
+              "url": "https://news.google.com/rss/articles/CBMimgFBVV95cUxPMFVpZkZZcXpselBNWldaVTgtcjlHb1NDaUw1LV9KXzQzc1pERm5kU1FzUExqR1VoNkExUmdUcklrblFpVVdvRlhJU2lndkFnbFR1S0tkRTE5YjhFTHBhX3NQV2h4ZGtCZ01sUVctVllEbkI0amVmZnNMOGs1QThybks4MjM3SE1QZWp6VE9yTnNsNUVCaGd1R2RB?oc=5"
+            },
+            {
+              "age_hours": 77.175,
+              "authority": "secondary",
+              "direction": 0,
+              "event_type": "other",
+              "evidence_id": "ev-335930ee57d2d0295729",
+              "materiality": 2,
+              "provider": "Yahoo Finance",
+              "published_at": "2026-11-06T13:40:03Z",
+              "source_kind": "news",
+              "title": "Is Acadia Healthcare (ACHC) Stock Outpacing Its Medical Peers This Year? - Yahoo Finance",
+              "url": "https://news.google.com/rss/articles/CBMipgFBVV95cUxQR2ZDQXpIQUx5MWRZaDF2czNyWkZlNGtWcm5jVmtmMTBFTnIyWkxyc2tTYlBTZW9HaGktOVhaWm9YT2pncUdRbGx1WUxwRzIxV3FsVEpUbXRKZFRFUng3bk1Md3N0MURFQXZpeUs2aXRGZDk0cWlmYXpEbzNPb1k2dXNjZVpXSVRCaVFoSlhhUTVxMEFFUFdORDEyN0xaNlU1NjYtMGhR?oc=5"
+            },
+            {
+              "age_hours": 153.499,
+              "authority": "secondary",
+              "direction": 0,
+              "event_type": "other",
+              "evidence_id": "ev-23abecd5cb2a4c73dee9",
+              "materiality": 2,
+              "provider": "ChartMill",
+              "published_at": "2026-11-03T09:20:34Z",
+              "source_kind": "news",
+              "title": "Acadia Healthcare (NASDAQ:ACHC) Meets a Breakout Setup With Strong Technicals - ChartMill",
+              "url": "https://news.google.com/rss/articles/CBMixAFBVV95cUxOajZENTM2cFlTYTBfXzU5eXFydEJDTmw1QWNIQl9FVmVCRmw4TlJvWWNEdnN2VXNmU0k3MEVQMU1zV2RrRmtsbTBkSzlUQWktV0ktcUFXZW5JeGVCUGZtcjNKSlRRSkdBZkxIQzVKU1lYNnZMZHlRVUxFMlhGWmRGMjUxWFlRV2ZUTzIzVjhhRzlhTmVPR1pUWEtGRGdoZnpQX1UxT01uRlU1VTN1TXU0bkQwSGVCRjVjX181LTlIWTV6dXNK?oc=5"
+            }
+          ],
+          "evidence_metrics": {
+            "directional_overlay_points": 0.0,
+            "evidence_quality_score": 84.8142,
+            "explicit_directional_event_present": false,
+            "material_event_present": true,
+            "maximum_materiality": 5,
+            "primary_count": 2,
+            "reaction_overlay_points": 3.0,
+            "secondary_count": 6,
+            "total_overlay_points": 3.0
+          },
+          "evidence_status": "COMPLETE",
+          "features": {
+            "atr_fraction": 0.056605531894976385,
+            "last_close": 38.54999923706055,
+            "latest_session": "2026-11-09",
+            "median_turnover_20d": 47639615.682411194,
+            "returns": {
+              "1": 0.041891871271906744,
+              "20": 0.2815824246953964,
+              "5": 0.3014854201489032,
+              "60": 0.25040542758543327
+            },
+            "volume_ratio_20d": 0.811411992263056
+          },
+          "freshness": {
+            "global_cutoff": null,
+            "latest_session": "2026-11-09",
+            "observed_at": "2026-11-09T18:50:31.698020Z",
+            "recheck_after": "2026-11-09T20:05:31.698020Z"
           },
           "frontier_rank": 5,
           "liquidity": {
             "discovery_pass": true,
-            "median_turnover": 86993776.42,
+            "median_turnover": 47639615.68,
             "production_reference": 25000000.0,
             "production_reference_pass": true
           },
-          "market_data_symbol": "TREX",
-          "name": "Trex Company, Inc. Common Stock",
-          "opportunity_score": 81.274784,
+          "market_data_symbol": "ACHC",
+          "name": "Acadia Healthcare Company, Inc. - Common Stock",
+          "opportunity_score": 83.401947,
           "provider_health": {
             "primary": {
-              "cik": 1069878,
+              "cik": 1520697,
               "ok": true,
               "provider": "SEC_EDGAR",
               "recent_relevant": 2
@@ -464,180 +912,180 @@
           },
           "relationship_rank": 5,
           "research_risk_plan": {
-            "atr_fraction": 0.04279045,
+            "atr_fraction": 0.05660553,
             "execution_ready": false,
             "execution_requirement": "fresh_quote_and_intraday_risk_revalidation",
             "holding_policy": "OPEN_ENDED_MODEL_CONTROLLED",
-            "reference_price": 57.84000015,
+            "reference_price": 38.54999924,
             "reward_risk": 2.0,
-            "risk_percent": 0.04493,
+            "risk_percent": 0.059436,
             "status": "VALID_RESEARCH_REFERENCE",
-            "stop": 55.24125032,
-            "target": 63.03749981
+            "stop": 36.25874887,
+            "target": 43.13249998
           },
           "sector": null,
           "sector_provenance": {},
-          "symbol": "TREX"
+          "symbol": "ACHC"
         },
         {
           "admission": {
             "production_decision_influence": false,
             "status": "PENDING_SHADOW_PORTFOLIO_COMPARISON"
           },
-          "deep_opportunity_score": 86.871886,
-          "deep_rank": 3,
+          "deep_opportunity_score": 83.353147,
+          "deep_rank": 5,
           "evidence": [
             {
-              "age_hours": 89.589,
+              "age_hours": 71.18,
               "authority": "primary",
               "direction": 0,
               "event_type": "earnings",
-              "evidence_id": "ev-94ec81f314446d99cd7b",
+              "evidence_id": "ev-3a844f33c557c616ffa3",
               "form": "10-Q",
               "materiality": 5,
               "provider": "SEC_EDGAR",
-              "published_at": "2026-11-05T22:13:41Z",
+              "published_at": "2026-11-06T19:39:43Z",
               "source_kind": "regulatory_filing",
               "title": "SEC 10-Q — 10-Q",
-              "url": "https://www.sec.gov/Archives/edgar/data/1371285/000137128526000240/trup-20260930.htm"
+              "url": "https://www.sec.gov/Archives/edgar/data/1041061/000104106126000210/yum-20260930.htm"
             },
             {
-              "age_hours": 90.778,
+              "age_hours": 149.709,
               "authority": "primary",
               "direction": 0,
               "event_type": "other",
-              "evidence_id": "ev-8189319442b5222cbe1f",
+              "evidence_id": "ev-cc7ac999101ec1168a83",
               "form": "8-K",
               "materiality": 5,
               "provider": "SEC_EDGAR",
-              "published_at": "2026-11-05T21:02:20Z",
+              "published_at": "2026-11-03T13:07:58Z",
               "source_kind": "regulatory_filing",
               "title": "SEC 8-K — 8-K",
-              "url": "https://www.sec.gov/Archives/edgar/data/1371285/000137128526000236/trup-20261105.htm"
+              "url": "https://www.sec.gov/Archives/edgar/data/1041061/000104106126000195/yum-20261103.htm"
             },
             {
-              "age_hours": 76.144,
+              "age_hours": 68.006,
               "authority": "secondary",
               "direction": 0,
               "event_type": "guidance",
-              "evidence_id": "ev-4025954b6175e0d58408",
+              "evidence_id": "ev-61696838f1b2cbc6e2aa",
               "materiality": 5,
-              "provider": "StockStory",
-              "published_at": "2026-11-06T11:40:22Z",
+              "provider": "StockInvest.us",
+              "published_at": "2026-11-06T22:50:11Z",
               "source_kind": "news",
-              "title": "TRUP Q3 2026 deep dive: technology investments drive pet growth, margin outlook faces cost pressures - StockStory",
-              "url": "https://news.google.com/rss/articles/CBMi9AFBVV95cUxNSU91WXpPQ1BUUWdqQTNPMWhVM2xNSTUxZERXQTdlOG1odlBiem1lWU1LaVZvMGpCNWR2X3NHc0w4NGNNZW1uYjRmYjgzaVF6RVI4cGtYWS1ERVZOVHJGbm5hZ25KcjRqSGFFZTBHc3UxVF9VWGlJTGxqMm43alpKUVl0YXU1c2xuSzdHa3pwVmRpM0NjZXMyTkU3T2JoUlhONGdwcERkMVNjckdPa2RKb0pDanJ1cF81a2EyMllERktYQUVoXzFrRktYRWdKX2ZlSlAwT1dsX2pvMFE0VGNvNFptLUZoYjJ5X1ZMRHZCYXMzUUhS?oc=5"
+              "title": "Yum! Brands Stock Price Forecast. Should You Buy YUM? - StockInvest.us",
+              "url": "https://news.google.com/rss/articles/CBMiR0FVX3lxTE9fZ1QzRWJNVV9TWTk3Z3UzWWlsTVBaczZUNVRVM0NSTmJhNlpnWWRxRkppS19ISTBhTDlkMGNSczBJVmJNU0hV?oc=5"
             },
             {
-              "age_hours": 87.817,
+              "age_hours": 147.409,
               "authority": "secondary",
-              "direction": 1,
+              "direction": 0,
               "event_type": "earnings",
-              "evidence_id": "ev-5b8604aa28e718618fc6",
+              "evidence_id": "ev-5421b3a0addd7896db1f",
               "materiality": 5,
               "provider": "Yahoo Finance",
-              "published_at": "2026-11-06T00:00:00Z",
+              "published_at": "2026-11-03T15:26:00Z",
               "source_kind": "news",
-              "title": "Trupanion (TRUP) Q3 Earnings and Revenues Beat Estimates - Yahoo Finance",
-              "url": "https://news.google.com/rss/articles/CBMiiAFBVV95cUxPUXowNWNXdnR0QXpoVTZrYjBfb0Mxai1pTWtKNG1fX0dnVUdpYlhOM0JJNFpodUk3cjBEOXNNX2ZzVHNFNUhIQWMyOHlwMER6R1Nza056c1RtV3R6WDhCb2dRQ0lQUWVuSmlMT29FUXF4aTZNMlo4WjlodFNaTTFYNjA1SlBGOGxn?oc=5"
+              "title": "YUM Stock Up on Q3 Earnings Beat, Revenues Miss on Taco Bell Weakness - Yahoo Finance",
+              "url": "https://news.google.com/rss/articles/CBMilgFBVV95cUxQYlFoNTVYM1JqRmVuOGphS1VyV3p0UUs3aU1QVjZmX3NZOERHYlFaVGgtZXhsVFlpTTUybFR1YUhpTHBjZ0RIWk5vRHhUODNqamZpWnR3eFFfODdXX0wtUk1ITVpISDEteUoyQVQ5NGNGV0JKemhOQmw1MzVoOGxITmtmSzRXU3BhN1RsOTNWQmIxczlBcnc?oc=5"
             },
             {
-              "age_hours": 88.316,
-              "authority": "secondary",
-              "direction": 0,
-              "event_type": "earnings",
-              "evidence_id": "ev-f14e3a913466898327b9",
-              "materiality": 5,
-              "provider": "Yahoo Finance Singapore",
-              "published_at": "2026-11-05T23:30:03Z",
-              "source_kind": "news",
-              "title": "Trupanion (TRUP) Q3 Earnings: Taking a Look at Key Metrics Versus Estimates - Yahoo Finance Singapore",
-              "url": "https://news.google.com/rss/articles/CBMiigFBVV95cUxNbVY5U210ekhoUUk0Wm5xRllscWdXRnFTelMtZm1KblNld0RuVTBaczFnanZBc3NvRzItUlY2VFIxQ25iM0IteUh4MTBwLVNfa2RoOXlCbktPeUFIR1NtdjBMNmdSY1ZGS0p5SVVfOGNZcXNLbEpGSGZhZUVhNXh3Q053RU9DQ2wxM0E?oc=5"
-            },
-            {
-              "age_hours": 51.268,
+              "age_hours": 49.676,
               "authority": "secondary",
               "direction": 0,
               "event_type": "other",
-              "evidence_id": "ev-bade7115ba59ae283d95",
+              "evidence_id": "ev-d2825663bf8f63e8285a",
               "materiality": 2,
-              "provider": "Simply Wall St",
-              "published_at": "2026-11-07T12:32:54Z",
+              "provider": "Yahoo! Finance Canada",
+              "published_at": "2026-11-07T17:09:57Z",
               "source_kind": "news",
-              "title": "Trupanion (TRUP) Beat Third Quarter Estimates, Is The Stock Now Pricey? - Simply Wall St",
-              "url": "https://news.google.com/rss/articles/CBMiyAFBVV95cUxQajFtNDNwVGMyNldrYU1LYlFrb0IwZHlSbmxhdVZDX19SWW9mU08wbGl6bDZWcTR4NE1oU3hPTENmMzhCWEpQVHpYSWRCaHRGUUtjUE5hdkFIYjR0V0o3ZUhlTDBKWnlyY1pvMHRNX0hoX3Z3aDZCTWlQb1dfLUtkM3l0bmg0RjRWZ2FESWdXMTNFcGF1cFBhWWZkUDlEeEg0bVRQM012cUtvcUtZREpQQnpwM2NSNlNRUWRGRlNNellZMnBkMjBsedIBzgFBVV95cUxQUkxMVEJLMmN6ZzhsRFNiaUNfeXRNSGxIVDc3eFFUeVFOS0NjMUtPcjgta0pUV01TeVpVdlRpa2pZTUw2WU1SZ1g2eFlGWEdFeVF2b1UxbWxCYm1SemVUWGwyRTRKRjl3UXdKUE0xSWlxZnFaV0d0ejdmREJJZVpqMGJXNTdUaEc5Qm1CcFJJOWxKOU9QenJrZVczWjBKeTBxVURYY3AwZDJ6SVpSRFZtS2xjSzdNVVI3STB1Q3JUazJxTWhLX2dNUXU0SEhuZw?oc=5"
+              "title": "Yum! Brands, Inc. (YUM) Stock Price, News, Quote & History - Yahoo! Finance Canada",
+              "url": "https://news.google.com/rss/articles/CBMiUEFVX3lxTE1CdUpyLUtGdV84MEFjTkhHdGVBaFJVdDBRRUhISklXMGhqVE0wYjZVR0hIZm1xR0ZtS2hDcFlCT1hRNFdlTXloSU15Wm50SWNG?oc=5"
             },
             {
-              "age_hours": 65.171,
+              "age_hours": 68.992,
               "authority": "secondary",
               "direction": 0,
               "event_type": "other",
-              "evidence_id": "ev-0bb664a345bef3069652",
+              "evidence_id": "ev-f0d4e0c8883236ca290e",
               "materiality": 2,
-              "provider": "GuruFocus",
-              "published_at": "2026-11-06T22:38:43Z",
+              "provider": "MarketWatch",
+              "published_at": "2026-11-06T21:51:00Z",
               "source_kind": "news",
-              "title": "Trupanion (TRUP) Posts Record Q3 2026 Adjusted Operating Income, Projects Strong Full-Year Revenue - GuruFocus",
-              "url": "https://news.google.com/rss/articles/CBMizgFBVV95cUxNVDJRNTRFYjRUUUdRYmEtcTV5SWFla0wtcEpMa3NoOFJudDVrV2lVcXZpV2ZZbkd4OHU2SmR2RTZnSlZCZDRteWJSdHlkTHZFdi00OTJXYmRXSkFfUDZiN2NqdlQzZjZZWVlQdzBrOE5UTWoyeHRvcHJVeTZNSkZQcE1FeXdMMkdidTVFMElqVzIwcGhxRjJuRVdKWjlsWUVRYzlFdVdsb0VIWGQ4VEZBem5lclVJZVN3M1JndjdpbER3M01nck96dkNNS3Y1UQ?oc=5"
+              "title": "Yum! Brands Inc. stock underperforms Friday when compared to competitors - MarketWatch",
+              "url": "https://news.google.com/rss/articles/CBMiygFBVV95cUxOSFFMQmVKQ3JRRzRreUpiWDNiZzVPY2kyUFlibHg1Y1lFTERSWmZUeTc3Z0xLOG5yc1BEZkN5NjdnY2dWb3NSNDFkdXB2bG5BekNOQkZQOWZmNGg0TlhLWnR4a2FQeGNiRXhDdTlOSy1UbWRxVlUxaUJUbnk3QmJvMHBLWTlabnlnTzR4YU9QX0o2UDRHbjNUNmFlU3JBWEtXTlNhdUtFSmtFRTZYdzlZZDduaWh1bEs2RnNWaG9zb3JLaGVHRFBLZzJn?oc=5"
             },
             {
-              "age_hours": 66.973,
+              "age_hours": 103.721,
               "authority": "secondary",
               "direction": 0,
               "event_type": "other",
-              "evidence_id": "ev-e218526c0af5e1b66017",
+              "evidence_id": "ev-42925f26b048c413b860",
               "materiality": 2,
-              "provider": "TradingView",
-              "published_at": "2026-11-06T20:50:38Z",
+              "provider": "Investing.com",
+              "published_at": "2026-11-05T11:07:17Z",
               "source_kind": "news",
-              "title": "Why is Trupanion (TRUP) stock soaring today - TradingView",
-              "url": "https://news.google.com/rss/articles/CBMipAFBVV95cUxNWXBQUm14V0hpSUNTT1ZDWjhqZkFHajJ0MV9yZm1fbVVrbVlmMWowOWJ0VXNHMUNJRmR3ZnFJREN6OVVONDkzajF2QkJXSTJBRlVMSEUtTWtTT2Z5UEprQWNoMzZNYVM0V3IzZXZEMnZDcExacmluQVpkV1pyR251eExYZ0pRQ3ZTNDZnS2tYLVZGVHhTYmZiYldIV2FhbnBiMUVIaw?oc=5"
+              "title": "yum brands chief legal officer sells $106,406 in stock - Investing.com",
+              "url": "https://news.google.com/rss/articles/CBMiuAFBVV95cUxOTktxenFwS3hGcFVDQzhsTVNHRVRfMzlCejVGcTlHTmJTRmtpcDlpUzdSQ2hVSFQ4cDN1RWZOOWlNVTJHS3Z1ZVZnTWg0cWgwUlV6NGNsYlNiNE9EUklCcFVKbXlFdEVKa0pDc21rODdjUk5YMWFaR25uRXhQZzE1NHY4eXZDYzhtQUVhQV80VU5YLTR6YUw4TEVSSm8zNmE4alFORi1kYV9JZkk5c1hTWU5PbGNWanla?oc=5"
+            },
+            {
+              "age_hours": 162.842,
+              "authority": "secondary",
+              "direction": 0,
+              "event_type": "other",
+              "evidence_id": "ev-28cefe936321fb167dc8",
+              "materiality": 2,
+              "provider": "Bloomberg.com",
+              "published_at": "2026-11-03T00:00:00Z",
+              "source_kind": "news",
+              "title": "Watch Shopify Revenue Miss; Yum Brands Jumps on Taco Bell Sales | Stock Movers - Bloomberg.com",
+              "url": "https://news.google.com/rss/articles/CBMirAFBVV95cUxQSHd6eU9DcU9lMUpQTlFCa1hPSUh5OHZ3TG9HQzcyVEs0SDFEWmhIMnNTYVdLSU1kRjVGaGVjVVNGT1Ntd2lzb2M5TmxpUDhBUnV6TW1xdGZBYi1BR2VvYVJNdWJSczhSQW5faEstMGVFZ01QQkc0SlIzRUdSRWZPZEk2UU9uYzliQjRlNzBGRU1hZXI1aHhQZ25LUFlhRG5OYUJ0NTZmbFNOTTI4?oc=5"
             }
           ],
           "evidence_metrics": {
-            "directional_overlay_points": 8.0,
-            "evidence_quality_score": 86.333,
-            "explicit_directional_event_present": true,
+            "directional_overlay_points": 0.0,
+            "evidence_quality_score": 85.1099,
+            "explicit_directional_event_present": false,
             "material_event_present": true,
             "maximum_materiality": 5,
             "primary_count": 2,
-            "reaction_overlay_points": 0.0,
+            "reaction_overlay_points": 3.0,
             "secondary_count": 6,
-            "total_overlay_points": 8.0
+            "total_overlay_points": 3.0
           },
           "evidence_status": "COMPLETE",
           "features": {
-            "atr_fraction": 0.04869301437486148,
-            "last_close": 35.25,
+            "atr_fraction": 0.028398167356305654,
+            "last_close": 161.60499572753906,
             "latest_session": "2026-11-09",
-            "median_turnover_20d": 10313627.018737793,
+            "median_turnover_20d": 378223183.4388733,
             "returns": {
-              "1": -0.04081632653061229,
-              "20": 0.34081395102503476,
-              "5": 0.14634146341463405,
-              "60": 0.15196076995300123
+              "1": 0.002885666747250104,
+              "20": 0.10122654669532571,
+              "5": 0.02541236972664107,
+              "60": 0.09111467869539869
             },
-            "volume_ratio_20d": 0.34072081911262797
+            "volume_ratio_20d": 0.532917485265226
           },
           "freshness": {
             "global_cutoff": null,
             "latest_session": "2026-11-09",
-            "observed_at": "2026-11-09T15:48:59.569324Z",
-            "recheck_after": "2026-11-09T17:03:59.569324Z"
+            "observed_at": "2026-11-09T18:50:31.698020Z",
+            "recheck_after": "2026-11-09T20:05:31.698020Z"
           },
           "frontier_rank": 7,
           "liquidity": {
             "discovery_pass": true,
-            "median_turnover": 10313627.02,
+            "median_turnover": 378223183.44,
             "production_reference": 25000000.0,
-            "production_reference_pass": false
+            "production_reference_pass": true
           },
-          "market_data_symbol": "TRUP",
-          "name": "Trupanion, Inc. - Common Stock",
-          "opportunity_score": 78.871886,
+          "market_data_symbol": "YUM",
+          "name": "Yum! Brands, Inc.",
+          "opportunity_score": 80.353147,
           "provider_health": {
             "primary": {
-              "cik": 1371285,
+              "cik": 1041061,
               "ok": true,
               "provider": "SEC_EDGAR",
               "recent_relevant": 2
@@ -650,111 +1098,111 @@
           },
           "relationship_rank": 7,
           "research_risk_plan": {
-            "atr_fraction": 0.04869301,
+            "atr_fraction": 0.02839817,
             "execution_ready": false,
             "execution_requirement": "fresh_quote_and_intraday_risk_revalidation",
             "holding_policy": "OPEN_ENDED_MODEL_CONTROLLED",
-            "reference_price": 35.25,
+            "reference_price": 161.60499573,
             "reward_risk": 2.0,
-            "risk_percent": 0.051128,
+            "risk_percent": 0.029818,
             "status": "VALID_RESEARCH_REFERENCE",
-            "stop": 33.44774981,
-            "target": 38.85450039
+            "stop": 156.78624573,
+            "target": 171.24249573
           },
           "sector": null,
           "sector_provenance": {},
-          "symbol": "TRUP"
+          "symbol": "YUM"
         },
         {
           "admission": {
             "production_decision_influence": false,
             "status": "PENDING_SHADOW_PORTFOLIO_COMPARISON"
           },
-          "deep_opportunity_score": 85.829482,
-          "deep_rank": 4,
+          "deep_opportunity_score": 83.092366,
+          "deep_rank": 6,
           "evidence": [
             {
-              "age_hours": 48.651,
+              "age_hours": 68.516,
               "authority": "secondary",
               "direction": 0,
               "event_type": "guidance",
-              "evidence_id": "ev-7f70bf2c5b3b389fb87a",
-              "materiality": 5,
-              "provider": "Yahoo Finance Singapore",
-              "published_at": "2026-11-07T15:09:56Z",
-              "source_kind": "news",
-              "title": "Tetra Tech, Inc. (TTEK) Stock forecasts - Yahoo Finance Singapore",
-              "url": "https://news.google.com/rss/articles/CBMilAFBVV95cUxNNGRwV2dYcjNPX0wwVGt5ZnF1cHAyRnZ1TXV2SEdBeG5PblJCWUxUNGpWY1VKMUk3bmx6ZXkzcWt4Wm51NE5oY083SGJ2WDdScEtwdi1LbVVzVzM0cVJ0M0FkUGExeU1TQ244a0NyZmhrZk93alc5T0d1a0IzZzk4b1RnT0ZBcUt3bmZwV0tqMFhnYUND?oc=5"
-            },
-            {
-              "age_hours": 65.465,
-              "authority": "secondary",
-              "direction": 0,
-              "event_type": "guidance",
-              "evidence_id": "ev-71d466356e6ec48e8bac",
+              "evidence_id": "ev-072444614c889d00e0f0",
               "materiality": 5,
               "provider": "StockInvest.us",
-              "published_at": "2026-11-06T22:21:07Z",
+              "published_at": "2026-11-06T22:19:35Z",
               "source_kind": "news",
-              "title": "Tetra Tech Stock Price Forecast. Should You Buy TTEK? - StockInvest.us",
-              "url": "https://news.google.com/rss/articles/CBMiSEFVX3lxTFBVZDh5M1FkZ25NMWF5Q2F1bk15eEltVktRaGktdmhkem0tcC1WRkI3RkVZQnVfdHV4c0tNTktFUzRNNk5MOWY5Tg?oc=5"
+              "title": "Automatic Data Processing Stock Price Forecast. Should You Buy ADP? - StockInvest.us",
+              "url": "https://news.google.com/rss/articles/CBMiR0FVX3lxTE1xTGo3UzZ5Ry1UdU1ZeVhIc2FENEg5cWdSUFplZTY4X0txbEM5QWVMYld0MGFjZlVBMzgwY2h3ekNSWGR0THFn?oc=5"
             },
             {
-              "age_hours": 34.031,
+              "age_hours": 25.504,
               "authority": "secondary",
               "direction": 0,
               "event_type": "other",
-              "evidence_id": "ev-a725d384a9454224879f",
+              "evidence_id": "ev-b38a552c944a3c2c44be",
               "materiality": 2,
-              "provider": "Yahoo Finance UK",
-              "published_at": "2026-11-08T05:47:10Z",
+              "provider": "Yahoo Finance Singapore",
+              "published_at": "2026-11-08T17:20:19Z",
               "source_kind": "news",
-              "title": "TTEK Nov 2026 35.000 put (TTEK261120P00035000) stock price, news, quote and history - Yahoo Finance UK",
-              "url": "https://news.google.com/rss/articles/CBMiZkFVX3lxTFB3bzVjMGFVYXByOTMybFRuc0VrTGd0WkxMRnNQb0djNDRXUHUyZlBwUnVIQ1RVWjZkWjk4QkpDS3gxSC03czgtdzdRdlBpT3RPclpIX2lxUTlNN1F2ZFRBYWtZdF92dw?oc=5"
+              "title": "Automatic Data Processing, Inc. (ADP) stock price, news, quote and history - Yahoo Finance Singapore",
+              "url": "https://news.google.com/rss/articles/CBMiUEFVX3lxTE95cENYdXlCaGpBYjNSOTltU21iYmtvaUtfN29rd3VNTjg2YWRsMFluelI2YzVOS09iWDZ2M1Zod2xNM0pSeXp0NkJYcVBBY21Q?oc=5"
             },
             {
-              "age_hours": 102.258,
+              "age_hours": 50.117,
               "authority": "secondary",
               "direction": 0,
               "event_type": "other",
-              "evidence_id": "ev-a71630e2a667bee254c2",
+              "evidence_id": "ev-f53b200cc11d346ad39e",
               "materiality": 2,
-              "provider": "MarketBeat",
-              "published_at": "2026-11-05T09:33:30Z",
+              "provider": "Yahoo! Finance Canada",
+              "published_at": "2026-11-07T16:43:30Z",
               "source_kind": "news",
-              "title": "Tetra Tech, Inc. (NASDAQ:TTEK) Stock Has Average Price Target of $39.00 - MarketBeat",
-              "url": "https://news.google.com/rss/articles/CBMiyAFBVV95cUxNRnJkWE9YTEQ3WnRXMjhVX2gyWjVSY3FmRjlGWDBEU2lhS3VuWWNvRHFhRjd3OC02RDBHbjNlTk12YTExQ0RoTV9iUURxeEFsMmxqTHp5YmdjUzVMUDBUYXJpeHNrNHdvTUs5d2twZTV2UTE1SjQ0TFl5bk9uTkxtcS03eWtzQ2hoc241cDhJS015d21tUDNGSU9hRWRWRS1KSkZMTEhoZ0VZQll6d3doNXNrTlRLNmtMQVlJT2Z2eV9mS1F2MmlUVA?oc=5"
+              "title": "Automatic Data Processing, Inc. (ADP) Stock Price, News, Quote & History - Yahoo! Finance Canada",
+              "url": "https://news.google.com/rss/articles/CBMiUEFVX3lxTE1heVdxeUx3V3pOaFNLcjY2aWdQRkIzTVRNMXJEYWxjdVFmVUtmTm9DeWdSbkRRRlZoSVBJUXFhQTlVVGdVY3NTWXJlZVlKWUNx?oc=5"
             },
             {
-              "age_hours": 151.817,
+              "age_hours": 53.327,
               "authority": "secondary",
               "direction": 0,
               "event_type": "other",
-              "evidence_id": "ev-ad7617cc2fd9bd27da14",
+              "evidence_id": "ev-6e0e2185cebf3c0c1b7f",
               "materiality": 2,
-              "provider": "The Globe and Mail",
-              "published_at": "2026-11-03T08:00:00Z",
+              "provider": "ChartMill",
+              "published_at": "2026-11-07T13:30:55Z",
               "source_kind": "news",
-              "title": "1 profitable stock with exciting potential and 2 we brush off - The Globe and Mail",
-              "url": "https://news.google.com/rss/articles/CBMi3wFBVV95cUxNWjlac0lTVzh4czhDSm9wUWZzcmp3WEdkTzBlN20teXYwTGdNeFpKeWd0emtxcVNlQkt4X1RnVG1SUV9ENEU4UzEyWW1VX2hFTDRHSFJCY0ZMa181M2o4Vk5qRXNPNFpSNThkbnRCZTlaWmt4WFN4dGFIY3c1ZUpXMnl6ZXdFcWcxTl9jNVU2UzRiTUdrSFNRODg2NjBzb0NDWkhUbTI5dGcxc1o4MGRXeFZ2SWl4UU9iVjNXQnQ0NE0tMEZhWktEcXd1MWlJQlRGRlZoUlBDbEJsVElKV0U0?oc=5"
+              "title": "Automatic Data Processing (NASDAQ:ADP) Combines Technical Strength With a Breakout Setup - ChartMill",
+              "url": "https://news.google.com/rss/articles/CBMi0gFBVV95cUxPRGIzWWZuZ09TX2Q3SjNfd2JxMklGazhvNjdnS0N1RzhrWXAyQTVaQndwN25kSURRX2lMaDBlV05QRHA0dkp4TDM5ZFlWZGxscXlad3g2eE5NSEtVeEp3dk95X1dtY2ppUjJRUkpnWnB6aTgzVjh2ZlhZeUN2azJZZlJvTjlZVXVXMVdBVHBXam5IR28zYU1MeFJlVXNOb25TOEszQkk2bFpDR0hjaTR2aUc4N0VNN2FzZXpNQ0JkS3NtUEFFaXhqbDdPMU9KX0ZwU3c?oc=5"
             },
             {
-              "age_hours": 152.092,
+              "age_hours": 90.892,
               "authority": "secondary",
               "direction": 0,
               "event_type": "other",
-              "evidence_id": "ev-8a3d45f4746469a20f75",
+              "evidence_id": "ev-11cb93e80500a0dab56e",
               "materiality": 2,
-              "provider": "Simply Wall St",
-              "published_at": "2026-11-03T07:43:29Z",
+              "provider": "Investor's Business Daily",
+              "published_at": "2026-11-05T23:57:00Z",
               "source_kind": "news",
-              "title": "Tetra Tech (TTEK) Target Rises To $41, Is The Stock Still Below Fair Value? - Simply Wall St",
-              "url": "https://news.google.com/rss/articles/CBMi1gFBVV95cUxPcER4M3RWMS14UnhVV3FGMjA1bzV5ekl2Zm53bEV3MGJHRmZpRWRha1MwY3dVdzlaU0ttZWNneUVJazVtcy1EdVAtaVpxM0dqUmtNVHZvMndrZFllNXRPcERnOUt3X1JxenJoNmowczFqcVFpSXUzSjNrZWJVWUNsTFZ1Y3lPckNXYXg3U2FxQmg5c3AySnAwM0RmT0FPNktnLUJ4Rks3WkpPU1lfc0JQZE5nMU13U3c4Tm5PX1ZlbWNrMWwyNG1MRzRSVllMakVPb0dZZFNR0gHbAUFVX3lxTE9BNjF5Yk4xbF82ZGhaMkhwZVZtckJqNUFKV0txRG9RWjNyUE90QlE0WTdjalVFTXNhM3NtTnRCNUZfVEItVkNoaG04NHFfVHc2NW9lMU8tUEZ3UGJnREk5Y1hHWHNsR1NhWFQ3T09PN3Z0S3FWSkhMRlNvTU1RcW5GRUQ1bnJuaTlnZjA1Qk1QR3hNS3dYeUQtWE9Jb0dnWkVFTDUtQ1l3NXQ5Q0Ixdmt0YjhOS3NOd1MtcGdqZWlHNUVUVW16Q25fT3JtTHNNaFdIdzdzMXZvM21Jcw?oc=5"
+              "title": "ADP Stock Rises On Horrible Day For Market, Leads 20 To Best Stock Lists - Investor's Business Daily",
+              "url": "https://news.google.com/rss/articles/CBMid0FVX3lxTE1tWHV0akxueUlHTXBnTnBhbjhsbm5ULUpya0ptVlo0SklYRnpFZXlPTm4xd3dCVjQ2c1ZQbVBDTGNVYVZrV2hSaUlMS2g5bE1vRkM4Y1hSMVRHRjlZd0VhM2k3cEdESmtsSFlCTWwxSlBTQVJiSl9Z?oc=5"
+            },
+            {
+              "age_hours": 98.919,
+              "authority": "secondary",
+              "direction": 0,
+              "event_type": "other",
+              "evidence_id": "ev-d092f23461450beb35a1",
+              "materiality": 2,
+              "provider": "Investing.com",
+              "published_at": "2026-11-05T15:55:23Z",
+              "source_kind": "news",
+              "title": "Adp stock hits 52-week high at 309.48 USD - Investing.com",
+              "url": "https://news.google.com/rss/articles/CBMinAFBVV95cUxOamdTQkhDRUNyekhZRzhHWjRsbGczS2ZNU1NsMTFRZldTME1NV0plcjV4QnBXd2lHdG9HLTBFQ0RDWlZERy1BYnVSTXMxbi1SZ3ZiTk1ITEdEaDMxQXVOMURpZVVxNXBmRzZMTU96U0NZZ1RmNkFCSnRPTU1RV0lFOVR0N3NBenV3SWlxWVozck5nR2x2SFRfeFRteEQ?oc=5"
             }
           ],
           "evidence_metrics": {
             "directional_overlay_points": 0.0,
-            "evidence_quality_score": 73.6007,
+            "evidence_quality_score": 74.9264,
             "explicit_directional_event_present": false,
             "material_event_present": true,
             "maximum_materiality": 5,
@@ -765,37 +1213,37 @@
           },
           "evidence_status": "COMPLETE",
           "features": {
-            "atr_fraction": 0.02768840649757096,
-            "last_close": 40.849998474121094,
+            "atr_fraction": 0.02853292786073552,
+            "last_close": 304.18499755859375,
             "latest_session": "2026-11-09",
-            "median_turnover_20d": 76059990.08674622,
+            "median_turnover_20d": 692526798.1140137,
             "returns": {
-              "1": 0.01389916966663396,
-              "20": 0.21976698796006877,
-              "5": 0.03234770758576233,
-              "60": 0.11887155168747854
+              "1": 0.0027525677873010412,
+              "20": 0.11093459066811451,
+              "5": 0.018090229604992514,
+              "60": 0.11439407635186138
             },
-            "volume_ratio_20d": 0.1855207649760945
+            "volume_ratio_20d": 0.38465538728006254
           },
           "freshness": {
             "global_cutoff": null,
             "latest_session": "2026-11-09",
-            "observed_at": "2026-11-09T15:48:59.569324Z",
-            "recheck_after": "2026-11-09T17:03:59.569324Z"
+            "observed_at": "2026-11-09T18:50:31.698020Z",
+            "recheck_after": "2026-11-09T20:05:31.698020Z"
           },
-          "frontier_rank": 4,
+          "frontier_rank": 8,
           "liquidity": {
             "discovery_pass": true,
-            "median_turnover": 76059990.09,
+            "median_turnover": 692526798.11,
             "production_reference": 25000000.0,
             "production_reference_pass": true
           },
-          "market_data_symbol": "TTEK",
-          "name": "Tetra Tech, Inc. - Common Stock",
-          "opportunity_score": 82.829482,
+          "market_data_symbol": "ADP",
+          "name": "Automatic Data Processing, Inc. - Common Stock",
+          "opportunity_score": 80.092366,
           "provider_health": {
             "primary": {
-              "cik": 831641,
+              "cik": 8670,
               "ok": true,
               "provider": "SEC_EDGAR",
               "recent_relevant": 0
@@ -806,185 +1254,213 @@
               "recent_relevant": 6
             }
           },
-          "relationship_rank": 4,
+          "relationship_rank": 8,
           "research_risk_plan": {
-            "atr_fraction": 0.02768841,
+            "atr_fraction": 0.02853293,
             "execution_ready": false,
             "execution_requirement": "fresh_quote_and_intraday_risk_revalidation",
             "holding_policy": "OPEN_ENDED_MODEL_CONTROLLED",
-            "reference_price": 40.84999847,
+            "reference_price": 304.18499756,
             "reward_risk": 2.0,
-            "risk_percent": 0.029073,
+            "risk_percent": 0.02996,
             "status": "VALID_RESEARCH_REFERENCE",
-            "stop": 39.66237354,
-            "target": 43.22524834
+            "stop": 295.07174454,
+            "target": 322.4115036
           },
           "sector": null,
           "sector_provenance": {},
-          "symbol": "TTEK"
+          "symbol": "ADP"
         },
         {
           "admission": {
             "production_decision_influence": false,
             "status": "PENDING_SHADOW_PORTFOLIO_COMPARISON"
           },
-          "deep_opportunity_score": 85.712037,
-          "deep_rank": 5,
+          "deep_opportunity_score": 82.781411,
+          "deep_rank": 7,
           "evidence": [
             {
-              "age_hours": 138.742,
+              "age_hours": 117.743,
               "authority": "primary",
               "direction": 0,
               "event_type": "earnings",
-              "evidence_id": "ev-1c4c941bfa57403985fb",
+              "evidence_id": "ev-62cffba287c64bb2f60d",
               "form": "10-Q",
               "materiality": 5,
               "provider": "SEC_EDGAR",
-              "published_at": "2026-11-03T21:04:29Z",
+              "published_at": "2026-11-04T21:05:57Z",
               "source_kind": "regulatory_filing",
               "title": "SEC 10-Q — 10-Q",
-              "url": "https://www.sec.gov/Archives/edgar/data/99302/000162828026069462/trns-20260926.htm"
+              "url": "https://www.sec.gov/Archives/edgar/data/1136869/000119312526447203/zbh-20260930.htm"
             },
             {
-              "age_hours": 138.771,
+              "age_hours": 127.337,
               "authority": "primary",
               "direction": 0,
               "event_type": "other",
-              "evidence_id": "ev-d01f252f58be05180cdc",
+              "evidence_id": "ev-4c7a4c87b2807d0cc517",
               "form": "8-K",
               "materiality": 5,
               "provider": "SEC_EDGAR",
-              "published_at": "2026-11-03T21:02:44Z",
+              "published_at": "2026-11-04T11:30:18Z",
               "source_kind": "regulatory_filing",
               "title": "SEC 8-K — 8-K",
-              "url": "https://www.sec.gov/Archives/edgar/data/99302/000162828026069453/trns-20261103.htm"
+              "url": "https://www.sec.gov/Archives/edgar/data/1136869/000119312526446145/zbh-20261104.htm"
             },
             {
-              "age_hours": 103.303,
+              "age_hours": 101.359,
+              "authority": "primary",
+              "direction": 0,
+              "event_type": "other",
+              "evidence_id": "ev-ebe420ac9b020992270a",
+              "form": "424B5",
+              "materiality": 4,
+              "provider": "SEC_EDGAR",
+              "published_at": "2026-11-05T13:29:00Z",
+              "source_kind": "regulatory_filing",
+              "title": "SEC 424B5 — 424B5",
+              "url": "https://www.sec.gov/Archives/edgar/data/1136869/000119312526448704/d84533d424b5.htm"
+            },
+            {
+              "age_hours": 103.819,
+              "authority": "primary",
+              "direction": 0,
+              "event_type": "other",
+              "evidence_id": "ev-ddc63dd492c699f70042",
+              "form": "424B5",
+              "materiality": 4,
+              "provider": "SEC_EDGAR",
+              "published_at": "2026-11-05T11:01:22Z",
+              "source_kind": "regulatory_filing",
+              "title": "SEC 424B5 — 424B5",
+              "url": "https://www.sec.gov/Archives/edgar/data/1136869/000119312526448356/d180022d424b5.htm"
+            },
+            {
+              "age_hours": 106.842,
               "authority": "secondary",
               "direction": 0,
-              "event_type": "earnings",
-              "evidence_id": "ev-dc7533ebcf216ca628bb",
+              "event_type": "guidance",
+              "evidence_id": "ev-5479f317575e8efbdc37",
               "materiality": 5,
-              "provider": "GuruFocus",
-              "published_at": "2026-11-05T08:30:50Z",
-              "source_kind": "news",
-              "title": "TRNS SWOT Analysis: Strong Growth Potential Revealed in 10-Q Fil - GuruFocus",
-              "url": "https://news.google.com/rss/articles/CBMipwFBVV95cUxORTMtclBPOGIxOHhVYXVzZ0l2cnRFM3RVNXYxckpWakVOMlFXc0N5Z3lCQmFOd2dKY2pEQXV3QllTVTlQN083VXh4ZjVDWGxGM1FrdUNySzN1YVR5UGxUTWhwbjhqN0tzbVpOMWl0ZXNBRDhkU1puMFdYOVQ3LWg5TkQwSi1uSFVPN3NzVXptckFBaTRvTndwaVVpVldlanl6T3Uyc2FYYw?oc=5"
-            },
-            {
-              "age_hours": 115.883,
-              "authority": "secondary",
-              "direction": 1,
-              "event_type": "earnings",
-              "evidence_id": "ev-e2b2512c77b2d9706532",
-              "materiality": 5,
-              "provider": "Seeking Alpha",
-              "published_at": "2026-11-04T19:56:00Z",
-              "source_kind": "news",
-              "title": "Transcat shares surge to record as earnings beat estimates, outlook improves (TRNS:NASDAQ) - Seeking Alpha",
-              "url": "https://news.google.com/rss/articles/CBMiswFBVV95cUxOOHBwYkpNSWd3TGQ0N2VlNzlTUklaXzRILXhadWNPODhqNFp6cWtjNDUxNzNjTUJNNnZUOEUxRFpFZVBqa3UzSGdycll0ZFhXemx3MmQwYnVRaGZpbFNHZ0NwT1VRaG9rMDhHQk9wWm9MQ210eTI5NG5JMHRtZFZUY1JGRlc0cTRsbzlQOUZUd0ZpTld4cTJVYm9CNGdocU52V0x6LUl0QnR6RkoyLWJPTjZ2bw?oc=5"
-            },
-            {
-              "age_hours": 27.656,
-              "authority": "secondary",
-              "direction": 0,
-              "event_type": "other",
-              "evidence_id": "ev-427f7bda5fd6c75da4e9",
-              "materiality": 2,
-              "provider": "Yahoo Finance",
-              "published_at": "2026-11-08T12:09:39Z",
-              "source_kind": "news",
-              "title": "Transcat (TRNS) Stock Could Be 42% Overvalued As Service Growth Lifts Q2 - Yahoo Finance",
-              "url": "https://news.google.com/rss/articles/CBMimAFBVV95cUxOcHFYVENTZ0FZMkhYWUNFTF9oVnRxcWF0SUpycURYZFZyX09oeTg1bV84eFpVejNnUkN6WmRCUXlsNWluMHZucDZFdkVTTmh4dUk3MmhzYklOTFRfb3pJbFJELWltSVVHcU5Oc0FJUUlKYzZmR2I2ZW9hdS1GX0JXYUt6TlY0a1o2STU0QVllTk9DdVlMbEVJbg?oc=5"
-            },
-            {
-              "age_hours": 63.617,
-              "authority": "secondary",
-              "direction": 0,
-              "event_type": "other",
-              "evidence_id": "ev-eb4c362f8f25a220c4b0",
-              "materiality": 2,
-              "provider": "Yahoo Finance",
-              "published_at": "2026-11-07T00:12:00Z",
-              "source_kind": "news",
-              "title": "Is Transcat (TRNS) Expensive As Strong Q2 Growth Fuels Its Calibration And M And A Story? - Yahoo Finance",
-              "url": "https://news.google.com/rss/articles/CBMinwFBVV95cUxNZ1ZUOFFWX0cwWDRsb3FTTGhtU015bFNwU3o0Zlh0amEtQkVaMDU1U2xQWmVnaGlraVA3Um9vRGZUdjVBYV83TEYxcDUwdUVDX0VkZkhnVkN1TFZSWFBSYmZDZVBSSW0wMHFueG9DSWNRODFTV2luVmRCTktZemZzaUhoS2N5bnpyUmM5ODJpMUljOUNGVlVBa2JpeE05QWM?oc=5"
-            },
-            {
-              "age_hours": 103.817,
-              "authority": "secondary",
-              "direction": 0,
-              "event_type": "other",
-              "evidence_id": "ev-175cfb87cec1549e0e15",
-              "materiality": 2,
-              "provider": "StockStory",
+              "provider": "Simply Wall St",
               "published_at": "2026-11-05T08:00:00Z",
               "source_kind": "news",
-              "title": "1 profitable stock with solid fundamentals and 2 we ignore - StockStory",
-              "url": "https://news.google.com/rss/articles/CBMivAFBVV95cUxPU3MxSU5xLWJXUTg3MEN6T1Q2SzhoWnNkZVhMVUh0RnFtNHVpQmtkQm1wVjVfV3VuSmZnR0xiNmdqYXhLbDhldzcySjNDclNwb3FjdHVuRVd4Z3Q0MXJyZkxuM29QZF9BU1JkNjcwMURqZmVSdkIzNU44VS0za2xSYWpNTVJMVUdkd1RnOWNEOWZmN3NVQUhLMG1PdmJxUlNhOGpfSkxEQVM2cEluXzFybTFldFFmajA3MllnNg?oc=5"
+              "title": "Zimmer Biomet Holdings (NYSE:ZBH) Stock Forecast & Analyst Predictions - Simply Wall St",
+              "url": "https://news.google.com/rss/articles/CBMiiAFBVV95cUxPLTBocUpocW1LZWNDY0NGWlRtbVV2aF9Fd1VFeGh6S1NPeGtCNGtSdjBxQWdCMjQ1LWtOZXdLVUFFbnFiVmhiLVdwbzVocjlieG83ZUliRWhMVkhOMjBKRDFuWW5tcHNROG5NSmpEdWZMMV8yeWgxM09xSlMyVDNGLVptaVRreHM2?oc=5"
             },
             {
-              "age_hours": 120.128,
+              "age_hours": 125.176,
+              "authority": "secondary",
+              "direction": 0,
+              "event_type": "earnings",
+              "evidence_id": "ev-a3283592de2eff0ab4d5",
+              "materiality": 5,
+              "provider": "TradingView",
+              "published_at": "2026-11-04T13:40:00Z",
+              "source_kind": "news",
+              "title": "Zimmer Biomet Stock Up on Q3 Earnings & Revenue Beat, '26 View Up - TradingView",
+              "url": "https://news.google.com/rss/articles/CBMitwFBVV95cUxOaWw0R0ZwMXFRQjZDZzJ1X2x4cnM0NkhyenJCS3VqYnN3Tkt1WFZKSU9nYkJMT2VVdTBza1dxOFRFZWRUdjBwYkRrQ2U0dWFzLXA4TC05N3hiRWJpdEFiTURPQmE0cDZDQjZ5TmttZ2Rtbnp5N0dlZFhNM2I1WnpBM1hXUzNFUkIyX1dhT2hpSjBaZUo1T1NxM2RDVmMxdzktaWNMbmFMc0VMUWtPRGdsVl9zVjRDMjQ?oc=5"
+            },
+            {
+              "age_hours": 125.34,
+              "authority": "secondary",
+              "direction": 0,
+              "event_type": "earnings",
+              "evidence_id": "ev-459aee0192f9f061df0b",
+              "materiality": 5,
+              "provider": "Yahoo Finance",
+              "published_at": "2026-11-04T13:30:07Z",
+              "source_kind": "news",
+              "title": "Zimmer (ZBH) Q3 Earnings: Taking a Look at Key Metrics Versus Estimates - Yahoo Finance",
+              "url": "https://news.google.com/rss/articles/CBMimgFBVV95cUxORDdLeXBWOVBORFd3NmZFTEw4dW11bUU2aVJ0Z2pVV3VaQ1NFYVc3MXo0T25zMWtGclEzQUt2dkdnQldGUkRaR0hqZ1dPY0N3aUFTU2U2ZWMzMzBkV2dqYnZUUjdWbGpfTFhrTkFKNkZQOVpYME5xMWltQ0YtS3BuS3dzY3FBN1R5YWEwYkNhM3E1dEMyTEV0RmJB?oc=5"
+            },
+            {
+              "age_hours": 64.184,
               "authority": "secondary",
               "direction": 0,
               "event_type": "other",
-              "evidence_id": "ev-c03183aae97fc524d7b8",
+              "evidence_id": "ev-814b2dc3c844f5b4eea4",
               "materiality": 2,
-              "provider": "TradingView",
-              "published_at": "2026-11-04T15:41:20Z",
+              "provider": "Yahoo! Finance Canada",
+              "published_at": "2026-11-07T02:39:29Z",
               "source_kind": "news",
-              "title": "Why is Transcat (TRNS) stock soaring today - TradingView",
-              "url": "https://news.google.com/rss/articles/CBMiowFBVV95cUxPekl0bl9vNlRqMXBBVWZYX1BTeEsyYnd2ME9XOG84TDV0dXBRZFNuS2Rwd3VkTndrWFM2OXRHNHhid0tEdFFWaUh5MFBhMlk4T3dHSy1abkRVYzk3YlRVTkdsdjBkQXhwYnByWXNZVk42T19zdW1vZFBjZEU2UGloTlVvNGVFRFdMck1TZzZxSVJLeHhpbEE0MGIzNWZhOEMwNVJV?oc=5"
+              "title": "Zimmer Biomet Holdings, Inc. (ZBH) Stock Price, News, Quote & History - Yahoo! Finance Canada",
+              "url": "https://news.google.com/rss/articles/CBMiUEFVX3lxTFAzbnh4ZmJuNzNUZGtGSnk1azZRN3NVQzhUU1FNOGVlalE1RjU0ckk3SHBUaGtrbHg1MzlVb3pLUDJ0SjZlMzc5UENvOHRyTEYy?oc=5"
+            },
+            {
+              "age_hours": 90.383,
+              "authority": "secondary",
+              "direction": 0,
+              "event_type": "other",
+              "evidence_id": "ev-61596d47b3f33652a523",
+              "materiality": 2,
+              "provider": "GuruFocus",
+              "published_at": "2026-11-06T00:27:32Z",
+              "source_kind": "news",
+              "title": "ZBH Maintained by Citigroup -- Price Target Raised to $117 - GuruFocus",
+              "url": "https://news.google.com/rss/articles/CBMimAFBVV95cUxQZjhFMlJ5TXRibUpXa0tCa0RydnEzR0M4ZTdyTHB4LWxUWVVNU2NXNTFWZ09XV3FWRnlEdUhLb0cwUkl4aC12YUZlOWw4M3hLbnFraDNndzQzRHlhdnhmUmNnNXpMYUJBY0FZby1MckZkMmF0anlVMXFDMkhBR3Y2ODk2Mm5kX1NuOXhtd1p6Q040d1V6VU9feg?oc=5"
+            },
+            {
+              "age_hours": 93.911,
+              "authority": "secondary",
+              "direction": 0,
+              "event_type": "other",
+              "evidence_id": "ev-933831230e6d26d0f4e7",
+              "materiality": 2,
+              "provider": "GuruFocus",
+              "published_at": "2026-11-05T20:55:52Z",
+              "source_kind": "news",
+              "title": "ZBH Maintained by Bernstein -- Price Target Raised to $107 - GuruFocus",
+              "url": "https://news.google.com/rss/articles/CBMimAFBVV95cUxPd3ZWVmNuVHJGRGNreFp0WE43T3JKR0Z1V0dEQ1FxSHNSZFpZME5uVENqR3M0OGMtNzd5OWtYd0hQN2NhNzhFMm9PR0h3V3VmSW81cmlDd0dIWjhpLUpuM3ZWeGszYUNPSzBRRlBJaWJWZ1BTZVR5V2JfTk5MYkQzb0lnWDZHdWVGaEJtWmxSMmZhVF9tX0FHcw?oc=5"
             }
           ],
           "evidence_metrics": {
-            "directional_overlay_points": 8.0,
-            "evidence_quality_score": 85.1672,
-            "explicit_directional_event_present": true,
+            "directional_overlay_points": 0.0,
+            "evidence_quality_score": 90.971,
+            "explicit_directional_event_present": false,
             "material_event_present": true,
             "maximum_materiality": 5,
-            "primary_count": 2,
-            "reaction_overlay_points": 0.0,
+            "primary_count": 4,
+            "reaction_overlay_points": 3.0,
             "secondary_count": 6,
-            "total_overlay_points": 8.0
+            "total_overlay_points": 3.0
           },
           "evidence_status": "COMPLETE",
           "features": {
-            "atr_fraction": 0.05191404666846983,
-            "last_close": 108.81999969482422,
+            "atr_fraction": 0.03476361801853403,
+            "last_close": 108.56999969482422,
             "latest_session": "2026-11-09",
-            "median_turnover_20d": 14944735.074234009,
+            "median_turnover_20d": 204036719.08340454,
             "returns": {
-              "1": 0.07201258402874866,
-              "20": 0.265054684277247,
-              "5": 0.2377161278565758,
-              "60": 0.16136609646779387
+              "1": 0.028222402313544004,
+              "20": 0.1779321021122091,
+              "5": 0.11525425163397185,
+              "60": 0.07868850520492976
             },
-            "volume_ratio_20d": 0.4590803932909196
+            "volume_ratio_20d": 0.3835153299926378
           },
           "freshness": {
             "global_cutoff": null,
             "latest_session": "2026-11-09",
-            "observed_at": "2026-11-09T15:48:59.569324Z",
-            "recheck_after": "2026-11-09T17:03:59.569324Z"
+            "observed_at": "2026-11-09T18:50:31.698020Z",
+            "recheck_after": "2026-11-09T20:05:31.698020Z"
           },
           "frontier_rank": 9,
           "liquidity": {
             "discovery_pass": true,
-            "median_turnover": 14944735.07,
+            "median_turnover": 204036719.08,
             "production_reference": 25000000.0,
-            "production_reference_pass": false
+            "production_reference_pass": true
           },
-          "market_data_symbol": "TRNS",
-          "name": "Transcat, Inc. - Common Stock",
-          "opportunity_score": 77.712037,
+          "market_data_symbol": "ZBH",
+          "name": "Zimmer Biomet Holdings, Inc. Common Stock",
+          "opportunity_score": 79.781411,
           "provider_health": {
             "primary": {
-              "cik": 99302,
+              "cik": 1136869,
               "ok": true,
               "provider": "SEC_EDGAR",
-              "recent_relevant": 2
+              "recent_relevant": 4
             },
             "secondary": {
               "ok": true,
@@ -994,310 +1470,152 @@
           },
           "relationship_rank": 9,
           "research_risk_plan": {
-            "atr_fraction": 0.05191405,
+            "atr_fraction": 0.03476362,
             "execution_ready": false,
             "execution_requirement": "fresh_quote_and_intraday_risk_revalidation",
             "holding_policy": "OPEN_ENDED_MODEL_CONTROLLED",
-            "reference_price": 108.81999969,
+            "reference_price": 108.56999969,
             "reward_risk": 2.0,
-            "risk_percent": 0.05451,
+            "risk_percent": 0.036502,
             "status": "VALID_RESEARCH_REFERENCE",
-            "stop": 102.88824883,
-            "target": 120.68350143
+            "stop": 104.6069994,
+            "target": 116.49600029
           },
           "sector": null,
           "sector_provenance": {},
-          "symbol": "TRNS"
+          "symbol": "ZBH"
         },
         {
           "admission": {
             "production_decision_influence": false,
             "status": "PENDING_SHADOW_PORTFOLIO_COMPARISON"
           },
-          "deep_opportunity_score": 85.259227,
-          "deep_rank": 6,
+          "deep_opportunity_score": 81.561422,
+          "deep_rank": 8,
           "evidence": [
             {
-              "age_hours": 151.817,
+              "age_hours": 28.19,
+              "authority": "secondary",
+              "direction": 0,
+              "event_type": "earnings",
+              "evidence_id": "ev-18d1e68b16f282a0cbdf",
+              "materiality": 5,
+              "provider": "TradingKey",
+              "published_at": "2026-11-08T14:39:08Z",
+              "source_kind": "news",
+              "title": "Accenture (ACN) Crashed 18% After Earnings — Is a Forward P/E Below 10 a Buying Opportunity? - TradingKey",
+              "url": "https://news.google.com/rss/articles/CBMi3AFBVV95cUxOdkNPREZjWTdrcXBJWEg4dmJyUUdzZHVob3UweEJZLUpDX1VKQ25DS0JJbG9MZjlkVmh3MnNaUWtKaDVZcGE3UTM2UGRpRXVJSFRNaXc4OHROWjluQzE0Ull3VDA5R1g4dW5HUmdhLVdTdmM0UkhWU1MxT0NQZmYySnhXQjEtYTNHS0NEM1lXVHBJUU1jT1Q4dTR4ZDJya1hta1FiQVdHM2xiUVluUjBOUjBtMk41ektsc3lMTUlSSzQ3Qmx2bjNvQlphemtIaTl6b2M4b0p6bzhKREtT?oc=5"
+            },
+            {
+              "age_hours": 68.028,
               "authority": "secondary",
               "direction": 0,
               "event_type": "guidance",
-              "evidence_id": "ev-b0caeddc5168260a45f1",
+              "evidence_id": "ev-f25398e2f8bc2c67a24b",
               "materiality": 5,
-              "provider": "Simply Wall St",
-              "published_at": "2026-11-03T08:00:00Z",
+              "provider": "StockInvest.us",
+              "published_at": "2026-11-06T22:48:50Z",
               "source_kind": "news",
-              "title": "Tyler Technologies (NYSE:TYL) Stock Forecast & Analyst Predictions - Simply Wall St",
-              "url": "https://news.google.com/rss/articles/CBMigAFBVV95cUxOeXRrak55LVNFY1N5ZmJqMkRJR0NaRzVHZ0N5TVpFTGVhYkJ5QVRxcDdlUDJrR19Cd1BlUHhzeVJkM3E3eV9wdjN4NVpLV3piaVduOUxKWGozNGlTUTQ3d3hCVndNV0hKNTZoSVd0ZGJncUhZMVlWWWlMY08zSzl3SA?oc=5"
+              "title": "Accenture Stock Price Forecast. Should You Buy ACN? - StockInvest.us",
+              "url": "https://news.google.com/rss/articles/CBMiR0FVX3lxTE12am5rZUNPMU9aMlZyMFloWjNLRElJRU80N1RqWmliR24xcGhYTWNYYzVHb0M3LWRQUDkwRUFlR3pvVTh3YzhB?oc=5"
             },
             {
-              "age_hours": 29.352,
+              "age_hours": 82.842,
+              "authority": "secondary",
+              "direction": 0,
+              "event_type": "guidance",
+              "evidence_id": "ev-a7d5b95b62c317c07620",
+              "materiality": 5,
+              "provider": "MarketBeat",
+              "published_at": "2026-11-06T08:00:00Z",
+              "source_kind": "news",
+              "title": "Accenture (ACN) Stock Forecast and Price Target 2026 $ACN - MarketBeat",
+              "url": "https://news.google.com/rss/articles/CBMiYkFVX3lxTE1MRFFUVjZzcTdwVTdXU2FyNkpNQWdQNUV0LThoaXc5OWxtc09xUmdadWNXcXR5SnVudUk3bjMzcms0TDBxcFNTR29GZFFrREJabGdYYm1QNVRVZHg1UmdjTWdn?oc=5"
+            },
+            {
+              "age_hours": 7.298,
               "authority": "secondary",
               "direction": 0,
               "event_type": "other",
-              "evidence_id": "ev-c69610565a16baa58d65",
+              "evidence_id": "ev-aa801fe5c1f356d240f5",
               "materiality": 2,
               "provider": "Yahoo Finance UK",
-              "published_at": "2026-11-08T10:27:54Z",
+              "published_at": "2026-11-09T11:32:40Z",
               "source_kind": "news",
-              "title": "Tyler Technologies, Inc. (TYL) stock price, news, quote and history - Yahoo Finance UK",
-              "url": "https://news.google.com/rss/articles/CBMiUEFVX3lxTE9CUndHakhEOVNYZ3ZUUmp5Yjg4MkpXUTg0NHZhemYwRXZubEVSUkNxVFUtcXJqSGMySlNKdXpCSTBWX3lZYk02aFlDX0lQWEtX?oc=5"
+              "title": "Accenture plc (ACN) stock price, news, quote and history - Yahoo Finance UK",
+              "url": "https://news.google.com/rss/articles/CBMiUEFVX3lxTFBPbjRTUllLeTZQbHZyaHNHaVdBUzFqRmJpVERyQVR2NnBqRUNCQ015bFBGaVd3dlRwTXU5Vkh3RVBRNklHWldUN3JTMXpCUV9H?oc=5"
             },
             {
-              "age_hours": 48.877,
+              "age_hours": 50.099,
               "authority": "secondary",
               "direction": 0,
               "event_type": "other",
-              "evidence_id": "ev-1f44e361c2eecb447ab6",
+              "evidence_id": "ev-8e097f82f9b14b875e28",
               "materiality": 2,
               "provider": "Yahoo! Finance Canada",
-              "published_at": "2026-11-07T14:56:22Z",
+              "published_at": "2026-11-07T16:44:35Z",
               "source_kind": "news",
-              "title": "Tyler Technologies, Inc. (TYL) Stock Price, News, Quote & History - Yahoo! Finance Canada",
-              "url": "https://news.google.com/rss/articles/CBMiUEFVX3lxTE1SYTVOb1JrZ09meENnTHN0NUkzeUE4bDNUczYxaF9TTUFsMjhRb0VndUs1THAzc2xsd243TnhhQjhoNkFDcVN4V1N1ME00UVNB?oc=5"
+              "title": "Accenture plc (ACN) Stock Price, News, Quote & History - Yahoo! Finance Canada",
+              "url": "https://news.google.com/rss/articles/CBMiUEFVX3lxTE10VW5xQnpvVW5CQ1FBX2VMUFdwSFdVbkVGaEFmMVpOYnhjZksyMVBwa0toSW9lUkpfM1J1bFpGanVranZOSTlmVEdMMXRUWVBX?oc=5"
             },
             {
-              "age_hours": 77.725,
+              "age_hours": 127.903,
               "authority": "secondary",
               "direction": 0,
               "event_type": "other",
-              "evidence_id": "ev-96a33e2ff79400d54eaf",
+              "evidence_id": "ev-45a8fffb1c90365573f0",
               "materiality": 2,
-              "provider": "MEXC",
-              "published_at": "2026-11-06T10:05:29Z",
+              "provider": "Trefis",
+              "published_at": "2026-11-04T10:56:23Z",
               "source_kind": "news",
-              "title": "Your Easiest Way to Crypto - Trade Bitcoin, Ethereum &Most Trending Tokens - MEXC",
-              "url": "https://news.google.com/rss/articles/CBMihgFBVV95cUxOWWVBcG1MY2hXTHQzNkFwWHMxZjdtb2R3djF3OS1mSm5kTndTOHo4MVo2TjNqR0tTb2JBZW9YYzVkVjlEd1AyOHZUUW13UmFNYThjNjFPRGxrZm12UG5pbG04OW9zeEs3MTFRc1NaWi1RbzROTGlqMG5pbGNKU0puVERGcmFyUQ?oc=5"
-            },
-            {
-              "age_hours": 110.28,
-              "authority": "secondary",
-              "direction": 0,
-              "event_type": "other",
-              "evidence_id": "ev-f047e5600cb30b28c3d9",
-              "materiality": 2,
-              "provider": "GuruFocus",
-              "published_at": "2026-11-05T01:32:14Z",
-              "source_kind": "news",
-              "title": "Tyler Technologies Inc (TYL) Stock Up 4.7% and Still Undervalued -- GF Score: 93/100 - GuruFocus",
-              "url": "https://news.google.com/rss/articles/CBMitAFBVV95cUxNeXA3Sm5QWWxKclRUck5QVTZ1S21HblRvQkZzYTF6RDdLS1dOZWJPVjR6cl9nczN4a1VHZWVxWmtTYTFIVzZPZ1ZORDk4MTBvYmVCdmU5SFlNUW9qNWtWaWRXQ05zVXFRSV9TM2xTRms4QnRuQXNtSjdiOVk3Z2JPMG5lek82OXdwVXdEODRNUGxSalVXcV8ydFdTSXFrVDhodGpyOF9yanNEMDg1enJmUGpra04?oc=5"
-            },
-            {
-              "age_hours": 121.533,
-              "authority": "secondary",
-              "direction": 0,
-              "event_type": "other",
-              "evidence_id": "ev-da32d2943dd47bbda35a",
-              "materiality": 2,
-              "provider": "Stock Titan",
-              "published_at": "2026-11-04T14:17:00Z",
-              "source_kind": "news",
-              "title": "Three Tyler Technologies talks will be available live online. - Stock Titan",
-              "url": "https://news.google.com/rss/articles/CBMivgFBVV95cUxQd2x3TU9HaHk0cUFDQUNCZ0h5RXZUS3p6Yzc4MFB5TkRQNkt0djltUVk3X092SXJoRWJKTmtZU3FfN011Z2RMNWF0aEY4RFYwM3drWDJBU2N5TW4wZUdBQ2EtX29ZZmpYcloxRGdMcVllNXo4VnRjODZ5T044eUlTUGdfa0FrZlRDS0lmemRDalVCODdUX2xHbTVScWFrS1V0UVRJNXM3bm1tU2RoRjE5N1ZMcmdrd3NSb05ycERn?oc=5"
+              "title": "Can Accenture Stock Jump 30%? - Trefis",
+              "url": "https://news.google.com/rss/articles/CBMikwFBVV95cUxOczZodmNyd1d0Q0ZjWURENWZQd0lZSDhXNWdBSUF4TGI2TTlTdV9xdUVrN1J0Sk5MYnlmUmlsSGtXaV9veXk5RFh2c1JVUXRfbmVsaktvV3h4TUFzOFZjSkNwTXdPSng0ZlJNV3p1SlVaZ1RPWlhLSEE2WVU4V09nelZnY1haR1FXUndOczIyMGFpXzA?oc=5"
             }
           ],
           "evidence_metrics": {
             "directional_overlay_points": 0.0,
-            "evidence_quality_score": 73.7176,
+            "evidence_quality_score": 75.1083,
             "explicit_directional_event_present": false,
             "material_event_present": true,
             "maximum_materiality": 5,
             "primary_count": 0,
-            "reaction_overlay_points": 0.0,
+            "reaction_overlay_points": -3.0,
             "secondary_count": 6,
-            "total_overlay_points": 0.0
+            "total_overlay_points": -3.0
           },
           "evidence_status": "COMPLETE",
           "features": {
-            "atr_fraction": 0.03939580233301952,
-            "last_close": 414.6199951171875,
+            "atr_fraction": 0.045325970118435824,
+            "last_close": 258.4375,
             "latest_session": "2026-11-09",
-            "median_turnover_20d": 290758317.8100586,
+            "median_turnover_20d": 1506393792.8703308,
             "returns": {
-              "1": -0.014124030996501724,
-              "20": 0.21968580378725355,
-              "5": 0.02643955194145553,
-              "60": 0.261623590057124
+              "1": -0.00791746641074853,
+              "20": 0.20276216257673063,
+              "5": -0.009590336544770262,
+              "60": 0.461006845450437
             },
-            "volume_ratio_20d": 0.15424726092249424
+            "volume_ratio_20d": 0.32402527133263315
           },
           "freshness": {
             "global_cutoff": null,
             "latest_session": "2026-11-09",
-            "observed_at": "2026-11-09T15:48:59.569324Z",
-            "recheck_after": "2026-11-09T17:03:59.569324Z"
-          },
-          "frontier_rank": 2,
-          "liquidity": {
-            "discovery_pass": true,
-            "median_turnover": 290758317.81,
-            "production_reference": 25000000.0,
-            "production_reference_pass": true
-          },
-          "market_data_symbol": "TYL",
-          "name": "Tyler Technologies, Inc. Common Stock",
-          "opportunity_score": 85.259227,
-          "provider_health": {
-            "primary": {
-              "cik": 860731,
-              "ok": true,
-              "provider": "SEC_EDGAR",
-              "recent_relevant": 0
-            },
-            "secondary": {
-              "ok": true,
-              "provider": "GOOGLE_NEWS_RSS",
-              "recent_relevant": 6
-            }
-          },
-          "relationship_rank": 2,
-          "research_risk_plan": {
-            "atr_fraction": 0.0393958,
-            "execution_ready": false,
-            "execution_requirement": "fresh_quote_and_intraday_risk_revalidation",
-            "holding_policy": "OPEN_ENDED_MODEL_CONTROLLED",
-            "reference_price": 414.61999512,
-            "reward_risk": 2.0,
-            "risk_percent": 0.041366,
-            "status": "VALID_RESEARCH_REFERENCE",
-            "stop": 397.46899338,
-            "target": 448.9219986
-          },
-          "sector": null,
-          "sector_provenance": {},
-          "symbol": "TYL"
-        },
-        {
-          "admission": {
-            "production_decision_influence": false,
-            "status": "PENDING_SHADOW_PORTFOLIO_COMPARISON"
-          },
-          "deep_opportunity_score": 83.189481,
-          "deep_rank": 7,
-          "evidence": [
-            {
-              "age_hours": 61.398,
-              "authority": "secondary",
-              "direction": 0,
-              "event_type": "other",
-              "evidence_id": "ev-3e17f14992ee5d9c5c80",
-              "materiality": 2,
-              "provider": "Yahoo Finance UK",
-              "published_at": "2026-11-07T02:25:08Z",
-              "source_kind": "news",
-              "title": "ASUSTeK Computer Inc. (2357.TW) stock price, news, quote and history - Yahoo Finance UK",
-              "url": "https://news.google.com/rss/articles/CBMiVkFVX3lxTE1wSkM4WWJNb1R6TmhEUnoxYnNYTFNtejk1MjJvUkwwSlJOaWw4Q0cyYXoxMFRZbjJtRTV3d2w0TjdnVEptZXhmSGJWamZ5MnBES1A2TG53?oc=5"
-            },
-            {
-              "age_hours": 79.817,
-              "authority": "secondary",
-              "direction": 0,
-              "event_type": "other",
-              "evidence_id": "ev-50de56dc20eb42d69529",
-              "materiality": 2,
-              "provider": "Yahoo! Finance Canada",
-              "published_at": "2026-11-06T08:00:00Z",
-              "source_kind": "news",
-              "title": "Alchip Technologies, Limited (3661.TW) Stock Price, News, Quote & History - Yahoo! Finance Canada",
-              "url": "https://news.google.com/rss/articles/CBMiVkFVX3lxTE96VWZ1U3VQY1hOUlFYUzA5bU92N2pwTFdMRmdSTm0zMWxBSlNmaVc0SHdxSXdWZXVhUm1fTFpwUV93a3lsenlmT21Oc0VEWFo2UE1FSGJn?oc=5"
-            },
-            {
-              "age_hours": 79.817,
-              "authority": "secondary",
-              "direction": 0,
-              "event_type": "other",
-              "evidence_id": "ev-a48486fb5e496fc981a5",
-              "materiality": 2,
-              "provider": "Yahoo! Finance Canada",
-              "published_at": "2026-11-06T08:00:00Z",
-              "source_kind": "news",
-              "title": "Wiwynn Corporation (6669.TW) Stock Price, News, Quote & History - Yahoo! Finance Canada",
-              "url": "https://news.google.com/rss/articles/CBMiVkFVX3lxTE03UzZ0OGo1dWlBYVptVEVhaEU0MlNvdmRqanJCTzRqckFucTNQQjd2VmNYZk5JX3lZOEN4MC1KaU1QS0tBY2NxSkFZd0EzWkpqZEdWZHVR?oc=5"
-            },
-            {
-              "age_hours": 82.314,
-              "authority": "secondary",
-              "direction": 0,
-              "event_type": "other",
-              "evidence_id": "ev-5a58b05a36d6bfb1f329",
-              "materiality": 2,
-              "provider": "Yahoo! Finance Canada",
-              "published_at": "2026-11-06T05:30:09Z",
-              "source_kind": "news",
-              "title": "Powertech Technology Inc. (6239.TW) Stock Price, News, Quote & History - Yahoo! Finance Canada",
-              "url": "https://news.google.com/rss/articles/CBMiVkFVX3lxTE1EbHUzMVg2YlRhRVZBU1hzV2F4d1FVLTgwUHFEMmo5OGFqVkdWbHZabWRtRUxjTVFXaFVSUjM1OElBTDJTejZrc3J0Zk02UlZ1cTQ5eUdB?oc=5"
-            },
-            {
-              "age_hours": 86.793,
-              "authority": "secondary",
-              "direction": 0,
-              "event_type": "other",
-              "evidence_id": "ev-598be70dcc310eb82c71",
-              "materiality": 2,
-              "provider": "Yahoo Finance UK",
-              "published_at": "2026-11-06T01:01:24Z",
-              "source_kind": "news",
-              "title": "United Microelectronics Corporation (2303.TW) stock price, news, quote and history - Yahoo Finance UK",
-              "url": "https://news.google.com/rss/articles/CBMiVkFVX3lxTE12QTFUcFpDMTZoQ1JiZGJoMi15ZWZvNHBlaTY0cW5HNm10LUN4czRzYnUwcjJaSDBhYXh0Q1k2c01YNWZoc0RkUnNFTVhnNWQ0WlIwMzNR?oc=5"
-            },
-            {
-              "age_hours": 91.967,
-              "authority": "secondary",
-              "direction": 0,
-              "event_type": "other",
-              "evidence_id": "ev-37a07f2af260c08c4bad",
-              "materiality": 2,
-              "provider": "Yahoo Finance UK",
-              "published_at": "2026-11-05T19:51:00Z",
-              "source_kind": "news",
-              "title": "Winbond Electronics Corporation (2344.TW) stock price, news, quote and history - Yahoo Finance UK",
-              "url": "https://news.google.com/rss/articles/CBMiVkFVX3lxTFByT05QSGNGdEtNY0ZtVWFPVFJqdWZQS2hIU2R5YnlCYzlpQnlfX3BSRzRKMEhHNVBReFM0RzlKM2VQcU44OGVxRlg2djAtZW94LTVxY2dn?oc=5"
-            }
-          ],
-          "evidence_metrics": {
-            "directional_overlay_points": 0.0,
-            "evidence_quality_score": 62.1738,
-            "explicit_directional_event_present": false,
-            "material_event_present": false,
-            "maximum_materiality": 2,
-            "primary_count": 0,
-            "reaction_overlay_points": 0.0,
-            "secondary_count": 6,
-            "total_overlay_points": 0.0
-          },
-          "evidence_status": "COMPLETE",
-          "features": {
-            "atr_fraction": 0.0256636613314015,
-            "last_close": 126.13999938964844,
-            "latest_session": "2026-11-09",
-            "median_turnover_20d": 195990574.92141724,
-            "returns": {
-              "1": -0.012448163512859156,
-              "20": 0.14019707603085263,
-              "5": 0.017094039702996167,
-              "60": 0.18675320635189974
-            },
-            "volume_ratio_20d": 0.15674696485623002
-          },
-          "freshness": {
-            "global_cutoff": null,
-            "latest_session": "2026-11-09",
-            "observed_at": "2026-11-09T15:48:59.569324Z",
-            "recheck_after": "2026-11-09T17:03:59.569324Z"
+            "observed_at": "2026-11-09T18:50:31.698020Z",
+            "recheck_after": "2026-11-09T20:05:31.698020Z"
           },
           "frontier_rank": 3,
           "liquidity": {
             "discovery_pass": true,
-            "median_turnover": 195990574.92,
+            "median_turnover": 1506393792.87,
             "production_reference": 25000000.0,
             "production_reference_pass": true
           },
-          "market_data_symbol": "TW",
-          "name": "Tradeweb Markets Inc. - Class A Common Stock",
-          "opportunity_score": 83.189481,
+          "market_data_symbol": "ACN",
+          "name": "Accenture plc Class A Ordinary Shares (Ireland)",
+          "opportunity_score": 84.561422,
           "provider_health": {
             "primary": {
-              "cik": 1758730,
+              "cik": 1467373,
               "ok": true,
               "provider": "SEC_EDGAR",
               "recent_relevant": 0
@@ -1310,155 +1628,183 @@
           },
           "relationship_rank": 3,
           "research_risk_plan": {
-            "atr_fraction": 0.02566366,
+            "atr_fraction": 0.04532597,
             "execution_ready": false,
             "execution_requirement": "fresh_quote_and_intraday_risk_revalidation",
             "holding_policy": "OPEN_ENDED_MODEL_CONTROLLED",
-            "reference_price": 126.13999939,
+            "reference_price": 258.4375,
             "reward_risk": 2.0,
-            "risk_percent": 0.026947,
+            "risk_percent": 0.047592,
             "status": "VALID_RESEARCH_REFERENCE",
-            "stop": 122.74092445,
-            "target": 132.93814926
+            "stop": 246.13787308,
+            "target": 283.03675385
           },
           "sector": null,
           "sector_provenance": {},
-          "symbol": "TW"
+          "symbol": "ACN"
         },
         {
           "admission": {
             "production_decision_influence": false,
             "status": "PENDING_SHADOW_PORTFOLIO_COMPARISON"
           },
-          "deep_opportunity_score": 82.592845,
-          "deep_rank": 8,
+          "deep_opportunity_score": 81.342596,
+          "deep_rank": 9,
           "evidence": [
             {
-              "age_hours": 64.963,
-              "authority": "secondary",
+              "age_hours": 125.257,
+              "authority": "primary",
               "direction": 0,
-              "event_type": "guidance",
-              "evidence_id": "ev-b3bea58486a2bcb4656b",
+              "event_type": "earnings",
+              "evidence_id": "ev-0ec96d45022712474878",
+              "form": "10-Q",
               "materiality": 5,
-              "provider": "StockInvest.us",
-              "published_at": "2026-11-06T22:51:13Z",
-              "source_kind": "news",
-              "title": "Toll Brothers Stock Price Forecast. Should You Buy TOL? - StockInvest.us",
-              "url": "https://news.google.com/rss/articles/CBMiR0FVX3lxTE5vOENSazNqeUMzNnRkN2ZUdWVIenhGZWszWVp1MXI2SXJ5b3JRX0xoZTZfVkFoS0dMQjlhbm9jLS1vSjFYYmZF?oc=5"
+              "provider": "SEC_EDGAR",
+              "published_at": "2026-11-04T13:35:08Z",
+              "source_kind": "regulatory_filing",
+              "title": "SEC 10-Q — 10-Q",
+              "url": "https://www.sec.gov/Archives/edgar/data/1856314/000185631426000055/you-20260930.htm"
             },
             {
-              "age_hours": 39.393,
+              "age_hours": 127.792,
+              "authority": "primary",
+              "direction": 0,
+              "event_type": "other",
+              "evidence_id": "ev-88e1f5053a817bc5c0de",
+              "form": "8-K",
+              "materiality": 5,
+              "provider": "SEC_EDGAR",
+              "published_at": "2026-11-04T11:03:02Z",
+              "source_kind": "regulatory_filing",
+              "title": "SEC 8-K — 8-K",
+              "url": "https://www.sec.gov/Archives/edgar/data/1856314/000185631426000053/you-20261104.htm"
+            },
+            {
+              "age_hours": 61.212,
               "authority": "secondary",
               "direction": 0,
               "event_type": "other",
-              "evidence_id": "ev-e5a83c3fda3fc4909bb4",
+              "evidence_id": "ev-f55e2aaf3f3303a70862",
               "materiality": 2,
               "provider": "Yahoo Finance UK",
-              "published_at": "2026-11-08T00:25:24Z",
+              "published_at": "2026-11-07T05:37:48Z",
               "source_kind": "news",
-              "title": "TOL Jun 2027 170.000 put (TOL270617P00170000) stock price, news, quote and history - Yahoo Finance UK",
-              "url": "https://news.google.com/rss/articles/CBMiZEFVX3lxTE9vQm1idTV2Y3Ayd0F5SjEyRUZwaHQ4THVtQloweEt0ak5VSnFteEN2bUFvLTl5UkN2NmlpMG9uUzhEcVhoaHcybGRycFJNX1VhalBqMXI1cEtxUE1NUkoxWW0tY0k?oc=5"
+              "title": "Clear Secure, Inc. (YOU) stock price, news, quote and history - Yahoo Finance UK",
+              "url": "https://news.google.com/rss/articles/CBMiUEFVX3lxTFB3aDRPbEc3N1k5YVpOMGVfcWl3YXJ4R1laZFRYaDZjZ1JzN2dBM0MxWHJuRWNUUlMyUXZIQ0VHUG9CUTRpS0JxOV9SZ24zVFd5?oc=5"
             },
             {
-              "age_hours": 69.223,
+              "age_hours": 63.853,
               "authority": "secondary",
               "direction": 0,
               "event_type": "other",
-              "evidence_id": "ev-7bb4d92b0201094ccbc1",
+              "evidence_id": "ev-78268b2f25d594b05c35",
               "materiality": 2,
               "provider": "Yahoo! Finance Canada",
-              "published_at": "2026-11-06T18:35:36Z",
+              "published_at": "2026-11-07T02:59:20Z",
               "source_kind": "news",
-              "title": "Toll Brothers, Inc. (TOL) Stock Price, News, Quote & History - Yahoo! Finance Canada",
-              "url": "https://news.google.com/rss/articles/CBMiUEFVX3lxTE5kTlh5Vm81MzhoQVZVUHphUXFGekxkU2pScTFyZm5QM1FmYll5RnNPYUxJb2p3N1UwNXNDRXMtcTlCUHJxeUVENnNZMTFEeFE4?oc=5"
+              "title": "Clear Secure, Inc. (YOU) Stock Price, News, Quote & History - Yahoo! Finance Canada",
+              "url": "https://news.google.com/rss/articles/CBMiUEFVX3lxTE9qU1hyMEpOOWRfNFB5cE9JS016SDQtYkYtYXNMR0RPdkVxQkNLZ1ctSHdkTnNxM2FQV1liTV8wRlVzMDRWNTc0VTBNWW9wWHJG?oc=5"
             },
             {
-              "age_hours": 138.066,
+              "age_hours": 65.759,
               "authority": "secondary",
               "direction": 0,
               "event_type": "other",
-              "evidence_id": "ev-2316c9c66ee5bee573ae",
+              "evidence_id": "ev-d0cff2131fa5ceca9523",
               "materiality": 2,
               "provider": "Yahoo Finance",
-              "published_at": "2026-11-03T21:45:02Z",
+              "published_at": "2026-11-07T01:05:00Z",
               "source_kind": "news",
-              "title": "Toll Brothers (TOL) Stock Sinks As Market Gains: Here's Why - Yahoo Finance",
-              "url": "https://news.google.com/rss/articles/CBMimgFBVV95cUxOX0VlUFNzNWhfd3gyZTVFYXdDRW5CaFp1TE1vN0VFaEZvSjV4d1pRQm9qMmJYblhGVVl1RDJZcmNXWXZnX1d5ZmVhbm52c0c3T0VfaE9pOW1rTnFURFlyOWtEQjVhQ2I3ODBrMVlsYU1BLTVOclNlYmkwMU5kTERSeFZWR1FTdkZMY0VsazM3VWZlU0xBcUE0NktB?oc=5"
+              "title": "Are You Sure You Understand Vertiv Stock's Risk? - Yahoo Finance",
+              "url": "https://news.google.com/rss/articles/CBMioAFBVV95cUxQRVFyY25KdHplcElKQldEX0FBRVJOM3FxOUdtOTRObElqQ01SaEdReVhzVUJ3MzRtR0ptOWU1Z1JSckxxSUdWc2xGLUFYSEZkdndnaDFjQUZIeFRqWll6SDNZcjFzV2lIVXJSbG9nX01uaUI2M0cyLVl4NzEtbWN6b3hWaTNMeXpMd0FsTW1mdnFyTEF2LUNpZXdYLXZDNjZJ?oc=5"
             },
             {
-              "age_hours": 146.316,
+              "age_hours": 86.759,
               "authority": "secondary",
               "direction": 0,
               "event_type": "other",
-              "evidence_id": "ev-003fc53d4c4db4ced65b",
+              "evidence_id": "ev-2631368a9fc38d64d6ab",
               "materiality": 2,
               "provider": "Yahoo Finance",
-              "published_at": "2026-11-03T13:30:03Z",
+              "published_at": "2026-11-06T04:05:00Z",
               "source_kind": "news",
-              "title": "Wall Street Bulls Look Optimistic About Toll Brothers (TOL): Should You Buy? - Yahoo Finance",
-              "url": "https://news.google.com/rss/articles/CBMinwFBVV95cUxNUWtTakxJbk42TTR4SGljb3ZIS3RjcklMNzNGZmtOQl9oLXRLYlJSOUk0enNTY2RLNjdsUG1PSzR5YWFfR2ZaVEtUNElXa0t2eFMyLVIzejFtRkUtSzM5ODNKUGRiOGNocXNQMzVHTWh0dzZmMDRkbk02TDVBWTVyUFlYSDVCZXpHSjhrODZ2Vmpyc1k0MkVJVzRDcWdUN28?oc=5"
+              "title": "Do You Like Cash? Consider Reddit Stock - Yahoo Finance",
+              "url": "https://news.google.com/rss/articles/CBMilgFBVV95cUxOaDlMR29OdVhJNVE5THhBT3llSVZmV1NINThTUTBKcmNaQ0RaQm1PZUdsQlNEUjltUXBySU85R3huUHcwR2tMZklnYWV0Vm5oejJweWwxSmlOdEZic1FUMjZBaHoxazJzSG1LVUNtVExSWWVRSjZLUGhEdTBGaWpwQ2tMX3dkT3lRODJXb0NCSW9FUnU3TFE?oc=5"
             },
             {
-              "age_hours": 146.815,
+              "age_hours": 129.121,
               "authority": "secondary",
               "direction": 0,
               "event_type": "other",
-              "evidence_id": "ev-c1fa436fb21b95eb2d6c",
+              "evidence_id": "ev-159b74802052be4d5989",
               "materiality": 2,
               "provider": "Yahoo Finance",
-              "published_at": "2026-11-03T13:00:05Z",
+              "published_at": "2026-11-04T09:43:15Z",
               "source_kind": "news",
-              "title": "Here is What to Know Beyond Why Toll Brothers Inc. (TOL) is a Trending Stock - Yahoo Finance",
-              "url": "https://news.google.com/rss/articles/CBMimgFBVV95cUxNSEFlR01WUHYxcTBjWmxfZjNPZUN3V213THVXY0VKaGdZODhkbnBhRWR4UzlCLUZ4QU1tYXVqckRaWEJtXzc2UUl3S3NrV3ptZnJ6RnRPRnZEN1p2OURMOGQtSkViUW9GWlVCUVlqbFQ2SFUzT0dvZzdYeVR2WUEtWXRxck40VjFNNGhmV1BPdjZIUmNmeVljOFF3?oc=5"
+              "title": "Should You Buy Dollar General Stock At This Price? - Yahoo Finance",
+              "url": "https://news.google.com/rss/articles/CBMimwFBVV95cUxQX3BPUV9vMlUzVEpBcm9MY2JVWUM2S09jWWQxYjFFWll2WGJ6eEU5T1lwYWNmcnpHMmRLVzlCVEFLV282OTc0SFdFSTZyZEEtUVZRZmZSQk5FZGdoTlBuaW8zVWUyN0d1S0hENUdXeEdfdm41SlVUdVlTSzJFS1hiQVhfYk83bE52RVFDQXZUQV84UjEwbFdOOHhSNA?oc=5"
+            },
+            {
+              "age_hours": 155.817,
+              "authority": "secondary",
+              "direction": 0,
+              "event_type": "other",
+              "evidence_id": "ev-96b3c067dd78b3a1ac1d",
+              "materiality": 2,
+              "provider": "Morningstar",
+              "published_at": "2026-11-03T07:01:31Z",
+              "source_kind": "news",
+              "title": "If a Stock Has Doubled, Have You Missed Your Chance? - Morningstar",
+              "url": "https://news.google.com/rss/articles/CBMilwFBVV95cUxOdE4xeWRLOS1kVDNlWkMtMktlR1JMREk1S3JGVDYzenlteG05blcxYk9OZ1NGcjBDQUlsWExPSG9jdGFhUVQ1NU1XcURwUTV5b2I3M3hkeDQxNTF1TjlSb1JRSWhORVAzaF9Obkh1c045THMyUlkweEdRTE1YYVpoM1k5b3NsNktnY1Q5MW4xX0dMSzVtMUNV?oc=5"
             }
           ],
           "evidence_metrics": {
             "directional_overlay_points": 0.0,
-            "evidence_quality_score": 73.2002,
+            "evidence_quality_score": 85.1454,
             "explicit_directional_event_present": false,
             "material_event_present": true,
             "maximum_materiality": 5,
-            "primary_count": 0,
-            "reaction_overlay_points": 3.0,
+            "primary_count": 2,
+            "reaction_overlay_points": 0.0,
             "secondary_count": 6,
-            "total_overlay_points": 3.0
+            "total_overlay_points": 0.0
           },
           "evidence_status": "COMPLETE",
           "features": {
-            "atr_fraction": 0.033492899299294124,
-            "last_close": 155.14999389648438,
+            "atr_fraction": 0.054699039450149076,
+            "last_close": 55.29999923706055,
             "latest_session": "2026-11-09",
-            "median_turnover_20d": 144577652.41241455,
+            "median_turnover_20d": 63157299.95365143,
             "returns": {
-              "1": 0.016976903377937447,
-              "20": 0.1740446542738121,
-              "5": 0.011737774511425325,
-              "60": 0.0464017631737621
+              "1": -0.009138185337414062,
+              "20": 0.3024022710656016,
+              "5": 0.15328463727162034,
+              "60": 0.21672163495655905
             },
-            "volume_ratio_20d": 0.15606509147742945
+            "volume_ratio_20d": 0.6026284541523126
           },
           "freshness": {
             "global_cutoff": null,
             "latest_session": "2026-11-09",
-            "observed_at": "2026-11-09T15:48:59.569324Z",
-            "recheck_after": "2026-11-09T17:03:59.569324Z"
+            "observed_at": "2026-11-09T18:50:31.698020Z",
+            "recheck_after": "2026-11-09T20:05:31.698020Z"
           },
           "frontier_rank": 6,
           "liquidity": {
             "discovery_pass": true,
-            "median_turnover": 144577652.41,
+            "median_turnover": 63157299.95,
             "production_reference": 25000000.0,
             "production_reference_pass": true
           },
-          "market_data_symbol": "TOL",
-          "name": "Toll Brothers, Inc. Common Stock",
-          "opportunity_score": 79.592845,
+          "market_data_symbol": "YOU",
+          "name": "Clear Secure, Inc. Class A Common Stock",
+          "opportunity_score": 81.342596,
           "provider_health": {
             "primary": {
-              "cik": 794170,
+              "cik": 1856314,
               "ok": true,
               "provider": "SEC_EDGAR",
-              "recent_relevant": 0
+              "recent_relevant": 2
             },
             "secondary": {
               "ok": true,
@@ -1468,324 +1814,152 @@
           },
           "relationship_rank": 6,
           "research_risk_plan": {
-            "atr_fraction": 0.0334929,
+            "atr_fraction": 0.05469904,
             "execution_ready": false,
             "execution_requirement": "fresh_quote_and_intraday_risk_revalidation",
             "holding_policy": "OPEN_ENDED_MODEL_CONTROLLED",
-            "reference_price": 155.1499939,
+            "reference_price": 55.29999924,
             "reward_risk": 2.0,
-            "risk_percent": 0.035168,
+            "risk_percent": 0.057434,
             "status": "VALID_RESEARCH_REFERENCE",
-            "stop": 149.69374962,
-            "target": 166.06248245
+            "stop": 52.12389956,
+            "target": 61.6521986
           },
           "sector": null,
           "sector_provenance": {},
-          "symbol": "TOL"
+          "symbol": "YOU"
         },
         {
           "admission": {
             "production_decision_influence": false,
             "status": "PENDING_SHADOW_PORTFOLIO_COMPARISON"
           },
-          "deep_opportunity_score": 81.867201,
-          "deep_rank": 9,
-          "evidence": [
-            {
-              "age_hours": 90.644,
-              "authority": "primary",
-              "direction": 0,
-              "event_type": "other",
-              "evidence_id": "ev-1a1c407ca63ed096b8e5",
-              "form": "8-K",
-              "materiality": 5,
-              "provider": "SEC_EDGAR",
-              "published_at": "2026-11-05T21:10:23Z",
-              "source_kind": "regulatory_filing",
-              "title": "SEC 8-K — 8-K",
-              "url": "https://www.sec.gov/Archives/edgar/data/1552033/000155203326000061/ck0001552033-20261105.htm"
-            },
-            {
-              "age_hours": 112.881,
-              "authority": "secondary",
-              "direction": 0,
-              "event_type": "guidance",
-              "evidence_id": "ev-5233ce816bf1a88c018e",
-              "materiality": 5,
-              "provider": "Yahoo Finance",
-              "published_at": "2026-11-04T22:56:09Z",
-              "source_kind": "news",
-              "title": "TransUnion (TRU) Stock Forecasts - Yahoo Finance",
-              "url": "https://news.google.com/rss/articles/CBMijwFBVV95cUxOUGNGUjlnQ1JJMFlDdHRaZDh0bEhqVVVBbVpta2gwc3owOXNLazZXeVUyZVdYbEVEam1OUk9jNUlUWnNNVktUVTM5VzNNeDEwLXNlZTN2UFp0UmtGWEc1SllxZ2E3QWZoOEgwcjRQZVp3a1NHcGFEQW53cnpBdDBEQXNIcU80cEtuendYUjYwTQ?oc=5"
-            },
-            {
-              "age_hours": 144.383,
-              "authority": "secondary",
-              "direction": 0,
-              "event_type": "earnings",
-              "evidence_id": "ev-045ff286a259e5090fd1",
-              "materiality": 5,
-              "provider": "TradingView",
-              "published_at": "2026-11-03T15:26:00Z",
-              "source_kind": "news",
-              "title": "TransUnion Stock Barely Moves Since Posting Q3 Earnings & Revenue Beat - TradingView",
-              "url": "https://news.google.com/rss/articles/CBMiwgFBVV95cUxPeWZmNW96SGg5RXI2VnNWTjEzWFZZNzM0bFdCLXQ2X21Pbi1wSTJTNkJhQjVIWVhGZVFMNm1zTkNEUUJ5TkhyUGJzd0FCSW96bG1panIzcUhRRmFLR0xzcUVUUkpYTWpvZEZWQWVMMGdCNjNIOWk2VWhBVm9YMFhiOXlsYlkwY1k3MHgwWm1aSzBHTm93YXB1bkNYT00yazdUd0poVC1aWmlzWmh4RXJIME5fUXdDbTVWeVhlR0FuOHJNdw?oc=5"
-            },
-            {
-              "age_hours": 3.091,
-              "authority": "secondary",
-              "direction": 0,
-              "event_type": "other",
-              "evidence_id": "ev-825cb727dbf1e3fba8f0",
-              "materiality": 2,
-              "provider": "Quantisnow",
-              "published_at": "2026-11-09T12:43:32Z",
-              "source_kind": "news",
-              "title": "TransUnion downgraded by Rothschild & Co Redburn with a new price target - Quantisnow",
-              "url": "https://news.google.com/rss/articles/CBMiqgFBVV95cUxPdFQ5Wmd2dm9RR1NSaHAtMHNKaTVKeDlHbmNxdG03c1NEbk9HVDk1cUNEclc0Q1Z4N1BZUE9HaENleGh2SnkzNXlNNXlwWkVEb1BVRmYwZTRvdkNOaVFlN1ByUzZ5V1JLSGZrU1g2S0JtZFpNT0ZOems2RHZGOEJQR0JlckNKdGJ6eGo5ZkU3R0FtRkUyMzhldUFfUUg2QXpUcTNDRW5LNmxYdw?oc=5"
-            },
-            {
-              "age_hours": 125.515,
-              "authority": "secondary",
-              "direction": 0,
-              "event_type": "other",
-              "evidence_id": "ev-fd63575a60f862477bde",
-              "materiality": 2,
-              "provider": "Investing.com Nigeria",
-              "published_at": "2026-11-04T10:18:06Z",
-              "source_kind": "news",
-              "title": "TransUnion president Steven Chaouki sells $77,740 in TRU stock By Investing.com - Investing.com Nigeria",
-              "url": "https://news.google.com/rss/articles/CBMivgFBVV95cUxOQUFSdkdlM2xIbUM1TUVxMEs5YWgtR1FmaHpmRXprUVNUV05nSlp1OEpmcFJzUnhaLXdfX1VobmduVnJ6MzJ1bExvcmVPQ2pQeVo3T1NaaHJyVGJqX1ltVTItb0x4cWNYZXNKblpzemJvYmlLbG91cDNRbnFuMjB4NEVfZE55aENOQ0lGdXF0SHN1Qi0wMFhKVWlXWkhNaDhUbDlDRzVKMGQwejBkYVdtN1BQRTl2SFNLVVRwZlln?oc=5"
-            },
-            {
-              "age_hours": 128.046,
-              "authority": "secondary",
-              "direction": 0,
-              "event_type": "other",
-              "evidence_id": "ev-c65ead68e857e6aaf0ab",
-              "materiality": 2,
-              "provider": "Moomoo",
-              "published_at": "2026-11-04T07:46:14Z",
-              "source_kind": "news",
-              "title": "TRU 261120 55.00C (TRU261120C55000) Stock Options Chain | Quotes & News - Moomoo",
-              "url": "https://news.google.com/rss/articles/CBMiqgJBVV95cUxPYU5PdVFWeV9oc1c5R3V5SGZXRGZqX0xFUmlpTXRxcWo4TGowczhMdFRMS2tfdF9uLWVPNnEtTGJkSVFqMGtuUm5iU0N1UVdNRDZraWg2SFk5bS1fNDZaTmxibXRmcUp3cHVOVTY2MDBHckkySHJwdTRCRVlFTnhQTmkxNHNlVEF1dXBvanhpWWJaNzNtZ2k3X2VJdmdpQnRLUGdYVllmcjI3ZTN4YnJJdjJ2MEs1N0dqSGdVOWtmVXJyYks5WDRvdmdESGJNdlppdUdYdURBeWFpS1JVNzU2N1N4SldsYlRPSmJ0alBhdEczeC1Nb1IwYkJQNVlQOTdCd2ljRTAzaklpQkFERlhCWUQxMkRZVUExdlVQaEU1TnNja2k0dTBFTldB?oc=5"
-            },
-            {
-              "age_hours": 146.8,
-              "authority": "secondary",
-              "direction": 0,
-              "event_type": "other",
-              "evidence_id": "ev-9fbf87834a9909b2cbd3",
-              "materiality": 2,
-              "provider": "Stock Titan",
-              "published_at": "2026-11-03T13:01:00Z",
-              "source_kind": "news",
-              "title": "TIME lists TransUnion among companies judged on workers, finances and sustainability - Stock Titan",
-              "url": "https://news.google.com/rss/articles/CBMiswFBVV95cUxQeW1sOG1ZQ3ZPT0xyNWZucFFVMVV5VFdFaGlDM3Nla09zWURIRXNiZFpUVHhGUDJkTHNjNE9zU25qU0F2WXZrcmZKZDYtb05TRjRiSnBpMV9QZmp6bjJNTW45T3lmRHFYUVpuSXdlVDZsVVU0czA0S0E2em9TVURXMWpjWE5XZVQxUi1vN0NpVEdEMlg1a01hcHhaaFQ4SWZIR3NKTHZZMEZFVS1HaEszcEdNTQ?oc=5"
-            }
-          ],
-          "evidence_metrics": {
-            "directional_overlay_points": 0.0,
-            "evidence_quality_score": 78.8887,
-            "explicit_directional_event_present": false,
-            "material_event_present": true,
-            "maximum_materiality": 5,
-            "primary_count": 1,
-            "reaction_overlay_points": 3.0,
-            "secondary_count": 6,
-            "total_overlay_points": 3.0
-          },
-          "evidence_status": "COMPLETE",
-          "features": {
-            "atr_fraction": 0.04441989221685681,
-            "last_close": 82.08999633789062,
-            "latest_session": "2026-11-09",
-            "median_turnover_20d": 267140859.5943451,
-            "returns": {
-              "1": 0.011209608638752755,
-              "20": 0.24247005777300434,
-              "5": 0.03609734771905382,
-              "60": 0.02000488212974605
-            },
-            "volume_ratio_20d": 0.09059337170073427
-          },
-          "freshness": {
-            "global_cutoff": null,
-            "latest_session": "2026-11-09",
-            "observed_at": "2026-11-09T15:48:59.569324Z",
-            "recheck_after": "2026-11-09T17:03:59.569324Z"
-          },
-          "frontier_rank": 8,
-          "liquidity": {
-            "discovery_pass": true,
-            "median_turnover": 267140859.59,
-            "production_reference": 25000000.0,
-            "production_reference_pass": true
-          },
-          "market_data_symbol": "TRU",
-          "name": "TransUnion Common Stock",
-          "opportunity_score": 78.867201,
-          "provider_health": {
-            "primary": {
-              "cik": 1552033,
-              "ok": true,
-              "provider": "SEC_EDGAR",
-              "recent_relevant": 1
-            },
-            "secondary": {
-              "ok": true,
-              "provider": "GOOGLE_NEWS_RSS",
-              "recent_relevant": 6
-            }
-          },
-          "relationship_rank": 8,
-          "research_risk_plan": {
-            "atr_fraction": 0.04441989,
-            "execution_ready": false,
-            "execution_requirement": "fresh_quote_and_intraday_risk_revalidation",
-            "holding_policy": "OPEN_ENDED_MODEL_CONTROLLED",
-            "reference_price": 82.08999634,
-            "reward_risk": 2.0,
-            "risk_percent": 0.046641,
-            "status": "VALID_RESEARCH_REFERENCE",
-            "stop": 78.26124611,
-            "target": 89.7474968
-          },
-          "sector": null,
-          "sector_provenance": {},
-          "symbol": "TRU"
-        },
-        {
-          "admission": {
-            "production_decision_influence": false,
-            "status": "PENDING_SHADOW_PORTFOLIO_COMPARISON"
-          },
-          "deep_opportunity_score": 80.365986,
+          "deep_opportunity_score": 79.583445,
           "deep_rank": 10,
           "evidence": [
             {
-              "age_hours": 2.05,
-              "authority": "secondary",
-              "direction": 0,
-              "event_type": "earnings",
-              "evidence_id": "ev-929af74f15fb16ba63c2",
-              "materiality": 5,
-              "provider": "24/7 Wall St.",
-              "published_at": "2026-11-09T13:46:00Z",
-              "source_kind": "news",
-              "title": "The Trade Desk Jumps 8% Ahead of Earnings; Magnite Gains 2%, AppLovin Dips - 24/7 Wall St.",
-              "url": "https://news.google.com/rss/articles/CBMitgFBVV95cUxPWDIwUUQ4SFgxUjJka0ZkZlhja29BdjEyVlRzbWI3UUxzY1p3UUEybUtFVXhjV18wTjZ3ZEhhOXBJOUQ3ZF9yRmxFUEZBUW9yT3N0bXdpRnd2aGRxa09RME05T1ZZOF9PQldUMkN1NUlMbmwxY0Y5UWpjZk80aTVORndUbmVra3lpUVQxb0xnV1ZaeWNsMGRfc1M0VFQ0SVBCTmIxbHJGSnRTWjhXU3dnZEtzSVZ1UQ?oc=5"
-            },
-            {
-              "age_hours": 77.627,
-              "authority": "secondary",
-              "direction": 0,
-              "event_type": "guidance",
-              "evidence_id": "ev-6640d09e0f0e8ac9e3e1",
-              "materiality": 5,
-              "provider": "CNN",
-              "published_at": "2026-11-06T10:11:24Z",
-              "source_kind": "news",
-              "title": "TTD Stock Quote Price and Forecast - CNN",
-              "url": "https://news.google.com/rss/articles/CBMiT0FVX3lxTE9hT3h0QmZCaF93YTdNbzhYa0g4bWZaamlJLUc4eVRYYnZHVVMtNDFHZUQ5LW8wZ1hESGlqOTh0QWtZZDZZXzZUY01oMVFRM0U?oc=5"
-            },
-            {
-              "age_hours": 144.609,
-              "authority": "secondary",
-              "direction": 0,
-              "event_type": "guidance",
-              "evidence_id": "ev-15decf4ee1217fa9d32d",
-              "materiality": 5,
-              "provider": "Yahoo Finance",
-              "published_at": "2026-11-03T15:12:28Z",
-              "source_kind": "news",
-              "title": "Is Trade Desk (TTD) Undervalued Following Slowing Growth And Weaker Guidance? - Yahoo Finance",
-              "url": "https://news.google.com/rss/articles/CBMiowFBVV95cUxQWVNGdUgtZUdfWV9oNDFtV09KTDdfTGw1eWdHVUY3azJMSF9EVTBramxGclhEUFRrZW4yUWxjand2WXlUR0dWUjI1bVpHVXBvbjY2eE5ITzJET0kzejlfRnM1bEpRZzJ4aWp3YjYxZEhiZURPVmZma2lvcUZnQTlsZTY3alI0VFJsd3pPZ3B4cHVFSm5YRl9yeWRJMUtwMkRjSS1r?oc=5"
-            },
-            {
-              "age_hours": 1.173,
+              "age_hours": 9.304,
               "authority": "secondary",
               "direction": 0,
               "event_type": "other",
-              "evidence_id": "ev-57aba887afda4e5851d3",
+              "evidence_id": "ev-a678cb75bd6625df0415",
               "materiality": 2,
-              "provider": "Benzinga",
-              "published_at": "2026-11-09T14:38:38Z",
+              "provider": "MarketBeat",
+              "published_at": "2026-11-09T09:32:19Z",
               "source_kind": "news",
-              "title": "What's Going On With The Trade Desk Stock Monday? - Benzinga",
-              "url": "https://news.google.com/rss/articles/CBMirAFBVV95cUxQMks4cGdQVlpqcjdfd1NOdFlyZHN1V3BvajVOUXRhRVZZT21temltMHVVcGdaT0RFZENudFpzWENfNzBpUEFjZkotS1pHb3NKZ1IyMXI4dG84ZUgzVW84VXF0SjJIbEhtY1p5dmQ1aTZGRmdBWmlKQ1EzT3cyYkRUUXZvRGwtS2V1eW9HLWFXVXRRSlpEQU1BWGxHaDZ4UHkyZ0Y0OEdsZkF2c2tQ?oc=5"
+              "title": "Zymeworks Inc. (NASDAQ:ZYME) Stock Has Consensus Price Target of $41.67 According to Brokerages - MarketBeat",
+              "url": "https://news.google.com/rss/articles/CBMi6gFBVV95cUxOU3haUUp6UHc0OUpaYW16N0Q4Z0RCcUpOSmo4eTdBM0VlU2pGWWZMYm53RVU5UmtCdWFFSGRHNUlza1NFQmhlZVZOUVVnTlY5Si1zQ2U2anBhN2Y2Nms1NVlCaDlpbzBhOWtMeTJ3LUl1d01sbWlOX2RuWlJEbm1IRzJya1c3OTJPc3RJNlRnRnVXQWQxOW5oc1pxdlljWE12eXlxb25xeTRialplOGJsTF81UmJrbFdKY2hPV2Z0QzJtaWpYc3ZMNGJCU2pjS1BVQl9zaW4tTjU3dGhReWZOazVvQk11QndLZmc?oc=5"
             },
             {
-              "age_hours": 54.947,
+              "age_hours": 38.1,
               "authority": "secondary",
               "direction": 0,
               "event_type": "other",
-              "evidence_id": "ev-b5897110f27045587d9e",
+              "evidence_id": "ev-da42f86271dc17d46476",
               "materiality": 2,
-              "provider": "Trefis",
-              "published_at": "2026-11-07T08:52:11Z",
+              "provider": "Yahoo! Finance Canada",
+              "published_at": "2026-11-08T04:44:31Z",
               "source_kind": "news",
-              "title": "Should You Buy Trade Desk Stock For The Cash It Makes? - Trefis",
-              "url": "https://news.google.com/rss/articles/CBMiswFBVV95cUxObUpTalZTNll2dHI3dm5zZmRFVUxyUEwxTDNMc21na3ZXLWJtOXQ5Yl9ZNjk0TWh4UHoxbVN5OF92aFJ5bFB6UXdhLVp6NGRkQTdaYURfUjNKcmtPa21WSnNEdDVRTk5UZ1FtaFJ6Z1VGS3Vlb21wNEQtOWo3QnB3MmFDb2hEc3RGNGJ3N2ZKdTNfOWR3ZGFrYmloTUZyZE05T0UyOUk3a1FmMzhKRV9OSy1WOA?oc=5"
+              "title": "ZYME Apr 2027 22.500 put (ZYME270416P00022500) Stock Price, News, Quote & History - Yahoo! Finance Canada",
+              "url": "https://news.google.com/rss/articles/CBMiZkFVX3lxTE9FNmNCWmlTWkFlYzBrSFgzdGticXJOUktrdGJYc0Q4SjJyNlRnZ2FCNzJkMmFkYUk1NFcyaDRWQ3R1SHRicHRJZ3FOWDByOUUzWnBMSzdJckxPeGZJVFhJOHE0V3p4Zw?oc=5"
             },
             {
-              "age_hours": 144.149,
+              "age_hours": 98.362,
               "authority": "secondary",
               "direction": 0,
               "event_type": "other",
-              "evidence_id": "ev-e4ca0bd2d7e1883bc8c3",
+              "evidence_id": "ev-9c285d60fc887cd11b2f",
+              "materiality": 2,
+              "provider": "Simply Wall St",
+              "published_at": "2026-11-05T16:28:50Z",
+              "source_kind": "news",
+              "title": "Zymeworks (ZYME) Stock Seems Fully Priced On Its 336% Run - Simply Wall St",
+              "url": "https://news.google.com/rss/articles/CBMi0wFBVV95cUxQWHRJakNSVE1yVlVyTW9WX2ZGYTM1UV81aF93R0p2VVc0b25SRGk3ZVI5b3E1cE00cUJRU3lXMk1aS3oyOVhLNFFyYmVJaEhZcFM2Ui1nY29UZjZvVDdRTDAybWhXX2s1TFpiSlExNk53QXg2b0l3MWFwN29nTmhZWVNHbU9pd3A4Skg1Q1dTYlc0WnlKckhsN05QSlBrV1VJRW9mbS1GR3hoTzBzYUNEOVJfVlVXVzJxSnVGaEFheVpvalc0MExadkF4ZmRQMHRVaDBJ0gHYAUFVX3lxTFBFdE5pdjVWQ0YtMk56aHd3RkQ2ZUNPVV9QWmI0U3J1LUV2V3NsNEE5SzdEQ2tndmV5Z0RvSjRYR1VXbHV1Z0I1S2Rzb2w3bHR5Nll5cFVTTllZR3FGNEVPSFllLUF5VHdGc0xrU0J5MkVNdGk4ZU9IVEpQRUdaN21WendtZS1TMUR1Z205ZTBSVW1FUU5iSDV5UVEySzVuc3BKbU1WTTNEZF91QURHd21DQVR5OXhZenI5Z0tPb0FUMWlKZmtsUXlyUlpqY1B1a1o1cFpsSm56aw?oc=5"
+            },
+            {
+              "age_hours": 125.942,
+              "authority": "secondary",
+              "direction": 0,
+              "event_type": "other",
+              "evidence_id": "ev-a9a1827c60e52f27e9f8",
+              "materiality": 2,
+              "provider": "Stock Traders Daily",
+              "published_at": "2026-11-04T12:54:02Z",
+              "source_kind": "news",
+              "title": "Trading the Move, Not the Narrative: (ZYME) Edition - Stock Traders Daily",
+              "url": "https://news.google.com/rss/articles/CBMiyAFBVV95cUxNbDBSMXdtMDlpa2RNWWlMTlVmcXFPTXpZTkxLaDlxRXdGTC1CNDlpejFfMGczRnYzNVoteEI0UFA2RmdMZm9pRk5KZklmTjlEdnowZkt3ZWxmTksyd2dFNmZZYlZzdDEzUjF6RjBXZzZyeHdQcXl2VVVNZzlPV2FyaTAwZ01zUGZnSDZLUE91SVlySkx3ckoyeng5czJoYnQxWlJXNV9INEhRODZ4dEtSLUdFQVVWOTFpOWJwVnBhWm9rcHhGRmJjOQ?oc=5"
+            },
+            {
+              "age_hours": 130.61,
+              "authority": "secondary",
+              "direction": 0,
+              "event_type": "other",
+              "evidence_id": "ev-4f253155846ed6d75454",
               "materiality": 2,
               "provider": "Yahoo Finance",
-              "published_at": "2026-11-03T15:40:03Z",
+              "published_at": "2026-11-04T08:13:57Z",
               "source_kind": "news",
-              "title": "TTD or GOOG: Which Is the Better Value Stock Right Now? - Yahoo Finance",
-              "url": "https://news.google.com/rss/articles/CBMilwFBVV95cUxOT0FoSGFhXzZkdHNTZ3cxczZNS1haQWpVVWZGTWpEYXk0SFdEanQ2di1zN1FjcGV0OEJ0ZnRBdklwNUw5WkpNSlF0aGZpYlZ6UllzWGI4UGNYNXBlMWlFc2dzMGV4bWpuSWZ5cUxXMmhwckpwd2lPUm9HaHQ0VGNxa0U5Vk00NUdIN2RGWVZPMmdQbldiVV9B?oc=5"
+              "title": "Zymeworks (ZYME) Stock May Be Overvalued On Its New Lung Cancer Deal - Yahoo Finance",
+              "url": "https://news.google.com/rss/articles/CBMiogFBVV95cUxOeUQ3b2NqN3NtSTI0ZHE3ZEtqUl91UThHd0VBSWV6bjZQejBYcU4wOFVuWFc1aFlxX0RpYzR1ZWQ2R0gxdnJaQ2tHbnctS3pEdEVoN3ZGa25pc2ZRQ1FGMlhoWHp1LVBtTUtGQS1fNDN2clBvRWhCbVVFR1NiOXlxMUlsbEpQYjJTNU5WeUZjbzZSa2tjblpBQXJoMGtnOVlLbVE?oc=5"
+            },
+            {
+              "age_hours": 134.292,
+              "authority": "secondary",
+              "direction": 0,
+              "event_type": "other",
+              "evidence_id": "ev-bc2c3026c70574288e4e",
+              "materiality": 2,
+              "provider": "Yahoo Finance",
+              "published_at": "2026-11-04T04:33:00Z",
+              "source_kind": "news",
+              "title": "Zymeworks (ZYME) Gains Fresh Backing On Trial Data And Roche Deal - Yahoo Finance",
+              "url": "https://news.google.com/rss/articles/CBMimwFBVV95cUxOQ1RIek53NmtQNkd5UFhGWjlncVdoZk1PLUNieS00TTVPUjFHTGNGVHFmN0lGWG5PYkFIUFQtOFBiOUduWGhSSmlZUlFNejZBZXBpWTR1QThQbWpzbk5aRGtFeXFYellBYVg4aEY4Ui1oVzZzR01XRnZxaUVLTjJza1RLb0pTdWttVVJEdS1XdFRiUjZGRmJhOGFsMA?oc=5"
             }
           ],
           "evidence_metrics": {
             "directional_overlay_points": 0.0,
-            "evidence_quality_score": 74.6305,
+            "evidence_quality_score": 61.7412,
             "explicit_directional_event_present": false,
-            "material_event_present": true,
-            "maximum_materiality": 5,
+            "material_event_present": false,
+            "maximum_materiality": 2,
             "primary_count": 0,
-            "reaction_overlay_points": 3.0,
+            "reaction_overlay_points": 0.0,
             "secondary_count": 6,
-            "total_overlay_points": 3.0
+            "total_overlay_points": 0.0
           },
           "evidence_status": "COMPLETE",
           "features": {
-            "atr_fraction": 0.045858344253228635,
-            "last_close": 14.875,
+            "atr_fraction": 0.04036318444058485,
+            "last_close": 30.760000228881836,
             "latest_session": "2026-11-09",
-            "median_turnover_20d": 188819861.33556366,
+            "median_turnover_20d": 32040392.89369583,
             "returns": {
-              "1": 0.15042534021021248,
-              "20": 0.24581243909243744,
-              "5": 0.18525894612986438,
-              "60": 0.0519801724774589
+              "1": 0.03813706041583287,
+              "20": 0.2143703245768236,
+              "5": 0.06105555266430418,
+              "60": 0.22452226119513763
             },
-            "volume_ratio_20d": 1.3475415272085511
+            "volume_ratio_20d": 0.4895884602977096
           },
           "freshness": {
             "global_cutoff": null,
             "latest_session": "2026-11-09",
-            "observed_at": "2026-11-09T15:48:59.569324Z",
-            "recheck_after": "2026-11-09T17:03:59.569324Z"
+            "observed_at": "2026-11-09T18:50:31.698020Z",
+            "recheck_after": "2026-11-09T20:05:31.698020Z"
           },
           "frontier_rank": 10,
           "liquidity": {
             "discovery_pass": true,
-            "median_turnover": 188819861.34,
+            "median_turnover": 32040392.89,
             "production_reference": 25000000.0,
             "production_reference_pass": true
           },
-          "market_data_symbol": "TTD",
-          "name": "The Trade Desk, Inc. - Class A Common Stock",
-          "opportunity_score": 77.365986,
+          "market_data_symbol": "ZYME",
+          "name": "Zymeworks Inc. - Common Stock",
+          "opportunity_score": 79.583445,
           "provider_health": {
             "primary": {
-              "cik": 1671933,
+              "cik": 1937653,
               "ok": true,
               "provider": "SEC_EDGAR",
               "recent_relevant": 0
@@ -1798,24 +1972,24 @@
           },
           "relationship_rank": 10,
           "research_risk_plan": {
-            "atr_fraction": 0.04585834,
+            "atr_fraction": 0.04036318,
             "execution_ready": false,
             "execution_requirement": "fresh_quote_and_intraday_risk_revalidation",
             "holding_policy": "OPEN_ENDED_MODEL_CONTROLLED",
-            "reference_price": 14.875,
+            "reference_price": 30.76000023,
             "reward_risk": 2.0,
-            "risk_percent": 0.048151,
+            "risk_percent": 0.042381,
             "status": "VALID_RESEARCH_REFERENCE",
-            "stop": 14.15874999,
-            "target": 16.30750003
+            "stop": 29.45635009,
+            "target": 33.36730051
           },
           "sector": null,
           "sector_provenance": {},
-          "symbol": "TTD"
+          "symbol": "ZYME"
         }
       ],
-      "evidence_sha256": "c6eedf73e7cb0097c86a1684232eab22b42b5cd839a132ee75ec897d5a66cb74",
-      "generated_at": "2026-11-09T15:49:01.823327Z",
+      "evidence_sha256": "ddebfcaf9fd34f2fe874aa1d588a3e4a1eb93d9103fcefc58624153db5f0892d",
+      "generated_at": "2026-11-09T18:50:34.758049Z",
       "governance": {
         "automatic_portfolio_admission": false,
         "no_forced_trade": true,
@@ -1825,8 +1999,8 @@
       },
       "market": "US",
       "schema_version": "stock-trading-v2-deep-evidence-v1",
-      "source_frontier_generated_at": "2026-11-09T15:48:59.569324Z",
-      "source_frontier_sha256": "400ff84dcf41ea7fdc84ae634d5f415780b7d7933a2fd9d8f8f077e3d0cc0c02"
+      "source_frontier_generated_at": "2026-11-09T18:50:31.698020Z",
+      "source_frontier_sha256": "c4e17649f88fb11467bed02bd8fe403e55469c91210bb7454afe878bd8a3e774"
     },
     "market": "US",
     "opportunity_config_sha256": "5b4b40130e9f18c91274c8fc68f5da8b45cc1e7f9d1b6356675df7bcf4128ee8",
@@ -2001,7 +2175,7 @@
       "take_profit_mode": "THESIS_RUNNER_CHECKPOINT",
       "take_profit_required": true
     },
-    "portfolio_sha256": "6eb4e3884f1cd3386ad9189baf8bbc84164feb376cf171cd563d28293946a40a",
+    "portfolio_sha256": "a60699ca8ac6c7418fba5298b0f031fa439691cc9399e409dbb749847c34d002",
     "portfolio_snapshot": {
       "fixed_holding_deadline": null,
       "markets": {
@@ -6194,7 +6368,7 @@
           "last_candidate_key": "2026-11-06:2026-11-06T14:02:43.834873Z:DNP.WA",
           "last_candidate_reason": "qualified_high_expectancy_candidate",
           "last_candidate_reviewed_at": "2026-11-06T15:48:13+01:00",
-          "last_portfolio_review_at": "2026-11-07T01:19:25+01:00",
+          "last_portfolio_review_at": "2026-11-09T18:03:16+01:00",
           "max_open_positions": 3,
           "open_positions": [
             {
@@ -6202,16 +6376,16 @@
               "cost_basis": "FROZEN_PAPER_ASSUMPTION_NOT_BROKER_ACTUAL",
               "cost_model_version": "STOCK_PAPER_COST_STRESS_V1",
               "current_mark": {
-                "capture_age_seconds": 901,
+                "capture_age_seconds": 4297,
                 "delay_minutes": null,
                 "delay_status": "unverified",
                 "is_realtime": false,
-                "market_state": "REGULAR",
-                "observed_at": "2026-11-09T16:24:07+01:00",
-                "price": 48.65000153,
-                "price_kind": "regular",
+                "market_state": "CLOSED",
+                "observed_at": "2026-11-09T16:59:00+01:00",
+                "price": 48.59999847,
+                "price_kind": "close",
                 "provider": "Yahoo Finance chart",
-                "received_at": "2026-11-09T15:39:08+00:00",
+                "received_at": "2026-11-09T17:10:37+00:00",
                 "session_periods": {
                   "REGULAR": {
                     "end": "2026-11-09T17:05:00+01:00",
@@ -6223,7 +6397,7 @@
                   "market": "GPW",
                   "measurement": "PROVIDER_BID_ASK_NOT_BROKER_FILL",
                   "reason": "provider_bid_ask_or_explicit_bbo_timestamp_missing",
-                  "received_at": "2026-11-09T15:39:08+00:00",
+                  "received_at": "2026-11-09T17:10:37+00:00",
                   "source": "Yahoo Finance chart",
                   "source_url": "https://query1.finance.yahoo.com/v8/finance/chart/PCO.WA",
                   "status": "UNAVAILABLE",
@@ -6439,7 +6613,7 @@
               "initial_risk_cash": 209.46,
               "last_mark": 48.72000122,
               "last_review_error": "market_observation_unavailable_preserved_last_valid_sl_tp",
-              "last_reviewed_at": "2026-11-07T01:19:25+01:00",
+              "last_reviewed_at": "2026-11-09T18:03:16+01:00",
               "market": "GPW",
               "name": "PEPCO GROUP N.V.",
               "opened_at": "2026-11-03T15:52:40+01:00",
@@ -6550,16 +6724,16 @@
               "cost_basis": "FROZEN_PAPER_ASSUMPTION_NOT_BROKER_ACTUAL",
               "cost_model_version": "STOCK_PAPER_COST_STRESS_V1",
               "current_mark": {
-                "capture_age_seconds": 918,
+                "capture_age_seconds": 4297,
                 "delay_minutes": null,
                 "delay_status": "unverified",
                 "is_realtime": false,
-                "market_state": "REGULAR",
-                "observed_at": "2026-11-09T16:23:50+01:00",
-                "price": 1660.0,
-                "price_kind": "regular",
+                "market_state": "CLOSED",
+                "observed_at": "2026-11-09T16:59:00+01:00",
+                "price": 1668.5,
+                "price_kind": "close",
                 "provider": "Yahoo Finance chart",
-                "received_at": "2026-11-09T15:39:08+00:00",
+                "received_at": "2026-11-09T17:10:37+00:00",
                 "session_periods": {
                   "REGULAR": {
                     "end": "2026-11-09T17:05:00+01:00",
@@ -6571,7 +6745,7 @@
                   "market": "GPW",
                   "measurement": "PROVIDER_BID_ASK_NOT_BROKER_FILL",
                   "reason": "provider_bid_ask_or_explicit_bbo_timestamp_missing",
-                  "received_at": "2026-11-09T15:39:08+00:00",
+                  "received_at": "2026-11-09T17:10:37+00:00",
                   "source": "Yahoo Finance chart",
                   "source_url": "https://query1.finance.yahoo.com/v8/finance/chart/MBK.WA",
                   "status": "UNAVAILABLE",
@@ -6787,7 +6961,7 @@
               "initial_risk_cash": 205.47,
               "last_mark": 1630.5,
               "last_review_error": "market_observation_unavailable_preserved_last_valid_sl_tp",
-              "last_reviewed_at": "2026-11-07T01:19:25+01:00",
+              "last_reviewed_at": "2026-11-09T18:03:16+01:00",
               "market": "GPW",
               "name": "MBANK SPÓŁKA AKCYJNA",
               "opened_at": "2026-11-03T15:52:40+01:00",
@@ -6902,16 +7076,16 @@
               "cost_basis": "FROZEN_PAPER_ASSUMPTION_NOT_BROKER_ACTUAL",
               "cost_model_version": "STOCK_PAPER_COST_STRESS_V1",
               "current_mark": {
-                "capture_age_seconds": 911,
+                "capture_age_seconds": 4117,
                 "delay_minutes": null,
                 "delay_status": "unverified",
                 "is_realtime": false,
-                "market_state": "REGULAR",
-                "observed_at": "2026-11-09T16:23:57+01:00",
-                "price": 37.90000153,
-                "price_kind": "regular",
+                "market_state": "CLOSED",
+                "observed_at": "2026-11-09T17:02:00+01:00",
+                "price": 38.15000153,
+                "price_kind": "close",
                 "provider": "Yahoo Finance chart",
-                "received_at": "2026-11-09T15:39:08+00:00",
+                "received_at": "2026-11-09T17:10:37+00:00",
                 "session_periods": {
                   "REGULAR": {
                     "end": "2026-11-09T17:05:00+01:00",
@@ -6923,7 +7097,7 @@
                   "market": "GPW",
                   "measurement": "PROVIDER_BID_ASK_NOT_BROKER_FILL",
                   "reason": "provider_bid_ask_or_explicit_bbo_timestamp_missing",
-                  "received_at": "2026-11-09T15:39:08+00:00",
+                  "received_at": "2026-11-09T17:10:37+00:00",
                   "source": "Yahoo Finance chart",
                   "source_url": "https://query1.finance.yahoo.com/v8/finance/chart/DNP.WA",
                   "status": "UNAVAILABLE",
@@ -7139,7 +7313,7 @@
               "initial_risk_cash": 167.56,
               "last_mark": 37.74000168,
               "last_review_error": "market_observation_unavailable_preserved_last_valid_sl_tp",
-              "last_reviewed_at": "2026-11-07T01:19:25+01:00",
+              "last_reviewed_at": "2026-11-09T18:03:16+01:00",
               "market": "GPW",
               "name": "DINO POLSKA SPÓŁKA AKCYJNA",
               "opened_at": "2026-11-06T15:48:13+01:00",
@@ -7231,13 +7405,13 @@
           ],
           "position_currency": "PLN",
           "quote_session": {
-            "as_of": "2026-11-09T16:23:57+01:00",
+            "as_of": "2026-11-09T17:02:00+01:00",
             "delay_minutes": null,
             "delay_status": "unverified",
             "is_realtime": false,
-            "market_state": "REGULAR",
+            "market_state": "CLOSED",
             "provider": "Yahoo Finance chart",
-            "received_at": "2026-11-09T15:39:08+00:00",
+            "received_at": "2026-11-09T17:10:37+00:00",
             "state_source": "provider.currentTradingPeriod"
           },
           "sizing_policy_version": "FIXED_NOTIONAL_V1",
@@ -12820,7 +12994,7 @@
           "last_candidate_key": "2026-11-06:2026-11-06T15:01:21.025900Z:INTU",
           "last_candidate_reason": "qualified_high_expectancy_candidate",
           "last_candidate_reviewed_at": "2026-11-06T10:11:34-05:00",
-          "last_portfolio_review_at": "2026-11-06T19:19:25-05:00",
+          "last_portfolio_review_at": "2026-11-09T12:03:17-05:00",
           "max_open_positions": 3,
           "open_positions": [
             {
@@ -12828,16 +13002,16 @@
               "cost_basis": "FROZEN_PAPER_ASSUMPTION_NOT_BROKER_ACTUAL",
               "cost_model_version": "STOCK_PAPER_COST_STRESS_V1",
               "current_mark": {
-                "capture_age_seconds": 6,
+                "capture_age_seconds": 4,
                 "delay_minutes": null,
                 "delay_status": "unverified",
                 "is_realtime": false,
                 "market_state": "REGULAR",
-                "observed_at": "2026-11-09T10:39:02-05:00",
-                "price": 353.60998535,
+                "observed_at": "2026-11-09T12:10:33-05:00",
+                "price": 354.52999878,
                 "price_kind": "regular",
                 "provider": "Yahoo Finance chart",
-                "received_at": "2026-11-09T15:39:08+00:00",
+                "received_at": "2026-11-09T17:10:37+00:00",
                 "session_periods": {
                   "POST": {
                     "end": "2026-11-09T20:00:00-05:00",
@@ -12857,7 +13031,7 @@
                   "market": "US",
                   "measurement": "PROVIDER_BID_ASK_NOT_BROKER_FILL",
                   "reason": "provider_bid_ask_or_explicit_bbo_timestamp_missing",
-                  "received_at": "2026-11-09T15:39:08+00:00",
+                  "received_at": "2026-11-09T17:10:37+00:00",
                   "source": "Yahoo Finance chart",
                   "source_url": "https://query1.finance.yahoo.com/v8/finance/chart/CBOE",
                   "status": "UNAVAILABLE",
@@ -13074,9 +13248,9 @@
               "holding_policy": "OPEN_ENDED_MODEL_CONTROLLED",
               "initial_risk_amount": 13.78159022,
               "initial_risk_cash": 199.53,
-              "last_mark": 354.60998535,
+              "last_mark": 354.58999634,
               "last_review_error": "market_observation_unavailable_preserved_last_valid_sl_tp",
-              "last_reviewed_at": "2026-11-06T19:19:25-05:00",
+              "last_reviewed_at": "2026-11-09T12:03:17-05:00",
               "market": "US",
               "name": "Cboe Global Markets, Inc. Common Stock",
               "opened_at": "2026-11-03T15:05:39-05:00",
@@ -13125,9 +13299,9 @@
               "quantity": 14.47764713,
               "quote_refresh_error": null,
               "reward_risk": 4.0,
-              "risk_last_changed_at": "2026-11-06T09:45:10-05:00",
-              "risk_percent": 0.03722,
-              "risk_review_date": "2026-11-06",
+              "risk_last_changed_at": "2026-11-09T12:03:17-05:00",
+              "risk_percent": 0.038374,
+              "risk_review_date": "2026-11-09",
               "risk_reviews": [
                 {
                   "atr": 13.12142944,
@@ -13158,6 +13332,16 @@
                   "old_target": 411.44351807,
                   "reviewed_at": "2026-11-06T09:45:10-05:00",
                   "status": "updated"
+                },
+                {
+                  "atr": 13.4564427,
+                  "mark": 354.58999634,
+                  "new_stop": 340.98288574,
+                  "new_target": 411.44351807,
+                  "old_stop": 340.98288574,
+                  "old_target": 411.44351807,
+                  "reviewed_at": "2026-11-09T12:03:17-05:00",
+                  "status": "updated"
                 }
               ],
               "scheduled_exit": null,
@@ -13176,7 +13360,7 @@
               "take_profit_mode": "THESIS_RUNNER_CHECKPOINT",
               "target": 411.44351807,
               "target_position_notional": 5000.0,
-              "thesis_score": 100.0,
+              "thesis_score": 95.6987,
               "thesis_status": "ACTIVE",
               "ticker": "CBOE",
               "time_stop": null,
@@ -13198,16 +13382,16 @@
               "cost_basis": "FROZEN_PAPER_ASSUMPTION_NOT_BROKER_ACTUAL",
               "cost_model_version": "STOCK_PAPER_COST_STRESS_V1",
               "current_mark": {
-                "capture_age_seconds": 95,
+                "capture_age_seconds": 2,
                 "delay_minutes": null,
                 "delay_status": "unverified",
                 "is_realtime": false,
                 "market_state": "REGULAR",
-                "observed_at": "2026-11-09T10:37:33-05:00",
-                "price": 251.75999451,
+                "observed_at": "2026-11-09T12:10:35-05:00",
+                "price": 255.24499512,
                 "price_kind": "regular",
                 "provider": "Yahoo Finance chart",
-                "received_at": "2026-11-09T15:39:08+00:00",
+                "received_at": "2026-11-09T17:10:37+00:00",
                 "session_periods": {
                   "POST": {
                     "end": "2026-11-09T20:00:00-05:00",
@@ -13227,7 +13411,7 @@
                   "market": "US",
                   "measurement": "PROVIDER_BID_ASK_NOT_BROKER_FILL",
                   "reason": "provider_bid_ask_or_explicit_bbo_timestamp_missing",
-                  "received_at": "2026-11-09T15:39:08+00:00",
+                  "received_at": "2026-11-09T17:10:37+00:00",
                   "source": "Yahoo Finance chart",
                   "source_url": "https://query1.finance.yahoo.com/v8/finance/chart/STE",
                   "status": "UNAVAILABLE",
@@ -13444,9 +13628,9 @@
               "holding_policy": "OPEN_ENDED_MODEL_CONTROLLED",
               "initial_risk_amount": 7.27383718,
               "initial_risk_cash": 143.53,
-              "last_mark": 251.61000061,
+              "last_mark": 254.80000305,
               "last_review_error": "market_observation_unavailable_preserved_last_valid_sl_tp",
-              "last_reviewed_at": "2026-11-06T19:19:25-05:00",
+              "last_reviewed_at": "2026-11-09T12:03:17-05:00",
               "market": "US",
               "name": "STERIS plc (Ireland) Ordinary Shares",
               "opened_at": "2026-11-05T15:45:27-05:00",
@@ -13495,9 +13679,9 @@
               "quantity": 19.73305099,
               "quote_refresh_error": null,
               "reward_risk": 4.0,
-              "risk_last_changed_at": "2026-11-06T09:45:10-05:00",
-              "risk_percent": 0.018199,
-              "risk_review_date": "2026-11-06",
+              "risk_last_changed_at": "2026-11-09T12:03:17-05:00",
+              "risk_percent": 0.029429,
+              "risk_review_date": "2026-11-09",
               "risk_reviews": [
                 {
                   "atr": 7.04357365,
@@ -13507,6 +13691,16 @@
                   "old_stop": 246.1081666,
                   "old_target": 282.4773525,
                   "reviewed_at": "2026-11-06T09:45:10-05:00",
+                  "status": "updated"
+                },
+                {
+                  "atr": 7.14143045,
+                  "mark": 254.80000305,
+                  "new_stop": 247.30150108,
+                  "new_target": 284.79401093,
+                  "old_stop": 246.1081666,
+                  "old_target": 282.4773525,
+                  "reviewed_at": "2026-11-09T12:03:17-05:00",
                   "status": "updated"
                 }
               ],
@@ -13520,11 +13714,11 @@
               "source_evidence_sha256": "9cb369fdddbfb53011482681a009178808d079b72cc16333c1f8a75b3dd93b05",
               "source_opportunity_sha256": "b77c10c04999a84631a0ed0af908429bfe8129f9025a571258706d3c57cf51ab",
               "status": "OPEN",
-              "stop": 246.1081666,
+              "stop": 247.30150108,
               "strategic_target_rr": 4.0,
               "symbol": "STE",
               "take_profit_mode": "THESIS_RUNNER_CHECKPOINT",
-              "target": 282.4773525,
+              "target": 284.79401093,
               "target_position_notional": 5000.0,
               "thesis_score": 100.0,
               "thesis_status": "ACTIVE",
@@ -13548,16 +13742,16 @@
               "cost_basis": "FROZEN_PAPER_ASSUMPTION_NOT_BROKER_ACTUAL",
               "cost_model_version": "STOCK_PAPER_COST_STRESS_V1",
               "current_mark": {
-                "capture_age_seconds": 10,
+                "capture_age_seconds": 0,
                 "delay_minutes": null,
                 "delay_status": "unverified",
                 "is_realtime": false,
                 "market_state": "REGULAR",
-                "observed_at": "2026-11-09T10:38:58-05:00",
-                "price": 335.85998535,
+                "observed_at": "2026-11-09T12:10:37-05:00",
+                "price": 338.45999146,
                 "price_kind": "regular",
                 "provider": "Yahoo Finance chart",
-                "received_at": "2026-11-09T15:39:08+00:00",
+                "received_at": "2026-11-09T17:10:37+00:00",
                 "session_periods": {
                   "POST": {
                     "end": "2026-11-09T20:00:00-05:00",
@@ -13577,7 +13771,7 @@
                   "market": "US",
                   "measurement": "PROVIDER_BID_ASK_NOT_BROKER_FILL",
                   "reason": "provider_bid_ask_or_explicit_bbo_timestamp_missing",
-                  "received_at": "2026-11-09T15:39:08+00:00",
+                  "received_at": "2026-11-09T17:10:37+00:00",
                   "source": "Yahoo Finance chart",
                   "source_url": "https://query1.finance.yahoo.com/v8/finance/chart/INTU",
                   "status": "UNAVAILABLE",
@@ -13794,9 +13988,9 @@
               "holding_policy": "OPEN_ENDED_MODEL_CONTROLLED",
               "initial_risk_amount": 15.50879119,
               "initial_risk_cash": 228.6,
-              "last_mark": 341.02999878,
+              "last_mark": 338.38000488,
               "last_review_error": "market_observation_unavailable_preserved_last_valid_sl_tp",
-              "last_reviewed_at": "2026-11-06T19:19:25-05:00",
+              "last_reviewed_at": "2026-11-09T12:03:17-05:00",
               "market": "US",
               "name": "Intuit Inc. - Common Stock",
               "opened_at": "2026-11-06T10:11:34-05:00",
@@ -13845,10 +14039,21 @@
               "quantity": 14.74034934,
               "quote_refresh_error": null,
               "reward_risk": 4.0,
-              "risk_last_changed_at": "2026-11-06T10:11:34-05:00",
-              "risk_percent": 0.045721,
-              "risk_review_date": "2026-11-06",
-              "risk_reviews": [],
+              "risk_last_changed_at": "2026-11-09T12:03:17-05:00",
+              "risk_percent": 0.043394,
+              "risk_review_date": "2026-11-09",
+              "risk_reviews": [
+                {
+                  "atr": 14.54357474,
+                  "mark": 338.38000488,
+                  "new_stop": 323.69619538,
+                  "new_target": 401.24015133,
+                  "old_stop": 323.69619538,
+                  "old_target": 401.24015133,
+                  "reviewed_at": "2026-11-09T12:03:17-05:00",
+                  "status": "updated"
+                }
+              ],
               "scheduled_exit": null,
               "sector": null,
               "sector_provenance": {},
@@ -13865,7 +14070,7 @@
               "take_profit_mode": "THESIS_RUNNER_CHECKPOINT",
               "target": 401.24015133,
               "target_position_notional": 5000.0,
-              "thesis_score": 83.1201,
+              "thesis_score": 69.0125,
               "thesis_status": "ACTIVE",
               "ticker": "INTU",
               "time_stop": null,
@@ -13885,13 +14090,13 @@
           ],
           "position_currency": "USD",
           "quote_session": {
-            "as_of": "2026-11-09T10:38:58-05:00",
+            "as_of": "2026-11-09T12:10:37-05:00",
             "delay_minutes": null,
             "delay_status": "unverified",
             "is_realtime": false,
             "market_state": "REGULAR",
             "provider": "Yahoo Finance chart",
-            "received_at": "2026-11-09T15:39:08+00:00",
+            "received_at": "2026-11-09T17:10:37+00:00",
             "state_source": "provider.currentTradingPeriod"
           },
           "sizing_policy_version": "FIXED_NOTIONAL_V1",
@@ -13900,9 +14105,9 @@
       },
       "objective": "maximize_net_expectancy_not_trade_frequency",
       "policy_version": "stock-trading-v2-fixed-notional-v1",
-      "quote_enriched_at": "2026-11-09T15:39:08+00:00",
+      "quote_enriched_at": "2026-11-09T17:10:37+00:00",
       "schema_version": "stock-trading-portfolio-v1",
-      "updated_at": "2026-11-09T15:38:49+00:00"
+      "updated_at": "2026-11-09T17:10:18+00:00"
     },
     "schema_version": "stock-trading-v2-decision-context-v1"
   },
@@ -13914,34 +14119,34 @@
       "eligible": true,
       "evidence_metrics": {
         "directional_overlay_points": 0.0,
-        "evidence_quality_score": 74.0674,
+        "evidence_quality_score": 86.0905,
         "explicit_directional_event_present": false,
         "material_event_present": true,
         "maximum_materiality": 5,
-        "primary_count": 0,
+        "primary_count": 2,
         "reaction_overlay_points": 3.0,
         "secondary_count": 6,
         "total_overlay_points": 3.0
       },
       "evidence_status": "COMPLETE",
-      "market_data_symbol": "ULTA",
-      "name": "Ulta Beauty, Inc. - Common Stock",
+      "market_data_symbol": "ABNB",
+      "name": "Airbnb, Inc. - Class A Common Stock",
       "research_risk_plan": {
-        "atr_fraction": 0.02973047,
+        "atr_fraction": 0.03604453,
         "execution_ready": false,
         "execution_requirement": "fresh_quote_and_intraday_risk_revalidation",
         "holding_policy": "OPEN_ENDED_MODEL_CONTROLLED",
-        "reference_price": 659.15997314,
+        "reference_price": 193.13999939,
         "reward_risk": 2.0,
-        "risk_percent": 0.031217,
+        "risk_percent": 0.037847,
         "status": "VALID_RESEARCH_REFERENCE",
-        "stop": 638.58297882,
-        "target": 700.31396179
+        "stop": 185.83027687,
+        "target": 207.75944443
       },
       "sector": null,
       "sector_provenance": {},
-      "symbol": "ULTA",
-      "utility": 89.775028
+      "symbol": "ABNB",
+      "utility": 89.611493
     },
     {
       "already_held": false,
@@ -13949,35 +14154,71 @@
       "eligibility_reason": "eligible_shadow_opportunity",
       "eligible": true,
       "evidence_metrics": {
-        "directional_overlay_points": 8.0,
-        "evidence_quality_score": 85.0193,
-        "explicit_directional_event_present": true,
+        "directional_overlay_points": 0.0,
+        "evidence_quality_score": 85.8917,
+        "explicit_directional_event_present": false,
         "material_event_present": true,
         "maximum_materiality": 5,
         "primary_count": 2,
-        "reaction_overlay_points": 0.0,
+        "reaction_overlay_points": 3.0,
         "secondary_count": 6,
-        "total_overlay_points": 8.0
+        "total_overlay_points": 3.0
       },
       "evidence_status": "COMPLETE",
-      "market_data_symbol": "TREX",
-      "name": "Trex Company, Inc. Common Stock",
+      "market_data_symbol": "ACIW",
+      "name": "ACI Worldwide, Inc. - Common Stock",
       "research_risk_plan": {
-        "atr_fraction": 0.04279045,
+        "atr_fraction": 0.031577,
         "execution_ready": false,
         "execution_requirement": "fresh_quote_and_intraday_risk_revalidation",
         "holding_policy": "OPEN_ENDED_MODEL_CONTROLLED",
-        "reference_price": 57.84000015,
+        "reference_price": 61.36000061,
         "reward_risk": 2.0,
-        "risk_percent": 0.04493,
+        "risk_percent": 0.033156,
         "status": "VALID_RESEARCH_REFERENCE",
-        "stop": 55.24125032,
-        "target": 63.03749981
+        "stop": 59.3255578,
+        "target": 65.42888622
       },
       "sector": null,
       "sector_provenance": {},
-      "symbol": "TREX",
-      "utility": 89.274784
+      "symbol": "ACIW",
+      "utility": 88.84884
+    },
+    {
+      "already_held": false,
+      "deep_rank": 3,
+      "eligibility_reason": "eligible_shadow_opportunity",
+      "eligible": true,
+      "evidence_metrics": {
+        "directional_overlay_points": 0.0,
+        "evidence_quality_score": 90.3846,
+        "explicit_directional_event_present": false,
+        "material_event_present": true,
+        "maximum_materiality": 5,
+        "primary_count": 3,
+        "reaction_overlay_points": 3.0,
+        "secondary_count": 6,
+        "total_overlay_points": 3.0
+      },
+      "evidence_status": "COMPLETE",
+      "market_data_symbol": "XYZ",
+      "name": "Block, Inc. Class A Common Stock,",
+      "research_risk_plan": {
+        "atr_fraction": 0.03911096,
+        "execution_ready": false,
+        "execution_requirement": "fresh_quote_and_intraday_risk_revalidation",
+        "holding_policy": "OPEN_ENDED_MODEL_CONTROLLED",
+        "reference_price": 88.91000366,
+        "reward_risk": 2.0,
+        "risk_percent": 0.041067,
+        "status": "VALID_RESEARCH_REFERENCE",
+        "stop": 85.25877991,
+        "target": 96.21245117
+      },
+      "sector": null,
+      "sector_provenance": {},
+      "symbol": "XYZ",
+      "utility": 87.116366
     },
     {
       "already_held": false,
@@ -13986,7 +14227,79 @@
       "eligible": true,
       "evidence_metrics": {
         "directional_overlay_points": 0.0,
-        "evidence_quality_score": 73.6007,
+        "evidence_quality_score": 84.8142,
+        "explicit_directional_event_present": false,
+        "material_event_present": true,
+        "maximum_materiality": 5,
+        "primary_count": 2,
+        "reaction_overlay_points": 3.0,
+        "secondary_count": 6,
+        "total_overlay_points": 3.0
+      },
+      "evidence_status": "COMPLETE",
+      "market_data_symbol": "ACHC",
+      "name": "Acadia Healthcare Company, Inc. - Common Stock",
+      "research_risk_plan": {
+        "atr_fraction": 0.05660553,
+        "execution_ready": false,
+        "execution_requirement": "fresh_quote_and_intraday_risk_revalidation",
+        "holding_policy": "OPEN_ENDED_MODEL_CONTROLLED",
+        "reference_price": 38.54999924,
+        "reward_risk": 2.0,
+        "risk_percent": 0.059436,
+        "status": "VALID_RESEARCH_REFERENCE",
+        "stop": 36.25874887,
+        "target": 43.13249998
+      },
+      "sector": null,
+      "sector_provenance": {},
+      "symbol": "ACHC",
+      "utility": 86.401947
+    },
+    {
+      "already_held": false,
+      "deep_rank": 5,
+      "eligibility_reason": "eligible_shadow_opportunity",
+      "eligible": true,
+      "evidence_metrics": {
+        "directional_overlay_points": 0.0,
+        "evidence_quality_score": 85.1099,
+        "explicit_directional_event_present": false,
+        "material_event_present": true,
+        "maximum_materiality": 5,
+        "primary_count": 2,
+        "reaction_overlay_points": 3.0,
+        "secondary_count": 6,
+        "total_overlay_points": 3.0
+      },
+      "evidence_status": "COMPLETE",
+      "market_data_symbol": "YUM",
+      "name": "Yum! Brands, Inc.",
+      "research_risk_plan": {
+        "atr_fraction": 0.02839817,
+        "execution_ready": false,
+        "execution_requirement": "fresh_quote_and_intraday_risk_revalidation",
+        "holding_policy": "OPEN_ENDED_MODEL_CONTROLLED",
+        "reference_price": 161.60499573,
+        "reward_risk": 2.0,
+        "risk_percent": 0.029818,
+        "status": "VALID_RESEARCH_REFERENCE",
+        "stop": 156.78624573,
+        "target": 171.24249573
+      },
+      "sector": null,
+      "sector_provenance": {},
+      "symbol": "YUM",
+      "utility": 83.353147
+    },
+    {
+      "already_held": false,
+      "deep_rank": 6,
+      "eligibility_reason": "eligible_shadow_opportunity",
+      "eligible": true,
+      "evidence_metrics": {
+        "directional_overlay_points": 0.0,
+        "evidence_quality_score": 74.9264,
         "explicit_directional_event_present": false,
         "material_event_present": true,
         "maximum_materiality": 5,
@@ -13996,60 +14309,24 @@
         "total_overlay_points": 3.0
       },
       "evidence_status": "COMPLETE",
-      "market_data_symbol": "TTEK",
-      "name": "Tetra Tech, Inc. - Common Stock",
+      "market_data_symbol": "ADP",
+      "name": "Automatic Data Processing, Inc. - Common Stock",
       "research_risk_plan": {
-        "atr_fraction": 0.02768841,
+        "atr_fraction": 0.02853293,
         "execution_ready": false,
         "execution_requirement": "fresh_quote_and_intraday_risk_revalidation",
         "holding_policy": "OPEN_ENDED_MODEL_CONTROLLED",
-        "reference_price": 40.84999847,
+        "reference_price": 304.18499756,
         "reward_risk": 2.0,
-        "risk_percent": 0.029073,
+        "risk_percent": 0.02996,
         "status": "VALID_RESEARCH_REFERENCE",
-        "stop": 39.66237354,
-        "target": 43.22524834
+        "stop": 295.07174454,
+        "target": 322.4115036
       },
       "sector": null,
       "sector_provenance": {},
-      "symbol": "TTEK",
-      "utility": 85.829482
-    },
-    {
-      "already_held": false,
-      "deep_rank": 6,
-      "eligibility_reason": "eligible_shadow_opportunity",
-      "eligible": true,
-      "evidence_metrics": {
-        "directional_overlay_points": 0.0,
-        "evidence_quality_score": 73.7176,
-        "explicit_directional_event_present": false,
-        "material_event_present": true,
-        "maximum_materiality": 5,
-        "primary_count": 0,
-        "reaction_overlay_points": 0.0,
-        "secondary_count": 6,
-        "total_overlay_points": 0.0
-      },
-      "evidence_status": "COMPLETE",
-      "market_data_symbol": "TYL",
-      "name": "Tyler Technologies, Inc. Common Stock",
-      "research_risk_plan": {
-        "atr_fraction": 0.0393958,
-        "execution_ready": false,
-        "execution_requirement": "fresh_quote_and_intraday_risk_revalidation",
-        "holding_policy": "OPEN_ENDED_MODEL_CONTROLLED",
-        "reference_price": 414.61999512,
-        "reward_risk": 2.0,
-        "risk_percent": 0.041366,
-        "status": "VALID_RESEARCH_REFERENCE",
-        "stop": 397.46899338,
-        "target": 448.9219986
-      },
-      "sector": null,
-      "sector_provenance": {},
-      "symbol": "TYL",
-      "utility": 85.259227
+      "symbol": "ADP",
+      "utility": 83.092366
     },
     {
       "already_held": false,
@@ -14058,7 +14335,115 @@
       "eligible": true,
       "evidence_metrics": {
         "directional_overlay_points": 0.0,
-        "evidence_quality_score": 62.1738,
+        "evidence_quality_score": 90.971,
+        "explicit_directional_event_present": false,
+        "material_event_present": true,
+        "maximum_materiality": 5,
+        "primary_count": 4,
+        "reaction_overlay_points": 3.0,
+        "secondary_count": 6,
+        "total_overlay_points": 3.0
+      },
+      "evidence_status": "COMPLETE",
+      "market_data_symbol": "ZBH",
+      "name": "Zimmer Biomet Holdings, Inc. Common Stock",
+      "research_risk_plan": {
+        "atr_fraction": 0.03476362,
+        "execution_ready": false,
+        "execution_requirement": "fresh_quote_and_intraday_risk_revalidation",
+        "holding_policy": "OPEN_ENDED_MODEL_CONTROLLED",
+        "reference_price": 108.56999969,
+        "reward_risk": 2.0,
+        "risk_percent": 0.036502,
+        "status": "VALID_RESEARCH_REFERENCE",
+        "stop": 104.6069994,
+        "target": 116.49600029
+      },
+      "sector": null,
+      "sector_provenance": {},
+      "symbol": "ZBH",
+      "utility": 82.781411
+    },
+    {
+      "already_held": false,
+      "deep_rank": 8,
+      "eligibility_reason": "eligible_shadow_opportunity",
+      "eligible": true,
+      "evidence_metrics": {
+        "directional_overlay_points": 0.0,
+        "evidence_quality_score": 75.1083,
+        "explicit_directional_event_present": false,
+        "material_event_present": true,
+        "maximum_materiality": 5,
+        "primary_count": 0,
+        "reaction_overlay_points": -3.0,
+        "secondary_count": 6,
+        "total_overlay_points": -3.0
+      },
+      "evidence_status": "COMPLETE",
+      "market_data_symbol": "ACN",
+      "name": "Accenture plc Class A Ordinary Shares (Ireland)",
+      "research_risk_plan": {
+        "atr_fraction": 0.04532597,
+        "execution_ready": false,
+        "execution_requirement": "fresh_quote_and_intraday_risk_revalidation",
+        "holding_policy": "OPEN_ENDED_MODEL_CONTROLLED",
+        "reference_price": 258.4375,
+        "reward_risk": 2.0,
+        "risk_percent": 0.047592,
+        "status": "VALID_RESEARCH_REFERENCE",
+        "stop": 246.13787308,
+        "target": 283.03675385
+      },
+      "sector": null,
+      "sector_provenance": {},
+      "symbol": "ACN",
+      "utility": 81.561422
+    },
+    {
+      "already_held": false,
+      "deep_rank": 9,
+      "eligibility_reason": "eligible_shadow_opportunity",
+      "eligible": true,
+      "evidence_metrics": {
+        "directional_overlay_points": 0.0,
+        "evidence_quality_score": 85.1454,
+        "explicit_directional_event_present": false,
+        "material_event_present": true,
+        "maximum_materiality": 5,
+        "primary_count": 2,
+        "reaction_overlay_points": 0.0,
+        "secondary_count": 6,
+        "total_overlay_points": 0.0
+      },
+      "evidence_status": "COMPLETE",
+      "market_data_symbol": "YOU",
+      "name": "Clear Secure, Inc. Class A Common Stock",
+      "research_risk_plan": {
+        "atr_fraction": 0.05469904,
+        "execution_ready": false,
+        "execution_requirement": "fresh_quote_and_intraday_risk_revalidation",
+        "holding_policy": "OPEN_ENDED_MODEL_CONTROLLED",
+        "reference_price": 55.29999924,
+        "reward_risk": 2.0,
+        "risk_percent": 0.057434,
+        "status": "VALID_RESEARCH_REFERENCE",
+        "stop": 52.12389956,
+        "target": 61.6521986
+      },
+      "sector": null,
+      "sector_provenance": {},
+      "symbol": "YOU",
+      "utility": 81.342596
+    },
+    {
+      "already_held": false,
+      "deep_rank": 10,
+      "eligibility_reason": "eligible_shadow_opportunity",
+      "eligible": true,
+      "evidence_metrics": {
+        "directional_overlay_points": 0.0,
+        "evidence_quality_score": 61.7412,
         "explicit_directional_event_present": false,
         "material_event_present": false,
         "maximum_materiality": 2,
@@ -14068,207 +14453,27 @@
         "total_overlay_points": 0.0
       },
       "evidence_status": "COMPLETE",
-      "market_data_symbol": "TW",
-      "name": "Tradeweb Markets Inc. - Class A Common Stock",
+      "market_data_symbol": "ZYME",
+      "name": "Zymeworks Inc. - Common Stock",
       "research_risk_plan": {
-        "atr_fraction": 0.02566366,
+        "atr_fraction": 0.04036318,
         "execution_ready": false,
         "execution_requirement": "fresh_quote_and_intraday_risk_revalidation",
         "holding_policy": "OPEN_ENDED_MODEL_CONTROLLED",
-        "reference_price": 126.13999939,
+        "reference_price": 30.76000023,
         "reward_risk": 2.0,
-        "risk_percent": 0.026947,
+        "risk_percent": 0.042381,
         "status": "VALID_RESEARCH_REFERENCE",
-        "stop": 122.74092445,
-        "target": 132.93814926
+        "stop": 29.45635009,
+        "target": 33.36730051
       },
       "sector": null,
       "sector_provenance": {},
-      "symbol": "TW",
-      "utility": 83.189481
-    },
-    {
-      "already_held": false,
-      "deep_rank": 8,
-      "eligibility_reason": "eligible_shadow_opportunity",
-      "eligible": true,
-      "evidence_metrics": {
-        "directional_overlay_points": 0.0,
-        "evidence_quality_score": 73.2002,
-        "explicit_directional_event_present": false,
-        "material_event_present": true,
-        "maximum_materiality": 5,
-        "primary_count": 0,
-        "reaction_overlay_points": 3.0,
-        "secondary_count": 6,
-        "total_overlay_points": 3.0
-      },
-      "evidence_status": "COMPLETE",
-      "market_data_symbol": "TOL",
-      "name": "Toll Brothers, Inc. Common Stock",
-      "research_risk_plan": {
-        "atr_fraction": 0.0334929,
-        "execution_ready": false,
-        "execution_requirement": "fresh_quote_and_intraday_risk_revalidation",
-        "holding_policy": "OPEN_ENDED_MODEL_CONTROLLED",
-        "reference_price": 155.1499939,
-        "reward_risk": 2.0,
-        "risk_percent": 0.035168,
-        "status": "VALID_RESEARCH_REFERENCE",
-        "stop": 149.69374962,
-        "target": 166.06248245
-      },
-      "sector": null,
-      "sector_provenance": {},
-      "symbol": "TOL",
-      "utility": 82.592845
-    },
-    {
-      "already_held": false,
-      "deep_rank": 9,
-      "eligibility_reason": "eligible_shadow_opportunity",
-      "eligible": true,
-      "evidence_metrics": {
-        "directional_overlay_points": 0.0,
-        "evidence_quality_score": 78.8887,
-        "explicit_directional_event_present": false,
-        "material_event_present": true,
-        "maximum_materiality": 5,
-        "primary_count": 1,
-        "reaction_overlay_points": 3.0,
-        "secondary_count": 6,
-        "total_overlay_points": 3.0
-      },
-      "evidence_status": "COMPLETE",
-      "market_data_symbol": "TRU",
-      "name": "TransUnion Common Stock",
-      "research_risk_plan": {
-        "atr_fraction": 0.04441989,
-        "execution_ready": false,
-        "execution_requirement": "fresh_quote_and_intraday_risk_revalidation",
-        "holding_policy": "OPEN_ENDED_MODEL_CONTROLLED",
-        "reference_price": 82.08999634,
-        "reward_risk": 2.0,
-        "risk_percent": 0.046641,
-        "status": "VALID_RESEARCH_REFERENCE",
-        "stop": 78.26124611,
-        "target": 89.7474968
-      },
-      "sector": null,
-      "sector_provenance": {},
-      "symbol": "TRU",
-      "utility": 81.867201
-    },
-    {
-      "already_held": false,
-      "deep_rank": 10,
-      "eligibility_reason": "eligible_shadow_opportunity",
-      "eligible": true,
-      "evidence_metrics": {
-        "directional_overlay_points": 0.0,
-        "evidence_quality_score": 74.6305,
-        "explicit_directional_event_present": false,
-        "material_event_present": true,
-        "maximum_materiality": 5,
-        "primary_count": 0,
-        "reaction_overlay_points": 3.0,
-        "secondary_count": 6,
-        "total_overlay_points": 3.0
-      },
-      "evidence_status": "COMPLETE",
-      "market_data_symbol": "TTD",
-      "name": "The Trade Desk, Inc. - Class A Common Stock",
-      "research_risk_plan": {
-        "atr_fraction": 0.04585834,
-        "execution_ready": false,
-        "execution_requirement": "fresh_quote_and_intraday_risk_revalidation",
-        "holding_policy": "OPEN_ENDED_MODEL_CONTROLLED",
-        "reference_price": 14.875,
-        "reward_risk": 2.0,
-        "risk_percent": 0.048151,
-        "status": "VALID_RESEARCH_REFERENCE",
-        "stop": 14.15874999,
-        "target": 16.30750003
-      },
-      "sector": null,
-      "sector_provenance": {},
-      "symbol": "TTD",
-      "utility": 80.365986
-    },
-    {
-      "already_held": false,
-      "deep_rank": 3,
-      "eligibility_reason": "production_reference_liquidity_not_met",
-      "eligible": false,
-      "evidence_metrics": {
-        "directional_overlay_points": 8.0,
-        "evidence_quality_score": 86.333,
-        "explicit_directional_event_present": true,
-        "material_event_present": true,
-        "maximum_materiality": 5,
-        "primary_count": 2,
-        "reaction_overlay_points": 0.0,
-        "secondary_count": 6,
-        "total_overlay_points": 8.0
-      },
-      "evidence_status": "COMPLETE",
-      "market_data_symbol": "TRUP",
-      "name": "Trupanion, Inc. - Common Stock",
-      "research_risk_plan": {
-        "atr_fraction": 0.04869301,
-        "execution_ready": false,
-        "execution_requirement": "fresh_quote_and_intraday_risk_revalidation",
-        "holding_policy": "OPEN_ENDED_MODEL_CONTROLLED",
-        "reference_price": 35.25,
-        "reward_risk": 2.0,
-        "risk_percent": 0.051128,
-        "status": "VALID_RESEARCH_REFERENCE",
-        "stop": 33.44774981,
-        "target": 38.85450039
-      },
-      "sector": null,
-      "sector_provenance": {},
-      "symbol": "TRUP",
-      "utility": 86.871886
-    },
-    {
-      "already_held": false,
-      "deep_rank": 5,
-      "eligibility_reason": "production_reference_liquidity_not_met",
-      "eligible": false,
-      "evidence_metrics": {
-        "directional_overlay_points": 8.0,
-        "evidence_quality_score": 85.1672,
-        "explicit_directional_event_present": true,
-        "material_event_present": true,
-        "maximum_materiality": 5,
-        "primary_count": 2,
-        "reaction_overlay_points": 0.0,
-        "secondary_count": 6,
-        "total_overlay_points": 8.0
-      },
-      "evidence_status": "COMPLETE",
-      "market_data_symbol": "TRNS",
-      "name": "Transcat, Inc. - Common Stock",
-      "research_risk_plan": {
-        "atr_fraction": 0.05191405,
-        "execution_ready": false,
-        "execution_requirement": "fresh_quote_and_intraday_risk_revalidation",
-        "holding_policy": "OPEN_ENDED_MODEL_CONTROLLED",
-        "reference_price": 108.81999969,
-        "reward_risk": 2.0,
-        "risk_percent": 0.05451,
-        "status": "VALID_RESEARCH_REFERENCE",
-        "stop": 102.88824883,
-        "target": 120.68350143
-      },
-      "sector": null,
-      "sector_provenance": {},
-      "symbol": "TRNS",
-      "utility": 85.712037
+      "symbol": "ZYME",
+      "utility": 79.583445
     }
   ],
-  "generated_at": "2026-11-09T15:49:01.924846Z",
+  "generated_at": "2026-11-09T18:50:34.846822Z",
   "governance": {
     "automatic_portfolio_admission": false,
     "automatic_position_replacement": false,
@@ -14279,51 +14484,51 @@
     "production_promotion_requires_separate_statistical_gate": true
   },
   "market": "US",
-  "opportunity_sha256": "d8f5711ca2a40d47c0bf4526de86216e6f44c68c8fe3b1a4581d3bc9e895de60",
+  "opportunity_sha256": "a1aad798b5aa4a0d3586a9d222fa3a5ecee38ec717049178a179bba16d8a04a8",
   "portfolio": {
     "available_slots": 0,
     "held_position_utilities": [
       {
         "components": {
           "entry": 96.126265,
-          "mark": 53.214038,
-          "thesis": 100.0
+          "mark": 53.207092,
+          "thesis": 95.6987
         },
         "entry": 345.35998535,
-        "last_mark": 354.60998535,
+        "last_mark": 354.58999634,
         "position_id": "us:20261103T150539:CBOE",
         "symbol": "CBOE",
         "symbol_key": "CBOE",
-        "unrealized_return": 0.02678365,
-        "utility": 91.626298
+        "unrealized_return": 0.02672577,
+        "utility": 89.474607
       },
       {
         "components": {
           "entry": 91.628612,
-          "mark": 49.160791,
+          "mark": 50.671555,
           "thesis": 100.0
         },
         "entry": 253.38200378,
-        "last_mark": 251.61000061,
+        "last_mark": 254.80000305,
         "position_id": "us:20261105T154527:STE",
         "symbol": "STE",
         "symbol_key": "STE",
-        "unrealized_return": -0.00699341,
-        "utility": 89.444133
+        "unrealized_return": 0.00559629,
+        "utility": 89.670747
       },
       {
         "components": {
           "entry": 94.0775,
-          "mark": 50.645632,
-          "thesis": 83.1201
+          "mark": 49.708148,
+          "thesis": 69.0125
         },
         "entry": 339.20498657,
-        "last_mark": 341.02999878,
+        "last_mark": 338.38000488,
         "position_id": "us:20261106T101134:INTU",
         "symbol": "INTU",
         "symbol_key": "INTU",
-        "unrealized_return": 0.00538026,
-        "utility": 82.08402
+        "unrealized_return": -0.0024321,
+        "utility": 74.889597
       }
     ],
     "max_open_positions": 3,
@@ -14331,19 +14536,19 @@
     "weakest_position": {
       "components": {
         "entry": 94.0775,
-        "mark": 50.645632,
-        "thesis": 83.1201
+        "mark": 49.708148,
+        "thesis": 69.0125
       },
       "entry": 339.20498657,
-      "last_mark": 341.02999878,
+      "last_mark": 338.38000488,
       "position_id": "us:20261106T101134:INTU",
       "symbol": "INTU",
       "symbol_key": "INTU",
-      "unrealized_return": 0.00538026,
-      "utility": 82.08402
+      "unrealized_return": -0.0024321,
+      "utility": 74.889597
     }
   },
   "schema_version": "stock-trading-v2-portfolio-opportunity-v1",
-  "source_evidence_generated_at": "2026-11-09T15:49:01.823327Z",
-  "source_evidence_sha256": "c6eedf73e7cb0097c86a1684232eab22b42b5cd839a132ee75ec897d5a66cb74"
+  "source_evidence_generated_at": "2026-11-09T18:50:34.758049Z",
+  "source_evidence_sha256": "ddebfcaf9fd34f2fe874aa1d588a3e4a1eb93d9103fcefc58624153db5f0892d"
 }
