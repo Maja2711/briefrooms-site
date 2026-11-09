@@ -10,8 +10,8 @@
     "rollback_window": 8,
     "scheduler": "hourly_weekdays"
   },
-  "capture_count": 177,
-  "champion_setup_id": "X-AUTO-08",
+  "capture_count": 178,
+  "champion_setup_id": "X-BASE",
   "engine_version": "eurusd-x-v1.0.0",
   "fixed_core": {
     "bollinger": {
@@ -45,20 +45,20 @@
     ],
     "pivot": "classic_daily_floor_P_R1_R2_R3_S1_S2_S3"
   },
-  "generated_at": "2026-11-07T02:50:18.472251Z",
+  "generated_at": "2026-11-09T06:36:15.617881Z",
   "last_best_setup_id": "X-BASE",
   "latest_prediction": {
-    "confidence": 0.158463,
+    "confidence": 0.161735,
     "direction": "SHORT",
-    "market_observed_at": "2026-11-06T22:29:28Z",
-    "probability_long": 0.420769,
-    "reference_price": 1.11433,
-    "score": 41.2,
-    "setup_id": "X-AUTO-08",
-    "signed_score": -0.17607,
-    "supplementary_score": 0.270446
+    "market_observed_at": "2026-11-09T06:35:33Z",
+    "probability_long": 0.419133,
+    "reference_price": 1.116695,
+    "score": 41.01,
+    "setup_id": "X-BASE",
+    "signed_score": -0.179705,
+    "supplementary_score": 0.196441
   },
-  "market_status": "WAITING_FRESH_MARKET",
+  "market_status": "LIVE",
   "mode": "LIVE_SHADOW",
   "public_boundary": {
     "abc_writeback": false,
@@ -69,27 +69,6 @@
     "shadow_only": true
   },
   "recent_calibration_events": [
-    {
-      "action": "PROMOTE_X_SHADOW",
-      "at": "2026-11-04T09:17:09.028879Z",
-      "challenger_metric": {
-        "brier": 0.273517,
-        "hit_rate": 0.4,
-        "mean_signed_return_bps": -0.754,
-        "n": 25,
-        "signal_n": 15
-      },
-      "champion_after": "X-AUTO-08",
-      "champion_before": "X-BASE",
-      "champion_metric": {
-        "brier": 0.283568,
-        "hit_rate": 0.222222,
-        "mean_signed_return_bps": -6.7149,
-        "n": 25,
-        "signal_n": 9
-      },
-      "reason": "prospective challenger passed common-sample gate"
-    },
     {
       "action": "KEEP",
       "at": "2026-11-04T12:59:50.237040Z",
@@ -155,6 +134,28 @@
       "at": "2026-11-06T23:12:23.670631Z",
       "champion_after": "X-AUTO-08",
       "champion_before": "X-AUTO-08"
+    },
+    {
+      "action": "ROLLBACK",
+      "at": "2026-11-09T06:36:15.617881Z",
+      "champion_after": "X-BASE",
+      "champion_before": "X-AUTO-08",
+      "champion_recent": {
+        "brier": 0.24565,
+        "hit_rate": 0.5,
+        "mean_signed_return_bps": -1.1188,
+        "n": 8,
+        "signal_n": 2
+      },
+      "cooldown_failed_setup_until_resolved_n": 185,
+      "reason": "recent champion degradation vs last proven setup",
+      "rollback_recent": {
+        "brier": 0.231552,
+        "hit_rate": 0.6,
+        "mean_signed_return_bps": 6.909,
+        "n": 8,
+        "signal_n": 5
+      }
     }
   ],
   "recent_discoveries": [
@@ -255,128 +256,128 @@
       "status": "NEW_PROSPECTIVE_CHALLENGER"
     }
   ],
-  "resolved_4h": 175,
+  "resolved_4h": 177,
   "schema_version": "eurusd-x-public-pl-v1",
   "setups": [
     {
-      "brier": 0.258991,
-      "hit_rate": 0.4375,
-      "label": "Auto anomaly 08",
-      "mean_signed_return_bps": -0.4284,
-      "n": 39,
-      "origin": "prospective_anomaly_hunter",
-      "setup_id": "X-AUTO-08",
-      "signal_n": 16
+      "brier": 0.266778,
+      "hit_rate": 0.489583,
+      "label": "Balanced Core + Belief",
+      "mean_signed_return_bps": -1.0584,
+      "n": 177,
+      "origin": "frozen_baseline",
+      "setup_id": "X-BASE",
+      "signal_n": 96
     },
     {
-      "brier": 0.247078,
+      "brier": 0.24855,
       "hit_rate": 0.5,
       "label": "Auto anomaly 06",
       "mean_signed_return_bps": -1.9931,
-      "n": 70,
+      "n": 72,
       "origin": "prospective_anomaly_hunter",
       "setup_id": "X-AUTO-06",
       "signal_n": 18
     },
     {
-      "brier": 0.24727,
+      "brier": 0.249335,
       "hit_rate": 0.5,
       "label": "Auto anomaly 07",
       "mean_signed_return_bps": -1.9931,
-      "n": 55,
+      "n": 57,
       "origin": "prospective_anomaly_hunter",
       "setup_id": "X-AUTO-07",
       "signal_n": 18
     },
     {
-      "brier": 0.249625,
-      "hit_rate": 0.555556,
+      "brier": 0.251227,
+      "hit_rate": 0.535714,
       "label": "Auto anomaly 05",
-      "mean_signed_return_bps": 0.0294,
-      "n": 87,
+      "mean_signed_return_bps": -0.2107,
+      "n": 89,
       "origin": "prospective_anomaly_hunter",
       "setup_id": "X-AUTO-05",
-      "signal_n": 27
+      "signal_n": 28
     },
     {
-      "brier": 0.251118,
+      "brier": 0.251984,
       "hit_rate": 0.6,
       "label": "Auto anomaly 04",
       "mean_signed_return_bps": 1.3393,
-      "n": 102,
+      "n": 104,
       "origin": "prospective_anomaly_hunter",
       "setup_id": "X-AUTO-04",
       "signal_n": 25
     },
     {
-      "brier": 0.253304,
+      "brier": 0.254335,
       "hit_rate": 0.470588,
       "label": "Auto anomaly 03",
       "mean_signed_return_bps": -3.432,
-      "n": 119,
+      "n": 121,
       "origin": "prospective_anomaly_hunter",
       "setup_id": "X-AUTO-03",
       "signal_n": 34
     },
     {
-      "brier": 0.262362,
-      "hit_rate": 0.506173,
-      "label": "Stretch / Mean Reversion",
-      "mean_signed_return_bps": -0.6584,
-      "n": 175,
-      "origin": "frozen_challenger",
-      "setup_id": "X-REV",
-      "signal_n": 81
+      "brier": 0.262455,
+      "hit_rate": 0.411765,
+      "label": "Auto anomaly 08",
+      "mean_signed_return_bps": -0.7969,
+      "n": 41,
+      "origin": "prospective_anomaly_hunter",
+      "setup_id": "X-AUTO-08",
+      "signal_n": 17
     },
     {
-      "brier": 0.26243,
-      "hit_rate": 0.506024,
-      "label": "Belief-weighted",
-      "mean_signed_return_bps": -0.5215,
-      "n": 175,
+      "brier": 0.263697,
+      "hit_rate": 0.493976,
+      "label": "Stretch / Mean Reversion",
+      "mean_signed_return_bps": -0.8172,
+      "n": 177,
       "origin": "frozen_challenger",
-      "setup_id": "X-BELIEF",
+      "setup_id": "X-REV",
       "signal_n": 83
     },
     {
-      "brier": 0.264575,
+      "brier": 0.26372,
       "hit_rate": 0.494118,
-      "label": "Trend Continuation",
-      "mean_signed_return_bps": -1.1963,
-      "n": 175,
+      "label": "Belief-weighted",
+      "mean_signed_return_bps": -0.6798,
+      "n": 177,
       "origin": "frozen_challenger",
-      "setup_id": "X-TREND",
+      "setup_id": "X-BELIEF",
       "signal_n": 85
     },
     {
-      "brier": 0.265278,
-      "hit_rate": 0.5,
-      "label": "Balanced Core + Belief",
-      "mean_signed_return_bps": -0.9266,
-      "n": 175,
-      "origin": "frozen_baseline",
-      "setup_id": "X-BASE",
-      "signal_n": 94
+      "brier": 0.265918,
+      "hit_rate": 0.482759,
+      "label": "Trend Continuation",
+      "mean_signed_return_bps": -1.3354,
+      "n": 177,
+      "origin": "frozen_challenger",
+      "setup_id": "X-TREND",
+      "signal_n": 87
     },
     {
-      "brier": 0.266509,
-      "hit_rate": 0.454545,
+      "brier": 0.268413,
+      "hit_rate": 0.443038,
       "label": "Auto anomaly 02",
-      "mean_signed_return_bps": -0.4243,
-      "n": 134,
+      "mean_signed_return_bps": -0.5971,
+      "n": 136,
       "origin": "prospective_anomaly_hunter",
       "setup_id": "X-AUTO-02",
-      "signal_n": 77
+      "signal_n": 79
     },
     {
-      "brier": 0.273213,
-      "hit_rate": 0.414894,
+      "brier": 0.275104,
+      "hit_rate": 0.40625,
       "label": "Auto anomaly 01",
-      "mean_signed_return_bps": -1.6635,
-      "n": 151,
+      "mean_signed_return_bps": -1.7798,
+      "n": 153,
       "origin": "prospective_anomaly_hunter",
       "setup_id": "X-AUTO-01",
-      "signal_n": 94
+      "signal_n": 96
     }
   ],
   "title": "EURUSD X"
