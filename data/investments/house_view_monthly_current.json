@@ -1,0 +1,391 @@
+{
+  "as_of": "2026-11-10",
+  "change_vs_previous": {
+    "bias_changes": {},
+    "previous_month": null
+  },
+  "factors": {
+    "core_inflation": -1,
+    "growth": 1,
+    "market_momentum": -1,
+    "oil": 0,
+    "ten_year_yield": 0
+  },
+  "governance": {
+    "auto_promotion": false,
+    "earnings_and_valuation_coverage": false,
+    "engine_writeback": false,
+    "failure_behavior": "do_not_publish; keep last verified month",
+    "forecast_probability": null,
+    "research_only": true,
+    "trade_authority": false
+  },
+  "indicators": [
+    {
+      "id": "GDPC1",
+      "observation_date": "2026-07-01",
+      "observed_value": 24611.077,
+      "source": "BEA real GDP",
+      "source_url": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=GDPC1"
+    },
+    {
+      "id": "PCEPI",
+      "observation_date": "2026-09-01",
+      "observed_value": 132.257,
+      "source": "BEA PCE price index",
+      "source_url": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=PCEPI"
+    },
+    {
+      "id": "PCEPILFE",
+      "observation_date": "2026-09-01",
+      "observed_value": 130.902,
+      "source": "BEA core PCE price index",
+      "source_url": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=PCEPILFE"
+    },
+    {
+      "id": "DGS10",
+      "observation_date": "2026-11-06",
+      "observed_value": 4.86,
+      "source": "U.S. Treasury 10Y",
+      "source_url": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DGS10"
+    },
+    {
+      "id": "DCOILBRENTEU",
+      "observation_date": "2026-11-03",
+      "observed_value": 107.03,
+      "source": "EIA Brent spot",
+      "source_url": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DCOILBRENTEU"
+    }
+  ],
+  "inputs": {
+    "brent_usd_bbl": 107.03,
+    "core_pce_yoy_pct": 3.12,
+    "gdp_qoq_saar_pct": 3.37,
+    "pce_yoy_pct": 3.65,
+    "spx_futures_20d_return_pct": -5.82,
+    "us_10y_pct": 4.86
+  },
+  "method": "house_view_intelligence_v2_research_only",
+  "month": "2026-11",
+  "product": "BRIEFROOMS_SPX_MONTHLY_MACRO_HOUSE_VIEW",
+  "published_at": "2026-11-10T17:03:59+00:00",
+  "research": {
+    "change_in_observed_factors": [],
+    "coverage": {
+      "belief": "not_publicly_available",
+      "earnings_valuation": "unavailable",
+      "engine_flags": "contextual_risk_flags",
+      "macro": "complete"
+    },
+    "engine_conflicts": [],
+    "engine_crosscheck": [
+      {
+        "as_of": "2026-11-10T09:56:18.452011+00:00",
+        "directional_vote": null,
+        "en": "GSE: DOWN over 30 days, reported reading 56.0%; research-only, not automatically a calibrated probability of index decline.",
+        "id": "GSE",
+        "pl": "GSE: DOWN w 30 dni, raportowany odczyt 56.0%; research-only, bez automatycznej interpretacji jako prawdopodobieństwo spadku indeksu.",
+        "reported_direction": "DOWN",
+        "reported_probability": 0.5602,
+        "risk_flag": null,
+        "source_id": "GSE",
+        "status": "research_only"
+      },
+      {
+        "as_of": "2026-11-09T21:00:00+00:00",
+        "directional_memory": "ABSTAIN",
+        "directional_vote": null,
+        "en": "FSE: TURBULENT regime, structural risk 0.59/1; directional memory ABSTAIN. Not a 6M/12M forecast.",
+        "id": "FSE",
+        "pl": "FSE: reżim TURBULENT, ryzyko struktury 0.59/1; pamięć kierunkowa ABSTAIN. Nie jest to prognoza 6M/12M.",
+        "regime": "TURBULENT",
+        "risk_flag": "structural_caution",
+        "risk_score": 0.5935,
+        "source_id": "FSE",
+        "status": "research_only"
+      },
+      {
+        "as_of": "2026-11-10T03:47:27+00:00",
+        "champion_authorized": false,
+        "directional_vote": null,
+        "en": "BRACE-SPX: NOT_READY gate; no authorized single direction. Challengers do not vote in House View.",
+        "id": "BRACE",
+        "pl": "BRACE-SPX: bramka NOT_READY; brak autoryzowanego pojedynczego kierunku. Challengery nie głosują w House View.",
+        "promotion_gate": "NOT_READY",
+        "source_id": "BRACE",
+        "status": "research_only"
+      },
+      {
+        "as_of": "2026-11-08T03:26:49+01:00",
+        "directional_vote": null,
+        "en": "WES: frozen SPX futures 20-session change -5.82%. Momentum observation, not a WES trade direction or live quote.",
+        "id": "WES",
+        "pl": "WES: zamrożona zmiana SPX futures za 20 sesji -5.82%. To obserwacja momentum, nie transakcyjny kierunek WES ani świeży tick.",
+        "ret20_pct": -5.82,
+        "source_id": "WES",
+        "status": "research_only"
+      },
+      {
+        "as_of": null,
+        "directional_vote": null,
+        "en": "No qualified public five-belief SPX snapshot. Private Belief bridges are neither reconstructed nor consumed without a contract.",
+        "id": "BELIEF",
+        "pl": "Nie ma kwalifikowanego publicznego snapshotu pięciu przekonań SPX. Prywatne mosty Belief nie są rekonstruowane ani odczytywane bez kontraktu.",
+        "source_id": null,
+        "status": "not_publicly_available"
+      }
+    ],
+    "evidence": [
+      {
+        "id": "GSE",
+        "observed_at": "2026-11-10T09:57:02.772108+00:00",
+        "role": "read_only_context",
+        "sha256": "f59a5e0016321ee8e4184991fed17a0b5059c338b5f85e5c0f8abf7d04a21231",
+        "source": "/data/gse/gse_v2_lab_public.json",
+        "status": "fresh"
+      },
+      {
+        "id": "FSE",
+        "observed_at": "2026-11-10T10:01:22.411962+00:00",
+        "role": "read_only_context",
+        "sha256": "0fe39b80665b292e1f7e647563fe22ccb754b57faa0b9067759f2762d240c3ec",
+        "source": "/data/investments/fse_public.json",
+        "status": "fresh"
+      },
+      {
+        "id": "BRACE",
+        "observed_at": "2026-11-10T03:47:27+00:00",
+        "role": "read_only_context",
+        "sha256": "83e11efd9802516d22ab6d5de33ba44d321e4af93ed7308c04d3a2c5690b80c7",
+        "source": "/data/public/brace_spx_platform_public.json",
+        "status": "fresh"
+      },
+      {
+        "id": "WES",
+        "observed_at": "2026-11-08T03:26:49+01:00",
+        "role": "frozen_weekly_context",
+        "sha256": "e6e6a36f2c2215d07fa0484d44024d6c257394d50a56cf1367d9bd1d5524e682",
+        "source": "/data/investments/weekly/2026-W46.json",
+        "status": "fresh"
+      },
+      {
+        "id": "FUNDAMENTALS",
+        "observed_at": null,
+        "role": "optional_curated_primary_document",
+        "sha256": null,
+        "source": "/data/investments/house_view_fundamentals.json",
+        "status": "missing_or_invalid"
+      },
+      {
+        "id": "GDPC1",
+        "observed_at": "2026-07-01",
+        "role": "macro_observation",
+        "sha256": null,
+        "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=GDPC1",
+        "status": "fresh",
+        "value": 24611.077
+      },
+      {
+        "id": "PCEPI",
+        "observed_at": "2026-09-01",
+        "role": "macro_observation",
+        "sha256": null,
+        "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=PCEPI",
+        "status": "fresh",
+        "value": 132.257
+      },
+      {
+        "id": "PCEPILFE",
+        "observed_at": "2026-09-01",
+        "role": "macro_observation",
+        "sha256": null,
+        "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=PCEPILFE",
+        "status": "fresh",
+        "value": 130.902
+      },
+      {
+        "id": "DGS10",
+        "observed_at": "2026-11-06",
+        "role": "macro_observation",
+        "sha256": null,
+        "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DGS10",
+        "status": "fresh",
+        "value": 4.86
+      },
+      {
+        "id": "DCOILBRENTEU",
+        "observed_at": "2026-11-03",
+        "role": "macro_observation",
+        "sha256": null,
+        "source": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DCOILBRENTEU",
+        "status": "fresh",
+        "value": 107.03
+      }
+    ],
+    "fundamentals": {
+      "forward_eps_growth_pct": null,
+      "forward_pe": null,
+      "status": "unavailable"
+    },
+    "limitations": {
+      "independent_model_votes": false,
+      "index_price_target": null,
+      "no_inference_from_abstain": true,
+      "no_private_artifact_access": true,
+      "scenario_probabilities": null,
+      "unvalidated_heuristic": true
+    },
+    "scenarios": [
+      {
+        "en": "Base scenario: the 6M balance remains conditional; next inflation, growth and yield releases matter.",
+        "id": "base",
+        "pl": "Scenariusz bazowy: bieżący bilans 6M pozostaje warunkowy; decydują kolejne odczyty inflacji, wzrostu i rentowności.",
+        "probability": null,
+        "watch_ids": [
+          "GDPC1",
+          "PCEPILFE",
+          "DGS10"
+        ]
+      },
+      {
+        "en": "Downside scenario: persistent core inflation, higher yields or a renewed energy shock increase valuation pressure.",
+        "id": "downside",
+        "pl": "Scenariusz spadkowy: utrzymywanie się wysokiej inflacji bazowej, wzrost rentowności lub ponowny szok energetyczny zwiększają presję na wyceny.",
+        "probability": null,
+        "watch_ids": [
+          "PCEPILFE",
+          "DGS10",
+          "DCOILBRENTEU"
+        ]
+      },
+      {
+        "en": "Upside scenario: disinflation without growth deterioration and stabilizing funding costs would help, subject to earnings confirmation.",
+        "id": "upside",
+        "pl": "Scenariusz wzrostowy: dezinflacja bez spadku aktywności i stabilizacja kosztu kapitału poprawiłyby warunki; wymaga to potwierdzenia w zyskach spółek.",
+        "probability": null,
+        "watch_ids": [
+          "GDPC1",
+          "PCEPILFE",
+          "DGS10"
+        ]
+      }
+    ],
+    "sections": [
+      {
+        "en": "Current risk balance: 1M defensive, 6M neutral, 12M neutral. These are separate conditional horizons. Real GDP +3.37% SAAR and core PCE 3.12% y/y anchor the macro context; fresh models raise contextual risk flags but do not replace fundamentals.",
+        "id": "thesis",
+        "pl": "Bieżący bilans ryzyka: 1M defensywny, 6M neutralny, 12M neutralny. Są to odrębne, warunkowe horyzonty. Wzrost PKB +3.37% SAAR oraz inflacja bazowa PCE 3.12% r/r wyznaczają tło; świeże silniki sygnalizują dodatkowe ryzyka, ale nie zastępują fundamentów.",
+        "source_ids": [
+          "FSE",
+          "GDPC1",
+          "PCEPILFE"
+        ]
+      },
+      {
+        "en": "Real GDP: +3.37% q/q SAAR. Headline PCE: 3.65% y/y, core: 3.12% y/y. Positive growth does not rule out data revisions or margin pressure.",
+        "id": "growth_and_inflation",
+        "pl": "PKB realny: +3.37% q/q SAAR. Inflacja PCE: 3.65% r/r, bazowa: 3.12% r/r. Dodatni wzrost nie eliminuje ryzyka rewizji danych i marż.",
+        "source_ids": [
+          "GDPC1",
+          "PCEPI",
+          "PCEPILFE"
+        ]
+      },
+      {
+        "en": "U.S. 10-year Treasury yield: 4.86%; Brent: USD 107.03/bbl. Oil remains an observable input to costs and inflation.",
+        "id": "rates_and_energy",
+        "pl": "Rentowność amerykańskich obligacji 10Y: 4.86%; Brent: 107.03 USD/bbl. Cena ropy pozostaje obserwowanym czynnikiem kosztów i inflacji.",
+        "source_ids": [
+          "DCOILBRENTEU",
+          "DGS10"
+        ]
+      },
+      {
+        "en": "Current index-level forward EPS, earnings revisions and forward P/E are not verified. No numerical price target or strong fundamental 6M/12M claim is published.",
+        "id": "earnings_and_valuation",
+        "pl": "Brak aktualnych, potwierdzonych danych indeksowych o forward EPS, rewizjach zysków i forward P/E. Nie przypisujemy liczbowego targetu ani silnej tezy fundamentalnej na 6M/12M.",
+        "source_ids": []
+      },
+      {
+        "en": "Frozen SPX futures 20-session momentum: -5.82%. GSE, FSE and BRACE are informational only. Contextual risk flags: structural_caution.",
+        "id": "tactical_and_models",
+        "pl": "Zamrożone momentum SPX futures 20 sesji: -5.82%. GSE, FSE i BRACE są odczytywane wyłącznie informacyjnie. Zidentyfikowano flagi ryzyka: structural_caution.",
+        "source_ids": [
+          "BRACE",
+          "FSE",
+          "GSE",
+          "WES"
+        ]
+      },
+      {
+        "en": "No conflict detected under disclosed thresholds. Absence of conflict is not validation. Belief Core is excluded without a qualified point-in-time public contract.",
+        "id": "disagreements",
+        "pl": "Brak zidentyfikowanego konfliktu według jawnych progów. Brak konfliktu nie jest potwierdzeniem trafności. Stan Belief Core bez odpowiedniego publicznego punktowego kontraktu pozostaje poza oceną.",
+        "source_ids": []
+      }
+    ],
+    "thesis_change_gates": [
+      {
+        "en": "Core PCE >=3.5% y/y: inflation pressure raises defensiveness.",
+        "id": "core_pce",
+        "pl": "Core PCE >=3,5% r/r: presja inflacyjna podnosi defensywność.",
+        "source_id": "PCEPILFE",
+        "threshold": 3.5
+      },
+      {
+        "en": "GDP <1% q/q SAAR: reassess growth optimism.",
+        "id": "gdp",
+        "pl": "PKB <1% q/q SAAR: rewizja optymizmu wzrostowego.",
+        "source_id": "GDPC1",
+        "threshold": 1.0
+      },
+      {
+        "en": "Brent >=USD 110/bbl: reassess cost pressure.",
+        "id": "brent",
+        "pl": "Brent >=110 USD/bbl: ponowna ocena presji kosztowej.",
+        "source_id": "DCOILBRENTEU",
+        "threshold": 110.0
+      },
+      {
+        "en": "UST 10Y >=5%: higher discounting of future cash flows.",
+        "id": "ten_year",
+        "pl": "UST 10Y >=5%: wyższy dyskont dla przyszłych przepływów.",
+        "source_id": "DGS10",
+        "threshold": 5.0
+      }
+    ],
+    "thesis_status": "conditional_research_not_validated_forecast",
+    "version": "2.0"
+  },
+  "schema_version": "2.0",
+  "scope": "sourced_macro_scenarios_and_read_only_engine_context_no_price_target",
+  "status": "published_research_only",
+  "views": {
+    "12M": {
+      "bias": "neutral",
+      "confidence_note": "unvalidated_heuristic_not_probability",
+      "conviction": 3,
+      "risk_balance_score": 0
+    },
+    "1M": {
+      "bias": "defensive",
+      "confidence_note": "unvalidated_heuristic_not_probability",
+      "conviction": 3,
+      "risk_balance_score": -3
+    },
+    "6M": {
+      "bias": "neutral",
+      "confidence_note": "unvalidated_heuristic_not_probability",
+      "conviction": 3,
+      "risk_balance_score": 0
+    }
+  },
+  "weekly_market_observation": {
+    "forecast_frozen_at": "2026-11-08T03:26:49+01:00",
+    "futures_last_close_at_freeze": 7402.0,
+    "price_tick_at": null,
+    "ret20_pct": -5.82,
+    "source": "/data/investments/weekly/2026-W46.json",
+    "week_id": "2026-W46"
+  }
+}
