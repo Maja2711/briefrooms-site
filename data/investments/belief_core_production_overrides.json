@@ -64,6 +64,13 @@
       "rollback_id": "rollback-689348e210fd131b121161b5",
       "to_version_id": null,
       "trade_execution_authority": false
+    },
+    {
+      "at": "2026-11-10T21:34:24.176017Z",
+      "candidate_id": "evo-belief-52f8ed0042f1399b348e2dcc",
+      "component_id": "belief_probability:spx.financial_conditions.supportive",
+      "event": "EVOLUTION_PROMOTION",
+      "version_id": "prod-belief-fafc3078ce6916456d96a827"
     }
   ],
   "overrides": {
@@ -382,8 +389,104 @@
         "type": "logit_affine_v1"
       },
       "version": "prod-belief-7e58db72f89c387b0d537a1f"
+    },
+    "spx.financial_conditions.supportive": {
+      "active": true,
+      "belief_id": "spx.financial_conditions.supportive",
+      "candidate_id": "evo-belief-52f8ed0042f1399b348e2dcc",
+      "evolution_controller": "briefrooms-evolution-controller-v1",
+      "promoted_at": "2026-11-10T21:34:24.176017Z",
+      "prospective_gate": {
+        "blockers": [],
+        "candidate_id": "evo-belief-52f8ed0042f1399b348e2dcc",
+        "criteria": {
+          "brier_relative_improvement_min": 0.05,
+          "log_loss_must_improve": true,
+          "max_accuracy_degradation": 0.03,
+          "max_ece_degradation": 0.01,
+          "protected_slice_max_brier_degradation": 0.1,
+          "stability": "3_of_4"
+        },
+        "evaluated_at": "2026-11-10T21:34:24.176017Z",
+        "evaluator_profile": "belief_calibration_v1",
+        "gate_id": "evo-gate-b3cb77a9d61ecdda9be793f5",
+        "metrics": {
+          "brier_relative_improvement": 0.106609,
+          "challenger": {
+            "accuracy": 0.415094,
+            "brier": 0.286473,
+            "ece": 0.189283,
+            "log_loss": 0.773416,
+            "n": 53
+          },
+          "control": {
+            "accuracy": 0.433962,
+            "brier": 0.320658,
+            "ece": 0.221852,
+            "log_loss": 0.884077,
+            "n": 53
+          },
+          "stability": {
+            "blocks": 4,
+            "improved": 4,
+            "relative_improvements": [
+              0.093419,
+              0.115197,
+              0.106952,
+              0.107947
+            ],
+            "worst_relative_degradation": 0.0
+          }
+        },
+        "minimum_sample": 50,
+        "observed_sample": 53,
+        "prospective_only": true,
+        "segment_checks": [
+          {
+            "brier_relative_improvement": 0.125656,
+            "challenger_brier": 0.283173,
+            "control_brier": 0.323869,
+            "ece_delta": -0.031249,
+            "n": 36,
+            "pass": true,
+            "segment": "horizon:0-6H"
+          },
+          {
+            "brier_relative_improvement": 0.053871,
+            "challenger_brier": 0.30166,
+            "control_brier": 0.318836,
+            "ece_delta": -0.014991,
+            "n": 13,
+            "pass": true,
+            "segment": "horizon:6-24H"
+          },
+          {
+            "brier_relative_improvement": 0.106609,
+            "challenger_brier": 0.286473,
+            "control_brier": 0.320658,
+            "ece_delta": -0.032569,
+            "n": 53,
+            "pass": true,
+            "segment": "instrument:SPX"
+          }
+        ],
+        "source_sha256": "51f40c0736882702952af78127df122ebfdd3c20f2921a266c5b08963b60ee98",
+        "status": "PASS"
+      },
+      "raw_control_preserved": true,
+      "rollback": {
+        "brier_relative_degradation": 0.05,
+        "ece_degradation": 0.05,
+        "minimum_post_promotion_n": 30
+      },
+      "transform": {
+        "intercept": 0.15,
+        "slope": 0.5,
+        "type": "logit_affine_v1"
+      },
+      "version": "prod-belief-fafc3078ce6916456d96a827"
     }
   },
   "schema_version": "belief-core-production-overrides-v1",
-  "updated_at": "2026-11-10T21:26:42.974807Z"
+  "updated_at": "2026-11-10T21:34:24.176017Z"
 }
