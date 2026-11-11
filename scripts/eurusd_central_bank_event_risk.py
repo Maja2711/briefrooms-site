@@ -171,10 +171,16 @@ def event_state(wire: Mapping, events: Sequence[Mapping], policy: Mapping, now: 
         # TR-03 Daily may veto only for a currently relevant CB event.
         # At the next Warsaw calendar day an unresolved old event is audit-only.
         # TR-05 Weekly retains its independently governed expiry rules.
-        if (scope == 'EURUSD_DAILY' and at is not None
-                and at.astimezone(DAILY_GUARD_TZ).date() < now.astimezone(DAILY_GUARD_TZ).date()):
-            expired_daily_ids.append(str(row.get('event_id') or row.get('uid') or canonical_hash([iso(at)])))
-            continue
+        if scope == 'EURUSD_DAILY' and at is not None:
+            event_day, decision_day = at.astimezone(DAILY_GUARD_TZ).date(), now.astimezone(DAILY_GUARD_TZ).date()
+            if event_day < decision_day:
+                expired_daily_ids.append(str(row.get('event_id') or row.get('uid') or canonical_hash([iso(at)])))
+                continue
+            if event_day > decision_day:
+                # A future event can become a CB-specific veto only on its own
+                # trading calendar day. Other native macro/calendar protections
+                # may independently act on an imminent announcement.
+                continue
         bank = _event_kind(row)
         source = row.get('source_url') or row.get('source_ref') or row.get('calendar_source')
         if not source:
