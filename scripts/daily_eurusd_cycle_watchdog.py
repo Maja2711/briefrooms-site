@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
-from datetime import datetime, time
+from datetime import datetime, time, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional
 from zoneinfo import ZoneInfo
@@ -59,6 +59,51 @@ def fx_market_active(now: datetime) -> bool:
     return True
 
 
+
+def inspect_decision_activity(state: Dict[str, Any], now: datetime) -> Dict[str, Any]:
+    """Read-only decision health; never deletes vetoes or edits a trade."""
+    metadata = state.get("metadata") or {}
+    admission = metadata.get("execution_admission") or {}
+    activity = metadata.get("decision_activity") or {}
+    reasons = list(admission.get("reasons") or [])
+    cb = (metadata.get("central_bank_event_risk")
+          or (admission.get("belief_calendar_safety") or {}).get("central_bank_event_risk")
+          or {})
+    diag = cb.get("diagnostics") or {}
+    active_cb = bool((cb.get("entry_guard_enforced") is True and cb.get("block_new_entry") is True)
+                     or "central_bank_event_risk_entry_guard" in reasons)
+    event_at = parse_dt(diag.get("scheduled_at"))
+    if event_at is None:
+        assessed = parse_dt(cb.get("evaluated_at"))
+        minutes = diag.get("minutes_until")
+        if assessed is not None and isinstance(minutes, (int, float)) and not isinstance(minutes, bool):
+            # Backward-compatible projection for v1.9.1 records without scheduled_at.
+            event_at = assessed + timedelta(minutes=float(minutes))
+    past_day = bool(event_at and event_at.date() < now.astimezone(TZ).date())
+    orphan = bool(active_cb and event_at is None and not cb.get("event_id"))
+    elapsed = activity.get("blocked_duration_minutes")
+    ongoing = (activity.get("status") == "DIRECTIONAL_ADMISSION_BLOCKED")
+    prolonged = bool(ongoing and isinstance(elapsed, (int, float)) and elapsed >= 360)
+    state_code = ("EXPIRED_CB_VETO" if active_cb and past_day else
+                  "UNATTRIBUTED_CB_VETO" if orphan else
+                  "PERSISTENT_DIRECTIONAL_VETO" if prolonged else
+                  "DIRECTIONAL_VETO" if ongoing else "NORMAL")
+    return {
+        "status": state_code,
+        "observed_at": state.get("timestamp"),
+        "active_cb_entry_guard": active_cb,
+        "cb_event_id": cb.get("event_id"),
+        "cb_event_at": event_at.isoformat() if event_at else None,
+        "cb_event_previous_day": past_day,
+        "cb_guard_recovery_required": bool(active_cb and (past_day or orphan)),
+        "consecutive_blocked_cycles": activity.get("consecutive_cycles", 0),
+        "blocked_duration_minutes": elapsed,
+        "blockers": activity.get("blockers") or reasons,
+        "attention_required": bool(active_cb and (past_day or orphan) or prolonged),
+        "risk_or_execution_authority": False,
+    }
+
+
 def evaluate(
     now: Optional[datetime] = None,
     *,
@@ -86,6 +131,8 @@ def evaluate(
         result["status"] = "stale"
         result["reasons"].append("daily_state_missing_or_invalid")
         return result
+
+    result["decision_activity"] = inspect_decision_activity(state, now)
 
     timestamp = parse_dt(state.get("timestamp"))
     engine_version = str(state.get("engine_version") or "")
@@ -313,6 +360,15 @@ def evaluate_pipeline(
         pipeline_status=result["status"],
         workflow_health=read_json(workflow_health_path) if workflow_health_path else None,
     )
+    result["decision_activity"] = independent_daily.get("decision_activity") or {}
+    # An old CB veto is a decision-liveness problem, NOT a clock SLA breach.
+    # If upstream is healthy, schedule a single normal Daily recomputation.
+    if (result["decision_activity"].get("cb_guard_recovery_required")
+            and result["recovery_stage"] == "NONE"
+            and result["status"] != "upstream_unqualified"):
+        result["status"] = "recovery_required"
+        result["recovery_stage"] = "DAILY"
+        result["reasons"].append("daily_outdated_central_bank_entry_guard")
     result["auto_dispatch_recovery"] = result["recovery_stage"] in {"BELIEF", "EPISTEMIC", "DAILY"}
     return result
 
@@ -342,7 +398,7 @@ def main() -> None:
     else:
         result = evaluate(max_age_minutes=args.max_age_minutes)
     print(json.dumps(result, ensure_ascii=False, indent=2))
-    if args.mode == "check" and result.get("status") == "stale":
+    if args.mode == "check" and result.get("status") in {"stale", "recovery_required"}:
         raise SystemExit(1)
 
 

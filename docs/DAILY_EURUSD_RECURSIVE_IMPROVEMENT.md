@@ -109,3 +109,24 @@ Passing CI verifies the mechanism and its boundaries. It does not establish
 improved profitability. Production learning starts collecting new-code
 prospective evidence after deployment; a genuinely passing promotion and its
 subsequent monitored results are separate operational evidence.
+
+## As-of four-family learning segregation (2026-11-11)
+
+The local recursive reflection derives an explicit family from the frozen
+original entry-time MTF strategy: UPTREND_LONG, DOWNTREND_SHORT, HORIZONTAL_RANGE,
+and TRANSITION_ABSTAIN. Missing original regime evidence remains UNVERIFIED.
+Per-family canonical actual R, errors and lessons are separate, additive,
+source-trade-bound observations. Existing frozen reflection rows, policy cohorts,
+manifests, winners, losers and rolling sample budgets are not rewritten.
+Pre-entry reflection now compares only the same family when a verified family
+is available. Prospective margin cases freeze the family as an additional
+protected slice; no future-only outcome is reconstructed for a blocked transition.
+
+TRANSITION_ABSTAIN intentionally has no actual trade P&L observations until a
+separately frozen, verified nonexecuting prospective comparison is available.
+The four-family statistics and hypotheses are DISCOVERY ONLY, not four
+independently approved production policies. Family-specific promotion remains
+unavailable without sufficiently powered, prospectively evaluated gates. The
+existing global policy gate, Belief direction, calendar, H1, EPE and risk remain
+authoritative.
+

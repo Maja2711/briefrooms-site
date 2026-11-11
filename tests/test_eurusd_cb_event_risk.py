@@ -100,7 +100,7 @@ class CentralBankRiskTests(unittest.TestCase):
         self.assertFalse(result.block_new_entry)
         self.assertIn('OLD_UNVERIFIED_CB_EVENT_EXPIRED_WITHOUT_END_PROOF',result.reasons)
         self.assertIn('synthetic-fomc',result.diagnostics['expired_unverified_event_ids'])
-        self.assertTrue(self.assess(parts,scope='EURUSD_DAILY').block_new_entry)
+        self.assertFalse(self.assess(parts,scope='EURUSD_DAILY').block_new_entry)
 
     def test_stale_wire_grace_releases_only_weekly_when_no_event(self):
         parts=fixture()
@@ -109,8 +109,69 @@ class CentralBankRiskTests(unittest.TestCase):
         weekly=self.assess(parts)
         daily=self.assess(parts,scope='EURUSD_DAILY')
         self.assertFalse(weekly.block_new_entry)
-        self.assertTrue(daily.block_new_entry)
+        self.assertFalse(daily.block_new_entry)
+        self.assertIn('RSS_STALE', daily.reasons)
         self.assertIn('WES_STALE_WIRE_GRACE_EXHAUSTED_RELEASED_RECOVERY_REQUIRED',weekly.reasons)
+
+
+    def test_daily_prior_day_event_expires_without_modifying_weekly(self):
+        parts=fixture()
+        parts[3][0].update(bank='ECB',
+                           source_url='https://www.ecb.europa.eu/press/pr/date/2026/html/test.html',
+                           scheduled_at=risk.iso(NOW-timedelta(days=2)))
+        parts[4]['entry_guard_enabled']=True
+        daily=self.assess(parts,scope='EURUSD_DAILY')
+        self.assertFalse(daily.block_new_entry)
+        self.assertFalse(daily.entry_guard_enforced)
+        self.assertIn('DAILY_PREVIOUS_DAY_CB_GUARD_EXPIRED', daily.reasons)
+        self.assertEqual(['synthetic-fomc'], daily.diagnostics['expired_daily_event_ids'])
+
+    def test_daily_stale_wire_without_today_event_does_not_veto(self):
+        parts=fixture()
+        parts[2]=collected(Client(),now=NOW-timedelta(hours=3),calendar=[])
+        parts[3]=[]
+        parts[4]['entry_guard_enabled']=True
+        daily=self.assess(parts,scope='EURUSD_DAILY')
+        weekly=self.assess(parts)
+        self.assertFalse(daily.block_new_entry)
+        self.assertFalse(daily.entry_guard_enforced)
+        self.assertIn('RSS_STALE',daily.reasons)
+        self.assertFalse(weekly.block_new_entry)  # Existing Weekly stale-wire grace
+
+    def test_daily_future_calendar_day_is_not_premature_cb_veto(self):
+        parts = fixture()
+        parts[3][0]["scheduled_at"] = risk.iso(NOW + timedelta(days=1))
+        parts[4]["entry_guard_enabled"] = True
+        result = self.assess(parts, scope="EURUSD_DAILY")
+        self.assertFalse(result.entry_guard_enforced)
+        self.assertFalse(result.block_new_entry)
+
+    def test_daily_same_day_fed_and_ecb_release_after_official_proof(self):
+        at=NOW-timedelta(minutes=30)
+        for bank in ('FED','ECB'):
+            with self.subTest(bank=bank):
+                event={'event_id':'verified-'+bank,'bank':bank,
+                       'scheduled_at':risk.iso(at),
+                       'source_url':'https://www.ecb.europa.eu/press/pr/date/2026/html/test.html'
+                          if bank=='ECB' else 'https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm',
+                       'first_seen_at':risk.iso(at-timedelta(hours=1)),
+                       'calendar_checked_at':risk.iso(NOW),
+                       'conference_status':'UNKNOWN','time_precision':'exact'}
+                before=risk.event_state({},[event],risk.DEFAULT_POLICY,at-timedelta(minutes=10),scope='EURUSD_DAILY')
+                self.assertTrue(before['active'])
+                unverified=risk.event_state({},[event],risk.DEFAULT_POLICY,NOW,scope='EURUSD_DAILY')
+                self.assertTrue(unverified['active'])
+                doc={'event_id':'statement-'+bank,'bank':bank,'statement_verified':True,
+                     'related_calendar_event_id':event['event_id'],
+                     'source_url':event['source_url'],
+                     'published_at':risk.iso(at),
+                     'first_seen_at':risk.iso(at+timedelta(seconds=10)),
+                     'ingested_at':risk.iso(at+timedelta(seconds=12))}
+                verified=risk.event_state({'events':[doc]},[event],risk.DEFAULT_POLICY,NOW,scope='EURUSD_DAILY')
+                self.assertFalse(verified['active'])
+                self.assertEqual('POST_RELEASE_CONFIRMED',verified['phase'])
+                weekly=risk.event_state({'events':[doc]},[event],risk.DEFAULT_POLICY,NOW,scope='EURUSD_WEEKLY')
+                self.assertTrue(weekly['active'])
 
     def test_verified_end_needs_cooldown(self):
         parts=fixture();parts[3][0].update(scheduled_at=risk.iso(NOW-timedelta(hours=2)),

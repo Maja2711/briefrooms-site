@@ -151,16 +151,22 @@ def _execution_admission(
         reasons.append("belief_flip_" + str(flip.get("reason") or "unconfirmed"))
     if whipsaw.get("allowed") is not True:
         reasons.append("cross_direction_" + str(whipsaw.get("reason") or "whipsaw"))
-    # Only evaluated, trustworthy technical evidence can veto entry. Missing
-    # evidence is observable but must not rewrite established admission contracts.
-    if bollinger.get("available") is True and bollinger.get("allowed") is False:
-        reasons.append("bollinger_h1_" + str(bollinger.get("reason") or "not_aligned"))
+    # H1 is the declared PRIMARY entry timeframe. A missing, stale or
+    # unverified H1 signal must not silently bypass the technical gate.
+    # This affects NEW entries only; existing position exits stay independent.
+    if candidate.direction in {"LONG", "SHORT"}:
+        if bollinger.get("available") is not True:
+            reasons.append("bollinger_h1_" + str(bollinger.get("reason") or "unverified"))
+        elif bollinger.get("allowed") is not True:
+            reasons.append("bollinger_h1_" + str(bollinger.get("reason") or "not_aligned"))
 
     mtf = (candidate.metadata or {}).get("multi_timeframe") or {}
     risk_plan = (candidate.metadata or {}).get("h1_volatility_geometry") or {}
     details["multi_timeframe"] = dict(mtf)
     details["h1_volatility_geometry"] = dict(risk_plan)
-    if mtf.get("available") is True and mtf.get("block_new_entry") is True:
+    if candidate.direction in {"LONG", "SHORT"} and mtf.get("available") is not True:
+        reasons.append("mtf_" + str(mtf.get("reason") or "unverified"))
+    elif mtf.get("available") is True and mtf.get("block_new_entry") is True:
         reasons.append("mtf_" + str(mtf.get("strategy") or "not_admitted").lower())
     if risk_plan.get("allowed") is False:
         reasons.append("mtf_volatility_geometry_unfavorable")
@@ -200,9 +206,11 @@ def _execution_admission(
     )
     guard_meta = (guarded.metadata or {}).get("same_thesis_reentry_guard") or {}
     details["same_thesis_reentry_guard"] = dict(guard_meta)
+    family = production_policy.regime_family(mtf, candidate.direction)
+    details["regime_family"] = family
     details["agent_reflection"] = production_policy.reflection_context(
         _policy_state(observed_at), (candidate.metadata or {}).get("final_decision") or {},
-        observed_at=observed_at,
+        observed_at=observed_at, regime_family_id=family,
     )
 
     # Price-location safety may veto the native direction; it never creates it.
@@ -649,7 +657,10 @@ def prepare_entry_candidate(
             state, _ = production_policy.freeze_case(
                 state, decision_manifest=manifest, position=position,
                 score=prepared.score, now=frozen_at,
-                slices={"session": _session(prepared.timestamp), "macro": "clear"})
+                slices={"session": _session(prepared.timestamp), "macro": "clear",
+                        "regime_family": production_policy.regime_family(
+                            (admission.get("multi_timeframe") or {}),
+                            prepared.direction)})
             _cycle_context["policy_state"] = state
         if context.get("allowed") is True and evaluations:
             state = production_policy.freeze_reentry_case(
@@ -773,6 +784,47 @@ class _CycleClient:
         return self.cache[key]
 
 
+
+def _decision_activity(output: DailyEngineOutput, previous: Mapping[str, Any]) -> dict[str, Any]:
+    """Audit-only continuity of directional no-trade vetoes, not trade authority."""
+    current_meta = output.metadata or {}
+    previous_meta = (previous.get("metadata") or {}) if isinstance(previous, Mapping) else {}
+    admission = current_meta.get("execution_admission") or {}
+    final = current_meta.get("final_decision") or {}
+    native_direction = final.get("direction")
+    blocked = (output.status == "NO_TRADE" and native_direction in {"LONG", "SHORT"}
+               and admission.get("allowed") is False)
+    reasons = sorted(set(str(x) for x in (admission.get("reasons") or []) if x))
+    previous_activity = previous_meta.get("decision_activity") or {}
+    same = (blocked and previous_activity.get("status") == "DIRECTIONAL_ADMISSION_BLOCKED"
+            and previous_activity.get("direction") == native_direction
+            and previous_activity.get("blockers") == reasons)
+    observed = belief_decision._parse_time(output.timestamp)
+    since = observed
+    cycles = 1
+    if same:
+        try:
+            stored = belief_decision._parse_time(previous_activity["blocked_since"])
+            if stored <= observed:
+                since = stored
+                cycles = max(1, int(previous_activity.get("consecutive_cycles", 1))) + 1
+        except (ValueError, TypeError, KeyError):
+            pass
+    return {
+        "schema_version": "eurusd-daily-decision-activity-v1",
+        "status": ("DIRECTIONAL_ADMISSION_BLOCKED" if blocked else
+                   "NO_NATIVE_DIRECTION" if native_direction not in {"LONG", "SHORT"} else
+                   "POSITION_OPEN_OR_ADMITTED"),
+        "direction": native_direction,
+        "blockers": reasons if blocked else [],
+        "blocked_since": since.isoformat().replace("+00:00", "Z") if blocked else None,
+        "blocked_duration_minutes": round(max(0.0, (observed - since).total_seconds() / 60), 2) if blocked else 0.0,
+        "consecutive_cycles": cycles if blocked else 0,
+        "admission_is_unchanged": bool(same),
+        "trade_execution_authority": False,
+    }
+
+
 def _assert_private_saxo_runtime_paths(output_path: Path, history_path: Path) -> None:
     """Prevent Saxo-derived trade prices from reaching public Git-tracked state."""
     if os.environ.get("SAXO_PRIVATE_PRIMARY") != "1":
@@ -871,6 +923,7 @@ def run_cycle(output_path: Path, history_path: Path, client: Any | None = None) 
     try:
         output = v18.run_cycle(output_path, history_path, cached)
         metadata = dict(output.metadata)
+        metadata["decision_activity"] = _decision_activity(output, previous)
         manifest = metadata.get("decision_manifest")
         if not isinstance(manifest, Mapping):
             manifest = _decision_manifest(output)
@@ -922,6 +975,8 @@ def run_cycle(output_path: Path, history_path: Path, client: Any | None = None) 
                 "rollback_count": len((policy.get("reentry_learning") or {}).get("rollback_events", [])),
                 "reference_outcomes_are_broker_fills": False,
             },
+            "regime_family_learning": copy.deepcopy(
+                (policy.get("recursive_improvement") or {}).get("family_learning") or {}),
             "rollback_count": len(policy["rollback_events"]),
             "latest_rollback": policy["rollback_events"][-1] if policy["rollback_events"] else None,
             "production_performance": decision_record.production_measurements(lifecycle.load_history(history_path)),

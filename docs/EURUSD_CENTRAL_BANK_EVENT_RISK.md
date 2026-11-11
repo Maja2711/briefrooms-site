@@ -89,3 +89,25 @@ The EURUSD-only Fed calendar wrapper bounds the inherited parser at the next yea
 ### 2026-11-11 WES stale-blocker policy scope
 
 `max_unverified_event_hold_hours=24` and `weekly_stale_wire_release_minutes=120` are bounded, validated parameters of `data/investments/eurusd_cb_risk_policy.json`. Expiry is an *ECB Weekly-only risk-policy decision under uncertainty*, not evidence that the release was safe. `wes_blocker_watchdog.py` separately records stale-wire risk, past no-trade counts, and asks for prospective testing. There is **no empirical estimate** yet that relaxing those guards increases risk-adjusted net performance. EPE, bid/ask source verification, direction authority, independent risk exits and NO RETROACTIVE are unaffected. No current/recent central bank event should be auto-cleared merely to increase trade count.
+
+## Daily-only same-day entry veto and official-release handoff (2026-11-11)
+
+TR-03 EURUSD Daily treats a scheduled ECB/Fed event as an entry veto only on the
+Europe/Warsaw calendar day of that event. A prior-day unresolved event is retained
+as audit evidence (including its original timestamp and event ID) but has no
+new-admission veto authority on the following day. An old or stale Fed/ECB Wire
+without a same-day active event is a source-health diagnostic, never a perpetual
+CB-specific Daily entry veto. Weekly TR-05 keeps its own independent expiry/grace policy.
+
+On event day, the CB-specific veto remains active before the decision and while
+the official statement is unverified. Once the authentic official decision is
+verified with matching event identity and causal publication/ingestion timestamps,
+the CB-specific Daily veto ends; independent Belief macro calendar and post-release
+actuals/lineage, source qualification and two-provider EPE remain mandatory.
+An absent feed does not manufacture a publication or a conference end. Risk/exit
+diagnostics and original position/history are immutable.
+
+The Daily cycle watchdog independently detects a previously published next-day
+CB veto and dispatches one normal Daily recovery when upstream is healthy.
+It never edits the canonical state or calls an execution endpoint itself.
+

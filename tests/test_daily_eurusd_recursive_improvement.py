@@ -57,6 +57,41 @@ class ReflectionMemoryTests(unittest.TestCase):
         record = self.sync([trade])["records"][trade["trade_id"]]
         self.assertAlmostEqual(record["net_r"], -.4)
 
+
+    def test_four_regime_families_have_separate_immutable_actual_memory(self):
+        trades = [
+            self.trade(0, direction="LONG"),
+            self.trade(1, direction="SHORT", score=45.5),
+            self.trade(2, direction="LONG"),
+        ]
+        for trade, strategy in zip(trades, ("STRONG_TREND", "TREND_CONTINUATION", "RANGE_EDGE")):
+            manifest = trade["decision_manifest"]
+            manifest["execution_admission"] = {
+                "multi_timeframe": {"available": True, "strategy": strategy}}
+            manifest.pop("manifest_sha256")
+            manifest["manifest_sha256"] = policy.sha256(manifest)
+        memory = self.sync(trades)
+        summary = memory["family_learning"]["summary"]
+        self.assertEqual(summary["UPTREND_LONG"]["actual_closed_n"], 1)
+        self.assertEqual(summary["DOWNTREND_SHORT"]["actual_closed_n"], 1)
+        self.assertEqual(summary["HORIZONTAL_RANGE"]["actual_closed_n"], 1)
+        self.assertEqual(summary["TRANSITION_ABSTAIN"]["actual_closed_n"], 0)
+        self.assertEqual(reflection.regime_family({"strategy": "WAIT_TRANSITION"}, "SHORT"),
+                         "TRANSITION_ABSTAIN")
+        review = reflection.review(memory, trades[0]["decision_manifest"]["final_decision"],
+                                   observed_at=policy._iso(self.start + timedelta(days=1)),
+                                   regime_family_id="UPTREND_LONG")
+        self.assertEqual(review["similar_actual_trades"], 1)
+        self.assertFalse(review["cross_family_outcomes_used"])
+        self.assertFalse(memory["family_learning"]["automatic_family_policy_promotion"])
+        reflection.validate_history(memory, {"trades": trades})
+        again = self.sync(trades, previous=memory, now=self.start + timedelta(days=2))
+        self.assertEqual(memory, again)
+        altered = copy.deepcopy(again)
+        altered["family_learning"]["actuals"][trades[0]["trade_id"]]["family"] = "HORIZONTAL_RANGE"
+        with self.assertRaisesRegex(ValueError, "family"):
+            reflection.validate_history(altered, {"trades": trades})
+
     def test_repeat_loss_and_unchanged_original_evidence_are_detected(self):
         first = self.trade(0)
         second = self.trade(1, opened=self.start + timedelta(minutes=12))

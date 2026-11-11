@@ -14,9 +14,11 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Literal, Mapping, Sequence
+from zoneinfo import ZoneInfo
 from urllib.parse import urlparse
 
 UTC = timezone.utc
+DAILY_GUARD_TZ = ZoneInfo('Europe/Warsaw')
 ROOT = Path(__file__).resolve().parents[1]
 POLICY_PATH = ROOT / 'data/investments/eurusd_cb_risk_policy.json'
 DEFAULT_POLICY = {
@@ -148,6 +150,7 @@ def event_state(wire: Mapping, events: Sequence[Mapping], policy: Mapping, now: 
     """Calendar time never implies that a conference ended or a rate was released."""
     candidates = []
     expired_unverified_ids = []
+    expired_daily_ids = []
     window = wire.get('event_window') or {}
     # Fresh calendar polling cannot erase a previously verified end, and a
     # missing next-day calendar row cannot silently clear an unresolved event.
@@ -165,6 +168,19 @@ def event_state(wire: Mapping, events: Sequence[Mapping], policy: Mapping, now: 
         if not isinstance(row, Mapping):
             continue
         at = parse_time(row.get('scheduled_at') or row.get('event_at'))
+        # TR-03 Daily may veto only for a currently relevant CB event.
+        # At the next Warsaw calendar day an unresolved old event is audit-only.
+        # TR-05 Weekly retains its independently governed expiry rules.
+        if scope == 'EURUSD_DAILY' and at is not None:
+            event_day, decision_day = at.astimezone(DAILY_GUARD_TZ).date(), now.astimezone(DAILY_GUARD_TZ).date()
+            if event_day < decision_day:
+                expired_daily_ids.append(str(row.get('event_id') or row.get('uid') or canonical_hash([iso(at)])))
+                continue
+            if event_day > decision_day:
+                # A future event can become a CB-specific veto only on its own
+                # trading calendar day. Other native macro/calendar protections
+                # may independently act on an imminent announcement.
+                continue
         bank = _event_kind(row)
         source = row.get('source_url') or row.get('source_ref') or row.get('calendar_source')
         if not source:
@@ -212,8 +228,13 @@ def event_state(wire: Mapping, events: Sequence[Mapping], policy: Mapping, now: 
             continue
         ended = ended_at is not None
         cooled = ended and now >= ended_at + timedelta(minutes=policy['conference_cooldown_minutes'])
-        active = not cooled
+        # Daily reopens the CB-specific gate once the official policy decision
+        # is actually published and causally verified. The independent
+        # Belief macro post-release actuals guard still controls admission.
+        daily_release_verified = bool(scope == 'EURUSD_DAILY' and release_verified and now >= at)
+        active = not cooled and not daily_release_verified
         phase = ('PRE_EVENT' if minutes > 0 else
+                 'POST_RELEASE_CONFIRMED' if daily_release_verified else
                  'ENDED' if cooled else 'POST_EVENT' if ended else
                  'PRESS_CONFERENCE' if row.get('conference_status') == 'IN_PROGRESS' else 'RELEASED' if release_verified else 'UNKNOWN')
         candidates.append(dict(event_id=row.get('event_id') or row.get('uid') or canonical_hash([bank,iso(at)]),
@@ -225,12 +246,14 @@ def event_state(wire: Mapping, events: Sequence[Mapping], policy: Mapping, now: 
     if not candidates:
         return {'event_id': None, 'bank': None, 'phase': 'UNKNOWN', 'active': False,
                 'event_verified': False, 'conference_status': 'UNKNOWN',
-                'expired_unverified_event_ids': sorted(set(expired_unverified_ids))}
+                'expired_unverified_event_ids': sorted(set(expired_unverified_ids)),
+                'expired_daily_event_ids': sorted(set(expired_daily_ids))}
     # An unresolved past event takes priority over a subsequent upcoming event.
     candidates.sort(key=lambda x: (not x['active'], x['minutes_until'] > 0, abs(x['minutes_until'])))
     selected = candidates[0]
     selected['active_event_ids'] = sorted({row['event_id'] for row in candidates if row['active']})
     selected['expired_unverified_event_ids'] = sorted(set(expired_unverified_ids))
+    selected['expired_daily_event_ids'] = sorted(set(expired_daily_ids))
     return selected
 
 
@@ -299,11 +322,16 @@ def assess_pre_event(position: Mapping | None, quote: Mapping | None, wire: Mapp
         and wire_age >= 60 * p['weekly_stale_wire_release_minutes']
         and not active
     )
-    blocked = bool(active or (not wire_fresh and not stale_wire_weekly_release)
+    # A stale source without a live event is a diagnostics/recovery incident,
+    # never a perpetual new-entry veto in Daily. Independent calendar, EPE,
+    # policy and price gates remain mandatory. Weekly semantics are untouched.
+    blocked = bool(active or (scope != 'EURUSD_DAILY' and not wire_fresh and not stale_wire_weekly_release)
                    or p.get('policy_status') == 'INVALID_OR_MISSING')
     reasons = ['RISK_MODEL_UNCALIBRATED']
     if event.get('expired_unverified_event_ids'):
         reasons.append('OLD_UNVERIFIED_CB_EVENT_EXPIRED_WITHOUT_END_PROOF')
+    if event.get('expired_daily_event_ids'):
+        reasons.append('DAILY_PREVIOUS_DAY_CB_GUARD_EXPIRED')
     if stale_wire_weekly_release:
         reasons.append('WES_STALE_WIRE_GRACE_EXHAUSTED_RELEASED_RECOVERY_REQUIRED')
     if not wire_fresh:
@@ -396,9 +424,11 @@ def assess_pre_event(position: Mapping | None, quote: Mapping | None, wire: Mapp
         reasons = [reason for reason in reasons if reason != 'RISK_MODEL_UNCALIBRATED']
         reasons.append('EMPIRICAL_UNVALIDATED_NO_EXECUTION_AUTHORITY')
     diagnostic = dict(current_event_id=event['event_id'],bank=event['bank'],phase=event['phase'],
+        scheduled_at=event.get('scheduled_at'), daily_guard_day_timezone='Europe/Warsaw' if scope == 'EURUSD_DAILY' else None,
         minutes_until=event.get('minutes_until'),conference_status=event['conference_status'],
         active_event_ids=event.get('active_event_ids',[]),
         expired_unverified_event_ids=event.get('expired_unverified_event_ids',[]),
+        expired_daily_event_ids=event.get('expired_daily_event_ids',[]),
         stale_wire_weekly_auto_release=stale_wire_weekly_release,
         headline_count_30m=len({row.get('dedup_key') or row.get('event_id') for row in recent}),latest_headline=latest.get('headline'),
         latest_official_document=latest_official.get('source_url'),speaker_verified=latest.get('speaker_verified',False),
