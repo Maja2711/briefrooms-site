@@ -62,9 +62,13 @@ class Client:
         # A real H1-positive fixture is now required: missing/flat H1 no
         # longer bypasses EURUSD's primary technical admission gate.
         result = []
+        # Exchange OHLC candle timestamps remain on fixed 00/30 boundaries,
+        # even when a new decision is evaluated at 15:01 or 15:03.
+        origin = (self.now.replace(minute=(self.now.minute // 30) * 30, second=0,
+                                   microsecond=0) if interval == "30m" else self.now)
         for index in range(count):
             close = (1.118 + index * .000009) if interval == "30m" else 1.12
-            result.append(Bar(timestamp=self.now - step * (count - 1 - index),
+            result.append(Bar(timestamp=origin - step * (count - 1 - index),
                 open=close, high=close + .0001, low=close - .0001, close=close))
         if self.stop and interval == "1m":
             result[-1] = Bar(timestamp=self.now, open=1.12, high=1.1201, low=1.11, close=1.111)
