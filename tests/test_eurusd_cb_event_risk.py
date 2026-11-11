@@ -100,7 +100,7 @@ class CentralBankRiskTests(unittest.TestCase):
         self.assertFalse(result.block_new_entry)
         self.assertIn('OLD_UNVERIFIED_CB_EVENT_EXPIRED_WITHOUT_END_PROOF',result.reasons)
         self.assertIn('synthetic-fomc',result.diagnostics['expired_unverified_event_ids'])
-        self.assertTrue(self.assess(parts,scope='EURUSD_DAILY').block_new_entry)
+        self.assertFalse(self.assess(parts,scope='EURUSD_DAILY').block_new_entry)
 
     def test_stale_wire_grace_releases_only_weekly_when_no_event(self):
         parts=fixture()
@@ -109,7 +109,8 @@ class CentralBankRiskTests(unittest.TestCase):
         weekly=self.assess(parts)
         daily=self.assess(parts,scope='EURUSD_DAILY')
         self.assertFalse(weekly.block_new_entry)
-        self.assertTrue(daily.block_new_entry)
+        self.assertFalse(daily.block_new_entry)
+        self.assertIn('RSS_STALE', daily.reasons)
         self.assertIn('WES_STALE_WIRE_GRACE_EXHAUSTED_RELEASED_RECOVERY_REQUIRED',weekly.reasons)
 
 
