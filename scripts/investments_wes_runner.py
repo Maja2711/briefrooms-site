@@ -23,6 +23,15 @@ def preflight():
     for p_cfg in v4.policy_instruments(policy):
         iid = str(p_cfg.get("instrument_id")); item = items.get(iid); cfg = v4.instrument_cfg(method, iid)
         if item is None or not cfg: continue
+        prior_week = wes.v5.open_prior_week_position(iid, path)
+        if prior_week:
+            item["wes_status"] = "position_carried_from_prior_week"
+            item["next_entry_status"] = "position_carried_from_prior_week"
+            item["wes_methodology"] = wes.VERSION
+            report["actions"].append({"instrument_id": iid, "action": "monitor_prior_week_position",
+                                      "prior_week_id": prior_week})
+            changed = True
+            continue
         if wes.sf(item.get("entry_price")) is not None and wes.sf(item.get("exit_price")) is None: continue
 
         early_reentry = lifecycle.early_close_reentry_candidate(item, week, now)
@@ -195,6 +204,7 @@ def preflight():
                 "authorized_at": now.isoformat(timespec="seconds"),
                 "expires_at": (now + timedelta(minutes=int((policy.get("directional_admission") or {}).get("authorization_ttl_minutes") or 20))).isoformat(timespec="seconds"),
                 "authorization_type": authorization_type,
+                "holding_policy": lifecycle.CONTINUOUS_HOLDING_POLICY if not early_reentry else lifecycle.HOLDING_POLICY,
                 "directional_admission_passed": True,
                 "candidate": candidate,
                 "required": profile,
@@ -241,6 +251,8 @@ def preflight():
         "early_close_days":["monday","tuesday"],
         "replacement_holding_days":lifecycle.HOLDING_DAYS,
         "replacement_weekend_carry":True,
+        "continuous_horizon_days":lifecycle.HOLDING_DAYS,
+        "continuous_weekend_carry":True,
         "material_event_reentry":False,
         "last_preflight_at":now.isoformat(timespec="seconds")
     }

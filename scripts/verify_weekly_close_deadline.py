@@ -35,6 +35,7 @@ OPEN_STATUSES = {
     "w_trakcie",
 }
 ROLLING_POLICY = "early_close_reentry_7_calendar_days"
+CONTINUOUS_POLICY = "wes_continuous_7_calendar_days"
 EARLY_CLOSE_WEEKDAYS = {0, 1}
 ROLLING_SECONDS = 7 * 24 * 60 * 60
 
@@ -82,29 +83,38 @@ def saved_deadline(week: Dict[str, Any]) -> Optional[datetime]:
 
 
 def rolling_deadline(item: Dict[str, Any]) -> Optional[datetime]:
-    """Return a carry deadline only when all WES provenance checks agree."""
+    """Validate the real seven-day deadline and exact WES authorization."""
     if item.get("wes_weekend_carry_allowed") is not True:
         return None
-    if item.get("wes_early_reentry_qualified") is not True:
-        return None
-    if str(item.get("wes_holding_policy") or "") != ROLLING_POLICY:
-        return None
+    policy = str(item.get("wes_holding_policy") or "")
     entry_at = parse_dt(item.get("entry_captured_at"))
-    source_exit = parse_dt(item.get("wes_early_reentry_source_exit_at"))
     deadline = parse_dt(item.get("wes_holding_deadline_local"))
-    if entry_at is None or source_exit is None or deadline is None:
-        return None
-    if source_exit.weekday() not in EARLY_CLOSE_WEEKDAYS or source_exit >= entry_at:
+    if entry_at is None or deadline is None:
         return None
     expected = entry_at + timedelta(days=7)
     if abs((deadline - expected).total_seconds()) > 300:
         return None
     if abs((deadline - entry_at).total_seconds() - ROLLING_SECONDS) > 3600:
-        # DST can shift elapsed UTC time by one hour while preserving the same
-        # local weekday/time. Anything outside that tolerance is not authentic.
+        return None
+    if policy == CONTINUOUS_POLICY:
+        if item.get("wes_continuous_entry_qualified") is not True or not item.get("entry_decision_id"):
+            return None
+        auth = item.get("wes_entry_authorization") if isinstance(item.get("wes_entry_authorization"), dict) else {}
+        candidate = auth.get("candidate") if isinstance(auth.get("candidate"), dict) else {}
+        authorized = parse_dt(auth.get("authorized_at"))
+        expires = parse_dt(auth.get("expires_at"))
+        if (auth.get("holding_policy") != CONTINUOUS_POLICY
+            or candidate.get("direction") != item.get("direction")
+            or authorized is None or expires is None
+            or not authorized <= entry_at <= expires + timedelta(minutes=5)):
+            return None
+        return deadline
+    if policy != ROLLING_POLICY or item.get("wes_early_reentry_qualified") is not True:
+        return None
+    source_exit = parse_dt(item.get("wes_early_reentry_source_exit_at"))
+    if source_exit is None or source_exit.weekday() not in EARLY_CLOSE_WEEKDAYS or source_exit >= entry_at:
         return None
     return deadline
-
 
 def effective_deadline(week: Dict[str, Any], item: Dict[str, Any]) -> Optional[datetime]:
     return rolling_deadline(item) or saved_deadline(week)

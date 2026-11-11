@@ -17,7 +17,7 @@ from zoneinfo import ZoneInfo
 ROOT = Path(__file__).resolve().parents[1]
 WEEKLY_DIR = ROOT / "data" / "investments" / "weekly"
 TZ = ZoneInfo("Europe/Warsaw")
-EARLY_CLOSE_WEEKDAYS = {0, 1}
+EARLY_CLOSE_WEEKDAYS = {0, 1, 2, 3, 4}
 
 
 def read_json(path: Path) -> dict[str, Any]:
@@ -97,7 +97,7 @@ def apply_lock() -> dict[str, Any]:
                 "scope": "wes_early_reentry_pending",
                 "until": until,
                 "reason": reason,
-                "policy": "early_week_risk_exit_requires_fresh_wes_signal",
+                "policy": "any_weekday_risk_exit_requires_fresh_wes_signal",
                 "created_from_exit_at": item.get("exit_captured_at"),
             }
             if item.get("reentry_lock") != desired:

@@ -53,27 +53,21 @@ def exit_time(week: Dict[str, Any], now: datetime) -> datetime:
 def entry_class(now: datetime) -> str:
     if now.weekday() == 0 and now.hour < 12:
         return "monday_weekly"
-    if now.weekday() == 4:
-        return "friday_tactical"
+    # Friday entries now have the same seven-day rolling horizon.
     return "midweek_trigger"
 
 
 def trigger_profile(now: datetime, remaining_minutes: float) -> Dict[str, Any]:
-    """Increasing admission hurdle as the weekly holding horizon shrinks."""
-    if now.weekday() == 4:
-        if remaining_minutes < 45:
-            return {"allowed": False, "reason": "too_little_time_before_friday_close", "raw": 999.0, "utility": 999.0, "confirmations": 99, "delta": 999.0}
-        if remaining_minutes <= 90:
-            return {"allowed": True, "raw": 80.0, "utility": 14.0, "confirmations": 3, "delta": 28.0}
-        if now.hour >= 18:
-            return {"allowed": True, "raw": 72.0, "utility": 12.0, "confirmations": 3, "delta": 24.0}
-        return {"allowed": True, "raw": 65.0, "utility": 11.0, "confirmations": 3, "delta": 22.0}
-    if now.weekday() == 3:
-        return {"allowed": True, "raw": 55.0, "utility": 9.5, "confirmations": 2, "delta": 18.0}
-    if now.weekday() in {1, 2}:
-        return {"allowed": True, "raw": 48.0, "utility": 8.0, "confirmations": 2, "delta": 15.0}
-    return {"allowed": True, "raw": 44.0, "utility": 7.5, "confirmations": 2, "delta": 15.0}
+    """Time-neutral WES admission for a rolling seven-day paper position.
 
+    This changes neither directional confirmation nor EPE, data-freshness,
+    stop-loss, take-profit or market-availability requirements.
+    """
+    _ = (now, remaining_minutes)
+    return {"allowed": True, "raw": 48.0, "utility": 8.0,
+            "confirmations": 2, "delta": 15.0,
+            "profile": "continuous_rolling_week",
+            "holding_horizon_days": 7}
 
 def decision_direction_from_score(score: float) -> str:
     return "long" if score > 0 else "short" if score < 0 else "neutral"
