@@ -222,8 +222,13 @@ def event_state(wire: Mapping, events: Sequence[Mapping], policy: Mapping, now: 
             continue
         ended = ended_at is not None
         cooled = ended and now >= ended_at + timedelta(minutes=policy['conference_cooldown_minutes'])
-        active = not cooled
+        # Daily reopens the CB-specific gate once the official policy decision
+        # is actually published and causally verified. The independent
+        # Belief macro post-release actuals guard still controls admission.
+        daily_release_verified = bool(scope == 'EURUSD_DAILY' and release_verified and now >= at)
+        active = not cooled and not daily_release_verified
         phase = ('PRE_EVENT' if minutes > 0 else
+                 'POST_RELEASE_CONFIRMED' if daily_release_verified else
                  'ENDED' if cooled else 'POST_EVENT' if ended else
                  'PRESS_CONFERENCE' if row.get('conference_status') == 'IN_PROGRESS' else 'RELEASED' if release_verified else 'UNKNOWN')
         candidates.append(dict(event_id=row.get('event_id') or row.get('uid') or canonical_hash([bank,iso(at)]),
