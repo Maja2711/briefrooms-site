@@ -284,8 +284,14 @@ def reflect_on_history(
     return result
 
 
-def reflection_context(state: Mapping[str, Any], final: Mapping[str, Any], *, observed_at: str | datetime) -> dict[str, Any]:
-    return reflection.review(state.get("recursive_improvement"), final, observed_at=_now(observed_at))
+def reflection_context(state: Mapping[str, Any], final: Mapping[str, Any], *, observed_at: str | datetime,
+                       regime_family_id: str | None = None) -> dict[str, Any]:
+    return reflection.review(state.get("recursive_improvement"), final, observed_at=_now(observed_at),
+                             regime_family_id=regime_family_id)
+
+
+def regime_family(mtf: Mapping[str, Any] | None, direction: str) -> str:
+    return reflection.regime_family(mtf, direction)
 
 
 def reentry_context(state: Mapping[str, Any], at: str | datetime) -> dict[str, Any]:
