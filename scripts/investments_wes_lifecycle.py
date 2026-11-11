@@ -222,8 +222,18 @@ def apply_open_reentry_metadata(path: Optional[Path] = None) -> bool:
                 item[key] = value
                 changed = True
         plan = item.get("risk_plan") if isinstance(item.get("risk_plan"), dict) else {}
-        desired = {**plan, "scheduled_exit": deadline.isoformat(timespec="seconds"),
-                   "holding_policy": updates["wes_holding_policy"], "weekend_carry_allowed": True}
+        if not wes.has_frozen_wes_risk_plan(plan):
+            # Freeze the correct 7d SL/TP geometry in the SAME transaction
+            # that grants weekend carry. Never wait for a later 15m postflight.
+            frozen = wes.build_wes_plan(item, week, legacy.now_local(), wes.learning_stats())
+            if frozen is None:
+                raise RuntimeError("cannot grant WES continuous carry without a frozen SL/TP plan")
+            desired = frozen
+        else:
+            # SL/TP are already frozen: changing the holding deadline must
+            # NEVER reinterpret or regenerate them.
+            desired = {**plan, "scheduled_exit": deadline.isoformat(timespec="seconds"),
+                       "holding_policy": updates["wes_holding_policy"], "weekend_carry_allowed": True}
         if desired != plan:
             item["risk_plan"] = desired
             changed = True
