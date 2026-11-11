@@ -59,8 +59,13 @@ class Client:
     def bars(self, symbol, period, interval):
         count = 120 if interval == "1m" else 220
         step = timedelta(minutes=1 if interval == "1m" else 30)
-        result = [Bar(timestamp=self.now - step * (count - 1 - index), open=1.12,
-            high=1.1201, low=1.1199, close=1.12) for index in range(count)]
+        # A real H1-positive fixture is now required: missing/flat H1 no
+        # longer bypasses EURUSD's primary technical admission gate.
+        result = []
+        for index in range(count):
+            close = (1.118 + index * .000009) if interval == "30m" else 1.12
+            result.append(Bar(timestamp=self.now - step * (count - 1 - index),
+                open=close, high=close + .0001, low=close - .0001, close=close))
         if self.stop and interval == "1m":
             result[-1] = Bar(timestamp=self.now, open=1.12, high=1.1201, low=1.11, close=1.111)
         return result
