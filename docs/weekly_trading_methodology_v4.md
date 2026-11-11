@@ -18,7 +18,7 @@ Current policy explicitly sets:
 
 The tournament may rank a directional candidate, but ranking alone does not authorize a position. EUR/USD, S&P 500 futures or BTC/USD is opened only when the current admission gates qualify the candidate. Otherwise WES remains in `NO_TRADE` and continues monitoring for a later qualified trigger.
 
-After a governed close, re-entry is not automatic merely because a position slot is empty. Re-entry requires the applicable WES trigger, validation and lifecycle rules. Monday/Tuesday early-close replacement may use the separately governed rolling seven-calendar-day path; material-event exits remain fail-closed and are not automatically replaced.
+After a governed close, re-entry is not automatic merely because a position slot is empty. Re-entry requires the applicable WES trigger, validation and lifecycle rules. Qualified replacement is available on any weekday. Material-event exits remain fail-closed and are not automatically replaced.
 
 ## Execution lifecycle contract
 
@@ -60,7 +60,7 @@ The bypass is deliberately relative to the active trigger profile rather than a 
 - both Daily and Weekly must confirm the same direction;
 - directional admission and Champion execution authority remain mandatory.
 
-Because the reference is the active trigger profile, the bypass automatically becomes stricter as the week approaches Friday.
+The active trigger profile is now time-neutral (raw 48, utility 8, at least two independent confirmations and delta 15), including Friday. Only absolute conviction and valid market evidence—not minutes remaining until Friday's historical deadline—govern admission.
 
 ### Adaptive MARKET versus LIMIT decision
 
@@ -170,3 +170,19 @@ The latest review is shown in the public `Pozycje tygodniowe / Weekly positions`
 `backtest_multi_strategy_v4.py` performs a separate walk-forward comparison for every instrument and every candidate method. Method selection at a simulated date can use only outcomes from earlier dates. Costs and frozen ATR SL/TP levels are included.
 
 The historical report approximates one selected trade per week with daily OHLC data. It does not reconstruct every live same-week 5-minute re-entry, so it must not be presented as live validation or a guarantee of profit.
+
+## TR-05 — continuous weekly positions (2026-11-11)
+
+The original ISO-week forecast remains a historical research partition, **not** the forced close of a newly admitted WES position. New WES-authorized EURUSD, BTC/USD and S&P 500 paper entries have an actual-fill plus **seven calendar days** frozen holding deadline, so the position may remain open overnight, through weekends and into the next ISO week. It is always shorter than a month. Existing positions are **not retroactively migrated**; a legacy Friday close or earlier qualified re-entry keeps its own frozen contract.
+
+The Friday-only veto, rising late-week trigger hurdles, time-compressed Friday TP and Wednesday-to-Friday SL/TP re-entry ban are removed for new WES entries. A same-week re-entry still requires a new qualifying Champion thesis; event/thesis invalidation may not be auto-waived. Executable market availability, exact frozen EPE entry proof, valid source timestamps, minimum two independent direction confirmations and hard SL/TP remain mandatory. A carried open leg blocks a duplicate entry for the same instrument in the next ISO week.
+
+The independent 5-minute hard-risk monitor now audits every still-open weekly ledger in its bounded scan window, including a prior-week carried position. The hourly lifecycle settles a carried leg at its verified personal deadline without inventing a future fill. The deadline verifier accepts new carry only when the exact authorized entry, direction, decision ID and actual timestamp agree.
+
+## TR-05 / LE-08 / LE-09 — recursive blocker review (RSI)
+
+Every 15-minute WES cycle now writes `data/investments/wes_blocker_learning.json` via `scripts/wes_blocker_watchdog.py` in **OBSERVE_ONLY** mode; the independent ten-minute `WES Cycle Watchdog` also invokes the same diagnostic and requests a WES recovery dispatch if an active pending authorization is paired with a stale source, a legacy time veto persists, a current instrument is missing, or an obsolete ECB block remains latched. Every Friday the report explicitly marks any instrument whose trading week finished without an executed/carry position.
+
+For each instrument the review captures actual trades/carry, directional candidate, confirmations, raw score, admission status, EPE evidence, monitoring lock type, source age, central-bank status and a bounded history of recorded no-trade causes. The monitor asks if the block prevented a known bad trade, but **does not claim benefit** without prospective point-in-time rejected-candidate outcomes, costs and out-of-sample verification. It records research hypotheses only; no automatic threshold promotion, direction creation, synthetic P/L or trading authority. Legitimate abstention remains allowed. Only identified obsolete time/event gates may be lifted by a separately governed, deterministic lifecycle policy.
+
+This change is experimental paper trading only and **not a claim that a changed rule will be profitable**. Follow-up should measure paired WES Champion vs historical baseline on prospective episodes with cost-adjusted performance, drawdown and false-positive/false-negative blocker rates before any wider automatic relaxation.

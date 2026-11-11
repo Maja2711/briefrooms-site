@@ -1,8 +1,8 @@
 # BriefRooms Canonical Architecture Map — EN
 
-**Map version:** 1.48
+**Map version:** 1.49
 
-**Snapshot date:** 2026-11-08
+**Snapshot date:** 2026-11-11
 
 **Base `main` commit:** `7dff7b1d71b333f9029c661b251b01243a189897`
 
@@ -206,6 +206,12 @@ Canonical L3-A loop: `Epistemic State -> Question Engine -> research intent -> a
 | `TR-06` | Portfolio 10K baseline | Long-horizon portfolio, historical champion/baseline | Preserved production baseline and BRACE fallback |
 | `TR-07` | BRACE Portfolio Engine | Portfolio research/control with optimizer, governance and separate model paper portfolio | **PROBATIONARY_CONTROL**; paper-only, deterministic controller, immutable Portfolio10K baseline as fallback; LLM cannot promote |
 | `TR-08` | BRACE-SPX / Long View | Read-only/forecast-oriented SPX long-view family | Uses its point-in-time state plus epistemic state; canonical DecisionEnvelope rollout incomplete |
+
+### TR-05 / LE-08 / LE-09 — WES continuous holding and recursive blocker review
+
+From 2026-11-11, new Champion-authorized EUR/USD, BTC/USD and S&P 500 WES paper positions receive a **seven-calendar-day horizon measured from the actual fill**. The ISO-week frozen forecast remains a separate historical research object, not the forced exit timestamp of these new positions. Authorization embeds `wes_continuous_7_calendar_days`; `investments_wes_lifecycle.py` verifies the exact direction, decision ID, authorization window and actual entry time. Old positions retain their frozen deadline. `verify_weekly_close_deadline.py` checks per-position close deadlines, and `investments_weekly_v5.py` prevents duplicate cross-week exposure. The Friday time-to-close veto and late-week escalating entry hurdle are removed for newly admitted WES; the qualified weekday re-entry path is similarly no longer limited to Monday/Tuesday. EPE, frozen SL/TP, independent directional confirmations, real source timestamps and NO RETROACTIVE remain immutable execution gates.
+
+`scripts/wes_blocker_watchdog.py` (TR-05 + LE-08 + LE-09) runs diagnostic self-review on every 15-minute WES cycle and the independent 10-minute watchdog. It observes no-trade weeks, old quotes, named blocker reasons, frozen authorizations and research-only hypotheses, writing `data/investments/wes_blocker_learning.json` with **OBSERVE_ONLY authority**. Unverified obsolete Fed/ECB windows expire after 24h, and the Weekly-specific valid-but-stale wire guard may expire after 120min with no known active event, while retaining a recovery alert; Daily remains isolated. Past blocker benefit is **UNPROVEN** without prospective point-in-time cost-adjusted outcomes. The watchdog has no authority to set a trading direction, disable EPE or SL/TP, rewrite past fills, or automatically promote a challenger.
 
 ### TR-03 v1.9.1 — closed production admission-policy loop
 

@@ -2,7 +2,7 @@
   "methodology": "Weekly Engine Star",
   "short_name": "WES",
   "version": "1.3.1",
-  "lifecycle_revision": "weekly-primary-daily-modifier-2",
+  "lifecycle_revision": "rolling-seven-day-weekly-primary-daily-modifier-3",
   "status": "experimental_governed_paper_only",
   "objective": "maximize_total_net_profit_after_costs_without_forcing_exposure",
   "principles": [
@@ -22,20 +22,25 @@
     "Every LIMIT execution requires an observed post-decision 5-minute touch of the frozen target verified by the Execution Price Engine.",
     "No historical or analytical price may be fabricated as an execution.",
     "If WES preflight/postflight liveness becomes stale during the active week, the independent watchdog must fail closed and dispatch recovery.",
+    "New WES entries have a seven-calendar-day frozen holding deadline from the actual fill, including Friday entries. No Friday clock veto or time-compressed Friday TP is allowed.",
+    "WES blocker RSI investigates every week without a trade; it may recover stale sources and release only explicitly expired temporal policy guards, never waive EPE, directional admission or SL/TP.",
     "TP and SL are adaptive to effective remaining holding time, signal strength and learned results by entry class.",
     "Learning must improve expected net profit, not maximize trade count or win rate in isolation.",
     "No rule may force a directional position when admission gates are not met."
   ],
   "entry_classes": {
     "monday_weekly": "normal weekly horizon",
-    "midweek_trigger": "NO TRADE converted to a qualified Tuesday-Thursday or late-Monday trigger",
-    "friday_tactical": "very high-conviction Friday trigger with short time-to-close and low TP",
-    "early_close_reentry": "fresh qualified replacement after a Monday/Tuesday close; seven-calendar-day rolling horizon"
+    "midweek_trigger": "Time-neutral eligible seven-day WES rolling trigger, including Friday",
+    "friday_tactical": "LEGACY HISTORY ONLY: short-horizon Friday tactical profile is not issued to new entries",
+    "early_close_reentry": "Fresh qualified same-week replacement after a weekday close; rolling seven-calendar-day hold"
   },
   "early_close_reentry_policy": {
     "eligible_source_close_days": [
       "monday",
-      "tuesday"
+      "tuesday",
+      "wednesday",
+      "thursday",
+      "friday"
     ],
     "fresh_wes_signal_required": true,
     "shared_validation_gate_required": true,
@@ -47,13 +52,9 @@
     "normal_sl_tp_controls_remain_active": true
   },
   "friday_guardrails": {
-    "minimum_minutes_to_scheduled_close": 45,
-    "very_late_raw_score_minimum": 80,
-    "very_late_minimum_confirmations": 3,
-    "low_tp_cap_vs_base": 0.35,
-    "sl_cap_vs_base": 0.45,
-    "minimum_reward_to_risk": 1.05,
-    "applies_to_early_close_reentry": false
+    "enabled": false,
+    "reason": "All new WES entries use actual-fill+7-calendar-day rolling holding horizon; no Friday near-close veto or artificially shortened TP.",
+    "historical_friday_tactical_retained_for_immutable_positions": true
   },
   "learning_guardrails": {
     "minimum_observations_before_entry_threshold_learning": 6,
@@ -67,8 +68,7 @@
     "applies_to": [
       "initial_weekly_entry",
       "no_trade_trigger",
-      "early_close_reentry",
-      "friday_tactical"
+      "early_close_reentry"
     ],
     "minimum_independent_confirmations": 2,
     "aligned_daily_weekly_opposition": "hard_block",
@@ -91,8 +91,7 @@
     "applies_to": [
       "initial_weekly_entry",
       "no_trade_trigger",
-      "early_close_reentry",
-      "friday_tactical"
+      "early_close_reentry"
     ],
     "inputs": [
       "decision_time_reference_price",
@@ -123,5 +122,26 @@
     "maximum_persisted_cycle_age_minutes": 25,
     "independent_watchdog_interval_minutes": 10,
     "stale_action": "fail closed and dispatch Weekly Engine Star recovery"
+  },
+  "continuous_holding": {
+    "version": "WES-CONTINUOUS-7D-V1",
+    "days_from_actual_entry": 7,
+    "weekend_carry": true,
+    "max_holding_days": 7,
+    "legacy_position_migration": false,
+    "new_authorization_holding_policy": "wes_continuous_7_calendar_days",
+    "risk_exits": "frozen_stop_loss_and_take_profit_always_active",
+    "cross_week_duplicate_exposure_forbidden": true
+  },
+  "recursive_blocker_improvement": {
+    "version": "RSI-BLOCKERS-V1",
+    "mode": "OBSERVE_ONLY",
+    "watchdog_interval_minutes": 10,
+    "diagnosis_interval_minutes": 15,
+    "weekly_no_trade_review_required": true,
+    "past_blocker_net_benefit": "UNPROVEN_UNTIL_POINT_IN_TIME_EXECUTION_COUNTERFACTUALS_VERIFIED",
+    "automatic_relief": "EXPIRED_TEMPORAL_ECB_OR_FRIDAY_GUARDS_ONLY",
+    "execution_direction_and_sl_tp_authority": false,
+    "automatic_production_promotion": false
   }
 }
