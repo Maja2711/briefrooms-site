@@ -105,7 +105,13 @@ def candidate(payload, now):
     metadata = copy.deepcopy(payload["metadata"])
     metadata["final_decision"] = belief.attach_decision_provenance(
         metadata["final_decision"], {}, observed_at=now)
-    metadata.update(decision_source="NATIVE", market_snapshot_sha256="market-facts-sha")
+    # This suite tests post-loss price-location safety. H1/MTF admissibility
+    # is supplied as an explicit verified fixture; missing-H1 rejection has
+    # its own production Bollinger regression tests.
+    metadata.update(decision_source="NATIVE", market_snapshot_sha256="market-facts-sha",
+                    bollinger_h1={"available": True, "allowed": True, "reason": "verified_fixture_h1"},
+                    multi_timeframe={"available": True, "block_new_entry": False,
+                                     "strategy": "TREND_CONTINUATION"})
     side = 1 if payload["direction"] == "LONG" else -1
     return runtime.DailyEngineOutput(
         instrument="EUR/USD", timestamp=stamp(now), direction=payload["direction"],
