@@ -300,5 +300,60 @@ class DailyEURUSDCycleWatchdogTests(unittest.TestCase):
             self.assertEqual("EPISTEMIC", result["recovery_stage"])
 
 
+    def test_prior_day_central_bank_veto_dispatches_daily_recovery_without_false_sla(self):
+        now = datetime(2026, 11, 11, 16, 20, tzinfo=TZ)
+        with tempfile.TemporaryDirectory() as tmp:
+            state, ready = Path(tmp) / "state.json", Path(tmp) / "ready.json"
+            self._write(ready, {"ready": True})
+            self._write(state, {
+                "instrument": "EUR/USD", "timestamp": (now - timedelta(minutes=3)).isoformat(),
+                "engine_version": "eurusd-daily-spot-v1.9.1", "status": "NO_TRADE",
+                "metadata": {
+                    "execution_admission": {"reasons": ["central_bank_event_risk_entry_guard"]},
+                    "central_bank_event_risk": {
+                        "event_id": "ecb-2026-10-29", "entry_guard_enforced": True,
+                        "block_new_entry": True, "evaluated_at": now.isoformat(),
+                        "diagnostics": {"scheduled_at": "2026-10-29T12:15:00Z"}},
+                    "decision_activity": {"status": "DIRECTIONAL_ADMISSION_BLOCKED",
+                        "direction": "SHORT", "consecutive_cycles": 24,
+                        "blocked_duration_minutes": 240,
+                        "blockers": ["central_bank_event_risk_entry_guard"]},
+                },
+            })
+            result = watchdog.evaluate_pipeline(
+                now, state_path=state,
+                belief_created_at=(now - timedelta(minutes=4)).isoformat(),
+                epistemic_created_at=(now - timedelta(minutes=4)).isoformat(),
+                epistemic_readiness_path=ready)
+            self.assertEqual("recovery_required", result["status"])
+            self.assertEqual("DAILY", result["recovery_stage"])
+            self.assertTrue(result["auto_dispatch_recovery"])
+            self.assertFalse(result["daily_sla"]["breached"])
+            self.assertEqual("EXPIRED_CB_VETO", result["decision_activity"]["status"])
+            self.assertTrue(result["decision_activity"]["cb_guard_recovery_required"])
+
+    def test_same_day_cb_guard_is_not_auto_cleared_by_watchdog(self):
+        now = datetime(2026, 11, 11, 16, 20, tzinfo=TZ)
+        state = {"timestamp": now.isoformat(), "metadata": {
+            "execution_admission": {"reasons": ["central_bank_event_risk_entry_guard"]},
+            "central_bank_event_risk": {
+                "event_id": "ecb-current", "entry_guard_enforced": True,
+                "block_new_entry": True, "diagnostics": {"scheduled_at": "2026-11-11T12:15:00Z"}}}}
+        activity = watchdog.inspect_decision_activity(state, now)
+        self.assertFalse(activity["cb_guard_recovery_required"])
+        self.assertFalse(activity["cb_event_previous_day"])
+
+    def test_six_hour_non_cb_veto_is_advisory_only(self):
+        now = datetime(2026, 11, 11, 16, 20, tzinfo=TZ)
+        state = {"timestamp": now.isoformat(), "metadata": {"decision_activity": {
+            "status": "DIRECTIONAL_ADMISSION_BLOCKED", "direction": "LONG",
+            "consecutive_cycles": 73, "blocked_duration_minutes": 365,
+            "blockers": ["bollinger_d1_upper_touch_waiting_for_half_retracement"]}}}
+        activity = watchdog.inspect_decision_activity(state, now)
+        self.assertEqual("PERSISTENT_DIRECTIONAL_VETO", activity["status"])
+        self.assertTrue(activity["attention_required"])
+        self.assertFalse(activity["cb_guard_recovery_required"])
+
+
 if __name__ == "__main__":
     unittest.main()
