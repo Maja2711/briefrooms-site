@@ -36,7 +36,7 @@ OPEN_STATUSES = {
 }
 ROLLING_POLICY = "early_close_reentry_7_calendar_days"
 CONTINUOUS_POLICY = "wes_continuous_7_calendar_days"
-EARLY_CLOSE_WEEKDAYS = {0, 1}
+EARLY_CLOSE_WEEKDAYS = {0, 1, 2, 3, 4}
 ROLLING_SECONDS = 7 * 24 * 60 * 60
 
 

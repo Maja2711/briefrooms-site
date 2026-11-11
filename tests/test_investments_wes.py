@@ -17,17 +17,20 @@ TZ = ZoneInfo('Europe/Warsaw')
 
 
 class WesTests(unittest.TestCase):
-    def test_friday_near_close_requires_extreme_trigger(self):
+    def test_friday_uses_same_rolling_horizon_admission(self):
         now = datetime(2026, 8, 14, 20, 45, tzinfo=TZ)
         p = wes.trigger_profile(now, 75)
-        self.assertTrue(p['allowed'])
-        self.assertGreaterEqual(p['raw'], 80)
-        self.assertGreaterEqual(p['confirmations'], 3)
+        self.assertTrue(p["allowed"])
+        self.assertEqual(48.0, p["raw"])
+        self.assertEqual(2, p["confirmations"])
+        self.assertEqual(7, p["holding_horizon_days"])
 
-    def test_friday_too_late_blocks_normal_weekly_entry(self):
+    def test_friday_late_has_no_clock_veto(self):
         now = datetime(2026, 8, 14, 21, 30, tzinfo=TZ)
         p = wes.trigger_profile(now, 30)
-        self.assertFalse(p['allowed'])
+        self.assertTrue(p["allowed"])
+        self.assertEqual(48.0, p["raw"])
+        self.assertEqual("midweek_trigger", wes.entry_class(now))
 
     def test_early_reentry_uses_full_horizon_profile_even_on_friday(self):
         now = datetime(2026, 8, 14, 21, 30, tzinfo=TZ)
@@ -54,19 +57,19 @@ class WesTests(unittest.TestCase):
         tuesday_close = {**monday_close, 'exit_captured_at': '2026-08-11T12:00:00+02:00'}
         self.assertTrue(lifecycle.early_close_reentry_candidate(tuesday_close, week, now))
 
-    def test_wednesday_close_is_not_eligible_for_same_week_reentry(self):
+    def test_wednesday_close_can_reenter_only_after_new_wes_qualification(self):
         now = datetime(2026, 8, 12, 15, 0, tzinfo=TZ)
         week = {
-            'week_id': '2026-W33',
-            'market_window': {'exit_target_local': '2026-08-14T22:00:00+02:00'},
+            "week_id": "2026-W33",
+            "market_window": {"exit_target_local": "2026-08-14T22:00:00+02:00"},
         }
         item = {
-            'entry_price': 1.1,
-            'exit_price': 1.11,
-            'exit_captured_at': '2026-08-12T12:00:00+02:00',
-            'exit_reason': 'daily_model_confirmed_opposite_signal',
+            "entry_price": 1.1,
+            "exit_price": 1.11,
+            "exit_captured_at": "2026-08-12T12:00:00+02:00",
+            "exit_reason": "daily_model_confirmed_opposite_signal",
         }
-        self.assertFalse(lifecycle.early_close_reentry_candidate(item, week, now))
+        self.assertTrue(lifecycle.early_close_reentry_candidate(item, week, now))
 
     def test_material_event_exit_remains_fail_closed(self):
         now = datetime(2026, 8, 12, 12, 0, tzinfo=TZ)

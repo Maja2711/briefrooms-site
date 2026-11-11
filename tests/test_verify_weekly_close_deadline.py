@@ -48,6 +48,26 @@ def rolling_row(**updates):
     return value
 
 
+def continuous_row(**updates):
+    value = row(
+        entry_price=1.15,
+        entry_captured_at="2026-08-07T21:00:00+02:00",
+        entry_decision_id="synthetic-frozen-decision",
+        wes_continuous_entry_qualified=True,
+        wes_weekend_carry_allowed=True,
+        wes_holding_policy="wes_continuous_7_calendar_days",
+        wes_holding_deadline_local="2026-08-14T21:00:00+02:00",
+        wes_entry_authorization={
+            "holding_policy": "wes_continuous_7_calendar_days",
+            "authorized_at": "2026-08-07T20:55:00+02:00",
+            "expires_at": "2026-08-07T21:55:00+02:00",
+            "candidate": {"direction": "short"},
+        },
+    )
+    value.update(updates)
+    return value
+
+
 def week(item, week_id="2026-W32"):
     return {
         "week_id": week_id,
@@ -68,6 +88,22 @@ class WeeklyCloseDeadlineTests(unittest.TestCase):
         errors = guard.lifecycle_errors(week(row()), now)
         self.assertTrue(any("has no numeric exit" in error for error in errors))
         self.assertTrue(any("continuous_exposure_active remains true" in error for error in errors))
+
+    def test_continuous_entry_can_carry_after_friday_and_into_next_week(self):
+        for day in (9, 13):
+            self.assertEqual([], guard.lifecycle_errors(
+                week(continuous_row()), datetime(2026, 8, day, 17, 0, tzinfo=TZ)))
+
+    def test_continuous_position_must_close_after_seven_days(self):
+        errors = guard.lifecycle_errors(
+            week(continuous_row()), datetime(2026, 8, 14, 21, 1, tzinfo=TZ))
+        self.assertTrue(any("has no numeric exit" in error for error in errors))
+
+    def test_unverified_continuous_carry_is_rejected(self):
+        errors = guard.lifecycle_errors(
+            week(continuous_row(wes_continuous_entry_qualified=False)),
+            datetime(2026, 8, 8, 12, 0, tzinfo=TZ))
+        self.assertTrue(any("has no numeric exit" in error for error in errors))
 
     def test_qualified_early_reentry_may_remain_open_over_weekend(self):
         now = datetime(2026, 8, 9, 14, 0, tzinfo=TZ)

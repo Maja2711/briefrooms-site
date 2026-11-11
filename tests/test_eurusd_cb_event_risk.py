@@ -91,11 +91,23 @@ class CentralBankRiskTests(unittest.TestCase):
         self.assertTrue(result.block_new_entry)
         self.assertIn('RECOVERY_REQUIRED_CONFERENCE_UNCONFIRMED',result.reasons)
 
-    def test_unresolved_guard_survives_next_day_and_fresh_calendar_poll(self):
-        parts=fixture();parts[3][0]['scheduled_at']=risk.iso(NOW-timedelta(days=2))
+    def test_very_old_unverified_event_expires_without_fake_end_proof(self):
+        parts=fixture()
+        parts[3][0]['scheduled_at']=risk.iso(NOW-timedelta(days=2))
         result=self.assess(parts)
-        self.assertTrue(result.block_new_entry)
-        self.assertIn('RECOVERY_REQUIRED_CONFERENCE_UNCONFIRMED',result.reasons)
+        self.assertFalse(result.block_new_entry)
+        self.assertIn('OLD_UNVERIFIED_CB_EVENT_EXPIRED_WITHOUT_END_PROOF',result.reasons)
+        self.assertIn('synthetic-fomc',result.diagnostics['expired_unverified_event_ids'])
+
+    def test_stale_wire_grace_releases_only_weekly_when_no_event(self):
+        parts=fixture()
+        parts[2]=collected(Client(),now=NOW-timedelta(hours=3),calendar=[])
+        parts[3]=[]
+        weekly=self.assess(parts)
+        daily=self.assess(parts,scope='EURUSD_DAILY')
+        self.assertFalse(weekly.block_new_entry)
+        self.assertTrue(daily.block_new_entry)
+        self.assertIn('WES_STALE_WIRE_GRACE_EXHAUSTED_RELEASED_RECOVERY_REQUIRED',weekly.reasons)
 
     def test_verified_end_needs_cooldown(self):
         parts=fixture();parts[3][0].update(scheduled_at=risk.iso(NOW-timedelta(hours=2)),
