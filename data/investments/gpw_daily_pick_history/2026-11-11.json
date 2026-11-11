@@ -1,0 +1,210 @@
+{
+  "schema_version": "gpw-daily-pick-v1",
+  "policy_version": "gpw-short-horizon-pl-v1.5-ranking-gates-momentum",
+  "date": "2026-11-11",
+  "generated_at": "2026-11-11T16:15:15+01:00",
+  "timezone": "Europe/Warsaw",
+  "publication_cutoff": "10:00",
+  "decision": "BRAK_TRANSAKCJI",
+  "reason": "Dziś nie ma sesji GPW.",
+  "locked": true,
+  "selection": null,
+  "data_quality": {
+    "status": "not_applicable",
+    "complete_ratio": 1.0,
+    "control_loop_attempts": 0,
+    "decision_envelope": "CANONICALIZED"
+  },
+  "methodology": {
+    "horizon": "1-2 sesje GPW",
+    "weights": {
+      "catalyst": 25,
+      "relative_momentum": 20,
+      "volume_liquidity": 15,
+      "market_context": 15,
+      "risk_reward": 15,
+      "historical_expectancy": 10
+    },
+    "minimum_score": 72,
+    "minimum_reward_risk": 1.5,
+    "universe_size": 40,
+    "gemini_role": "analiza katalizatora i niezależna recenzja; decyzję końcową blokują reguły kodu",
+    "learning_overlay": {
+      "method": "bayesian_shrinkage_historical_overlay_v1",
+      "active": true,
+      "minimum_sample": 8,
+      "weights_frozen": true
+    },
+    "event_layer": {
+      "enabled": true,
+      "channels": [
+        "ESPI/EBI przez PAP",
+        "niezależne newsy"
+      ],
+      "market_reaction": "ostatnia zakończona sesja: cena, relatywny zwrot i wolumen",
+      "event_learning": "bayesian shrinkage po typie zdarzenia",
+      "weights_frozen": true
+    },
+    "market_data": {
+      "historical_provider_order": [
+        "Yahoo",
+        "Stooq"
+      ],
+      "historical_ranking_session": "ostatnia zakończona sesja GPW",
+      "opening_quote_providers": [
+        "Yahoo",
+        "Stooq"
+      ],
+      "opening_quote_not_before": "09:05 Europe/Warsaw",
+      "publication_cutoff": "10:00 Europe/Warsaw",
+      "crosscheck_max_deviation": 0.02
+    },
+    "daily_stock_core": {
+      "core": "daily-stock-core-v1",
+      "market": "GPW",
+      "currency": "PLN",
+      "weights": {
+        "catalyst": 25,
+        "relative_momentum": 20,
+        "volume_liquidity": 15,
+        "market_context": 15,
+        "risk_reward": 15,
+        "historical_expectancy": 10
+      },
+      "minimum_reward_risk": 1.5,
+      "maximum_risk_percent": 0.07,
+      "relative_momentum": {
+        "enabled": true,
+        "engine": "cross-sectional-multihorizon-v2",
+        "weights": {
+          "rank_1d": 0.10000000000000002,
+          "rank_5d": 0.35000000000000003,
+          "rank_20d": 0.20000000000000004,
+          "rank_risk_adjusted_5d": 0.20000000000000004,
+          "rank_sector_5d": 0.15000000000000002
+        }
+      },
+      "learning": {
+        "method": "bayesian_shrinkage_historical_overlay_v1",
+        "weights_frozen": true,
+        "market_memory_isolated": true
+      },
+      "adapter": {
+        "calendar": "GPW / Europe-Warsaw",
+        "session_confirmation": "09:05 Europe/Warsaw",
+        "currency": "PLN",
+        "official_channels": [
+          "ESPI",
+          "EBI",
+          "PAP MediaRoom",
+          "Biznes PAP"
+        ],
+        "legacy_learning_preserved": true,
+        "event_learning_preserved": true,
+        "legacy_quant_fallback": true,
+        "automatic_no_trade_retries": true,
+        "non_trade_history_filtered": true
+      }
+    }
+  },
+  "metrics": {
+    "resolved_trades": 42,
+    "not_activated": 2,
+    "win_rate": 0.4762,
+    "average_r": 0.098,
+    "average_return_percent": -0.392,
+    "automatic_weight_changes": false
+  },
+  "disclaimer": "Materiał badawczy dotyczący daily tradingu. To nie jest rekomendacja inwestycyjna ani obietnica wyniku.",
+  "learning": {
+    "method": "bayesian_shrinkage_historical_overlay_v1",
+    "resolved_trades": 42,
+    "adaptation_active": true,
+    "minimum_sample": 8,
+    "recent_average_r": 0.191,
+    "last_lesson": {
+      "date": "2026-11-06",
+      "symbol": "ALE",
+      "sector": "handel internetowy",
+      "return_percent": 2.648,
+      "r_multiple": 0.973,
+      "exit_reason": "koniec_horyzontu",
+      "lesson": "ALE: horyzont zakończył się dodatnio (0.97R). Wynik zasila oczekiwaną skuteczność podobnych układów po shrinkage."
+    },
+    "weights_frozen": true,
+    "event_learning_method": "event_family_bayesian_shrinkage_v1",
+    "event_expectancy": [
+      {
+        "event_type": "earnings",
+        "label": "wyniki / raport okresowy",
+        "sample": 1,
+        "minimum_sample": 6,
+        "active": false,
+        "average_r": 1.792,
+        "shrunk_r": 0.0,
+        "catalyst_adjustment": 0.0
+      },
+      {
+        "event_type": "regulatory",
+        "label": "regulacja / spór prawny",
+        "sample": 1,
+        "minimum_sample": 6,
+        "active": false,
+        "average_r": 1.799,
+        "shrunk_r": 0.0,
+        "catalyst_adjustment": 0.0
+      }
+    ]
+  },
+  "decision_envelope": {
+    "envelope_id": "dec-23581aa6d0962a9133bb5079",
+    "envelope_hash": "23581aa6d0962a9133bb50792485ba225564900d48fe5693d9e4f6a40d6589dd",
+    "engine_id": "gpw_daily",
+    "engine_version": "gpw-short-horizon-pl-v1.5-ranking-gates-momentum",
+    "decision_at": "2026-11-11T15:15:15.000000Z",
+    "native_decision": "BRAK_TRANSAKCJI",
+    "action": "FLAT",
+    "instrument_id": null,
+    "market_snapshot_id": null,
+    "market_snapshot_hash": null,
+    "market_data_policy_id": null,
+    "market_data_quality_status": null,
+    "risk_assessment_id": "risk-75771507b794516c1415afda",
+    "risk_assessment_hash": "75771507b794516c1415afda2d58a87571d8a6cbe6060b664652f6b07812c58e",
+    "risk_policy_id": "gpw-daily-risk-policy-v1",
+    "risk_policy_version": "gpw-short-horizon-pl-v1.5-ranking-gates-momentum|risk-v1",
+    "epistemic_state_id": null,
+    "horizon": "1-2 GPW sessions",
+    "confidence": null,
+    "position_plan": {},
+    "authority": {
+      "decision_authority": "SOURCE_ENGINE",
+      "risk_limit_authority": "SOURCE_ENGINE_RISK_POLICY",
+      "envelope_decision_authority": false,
+      "trade_execution": false
+    },
+    "contract_version": "briefrooms-decision-envelope-v1"
+  },
+  "decision_envelope_id": "dec-23581aa6d0962a9133bb5079",
+  "decision_envelope_hash": "23581aa6d0962a9133bb50792485ba225564900d48fe5693d9e4f6a40d6589dd",
+  "risk_assessment": {
+    "risk_assessment_id": "risk-75771507b794516c1415afda",
+    "risk_assessment_hash": "75771507b794516c1415afda2d58a87571d8a6cbe6060b664652f6b07812c58e",
+    "engine_id": "gpw_daily",
+    "policy_id": "gpw-daily-risk-policy-v1",
+    "policy_version": "gpw-short-horizon-pl-v1.5-ranking-gates-momentum|risk-v1",
+    "policy_fingerprint": "ef4dfee4ca26e4a5680658123fe5e070f3c6be60e38a2c2b2c848492c835d71e",
+    "assessed_at": "2026-11-11T15:15:15.000000Z",
+    "action": "FLAT",
+    "status": "NO_POSITION_RISK",
+    "checks": [],
+    "contract_version": "briefrooms-risk-assessment-v1"
+  },
+  "risk_assessment_id": "risk-75771507b794516c1415afda",
+  "risk_assessment_hash": "75771507b794516c1415afda2d58a87571d8a6cbe6060b664652f6b07812c58e",
+  "risk_policy_id": "gpw-daily-risk-policy-v1",
+  "risk_policy_version": "gpw-short-horizon-pl-v1.5-ranking-gates-momentum|risk-v1",
+  "market_snapshot_id": null,
+  "instrument_id": null,
+  "decision_envelope_coverage": "CANONICALIZED"
+}
