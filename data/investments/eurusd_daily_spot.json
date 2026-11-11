@@ -1,9 +1,9 @@
 {
   "instrument": "EUR/USD",
-  "timestamp": "2026-11-10T23:48:57.168055Z",
+  "timestamp": "2026-11-11T00:07:15.101956Z",
   "direction": "FLAT",
-  "score": 44.56,
-  "confidence": 0.3952,
+  "score": 43.15,
+  "confidence": 0.3934,
   "entry": null,
   "stop": null,
   "target": null,
@@ -12,12 +12,43 @@
   "status": "NO_TRADE",
   "decision_mode": "WITH",
   "metadata": {
-    "market_snapshot_sha256": "5d4a6fd42052c0776a000f1726a9ce9eb162341a67cf85c9c7876e5237cff7fd",
+    "market_snapshot_sha256": "f9429bae54a472f9a6839966c7ac7c640bb59a6609c13e6e43ac33c1991ec47f",
     "bollinger_h1": {
-      "available": false,
-      "allowed": false,
-      "reason": "belief_not_directional",
-      "weight": "PRIMARY_TECHNICAL"
+      "available": true,
+      "allowed": true,
+      "reason": "aligned_h1_trend",
+      "role": "PRIMARY_TECHNICAL_ADMISSION",
+      "direction_mutation_allowed": false,
+      "weight": "HIGH_VETO_NEW_ENTRY",
+      "period": 30,
+      "deviations": 2.5,
+      "last_closed_h1": "2026-11-11T00:00:00+00:00",
+      "closed_h1": 1391,
+      "age_minutes": 7.25,
+      "close": 1.117193579673767,
+      "middle": 1.1205815116564433,
+      "upper": 1.1279540668378354,
+      "lower": 1.1132089564750511,
+      "percent_b": 0.27023352831409764,
+      "middle_slope": -0.00011685689290374945,
+      "aligned": true,
+      "exhaustion": false,
+      "regime": "TREND",
+      "range_regime": false,
+      "range_structure": false,
+      "range_edge_entry": {
+        "allowed": false,
+        "reason": "h1_not_flat_range"
+      },
+      "near_middle": false,
+      "flat_middle": true,
+      "marginal_crossing": false,
+      "middle_crossings_6h": 0,
+      "middle_gap_pips": -33.879,
+      "middle_slope_pips_per_h": -1.169,
+      "middle_slope_3h_pips": -3.462,
+      "width_pips": 147.45,
+      "strong_trend_confirmed": true
     },
     "bollinger_d1": {
       "available": true,
@@ -26,24 +57,24 @@
       "admission_veto_allowed": false,
       "period": 30,
       "deviations": 2.5,
-      "last_completed_d1": "2026-11-09T00:00:00+00:00",
-      "close": 1.1147277355194092,
-      "middle": 1.1218603650728862,
-      "upper": 1.1351137473494421,
-      "lower": 1.1086069827963303,
-      "percent_b": 0.2309128566338103,
-      "middle_slope": -0.0007690350214639707,
-      "trend": "DOWN",
-      "cross_above_middle": false,
-      "cross_below_middle": true,
+      "last_completed_d1": "2026-11-10T00:00:00+00:00",
+      "close": 1.122246265411377,
+      "middle": 1.1213596304257711,
+      "upper": 1.1325246104279552,
+      "lower": 1.1101946504235871,
+      "percent_b": 0.5397060713692446,
+      "middle_slope": -0.0005007346471150864,
+      "trend": "MIXED",
+      "cross_above_middle": true,
+      "cross_below_middle": false,
       "near_upper_band": false,
       "near_lower_band": false
     },
     "multi_timeframe": {
       "version": "MTF_H1_REGIME_V1",
       "available": true,
-      "h1_regime": "TRANSITION",
-      "strategy": "NO_BELIEF_SIGNAL",
+      "h1_regime": "STRONG_TREND",
+      "strategy": "STRONG_TREND",
       "direction_authority": false,
       "w1": {
         "available": true,
@@ -54,25 +85,25 @@
       },
       "h1_volatility": {
         "available": true,
-        "mean_high_low_pips": 10.407,
+        "mean_high_low_pips": 10.51,
         "median_high_low_pips": 7.566,
         "p75_high_low_pips": 12.445,
-        "atr_true_range_pips": 10.985,
+        "atr_true_range_pips": 11.036,
         "sample_closed_hours": 24,
-        "last_completed_h1": "2026-11-10T23:00:00+00:00",
-        "last_h1_high": 1.117193579673767,
-        "last_h1_low": 1.116071343421936,
+        "last_completed_h1": "2026-11-11T00:00:00+00:00",
+        "last_h1_high": 1.1173185110092163,
+        "last_h1_low": 1.1168192625045776,
         "executable_spread_proven": false
       },
       "d1": {
-        "trend": "DOWN",
-        "strong": true,
-        "middle_slope_pips_per_day": -7.69,
-        "last_completed_d1": "2026-11-09T00:00:00+00:00"
+        "trend": "MIXED",
+        "strong": false,
+        "middle_slope_pips_per_day": -5.007,
+        "last_completed_d1": "2026-11-10T00:00:00+00:00"
       },
-      "direction": "FLAT",
+      "direction": "SHORT",
       "block_new_entry": false,
-      "position_management": "STANDARD_R_PACE",
+      "position_management": "TREND_H1_VOLATILITY",
       "roles": {
         "H1": "PRIMARY",
         "D1": "SECONDARY",
@@ -80,9 +111,15 @@
       }
     },
     "h1_volatility_geometry": {
-      "applied": false,
-      "allowed": false,
-      "reason": "no_native_direction"
+      "applied": true,
+      "allowed": true,
+      "strategy": "STRONG_TREND",
+      "stop": 1.11852,
+      "target": 1.1141,
+      "new_risk_pips": 15.765,
+      "new_reward_pips": 28.377,
+      "previous_max_risk_pips": 30.2,
+      "hard_stop_widened": false
     },
     "bollinger_d1_touch": {
       "role": "D1_TOUCH_RETRACE_ENTRY_VETO",
@@ -91,12 +128,12 @@
       "requires_belief_recheck": true,
       "fraction": 0.5,
       "available": true,
-      "upper": 1.1351137473494421,
-      "middle": 1.1218603650728862,
-      "lower": 1.1086069827963303,
-      "long_release_price": 1.1284870562111642,
-      "short_release_price": 1.1152336739346083,
-      "last_completed_d1": "2026-11-09T00:00:00+00:00",
+      "upper": 1.1325246104279552,
+      "middle": 1.1213596304257711,
+      "lower": 1.1101946504235871,
+      "long_release_price": 1.1269421204268633,
+      "short_release_price": 1.115777140424679,
+      "last_completed_d1": "2026-11-10T00:00:00+00:00",
       "upper_long_blocked": false,
       "lower_short_blocked": false,
       "state": {
@@ -111,7 +148,7 @@
           "touched_at": null,
           "touched_price": null
         },
-        "last_processed_at": "2026-11-10T23:47:00+00:00"
+        "last_processed_at": "2026-11-11T00:05:00+00:00"
       }
     },
     "market": "FX_SPOT",
@@ -147,9 +184,9 @@
       "owner": "NATIVE_DAILY_EURUSD_BELIEF_FIRST_DECISION_ENGINE",
       "decision_source": "NATIVE_BELIEF_FIRST",
       "epistemic_source": "BELIEF_CORE_CF07",
-      "direction": "FLAT",
-      "score": 44.56,
-      "confidence": 0.3952,
+      "direction": "SHORT",
+      "score": 43.15,
+      "confidence": 0.3934,
       "thresholds": {
         "long": 56.0,
         "short": 44.0
@@ -163,41 +200,40 @@
         "minimum_confidence": 0.25,
         "minimum_aligned_beliefs": 3,
         "alignment_margin": 0.02,
-        "aligned_long_beliefs": [
-          "eurusd.trend.bullish"
-        ],
+        "aligned_long_beliefs": [],
         "aligned_short_beliefs": [
+          "eurusd.trend.bullish",
           "eurusd.us_rates_pressure.supportive",
           "eurusd.usd_environment.supportive"
         ],
         "long_ready": false,
-        "short_ready": false,
+        "short_ready": true,
         "rule": "Narrower Daily participation band applies only to an authoritative, sufficiently covered/confident state with at least three aligned beliefs including the EURUSD trend anchor."
       },
-      "coverage_weight": 0.687619,
+      "coverage_weight": 0.685094,
       "minimum_coverage_weight": 0.45,
       "required_anchor_belief": "eurusd.trend.bullish",
       "used_beliefs": [
         {
           "belief_id": "eurusd.trend.bullish",
-          "probability": 0.524396,
-          "confidence": 0.474238,
-          "directional_support": 0.048792,
-          "effective_support": 0.023139,
+          "probability": 0.47561,
+          "confidence": 0.474186,
+          "directional_support": -0.04878,
+          "effective_support": -0.023131,
           "weight": 0.45,
-          "observed_at": "2026-11-10T23:32:32Z",
-          "age_hours": 0.2737,
+          "observed_at": "2026-11-11T00:02:33Z",
+          "age_hours": 0.0784,
           "source_evidence": [
             {
-              "evidence_id": "ev-e789820abf5982a770b6",
-              "observed_at": "2026-11-10T23:32:32Z",
+              "evidence_id": "ev-515e9b91c0722153fec8",
+              "observed_at": "2026-11-11T00:02:33Z",
               "release": {
                 "adapter": "wes_asset_evidence",
-                "observation_id": "obs-5d03c3b343030605e486",
+                "observation_id": "obs-0dd2b3edcda54a2571c9",
                 "observation_metric": "eurusd_trend_composite"
               },
               "source": "Derived from Yahoo Finance OHLCV",
-              "source_ref": "derived:yahoo:EURUSD:2026-11-10T23:32:32Z:1.2.0:eurusd_trend_composite",
+              "source_ref": "derived:yahoo:EURUSD:2026-11-11T00:02:33Z:1.2.0:eurusd_trend_composite",
               "source_type": "derived"
             }
           ],
@@ -207,13 +243,13 @@
         },
         {
           "belief_id": "eurusd.usd_environment.supportive",
-          "probability": 0.417506,
-          "confidence": 0.589644,
-          "directional_support": -0.164988,
-          "effective_support": -0.097284,
+          "probability": 0.418685,
+          "confidence": 0.587709,
+          "directional_support": -0.16263,
+          "effective_support": -0.095579,
           "weight": 0.3,
           "observed_at": "2026-11-10T23:04:59Z",
-          "age_hours": 0.7328,
+          "age_hours": 1.0378,
           "source_evidence": [
             {
               "evidence_id": "ev-0140cea3060fe3060d08",
@@ -258,13 +294,13 @@
         },
         {
           "belief_id": "eurusd.us_rates_pressure.supportive",
-          "probability": 0.196607,
-          "confidence": 0.858841,
-          "directional_support": -0.606786,
-          "effective_support": -0.521133,
+          "probability": 0.190187,
+          "confidence": 0.858851,
+          "directional_support": -0.619626,
+          "effective_support": -0.532166,
           "weight": 0.15,
-          "observed_at": "2026-11-10T23:22:34Z",
-          "age_hours": 0.4398,
+          "observed_at": "2026-11-10T23:53:06Z",
+          "age_hours": 0.2359,
           "source_evidence": [
             {
               "evidence_id": "ev-18f205d6c6d8ea92ffda",
@@ -291,15 +327,15 @@
               "source_type": "derived"
             },
             {
-              "evidence_id": "ev-3074312d1e220e72a722",
-              "observed_at": "2026-11-10T23:09:37Z",
+              "evidence_id": "ev-3c4c3d95d8907d499847",
+              "observed_at": "2026-11-10T23:53:06Z",
               "release": {
                 "adapter": "wes_asset_evidence",
-                "observation_id": "obs-c3b6bff252f404d3da1f",
-                "observation_metric": "fed_funds_intraday_support_for_eurusd"
+                "observation_id": "obs-d3ba62af726aa01c6361",
+                "observation_metric": "us_rates_intraday_futures_support_for_eurusd"
               },
               "source": "Derived from Yahoo Finance OHLCV",
-              "source_ref": "derived:yahoo:EURUSD:2026-11-10T23:09:37Z:1.2.0:fed_funds_intraday_support_for_eurusd",
+              "source_ref": "derived:yahoo:EURUSD:2026-11-10T23:53:06Z:1.2.0:us_rates_intraday_futures_support_for_eurusd",
               "source_type": "derived"
             },
             {
@@ -312,18 +348,6 @@
               },
               "source": "Gemini interpretation of U.S. Bureau of Labor Statistics Public Data API",
               "source_ref": "derived:obs-33b087e1f1f230319a15",
-              "source_type": "derived"
-            },
-            {
-              "evidence_id": "ev-68eb3adb9dedca41260b",
-              "observed_at": "2026-11-10T23:22:34Z",
-              "release": {
-                "adapter": "wes_asset_evidence",
-                "observation_id": "obs-7c211c3832b7379e5581",
-                "observation_metric": "us_rates_intraday_futures_support_for_eurusd"
-              },
-              "source": "Derived from Yahoo Finance OHLCV",
-              "source_ref": "derived:yahoo:EURUSD:2026-11-10T23:22:34Z:1.2.0:us_rates_intraday_futures_support_for_eurusd",
               "source_type": "derived"
             },
             {
@@ -351,6 +375,18 @@
               "source_type": "derived"
             },
             {
+              "evidence_id": "ev-c050e4ec543974b4d589",
+              "observed_at": "2026-11-10T23:52:52Z",
+              "release": {
+                "adapter": "wes_asset_evidence",
+                "observation_id": "obs-dbde251dc447ef2cf8af",
+                "observation_metric": "fed_funds_intraday_support_for_eurusd"
+              },
+              "source": "Derived from Yahoo Finance OHLCV",
+              "source_ref": "derived:yahoo:EURUSD:2026-11-10T23:52:52Z:1.2.0:fed_funds_intraday_support_for_eurusd",
+              "source_type": "derived"
+            },
+            {
               "evidence_id": "ev-d7ae0f814e9d6bb1a899",
               "observed_at": "2026-11-10T21:00:00Z",
               "release": {
@@ -372,19 +408,17 @@
         {
           "belief_id": "eurusd.macro_surprise.supportive",
           "reason": "stale_or_future_evidence",
-          "age_hours": 1200.12,
+          "age_hours": 1200.038,
           "max_age_hours": 12.0
         },
         {
           "belief_id": "eurusd.policy_differential.supportive",
           "reason": "stale_or_future_evidence",
-          "age_hours": 1800.12,
+          "age_hours": 1800.038,
           "max_age_hours": 18.0
         }
       ],
-      "reasons": [
-        "belief_score_neutral"
-      ],
+      "reasons": [],
       "routing": [
         "RAW_SOURCES",
         "SPECIALIZED_ADAPTERS",
@@ -402,16 +436,16 @@
         "consumer": "DAILY_EURUSD",
         "available": true,
         "reason": "authoritative_daily_eurusd_epistemic_projection",
-        "source_created_at": "2026-11-10T23:41:45.117828Z",
-        "age_hours": 0.120014,
-        "source_sha256": "cb931c1d5090e6377eaeead37281891e644dee3a833f0dce8bfefdc9469be3c7",
+        "source_created_at": "2026-11-11T00:04:58.236468Z",
+        "age_hours": 0.038018,
+        "source_sha256": "e2dfe30d59514c681943a3e707625fc43f7ab9121603da72edefe5302c6e5613",
         "aggregate_authoritative": true,
         "consumer_may_override_probability": false,
         "belief_core_writeback_enabled": false,
         "state_count": 5,
-        "aggregate_probability": 0.445614,
-        "aggregate_confidence": 0.39524,
-        "coverage_weight": 0.687619,
+        "aggregate_probability": 0.431533,
+        "aggregate_confidence": 0.393428,
+        "coverage_weight": 0.685094,
         "qualified_state_count": 3,
         "qualified_belief_ids": [
           "eurusd.trend.bullish",
@@ -421,34 +455,34 @@
       },
       "provenance": {
         "schema_version": "briefrooms-provenance-contract-v1",
-        "artifact_id": "daily-eurusd-decision:a43022ff40027764351ba555",
+        "artifact_id": "daily-eurusd-decision:36295f26d03e4c9c3c71f994",
         "artifact_type": "decision",
         "engine_id": "daily_eurusd",
         "engine_version": "belief-first-v1.9",
-        "created_at": "2026-11-10T23:48:57.168055Z",
+        "created_at": "2026-11-11T00:07:15.101956Z",
         "parent_artifact_ids": [
-          "epistemic:estate-3126e781eb48185147e2",
-          "epistemic:estate-32f22b368608e65d9de9",
-          "epistemic:estate-ce453f688931528a774f"
+          "epistemic:estate-3a31be2fde4aa87d5d63",
+          "epistemic:estate-b2d64d646ac5ca347ddc",
+          "epistemic:estate-ca8af57a5dd1d111ab43"
         ],
         "source_ids": [
           "BELIEF_CORE_CF07",
           "NATIVE_BELIEF_FIRST"
         ],
         "evidence_ids": [
-          "epistemic:estate-3126e781eb48185147e2",
-          "epistemic:estate-32f22b368608e65d9de9",
-          "epistemic:estate-ce453f688931528a774f"
+          "epistemic:estate-3a31be2fde4aa87d5d63",
+          "epistemic:estate-b2d64d646ac5ca347ddc",
+          "epistemic:estate-ca8af57a5dd1d111ab43"
         ],
         "belief_ids": [
           "eurusd.trend.bullish",
           "eurusd.us_rates_pressure.supportive",
           "eurusd.usd_environment.supportive"
         ],
-        "decision_id": "daily-eurusd-decision:a43022ff40027764351ba555",
+        "decision_id": "daily-eurusd-decision:36295f26d03e4c9c3c71f994",
         "forecast_id": null,
         "verification_id": null,
-        "payload_hash": "a43022ff40027764351ba555a68096228070b3727e6445facf3eaf69d44d7265",
+        "payload_hash": "36295f26d03e4c9c3c71f994f4858850504775abf0dcbc7deda8b0598d89ee86",
         "authority": "decision",
         "prospective": true,
         "domain_provenance": {
@@ -460,12 +494,12 @@
     },
     "candidate": {
       "source": "NATIVE",
-      "direction": "FLAT",
-      "score": 44.56,
-      "confidence": 0.3952,
+      "direction": "SHORT",
+      "score": 43.15,
+      "confidence": 0.3934,
       "accepted": false,
       "gate_reasons": [
-        "belief_score_neutral"
+        "central_bank_event_risk_entry_guard"
       ]
     },
     "direction_authority": {
@@ -473,7 +507,7 @@
       "single_owner": true,
       "source": "NATIVE_BELIEF_FIRST",
       "epistemic_input": "BELIEF_CORE_CF07",
-      "direction": "FLAT",
+      "direction": "SHORT",
       "allowed": true,
       "rule": "Final LONG/SHORT/FLAT is synthesized only after Belief Core; no shadow/fallback may manufacture direction."
     },
@@ -508,10 +542,26 @@
     },
     "same_thesis_reentry_guard": {
       "enabled": true,
-      "evaluated": false,
+      "mode": "SAME_THESIS_REENTRY_GUARD",
+      "generic_loss_cooldown": false,
+      "window_hours": 12.0,
+      "min_loss_r": -0.15,
+      "evaluated": true,
       "blocked": false,
-      "reason": "no_directional_candidate",
-      "direction_mutation_allowed": false
+      "reason": "no_recent_meaningful_same_direction_loss",
+      "current_thesis": {
+        "schema_version": "eurusd-entry-thesis-v1",
+        "source": "NATIVE",
+        "source_family": "NATIVE_BELIEF_FIRST",
+        "direction": "SHORT",
+        "score": 43.15,
+        "directional_strength": 6.85,
+        "confidence": 0.3934,
+        "components": {},
+        "weights": {}
+      },
+      "effective_allowed": true,
+      "criteria_policy": "eurusd-reentry-policy-92434b08d7195f2e8324b97b"
     },
     "learning": {
       "total_closed": 56,
@@ -560,18 +610,18 @@
       "recursive_improvement_mode": "AGGRESSIVE_BOUNDED"
     },
     "risk": {
-      "market_observed_at": "2026-11-10T23:48:33Z",
-      "market_reference_mid": 1.1170687675476074,
-      "atr_30m_at_decision": 0.0007212024468642015,
+      "market_observed_at": "2026-11-11T00:06:33Z",
+      "market_reference_mid": 1.1169440746307373,
+      "atr_30m_at_decision": 0.0007017438228313739,
       "atr_30m_window": 26,
       "atr_multiple": 1.35,
       "risk_floor_percent": 0.0027,
       "reward_risk": 1.8,
       "multi_timeframe_version": "MTF_H1_REGIME_V1",
-      "strategy_at_decision": "NO_BELIEF_SIGNAL",
-      "hourly_mean_high_low_pips": 10.407,
+      "strategy_at_decision": "STRONG_TREND",
+      "hourly_mean_high_low_pips": 10.51,
       "hourly_median_high_low_pips": 7.566,
-      "volatility_stop_target_applied": false,
+      "volatility_stop_target_applied": true,
       "soft_horizon_hours": 24.0,
       "hard_horizon_hours": 27.0,
       "position_horizon_hours": 27.0,
@@ -586,47 +636,39 @@
     "belief_macro": {
       "enabled": true,
       "available": true,
-      "score": -1.0771,
+      "score": -1.3212,
       "direction": "short",
       "beliefs": [
         {
           "belief_id": "eurusd.trend.bullish",
-          "probability": 0.524396,
-          "confidence": 0.474238,
-          "age_hours": 0.274,
-          "updated_at": "2026-11-10T23:32:32Z"
+          "probability": 0.47561,
+          "confidence": 0.474186,
+          "age_hours": 0.078,
+          "updated_at": "2026-11-11T00:02:33Z"
         },
         {
           "belief_id": "eurusd.usd_environment.supportive",
-          "probability": 0.417506,
-          "confidence": 0.589644,
-          "age_hours": 0.733,
+          "probability": 0.418685,
+          "confidence": 0.587709,
+          "age_hours": 1.038,
           "updated_at": "2026-11-10T23:04:59Z"
         },
         {
           "belief_id": "eurusd.us_rates_pressure.supportive",
-          "probability": 0.196607,
-          "confidence": 0.858841,
-          "age_hours": 0.44,
-          "updated_at": "2026-11-10T23:22:34Z"
+          "probability": 0.190187,
+          "confidence": 0.858851,
+          "age_hours": 0.236,
+          "updated_at": "2026-11-10T23:53:06Z"
         }
       ],
       "freshness_max_hours": 8.0,
       "score_cap": 10.0,
       "source": "belief_core",
       "macro_calendar": {
-        "available": true,
+        "available": false,
         "status": "calendar_clear_or_not_imminent",
         "imminent": false,
-        "events": [
-          {
-            "title": "Retail trade volume index overview",
-            "event_at": "2026-11-10T23:00:00Z",
-            "hours_until": -0.816,
-            "source": "Eurostat",
-            "source_ref": "https://ec.europa.eu/eurostat/o/calendars/eventsIcal?theme=&category="
-          }
-        ],
+        "events": [],
         "source": "belief_macro_calendar_adapter"
       },
       "release_context": {
@@ -643,7 +685,7 @@
     },
     "central_bank_event_risk": {
       "event_id": "cb-release:c327a2d24023c0ee6f4bb75322f74f2c",
-      "evaluated_at": "2026-11-10T23:48:57.168055Z",
+      "evaluated_at": "2026-11-11T00:07:15.101956Z",
       "scope": "EURUSD_DAILY",
       "position_id": null,
       "action": "BLOCK_NEW_ENTRY",
@@ -774,7 +816,7 @@
         "current_event_id": "cb-release:c327a2d24023c0ee6f4bb75322f74f2c",
         "bank": "ECB",
         "phase": "RELEASED",
-        "minutes_until": -17913.952800916668,
+        "minutes_until": -17932.251699266668,
         "conference_status": "UNKNOWN",
         "active_event_ids": [
           "cb-release:c327a2d24023c0ee6f4bb75322f74f2c",
@@ -784,10 +826,10 @@
         "latest_headline": "Philip R. Lane: The science and practice of monetary policy communication: the ECB experience",
         "latest_official_document": "https://www.ecb.europa.eu//press/pr/date/2026/html/ecb.mp261029~9a493adf17.en.html",
         "speaker_verified": false,
-        "source_age_seconds": 12185.168055,
+        "source_age_seconds": 13283.101956,
         "wire_health": "STALE",
         "producer_wire_health": "FRESH",
-        "latest_decision_headline_age_seconds": 25437.168055,
+        "latest_decision_headline_age_seconds": 26535.101956,
         "position_profit_pips": null,
         "current_net_R": null,
         "profit_at_risk_pips": null,
@@ -798,9 +840,9 @@
         "mfe_R": null,
         "remaining_upside_R": null,
         "reward_to_downside": null,
-        "quote_age_seconds": 24.168055,
+        "quote_age_seconds": 42.101956,
         "current_executable_exit_price": null,
-        "paper_proxy_price": 1.1170687675476074,
+        "paper_proxy_price": 1.1169440746307373,
         "paper_proxy_uncertain": true,
         "spread_pips": null,
         "spread_multiple": null,
@@ -852,19 +894,19 @@
         "data_as_of": "2026-11-10T20:25:52Z",
         "first_seen_at": "2026-11-10T20:25:50Z",
         "producer_sha": "63c3206f0d474892e5bd3b9c4ecafc757fd6670e",
-        "consumer_sha": "65ba70587f8f02395375f36d426296db753dc53d",
+        "consumer_sha": "8ccf976630cbc8990ab59458ae16353735e99f35",
         "snapshot_sha256": "1c33cfb273629c858dadfeb9c7bc9a549ba7571a16f133f44c3518b9d737a88c",
         "executed_at": null,
         "execution_price_source": null,
         "execution_authorized": false,
         "latency_breakdown": {
           "source_to_seen_seconds": 13250.0,
-          "snapshot_to_consumer_seconds": 12185.168055,
+          "snapshot_to_consumer_seconds": 13283.101956,
           "decision_to_execution_seconds": null
         },
         "risk_model_sample_sha256": null,
         "consumer_code_sha256": "cee3814b4cf02eff167412d3f01cdde87cff0b77e3e0e82cf9ca0e5b42f56cb5",
-        "immutable_id": "c2649b18de6f147543546efd8c5a53cbe793a9736aa9d6ffa7a8a4faf0864e8f"
+        "immutable_id": "595f8c4906503d01eeaf768d8747cb6c422b130002cdd3f253449a3430de9f7c"
       },
       "decision_mode": "SHADOW",
       "decision": "BLOCK_NEW_ENTRY",
@@ -876,9 +918,9 @@
         "NO_EXECUTABLE_QUOTE",
         "EXECUTION_COSTS_UNKNOWN"
       ],
-      "immutable_id": "c2649b18de6f147543546efd8c5a53cbe793a9736aa9d6ffa7a8a4faf0864e8f",
+      "immutable_id": "595f8c4906503d01eeaf768d8747cb6c422b130002cdd3f253449a3430de9f7c",
       "wire_snapshot_sha256": "1c33cfb273629c858dadfeb9c7bc9a549ba7571a16f133f44c3518b9d737a88c",
-      "decision_id": "c2649b18de6f147543546efd8c5a53cbe793a9736aa9d6ffa7a8a4faf0864e8f",
+      "decision_id": "595f8c4906503d01eeaf768d8747cb6c422b130002cdd3f253449a3430de9f7c",
       "engine": "EURUSD_DAILY",
       "lifecycle": "v1.9.1",
       "direction_authority": false,
@@ -903,19 +945,835 @@
         "required_r_velocity_to_hard_horizon"
       ]
     },
+    "execution_admission": {
+      "allowed": false,
+      "status": "BLOCKED",
+      "reasons": [
+        "central_bank_event_risk_entry_guard"
+      ],
+      "final_direction_preserved": "SHORT",
+      "direction_mutation_allowed": false,
+      "bollinger_h1": {
+        "available": true,
+        "allowed": true,
+        "reason": "aligned_h1_trend",
+        "role": "PRIMARY_TECHNICAL_ADMISSION",
+        "direction_mutation_allowed": false,
+        "weight": "HIGH_VETO_NEW_ENTRY",
+        "period": 30,
+        "deviations": 2.5,
+        "last_closed_h1": "2026-11-11T00:00:00+00:00",
+        "closed_h1": 1391,
+        "age_minutes": 7.25,
+        "close": 1.117193579673767,
+        "middle": 1.1205815116564433,
+        "upper": 1.1279540668378354,
+        "lower": 1.1132089564750511,
+        "percent_b": 0.27023352831409764,
+        "middle_slope": -0.00011685689290374945,
+        "aligned": true,
+        "exhaustion": false,
+        "regime": "TREND",
+        "range_regime": false,
+        "range_structure": false,
+        "range_edge_entry": {
+          "allowed": false,
+          "reason": "h1_not_flat_range"
+        },
+        "near_middle": false,
+        "flat_middle": true,
+        "marginal_crossing": false,
+        "middle_crossings_6h": 0,
+        "middle_gap_pips": -33.879,
+        "middle_slope_pips_per_h": -1.169,
+        "middle_slope_3h_pips": -3.462,
+        "width_pips": 147.45,
+        "strong_trend_confirmed": true
+      },
+      "belief_flip_confirmation": {
+        "allowed": true,
+        "required": false,
+        "reason": "no_recent_opposite_trade",
+        "state": null
+      },
+      "cross_direction_whipsaw": {
+        "required": false,
+        "allowed": true,
+        "reason": "no_recent_opposite_loss",
+        "direction_mutation_allowed": false
+      },
+      "multi_timeframe": {
+        "version": "MTF_H1_REGIME_V1",
+        "available": true,
+        "h1_regime": "STRONG_TREND",
+        "strategy": "STRONG_TREND",
+        "direction_authority": false,
+        "w1": {
+          "available": true,
+          "trend": "UP",
+          "last_closed_w1": "2026-11-09T00:00:00+00:00",
+          "sma4_change_pips": 5.882,
+          "veto_authority": false
+        },
+        "h1_volatility": {
+          "available": true,
+          "mean_high_low_pips": 10.51,
+          "median_high_low_pips": 7.566,
+          "p75_high_low_pips": 12.445,
+          "atr_true_range_pips": 11.036,
+          "sample_closed_hours": 24,
+          "last_completed_h1": "2026-11-11T00:00:00+00:00",
+          "last_h1_high": 1.1173185110092163,
+          "last_h1_low": 1.1168192625045776,
+          "executable_spread_proven": false
+        },
+        "d1": {
+          "trend": "MIXED",
+          "strong": false,
+          "middle_slope_pips_per_day": -5.007,
+          "last_completed_d1": "2026-11-10T00:00:00+00:00"
+        },
+        "direction": "SHORT",
+        "block_new_entry": false,
+        "position_management": "TREND_H1_VOLATILITY",
+        "roles": {
+          "H1": "PRIMARY",
+          "D1": "SECONDARY",
+          "W1": "OVERVIEW_ONLY"
+        }
+      },
+      "h1_volatility_geometry": {
+        "applied": true,
+        "allowed": true,
+        "strategy": "STRONG_TREND",
+        "stop": 1.11852,
+        "target": 1.1141,
+        "new_risk_pips": 15.765,
+        "new_reward_pips": 28.377,
+        "previous_max_risk_pips": 30.2,
+        "hard_stop_widened": false
+      },
+      "bollinger_d1_touch": {
+        "role": "D1_TOUCH_RETRACE_ENTRY_VETO",
+        "direction_mutation_allowed": false,
+        "opens_trade": false,
+        "requires_belief_recheck": true,
+        "fraction": 0.5,
+        "available": true,
+        "upper": 1.1325246104279552,
+        "middle": 1.1213596304257711,
+        "lower": 1.1101946504235871,
+        "long_release_price": 1.1269421204268633,
+        "short_release_price": 1.115777140424679,
+        "last_completed_d1": "2026-11-10T00:00:00+00:00",
+        "upper_long_blocked": false,
+        "lower_short_blocked": false,
+        "state": {
+          "schema_version": "eurusd-d1-bollinger-touch-v1",
+          "upper": {
+            "blocked": false,
+            "touched_at": null,
+            "touched_price": null
+          },
+          "lower": {
+            "blocked": false,
+            "touched_at": null,
+            "touched_price": null
+          },
+          "last_processed_at": "2026-11-11T00:05:00+00:00"
+        }
+      },
+      "belief_calendar_safety": {
+        "available": true,
+        "blocked": true,
+        "reason": "central_bank_event_risk_entry_guard",
+        "imminent": false,
+        "post_release_evidence_pending": false,
+        "central_bank_event_risk": {
+          "event_id": "cb-release:c327a2d24023c0ee6f4bb75322f74f2c",
+          "evaluated_at": "2026-11-11T00:07:15.101956Z",
+          "scope": "EURUSD_DAILY",
+          "position_id": null,
+          "action": "BLOCK_NEW_ENTRY",
+          "mode": "SHADOW",
+          "quote_verified": false,
+          "event_verified": false,
+          "current_net_R": null,
+          "giveback_risk_R": null,
+          "hold_expected_net_R": null,
+          "close_now_net_R": null,
+          "hold_es95_R": null,
+          "evidence_ids": [
+            "cb:0255765fb984abf2a438e0a8e70170d1",
+            "cb:05bab900a6c6303b613af99378f12363",
+            "cb:07aeb4fbe1cc26a163d7f53088d456bc",
+            "cb:07d0bd379597de77af5b27d361a12b71",
+            "cb:0b57d13e89358b83912a63cd01678163",
+            "cb:0f38da9da6d3b4798ad991df768d5b57",
+            "cb:0fb701c544c0888da0090041b05aa1db",
+            "cb:1028108059029c4a9ece9ce340354d4b",
+            "cb:11950b0fae4ca5e09d6ec84cf550584a",
+            "cb:13a6551003a79bc3c61d6d73de66973d",
+            "cb:13afc9c74506a04cf303c528cee2e79a",
+            "cb:14f7f0ea2992c1a2474c2f979e6ae1d8",
+            "cb:18362ee49f5e0bcd50d833689f3de6d2",
+            "cb:1d64e783e624f1c24ab857c18838f4b1",
+            "cb:1efed8f0b7e87ed4d8e13afe8a6e02c7",
+            "cb:233c4d48649ac7ae1036dd9d73140f28",
+            "cb:2635f180a698fa6357ccfbc3cb791a60",
+            "cb:26b34243d9a4a54ca243de2a45ddcf06",
+            "cb:2fee17f5897b77de815cb9b9c74c77c0",
+            "cb:345df0f84d843e7b1c954662203029ab",
+            "cb:37a1134a1026c1f921ee5a03a0739bdb",
+            "cb:380468f1442ae065d11178e323316b11",
+            "cb:385910b538ae9532509d736cf2eeedd9",
+            "cb:427d57800daf2935eb5fc7646f0cb7ef",
+            "cb:42907e5d9d1eeb12ce622628184ccbd6",
+            "cb:45445d368087d6d824d1f0a84f71ea50",
+            "cb:47c929c0938684546712dd8f8d862133",
+            "cb:49c19ff0224b1a819229b466197b4539",
+            "cb:5a86185109157b16178fb87796486c1c",
+            "cb:5c7667431bc05e4e96f4957445a0898b",
+            "cb:5db1b001b1202b1148b8d77548329ae7",
+            "cb:5efe8519479ffff27727231c696fca83",
+            "cb:6075388292772bda6712ef2a184e3552",
+            "cb:666b58ab8e11fc4888e933c3b4603afe",
+            "cb:6b5bd8cfaa65d8d9bb09a298acce75d2",
+            "cb:6f4b654cc952bfbcde01571c53457016",
+            "cb:7e118a05e2310733bf93d4fb40c93c35",
+            "cb:7ffc35f721c60ac604ca539c4659d091",
+            "cb:8413466fd8c31e5faf2ee200b21d9374",
+            "cb:861769e5c2f7fc4a051a9642ebf10b28",
+            "cb:86666f667b53292fcc13b67040fa1094",
+            "cb:8726a66c12ea098410f9d4691c02869f",
+            "cb:878ebbc77efd4c4f96afc467834939dd",
+            "cb:89f3167a194e7fd712da370654705fb9",
+            "cb:8c5fe6fb4aa640735be8bb70edd8007d",
+            "cb:8cbe88aa686308c4469355aa8a618638",
+            "cb:8d897d44ecb7928821be5a9dfa0aaaa6",
+            "cb:8f28025cb161757839e77641ac7dd154",
+            "cb:9008c560b0d87b645231504ee3751898",
+            "cb:94999d092579af348b2c9898cffa3473",
+            "cb:953a9253ac7f82e174f4758d738f4dd2",
+            "cb:983d8b483526f0e2cea938e8a9727d78",
+            "cb:99185083658a3b6536ee859d663676dd",
+            "cb:9a2951b9355bb9f1f7a8cc552c1626e3",
+            "cb:9b02d66e5c301415cc7516c58bdeb624",
+            "cb:9bcfa238909007a87058431c24baea70",
+            "cb:9c1adfce0d757819a17e64dd5c31ba73",
+            "cb:9c2146443ef06c5fcf0f4046925c6201",
+            "cb:9e06d7c9bf94c78521ae8d4eece1f01d",
+            "cb:a05d9031d0714e17880076ad21a13cfa",
+            "cb:a0e22d4587c11d989fc0b90239de56bc",
+            "cb:a47a94bb5bb68809b36c85e3aa9498c1",
+            "cb:a7aaa0a277fc34b522d94a31e9a93fe4",
+            "cb:a9cfa76c2046628b0e1775d6402a1338",
+            "cb:aab8db80d4302ff010882a97c9c99df1",
+            "cb:af6b78fdd27efaf8c7457efa549800fe",
+            "cb:b00926cce11a1814cf2f217a131b5c54",
+            "cb:b4238b7e8abd15f21b30935706bf9de3",
+            "cb:b56fbf71d05a01c10d06d4ef9339f9b3",
+            "cb:bf8e5f9bd7941279d79a989c9fa5c67b",
+            "cb:bfa08de3d04b5faa22bf5f121e0f8347",
+            "cb:c2038f207d7b629c25acc9b60a5ffef7",
+            "cb:c32688a18a46d3565913570793b68015",
+            "cb:c557449f1107b6cd4566af05e52ed570",
+            "cb:c61f12c93f802f0bc564a6a4f9eeba50",
+            "cb:c6e7944f1404e219a7bbd87a04ee5904",
+            "cb:c95f82e4f96170a9bf10c18f207fdfbc",
+            "cb:cdfb36e8f9f231f25e8dde119a9a827f",
+            "cb:d3fbd695a0eb7056cefd665f7cbb4cae",
+            "cb:d7f1b3ea0d4fc93ba6a710ef0e481bee",
+            "cb:d83f7ab0520077c3814d32d38d9213dc",
+            "cb:d9b1f2c024b765d33ba863710dfb0e72",
+            "cb:dccaffaabbfbb606f30c28225f077768",
+            "cb:dfdb2b133879ff1b2c5205d29a95868d",
+            "cb:e4b457c509a899dbd343a912cce00301",
+            "cb:e4e7561b44847063217253e49411ba41",
+            "cb:e95d6889ad6dd387577f3d1efaa66d6a",
+            "cb:ea06513ec0598f9e7b99a7b60b65f02f",
+            "cb:ebc434a9ad50aae2f7c2e26cd8fa96e7",
+            "cb:eefb720bfd17caf265a68aaba20a145c",
+            "cb:efdc695b7573fdfed63d98edd46905a1",
+            "cb:f2ceb586c37a4bb9bbacddd7447fc17e",
+            "cb:f534e03380d0179402886a5872add509",
+            "cb:f5396fa40d22152824a510eb26ceec23",
+            "cb:f6178bc75065c277c539b655e09800a5",
+            "cb:f77d03b537a4475145275f552d39f574",
+            "cb:f92d729b5899e4c3c34820618827b041",
+            "cb:fbcd376399a3427fef4fa6b94123aad1",
+            "cb:fcfe4bbefd2dbc6754a5d4286657ea91",
+            "cb:fd5b0be03c9a80d5560f3aad017179de",
+            "cb:fde36b038dd7bb0339b8714cd284b8a5",
+            "cb:ff456bbe80bb2f34f79d72a11352ca41"
+          ],
+          "reasons": [
+            "RISK_MODEL_UNCALIBRATED",
+            "RSS_STALE",
+            "RECOVERY_REQUIRED_CONFERENCE_UNCONFIRMED",
+            "HIGH_IMPACT_EVENT_WINDOW",
+            "NO_EXECUTABLE_QUOTE",
+            "EXECUTION_COSTS_UNKNOWN"
+          ],
+          "block_new_entry": true,
+          "entry_guard_enforced": true,
+          "risk_protection_status": "PROTECTION_PENDING",
+          "diagnostics": {
+            "current_event_id": "cb-release:c327a2d24023c0ee6f4bb75322f74f2c",
+            "bank": "ECB",
+            "phase": "RELEASED",
+            "minutes_until": -17932.251699266668,
+            "conference_status": "UNKNOWN",
+            "active_event_ids": [
+              "cb-release:c327a2d24023c0ee6f4bb75322f74f2c",
+              "eu:European Central Bank:2026-10-29:Governing Council of the ECB: monetary policy meeting in Frankfurt (Day 2), foll"
+            ],
+            "headline_count_30m": 0,
+            "latest_headline": "Philip R. Lane: The science and practice of monetary policy communication: the ECB experience",
+            "latest_official_document": "https://www.ecb.europa.eu//press/pr/date/2026/html/ecb.mp261029~9a493adf17.en.html",
+            "speaker_verified": false,
+            "source_age_seconds": 13283.101956,
+            "wire_health": "STALE",
+            "producer_wire_health": "FRESH",
+            "latest_decision_headline_age_seconds": 26535.101956,
+            "position_profit_pips": null,
+            "current_net_R": null,
+            "profit_at_risk_pips": null,
+            "stop_distance_pips": null,
+            "tp_distance_pips": null,
+            "unprotected_profit_pips": null,
+            "giveback_R": null,
+            "mfe_R": null,
+            "remaining_upside_R": null,
+            "reward_to_downside": null,
+            "quote_age_seconds": null,
+            "current_executable_exit_price": null,
+            "paper_proxy_price": null,
+            "paper_proxy_uncertain": true,
+            "spread_pips": null,
+            "spread_multiple": null,
+            "cost_pips": null,
+            "risk_model_status": "RISK_MODEL_UNCALIBRATED",
+            "effective_sample_size": 0,
+            "event_distribution": {
+              "status": "RISK_MODEL_UNCALIBRATED",
+              "effective_sample_size": 0,
+              "expected_net_R": null,
+              "expected_shortfall_95_R": null,
+              "windows": {}
+            },
+            "probability_of_profit_giveback": null,
+            "probability_SL": null,
+            "expected_shortfall_95_R": null,
+            "loss_beyond_stop_scenario": "GAP_AND_SLIPPAGE_CAN_EXCEED_FROZEN_STOP",
+            "input_quality": "PARTIAL",
+            "alerts": [
+              "RSS_STALE",
+              "NO_EXECUTABLE_QUOTE",
+              "LIVE_SPEECH_UNVERIFIED"
+            ]
+          },
+          "alternatives": {
+            "HOLD": {
+              "expected_net_R": null,
+              "es95_R": null,
+              "status": "RISK_MODEL_UNCALIBRATED",
+              "net_R_at_current_quote": null,
+              "full_stop_giveback_R": null,
+              "remaining_upside_R": null
+            },
+            "CLOSE_NOW": {
+              "net_R": null,
+              "executable": false,
+              "execution_authorized": false,
+              "price_source": null
+            },
+            "PROTECT_PROFIT": {
+              "status": "SHADOW_ONLY_LIFECYCLE_STOP_UPGRADE_NOT_CERTIFIED",
+              "proposed_stop": null,
+              "execution_authorized": false
+            }
+          },
+          "audit": {
+            "policy_version": "1.0.0",
+            "policy_hash": "f3536a02e7152c611dcdbc00cf5a78122a678a62d71d2af39c5583a03e7b64e1",
+            "data_as_of": "2026-11-10T20:25:52Z",
+            "first_seen_at": "2026-11-10T20:25:50Z",
+            "producer_sha": "63c3206f0d474892e5bd3b9c4ecafc757fd6670e",
+            "consumer_sha": "8ccf976630cbc8990ab59458ae16353735e99f35",
+            "snapshot_sha256": "1c33cfb273629c858dadfeb9c7bc9a549ba7571a16f133f44c3518b9d737a88c",
+            "executed_at": null,
+            "execution_price_source": null,
+            "execution_authorized": false,
+            "latency_breakdown": {
+              "source_to_seen_seconds": 13250.0,
+              "snapshot_to_consumer_seconds": 13283.101956,
+              "decision_to_execution_seconds": null
+            },
+            "risk_model_sample_sha256": null,
+            "consumer_code_sha256": "cee3814b4cf02eff167412d3f01cdde87cff0b77e3e0e82cf9ca0e5b42f56cb5",
+            "immutable_id": "e88bd00e09efbd24ea8d6908fd4f8f7ad0adfc07efdb470d02a6b976b540fdcb"
+          },
+          "decision_mode": "SHADOW",
+          "decision": "BLOCK_NEW_ENTRY",
+          "reason": [
+            "RISK_MODEL_UNCALIBRATED",
+            "RSS_STALE",
+            "RECOVERY_REQUIRED_CONFERENCE_UNCONFIRMED",
+            "HIGH_IMPACT_EVENT_WINDOW",
+            "NO_EXECUTABLE_QUOTE",
+            "EXECUTION_COSTS_UNKNOWN"
+          ],
+          "immutable_id": "e88bd00e09efbd24ea8d6908fd4f8f7ad0adfc07efdb470d02a6b976b540fdcb",
+          "wire_snapshot_sha256": "1c33cfb273629c858dadfeb9c7bc9a549ba7571a16f133f44c3518b9d737a88c",
+          "decision_id": "e88bd00e09efbd24ea8d6908fd4f8f7ad0adfc07efdb470d02a6b976b540fdcb",
+          "engine": "EURUSD_DAILY",
+          "lifecycle": "v1.9.1",
+          "direction_authority": false,
+          "execution_authority": false,
+          "executed_at": null,
+          "execution_price_source": null,
+          "stop_changed": false,
+          "history_rewritten": false
+        },
+        "calendar_coverage": {
+          "complete": true,
+          "observed_at": "2026-11-11T00:03:14.987294Z",
+          "age_minutes": 4.002,
+          "source_status": {
+            "BEA": {
+              "error_type": null,
+              "event_count": 11,
+              "source_ref": "https://www.bea.gov/news/schedule",
+              "status": "ok"
+            },
+            "BLS": {
+              "error_type": null,
+              "event_count": 19,
+              "source_ref": "https://www.bls.gov/schedule/news_release/bls.ics",
+              "status": "ok"
+            },
+            "ECB": {
+              "error_type": null,
+              "event_count": 4,
+              "source_ref": "https://www.ecb.europa.eu/press/calendars/mgcgc/html/index.en.html",
+              "status": "ok"
+            },
+            "EUROSTAT": {
+              "error_type": null,
+              "event_count": 26,
+              "source_ref": "https://ec.europa.eu/eurostat/o/calendars/eventsIcal?theme=&category=",
+              "status": "ok"
+            },
+            "FOMC": {
+              "error_type": null,
+              "event_count": 12,
+              "source_ref": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
+              "status": "ok"
+            }
+          }
+        },
+        "events": [],
+        "source": "belief_macro_calendar_adapter",
+        "direction_mutation_allowed": false
+      },
+      "same_thesis_reentry_guard": {
+        "enabled": true,
+        "mode": "SAME_THESIS_REENTRY_GUARD",
+        "generic_loss_cooldown": false,
+        "window_hours": 12.0,
+        "min_loss_r": -0.15,
+        "evaluated": true,
+        "blocked": false,
+        "reason": "no_recent_meaningful_same_direction_loss",
+        "current_thesis": {
+          "schema_version": "eurusd-entry-thesis-v1",
+          "source": "NATIVE",
+          "source_family": "NATIVE_BELIEF_FIRST",
+          "direction": "SHORT",
+          "score": 43.15,
+          "directional_strength": 6.85,
+          "confidence": 0.3934,
+          "components": {},
+          "weights": {}
+        },
+        "effective_allowed": true,
+        "criteria_policy": "eurusd-reentry-policy-92434b08d7195f2e8324b97b"
+      },
+      "agent_reflection": {
+        "mode": "EVIDENCE_BACKED_PRE_ENTRY_REFLECTION",
+        "available": true,
+        "reflection_iteration": 68,
+        "memory_sha256": "9067e021964318d9be49b2cee6d8edc054ad3003a49b3f121de2064b5bf7656f",
+        "similar_actual_trades": 0,
+        "similar_losses": 0,
+        "similar_mean_net_r": null,
+        "recent_similar_loss_ids": [],
+        "relevant_lesson_ids": [],
+        "source_evidence_changed_since_latest_similar_loss": null,
+        "assessment": "INSUFFICIENT_COMPARABLE_ACTUAL_EVIDENCE",
+        "historical_association_is_causal_proof": false,
+        "may_override_direction_risk_or_safety": false,
+        "policy_change_requires_prospective_gate": true
+      },
+      "reentry_policy": {
+        "version_id": "eurusd-reentry-policy-92434b08d7195f2e8324b97b",
+        "policy_sha256": "f611af60e80bafb4ef10305da69fb0907d5928e9866e047abde91d515f0db77b",
+        "criteria": {
+          "confirmation_minutes": 5,
+          "ma_periods": [
+            60,
+            100,
+            200
+          ],
+          "material_confidence_improvement": 0.08,
+          "material_score_improvement": 3.0,
+          "maximum_entry_distance_atr": 0.25,
+          "minimum_aligned_beliefs": 3,
+          "minimum_confidence": 0.5,
+          "minimum_retracement": 0.3,
+          "minimum_score_distance": 10.0,
+          "minimum_wait_minutes": 0,
+          "require_material_change": true,
+          "require_post_loss_trend": true,
+          "support_mode": "D1_LEVEL",
+          "zone_atr": 0.1
+        },
+        "status": "GOVERNED_ADAPTIVE_CRITERIA",
+        "activation_boundary": "2026-10-20T19:17:41.582278Z"
+      },
+      "reentry_policy_evaluations": {
+        "eurusd-reentry-policy-92434b08d7195f2e8324b97b": {
+          "technical": {
+            "schema_version": "eurusd-post-loss-technical-admission-v1",
+            "enabled": true,
+            "required": false,
+            "allowed": true,
+            "status": "NOT_APPLICABLE",
+            "reason": "no_recent_same_direction_loss",
+            "direction_mutation_allowed": false,
+            "history_rewritten": false,
+            "criteria": {
+              "confirmation_minutes": 5,
+              "ma_periods": [
+                60,
+                100,
+                200
+              ],
+              "material_confidence_improvement": 0.08,
+              "material_score_improvement": 3.0,
+              "maximum_entry_distance_atr": 0.25,
+              "minimum_aligned_beliefs": 3,
+              "minimum_confidence": 0.5,
+              "minimum_retracement": 0.3,
+              "minimum_score_distance": 10.0,
+              "minimum_wait_minutes": 0,
+              "require_material_change": true,
+              "require_post_loss_trend": true,
+              "support_mode": "D1_LEVEL",
+              "zone_atr": 0.1
+            },
+            "criteria_sha256": "f611af60e80bafb4ef10305da69fb0907d5928e9866e047abde91d515f0db77b"
+          },
+          "thesis_allowed": true,
+          "allowed": false
+        },
+        "eurusd-reentry-candidate-0346d22506c6dc5435003005": {
+          "technical": {
+            "schema_version": "eurusd-post-loss-technical-admission-v1",
+            "enabled": true,
+            "required": false,
+            "allowed": true,
+            "status": "NOT_APPLICABLE",
+            "reason": "no_recent_same_direction_loss",
+            "direction_mutation_allowed": false,
+            "history_rewritten": false,
+            "criteria": {
+              "confirmation_minutes": 5,
+              "ma_periods": [
+                20,
+                50,
+                100,
+                200
+              ],
+              "material_confidence_improvement": 0.08,
+              "material_score_improvement": 3.0,
+              "maximum_entry_distance_atr": 0.25,
+              "minimum_aligned_beliefs": 3,
+              "minimum_confidence": 0.5,
+              "minimum_retracement": 0.3,
+              "minimum_score_distance": 10.0,
+              "minimum_wait_minutes": 0,
+              "require_material_change": true,
+              "require_post_loss_trend": true,
+              "support_mode": "D1_LEVEL",
+              "zone_atr": 0.1
+            },
+            "criteria_sha256": "ac743886643c5cfb85a212805fa99e27b783788508de560daef3b09bb5aa5232"
+          },
+          "thesis_allowed": true,
+          "allowed": false
+        },
+        "eurusd-reentry-candidate-107eb2832e67d5504483fc2f": {
+          "technical": {
+            "schema_version": "eurusd-post-loss-technical-admission-v1",
+            "enabled": true,
+            "required": false,
+            "allowed": true,
+            "status": "NOT_APPLICABLE",
+            "reason": "no_recent_same_direction_loss",
+            "direction_mutation_allowed": false,
+            "history_rewritten": false,
+            "criteria": {
+              "confirmation_minutes": 5,
+              "ma_periods": [
+                60,
+                100,
+                200
+              ],
+              "material_confidence_improvement": 0.08,
+              "material_score_improvement": 3.0,
+              "maximum_entry_distance_atr": 0.25,
+              "minimum_aligned_beliefs": 3,
+              "minimum_confidence": 0.65,
+              "minimum_retracement": 0.3,
+              "minimum_score_distance": 12.0,
+              "minimum_wait_minutes": 0,
+              "require_material_change": true,
+              "require_post_loss_trend": true,
+              "support_mode": "D1_LEVEL",
+              "zone_atr": 0.1
+            },
+            "criteria_sha256": "4dff66aa71a26551379efdef83698377825e66726c7718e257282428718b041a"
+          },
+          "thesis_allowed": true,
+          "allowed": false
+        },
+        "eurusd-reentry-candidate-2c9c9f508cac3c9198927719": {
+          "technical": {
+            "schema_version": "eurusd-post-loss-technical-admission-v1",
+            "enabled": true,
+            "required": false,
+            "allowed": true,
+            "status": "NOT_APPLICABLE",
+            "reason": "no_recent_same_direction_loss",
+            "direction_mutation_allowed": false,
+            "history_rewritten": false,
+            "criteria": {
+              "confirmation_minutes": 5,
+              "ma_periods": [
+                60,
+                100,
+                200
+              ],
+              "material_confidence_improvement": 0.08,
+              "material_score_improvement": 3.0,
+              "maximum_entry_distance_atr": 0.25,
+              "minimum_aligned_beliefs": 3,
+              "minimum_confidence": 0.5,
+              "minimum_retracement": 0.25,
+              "minimum_score_distance": 10.0,
+              "minimum_wait_minutes": 0,
+              "require_material_change": true,
+              "require_post_loss_trend": true,
+              "support_mode": "D1_LEVEL",
+              "zone_atr": 0.1
+            },
+            "criteria_sha256": "51d52a21af71e9f245f536ece5b7955f288c6ac012a20be6bb17d4ec8e2f65ec"
+          },
+          "thesis_allowed": true,
+          "allowed": false
+        },
+        "eurusd-reentry-candidate-c2f7d2e9d085b7f9f6478ccb": {
+          "technical": {
+            "schema_version": "eurusd-post-loss-technical-admission-v1",
+            "enabled": true,
+            "required": false,
+            "allowed": true,
+            "status": "NOT_APPLICABLE",
+            "reason": "no_recent_same_direction_loss",
+            "direction_mutation_allowed": false,
+            "history_rewritten": false,
+            "criteria": {
+              "confirmation_minutes": 5,
+              "ma_periods": [
+                60,
+                100,
+                200
+              ],
+              "material_confidence_improvement": 0.08,
+              "material_score_improvement": 3.0,
+              "maximum_entry_distance_atr": 0.25,
+              "minimum_aligned_beliefs": 3,
+              "minimum_confidence": 0.35,
+              "minimum_retracement": 0.3,
+              "minimum_score_distance": 8.0,
+              "minimum_wait_minutes": 0,
+              "require_material_change": true,
+              "require_post_loss_trend": true,
+              "support_mode": "D1_LEVEL",
+              "zone_atr": 0.1
+            },
+            "criteria_sha256": "fe5c8dcfd8a0bed27edf613a432432912a4568b59daabd68caed63d18f6bc704"
+          },
+          "thesis_allowed": true,
+          "allowed": false
+        },
+        "eurusd-reentry-candidate-dc00c1795c15c8094b261b5a": {
+          "technical": {
+            "schema_version": "eurusd-post-loss-technical-admission-v1",
+            "enabled": true,
+            "required": false,
+            "allowed": true,
+            "status": "NOT_APPLICABLE",
+            "reason": "no_recent_same_direction_loss",
+            "direction_mutation_allowed": false,
+            "history_rewritten": false,
+            "criteria": {
+              "confirmation_minutes": 5,
+              "ma_periods": [
+                60,
+                100,
+                200
+              ],
+              "material_confidence_improvement": 0.08,
+              "material_score_improvement": 3.0,
+              "maximum_entry_distance_atr": 0.25,
+              "minimum_aligned_beliefs": 3,
+              "minimum_confidence": 0.5,
+              "minimum_retracement": 0.35,
+              "minimum_score_distance": 10.0,
+              "minimum_wait_minutes": 0,
+              "require_material_change": true,
+              "require_post_loss_trend": true,
+              "support_mode": "D1_LEVEL",
+              "zone_atr": 0.1
+            },
+            "criteria_sha256": "7c26ad7e8a6c2ae1012e6b4bebaf8b15ee3263e5e88d155f36420a4d5c0dea92"
+          },
+          "thesis_allowed": true,
+          "allowed": false
+        },
+        "eurusd-reentry-candidate-eb9458c349e0fbc079c40aed": {
+          "technical": {
+            "schema_version": "eurusd-post-loss-technical-admission-v1",
+            "enabled": true,
+            "required": false,
+            "allowed": true,
+            "status": "NOT_APPLICABLE",
+            "reason": "no_recent_same_direction_loss",
+            "direction_mutation_allowed": false,
+            "history_rewritten": false,
+            "criteria": {
+              "confirmation_minutes": 5,
+              "ma_periods": [
+                60,
+                100,
+                200
+              ],
+              "material_confidence_improvement": 0.08,
+              "material_score_improvement": 3.0,
+              "maximum_entry_distance_atr": 0.25,
+              "minimum_aligned_beliefs": 3,
+              "minimum_confidence": 0.5,
+              "minimum_retracement": 0.3,
+              "minimum_score_distance": 10.0,
+              "minimum_wait_minutes": 0,
+              "require_material_change": true,
+              "require_post_loss_trend": true,
+              "support_mode": "PRICE_REJECTION",
+              "zone_atr": 0.1
+            },
+            "criteria_sha256": "738b7afe2859eee15dc63c2e558b0d2ba2209049131eacb5c0256aa10a85de67"
+          },
+          "thesis_allowed": true,
+          "allowed": false
+        }
+      },
+      "reentry_research_eligible": false,
+      "post_loss_technical_guard": {
+        "schema_version": "eurusd-post-loss-technical-admission-v1",
+        "enabled": true,
+        "required": false,
+        "allowed": true,
+        "status": "NOT_APPLICABLE",
+        "reason": "no_recent_same_direction_loss",
+        "direction_mutation_allowed": false,
+        "history_rewritten": false,
+        "criteria": {
+          "confirmation_minutes": 5,
+          "ma_periods": [
+            60,
+            100,
+            200
+          ],
+          "material_confidence_improvement": 0.08,
+          "material_score_improvement": 3.0,
+          "maximum_entry_distance_atr": 0.25,
+          "minimum_aligned_beliefs": 3,
+          "minimum_confidence": 0.5,
+          "minimum_retracement": 0.3,
+          "minimum_score_distance": 10.0,
+          "minimum_wait_minutes": 0,
+          "require_material_change": true,
+          "require_post_loss_trend": true,
+          "support_mode": "D1_LEVEL",
+          "zone_atr": 0.1
+        },
+        "criteria_sha256": "f611af60e80bafb4ef10305da69fb0907d5928e9866e047abde91d515f0db77b"
+      }
+    },
+    "belief_flip_confirmation": null,
+    "post_loss_technical_guard": {
+      "schema_version": "eurusd-post-loss-technical-admission-v1",
+      "enabled": true,
+      "required": false,
+      "allowed": true,
+      "status": "NOT_APPLICABLE",
+      "reason": "no_recent_same_direction_loss",
+      "direction_mutation_allowed": false,
+      "history_rewritten": false,
+      "criteria": {
+        "confirmation_minutes": 5,
+        "ma_periods": [
+          60,
+          100,
+          200
+        ],
+        "material_confidence_improvement": 0.08,
+        "material_score_improvement": 3.0,
+        "maximum_entry_distance_atr": 0.25,
+        "minimum_aligned_beliefs": 3,
+        "minimum_confidence": 0.5,
+        "minimum_retracement": 0.3,
+        "minimum_score_distance": 10.0,
+        "minimum_wait_minutes": 0,
+        "require_material_change": true,
+        "require_post_loss_trend": true,
+        "support_mode": "D1_LEVEL",
+        "zone_atr": 0.1
+      },
+      "criteria_sha256": "f611af60e80bafb4ef10305da69fb0907d5928e9866e047abde91d515f0db77b"
+    },
+    "execution_blocked_decision": {
+      "direction": "SHORT",
+      "score": 43.15,
+      "confidence": 0.3934,
+      "preserved": true
+    },
     "decision_manifest": {
       "schema_version": "eurusd-production-decision-manifest-v1",
       "engine_version": "eurusd-daily-spot-v1.9.1",
       "instrument": "EUR/USD",
-      "decision_at": "2026-11-10T23:48:57.168055Z",
-      "native_decision_id": "daily-eurusd-decision:a43022ff40027764351ba555",
+      "decision_at": "2026-11-11T00:07:15.101956Z",
+      "native_decision_id": "daily-eurusd-decision:36295f26d03e4c9c3c71f994",
       "policy_version_id": "eurusd-policy-b36bdb62278edbd39faee3b9",
       "policy_sha256": "64fbaf973cfd65c15044b846d9eec0650cfc22eafdafc0ef55ec145191578d2b",
       "policy": {
         "version_id": "eurusd-policy-b36bdb62278edbd39faee3b9",
         "policy_sha256": "64fbaf973cfd65c15044b846d9eec0650cfc22eafdafc0ef55ec145191578d2b",
         "minimum_score_distance": 3.0,
-        "allowed": false,
+        "allowed": true,
         "candidate_id": "eurusd-admission-e60893a283c5d4d08e383e43",
         "candidate_ids": [
           "eurusd-admission-e60893a283c5d4d08e383e43",
@@ -953,17 +1811,17 @@
         }
       },
       "runtime_code_sha256": "ed314c3450ecc0617c99e4172455ec52cda78ce4c2b4ee0043f6ccc2b5a30663",
-      "market_snapshot_sha256": "5d4a6fd42052c0776a000f1726a9ce9eb162341a67cf85c9c7876e5237cff7fd",
-      "epistemic_snapshot_sha256": "cb931c1d5090e6377eaeead37281891e644dee3a833f0dce8bfefdc9469be3c7",
-      "decision_sha256": "e63dcd2a76a1f206fa5197ecc17678ffbc18db23e10935ec2d755a15ab328715",
+      "market_snapshot_sha256": "f9429bae54a472f9a6839966c7ac7c640bb59a6609c13e6e43ac33c1991ec47f",
+      "epistemic_snapshot_sha256": "e2dfe30d59514c681943a3e707625fc43f7ab9121603da72edefe5302c6e5613",
+      "decision_sha256": "7dc023d69073edcfc3d268cff25fe04b239368dd12441389a1aac0a45fe0e7b7",
       "final_decision": {
         "schema_version": "daily-eurusd-belief-decision-v1",
         "owner": "NATIVE_DAILY_EURUSD_BELIEF_FIRST_DECISION_ENGINE",
         "decision_source": "NATIVE_BELIEF_FIRST",
         "epistemic_source": "BELIEF_CORE_CF07",
-        "direction": "FLAT",
-        "score": 44.56,
-        "confidence": 0.3952,
+        "direction": "SHORT",
+        "score": 43.15,
+        "confidence": 0.3934,
         "thresholds": {
           "long": 56.0,
           "short": 44.0
@@ -977,41 +1835,40 @@
           "minimum_confidence": 0.25,
           "minimum_aligned_beliefs": 3,
           "alignment_margin": 0.02,
-          "aligned_long_beliefs": [
-            "eurusd.trend.bullish"
-          ],
+          "aligned_long_beliefs": [],
           "aligned_short_beliefs": [
+            "eurusd.trend.bullish",
             "eurusd.us_rates_pressure.supportive",
             "eurusd.usd_environment.supportive"
           ],
           "long_ready": false,
-          "short_ready": false,
+          "short_ready": true,
           "rule": "Narrower Daily participation band applies only to an authoritative, sufficiently covered/confident state with at least three aligned beliefs including the EURUSD trend anchor."
         },
-        "coverage_weight": 0.687619,
+        "coverage_weight": 0.685094,
         "minimum_coverage_weight": 0.45,
         "required_anchor_belief": "eurusd.trend.bullish",
         "used_beliefs": [
           {
             "belief_id": "eurusd.trend.bullish",
-            "probability": 0.524396,
-            "confidence": 0.474238,
-            "directional_support": 0.048792,
-            "effective_support": 0.023139,
+            "probability": 0.47561,
+            "confidence": 0.474186,
+            "directional_support": -0.04878,
+            "effective_support": -0.023131,
             "weight": 0.45,
-            "observed_at": "2026-11-10T23:32:32Z",
-            "age_hours": 0.2737,
+            "observed_at": "2026-11-11T00:02:33Z",
+            "age_hours": 0.0784,
             "source_evidence": [
               {
-                "evidence_id": "ev-e789820abf5982a770b6",
-                "observed_at": "2026-11-10T23:32:32Z",
+                "evidence_id": "ev-515e9b91c0722153fec8",
+                "observed_at": "2026-11-11T00:02:33Z",
                 "release": {
                   "adapter": "wes_asset_evidence",
-                  "observation_id": "obs-5d03c3b343030605e486",
+                  "observation_id": "obs-0dd2b3edcda54a2571c9",
                   "observation_metric": "eurusd_trend_composite"
                 },
                 "source": "Derived from Yahoo Finance OHLCV",
-                "source_ref": "derived:yahoo:EURUSD:2026-11-10T23:32:32Z:1.2.0:eurusd_trend_composite",
+                "source_ref": "derived:yahoo:EURUSD:2026-11-11T00:02:33Z:1.2.0:eurusd_trend_composite",
                 "source_type": "derived"
               }
             ],
@@ -1021,13 +1878,13 @@
           },
           {
             "belief_id": "eurusd.usd_environment.supportive",
-            "probability": 0.417506,
-            "confidence": 0.589644,
-            "directional_support": -0.164988,
-            "effective_support": -0.097284,
+            "probability": 0.418685,
+            "confidence": 0.587709,
+            "directional_support": -0.16263,
+            "effective_support": -0.095579,
             "weight": 0.3,
             "observed_at": "2026-11-10T23:04:59Z",
-            "age_hours": 0.7328,
+            "age_hours": 1.0378,
             "source_evidence": [
               {
                 "evidence_id": "ev-0140cea3060fe3060d08",
@@ -1072,13 +1929,13 @@
           },
           {
             "belief_id": "eurusd.us_rates_pressure.supportive",
-            "probability": 0.196607,
-            "confidence": 0.858841,
-            "directional_support": -0.606786,
-            "effective_support": -0.521133,
+            "probability": 0.190187,
+            "confidence": 0.858851,
+            "directional_support": -0.619626,
+            "effective_support": -0.532166,
             "weight": 0.15,
-            "observed_at": "2026-11-10T23:22:34Z",
-            "age_hours": 0.4398,
+            "observed_at": "2026-11-10T23:53:06Z",
+            "age_hours": 0.2359,
             "source_evidence": [
               {
                 "evidence_id": "ev-18f205d6c6d8ea92ffda",
@@ -1105,15 +1962,15 @@
                 "source_type": "derived"
               },
               {
-                "evidence_id": "ev-3074312d1e220e72a722",
-                "observed_at": "2026-11-10T23:09:37Z",
+                "evidence_id": "ev-3c4c3d95d8907d499847",
+                "observed_at": "2026-11-10T23:53:06Z",
                 "release": {
                   "adapter": "wes_asset_evidence",
-                  "observation_id": "obs-c3b6bff252f404d3da1f",
-                  "observation_metric": "fed_funds_intraday_support_for_eurusd"
+                  "observation_id": "obs-d3ba62af726aa01c6361",
+                  "observation_metric": "us_rates_intraday_futures_support_for_eurusd"
                 },
                 "source": "Derived from Yahoo Finance OHLCV",
-                "source_ref": "derived:yahoo:EURUSD:2026-11-10T23:09:37Z:1.2.0:fed_funds_intraday_support_for_eurusd",
+                "source_ref": "derived:yahoo:EURUSD:2026-11-10T23:53:06Z:1.2.0:us_rates_intraday_futures_support_for_eurusd",
                 "source_type": "derived"
               },
               {
@@ -1126,18 +1983,6 @@
                 },
                 "source": "Gemini interpretation of U.S. Bureau of Labor Statistics Public Data API",
                 "source_ref": "derived:obs-33b087e1f1f230319a15",
-                "source_type": "derived"
-              },
-              {
-                "evidence_id": "ev-68eb3adb9dedca41260b",
-                "observed_at": "2026-11-10T23:22:34Z",
-                "release": {
-                  "adapter": "wes_asset_evidence",
-                  "observation_id": "obs-7c211c3832b7379e5581",
-                  "observation_metric": "us_rates_intraday_futures_support_for_eurusd"
-                },
-                "source": "Derived from Yahoo Finance OHLCV",
-                "source_ref": "derived:yahoo:EURUSD:2026-11-10T23:22:34Z:1.2.0:us_rates_intraday_futures_support_for_eurusd",
                 "source_type": "derived"
               },
               {
@@ -1165,6 +2010,18 @@
                 "source_type": "derived"
               },
               {
+                "evidence_id": "ev-c050e4ec543974b4d589",
+                "observed_at": "2026-11-10T23:52:52Z",
+                "release": {
+                  "adapter": "wes_asset_evidence",
+                  "observation_id": "obs-dbde251dc447ef2cf8af",
+                  "observation_metric": "fed_funds_intraday_support_for_eurusd"
+                },
+                "source": "Derived from Yahoo Finance OHLCV",
+                "source_ref": "derived:yahoo:EURUSD:2026-11-10T23:52:52Z:1.2.0:fed_funds_intraday_support_for_eurusd",
+                "source_type": "derived"
+              },
+              {
                 "evidence_id": "ev-d7ae0f814e9d6bb1a899",
                 "observed_at": "2026-11-10T21:00:00Z",
                 "release": {
@@ -1186,19 +2043,17 @@
           {
             "belief_id": "eurusd.macro_surprise.supportive",
             "reason": "stale_or_future_evidence",
-            "age_hours": 1200.12,
+            "age_hours": 1200.038,
             "max_age_hours": 12.0
           },
           {
             "belief_id": "eurusd.policy_differential.supportive",
             "reason": "stale_or_future_evidence",
-            "age_hours": 1800.12,
+            "age_hours": 1800.038,
             "max_age_hours": 18.0
           }
         ],
-        "reasons": [
-          "belief_score_neutral"
-        ],
+        "reasons": [],
         "routing": [
           "RAW_SOURCES",
           "SPECIALIZED_ADAPTERS",
@@ -1216,16 +2071,16 @@
           "consumer": "DAILY_EURUSD",
           "available": true,
           "reason": "authoritative_daily_eurusd_epistemic_projection",
-          "source_created_at": "2026-11-10T23:41:45.117828Z",
-          "age_hours": 0.120014,
-          "source_sha256": "cb931c1d5090e6377eaeead37281891e644dee3a833f0dce8bfefdc9469be3c7",
+          "source_created_at": "2026-11-11T00:04:58.236468Z",
+          "age_hours": 0.038018,
+          "source_sha256": "e2dfe30d59514c681943a3e707625fc43f7ab9121603da72edefe5302c6e5613",
           "aggregate_authoritative": true,
           "consumer_may_override_probability": false,
           "belief_core_writeback_enabled": false,
           "state_count": 5,
-          "aggregate_probability": 0.445614,
-          "aggregate_confidence": 0.39524,
-          "coverage_weight": 0.687619,
+          "aggregate_probability": 0.431533,
+          "aggregate_confidence": 0.393428,
+          "coverage_weight": 0.685094,
           "qualified_state_count": 3,
           "qualified_belief_ids": [
             "eurusd.trend.bullish",
@@ -1235,34 +2090,34 @@
         },
         "provenance": {
           "schema_version": "briefrooms-provenance-contract-v1",
-          "artifact_id": "daily-eurusd-decision:a43022ff40027764351ba555",
+          "artifact_id": "daily-eurusd-decision:36295f26d03e4c9c3c71f994",
           "artifact_type": "decision",
           "engine_id": "daily_eurusd",
           "engine_version": "belief-first-v1.9",
-          "created_at": "2026-11-10T23:48:57.168055Z",
+          "created_at": "2026-11-11T00:07:15.101956Z",
           "parent_artifact_ids": [
-            "epistemic:estate-3126e781eb48185147e2",
-            "epistemic:estate-32f22b368608e65d9de9",
-            "epistemic:estate-ce453f688931528a774f"
+            "epistemic:estate-3a31be2fde4aa87d5d63",
+            "epistemic:estate-b2d64d646ac5ca347ddc",
+            "epistemic:estate-ca8af57a5dd1d111ab43"
           ],
           "source_ids": [
             "BELIEF_CORE_CF07",
             "NATIVE_BELIEF_FIRST"
           ],
           "evidence_ids": [
-            "epistemic:estate-3126e781eb48185147e2",
-            "epistemic:estate-32f22b368608e65d9de9",
-            "epistemic:estate-ce453f688931528a774f"
+            "epistemic:estate-3a31be2fde4aa87d5d63",
+            "epistemic:estate-b2d64d646ac5ca347ddc",
+            "epistemic:estate-ca8af57a5dd1d111ab43"
           ],
           "belief_ids": [
             "eurusd.trend.bullish",
             "eurusd.us_rates_pressure.supportive",
             "eurusd.usd_environment.supportive"
           ],
-          "decision_id": "daily-eurusd-decision:a43022ff40027764351ba555",
+          "decision_id": "daily-eurusd-decision:36295f26d03e4c9c3c71f994",
           "forecast_id": null,
           "verification_id": null,
-          "payload_hash": "a43022ff40027764351ba555a68096228070b3727e6445facf3eaf69d44d7265",
+          "payload_hash": "36295f26d03e4c9c3c71f994f4858850504775abf0dcbc7deda8b0598d89ee86",
           "authority": "decision",
           "prospective": true,
           "domain_provenance": {
@@ -1272,21 +2127,798 @@
           }
         }
       },
-      "execution_admission": {},
+      "execution_admission": {
+        "allowed": false,
+        "status": "BLOCKED",
+        "reasons": [
+          "central_bank_event_risk_entry_guard"
+        ],
+        "final_direction_preserved": "SHORT",
+        "direction_mutation_allowed": false,
+        "bollinger_h1": {
+          "available": true,
+          "allowed": true,
+          "reason": "aligned_h1_trend",
+          "role": "PRIMARY_TECHNICAL_ADMISSION",
+          "direction_mutation_allowed": false,
+          "weight": "HIGH_VETO_NEW_ENTRY",
+          "period": 30,
+          "deviations": 2.5,
+          "last_closed_h1": "2026-11-11T00:00:00+00:00",
+          "closed_h1": 1391,
+          "age_minutes": 7.25,
+          "close": 1.117193579673767,
+          "middle": 1.1205815116564433,
+          "upper": 1.1279540668378354,
+          "lower": 1.1132089564750511,
+          "percent_b": 0.27023352831409764,
+          "middle_slope": -0.00011685689290374945,
+          "aligned": true,
+          "exhaustion": false,
+          "regime": "TREND",
+          "range_regime": false,
+          "range_structure": false,
+          "range_edge_entry": {
+            "allowed": false,
+            "reason": "h1_not_flat_range"
+          },
+          "near_middle": false,
+          "flat_middle": true,
+          "marginal_crossing": false,
+          "middle_crossings_6h": 0,
+          "middle_gap_pips": -33.879,
+          "middle_slope_pips_per_h": -1.169,
+          "middle_slope_3h_pips": -3.462,
+          "width_pips": 147.45,
+          "strong_trend_confirmed": true
+        },
+        "belief_flip_confirmation": {
+          "allowed": true,
+          "required": false,
+          "reason": "no_recent_opposite_trade",
+          "state": null
+        },
+        "cross_direction_whipsaw": {
+          "required": false,
+          "allowed": true,
+          "reason": "no_recent_opposite_loss",
+          "direction_mutation_allowed": false
+        },
+        "multi_timeframe": {
+          "version": "MTF_H1_REGIME_V1",
+          "available": true,
+          "h1_regime": "STRONG_TREND",
+          "strategy": "STRONG_TREND",
+          "direction_authority": false,
+          "w1": {
+            "available": true,
+            "trend": "UP",
+            "last_closed_w1": "2026-11-09T00:00:00+00:00",
+            "sma4_change_pips": 5.882,
+            "veto_authority": false
+          },
+          "h1_volatility": {
+            "available": true,
+            "mean_high_low_pips": 10.51,
+            "median_high_low_pips": 7.566,
+            "p75_high_low_pips": 12.445,
+            "atr_true_range_pips": 11.036,
+            "sample_closed_hours": 24,
+            "last_completed_h1": "2026-11-11T00:00:00+00:00",
+            "last_h1_high": 1.1173185110092163,
+            "last_h1_low": 1.1168192625045776,
+            "executable_spread_proven": false
+          },
+          "d1": {
+            "trend": "MIXED",
+            "strong": false,
+            "middle_slope_pips_per_day": -5.007,
+            "last_completed_d1": "2026-11-10T00:00:00+00:00"
+          },
+          "direction": "SHORT",
+          "block_new_entry": false,
+          "position_management": "TREND_H1_VOLATILITY",
+          "roles": {
+            "H1": "PRIMARY",
+            "D1": "SECONDARY",
+            "W1": "OVERVIEW_ONLY"
+          }
+        },
+        "h1_volatility_geometry": {
+          "applied": true,
+          "allowed": true,
+          "strategy": "STRONG_TREND",
+          "stop": 1.11852,
+          "target": 1.1141,
+          "new_risk_pips": 15.765,
+          "new_reward_pips": 28.377,
+          "previous_max_risk_pips": 30.2,
+          "hard_stop_widened": false
+        },
+        "bollinger_d1_touch": {
+          "role": "D1_TOUCH_RETRACE_ENTRY_VETO",
+          "direction_mutation_allowed": false,
+          "opens_trade": false,
+          "requires_belief_recheck": true,
+          "fraction": 0.5,
+          "available": true,
+          "upper": 1.1325246104279552,
+          "middle": 1.1213596304257711,
+          "lower": 1.1101946504235871,
+          "long_release_price": 1.1269421204268633,
+          "short_release_price": 1.115777140424679,
+          "last_completed_d1": "2026-11-10T00:00:00+00:00",
+          "upper_long_blocked": false,
+          "lower_short_blocked": false,
+          "state": {
+            "schema_version": "eurusd-d1-bollinger-touch-v1",
+            "upper": {
+              "blocked": false,
+              "touched_at": null,
+              "touched_price": null
+            },
+            "lower": {
+              "blocked": false,
+              "touched_at": null,
+              "touched_price": null
+            },
+            "last_processed_at": "2026-11-11T00:05:00+00:00"
+          }
+        },
+        "belief_calendar_safety": {
+          "available": true,
+          "blocked": true,
+          "reason": "central_bank_event_risk_entry_guard",
+          "imminent": false,
+          "post_release_evidence_pending": false,
+          "central_bank_event_risk": {
+            "event_id": "cb-release:c327a2d24023c0ee6f4bb75322f74f2c",
+            "evaluated_at": "2026-11-11T00:07:15.101956Z",
+            "scope": "EURUSD_DAILY",
+            "position_id": null,
+            "action": "BLOCK_NEW_ENTRY",
+            "mode": "SHADOW",
+            "quote_verified": false,
+            "event_verified": false,
+            "current_net_R": null,
+            "giveback_risk_R": null,
+            "hold_expected_net_R": null,
+            "close_now_net_R": null,
+            "hold_es95_R": null,
+            "evidence_ids": [
+              "cb:0255765fb984abf2a438e0a8e70170d1",
+              "cb:05bab900a6c6303b613af99378f12363",
+              "cb:07aeb4fbe1cc26a163d7f53088d456bc",
+              "cb:07d0bd379597de77af5b27d361a12b71",
+              "cb:0b57d13e89358b83912a63cd01678163",
+              "cb:0f38da9da6d3b4798ad991df768d5b57",
+              "cb:0fb701c544c0888da0090041b05aa1db",
+              "cb:1028108059029c4a9ece9ce340354d4b",
+              "cb:11950b0fae4ca5e09d6ec84cf550584a",
+              "cb:13a6551003a79bc3c61d6d73de66973d",
+              "cb:13afc9c74506a04cf303c528cee2e79a",
+              "cb:14f7f0ea2992c1a2474c2f979e6ae1d8",
+              "cb:18362ee49f5e0bcd50d833689f3de6d2",
+              "cb:1d64e783e624f1c24ab857c18838f4b1",
+              "cb:1efed8f0b7e87ed4d8e13afe8a6e02c7",
+              "cb:233c4d48649ac7ae1036dd9d73140f28",
+              "cb:2635f180a698fa6357ccfbc3cb791a60",
+              "cb:26b34243d9a4a54ca243de2a45ddcf06",
+              "cb:2fee17f5897b77de815cb9b9c74c77c0",
+              "cb:345df0f84d843e7b1c954662203029ab",
+              "cb:37a1134a1026c1f921ee5a03a0739bdb",
+              "cb:380468f1442ae065d11178e323316b11",
+              "cb:385910b538ae9532509d736cf2eeedd9",
+              "cb:427d57800daf2935eb5fc7646f0cb7ef",
+              "cb:42907e5d9d1eeb12ce622628184ccbd6",
+              "cb:45445d368087d6d824d1f0a84f71ea50",
+              "cb:47c929c0938684546712dd8f8d862133",
+              "cb:49c19ff0224b1a819229b466197b4539",
+              "cb:5a86185109157b16178fb87796486c1c",
+              "cb:5c7667431bc05e4e96f4957445a0898b",
+              "cb:5db1b001b1202b1148b8d77548329ae7",
+              "cb:5efe8519479ffff27727231c696fca83",
+              "cb:6075388292772bda6712ef2a184e3552",
+              "cb:666b58ab8e11fc4888e933c3b4603afe",
+              "cb:6b5bd8cfaa65d8d9bb09a298acce75d2",
+              "cb:6f4b654cc952bfbcde01571c53457016",
+              "cb:7e118a05e2310733bf93d4fb40c93c35",
+              "cb:7ffc35f721c60ac604ca539c4659d091",
+              "cb:8413466fd8c31e5faf2ee200b21d9374",
+              "cb:861769e5c2f7fc4a051a9642ebf10b28",
+              "cb:86666f667b53292fcc13b67040fa1094",
+              "cb:8726a66c12ea098410f9d4691c02869f",
+              "cb:878ebbc77efd4c4f96afc467834939dd",
+              "cb:89f3167a194e7fd712da370654705fb9",
+              "cb:8c5fe6fb4aa640735be8bb70edd8007d",
+              "cb:8cbe88aa686308c4469355aa8a618638",
+              "cb:8d897d44ecb7928821be5a9dfa0aaaa6",
+              "cb:8f28025cb161757839e77641ac7dd154",
+              "cb:9008c560b0d87b645231504ee3751898",
+              "cb:94999d092579af348b2c9898cffa3473",
+              "cb:953a9253ac7f82e174f4758d738f4dd2",
+              "cb:983d8b483526f0e2cea938e8a9727d78",
+              "cb:99185083658a3b6536ee859d663676dd",
+              "cb:9a2951b9355bb9f1f7a8cc552c1626e3",
+              "cb:9b02d66e5c301415cc7516c58bdeb624",
+              "cb:9bcfa238909007a87058431c24baea70",
+              "cb:9c1adfce0d757819a17e64dd5c31ba73",
+              "cb:9c2146443ef06c5fcf0f4046925c6201",
+              "cb:9e06d7c9bf94c78521ae8d4eece1f01d",
+              "cb:a05d9031d0714e17880076ad21a13cfa",
+              "cb:a0e22d4587c11d989fc0b90239de56bc",
+              "cb:a47a94bb5bb68809b36c85e3aa9498c1",
+              "cb:a7aaa0a277fc34b522d94a31e9a93fe4",
+              "cb:a9cfa76c2046628b0e1775d6402a1338",
+              "cb:aab8db80d4302ff010882a97c9c99df1",
+              "cb:af6b78fdd27efaf8c7457efa549800fe",
+              "cb:b00926cce11a1814cf2f217a131b5c54",
+              "cb:b4238b7e8abd15f21b30935706bf9de3",
+              "cb:b56fbf71d05a01c10d06d4ef9339f9b3",
+              "cb:bf8e5f9bd7941279d79a989c9fa5c67b",
+              "cb:bfa08de3d04b5faa22bf5f121e0f8347",
+              "cb:c2038f207d7b629c25acc9b60a5ffef7",
+              "cb:c32688a18a46d3565913570793b68015",
+              "cb:c557449f1107b6cd4566af05e52ed570",
+              "cb:c61f12c93f802f0bc564a6a4f9eeba50",
+              "cb:c6e7944f1404e219a7bbd87a04ee5904",
+              "cb:c95f82e4f96170a9bf10c18f207fdfbc",
+              "cb:cdfb36e8f9f231f25e8dde119a9a827f",
+              "cb:d3fbd695a0eb7056cefd665f7cbb4cae",
+              "cb:d7f1b3ea0d4fc93ba6a710ef0e481bee",
+              "cb:d83f7ab0520077c3814d32d38d9213dc",
+              "cb:d9b1f2c024b765d33ba863710dfb0e72",
+              "cb:dccaffaabbfbb606f30c28225f077768",
+              "cb:dfdb2b133879ff1b2c5205d29a95868d",
+              "cb:e4b457c509a899dbd343a912cce00301",
+              "cb:e4e7561b44847063217253e49411ba41",
+              "cb:e95d6889ad6dd387577f3d1efaa66d6a",
+              "cb:ea06513ec0598f9e7b99a7b60b65f02f",
+              "cb:ebc434a9ad50aae2f7c2e26cd8fa96e7",
+              "cb:eefb720bfd17caf265a68aaba20a145c",
+              "cb:efdc695b7573fdfed63d98edd46905a1",
+              "cb:f2ceb586c37a4bb9bbacddd7447fc17e",
+              "cb:f534e03380d0179402886a5872add509",
+              "cb:f5396fa40d22152824a510eb26ceec23",
+              "cb:f6178bc75065c277c539b655e09800a5",
+              "cb:f77d03b537a4475145275f552d39f574",
+              "cb:f92d729b5899e4c3c34820618827b041",
+              "cb:fbcd376399a3427fef4fa6b94123aad1",
+              "cb:fcfe4bbefd2dbc6754a5d4286657ea91",
+              "cb:fd5b0be03c9a80d5560f3aad017179de",
+              "cb:fde36b038dd7bb0339b8714cd284b8a5",
+              "cb:ff456bbe80bb2f34f79d72a11352ca41"
+            ],
+            "reasons": [
+              "RISK_MODEL_UNCALIBRATED",
+              "RSS_STALE",
+              "RECOVERY_REQUIRED_CONFERENCE_UNCONFIRMED",
+              "HIGH_IMPACT_EVENT_WINDOW",
+              "NO_EXECUTABLE_QUOTE",
+              "EXECUTION_COSTS_UNKNOWN"
+            ],
+            "block_new_entry": true,
+            "entry_guard_enforced": true,
+            "risk_protection_status": "PROTECTION_PENDING",
+            "diagnostics": {
+              "current_event_id": "cb-release:c327a2d24023c0ee6f4bb75322f74f2c",
+              "bank": "ECB",
+              "phase": "RELEASED",
+              "minutes_until": -17932.251699266668,
+              "conference_status": "UNKNOWN",
+              "active_event_ids": [
+                "cb-release:c327a2d24023c0ee6f4bb75322f74f2c",
+                "eu:European Central Bank:2026-10-29:Governing Council of the ECB: monetary policy meeting in Frankfurt (Day 2), foll"
+              ],
+              "headline_count_30m": 0,
+              "latest_headline": "Philip R. Lane: The science and practice of monetary policy communication: the ECB experience",
+              "latest_official_document": "https://www.ecb.europa.eu//press/pr/date/2026/html/ecb.mp261029~9a493adf17.en.html",
+              "speaker_verified": false,
+              "source_age_seconds": 13283.101956,
+              "wire_health": "STALE",
+              "producer_wire_health": "FRESH",
+              "latest_decision_headline_age_seconds": 26535.101956,
+              "position_profit_pips": null,
+              "current_net_R": null,
+              "profit_at_risk_pips": null,
+              "stop_distance_pips": null,
+              "tp_distance_pips": null,
+              "unprotected_profit_pips": null,
+              "giveback_R": null,
+              "mfe_R": null,
+              "remaining_upside_R": null,
+              "reward_to_downside": null,
+              "quote_age_seconds": null,
+              "current_executable_exit_price": null,
+              "paper_proxy_price": null,
+              "paper_proxy_uncertain": true,
+              "spread_pips": null,
+              "spread_multiple": null,
+              "cost_pips": null,
+              "risk_model_status": "RISK_MODEL_UNCALIBRATED",
+              "effective_sample_size": 0,
+              "event_distribution": {
+                "status": "RISK_MODEL_UNCALIBRATED",
+                "effective_sample_size": 0,
+                "expected_net_R": null,
+                "expected_shortfall_95_R": null,
+                "windows": {}
+              },
+              "probability_of_profit_giveback": null,
+              "probability_SL": null,
+              "expected_shortfall_95_R": null,
+              "loss_beyond_stop_scenario": "GAP_AND_SLIPPAGE_CAN_EXCEED_FROZEN_STOP",
+              "input_quality": "PARTIAL",
+              "alerts": [
+                "RSS_STALE",
+                "NO_EXECUTABLE_QUOTE",
+                "LIVE_SPEECH_UNVERIFIED"
+              ]
+            },
+            "alternatives": {
+              "HOLD": {
+                "expected_net_R": null,
+                "es95_R": null,
+                "status": "RISK_MODEL_UNCALIBRATED",
+                "net_R_at_current_quote": null,
+                "full_stop_giveback_R": null,
+                "remaining_upside_R": null
+              },
+              "CLOSE_NOW": {
+                "net_R": null,
+                "executable": false,
+                "execution_authorized": false,
+                "price_source": null
+              },
+              "PROTECT_PROFIT": {
+                "status": "SHADOW_ONLY_LIFECYCLE_STOP_UPGRADE_NOT_CERTIFIED",
+                "proposed_stop": null,
+                "execution_authorized": false
+              }
+            },
+            "audit": {
+              "policy_version": "1.0.0",
+              "policy_hash": "f3536a02e7152c611dcdbc00cf5a78122a678a62d71d2af39c5583a03e7b64e1",
+              "data_as_of": "2026-11-10T20:25:52Z",
+              "first_seen_at": "2026-11-10T20:25:50Z",
+              "producer_sha": "63c3206f0d474892e5bd3b9c4ecafc757fd6670e",
+              "consumer_sha": "8ccf976630cbc8990ab59458ae16353735e99f35",
+              "snapshot_sha256": "1c33cfb273629c858dadfeb9c7bc9a549ba7571a16f133f44c3518b9d737a88c",
+              "executed_at": null,
+              "execution_price_source": null,
+              "execution_authorized": false,
+              "latency_breakdown": {
+                "source_to_seen_seconds": 13250.0,
+                "snapshot_to_consumer_seconds": 13283.101956,
+                "decision_to_execution_seconds": null
+              },
+              "risk_model_sample_sha256": null,
+              "consumer_code_sha256": "cee3814b4cf02eff167412d3f01cdde87cff0b77e3e0e82cf9ca0e5b42f56cb5",
+              "immutable_id": "e88bd00e09efbd24ea8d6908fd4f8f7ad0adfc07efdb470d02a6b976b540fdcb"
+            },
+            "decision_mode": "SHADOW",
+            "decision": "BLOCK_NEW_ENTRY",
+            "reason": [
+              "RISK_MODEL_UNCALIBRATED",
+              "RSS_STALE",
+              "RECOVERY_REQUIRED_CONFERENCE_UNCONFIRMED",
+              "HIGH_IMPACT_EVENT_WINDOW",
+              "NO_EXECUTABLE_QUOTE",
+              "EXECUTION_COSTS_UNKNOWN"
+            ],
+            "immutable_id": "e88bd00e09efbd24ea8d6908fd4f8f7ad0adfc07efdb470d02a6b976b540fdcb",
+            "wire_snapshot_sha256": "1c33cfb273629c858dadfeb9c7bc9a549ba7571a16f133f44c3518b9d737a88c",
+            "decision_id": "e88bd00e09efbd24ea8d6908fd4f8f7ad0adfc07efdb470d02a6b976b540fdcb",
+            "engine": "EURUSD_DAILY",
+            "lifecycle": "v1.9.1",
+            "direction_authority": false,
+            "execution_authority": false,
+            "executed_at": null,
+            "execution_price_source": null,
+            "stop_changed": false,
+            "history_rewritten": false
+          },
+          "calendar_coverage": {
+            "complete": true,
+            "observed_at": "2026-11-11T00:03:14.987294Z",
+            "age_minutes": 4.002,
+            "source_status": {
+              "BEA": {
+                "error_type": null,
+                "event_count": 11,
+                "source_ref": "https://www.bea.gov/news/schedule",
+                "status": "ok"
+              },
+              "BLS": {
+                "error_type": null,
+                "event_count": 19,
+                "source_ref": "https://www.bls.gov/schedule/news_release/bls.ics",
+                "status": "ok"
+              },
+              "ECB": {
+                "error_type": null,
+                "event_count": 4,
+                "source_ref": "https://www.ecb.europa.eu/press/calendars/mgcgc/html/index.en.html",
+                "status": "ok"
+              },
+              "EUROSTAT": {
+                "error_type": null,
+                "event_count": 26,
+                "source_ref": "https://ec.europa.eu/eurostat/o/calendars/eventsIcal?theme=&category=",
+                "status": "ok"
+              },
+              "FOMC": {
+                "error_type": null,
+                "event_count": 12,
+                "source_ref": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
+                "status": "ok"
+              }
+            }
+          },
+          "events": [],
+          "source": "belief_macro_calendar_adapter",
+          "direction_mutation_allowed": false
+        },
+        "same_thesis_reentry_guard": {
+          "enabled": true,
+          "mode": "SAME_THESIS_REENTRY_GUARD",
+          "generic_loss_cooldown": false,
+          "window_hours": 12.0,
+          "min_loss_r": -0.15,
+          "evaluated": true,
+          "blocked": false,
+          "reason": "no_recent_meaningful_same_direction_loss",
+          "current_thesis": {
+            "schema_version": "eurusd-entry-thesis-v1",
+            "source": "NATIVE",
+            "source_family": "NATIVE_BELIEF_FIRST",
+            "direction": "SHORT",
+            "score": 43.15,
+            "directional_strength": 6.85,
+            "confidence": 0.3934,
+            "components": {},
+            "weights": {}
+          },
+          "effective_allowed": true,
+          "criteria_policy": "eurusd-reentry-policy-92434b08d7195f2e8324b97b"
+        },
+        "agent_reflection": {
+          "mode": "EVIDENCE_BACKED_PRE_ENTRY_REFLECTION",
+          "available": true,
+          "reflection_iteration": 68,
+          "memory_sha256": "9067e021964318d9be49b2cee6d8edc054ad3003a49b3f121de2064b5bf7656f",
+          "similar_actual_trades": 0,
+          "similar_losses": 0,
+          "similar_mean_net_r": null,
+          "recent_similar_loss_ids": [],
+          "relevant_lesson_ids": [],
+          "source_evidence_changed_since_latest_similar_loss": null,
+          "assessment": "INSUFFICIENT_COMPARABLE_ACTUAL_EVIDENCE",
+          "historical_association_is_causal_proof": false,
+          "may_override_direction_risk_or_safety": false,
+          "policy_change_requires_prospective_gate": true
+        },
+        "reentry_policy": {
+          "version_id": "eurusd-reentry-policy-92434b08d7195f2e8324b97b",
+          "policy_sha256": "f611af60e80bafb4ef10305da69fb0907d5928e9866e047abde91d515f0db77b",
+          "criteria": {
+            "confirmation_minutes": 5,
+            "ma_periods": [
+              60,
+              100,
+              200
+            ],
+            "material_confidence_improvement": 0.08,
+            "material_score_improvement": 3.0,
+            "maximum_entry_distance_atr": 0.25,
+            "minimum_aligned_beliefs": 3,
+            "minimum_confidence": 0.5,
+            "minimum_retracement": 0.3,
+            "minimum_score_distance": 10.0,
+            "minimum_wait_minutes": 0,
+            "require_material_change": true,
+            "require_post_loss_trend": true,
+            "support_mode": "D1_LEVEL",
+            "zone_atr": 0.1
+          },
+          "status": "GOVERNED_ADAPTIVE_CRITERIA",
+          "activation_boundary": "2026-10-20T19:17:41.582278Z"
+        },
+        "reentry_policy_evaluations": {
+          "eurusd-reentry-policy-92434b08d7195f2e8324b97b": {
+            "technical": {
+              "schema_version": "eurusd-post-loss-technical-admission-v1",
+              "enabled": true,
+              "required": false,
+              "allowed": true,
+              "status": "NOT_APPLICABLE",
+              "reason": "no_recent_same_direction_loss",
+              "direction_mutation_allowed": false,
+              "history_rewritten": false,
+              "criteria": {
+                "confirmation_minutes": 5,
+                "ma_periods": [
+                  60,
+                  100,
+                  200
+                ],
+                "material_confidence_improvement": 0.08,
+                "material_score_improvement": 3.0,
+                "maximum_entry_distance_atr": 0.25,
+                "minimum_aligned_beliefs": 3,
+                "minimum_confidence": 0.5,
+                "minimum_retracement": 0.3,
+                "minimum_score_distance": 10.0,
+                "minimum_wait_minutes": 0,
+                "require_material_change": true,
+                "require_post_loss_trend": true,
+                "support_mode": "D1_LEVEL",
+                "zone_atr": 0.1
+              },
+              "criteria_sha256": "f611af60e80bafb4ef10305da69fb0907d5928e9866e047abde91d515f0db77b"
+            },
+            "thesis_allowed": true,
+            "allowed": false
+          },
+          "eurusd-reentry-candidate-0346d22506c6dc5435003005": {
+            "technical": {
+              "schema_version": "eurusd-post-loss-technical-admission-v1",
+              "enabled": true,
+              "required": false,
+              "allowed": true,
+              "status": "NOT_APPLICABLE",
+              "reason": "no_recent_same_direction_loss",
+              "direction_mutation_allowed": false,
+              "history_rewritten": false,
+              "criteria": {
+                "confirmation_minutes": 5,
+                "ma_periods": [
+                  20,
+                  50,
+                  100,
+                  200
+                ],
+                "material_confidence_improvement": 0.08,
+                "material_score_improvement": 3.0,
+                "maximum_entry_distance_atr": 0.25,
+                "minimum_aligned_beliefs": 3,
+                "minimum_confidence": 0.5,
+                "minimum_retracement": 0.3,
+                "minimum_score_distance": 10.0,
+                "minimum_wait_minutes": 0,
+                "require_material_change": true,
+                "require_post_loss_trend": true,
+                "support_mode": "D1_LEVEL",
+                "zone_atr": 0.1
+              },
+              "criteria_sha256": "ac743886643c5cfb85a212805fa99e27b783788508de560daef3b09bb5aa5232"
+            },
+            "thesis_allowed": true,
+            "allowed": false
+          },
+          "eurusd-reentry-candidate-107eb2832e67d5504483fc2f": {
+            "technical": {
+              "schema_version": "eurusd-post-loss-technical-admission-v1",
+              "enabled": true,
+              "required": false,
+              "allowed": true,
+              "status": "NOT_APPLICABLE",
+              "reason": "no_recent_same_direction_loss",
+              "direction_mutation_allowed": false,
+              "history_rewritten": false,
+              "criteria": {
+                "confirmation_minutes": 5,
+                "ma_periods": [
+                  60,
+                  100,
+                  200
+                ],
+                "material_confidence_improvement": 0.08,
+                "material_score_improvement": 3.0,
+                "maximum_entry_distance_atr": 0.25,
+                "minimum_aligned_beliefs": 3,
+                "minimum_confidence": 0.65,
+                "minimum_retracement": 0.3,
+                "minimum_score_distance": 12.0,
+                "minimum_wait_minutes": 0,
+                "require_material_change": true,
+                "require_post_loss_trend": true,
+                "support_mode": "D1_LEVEL",
+                "zone_atr": 0.1
+              },
+              "criteria_sha256": "4dff66aa71a26551379efdef83698377825e66726c7718e257282428718b041a"
+            },
+            "thesis_allowed": true,
+            "allowed": false
+          },
+          "eurusd-reentry-candidate-2c9c9f508cac3c9198927719": {
+            "technical": {
+              "schema_version": "eurusd-post-loss-technical-admission-v1",
+              "enabled": true,
+              "required": false,
+              "allowed": true,
+              "status": "NOT_APPLICABLE",
+              "reason": "no_recent_same_direction_loss",
+              "direction_mutation_allowed": false,
+              "history_rewritten": false,
+              "criteria": {
+                "confirmation_minutes": 5,
+                "ma_periods": [
+                  60,
+                  100,
+                  200
+                ],
+                "material_confidence_improvement": 0.08,
+                "material_score_improvement": 3.0,
+                "maximum_entry_distance_atr": 0.25,
+                "minimum_aligned_beliefs": 3,
+                "minimum_confidence": 0.5,
+                "minimum_retracement": 0.25,
+                "minimum_score_distance": 10.0,
+                "minimum_wait_minutes": 0,
+                "require_material_change": true,
+                "require_post_loss_trend": true,
+                "support_mode": "D1_LEVEL",
+                "zone_atr": 0.1
+              },
+              "criteria_sha256": "51d52a21af71e9f245f536ece5b7955f288c6ac012a20be6bb17d4ec8e2f65ec"
+            },
+            "thesis_allowed": true,
+            "allowed": false
+          },
+          "eurusd-reentry-candidate-c2f7d2e9d085b7f9f6478ccb": {
+            "technical": {
+              "schema_version": "eurusd-post-loss-technical-admission-v1",
+              "enabled": true,
+              "required": false,
+              "allowed": true,
+              "status": "NOT_APPLICABLE",
+              "reason": "no_recent_same_direction_loss",
+              "direction_mutation_allowed": false,
+              "history_rewritten": false,
+              "criteria": {
+                "confirmation_minutes": 5,
+                "ma_periods": [
+                  60,
+                  100,
+                  200
+                ],
+                "material_confidence_improvement": 0.08,
+                "material_score_improvement": 3.0,
+                "maximum_entry_distance_atr": 0.25,
+                "minimum_aligned_beliefs": 3,
+                "minimum_confidence": 0.35,
+                "minimum_retracement": 0.3,
+                "minimum_score_distance": 8.0,
+                "minimum_wait_minutes": 0,
+                "require_material_change": true,
+                "require_post_loss_trend": true,
+                "support_mode": "D1_LEVEL",
+                "zone_atr": 0.1
+              },
+              "criteria_sha256": "fe5c8dcfd8a0bed27edf613a432432912a4568b59daabd68caed63d18f6bc704"
+            },
+            "thesis_allowed": true,
+            "allowed": false
+          },
+          "eurusd-reentry-candidate-dc00c1795c15c8094b261b5a": {
+            "technical": {
+              "schema_version": "eurusd-post-loss-technical-admission-v1",
+              "enabled": true,
+              "required": false,
+              "allowed": true,
+              "status": "NOT_APPLICABLE",
+              "reason": "no_recent_same_direction_loss",
+              "direction_mutation_allowed": false,
+              "history_rewritten": false,
+              "criteria": {
+                "confirmation_minutes": 5,
+                "ma_periods": [
+                  60,
+                  100,
+                  200
+                ],
+                "material_confidence_improvement": 0.08,
+                "material_score_improvement": 3.0,
+                "maximum_entry_distance_atr": 0.25,
+                "minimum_aligned_beliefs": 3,
+                "minimum_confidence": 0.5,
+                "minimum_retracement": 0.35,
+                "minimum_score_distance": 10.0,
+                "minimum_wait_minutes": 0,
+                "require_material_change": true,
+                "require_post_loss_trend": true,
+                "support_mode": "D1_LEVEL",
+                "zone_atr": 0.1
+              },
+              "criteria_sha256": "7c26ad7e8a6c2ae1012e6b4bebaf8b15ee3263e5e88d155f36420a4d5c0dea92"
+            },
+            "thesis_allowed": true,
+            "allowed": false
+          },
+          "eurusd-reentry-candidate-eb9458c349e0fbc079c40aed": {
+            "technical": {
+              "schema_version": "eurusd-post-loss-technical-admission-v1",
+              "enabled": true,
+              "required": false,
+              "allowed": true,
+              "status": "NOT_APPLICABLE",
+              "reason": "no_recent_same_direction_loss",
+              "direction_mutation_allowed": false,
+              "history_rewritten": false,
+              "criteria": {
+                "confirmation_minutes": 5,
+                "ma_periods": [
+                  60,
+                  100,
+                  200
+                ],
+                "material_confidence_improvement": 0.08,
+                "material_score_improvement": 3.0,
+                "maximum_entry_distance_atr": 0.25,
+                "minimum_aligned_beliefs": 3,
+                "minimum_confidence": 0.5,
+                "minimum_retracement": 0.3,
+                "minimum_score_distance": 10.0,
+                "minimum_wait_minutes": 0,
+                "require_material_change": true,
+                "require_post_loss_trend": true,
+                "support_mode": "PRICE_REJECTION",
+                "zone_atr": 0.1
+              },
+              "criteria_sha256": "738b7afe2859eee15dc63c2e558b0d2ba2209049131eacb5c0256aa10a85de67"
+            },
+            "thesis_allowed": true,
+            "allowed": false
+          }
+        },
+        "reentry_research_eligible": false,
+        "post_loss_technical_guard": {
+          "schema_version": "eurusd-post-loss-technical-admission-v1",
+          "enabled": true,
+          "required": false,
+          "allowed": true,
+          "status": "NOT_APPLICABLE",
+          "reason": "no_recent_same_direction_loss",
+          "direction_mutation_allowed": false,
+          "history_rewritten": false,
+          "criteria": {
+            "confirmation_minutes": 5,
+            "ma_periods": [
+              60,
+              100,
+              200
+            ],
+            "material_confidence_improvement": 0.08,
+            "material_score_improvement": 3.0,
+            "maximum_entry_distance_atr": 0.25,
+            "minimum_aligned_beliefs": 3,
+            "minimum_confidence": 0.5,
+            "minimum_retracement": 0.3,
+            "minimum_score_distance": 10.0,
+            "minimum_wait_minutes": 0,
+            "require_material_change": true,
+            "require_post_loss_trend": true,
+            "support_mode": "D1_LEVEL",
+            "zone_atr": 0.1
+          },
+          "criteria_sha256": "f611af60e80bafb4ef10305da69fb0907d5928e9866e047abde91d515f0db77b"
+        }
+      },
       "execution_price_engine": {},
       "risk": {
-        "market_observed_at": "2026-11-10T23:48:33Z",
-        "market_reference_mid": 1.1170687675476074,
-        "atr_30m_at_decision": 0.0007212024468642015,
+        "market_observed_at": "2026-11-11T00:06:33Z",
+        "market_reference_mid": 1.1169440746307373,
+        "atr_30m_at_decision": 0.0007017438228313739,
         "atr_30m_window": 26,
         "atr_multiple": 1.35,
         "risk_floor_percent": 0.0027,
         "reward_risk": 1.8,
         "multi_timeframe_version": "MTF_H1_REGIME_V1",
-        "strategy_at_decision": "NO_BELIEF_SIGNAL",
-        "hourly_mean_high_low_pips": 10.407,
+        "strategy_at_decision": "STRONG_TREND",
+        "hourly_mean_high_low_pips": 10.51,
         "hourly_median_high_low_pips": 7.566,
-        "volatility_stop_target_applied": false,
+        "volatility_stop_target_applied": true,
         "soft_horizon_hours": 24.0,
         "hard_horizon_hours": 27.0,
         "position_horizon_hours": 27.0,
@@ -1300,8 +2932,8 @@
       },
       "prospective": true,
       "historical_backfill": false,
-      "decision_id": "eurusd-production-decision:6faa1a3eb56dba92ac29b4d8",
-      "manifest_sha256": "4394482f05bac4736097ccee8eb79096eead03c7637b4d053b3005592adc2853"
+      "decision_id": "eurusd-production-decision:1f5d78cbd959e3a95c9adca8",
+      "manifest_sha256": "a3ee0ddd866fc3237547e680493467a38d51d6bbcd936e3ff129e0ca869685dd"
     },
     "production_policy_loop": {
       "schema_version": "eurusd-production-policy-runtime-v1",
