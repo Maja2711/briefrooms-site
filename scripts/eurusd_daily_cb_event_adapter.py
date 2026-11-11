@@ -5,14 +5,16 @@ OHLC marks are explicitly uncertain paper proxies, never invented BID/ASK.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import json
 import os
 from pathlib import Path
 from typing import Any, Mapping, Sequence
+from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[1]
 WIRE_PATH = ROOT / "data/investments/eurusd_central_bank_wire.json"
+DAILY_GUARD_TZ = ZoneInfo('Europe/Warsaw')
 
 
 def _time(value: Any) -> datetime | None:
@@ -21,6 +23,30 @@ def _time(value: Any) -> datetime | None:
         return parsed.astimezone(timezone.utc) if parsed.tzinfo is not None else None
     except (ValueError, TypeError):
         return None
+
+
+def _possible_current_day_event_on_failure(now: datetime | None, kwargs: Mapping[str, Any]) -> bool:
+    """Fail closed for a recognizable current-day CB event, not old feed failures."""
+    if now is None or now.tzinfo is None:
+        return False
+    today = now.astimezone(DAILY_GUARD_TZ).date()
+    wire = kwargs.get('wire') or {}
+    rows = [*(kwargs.get('calendar_events') or ())]
+    if isinstance(wire, Mapping):
+        rows.extend(wire.get('calendar_events') or ())
+        rows.extend(wire.get('unresolved_event_windows') or ())
+        if isinstance(wire.get('event_window'), Mapping):
+            rows.append(wire['event_window'])
+    for row in rows:
+        if not isinstance(row, Mapping):
+            continue
+        at = _time(row.get('scheduled_at') or row.get('event_at'))
+        if at is None:
+            continue
+        delta = (at - now).total_seconds()
+        if at.astimezone(DAILY_GUARD_TZ).date() == today or 0 <= delta <= 120 * 60:
+            return True
+    return False
 
 
 def evaluate_daily(
@@ -108,13 +134,17 @@ def safe_evaluate_daily(*args: Any, **kwargs: Any) -> dict[str, Any]:
     except Exception as exc:
         try:
             from eurusd_central_bank_event_risk import load_policy
-            enforced = (kwargs.get("policy") or load_policy()).get("entry_guard_enabled") is True
+            policy_enabled = (kwargs.get("policy") or load_policy()).get("entry_guard_enabled") is True
+            observed = kwargs.get('observed_at') or (args[2] if len(args) > 2 else None)
+            enforced = bool(policy_enabled and _possible_current_day_event_on_failure(observed, kwargs))
         except Exception:
-            enforced = True
+            # Unknown diagnostics cannot re-create a permanent old CB veto.
+            # Independent Daily calendar/readiness and EPE gates still apply.
+            enforced = False
         return {"scope": "EURUSD_DAILY", "action": "NO_ACTION_UNVERIFIED",
             "mode": "SHADOW", "wire_health": "UNAVAILABLE",
             "risk_protection_status": "PROTECTION_PENDING", "quote_verified": False,
             "execution_authority": False, "executed_at": None,
-            "block_new_entry": True, "entry_guard_enforced": enforced,
+            "block_new_entry": enforced, "entry_guard_enforced": enforced,
             "reasons": ["CENTRAL_BANK_ASSESSMENT_UNAVAILABLE", type(exc).__name__],
             "alerts": ["RECOVERY REQUIRED"]}
