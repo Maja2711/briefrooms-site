@@ -138,6 +138,14 @@ class CentralBankRiskTests(unittest.TestCase):
         self.assertIn('RSS_STALE',daily.reasons)
         self.assertFalse(weekly.block_new_entry)  # Existing Weekly stale-wire grace
 
+    def test_daily_future_calendar_day_is_not_premature_cb_veto(self):
+        parts = fixture()
+        parts[3][0]["scheduled_at"] = risk.iso(NOW + timedelta(days=1))
+        parts[4]["entry_guard_enabled"] = True
+        result = self.assess(parts, scope="EURUSD_DAILY")
+        self.assertFalse(result.entry_guard_enforced)
+        self.assertFalse(result.block_new_entry)
+
     def test_daily_same_day_fed_and_ecb_release_after_official_proof(self):
         at=NOW-timedelta(minutes=30)
         for bank in ('FED','ECB'):
