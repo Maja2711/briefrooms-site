@@ -114,6 +114,8 @@ class DailyEURUSDBollingerTouchTests(touch.DailyEURUSDBollingerTouchTests):
             ):
                 metadata = {
                     "bollinger_h1": {"available": True, "allowed": True},
+                    "multi_timeframe": {"available": True, "block_new_entry": False,
+                                        "strategy": "TREND_CONTINUATION"},
                     "bollinger_d1_touch": {gate_key: True},
                     "final_decision": {"direction": direction},
                 }
@@ -133,6 +135,19 @@ class DailyEURUSDBollingerTouchTests(touch.DailyEURUSDBollingerTouchTests):
                 released = v19._execution_admission(
                     v19._clone(candidate, metadata=metadata), None, observed_at=now)
                 self.assertTrue(released["allowed"])
+                # No completed H1 or an unverified MTF assessment may create a new entry.
+                no_h1 = dict(metadata)
+                no_h1["bollinger_h1"] = {"available": False, "reason": "stale_h1_bollinger"}
+                unverified = v19._execution_admission(
+                    v19._clone(candidate, metadata=no_h1), None, observed_at=now)
+                self.assertFalse(unverified["allowed"])
+                self.assertIn("bollinger_h1_stale_h1_bollinger", unverified["reasons"])
+                no_mtf = dict(metadata)
+                no_mtf["multi_timeframe"] = {"available": False, "reason": "missing_or_stale_closed_h1"}
+                unverified_mtf = v19._execution_admission(
+                    v19._clone(candidate, metadata=no_mtf), None, observed_at=now)
+                self.assertFalse(unverified_mtf["allowed"])
+                self.assertIn("mtf_missing_or_stale_closed_h1", unverified_mtf["reasons"])
 
 # The Daily monitor validation imports the established H1 test case explicitly.
 # Attach each new regression there too so every configured CI runner executes it.
