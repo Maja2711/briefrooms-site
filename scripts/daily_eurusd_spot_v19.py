@@ -151,16 +151,22 @@ def _execution_admission(
         reasons.append("belief_flip_" + str(flip.get("reason") or "unconfirmed"))
     if whipsaw.get("allowed") is not True:
         reasons.append("cross_direction_" + str(whipsaw.get("reason") or "whipsaw"))
-    # Only evaluated, trustworthy technical evidence can veto entry. Missing
-    # evidence is observable but must not rewrite established admission contracts.
-    if bollinger.get("available") is True and bollinger.get("allowed") is False:
-        reasons.append("bollinger_h1_" + str(bollinger.get("reason") or "not_aligned"))
+    # H1 is the declared PRIMARY entry timeframe. A missing, stale or
+    # unverified H1 signal must not silently bypass the technical gate.
+    # This affects NEW entries only; existing position exits stay independent.
+    if candidate.direction in {"LONG", "SHORT"}:
+        if bollinger.get("available") is not True:
+            reasons.append("bollinger_h1_" + str(bollinger.get("reason") or "unverified"))
+        elif bollinger.get("allowed") is not True:
+            reasons.append("bollinger_h1_" + str(bollinger.get("reason") or "not_aligned"))
 
     mtf = (candidate.metadata or {}).get("multi_timeframe") or {}
     risk_plan = (candidate.metadata or {}).get("h1_volatility_geometry") or {}
     details["multi_timeframe"] = dict(mtf)
     details["h1_volatility_geometry"] = dict(risk_plan)
-    if mtf.get("available") is True and mtf.get("block_new_entry") is True:
+    if candidate.direction in {"LONG", "SHORT"} and mtf.get("available") is not True:
+        reasons.append("mtf_" + str(mtf.get("reason") or "unverified"))
+    elif mtf.get("available") is True and mtf.get("block_new_entry") is True:
         reasons.append("mtf_" + str(mtf.get("strategy") or "not_admitted").lower())
     if risk_plan.get("allowed") is False:
         reasons.append("mtf_volatility_geometry_unfavorable")
