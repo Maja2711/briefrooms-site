@@ -1,11 +1,11 @@
 {
   "layer_version": "5.9.1-experimental",
-  "generated_at": "2026-11-11T14:57:12+01:00",
+  "generated_at": "2026-11-11T16:09:28+01:00",
   "instruments": {
     "eurusd": {
       "central_bank_event_risk": {
-        "event_id": "cb-release:c327a2d24023c0ee6f4bb75322f74f2c",
-        "evaluated_at": "2026-11-11T13:57:12.629010Z",
+        "event_id": null,
+        "evaluated_at": "2026-11-11T15:09:28.336314Z",
         "scope": "EURUSD_WEEKLY",
         "position_id": null,
         "action": "BLOCK_NEW_ENTRY",
@@ -92,6 +92,8 @@
           "cb:b00926cce11a1814cf2f217a131b5c54",
           "cb:b4238b7e8abd15f21b30935706bf9de3",
           "cb:b56fbf71d05a01c10d06d4ef9339f9b3",
+          "cb:bafecc5f81e10a9b684d751becaa3682",
+          "cb:bf14495f3f69d2b480b3a1db37b374aa",
           "cb:bf8e5f9bd7941279d79a989c9fa5c67b",
           "cb:bfa08de3d04b5faa22bf5f121e0f8347",
           "cb:c2038f207d7b629c25acc9b60a5ffef7",
@@ -128,33 +130,34 @@
         ],
         "reasons": [
           "RISK_MODEL_UNCALIBRATED",
+          "OLD_UNVERIFIED_CB_EVENT_EXPIRED_WITHOUT_END_PROOF",
           "RSS_STALE",
-          "RECOVERY_REQUIRED_CONFERENCE_UNCONFIRMED",
-          "HIGH_IMPACT_EVENT_WINDOW",
           "NO_EXECUTABLE_QUOTE",
           "EXECUTION_COSTS_UNKNOWN"
         ],
         "block_new_entry": true,
         "entry_guard_enforced": true,
-        "risk_protection_status": "PROTECTION_PENDING",
+        "risk_protection_status": "MONITORING_ONLY",
         "diagnostics": {
-          "current_event_id": "cb-release:c327a2d24023c0ee6f4bb75322f74f2c",
-          "bank": "ECB",
-          "phase": "RELEASED",
-          "minutes_until": -18762.2104835,
+          "current_event_id": null,
+          "bank": null,
+          "phase": "UNKNOWN",
+          "minutes_until": null,
           "conference_status": "UNKNOWN",
-          "active_event_ids": [
+          "active_event_ids": [],
+          "expired_unverified_event_ids": [
             "cb-release:c327a2d24023c0ee6f4bb75322f74f2c",
             "eu:European Central Bank:2026-10-29:Governing Council of the ECB: monetary policy meeting in Frankfurt (Day 2), foll"
           ],
+          "stale_wire_weekly_auto_release": false,
           "headline_count_30m": 0,
           "latest_headline": "Bowman, The U.S. Economy and Considerations for Monetary Policy",
           "latest_official_document": "https://www.ecb.europa.eu//press/pr/date/2026/html/ecb.mp261029~9a493adf17.en.html",
           "speaker_verified": false,
-          "source_age_seconds": 24056.62901,
+          "source_age_seconds": 3052.336314,
           "wire_health": "STALE",
           "producer_wire_health": "FRESH",
-          "latest_decision_headline_age_seconds": 62832.62901,
+          "latest_decision_headline_age_seconds": 67168.336314,
           "position_profit_pips": null,
           "current_net_R": null,
           "profit_at_risk_pips": null,
@@ -165,9 +168,9 @@
           "mfe_R": null,
           "remaining_upside_R": null,
           "reward_to_downside": null,
-          "quote_age_seconds": 43.62901,
+          "quote_age_seconds": 57.336314,
           "current_executable_exit_price": null,
-          "paper_proxy_price": 1.110987663269043,
+          "paper_proxy_price": 1.109385371208191,
           "paper_proxy_uncertain": true,
           "spread_pips": null,
           "spread_multiple": null,
@@ -188,8 +191,7 @@
           "input_quality": "PARTIAL",
           "alerts": [
             "RSS_STALE",
-            "NO_EXECUTABLE_QUOTE",
-            "LIVE_SPEECH_UNVERIFIED"
+            "NO_EXECUTABLE_QUOTE"
           ]
         },
         "alternatives": {
@@ -215,35 +217,34 @@
         },
         "audit": {
           "policy_version": "1.0.0",
-          "policy_hash": "f3536a02e7152c611dcdbc00cf5a78122a678a62d71d2af39c5583a03e7b64e1",
-          "data_as_of": "2026-11-11T07:16:16Z",
+          "policy_hash": "927d9b95fb34cd23e135410c129a0f30a12ff4e7f98167c354209a34b86e2144",
+          "data_as_of": "2026-11-11T14:18:36Z",
           "first_seen_at": "2026-11-11T00:47:20Z",
-          "producer_sha": "9acd0b2e8cc43f0c507177efd1d9a24ef48aa06d",
-          "consumer_sha": "c8d34bdb8079c12cd9fc8194fa0ca03a24bbb8c7",
-          "snapshot_sha256": "08aa3f619fb366e2b972136b8b2fc602c12852f1d4be9df8d226e52d9be3104f",
+          "producer_sha": "907875d92be204bd695f2841ebe2642a68bdcda7",
+          "consumer_sha": "3e2c2cfccd5937ba885854df5767363f1e705878",
+          "snapshot_sha256": "a0ddc9136a28c336008728d95abd440ea3fd357cabac61a2d9ec27f700658105",
           "executed_at": null,
           "execution_price_source": null,
           "execution_authorized": false,
           "latency_breakdown": {
             "source_to_seen_seconds": 15440.0,
-            "snapshot_to_consumer_seconds": 24056.62901,
+            "snapshot_to_consumer_seconds": 3052.336314,
             "decision_to_execution_seconds": null
           },
           "risk_model_sample_sha256": null,
-          "consumer_code_sha256": "cee3814b4cf02eff167412d3f01cdde87cff0b77e3e0e82cf9ca0e5b42f56cb5",
-          "immutable_id": "63b593caa988e8611777f524bbbf7d85bd7020770bf827efa1e789b4d25af041"
+          "consumer_code_sha256": "2782b3e4421659ce3b0bc361f0ec8e5ed72e27f6f61d6ed8ffc5a521d398b39a",
+          "immutable_id": "8bec7e0f5ab557474de7a0ac6841883de3820d65ea94cb2a0c7b796e96dc18da"
         },
         "decision_mode": "SHADOW",
         "decision": "BLOCK_NEW_ENTRY",
         "reason": [
           "RISK_MODEL_UNCALIBRATED",
+          "OLD_UNVERIFIED_CB_EVENT_EXPIRED_WITHOUT_END_PROOF",
           "RSS_STALE",
-          "RECOVERY_REQUIRED_CONFERENCE_UNCONFIRMED",
-          "HIGH_IMPACT_EVENT_WINDOW",
           "NO_EXECUTABLE_QUOTE",
           "EXECUTION_COSTS_UNKNOWN"
         ],
-        "immutable_id": "63b593caa988e8611777f524bbbf7d85bd7020770bf827efa1e789b4d25af041",
+        "immutable_id": "8bec7e0f5ab557474de7a0ac6841883de3820d65ea94cb2a0c7b796e96dc18da",
         "executed_at": null,
         "execution_price_source": null,
         "execution_authority": false,
@@ -257,15 +258,15 @@
           "exit_price": null
         },
         "entry_guard_enabled": true,
-        "consumer_sha": "c8d34bdb8079c12cd9fc8194fa0ca03a24bbb8c7",
+        "consumer_sha": "3e2c2cfccd5937ba885854df5767363f1e705878",
         "consumer_code_sha256": "f6f2e41ea17d983296cbad4072601d0875443b3eb739e1c98b3e2a384ffad20f",
         "price_watchdog": {
           "instrument_id": "eurusd",
-          "price_observed_at": "2026-11-11T14:56:29+01:00",
-          "price_age_seconds": 43.62901,
+          "price_observed_at": "2026-11-11T16:08:31+01:00",
+          "price_age_seconds": 57.336314,
           "fresh_for_display_mark": true,
           "fresh_for_execution": false,
-          "last_known_price": 1.110987663269043,
+          "last_known_price": 1.109385371208191,
           "status": "FRESH",
           "alerts": [],
           "recovery_required": false
@@ -295,8 +296,8 @@
     }
   },
   "eurusd_central_bank_event_risk": {
-    "event_id": "cb-release:c327a2d24023c0ee6f4bb75322f74f2c",
-    "evaluated_at": "2026-11-11T13:57:12.629010Z",
+    "event_id": null,
+    "evaluated_at": "2026-11-11T15:09:28.336314Z",
     "scope": "EURUSD_WEEKLY",
     "position_id": null,
     "action": "BLOCK_NEW_ENTRY",
@@ -383,6 +384,8 @@
       "cb:b00926cce11a1814cf2f217a131b5c54",
       "cb:b4238b7e8abd15f21b30935706bf9de3",
       "cb:b56fbf71d05a01c10d06d4ef9339f9b3",
+      "cb:bafecc5f81e10a9b684d751becaa3682",
+      "cb:bf14495f3f69d2b480b3a1db37b374aa",
       "cb:bf8e5f9bd7941279d79a989c9fa5c67b",
       "cb:bfa08de3d04b5faa22bf5f121e0f8347",
       "cb:c2038f207d7b629c25acc9b60a5ffef7",
@@ -419,33 +422,34 @@
     ],
     "reasons": [
       "RISK_MODEL_UNCALIBRATED",
+      "OLD_UNVERIFIED_CB_EVENT_EXPIRED_WITHOUT_END_PROOF",
       "RSS_STALE",
-      "RECOVERY_REQUIRED_CONFERENCE_UNCONFIRMED",
-      "HIGH_IMPACT_EVENT_WINDOW",
       "NO_EXECUTABLE_QUOTE",
       "EXECUTION_COSTS_UNKNOWN"
     ],
     "block_new_entry": true,
     "entry_guard_enforced": true,
-    "risk_protection_status": "PROTECTION_PENDING",
+    "risk_protection_status": "MONITORING_ONLY",
     "diagnostics": {
-      "current_event_id": "cb-release:c327a2d24023c0ee6f4bb75322f74f2c",
-      "bank": "ECB",
-      "phase": "RELEASED",
-      "minutes_until": -18762.2104835,
+      "current_event_id": null,
+      "bank": null,
+      "phase": "UNKNOWN",
+      "minutes_until": null,
       "conference_status": "UNKNOWN",
-      "active_event_ids": [
+      "active_event_ids": [],
+      "expired_unverified_event_ids": [
         "cb-release:c327a2d24023c0ee6f4bb75322f74f2c",
         "eu:European Central Bank:2026-10-29:Governing Council of the ECB: monetary policy meeting in Frankfurt (Day 2), foll"
       ],
+      "stale_wire_weekly_auto_release": false,
       "headline_count_30m": 0,
       "latest_headline": "Bowman, The U.S. Economy and Considerations for Monetary Policy",
       "latest_official_document": "https://www.ecb.europa.eu//press/pr/date/2026/html/ecb.mp261029~9a493adf17.en.html",
       "speaker_verified": false,
-      "source_age_seconds": 24056.62901,
+      "source_age_seconds": 3052.336314,
       "wire_health": "STALE",
       "producer_wire_health": "FRESH",
-      "latest_decision_headline_age_seconds": 62832.62901,
+      "latest_decision_headline_age_seconds": 67168.336314,
       "position_profit_pips": null,
       "current_net_R": null,
       "profit_at_risk_pips": null,
@@ -456,9 +460,9 @@
       "mfe_R": null,
       "remaining_upside_R": null,
       "reward_to_downside": null,
-      "quote_age_seconds": 43.62901,
+      "quote_age_seconds": 57.336314,
       "current_executable_exit_price": null,
-      "paper_proxy_price": 1.110987663269043,
+      "paper_proxy_price": 1.109385371208191,
       "paper_proxy_uncertain": true,
       "spread_pips": null,
       "spread_multiple": null,
@@ -479,8 +483,7 @@
       "input_quality": "PARTIAL",
       "alerts": [
         "RSS_STALE",
-        "NO_EXECUTABLE_QUOTE",
-        "LIVE_SPEECH_UNVERIFIED"
+        "NO_EXECUTABLE_QUOTE"
       ]
     },
     "alternatives": {
@@ -506,35 +509,34 @@
     },
     "audit": {
       "policy_version": "1.0.0",
-      "policy_hash": "f3536a02e7152c611dcdbc00cf5a78122a678a62d71d2af39c5583a03e7b64e1",
-      "data_as_of": "2026-11-11T07:16:16Z",
+      "policy_hash": "927d9b95fb34cd23e135410c129a0f30a12ff4e7f98167c354209a34b86e2144",
+      "data_as_of": "2026-11-11T14:18:36Z",
       "first_seen_at": "2026-11-11T00:47:20Z",
-      "producer_sha": "9acd0b2e8cc43f0c507177efd1d9a24ef48aa06d",
-      "consumer_sha": "c8d34bdb8079c12cd9fc8194fa0ca03a24bbb8c7",
-      "snapshot_sha256": "08aa3f619fb366e2b972136b8b2fc602c12852f1d4be9df8d226e52d9be3104f",
+      "producer_sha": "907875d92be204bd695f2841ebe2642a68bdcda7",
+      "consumer_sha": "3e2c2cfccd5937ba885854df5767363f1e705878",
+      "snapshot_sha256": "a0ddc9136a28c336008728d95abd440ea3fd357cabac61a2d9ec27f700658105",
       "executed_at": null,
       "execution_price_source": null,
       "execution_authorized": false,
       "latency_breakdown": {
         "source_to_seen_seconds": 15440.0,
-        "snapshot_to_consumer_seconds": 24056.62901,
+        "snapshot_to_consumer_seconds": 3052.336314,
         "decision_to_execution_seconds": null
       },
       "risk_model_sample_sha256": null,
-      "consumer_code_sha256": "cee3814b4cf02eff167412d3f01cdde87cff0b77e3e0e82cf9ca0e5b42f56cb5",
-      "immutable_id": "63b593caa988e8611777f524bbbf7d85bd7020770bf827efa1e789b4d25af041"
+      "consumer_code_sha256": "2782b3e4421659ce3b0bc361f0ec8e5ed72e27f6f61d6ed8ffc5a521d398b39a",
+      "immutable_id": "8bec7e0f5ab557474de7a0ac6841883de3820d65ea94cb2a0c7b796e96dc18da"
     },
     "decision_mode": "SHADOW",
     "decision": "BLOCK_NEW_ENTRY",
     "reason": [
       "RISK_MODEL_UNCALIBRATED",
+      "OLD_UNVERIFIED_CB_EVENT_EXPIRED_WITHOUT_END_PROOF",
       "RSS_STALE",
-      "RECOVERY_REQUIRED_CONFERENCE_UNCONFIRMED",
-      "HIGH_IMPACT_EVENT_WINDOW",
       "NO_EXECUTABLE_QUOTE",
       "EXECUTION_COSTS_UNKNOWN"
     ],
-    "immutable_id": "63b593caa988e8611777f524bbbf7d85bd7020770bf827efa1e789b4d25af041",
+    "immutable_id": "8bec7e0f5ab557474de7a0ac6841883de3820d65ea94cb2a0c7b796e96dc18da",
     "executed_at": null,
     "execution_price_source": null,
     "execution_authority": false,
@@ -548,15 +550,15 @@
       "exit_price": null
     },
     "entry_guard_enabled": true,
-    "consumer_sha": "c8d34bdb8079c12cd9fc8194fa0ca03a24bbb8c7",
+    "consumer_sha": "3e2c2cfccd5937ba885854df5767363f1e705878",
     "consumer_code_sha256": "f6f2e41ea17d983296cbad4072601d0875443b3eb739e1c98b3e2a384ffad20f",
     "price_watchdog": {
       "instrument_id": "eurusd",
-      "price_observed_at": "2026-11-11T14:56:29+01:00",
-      "price_age_seconds": 43.62901,
+      "price_observed_at": "2026-11-11T16:08:31+01:00",
+      "price_age_seconds": 57.336314,
       "fresh_for_display_mark": true,
       "fresh_for_execution": false,
-      "last_known_price": 1.110987663269043,
+      "last_known_price": 1.109385371208191,
       "status": "FRESH",
       "alerts": [],
       "recovery_required": false
