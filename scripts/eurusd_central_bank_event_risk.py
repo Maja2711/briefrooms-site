@@ -26,6 +26,8 @@ DEFAULT_POLICY = {
     'pre_event_minutes': 120, 'post_event_timeout_minutes': 240,
     'conference_cooldown_minutes': 30, 'wire_max_age_seconds': 900,
     'quote_max_age_seconds': 60, 'calendar_max_age_seconds': 86400,
+    'max_unverified_event_hold_hours': 24,
+    'weekly_stale_wire_release_minutes': 120,
     'max_spread_pips': 5.0, 'max_spread_multiple': 3.0,
     'minimum_independent_event_samples': 40,
     'weekly': {'meaningful_profit_R': 0.5, 'max_reward_to_downside': 0.75},
@@ -84,6 +86,8 @@ def validate_policy(policy: Mapping[str, Any]) -> dict:
     bounds = {'pre_event_minutes': (120, 240), 'post_event_timeout_minutes': (120, 720),
               'conference_cooldown_minutes': (15, 120), 'wire_max_age_seconds': (60, 1800),
               'quote_max_age_seconds': (1, 120), 'calendar_max_age_seconds': (300, 172800),
+              'max_unverified_event_hold_hours': (6, 72),
+              'weekly_stale_wire_release_minutes': (30, 1440),
               'max_spread_pips': (0.1, 20), 'max_spread_multiple': (1, 10),
               'minimum_independent_event_samples': (40, 10000)}
     for key, (low, high) in bounds.items():
@@ -143,6 +147,7 @@ def confirmed_conference_end(row: Mapping, now: datetime) -> datetime | None:
 def event_state(wire: Mapping, events: Sequence[Mapping], policy: Mapping, now: datetime) -> dict:
     """Calendar time never implies that a conference ended or a rate was released."""
     candidates = []
+    expired_unverified_ids = []
     window = wire.get('event_window') or {}
     # Fresh calendar polling cannot erase a previously verified end, and a
     # missing next-day calendar row cannot silently clear an unresolved event.
@@ -194,11 +199,15 @@ def event_state(wire: Mapping, events: Sequence[Mapping], policy: Mapping, now: 
         if not at or not bank:
             continue
         minutes = (at-now).total_seconds()/60
-        # Keep an unconfirmed conference fail-closed after timeout until explicit
-        # operator resolution, rather than silently ending a guard after 30m.
         if minutes > policy['pre_event_minutes']:
             continue
         ended_at = confirmed_conference_end(row, now)
+        # Past the bounded risk horizon an obsolete event cannot veto trades
+        # forever. This is explicitly an expiry, never invented end evidence.
+        if minutes < -60 * policy['max_unverified_event_hold_hours']:
+            if ended_at is None:
+                expired_unverified_ids.append(str(event_id or canonical_hash([bank, iso(at)])))
+            continue
         ended = ended_at is not None
         cooled = ended and now >= ended_at + timedelta(minutes=policy['conference_cooldown_minutes'])
         active = not cooled
@@ -213,11 +222,13 @@ def event_state(wire: Mapping, events: Sequence[Mapping], policy: Mapping, now: 
             manual_review_required=bool(active and minutes < -policy['post_event_timeout_minutes'])))
     if not candidates:
         return {'event_id': None, 'bank': None, 'phase': 'UNKNOWN', 'active': False,
-                'event_verified': False, 'conference_status': 'UNKNOWN'}
+                'event_verified': False, 'conference_status': 'UNKNOWN',
+                'expired_unverified_event_ids': sorted(set(expired_unverified_ids))}
     # An unresolved past event takes priority over a subsequent upcoming event.
     candidates.sort(key=lambda x: (not x['active'], x['minutes_until'] > 0, abs(x['minutes_until'])))
     selected = candidates[0]
     selected['active_event_ids'] = sorted({row['event_id'] for row in candidates if row['active']})
+    selected['expired_unverified_event_ids'] = sorted(set(expired_unverified_ids))
     return selected
 
 
@@ -277,8 +288,22 @@ def assess_pre_event(position: Mapping | None, quote: Mapping | None, wire: Mapp
     shared_events = [*wire.get('calendar_events',()), *wire.get('unresolved_event_windows',())] if wire_valid else []
     event = event_state(wire if wire_valid else {}, [*calendar_events,*shared_events], p, now)
     active = event['active']
-    blocked = bool(active or not wire_fresh or p.get('policy_status') == 'INVALID_OR_MISSING')
+    # This weekly-only release prevents indefinite policy veto from an old
+    # valid wire, without inventing an event end or changing Daily authority.
+    # Independent entry-data/EPE gates remain mandatory.
+    stale_wire_weekly_release = bool(
+        scope == 'EURUSD_WEEKLY' and wire_valid
+        and wire_age is not None
+        and wire_age >= 60 * p['weekly_stale_wire_release_minutes']
+        and not active
+    )
+    blocked = bool(active or (not wire_fresh and not stale_wire_weekly_release)
+                   or p.get('policy_status') == 'INVALID_OR_MISSING')
     reasons = ['RISK_MODEL_UNCALIBRATED']
+    if event.get('expired_unverified_event_ids'):
+        reasons.append('OLD_UNVERIFIED_CB_EVENT_EXPIRED_WITHOUT_END_PROOF')
+    if stale_wire_weekly_release:
+        reasons.append('WES_STALE_WIRE_GRACE_EXHAUSTED_RELEASED_RECOVERY_REQUIRED')
     if not wire_fresh:
         reasons.append('RSS_STALE' if wire_asof else 'WIRE_UNAVAILABLE_OR_INVALID')
     if event.get('manual_review_required'):
@@ -371,6 +396,8 @@ def assess_pre_event(position: Mapping | None, quote: Mapping | None, wire: Mapp
     diagnostic = dict(current_event_id=event['event_id'],bank=event['bank'],phase=event['phase'],
         minutes_until=event.get('minutes_until'),conference_status=event['conference_status'],
         active_event_ids=event.get('active_event_ids',[]),
+        expired_unverified_event_ids=event.get('expired_unverified_event_ids',[]),
+        stale_wire_weekly_auto_release=stale_wire_weekly_release,
         headline_count_30m=len({row.get('dedup_key') or row.get('event_id') for row in recent}),latest_headline=latest.get('headline'),
         latest_official_document=latest_official.get('source_url'),speaker_verified=latest.get('speaker_verified',False),
         source_age_seconds=wire_age,

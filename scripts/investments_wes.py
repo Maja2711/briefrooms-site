@@ -319,7 +319,12 @@ def build_wes_plan(item: Dict[str, Any], week: Dict[str, Any], now: datetime, st
     entry = sf(item.get("entry_price")); base = base_distances(item)
     if entry is None or not base or str(item.get("direction")) not in {"long", "short"}:
         return None
-    end = exit_time(week, now); remaining_hours = max(0.01, (end - now).total_seconds() / 3600.0)
+    # The position's actual +7d horizon, not Friday's forecast boundary.
+    end = (parse_dt(item.get("wes_holding_deadline_local"))
+           if item.get("wes_holding_policy") == "wes_continuous_7_calendar_days"
+           and item.get("wes_continuous_entry_qualified") is True
+           else None) or exit_time(week, now)
+    remaining_hours = max(0.01, (end - now).total_seconds() / 3600.0)
     auth = item.get("wes_entry_authorization") if isinstance(item.get("wes_entry_authorization"), dict) else {}
     cand = auth.get("candidate") if isinstance(auth.get("candidate"), dict) else {}
     raw = abs(float(cand.get("raw_score") if cand.get("raw_score") is not None else item.get("score") or 0.0))
@@ -327,7 +332,10 @@ def build_wes_plan(item: Dict[str, Any], week: Dict[str, Any], now: datetime, st
     sl_dist, tp_dist, meta = adaptive_distances(base[0], base[1], remaining_hours, raw, cls, stats)
     if item.get("direction") == "long": sl, tp = entry - sl_dist, entry + tp_dist
     else: sl, tp = entry + sl_dist, entry - tp_dist
-    return {"model_version": VERSION, "generated_at": now.isoformat(timespec="seconds"), "direction": item.get("direction"), "stop_loss_price": round(sl, 8), "take_profit_price": round(tp, 8), "stop_loss_distance": round(sl_dist, 8), "take_profit_distance": round(tp_dist, 8), "reward_to_risk": round(tp_dist / sl_dist, 4), "same_bar_rule": "stop_loss_first_conservative", "wes_entry_class": cls, "objective": "maximize_net_expectancy_not_trade_frequency", "scheduled_exit": end.isoformat(timespec="seconds"), "adaptive_inputs": meta, "friday_tactical_low_tp": cls == "friday_tactical"}
+    return {"model_version": VERSION, "generated_at": now.isoformat(timespec="seconds"), "direction": item.get("direction"), "stop_loss_price": round(sl, 8), "take_profit_price": round(tp, 8), "stop_loss_distance": round(sl_dist, 8), "take_profit_distance": round(tp_dist, 8), "reward_to_risk": round(tp_dist / sl_dist, 4), "same_bar_rule": "stop_loss_first_conservative", "wes_entry_class": cls, "objective": "maximize_net_expectancy_not_trade_frequency", "scheduled_exit": end.isoformat(timespec="seconds"),
+            "holding_policy": item.get("wes_holding_policy") or "frozen_weekly_deadline",
+            "weekend_carry_allowed": bool(item.get("wes_weekend_carry_allowed")),
+            "adaptive_inputs": meta, "friday_tactical_low_tp": cls == "friday_tactical"}
 
 
 def postflight() -> Dict[str, Any]:
