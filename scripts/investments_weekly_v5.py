@@ -33,6 +33,20 @@ def open_position(item: Dict[str, Any]) -> bool:
     return sf(item.get("entry_price")) is not None and sf(item.get("exit_price")) is None and item.get("direction") in {"long", "short"}
 
 
+def open_prior_week_position(instrument_id: str, current_path: Path) -> Optional[str]:
+    """Block duplicate exposure while a carried leg lives in an earlier week."""
+    for old_path in sorted(v4.WEEKLY_DIR.glob("????-W??.json"))[-8:]:
+        if old_path == current_path:
+            continue
+        old_week = read(old_path, {})
+        for old_item in old_week.get("instruments", []):
+            if (isinstance(old_item, dict)
+                and str(old_item.get("instrument_id") or "") == instrument_id
+                and open_position(old_item)):
+                return str(old_week.get("week_id") or old_path.stem)
+    return None
+
+
 def closed_position(item: Dict[str, Any]) -> bool:
     return sf(item.get("entry_price")) is not None and sf(item.get("exit_price")) is not None
 
@@ -1604,6 +1618,9 @@ def ensure_all() -> Dict[str, Any]:
         write(path, week)
         report["actions"].append({"action": "archive_closed_learning_samples", "count": archived_after_close})
     active, reason = v4.active_window(week, now)
+    # Friday forecast exit is not a seven-day WES execution deadline.
+    if not active and reason == "after_friday_close" and now.weekday() == 4:
+        active, reason = True, "continuous_friday"
     if not active:
         report["reason"] = reason
         if archived_after_close:
@@ -1621,6 +1638,13 @@ def ensure_all() -> Dict[str, Any]:
         cb_review = None
         if not cfg or item is None:
             report["actions"].append({"instrument_id": iid, "action": "skip", "reason": "missing_config"}); continue
+        prior_week = open_prior_week_position(iid, path)
+        if prior_week:
+            state["instruments"][iid] = {"next_entry_status": "position_carried_from_prior_week",
+                                         "prior_week_id": prior_week}
+            report["actions"].append({"instrument_id": iid, "action": "keep_prior_week_position",
+                                      "prior_week_id": prior_week})
+            continue
         if iid == "eurusd":
             # Keep prospective observations outside the immutable WES decision,
             # forecast and closed-position history. Never create an exit request.

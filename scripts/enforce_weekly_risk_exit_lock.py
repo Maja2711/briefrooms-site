@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """Govern WES re-entry after SL/TP paper exits.
 
-A Monday/Tuesday risk exit is placed into a WES trigger-monitoring lock rather
-than being permanently blocked for the rest of the week. It may reopen only
-after the production WES runner sees a fresh qualified signal. SL/TP exits from
-Wednesday onward remain blocked through the frozen weekly close.
+A weekday SL/TP exit enters WES trigger monitoring rather than a permanent
+weekday-based ban. A new position still requires fresh qualified WES evidence,
+directional confirmations, execution proof and independent risk validation.
 """
 from __future__ import annotations
 
@@ -17,7 +16,7 @@ from zoneinfo import ZoneInfo
 ROOT = Path(__file__).resolve().parents[1]
 WEEKLY_DIR = ROOT / "data" / "investments" / "weekly"
 TZ = ZoneInfo("Europe/Warsaw")
-EARLY_CLOSE_WEEKDAYS = {0, 1}
+EARLY_CLOSE_WEEKDAYS = {0, 1, 2, 3, 4}
 
 
 def read_json(path: Path) -> dict[str, Any]:
@@ -97,7 +96,7 @@ def apply_lock() -> dict[str, Any]:
                 "scope": "wes_early_reentry_pending",
                 "until": until,
                 "reason": reason,
-                "policy": "early_week_risk_exit_requires_fresh_wes_signal",
+                "policy": "any_weekday_risk_exit_requires_fresh_wes_signal",
                 "created_from_exit_at": item.get("exit_captured_at"),
             }
             if item.get("reentry_lock") != desired:

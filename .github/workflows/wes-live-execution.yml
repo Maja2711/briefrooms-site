@@ -86,6 +86,8 @@ jobs:
           python -m py_compile scripts/investments_weekly_v5.py scripts/wes_notification_outbox.py scripts/wes_decision_ledger.py scripts/wes_v5_history_seal.py scripts/execution_price_engine.py scripts/no_retroactive_execution.py
           python -m unittest tests.test_wes_notification_outbox tests.test_wes_decision_ledger tests.test_wes_v5_history_seal -v
           python scripts/investments_weekly_v5.py --mode ensure-exposure
+          # Freeze entry+7d without changing quotes or inventing fills.
+          python -c 'import sys; sys.path.insert(0, "scripts"); import investments_wes_guarded_lifecycle as g; g.apply_open_reentry_metadata()'
       - name: Execute WES SL TP
         run: |
           set -euo pipefail

@@ -1,18 +1,12 @@
 #!/usr/bin/env python3
-"""WES lifecycle rules for early-week replacement entries and rolling exits.
+"""WES continuous seven-calendar-day paper holding and governed re-entry.
 
-A position closed on Monday or Tuesday may become eligible for a fresh WES
-replacement entry later in the same trading week. The replacement is never
-forced: it still needs a new qualified WES signal, the shared validation gate
-and a non-NO_TRADE decision. A qualified replacement receives a seven-calendar-
-day holding deadline measured from its actual entry timestamp, so it may remain
-open through the weekend. Material-event exits remain fail-closed and are not
-eligible for this re-entry path.
-
-This module wraps the v5 paper runtime instead of weakening its common admission
-and execution checks. It also makes settlement deadline-aware per position so a
-normal weekly leg still closes at the frozen Friday deadline while a qualified
-early-close replacement uses its own rolling deadline.
+New positions have a frozen entry+7d deadline only with authentic WES
+authorization. Legacy positions preserve their original Friday deadline;
+legacy early-close replacements preserve their previously authorized carry.
+Freshly qualified same-week replacement is possible Monday through Friday,
+but never after an unreviewed material event or without current EPE proof.
+Independent risk SL/TP monitoring follows positions across ISO weeks.
 """
 from __future__ import annotations
 
@@ -31,8 +25,9 @@ import investments_wes as wes
 ROOT = Path(__file__).resolve().parents[1]
 WEEKLY_DIR = ROOT / "data" / "investments" / "weekly"
 HOLDING_DAYS = 7
-EARLY_CLOSE_WEEKDAYS = {0, 1}  # Monday, Tuesday in Europe/Warsaw.
+EARLY_CLOSE_WEEKDAYS = {0, 1, 2, 3, 4}  # Freshly authorized same-week replacement.
 HOLDING_POLICY = "early_close_reentry_7_calendar_days"
+CONTINUOUS_HOLDING_POLICY = "wes_continuous_7_calendar_days"
 AUTHORIZATION_TYPE = "early_close_reentry"
 _BASE_LOCK_REENTRY = v5.lock_reentry
 
@@ -47,7 +42,7 @@ def _material_event_exit(item: Dict[str, Any]) -> bool:
 
 
 def early_close_reentry_candidate(item: Dict[str, Any], week: Dict[str, Any], now: datetime) -> bool:
-    """Return True for a Monday/Tuesday close that may re-enter via fresh WES admission."""
+    """Return True for a same-week close eligible for renewed WES admission."""
     if sf(item.get("entry_price")) is None or sf(item.get("exit_price")) is None:
         return False
     if _material_event_exit(item):
@@ -58,9 +53,8 @@ def early_close_reentry_candidate(item: Dict[str, Any], week: Dict[str, Any], no
     week_id = str(week.get("week_id") or "")
     if week_id and legacy.week_id_from_date(exit_at) != week_id:
         return False
-    end = parse_dt((week.get("market_window") or {}).get("exit_target_local"))
     local_now = now.astimezone(v2.TZ) if now.tzinfo else now.replace(tzinfo=v2.TZ)
-    if local_now.weekday() > 4 or (end is not None and local_now >= end):
+    if local_now.weekday() > 4:
         return False
     return True
 
@@ -136,24 +130,35 @@ def rolling_deadline(entry_at: datetime) -> datetime:
 
 
 def valid_rolling_deadline(item: Dict[str, Any]) -> Optional[datetime]:
+    """Return a rolling deadline only with valid immutable entry provenance."""
     if item.get("wes_weekend_carry_allowed") is not True:
         return None
-    if str(item.get("wes_holding_policy") or "") != HOLDING_POLICY:
-        return None
-    if item.get("wes_early_reentry_qualified") is not True:
-        return None
+    policy_name = str(item.get("wes_holding_policy") or "")
     entry_at = parse_dt(item.get("entry_captured_at"))
     deadline = parse_dt(item.get("wes_holding_deadline_local"))
+    if entry_at is None or deadline is None:
+        return None
+    if abs((deadline - rolling_deadline(entry_at)).total_seconds()) > 300:
+        return None
+    if policy_name == CONTINUOUS_HOLDING_POLICY:
+        if item.get("wes_continuous_entry_qualified") is not True or not item.get("entry_decision_id"):
+            return None
+        auth = _authorization(item)
+        candidate = auth.get("candidate") if isinstance(auth.get("candidate"), dict) else {}
+        authorized = parse_dt(auth.get("authorized_at"))
+        expires = parse_dt(auth.get("expires_at"))
+        if (auth.get("holding_policy") != CONTINUOUS_HOLDING_POLICY
+            or candidate.get("direction") != item.get("direction")
+            or authorized is None or expires is None
+            or not authorized <= entry_at <= expires + timedelta(minutes=5)):
+            return None
+        return deadline
+    if policy_name != HOLDING_POLICY or item.get("wes_early_reentry_qualified") is not True:
+        return None
     source_exit = parse_dt(item.get("wes_early_reentry_source_exit_at"))
-    if entry_at is None or deadline is None or source_exit is None:
-        return None
-    if source_exit.weekday() not in EARLY_CLOSE_WEEKDAYS or source_exit >= entry_at:
-        return None
-    expected = rolling_deadline(entry_at)
-    if abs((deadline - expected).total_seconds()) > 300:
+    if source_exit is None or source_exit.weekday() not in EARLY_CLOSE_WEEKDAYS or source_exit >= entry_at:
         return None
     return deadline
-
 
 def position_deadline(week: Dict[str, Any], item: Dict[str, Any]) -> Optional[datetime]:
     rolling = valid_rolling_deadline(item)
@@ -163,60 +168,83 @@ def position_deadline(week: Dict[str, Any], item: Dict[str, Any]) -> Optional[da
 
 
 def apply_open_reentry_metadata(path: Optional[Path] = None) -> bool:
-    """Persist the rolling seven-day deadline immediately after a qualified entry."""
+    """Freeze entry+7d only for new WES-authorized legs, never retrospectively."""
     path = path or v2.current_week_path()
     week = v4.read(path, {})
     if not week:
         return False
     changed = False
     for item in week.get("instruments") or []:
-        if not isinstance(item, dict):
-            continue
-        if not v5.open_position(item):
+        if not isinstance(item, dict) or not v5.open_position(item):
             continue
         auth = _authorization(item)
-        if str(auth.get("authorization_type") or "") != AUTHORIZATION_TYPE:
-            continue
         entry_at = parse_dt(item.get("entry_captured_at"))
-        source_exit = parse_dt(item.get("wes_early_reentry_source_exit_at"))
-        if entry_at is None or source_exit is None or source_exit.weekday() not in EARLY_CLOSE_WEEKDAYS:
+        if entry_at is None:
             continue
-        deadline = rolling_deadline(entry_at)
-        deadline_text = deadline.isoformat(timespec="seconds")
-        updates = {
-            "wes_early_reentry_eligible": True,
-            "wes_early_reentry_qualified": True,
-            "wes_weekend_carry_allowed": True,
-            "wes_holding_policy": HOLDING_POLICY,
-            "wes_holding_deadline_local": deadline_text,
-            "wes_status": "open_wes_early_reentry_position",
-            "next_entry_status": "open",
-        }
+        kind = str(auth.get("authorization_type") or "")
+        if kind == AUTHORIZATION_TYPE:
+            source_exit = parse_dt(item.get("wes_early_reentry_source_exit_at"))
+            if source_exit is None or source_exit.weekday() not in EARLY_CLOSE_WEEKDAYS:
+                continue
+            deadline = rolling_deadline(entry_at)
+            updates = {
+                "wes_early_reentry_eligible": True,
+                "wes_early_reentry_qualified": True,
+                "wes_weekend_carry_allowed": True,
+                "wes_holding_policy": HOLDING_POLICY,
+                "wes_holding_deadline_local": deadline.isoformat(timespec="seconds"),
+                "wes_status": "open_wes_early_reentry_position",
+                "next_entry_status": "open",
+            }
+        elif auth.get("holding_policy") == CONTINUOUS_HOLDING_POLICY:
+            candidate = auth.get("candidate") if isinstance(auth.get("candidate"), dict) else {}
+            authorized = parse_dt(auth.get("authorized_at"))
+            expires = parse_dt(auth.get("expires_at"))
+            if (candidate.get("direction") != item.get("direction")
+                or item.get("direction") not in {"long", "short"}
+                or not item.get("entry_decision_id")
+                or authorized is None or expires is None
+                or not authorized <= entry_at <= expires + timedelta(minutes=5)):
+                raise ValueError("invalid continuous WES authorization for executed position")
+            deadline = rolling_deadline(entry_at)
+            updates = {
+                "wes_continuous_entry_qualified": True,
+                "wes_weekend_carry_allowed": True,
+                "wes_holding_policy": CONTINUOUS_HOLDING_POLICY,
+                "wes_holding_deadline_local": deadline.isoformat(timespec="seconds"),
+                "wes_status": "open_wes_continuous_position",
+                "next_entry_status": "open",
+            }
+        else:
+            continue
         for key, value in updates.items():
             if item.get(key) != value:
                 item[key] = value
                 changed = True
         plan = item.get("risk_plan") if isinstance(item.get("risk_plan"), dict) else {}
-        desired_plan = {
-            **plan,
-            "scheduled_exit": deadline_text,
-            "holding_policy": HOLDING_POLICY,
-            "weekend_carry_allowed": True,
-        }
-        if desired_plan != plan:
-            item["risk_plan"] = desired_plan
+        if not wes.has_frozen_wes_risk_plan(plan):
+            # Freeze the correct 7d SL/TP geometry in the SAME transaction
+            # that grants weekend carry. Never wait for a later 15m postflight.
+            frozen = wes.build_wes_plan(item, week, legacy.now_local(), wes.learning_stats())
+            if frozen is None:
+                raise RuntimeError("cannot grant WES continuous carry without a frozen SL/TP plan")
+            desired = frozen
+        else:
+            # SL/TP are already frozen: changing the holding deadline must
+            # NEVER reinterpret or regenerate them.
+            desired = {**plan, "scheduled_exit": deadline.isoformat(timespec="seconds"),
+                       "holding_policy": updates["wes_holding_policy"], "weekend_carry_allowed": True}
+        if desired != plan:
+            item["risk_plan"] = desired
             changed = True
     if changed:
         week.setdefault("wes", {}).update({
-            "early_close_reentry": True,
-            "early_close_days": ["monday", "tuesday"],
-            "replacement_holding_days": HOLDING_DAYS,
-            "replacement_weekend_carry": True,
+            "continuous_horizon_days": HOLDING_DAYS,
+            "continuous_weekend_carry": True,
             "material_event_reentry": False,
         })
         v4.write(path, week)
     return changed
-
 
 def review_open_positions_all(now: Optional[datetime] = None) -> bool:
     """Keep SL/TP monitoring active for rolling positions after their source week ends."""
@@ -380,7 +408,7 @@ def build_wes_plan(item: Dict[str, Any], week: Dict[str, Any], now: datetime, st
         "wes_entry_class": cls,
         "objective": "maximize_net_expectancy_not_trade_frequency",
         "scheduled_exit": end.isoformat(timespec="seconds"),
-        "holding_policy": HOLDING_POLICY if valid_rolling_deadline(item) else "frozen_weekly_deadline",
+        "holding_policy": item.get("wes_holding_policy") if valid_rolling_deadline(item) else "frozen_weekly_deadline",
         "weekend_carry_allowed": valid_rolling_deadline(item) is not None,
         "adaptive_inputs": meta,
         "friday_tactical_low_tp": cls == "friday_tactical",
@@ -421,7 +449,9 @@ def postflight() -> Dict[str, Any]:
                     "weekend_carry_allowed": plan["weekend_carry_allowed"],
                 })
                 changed = True
-            desired_status = "open_wes_early_reentry_position" if valid_rolling_deadline(item) else "open_wes_governed_position"
+            desired_status = ("open_wes_continuous_position" if item.get("wes_holding_policy") == CONTINUOUS_HOLDING_POLICY
+                              and valid_rolling_deadline(item) else
+                              "open_wes_early_reentry_position" if valid_rolling_deadline(item) else "open_wes_governed_position")
             if item.get("wes_status") != desired_status:
                 item["wes_status"] = desired_status
                 changed = True

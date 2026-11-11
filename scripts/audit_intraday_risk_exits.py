@@ -498,7 +498,22 @@ def main() -> None:
         default="on_close",
     )
     args = parser.parse_args()
-    print(json.dumps(audit(persist_report=args.persist_report), ensure_ascii=False))
+    # Audit all carried open WES ledgers: a new Monday must never end
+    # the five-minute hard-risk coverage of last Friday's still-open leg.
+    open_paths = []
+    for path in sorted(WEEKLY_DIR.glob("????-W??.json"))[-8:]:
+        week = read_json(path)
+        if any(isinstance(item, dict)
+               and str(item.get("direction") or "") in {"long", "short"}
+               and sf(item.get("entry_price")) is not None
+               and item.get("exit_price") is None
+               for item in week.get("instruments") or []):
+            open_paths.append(path)
+    reports = ([audit(path=path, persist_report=args.persist_report)
+                for path in open_paths] if open_paths
+               else [audit(persist_report=args.persist_report)])
+    print(json.dumps({"status": "completed", "reports": reports,
+                      "monitored_week_ledgers": [p.stem for p in open_paths]}, ensure_ascii=False))
 
 
 if __name__ == "__main__":

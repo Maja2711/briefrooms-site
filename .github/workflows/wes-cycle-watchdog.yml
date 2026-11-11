@@ -8,6 +8,8 @@ on:
     branches: [main]
     paths:
       - "scripts/wes_cycle_watchdog.py"
+      - "scripts/wes_blocker_watchdog.py"
+      - "tests/test_wes_blocker_watchdog.py"
       - "tests/test_wes_cycle_watchdog.py"
       - "data/investments/multi_instrument_exposure_policy.json"
       - ".github/workflows/wes-cycle-watchdog.yml"
@@ -31,7 +33,7 @@ jobs:
       - name: Validate WES liveness guard
         run: |
           python -m py_compile scripts/wes_cycle_watchdog.py
-          python -m unittest tests/test_wes_cycle_watchdog.py -v
+          python -m unittest tests/test_wes_cycle_watchdog.py tests/test_wes_blocker_watchdog.py -v
 
   monitor-wes-cycle:
     if: github.event_name != 'push'
@@ -47,7 +49,7 @@ jobs:
       - name: Validate guard before live check
         run: |
           python -m py_compile scripts/wes_cycle_watchdog.py
-          python -m unittest tests/test_wes_cycle_watchdog.py -v
+          python -m unittest tests/test_wes_cycle_watchdog.py tests/test_wes_blocker_watchdog.py -v
       - name: Check persisted WES preflight and postflight freshness
         id: liveness
         shell: bash
@@ -61,8 +63,21 @@ jobs:
           else
             echo "stale=true" >> "$GITHUB_OUTPUT"
           fi
+      - name: Investigate source freshness, obsolete blockers and zero-trade reasons
+        id: blockers
+        shell: bash
+        run: |
+          set +e
+          python scripts/wes_blocker_watchdog.py --mode diagnose --check | tee /tmp/wes-blocker-watchdog.json
+          rc=${PIPESTATUS[0]}
+          set -e
+          if [ "$rc" -eq 0 ]; then
+            echo "recovery=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "recovery=true" >> "$GITHUB_OUTPUT"
+          fi
       - name: Dispatch WES recovery when stale
-        if: steps.liveness.outputs.stale == 'true'
+        if: steps.liveness.outputs.stale == 'true' || steps.blockers.outputs.recovery == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

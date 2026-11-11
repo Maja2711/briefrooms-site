@@ -53,27 +53,21 @@ def exit_time(week: Dict[str, Any], now: datetime) -> datetime:
 def entry_class(now: datetime) -> str:
     if now.weekday() == 0 and now.hour < 12:
         return "monday_weekly"
-    if now.weekday() == 4:
-        return "friday_tactical"
+    # Friday entries now have the same seven-day rolling horizon.
     return "midweek_trigger"
 
 
 def trigger_profile(now: datetime, remaining_minutes: float) -> Dict[str, Any]:
-    """Increasing admission hurdle as the weekly holding horizon shrinks."""
-    if now.weekday() == 4:
-        if remaining_minutes < 45:
-            return {"allowed": False, "reason": "too_little_time_before_friday_close", "raw": 999.0, "utility": 999.0, "confirmations": 99, "delta": 999.0}
-        if remaining_minutes <= 90:
-            return {"allowed": True, "raw": 80.0, "utility": 14.0, "confirmations": 3, "delta": 28.0}
-        if now.hour >= 18:
-            return {"allowed": True, "raw": 72.0, "utility": 12.0, "confirmations": 3, "delta": 24.0}
-        return {"allowed": True, "raw": 65.0, "utility": 11.0, "confirmations": 3, "delta": 22.0}
-    if now.weekday() == 3:
-        return {"allowed": True, "raw": 55.0, "utility": 9.5, "confirmations": 2, "delta": 18.0}
-    if now.weekday() in {1, 2}:
-        return {"allowed": True, "raw": 48.0, "utility": 8.0, "confirmations": 2, "delta": 15.0}
-    return {"allowed": True, "raw": 44.0, "utility": 7.5, "confirmations": 2, "delta": 15.0}
+    """Time-neutral WES admission for a rolling seven-day paper position.
 
+    This changes neither directional confirmation nor EPE, data-freshness,
+    stop-loss, take-profit or market-availability requirements.
+    """
+    _ = (now, remaining_minutes)
+    return {"allowed": True, "raw": 48.0, "utility": 8.0,
+            "confirmations": 2, "delta": 15.0,
+            "profile": "continuous_rolling_week",
+            "holding_horizon_days": 7}
 
 def decision_direction_from_score(score: float) -> str:
     return "long" if score > 0 else "short" if score < 0 else "neutral"
@@ -325,7 +319,12 @@ def build_wes_plan(item: Dict[str, Any], week: Dict[str, Any], now: datetime, st
     entry = sf(item.get("entry_price")); base = base_distances(item)
     if entry is None or not base or str(item.get("direction")) not in {"long", "short"}:
         return None
-    end = exit_time(week, now); remaining_hours = max(0.01, (end - now).total_seconds() / 3600.0)
+    # The position's actual +7d horizon, not Friday's forecast boundary.
+    end = (parse_dt(item.get("wes_holding_deadline_local"))
+           if item.get("wes_holding_policy") == "wes_continuous_7_calendar_days"
+           and item.get("wes_continuous_entry_qualified") is True
+           else None) or exit_time(week, now)
+    remaining_hours = max(0.01, (end - now).total_seconds() / 3600.0)
     auth = item.get("wes_entry_authorization") if isinstance(item.get("wes_entry_authorization"), dict) else {}
     cand = auth.get("candidate") if isinstance(auth.get("candidate"), dict) else {}
     raw = abs(float(cand.get("raw_score") if cand.get("raw_score") is not None else item.get("score") or 0.0))
@@ -333,7 +332,10 @@ def build_wes_plan(item: Dict[str, Any], week: Dict[str, Any], now: datetime, st
     sl_dist, tp_dist, meta = adaptive_distances(base[0], base[1], remaining_hours, raw, cls, stats)
     if item.get("direction") == "long": sl, tp = entry - sl_dist, entry + tp_dist
     else: sl, tp = entry + sl_dist, entry - tp_dist
-    return {"model_version": VERSION, "generated_at": now.isoformat(timespec="seconds"), "direction": item.get("direction"), "stop_loss_price": round(sl, 8), "take_profit_price": round(tp, 8), "stop_loss_distance": round(sl_dist, 8), "take_profit_distance": round(tp_dist, 8), "reward_to_risk": round(tp_dist / sl_dist, 4), "same_bar_rule": "stop_loss_first_conservative", "wes_entry_class": cls, "objective": "maximize_net_expectancy_not_trade_frequency", "scheduled_exit": end.isoformat(timespec="seconds"), "adaptive_inputs": meta, "friday_tactical_low_tp": cls == "friday_tactical"}
+    return {"model_version": VERSION, "generated_at": now.isoformat(timespec="seconds"), "direction": item.get("direction"), "stop_loss_price": round(sl, 8), "take_profit_price": round(tp, 8), "stop_loss_distance": round(sl_dist, 8), "take_profit_distance": round(tp_dist, 8), "reward_to_risk": round(tp_dist / sl_dist, 4), "same_bar_rule": "stop_loss_first_conservative", "wes_entry_class": cls, "objective": "maximize_net_expectancy_not_trade_frequency", "scheduled_exit": end.isoformat(timespec="seconds"),
+            "holding_policy": item.get("wes_holding_policy") or "frozen_weekly_deadline",
+            "weekend_carry_allowed": bool(item.get("wes_weekend_carry_allowed")),
+            "adaptive_inputs": meta, "friday_tactical_low_tp": cls == "friday_tactical"}
 
 
 def postflight() -> Dict[str, Any]:
@@ -351,7 +353,10 @@ def postflight() -> Dict[str, Any]:
                     item["entry_quality_status"] = f"wes_{plan['wes_entry_class']}"
                     report["actions"].append({"instrument_id": item.get("instrument_id"), "action": "freeze_adaptive_risk_plan", "entry_class": plan["wes_entry_class"], "rr": plan["reward_to_risk"], "tp_distance": plan["take_profit_distance"], "sl_distance": plan["stop_loss_distance"]})
                     changed = True
-            desired_status = "open_wes_governed_position"
+            desired_status = ("open_wes_continuous_position"
+                              if item.get("wes_holding_policy") == "wes_continuous_7_calendar_days"
+                              and item.get("wes_continuous_entry_qualified") is True
+                              else "open_wes_governed_position")
             if item.get("wes_status") != desired_status:
                 item["wes_status"] = desired_status
                 changed = True

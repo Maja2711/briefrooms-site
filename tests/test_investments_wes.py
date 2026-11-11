@@ -17,17 +17,83 @@ TZ = ZoneInfo('Europe/Warsaw')
 
 
 class WesTests(unittest.TestCase):
-    def test_friday_near_close_requires_extreme_trigger(self):
+    def test_continuous_entry_freezes_seven_day_risk_in_same_atomic_update(self):
+        now = datetime(2026, 11, 11, 10, 1, tzinfo=TZ)
+        entry_at = "2026-11-11T10:00:00+01:00"
+        item = {
+            "instrument_id": "eurusd", "direction": "short",
+            "entry_price": 1.14, "entry_captured_at": entry_at,
+            "entry_decision_id": "synthetic-new-entry-id",
+            "exit_price": None,
+            "risk_distance": {"stop_price_distance": 0.008,
+                              "take_price_distance": 0.012},
+            "wes_entry_authorization": {
+                "holding_policy": lifecycle.CONTINUOUS_HOLDING_POLICY,
+                "authorization_type": "initial_weekly_entry",
+                "authorized_at": "2026-11-11T09:59:00+01:00",
+                "expires_at": "2026-11-11T10:59:00+01:00",
+                "candidate": {"direction": "short", "raw_score": 72,
+                              "entry_class": "midweek_trigger"},
+            },
+        }
+        week = {"week_id": "2026-W46", "instruments": [item]}
+        with patch.object(lifecycle.v2, "current_week_path", return_value=Path("/tmp/synthetic-week.json")), \
+             patch.object(lifecycle.v4, "read", return_value=week), \
+             patch.object(lifecycle.v4, "write") as write, \
+             patch.object(lifecycle.legacy, "now_local", return_value=now), \
+             patch.object(lifecycle.wes, "learning_stats", return_value={"classes": {}}):
+            changed = lifecycle.apply_open_reentry_metadata()
+        self.assertTrue(changed)
+        self.assertEqual("2026-11-18T10:00:00+01:00",
+                         item["wes_holding_deadline_local"])
+        self.assertEqual(item["wes_holding_deadline_local"],
+                         item["risk_plan"]["scheduled_exit"])
+        self.assertTrue(item["risk_plan"]["model_version"].startswith("WES-"))
+        self.assertGreater(item["risk_plan"]["stop_loss_price"], item["entry_price"])
+        self.assertLess(item["risk_plan"]["take_profit_price"], item["entry_price"])
+        self.assertTrue(item["wes_continuous_entry_qualified"])
+        write.assert_called_once()
+
+    def test_continuous_entry_does_not_move_previously_frozen_sl_tp(self):
+        now = datetime(2026, 11, 11, 10, 1, tzinfo=TZ)
+        frozen = {"model_version": "WES-1.3.1", "direction": "long",
+                  "stop_loss_price": 1.12, "take_profit_price": 1.2}
+        item = {
+            "instrument_id": "eurusd", "direction": "long",
+            "entry_price": 1.15, "entry_captured_at": "2026-11-11T10:00:00+01:00",
+            "entry_decision_id": "synthetic-existing-freeze",
+            "exit_price": None, "risk_plan": dict(frozen),
+            "wes_entry_authorization": {
+                "holding_policy": lifecycle.CONTINUOUS_HOLDING_POLICY,
+                "authorized_at": "2026-11-11T09:59:00+01:00",
+                "expires_at": "2026-11-11T10:59:00+01:00",
+                "candidate": {"direction": "long"},
+            },
+        }
+        week = {"week_id": "2026-W46", "instruments": [item]}
+        with patch.object(lifecycle.v2, "current_week_path", return_value=Path("/tmp/synthetic-week.json")), \
+             patch.object(lifecycle.v4, "read", return_value=week), \
+             patch.object(lifecycle.v4, "write"), \
+             patch.object(lifecycle.wes, "build_wes_plan") as rebuild:
+            lifecycle.apply_open_reentry_metadata()
+        rebuild.assert_not_called()
+        self.assertEqual(frozen["stop_loss_price"], item["risk_plan"]["stop_loss_price"])
+        self.assertEqual(frozen["take_profit_price"], item["risk_plan"]["take_profit_price"])
+
+    def test_friday_uses_same_rolling_horizon_admission(self):
         now = datetime(2026, 8, 14, 20, 45, tzinfo=TZ)
         p = wes.trigger_profile(now, 75)
-        self.assertTrue(p['allowed'])
-        self.assertGreaterEqual(p['raw'], 80)
-        self.assertGreaterEqual(p['confirmations'], 3)
+        self.assertTrue(p["allowed"])
+        self.assertEqual(48.0, p["raw"])
+        self.assertEqual(2, p["confirmations"])
+        self.assertEqual(7, p["holding_horizon_days"])
 
-    def test_friday_too_late_blocks_normal_weekly_entry(self):
+    def test_friday_late_has_no_clock_veto(self):
         now = datetime(2026, 8, 14, 21, 30, tzinfo=TZ)
         p = wes.trigger_profile(now, 30)
-        self.assertFalse(p['allowed'])
+        self.assertTrue(p["allowed"])
+        self.assertEqual(48.0, p["raw"])
+        self.assertEqual("midweek_trigger", wes.entry_class(now))
 
     def test_early_reentry_uses_full_horizon_profile_even_on_friday(self):
         now = datetime(2026, 8, 14, 21, 30, tzinfo=TZ)
@@ -54,19 +120,19 @@ class WesTests(unittest.TestCase):
         tuesday_close = {**monday_close, 'exit_captured_at': '2026-08-11T12:00:00+02:00'}
         self.assertTrue(lifecycle.early_close_reentry_candidate(tuesday_close, week, now))
 
-    def test_wednesday_close_is_not_eligible_for_same_week_reentry(self):
+    def test_wednesday_close_can_reenter_only_after_new_wes_qualification(self):
         now = datetime(2026, 8, 12, 15, 0, tzinfo=TZ)
         week = {
-            'week_id': '2026-W33',
-            'market_window': {'exit_target_local': '2026-08-14T22:00:00+02:00'},
+            "week_id": "2026-W33",
+            "market_window": {"exit_target_local": "2026-08-14T22:00:00+02:00"},
         }
         item = {
-            'entry_price': 1.1,
-            'exit_price': 1.11,
-            'exit_captured_at': '2026-08-12T12:00:00+02:00',
-            'exit_reason': 'daily_model_confirmed_opposite_signal',
+            "entry_price": 1.1,
+            "exit_price": 1.11,
+            "exit_captured_at": "2026-08-12T12:00:00+02:00",
+            "exit_reason": "daily_model_confirmed_opposite_signal",
         }
-        self.assertFalse(lifecycle.early_close_reentry_candidate(item, week, now))
+        self.assertTrue(lifecycle.early_close_reentry_candidate(item, week, now))
 
     def test_material_event_exit_remains_fail_closed(self):
         now = datetime(2026, 8, 12, 12, 0, tzinfo=TZ)
