@@ -251,10 +251,9 @@
     const max = maxPositions(market);
     const free = Math.max(0, max - open);
     const active = state.selectedMarket === market;
-    const pending = pendingCandidate(market);
     return `<button class="str-market-tab ${active ? 'is-active' : ''}" type="button" data-market-jump="${market}" aria-pressed="${active ? 'true' : 'false'}">
       <span class="str-market-tab-title">${marketFlag(market)}<b>${esc(market === 'GPW' ? T.gpw : T.us)}</b></span>
-      <small>${open}/${max} ${esc(T.openPositions)} · ${free} ${esc(T.freeSlots)}${pending ? ` · ${esc(T.pendingShort)}` : ''}</small>
+      <small>${open}/${max} ${esc(T.openPositions)} · ${free} ${esc(T.freeSlots)}</small>
     </button>`;
   }
 
@@ -423,12 +422,10 @@
 
   function marketTicketPanel(market) {
     const positions = openPositions(market);
-    const pending = pendingCandidate(market);
-    const visibleCount = positions.length + (pending ? 1 : 0);
+    const visibleCount = positions.length;
     const multiClass = visibleCount > 1 ? ' is-expanded-market' : '';
     const detailClass = state.selectedMarket === market ? ' is-detail-market' : '';
     const cards = positions.map((p,i) => openPositionCard(p, market, i));
-    if (pending) cards.push(pendingMarketCard(pending, market));
     return `<div class="str-market-ticket-panel${multiClass}${detailClass}" id="str-market-${market.toLowerCase()}">
       ${cards.length ? cards.join('') : emptyMarketCard(market)}
     </div>`;
@@ -440,8 +437,6 @@
     if (state.view === 'overview') {
       const overviewCards = selectedMarkets.flatMap(market => {
         const cards = openPositions(market).map(position => openPositionSummaryCard(position, market));
-        const pending = pendingCandidate(market);
-        if (pending) cards.push(pendingSummaryCard(pending, market));
         return cards;
       });
       if (!overviewCards.length) {
