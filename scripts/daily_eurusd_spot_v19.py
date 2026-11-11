@@ -206,9 +206,11 @@ def _execution_admission(
     )
     guard_meta = (guarded.metadata or {}).get("same_thesis_reentry_guard") or {}
     details["same_thesis_reentry_guard"] = dict(guard_meta)
+    family = production_policy.regime_family(mtf, candidate.direction)
+    details["regime_family"] = family
     details["agent_reflection"] = production_policy.reflection_context(
         _policy_state(observed_at), (candidate.metadata or {}).get("final_decision") or {},
-        observed_at=observed_at,
+        observed_at=observed_at, regime_family_id=family,
     )
 
     # Price-location safety may veto the native direction; it never creates it.
@@ -655,7 +657,10 @@ def prepare_entry_candidate(
             state, _ = production_policy.freeze_case(
                 state, decision_manifest=manifest, position=position,
                 score=prepared.score, now=frozen_at,
-                slices={"session": _session(prepared.timestamp), "macro": "clear"})
+                slices={"session": _session(prepared.timestamp), "macro": "clear",
+                        "regime_family": production_policy.regime_family(
+                            (admission.get("multi_timeframe") or {}),
+                            prepared.direction)})
             _cycle_context["policy_state"] = state
         if context.get("allowed") is True and evaluations:
             state = production_policy.freeze_reentry_case(
@@ -970,6 +975,8 @@ def run_cycle(output_path: Path, history_path: Path, client: Any | None = None) 
                 "rollback_count": len((policy.get("reentry_learning") or {}).get("rollback_events", [])),
                 "reference_outcomes_are_broker_fills": False,
             },
+            "regime_family_learning": copy.deepcopy(
+                (policy.get("recursive_improvement") or {}).get("family_learning") or {}),
             "rollback_count": len(policy["rollback_events"]),
             "latest_rollback": policy["rollback_events"][-1] if policy["rollback_events"] else None,
             "production_performance": decision_record.production_measurements(lifecycle.load_history(history_path)),
