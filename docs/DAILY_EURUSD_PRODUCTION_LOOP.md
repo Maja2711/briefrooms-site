@@ -65,3 +65,18 @@ Code pushes run validation only. Production mutation remains confined to schedul
 ## Recursive improvement and reflection
 
 The existing local component runs in `AGGRESSIVE_BOUNDED` mode. Native actual closes feed append-only reflection, lessons and research hypotheses in the same policy state. Each admission freezes a review of similar known losses. Up to three stricter admission challengers share prospectively frozen observations; all retain the fixed gates above. Passing candidates are ranked by lower CI, stressed mean improvement and then the least restrictive floor. Failed gates and rollbacks feed the next iteration within the shared attempt budget. Historical discovery never supplies OOS observations. Post-loss correction/support/strength/source/wait criteria are starting parameters and may change through the separate prospective re-entry component; source truth, native direction, EPE and SL/TP risk retain their authority. See `DAILY_EURUSD_RECURSIVE_IMPROVEMENT.md` for authority, migration and validation.
+
+## Admission activity liveness and H1 verification (2026-11-11)
+
+A directional candidate cannot enter when completed H1 Bollinger proof or the
+H1-primary multi-timeframe policy is missing, stale or unverified. This is a
+new-entry-only fail-closed condition. Open positions retain their independent
+hard/soft/fast exit lifecycle.
+
+Each full canonical Daily monitor now persists an additive audit-only
+`metadata.decision_activity`: directional veto reasons, uninterrupted same-gate
+duration, and consecutive cycle count. The watchdog reads these facts, warns on
+a directional veto lasting six hours, and treats a prior-day ECB/Fed veto as a
+decision-liveness recovery incident rather than a false 15-minute publication
+SLA breach. It does not cancel real same-day vetoes or independently open trades.
+
