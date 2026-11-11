@@ -202,6 +202,15 @@ def run(*, now: datetime | None = None, root: Path = ROOT) -> dict:
     week_id = f"{iso.year}-W{iso.week:02d}"
     weekly_dir = root / "data/investments/weekly"
     week = load(weekly_dir / f"{week_id}.json")
+    if not week:
+        local = now.astimezone(TZ)
+        inactive = local.weekday() >= 5 or local.hour < 8
+        return {"schema_version": "wes-recursive-blocker-review-v1",
+                "mode": "OBSERVE_ONLY", "as_of": local.isoformat(timespec="seconds"),
+                "week_id": week_id,
+                "status": "INACTIVE_NO_CURRENT_WEEK" if inactive else "RECOVERY_REQUIRED",
+                "recovery_reasons": [] if inactive else ["current_week_state_missing"],
+                "auto_trade_forbidden": True, "instruments": {}}
     previous = [load(p) for p in sorted(weekly_dir.glob("????-W??.json"))[-9:]
                 if p.stem != week_id]
     return evaluate(

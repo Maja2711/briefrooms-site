@@ -353,7 +353,10 @@ def postflight() -> Dict[str, Any]:
                     item["entry_quality_status"] = f"wes_{plan['wes_entry_class']}"
                     report["actions"].append({"instrument_id": item.get("instrument_id"), "action": "freeze_adaptive_risk_plan", "entry_class": plan["wes_entry_class"], "rr": plan["reward_to_risk"], "tp_distance": plan["take_profit_distance"], "sl_distance": plan["stop_loss_distance"]})
                     changed = True
-            desired_status = "open_wes_governed_position"
+            desired_status = ("open_wes_continuous_position"
+                              if item.get("wes_holding_policy") == "wes_continuous_7_calendar_days"
+                              and item.get("wes_continuous_entry_qualified") is True
+                              else "open_wes_governed_position")
             if item.get("wes_status") != desired_status:
                 item["wes_status"] = desired_status
                 changed = True

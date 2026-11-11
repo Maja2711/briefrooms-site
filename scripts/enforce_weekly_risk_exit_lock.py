@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """Govern WES re-entry after SL/TP paper exits.
 
-A Monday/Tuesday risk exit is placed into a WES trigger-monitoring lock rather
-than being permanently blocked for the rest of the week. It may reopen only
-after the production WES runner sees a fresh qualified signal. SL/TP exits from
-Wednesday onward remain blocked through the frozen weekly close.
+A weekday SL/TP exit enters WES trigger monitoring rather than a permanent
+weekday-based ban. A new position still requires fresh qualified WES evidence,
+directional confirmations, execution proof and independent risk validation.
 """
 from __future__ import annotations
 

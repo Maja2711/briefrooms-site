@@ -1,18 +1,12 @@
 #!/usr/bin/env python3
-"""WES lifecycle rules for early-week replacement entries and rolling exits.
+"""WES continuous seven-calendar-day paper holding and governed re-entry.
 
-A position closed on Monday or Tuesday may become eligible for a fresh WES
-replacement entry later in the same trading week. The replacement is never
-forced: it still needs a new qualified WES signal, the shared validation gate
-and a non-NO_TRADE decision. A qualified replacement receives a seven-calendar-
-day holding deadline measured from its actual entry timestamp, so it may remain
-open through the weekend. Material-event exits remain fail-closed and are not
-eligible for this re-entry path.
-
-This module wraps the v5 paper runtime instead of weakening its common admission
-and execution checks. It also makes settlement deadline-aware per position so a
-normal weekly leg still closes at the frozen Friday deadline while a qualified
-early-close replacement uses its own rolling deadline.
+New positions have a frozen entry+7d deadline only with authentic WES
+authorization. Legacy positions preserve their original Friday deadline;
+legacy early-close replacements preserve their previously authorized carry.
+Freshly qualified same-week replacement is possible Monday through Friday,
+but never after an unreviewed material event or without current EPE proof.
+Independent risk SL/TP monitoring follows positions across ISO weeks.
 """
 from __future__ import annotations
 
