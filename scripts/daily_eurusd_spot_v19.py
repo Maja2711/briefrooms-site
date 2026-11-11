@@ -779,6 +779,47 @@ class _CycleClient:
         return self.cache[key]
 
 
+
+def _decision_activity(output: DailyEngineOutput, previous: Mapping[str, Any]) -> dict[str, Any]:
+    """Audit-only continuity of directional no-trade vetoes, not trade authority."""
+    current_meta = output.metadata or {}
+    previous_meta = (previous.get("metadata") or {}) if isinstance(previous, Mapping) else {}
+    admission = current_meta.get("execution_admission") or {}
+    final = current_meta.get("final_decision") or {}
+    native_direction = final.get("direction")
+    blocked = (output.status == "NO_TRADE" and native_direction in {"LONG", "SHORT"}
+               and admission.get("allowed") is False)
+    reasons = sorted(set(str(x) for x in (admission.get("reasons") or []) if x))
+    previous_activity = previous_meta.get("decision_activity") or {}
+    same = (blocked and previous_activity.get("status") == "DIRECTIONAL_ADMISSION_BLOCKED"
+            and previous_activity.get("direction") == native_direction
+            and previous_activity.get("blockers") == reasons)
+    observed = belief_decision._parse_time(output.timestamp)
+    since = observed
+    cycles = 1
+    if same:
+        try:
+            stored = belief_decision._parse_time(previous_activity["blocked_since"])
+            if stored <= observed:
+                since = stored
+                cycles = max(1, int(previous_activity.get("consecutive_cycles", 1))) + 1
+        except (ValueError, TypeError, KeyError):
+            pass
+    return {
+        "schema_version": "eurusd-daily-decision-activity-v1",
+        "status": ("DIRECTIONAL_ADMISSION_BLOCKED" if blocked else
+                   "NO_NATIVE_DIRECTION" if native_direction not in {"LONG", "SHORT"} else
+                   "POSITION_OPEN_OR_ADMITTED"),
+        "direction": native_direction,
+        "blockers": reasons if blocked else [],
+        "blocked_since": since.isoformat().replace("+00:00", "Z") if blocked else None,
+        "blocked_duration_minutes": round(max(0.0, (observed - since).total_seconds() / 60), 2) if blocked else 0.0,
+        "consecutive_cycles": cycles if blocked else 0,
+        "admission_is_unchanged": bool(same),
+        "trade_execution_authority": False,
+    }
+
+
 def _assert_private_saxo_runtime_paths(output_path: Path, history_path: Path) -> None:
     """Prevent Saxo-derived trade prices from reaching public Git-tracked state."""
     if os.environ.get("SAXO_PRIVATE_PRIMARY") != "1":
@@ -877,6 +918,7 @@ def run_cycle(output_path: Path, history_path: Path, client: Any | None = None) 
     try:
         output = v18.run_cycle(output_path, history_path, cached)
         metadata = dict(output.metadata)
+        metadata["decision_activity"] = _decision_activity(output, previous)
         manifest = metadata.get("decision_manifest")
         if not isinstance(manifest, Mapping):
             manifest = _decision_manifest(output)
