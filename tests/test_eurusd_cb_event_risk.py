@@ -91,13 +91,16 @@ class CentralBankRiskTests(unittest.TestCase):
         self.assertTrue(result.block_new_entry)
         self.assertIn('RECOVERY_REQUIRED_CONFERENCE_UNCONFIRMED',result.reasons)
 
-    def test_very_old_unverified_event_expires_without_fake_end_proof(self):
+    def test_very_old_unverified_ecb_weekly_event_expires_without_fake_end_proof(self):
         parts=fixture()
+        parts[3][0].update(bank='ECB',
+                           source_url='https://www.ecb.europa.eu/press/pr/date/2026/html/test.html')
         parts[3][0]['scheduled_at']=risk.iso(NOW-timedelta(days=2))
         result=self.assess(parts)
         self.assertFalse(result.block_new_entry)
         self.assertIn('OLD_UNVERIFIED_CB_EVENT_EXPIRED_WITHOUT_END_PROOF',result.reasons)
         self.assertIn('synthetic-fomc',result.diagnostics['expired_unverified_event_ids'])
+        self.assertTrue(self.assess(parts,scope='EURUSD_DAILY').block_new_entry)
 
     def test_stale_wire_grace_releases_only_weekly_when_no_event(self):
         parts=fixture()

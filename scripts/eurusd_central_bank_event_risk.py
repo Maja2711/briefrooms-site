@@ -144,7 +144,7 @@ def confirmed_conference_end(row: Mapping, now: datetime) -> datetime | None:
     return None
 
 
-def event_state(wire: Mapping, events: Sequence[Mapping], policy: Mapping, now: datetime) -> dict:
+def event_state(wire: Mapping, events: Sequence[Mapping], policy: Mapping, now: datetime, *, scope: str = 'EURUSD_DAILY') -> dict:
     """Calendar time never implies that a conference ended or a rate was released."""
     candidates = []
     expired_unverified_ids = []
@@ -202,9 +202,11 @@ def event_state(wire: Mapping, events: Sequence[Mapping], policy: Mapping, now: 
         if minutes > policy['pre_event_minutes']:
             continue
         ended_at = confirmed_conference_end(row, now)
-        # Past the bounded risk horizon an obsolete event cannot veto trades
-        # forever. This is explicitly an expiry, never invented end evidence.
-        if minutes < -60 * policy['max_unverified_event_hold_hours']:
+        # Only obsolete ECB Weekly windows lose veto power at the bounded
+        # horizon. Fed unresolved windows and EURUSD Daily stay fail-closed.
+        # Expiry is not invented source evidence of a conference end.
+        if (scope == 'EURUSD_WEEKLY' and bank == 'ECB'
+                and minutes < -60 * policy['max_unverified_event_hold_hours']):
             if ended_at is None:
                 expired_unverified_ids.append(str(event_id or canonical_hash([bank, iso(at)])))
             continue
@@ -286,7 +288,7 @@ def assess_pre_event(position: Mapping | None, quote: Mapping | None, wire: Mapp
     wire_fresh = bool(wire_age is not None and 0 <= wire_age <= p['wire_max_age_seconds']
                       and wire.get('overall_status') == 'FRESH')
     shared_events = [*wire.get('calendar_events',()), *wire.get('unresolved_event_windows',())] if wire_valid else []
-    event = event_state(wire if wire_valid else {}, [*calendar_events,*shared_events], p, now)
+    event = event_state(wire if wire_valid else {}, [*calendar_events,*shared_events], p, now, scope=scope)
     active = event['active']
     # This weekly-only release prevents indefinite policy veto from an old
     # valid wire, without inventing an event end or changing Daily authority.
