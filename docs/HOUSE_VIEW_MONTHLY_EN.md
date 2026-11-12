@@ -31,3 +31,15 @@ Sections carry source_ids; local engine projections carry SHA-256 hashes, observ
 Checks: python -m unittest tests/test_house_view_monthly.py tests/test_house_view_research_v2.py -v; Python compilation; node --check scripts/house-view-monthly.js; Architecture Bootstrap Guard.
 
 No WES, BRACE, GSE, FSE, Belief, risk-policy, positions, orders, research promotion or other production state writeback. Factor scoring weights cannot self-modify. Rollback changes current pointer or reverts the code, never edits frozen monthly archives.
+
+## Investor-facing editorial v2.1
+The system may not stop at listing raw indicators or GSE/FSE/BRACE statuses. Every section must explain **what the observation implies for the S&P 500, the relevant horizon and what would reverse the thesis**:
+- Rates/energy: the 10-year yield affects the cost of capital and P/E multiples; Brent affects inflation, costs and margins. Conditional implications are separated from unsupported predictions of the next Fed decision.
+- EPS/valuation: without verified index EPS consensus and forward P/E, no assumption of index gains solely through valuation expansion. Missing coverage has a stated 6M/12M investment implication rather than a technical placeholder.
+- Momentum: a 20-session decline means correction risk, not proof of a bottom; positive momentum supports a rebound without establishing a 12M bull market.
+- The 1M/6M/12M cards show plain-language directional meaning, with raw score and 3/10 heuristic strength moved to expanded methodological details.
+- Conditional scenarios and revision gates state concrete downside/upside drivers without invented probabilities.
+
+**The archive remains immutable.** November 2026 was previously frozen with technical prose. The v2.1 frontend derives only a new *display interpretation* from the same frozen inputs, biases and disclosed risk flags; it does not mutate the underlying JSON or fetch replacement model values. The presentation change is visibly versioned v2.1. Future monthly reports also receive investor-first wording directly from _investment_editorial_sections in scripts/house_view_research_v2.py. PL/EN follow equivalent rules without any claim of validated forecasting skill.
+
+Additional test: node tests/test_house_view_editorial_ui.cjs replays the frozen November report in Polish and English, checks investor-facing language, no raw engine flags in the main text, immutable archive, and fail-closed behavior for incomplete macro data.
