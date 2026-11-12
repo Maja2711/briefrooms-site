@@ -185,10 +185,58 @@ class HouseViewIntelligenceV2Tests(unittest.TestCase):
                 html = (m.ROOT / path).read_text(encoding="utf-8")
                 self.assertEqual(html.count("data-house-view-legacy"), 1)
                 self.assertEqual(html.count("<details class=\"hvm-legacy\""), 1)
-                self.assertIn("house-view-monthly.js?v=20261108-2", html)
+                self.assertIn("house-view-monthly.js?v=20261112-1", html)
         script = (m.ROOT / "scripts/house-view-monthly.js").read_text(encoding="utf-8")
         self.assertIn("renderV2", script)
         self.assertNotIn("innerHTML", script)
+
+
+    def test_editorial_is_an_spx_market_thesis_not_engine_telemetry(self):
+        with tempfile.TemporaryDirectory() as td:
+            doc = self.enrich(Path(td))
+            sections = {s["id"]: s for s in doc["research"]["sections"]}
+            self.assertIn("S&P 500:", sections["thesis"]["pl"])
+            self.assertIn("P/E S&P 500", sections["rates_and_energy"]["pl"])
+            self.assertIn("Dla S&P 500", sections["growth_and_inflation"]["pl"])
+            self.assertIn("nie zakładamy", sections["earnings_and_valuation"]["pl"])
+            self.assertIn("S&P 500 futures wzrosły", sections["tactical_and_models"]["pl"])
+            self.assertIn("S&P 500 futures gained", sections["tactical_and_models"]["en"])
+            self.assertIn("geopolityczne", sections["tactical_and_models"]["pl"])
+            self.assertNotIn("structural_caution", " ".join(s["pl"] for s in sections.values()))
+            self.assertNotIn("ABSTAIN", " ".join(s["pl"] for s in sections.values()))
+            self.assertNotIn("research_only", " ".join(s["en"] for s in sections.values()))
+            self.assertTrue(all(s["source_ids"] for s in sections.values()))
+            for value in doc["research"]["scenarios"]:
+                self.assertIn("S&P 500", value["pl"])
+                self.assertIn("S&P 500", value["en"])
+                self.assertIsNone(value["probability"])
+
+    def test_frozen_november_2026_facts_produce_defensive_human_readable_thesis(self):
+        path = m.ROOT / "data/investments/house_view_monthly_archive/2026-11.json"
+        frozen = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(frozen["inputs"]["spx_futures_20d_return_pct"], -5.82)
+        old_raw = path.read_bytes()
+        updated = v2._investment_editorial_sections(
+            frozen["inputs"], frozen["views"],
+            frozen["research"]["engine_crosscheck"],
+            frozen["research"]["fundamentals"],
+            frozen["research"]["engine_conflicts"])
+        sections = {s["id"]: s for s in updated}
+        self.assertIn("przeważa ryzyko korekty", sections["thesis"]["pl"])
+        self.assertIn("straciły 5.82%", sections["tactical_and_models"]["pl"])
+        self.assertIn("Rentowność US 10Y: 4.86%", sections["rates_and_energy"]["pl"])
+        self.assertIn("nie podnosimy oceny 6M/12M", sections["earnings_and_valuation"]["pl"])
+        self.assertIn("What would overturn the cautious 1M view?", sections["disagreements"]["en"])
+        self.assertNotIn("structural_caution", " ".join(s["pl"] for s in updated))
+        self.assertEqual(path.read_bytes(), old_raw, "never retroactively rewrite a frozen archive")
+
+    def test_missing_fundamentals_has_explicit_investment_implication(self):
+        with tempfile.TemporaryDirectory() as td:
+            doc = self.enrich(Path(td))
+            sections = {x["id"]: x for x in doc["research"]["sections"]}
+            self.assertIn("wzrostu EPS", sections["earnings_and_valuation"]["pl"])
+            self.assertIn("nie podnosimy oceny 6M/12M", sections["earnings_and_valuation"]["pl"])
+            self.assertIsNone(doc["research"]["limitations"]["index_price_target"])
 
 
 if __name__ == "__main__":

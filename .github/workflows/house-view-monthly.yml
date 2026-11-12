@@ -10,6 +10,7 @@ on:
       - "assets/house-view-monthly.css"
       - "tests/test_house_view_monthly.py"
       - "tests/test_house_view_research_v2.py"
+      - "tests/test_house_view_editorial_ui.cjs"
       - "pl/inwestycje/long-view.html"
       - "en/investing/long-view.html"
       - "pl/inwestycje/spx-scenariusze-2026.html"
@@ -41,6 +42,7 @@ jobs:
           python -m unittest tests/test_house_view_monthly.py tests/test_house_view_research_v2.py -v
           python -m py_compile scripts/publish_monthly_house_view.py scripts/house_view_research_v2.py
           node --check scripts/house-view-monthly.js
+          node tests/test_house_view_editorial_ui.cjs
 
   publish:
     if: github.event_name != 'pull_request'
@@ -65,6 +67,7 @@ jobs:
           python -m unittest tests/test_house_view_monthly.py tests/test_house_view_research_v2.py -v
           python -m py_compile scripts/publish_monthly_house_view.py scripts/house_view_research_v2.py
           node --check scripts/house-view-monthly.js
+          node tests/test_house_view_editorial_ui.cjs
 
       - name: Publish immutable bilingual House View v2 (macro + read-only engine context)
         run: python scripts/publish_monthly_house_view.py

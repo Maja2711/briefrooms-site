@@ -217,6 +217,242 @@ def _fundamental_context(today: date, data_dir: Path) -> tuple[dict, dict]:
             "source_published_at": published.isoformat()}, record
 
 
+
+def _investment_editorial_sections(inputs: dict, views: dict, engines: list,
+                                   fundamentals: dict, conflicts: list) -> list:
+    """Source-bounded market implications in plain PL/EN; zero new model authority.
+
+    This is an *interpretation* of frozen macro measurements and model-risk flags.
+    No Fed path, earnings beat, S&P price level, forecast probability or verified
+    return is inferred from missing sources.
+    """
+    gdp = float(inputs["gdp_qoq_saar_pct"])
+    core = float(inputs["core_pce_yoy_pct"])
+    pce = float(inputs["pce_yoy_pct"])
+    ten = float(inputs["us_10y_pct"])
+    oil = float(inputs["brent_usd_bbl"])
+    momentum = inputs.get("spx_futures_20d_return_pct")
+    one = views["1M"]["bias"]
+    six = views["6M"]["bias"]
+    twelve = views["12M"]["bias"]
+    flags = {e.get("risk_flag") for e in engines if e.get("status") == "research_only"}
+    sections = []
+
+    lead_pl = {
+        "defensive": "S&P 500: na najbliższy miesiąc przeważa ryzyko korekty lub słabej konsolidacji; nie ma jeszcze podstaw, by zakładać trwałe odbicie.",
+        "neutral": "S&P 500: w najbliższym miesiącu brak wyraźnej przewagi kierunkowej; bardziej prawdopodobny do rozważenia jest rynek wahliwy niż jednostajny trend.",
+        "mild_positive": "S&P 500: na najbliższy miesiąc bilans czynników sprzyja umiarkowanemu odbiciu, ale nie jest to sygnał silnego trendu wzrostowego.",
+        "unassessed": "S&P 500: nie określamy kierunku na miesiąc bez wiarygodnego krótkoterminowego odczytu rynku."
+    }[one]
+    lead_en = {
+        "defensive": "S&P 500: over the next month, correction or weak consolidation risk dominates; there is insufficient evidence yet for a sustained rebound.",
+        "neutral": "S&P 500: no clear directional advantage over the next month; a choppy market is a more defensible scenario than a persistent trend.",
+        "mild_positive": "S&P 500: the next-month balance favors a modest rebound, not a strong confirmed bull trend.",
+        "unassessed": "S&P 500: no one-month directional call without a qualified short-term market observation."
+    }[one]
+    medium_pl = {
+        "defensive": "Na 6 miesięcy utrzymujemy podejście defensywne",
+        "neutral": "Na 6 miesięcy pozostajemy neutralni",
+        "mild_positive": "Na 6 miesięcy widzimy umiarkowaną przewagę argumentów za wzrostem",
+        "unassessed": "Nie wyznaczamy oceny na 6 miesięcy"
+    }[six]
+    medium_en = {
+        "defensive": "We retain a defensive six-month view",
+        "neutral": "We stay neutral over six months",
+        "mild_positive": "The six-month balance modestly favors gains",
+        "unassessed": "No six-month view is assigned"
+    }[six]
+    long_pl = {
+        "defensive": "12M defensywnie",
+        "neutral": "12M neutralnie",
+        "mild_positive": "12M lekko pozytywnie",
+        "unassessed": "12M bez oceny"
+    }[twelve]
+    long_en = {
+        "defensive": "12M defensive",
+        "neutral": "12M neutral",
+        "mild_positive": "12M mildly positive",
+        "unassessed": "12M unassessed"
+    }[twelve]
+    _add_section(sections, "thesis",
+        f"{lead_pl} {medium_pl}; horyzont 12M: {long_pl}. "
+        f"Wzrost gospodarczy {gdp:+.2f}% nie wskazuje sam w sobie załamania aktywności, "
+        f"ale inflacja bazowa {core:.2f}% i rentowność obligacji 10Y {ten:.2f}% utrudniają ekspansję wycen akcji. "
+        "Silniejszy scenariusz wzrostowy wymagałby spadku presji inflacyjnej lub potwierdzonej poprawy zysków spółek.",
+        f"{lead_en} {medium_en}; 12-month stance: {long_en}. "
+        f"Economic growth of {gdp:+.2f}% does not by itself indicate an activity collapse, "
+        f"but core inflation at {core:.2f}% and the 10-year yield at {ten:.2f}% constrain equity valuation multiples. "
+        "A stronger upside case would require less inflation pressure or verified earnings improvement.",
+        ["GDPC1", "PCEPILFE", "DGS10"] + (["WES"] if momentum is not None else []))
+
+    if gdp >= 2 and core >= 2.7:
+        growth_pl = ("Gospodarka rośnie na tyle szybko, że wspiera potencjał przychodów spółek, "
+                     "jednak uporczywa inflacja może utrzymywać koszt finansowania i presję na marże. "
+                     "Dla S&P 500 oznacza to raczej wsparcie z aktywności niż argument za szybkim wzrostem mnożników P/E.")
+        growth_en = ("Economic activity supports companies' revenue potential, "
+                     "but persistent inflation may keep funding costs and margin pressure elevated. "
+                     "For the S&P 500 this is growth support, not an automatic reason for higher P/E multiples.")
+    elif gdp < 1:
+        growth_pl = ("Słabsza aktywność zwiększa ryzyko rozczarowań przychodami i zyskami. "
+                     "Dla S&P 500 jest to argument za ostrożnością, szczególnie jeśli inflacja nie pozwala na łatwiejsze warunki finansowe.")
+        growth_en = ("Weak activity raises the risk of revenue and earnings disappointment. "
+                     "This warrants caution on the S&P 500, especially if inflation prevents easier financial conditions.")
+    elif core <= 2.3 and gdp >= 1:
+        growth_pl = ("Dodatni wzrost przy niższej inflacji bazowej tworzy korzystniejsze otoczenie dla akcji. "
+                     "S&P 500 mógłby skorzystać z mniejszej presji kosztowej i dyskontowej, jeżeli trend utrzymają kolejne publikacje.")
+        growth_en = ("Positive growth with lower core inflation is more supportive of equities. "
+                     "The S&P 500 could benefit from reduced cost and discount-rate pressure if subsequent releases confirm the trend.")
+    else:
+        growth_pl = ("Wzrost pozostaje dodatni, lecz połączenie aktywności i inflacji nie przesądza o wzroście S&P 500. "
+                     "Kluczowe będzie, czy spółki przełożą popyt na zyski bez dalszej presji kosztowej.")
+        growth_en = ("Growth is positive but the growth/inflation mix does not by itself imply S&P 500 gains. "
+                     "What matters is whether companies convert demand into profits without renewed cost pressure.")
+    _add_section(sections, "growth_and_inflation",
+        f"PKB USA {gdp:+.2f}% q/q SAAR, PCE {pce:.2f}% r/r, bazowy PCE {core:.2f}% r/r. {growth_pl}",
+        f"U.S. GDP {gdp:+.2f}% q/q SAAR, PCE {pce:.2f}% y/y, core PCE {core:.2f}% y/y. {growth_en}",
+        ["GDPC1", "PCEPI", "PCEPILFE"])
+
+    if ten >= 4.5:
+        rates_pl = ("Rentowność 10Y na tym poziomie podnosi stopę dyskontową dla przyszłych zysków "
+                    "i zwiększa atrakcyjność obligacji względem akcji. Nasz scenariusz bazowy nie zakłada "
+                    "automatycznej ekspansji P/E S&P 500; aby zmienić to stanowisko, "
+                    "potrzebne byłyby niższe rentowności bez pogorszenia koniunktury albo wyraźnie lepszy EPS.")
+        rates_en = ("The 10-year yield at this level raises the discount rate on future earnings "
+                    "and makes bonds more competitive with stocks. Our base case does not assume "
+                    "automatic S&P 500 P/E expansion; lower yields without weaker activity "
+                    "or demonstrably stronger EPS would improve the case.")
+    elif ten <= 3.5:
+        rates_pl = ("Niższa rentowność zmniejsza presję dyskontową na wyceny akcji i może wspierać S&P 500, "
+                    "o ile nie wynika przede wszystkim z gwałtownego pogorszenia perspektyw gospodarki.")
+        rates_en = ("Lower yields ease equity discount-rate pressure and could support the S&P 500, "
+                    "provided they are not primarily driven by a sharp deterioration in growth expectations.")
+    else:
+        rates_pl = ("Koszt kapitału nadal ogranicza wyceny, choć nie stanowi samodzielnego sygnału spadkowego. "
+                    "Dla S&P 500 kierunek rentowności będzie ważniejszy niż ich sama wartość: spadek bez recesji sprzyjałby P/E.")
+        rates_en = ("Funding costs continue to limit valuations, although yield levels alone do not predict a decline. "
+                    "For the S&P 500 the direction of yields matters: easing without recession would be more supportive of P/E.")
+    oil_pl = ("Ropa powyżej 110 USD/bbl zwiększa ryzyko wzrostu kosztów i presji inflacyjnej, co może pogarszać marże i wyceny."
+              if oil >= 110 else
+              "Ropa blisko lub powyżej 100 USD/bbl pozostaje potencjalnym obciążeniem marż i dezinflacji."
+              if oil >= 100 else
+              "Niższa cena ropy ogranicza część presji kosztowej, lecz nie rozstrzyga sama o trendzie S&P 500.")
+    oil_en = ("Oil above USD 110/bbl raises cost and inflation risks, potentially pressuring margins and valuations."
+              if oil >= 110 else
+              "Oil near or above USD 100/bbl remains a potential drag on margins and disinflation."
+              if oil >= 100 else
+              "Lower oil prices ease some cost pressure, but do not establish an S&P 500 trend on their own.")
+    _add_section(sections, "rates_and_energy",
+        f"Rentowność US 10Y: {ten:.2f}%; Brent: {oil:.2f} USD/bbl. {rates_pl} {oil_pl} "
+        "Nie prognozujemy automatycznie kolejnej decyzji Fed z samego poziomu rentowności.",
+        f"U.S. 10-year yield: {ten:.2f}%; Brent: USD {oil:.2f}/bbl. {rates_en} {oil_en} "
+        "The yield level alone does not justify a specific forecast for the next Fed decision.",
+        ["DGS10", "DCOILBRENTEU", "PCEPILFE"])
+
+    if fundamentals["status"] == "curated_not_live":
+        pe = fundamentals["forward_pe"]
+        eps = fundamentals["forward_eps_growth_pct"]
+        fpl = (f"Źródłowy forward P/E wynosi {pe:.2f}x, a prognozowany wzrost EPS {eps:+.2f}% "
+               f"(publikacja {fundamentals['source_published_at'][:10]}). "
+               "Dla S&P 500 wzrost zysków mógłby podtrzymać indeks pomimo wysokich rentowności, "
+               "ale wzrost cen bez poprawy EPS zwiększałby ryzyko droższej wyceny. "
+               "Bez niezależnych danych o rewizjach EPS nie traktujemy tego jako potwierdzonej ścieżki indeksu.")
+        fen = (f"Sourced forward P/E is {pe:.2f}x and projected EPS growth is {eps:+.2f}% "
+               f"(document dated {fundamentals['source_published_at'][:10]}). "
+               "Earnings growth could support the S&P 500 despite high yields, "
+               "but price gains without EPS gains would increase valuation risk. "
+               "Without independent EPS revision data this is not a verified index path.")
+        frefs = ["FUNDAMENTALS", "DGS10"]
+    else:
+        fpl = ("W średnim i długim terminie o trwałości wzrostu S&P 500 zdecydują przede wszystkim zyski spółek "
+               "oraz cena, jaką rynek płaci za te zyski. Nie mamy aktualnego, potwierdzonego konsensusu "
+               "EPS, rewizji prognoz ani forward P/E, dlatego nie zakładamy dalszego wzrostu indeksu tylko "
+               "dzięki droższym wycenom. Dodatni PKB wspiera potencjał sprzedaży, ale nie dowodzi wzrostu "
+               "EPS. Bez takiego potwierdzenia nie podnosimy oceny 6M/12M i nie publikujemy targetu punktowego.")
+        fen = ("Over six to twelve months the S&P 500 depends heavily on company earnings and the multiple "
+               "investors pay for them. Current index-level EPS consensus, revisions and forward P/E "
+               "are not verified, so we do not assume the index will rise simply through more expensive valuations. "
+               "Positive GDP supports demand but does not establish EPS growth. Without that evidence "
+               "we do not upgrade the 6M/12M stance or publish a numerical price target.")
+        frefs = ["GDPC1", "DGS10"]
+    _add_section(sections, "earnings_and_valuation", fpl, fen, frefs)
+
+    if momentum is None:
+        tech_pl = ("Nie ma wiarygodnego odczytu momentum dla ostatnich 20 sesji, "
+                   "więc nie formułujemy nowego kierunku na 1M. Ocenę ryzyka dla inwestora "
+                   "opieramy jedynie na potwierdzonych danych makro.")
+        tech_en = ("No qualified 20-session momentum observation is available, "
+                   "so there is no new one-month directional call. The investor risk view "
+                   "is limited to verified macro data.")
+    elif momentum <= -3:
+        tech_pl = (f"S&P 500 futures straciły {abs(momentum):.2f}% w 20 sesjach. "
+                   "To sygnał osłabienia rynku i ryzyka dalszych przecen w 1M; "
+                   "sam spadek nie pozwala jednak wskazać dna ani ceny odbicia. "
+                   "Poprawa impetu byłaby pierwszym warunkiem ograniczenia tej ostrożności.")
+        tech_en = (f"S&P 500 futures fell {abs(momentum):.2f}% over 20 sessions. "
+                   "This indicates a weaker market and further near-term drawdown risk; "
+                   "it does not identify a bottom or rebound price. "
+                   "Improving momentum would be the first condition for reducing caution.")
+    elif momentum >= 3:
+        tech_pl = (f"S&P 500 futures wzrosły {momentum:.2f}% w 20 sesjach. "
+                   "Rynek ma dodatni impuls krótkoterminowy, co poprawia szanse odbicia, "
+                   "lecz przy wysokim koszcie kapitału nie oznacza automatycznie trwałego trendu 6M/12M.")
+        tech_en = (f"S&P 500 futures gained {momentum:.2f}% over 20 sessions. "
+                   "Positive short-term momentum improves rebound conditions, "
+                   "but at elevated funding costs it does not establish a durable 6M/12M bull market.")
+    else:
+        tech_pl = (f"Zmiana S&P 500 futures w 20 sesjach wynosi {momentum:+.2f}%. "
+                   "Impuls cenowy nie daje jednoznacznego przełomu. "
+                   "Dopiero trwalsza poprawa cen i otoczenia inflacyjnego zwiększyłaby wiarygodność wzrostowego scenariusza.")
+        tech_en = (f"S&P 500 futures changed {momentum:+.2f}% over 20 sessions. "
+                   "Price momentum does not signal a clear breakout. "
+                   "Sustained price improvement alongside easier inflation would strengthen the upside case.")
+    refs = ["WES"] if momentum is not None else []
+    if "structural_caution" in flags:
+        tech_pl += (" Dane struktury rynku wskazują dodatkowo na podwyższone ryzyko gwałtownych wahań; "
+                    "wzmacnia to potrzebę ostrożnej interpretacji krótkiego terminu, ale nie jest osobną prognozą spadku.")
+        tech_en += (" Market-structure evidence also indicates greater risk of abrupt swings; "
+                    "this reinforces near-term caution but is not a separate downside forecast.")
+        refs.append("FSE")
+    if "geopolitical_caution" in flags:
+        tech_pl += (" Ryzyko geopolityczne może dodatkowo zwiększać premię za ryzyko na rynku akcji.")
+        tech_en += (" Geopolitical stress could add to the risk premium investors demand from equities.")
+        refs.append("GSE")
+    _add_section(sections, "tactical_and_models", tech_pl, tech_en, refs)
+
+    if conflicts:
+        disagree_pl = ("Sygnały krótkoterminowe nie są zgodne: wzrost cen i ryzyka geopolityczne/strukturalne "
+                       "wskazują różne kierunki nacisku. Dla S&P 500 nie przesądzamy, który przeważy; "
+                       "sprawdzeniem będzie trwałość ruchu cen, inflacja i rentowności. "
+                       "Nie sumujemy modeli jako niezależnych głosów.")
+        disagree_en = ("Near-term evidence diverges: price action and geopolitical/structural risk "
+                       "point to different pressures. We do not claim one will prevail for the S&P 500; "
+                       "price persistence, inflation and yields are the relevant checks. "
+                       "Overlapping models are not treated as independent votes.")
+        refs = ["GSE", "FSE", "WES"]
+    elif one == "defensive":
+        disagree_pl = ("Co zaneguje ostrożną tezę 1M? Trwała poprawa momentum S&P 500, "
+                       "słabnięcie inflacji bazowej i spadek rentowności bez pogorszenia wzrostu. "
+                       "Obecnie nie ma wystarczającego dowodu na pełny zwrot wzrostowy; "
+                       "dodatni PKB jest przeciwwagą dla pesymizmu, nie dowodem na osiągnięcie dna.")
+        disagree_en = ("What would overturn the cautious 1M view? Sustained improvement in S&P 500 momentum, "
+                       "easing core inflation and lower yields without weakening growth. "
+                       "There is not enough evidence yet for a durable reversal; "
+                       "positive GDP offsets the bearish case but does not establish a market bottom.")
+        refs = ["GDPC1", "PCEPILFE", "DGS10"] + (["WES"] if momentum is not None else [])
+    else:
+        disagree_pl = ("Warunki zmiany opinii: utrzymująca się presja inflacyjna i wzrost rentowności "
+                       "przemawiają za większą ostrożnością; równoczesne schłodzenie inflacji, "
+                       "stabilny wzrost i poprawa momentum — za silniejszą tezą wzrostową. "
+                       "Nie traktujemy braku konfliktu modeli jako potwierdzenia prognozy.")
+        disagree_en = ("Revision conditions: persistent inflation pressure and higher yields "
+                       "would argue for more caution; easing inflation with steady growth "
+                       "and better momentum would strengthen the upside case. "
+                       "Lack of a model disagreement does not validate a forecast.")
+        refs = ["GDPC1", "PCEPILFE", "DGS10"] + (["WES"] if momentum is not None else [])
+    _add_section(sections, "disagreements", disagree_pl, disagree_en, refs)
+    return sections
+
+
 def enrich_monthly_snapshot(snapshot: dict, today: date, data_dir: Path, previous: dict | None) -> dict:
     """Enrich a checked v1 macro computation with a complete source-limited House View."""
     if snapshot.get("schema_version") != "1.0" or snapshot.get("month") != today.strftime("%Y-%m"):
@@ -238,100 +474,49 @@ def enrich_monthly_snapshot(snapshot: dict, today: date, data_dir: Path, previou
     engine_flags = [x["risk_flag"] for x in engines if x.get("risk_flag")]
     has_caution = bool(engine_flags)
     market = inputs.get("spx_futures_20d_return_pct")
-    sections = []
-    _add_section(sections, "thesis",
-        f"Bieżący bilans ryzyka: 1M {bias('1M', 'pl')}, 6M {bias('6M', 'pl')}, 12M {bias('12M', 'pl')}. Są to odrębne, warunkowe horyzonty. "
-        f"Wzrost PKB {gdp:+.2f}% SAAR oraz inflacja bazowa PCE {core:.2f}% r/r wyznaczają tło; "
-        + ("świeże silniki sygnalizują dodatkowe ryzyka, ale nie zastępują fundamentów." if has_caution else
-           "brak kwalifikowanego silnego alarmu nie oznacza braku ryzyka."),
-        f"Current risk balance: 1M {bias('1M', 'en')}, 6M {bias('6M', 'en')}, 12M {bias('12M', 'en')}. These are separate conditional horizons. "
-        f"Real GDP {gdp:+.2f}% SAAR and core PCE {core:.2f}% y/y anchor the macro context; "
-        + ("fresh models raise contextual risk flags but do not replace fundamentals." if has_caution else
-           "lack of a qualified high-risk flag does not imply absence of risk."),
-        ["GDPC1", "PCEPILFE"] + [x["id"] for x in engines if x.get("risk_flag")])
-    _add_section(sections, "growth_and_inflation",
-        f"PKB realny: {gdp:+.2f}% q/q SAAR. Inflacja PCE: {headline:.2f}% r/r, bazowa: {core:.2f}% r/r. "
-        + ("Wzrost poniżej 1% ogranicza przestrzeń dla tezy o trwałym przyspieszeniu." if gdp < 1 else
-           "Dodatni wzrost nie eliminuje ryzyka rewizji danych i marż."),
-        f"Real GDP: {gdp:+.2f}% q/q SAAR. Headline PCE: {headline:.2f}% y/y, core: {core:.2f}% y/y. "
-        + ("Growth below 1% weakens the case for durable acceleration." if gdp < 1 else
-           "Positive growth does not rule out data revisions or margin pressure."),
-        ["GDPC1", "PCEPI", "PCEPILFE"])
-    _add_section(sections, "rates_and_energy",
-        f"Rentowność amerykańskich obligacji 10Y: {ten:.2f}%; Brent: {brent:.2f} USD/bbl. "
-        + ("Droga ropa podnosi ryzyko kosztowe i inflacyjne." if brent >= 110 else
-           "Cena ropy pozostaje obserwowanym czynnikiem kosztów i inflacji."),
-        f"U.S. 10-year Treasury yield: {ten:.2f}%; Brent: USD {brent:.2f}/bbl. "
-        + ("High oil prices raise cost and inflation risks." if brent >= 110 else
-           "Oil remains an observable input to costs and inflation."),
-        ["DGS10", "DCOILBRENTEU"])
-    frefs = ["FUNDAMENTALS"] if fundamentals["status"] == "curated_not_live" else []
-    if fundamentals["status"] == "curated_not_live":
-        _add_section(sections, "earnings_and_valuation",
-            f"Ostatni ręcznie udokumentowany forward P/E: {fundamentals['forward_pe']:.2f}x, prognozowany wzrost EPS: {fundamentals['forward_eps_growth_pct']:+.2f}% "
-            f"(data dokumentu {fundamentals['source_published_at'][:10]}). To snapshot źródła, nie automatyczny konsensus rynkowy i nie target S&P 500.",
-            f"Last manually sourced forward P/E: {fundamentals['forward_pe']:.2f}x, estimated EPS growth: {fundamentals['forward_eps_growth_pct']:+.2f}% "
-            f"(document dated {fundamentals['source_published_at'][:10]}). A curated source snapshot, not a live consensus or S&P 500 price target.", frefs)
-    else:
-        _add_section(sections, "earnings_and_valuation",
-            "Brak aktualnych, potwierdzonych danych indeksowych o forward EPS, rewizjach zysków i forward P/E. "
-            "Nie przypisujemy liczbowego targetu ani silnej tezy fundamentalnej na 6M/12M.",
-            "Current index-level forward EPS, earnings revisions and forward P/E are not verified. "
-            "No numerical price target or strong fundamental 6M/12M claim is published.", frefs)
-    momentum_ref = ["WES"] if market is not None and "WES" in ids else []
-    _add_section(sections, "tactical_and_models",
-        (f"Zamrożone momentum SPX futures 20 sesji: {market:+.2f}%." if market is not None else
-         "Brak kwalifikowanego zamrożonego momentum SPX; kierunek 1M pozostaje bez oceny.")
-        + " GSE, FSE i BRACE są odczytywane wyłącznie informacyjnie. "
-        + ("Zidentyfikowano flagi ryzyka: " + ", ".join(engine_flags) + "." if has_caution
-           else "Nie ma dodatkowego autoryzowanego głosu kierunkowego z tych silników."),
-        (f"Frozen SPX futures 20-session momentum: {market:+.2f}%." if market is not None else
-         "No qualified frozen SPX momentum; the 1M direction remains unassessed.")
-        + " GSE, FSE and BRACE are informational only. "
-        + ("Contextual risk flags: " + ", ".join(engine_flags) + "." if has_caution
-           else "These engines add no authorized directional vote."),
-        momentum_ref + [e["id"] for e in engines if e["id"] in ("GSE", "FSE", "BRACE") and e["status"] == "research_only"])
     conflicts = []
     gse = next(e for e in engines if e["id"] == "GSE")
     if gse.get("risk_flag") == "geopolitical_caution" and market is not None and market >= 3:
         conflicts.append("gse_vs_positive_momentum")
     if "structural_caution" in engine_flags and views["6M"]["bias"] == "mild_positive":
         conflicts.append("positive_macro_vs_structural_risk")
-    _add_section(sections, "disagreements",
-        ("Konflikty: " + ", ".join(conflicts) + ". Nie uśredniamy horyzontów ani skorelowanych źródeł."
-         if conflicts else "Brak zidentyfikowanego konfliktu według jawnych progów. Brak konfliktu nie jest potwierdzeniem trafności.")
-        + " Stan Belief Core bez odpowiedniego publicznego punktowego kontraktu pozostaje poza oceną.",
-        ("Conflicts: " + ", ".join(conflicts) + ". We do not average horizons or correlated sources."
-         if conflicts else "No conflict detected under disclosed thresholds. Absence of conflict is not validation.")
-        + " Belief Core is excluded without a qualified point-in-time public contract.",
-        ["GSE", "FSE", "WES"] if conflicts else [])
+    sections = _investment_editorial_sections(inputs, views, engines, fundamentals, conflicts)
     scenarios = [
         {"id": "base", "probability": None,
-         "pl": "Scenariusz bazowy: bieżący bilans 6M pozostaje warunkowy; decydują kolejne odczyty inflacji, wzrostu i rentowności.",
-         "en": "Base scenario: the 6M balance remains conditional; next inflation, growth and yield releases matter.",
+         "pl": f"Scenariusz bazowy dla S&P 500: 1M {LABELS['pl'][views['1M']['bias']]}, 6M {LABELS['pl'][views['6M']['bias']]}, 12M {LABELS['pl'][views['12M']['bias']]}. "
+               "Odbicie cen bez spadku presji dyskontowej lub poprawy zysków może być nietrwałe. Kolejne odczyty PKB, inflacji i rentowności zweryfikują tezę.",
+         "en": f"S&P 500 base case: 1M {LABELS['en'][views['1M']['bias']]}, 6M {LABELS['en'][views['6M']['bias']]}, 12M {LABELS['en'][views['12M']['bias']]}. "
+               "A price rebound without easing discount-rate pressure or improving earnings may be fragile. Subsequent GDP, inflation and yield data will test the thesis.",
          "watch_ids": ["GDPC1", "PCEPILFE", "DGS10"]},
         {"id": "downside", "probability": None,
-         "pl": "Scenariusz spadkowy: utrzymywanie się wysokiej inflacji bazowej, wzrost rentowności lub ponowny szok energetyczny zwiększają presję na wyceny.",
-         "en": "Downside scenario: persistent core inflation, higher yields or a renewed energy shock increase valuation pressure.",
-         "watch_ids": ["PCEPILFE", "DGS10", "DCOILBRENTEU"]},
+         "pl": "Scenariusz pogorszenia: wysoka inflacja bazowa i rosnące rentowności ograniczają mnożniki P/E, "
+               "a słabszy popyt lub droższa energia uderzają w zyski. S&P 500 byłby wówczas podatniejszy na dalszą korektę.",
+         "en": "Downside: persistent core inflation and rising yields constrain P/E multiples, "
+               "while weaker demand or higher energy costs pressure earnings. The S&P 500 would become more exposed to further correction.",
+         "watch_ids": ["PCEPILFE", "DGS10", "DCOILBRENTEU", "GDPC1"]},
         {"id": "upside", "probability": None,
-         "pl": "Scenariusz wzrostowy: dezinflacja bez spadku aktywności i stabilizacja kosztu kapitału poprawiłyby warunki; wymaga to potwierdzenia w zyskach spółek.",
-         "en": "Upside scenario: disinflation without growth deterioration and stabilizing funding costs would help, subject to earnings confirmation.",
+         "pl": "Scenariusz poprawy: dezinflacja przy utrzymaniu dodatniego wzrostu umożliwia spadek rentowności; "
+               "wraz z poprawą momentum i potwierdzonym wzrostem EPS zwiększałoby to szanse na trwalszy wzrost S&P 500.",
+         "en": "Upside: disinflation alongside positive growth allows yields to ease; "
+               "with improving momentum and verified EPS growth, this would strengthen prospects for a sustained S&P 500 advance.",
          "watch_ids": ["GDPC1", "PCEPILFE", "DGS10"]},
     ]
     gates = [
-        {"id": "core_pce", "source_id": "PCEPILFE", "threshold": 3.5,
-         "pl": "Core PCE >=3,5% r/r: presja inflacyjna podnosi defensywność.",
-         "en": "Core PCE >=3.5% y/y: inflation pressure raises defensiveness."},
+        {"id": "core_pce", "source_id": "PCEPILFE", "threshold": 2.7,
+         "pl": "Core PCE poniżej 2,7% r/r: mniejsza presja inflacyjna wspiera scenariusz poprawy wycen S&P 500, o ile wzrost pozostaje dodatni.",
+         "en": "Core PCE below 2.7% y/y: less inflation pressure improves the S&P 500 valuation case, provided growth stays positive."},
         {"id": "gdp", "source_id": "GDPC1", "threshold": 1.0,
-         "pl": "PKB <1% q/q SAAR: rewizja optymizmu wzrostowego.",
-         "en": "GDP <1% q/q SAAR: reassess growth optimism."},
+         "pl": "PKB poniżej 1% q/q SAAR: zwiększa się ryzyko rozczarowania przychodami i EPS, a więc argument za obniżeniem oceny 6M/12M.",
+         "en": "GDP below 1% q/q SAAR: raises revenue/EPS disappointment risk and argues for reassessing the 6M/12M view."},
         {"id": "brent", "source_id": "DCOILBRENTEU", "threshold": 110.0,
-         "pl": "Brent >=110 USD/bbl: ponowna ocena presji kosztowej.",
-         "en": "Brent >=USD 110/bbl: reassess cost pressure."},
-        {"id": "ten_year", "source_id": "DGS10", "threshold": 5.0,
-         "pl": "UST 10Y >=5%: wyższy dyskont dla przyszłych przepływów.",
-         "en": "UST 10Y >=5%: higher discounting of future cash flows."},
+         "pl": "Brent powyżej 110 USD/bbl: możliwa presja na marże i inflację, co zwiększa ryzyko korekty S&P 500.",
+         "en": "Brent above USD 110/bbl: possible margin and inflation pressure increases S&P 500 correction risk."},
+        {"id": "ten_year", "source_id": "DGS10", "threshold": 4.5,
+         "pl": "UST 10Y trwale poniżej 4,5% bez osłabienia PKB: korzystniejszy koszt kapitału mógłby pomóc mnożnikom P/E.",
+         "en": "10-year yield sustainably below 4.5% without weaker GDP: a better cost of capital could support P/E multiples."},
+        {"id": "momentum", "source_id": "WES", "threshold": 3.0,
+         "pl": "Momentum S&P 500 futures powyżej +3% za 20 sesji: mocniejszy argument za odzyskiwaniem trendu wzrostowego w 1M.",
+         "en": "S&P 500 futures 20-session momentum above +3%: stronger evidence for renewed near-term upward trend."},
     ]
     changes = []
     if isinstance(previous, dict) and previous.get("month", "") < snapshot["month"]:

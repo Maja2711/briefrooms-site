@@ -31,3 +31,15 @@ Sekcje mają source_ids, pliki projekcji SHA-256 i timestamps, makro ma datę ob
 Testy: python -m unittest tests/test_house_view_monthly.py tests/test_house_view_research_v2.py -v; python -m py_compile scripts/publish_monthly_house_view.py scripts/house_view_research_v2.py; node --check scripts/house-view-monthly.js; Architecture Bootstrap Guard.
 
 Brak prawa do zapisu TR-05, Belief, EP/IN, BRACE/WES/FSE/GSE, pozycji, risk policy, orderów, produkcyjnego promotora lub autodyfuzji metod. Reguły punktowe nie są automatycznie modyfikowane. Rollback: kontrolowany wskaźnik current lub revert kodu, nigdy edycja zamrożonego archiwum.
+
+## Warstwa redakcyjna v2.1 — wnioski dla inwestora
+Silnik nie może ograniczać sekcji do wyliczenia poziomu wskaźnika lub statusu GSE/FSE/BRACE. Każda sekcja ma wyjaśnić **wpływ na S&P 500, horyzont i warunek zmiany tezy**:
+- Stopy/energia: 10Y -> koszt kapitału i mnożnik P/E; Brent -> inflacja/koszty/marże; oddzielamy hipotezę warunkową od prognozy decyzji Fed.
+- EPS/wyceny: bez wiarygodnego indeksowego konsensusu EPS i forward P/E nie zakładamy wzrostu wycen bez poprawy zysków; brak targetu indeksu jest podany wraz z konsekwencją dla 6M/12M, a nie jako pusty komunikat techniczny.
+- Momentum: spadek w 20 sesjach oznacza ryzyko dalszej korekty, nie dowód ceny dna; pozytywne momentum to argument za odbiciem, nie automatyczna hossa na 12M.
+- Karty 1M/6M/12M pokazują kierunkowy wniosek; surowa punktacja 3/10 i statusy silników pozostają dostępne w rozwijanej sekcji metodologicznej.
+- Scenariusze i bramki pokazują **konkretne czynniki** podnoszące lub obniżające ryzyko, nie sugerując wyliczonego prawdopodobieństwa.
+
+**Archiwum pozostaje immutable.** Raport 2026-11 został zamrożony wcześniej z technicznym opisem. Frontend v2.1 przelicza wyłącznie jego *prezentację językową* z tych samych zamrożonych liczb, ocen i jawnych flag (bez nowego feedu i bez zmiany JSON). Oznacza tę interpretację numerem v2.1. Kolejne raporty otrzymują już czytelne wnioski bezpośrednio z funkcji _investment_editorial_sections w scripts/house_view_research_v2.py. PL/EN stosują te same zasady, ale nie deklarują trafności prognostycznej.
+
+Testy: dodatkowo node tests/test_house_view_editorial_ui.cjs odtwarza listopadowy snapshot, sprawdza polski i angielski wniosek, brak kodów technicznych w głównym tekście, archiwum bez zmian i fail-closed dla niepełnego makro.
