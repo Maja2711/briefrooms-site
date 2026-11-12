@@ -307,8 +307,8 @@
       add(panel,'p','',item[lang]);
       const foot=add(panel,'small','hvm-cite',item.source_ids.length?item.source_ids.join(' · '):labels.missing);
     });
-    const scenarios=section(card,labels.scenarios);
-    const scenarioGrid=add(scenarios,'div','hvm-triptych');
+    const scenarioPane=section(card,labels.scenarios);
+    const scenarioGrid=add(scenarioPane,'div','hvm-triptych');
     scenarios.forEach(item=>{
       const el=add(scenarioGrid,'article','hvm-scenario');
       add(el,'span','hvm-kicker',labels.scenarioNames[item.id]||item.id);
@@ -331,8 +331,8 @@
     r.change_in_observed_factors.forEach(item=>{
       add(change,'p','hvm-delta',item.source_id+': '+num(item.previous)+' → '+num(item.current)+' ('+(item.delta>0?'+':'')+num(item.delta)+')');
     });
-    const gates=section(card,labels.gates);
-    const list=add(gates,'ul','hvm-gates');
+    const gatePane=section(card,labels.gates);
+    const list=add(gatePane,'ul','hvm-gates');
     gates.forEach(item=>add(list,'li','',item[lang]));
     const evidenceDetails=add(card,'details','hvm-details');
     add(evidenceDetails,'summary','',labels.sourceDetails);
