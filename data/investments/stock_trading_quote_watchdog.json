@@ -1,37 +1,43 @@
 {
   "schema_version": "stock-trading-quote-freshness-watchdog-v1",
-  "checked_at_bucket": "2026-11-12T02:30:00Z",
+  "checked_at_bucket": "2026-11-12T14:00:00Z",
   "max_age_seconds": {
     "GPW": 1200,
     "US": 600
   },
   "status": "OK",
-  "active_positions_checked": 0,
-  "positions_recovered": 0,
+  "active_positions_checked": 3,
+  "positions_recovered": 3,
   "alerts": 0,
   "positions": [
     {
       "market": "GPW",
       "symbol": "PCO.WA",
-      "session": "CLOSED",
-      "status": "OUT_OF_SESSION",
-      "observed_at": "2026-11-10T17:00:00+01:00",
+      "session": "ACTIVE",
+      "precheck": "STALE",
+      "recovery_attempted": true,
+      "status": "RECOVERED",
+      "observed_at": "2026-11-12T14:53:32+01:00",
       "provider": "Yahoo Finance chart"
     },
     {
       "market": "GPW",
       "symbol": "MBK.WA",
-      "session": "CLOSED",
-      "status": "OUT_OF_SESSION",
-      "observed_at": "2026-11-10T16:59:00+01:00",
+      "session": "ACTIVE",
+      "precheck": "STALE",
+      "recovery_attempted": true,
+      "status": "RECOVERED",
+      "observed_at": "2026-11-12T14:53:59+01:00",
       "provider": "Yahoo Finance chart"
     },
     {
       "market": "GPW",
       "symbol": "DNP.WA",
-      "session": "CLOSED",
-      "status": "OUT_OF_SESSION",
-      "observed_at": "2026-11-10T17:04:00+01:00",
+      "session": "ACTIVE",
+      "precheck": "STALE",
+      "recovery_attempted": true,
+      "status": "RECOVERED",
+      "observed_at": "2026-11-12T14:54:01+01:00",
       "provider": "Yahoo Finance chart"
     },
     {
@@ -39,7 +45,7 @@
       "symbol": "CBOE",
       "session": "CLOSED",
       "status": "OUT_OF_SESSION",
-      "observed_at": "2026-11-11T15:59:00-05:00",
+      "observed_at": "2026-11-12T08:18:00-05:00",
       "provider": "Yahoo Finance chart"
     },
     {
@@ -47,7 +53,7 @@
       "symbol": "STE",
       "session": "CLOSED",
       "status": "OUT_OF_SESSION",
-      "observed_at": "2026-11-11T15:59:00-05:00",
+      "observed_at": null,
       "provider": "Yahoo Finance chart"
     },
     {
@@ -55,99 +61,165 @@
       "symbol": "PLMR",
       "session": "CLOSED",
       "status": "OUT_OF_SESSION",
-      "observed_at": "2026-11-11T15:59:00-05:00",
+      "observed_at": null,
       "provider": "Yahoo Finance chart"
     }
   ],
   "candidate_monitoring_enabled": true,
   "frontiers": {
-    "GPW": "FRONTIER_STALE",
-    "US": "OK"
+    "GPW": "OK",
+    "US": "FRONTIER_STALE"
   },
-  "candidates_checked": 0,
-  "candidate_quotes_observed": 0,
+  "candidates_checked": 7,
+  "candidate_quotes_observed": 7,
   "candidate_alerts": 0,
   "candidates": [
     {
-      "market": "US",
-      "symbol": "SARO",
+      "market": "GPW",
+      "symbol": "ALE.WA",
       "role": "UNPURCHASED_CANDIDATE",
-      "session": "CLOSED",
+      "session": "ACTIVE",
       "authority": "MONITOR_ONLY",
-      "frontier_generated_at": "2026-11-11T21:12:01.951133Z",
-      "status": "OUT_OF_SESSION"
+      "frontier_generated_at": "2026-11-12T13:40:39.885746Z",
+      "precheck": "NO_VERIFIED_PRICE",
+      "recovery_attempted": true,
+      "quote": {
+        "price": 63.02999878,
+        "observed_at": "2026-11-12T14:54:09+01:00",
+        "received_at": "2026-11-12T14:09:09+00:00",
+        "market_state": "REGULAR",
+        "provider": "Yahoo Finance chart",
+        "delay_status": "unverified",
+        "is_realtime": false
+      },
+      "status": "OBSERVED",
+      "age_seconds": 900
     },
     {
-      "market": "US",
-      "symbol": "ROIV",
+      "market": "GPW",
+      "symbol": "MDV.WA",
       "role": "UNPURCHASED_CANDIDATE",
-      "session": "CLOSED",
+      "session": "ACTIVE",
       "authority": "MONITOR_ONLY",
-      "frontier_generated_at": "2026-11-11T21:12:01.951133Z",
-      "status": "OUT_OF_SESSION"
+      "frontier_generated_at": "2026-11-12T13:40:39.885746Z",
+      "precheck": "NO_VERIFIED_PRICE",
+      "recovery_attempted": true,
+      "quote": {
+        "price": 114.05000305,
+        "observed_at": "2026-11-12T14:54:04+01:00",
+        "received_at": "2026-11-12T14:09:09+00:00",
+        "market_state": "REGULAR",
+        "provider": "Yahoo Finance chart",
+        "delay_status": "unverified",
+        "is_realtime": false
+      },
+      "status": "OBSERVED",
+      "age_seconds": 905
     },
     {
-      "market": "US",
-      "symbol": "RSG",
+      "market": "GPW",
+      "symbol": "LPP.WA",
       "role": "UNPURCHASED_CANDIDATE",
-      "session": "CLOSED",
+      "session": "ACTIVE",
       "authority": "MONITOR_ONLY",
-      "frontier_generated_at": "2026-11-11T21:12:01.951133Z",
-      "status": "OUT_OF_SESSION"
+      "frontier_generated_at": "2026-11-12T13:40:39.885746Z",
+      "precheck": "NO_VERIFIED_PRICE",
+      "recovery_attempted": true,
+      "quote": {
+        "price": 28540.0,
+        "observed_at": "2026-11-12T14:51:59+01:00",
+        "received_at": "2026-11-12T14:09:09+00:00",
+        "market_state": "REGULAR",
+        "provider": "Yahoo Finance chart",
+        "delay_status": "unverified",
+        "is_realtime": false
+      },
+      "status": "OBSERVED",
+      "age_seconds": 1030
     },
     {
-      "market": "US",
-      "symbol": "RPRX",
+      "market": "GPW",
+      "symbol": "ALR.WA",
       "role": "UNPURCHASED_CANDIDATE",
-      "session": "CLOSED",
+      "session": "ACTIVE",
       "authority": "MONITOR_ONLY",
-      "frontier_generated_at": "2026-11-11T21:12:01.951133Z",
-      "status": "OUT_OF_SESSION"
+      "frontier_generated_at": "2026-11-12T13:40:39.885746Z",
+      "precheck": "NO_VERIFIED_PRICE",
+      "recovery_attempted": true,
+      "quote": {
+        "price": 146.0,
+        "observed_at": "2026-11-12T14:53:34+01:00",
+        "received_at": "2026-11-12T14:09:09+00:00",
+        "market_state": "REGULAR",
+        "provider": "Yahoo Finance chart",
+        "delay_status": "unverified",
+        "is_realtime": false
+      },
+      "status": "OBSERVED",
+      "age_seconds": 935
     },
     {
-      "market": "US",
-      "symbol": "RYAN",
+      "market": "GPW",
+      "symbol": "CDR.WA",
       "role": "UNPURCHASED_CANDIDATE",
-      "session": "CLOSED",
+      "session": "ACTIVE",
       "authority": "MONITOR_ONLY",
-      "frontier_generated_at": "2026-11-11T21:12:01.951133Z",
-      "status": "OUT_OF_SESSION"
+      "frontier_generated_at": "2026-11-12T13:40:39.885746Z",
+      "precheck": "NO_VERIFIED_PRICE",
+      "recovery_attempted": true,
+      "quote": {
+        "price": 276.8999939,
+        "observed_at": "2026-11-12T14:53:57+01:00",
+        "received_at": "2026-11-12T14:09:09+00:00",
+        "market_state": "REGULAR",
+        "provider": "Yahoo Finance chart",
+        "delay_status": "unverified",
+        "is_realtime": false
+      },
+      "status": "OBSERVED",
+      "age_seconds": 912
     },
     {
-      "market": "US",
-      "symbol": "ROP",
+      "market": "GPW",
+      "symbol": "OPL.WA",
       "role": "UNPURCHASED_CANDIDATE",
-      "session": "CLOSED",
+      "session": "ACTIVE",
       "authority": "MONITOR_ONLY",
-      "frontier_generated_at": "2026-11-11T21:12:01.951133Z",
-      "status": "OUT_OF_SESSION"
+      "frontier_generated_at": "2026-11-12T13:40:39.885746Z",
+      "precheck": "NO_VERIFIED_PRICE",
+      "recovery_attempted": true,
+      "quote": {
+        "price": 16.61499977,
+        "observed_at": "2026-11-12T14:52:31+01:00",
+        "received_at": "2026-11-12T14:09:09+00:00",
+        "market_state": "REGULAR",
+        "provider": "Yahoo Finance chart",
+        "delay_status": "unverified",
+        "is_realtime": false
+      },
+      "status": "OBSERVED",
+      "age_seconds": 998
     },
     {
-      "market": "US",
-      "symbol": "SAIC",
+      "market": "GPW",
+      "symbol": "BFT.WA",
       "role": "UNPURCHASED_CANDIDATE",
-      "session": "CLOSED",
+      "session": "ACTIVE",
       "authority": "MONITOR_ONLY",
-      "frontier_generated_at": "2026-11-11T21:12:01.951133Z",
-      "status": "OUT_OF_SESSION"
-    },
-    {
-      "market": "US",
-      "symbol": "RRC",
-      "role": "UNPURCHASED_CANDIDATE",
-      "session": "CLOSED",
-      "authority": "MONITOR_ONLY",
-      "frontier_generated_at": "2026-11-11T21:12:01.951133Z",
-      "status": "OUT_OF_SESSION"
-    },
-    {
-      "market": "US",
-      "symbol": "SBUX",
-      "role": "UNPURCHASED_CANDIDATE",
-      "session": "CLOSED",
-      "authority": "MONITOR_ONLY",
-      "frontier_generated_at": "2026-11-11T21:12:01.951133Z",
-      "status": "OUT_OF_SESSION"
+      "frontier_generated_at": "2026-11-12T13:40:39.885746Z",
+      "precheck": "NO_VERIFIED_PRICE",
+      "recovery_attempted": true,
+      "quote": {
+        "price": 6065.0,
+        "observed_at": "2026-11-12T14:53:59+01:00",
+        "received_at": "2026-11-12T14:09:09+00:00",
+        "market_state": "REGULAR",
+        "provider": "Yahoo Finance chart",
+        "delay_status": "unverified",
+        "is_realtime": false
+      },
+      "status": "OBSERVED",
+      "age_seconds": 910
     }
   ],
   "candidate_quote_authority": "READ_ONLY_MONITORING_NOT_EXECUTION"
