@@ -1,12 +1,11 @@
 {
   "layer_version": "5.9.1-experimental",
-  "checked_at": "2026-11-12T21:32:30+01:00",
+  "checked_at": "2026-11-12T23:19:22+01:00",
   "actions": [
     {
       "instrument_id": "eurusd",
-      "action": "block_new_entry",
-      "reason": "central_bank_event_risk",
-      "decision_id": "8e2fff8debef86edd50aa7285c3997391e28bab95bec6a9b2564c3c50b232e38"
+      "action": "no_trade",
+      "reason": "gate_or_reentry_lock"
     },
     {
       "instrument_id": "sp500_futures",
@@ -22,10 +21,10 @@
   "status": "completed",
   "eurusd_central_bank_event_risk": {
     "event_id": null,
-    "evaluated_at": "2026-11-12T20:32:30.117896Z",
+    "evaluated_at": "2026-11-12T22:19:22.150782Z",
     "scope": "EURUSD_WEEKLY",
     "position_id": null,
-    "action": "BLOCK_NEW_ENTRY",
+    "action": "HOLD",
     "mode": "SHADOW",
     "quote_verified": false,
     "event_verified": false,
@@ -161,12 +160,13 @@
     "reasons": [
       "RISK_MODEL_UNCALIBRATED",
       "OLD_UNVERIFIED_CB_EVENT_EXPIRED_WITHOUT_END_PROOF",
+      "WES_STALE_WIRE_GRACE_EXHAUSTED_RELEASED_RECOVERY_REQUIRED",
       "RSS_STALE",
       "NO_EXECUTABLE_QUOTE",
       "EXECUTION_COSTS_UNKNOWN"
     ],
-    "block_new_entry": true,
-    "entry_guard_enforced": true,
+    "block_new_entry": false,
+    "entry_guard_enforced": false,
     "risk_protection_status": "MONITORING_ONLY",
     "diagnostics": {
       "current_event_id": null,
@@ -182,15 +182,15 @@
         "eu:European Central Bank:2026-10-29:Governing Council of the ECB: monetary policy meeting in Frankfurt (Day 2), foll"
       ],
       "expired_daily_event_ids": [],
-      "stale_wire_weekly_auto_release": false,
+      "stale_wire_weekly_auto_release": true,
       "headline_count_30m": 0,
       "latest_headline": "Federal Reserve announces revised tentative schedule of Federal Open Market Committee meetings in 2027",
       "latest_official_document": "https://www.ecb.europa.eu//press/pr/date/2026/html/ecb.mp261029~9a493adf17.en.html",
       "speaker_verified": false,
-      "source_age_seconds": 6930.117896,
+      "source_age_seconds": 13342.150782,
       "wire_health": "STALE",
       "producer_wire_health": "FRESH",
-      "latest_decision_headline_age_seconds": 10050.117896,
+      "latest_decision_headline_age_seconds": 16462.150782,
       "position_profit_pips": null,
       "current_net_R": null,
       "profit_at_risk_pips": null,
@@ -201,9 +201,9 @@
       "mfe_R": null,
       "remaining_upside_R": null,
       "reward_to_downside": null,
-      "quote_age_seconds": 58.117896,
+      "quote_age_seconds": 48.150782,
       "current_executable_exit_price": null,
-      "paper_proxy_price": 1.1058276891708374,
+      "paper_proxy_price": 1.1059499979019165,
       "paper_proxy_uncertain": true,
       "spread_pips": null,
       "spread_multiple": null,
@@ -254,30 +254,31 @@
       "data_as_of": "2026-11-12T18:37:00Z",
       "first_seen_at": "2026-11-12T18:36:58Z",
       "producer_sha": "54251176e4769915afda29fb39209aa0f405be9f",
-      "consumer_sha": "665f6b2e6cafb52f5f52b259bd52b56bfc83367e",
+      "consumer_sha": "51f6c688b61d2b913575836869810fe4e5f56295",
       "snapshot_sha256": "1a2ec20d8d90dce79b7532d4ea17afe404146014fcbd491f5f1c816c7c98f2dd",
       "executed_at": null,
       "execution_price_source": null,
       "execution_authorized": false,
       "latency_breakdown": {
         "source_to_seen_seconds": 3118.0,
-        "snapshot_to_consumer_seconds": 6930.117896,
+        "snapshot_to_consumer_seconds": 13342.150782,
         "decision_to_execution_seconds": null
       },
       "risk_model_sample_sha256": null,
       "consumer_code_sha256": "78c788c7424807bdb22d8d3415fe808b2e2a99145c8ead1fe4cdb5a4645f15df",
-      "immutable_id": "8e2fff8debef86edd50aa7285c3997391e28bab95bec6a9b2564c3c50b232e38"
+      "immutable_id": "1b915a0ba5eb04bbba84bf2fba9b460fab20558dc50aa7637845865755948a78"
     },
     "decision_mode": "SHADOW",
-    "decision": "BLOCK_NEW_ENTRY",
+    "decision": "HOLD",
     "reason": [
       "RISK_MODEL_UNCALIBRATED",
       "OLD_UNVERIFIED_CB_EVENT_EXPIRED_WITHOUT_END_PROOF",
+      "WES_STALE_WIRE_GRACE_EXHAUSTED_RELEASED_RECOVERY_REQUIRED",
       "RSS_STALE",
       "NO_EXECUTABLE_QUOTE",
       "EXECUTION_COSTS_UNKNOWN"
     ],
-    "immutable_id": "8e2fff8debef86edd50aa7285c3997391e28bab95bec6a9b2564c3c50b232e38",
+    "immutable_id": "1b915a0ba5eb04bbba84bf2fba9b460fab20558dc50aa7637845865755948a78",
     "executed_at": null,
     "execution_price_source": null,
     "execution_authority": false,
@@ -291,15 +292,15 @@
       "exit_price": null
     },
     "entry_guard_enabled": true,
-    "consumer_sha": "665f6b2e6cafb52f5f52b259bd52b56bfc83367e",
+    "consumer_sha": "51f6c688b61d2b913575836869810fe4e5f56295",
     "consumer_code_sha256": "f6f2e41ea17d983296cbad4072601d0875443b3eb739e1c98b3e2a384ffad20f",
     "price_watchdog": {
       "instrument_id": "eurusd",
-      "price_observed_at": "2026-11-12T21:31:32+01:00",
-      "price_age_seconds": 58.117896,
+      "price_observed_at": "2026-11-12T23:18:34+01:00",
+      "price_age_seconds": 48.150782,
       "fresh_for_display_mark": true,
       "fresh_for_execution": false,
-      "last_known_price": 1.1058276891708374,
+      "last_known_price": 1.1059499979019165,
       "status": "FRESH",
       "alerts": [],
       "recovery_required": false
