@@ -185,7 +185,7 @@ class HouseViewIntelligenceV2Tests(unittest.TestCase):
                 html = (m.ROOT / path).read_text(encoding="utf-8")
                 self.assertEqual(html.count("data-house-view-legacy"), 1)
                 self.assertEqual(html.count("<details class=\"hvm-legacy\""), 1)
-                self.assertIn("house-view-monthly.js?v=20261108-2", html)
+                self.assertIn("house-view-monthly.js?v=20261112-1", html)
         script = (m.ROOT / "scripts/house-view-monthly.js").read_text(encoding="utf-8")
         self.assertIn("renderV2", script)
         self.assertNotIn("innerHTML", script)
