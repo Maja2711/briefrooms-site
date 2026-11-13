@@ -19,7 +19,7 @@ The implementation uses `scripts/gse_weekly_editorial.py`, `.github/workflows/gs
 - Separate confirmed facts from interpretation and scenario conditionals. Uncalibrated GSE event probabilities must not be asserted as facts.
 - Avoid fake quotes, names, dates, figures, doctrines and source claims; no engine telemetry in editorial story.
 - Block output if GSE topic, fresh corroboration, source reference, image license or review is inadequate. Do not silently produce substitute filler.
-- Prevent repeating a topic from the two most recent editions.
+- Avoid repeating a topic from the preceding two calendar weeks; older topics may return when new independent evidence is available.
 - Freeze GSE public-projection SHA-256, sources, photographer/license and Gemini generator/reviewer metadata per week, without exposing private GSE evidence.
 - Even with evidence anchors and independent Gemini review, semantic accuracy remains a nonzero risk requiring editorial governance.
 
