@@ -187,8 +187,23 @@ def collect_evidence(today: date) -> list[dict]:
     return items
 
 
-def select_topic(topics: list[str], items: list[dict], previous: list[dict]) -> tuple[str, list[dict]]:
-    recent = {row.get("topic") for row in previous[:2]}
+def select_topic(topics: list[str], items: list[dict], previous: list[dict], today: date) -> tuple[str, list[dict]]:
+    # Anti-repeat is a two-CALENDAR-WEEK window, not the last two published
+    # editions: otherwise one important topic could be suppressed indefinitely.
+    recent = set()
+    current_monday = date.fromisocalendar(*today.isocalendar()[:2], 1)
+    for row in previous:
+        try:
+            key = str(row.get("week") or "")
+            if not ISSUE_RE.fullmatch(key):
+                continue
+            year, week = (int(x) for x in key.split("-W"))
+            prior_monday = date.fromisocalendar(year, week, 1)
+            age_days = (current_monday - prior_monday).days
+            if 0 <= age_days <= 14:
+                recent.add(row.get("topic"))
+        except (ValueError, TypeError):
+            continue
     ranked = []
     for priority, topic in enumerate(topics):
         if topic in recent:
@@ -557,7 +572,7 @@ def run(today: date, root: Path = ROOT) -> list[str]:
     idx = root / "data/geo_weekly/index.json"
     previous = json.loads(idx.read_text(encoding="utf-8")).get("issues", []) if idx.exists() else []
     sources = collect_evidence(today)
-    topic, selected = select_topic(topics, sources, previous)
+    topic, selected = select_topic(topics, sources, previous, today)
     photo = pick_commons_photo(topic, today)
     drafts, ai_audit = gemini_generate(topic, selected, sha, week)
     validate_draft(drafts, selected)
