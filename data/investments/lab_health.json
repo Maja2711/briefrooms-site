@@ -3,19 +3,24 @@
     "frontend_load_success_is_not_health": true,
     "healthy_means": "all canonical Lab sources valid and fresh, closed-loop invariants satisfied, and latest source workflows successful"
   },
-  "generated_at": "2026-11-13T08:01:00.832211Z",
+  "generated_at": "2026-11-13T15:20:26.199406Z",
   "production_authority": false,
   "read_only": true,
-  "reasons": [],
+  "reasons": [
+    "experiment_registry:stale_source",
+    "experience_store:stale_source"
+  ],
   "schema_version": "briefrooms-lab-health-v1",
   "sources": {
     "experience_store": {
-      "age_hours": 1.886,
+      "age_hours": 9.21,
       "generated_at": "2026-11-13T06:07:50.167772Z",
       "max_age_hours": 6,
       "path": "data/investments/experience_store_public.json",
-      "reasons": [],
-      "state": "HEALTHY",
+      "reasons": [
+        "stale_source"
+      ],
+      "state": "DEGRADED",
       "workflow": "experience-store-public.yml",
       "workflow_status": {
         "conclusion": "success",
@@ -26,12 +31,14 @@
       }
     },
     "experiment_registry": {
-      "age_hours": 5.923,
+      "age_hours": 13.247,
       "generated_at": "2026-11-13T02:05:38Z",
       "max_age_hours": 12,
       "path": "data/investments/experiment_registry.json",
-      "reasons": [],
-      "state": "HEALTHY",
+      "reasons": [
+        "stale_source"
+      ],
+      "state": "DEGRADED",
       "workflow": "experiment-registry.yml",
       "workflow_status": {
         "conclusion": "success",
@@ -42,7 +49,7 @@
       }
     },
     "research_lab": {
-      "age_hours": 0.041,
+      "age_hours": 7.364,
       "generated_at": "2026-11-13T08:58:35+01:00",
       "max_age_hours": 192,
       "path": "data/investments/research_lab_report.json",
@@ -58,5 +65,5 @@
       }
     }
   },
-  "status": "HEALTHY"
+  "status": "DEGRADED"
 }
