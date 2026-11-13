@@ -83,76 +83,8 @@
     "US:2026-11-12"
   ],
   "promoted_to_full_at": "2026-09-18T13:55:05.203330Z",
-  "last_run_at": "2026-11-13T14:36:24.663371Z",
+  "last_run_at": "2026-11-13T15:08:20.962058Z",
   "audit": [
-    {
-      "run_at": "2026-11-03T11:00:55.980374Z",
-      "phase": "FULL",
-      "actions": [
-        {
-          "market": "GPW",
-          "action": "hold_capacity",
-          "phase": "FULL",
-          "open_positions": 3,
-          "provenance": {
-            "schema_version": "briefrooms-provenance-contract-v1",
-            "artifact_id": "stock-trading-v2:hold_capacity:1ab149e86659f555947c4c23",
-            "artifact_type": "stock_hold_capacity",
-            "engine_id": "stock_trading_v2",
-            "engine_version": "v2",
-            "created_at": "2026-11-03T11:00:45.760987Z",
-            "parent_artifact_ids": [],
-            "source_ids": [],
-            "evidence_ids": [],
-            "belief_ids": [],
-            "decision_id": "stock-trading-v2:hold_capacity:1ab149e86659f555947c4c23",
-            "forecast_id": null,
-            "verification_id": null,
-            "payload_hash": "1ab149e86659f555947c4c230ed6efedb03a049021a7af54ede098c470f69c97",
-            "authority": "decision",
-            "prospective": true,
-            "domain_provenance": {
-              "market": "GPW",
-              "phase": "FULL",
-              "native_write_time": true,
-              "legacy_execution_provenance_preserved": false,
-              "audit_index": 0
-            }
-          }
-        },
-        {
-          "market": "US",
-          "action": "skip",
-          "reason": "opportunity_stale",
-          "age_minutes": 872.78,
-          "provenance": {
-            "schema_version": "briefrooms-provenance-contract-v1",
-            "artifact_id": "stock-trading-v2:skip:00101cb1842141f8dda8853e",
-            "artifact_type": "stock_skip",
-            "engine_id": "stock_trading_v2",
-            "engine_version": "v2",
-            "created_at": "2026-11-03T11:00:45.760987Z",
-            "parent_artifact_ids": [],
-            "source_ids": [],
-            "evidence_ids": [],
-            "belief_ids": [],
-            "decision_id": "stock-trading-v2:skip:00101cb1842141f8dda8853e",
-            "forecast_id": null,
-            "verification_id": null,
-            "payload_hash": "00101cb1842141f8dda8853e98ee2523de014521b138cec6c91bb527337bf577",
-            "authority": "decision",
-            "prospective": true,
-            "domain_provenance": {
-              "market": "US",
-              "phase": "FULL",
-              "native_write_time": true,
-              "legacy_execution_provenance_preserved": false,
-              "audit_index": 1
-            }
-          }
-        }
-      ]
-    },
     {
       "run_at": "2026-11-03T12:48:18.002531Z",
       "phase": "FULL",
@@ -7590,6 +7522,134 @@
             "forecast_id": null,
             "verification_id": null,
             "payload_hash": "d8b01b96246b59fc6209fc0cc73d3d8029ffd37027ff2f126755c0d2d8d64d6b",
+            "authority": "decision",
+            "prospective": true,
+            "domain_provenance": {
+              "market": "US",
+              "phase": "FULL",
+              "native_write_time": true,
+              "legacy_execution_provenance_preserved": false,
+              "audit_index": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "run_at": "2026-11-13T15:08:20.962058Z",
+      "phase": "FULL",
+      "actions": [
+        {
+          "action": "open",
+          "market": "GPW",
+          "position_id": "gpw:20261113T160819:ALE.WA",
+          "symbol": "ALE.WA",
+          "sizing_policy_version": "FIXED_NOTIONAL_V1",
+          "target_position_notional": 5000.0,
+          "position_currency": "PLN",
+          "quantity": 75.10890827,
+          "reentry_justification": {
+            "allowed": true,
+            "reason": "stop_loss_window_expired"
+          },
+          "portfolio_risk": {
+            "allowed": true,
+            "reason": "portfolio_risk_within_limits",
+            "market": "GPW",
+            "currency": "PLN",
+            "risk_basis": "CURRENT_MARK_TO_STOP_PLUS_REMAINING_COSTS",
+            "aggregate_stop_loss_cash": 356.134,
+            "candidate_stop_loss_cash": 166.7281,
+            "proposed_aggregate_stop_loss_cash": 522.8622,
+            "candidate_sector": "handel internetowy",
+            "sector_positions": {
+              "artykuły codziennego użytku": 1,
+              "banki komercyjne": 1
+            },
+            "proposed_sector_positions": {
+              "artykuły codziennego użytku": 1,
+              "banki komercyjne": 1,
+              "handel internetowy": 1
+            },
+            "unknown_sector_positions": 0,
+            "missing_risk_position_ids": [],
+            "current_sector_observation_ids": {
+              "gpw:20261103T155240:PCO.WA": "11e6477a081df5da29a084b5395c21d7c7c3b2d03f5e36fc12c93dadcafa0de4",
+              "gpw:20261103T155240:MBK.WA": "694ca2266f6b83f957fed5e50c6ce35ce22dac110e5c25d2b043e2744fb25b10",
+              "ALE.WA": "da59f7fa553613c044cde05694bf522c4981153d146d2c21e2d93ec52f68eae2"
+            },
+            "remaining_exit_cost_basis": {
+              "gpw:20261103T155240:PCO.WA": "FROZEN_ENTRY_PAPER_ASSUMPTION",
+              "gpw:20261103T155240:MBK.WA": "FROZEN_ENTRY_PAPER_ASSUMPTION"
+            },
+            "limits": {
+              "enabled": true,
+              "max_aggregate_stop_loss_cash": 1050.0,
+              "max_sector_positions": 2,
+              "max_unknown_sector_positions": 3
+            }
+          },
+          "source_engine": "v2",
+          "phase": "FULL",
+          "deep_rank": 1,
+          "utility": 95.395063,
+          "opened_at": "2026-11-13T16:08:19+01:00",
+          "entry_decision_at": "2026-11-13T16:08:19+01:00",
+          "execution_provenance": {
+            "source": "stock_trading_v2_production_bridge",
+            "quote_observed_at": "2026-11-13T15:52:54+01:00",
+            "quote_received_at": "2026-11-13T15:08:08.203855+00:00",
+            "recorded_at": "2026-11-13T15:08:19.806633Z"
+          },
+          "provenance": {
+            "schema_version": "briefrooms-provenance-contract-v1",
+            "artifact_id": "stock-trading-v2:open:gpw:20261113T160819:ALE.WA",
+            "artifact_type": "stock_open",
+            "engine_id": "stock_trading_v2",
+            "engine_version": "v2",
+            "created_at": "2026-11-13T16:08:19+01:00",
+            "parent_artifact_ids": [],
+            "source_ids": [
+              "stock_trading_v2_production_bridge",
+              "v2"
+            ],
+            "evidence_ids": [],
+            "belief_ids": [],
+            "decision_id": "gpw:20261113T160819:ALE.WA",
+            "forecast_id": null,
+            "verification_id": null,
+            "payload_hash": "8c2edca1de6017f67a1b10f57c8be600be911754f1c20fb4b2c1a308678ca9c8",
+            "authority": "execution",
+            "prospective": true,
+            "domain_provenance": {
+              "market": "GPW",
+              "phase": "FULL",
+              "native_write_time": true,
+              "legacy_execution_provenance_preserved": true,
+              "audit_index": 0
+            }
+          }
+        },
+        {
+          "market": "US",
+          "action": "skip",
+          "reason": "opportunity_stale",
+          "age_minutes": 1055.63,
+          "provenance": {
+            "schema_version": "briefrooms-provenance-contract-v1",
+            "artifact_id": "stock-trading-v2:skip:e5be044b915aa14cc5eb3837",
+            "artifact_type": "stock_skip",
+            "engine_id": "stock_trading_v2",
+            "engine_version": "v2",
+            "created_at": "2026-11-13T15:08:06.196240Z",
+            "parent_artifact_ids": [],
+            "source_ids": [],
+            "evidence_ids": [],
+            "belief_ids": [],
+            "decision_id": "stock-trading-v2:skip:e5be044b915aa14cc5eb3837",
+            "forecast_id": null,
+            "verification_id": null,
+            "payload_hash": "e5be044b915aa14cc5eb3837061ba387f2ded0eb776276d2d38e7d26202eec51",
             "authority": "decision",
             "prospective": true,
             "domain_provenance": {
