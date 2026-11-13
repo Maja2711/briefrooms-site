@@ -1,6 +1,6 @@
 # Kanoniczna mapa architektury BriefRooms — PL
 
-**Wersja mapy:** 1.50
+**Wersja mapy:** 1.51
 
 **Stan na:** 2026-11-11
 
@@ -351,6 +351,8 @@ Monitor odróżnia zamrożone kohorty od ocen oraz zbieranie przyszłej taśmy o
 | `CT-04` | AXIOM Thought | Publikacja myśli/motta z guardem jakości | `axiom_thought_guard.py`, `publish_axiom_thought.py` |
 | `CT-05` | Public projections / UI | Sanitized JSON/JS -> PL/EN pages | liczne `*_public_projection.py`, JS renderers, `pl/`, `en/` |
 | `CT-06` | Home / editorial | Home brief, market signal, Hot X, editorial rules | home build pipelines, `briefrooms_editorial_rules.md`, content contracts |
+
+**IN-03 / CT-05 — GSE Weekly Geopolitics Editorial (PL/EN):** odrębny publikator `scripts/gse_weekly_editorial.py` odczytuje publiczną, świeżą projekcję GSE v2 w trybie read-only, a temat wybiera wyłącznie z objętych nią rodzin scenariuszy. Niezależne i świeże materiały UN News, BBC i Guardian dostarczają fakty. Istniejący adapter Gemini generuje i recenzuje artykuł PL/EN; każdy akapit wymagający źródła ma wskazany identyfikator i kotwicę. Zdjęcie Commons wymaga dozwolonej licencji, autora i atrybucji. `.github/workflows/gse-weekly-editorial.yml` planuje niedzielną publikację, kontroluje jakość, repozytorium zapisuje wyłącznie `data/geo_weekly/`, nowe strony `pl/geo/briefing-YYYY-Www.html` oraz `en/geo/briefing-YYYY-Www.html` i wpisy biblioteki `pl/geopolityka.html`/`en/geopolitics.html`. Immutable tydzień, kontrola powtórzeń, fail-closed przy braku źródeł/zdjęcia/API, brak autorytetu forecastów/kalibracji/polityki/tradingu. Szczegóły: `docs/GSE_WEEKLY_EDITORIAL_PL.md` i `_EN.md`.
 
 **CT-05 / TR-08 — miesięczna publikacja S&P 500 House View (research-only):** v2: scripts/publish_monthly_house_view.py utrzymuje obowiązkowe, źródłowe serie FRED i niezmieniony bilans makro 1M/6M/12M. scripts/house_view_research_v2.py tworzy deterministyczną polsko-angielską analizę z odczytów publicznych GSE (geopolityka), FSE (struktura/ryzyko), BRACE-SPX (bramka reżimu) i zamrożonego WES SPX (momentum). Żaden GSE/FSE/BRACE nie ma kierunkowego vote ani production authority; prywatny Belief Core nie jest rekonstruowany. Jawnie brak feedu EPS/forward P/E, dopuszczona tylko kuratela źródłowa. Każdy miesiąc ma zamrożony raport, source IDs, SHA-256 lokalnych projekcji, daty i statusy świeżości. scripts/house-view-monthly.js renderuje cały bieżący House View, zachowując październikowy artykuł w rozwijanym archiwum. Workflow .github/workflows/house-view-monthly.yml zapisuje wyłącznie house_view_monthly_current.json i house_view_monthly_archive/YYYY-MM.json; brak jakiegokolwiek trade/Belief/policy/engine writeback, samopromocji i automatycznej zmiany metody. Kontrakt i ograniczenia: docs/HOUSE_VIEW_MONTHLY_PL.md oraz _EN.md. **Warstwa redakcyjna v2.1:** na podstawie zamrożonych inputs/views i kwalifikowanych flag ryzyka formułuje kierunkową tezę o S&P 500, wpływ stóp na P/E, konsekwencje braków EPS, scenariusze i warunki odwrócenia tezy. Nie interpretuje raportów technicznych jako sygnałów transakcyjnych. Frontend renderuje bieżący immutable snapshot z aktualną, jawnie wersjonowaną interpretacją językową (bez backfillu lub zmiany historycznego JSON); surowe statusy i scoring są przeniesione do rozwijanej sekcji metodologicznej. Nie powstaje nowy silnik decyzji, source adapter, źródło authority ani writer.
 
