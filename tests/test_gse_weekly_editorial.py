@@ -106,7 +106,7 @@ class GSEWeeklyEditorialTests(unittest.TestCase):
             self.assertEqual(topics, ["russia_ukraine_black_sea_escalation"])
             self.assertEqual(len(digest), 64)
             self.assertIn("generated_at", original.read_text())
-            topic, selected = g.select_topic(topics, [dict(x) for x in SOURCES], [])
+            topic, selected = g.select_topic(topics, [dict(x) for x in SOURCES], [], DAY)
             self.assertEqual(topic, topics[0])
             self.assertEqual(len(selected), 3)
             self.assertTrue(any(s["primary"] for s in selected))
@@ -130,11 +130,15 @@ class GSEWeeklyEditorialTests(unittest.TestCase):
     def test_requires_multiple_credible_sources_and_avoids_repetition(self):
         topics = ["russia_ukraine_black_sea_escalation"]
         with self.assertRaises(g.EditorialBlocked):
-            g.select_topic(topics, [dict(SOURCES[0])], [])
+            g.select_topic(topics, [dict(SOURCES[0])], [], DAY)
         with self.assertRaises(g.EditorialBlocked):
-            g.select_topic(topics, [dict(x) for x in SOURCES], [{"topic": topics[0]}])
+            g.select_topic(topics, [dict(x) for x in SOURCES], [{"week": "2026-W45", "topic": topics[0]}], DAY)
         with self.assertRaises(g.EditorialBlocked):
-            g.select_topic(topics, [dict(x) for x in SOURCES if not x["primary"]], [])
+            g.select_topic(topics, [dict(x) for x in SOURCES if not x["primary"]], [], DAY)
+        # An old issue must not block a recurring conflict forever.
+        topic, _ = g.select_topic(topics, [dict(x) for x in SOURCES],
+                                  [{"week": "2026-W40", "topic": topics[0]}], DAY)
+        self.assertEqual(topic, topics[0])
 
     def test_commons_license_and_photo_attribution_gate(self):
         metadata = {
