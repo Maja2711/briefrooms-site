@@ -27,7 +27,7 @@
       "forecast": {
         "n": 32,
         "p": null,
-        "status": "INSUFFICIENT_TRAINING_EVIDENCE"
+        "status": "NO_FRESH_ELIGIBLE_DOWNSWING"
       },
       "frozen_prospective_oos": {
         "brier": 0.044622,
@@ -41,7 +41,7 @@
         "positive": 0,
         "status": "BACKTEST_ONLY_NOT_LIVE_VALIDATED"
       },
-      "live_resolved_episodes": 15,
+      "live_resolved_episodes": 16,
       "production_authority": false,
       "replay_walk_forward": {
         "n": 0,
@@ -53,7 +53,7 @@
       "forecast": {
         "n": 31,
         "p": null,
-        "status": "INSUFFICIENT_TRAINING_EVIDENCE"
+        "status": "NO_FRESH_ELIGIBLE_DOWNSWING"
       },
       "frozen_prospective_oos": {
         "brier": 0.341496,
@@ -67,7 +67,7 @@
         "positive": 2,
         "status": "BACKTEST_ONLY_NOT_LIVE_VALIDATED"
       },
-      "live_resolved_episodes": 15,
+      "live_resolved_episodes": 16,
       "production_authority": false,
       "replay_walk_forward": {
         "n": 0,
@@ -77,9 +77,9 @@
     },
     "5": {
       "forecast": {
-        "n": 33,
+        "n": 32,
         "p": null,
-        "status": "INSUFFICIENT_TRAINING_EVIDENCE"
+        "status": "NO_FRESH_ELIGIBLE_DOWNSWING"
       },
       "frozen_prospective_oos": {
         "brier": 0.004725,
@@ -93,7 +93,7 @@
         "positive": 0,
         "status": "BACKTEST_ONLY_NOT_LIVE_VALIDATED"
       },
-      "live_resolved_episodes": 15,
+      "live_resolved_episodes": 16,
       "production_authority": false,
       "replay_walk_forward": {
         "n": 0,
@@ -103,21 +103,7 @@
     }
   },
   "instrument": "EUR/USD",
-  "latest_market_observation": {
-    "at": "2026-11-13T08:02:00Z",
-    "features": {
-      "bounce_from_low_pips": 0.0,
-      "ema20_minus_ema60_pips": -2.941087,
-      "impulse_minutes": 56.0,
-      "impulse_pips": 13.474226,
-      "momentum_5m_pips": -2.447367,
-      "realized_abs_change_1m_pips": 0.798033,
-      "time_since_low_min": 4.0,
-      "utc_session": "EUROPE"
-    },
-    "spot_mid": 1.106072,
-    "threshold_pips": 3.368556
-  },
+  "latest_market_observation": null,
   "mode": "PROSPECTIVE_PLUS_MARKET_REPLAY_SHADOW",
   "prospective_episode_count": 16,
   "prospective_episodes": [
@@ -1306,13 +1292,34 @@
       "observed_at": "2026-11-13T08:02:00Z",
       "outcomes": {
         "15": {
-          "status": "PENDING"
+          "bar_count": 15,
+          "is_executable_quote": false,
+          "known_at": "2026-11-13T08:17:00Z",
+          "label": 1,
+          "max_close_rebound_pips": 7.348743,
+          "rebound_at": "2026-11-13T08:09:00Z",
+          "status": "RESOLVED",
+          "target_price_mid": 1.106409
         },
         "30": {
-          "status": "PENDING"
+          "bar_count": 30,
+          "is_executable_quote": false,
+          "known_at": "2026-11-13T08:32:00Z",
+          "label": 1,
+          "max_close_rebound_pips": 9.799686,
+          "rebound_at": "2026-11-13T08:09:00Z",
+          "status": "RESOLVED",
+          "target_price_mid": 1.106409
         },
         "5": {
-          "status": "PENDING"
+          "bar_count": 5,
+          "is_executable_quote": false,
+          "known_at": "2026-11-13T08:07:00Z",
+          "label": 0,
+          "max_close_rebound_pips": 2.450433,
+          "rebound_at": null,
+          "status": "RESOLVED",
+          "target_price_mid": 1.106409
         }
       },
       "signal_uses_future": false,
@@ -1326,10 +1333,10 @@
   "replay_coverage": {
     "dates": 5,
     "first": "2026-11-09T15:30:00Z",
-    "last": "2026-11-13T08:00:00Z"
+    "last": "2026-11-13T16:00:00Z"
   },
-  "replay_episode_count": 19,
+  "replay_episode_count": 21,
   "research_note": "NO calibrated probability or trading exit claim until prospective OOS, sufficient days and risk validation",
   "schema_version": "eurusd-correction-probability-shadow-v1",
-  "updated_at": "2026-11-13T08:03:28Z"
+  "updated_at": "2026-11-13T16:08:40Z"
 }
