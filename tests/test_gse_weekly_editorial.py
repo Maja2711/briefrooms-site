@@ -213,6 +213,48 @@ class GSEWeeklyEditorialTests(unittest.TestCase):
             for lang in ("pl", "en"):
                 self.assertEqual((root / ("pl/geopolityka.html" if lang == "pl" else "en/geopolitics.html")).read_bytes(), before[lang])
 
+    def test_real_geopolitics_room_preserves_books_and_gse_lab(self):
+        for lang, path in (("pl", g.ROOT / "pl/geopolityka.html"),
+                           ("en", g.ROOT / "en/geopolitics.html")):
+            original = path.read_text(encoding="utf-8")
+            updated = g.patch_room(
+                original, g.weekly_block(draft()[lang], lang, WEEK, PHOTO),
+                g.weekly_archive_tiles(lang, [{
+                    "week": WEEK, "title_pl": draft()["pl"]["title"],
+                    "title_en": draft()["en"]["title"],
+                    "dek_pl": draft()["pl"]["dek"], "dek_en": draft()["en"]["dek"],
+                    "photo_url": PHOTO["url"], "published_at": "2026-11-15T09:17:00+01:00",
+                }])
+            )
+            self.assertIn("BR_GSE_LAB_ENTRY_START", updated)
+            self.assertEqual(updated.count("BR_GSE_LAB_ENTRY_START"), original.count("BR_GSE_LAB_ENTRY_START"))
+            self.assertIn("GSE Lab", updated)
+            self.assertEqual(updated.count('<section class="library"'), original.count('<section class="library"'))
+            self.assertEqual(updated.count('class="tile"'), original.count('class="tile"'))
+            self.assertIn("geo/briefing-"+WEEK+".html", updated)
+            self.assertEqual(updated.count(g.ARCHIVE_START), 1)
+            self.assertIn("Wikimedia Commons", updated)
+
+    def test_gemini_failure_leaves_all_public_artifacts_untouched(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            original = setup(root)
+            pages_before = {
+                lang: (root / ("pl/geopolityka.html" if lang == "pl" else "en/geopolitics.html")).read_bytes()
+                for lang in ("pl", "en")
+            }
+            with patch.object(g, "collect_evidence", return_value=[dict(x) for x in SOURCES]), \
+                 patch.object(g, "pick_commons_photo", return_value=dict(PHOTO)), \
+                 patch.object(g, "gemini_generate", side_effect=g.EditorialBlocked("Gemini review failed")):
+                with self.assertRaisesRegex(g.EditorialBlocked, "Gemini review failed"):
+                    g.run(DAY, root)
+            self.assertFalse((root / "data/geo_weekly/index.json").exists())
+            self.assertFalse((root / f"data/geo_weekly/issues/{WEEK}.json").exists())
+            self.assertEqual(original.read_bytes(), (root / "data/gse/gse_v2_lab_public.json").read_bytes())
+            for lang in ("pl", "en"):
+                page = root / ("pl/geopolityka.html" if lang == "pl" else "en/geopolitics.html")
+                self.assertEqual(page.read_bytes(), pages_before[lang])
+
     def test_html_escaping_and_safe_domains(self):
         self.assertFalse(g.safe_https("http://upload.wikimedia.org/a.jpg", ("upload.wikimedia.org",)))
         self.assertFalse(g.safe_https('https://upload.wikimedia.org/a.jpg"onerror="x', ("upload.wikimedia.org",)))
