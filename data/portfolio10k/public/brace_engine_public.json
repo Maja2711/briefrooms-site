@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-11-13T14:30:26+00:00",
+  "generated_at": "2026-11-13T14:52:17+00:00",
   "methodology_version": "3.1.0",
-  "data_freshness": "current",
+  "data_freshness": "unsafe",
   "source_metadata": {
     "publisher": "brace_portfolio_publish.py",
     "canonical_frontend_source": true,
@@ -10,9 +10,9 @@
     "paper_only": true,
     "real_broker_connected": false
   },
-  "controller_status": "PROBATIONARY_CONTROL",
+  "controller_status": "FALLBACK_BASELINE",
   "display_status": "BRACE_PROBATIONARY_PAPER_CONTROL",
-  "portfolio_data_path": "/data/portfolio10k/paper_portfolio.json",
+  "portfolio_data_path": "/data/investments/portfolio_10k.json",
   "analysis_summary": {
     "portfolio_score": 56.6557,
     "portfolio_confidence": 0.986814,
@@ -29,7 +29,7 @@
     "status": "CURRENT",
     "overdue": false,
     "analysis_generated_at": "2026-11-13T02:45:07+00:00",
-    "analysis_age_hours": 0.0,
+    "analysis_age_hours": 12.12,
     "latest_required_slot": "2026-11-12T22:30:00+00:00"
   },
   "position_recommendations": [
@@ -193,128 +193,28 @@
     }
   ],
   "champion": {
-    "methodology_id": "brace-portfolio-engine",
-    "version": "3.1.0",
-    "status": "PROBATIONARY_CONTROL"
+    "methodology_id": "portfolio-10k-baseline",
+    "version": "1.0.0",
+    "status": "ACTIVE_BASELINE"
   },
   "baseline": {
     "methodology_id": "portfolio-10k-baseline",
     "version": "1.0.0",
-    "status": "FALLBACK_BASELINE",
+    "status": "ACTIVE_BASELINE",
     "immutable": true,
     "source_path": "data/portfolio10k/baseline_portfolio.json"
   },
   "challenger": {
     "methodology_id": "brace-portfolio-engine",
     "version": "3.1.0",
-    "status": "PROBATIONARY_CONTROL"
+    "status": "FALLBACK_BASELINE"
   },
   "promotion_progress": {
-    "passed": 10,
-    "total": 18,
-    "percentage": 55.6,
-    "conditions": [
-      {
-        "group": "probation",
-        "condition": "minimum_calendar_days",
-        "passed": true
-      },
-      {
-        "group": "probation",
-        "condition": "daily_rotation_limit",
-        "passed": false
-      },
-      {
-        "group": "probation",
-        "condition": "weekly_change_limit",
-        "passed": false
-      },
-      {
-        "group": "probation",
-        "condition": "weekly_turnover_limit",
-        "passed": false
-      },
-      {
-        "group": "probation",
-        "condition": "new_position_limit",
-        "passed": false
-      },
-      {
-        "group": "probation",
-        "condition": "minimum_confidence",
-        "passed": false
-      },
-      {
-        "group": "probation",
-        "condition": "no_full_portfolio_replacement",
-        "passed": true
-      },
-      {
-        "group": "probation",
-        "condition": "transaction_cost_buffer_applied",
-        "passed": false
-      },
-      {
-        "group": "probation",
-        "condition": "cooldown_applied",
-        "passed": false
-      },
-      {
-        "group": "probation",
-        "condition": "material_advantage_required",
-        "passed": false
-      },
-      {
-        "group": "probation",
-        "condition": "no_fallback_trigger",
-        "passed": true
-      },
-      {
-        "group": "operational",
-        "condition": "no_critical_data_errors",
-        "passed": true
-      },
-      {
-        "group": "operational",
-        "condition": "decisions_reproducible",
-        "passed": true
-      },
-      {
-        "group": "operational",
-        "condition": "entry_history_unchanged",
-        "passed": true
-      },
-      {
-        "group": "operational",
-        "condition": "timestamps_complete",
-        "passed": true
-      },
-      {
-        "group": "operational",
-        "condition": "workflow_stable",
-        "passed": true
-      },
-      {
-        "group": "operational",
-        "condition": "public_internal_consistent",
-        "passed": true
-      },
-      {
-        "group": "operational",
-        "condition": "integrity_tests_pass",
-        "passed": true
-      }
-    ],
-    "remaining": [
-      "daily_rotation_limit",
-      "weekly_change_limit",
-      "weekly_turnover_limit",
-      "new_position_limit",
-      "minimum_confidence",
-      "transaction_cost_buffer_applied",
-      "cooldown_applied",
-      "material_advantage_required"
-    ],
+    "passed": 0,
+    "total": 0,
+    "percentage": 0.0,
+    "conditions": [],
+    "remaining": [],
     "reason": "No status change; promotion gates remain incomplete."
   },
   "shadow": {
@@ -331,8 +231,11 @@
     "expected_drawdown": 0.244706,
     "current_drawdown": null,
     "annual_turnover": 0.094252,
-    "safe_mode": false,
-    "safe_mode_reasons": []
+    "safe_mode": true,
+    "safe_mode_reasons": [
+      "STALE_MARKET_DATA",
+      "TOO_MANY_INVALID_INSTRUMENTS"
+    ]
   },
   "target": {
     "target_annual_return": 0.1,
@@ -347,16 +250,8 @@
   "last_incremental_learning": "2026-11-13T02:45:07+00:00",
   "last_research_run": "2026-11-08T15:34:42+00:00",
   "next_scheduled_analysis": "2026-11-14T02:45:07+00:00",
-  "fallback_reason": null,
+  "fallback_reason": "No status change; promotion gates remain incomplete.",
   "promotion_history": [
-    {
-      "promotion_id": "promotion-cd7669730f2158ff",
-      "previous_status": "PROBATIONARY_CONTROL",
-      "new_status": "FALLBACK_BASELINE",
-      "evaluated_at": "2026-08-18T21:50:11+00:00",
-      "all_conditions_passed": true,
-      "reason": "Automatic fallback: STALE_DATA"
-    },
     {
       "promotion_id": "promotion-ed202366fe853a75",
       "previous_status": "PROBATIONARY_CONTROL",
@@ -442,6 +337,14 @@
       "previous_status": "PROBATIONARY_CONTROL",
       "new_status": "FALLBACK_BASELINE",
       "evaluated_at": "2026-11-05T14:55:09+00:00",
+      "all_conditions_passed": true,
+      "reason": "Automatic fallback: STALE_DATA"
+    },
+    {
+      "promotion_id": "promotion-2b9bfc109231834a",
+      "previous_status": "PROBATIONARY_CONTROL",
+      "new_status": "FALLBACK_BASELINE",
+      "evaluated_at": "2026-11-13T14:52:17+00:00",
       "all_conditions_passed": true,
       "reason": "Automatic fallback: STALE_DATA"
     }
@@ -598,7 +501,7 @@
   },
   "disclaimer_pl": "To autonomiczny eksperyment analityczny i portfel modelowy. Nie jest to rachunek maklerski ani rekomendacja inwestycyjna.",
   "disclaimer_en": "This is an autonomous analytical experiment and a model portfolio. It is not a brokerage account or investment advice.",
-  "content_sha256": "549951baa128ebf122a5676045362f21245832d3a118e4566dea72f98c829234",
+  "content_sha256": "7ac99f60b13ff3fc708232959cd1e0872b9a268ae928d7f1cce394e2e4a6697e",
   "control_authorization": {
     "schema_version": "brace-control-authorization-v1",
     "enabled": true,

@@ -1,11 +1,11 @@
 # BRACE Portfolio Engine weekly report
 
 - **Current status:** BRACE_PROBATIONARY_PAPER_CONTROL
-- **Champion:** brace-portfolio-engine 3.1.0
-- **Challenger:** brace-portfolio-engine 3.1.0 (PROBATIONARY_CONTROL)
-- **Promotion progress:** 10/18 (55.6%)
-- **Remaining promotion gates:** daily rotation limit, weekly change limit, weekly turnover limit, new position limit, minimum confidence, transaction cost buffer applied, cooldown applied, material advantage required
-- **Risk state:** WITHIN_LIMITS / safe mode: False
+- **Champion:** portfolio-10k-baseline 1.0.0
+- **Challenger:** brace-portfolio-engine 3.1.0 (FALLBACK_BASELINE)
+- **Promotion progress:** 0/0 (0.0%)
+- **Remaining promotion gates:** none
+- **Risk state:** WITHIN_LIMITS / safe mode: True
 - **10% annual target:** TARGET_NOT_CURRENTLY_JUSTIFIED
 - **Pending decisions:** 0
 
