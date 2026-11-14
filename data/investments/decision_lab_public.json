@@ -7,7 +7,7 @@
   "automatic_tuning": false,
   "automatic_promotion": false,
   "promotion_policy": "v3_candidates_manual; probability_recalibration_closed_loop_governed",
-  "generated_at": "2026-11-14T15:35:21.651538Z",
+  "generated_at": "2026-11-14T16:33:42.029646Z",
   "evolution_controller": {
     "authority": {
       "belief_evidence_mutation": false,
@@ -56,26 +56,33 @@
             "validation_distinct_target_dates": 10,
             "validation_n": 26
           },
-          "distinct_target_dates": 0,
+          "distinct_target_dates": 1,
           "outcome_conflicts": 0,
           "shadow_oos": {
-            "brier_relative_improvement": null,
+            "brier_relative_improvement": -1.102948,
             "challenger": {
-              "accuracy": null,
-              "brier": null,
-              "ece": null,
-              "log_loss": null,
-              "n": 0
+              "accuracy": 0.0,
+              "brier": 0.421639,
+              "ece": 0.649337,
+              "log_loss": 1.04793,
+              "n": 1
             },
             "chronological_block_relative_improvements": [],
             "control": {
-              "accuracy": null,
-              "brier": null,
-              "ece": null,
-              "log_loss": null,
-              "n": 0
+              "accuracy": 1.0,
+              "brier": 0.200499,
+              "ece": 0.447771,
+              "log_loss": 0.593792,
+              "n": 1
             },
-            "horizon_checks": []
+            "horizon_checks": [
+              {
+                "brier_relative_improvement": -1.102948,
+                "horizon_bucket": "24H",
+                "n": 1,
+                "protected": false
+              }
+            ]
           }
         },
         "promotion_route": "manual_hypothesis_probability_review",
@@ -112,33 +119,33 @@
             "validation_n": 84
           },
           "prospective": {
-            "brier_relative_improvement": 0.012628,
+            "brier_relative_improvement": 0.013089,
             "challenger": {
-              "accuracy": 0.600644,
-              "brier": 0.246287,
-              "ece": 0.10217,
-              "log_loss": 0.691906,
-              "n": 3105
+              "accuracy": 0.60045,
+              "brier": 0.246406,
+              "ece": 0.10151,
+              "log_loss": 0.692143,
+              "n": 3111
             },
             "control": {
-              "accuracy": 0.546538,
-              "brier": 0.249437,
-              "ece": 0.117342,
-              "log_loss": 0.698491,
-              "n": 3105
+              "accuracy": 0.546127,
+              "brier": 0.249674,
+              "ece": 0.116872,
+              "log_loss": 0.698994,
+              "n": 3111
             },
-            "n": 3105,
+            "n": 3111,
             "pass": false,
             "stability": {
               "blocks": 4,
               "improved": 3,
               "relative_improvements": [
-                0.010851,
-                -0.01255,
-                0.011239,
-                0.042558
+                0.011126,
+                -0.012751,
+                0.011333,
+                0.044072
               ],
-              "worst_relative_degradation": 0.01255
+              "worst_relative_degradation": 0.012751
             }
           }
         },
@@ -240,33 +247,33 @@
             "validation_n": 16
           },
           "prospective": {
-            "brier_relative_improvement": -0.045079,
+            "brier_relative_improvement": -0.047276,
             "challenger": {
-              "accuracy": 0.369501,
-              "brier": 0.274585,
-              "ece": 0.189599,
-              "log_loss": 0.74294,
-              "n": 341
+              "accuracy": 0.366279,
+              "brier": 0.274802,
+              "ece": 0.192711,
+              "log_loss": 0.743375,
+              "n": 344
             },
             "control": {
-              "accuracy": 0.466276,
-              "brier": 0.262741,
-              "ece": 0.152013,
-              "log_loss": 0.719483,
-              "n": 341
+              "accuracy": 0.468023,
+              "brier": 0.262397,
+              "ece": 0.154777,
+              "log_loss": 0.718782,
+              "n": 344
             },
-            "n": 341,
+            "n": 344,
             "pass": false,
             "stability": {
               "blocks": 4,
               "improved": 0,
               "relative_improvements": [
-                -0.013997,
-                -0.024804,
-                -0.041683,
-                -0.103175
+                -0.015808,
+                -0.020981,
+                -0.050769,
+                -0.106399
               ],
-              "worst_relative_degradation": 0.103175
+              "worst_relative_degradation": 0.106399
             }
           }
         },
@@ -1330,11 +1337,11 @@
         "route": "Manual Reviewed Belief Probability Overlay"
       }
     ],
-    "generated_at": "2026-11-14T15:18:51.437740Z",
+    "generated_at": "2026-11-14T16:05:54.985799Z",
     "hypotheses": [
       {
         "claim": "gpw LONG decisions in regime unknown show recurring adverse outcomes and warrant a bounded challenger",
-        "created_at": "2026-11-14T15:18:51.437740Z",
+        "created_at": "2026-11-14T16:05:54.985799Z",
         "evidence": {
           "action": "LONG",
           "engine": "gpw",
@@ -1834,29 +1841,29 @@
             "segment": "horizon:0-6H"
           },
           {
-            "brier_relative_improvement": 0.047584,
-            "challenger_brier": 0.178459,
-            "control_brier": 0.187375,
-            "ece_delta": -0.056816,
-            "n": 124,
+            "brier_relative_improvement": 0.027287,
+            "challenger_brier": 0.187436,
+            "control_brier": 0.192694,
+            "ece_delta": -0.030749,
+            "n": 126,
             "pass": true,
             "segment": "horizon:1-5D"
           },
           {
-            "brier_relative_improvement": 0.371483,
-            "challenger_brier": 0.084518,
-            "control_brier": 0.134472,
-            "ece_delta": -0.139442,
-            "n": 143,
+            "brier_relative_improvement": 0.350523,
+            "challenger_brier": 0.089068,
+            "control_brier": 0.137138,
+            "ece_delta": -0.139447,
+            "n": 144,
             "pass": true,
             "segment": "horizon:6-24H"
           },
           {
-            "brier_relative_improvement": 0.26793,
-            "challenger_brier": 0.108279,
-            "control_brier": 0.147908,
-            "ece_delta": -0.139439,
-            "n": 341,
+            "brier_relative_improvement": 0.247091,
+            "challenger_brier": 0.113812,
+            "control_brier": 0.151163,
+            "ece_delta": -0.139443,
+            "n": 344,
             "pass": true,
             "segment": "instrument:BTC"
           }
@@ -1934,7 +1941,7 @@
         ],
         "candidate_id": "evo-belief-72343f0df571e6243bf5f328",
         "minimum_sample": 50,
-        "observed_sample": 3105,
+        "observed_sample": 3111,
         "segment_checks": [
           {
             "brier_relative_improvement": -0.013579,
@@ -1946,11 +1953,11 @@
             "segment": "horizon:0-6H"
           },
           {
-            "brier_relative_improvement": 0.040885,
-            "challenger_brier": 0.233814,
-            "control_brier": 0.243781,
-            "ece_delta": -0.046373,
-            "n": 793,
+            "brier_relative_improvement": 0.041942,
+            "challenger_brier": 0.234248,
+            "control_brier": 0.244503,
+            "ece_delta": -0.049733,
+            "n": 797,
             "pass": true,
             "segment": "horizon:1-5D"
           },
@@ -1964,20 +1971,20 @@
             "segment": "horizon:5D+"
           },
           {
-            "brier_relative_improvement": 0.009639,
-            "challenger_brier": 0.242472,
-            "control_brier": 0.244832,
-            "ece_delta": -0.014142,
-            "n": 1035,
+            "brier_relative_improvement": 0.010073,
+            "challenger_brier": 0.24255,
+            "control_brier": 0.245018,
+            "ece_delta": -0.014797,
+            "n": 1037,
             "pass": true,
             "segment": "horizon:6-24H"
           },
           {
-            "brier_relative_improvement": 0.021563,
-            "challenger_brier": 0.220621,
-            "control_brier": 0.225483,
-            "ece_delta": -0.050518,
-            "n": 1518,
+            "brier_relative_improvement": 0.022538,
+            "challenger_brier": 0.220965,
+            "control_brier": 0.22606,
+            "ece_delta": -0.050285,
+            "n": 1524,
             "pass": true,
             "segment": "instrument:BTC"
           },
@@ -2302,7 +2309,7 @@
         ],
         "candidate_id": "evo-belief-b82c00cc54e2c56e166c8e6a",
         "minimum_sample": 50,
-        "observed_sample": 341,
+        "observed_sample": 344,
         "segment_checks": [
           {
             "brier_relative_improvement": 0.030798,
@@ -2314,29 +2321,29 @@
             "segment": "horizon:0-6H"
           },
           {
-            "brier_relative_improvement": -0.129189,
-            "challenger_brier": 0.294532,
-            "control_brier": 0.260835,
-            "ece_delta": 0.038221,
-            "n": 124,
+            "brier_relative_improvement": -0.131091,
+            "challenger_brier": 0.29489,
+            "control_brier": 0.260713,
+            "ece_delta": 0.038588,
+            "n": 126,
             "pass": false,
             "segment": "horizon:1-5D"
           },
           {
-            "brier_relative_improvement": -0.010196,
-            "challenger_brier": 0.26542,
-            "control_brier": 0.262741,
-            "ece_delta": -0.019387,
-            "n": 143,
+            "brier_relative_improvement": -0.012822,
+            "challenger_brier": 0.265412,
+            "control_brier": 0.262052,
+            "ece_delta": -0.012875,
+            "n": 144,
             "pass": true,
             "segment": "horizon:6-24H"
           },
           {
-            "brier_relative_improvement": -0.045079,
-            "challenger_brier": 0.274585,
-            "control_brier": 0.262741,
-            "ece_delta": 0.037586,
-            "n": 341,
+            "brier_relative_improvement": -0.047276,
+            "challenger_brier": 0.274802,
+            "control_brier": 0.262397,
+            "ece_delta": 0.037934,
+            "n": 344,
             "pass": true,
             "segment": "instrument:BTC"
           }
@@ -2422,7 +2429,7 @@
         ],
         "candidate_id": "hch-345db399dc31f1b6cbb847b6",
         "minimum_sample": 50,
-        "observed_sample": 0,
+        "observed_sample": 1,
         "segment_checks": [],
         "status": "COLLECTING"
       },
@@ -2529,11 +2536,11 @@
     "source_status": {
       "belief_calibration": {
         "available": true,
-        "resolved_rows": 3830,
+        "resolved_rows": 3837,
         "scan_status": {
           "__GLOBAL__": {
             "last_discovery_n": null,
-            "prospective_n": 3105,
+            "prospective_n": 3111,
             "rediscovery_after_n": null,
             "status": "prospective_shadow",
             "trigger_reasons": [
@@ -2552,7 +2559,7 @@
           },
           "btc.trend.bullish": {
             "last_discovery_n": null,
-            "prospective_n": 341,
+            "prospective_n": 344,
             "rediscovery_after_n": null,
             "status": "prospective_shadow",
             "trigger_reasons": [
@@ -2656,7 +2663,7 @@
             ]
           }
         },
-        "source_generated_at": "2026-11-14T15:16:35.600588Z"
+        "source_generated_at": "2026-11-14T15:35:40.614278Z"
       },
       "belief_v3": {
         "available": true,
@@ -3647,7 +3654,7 @@
     {
       "instrument": "BTC/USD",
       "trend_belief_id": "btc.trend.bullish",
-      "calculated_at": "2026-11-14T15:35:21.651538Z",
+      "calculated_at": "2026-11-14T16:33:42.029646Z",
       "as_of": "2026-11-13T21:16:41Z",
       "target_at": "2026-11-14T21:16:41Z",
       "horizon_label": "24H",
@@ -3673,7 +3680,7 @@
     {
       "instrument": "EUR/USD",
       "trend_belief_id": "eurusd.trend.bullish",
-      "calculated_at": "2026-11-14T15:35:21.651538Z",
+      "calculated_at": "2026-11-14T16:33:42.029646Z",
       "as_of": "2026-11-13T21:16:41Z",
       "target_at": "2026-11-14T21:16:41Z",
       "horizon_label": "24H",
@@ -3699,7 +3706,7 @@
     {
       "instrument": "S&P 500",
       "trend_belief_id": "spx.trend.bullish",
-      "calculated_at": "2026-11-14T15:35:21.651538Z",
+      "calculated_at": "2026-11-14T16:33:42.029646Z",
       "as_of": "2026-11-13T21:16:41Z",
       "target_at": "2026-11-20T21:00:00Z",
       "horizon_label": "168H",
