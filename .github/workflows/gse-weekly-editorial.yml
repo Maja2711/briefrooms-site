@@ -1,0 +1,133 @@
+name: GSE Weekly Geopolitics Editorial (Gemini PL/EN)
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/gse-weekly-editorial.yml"
+      - "scripts/gse_weekly_editorial.py"
+      - "tests/test_gse_weekly_editorial.py"
+      - "assets/gse-weekly-editorial.css"
+      - "pl/geopolityka.html"
+      - "en/geopolitics.html"
+      - "docs/GSE_WEEKLY_EDITORIAL_PL.md"
+      - "docs/GSE_WEEKLY_EDITORIAL_EN.md"
+  workflow_dispatch:
+  schedule:
+    # Sunday 09:17 in Warsaw: both UTC candidates, gated by local calendar hour.
+    - cron: "17 7 * * 0"
+    - cron: "17 8 * * 0"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gse-weekly-geopolitics-editorial
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Offline read-only publication, licensing and immutability tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          python -m unittest tests.test_gse_weekly_editorial -v
+          python -m py_compile scripts/gse_weekly_editorial.py
+          python scripts/gse_weekly_editorial.py --check
+          test -f data/gse/gse_v2_lab_public.json
+
+  publish:
+    if: github.event_name != 'pull_request'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    env:
+      PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/scripts
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GEMINI_GENERATION_MODEL: gemini-3.5-flash
+      GEMINI_REVIEW_MODEL: gemini-3.5-flash
+      GEMINI_MIN_INTERVAL_SECONDS: "8"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install existing Gemini adapter dependency
+        run: python -m pip install requests
+      - name: Gate by Warsaw Sunday and local time (scheduled runs only)
+        id: clock
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          python - <<'PY'
+          import os
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
+          now = datetime.now(ZoneInfo("Europe/Warsaw"))
+          # Manual dispatch explicitly permits recovery outside the Sunday slot.
+          allowed = os.environ["EVENT"] == "workflow_dispatch" or (
+              now.weekday() == 6 and now.hour in (9, 10)
+          )
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              print(f"run={'true' if allowed else 'false'}", file=f)
+          print(f"local_time={now.isoformat()} publish_allowed={allowed}")
+          PY
+      - name: Generate, verify and stage sourced bilingual article
+        if: steps.clock.outputs.run == 'true'
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT" == "workflow_dispatch" ]]; then
+            python scripts/gse_weekly_editorial.py --publish --allow-weekday
+          else
+            python scripts/gse_weekly_editorial.py --publish
+          fi
+      - name: Commit only approved geopolitics editorial artifacts
+        if: steps.clock.outputs.run == 'true'
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pl/geopolityka.html en/geopolitics.html
+          if test -d data/geo_weekly; then git add data/geo_weekly; fi
+          shopt -s nullglob
+          files=(pl/geo/briefing-*.html en/geo/briefing-*.html)
+          if (( ${#files[@]} > 0 )); then git add "${files[@]}"; fi
+          if git diff --cached --quiet; then
+            echo "Already frozen; no publication changes."
+            exit 0
+          fi
+          week=$(TZ=Europe/Warsaw date +%G-W%V)
+          git commit -m "publish(geo): verified GSE weekly editorial ${week} [skip ci]"
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            if git cat-file -e "origin/main:data/geo_weekly/issues/${week}.json" 2>/dev/null; then
+              echo "::error::Concurrent publication already froze this week"
+              exit 1
+            fi
+            if ! git rebase origin/main; then
+              git rebase --abort || true
+              sleep $((attempt * 2))
+              continue
+            fi
+            if git push origin HEAD:main; then
+              echo "Published ${week} to main."
+              exit 0
+            fi
+            sleep $((attempt * 3))
+          done
+          echo "::error::Could not publish weekly editorial to main"
+          exit 1
