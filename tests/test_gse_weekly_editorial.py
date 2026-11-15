@@ -163,6 +163,34 @@ class GSEWeeklyEditorialTests(unittest.TestCase):
             with self.assertRaises(g.EditorialBlocked):
                 g.pick_commons_photo("russia_ukraine_black_sea_escalation", DAY)
 
+    def test_commons_picture_retries_and_accepts_cc0_with_canonical_license(self):
+        searches = []
+        def fake_api(url, *, params=None, timeout=15):
+            searches.append(params["gsrsearch"])
+            if len(searches) == 1:
+                return {"query": {"pages": {}}}
+            return {"query": {"pages": {"2": {
+                "title": "File:Merchant_ship.jpg", "index": 1,
+                "imageinfo": [{
+                    "thumburl": PHOTO["url"], "width": 1600, "height": 1024, "mime": "image/jpeg",
+                    "extmetadata": {"Artist": {"value": "Verified Author"},
+                                    "LicenseShortName": {"value": "CC0 1.0"}},
+                }]
+            }}}}
+        with patch.object(g, "http_json", side_effect=fake_api):
+            image = g.pick_commons_photo("sanctions_escalation", DAY)
+        self.assertEqual(len(searches), 2)
+        self.assertEqual(image["license"], "cc0 1.0")
+        self.assertEqual(image["license_url"], "https://creativecommons.org/publicdomain/zero/1.0/")
+        self.assertIn("ilustracyjna", image["caption_pl"])
+
+    def test_license_never_accepts_noncommercial_or_no_derivatives(self):
+        self.assertIsNone(g._commons_license({"LicenseShortName": {"value": "CC BY-NC 4.0"}}))
+        self.assertIsNone(g._commons_license({"LicenseShortName": {"value": "CC BY-ND 4.0"}}))
+        self.assertIsNone(g._commons_license({"LicenseShortName": {"value": "All rights reserved"}}))
+        self.assertEqual(g._commons_license({"LicenseShortName": {"value": "CC BY-SA 2.5"}}),
+                         ("cc by-sa 2.5", "https://creativecommons.org/licenses/by-sa/2.5/"))
+
     def test_forged_evidence_anchor_blocks_article(self):
         copied = draft()
         copied["pl"]["sections"][0]["anchors"][0]["quote"] = "NOT FOUND IN ANY SOURCE"

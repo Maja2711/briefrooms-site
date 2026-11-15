@@ -27,3 +27,6 @@ Implementacja: `scripts/gse_weekly_editorial.py`, `.github/workflows/gse-weekly-
 
 ## Uruchomienie przy pierwszym scaleniu w niedzielę
 Workflow reaguje również na `push` do `main` zmieniający sam pipeline albo publikator. W niedzielę pozwala to rozpocząć wydanie tygodnia po pierwszym scaleniu, nawet jeśli slot 09:17 już minął. W pozostałe dni automatyczna publikacja przez `push` jest zablokowana; możliwe jest tylko świadome `workflow_dispatch`. Idempotencja poprzez immutable `issues/YYYY-Www.json` zapobiega duplikatom. Wynik publikacji i ewentualny brak poświadczeń lub źródeł trzeba odczytać z produkcyjnego workflow; zielone CI PR nie dowodzi publikacji.
+
+### Korekta Commons 2026-11-15
+Produkcja potwierdziła zatrzymanie na etapie licencji zdjęcia, nie na generowaniu GSE. Rozszerzono wyszukiwanie do trzech stopniowo ogólniejszych zapytań fotograficznych (do 45 kandydatów każde), przy zachowaniu wymogu autora, fotografii o odpowiedniej rozdzielczości oraz wyłącznie licencji CC0/PD/CC BY/CC BY-SA. Normalizacja metadanych obejmuje CC0 1.0 i CC BY-SA 2.5; kanoniczny adres licencji pochodzi z zatwierdzonego typu licencji. NC/ND nadal są odrzucane. Log zawiera jedynie zliczenia odrzuceń, nie obniża bezpieczeństwa publikacji. Jeśli brak zdjęcia po wszystkich próbach — NO PUBLICATION.
