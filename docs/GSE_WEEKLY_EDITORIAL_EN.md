@@ -31,3 +31,6 @@ A `push` to `main` modifying the workflow or publisher also triggers validation.
 
 ### Commons metadata hardening — 2026-11-15
 The first production run blocked at the licensed photograph gate, not at GSE research. The photo picker now tries three increasingly generic illustrative searches (up to 45 candidates per query), while retaining named author, adequate image resolution and CC0/PD/CC BY/CC BY-SA only. Normalization supports CC0 1.0 and CC BY-SA 2.5 and derives the canonical license URL from approved metadata. NC/ND remain disallowed. Logs include rejection counts without bypassing the legal check. Exhaustion still blocks publication.
+
+### Gemini draft-format repair — 2026-11-15
+The live pipeline qualified its GSE topic, eight source excerpts from two organizations and a Commons CC0 photograph, but the first Gemini draft was blocked by invalid English `en/dek`. A maximum of **two** governed model-based editorial repairs are now allowed. Every repaired draft must pass the full `validate_draft` contract again and then a separate Gemini factual review; no invalid article is published. Tests cover one successful repair and fail-closed exhaustion of the retry budget.

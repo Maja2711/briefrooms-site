@@ -353,6 +353,28 @@ def prompt_payload(topic: str, sources: list[dict], gse_sha: str, week: str) -> 
     }
 
 
+def validate_with_bounded_repairs(draft: dict, sources: list[dict], repair, max_repairs: int = 2) -> dict:
+    """A failed prose-format contract can be repaired by the governed model.
+
+    Every repaired draft is validated again from scratch, then independently
+    fact-reviewed. The function never relaxes evidence/licensing requirements.
+    """
+    if not 0 <= max_repairs <= 2:
+        raise EditorialBlocked("unsupported editorial repair budget")
+    for attempt in range(max_repairs + 1):
+        try:
+            validate_draft(draft, sources)
+            return draft
+        except EditorialBlocked as problem:
+            if attempt == max_repairs:
+                raise
+            print(f"Gemini draft failed format/source gate: {problem}; repair {attempt + 1}/{max_repairs}", flush=True)
+            draft = repair(draft, str(problem))
+            if not isinstance(draft, dict):
+                raise EditorialBlocked("Gemini repair did not return a JSON object")
+    raise EditorialBlocked("unreachable editorial repair state")
+
+
 def gemini_generate(topic: str, sources: list[dict], gse_sha: str, week: str) -> tuple[dict, dict]:
     import requests
     # Reuse the exact existing BriefRooms governed Gemini adapter, pacing and JSON transport.
@@ -370,7 +392,34 @@ def gemini_generate(topic: str, sources: list[dict], gse_sha: str, week: str) ->
             {"role": "user", "content": json.dumps(prompt_payload(topic, sources, gse_sha, week), ensure_ascii=False)}]
     draft = quality.request_json_completion(post=requests.post, runtime=runtime, messages=msgs,
                                             max_tokens=8192, temperature=0.2, timeout=95)
-    validate_draft(draft, sources)
+
+    def repair(proposed: dict, violation: str) -> dict:
+        # Gemini may return an otherwise valid story with a short dek or heading.
+        # Correct the schema while retaining all cited evidence; no new sources,
+        # dates, figures or unverified claims are authorized.
+        prompt = {
+            "task": "Correct the full PL/EN article JSON to satisfy the required editorial contract, with minimal changes.",
+            "violation": violation, "contract": prompt_payload(topic, sources, gse_sha, week),
+            "previous_article": proposed,
+            "rules": [
+                "Return only a full JSON object with exactly pl and en editions.",
+                "Preserve the original factual meaning and citations; never introduce new facts.",
+                "Observe every title/dek/lead/section length bound and all source anchor rules.",
+                "All four sections retain required IDs and short literal source anchors.",
+                "For a short or long dek, revise ONLY that dek where possible.",
+                "Reject uncertain facts instead of padding with invented information.",
+            ],
+        }
+        return quality.request_json_completion(
+            post=requests.post, runtime=runtime,
+            messages=[
+                {"role": "system", "content": "BriefRooms independent editorial schema repair. Preserve evidence; never invent or change source IDs. JSON only."},
+                {"role": "user", "content": json.dumps(prompt, ensure_ascii=False)},
+            ],
+            max_tokens=8192, temperature=0, timeout=105,
+        )
+
+    draft = validate_with_bounded_repairs(draft, sources, repair, max_repairs=2)
     audit = quality.request_json_completion(post=requests.post, runtime=runtime, review=True,
         messages=[
             {"role": "system", "content": "Independent factual editor. Check each claim only against the supplied article evidence. Strict JSON {approved:boolean,issues:string[]}; if unclear, reject."},

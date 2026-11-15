@@ -191,6 +191,32 @@ class GSEWeeklyEditorialTests(unittest.TestCase):
         self.assertEqual(g._commons_license({"LicenseShortName": {"value": "CC BY-SA 2.5"}}),
                          ("cc by-sa 2.5", "https://creativecommons.org/licenses/by-sa/2.5/"))
 
+    def test_gemini_bounded_repair_succeeds_without_relaxing_validation(self):
+        broken = draft()
+        broken["en"]["dek"] = "Too short"
+        tries = []
+        def repair(payload, violation):
+            tries.append(violation)
+            self.assertIn("invalid en/dek", violation)
+            return draft()
+        clean = g.validate_with_bounded_repairs(broken, SOURCES, repair)
+        self.assertEqual(len(tries), 1)
+        self.assertEqual(clean["en"]["dek"], draft()["en"]["dek"])
+        g.validate_draft(clean, SOURCES)
+
+    def test_invalid_gemini_repair_is_bounded_and_blocks_publication(self):
+        broken = draft()
+        broken["en"]["dek"] = "Too short"
+        tries = []
+        def no_repair(payload, violation):
+            tries.append(violation)
+            return payload
+        with self.assertRaisesRegex(g.EditorialBlocked, "invalid en/dek"):
+            g.validate_with_bounded_repairs(broken, SOURCES, no_repair)
+        self.assertEqual(len(tries), 2)
+        with self.assertRaises(g.EditorialBlocked):
+            g.validate_with_bounded_repairs(broken, SOURCES, no_repair, max_repairs=4)
+
     def test_forged_evidence_anchor_blocks_article(self):
         copied = draft()
         copied["pl"]["sections"][0]["anchors"][0]["quote"] = "NOT FOUND IN ANY SOURCE"
