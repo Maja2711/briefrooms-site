@@ -17,7 +17,7 @@ HOT_X_SCRIPT_RE = re.compile(r'\s*<script\s+src=["\']/scripts/hot-x-render\.js[^
 LAB_CSS_RE = re.compile(r'<link\s+rel=["\']stylesheet["\']\s+href=["\']/assets/home-lab\.css[^"\']*["\'][^>]*>', re.I)
 LAB_SCRIPT_RE = re.compile(r'<script\s+src=["\']/scripts/home-lab(?:-v5)?\.js[^"\']*["\'][^>]*></script>', re.I)
 
-SUMMARY_SCRIPT_RE = re.compile(r'<script\\s+src=["\\']/scripts/house-view-home-summary\\.js[^"\\']*["\\'][^>]*></script>\\s*', re.I)
+SUMMARY_SCRIPT_RE = re.compile(r'<script[^>]+/scripts/house-view-home-summary\.js[^>]*></script>\s*', re.I)
 HOME_RUNTIME = ('<script src="/scripts/house-view-home-summary.js?v=20261115-1" defer></script>\\n'
                 '<script src="/scripts/home-lab.js?v=20261115-1" defer></script>')
 
