@@ -18,7 +18,7 @@ LAB_CSS_RE = re.compile(r'<link\s+rel=["\']stylesheet["\']\s+href=["\']/assets/h
 LAB_SCRIPT_RE = re.compile(r'<script\s+src=["\']/scripts/home-lab(?:-v5)?\.js[^"\']*["\'][^>]*></script>', re.I)
 
 SUMMARY_SCRIPT_RE = re.compile(r'<script[^>]+/scripts/house-view-home-summary\.js[^>]*></script>\s*', re.I)
-HOME_RUNTIME = ('<script src="/scripts/house-view-home-summary.js?v=20261115-1" defer></script>\\n'
+HOME_RUNTIME = ('<script src="/scripts/house-view-home-summary.js?v=20261115-1" defer></script>\n'
                 '<script src="/scripts/home-lab.js?v=20261115-1" defer></script>')
 
 COPY = {
@@ -61,16 +61,23 @@ def lab_section(lang: str) -> str:
 
 def patch_homepage(path: Path, lang: str) -> bool:
     source = path.read_text(encoding="utf-8")
-    side = SIDE_RE.search(source)
-    if not side:
-        raise RuntimeError(f"Could not locate sidebar in {path}")
-    youtube = YOUTUBE_RE.search(side.group(0))
-    youtube_html = youtube.group(0) if youtube else ""
-    replacement = '<aside class="side">' + lab_section(lang)
-    if youtube_html:
-        replacement += "\n" + youtube_html
-    replacement += '</aside>'
-    updated = source[: side.start()] + replacement + source[side.end() :]
+    # Preserve the existing sidebar, YouTube section and other home content.
+    # Only build the Lab if no canonical Lab mount exists at all.
+    if ('<!-- BR_HOME_LAB_START -->' in source
+            and '<!-- BR_HOME_LAB_END -->' in source
+            and 'id="home-lab-root"' in source):
+        updated = source
+    else:
+        side = SIDE_RE.search(source)
+        if not side:
+            raise RuntimeError(f"Could not locate sidebar in {path}")
+        youtube = YOUTUBE_RE.search(side.group(0))
+        youtube_html = youtube.group(0) if youtube else ""
+        replacement = '<aside class="side">' + lab_section(lang)
+        if youtube_html:
+            replacement += "\n" + youtube_html
+        replacement += '</aside>'
+        updated = source[: side.start()] + replacement + source[side.end() :]
 
     updated = HOT_X_SCRIPT_RE.sub("\n", updated)
 
@@ -90,7 +97,7 @@ def patch_homepage(path: Path, lang: str) -> bool:
     updated = SUMMARY_SCRIPT_RE.sub("", updated)
     if '</body>' not in updated:
         raise RuntimeError(f"Missing </body> in {path}")
-    updated = updated.replace('</body>', HOME_RUNTIME + '\\n</body>', 1)
+    updated = updated.replace('</body>', HOME_RUNTIME + '\n</body>', 1)
 
     if updated == source:
         return False
