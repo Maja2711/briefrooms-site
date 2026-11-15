@@ -34,3 +34,6 @@ The first production run blocked at the licensed photograph gate, not at GSE res
 
 ### Gemini draft-format repair — 2026-11-15
 The live pipeline qualified its GSE topic, eight source excerpts from two organizations and a Commons CC0 photograph, but the first Gemini draft was blocked by invalid English `en/dek`. A maximum of **two** governed model-based editorial repairs are now allowed. Every repaired draft must pass the full `validate_draft` contract again and then a separate Gemini factual review; no invalid article is published. Tests cover one successful repair and fail-closed exhaustion of the retry budget.
+
+### Live HTTP 429 follow-up (15 November)
+The third live run exposed two independent issues: invalid section schema after two full-document rewrites, followed by HTTP 429 quota on `gemini-3.5-flash`. The validator now identifies the precise language, section and field. Repair changes only that prose field; the rest of the article, source IDs and anchors remain unchanged. Up to two changes are permitted and every attempt is fully revalidated. A 429 on the primary Gemini model may fall back once to the approved `gemini-3.5-flash-lite`, without assuming project quota is available. Independent factual review remains mandatory. Do not claim a publication until the immutable issue manifest and both article files are confirmed on `main`.
