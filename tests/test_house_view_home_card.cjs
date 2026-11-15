@@ -92,6 +92,7 @@ for(const path of ['pl/index.html','en/index.html']){
   assert.equal((html.match(/\/scripts\/home-lab\.js\?v=20261115-1/g)||[]).length,1);
   assert.equal((html.match(/\/scripts\/house-view-home-summary\.js\?v=20261115-1/g)||[]).length,1);
   assert.doesNotMatch(html,/\/scripts\/home-lab-v5\.js/);
+  assert.match(html,/\/assets\/home-lab\.css\?v=3/);
   assert.ok(html.indexOf('/scripts/house-view-home-summary.js')<html.indexOf('/scripts/home-lab.js'));
   assert.equal((html.match(/id="home-lab-root"/g)||[]).length,1);
 }
