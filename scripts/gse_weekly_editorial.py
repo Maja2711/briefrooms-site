@@ -390,47 +390,108 @@ def gemini_generate(topic: str, sources: list[dict], gse_sha: str, week: str) ->
     source_hash = hashlib.sha256(json.dumps(sources, sort_keys=True).encode()).hexdigest()
     msgs = [{"role": "system", "content": "You are the BriefRooms geopolitics analyst. Make evidence-backed, precise, neutral and original PL/EN prose. JSON only."},
             {"role": "user", "content": json.dumps(prompt_payload(topic, sources, gse_sha, week), ensure_ascii=False)}]
-    draft = quality.request_json_completion(post=requests.post, runtime=runtime, messages=msgs,
-                                            max_tokens=8192, temperature=0.2, timeout=95)
+    from dataclasses import replace
+
+    # Keep the existing Gemini runtime and its bounded pacing. Flash-Lite is
+    # only a fallback if the approved primary model reports a quota error.
+    used_models = []
+    def call_json(messages, *, max_tokens, temperature, review=False):
+        try:
+            result = quality.request_json_completion(
+                post=requests.post, runtime=runtime, messages=messages,
+                max_tokens=max_tokens, temperature=temperature, review=review, timeout=95,
+            )
+            used_models.append(runtime.review_model if review else runtime.generation_model)
+            return result
+        except quality.AiRateLimitError:
+            preferred = runtime.review_model if review else runtime.generation_model
+            fallback_model = "gemini-3.5-flash-lite"
+            if preferred == fallback_model:
+                raise
+            print(f"Gemini primary quota blocked; trying approved {fallback_model}", flush=True)
+            lite = replace(runtime, generation_model=fallback_model, review_model=fallback_model)
+            result = quality.request_json_completion(
+                post=requests.post, runtime=lite, messages=messages,
+                max_tokens=max_tokens, temperature=temperature, review=review, timeout=95,
+            )
+            used_models.append(fallback_model)
+            return result
+
+    draft = call_json(msgs, max_tokens=8192, temperature=0.2)
 
     def repair(proposed: dict, violation: str) -> dict:
-        # Gemini may return an otherwise valid story with a short dek or heading.
-        # Correct the schema while retaining all cited evidence; no new sources,
-        # dates, figures or unverified claims are authorized.
-        prompt = {
-            "task": "Correct the full PL/EN article JSON to satisfy the required editorial contract, with minimal changes.",
-            "violation": violation, "contract": prompt_payload(topic, sources, gse_sha, week),
-            "previous_article": proposed,
-            "rules": [
-                "Return only a full JSON object with exactly pl and en editions.",
-                "Preserve the original factual meaning and citations; never introduce new facts.",
-                "Observe every title/dek/lead/section length bound and all source anchor rules.",
-                "All four sections retain required IDs and short literal source anchors.",
-                "For a short or long dek, revise ONLY that dek where possible.",
-                "Reject uncertain facts instead of padding with invented information.",
-            ],
-        }
-        return quality.request_json_completion(
-            post=requests.post, runtime=runtime,
-            messages=[
-                {"role": "system", "content": "BriefRooms independent editorial schema repair. Preserve evidence; never invent or change source IDs. JSON only."},
-                {"role": "user", "content": json.dumps(prompt, ensure_ascii=False)},
-            ],
-            max_tokens=8192, temperature=0, timeout=105,
+        # Prefer changing ONE schema-invalid text field, keeping the remaining
+        # supported article and citations byte-for-byte. This uses fewer tokens
+        # and avoids re-generating eight sections with a new chance of errors.
+        field_error = re.fullmatch(
+            r"invalid (pl|en)/(title|dek|lead|what_changed/text|what_changed/heading|"
+            r"strategic_meaning/text|strategic_meaning/heading|scenarios/text|scenarios/heading|"
+            r"watch_next/text|watch_next/heading)(?: length=\d+)?",
+            violation,
         )
+        if field_error:
+            lang, key = field_error.groups()
+            edition = proposed.get(lang) or {}
+            if "/" in key:
+                part_id, field = key.split("/")
+                part = next((p for p in edition.get("sections", []) if p.get("id") == part_id), None)
+                if part is None:
+                    raise EditorialBlocked("missing section for targeted repair")
+                low, high = (240, 1000) if field == "text" else (12, 95)
+                value = part.get(field)
+            else:
+                part, field = edition, key
+                low, high = {"title": (35, 125), "dek": (90, 350), "lead": (180, 850)}[field]
+                value = part.get(field)
+            model_input = {
+                "task": "Revise only the supplied article field to satisfy a strict character limit.",
+                "language": lang, "field": key, "minimum_characters": low,
+                "maximum_characters": high, "current_text": value,
+                "topic": TOPICS[topic][1], "source_evidence": sources,
+                "rules": [
+                    "Return exactly one JSON object with a single string key: value.",
+                    "Preserve the original meaning and all source-supported facts.",
+                    "No additional factual claims, figures, names, quotations or dates.",
+                    "Native, accurate, analytical editorial prose; no markup.",
+                    "Meet character bounds, with a safe margin away from the edges.",
+                    "If evidence is insufficient, do not invent; leave the text unchanged.",
+                ],
+            }
+            revised = call_json(
+                [{"role": "system", "content": "Revise one fact-constrained editorial field, JSON {value:string} only."},
+                 {"role": "user", "content": json.dumps(model_input, ensure_ascii=False)}],
+                max_tokens=1600, temperature=0,
+            )
+            candidate = revised.get("value") if isinstance(revised, dict) else None
+            if not isinstance(candidate, str):
+                raise EditorialBlocked("Gemini returned no string in targeted repair")
+            candidate = candidate.strip()
+            if not low <= len(candidate) <= high or "<" in candidate or ">" in candidate:
+                raise EditorialBlocked(f"invalid targeted repair {lang}/{key}")
+            import copy
+            adjusted = copy.deepcopy(proposed)
+            replacement_edition = adjusted[lang]
+            if "/" in key:
+                next(p for p in replacement_edition["sections"] if p.get("id") == part_id)[field] = candidate
+            else:
+                replacement_edition[field] = candidate
+            return adjusted
+        # Unsupported citations or provenance are NOT cured by wholesale
+        # AI rewriting. Such defects must fail closed.
+        raise EditorialBlocked(f"requires editorial evidence review: {violation}")
 
     draft = validate_with_bounded_repairs(draft, sources, repair, max_repairs=2)
-    audit = quality.request_json_completion(post=requests.post, runtime=runtime, review=True,
+    audit = call_json(
         messages=[
             {"role": "system", "content": "Independent factual editor. Check each claim only against the supplied article evidence. Strict JSON {approved:boolean,issues:string[]}; if unclear, reject."},
             {"role": "user", "content": json.dumps({"sources": sources, "article": draft,
                  "criteria": "Every factual claim supported by a source; no invented details; conditional forecasts clearly labeled; PL/EN semantically consistent; image not used as evidence."}, ensure_ascii=False)}
-        ], max_tokens=1400, temperature=0, timeout=95)
+        ], max_tokens=1400, temperature=0, review=True)
     if audit.get("approved") is not True or audit.get("issues"):
         raise EditorialBlocked("Gemini independent review rejected draft")
-    return draft, {"provider": "gemini", "model": runtime.generation_model,
-                   "review_model": runtime.review_model, "sources_sha256": source_hash,
-                   "review_approved": True}
+    return draft, {"provider": "gemini", "model": used_models[0],
+                   "review_model": used_models[-1], "models_used": used_models,
+                   "sources_sha256": source_hash, "review_approved": True}
 
 
 def validate_draft(draft: dict, sources: list[dict]) -> None:
@@ -459,11 +520,15 @@ def validate_draft(draft: dict, sources: list[dict]) -> None:
             heading = part.get("heading")
             ids = part.get("source_ids")
             anchors = part.get("anchors")
-            if (not isinstance(txt, str) or not 240 <= len(txt.strip()) <= 1000
-                or not isinstance(heading, str) or not 12 <= len(heading) <= 95
-                or not isinstance(ids, list) or not ids or not set(ids) <= available.keys()
-                or not isinstance(anchors, list) or not anchors or any(x in txt+heading for x in ("<", ">"))):
-                raise EditorialBlocked("unbounded or unsupported section")
+            ident = part.get("id")
+            if not isinstance(txt, str) or not 240 <= len(txt.strip()) <= 1000 or "<" in txt or ">" in txt:
+                raise EditorialBlocked(f"invalid {lang}/{ident}/text length={len(txt) if isinstance(txt, str) else 0}")
+            if not isinstance(heading, str) or not 12 <= len(heading.strip()) <= 95 or "<" in heading or ">" in heading:
+                raise EditorialBlocked(f"invalid {lang}/{ident}/heading length={len(heading) if isinstance(heading, str) else 0}")
+            if not isinstance(ids, list) or not ids or not set(ids) <= available.keys():
+                raise EditorialBlocked(f"unsupported source ids {lang}/{ident}")
+            if not isinstance(anchors, list) or not anchors:
+                raise EditorialBlocked(f"missing source anchors {lang}/{ident}")
             if re.search(r"\b(structural_caution|ABSTAIN|JSON|shadow mode)\b", txt, re.I):
                 raise EditorialBlocked("engine telemetry leaked into reader-facing article")
             for anchor in anchors:

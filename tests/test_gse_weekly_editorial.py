@@ -191,6 +191,29 @@ class GSEWeeklyEditorialTests(unittest.TestCase):
         self.assertEqual(g._commons_license({"LicenseShortName": {"value": "CC BY-SA 2.5"}}),
                          ("cc by-sa 2.5", "https://creativecommons.org/licenses/by-sa/2.5/"))
 
+    def test_invalid_section_has_precise_field_diagnostic(self):
+        article = draft()
+        article["en"]["sections"][2]["text"] = "Too short"
+        with self.assertRaisesRegex(g.EditorialBlocked,
+                                    r"invalid en/scenarios/text length=9"):
+            g.validate_draft(article, SOURCES)
+
+    def test_targeted_prose_repair_keeps_evidence_identical(self):
+        import copy
+        article = draft()
+        article["pl"]["sections"][1]["heading"] = "Krótko"
+        source_before = copy.deepcopy(article["pl"]["sections"][1]["source_ids"])
+        anchor_before = copy.deepcopy(article["pl"]["sections"][1]["anchors"])
+        def repair(proposed, violation):
+            self.assertIn("invalid pl/strategic_meaning/heading", violation)
+            fixed = copy.deepcopy(proposed)
+            fixed["pl"]["sections"][1]["heading"] = "Co wydarzenia oznaczają dla bezpieczeństwa regionu"
+            return fixed
+        fixed = g.validate_with_bounded_repairs(article, SOURCES, repair)
+        self.assertEqual(fixed["pl"]["sections"][1]["source_ids"], source_before)
+        self.assertEqual(fixed["pl"]["sections"][1]["anchors"], anchor_before)
+        g.validate_draft(fixed, SOURCES)
+
     def test_gemini_bounded_repair_succeeds_without_relaxing_validation(self):
         broken = draft()
         broken["en"]["dek"] = "Too short"
