@@ -27,8 +27,10 @@
       positiveContext: 'Momentum sprzyja odbiciu, ale samo nie potwierdza hossy.',
       neutralContext: 'Kierunek rynku wymaga potwierdzenia kolejnymi danymi.',
       down: 'Futures S&P 500 za 20 sesji',
-      yield: 'rentowność UST 10Y',
+      yield: 'UST 10Y',
       inflation: 'core PCE',
+      growth: 'PKB USA q/q SAAR',
+      oil: 'Brent',
       earnings: 'Dla mocniejszej tezy 6–12M potrzebne są potwierdzone EPS i wyceny.',
       stagnation: 'Rynek bez jednoznacznego impulsu cenowego.',
       higherYield: 'Wysokie rentowności ograniczają potencjał wzrostu P/E.',
@@ -50,6 +52,8 @@
       down: 'S&P 500 futures over 20 sessions',
       yield: '10-year Treasury yield',
       inflation: 'core PCE',
+      growth: 'U.S. GDP q/q SAAR',
+      oil: 'Brent',
       earnings: 'A stronger 6–12M view needs verified EPS and valuations.',
       stagnation: 'Price momentum does not yet confirm a trend.',
       higherYield: 'High yields constrain potential P/E expansion.',
@@ -115,8 +119,13 @@
     const mom = i.spx_futures_20d_return_pct;
     const facts = [];
     if (number(mom)) facts.push(T.down + ': ' + (mom > 0 ? '+' : '') + pct(mom, lang));
-    facts.push(T.yield + ' ' + pct(i.us_10y_pct, lang));
+    const fmtAmount = v => v.toLocaleString(lang === 'pl' ? 'pl-PL' : 'en-GB', {
+      minimumFractionDigits: 2, maximumFractionDigits: 2
+    });
+    facts.push(T.growth + ' ' + (i.gdp_qoq_saar_pct > 0 ? '+' : '') + pct(i.gdp_qoq_saar_pct, lang));
     facts.push(T.inflation + ' ' + pct(i.core_pce_yoy_pct, lang));
+    facts.push(T.yield + ' ' + pct(i.us_10y_pct, lang));
+    facts.push(T.oil + ' ' + fmtAmount(i.brent_usd_bbl) + ' USD/bbl');
     let implication = dir === 'defensive' ? T.pressure :
       dir === 'mild_positive' ? T.positiveContext : T.neutralContext;
     if (dir === 'unassessed') implication = T.stagnation;
