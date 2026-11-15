@@ -97,7 +97,7 @@ def patch_homepage(path: Path, lang: str) -> bool:
     updated = SUMMARY_SCRIPT_RE.sub("", updated)
     if '</body>' not in updated:
         raise RuntimeError(f"Missing </body> in {path}")
-    updated = updated.replace('</body>', '\n' + HOME_RUNTIME + '\n</body>', 1)
+    updated = re.sub(r'\s*</body>', '\n' + HOME_RUNTIME + '\n</body>', updated, count=1)
 
     if updated == source:
         return False
