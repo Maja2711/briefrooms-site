@@ -30,3 +30,6 @@ Workflow reaguje również na `push` do `main` zmieniający sam pipeline albo pu
 
 ### Korekta Commons 2026-11-15
 Produkcja potwierdziła zatrzymanie na etapie licencji zdjęcia, nie na generowaniu GSE. Rozszerzono wyszukiwanie do trzech stopniowo ogólniejszych zapytań fotograficznych (do 45 kandydatów każde), przy zachowaniu wymogu autora, fotografii o odpowiedniej rozdzielczości oraz wyłącznie licencji CC0/PD/CC BY/CC BY-SA. Normalizacja metadanych obejmuje CC0 1.0 i CC BY-SA 2.5; kanoniczny adres licencji pochodzi z zatwierdzonego typu licencji. NC/ND nadal są odrzucane. Log zawiera jedynie zliczenia odrzuceń, nie obniża bezpieczeństwa publikacji. Jeśli brak zdjęcia po wszystkich próbach — NO PUBLICATION.
+
+### Korekta formatu Gemini — 2026-11-15
+Przebieg produkcyjny potwierdził poprawny wybór tematu, 8 źródeł z 2 organizacji i zdjęcie Commons CC0, ale pierwsza generacja Gemini została zatrzymana przez zbyt krótki lub inny niewłaściwy angielski podtytuł `en/dek`. Dodano maksymalnie **dwie** korekty redakcyjnego formatu za pomocą Gemini; każda jest ponownie sprawdzana pełnym `validate_draft`, a zaakceptowany tekst nadal przechodzi niezależną recenzję Gemini. Żaden niespełniający kontraktu materiał nie jest publikowany. Testy obejmują skuteczną pojedynczą poprawkę i bezpieczną blokadę po wyczerpaniu prób.
