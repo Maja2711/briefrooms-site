@@ -74,11 +74,14 @@ def patch_homepage(path: Path, lang: str) -> bool:
 
     updated = HOT_X_SCRIPT_RE.sub("\n", updated)
 
-    if not LAB_CSS_RE.search(updated):
+    css = '<link rel="stylesheet" href="/assets/home-lab.css?v=3">'
+    if LAB_CSS_RE.search(updated):
+        updated = LAB_CSS_RE.sub(css, updated, count=1)
+    else:
         marker = '</head>'
         if marker not in updated:
             raise RuntimeError(f"Missing </head> in {path}")
-        updated = updated.replace(marker, '<link rel="stylesheet" href="/assets/home-lab.css?v=2">\n' + marker, 1)
+        updated = updated.replace(marker, css + '\n' + marker, 1)
 
 
     # One canonical renderer only. The retired -v5 script previously raced
@@ -102,7 +105,7 @@ def check() -> None:
             '<!-- BR_HOME_LAB_START -->',
             '<!-- BR_HOME_LAB_END -->',
             'id="home-lab-root"',
-            '/assets/home-lab.css?v=2',
+            '/assets/home-lab.css?v=3',
             '/scripts/house-view-home-summary.js?v=20261115-1',
             '/scripts/home-lab.js?v=20261115-1',
             COPY[lang]["title"],
