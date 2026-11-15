@@ -229,52 +229,98 @@ def select_topic(topics: list[str], items: list[dict], previous: list[dict], tod
     return topic, chosen
 
 
-def pick_commons_photo(topic: str, today: date) -> dict:
-    """Attribution-verified Commons image: generic illustration, NEVER event evidence."""
+def _commons_license(metadata: dict) -> tuple[str, str] | None:
+    """Strict Wikimedia Commons CC/Public Domain license allowlist.
+
+    Commons' LicenseShortName varies (CC0, CC0 1.0, CC BY-SA 2.5,
+    CC BY-SA 4.0). Use that metadata to derive the canonical, fixed
+    Creative Commons URL; never trust a model-supplied attribution link.
+    """
+    license_name = text_only((metadata.get("LicenseShortName") or {}).get("value"), 100).lower()
+    license_name = re.sub(r"\s+", " ", license_name).strip()
+    public_domain = {"cc0", "cc0 1.0", "public domain", "pd"}
+    if license_name in public_domain:
+        if license_name.startswith("cc0"):
+            return license_name, "https://creativecommons.org/publicdomain/zero/1.0/"
+        return license_name, "https://creativecommons.org/publicdomain/mark/1.0/"
+    match = re.fullmatch(r"cc by(-sa)? (2\.0|2\.5|3\.0|4\.0)", license_name)
+    if not match:
+        return None
+    family = "by-sa" if match.group(1) else "by"
+    return license_name, f"https://creativecommons.org/licenses/{family}/{match.group(2)}/"
+
+
+def _commons_candidates(topic: str) -> tuple[str, ...]:
+    """Search progressively broader *illustrative* photo queries.
+
+    A country-specific photo is preferable, but any geographically neutral
+    licensed ship/port/landscape may illustrate an analysis without purporting
+    to document an event. The caption always says so.
+    """
     searches = {
-        "russia_ukraine_black_sea_escalation": "Black Sea naval ship",
-        "middle_east_energy_escalation": "Middle East map atlas geography",
-        "red_sea_shipping_disruption": "Red Sea cargo container ship",
-        "china_taiwan_trade_escalation": "Taiwan Strait cargo ships",
-        "sanctions_escalation": "world trade cargo ship port",
-        "grain_export_disruption": "wheat grain cargo port",
+        "russia_ukraine_black_sea_escalation": ("Black Sea ship photograph", "Ukraine coast ship", "merchant ship sea"),
+        "middle_east_energy_escalation": ("Middle East oil tanker photo", "tanker ship sea", "cargo ship ocean"),
+        "red_sea_shipping_disruption": ("Red Sea cargo ship photograph", "container ship ocean", "port cargo ship photograph"),
+        "china_taiwan_trade_escalation": ("Taiwan Strait container ship", "merchant vessel ocean", "container ship port"),
+        "sanctions_escalation": ("international cargo shipping port", "cargo ship container port", "container ship photograph"),
+        "grain_export_disruption": ("grain ship loading", "wheat grain harvest", "grain cargo port"),
     }
-    result = http_json("https://commons.wikimedia.org/w/api.php", params={
-        "action": "query", "format": "json", "generator": "search",
-        "gsrsearch": searches[topic], "gsrnamespace": 6, "gsrlimit": 12,
-        "prop": "imageinfo", "iiprop": "url|mime|size|extmetadata",
-        "iiurlwidth": 1200, "iiextmetadatalanguage": "en",
-    })
-    pages = sorted((result.get("query") or {}).get("pages", {}).values(),
-                   key=lambda x: x.get("index", 999))
-    for page in pages:
-        info = (page.get("imageinfo") or [{}])[0]
-        md = info.get("extmetadata") or {}
-        license_name = text_only((md.get("LicenseShortName") or {}).get("value"), 100).lower()
-        author = text_only((md.get("Artist") or {}).get("value"), 180)
-        license_url = str((md.get("LicenseUrl") or {}).get("value") or "")
-        image = info.get("thumburl") or info.get("url") or ""
-        title = page.get("title") or ""
-        if (license_name not in ALLOWED_LICENSES or len(author) < 3
-                or not safe_https(image, ("upload.wikimedia.org",))
-                or not title.startswith("File:") or int(info.get("width") or 0) < 800
-                or int(info.get("height") or 0) < 450
-                or info.get("mime") not in ("image/jpeg", "image/png", "image/webp")
-                or not safe_https(license_url, ("creativecommons.org", "creativecommons.org", "en.wikipedia.org", "commons.wikimedia.org"))):
-            # Public Domain often has no stable LicenseUrl; its Commons file page is sufficient.
-            if not (license_name in {"cc0", "public domain", "pd"} and len(author) >= 3
-                    and safe_https(image, ("upload.wikimedia.org",))
-                    and title.startswith("File:") and int(info.get("width") or 0) >= 800
-                    and int(info.get("height") or 0) >= 450
-                    and info.get("mime") in ("image/jpeg", "image/png", "image/webp")):
+    return searches[topic]
+
+
+def pick_commons_photo(topic: str, today: date) -> dict:
+    """Search Commons with strict licensing; never publish an unlicensed image."""
+    total = 0
+    rejects = {"license": 0, "author": 0, "image_or_size": 0, "metadata": 0}
+    for query in _commons_candidates(topic):
+        result = http_json("https://commons.wikimedia.org/w/api.php", params={
+            "action": "query", "format": "json", "generator": "search",
+            "gsrsearch": query, "gsrnamespace": 6, "gsrlimit": 45,
+            "prop": "imageinfo", "iiprop": "url|mime|size|extmetadata",
+            "iiurlwidth": 1200, "iiextmetadatalanguage": "en",
+        })
+        pages = sorted((result.get("query") or {}).get("pages", {}).values(),
+                       key=lambda item: item.get("index", 999))
+        for page in pages:
+            total += 1
+            info = (page.get("imageinfo") or [{}])[0]
+            md = info.get("extmetadata") or {}
+            permission = _commons_license(md)
+            if permission is None:
+                rejects["license"] += 1
                 continue
-        page_url = "https://commons.wikimedia.org/wiki/" + quote(title.replace(" ", "_"), safe=":_()")
-        return {"url": image, "page": page_url, "author": author, "license": license_name,
-                "license_url": license_url if safe_https(license_url, ("creativecommons.org", "commons.wikimedia.org")) else page_url,
+            author = text_only((md.get("Artist") or {}).get("value"), 180)
+            if len(author) < 3:
+                rejects["author"] += 1
+                continue
+            title = str(page.get("title") or "")
+            image = str(info.get("thumburl") or info.get("url") or "")
+            try:
+                width = int(info.get("width") or 0)
+                height = int(info.get("height") or 0)
+            except (ValueError, TypeError):
+                width = height = 0
+            if (not title.startswith("File:") or not safe_https(image, ("upload.wikimedia.org",))
+                    or width < 800 or height < 450
+                    or info.get("mime") not in ("image/jpeg", "image/png", "image/webp")):
+                rejects["image_or_size"] += 1
+                continue
+            license_name, license_url = permission
+            page_url = "https://commons.wikimedia.org/wiki/" + quote(title.replace(" ", "_"), safe=":_()")
+            if not safe_https(page_url, ("commons.wikimedia.org",)):
+                rejects["metadata"] += 1
+                continue
+            print(f"Commons licensed picture: query={query!r}, license={license_name}, attribution=verified", flush=True)
+            return {
+                "url": image, "page": page_url, "author": author,
+                "license": license_name, "license_url": license_url,
                 "alt": text_only(title[5:].replace("_", " ").rsplit(".", 1)[0], 130),
                 "caption_pl": "Fotografia ilustracyjna, nie dokumentacja omawianego zdarzenia.",
-                "caption_en": "Illustrative photograph, not documentation of the reported event."}
-    raise EditorialBlocked("no suitable Wikimedia Commons image with verified reuse rights")
+                "caption_en": "Illustrative photograph, not documentation of the reported event.",
+            }
+    raise EditorialBlocked(
+        f"no Commons image passed legal/technical checks after {total} candidates: {rejects}"
+    )
 
 
 def prompt_payload(topic: str, sources: list[dict], gse_sha: str, week: str) -> dict:
@@ -573,6 +619,9 @@ def run(today: date, root: Path = ROOT) -> list[str]:
     previous = json.loads(idx.read_text(encoding="utf-8")).get("issues", []) if idx.exists() else []
     sources = collect_evidence(today)
     topic, selected = select_topic(topics, sources, previous, today)
+    print(f"Weekly GSE research: week={week}, topic={topic}, "
+          f"source_count={len(selected)}, organizations={len({s['organization'] for s in selected})}",
+          flush=True)
     photo = pick_commons_photo(topic, today)
     drafts, ai_audit = gemini_generate(topic, selected, sha, week)
     validate_draft(drafts, selected)

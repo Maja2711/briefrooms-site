@@ -28,3 +28,6 @@ The implementation uses `scripts/gse_weekly_editorial.py`, `.github/workflows/gs
 
 ## First-merge Sunday bootstrap
 A `push` to `main` modifying the workflow or publisher also triggers validation. On Sundays, this permits the first week's edition after merge even when the 09:17 slot has passed. On other weekdays, push-triggered publication is disabled; manual `workflow_dispatch` is available. Immutable `issues/YYYY-Www.json` makes repeat runs idempotent. A green PR CI result does not establish successful live publication; verify the production workflow and its credentials/source gates.
+
+### Commons metadata hardening — 2026-11-15
+The first production run blocked at the licensed photograph gate, not at GSE research. The photo picker now tries three increasingly generic illustrative searches (up to 45 candidates per query), while retaining named author, adequate image resolution and CC0/PD/CC BY/CC BY-SA only. Normalization supports CC0 1.0 and CC BY-SA 2.5 and derives the canonical license URL from approved metadata. NC/ND remain disallowed. Logs include rejection counts without bypassing the legal check. Exhaustion still blocks publication.
