@@ -15,9 +15,9 @@ SIDE_RE = re.compile(r'<aside\s+class=["\']side["\'][^>]*>[\s\S]*?</aside>', re.
 YOUTUBE_RE = re.compile(r'<section\s+class=["\']youtube-picks["\'][^>]*>[\s\S]*?</section>', re.I)
 HOT_X_SCRIPT_RE = re.compile(r'\s*<script\s+src=["\']/scripts/hot-x-render\.js[^"\']*["\'][^>]*></script>\s*', re.I)
 LAB_CSS_RE = re.compile(r'<link\s+rel=["\']stylesheet["\']\s+href=["\']/assets/home-lab\.css[^"\']*["\'][^>]*>', re.I)
-LAB_SCRIPT_RE = re.compile(r'<script\s+src=["\']/scripts/home-lab(?:-v5)?\.js[^"\']*["\'][^>]*></script>', re.I)
+LAB_SCRIPT_RE = re.compile(r'\s*<script\s+src=["\']/scripts/home-lab(?:-v5)?\.js[^"\']*["\'][^>]*></script>\s*', re.I)
 
-SUMMARY_SCRIPT_RE = re.compile(r'<script[^>]+/scripts/house-view-home-summary\.js[^>]*></script>\s*', re.I)
+SUMMARY_SCRIPT_RE = re.compile(r'\s*<script[^>]+/scripts/house-view-home-summary\.js[^>]*></script>\s*', re.I)
 HOME_RUNTIME = ('<script src="/scripts/house-view-home-summary.js?v=20261115-1" defer></script>\n'
                 '<script src="/scripts/home-lab.js?v=20261115-1" defer></script>')
 
@@ -97,7 +97,7 @@ def patch_homepage(path: Path, lang: str) -> bool:
     updated = SUMMARY_SCRIPT_RE.sub("", updated)
     if '</body>' not in updated:
         raise RuntimeError(f"Missing </body> in {path}")
-    updated = updated.replace('</body>', HOME_RUNTIME + '\n</body>', 1)
+    updated = updated.replace('</body>', '\n' + HOME_RUNTIME + '\n</body>', 1)
 
     if updated == source:
         return False
