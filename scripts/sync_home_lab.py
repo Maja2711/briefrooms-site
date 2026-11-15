@@ -17,6 +17,10 @@ HOT_X_SCRIPT_RE = re.compile(r'\s*<script\s+src=["\']/scripts/hot-x-render\.js[^
 LAB_CSS_RE = re.compile(r'<link\s+rel=["\']stylesheet["\']\s+href=["\']/assets/home-lab\.css[^"\']*["\'][^>]*>', re.I)
 LAB_SCRIPT_RE = re.compile(r'<script\s+src=["\']/scripts/home-lab(?:-v5)?\.js[^"\']*["\'][^>]*></script>', re.I)
 
+SUMMARY_SCRIPT_RE = re.compile(r'<script\\s+src=["\\']/scripts/house-view-home-summary\\.js[^"\\']*["\\'][^>]*></script>\\s*', re.I)
+HOME_RUNTIME = ('<script src="/scripts/house-view-home-summary.js?v=20261115-1" defer></script>\\n'
+                '<script src="/scripts/home-lab.js?v=20261115-1" defer></script>')
+
 COPY = {
     "pl": {
         "title": "BriefRooms  —  Lab,modele, testy i wyniki",
@@ -76,11 +80,14 @@ def patch_homepage(path: Path, lang: str) -> bool:
             raise RuntimeError(f"Missing </head> in {path}")
         updated = updated.replace(marker, '<link rel="stylesheet" href="/assets/home-lab.css?v=2">\n' + marker, 1)
 
-    if not LAB_SCRIPT_RE.search(updated):
-        marker = '</body>'
-        if marker not in updated:
-            raise RuntimeError(f"Missing </body> in {path}")
-        updated = updated.replace(marker, '<script src="/scripts/home-lab-v5.js" defer></script>\n' + marker, 1)
+
+    # One canonical renderer only. The retired -v5 script previously raced
+    # with the newer code and could show a stale static snapshot.
+    updated = LAB_SCRIPT_RE.sub("", updated)
+    updated = SUMMARY_SCRIPT_RE.sub("", updated)
+    if '</body>' not in updated:
+        raise RuntimeError(f"Missing </body> in {path}")
+    updated = updated.replace('</body>', HOME_RUNTIME + '\\n</body>', 1)
 
     if updated == source:
         return False
@@ -96,7 +103,8 @@ def check() -> None:
             '<!-- BR_HOME_LAB_END -->',
             'id="home-lab-root"',
             '/assets/home-lab.css?v=2',
-            '/scripts/home-lab-v5.js',
+            '/scripts/house-view-home-summary.js?v=20261115-1',
+            '/scripts/home-lab.js?v=20261115-1',
             COPY[lang]["title"],
         )
         for marker in required:
@@ -106,6 +114,10 @@ def check() -> None:
         for marker in forbidden:
             if marker in source:
                 raise RuntimeError(f"Legacy Hot X marker still present in {path}: {marker!r}")
+        if (source.count('/scripts/home-lab.js?v=20261115-1') != 1
+                or source.count('/scripts/house-view-home-summary.js?v=20261115-1') != 1
+                or '/scripts/home-lab-v5.js' in source):
+            raise RuntimeError(f"Duplicate or retired homepage lab renderer in {path}")
         if source.count('id="home-lab-root"') != 1:
             raise RuntimeError(f"Expected exactly one Lab root in {path}")
 
