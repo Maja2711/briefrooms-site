@@ -5,7 +5,17 @@
 const fs = require('node:fs');
 const assert = require('node:assert/strict');
 
-const model = require('../scripts/house-view-home-summary.js');
+// Repository uses package.json type=module; run the classic browser script
+// in its actual window-facing mode instead of CommonJS require().
+const vm = require('node:vm');
+const browserWindow = {};
+globalThis.window = browserWindow;
+vm.runInThisContext(fs.readFileSync('scripts/house-view-home-summary.js','utf8'), {
+  filename: 'house-view-home-summary.js', timeout: 2000
+});
+delete globalThis.window;
+const model = browserWindow.BriefRoomsHouseViewHome;
+assert.equal(typeof model.create, 'function');
 const raw = fs.readFileSync('data/investments/house_view_monthly_archive/2026-11.json','utf8');
 const november = JSON.parse(raw);
 const atNov = Date.parse('2026-11-15T10:00:00Z');
