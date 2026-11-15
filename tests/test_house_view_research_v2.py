@@ -239,5 +239,27 @@ class HouseViewIntelligenceV2Tests(unittest.TestCase):
             self.assertIsNone(doc["research"]["limitations"]["index_price_target"])
 
 
+    def test_homepage_synchronizer_keeps_existing_sidebar_and_is_idempotent(self):
+        from scripts import sync_home_lab as home
+        self.assertIn("\n", home.HOME_RUNTIME)
+        self.assertNotIn(chr(92) + "n", home.HOME_RUNTIME)
+        for lang, page in (("pl", m.ROOT / "pl/index.html"),
+                           ("en", m.ROOT / "en/index.html")):
+            with self.subTest(lang=lang), tempfile.TemporaryDirectory() as td:
+                dest = Path(td) / "index.html"
+                original = page.read_text(encoding="utf-8")
+                dest.write_text(original, encoding="utf-8")
+                home.patch_homepage(dest, lang)
+                rendered = dest.read_text(encoding="utf-8")
+                self.assertIn('id="home-lab-root"', rendered)
+                self.assertIn("youtube", rendered.lower())
+                self.assertEqual(rendered.count("house-view-home-summary.js"), 1)
+                self.assertEqual(rendered.count("/scripts/home-lab.js?v=20261115-1"), 1)
+                self.assertNotIn("/scripts/home-lab-v5.js", rendered)
+                self.assertGreater(len(rendered), len(original) - 300)
+                self.assertFalse(home.patch_homepage(dest, lang))
+                self.assertEqual(rendered, dest.read_text(encoding="utf-8"))
+
+
 if __name__ == "__main__":
     unittest.main()

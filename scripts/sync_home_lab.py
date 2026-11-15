@@ -15,7 +15,11 @@ SIDE_RE = re.compile(r'<aside\s+class=["\']side["\'][^>]*>[\s\S]*?</aside>', re.
 YOUTUBE_RE = re.compile(r'<section\s+class=["\']youtube-picks["\'][^>]*>[\s\S]*?</section>', re.I)
 HOT_X_SCRIPT_RE = re.compile(r'\s*<script\s+src=["\']/scripts/hot-x-render\.js[^"\']*["\'][^>]*></script>\s*', re.I)
 LAB_CSS_RE = re.compile(r'<link\s+rel=["\']stylesheet["\']\s+href=["\']/assets/home-lab\.css[^"\']*["\'][^>]*>', re.I)
-LAB_SCRIPT_RE = re.compile(r'<script\s+src=["\']/scripts/home-lab(?:-v5)?\.js[^"\']*["\'][^>]*></script>', re.I)
+LAB_SCRIPT_RE = re.compile(r'\s*<script\s+src=["\']/scripts/home-lab(?:-v5)?\.js[^"\']*["\'][^>]*></script>\s*', re.I)
+
+SUMMARY_SCRIPT_RE = re.compile(r'\s*<script[^>]+/scripts/house-view-home-summary\.js[^>]*></script>\s*', re.I)
+HOME_RUNTIME = ('<script src="/scripts/house-view-home-summary.js?v=20261115-1" defer></script>\n'
+                '<script src="/scripts/home-lab.js?v=20261115-1" defer></script>')
 
 COPY = {
     "pl": {
@@ -57,30 +61,43 @@ def lab_section(lang: str) -> str:
 
 def patch_homepage(path: Path, lang: str) -> bool:
     source = path.read_text(encoding="utf-8")
-    side = SIDE_RE.search(source)
-    if not side:
-        raise RuntimeError(f"Could not locate sidebar in {path}")
-    youtube = YOUTUBE_RE.search(side.group(0))
-    youtube_html = youtube.group(0) if youtube else ""
-    replacement = '<aside class="side">' + lab_section(lang)
-    if youtube_html:
-        replacement += "\n" + youtube_html
-    replacement += '</aside>'
-    updated = source[: side.start()] + replacement + source[side.end() :]
+    # Preserve the existing sidebar, YouTube section and other home content.
+    # Only build the Lab if no canonical Lab mount exists at all.
+    if ('<!-- BR_HOME_LAB_START -->' in source
+            and '<!-- BR_HOME_LAB_END -->' in source
+            and 'id="home-lab-root"' in source):
+        updated = source
+    else:
+        side = SIDE_RE.search(source)
+        if not side:
+            raise RuntimeError(f"Could not locate sidebar in {path}")
+        youtube = YOUTUBE_RE.search(side.group(0))
+        youtube_html = youtube.group(0) if youtube else ""
+        replacement = '<aside class="side">' + lab_section(lang)
+        if youtube_html:
+            replacement += "\n" + youtube_html
+        replacement += '</aside>'
+        updated = source[: side.start()] + replacement + source[side.end() :]
 
     updated = HOT_X_SCRIPT_RE.sub("\n", updated)
 
-    if not LAB_CSS_RE.search(updated):
+    css = '<link rel="stylesheet" href="/assets/home-lab.css?v=3">'
+    if LAB_CSS_RE.search(updated):
+        updated = LAB_CSS_RE.sub(css, updated, count=1)
+    else:
         marker = '</head>'
         if marker not in updated:
             raise RuntimeError(f"Missing </head> in {path}")
-        updated = updated.replace(marker, '<link rel="stylesheet" href="/assets/home-lab.css?v=2">\n' + marker, 1)
+        updated = updated.replace(marker, css + '\n' + marker, 1)
 
-    if not LAB_SCRIPT_RE.search(updated):
-        marker = '</body>'
-        if marker not in updated:
-            raise RuntimeError(f"Missing </body> in {path}")
-        updated = updated.replace(marker, '<script src="/scripts/home-lab-v5.js" defer></script>\n' + marker, 1)
+
+    # One canonical renderer only. The retired -v5 script previously raced
+    # with the newer code and could show a stale static snapshot.
+    updated = LAB_SCRIPT_RE.sub("", updated)
+    updated = SUMMARY_SCRIPT_RE.sub("", updated)
+    if '</body>' not in updated:
+        raise RuntimeError(f"Missing </body> in {path}")
+    updated = re.sub(r'\s*</body>', '\n' + HOME_RUNTIME + '\n</body>', updated, count=1)
 
     if updated == source:
         return False
@@ -95,8 +112,9 @@ def check() -> None:
             '<!-- BR_HOME_LAB_START -->',
             '<!-- BR_HOME_LAB_END -->',
             'id="home-lab-root"',
-            '/assets/home-lab.css?v=2',
-            '/scripts/home-lab-v5.js',
+            '/assets/home-lab.css?v=3',
+            '/scripts/house-view-home-summary.js?v=20261115-1',
+            '/scripts/home-lab.js?v=20261115-1',
             COPY[lang]["title"],
         )
         for marker in required:
@@ -106,6 +124,10 @@ def check() -> None:
         for marker in forbidden:
             if marker in source:
                 raise RuntimeError(f"Legacy Hot X marker still present in {path}: {marker!r}")
+        if (source.count('/scripts/home-lab.js?v=20261115-1') != 1
+                or source.count('/scripts/house-view-home-summary.js?v=20261115-1') != 1
+                or '/scripts/home-lab-v5.js' in source):
+            raise RuntimeError(f"Duplicate or retired homepage lab renderer in {path}")
         if source.count('id="home-lab-root"') != 1:
             raise RuntimeError(f"Expected exactly one Lab root in {path}")
 

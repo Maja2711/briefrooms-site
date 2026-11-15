@@ -16,6 +16,7 @@
     gse:'/data/gse/gse_v2_lab_public.json',
     fx:'/data/investments/eurusd_daily_spot.json',
     fxHistory:'/data/investments/eurusd_daily_history.json',
+    houseView:'/data/investments/house_view_monthly_current.json',
     longView:isEn?'/en/investing/long-view.html':'/pl/inwestycje/long-view.html',
     daily:isEn?'/en/investing/daily-trading.html':'/pl/inwestycje/daily-trading.html',
     gseLab:isEn?'/en/geo/gse-lab.html':'/pl/geo/gse-lab.html'
@@ -288,24 +289,27 @@
   }
 
   async function longViewModel(){
-    const html=await fetchText(PATHS.longView);
-    if(!html)return unavailableModel('is-long',T.longLabel,PATHS.longView);
-    const doc=parser().parseFromString(html,'text/html');
-    const snap=doc.querySelector('.lv-snapshot');
-    if(!snap)return unavailableModel('is-long',T.longLabel,PATHS.longView);
-    const head=snap.querySelector('.lv-head h2');
-    const date=snap.querySelector('.lv-date');
-    const title=head&&head.textContent?head.textContent.trim():'S&P 500 House View';
-    const dateText=date&&date.textContent?date.textContent.trim():'';
-    const metrics=[...snap.querySelectorAll('.lv-bias > div')].slice(0,3).map(x=>{
-      const sm=x.querySelector('small'), b=x.querySelector('b');
-      return {label:sm&&sm.textContent?sm.textContent.trim():'',value:b&&b.textContent?b.textContent.trim():'—'};
-    });
-    const p=snap.querySelector('.lv-head p');
-    const desc=p&&p.textContent?p.textContent.trim():'';
+    // Exact same immutable monthly JSON that Long View itself renders.
+    // NEVER read the old .lv-snapshot editorial archive as today's House View.
+    const snapshot=await fetchJson(PATHS.houseView);
+    const summary=window.BriefRoomsHouseViewHome;
+    const data=summary&&typeof summary.create==='function'
+      ?summary.create(snapshot,lang,Date.now()):null;
+    if(!data){
+      const fallback=unavailableModel('is-long',T.longLabel,PATHS.longView);
+      fallback.id='home-live-long';
+      fallback.status=isEn?'NO CURRENT VIEW':'BRAK AKTUALNEJ TEZY';
+      fallback.statusClass='is-stale';
+      fallback.desc=isEn
+        ?'No valid published monthly House View. Open Long View for source dates.'
+        :'Brak zweryfikowanego bieżącego raportu. Sprawdź datę i źródła w Long View.';
+      return fallback;
+    }
     return {
-      id:'home-live-long',variant:'is-long',label:T.longLabel,status:T.house,
-      title:title,desc:clampText(desc,155),metrics:metrics,meta:dateText?(T.date+': '+dateText):'',
+      id:'home-live-long',variant:'is-long',label:T.longLabel,status:data.status,
+      statusClass:data.stale?'is-stale':'',
+      title:data.title,desc:clampText(data.desc,data.stale?175:250),
+      metrics:data.metrics,meta:data.meta,
       href:PATHS.longView,cta:T.details
     };
   }

@@ -43,3 +43,13 @@ Silnik nie może ograniczać sekcji do wyliczenia poziomu wskaźnika lub statusu
 **Archiwum pozostaje immutable.** Raport 2026-11 został zamrożony wcześniej z technicznym opisem. Frontend v2.1 przelicza wyłącznie jego *prezentację językową* z tych samych zamrożonych liczb, ocen i jawnych flag (bez nowego feedu i bez zmiany JSON). Oznacza tę interpretację numerem v2.1. Kolejne raporty otrzymują już czytelne wnioski bezpośrednio z funkcji _investment_editorial_sections w scripts/house_view_research_v2.py. PL/EN stosują te same zasady, ale nie deklarują trafności prognostycznej.
 
 Testy: dodatkowo node tests/test_house_view_editorial_ui.cjs odtwarza listopadowy snapshot, sprawdza polski i angielski wniosek, brak kodów technicznych w głównym tekście, archiwum bez zmian i fail-closed dla niepełnego makro.
+
+
+## Synchronizacja karty House View na stronie głównej — v2.2
+Źródłem prawdy dla **obu interfejsów** jest wyłącznie `data/investments/house_view_monthly_current.json`. `scripts/home-lab.js` pobiera ten sam miesięczny JSON z `cache: no-store` i parametrem odświeżającym URL, zamiast parsować historyczny HTML `.lv-snapshot` z Long View. `scripts/house-view-home-summary.js` tworzy z zamrożonych inputs/views osobne dla PL/EN: kierunkowy tytuł 1M, krótkie uzasadnienie na podstawie obserwowanego 20-sesyjnego momentum, rentowności US 10Y i core PCE, horyzonty 1M/6M/12M oraz rzeczywistą datę `as_of`.
+
+Nie zapisujemy kolejnego JSON, nie kopiujemy ręcznie daty lub tekstu archiwalnego i nie modyfikujemy miesięcznych archiwów ani silników. Po każdej zakończonej publikacji `current` strona główna automatycznie pokaże nowe wejściowe wartości i tezę. Nie ma gwarancji tej samej chwili dostarczenia przez CDN, ale klient wymusza świeży odczyt przy otwarciu strony.
+
+Bramka: odrzucenie niepoprawnej schemy, przyszłej daty, niezgodności `month`/`as_of`, braku któregoś horyzontu lub kluczowej obserwacji; nie wolno w takim przypadku wracać do starego opisu październikowego. Po 45 dniach karta pokazuje jednoznacznie **ARCHIWUM** bez kierunkowych metryk. To nie jest nowy model prognozy, nie nadaje dodatkowych uprawnień GSE/FSE/WES/BRACE. Interpretacja w karcie jest zwięzłym streszczeniem danych, nie niezależną prognozą.
+
+Na `pl/index.html` i `en/index.html` działa tylko jedno wejście `home-lab.js`. Usunięto równoległy skrypt `home-lab-v5.js`, który mógł nadpisywać nowsze dane starszym snapshotem. `scripts/sync_home_lab.py` utrzymuje nowy kontrakt, `tests/test_house_view_home_card.cjs` sprawdza istniejący listopad 2026, zmianę miesiąca, PL/EN, fail-closed i unikalny renderer. Te testy są podpięte do walidacji PR oraz miesięcznego workflow publikacyjnego.
