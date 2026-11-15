@@ -25,3 +25,6 @@ The implementation uses `scripts/gse_weekly_editorial.py`, `.github/workflows/gs
 
 ## Validation
 `python -m unittest tests.test_gse_weekly_editorial -v`; `python -m py_compile scripts/gse_weekly_editorial.py`; `python scripts/gse_weekly_editorial.py --check`. On merge, ensure an authorized `GEMINI_API_KEY` GitHub secret and current Gemini access. Old `data/ai_outlook_provider_status.json` status is not a current API preflight. Do not claim live publication until both released URLs and production workflow are verified.
+
+## First-merge Sunday bootstrap
+A `push` to `main` modifying the workflow or publisher also triggers validation. On Sundays, this permits the first week's edition after merge even when the 09:17 slot has passed. On other weekdays, push-triggered publication is disabled; manual `workflow_dispatch` is available. Immutable `issues/YYYY-Www.json` makes repeat runs idempotent. A green PR CI result does not establish successful live publication; verify the production workflow and its credentials/source gates.

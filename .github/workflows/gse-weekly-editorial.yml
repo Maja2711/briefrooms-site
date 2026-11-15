@@ -11,6 +11,12 @@ on:
       - "en/geopolitics.html"
       - "docs/GSE_WEEKLY_EDITORIAL_PL.md"
       - "docs/GSE_WEEKLY_EDITORIAL_EN.md"
+  push:
+    branches: [main]
+    # First merge boots the missing Sunday issue; later changes are scoped.
+    paths:
+      - ".github/workflows/gse-weekly-editorial.yml"
+      - "scripts/gse_weekly_editorial.py"
   workflow_dispatch:
   schedule:
     # Sunday 09:17 in Warsaw: both UTC candidates, gated by local calendar hour.
@@ -56,6 +62,7 @@ jobs:
       GEMINI_GENERATION_MODEL: gemini-3.5-flash
       GEMINI_REVIEW_MODEL: gemini-3.5-flash
       GEMINI_MIN_INTERVAL_SECONDS: "8"
+      # A missing secret blocks publishing at Gemini preflight, never creates filler.
     steps:
       - uses: actions/checkout@v4
         with:
@@ -77,8 +84,10 @@ jobs:
           from zoneinfo import ZoneInfo
           now = datetime.now(ZoneInfo("Europe/Warsaw"))
           # Manual dispatch explicitly permits recovery outside the Sunday slot.
-          allowed = os.environ["EVENT"] == "workflow_dispatch" or (
-              now.weekday() == 6 and now.hour in (9, 10)
+          allowed = (
+              os.environ["EVENT"] == "workflow_dispatch"
+              or (os.environ["EVENT"] == "push" and now.weekday() == 6)
+              or (os.environ["EVENT"] == "schedule" and now.weekday() == 6 and now.hour in (9, 10))
           )
           with open(os.environ["GITHUB_OUTPUT"], "a") as f:
               print(f"run={'true' if allowed else 'false'}", file=f)

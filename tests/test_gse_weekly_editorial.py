@@ -259,6 +259,14 @@ class GSEWeeklyEditorialTests(unittest.TestCase):
                 page = root / ("pl/geopolityka.html" if lang == "pl" else "en/geopolitics.html")
                 self.assertEqual(page.read_bytes(), pages_before[lang])
 
+    def test_sunday_bootstrap_and_weekday_guard_are_explicit(self):
+        workflow = (g.ROOT / ".github/workflows/gse-weekly-editorial.yml").read_text(encoding="utf-8")
+        self.assertIn("  push:\n    branches: [main]", workflow)
+        self.assertIn('os.environ["EVENT"] == "push" and now.weekday() == 6', workflow)
+        self.assertIn('os.environ["EVENT"] == "schedule" and now.weekday() == 6', workflow)
+        self.assertIn("  workflow_dispatch:", workflow)
+        self.assertIn("python scripts/gse_weekly_editorial.py --publish", workflow)
+
     def test_html_escaping_and_safe_domains(self):
         self.assertFalse(g.safe_https("http://upload.wikimedia.org/a.jpg", ("upload.wikimedia.org",)))
         self.assertFalse(g.safe_https('https://upload.wikimedia.org/a.jpg"onerror="x', ("upload.wikimedia.org",)))

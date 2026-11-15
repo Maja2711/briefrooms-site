@@ -24,3 +24,6 @@ Implementacja: `scripts/gse_weekly_editorial.py`, `.github/workflows/gse-weekly-
 
 ## Wdrożenie i weryfikacja
 `python -m unittest tests.test_gse_weekly_editorial -v`; `python -m py_compile scripts/gse_weekly_editorial.py`; `python scripts/gse_weekly_editorial.py --check`. Po scaleniu sprawdź obecność `GEMINI_API_KEY` w GitHub Actions Secrets i sprawność Gemini runtime; najnowszy publiczny zapis stanu `data/ai_outlook_provider_status.json` może być nieaktualny i nie stanowi preflightu. Publikacja nie jest deklarowana, dopóki działanie workflow i obie publiczne strony nie zostaną potwierdzone. Ustawienia licencji i dostępność Wikimedia Commons są sprawdzane podczas publikacji.
+
+## Uruchomienie przy pierwszym scaleniu w niedzielę
+Workflow reaguje również na `push` do `main` zmieniający sam pipeline albo publikator. W niedzielę pozwala to rozpocząć wydanie tygodnia po pierwszym scaleniu, nawet jeśli slot 09:17 już minął. W pozostałe dni automatyczna publikacja przez `push` jest zablokowana; możliwe jest tylko świadome `workflow_dispatch`. Idempotencja poprzez immutable `issues/YYYY-Www.json` zapobiega duplikatom. Wynik publikacji i ewentualny brak poświadczeń lub źródeł trzeba odczytać z produkcyjnego workflow; zielone CI PR nie dowodzi publikacji.

@@ -38,3 +38,18 @@
 @media(max-width:1050px){.home-lab__cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:680px){.home-lab__cards{grid-template-columns:1fr}.home-lab-card__metrics{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(prefers-reduced-motion:reduce){.home-lab-card{transition:none}.home-lab__skeleton{animation:none}}
+
+/* House View: render the full directional stance instead of ellipses. */
+.home-lab-card.is-long .home-lab-metric strong{
+  white-space:normal;
+  overflow:visible;
+  text-overflow:clip;
+  overflow-wrap:break-word;
+  min-height:2.3em;
+}
+.home-lab-card.is-long .home-lab-card__desc{
+  display:-webkit-box;
+  -webkit-line-clamp:4;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+}

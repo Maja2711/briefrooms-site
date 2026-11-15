@@ -43,3 +43,13 @@ The system may not stop at listing raw indicators or GSE/FSE/BRACE statuses. Eve
 **The archive remains immutable.** November 2026 was previously frozen with technical prose. The v2.1 frontend derives only a new *display interpretation* from the same frozen inputs, biases and disclosed risk flags; it does not mutate the underlying JSON or fetch replacement model values. The presentation change is visibly versioned v2.1. Future monthly reports also receive investor-first wording directly from _investment_editorial_sections in scripts/house_view_research_v2.py. PL/EN follow equivalent rules without any claim of validated forecasting skill.
 
 Additional test: node tests/test_house_view_editorial_ui.cjs replays the frozen November report in Polish and English, checks investor-facing language, no raw engine flags in the main text, immutable archive, and fail-closed behavior for incomplete macro data.
+
+
+## Homepage House View synchronization — v2.2
+The single source of truth for **both UIs** is `data/investments/house_view_monthly_current.json`. `scripts/home-lab.js` fetches the same immutable current JSON with no-store/cache busting instead of scraping the archival `.lv-snapshot` HTML on Long View. `scripts/house-view-home-summary.js` derives a clear PL/EN one-month directional headline, concise explanation based on frozen 20-session futures momentum, US 10-year yield and core PCE, 1M/6M/12M stances and actual `as_of` date.
+
+There is no second JSON writer, manual copying of an archival date or title, change to frozen archives or writeback to any engine. Each completed monthly publication updates `current`, and the homepage obtains the corresponding revised thesis and measurements on its next fresh fetch. Client-side cache busting does not guarantee zero CDN propagation delay.
+
+Malformed schema, future date, `month`/`as_of` mismatch, missing horizon or essential observation are fail-closed; never fall back to October's static editorial. After 45 days the card is explicitly marked **ARCHIVE**, without current directional metrics. Homepage copy is a short evidence-bounded interpretation, not an independent forecast or a GSE/FSE/WES/BRACE authority change.
+
+Both `pl/index.html` and `en/index.html` now load exactly one `home-lab.js` renderer (the competing `home-lab-v5.js` loader is retired). `scripts/sync_home_lab.py` preserves the correct loader; `tests/test_house_view_home_card.cjs` checks November 2026, synthetic next-month updates, languages, staleness, fail-closed validation and unique scripts. Monthly publishing PR and production checks run this test.

@@ -7,6 +7,13 @@ on:
       - "scripts/publish_monthly_house_view.py"
       - "scripts/house_view_research_v2.py"
       - "scripts/house-view-monthly.js"
+      - "scripts/house-view-home-summary.js"
+      - "assets/home-lab.css"
+      - "scripts/home-lab.js"
+      - "scripts/sync_home_lab.py"
+      - "pl/index.html"
+      - "en/index.html"
+      - "tests/test_house_view_home_card.cjs"
       - "assets/house-view-monthly.css"
       - "tests/test_house_view_monthly.py"
       - "tests/test_house_view_research_v2.py"
@@ -43,6 +50,10 @@ jobs:
           python -m py_compile scripts/publish_monthly_house_view.py scripts/house_view_research_v2.py
           node --check scripts/house-view-monthly.js
           node tests/test_house_view_editorial_ui.cjs
+          node --check scripts/house-view-home-summary.js
+          node --check scripts/home-lab.js
+          node tests/test_house_view_home_card.cjs
+          python scripts/sync_home_lab.py --check
 
   publish:
     if: github.event_name != 'pull_request'
@@ -68,6 +79,10 @@ jobs:
           python -m py_compile scripts/publish_monthly_house_view.py scripts/house_view_research_v2.py
           node --check scripts/house-view-monthly.js
           node tests/test_house_view_editorial_ui.cjs
+          node --check scripts/house-view-home-summary.js
+          node --check scripts/home-lab.js
+          node tests/test_house_view_home_card.cjs
+          python scripts/sync_home_lab.py --check
 
       - name: Publish immutable bilingual House View v2 (macro + read-only engine context)
         run: python scripts/publish_monthly_house_view.py
