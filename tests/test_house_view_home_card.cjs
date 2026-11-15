@@ -31,6 +31,8 @@ assert.match(pl.title,/ryzyka korekty/);
 assert.match(pl.desc,/20 sesji: -5,82%/);
 assert.match(pl.desc,/4,86%/);
 assert.match(pl.desc,/3,12%/);
+assert.match(pl.desc,/PKB USA q\/q SAAR \+3,37%/);
+assert.match(pl.desc,/Brent 107,03 USD\/bbl/);
 assert.deepEqual(pl.metrics,[
   {label:'1M',value:'defensywny'},
   {label:'6M',value:'neutralny'},
