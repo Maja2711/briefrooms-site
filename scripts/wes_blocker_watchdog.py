@@ -102,11 +102,26 @@ def evaluate(
         quote_fresh = bool(age is not None and -30 <= age <= 360
                            and quote.get("price") is not None)
         state = states.get(iid) if isinstance(states.get(iid), dict) else {}
-        candidate = item.get("wes_trigger_candidate") if isinstance(item.get("wes_trigger_candidate"), dict) else {}
-        required = item.get("wes_required_trigger") if isinstance(item.get("wes_required_trigger"), dict) else {}
         lock = item.get("reentry_lock") if isinstance(item.get("reentry_lock"), dict) else {}
         auth = item.get("wes_entry_authorization") if isinstance(item.get("wes_entry_authorization"), dict) else {}
         pending = item.get("pending_entry_decision") if isinstance(item.get("pending_entry_decision"), dict) else {}
+        authorized_at = timestamp(auth.get("authorized_at"))
+        expires_at = timestamp(auth.get("expires_at"))
+        authorization_active = bool(
+            auth.get("directional_admission_passed") is True
+            and authorized_at is not None and expires_at is not None
+            and authorized_at <= now_utc <= expires_at
+        )
+        # Approved candidates are owned by the frozen authorization, not by the
+        # last rejected NO-TRADE monitoring snapshot. Never use an expired
+        # authorization to infer execution eligibility or a live direction.
+        current = auth if authorization_active else item
+        candidate_key = "candidate" if authorization_active else "wes_trigger_candidate"
+        required_key = "required" if authorization_active else "wes_required_trigger"
+        candidate = (current.get(candidate_key)
+                     if isinstance(current.get(candidate_key), dict) else {})
+        required = (current.get(required_key)
+                    if isinstance(current.get(required_key), dict) else {})
         funnel = state.get("decision") if isinstance(state.get("decision"), dict) else {}
         prior_carried = state.get("next_entry_status") == "position_carried_from_prior_week"
         executed = has_trade(item) or prior_carried
@@ -119,6 +134,11 @@ def evaluate(
             reasons.append("POSITION_ALREADY_EXECUTED_OR_CARRIED")
         else:
             no_trade_count += 1
+            if pending and not authorization_active:
+                reasons.append("PENDING_ENTRY_WITHOUT_VALID_AUTHORIZATION")
+                recovery.append(iid + ":PENDING_ENTRY_WITHOUT_VALID_AUTHORIZATION")
+            if auth and not authorization_active:
+                warnings.append("WES_AUTHORIZATION_EXPIRED_OR_INVALID")
             if not candidate:
                 reasons.append("WES_TRIGGER_EVIDENCE_MISSING")
             if candidate.get("direction") not in ("long", "short"):
@@ -161,7 +181,7 @@ def evaluate(
             "candidate_direction": candidate.get("direction"),
             "candidate_raw_score": candidate.get("raw_score"),
             "confirmations": candidate.get("confirmations"),
-            "entry_authorization_active": bool(auth),
+            "entry_authorization_active": authorization_active,
             "pending_entry": bool(pending),
             "blocker_reasons": list(dict.fromkeys(reasons)),
             "warnings": list(dict.fromkeys(warnings)),
