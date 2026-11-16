@@ -264,6 +264,16 @@ def settle_due_positions(now: Optional[datetime] = None) -> bool:
     changed_any = False
     for path in sorted(WEEKLY_DIR.glob("*.json"))[-8:]:
         week = v4.read(path, {})
+        # A WES fill may arrive after the ISO-week Friday forecast deadline.
+        # Freeze its provenance-bound +7d risk/deadline *before* evaluating
+        # closure; otherwise a later scheduler can settle at a PRE-ENTRY bar.
+        if any(
+            isinstance(row, dict) and v5.open_position(row)
+            and _authorization(row).get("holding_policy") == CONTINUOUS_HOLDING_POLICY
+            for row in (week.get("instruments") or [])
+        ):
+            apply_open_reentry_metadata(path)
+            week = v4.read(path, {})
         weekly_deadline = parse_dt((week.get("market_window") or {}).get("exit_target_local"))
         if not week or weekly_deadline is None:
             continue
@@ -348,10 +358,26 @@ def settle_due_positions(now: Optional[datetime] = None) -> bool:
                 if v2.mark_exposure_closed(item):
                     changed = True
                 continue
+            entry_at = parse_dt(item.get("entry_captured_at"))
+            if entry_at is None:
+                item["close_quality_status"] = "missing_entry_timestamp_no_close"
+                changed = True
+                continue
+            if deadline < entry_at:
+                # Fail closed. Never settle a real post-deadline fill using an
+                # earlier scheduled exit bar, even on a legacy/no-carry path.
+                item["close_quality_status"] = "deadline_before_entry_no_close"
+                changed = True
+                continue
             symbol = v2.canonical_yahoo_symbol(str(item.get("instrument_id") or ""), str(item.get("symbol") or ""))
             point = v2.first_bar_at_or_after(symbol, deadline)
             if point is None:
                 item["close_quality_status"] = "target_close_price_unavailable_no_live_fallback"
+                changed = True
+                continue
+            point_at = parse_dt(point.get("timestamp"))
+            if point_at is None or point_at < entry_at:
+                item["close_quality_status"] = "exit_bar_before_entry_no_close"
                 changed = True
                 continue
             is_rolling = valid_rolling_deadline(item) is not None

@@ -179,6 +179,17 @@ def candidate_methods(fresh: Dict[str, Any], weekly: Dict[str, Any], tie: str) -
     return rows
 
 
+def valid_closed_leg_chronology(leg: Dict[str, Any]) -> bool:
+    """Exclude provably impossible sealed outcomes from prospective learning.
+
+    This check never mutates execution/history artifacts. Legacy records with
+    missing timestamps remain subject to their separate historical governance.
+    """
+    entry_at = v2.parse_dt(leg.get("entry_captured_at"))
+    exit_at = v2.parse_dt(leg.get("exit_captured_at"))
+    return not (entry_at is not None and exit_at is not None and exit_at < entry_at)
+
+
 def iter_legs(instrument_id: str, limit: int) -> Iterable[Dict[str, Any]]:
     legs: List[Dict[str, Any]] = []
     for path in sorted(WEEKLY_DIR.glob("*.json")):
@@ -187,7 +198,8 @@ def iter_legs(instrument_id: str, limit: int) -> Iterable[Dict[str, Any]]:
             if str(item.get("instrument_id")) != instrument_id:
                 continue
             for leg in item.get("position_legs") or []:
-                if isinstance(leg, dict) and leg.get("exit_captured_at"):
+                if (isinstance(leg, dict) and leg.get("exit_captured_at")
+                    and valid_closed_leg_chronology(leg)):
                     legs.append(leg)
     return legs[-max(1, limit):]
 

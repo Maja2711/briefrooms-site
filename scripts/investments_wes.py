@@ -183,7 +183,7 @@ def iter_wes_legs() -> Iterable[Dict[str, Any]]:
         week = read(path, {})
         for item in week.get("instruments") or []:
             for leg in item.get("position_legs") or []:
-                if not isinstance(leg, dict):
+                if not isinstance(leg, dict) or not v4.valid_closed_leg_chronology(leg):
                     continue
                 plan = leg.get("risk_plan") if isinstance(leg.get("risk_plan"), dict) else {}
                 if str(plan.get("wes_entry_class") or ""):

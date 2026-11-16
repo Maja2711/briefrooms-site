@@ -1,4 +1,6 @@
 import unittest
+import json
+from tempfile import TemporaryDirectory
 from datetime import datetime
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
@@ -17,6 +19,125 @@ TZ = ZoneInfo('Europe/Warsaw')
 
 
 class WesTests(unittest.TestCase):
+    def test_invalid_sealed_w46_leg_cannot_train_wes_strategy(self):
+        leg = {
+            "instrument_id": "eurusd", "strategy_id": "weekly_trend",
+            "entry_captured_at": "2026-11-13T23:02:32+01:00",
+            "exit_captured_at": "2026-11-13T22:00:00+01:00",
+            "net_result_percent": -0.002602,
+            "risk_plan": {"wes_entry_class": "midweek_trigger"},
+        }
+        good_leg = {**leg, "exit_captured_at": "2026-11-14T02:00:00+01:00"}
+        self.assertFalse(v4.valid_closed_leg_chronology(leg))
+        self.assertTrue(v4.valid_closed_leg_chronology(good_leg))
+        with TemporaryDirectory() as temp:
+            path = Path(temp) / "2026-W46.json"
+            path.write_text(json.dumps({"week_id": "2026-W46", "instruments": [
+                {"instrument_id": "eurusd", "position_legs": [leg, good_leg]}
+            ]}), encoding="utf-8")
+            with patch.object(v4, "WEEKLY_DIR", Path(temp)), \
+                 patch.object(wes, "WEEKLY", Path(temp)), \
+                 patch.object(wes.legacy, "now_local",
+                              return_value=datetime(2026, 11, 16, 12, tzinfo=TZ)):
+                self.assertEqual([good_leg], list(v4.iter_legs("eurusd", 10)))
+                self.assertEqual([good_leg], list(wes.iter_wes_legs()))
+                self.assertEqual(1, wes.learning_stats()["classes"]["midweek_trigger"]["count"])
+
+    def test_late_friday_continuous_fill_is_not_closed_at_earlier_week_end(self):
+        entry = "2026-11-13T23:02:32+01:00"
+        item = {
+            "instrument_id": "eurusd", "symbol": "EURUSD=X",
+            "direction": "short", "trade_status": "open",
+            "entry_price": 1.10277903, "entry_captured_at": entry,
+            "entry_decision_id": "verified-entry-1",
+            "exit_price": None,
+            "risk_distance": {
+                "stop_price_distance": 0.0095,
+                "take_price_distance": 0.015,
+            },
+            "risk_plan": {"model_version": "2.0.0", "stop_loss_price": 1.11227903,
+                          "take_profit_price": 1.08777903},
+            "wes_entry_authorization": {
+                "authorization_type": "no_trade_trigger",
+                "holding_policy": lifecycle.CONTINUOUS_HOLDING_POLICY,
+                "authorized_at": "2026-11-13T23:00:01+01:00",
+                "expires_at": "2026-11-14T00:00:01+01:00",
+                "candidate": {"direction": "short", "entry_class": "midweek_trigger",
+                              "raw_score": 99},
+            },
+        }
+        week = {"week_id": "2026-W46",
+                "market_window": {"exit_target_local": "2026-11-13T22:00:00+01:00"},
+                "instruments": [item]}
+        now = datetime(2026, 11, 14, 3, 27, tzinfo=TZ)
+        with TemporaryDirectory() as temp:
+            root = Path(temp)
+            path = root / "2026-W46.json"
+            path.write_text(json.dumps(week), encoding="utf-8")
+            with patch.object(lifecycle, "WEEKLY_DIR", root), \
+                 patch.object(lifecycle.wes, "learning_stats", return_value={"classes": {}}), \
+                 patch.object(lifecycle.legacy, "now_local", return_value=now), \
+                 patch.object(lifecycle.v2, "first_bar_at_or_after") as bar:
+                lifecycle.settle_due_positions(now)
+                bar.assert_not_called()
+            saved = json.loads(path.read_text(encoding="utf-8"))["instruments"][0]
+        self.assertIsNone(saved["exit_price"])
+        self.assertEqual("open", saved["trade_status"])
+        self.assertTrue(saved["wes_continuous_entry_qualified"])
+        self.assertEqual("2026-11-20T23:02:32+01:00",
+                         saved["wes_holding_deadline_local"])
+        self.assertEqual(saved["wes_holding_deadline_local"],
+                         saved["risk_plan"]["scheduled_exit"])
+
+    def test_unqualified_post_deadline_entry_never_uses_past_exit_bar(self):
+        week = {"week_id": "2026-W46",
+                "market_window": {"exit_target_local": "2026-11-13T22:00:00+01:00"},
+                "instruments": [{
+                    "instrument_id": "eurusd", "symbol": "EURUSD=X",
+                    "direction": "short", "trade_status": "open",
+                    "entry_price": 1.10278,
+                    "entry_captured_at": "2026-11-13T23:02:32+01:00",
+                    "exit_price": None,
+                }]}
+        with TemporaryDirectory() as temp:
+            path = Path(temp) / "2026-W46.json"
+            path.write_text(json.dumps(week), encoding="utf-8")
+            with patch.object(lifecycle, "WEEKLY_DIR", Path(temp)), \
+                 patch.object(lifecycle.v2, "first_bar_at_or_after") as bar:
+                self.assertTrue(lifecycle.settle_due_positions(
+                    datetime(2026, 11, 14, 3, 27, tzinfo=TZ)))
+                bar.assert_not_called()
+            saved = json.loads(path.read_text(encoding="utf-8"))["instruments"][0]
+        self.assertIsNone(saved["exit_price"])
+        self.assertEqual("open", saved["trade_status"])
+        self.assertEqual("deadline_before_entry_no_close",
+                         saved["close_quality_status"])
+
+    def test_pre_entry_market_bar_is_rejected_at_settlement(self):
+        week = {"week_id": "2026-W46",
+                "market_window": {"exit_target_local": "2026-11-13T22:00:00+01:00"},
+                "instruments": [{
+                    "instrument_id": "eurusd", "symbol": "EURUSD=X",
+                    "direction": "short", "trade_status": "open",
+                    "entry_price": 1.10278,
+                    "entry_captured_at": "2026-11-13T21:00:00+01:00",
+                    "exit_price": None,
+                }]}
+        with TemporaryDirectory() as temp:
+            path = Path(temp) / "2026-W46.json"
+            path.write_text(json.dumps(week), encoding="utf-8")
+            with patch.object(lifecycle, "WEEKLY_DIR", Path(temp)), \
+                 patch.object(lifecycle.v2, "first_bar_at_or_after",
+                              return_value={"price": 1.1026, "timestamp":
+                                            "2026-11-13T20:55:00+01:00"}) as bar:
+                self.assertTrue(lifecycle.settle_due_positions(
+                    datetime(2026, 11, 14, 3, 27, tzinfo=TZ)))
+                bar.assert_called_once()
+            saved = json.loads(path.read_text(encoding="utf-8"))["instruments"][0]
+        self.assertIsNone(saved["exit_price"])
+        self.assertEqual("exit_bar_before_entry_no_close",
+                         saved["close_quality_status"])
+
     def test_continuous_entry_freezes_seven_day_risk_in_same_atomic_update(self):
         now = datetime(2026, 11, 11, 10, 1, tzinfo=TZ)
         entry_at = "2026-11-11T10:00:00+01:00"

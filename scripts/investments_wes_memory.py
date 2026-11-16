@@ -176,6 +176,18 @@ def _record_quality(
         reasons.append("insufficient_closed_execution_record")
         return "D", QUALITY_WEIGHTS["D"], reasons
 
+    parsed_entry = _parse_dt(entry_at)
+    parsed_exit = _parse_dt(exit_at)
+    if parsed_entry is not None and parsed_exit is not None:
+        # Do not compare mixed timezone semantics as if they were the same
+        # instant; unknown ordering is not admissible training evidence.
+        if (parsed_entry.tzinfo is None) != (parsed_exit.tzinfo is None):
+            reasons.append("entry_exit_timezone_incomparable")
+            return "D", QUALITY_WEIGHTS["D"], reasons
+        if parsed_exit < parsed_entry:
+            reasons.append("exit_before_entry_invalid_settlement")
+            return "D", QUALITY_WEIGHTS["D"], reasons
+
     if reconstructed:
         reasons.append("historical_or_partially_reconstructed_execution")
         return "C", QUALITY_WEIGHTS["C"], reasons
