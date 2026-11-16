@@ -38,6 +38,87 @@ class RecursiveWesBlockerTests(unittest.TestCase):
             self.assertIn("FEWER_THAN_TWO_INDEPENDENT_CONFIRMATIONS", item["blocker_reasons"])
             self.assertFalse(item["learning"]["automatic_unlock_allowed"])
 
+    def test_authorized_candidate_uses_frozen_provenance_not_old_monitor(self):
+        w = week()
+        eur = w["instruments"][0]
+        eur.pop("wes_trigger_candidate")
+        eur["wes_entry_authorization"] = {
+            "authorized_at": (NOW - timedelta(minutes=2)).isoformat(),
+            "expires_at": (NOW + timedelta(minutes=20)).isoformat(),
+            "directional_admission_passed": True,
+            "candidate": {
+                "direction": "short",
+                "raw_score": 99,
+                "confirmations": 4,
+                "directional_admission": {"passed": True},
+            },
+            "required": {"allowed": True},
+        }
+        eur["pending_entry_decision"] = {
+            "decision_id": "wes-dec-example",
+            "decision": {"direction": "short"},
+        }
+        result = watcher.evaluate(w, prices(), {}, [], now=NOW)
+        audit = result["instruments"]["eurusd"]
+        self.assertTrue(audit["entry_authorization_active"])
+        self.assertTrue(audit["pending_entry"])
+        self.assertEqual("short", audit["candidate_direction"])
+        self.assertEqual(99, audit["candidate_raw_score"])
+        self.assertEqual(4, audit["confirmations"])
+        self.assertNotIn("WES_TRIGGER_EVIDENCE_MISSING", audit["blocker_reasons"])
+        self.assertNotIn("NO_QUALIFIED_DIRECTION", audit["blocker_reasons"])
+        self.assertNotIn("DIRECTIONAL_ADMISSION_NOT_PASSED", audit["blocker_reasons"])
+        self.assertNotIn("FEWER_THAN_TWO_INDEPENDENT_CONFIRMATIONS",
+                         audit["blocker_reasons"])
+        self.assertEqual("NO_TRADE_REVIEWED", result["status"])
+        self.assertTrue(result["auto_trade_forbidden"])
+
+    def test_expired_authorization_with_pending_plan_requires_recovery(self):
+        w = week()
+        eur = w["instruments"][0]
+        eur["wes_entry_authorization"] = {
+            "authorized_at": (NOW - timedelta(hours=2)).isoformat(),
+            "expires_at": (NOW - timedelta(minutes=1)).isoformat(),
+            "directional_admission_passed": True,
+            "candidate": {
+                "direction": "short",
+                "raw_score": 99,
+                "confirmations": 4,
+                "directional_admission": {"passed": True},
+            },
+        }
+        eur["pending_entry_decision"] = {"decision": {"direction": "short"}}
+        audit = watcher.evaluate(w, prices(), {}, [], now=NOW)
+        self.assertEqual("RECOVERY_REQUIRED", audit["status"])
+        self.assertFalse(audit["instruments"]["eurusd"]["entry_authorization_active"])
+        self.assertIn("PENDING_ENTRY_WITHOUT_VALID_AUTHORIZATION",
+                      audit["instruments"]["eurusd"]["blocker_reasons"])
+        self.assertIn("eurusd:PENDING_ENTRY_WITHOUT_VALID_AUTHORIZATION",
+                      audit["recovery_reasons"])
+        self.assertNotEqual("short", audit["instruments"]["eurusd"]["candidate_direction"])
+        self.assertTrue(audit["auto_trade_forbidden"])
+
+    def test_old_monitor_candidate_does_not_override_active_authorization(self):
+        w = week()
+        eur = w["instruments"][0]
+        eur["reentry_lock"] = {"active": False}
+        eur["wes_entry_authorization"] = {
+            "authorized_at": (NOW - timedelta(minutes=1)).isoformat(),
+            "expires_at": (NOW + timedelta(minutes=10)).isoformat(),
+            "directional_admission_passed": True,
+            "candidate": {
+                "direction": "long",
+                "raw_score": 76,
+                "confirmations": 3,
+                "directional_admission": {"passed": True},
+            },
+            "required": {"allowed": True},
+        }
+        eur["pending_entry_decision"] = {"decision": {"direction": "long"}}
+        result = watcher.evaluate(w, prices(), {}, [], now=NOW)
+        self.assertEqual("long", result["instruments"]["eurusd"]["candidate_direction"])
+        self.assertEqual([], result["instruments"]["eurusd"]["blocker_reasons"])
+
     def test_active_pending_entry_with_stale_quote_requests_recovery(self):
         w = week()
         w["instruments"][0]["pending_entry_decision"] = {"decision": {"direction": "long"}}

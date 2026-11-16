@@ -185,4 +185,8 @@ Every 15-minute WES cycle now writes `data/investments/wes_blocker_learning.json
 
 For each instrument the review captures actual trades/carry, directional candidate, confirmations, raw score, admission status, EPE evidence, monitoring lock type, source age, central-bank status and a bounded history of recorded no-trade causes. The monitor asks if the block prevented a known bad trade, but **does not claim benefit** without prospective point-in-time rejected-candidate outcomes, costs and out-of-sample verification. It records research hypotheses only; no automatic threshold promotion, direction creation, synthetic P/L or trading authority. Legitimate abstention remains allowed. Only the identified obsolete ECB Weekly time/event gates may be lifted by a separately governed, deterministic lifecycle policy. Unresolved Fed and EURUSD Daily controls retain their prior protection.
 
+
+
+The diagnostic must read the current, time-valid `wes_entry_authorization.candidate` after governed approval, not obsolete `wes_trigger_candidate` monitoring evidence from a prior rejection. A pending execution with a live admission is not a missing direction; a pending execution after authorization expiry is a recoverable safety incident, never permission to fill retrospectively.
+
 This change is experimental paper trading only and **not a claim that a changed rule will be profitable**. Follow-up should measure paired WES Champion vs historical baseline on prospective episodes with cost-adjusted performance, drawdown and false-positive/false-negative blocker rates before any wider automatic relaxation.
