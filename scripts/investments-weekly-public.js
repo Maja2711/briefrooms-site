@@ -15,6 +15,7 @@
       stale: 'Dane rynkowe są opóźnione. Pokazujemy ostatnią zapisaną cenę wraz z godziną jej aktualizacji.',
       loadError: 'Nie udało się pobrać aktualnych danych. Ostatnio zapisany widok pozostaje dostępny.',
       no: '—', audit: 'DANE W AUDYCIE', withheld: 'Wynik wstrzymany',
+      correctedNoTrade: 'NO TRADE', correctedResult: 'Wynik rozliczenia nieważny',
       auditText: 'Rekord nie przeszedł kontroli spójności.', previousResult: 'Poprzedni wynik',
       total: 'Łączny wynik zamkniętych pozycji', wins: 'Zyskowne / stratne',
       next: 'następny tydzień', settled: 'wynik historyczny',
@@ -31,6 +32,7 @@
       stale: 'Market data is delayed. The last stored price is shown together with its update time.',
       loadError: 'Current data could not be loaded. The last stored view remains available.',
       no: '—', audit: 'DATA UNDER AUDIT', withheld: 'Result withheld',
+      correctedNoTrade: 'NO TRADE', correctedResult: 'Invalid settlement result',
       auditText: 'The record failed the consistency check.', previousResult: 'Previous result',
       total: 'Total closed result', wins: 'Profitable / losing',
       next: 'next week', settled: 'historical result',
@@ -212,7 +214,7 @@
   function quarantineMap(data) {
     const map = new Map();
     for (const row of Array.isArray(data?.records) ? data.records : []) {
-      if (row?.public_status !== 'withheld') continue;
+      if (!['withheld', 'no_trade_invalid_settlement'].includes(row?.public_status)) continue;
       map.set(`${row.week_id}/${row.instrument_id}`, row);
     }
     return map;
@@ -292,6 +294,15 @@
     const explicit = quarantine.get(`${week.week_id}/${item.instrument_id}`) || null;
     if (explicit?.manual_public_result) return { withheld: false, reason: '', issues: [], item: approvedItem(item, explicit) };
     const issues = integrityIssues(item, week.method_version || null, week);
+    // Historical economic records (and their seals) are immutable. This
+    // publication-only correction is allowed only for a real chronology
+    // violation, never to relabel a valid executed trade as NO TRADE.
+    if (explicit?.public_status === 'no_trade_invalid_settlement'
+        && explicit.reason_code === 'exit_before_entry'
+        && issues.includes('exit_before_entry')) {
+      return { withheld: true, correctedNoTrade: true, reason:
+        L === 'pl' ? explicit.reason_pl : explicit.reason_en, issues, item };
+    }
     if (explicit || issues.length) {
       return { withheld: true, reason: explicit?.reason || `${T.auditText} [${issues.join(', ')}]`, issues, item };
     }
@@ -328,6 +339,9 @@
     const currentLabel = item.instrument_id === 'eurusd' && (currentRecord.fresh !== true || currentSource.includes('fxapi'))
       ? T.lastPrice
       : T.price;
+    if (state.correctedNoTrade) {
+      return `<article class="card neutral integrity-corrected"><div class="head"><div><p>${esc(label(item))}</p><h3>${esc(T.correctedNoTrade)}</h3></div></div><dl class="grid"><div class="cell big"><dt>${esc(T.pnl)}</dt><dd class="neutral">${esc(T.no)}</dd></div><div class="cell"><dt>${esc(T.status)}</dt><dd>${esc(T.correctedNoTrade)}</dd></div><div class="cell big"><dt>${esc(T.correctedResult)}</dt><dd>${esc(state.reason)}</dd></div></dl></article>`;
+    }
     if (state.withheld) {
       return `<article class="card ${esc(dir(item))} integrity-withheld"><div class="head"><div><p>${esc(label(item))}</p><h3>${esc(dirText(item))}</h3></div></div><dl class="grid"><div class="cell big"><dt>${T.pnl}</dt><dd class="neutral">${esc(T.withheld)}</dd></div><div class="cell"><dt>${T.status}</dt><dd>${esc(T.audit)}</dd></div><div class="cell big"><dt>${T.audit}</dt><dd>${esc(state.reason)}</dd></div></dl></article>`;
     }
