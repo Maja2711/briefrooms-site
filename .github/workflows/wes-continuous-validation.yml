@@ -13,6 +13,9 @@ on:
       - "scripts/eurusd_central_bank_event_risk.py"
       - "scripts/wes_blocker_watchdog.py"
       - "tests/test_investments_wes.py"
+      - "tests/test_investments_wes_memory.py"
+      - "scripts/investments_wes_memory.py"
+      - "scripts/investments_weekly_v4.py"
       - "tests/test_eurusd_cb_event_risk.py"
       - "tests/test_verify_weekly_close_deadline.py"
       - "tests/test_wes_blocker_watchdog.py"
@@ -58,6 +61,7 @@ jobs:
         run: |
           python -m unittest -v \
             tests.test_investments_wes \
+            tests.test_investments_wes_memory \
             tests.test_investments_weekly_v5 \
             tests.test_wes_lifecycle_expired_no_entry \
             tests.test_verify_weekly_close_deadline \
