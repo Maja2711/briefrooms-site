@@ -16,6 +16,9 @@ on:
       - "tests/test_eurusd_cb_event_risk.py"
       - "tests/test_verify_weekly_close_deadline.py"
       - "tests/test_wes_blocker_watchdog.py"
+      - "tests/test_wes_w46_public_no_trade.cjs"
+      - "scripts/investments-weekly-public.js"
+      - "data/investments/public_quarantine.json"
       - ".github/workflows/wes-continuous-validation.yml"
   workflow_dispatch:
 
@@ -33,6 +36,8 @@ jobs:
           python-version: "3.11"
       - name: Install deterministic WES test dependencies
         run: python -m pip install yfinance pandas numpy requests
+      - name: Validate W46 invalid-settlement NO TRADE publication
+        run: node --test tests/test_wes_w46_public_no_trade.cjs
       - name: Compile all changed code
         run: |
           python -m py_compile \
