@@ -101,6 +101,7 @@ class RecursiveWesBlockerTests(unittest.TestCase):
     def test_old_monitor_candidate_does_not_override_active_authorization(self):
         w = week()
         eur = w["instruments"][0]
+        eur["reentry_lock"] = {"active": False}
         eur["wes_entry_authorization"] = {
             "authorized_at": (NOW - timedelta(minutes=1)).isoformat(),
             "expires_at": (NOW + timedelta(minutes=10)).isoformat(),
