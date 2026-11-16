@@ -19,6 +19,30 @@ TZ = ZoneInfo('Europe/Warsaw')
 
 
 class WesTests(unittest.TestCase):
+    def test_invalid_sealed_w46_leg_cannot_train_wes_strategy(self):
+        leg = {
+            "instrument_id": "eurusd", "strategy_id": "weekly_trend",
+            "entry_captured_at": "2026-11-13T23:02:32+01:00",
+            "exit_captured_at": "2026-11-13T22:00:00+01:00",
+            "net_result_percent": -0.002602,
+            "risk_plan": {"wes_entry_class": "midweek_trigger"},
+        }
+        good_leg = {**leg, "exit_captured_at": "2026-11-14T02:00:00+01:00"}
+        self.assertFalse(v4.valid_closed_leg_chronology(leg))
+        self.assertTrue(v4.valid_closed_leg_chronology(good_leg))
+        with TemporaryDirectory() as temp:
+            path = Path(temp) / "2026-W46.json"
+            path.write_text(json.dumps({"week_id": "2026-W46", "instruments": [
+                {"instrument_id": "eurusd", "position_legs": [leg, good_leg]}
+            ]}), encoding="utf-8")
+            with patch.object(v4, "WEEKLY_DIR", Path(temp)), \
+                 patch.object(wes, "WEEKLY", Path(temp)), \
+                 patch.object(wes.legacy, "now_local",
+                              return_value=datetime(2026, 11, 16, 12, tzinfo=TZ)):
+                self.assertEqual([good_leg], list(v4.iter_legs("eurusd", 10)))
+                self.assertEqual([good_leg], list(wes.iter_wes_legs()))
+                self.assertEqual(1, wes.learning_stats()["classes"]["midweek_trigger"]["count"])
+
     def test_late_friday_continuous_fill_is_not_closed_at_earlier_week_end(self):
         entry = "2026-11-13T23:02:32+01:00"
         item = {
