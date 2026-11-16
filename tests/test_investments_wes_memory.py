@@ -20,6 +20,36 @@ def write_week(root: Path, name: str, payload: dict) -> Path:
 
 
 class WESHistoricalMemoryTests(unittest.TestCase):
+    def test_w46_impossible_settlement_is_grade_d_and_not_learning_eligible(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write_week(root, "2026-W46", {
+                "week_id": "2026-W46", "method_version": "5.9.1-experimental",
+                "instruments": [{
+                    "instrument_id": "eurusd", "direction": "short",
+                    "position_legs": [{
+                        "leg_id": "sealed-w46-example",
+                        "instrument_id": "eurusd", "direction": "short",
+                        "strategy_id": "weekly_trend",
+                        "entry_price": 1.10277903,
+                        "entry_captured_at": "2026-11-13T23:02:32+01:00",
+                        "exit_price": 1.10265744,
+                        "exit_captured_at": "2026-11-13T22:00:00+01:00",
+                        "net_result_percent": -0.002602,
+                    }],
+                }],
+            })
+            original = (root / "2026-W46.json").read_bytes()
+            result = memory.build_memory(root, from_week="2026-W46",
+                                         through_week="2026-W46")
+            row = result["records"][0]
+            self.assertEqual("D", row["quality_grade"])
+            self.assertIn("exit_before_entry_invalid_settlement",
+                          row["quality_reasons"])
+            self.assertFalse(row["market_memory_eligible"])
+            self.assertFalse(row["strategy_memory_eligible"])
+            self.assertEqual(original, (root / "2026-W46.json").read_bytes())
+
     def test_legacy_complete_trade_is_market_memory_but_not_strategy_memory(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
