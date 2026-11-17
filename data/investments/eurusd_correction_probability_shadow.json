@@ -25,9 +25,9 @@
   "horizons": {
     "15": {
       "forecast": {
-        "n": 37,
+        "n": 46,
         "p": null,
-        "status": "INSUFFICIENT_TRAINING_EVIDENCE"
+        "status": "NO_FRESH_ELIGIBLE_DOWNSWING"
       },
       "frozen_prospective_oos": {
         "brier": 0.044622,
@@ -41,7 +41,7 @@
         "positive": 0,
         "status": "BACKTEST_ONLY_NOT_LIVE_VALIDATED"
       },
-      "live_resolved_episodes": 16,
+      "live_resolved_episodes": 17,
       "production_authority": false,
       "replay_walk_forward": {
         "n": 0,
@@ -51,9 +51,9 @@
     },
     "30": {
       "forecast": {
-        "n": 36,
+        "n": 45,
         "p": null,
-        "status": "INSUFFICIENT_TRAINING_EVIDENCE"
+        "status": "NO_FRESH_ELIGIBLE_DOWNSWING"
       },
       "frozen_prospective_oos": {
         "brier": 0.341496,
@@ -67,7 +67,7 @@
         "positive": 2,
         "status": "BACKTEST_ONLY_NOT_LIVE_VALIDATED"
       },
-      "live_resolved_episodes": 16,
+      "live_resolved_episodes": 17,
       "production_authority": false,
       "replay_walk_forward": {
         "n": 0,
@@ -77,9 +77,9 @@
     },
     "5": {
       "forecast": {
-        "n": 38,
+        "n": 46,
         "p": null,
-        "status": "INSUFFICIENT_TRAINING_EVIDENCE"
+        "status": "NO_FRESH_ELIGIBLE_DOWNSWING"
       },
       "frozen_prospective_oos": {
         "brier": 0.004725,
@@ -93,7 +93,7 @@
         "positive": 0,
         "status": "BACKTEST_ONLY_NOT_LIVE_VALIDATED"
       },
-      "live_resolved_episodes": 16,
+      "live_resolved_episodes": 17,
       "production_authority": false,
       "replay_walk_forward": {
         "n": 0,
@@ -103,21 +103,7 @@
     }
   },
   "instrument": "EUR/USD",
-  "latest_market_observation": {
-    "at": "2026-11-16T18:34:00Z",
-    "features": {
-      "bounce_from_low_pips": 1.208782,
-      "ema20_minus_ema60_pips": -5.228811,
-      "impulse_minutes": 65.0,
-      "impulse_pips": 18.167496,
-      "momentum_5m_pips": 0.0,
-      "realized_abs_change_1m_pips": 0.626251,
-      "time_since_low_min": 12.0,
-      "utc_session": "US_OVERLAP"
-    },
-    "spot_mid": 1.099747,
-    "threshold_pips": 4.541874
-  },
+  "latest_market_observation": null,
   "mode": "PROSPECTIVE_PLUS_MARKET_REPLAY_SHADOW",
   "prospective_episode_count": 17,
   "prospective_episodes": [
@@ -1379,13 +1365,34 @@
       "observed_at": "2026-11-16T18:34:00Z",
       "outcomes": {
         "15": {
-          "status": "PENDING"
+          "bar_count": 15,
+          "is_executable_quote": false,
+          "known_at": "2026-11-16T18:49:00Z",
+          "label": 0,
+          "max_close_rebound_pips": 0.000617,
+          "rebound_at": null,
+          "status": "RESOLVED",
+          "target_price_mid": 1.100201
         },
         "30": {
-          "status": "PENDING"
+          "bar_count": 30,
+          "is_executable_quote": false,
+          "known_at": "2026-11-16T19:04:00Z",
+          "label": 1,
+          "max_close_rebound_pips": 4.840514,
+          "rebound_at": "2026-11-16T19:01:00Z",
+          "status": "RESOLVED",
+          "target_price_mid": 1.100201
         },
         "5": {
-          "status": "PENDING"
+          "bar_count": 5,
+          "is_executable_quote": false,
+          "known_at": "2026-11-16T18:39:00Z",
+          "label": 0,
+          "max_close_rebound_pips": 0.000617,
+          "rebound_at": null,
+          "status": "RESOLVED",
+          "target_price_mid": 1.100201
         }
       },
       "signal_uses_future": false,
@@ -1397,12 +1404,12 @@
     }
   ],
   "replay_coverage": {
-    "dates": 5,
-    "first": "2026-11-10T10:00:00Z",
-    "last": "2026-11-16T18:30:00Z"
+    "dates": 4,
+    "first": "2026-11-11T06:30:00Z",
+    "last": "2026-11-16T21:00:00Z"
   },
-  "replay_episode_count": 31,
+  "replay_episode_count": 29,
   "research_note": "NO calibrated probability or trading exit claim until prospective OOS, sufficient days and risk validation",
   "schema_version": "eurusd-correction-probability-shadow-v1",
-  "updated_at": "2026-11-16T18:35:18Z"
+  "updated_at": "2026-11-17T02:03:33Z"
 }
