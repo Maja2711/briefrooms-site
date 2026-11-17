@@ -39,6 +39,67 @@ def ctx(regime="STRONG_TREND",side="LONG",d1trend="UP"):
     return bb,db
 
 class MultiTimeframeTests(unittest.TestCase):
+    def _reversal_facts(self):
+        stamp = (NOW - timedelta(hours=1)).isoformat()
+        d1 = {
+            "available": True, "trend": "DOWN", "near_lower_band": True,
+            "near_upper_band": False, "percent_b": -0.11, "close": 1.10249,
+            "lower": 1.10544, "upper": 1.13173,
+            "last_completed_d1": (NOW - timedelta(days=1)).isoformat(),
+        }
+        long_h1 = {
+            "available": True, "allowed": False, "reason": "h1_trend_not_confirmed",
+            "exhaustion": False, "last_closed_h1": stamp, "percent_b": .23,
+        }
+        short_h1 = {
+            "available": True, "allowed": False, "reason": "outer_band_exhaustion",
+            "exhaustion": True, "last_closed_h1": stamp, "percent_b": .23,
+        }
+        return d1, long_h1, short_h1
+
+    def test_d1_oversold_checks_long_even_when_native_belief_short(self):
+        d1, long_h1, short_h1 = self._reversal_facts()
+        review = p.review_band_reversal("SHORT", long_h1, short_h1, d1, NOW)
+        self.assertEqual(review["hypothesis"], "LONG")
+        self.assertEqual(review["status"], "H1_EXHAUSTION_BUT_REVERSAL_UNCONFIRMED")
+        self.assertFalse(review["native_belief_supports_hypothesis"])
+        self.assertFalse(review["h1_reversal_confirmed"])
+        for authority in ("direction_authority", "admission_authority", "execution_authority", "automatic_promotion"):
+            self.assertFalse(review[authority])
+
+    def test_verified_h1_opposing_reversal_never_mutates_belief_or_trades(self):
+        d1, long_h1, short_h1 = self._reversal_facts()
+        long_h1.update(allowed=True, reason="aligned_h1_trend")
+        review = p.review_band_reversal("SHORT", long_h1, short_h1, d1, NOW)
+        self.assertEqual(review["status"], "H1_REVERSAL_CONFIRMED_RECHECK_BELIEF")
+        self.assertEqual(review["native_belief_direction"], "SHORT")
+        self.assertEqual(review["hypothesis"], "LONG")
+        self.assertTrue(review["requires_new_belief_decision"])
+        self.assertFalse(review["execution_authority"])
+
+    def test_reversal_does_not_infer_long_on_unverified_or_nonextended_d1(self):
+        d1, long_h1, short_h1 = self._reversal_facts()
+        self.assertEqual(p.review_band_reversal("SHORT", {}, short_h1, d1, NOW)["status"], "UNVERIFIED")
+        d1["near_lower_band"] = False
+        review = p.review_band_reversal("SHORT", long_h1, short_h1, d1, NOW)
+        self.assertEqual(review["status"], "NO_D1_BAND_EXTENSION")
+        self.assertIsNone(review["hypothesis"])
+
+    def test_countertrend_review_refuses_mismatched_or_future_candle_provenance(self):
+        d1, long_h1, short_h1 = self._reversal_facts()
+        long_h1["last_closed_h1"] = (NOW + timedelta(minutes=1)).isoformat()
+        review = p.review_band_reversal("SHORT", long_h1, short_h1, d1, NOW)
+        self.assertEqual(review["status"], "UNVERIFIED")
+        self.assertEqual(review["reason"], "inconsistent_or_future_h1_d1_timestamps")
+
+    def test_uptrend_upper_band_symmetrically_checks_short_reversal(self):
+        d1, long_h1, short_h1 = self._reversal_facts()
+        d1.update(trend="UP", near_lower_band=False, near_upper_band=True)
+        long_h1.update(exhaustion=True)
+        review = p.review_band_reversal("LONG", long_h1, short_h1, d1, NOW)
+        self.assertEqual(review["hypothesis"], "SHORT")
+        self.assertEqual(review["status"], "H1_EXHAUSTION_BUT_REVERSAL_UNCONFIRMED")
+
     def test_strong_trend_routes_to_h1_primary_with_d1_and_weekly_background(self):
         bb,db=ctx()
         result=p.evaluate(h1(),d1(),bb,db,"LONG",NOW)
