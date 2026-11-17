@@ -344,6 +344,30 @@ def build_output(
     except (ValueError, TypeError, KeyError, OSError, RuntimeError) as exc:
         d1_context = {"available": False, "reason": "daily_context_fetch_failed",
                       "error_type": type(exc).__name__, "role": "AUXILIARY_TECHNICAL"}
+    # Independently review a potential Bollinger reversal in BOTH H1 directions.
+    # This is research evidence only: a D1 lower-band extension cannot turn
+    # a native Belief SHORT into a LONG or create a synthetic executable fill.
+    try:
+        h1_proof_rows = h1_rows if "h1_rows" in locals() else []
+        if not h1_proof_rows:
+            h1_long = h1_short = {"available": False, "reason": "h1_history_not_available"}
+        else:
+            h1_long = (bollinger if direction == "LONG" else
+                       bollinger_h1.evaluate(h1_proof_rows, "LONG", observed_at,
+                           minute_bars=(_cycle_context or {}).get("monitor_bars")))
+            h1_short = (bollinger if direction == "SHORT" else
+                        bollinger_h1.evaluate(h1_proof_rows, "SHORT", observed_at,
+                            minute_bars=(_cycle_context or {}).get("monitor_bars")))
+        band_reversal_review = regime_policy.review_band_reversal(
+            direction, h1_long, h1_short, d1_context, observed_at)
+    except (ValueError, TypeError, KeyError, OSError, RuntimeError) as exc:
+        band_reversal_review = {
+            "schema_version": "eurusd-daily-band-reversal-review-v1",
+            "mode": "RESEARCH_ONLY", "status": "UNVERIFIED",
+            "reason": "reversal_review_failed:" + type(exc).__name__,
+            "direction_authority": False, "admission_authority": False,
+            "execution_authority": False, "historical_fill_inference": False,
+        }
     # Multi-timeframe policy consumes ONLY as-of closed H1 and D1; W1 is
     # assembled from completed D1 and can neither vote direction nor admit.
     try:
@@ -382,6 +406,7 @@ def build_output(
         "market_snapshot_sha256": decision_record.market_snapshot_hash(snapshot),
         "bollinger_h1": bollinger,
         "bollinger_d1": d1_context,
+        "band_reversal_review": band_reversal_review,
         "multi_timeframe": mtf,
         "h1_volatility_geometry": risk_plan,
         "bollinger_d1_touch": d1_touch,
@@ -433,6 +458,7 @@ def build_output(
             "A_B_C": {"production_direction_authority": False, "production_timing_authority": False},
             "FSE": {"production_direction_authority": False, "production_timing_authority": False},
             "EURUSD_X": {"production_direction_authority": False, "production_timing_authority": False},
+            "BAND_REVERSAL_REVIEW": {"production_direction_authority": False, "production_timing_authority": False},
             "A_TECHNICAL_FALLBACK": {"production_direction_authority": False},
             "LOW_EDGE_LEARNING_EXPLORATION": {"production_direction_authority": False},
         },
