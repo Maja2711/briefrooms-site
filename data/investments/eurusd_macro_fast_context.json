@@ -1,15 +1,27 @@
 {
   "schema_version": "daily-eurusd-macro-fast-v1",
-  "status": "CLEAR",
-  "event": null,
+  "status": "PRE_RELEASE",
+  "phase": "PRE_RELEASE",
+  "event": {
+    "uid": "20270418T184449Z-1@penou.cc.cec.eu.int",
+    "title": "Inflation (HICP)",
+    "event_at": "2026-11-17T23:00:00Z",
+    "hours_until_at_check": 0.1276,
+    "source": "Eurostat",
+    "source_ref": "https://ec.europa.eu/eurostat/o/calendars/eventsIcal?theme=&category=",
+    "importance": "high"
+  },
   "expectations": null,
-  "expectations_status": "NOT_APPLICABLE",
+  "expectations_status": "MISSING",
   "actuals": [],
   "actuals_status": "NOT_APPLICABLE",
+  "llm_key": "{\"actuals\": [], \"event_uid\": \"20270418T184449Z-1@penou.cc.cec.eu.int\", \"expectation_fingerprint\": null, \"phase\": \"PRE_RELEASE\"}",
   "llm": null,
   "eurusd_score": 0.0,
   "decision_influence": false,
-  "calendar_coverage_complete": true,
+  "post_release_ready": false,
+  "central_bank_event": null,
+  "central_bank_wire": null,
   "calendar_coverage": {
     "schema_version": "macro-calendar-coverage-v1",
     "required_sources": [
@@ -29,7 +41,7 @@
       "BEA": {
         "status": "ok",
         "source_ref": "https://www.bea.gov/news/schedule",
-        "event_count": 11,
+        "event_count": 10,
         "error_type": null
       },
       "FOMC": {
@@ -53,6 +65,20 @@
     },
     "complete": true
   },
-  "generated_at": "2026-11-16T23:51:31.500027Z",
-  "checked_at": "2026-11-16T23:51:31.500027Z"
+  "rules": {
+    "no_invented_consensus": true,
+    "eurusd_only_llm_beliefs": [
+      "eurusd.trend.bullish",
+      "eurusd.usd_environment.supportive",
+      "eurusd.us_rates_pressure.supportive",
+      "eurusd.macro_surprise.supportive",
+      "eurusd.policy_differential.supportive"
+    ],
+    "pre_event_expectations_require_sourced_bundle": true,
+    "missing_expectations_fail_closed": true,
+    "post_release_requires_official_actuals": true,
+    "official_actual_period_contract": "BLS_YYYY-MMM"
+  },
+  "generated_at": "2026-11-17T22:52:20.750475Z",
+  "checked_at": "2026-11-17T22:52:20.750475Z"
 }
