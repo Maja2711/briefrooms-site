@@ -130,3 +130,28 @@ unavailable without sufficiently powered, prospectively evaluated gates. The
 existing global policy gate, Belief direction, calendar, H1, EPE and risk remain
 authoritative.
 
+## Both-sided Bollinger reversal review (2026-11-17)
+
+For every native Daily cycle, `daily_eurusd_spot_v19.build_output()` evaluates both
+LONG and SHORT technical H1 hypotheses from the same completed 30m source
+candles, regardless of the directional Belief decision. The existing
+`daily_eurusd_regime_policy.review_band_reversal()` then checks whether the
+last **completed** D1 candle is extended at the relevant outer Bollinger band.
+After a D1 downtrend near the lower band, it explicitly considers a **LONG
+rebound hypothesis**; after an uptrend near the upper band, it considers SHORT.
+
+`metadata.band_reversal_review` distinguishes D1 extension without an H1
+reversal, exhaustion of the old H1 trend without a verified reversal, an
+oppositely aligned H1 confirmation still requiring a **new authoritative
+Belief decision**, and unavailable/unverifiable source evidence. All statuses
+are diagnostic: `RESEARCH_ONLY`, no new direction/entry/execution/writeback,
+no automatic promotion or fabricated historical fills. Last completed H1/D1
+source timestamps must both be valid; both H1 sides must be available and
+aligned to the same closed-H1 timestamp. This observation is a prospective
+research input, **not** yet a validated counterfactual P&L or proof of edge.
+
+The sole directional owner remains native Belief-first. To allow the native
+engine itself to select an early contrarian LONG, technical reversal evidence
+would need to be integrated through the upstream Evidence/Belief route and
+independently validated; the research review must not silently override
+Belief or existing calendar, H1/MTF, D1-touch, EPE and risk gates.

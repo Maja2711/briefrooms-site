@@ -7,6 +7,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from math import isfinite
 from statistics import median
+from typing import Any, Mapping
 
 PIP = 0.0001
 VERSION = "MTF_H1_REGIME_V1"
@@ -149,3 +150,88 @@ def geometry(policy, entry, stop, target, direction, h1):
                 "hard_stop_widened":False}
     except (TypeError,ValueError,KeyError,ZeroDivisionError):
         return {**unchanged,"allowed":False,"reason":"invalid_volatility_geometry"}
+
+
+def review_band_reversal(
+    native_direction: str,
+    h1_long: Mapping[str, Any],
+    h1_short: Mapping[str, Any],
+    d1: Mapping[str, Any],
+    observed_at: datetime,
+) -> dict[str, Any]:
+    """Compare both closed-H1 directions with an extended D1 band, audit-only.
+
+    A downtrend touching its lower D1 band is a LONG *hypothesis*, never a
+    trading instruction. The opposing H1 evaluation is independent of the
+    native Belief direction and cannot vote in Belief, override admission or
+    manufacture a paper fill. All evidence is as-of the current decision.
+    """
+    if observed_at.tzinfo is None:
+        raise ValueError("reversal review needs timezone-aware decision time")
+    result: dict[str, Any] = {
+        "schema_version": "eurusd-daily-band-reversal-review-v1",
+        "mode": "RESEARCH_ONLY",
+        "observed_at": observed_at.astimezone(timezone.utc).isoformat(),
+        "native_belief_direction": native_direction,
+        "hypothesis": None,
+        "status": "UNVERIFIED",
+        "direction_authority": False,
+        "admission_authority": False,
+        "execution_authority": False,
+        "historical_fill_inference": False,
+        "automatic_promotion": False,
+        "requires_new_belief_decision": True,
+    }
+    if (d1.get("available") is not True or h1_long.get("available") is not True
+            or h1_short.get("available") is not True):
+        return {**result, "reason": "missing_verified_d1_or_both_h1_directions"}
+    h1_long_at, h1_short_at = h1_long.get("last_closed_h1"), h1_short.get("last_closed_h1")
+    d1_at = d1.get("last_completed_d1")
+    try:
+        long_stamp = datetime.fromisoformat(str(h1_long_at).replace("Z", "+00:00"))
+        short_stamp = datetime.fromisoformat(str(h1_short_at).replace("Z", "+00:00"))
+        daily_stamp = datetime.fromisoformat(str(d1_at).replace("Z", "+00:00"))
+        if (long_stamp.tzinfo is None or short_stamp.tzinfo is None
+                or daily_stamp.tzinfo is None or long_stamp != short_stamp
+                or long_stamp > observed_at or daily_stamp > observed_at):
+            raise ValueError("invalid_source_time")
+    except (ValueError, TypeError):
+        return {**result, "reason": "inconsistent_or_future_h1_d1_timestamps"}
+    result.update(
+        status="NO_D1_BAND_EXTENSION",
+        reason="no_directional_d1_outer_band_extension",
+        source_last_completed_h1=long_stamp.astimezone(timezone.utc).isoformat(),
+        source_last_completed_d1=daily_stamp.astimezone(timezone.utc).isoformat(),
+        d1_trend=d1.get("trend"),
+        d1_percent_b=d1.get("percent_b"),
+        h1_long_allowed=h1_long.get("allowed") is True,
+        h1_short_allowed=h1_short.get("allowed") is True,
+    )
+    extended_down = d1.get("trend") == "DOWN" and d1.get("near_lower_band") is True
+    extended_up = d1.get("trend") == "UP" and d1.get("near_upper_band") is True
+    if not extended_down and not extended_up:
+        return result
+    hypothesis = "LONG" if extended_down else "SHORT"
+    reversal_h1 = h1_long if extended_down else h1_short
+    prior_h1 = h1_short if extended_down else h1_long
+    h1_rejection = prior_h1.get("exhaustion") is True
+    h1_confirmed = reversal_h1.get("allowed") is True
+    status = ("H1_REVERSAL_CONFIRMED_RECHECK_BELIEF" if h1_confirmed
+              else "H1_EXHAUSTION_BUT_REVERSAL_UNCONFIRMED" if h1_rejection
+              else "D1_EXTENSION_WITHOUT_H1_REVERSAL")
+    return {
+        **result,
+        "hypothesis": hypothesis,
+        "status": status,
+        "reason": ("native_belief_must_independently_support_reversal_before_entry"
+                   if h1_confirmed else "no_verified_opposite_h1_admission"),
+        "native_belief_supports_hypothesis": native_direction == hypothesis,
+        "h1_reversal_confirmed": h1_confirmed,
+        "h1_prior_direction_exhaustion": h1_rejection,
+        "h1_reversal_reason": reversal_h1.get("reason"),
+        "h1_prior_direction_reason": prior_h1.get("reason"),
+        "h1_percent_b": reversal_h1.get("percent_b"),
+        "d1_close": d1.get("close"),
+        "d1_lower": d1.get("lower"),
+        "d1_upper": d1.get("upper"),
+    }
