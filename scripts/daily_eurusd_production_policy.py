@@ -507,6 +507,7 @@ def factor_study_summary(state: Mapping[str, Any], *,
         "minimum_settled_signals": 40,
         "factors": {},
         "validated_best_factor": None,
+        "exploratory_ranked_factors": [],
     }
     for key in FACTOR_GROUPS:
         eligible = [c for c in resolved if c["frozen"]["factors"][key]["available"]]
@@ -526,6 +527,15 @@ def factor_study_summary(state: Mapping[str, Any], *,
             "evidence_status": "DISCOVERY_ONLY_NOT_CAUSAL" if sufficient else "INSUFFICIENT_PROSPECTIVE_CONTRAST",
             "automatic_policy_authority": False,
         }
+    # Ranked discovery is shown ONLY after a minimally diverse, prospective
+    # contrast. This is NOT a leaderboard of economic trade profitability.
+    result["exploratory_ranked_factors"] = [
+        {"factor": key, "descriptive_delta_pips": row["descriptive_delta_pips"],
+         "evidence_status": "OBSERVATIONAL_NOT_CAUSAL"}
+        for key, row in sorted(result["factors"].items(),
+            key=lambda item: (-float(item[1]["descriptive_delta_pips"]), item[0]))
+        if row["descriptive_delta_pips"] is not None
+    ]
     # Actual execution outcomes are separate and only come from canonical
     # manifest-bound closes; a positive proxy signal is NEVER a winning trade.
     historical = {str(t.get("trade_id")): t for t in history.get("trades") or [] if isinstance(t, Mapping)}
@@ -544,6 +554,34 @@ def factor_study_summary(state: Mapping[str, Any], *,
     result["canonical_actual_mean_net_r"] = (
         round(fmean(row["net_r"] for row in actuals), 5) if actuals else None
     )
+    result["actual_factor_associations"] = {}
+    for key in FACTOR_GROUPS:
+        pairs = []
+        for row in actuals:
+            trade = historical.get(row["trade_id"]) or {}
+            assoc = (((trade.get("decision_manifest") or {}).get("execution_admission") or {})
+                     .get("entry_multifactor") or {})
+            vote = (assoc.get("factors") or {}).get(key) or {}
+            if vote.get("available") is True:
+                pairs.append((vote.get("confirmed") is True, row))
+        selected = [row for ok, row in pairs if ok]
+        rejected = [row for ok, row in pairs if not ok]
+        days = {row["opened_at"][:10] for _, row in pairs}
+        sufficient = (len(pairs) >= 40 and len(days) >= 15 and
+                      len(selected) >= 10 and len(rejected) >= 10)
+        result["actual_factor_associations"][key] = {
+            "sample_closed_actuals": len(pairs),
+            "factor_confirmed_n": len(selected),
+            "factor_unconfirmed_n": len(rejected),
+            "independent_days": len(days),
+            "confirmed_mean_net_r": (round(fmean(x["net_r"] for x in selected), 4)
+                                     if selected else None),
+            "unconfirmed_mean_net_r": (round(fmean(x["net_r"] for x in rejected), 4)
+                                       if rejected else None),
+            "eligible_for_descriptive_contrast": sufficient,
+            "causal_claim": False,
+            "promotion_authority": False,
+        }
     result["not_eligible_to_claim_best_factor"] = True
     return result
 
