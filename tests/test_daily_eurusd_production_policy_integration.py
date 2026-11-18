@@ -286,6 +286,103 @@ class ProductionPolicyRuntimeIntegrationTests(unittest.TestCase):
 
 
 
+    def _factor_probe_manifest(self, at, *, direction="SHORT", code_hash="a"*64):
+        return {
+            "decision_at": policy._iso(at),
+            "runtime_code_sha256": code_hash,
+            "decision_id": "prospective-test-id",
+            "manifest_sha256": "f"*64,
+            "final_decision": {"direction": direction},
+            "execution_admission": {
+                "allowed": False, "reasons": ["macro_guard"],
+                "entry_multifactor": {
+                    "schema_version": "eurusd-daily-multifactor-entry-v1",
+                    "regime": "STRONG_TREND",
+                    "factors": {
+                        factor: {"available": True, "confirmed": factor != "BOLLINGER_H1_LOCATION"}
+                        for factor in policy.FACTOR_GROUPS
+                    },
+                },
+            },
+        }
+
+    def test_frozen_factor_probe_settles_only_on_future_market_price_not_paper_fill(self):
+        at = datetime(2026, 11, 18, 9, 30, tzinfo=timezone.utc)
+        state = policy.default_state(at)
+        manifest = self._factor_probe_manifest(at)
+        current_bar = Bar(at-timedelta(minutes=2), 1.1000)
+        future_bar = Bar(at+timedelta(hours=3)-timedelta(minutes=1), 1.0990)
+        # A future bar already present in the supplied input must NOT be
+        # used for an outcome while the decision is still being made.
+        state = policy.factor_study_step(state, minute_bars=[future_bar, current_bar],
+            now=at, decision_manifest=manifest, runtime_code_sha256="a"*64)
+        cases = state["entry_factor_study"]["cases"]
+        self.assertEqual(len(cases), 1)
+        first = next(iter(cases.values()))
+        self.assertEqual(first["status"], "PENDING")
+        self.assertFalse(first["frozen"]["canonical_entry_allowed"])
+        self.assertIsNone(first["outcome"])
+        later = policy.factor_study_step(state, minute_bars=[current_bar, future_bar],
+            now=at+timedelta(hours=3))
+        outcome = next(iter(later["entry_factor_study"]["cases"].values()))
+        self.assertEqual(outcome["status"], "SETTLED")
+        self.assertAlmostEqual(outcome["outcome"]["directional_move_pips"], 10.0)
+        self.assertTrue(outcome["outcome"]["favorable_direction"])
+        self.assertIsNone(outcome["outcome"]["trade_pnl"])
+        self.assertFalse(outcome["outcome"]["execution_authority"])
+        self.assertEqual(first["frozen"], outcome["frozen"])
+        report = policy.factor_study_summary(later, runtime_code_sha256="a"*64,
+                                             history={"trades": []})
+        self.assertEqual(report["settled_price_proxy_signals"], 1)
+        self.assertEqual(report["canonical_actual_closed_trades_current_code"], 0)
+        self.assertIsNone(report["validated_best_factor"])
+        self.assertTrue(report["not_eligible_to_claim_best_factor"])
+
+    def test_factor_probe_gap_is_not_a_loss_and_immutability_is_validated(self):
+        at = datetime(2026, 11, 18, 9, 30, tzinfo=timezone.utc)
+        state = policy.factor_study_step(
+            policy.default_state(at),
+            minute_bars=[Bar(at-timedelta(minutes=2), 1.1000)],
+            now=at, decision_manifest=self._factor_probe_manifest(at),
+            runtime_code_sha256="a"*64,
+        )
+        later = policy.factor_study_step(state,
+            minute_bars=[Bar(at-timedelta(minutes=2), 1.1000)],
+            now=at+timedelta(hours=3,minutes=6))
+        result = next(iter(later["entry_factor_study"]["cases"].values()))
+        self.assertEqual(result["status"], "DATA_GAP")
+        self.assertIsNone(result["outcome"])
+        still_missing = policy.factor_study_step(later,
+            minute_bars=[Bar(at+timedelta(hours=3), 1.099)],
+            now=at+timedelta(hours=3,minutes=7))
+        persisted = next(iter(still_missing["entry_factor_study"]["cases"].values()))
+        self.assertEqual(persisted["status"], "DATA_GAP")
+        self.assertIsNone(persisted["outcome"])
+        tampered = copy.deepcopy(later)
+        next(iter(tampered["entry_factor_study"]["cases"].values()))["frozen"]["reference_mid"] = 1.3
+        with self.assertRaises(ValueError):
+            policy.validate_state(tampered)
+
+    def test_factor_probe_is_purged_by_three_hours_and_requires_source_provenance(self):
+        at = datetime(2026, 11, 18, 9, 30, tzinfo=timezone.utc)
+        state = policy.factor_study_step(
+            policy.default_state(at), minute_bars=[Bar(at-timedelta(minutes=2),1.1)],
+            now=at, decision_manifest=self._factor_probe_manifest(at),
+            runtime_code_sha256="a"*64,
+        )
+        early = at+timedelta(hours=1)
+        state = policy.factor_study_step(state,
+            minute_bars=[Bar(early-timedelta(minutes=2),1.101)],
+            now=early, decision_manifest=self._factor_probe_manifest(early),
+            runtime_code_sha256="a"*64)
+        self.assertEqual(len(state["entry_factor_study"]["cases"]), 1)
+        after = at+timedelta(hours=3,minutes=10)
+        late = policy.factor_study_step(state, minute_bars=[
+            Bar(after-timedelta(minutes=8),1.102)],
+            now=after, decision_manifest=self._factor_probe_manifest(after),
+            runtime_code_sha256="a"*64)
+        self.assertEqual(len(late["entry_factor_study"]["cases"]), 1)
+
     def test_native_admission_freezes_reflection_and_cannot_use_it_to_bypass_technical_guard(self):
         trade, legacy, closed_at = self.closed_native_loss()
         at = closed_at + timedelta(seconds=62)

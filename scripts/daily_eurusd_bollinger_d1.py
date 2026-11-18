@@ -27,6 +27,16 @@ def evaluate(bars, observed_at):
     middle, upper, lower = bands(len(closes))
     previous_middle, _, _ = bands(len(closes)-1)
     price, previous = closes[-1], closes[-2]
+    # Raw completed D1 close-to-close movement is independent of
+    # Bollinger-band geometry and can disagree with the D1 band trend.
+    raw_d1_price_action = {
+        "source": "COMPLETED_D1_RAW_CLOSES",
+        "change_5_completed_intervals_pips": round((closes[-1] - closes[-6]) / .0001, 3),
+        "up_intervals_5d": sum(closes[i] > closes[i-1]
+                              for i in range(len(closes)-5, len(closes))),
+        "down_intervals_5d": sum(closes[i] < closes[i-1]
+                                for i in range(len(closes)-5, len(closes))),
+    }
     width = upper-lower
     if width <= 0:
         return {"available": False, "reason": "zero_bandwidth", "role": "AUXILIARY_TECHNICAL"}
@@ -44,4 +54,5 @@ def evaluate(bars, observed_at):
         "trend": trend, "cross_above_middle": cross_up, "cross_below_middle": cross_down,
         "near_upper_band": (upper-price)/width <= 0.1,
         "near_lower_band": (price-lower)/width <= 0.1,
+        "raw_d1_price_action": raw_d1_price_action,
     }
