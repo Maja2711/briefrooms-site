@@ -352,10 +352,12 @@ class ProductionPolicyRuntimeIntegrationTests(unittest.TestCase):
         result = next(iter(later["entry_factor_study"]["cases"].values()))
         self.assertEqual(result["status"], "DATA_GAP")
         self.assertIsNone(result["outcome"])
-        with self.assertRaises(ValueError):
-            policy.factor_study_step(later,
-                minute_bars=[Bar(at+timedelta(hours=3), 1.099)],
-                now=at+timedelta(hours=3,minutes=7))
+        still_missing = policy.factor_study_step(later,
+            minute_bars=[Bar(at+timedelta(hours=3), 1.099)],
+            now=at+timedelta(hours=3,minutes=7))
+        persisted = next(iter(still_missing["entry_factor_study"]["cases"].values()))
+        self.assertEqual(persisted["status"], "DATA_GAP")
+        self.assertIsNone(persisted["outcome"])
         tampered = copy.deepcopy(later)
         next(iter(tampered["entry_factor_study"]["cases"].values()))["frozen"]["reference_mid"] = 1.3
         with self.assertRaises(ValueError):
