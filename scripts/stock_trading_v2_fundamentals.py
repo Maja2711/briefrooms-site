@@ -132,6 +132,82 @@ def annual_series(
     return {period: item[1] for period, item in selected.items()}
 
 
+def direct_quarter_series(
+    payload: Mapping[str, Any], metric: str, as_of: datetime,
+) -> dict[str, dict[str, Any]]:
+    """Direct 3-month 10-Q XBRL facts, never YTD 6/9-month values or inferred Q4.
+
+    A 10-Q may contain 3-, 6- and 9-month observations with the same end
+    date. The SEC's exact start/end duration makes them distinguishable.
+    """
+    if metric in INSTANT:
+        return {}
+    taxonomy = ((payload.get("facts") or {}).get("us-gaap") or {})
+    unit = UNITS.get(metric, "USD")
+    selected: dict[str, tuple[tuple[str, int], dict[str, Any]]] = {}
+    for priority, concept in enumerate(CONCEPTS[metric]):
+        facts = ((taxonomy.get(concept) or {}).get("units") or {}).get(unit) or []
+        for fact in facts:
+            if not isinstance(fact, Mapping):
+                continue
+            if str(fact.get("form") or "") not in {"10-Q", "10-Q/A"}:
+                continue
+            filed, end = str(fact.get("filed") or ""), str(fact.get("end") or "")
+            if not filed or not end or filed >= as_of.date().isoformat():
+                continue
+            if _finite(fact.get("val")) is None:
+                continue
+            try:
+                end_day = date.fromisoformat(end)
+                start_day = date.fromisoformat(str(fact["start"]))
+                if end_day > as_of.date() or not 65 <= (end_day - start_day).days <= 115:
+                    continue
+            except (TypeError, KeyError, ValueError):
+                continue
+            rank = (filed, -priority)
+            previous = selected.get(end)
+            if previous is None or rank > previous[0]:
+                selected[end] = (rank, _record(fact, concept=concept, unit=unit))
+    return {period: item[1] for period, item in selected.items()}
+
+
+def evaluate_recent_quarter(
+    payload: Mapping[str, Any], as_of: datetime,
+) -> tuple[dict[str, float | None], dict[str, dict[str, Any]], str | None, str | None]:
+    series = {
+        metric: direct_quarter_series(payload, metric, as_of)
+        for metric in ("revenue", "eps_diluted", "net_income", "operating_income")
+    }
+    periods = sorted(series["revenue"], reverse=True)
+    latest = periods[0] if periods else None
+    prior = (next(
+        (period for period in periods[1:]
+         if 330 <= (date.fromisoformat(latest) - date.fromisoformat(period)).days <= 400),
+        None,
+    ) if latest else None)
+    provenance: dict[str, dict[str, Any]] = {}
+    def value(metric: str, end: str | None, suffix: str) -> float | None:
+        fact = series[metric].get(end or "")
+        if fact is None:
+            return None
+        provenance[f"{metric}_{suffix}"] = dict(fact)
+        return float(fact["value"])
+    revenue = value("revenue", latest, "quarter")
+    prior_revenue = value("revenue", prior, "quarter_yoy")
+    eps = value("eps_diluted", latest, "quarter")
+    prev_eps = value("eps_diluted", prior, "quarter_yoy")
+    net = value("net_income", latest, "quarter")
+    operating = value("operating_income", latest, "quarter")
+    return ({
+        "revenue_quarter_usd": revenue,
+        "eps_diluted_quarter_usd": eps,
+        "revenue_growth_quarter_yoy": _growth(revenue, prior_revenue),
+        "eps_growth_quarter_yoy": _growth(eps, prev_eps),
+        "operating_margin_quarter": _ratio(operating, revenue),
+        "net_margin_quarter": _ratio(net, revenue),
+    }, provenance, latest, prior)
+
+
 def _score(metrics: Mapping[str, float | None]) -> tuple[float | None, int]:
     weighted = 0.0
     observed_weight = 0
@@ -151,7 +227,8 @@ def analyze_companyfacts(
     payload: Mapping[str, Any], *, as_of: datetime, sector: str = "",
     reference_price: float | None = None, price_session: str | None = None,
 ) -> dict[str, Any]:
-    """Deterministic annual GAAP metrics; no future filing, no same-day hindsight."""
+    """Annual and direct quarterly GAAP metrics with point-in-time safeguards."""
+    quarter_metrics, quarter_sources, quarter_end, quarter_prior = evaluate_recent_quarter(payload, as_of)
     series = {key: annual_series(payload, key, as_of) for key in CONCEPTS}
     revenue_periods = sorted(series["revenue"], reverse=True)
     metrics: dict[str, float | None] = {
@@ -164,7 +241,9 @@ def analyze_companyfacts(
     }
     if not revenue_periods:
         return {"status": "INSUFFICIENT_DATA", "fundamental_score": None,
-                "observed_score_weight": 0, "metrics": metrics, "source_facts": {},
+                "observed_score_weight": 0, "metrics": metrics, "source_facts": quarter_sources,
+                "quarterly_metrics": quarter_metrics, "latest_quarter_end": quarter_end,
+                "prior_year_quarter_end": quarter_prior,
                 "fiscal_end": None, "anomalies": [], "llm_review_questions": [],
                 "quality_flags": ["no_comparable_annual_10k_revenue"]}
 
@@ -174,7 +253,7 @@ def analyze_companyfacts(
          if 330 <= (date.fromisoformat(latest) - date.fromisoformat(period)).days <= 400),
         None,
     )
-    sources: dict[str, dict[str, Any]] = {}
+    sources: dict[str, dict[str, Any]] = dict(quarter_sources)
     def fact_value(metric: str, end: str | None) -> float | None:
         fact = series[metric].get(end or "")
         if fact is not None:
@@ -212,6 +291,8 @@ def analyze_companyfacts(
         flags.append("annual_filing_stale")
     if previous is None:
         flags.append("no_comparable_prior_fiscal_year")
+    if quarter_end is not None and (as_of.date() - date.fromisoformat(quarter_end)).days > 220:
+        flags.append("quarterly_data_stale")
     # P/E is indicative, not a validated valuation signal: split adjustments,
     # ADR ratios, annual-vs-TTM earnings and quote provenance require checking.
     if reference_price is not None and reference_price > 0 and eps is not None and eps > 0:
@@ -248,6 +329,8 @@ def analyze_companyfacts(
     return {
         "status": status, "fundamental_score": score,
         "observed_score_weight": coverage, "metrics": metrics,
+        "quarterly_metrics": quarter_metrics, "latest_quarter_end": quarter_end,
+        "prior_year_quarter_end": quarter_prior,
         "source_facts": sources, "fiscal_end": latest, "prior_fiscal_end": previous,
         "anomalies": anomalies, "llm_review_questions": questions,
         "quality_flags": flags,
