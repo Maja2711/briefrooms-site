@@ -117,7 +117,7 @@ class FundamentalRankingStudyTests(unittest.TestCase):
             self.assertEqual(saved["arms"]["w30"]["candidate_symbol"], "GOOD")
             saved["arms"]["w30"]["candidate_symbol"] = "WEAK"
             with self.assertRaises(ValueError):
-                ranking.validate_receipt(saved, cfg, v1.read(v1_root / "2026-11-20.json"))
+                ranking.validate_receipt(saved, cfg, v1._read(v1_root / "2026-11-20.json"))
 
     def test_fixed_60_no_early_promotion_or_no_data_imputation(self):
         cfg = ranking.read(ranking.CONFIG_PATH)
