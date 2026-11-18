@@ -255,6 +255,10 @@ jobs:
           python scripts/stock_trading_v2_outcome_replay.py --verify
           python scripts/stock_trading_v2_policy_learner.py --verify
 
+      - name: Verify immutable Fundamental Challenger receipts
+        run: |
+          python scripts/stock_trading_v2_fundamental_trial.py --verify
+
       - name: Verify original immutable research history bytes before persistence
         id: immutable_history
         if: always() && steps.research_checkout.outcome == 'success'
@@ -264,6 +268,7 @@ jobs:
           # admissions and terminal outcomes must remain byte-identical to HEAD.
           paths=(
             data/investments/stock_trading_v2_experience
+            data/investments/stock_trading_v2_fundamental_trials
             data/investments/stock_trading_v2_admission
             data/investments/stock_trading_v2_admission_epochs
             data/investments/stock_trading_v2_admission_retrospective
