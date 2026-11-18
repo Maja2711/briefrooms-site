@@ -278,16 +278,26 @@ def multifactor_entry_review(final, h1, d1, mtf, risk_plan, h1_priority,
     }
     expected = "UP" if direction == "LONG" else "DOWN"
     w1 = mtf.get("w1") or {}
-    d1_ok = d1.get("available") is True and d1.get("trend") in {"UP", "DOWN", "MIXED"}
+    raw_daily = d1.get("raw_d1_price_action") or {}
+    try:
+        d1_move = float(raw_daily["change_5_completed_intervals_pips"])
+        d1_ready = (d1.get("available") is True
+                    and raw_daily.get("source") == "COMPLETED_D1_RAW_CLOSES"
+                    and isfinite(d1_move))
+        if not isfinite(d1_move):
+            d1_move = None
+    except (TypeError, ValueError, KeyError):
+        d1_move, d1_ready = None, False
     w1_available = w1.get("available") is True and w1.get("trend") in {"UP", "DOWN", "MIXED"}
     factor_rows["HIGHER_TIMEFRAME"] = {
-        "available": d1_ok,
-        "confirmed": bool(d1_ok and d1.get("trend") == expected
+        "available": d1_ready,
+        "confirmed": bool(d1_ready and sign * d1_move >= 2.0
                           and (not w1_available or w1.get("trend") in {expected, "MIXED"})),
-        "source": "COMPLETED_D1_AND_COMPLETED_W1_CONTEXT",
-        "d1_trend": d1.get("trend"), "w1_trend": w1.get("trend"),
-        "w1_verified": w1_available,
-        "criterion": "d1_aligned_and_no_verified_opposite_w1",
+        "source": "RAW_LAST_5_COMPLETED_D1_CLOSE_INTERVALS_AND_WEEKLY_SMA",
+        "directional_raw_5d_pips": sign * d1_move if d1_ready else None,
+        "w1_trend": w1.get("trend"), "w1_verified": w1_available,
+        "d1_bollinger_trend_not_a_vote": True,
+        "criterion": "raw_d1_five_interval_move_at_least_2pips_no_opposing_weekly_sma",
     }
     try:
         e, sl, tp = float(entry), float(stop), float(target)
