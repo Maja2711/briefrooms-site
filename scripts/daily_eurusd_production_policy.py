@@ -532,9 +532,10 @@ def factor_study_summary(state: Mapping[str, Any], *,
     result["exploratory_ranked_factors"] = [
         {"factor": key, "descriptive_delta_pips": row["descriptive_delta_pips"],
          "evidence_status": "OBSERVATIONAL_NOT_CAUSAL"}
-        for key, row in sorted(result["factors"].items(),
+        for key, row in sorted(
+            (item for item in result["factors"].items()
+             if item[1]["descriptive_delta_pips"] is not None),
             key=lambda item: (-float(item[1]["descriptive_delta_pips"]), item[0]))
-        if row["descriptive_delta_pips"] is not None
     ]
     # Actual execution outcomes are separate and only come from canonical
     # manifest-bound closes; a positive proxy signal is NEVER a winning trade.
