@@ -294,6 +294,260 @@ def regime_family(mtf: Mapping[str, Any] | None, direction: str) -> str:
     return reflection.regime_family(mtf, direction)
 
 
+
+# A bounded extension of the EXISTING TR-03 local policy state/writer.
+# These are directional price-proxy outcomes for *frozen* real-time signals,
+# NOT simulated entries, executable prices, broker fills or trade P&L.
+FACTOR_STUDY_SCHEMA = "eurusd-prospective-entry-factor-study-v1"
+FACTOR_HORIZON_HOURS = 3
+FACTOR_SAMPLE_GAP_HOURS = 3
+FACTOR_ENDPOINT_GRACE_MINUTES = 5
+FACTOR_SOURCE_MAX_AGE_MINUTES = 5
+FACTOR_GROUPS = (
+    "BELIEF_QUALITY", "H1_RAW_PRICE_ACTION", "HIGHER_TIMEFRAME",
+    "PROSPECTIVE_REWARD_RISK", "BOLLINGER_H1_LOCATION",
+)
+
+
+def _factor_bar_close(row: Any) -> tuple[datetime, float] | None:
+    try:
+        stamp = _time(row.timestamp)
+        close = float(row.close)
+        if not math.isfinite(close) or close <= 0:
+            return None
+        return stamp + timedelta(minutes=1), close
+    except (AttributeError, ValueError, TypeError):
+        return None
+
+
+def validate_factor_study(registry: Mapping[str, Any] | None) -> None:
+    if registry is None:
+        return
+    _require(registry.get("schema_version") == FACTOR_STUDY_SCHEMA,
+             "unrecognized entry factor study")
+    _require(registry.get("execution_authority") is False
+             and registry.get("automatic_promotion") is False,
+             "factor study cannot execute or promote")
+    cases = registry.get("cases")
+    _require(isinstance(cases, dict), "factor cases must be a mapping")
+    previous = None
+    for cid, case in sorted(cases.items(), key=lambda x: x[1]["frozen"]["decision_at"]):
+        frozen = case["frozen"]
+        _require(cid == case["case_id"] == stable_id("eurusd-factor-probe", frozen),
+                 "factor case identity changed")
+        _require(sha256(frozen) == case["frozen_sha256"], "frozen factor probe rewritten")
+        _require(frozen.get("direction") in {"LONG", "SHORT"}
+                 and frozen.get("horizon_hours") == FACTOR_HORIZON_HOURS
+                 and frozen.get("source") == "CLOSED_1M_MARKET_MID_PROXY",
+                 "invalid factor research scope")
+        _require(bool(frozen.get("runtime_code_sha256")), "missing factor cohort fingerprint")
+        decision = _time(frozen["decision_at"])
+        source = _time(frozen["reference_closed_at"])
+        _require(source <= decision and decision-source <= timedelta(minutes=FACTOR_SOURCE_MAX_AGE_MINUTES),
+                 "future or stale factor reference")
+        _require(math.isfinite(float(frozen["reference_mid"])) and float(frozen["reference_mid"]) > 0,
+                 "invalid original factor price")
+        _require(set(frozen["factors"]) == set(FACTOR_GROUPS),
+                 "changed factor feature set")
+        if previous:
+            _require(decision >= previous + timedelta(hours=FACTOR_SAMPLE_GAP_HOURS),
+                     "overlapping factor observation selected")
+        previous = decision
+        _require(case.get("status") in {"PENDING", "SETTLED", "DATA_GAP"},
+                 "unknown research case status")
+        outcome = case.get("outcome")
+        if case["status"] == "SETTLED":
+            _require(isinstance(outcome, Mapping), "settled factor case missing observed outcome")
+            target = decision + timedelta(hours=FACTOR_HORIZON_HOURS)
+            end = _time(outcome["source_closed_at"])
+            _require(target <= end <= target+timedelta(minutes=FACTOR_ENDPOINT_GRACE_MINUTES),
+                     "noncausal factor outcome window")
+            _require(outcome.get("source") == "FORWARD_CLOSED_1M_MID_PROXY"
+                     and outcome.get("execution_authority") is False
+                     and outcome.get("trade_pnl") is None,
+                     "price proxy misrepresented as actual trade")
+            price = float(outcome["observed_mid"])
+            delta = (1 if frozen["direction"] == "LONG" else -1) * (
+                price-float(frozen["reference_mid"])) / .0001
+            _require(math.isfinite(price) and price > 0 and abs(
+                delta-float(outcome["directional_move_pips"])) < 1e-5,
+                "factor outcome cannot be independently reproduced")
+        else:
+            _require(outcome is None, "unsettled case has fabricated outcome")
+            if case["status"] == "DATA_GAP":
+                _require(case.get("reason") == "NO_VERIFIED_FORWARD_1M_ENDPOINT",
+                         "invalid incomplete signal outcome")
+
+
+def validate_factor_study_transition(before: Mapping[str, Any] | None,
+                                     after: Mapping[str, Any] | None) -> None:
+    validate_factor_study(after)
+    if before is None:
+        return
+    _require(after is not None, "factor research history removed")
+    for cid, old in before["cases"].items():
+        _require(cid in after["cases"], "factor research case removed")
+        row = after["cases"][cid]
+        _require(row["frozen"] == old["frozen"] and row["frozen_sha256"] == old["frozen_sha256"],
+                 "retrospective factor research rewrite")
+        if old["status"] != "PENDING":
+            _require(row == old, "settled or censored factor outcome rewritten")
+
+
+def factor_study_step(state: Mapping[str, Any], *, minute_bars: Any,
+                      now: datetime, decision_manifest: Mapping[str, Any] | None = None,
+                      runtime_code_sha256: str | None = None) -> dict[str, Any]:
+    """Prospectively freeze sparse signals, then label at +3h with FUTURE bars.
+
+    The true trade lifecycle is not invoked. A frozen mid is only a reference
+    for a later market-direction observation, never an executable paper fill.
+    """
+    result = copy.deepcopy(state)
+    registry = copy.deepcopy(result.get("entry_factor_study")) if result.get("entry_factor_study") else {
+        "schema_version": FACTOR_STUDY_SCHEMA, "execution_authority": False,
+        "automatic_promotion": False, "cases": {},
+    }
+    current = _time(now)
+    points = sorted((row for row in (_factor_bar_close(bar) for bar in minute_bars or [])
+                     if row is not None and row[0] <= current), key=lambda x: x[0])
+    # Settle only from the first verifiable close in the strictly future,
+    # predeclared terminal-price window. Censored gaps are not negative trades.
+    for case in registry["cases"].values():
+        if case["status"] != "PENDING":
+            continue
+        frozen = case["frozen"]
+        target = _time(frozen["decision_at"]) + timedelta(hours=FACTOR_HORIZON_HOURS)
+        if current < target:
+            continue
+        future = next((p for p in points if target <= p[0] <= target
+                       + timedelta(minutes=FACTOR_ENDPOINT_GRACE_MINUTES)), None)
+        if future:
+            end, price = future
+            change = (1 if frozen["direction"] == "LONG" else -1) * (
+                price-float(frozen["reference_mid"])) / .0001
+            case["status"] = "SETTLED"
+            case["outcome"] = {
+                "source": "FORWARD_CLOSED_1M_MID_PROXY",
+                "source_closed_at": _iso(end),
+                "observed_mid": price, "directional_move_pips": round(change, 6),
+                "favorable_direction": change > 0,
+                "trade_pnl": None, "execution_authority": False,
+                "price_proxy_not_epe": True, "trading_costs_not_modeled": True,
+            }
+        elif current > target + timedelta(minutes=FACTOR_ENDPOINT_GRACE_MINUTES):
+            case["status"] = "DATA_GAP"
+            case["reason"] = "NO_VERIFIED_FORWARD_1M_ENDPOINT"
+    if decision_manifest is not None:
+        assessment = (decision_manifest.get("execution_admission") or {}).get("entry_multifactor") or {}
+        direction = (decision_manifest.get("final_decision") or {}).get("direction")
+        try:
+            decision = _time(decision_manifest["decision_at"])
+        except (KeyError, ValueError, TypeError):
+            decision = None
+        ordered = sorted(registry["cases"].values(), key=lambda x: x["frozen"]["decision_at"])
+        last_at = _time(ordered[-1]["frozen"]["decision_at"]) if ordered else None
+        eligible = bool(
+            direction in {"LONG", "SHORT"} and decision is not None
+            and assessment.get("schema_version") == "eurusd-daily-multifactor-entry-v1"
+            and isinstance(assessment.get("factors"), Mapping)
+            and all(x in assessment["factors"] for x in FACTOR_GROUPS)
+            and decision <= current <= decision + timedelta(minutes=FACTOR_SOURCE_MAX_AGE_MINUTES)
+            and (last_at is None or decision >= last_at + timedelta(hours=FACTOR_SAMPLE_GAP_HOURS))
+            and decision_manifest.get("runtime_code_sha256") == runtime_code_sha256
+        )
+        if eligible:
+            reference = next((p for p in reversed(points) if p[0] <= decision and
+                              decision-p[0] <= timedelta(minutes=FACTOR_SOURCE_MAX_AGE_MINUTES)), None)
+            if reference is not None:
+                frozen = {
+                    "decision_at": _iso(decision), "reference_closed_at": _iso(reference[0]),
+                    "reference_mid": reference[1], "direction": direction,
+                    "horizon_hours": FACTOR_HORIZON_HOURS,
+                    "source": "CLOSED_1M_MARKET_MID_PROXY",
+                    "runtime_code_sha256": runtime_code_sha256,
+                    "decision_id": decision_manifest["decision_id"],
+                    "manifest_sha256": decision_manifest["manifest_sha256"],
+                    "regime": assessment.get("regime"),
+                    "canonical_entry_allowed": (decision_manifest.get("execution_admission") or {}).get("allowed") is True,
+                    "factors": {key: {
+                        "available": assessment["factors"][key].get("available") is True,
+                        "confirmed": assessment["factors"][key].get("confirmed") is True,
+                    } for key in FACTOR_GROUPS},
+                }
+                cid = stable_id("eurusd-factor-probe", frozen)
+                _require(cid not in registry["cases"], "duplicated prospective factor observation")
+                registry["cases"][cid] = {
+                    "case_id": cid, "frozen": frozen,
+                    "frozen_sha256": sha256(frozen),
+                    "status": "PENDING", "outcome": None,
+                }
+    result["entry_factor_study"] = registry
+    result["updated_at"] = _iso(current)
+    validate_transition(state, result)
+    return result
+
+
+def factor_study_summary(state: Mapping[str, Any], *,
+                         runtime_code_sha256: str, history: Mapping[str, Any]) -> dict[str, Any]:
+    registry = state.get("entry_factor_study") or {}
+    cases = list((registry.get("cases") or {}).values())
+    current = [case for case in cases if case["frozen"]["runtime_code_sha256"] == runtime_code_sha256]
+    resolved = [c for c in current if c["status"] == "SETTLED"]
+    result = {
+        "schema_version": FACTOR_STUDY_SCHEMA,
+        "mode": "CAUSAL_AS_OF_DIRECTIONAL_PROXY_RESEARCH",
+        "sampled_signals_current_code": len(current),
+        "settled_price_proxy_signals": len(resolved),
+        "missing_price_outcomes": sum(c["status"] == "DATA_GAP" for c in current),
+        "unresolved_signals": sum(c["status"] == "PENDING" for c in current),
+        "observed_actual_trade_net_r": False,
+        "shadow_is_trade_pnl": False,
+        "auto_reweighting_or_promotion": False,
+        "code_cohort_isolated": True, "minimum_independent_days": 15,
+        "minimum_settled_signals": 40,
+        "factors": {},
+        "validated_best_factor": None,
+    }
+    for key in FACTOR_GROUPS:
+        eligible = [c for c in resolved if c["frozen"]["factors"][key]["available"]]
+        positive = [c for c in eligible if c["frozen"]["factors"][key]["confirmed"]]
+        negative = [c for c in eligible if not c["frozen"]["factors"][key]["confirmed"]]
+        days = {c["frozen"]["decision_at"][:10] for c in eligible}
+        mean = lambda values: round(fmean(c["outcome"]["directional_move_pips"] for c in values), 4) if values else None
+        effect = (mean(positive)-mean(negative) if positive and negative else None)
+        sufficient = (len(eligible) >= 40 and len(days) >= 15
+                      and len(positive) >= 10 and len(negative) >= 10)
+        result["factors"][key] = {
+            "available_n": len(eligible), "confirmed_n": len(positive),
+            "not_confirmed_n": len(negative), "independent_days": len(days),
+            "confirmed_mean_directional_pips": mean(positive),
+            "not_confirmed_mean_directional_pips": mean(negative),
+            "descriptive_delta_pips": round(effect, 4) if sufficient and effect is not None else None,
+            "evidence_status": "DISCOVERY_ONLY_NOT_CAUSAL" if sufficient else "INSUFFICIENT_PROSPECTIVE_CONTRAST",
+            "automatic_policy_authority": False,
+        }
+    # Actual execution outcomes are separate and only come from canonical
+    # manifest-bound closes; a positive proxy signal is NEVER a winning trade.
+    historical = {str(t.get("trade_id")): t for t in history.get("trades") or [] if isinstance(t, Mapping)}
+    records = ((state.get("recursive_improvement") or {}).get("records") or {})
+    actuals = []
+    for tid, row in records.items():
+        trade = historical.get(tid)
+        manifest = (trade or {}).get("decision_manifest") or {}
+        assessment = (manifest.get("execution_admission") or {}).get("entry_multifactor") or {}
+        if (row.get("runtime_code_sha256") == runtime_code_sha256
+                and assessment.get("schema_version") == "eurusd-daily-multifactor-entry-v1"
+                and assessment.get("factors") and isinstance(trade, Mapping)):
+            _require(sha256(trade) == row["source_trade_sha256"], "factor outcome has no canonical trade")
+            actuals.append(row)
+    result["canonical_actual_closed_trades_current_code"] = len(actuals)
+    result["canonical_actual_mean_net_r"] = (
+        round(fmean(row["net_r"] for row in actuals), 5) if actuals else None
+    )
+    result["not_eligible_to_claim_best_factor"] = True
+    return result
+
+
 def reentry_context(state: Mapping[str, Any], at: str | datetime) -> dict[str, Any]:
     return reentry_learning.context(state.get("reentry_learning"), at)
 
@@ -882,6 +1136,7 @@ def validate_state(state: Mapping[str, Any]) -> None:
     _time(state["activated_at"])
     if state.get("recursive_improvement") is not None:
         reflection.validate(state["recursive_improvement"])
+    validate_factor_study(state.get("entry_factor_study"))
     if state.get("reentry_learning") is not None:
         reentry_learning.validate(state["reentry_learning"], _paired_metrics)
     _require(state["active_version_id"] in state["versions"], "active production version missing")
@@ -990,6 +1245,7 @@ def validate_transition(before: Mapping[str, Any], after: Mapping[str, Any]) -> 
     validate_state(after)
     _require(_time(after["updated_at"]) >= _time(before["updated_at"]), "policy state time regression")
     reflection.validate_transition(before.get("recursive_improvement"), after.get("recursive_improvement"))
+    validate_factor_study_transition(before.get("entry_factor_study"), after.get("entry_factor_study"))
     reentry_learning.validate_transition(before.get("reentry_learning"), after.get("reentry_learning"))
     for cid, old in before.get("cases", {}).items():
         _require(cid in after["cases"] and old["frozen"] == after["cases"][cid]["frozen"], "case history rewrite")
