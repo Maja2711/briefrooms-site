@@ -121,6 +121,58 @@ class FundamentalTests(unittest.TestCase):
         self.assertIsNone(result["metrics"]["free_cashflow_fy_usd"])
         self.assertIsNone(result["metrics"]["fcf_margin"])
 
+    def test_shadow_fundamental_context_does_not_change_opportunity_utility(self):
+        from scripts import stock_trading_v2_contracts as contracts
+        from scripts import stock_trading_v2_deep_evidence as deep
+        from scripts import stock_trading_v2_opportunity_engine as opportunities
+
+        frontier = {
+            "market": "US", "generated_at": "2026-11-18T18:00:00Z",
+            "frontier_sha256": "c" * 64,
+            "candidates": [{
+                "symbol": "TEST", "opportunity_score": 85,
+                "market_data_symbol": "TEST", "sector": "Technology",
+                "features": {"last_close": 100.0, "atr_fraction": .02,
+                             "latest_session": "2026-11-18", "returns": {}},
+                "liquidity": {"production_reference_pass": True, "median_turnover": 30000000},
+            }],
+        }
+        fundamental_row = {
+            "symbol": "TEST", "market": "US", "status": "COMPLETE",
+            "fundamental_score": 95.0, "production_decision_influence": False,
+        }
+        fundamental_snapshot = {
+            "schema_version": f.SCHEMA, "market": "US",
+            "generated_at": "2026-11-18T18:00:00Z",
+            "source_frontier_sha256": frontier["frontier_sha256"],
+            "candidate_count": 1, "candidates": [fundamental_row],
+            "governance": {"production_decision_influence": False,
+                           "automatic_portfolio_admission": False,
+                           "llm_calls": 0, "score_mode": "shadow_only"},
+        }
+        fundamental_snapshot["fundamentals_sha256"] = contracts.payload_sha256(fundamental_snapshot)
+        evidence_by_symbol = {"TEST": ([], {"primary": {"ok": True}, "secondary": {"ok": True}})}
+        deep_config = deep.load_config()
+        with mock.patch.object(deep.discovery, "validate_frontier"):
+            baseline = deep.build_deep_evidence(frontier, evidence_by_symbol, deep_config, generated_at=NOW)
+            with_fundamentals = deep.build_deep_evidence(
+                frontier, evidence_by_symbol, deep_config, generated_at=NOW,
+                fundamental_snapshot=fundamental_snapshot,
+            )
+        self.assertEqual(baseline["candidates"][0]["deep_opportunity_score"],
+                         with_fundamentals["candidates"][0]["deep_opportunity_score"])
+        self.assertEqual(with_fundamentals["candidates"][0]["fundamental_analysis"]["fundamental_score"], 95.0)
+        self.assertFalse(with_fundamentals["fundamental_score_influence"])
+        self.assertEqual(with_fundamentals["source_fundamentals_sha256"],
+                         fundamental_snapshot["fundamentals_sha256"])
+        op_config = opportunities.load_config()
+        baseline_op = opportunities.compare_opportunities(baseline, None, op_config, generated_at=NOW)
+        extra_op = opportunities.compare_opportunities(with_fundamentals, None, op_config, generated_at=NOW)
+        self.assertEqual(baseline_op["evaluated_candidates"][0]["utility"],
+                         extra_op["evaluated_candidates"][0]["utility"])
+        self.assertEqual(baseline_op["decision"]["action"], extra_op["decision"]["action"])
+        self.assertEqual(extra_op["evaluated_candidates"][0]["fundamental_analysis"]["fundamental_score"], 95.0)
+
     def test_symbol_mapping_and_no_http_for_gpw(self):
         class NoNetwork:
             def get(self, url):
