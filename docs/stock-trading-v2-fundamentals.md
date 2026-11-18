@@ -30,7 +30,7 @@ explicit warning that share splits, ADR conversion and TTM alignment have
 ## Temporal and accounting controls
 
 - Source: official `https://data.sec.gov/api/xbrl/companyfacts/CIK##########.json`.
-- Forms: SEC annual `10-K`, `10-K/A` (not 10-Q YTD values).
+- Forms: annual `10-K`/`10-K/A` for FY fundamentals and scoring; direct 65–115-day `10-Q`/`10-Q/A` observations for quarterly revenue, EPS, net income and margins. Six-/nine-month YTD observations are never treated as single quarters.
 - Fiscal duration: 330–400 days, years must be separated by 330–400 days.
 - SEC facts with filed date >= the UTC decision date are excluded: filing
   acceptance times are not included in these observations, so same-day values
@@ -46,6 +46,8 @@ explicit warning that share splits, ADR conversion and TTM alignment have
 - Source data failures are `DATA_ERROR` or `NO_CIK`, not buy signals.
 - SEC client uses a descriptive User-Agent, serial HTTPS, >=0.5-second spacing,
   a bounded response size and a short retry; no key and no token consumption.
+
+Quarterly YoY EPS and revenue growth are separately reported with exact source filings and periods. They do not enter the prototype annual fundamental score or production decisions.
 
 The prototype score uses deliberately simple *research* weights for
 revenue growth (25), diluted EPS growth (25), operating margin (20), FCF
