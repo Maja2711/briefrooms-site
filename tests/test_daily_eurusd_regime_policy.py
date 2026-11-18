@@ -109,7 +109,13 @@ class MultiTimeframeTests(unittest.TestCase):
                 "directional_3h_pips": 4.0, "aligned_intervals_3h": 2,
             },
         }
-        d1ctx = {"available": True, "trend": "DOWN" if direction == "SHORT" else "UP"}
+        d1ctx = {
+            "available": True, "trend": "DOWN" if direction == "SHORT" else "UP",
+            "raw_d1_price_action": {
+                "source": "COMPLETED_D1_RAW_CLOSES",
+                "change_5_completed_intervals_pips": -20.0 if direction == "SHORT" else 20.0,
+            },
+        }
         mtf = {"strategy": "STRONG_TREND", "w1": {
             "available": True, "trend": d1ctx["trend"],
         }}
@@ -136,7 +142,7 @@ class MultiTimeframeTests(unittest.TestCase):
     def test_entry_review_blocks_when_only_belief_and_geometry_confirm(self):
         facts = self._multi_facts("SHORT")
         facts[1]["raw_h1_price_action"]["directional_3h_pips"] = -4.0
-        facts[2]["trend"] = "UP"
+        facts[2]["raw_d1_price_action"]["change_5_completed_intervals_pips"] = 20.0
         review = p.multifactor_entry_review(*facts)
         self.assertEqual(review["non_band_passed"], 2)
         self.assertEqual(review["status"], "WAIT_MULTIFACTOR")
@@ -159,6 +165,22 @@ class MultiTimeframeTests(unittest.TestCase):
         self.assertIsNone(review["factors"]["H1_RAW_PRICE_ACTION"]["directional_3h_pips"])
         self.assertTrue(review["enforce"])
         self.assertEqual(review["status"], "MULTIFACTOR_EVIDENCE_UNVERIFIED")
+
+    def test_multifactor_uses_raw_completed_d1_not_d1_bollinger_trend(self):
+        facts = self._multi_facts("SHORT")
+        facts[2]["trend"] = "DOWN"
+        facts[2]["raw_d1_price_action"]["change_5_completed_intervals_pips"] = 3.0
+        result = p.multifactor_entry_review(*facts)
+        self.assertFalse(result["factors"]["HIGHER_TIMEFRAME"]["confirmed"])
+        self.assertTrue(result["factors"]["HIGHER_TIMEFRAME"]["d1_bollinger_trend_not_a_vote"])
+
+    def test_completed_d1_raw_momentum_has_source_independent_of_band_geometry(self):
+        from scripts import daily_eurusd_bollinger_d1 as d1_module
+        series = d1(days=110)
+        result = d1_module.evaluate(series, NOW)
+        self.assertTrue(result["available"])
+        self.assertEqual(result["raw_d1_price_action"]["source"], "COMPLETED_D1_RAW_CLOSES")
+        self.assertGreater(result["raw_d1_price_action"]["change_5_completed_intervals_pips"], 0)
 
     def test_raw_completed_h1_price_impulse_is_not_bollinger_midline_slope(self):
         from scripts import daily_eurusd_bollinger_h1 as bh
