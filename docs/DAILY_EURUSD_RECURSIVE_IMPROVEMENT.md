@@ -161,7 +161,7 @@ Belief or existing calendar, H1/MTF, D1-touch, EPE and risk gates.
 TR-03 admission now freezes an interpretable candidate factor vector
 (`execution_admission.entry_multifactor`) on prospective strong-H1
 opportunities. Four distinct non-Bollinger groups represent native
-Belief source quality, raw completed-H1 momentum, D1/W1 context, and
+Belief source quality, raw completed-H1 momentum, raw five-interval D1 closes with weekly SMA (not D1 Bollinger), and
 prospective reward/risk. At least 3/4 must confirm when verified.
 Bollinger entry location is a separate price-location safety factor,
 not a vote that can compensate for missing independent evidence.
