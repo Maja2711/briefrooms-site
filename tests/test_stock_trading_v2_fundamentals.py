@@ -45,12 +45,15 @@ def example_facts():
 
 class FundamentalTests(unittest.TestCase):
     def test_financial_metrics_and_anomaly(self):
-        result = f.analyze_companyfacts(example_facts(), as_of=NOW, sector="Technology",
+        facts = example_facts()
+        # 6% revenue growth vs. 60% EPS growth crosses the anomaly threshold.
+        facts["facts"]["us-gaap"]["RevenueFromContractWithCustomerExcludingAssessedTax"]["units"]["USD"][1]["val"] = 106
+        result = f.analyze_companyfacts(facts, as_of=NOW, sector="Technology",
                                         reference_price=32.0, price_session="2026-11-18")
         self.assertEqual(result["status"], "COMPLETE")
-        self.assertAlmostEqual(result["metrics"]["revenue_growth_yoy"], .10)
+        self.assertAlmostEqual(result["metrics"]["revenue_growth_yoy"], .06)
         self.assertAlmostEqual(result["metrics"]["eps_growth_yoy"], .60)
-        self.assertAlmostEqual(result["metrics"]["fcf_margin"], 13 / 110)
+        self.assertAlmostEqual(result["metrics"]["fcf_margin"], 13 / 106)
         self.assertAlmostEqual(result["metrics"]["indicative_price_to_fy_earnings"], 20.0)
         self.assertIn("eps_growth_outpaces_revenue", result["anomalies"])
         self.assertGreaterEqual(result["fundamental_score"], 0)
