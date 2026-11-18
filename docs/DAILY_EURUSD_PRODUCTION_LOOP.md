@@ -68,7 +68,7 @@ evidence domains*:
 - **H1_RAW_PRICE_ACTION**: signed change across the last three *completed*
   hourly closes and count of aligned hourly close intervals. This raw price
   signal is different from the Bollinger moving-average slope.
-- **HIGHER_TIMEFRAME**: completed D1 and non-opposing verified W1 context.
+- **HIGHER_TIMEFRAME**: raw signed change over five *completed D1 close intervals* and non-opposing verified W1 SMA trend; the D1 Bollinger trend is explicitly not a factor vote.
 - **PROSPECTIVE_REWARD_RISK**: initial risk and target geometry, before EPE.
 
 At least three of the four domains must confirm when all are verifiably
