@@ -221,6 +221,10 @@ def compare_opportunities(
                 "research_risk_plan": deepcopy(candidate.get("research_risk_plan") or {}),
             }
         )
+        if "fundamental_analysis" in candidate:
+            # Observability only. Candidate utility and hard gates are unchanged.
+            evaluated[-1]["fundamental_analysis"] = deepcopy(candidate["fundamental_analysis"])
+            evaluated[-1]["fundamental_score_influence"] = False
     evaluated.sort(key=lambda row: (bool(row["eligible"]), float(row["utility"])), reverse=True)
     eligible_new = [row for row in evaluated if row["eligible"] and not row["already_held"]]
     best = eligible_new[0] if eligible_new else None
