@@ -453,7 +453,8 @@ def build_snapshot(
         "provider": "SEC_EDGAR_COMPANYFACTS" if market == "US" else "NOT_CONFIGURED",
         "governance": {"production_decision_influence": False,
                        "automatic_portfolio_admission": False,
-                       "llm_calls": 0, "annual_10k_only": True,
+                       "llm_calls": 0, "annual_scoring_10k_only": True,
+                       "direct_quarterly_10q_observed": True,
                        "exclude_same_day_filing": True, "score_mode": "shadow_only"},
     }
     payload["fundamentals_sha256"] = contracts.payload_sha256(payload)
