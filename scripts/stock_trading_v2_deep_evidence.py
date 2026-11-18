@@ -29,9 +29,11 @@ from typing import Any, Mapping, Sequence
 try:
     from scripts import stock_trading_v2_contracts as contracts
     from scripts import stock_trading_v2_discovery as discovery
+    from scripts import stock_trading_v2_fundamentals as fundamentals
 except ModuleNotFoundError:  # pragma: no cover
     import stock_trading_v2_contracts as contracts
     import stock_trading_v2_discovery as discovery
+    import stock_trading_v2_fundamentals as fundamentals
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = ROOT / "data/investments/stock_trading_v2_evidence_config.json"
@@ -656,6 +658,7 @@ def build_deep_evidence(
     config: Mapping[str, Any],
     *,
     generated_at: datetime | None = None,
+    fundamental_snapshot: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     discovery.validate_frontier(frontier)
     market = str(frontier.get("market") or "").upper()
@@ -663,6 +666,16 @@ def build_deep_evidence(
         raise contracts.ContractError("deep evidence market unsupported")
     generated = generated_at or _now()
     limit = int(config.get("frontier_candidates_to_enrich") or 10)
+    fundamental_by_symbol: dict[str, dict[str, Any]] = {}
+    if fundamental_snapshot is not None:
+        fundamentals.validate_snapshot(fundamental_snapshot)
+        if (fundamental_snapshot.get("market") != market
+                or fundamental_snapshot.get("source_frontier_sha256") != frontier.get("frontier_sha256")):
+            raise contracts.ContractError("fundamentals must match the exact point-in-time frontier")
+        fundamental_by_symbol = {
+            str(item["symbol"]): dict(item)
+            for item in fundamental_snapshot.get("candidates") or []
+        }
     rows: list[dict[str, Any]] = []
     for candidate in list(frontier.get("candidates") or [])[:limit]:
         symbol = str(candidate.get("symbol") or "").upper()
@@ -670,15 +683,17 @@ def build_deep_evidence(
             symbol,
             ([], {"primary": {"ok": False}, "secondary": {"ok": False}}),
         )
-        rows.append(
-            build_candidate_evidence(
-                candidate,
-                raw_evidence,
-                provider_meta,
-                market=market,
-                config=config,
-            )
+        row = build_candidate_evidence(
+            candidate, raw_evidence, provider_meta, market=market, config=config,
         )
+        if fundamental_snapshot is not None:
+            row["fundamental_analysis"] = deepcopy(
+                fundamental_by_symbol.get(symbol, {
+                    "symbol": symbol, "status": "NOT_EVALUATED",
+                    "fundamental_score": None, "production_decision_influence": False,
+                })
+            )
+        rows.append(row)
     rows.sort(key=lambda row: (float(row["deep_opportunity_score"]), float(row["opportunity_score"])), reverse=True)
     for rank, row in enumerate(rows, start=1):
         row["deep_rank"] = rank
@@ -698,6 +713,9 @@ def build_deep_evidence(
             "no_forced_trade": True,
         },
     }
+    if fundamental_snapshot is not None:
+        payload["source_fundamentals_sha256"] = fundamental_snapshot["fundamentals_sha256"]
+        payload["fundamental_score_influence"] = False
     payload["evidence_sha256"] = contracts.payload_sha256(payload)
     validate_deep_evidence(payload)
     return payload
@@ -742,6 +760,13 @@ def validate_deep_evidence(payload: Mapping[str, Any]) -> None:
                 raise contracts.ContractError("deep evidence invalid research risk geometry")
             if risk.get("execution_ready") is not False:
                 raise contracts.ContractError("research risk plan cannot be execution-ready")
+    if payload.get("source_fundamentals_sha256") is not None:
+        if payload.get("fundamental_score_influence") is not False:
+            raise contracts.ContractError("fundamentals gained unauthorized scoring influence")
+        for row in candidates:
+            research = row.get("fundamental_analysis")
+            if not isinstance(research, Mapping) or research.get("production_decision_influence") is not False:
+                raise contracts.ContractError("missing or unauthorized fundamental evidence")
     body = dict(payload)
     stored = str(body.pop("evidence_sha256", ""))
     if not stored or stored != contracts.payload_sha256(body):
@@ -796,6 +821,7 @@ def run_market(
     *,
     frontier_path: Path | None = None,
     config_path: Path = CONFIG_PATH,
+    fundamentals_path: Path | None = None,
 ) -> dict[str, Any]:
     market = str(market).upper()
     config = load_config(config_path)
@@ -804,19 +830,22 @@ def run_market(
     discovery.validate_frontier(frontier)
     if str(frontier.get("market") or "").upper() != market:
         raise contracts.ContractError("frontier/evidence market mismatch")
+    fundamental_snapshot = _read_json(fundamentals_path) if fundamentals_path else None
     evidence = collect_evidence(frontier, config)
-    return build_deep_evidence(frontier, evidence, config)
+    return build_deep_evidence(frontier, evidence, config, fundamental_snapshot=fundamental_snapshot)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--market", choices=["US", "GPW", "us", "gpw"], required=True)
     parser.add_argument("--frontier", type=Path)
+    parser.add_argument("--fundamentals", type=Path)
     parser.add_argument("--config", type=Path, default=CONFIG_PATH)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     market = str(args.market).upper()
-    payload = run_market(market, frontier_path=args.frontier, config_path=args.config)
+    payload = run_market(market, frontier_path=args.frontier, config_path=args.config,
+                         fundamentals_path=args.fundamentals)
     output = args.output or (OUTPUT_ROOT / f"{market.lower()}.json")
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")

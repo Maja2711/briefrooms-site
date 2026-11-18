@@ -1,0 +1,36 @@
+{
+  "schema_version": "stock-trading-v2-fundamentals-config-v1",
+  "version": "1.0.0",
+  "mode": "shadow_no_production_influence",
+  "candidates_per_cycle": 10,
+  "provider": "SEC_EDGAR_COMPANYFACTS",
+  "sec_user_agent": "BriefRooms Stock Trading research contact@briefrooms.com",
+  "spacing_seconds": 0.55,
+  "cache_policy": "one_companyfacts_request_per_candidate_per_research_cycle",
+  "accounting_policy": {
+    "report_forms": [
+      "10-K",
+      "10-K/A"
+    ],
+    "period": "fiscal_year",
+    "same_day_filing": "exclude_due_to_missing_acceptance_time",
+    "missing_data": "null_no_imputation",
+    "pe": "indicative_FY_only_not_split_adjusted"
+  },
+  "markets": {
+    "US": {
+      "structured_fundamentals": true
+    },
+    "GPW": {
+      "structured_fundamentals": false,
+      "reason": "requires_separate official GPW ESEF/XBRL ingestion"
+    }
+  },
+  "governance": {
+    "production_decision_influence": false,
+    "automatic_portfolio_admission": false,
+    "llm_calls": 0,
+    "automatic_llm_inference": false,
+    "requires_prospective_validation_before_scoring_authority": true
+  }
+}

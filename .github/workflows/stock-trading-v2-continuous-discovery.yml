@@ -18,6 +18,9 @@ on:
       - "scripts/stock_trading_v2_live_scan.py"
       - "scripts/stock_trading_v2_us_screener_provider.py"
       - "scripts/stock_trading_v2_discovery.py"
+      - "scripts/stock_trading_v2_fundamentals.py"
+      - "tests/test_stock_trading_v2_fundamentals.py"
+      - "data/investments/stock_trading_v2_fundamentals_config.json"
       - "scripts/briefrooms_market_relationship_trigger.py"
       - "scripts/briefrooms_trigger_deep_belief.py"
       - "scripts/stock_trading_v2_deep_evidence.py"
@@ -55,7 +58,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Validate changed research code without collecting or dispatching
-        run: python -B -m unittest tests.test_stock_trading_v2_opportunity_engine tests.test_stock_trading_v2_opportunity_experience
+        run: python -B -m unittest tests.test_stock_trading_v2_opportunity_engine tests.test_stock_trading_v2_opportunity_experience tests.test_stock_trading_v2_fundamentals
 
   discover:
     if: github.event_name != 'workflow_run' && github.event_name != 'push'
@@ -110,11 +113,14 @@ jobs:
       - name: Validate v2 discovery evidence and opportunity configuration
         run: |
           set -euo pipefail
+          python -B -m unittest tests.test_stock_trading_v2_fundamentals
+          python -m json.tool data/investments/stock_trading_v2_fundamentals_config.json >/dev/null
           python -m json.tool data/investments/stock_trading_v2_discovery_config.json >/dev/null
           python -m json.tool data/investments/market_relationship_trigger_config.json >/dev/null
           python -m json.tool data/investments/stock_trading_v2_evidence_config.json >/dev/null
           python -m json.tool data/investments/stock_trading_v2_opportunity_config.json >/dev/null
           python -m py_compile \
+            scripts/stock_trading_v2_fundamentals.py \
             scripts/stock_trading_v2_discovery.py \
             scripts/briefrooms_market_relationship_trigger.py \
             scripts/briefrooms_trigger_deep_belief.py \
@@ -170,6 +176,11 @@ jobs:
             --market US \
             --stage-zero /tmp/stock-trading-v2-us-stage-zero.json \
             --output data/investments/stock_trading_v2_frontier/us.json
+          python scripts/stock_trading_v2_fundamentals.py --market US \
+            --frontier data/investments/stock_trading_v2_frontier/us.json \
+            --output data/investments/stock_trading_v2_fundamentals/us.json
+          python scripts/stock_trading_v2_fundamentals.py --market US \
+            --output data/investments/stock_trading_v2_fundamentals/us.json --verify
           python scripts/briefrooms_market_relationship_trigger.py \
             --market US \
             --frontier data/investments/stock_trading_v2_frontier/us.json \
@@ -187,6 +198,7 @@ jobs:
           python scripts/stock_trading_v2_deep_evidence.py \
             --market US \
             --frontier data/investments/stock_trading_v2_frontier/us.json \
+            --fundamentals data/investments/stock_trading_v2_fundamentals/us.json \
             --output data/investments/stock_trading_v2_evidence/us.json
           python scripts/stock_trading_v2_opportunity_engine.py \
             --market US \
@@ -208,9 +220,15 @@ jobs:
           python scripts/stock_trading_v2_discovery.py \
             --market GPW \
             --output data/investments/stock_trading_v2_frontier/gpw.json
+          python scripts/stock_trading_v2_fundamentals.py --market GPW \
+            --frontier data/investments/stock_trading_v2_frontier/gpw.json \
+            --output data/investments/stock_trading_v2_fundamentals/gpw.json
+          python scripts/stock_trading_v2_fundamentals.py --market GPW \
+            --output data/investments/stock_trading_v2_fundamentals/gpw.json --verify
           python scripts/stock_trading_v2_deep_evidence.py \
             --market GPW \
             --frontier data/investments/stock_trading_v2_frontier/gpw.json \
+            --fundamentals data/investments/stock_trading_v2_fundamentals/gpw.json \
             --output data/investments/stock_trading_v2_evidence/gpw.json
           python scripts/stock_trading_v2_opportunity_engine.py \
             --market GPW \
@@ -258,11 +276,17 @@ jobs:
           from scripts.stock_trading_v2_discovery import validate_frontier
           from scripts.stock_trading_v2_deep_evidence import validate_deep_evidence
           from scripts.stock_trading_v2_opportunity_engine import validate_opportunity
+          from scripts.stock_trading_v2_fundamentals import validate_snapshot as validate_fundamentals
 
           us_active_this_cycle=os.environ.get('US_ACTIVE_THIS_CYCLE','false').lower() == 'true'
           for market in ('gpw','us'):
               frontier_path=Path(f'data/investments/stock_trading_v2_frontier/{market}.json')
               evidence_path=Path(f'data/investments/stock_trading_v2_evidence/{market}.json')
+              fundamentals_path=Path(f'data/investments/stock_trading_v2_fundamentals/{market}.json')
+              if fundamentals_path.exists():
+                  fundamentals=json.loads(fundamentals_path.read_text(encoding='utf-8'))
+                  validate_fundamentals(fundamentals)
+                  assert fundamentals['source_frontier_sha256'] == frontier['frontier_sha256']
               opportunity_path=Path(f'data/investments/stock_trading_v2_opportunity/{market}.json')
               if not frontier_path.exists():
                   continue
@@ -302,6 +326,9 @@ jobs:
                   evidence=json.loads(evidence_path.read_text(encoding='utf-8'))
                   validate_deep_evidence(evidence)
                   assert evidence['source_frontier_sha256'] == frontier['frontier_sha256']
+                  if fundamentals_path.exists():
+                      assert evidence['source_fundamentals_sha256'] == fundamentals['fundamentals_sha256']
+                      assert evidence['fundamental_score_influence'] is False
               if opportunity_path.exists():
                   opportunity=json.loads(opportunity_path.read_text(encoding='utf-8'))
                   validate_opportunity(opportunity)
@@ -319,6 +346,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           for path in \
             data/investments/stock_trading_v2_frontier \
+            data/investments/stock_trading_v2_fundamentals \
             data/investments/stock_trading_v2_evidence \
             data/investments/stock_trading_v2_opportunity \
             data/investments/stock_trading_v2_experience \
