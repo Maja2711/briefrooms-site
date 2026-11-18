@@ -198,6 +198,148 @@ def strong_h1_entry_priority(h1, mtf, d1, d1_touch, direction, observed_at):
     }
 
 
+
+# Diagnostic support-vote thresholds are predeclared, not fitted to the
+# small loss-only recent cohort. The four groups are diverse evidence families,
+# not statistically independent variables; historical association is not causal.
+MIN_NON_BAND_FACTOR_CONFIRMATIONS = 3
+MULTIFACTOR_INDEPENDENT_GROUPS = (
+    "BELIEF_QUALITY", "H1_RAW_PRICE_ACTION", "HIGHER_TIMEFRAME",
+    "PROSPECTIVE_REWARD_RISK",
+)
+
+
+def multifactor_entry_review(final, h1, d1, mtf, risk_plan, h1_priority,
+                             reversal, direction, entry, stop, target, at):
+    """One auditable, non-directional strong-H1 admission review.
+
+    Bollinger location NEVER contributes to the independent evidence quorum.
+    Its pre-existing anti-chase/outer-band safety is separate and preserved.
+    No estimated accuracy, learned weights, or historical outcome leaks.
+    """
+    result = {
+        "schema_version": "eurusd-daily-multifactor-entry-v1",
+        "mode": "FIXED_UNCALIBRATED_PROSPECTIVE_BASELINE",
+        "as_of": at.astimezone(timezone.utc).isoformat() if at.tzinfo else None,
+        "native_direction": direction,
+        "regime": mtf.get("strategy"),
+        "minimum_non_band_confirmations": MIN_NON_BAND_FACTOR_CONFIRMATIONS,
+        "non_band_factor_groups": list(MULTIFACTOR_INDEPENDENT_GROUPS),
+        "bollinger_vote_in_non_band_quorum": False,
+        "direction_authority": False, "execution_authority": False,
+        "change_existing_position": False, "automatic_promotion": False,
+        "factors": {}, "enforce": False, "status": "NOT_EVALUATED",
+        "non_band_passed": 0, "non_band_available": 0,
+        "evidence_quality": "UNVERIFIED",
+    }
+    if direction not in {"LONG", "SHORT"}:
+        return {**result, "status": "NO_NATIVE_DIRECTION"}
+    sign = 1 if direction == "LONG" else -1
+    factor_rows = {}
+    used = final.get("used_beliefs") or []
+    try:
+        score = float(final["score"])
+        confidence = float(final["confidence"])
+        coverage = float(final["coverage_weight"])
+        ready = all(isfinite(x) for x in (score, confidence, coverage))
+        belief_confirmed = (ready and abs(score - 50.0) >= 4.0
+                            and confidence >= .30 and coverage >= .55
+                            and isinstance(used, list) and len(used) >= 3
+                            and (score > 50 if sign == 1 else score < 50))
+    except (ValueError, KeyError, TypeError):
+        ready, belief_confirmed, score, confidence, coverage = False, False, None, None, None
+    factor_rows["BELIEF_QUALITY"] = {
+        "available": ready and isinstance(used, list) and len(used) > 0,
+        "confirmed": bool(belief_confirmed),
+        "source": "NATIVE_BELIEF_FIRST",
+        "score": score, "confidence": confidence, "coverage": coverage,
+        "qualified_beliefs": len(used) if isinstance(used, list) else 0,
+        "criterion": "score_distance_4_confidence_0.30_coverage_0.55_3_beliefs",
+    }
+    raw = h1.get("raw_h1_price_action") or {}
+    try:
+        impulse = float(raw["directional_3h_pips"])
+        aligned = int(raw["aligned_intervals_3h"])
+        raw_ready = (raw.get("direction") == direction
+                     and raw.get("source") == "COMPLETED_H1_RAW_CLOSES"
+                     and isfinite(impulse) and 0 <= aligned <= 3)
+    except (ValueError, TypeError, KeyError):
+        impulse, aligned, raw_ready = None, None, False
+    factor_rows["H1_RAW_PRICE_ACTION"] = {
+        "available": raw_ready,
+        "confirmed": bool(raw_ready and impulse >= 1.0 and aligned >= 1),
+        "source": "LAST_3_COMPLETED_H1_CLOSES",
+        "directional_3h_pips": impulse, "aligned_intervals_3h": aligned,
+        "criterion": "directional_3h_move_at_least_1pip_and_one_aligned_hour",
+    }
+    expected = "UP" if direction == "LONG" else "DOWN"
+    w1 = mtf.get("w1") or {}
+    d1_ok = d1.get("available") is True and d1.get("trend") in {"UP", "DOWN", "MIXED"}
+    w1_available = w1.get("available") is True and w1.get("trend") in {"UP", "DOWN", "MIXED"}
+    factor_rows["HIGHER_TIMEFRAME"] = {
+        "available": d1_ok,
+        "confirmed": bool(d1_ok and d1.get("trend") == expected
+                          and (not w1_available or w1.get("trend") in {expected, "MIXED"})),
+        "source": "COMPLETED_D1_AND_COMPLETED_W1_CONTEXT",
+        "d1_trend": d1.get("trend"), "w1_trend": w1.get("trend"),
+        "w1_verified": w1_available,
+        "criterion": "d1_aligned_and_no_verified_opposite_w1",
+    }
+    try:
+        e, sl, tp = float(entry), float(stop), float(target)
+        risk = sign * (e - sl) / PIP
+        reward = sign * (tp - e) / PIP
+        rr = reward / risk if risk > 0 else None
+        rr_available = (all(isfinite(x) for x in (e, sl, tp, risk, reward))
+                        and risk > 0 and reward > 0 and rr is not None)
+    except (ValueError, TypeError, ZeroDivisionError):
+        risk, reward, rr, rr_available = None, None, None, False
+    factor_rows["PROSPECTIVE_REWARD_RISK"] = {
+        "available": bool(rr_available),
+        "confirmed": bool(rr_available and risk >= 5.0 and rr >= 1.20
+                          and risk_plan.get("allowed") is not False),
+        "source": "DECISION_TIME_INITIAL_RISK_GEOMETRY_NOT_EXECUTION",
+        "initial_risk_pips": risk if rr_available else None,
+        "initial_reward_pips": reward if rr_available else None,
+        "reward_risk": round(rr, 4) if rr_available else None,
+        "criterion": "risk_at_least_5pips_reward_to_risk_at_least_1.20",
+    }
+    h1_qualified = h1.get("available") is True and h1.get("allowed") is True
+    factor_rows["BOLLINGER_H1_LOCATION"] = {
+        "available": h1_qualified and h1_priority.get("active") is True,
+        "confirmed": bool(h1_priority.get("entry_location_allowed") is True),
+        "source": "COMPLETED_H1_BOLLINGER",
+        "percent_b": h1.get("percent_b"),
+        "criterion": "qualified_h1_primary_entry_location",
+        "role": "SUPPORT_ONLY_NOT_AN_INDEPENDENT_VOTE",
+    }
+    factor_rows["OPPOSITE_REVERSAL_RISK"] = {
+        "available": reversal.get("status") != "UNVERIFIED",
+        "confirmed": reversal.get("h1_reversal_confirmed") is not True,
+        "source": "H1_BOTH_SIDES_D1_CONTEXT",
+        "opposing_hypothesis": reversal.get("hypothesis"),
+        "role": "CONTRADICTION_WARNING_NOT_DIRECTION_AUTHORITY",
+    }
+    passed = sum(factor_rows[x]["available"] and factor_rows[x]["confirmed"]
+                 for x in MULTIFACTOR_INDEPENDENT_GROUPS)
+    available = sum(factor_rows[x]["available"] for x in MULTIFACTOR_INDEPENDENT_GROUPS)
+    active = mtf.get("strategy") == "STRONG_TREND" and h1_qualified
+    enforce = bool(active and available == len(MULTIFACTOR_INDEPENDENT_GROUPS))
+    status = ("WAIT_MULTIFACTOR" if enforce and passed < MIN_NON_BAND_FACTOR_CONFIRMATIONS
+              else "MULTIFACTOR_CONFIRMED" if enforce
+              else "INSUFFICIENT_EVIDENCE_FOR_COMPOSITE" if active
+              else "OBSERVATION_ONLY_OTHER_REGIME")
+    return {
+        **result, "factors": factor_rows,
+        "enforce": enforce, "status": status,
+        "non_band_passed": passed, "non_band_available": available,
+        "evidence_quality": "COMPLETE" if available == 4 else "PARTIAL",
+        "technical_context_may_veto": True,
+        "promotion_eligibility": "NOT_CALIBRATED_NO_AUTOMATIC_PROMOTION",
+        "model_success_rate": None,
+    }
+
+
 def geometry(policy, entry, stop, target, direction, h1):
     """Entry-only prospective sizing: never increase original hard SL distance."""
     unchanged={"applied":False,"allowed":True,"reason":"legacy_geometry"}
