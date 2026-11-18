@@ -100,6 +100,76 @@ class MultiTimeframeTests(unittest.TestCase):
         self.assertEqual(review["hypothesis"], "SHORT")
         self.assertEqual(review["status"], "H1_EXHAUSTION_BUT_REVERSAL_UNCONFIRMED")
 
+    def _multi_facts(self, direction="SHORT"):
+        score = 42.5 if direction == "SHORT" else 57.5
+        h1 = {
+            "available": True, "allowed": True, "percent_b": .23 if direction == "SHORT" else .77,
+            "raw_h1_price_action": {
+                "source": "COMPLETED_H1_RAW_CLOSES", "direction": direction,
+                "directional_3h_pips": 4.0, "aligned_intervals_3h": 2,
+            },
+        }
+        d1ctx = {"available": True, "trend": "DOWN" if direction == "SHORT" else "UP"}
+        mtf = {"strategy": "STRONG_TREND", "w1": {
+            "available": True, "trend": d1ctx["trend"],
+        }}
+        plan = {"allowed": True}
+        priority = {"active": True, "entry_location_allowed": False}
+        final = {
+            "score": score, "confidence": .40, "coverage_weight": .67,
+            "used_beliefs": [{"belief_id": str(i)} for i in range(3)],
+        }
+        entry = 1.1000
+        stop, target = (1.1020, 1.0960) if direction == "SHORT" else (1.0980, 1.1040)
+        return final,h1,d1ctx,mtf,plan,priority,{},direction,entry,stop,target,NOW
+
+    def test_entry_review_requires_diverse_non_bollinger_factors_not_only_band(self):
+        facts = self._multi_facts("SHORT")
+        review = p.multifactor_entry_review(*facts)
+        self.assertEqual(review["non_band_passed"], 4)
+        self.assertTrue(review["enforce"])
+        self.assertEqual(review["status"], "MULTIFACTOR_CONFIRMED")
+        self.assertFalse(review["bollinger_vote_in_non_band_quorum"])
+        self.assertFalse(review["factors"]["BOLLINGER_H1_LOCATION"]["confirmed"])
+        self.assertFalse(review["direction_authority"])
+
+    def test_entry_review_blocks_when_only_belief_and_geometry_confirm(self):
+        facts = self._multi_facts("SHORT")
+        facts[1]["raw_h1_price_action"]["directional_3h_pips"] = -4.0
+        facts[2]["trend"] = "UP"
+        review = p.multifactor_entry_review(*facts)
+        self.assertEqual(review["non_band_passed"], 2)
+        self.assertEqual(review["status"], "WAIT_MULTIFACTOR")
+        self.assertTrue(review["enforce"])
+
+    def test_multifactor_is_symmetric_for_long_and_does_not_guess_missing_evidence(self):
+        facts = self._multi_facts("LONG")
+        self.assertEqual(p.multifactor_entry_review(*facts)["status"], "MULTIFACTOR_CONFIRMED")
+        facts[1]["raw_h1_price_action"] = {}
+        review = p.multifactor_entry_review(*facts)
+        self.assertFalse(review["enforce"])
+        self.assertEqual(review["status"], "INSUFFICIENT_EVIDENCE_FOR_COMPOSITE")
+
+    def test_non_finite_multifactor_metrics_are_unverified_not_nan_metadata(self):
+        facts = self._multi_facts()
+        facts[0]["confidence"] = float("nan")
+        facts[1]["raw_h1_price_action"]["directional_3h_pips"] = float("inf")
+        review = p.multifactor_entry_review(*facts)
+        self.assertIsNone(review["factors"]["BELIEF_QUALITY"]["confidence"])
+        self.assertIsNone(review["factors"]["H1_RAW_PRICE_ACTION"]["directional_3h_pips"])
+        self.assertFalse(review["enforce"])
+
+    def test_raw_completed_h1_price_impulse_is_not_bollinger_midline_slope(self):
+        from scripts import daily_eurusd_bollinger_h1 as bh
+        series = h1(complete=44, trend=-.00020)
+        outcome = bh.evaluate(series, "SHORT", NOW)
+        self.assertTrue(outcome["available"])
+        raw = outcome["raw_h1_price_action"]
+        self.assertEqual(raw["source"], "COMPLETED_H1_RAW_CLOSES")
+        self.assertEqual(raw["direction"], "SHORT")
+        self.assertGreater(raw["directional_3h_pips"], 0)
+        self.assertEqual(raw["aligned_intervals_3h"], 3)
+
     def test_strong_trend_routes_to_h1_primary_with_d1_and_weekly_background(self):
         bb,db=ctx()
         result=p.evaluate(h1(),d1(),bb,db,"LONG",NOW)
