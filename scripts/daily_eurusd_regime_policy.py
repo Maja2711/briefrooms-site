@@ -112,6 +112,92 @@ def evaluate(h1_halves, daily_bars, h1, d1, direction, at):
                                   "RANGE_H1_REVERSION" if strategy=="RANGE_EDGE" else "STANDARD_R_PACE",
             "roles":{"H1":"PRIMARY","D1":"SECONDARY","W1":"OVERVIEW_ONLY"}}
 
+
+# Predeclared, conservative location limits inside the closed-H1 Bollinger band.
+# The H1 trigger is deliberately *not* a signal to sell below its lower band
+# or buy above its upper band simply because D1 has touched an outer band.
+H1_TREND_SHORT_MIN_PERCENT_B = 0.12
+H1_TREND_LONG_MAX_PERCENT_B = 0.88
+H1_PRIORITY_MAX_AGE_MINUTES = 90
+
+
+def strong_h1_entry_priority(h1, mtf, d1, d1_touch, direction, observed_at):
+    """Replace D1 50% retracement by H1 location only for a verified strong trend.
+
+    The touch memory is NEVER erased. If H1 ceases to be strongly aligned,
+    the original D1 cooldown remains authoritative. Other admission, Belief,
+    calendar, re-entry, EPE and risk requirements remain untouched.
+    """
+    base = {
+        "schema_version": "eurusd-daily-h1-strong-trend-primary-v1",
+        "timeframe": "H1",
+        "mode": "H1_PRIMARY_STRONG_TREND",
+        "active": False,
+        "replaces_d1_touch_veto": False,
+        "entry_location_allowed": False,
+        "status": "INELIGIBLE",
+        "reason": "strong_h1_evidence_not_qualified",
+        "short_min_percent_b": H1_TREND_SHORT_MIN_PERCENT_B,
+        "long_max_percent_b": H1_TREND_LONG_MAX_PERCENT_B,
+        "direction_authority": False,
+        "execution_authority": False,
+        "risk_override_authority": False,
+        "d1_touch_state_changed": False,
+    }
+    if direction not in ("LONG", "SHORT") or observed_at.tzinfo is None:
+        return base
+    if (h1.get("available") is not True
+            or h1.get("allowed") is not True
+            or h1.get("strong_trend_confirmed") is not True
+            or h1.get("exhaustion") is True
+            or h1.get("range_regime") is True
+            or mtf.get("available") is not True
+            or mtf.get("strategy") != "STRONG_TREND"
+            or mtf.get("block_new_entry") is True
+            or mtf.get("direction") != direction
+            or d1.get("available") is not True
+            or d1.get("trend") != ("UP" if direction == "LONG" else "DOWN")
+            or d1_touch.get("available") is not True
+            or d1_touch.get("processing_error")):
+        return base
+    try:
+        h1_at = datetime.fromisoformat(str(h1["last_closed_h1"]).replace("Z", "+00:00"))
+        mtf_at = datetime.fromisoformat(str(mtf["h1_volatility"]["last_completed_h1"]).replace("Z", "+00:00"))
+        d1_at = datetime.fromisoformat(str(d1["last_completed_d1"]).replace("Z", "+00:00"))
+        touch_d1_at = datetime.fromisoformat(str(d1_touch["last_completed_d1"]).replace("Z", "+00:00"))
+        now = observed_at.astimezone(timezone.utc)
+        if (any(x.tzinfo is None for x in (h1_at, mtf_at, d1_at, touch_d1_at))
+                or h1_at != mtf_at
+                or d1_at != touch_d1_at
+                or not 0 <= (now - h1_at).total_seconds() <= H1_PRIORITY_MAX_AGE_MINUTES * 60
+                or not 0 <= (now - d1_at).total_seconds() <= 4 * 86400):
+            return {**base, "reason": "h1_d1_timestamp_mismatch_or_stale"}
+        position = float(h1["percent_b"])
+        if not isfinite(position):
+            raise ValueError("non-finite H1 position")
+    except (ValueError, TypeError, KeyError, OverflowError):
+        return {**base, "reason": "invalid_h1_location_or_source_time"}
+
+    # An extreme H1 band position is *not* a qualified trend entry even if
+    # the higher-timeframe trend and Belief agree. Wait for a modest H1 pullback,
+    # rather than demanding the much larger D1 50% return.
+    location_ok = (position >= H1_TREND_SHORT_MIN_PERCENT_B if direction == "SHORT"
+                   else position <= H1_TREND_LONG_MAX_PERCENT_B)
+    return {
+        **base,
+        "active": True,
+        "replaces_d1_touch_veto": True,
+        "entry_location_allowed": location_ok,
+        "status": "H1_PRIMARY_READY" if location_ok else "H1_PRIMARY_WAIT_PULLBACK",
+        "reason": "strong_h1_trend_location_confirmed" if location_ok else "h1_outer_band_overextension",
+        "h1_percent_b": position,
+        "h1_closed_at": h1_at.astimezone(timezone.utc).isoformat(),
+        "d1_closed_at": d1_at.astimezone(timezone.utc).isoformat(),
+        "d1_trend_context": d1.get("trend"),
+        "d1_touch_preserved": True,
+    }
+
+
 def geometry(policy, entry, stop, target, direction, h1):
     """Entry-only prospective sizing: never increase original hard SL distance."""
     unchanged={"applied":False,"allowed":True,"reason":"legacy_geometry"}

@@ -171,14 +171,24 @@ def _execution_admission(
     if risk_plan.get("allowed") is False:
         reasons.append("mtf_volatility_geometry_unfavorable")
 
-    # Belief alone creates direction. A D1 upper/lower touch can only veto
-    # chasing the same direction until a subsequent 50% retracement.
+    # In an independently confirmed STRONG_TREND, hourly price location owns
+    # entry timing; a previous D1 touch must not demand a large 50% D1
+    # retracement forever. The original D1 touch state remains untouched.
+    # Absent qualified fresh H1 + coherent D1, retain the legacy D1 veto.
     d1_touch = (candidate.metadata or {}).get("bollinger_d1_touch") or {}
     details["bollinger_d1_touch"] = dict(d1_touch)
-    if candidate.direction == "LONG" and d1_touch.get("upper_long_blocked") is True:
-        reasons.append("bollinger_d1_upper_touch_waiting_for_half_retracement")
-    if candidate.direction == "SHORT" and d1_touch.get("lower_short_blocked") is True:
-        reasons.append("bollinger_d1_lower_touch_waiting_for_half_retracement")
+    h1_priority = regime_policy.strong_h1_entry_priority(
+        bollinger, mtf, (candidate.metadata or {}).get("bollinger_d1") or {},
+        d1_touch, candidate.direction, observed_at,
+    )
+    details["strong_h1_entry_priority"] = h1_priority
+    if h1_priority.get("active") is True and h1_priority.get("entry_location_allowed") is not True:
+        reasons.append("h1_strong_trend_waiting_for_hourly_pullback")
+    if h1_priority.get("replaces_d1_touch_veto") is not True:
+        if candidate.direction == "LONG" and d1_touch.get("upper_long_blocked") is True:
+            reasons.append("bollinger_d1_upper_touch_waiting_for_half_retracement")
+        if candidate.direction == "SHORT" and d1_touch.get("lower_short_blocked") is True:
+            reasons.append("bollinger_d1_lower_touch_waiting_for_half_retracement")
     if d1_touch.get("processing_error"):
         reasons.append("bollinger_d1_touch_state_unverified")
 

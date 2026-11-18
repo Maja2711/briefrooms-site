@@ -111,6 +111,86 @@ class MultiTimeframeTests(unittest.TestCase):
         self.assertAlmostEqual(result["h1_volatility"]["mean_high_low_pips"],10,places=1)
         self.assertEqual(result["roles"]["H1"],"PRIMARY")
 
+    def _strong_h1_priority_facts(self, direction="SHORT", position=.25):
+        h1_at = (NOW-timedelta(hours=1)).isoformat()
+        d1_at = (NOW-timedelta(days=1)).isoformat()
+        h1_bb = {
+            "available": True, "allowed": True, "strong_trend_confirmed": True,
+            "exhaustion": False, "range_regime": False,
+            "percent_b": position, "last_closed_h1": h1_at,
+        }
+        mtf = {
+            "available": True, "strategy": "STRONG_TREND", "block_new_entry": False,
+            "direction": direction,
+            "h1_volatility": {"last_completed_h1": h1_at},
+        }
+        d1_ctx = {
+            "available": True, "trend": "UP" if direction == "LONG" else "DOWN",
+            "last_completed_d1": d1_at,
+        }
+        touched = {"available": True, "last_completed_d1": d1_at,
+                   "upper_long_blocked": direction == "LONG",
+                   "lower_short_blocked": direction == "SHORT"}
+        return h1_bb, mtf, d1_ctx, touched
+
+    def test_strong_short_h1_replaces_old_d1_cooldown_after_hourly_pullback(self):
+        facts = self._strong_h1_priority_facts("SHORT", .24)
+        result = p.strong_h1_entry_priority(*facts, "SHORT", NOW)
+        self.assertEqual(result["status"], "H1_PRIMARY_READY")
+        self.assertTrue(result["replaces_d1_touch_veto"])
+        self.assertTrue(result["entry_location_allowed"])
+        self.assertFalse(result["direction_authority"])
+        self.assertFalse(result["execution_authority"])
+        self.assertFalse(result["d1_touch_state_changed"])
+
+    def test_short_below_hourly_lower_band_waits_for_hourly_not_daily_pullback(self):
+        facts = self._strong_h1_priority_facts("SHORT", -.0153)
+        result = p.strong_h1_entry_priority(*facts, "SHORT", NOW)
+        self.assertEqual(result["status"], "H1_PRIMARY_WAIT_PULLBACK")
+        self.assertTrue(result["replaces_d1_touch_veto"])
+        self.assertFalse(result["entry_location_allowed"])
+        self.assertEqual(result["short_min_percent_b"], .12)
+
+    def test_strong_long_h1_priority_is_symmetric_and_never_chases_upper_band(self):
+        facts = self._strong_h1_priority_facts("LONG", .72)
+        result = p.strong_h1_entry_priority(*facts, "LONG", NOW)
+        self.assertEqual(result["status"], "H1_PRIMARY_READY")
+        facts[0]["percent_b"] = 1.03
+        result = p.strong_h1_entry_priority(*facts, "LONG", NOW)
+        self.assertEqual(result["status"], "H1_PRIMARY_WAIT_PULLBACK")
+
+    def test_weak_or_opposing_h1_keeps_d1_cooldown_in_force(self):
+        facts = self._strong_h1_priority_facts("SHORT")
+        facts[0]["strong_trend_confirmed"] = False
+        self.assertFalse(p.strong_h1_entry_priority(*facts, "SHORT", NOW)["replaces_d1_touch_veto"])
+        facts = self._strong_h1_priority_facts("SHORT")
+        facts[2]["trend"] = "UP"
+        self.assertFalse(p.strong_h1_entry_priority(*facts, "SHORT", NOW)["replaces_d1_touch_veto"])
+        facts = self._strong_h1_priority_facts("SHORT")
+        facts[0]["exhaustion"] = True
+        self.assertFalse(p.strong_h1_entry_priority(*facts, "SHORT", NOW)["replaces_d1_touch_veto"])
+        facts = self._strong_h1_priority_facts("SHORT")
+        facts[1]["strategy"] = "WAIT_TRANSITION"
+        self.assertFalse(p.strong_h1_entry_priority(*facts, "SHORT", NOW)["replaces_d1_touch_veto"])
+
+    def test_unverified_h1_d1_provenance_or_processing_error_cannot_replace_d1(self):
+        for change in ("stale", "mismatch", "missing", "invalid_location", "d1_error"):
+            facts = self._strong_h1_priority_facts("SHORT", .25)
+            with self.subTest(change=change):
+                if change == "stale":
+                    facts[0]["last_closed_h1"] = (NOW-timedelta(hours=2)).isoformat()
+                    facts[1]["h1_volatility"]["last_completed_h1"] = facts[0]["last_closed_h1"]
+                elif change == "mismatch":
+                    facts[1]["h1_volatility"]["last_completed_h1"] = NOW.isoformat()
+                elif change == "missing":
+                    facts[0]["available"] = False
+                elif change == "invalid_location":
+                    facts[0]["percent_b"] = float("nan")
+                else:
+                    facts[3]["processing_error"] = "invalid_D1_candle"
+                result = p.strong_h1_entry_priority(*facts, "SHORT", NOW)
+                self.assertFalse(result["replaces_d1_touch_veto"], result)
+
     def test_daily_strong_opposite_direction_vetoes_only_admission(self):
         bb,db=ctx(d1trend="DOWN")
         result=p.evaluate(h1(),d1(),bb,db,"LONG",NOW)

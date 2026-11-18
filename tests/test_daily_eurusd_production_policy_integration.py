@@ -118,6 +118,69 @@ class ProductionPolicyRuntimeIntegrationTests(unittest.TestCase):
                     self.assertTrue(guard["change"]["material_change"])
                     self.assertFalse(guard["generic_loss_cooldown"])
 
+    def _h1_priority_admission(self, direction, percent_b, *, strong=True,
+                               h1_available=True, d1_trend=None, mtf_strategy="STRONG_TREND"):
+        at = datetime(2026, 11, 18, 9, 31, tzinfo=timezone.utc)
+        candidate = self.candidate(at, score=42.7 if direction == "SHORT" else 57.3,
+                                   direction=direction)
+        h1_at = (at-timedelta(minutes=31)).isoformat()
+        d1_at = (at-timedelta(days=1, hours=9, minutes=31)).isoformat()
+        h1_ctx = {
+            "available": h1_available, "allowed": h1_available,
+            "strong_trend_confirmed": strong, "exhaustion": False,
+            "range_regime": False, "percent_b": percent_b,
+            "last_closed_h1": h1_at,
+        }
+        mtf = {
+            "available": True, "strategy": mtf_strategy, "block_new_entry": False,
+            "direction": direction, "h1_volatility": {"last_completed_h1": h1_at},
+        }
+        d1_ctx = {
+            "available": True,
+            "trend": d1_trend or ("DOWN" if direction == "SHORT" else "UP"),
+            "last_completed_d1": d1_at,
+        }
+        d1_touch = {"available": True, "last_completed_d1": d1_at,
+                    "lower_short_blocked": direction == "SHORT",
+                    "upper_long_blocked": direction == "LONG"}
+        candidate = runtime._clone(candidate, metadata={
+            **candidate.metadata, "bollinger_h1": h1_ctx,
+            "multi_timeframe": mtf, "bollinger_d1": d1_ctx,
+            "bollinger_d1_touch": d1_touch,
+            "h1_volatility_geometry": {"allowed": True},
+        })
+        context = {"policy_state": policy.default_state(at), "decision_at": at}
+        with patch.object(runtime, "_cycle_context", context), patch.object(
+            runtime.belief_decision, "calendar_safety",
+            return_value={"blocked": False, "reason": "clear"},
+        ):
+            result = runtime._execution_admission(candidate, {"trades": []}, observed_at=at)
+        return result
+
+    def test_actual_admission_strong_short_uses_h1_instead_of_stale_d1_wait(self):
+        result = self._h1_priority_admission("SHORT", .25)
+        self.assertEqual(result["strong_h1_entry_priority"]["status"], "H1_PRIMARY_READY")
+        self.assertNotIn("bollinger_d1_lower_touch_waiting_for_half_retracement", result["reasons"])
+        self.assertTrue(result["bollinger_d1_touch"]["lower_short_blocked"])
+        self.assertEqual(result["final_direction_preserved"], "SHORT")
+
+    def test_actual_admission_avoids_chasing_h1_lower_band_in_strong_short(self):
+        result = self._h1_priority_admission("SHORT", -.0153)
+        self.assertIn("h1_strong_trend_waiting_for_hourly_pullback", result["reasons"])
+        self.assertNotIn("bollinger_d1_lower_touch_waiting_for_half_retracement", result["reasons"])
+        self.assertFalse(result["allowed"])
+
+    def test_actual_admission_strong_long_symmetry_and_weak_trend_d1_fallback(self):
+        result = self._h1_priority_admission("LONG", .75)
+        self.assertEqual(result["strong_h1_entry_priority"]["status"], "H1_PRIMARY_READY")
+        self.assertNotIn("bollinger_d1_upper_touch_waiting_for_half_retracement", result["reasons"])
+        weak = self._h1_priority_admission("SHORT", .25, strong=False)
+        self.assertIn("bollinger_d1_lower_touch_waiting_for_half_retracement", weak["reasons"])
+        conflict = self._h1_priority_admission("LONG", .75, d1_trend="DOWN")
+        self.assertIn("bollinger_d1_upper_touch_waiting_for_half_retracement", conflict["reasons"])
+        stale = self._h1_priority_admission("SHORT", .25, h1_available=False)
+        self.assertIn("bollinger_d1_lower_touch_waiting_for_half_retracement", stale["reasons"])
+
     def test_strong_signal_alone_cannot_reenter_without_daily_correction_and_support(self):
         for direction in ("LONG", "SHORT"):
             with self.subTest(direction=direction):
