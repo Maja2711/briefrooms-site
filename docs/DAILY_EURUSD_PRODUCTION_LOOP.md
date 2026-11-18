@@ -20,6 +20,41 @@ The main monitor atomically publishes output, history, policy state, decision le
 
 The re-entry safety check and the canonical position writer use the same `NATIVE_BELIEF_FIRST` thesis-family identity. A recent meaningful native loss, including `DYNAMIC_RISK_EXIT` or `STOP_LOSS`, must therefore be compared with the new native candidate before an older legacy loss can qualify it. An unchanged score/confidence cannot reuse improvement measured against an older trade to release the guard. Existing material-change thresholds and the 12-hour meaningful-loss window remain in force. They cannot bypass the additional post-loss market-location contract in [DAILY_EURUSD_POST_LOSS_REENTRY.md](DAILY_EURUSD_POST_LOSS_REENTRY.md): the initial 30% daily correction, held D1 support/resistance and strong post-loss Belief-first signal apply until the versioned local re-entry learner promotes a measured alternative; criteria can then tighten or loosen after every same-direction loss in the active D1 candle or its first-hour rollover window. Missing D1/1m data blocks new admission, while exits retain their current authority. The technical proof and source hash are frozen in execution admission; the new implementation is part of the runtime code cohort. These checks do not change final Belief direction or historical thesis identities.
 
+## Strong-trend H1-primary entry location (2026-11-18)
+
+Daily EUR/USD uses a **completed H1** Bollinger(30, 2.5) trend as the primary
+technical admission. A directional signal still originates **only** from native
+Belief/CF-07. In the previous contract, a D1 outer-band touch could veto the
+same-direction position indefinitely until a 50% correction toward the moving
+D1 middle band. This prevented a verified H1 continuation from being assessed
+even while Belief, H1 and D1 all agreed.
+
+`daily_eurusd_regime_policy.strong_h1_entry_priority()` now replaces this
+specific D1 cooldown **only** for a verified H1 `STRONG_TREND` and matching
+native direction, MTF strategy, completed H1 source provenance and coherent
+completed D1 trend. Both H1 and MTF must agree on the same completed H1
+timestamp (at most 90 minutes old), and the current D1 touch snapshot must
+match the observed completed D1 (at most four days old). Data gaps, H1
+exhaustion, transition/range, unaligned D1, or an unverified touch state
+**never** release the D1 cooldown.
+
+Even in a strong trend, the entry must not chase an outer H1 band extension.
+For a SHORT, the H1 close must have returned to a **%B of at least 0.12**;
+for a LONG, it must be **at most 0.88**. The symmetric location condition is
+an explicitly predeclared, *not yet empirically calibrated* conservative
+threshold. When H1 is still stretched, admission is blocked with
+`h1_strong_trend_waiting_for_hourly_pullback` instead of demanding the
+larger D1 50% pullback. `execution_admission.strong_h1_entry_priority`
+records the decision, thresholds, timestamps and safe role boundaries.
+
+The D1 touch is still updated as before, saved without alteration, and
+becomes effective again if strong H1 proof expires. Calendar, same-thesis
+re-entry, post-loss proof, policy, verified EPE, initial SL/TP and independent
+position-exit risk remain unchanged. Research-only band reversal diagnostics
+do not obtain directional or admission authority. This is prospective and
+code-cohort-bound: prior trade history and prior decision manifests are
+untouched, and push validation does not create positions.
+
 ## Immutable observations and measurement
 
 `data/investments/eurusd_production_decisions.json` is an append-only record of new monitor decisions. Each manifest includes native provenance and decision time, policy version/hash, runtime source hash, market/Epistemic hashes, final decision, admission result, EPE verification and initial entry/stop/target. A position and its eventual closed trade retain the identical entry manifest. A new refresh decision is a separate record and never relabels the open position's policy.
