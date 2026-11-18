@@ -71,6 +71,29 @@ class FundamentalTests(unittest.TestCase):
         self.assertEqual(result_early["fiscal_end"], "2024-12-31")
         self.assertIsNone(result_early["metrics"]["revenue_growth_yoy"])
 
+    def test_direct_10q_quarters_without_ytd_or_future_facts(self):
+        facts = example_facts()["facts"]["us-gaap"]
+        revenue = facts["RevenueFromContractWithCustomerExcludingAssessedTax"]["units"]["USD"]
+        eps = facts["EarningsPerShareDiluted"]["units"]["USD/shares"]
+        for start, end, filed, value, eps_value in (
+            ("2025-07-01", "2025-09-30", "2025-10-22", 21, 0.20),
+            ("2026-07-01", "2026-09-30", "2026-10-22", 28, 0.30),
+        ):
+            revenue.append(record(value, start, end, filed, form="10-Q"))
+            eps.append(record(eps_value, start, end, filed, form="10-Q"))
+        revenue.append(record(500, "2026-01-01", "2026-09-30", "2026-10-22", form="10-Q"))
+        eps.append(record(9, "2026-07-01", "2026-09-30", "2026-11-18", form="10-Q"))
+        result = f.analyze_companyfacts({"facts": {"us-gaap": facts}}, as_of=NOW)
+        q = result["quarterly_metrics"]
+        self.assertEqual(result["latest_quarter_end"], "2026-09-30")
+        self.assertEqual(result["prior_year_quarter_end"], "2025-09-30")
+        self.assertEqual(q["revenue_quarter_usd"], 28)
+        self.assertAlmostEqual(q["revenue_growth_quarter_yoy"], 1/3)
+        self.assertAlmostEqual(q["eps_diluted_quarter_usd"], .30)
+        self.assertAlmostEqual(q["eps_growth_quarter_yoy"], .50)
+        self.assertEqual(result["source_facts"]["eps_diluted_quarter"]["form"], "10-Q")
+        self.assertEqual(result["source_facts"]["eps_diluted_quarter"]["start"], "2026-07-01")
+
     def test_no_fictitious_zero_or_bad_unit(self):
         facts = example_facts()
         facts["facts"]["us-gaap"].pop("EarningsPerShareDiluted")
