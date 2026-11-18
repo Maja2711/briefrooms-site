@@ -157,7 +157,8 @@ class MultiTimeframeTests(unittest.TestCase):
         review = p.multifactor_entry_review(*facts)
         self.assertIsNone(review["factors"]["BELIEF_QUALITY"]["confidence"])
         self.assertIsNone(review["factors"]["H1_RAW_PRICE_ACTION"]["directional_3h_pips"])
-        self.assertFalse(review["enforce"])
+        self.assertTrue(review["enforce"])
+        self.assertEqual(review["status"], "MULTIFACTOR_EVIDENCE_UNVERIFIED")
 
     def test_raw_completed_h1_price_impulse_is_not_bollinger_midline_slope(self):
         from scripts import daily_eurusd_bollinger_h1 as bh
