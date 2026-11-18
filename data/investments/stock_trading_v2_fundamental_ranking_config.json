@@ -1,0 +1,39 @@
+{
+  "schema_version": "stock-trading-v2-fundamental-ranking-protocol-v1",
+  "baseline": "US_QUALITY_GATE_55_V1",
+  "experiment_not_before": "2026-11-20T00:00:00Z",
+  "weights_percent": [
+    10,
+    20,
+    30
+  ],
+  "fixed_n": 60,
+  "horizons_sessions": [
+    1,
+    2
+  ],
+  "one_formal_look": true,
+  "holdout_unit": "one_originally_observed_v1_quality_eligible_virtual_free_slot_decision_per_US_session",
+  "scoring_method": "blend_native_eligible_utility_with_quality_score_reorder_only",
+  "min_changed_sessions": 12,
+  "min_unique_symbols": 5,
+  "min_span_days": 70,
+  "min_mean_uplift_pct_points": 0.05,
+  "min_positive_changed_fraction": 0.55,
+  "max_single_positive_share": 0.5,
+  "familywise_alpha": 0.05,
+  "bootstrap_resamples": 4000,
+  "bootstrap_seed": 20261120,
+  "block_length_sessions": 5,
+  "replay": "frozen-geometry-next-session-open-v1_stressed_net_percent_1d_2d",
+  "publication_rules": {
+    "never_backfill_earlier_decisions": true,
+    "do_not_substitute_missing_sessions": true,
+    "no_imputation_on_unplayable_outcomes": true,
+    "same_v1_admission_eligibility_and_risk_gates": true,
+    "no_automatic_weight_selection": true,
+    "independent_future_confirmation_required": true
+  },
+  "promotion_authority": false,
+  "production_decision_influence": false
+}
