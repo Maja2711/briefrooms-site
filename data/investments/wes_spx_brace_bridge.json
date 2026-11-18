@@ -65189,8 +65189,122 @@
       },
       "pre_wes_frozen_at": "2026-11-17T21:26:36+00:00",
       "post_wes_frozen_at": "2026-11-17T21:26:38+00:00"
+    },
+    {
+      "decision_id": "wes-spx-2be0773a52cf3b8106ad",
+      "week_id": "2026-W47",
+      "instrument_id": "sp500_futures",
+      "decision_type": "no_trade_monitoring",
+      "decision_at": "2026-11-18T04:05:02+01:00",
+      "first_captured_at": "2026-11-18T03:05:12+00:00",
+      "last_updated_at": "2026-11-18T03:05:13+00:00",
+      "active_decision_influence": false,
+      "evidence_cycle_id": "gha-44227657144-1",
+      "point_in_time": {
+        "eligible": true,
+        "reason": "point_in_time_valid",
+        "age_hours": 22.907
+      },
+      "brace_spx": {
+        "available": true,
+        "stance": "defensive",
+        "confidence": 0.875,
+        "reason": "g6_parallel_candidate_consensus_read_only",
+        "source": {
+          "generation_id": "spx-orthogonal-core-v6",
+          "candidate_signature": "671ef03a8e1a58ead80388072be6f701177222a96d60db27c7004b6fe7572638",
+          "updated_at": "2026-11-17T04:10:35+00:00",
+          "latest_market_date": "2026-11-16",
+          "status": "shadow_active_no_orders",
+          "observations_collected": 76,
+          "warmup_required": 70,
+          "holdout_accessed": false,
+          "live_orders": false,
+          "autonomous_trading": false
+        },
+        "family_scores": {
+          "price_trend": -0.373822,
+          "rates": -0.355083,
+          "liquidity": 0.114811,
+          "options_vix": -0.343928
+        },
+        "latest_regime": "neutral",
+        "candidate_consensus": {
+          "candidate_count": 8,
+          "mean_target_exposure_next_session": -0.125,
+          "risk_on_votes": 0,
+          "neutral_votes": 1,
+          "defensive_votes": 7,
+          "agreement_ratio": 0.875,
+          "single_champion_selected": false
+        }
+      },
+      "relationship": {
+        "class": "STRONG_AGREEMENT",
+        "strength": 0.875,
+        "alpha_eligible": false,
+        "reason": "non_actionable_monitoring_observation"
+      },
+      "counterfactual_overlay": {
+        "decision_without_brace_spx": "short",
+        "decision_with_brace_spx": "not_computed_until_calibration",
+        "hypothetical_role": "support",
+        "bounded_modifier_applied": false
+      },
+      "v5_counterfactual": {
+        "counterfactual_only": true,
+        "source": "governed_v5_state_before_wes_postflight",
+        "direction": "short",
+        "strategy_id": "weekly_trend",
+        "raw_score": 39.0,
+        "entry_price": null,
+        "entry_captured_at": null,
+        "risk_plan": null,
+        "frozen_risk_distance": {
+          "source": "ATR14_sqrt5_frozen_at_forecast",
+          "stop_price_distance": 170.0,
+          "take_price_distance": 260.0,
+          "stop_units": 170.0,
+          "take_units": 260.0,
+          "reward_to_risk": 1.5294
+        },
+        "frozen_symbol": "ES=F",
+        "frozen_scheduled_exit": "2026-11-20T22:00:00+01:00",
+        "frozen_cost_policy": {
+          "round_trip_cost": 1,
+          "cost_unit": "points"
+        },
+        "outcome_status": "frozen_pending_counterfactual_evaluator",
+        "net_result_percent": null,
+        "replay_contract_status": "not_applicable_no_verified_entry",
+        "replay_contract_reason": "no_baseline_fill_was_observed_at_freeze"
+      },
+      "wes_actual": {
+        "active_decision": true,
+        "brace_spx_influence": false,
+        "direction": "neutral",
+        "strategy_id": null,
+        "raw_score": null,
+        "entry_class": "no_trade_monitoring",
+        "entry_price": null,
+        "entry_captured_at": null,
+        "risk_plan": null
+      },
+      "outcome": {
+        "status": "pending",
+        "wes_net_result_percent": null,
+        "v5_counterfactual_net_result_percent": null
+      },
+      "v5_counterfactual_capture": {
+        "eligible": true,
+        "status": "frozen_point_in_time",
+        "reason": "captured_inside_pre_wes_window",
+        "decision_to_capture_delay_minutes": 0.169
+      },
+      "pre_wes_frozen_at": "2026-11-18T03:05:12+00:00",
+      "post_wes_frozen_at": "2026-11-18T03:05:13+00:00"
     }
   ],
-  "updated_at": "2026-11-17T21:26:39+00:00",
-  "content_sha256": "bbaac4799ba2c2429b06a7bdcd2a98aa05ff467f62f7dd98d667874cbbaa878c"
+  "updated_at": "2026-11-18T03:05:13+00:00",
+  "content_sha256": "cb0b217bb546981b6eb67da85327e9ebeae9b5a6311d9e3a6790b63eaa29246b"
 }
