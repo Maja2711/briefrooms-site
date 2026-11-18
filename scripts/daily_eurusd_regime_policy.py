@@ -328,10 +328,13 @@ def multifactor_entry_review(final, h1, d1, mtf, risk_plan, h1_priority,
                  for x in MULTIFACTOR_INDEPENDENT_GROUPS)
     available = sum(factor_rows[x]["available"] for x in MULTIFACTOR_INDEPENDENT_GROUPS)
     active = mtf.get("strategy") == "STRONG_TREND" and h1_qualified
-    enforce = bool(active and available == len(MULTIFACTOR_INDEPENDENT_GROUPS))
-    status = ("WAIT_MULTIFACTOR" if enforce and passed < MIN_NON_BAND_FACTOR_CONFIRMATIONS
-              else "MULTIFACTOR_CONFIRMED" if enforce
-              else "INSUFFICIENT_EVIDENCE_FOR_COMPOSITE" if active
+    # Strong H1 must NEVER silently fall through because a newly required
+    # source is missing: incomplete multifactor proof is a fail-closed veto.
+    enforce = bool(active)
+    complete = available == len(MULTIFACTOR_INDEPENDENT_GROUPS)
+    status = ("MULTIFACTOR_EVIDENCE_UNVERIFIED" if active and not complete
+              else "WAIT_MULTIFACTOR" if active and passed < MIN_NON_BAND_FACTOR_CONFIRMATIONS
+              else "MULTIFACTOR_CONFIRMED" if active
               else "OBSERVATION_ONLY_OTHER_REGIME")
     return {
         **result, "factors": factor_rows,
