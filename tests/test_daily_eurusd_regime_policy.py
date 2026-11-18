@@ -147,8 +147,8 @@ class MultiTimeframeTests(unittest.TestCase):
         self.assertEqual(p.multifactor_entry_review(*facts)["status"], "MULTIFACTOR_CONFIRMED")
         facts[1]["raw_h1_price_action"] = {}
         review = p.multifactor_entry_review(*facts)
-        self.assertFalse(review["enforce"])
-        self.assertEqual(review["status"], "INSUFFICIENT_EVIDENCE_FOR_COMPOSITE")
+        self.assertTrue(review["enforce"])
+        self.assertEqual(review["status"], "MULTIFACTOR_EVIDENCE_UNVERIFIED")
 
     def test_non_finite_multifactor_metrics_are_unverified_not_nan_metadata(self):
         facts = self._multi_facts()
