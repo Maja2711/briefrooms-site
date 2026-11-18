@@ -1,0 +1,31 @@
+{
+  "schema_version": "stock-trading-fundamental-rollout-v1",
+  "policy_id": "US_QUALITY_GATE_55_V1",
+  "phase": "SHADOW",
+  "activated_at": null,
+  "formal_proof_sha256": null,
+  "active_policy_sha256": null,
+  "trial_frozen_through": null,
+  "rolled_back_at": null,
+  "rollback_reason": null,
+  "blocked_trial_ids": [],
+  "promotion_quality": null,
+  "promotion_horizons": null,
+  "kill_switch_enabled": false,
+  "scope": {
+    "market": "US",
+    "effect": "filter_only_after_existing_eligibility",
+    "score_threshold": 55,
+    "affects_existing_positions": false,
+    "affects_gpws": false,
+    "can_add_candidate": false,
+    "can_relax_risk": false
+  },
+  "safety": {
+    "requires_exact_source_evidence_sha256": true,
+    "requires_10k_and_10q_temporal_provenance": true,
+    "fail_closed_on_integrity_errors": true,
+    "automatic_rollback_in_same_production_cycle": true,
+    "auto_repromotion_after_rollback": false
+  }
+}

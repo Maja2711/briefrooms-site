@@ -27,10 +27,14 @@ try:
     from scripts import stock_trading_portfolio as portfolio
     from scripts import stock_trading_quote_enricher as quotes
     from scripts import stock_trading_v2_reentry_learning as reentry_learning
+    from scripts import stock_trading_fundamental_governor as fundamental_governor
+    from scripts import stock_trading_fundamental_policy as fundamental_policy
 except ModuleNotFoundError:  # pragma: no cover
     import stock_trading_portfolio as portfolio
     import stock_trading_quote_enricher as quotes
     import stock_trading_v2_reentry_learning as reentry_learning
+    import stock_trading_fundamental_governor as fundamental_governor
+    import stock_trading_fundamental_policy as fundamental_policy
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = ROOT / "data/investments/stock_trading_v2_production_config.json"
@@ -357,6 +361,8 @@ def process_market(
     decision_observer: Callable[[str, str, datetime], None] | None = None,
     reentry_feature_fetcher: Callable[..., Any] | None = None,
     risk_metadata: Mapping[str, Any] | None = None,
+    fundamental_active: bool = False,
+    fundamental_integrity_block: bool = False,
 ) -> tuple[dict[str, Any], list[dict[str, Any]], bool]:
     market = market.upper()
     audits: list[dict[str, Any]] = []
@@ -377,8 +383,24 @@ def process_market(
 
     production_policy = dict(production_policy) if production_policy is not None else portfolio.load_policy()
     frontier = candidate_frontier(opportunity)
+    if market == "US" and fundamental_integrity_block:
+        # A broken/corrupted research chain cannot generate new US trades on the
+        # same cycle that trips a durable, automatic rollback to SHADOW baseline.
+        return canonical, [{"market": market, "action": "fundamental_circuit_breaker",
+                            "reason": "integrity_failure_rollback_no_admission_this_cycle"}], False
+    if market == "US" and fundamental_active:
+        frontier, blocked = fundamental_policy.filter_live(
+            frontier, decision_at=str(opportunity.get("generated_at") or ""))
+        for item in blocked:
+            audits.append({"market": market, "action": "fundamental_quality_rejected",
+                           "reason": item["reason"], "symbol": item["symbol"],
+                           "fundamental_score": item["fundamental_score"],
+                           "policy_id": fundamental_policy.POLICY_ID})
     if not frontier:
-        return canonical, [{"market": market, "action": "cash", "reason": "eligible_frontier_empty"}], True
+        audits.append({"market": market, "action": "cash",
+                       "reason": "fundamental_quality_gate_empty" if fundamental_active and market == "US"
+                       else "eligible_frontier_empty"})
+        return canonical, audits, True
 
     healthy = False
     cash = opportunity.get("cash") or {}
@@ -663,6 +685,8 @@ def run(opportunity_paths: Mapping[str, Path], *, now_utc: datetime | None = Non
         import stock_trading_sourced_metadata as sourced_metadata
     risk_metadata = sourced_metadata.load_ledger()
     manifest = _load(ROOT / "data/investments/stock_trading_champion_manifest.json", {})
+    fundamental_rollout = fundamental_governor._read(fundamental_governor.STATE_PATH)
+    fundamental_governor.validate_rollout(fundamental_rollout)
     input_opportunities: dict[str, Any] = {}
     input_quotes: dict[str, dict[str, Any]] = {}
     reentry_inputs: dict[str, Any] = {"evidence": {}, "features": {}, "charts": {}}
@@ -745,6 +769,46 @@ def run(opportunity_paths: Mapping[str, Path], *, now_utc: datetime | None = Non
                 quote_errors.setdefault(market, []).append({"symbol": symbol, "reason": type(exc).__name__})
         reentry_evidence = _reentry_evidence_by_symbol(market, opportunity, (evidence_paths or {}).get(market))
         reentry_inputs["evidence"][market] = deepcopy(reentry_evidence)
+        fundamental_active = False
+        fundamental_integrity_block = False
+        if market == "US" and fundamental_rollout["phase"] == "ACTIVE":
+            evidence_path = (evidence_paths or {}).get("US")
+            evidence_payload = _load(evidence_path, {}) if evidence_path else {}
+            try:
+                if fundamental_rollout.get("kill_switch_enabled"):
+                    raise ValueError("fundamental_manual_kill_switch")
+                if not isinstance(evidence_payload, Mapping):
+                    raise ValueError("fundamental_missing_evidence")
+                verified, why = fundamental_governor.validate_live_binding(
+                    opportunity, evidence_payload, now=now_utc)
+                if not verified:
+                    raise ValueError(why)
+                # Reject provider-wide quality collapse immediately, before
+                # even considering a fresh quote or admitting a US position.
+                research_frontier = candidate_frontier(opportunity)
+                ready_for_cash = [
+                    row for row in research_frontier
+                    if (_float(row.get("utility")) is not None
+                        and _float(row["utility"]) >= (
+                            float(production_policy.get("cash_utility", 50))
+                            + float(((production_policy.get("markets") or {}).get("US") or {}).get("minimum_cash_edge_points", 5))))
+                ]
+                if ready_for_cash:
+                    verified_count = sum(
+                        fundamental_policy.verify_fundamental(
+                            row, decision_at=str(opportunity.get("generated_at")))[0]
+                        for row in ready_for_cash
+                    )
+                    if verified_count / len(ready_for_cash) < 0.5:
+                        raise ValueError("fundamental_coverage_below_50_percent")
+                fundamental_active = True
+            except Exception as exc:
+                reason = f"fundamental_live_integrity:{type(exc).__name__}:{str(exc)[:160]}"
+                fundamental_rollout = fundamental_governor.rollback(
+                    fundamental_rollout, reason, now=now_utc)
+                fundamental_integrity_block = True
+                all_audits.append({"market": "US", "action": "fundamental_auto_rollback",
+                                   "reason": reason, "policy_id": fundamental_policy.POLICY_ID})
         canonical, audits, healthy = process_market(
             canonical,
             market,
@@ -760,6 +824,8 @@ def run(opportunity_paths: Mapping[str, Path], *, now_utc: datetime | None = Non
             reentry_evidence_by_symbol=reentry_evidence,
             reentry_feature_fetcher=capture_reentry_features,
             risk_metadata=risk_metadata,
+            fundamental_active=fundamental_active,
+            fundamental_integrity_block=fundamental_integrity_block,
         )
         all_audits.extend(audits)
         finalized_at = datetime.now(UTC) if real_clock else now_utc
