@@ -1,0 +1,112 @@
+name: Stock Trading Fundamental Autopromotion
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Stock Trading v2 Closed Learning Loop"]
+    types: [completed]
+  schedule:
+    - cron: "40 23 * * 1-5"
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/stock_trading_fundamental_policy.py"
+      - "scripts/stock_trading_v2_fundamental_trial.py"
+      - "scripts/stock_trading_fundamental_governor.py"
+      - "scripts/stock_trading_v2_production_bridge.py"
+      - "tests/test_stock_trading_fundamental_governor.py"
+      - "data/investments/stock_trading_fundamental_rollout.json"
+      - "data/investments/stock_trading_v2_fundamental_trial_config.json"
+      - ".github/workflows/stock-trading-fundamental-autopromotion.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/stock_trading_fundamental_policy.py"
+      - "scripts/stock_trading_v2_fundamental_trial.py"
+      - "scripts/stock_trading_fundamental_governor.py"
+      - "scripts/stock_trading_v2_production_bridge.py"
+      - "tests/test_stock_trading_fundamental_governor.py"
+      - "data/investments/stock_trading_fundamental_rollout.json"
+      - "data/investments/stock_trading_v2_fundamental_trial_config.json"
+      - ".github/workflows/stock-trading-fundamental-autopromotion.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: stock-trading-state-writer
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Compile and test bounded fundamental auto-governor
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/stock_trading_fundamental_policy.py scripts/stock_trading_v2_fundamental_trial.py scripts/stock_trading_fundamental_governor.py scripts/stock_trading_v2_production_bridge.py
+          python -m json.tool data/investments/stock_trading_fundamental_rollout.json >/dev/null
+          python -m json.tool data/investments/stock_trading_v2_fundamental_trial_config.json >/dev/null
+          python -B -m unittest tests.test_stock_trading_fundamental_governor tests.test_stock_trading_v2_production_bridge -v
+          python scripts/stock_trading_fundamental_governor.py --verify
+
+  auto_promote_or_rollback:
+    if: github.event_name != 'push' && github.event_name != 'pull_request' && (github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event != 'push'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+    steps:
+      - name: Check out main Champion (only production authority)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Fetch verified research evidence; never execute research code
+        run: |
+          set -euo pipefail
+          git fetch origin stock-trading-v2
+          rm -rf /tmp/stock-trading-v2-fundamental-evidence
+          git worktree add --detach /tmp/stock-trading-v2-fundamental-evidence origin/stock-trading-v2
+      - name: Test production governor and immutable policy
+        run: |
+          set -euo pipefail
+          python -B -m unittest tests.test_stock_trading_fundamental_governor
+          python scripts/stock_trading_fundamental_governor.py --verify
+      - name: Run automatic, exact-bound fixed-N gate or post-promotion monitor
+        run: |
+          set -euo pipefail
+          python scripts/stock_trading_fundamental_governor.py \
+            --research-root /tmp/stock-trading-v2-fundamental-evidence \
+            | tee /tmp/stock-fundamental-governor-result.json
+      - name: Persist rollout and immutable promotion/rollback audit
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- data/investments/stock_trading_fundamental_rollout.json
+          [[ ! -e data/investments/stock_trading_fundamental_promotion_audit.jsonl ]] || git add -- data/investments/stock_trading_fundamental_promotion_audit.jsonl
+          if git diff --cached --quiet; then
+            echo "No fundamental promotion or rollback to commit."
+            exit 0
+          fi
+          git commit -m "Stock Trading: auto-promote or rollback proven fundamental quality gate"
+          for attempt in 1 2 3 4 5; do
+            if git pull --rebase origin main && git push origin HEAD:main; then
+              exit 0
+            fi
+            git rebase --abort 2>/dev/null || true
+            git fetch origin main
+            git rebase origin/main
+            sleep $((attempt * 3))
+          done
+          exit 1

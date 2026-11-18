@@ -1,0 +1,29 @@
+{
+  "schema_version": "stock-trading-v2-fundamental-trial-config-v1",
+  "protocol_version": "fundamental-quality-open-slot-1d-2d-fixed30-v1",
+  "policy_id": "US_QUALITY_GATE_55_V1",
+  "experiment_not_before": "2026-11-19T00:00:00Z",
+  "fixed_n": 30,
+  "required_horizons_sessions": [
+    1,
+    2
+  ],
+  "min_changed_episodes": 10,
+  "min_unique_symbols": 5,
+  "min_span_days": 25,
+  "min_coverage": 0.9,
+  "bootstrap_resamples": 4000,
+  "bootstrap_seed": 20261119,
+  "min_mean_uplift_percent": 0.1,
+  "min_positive_changed_fraction": 0.55,
+  "max_single_positive_contribution_share": 0.5,
+  "one_formal_look": true,
+  "holdout_unit": "one frozen virtual free-slot decision per US session",
+  "comparison": "net_return_percent_in_stressed_next_session_open_frozen_SL_TP_for_1_and_2_sessions",
+  "no_promotion_if_data_unavailable": true,
+  "governance": {
+    "production_decision_influence": false,
+    "retrospective_decisions_as_proof": false,
+    "automatic_policy_change_only_via_main_owned_governor": true
+  }
+}

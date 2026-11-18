@@ -96,10 +96,11 @@ jobs:
       - name: Validate v2 production boundary
         run: |
           set -euo pipefail
-          python -m py_compile scripts/stock_trading_v2_production_bridge.py scripts/stock_trading_v2_reentry_learning.py scripts/stock_trading_portfolio.py scripts/stock_trading_quote_enricher.py scripts/no_retroactive_execution.py scripts/verify_no_retroactive_execution.py
+          python -m py_compile scripts/stock_trading_fundamental_policy.py scripts/stock_trading_fundamental_governor.py scripts/stock_trading_v2_fundamental_trial.py scripts/stock_trading_v2_production_bridge.py scripts/stock_trading_v2_reentry_learning.py scripts/stock_trading_portfolio.py scripts/stock_trading_quote_enricher.py scripts/no_retroactive_execution.py scripts/verify_no_retroactive_execution.py
           python -m json.tool data/investments/stock_trading_v2_production_config.json >/dev/null
           python -m json.tool data/investments/stock_trading_policy.json >/dev/null
-          python -m unittest tests.test_stock_trading_v2_reentry_learning tests.test_stock_trading_v2_production_bridge tests.test_stock_trading_portfolio tests.test_stock_trading_quote_enricher tests.test_no_retroactive_execution -v
+          python scripts/stock_trading_fundamental_governor.py --verify
+          python -m unittest tests.test_stock_trading_fundamental_governor tests.test_stock_trading_v2_reentry_learning tests.test_stock_trading_v2_production_bridge tests.test_stock_trading_portfolio tests.test_stock_trading_quote_enricher tests.test_no_retroactive_execution -v
           node --check scripts/stock-trading-public.js
           node --check scripts/stock-trading-live-refresh.js
           python - <<'PY'
@@ -160,6 +161,8 @@ jobs:
           for path in \
             data/investments/stock_trading_portfolio.json \
             data/investments/stock_trading_v2_production_state.json \
+            data/investments/stock_trading_fundamental_rollout.json \
+            data/investments/stock_trading_fundamental_promotion_audit.jsonl \
             data/investments/stock_trading_reentry_learning.json \
             data/investments/stock_trading_v2_production_replay_frames \
             data/investments/stock_trading_v2_replay_watchlist.json \
