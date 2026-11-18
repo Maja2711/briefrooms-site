@@ -242,6 +242,8 @@ def multifactor_entry_review(final, h1, d1, mtf, risk_plan, h1_priority,
         confidence = float(final["confidence"])
         coverage = float(final["coverage_weight"])
         ready = all(isfinite(x) for x in (score, confidence, coverage))
+        if not ready:
+            score, confidence, coverage = None, None, None
         belief_confirmed = (ready and abs(score - 50.0) >= 4.0
                             and confidence >= .30 and coverage >= .55
                             and isinstance(used, list) and len(used) >= 3
@@ -263,6 +265,8 @@ def multifactor_entry_review(final, h1, d1, mtf, risk_plan, h1_priority,
         raw_ready = (raw.get("direction") == direction
                      and raw.get("source") == "COMPLETED_H1_RAW_CLOSES"
                      and isfinite(impulse) and 0 <= aligned <= 3)
+        if not isfinite(impulse):
+            impulse = None
     except (ValueError, TypeError, KeyError):
         impulse, aligned, raw_ready = None, None, False
     factor_rows["H1_RAW_PRICE_ACTION"] = {
