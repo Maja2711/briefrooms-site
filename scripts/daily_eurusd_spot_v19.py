@@ -280,8 +280,11 @@ def _execution_admission(
         observed_at,
     )
     details["entry_multifactor"] = quality
-    if quality.get("enforce") is True and quality.get("status") == "WAIT_MULTIFACTOR":
-        reasons.append("entry_multifactor_independent_confirmation_insufficient")
+    if quality.get("enforce") is True:
+        if quality.get("status") == "MULTIFACTOR_EVIDENCE_UNVERIFIED":
+            reasons.append("entry_multifactor_required_evidence_unverified")
+        elif quality.get("status") == "WAIT_MULTIFACTOR":
+            reasons.append("entry_multifactor_independent_confirmation_insufficient")
 
     allowed = candidate.direction in {"LONG", "SHORT"} and not reasons
     return {
