@@ -155,3 +155,40 @@ engine itself to select an early contrarian LONG, technical reversal evidence
 would need to be integrated through the upstream Evidence/Belief route and
 independently validated; the research review must not silently override
 Belief or existing calendar, H1/MTF, D1-touch, EPE and risk gates.
+
+## Research interpretation: entry-factor effectiveness (2026-11-18)
+
+TR-03 admission now freezes an interpretable candidate factor vector
+(`execution_admission.entry_multifactor`) on prospective strong-H1
+opportunities. Four distinct non-Bollinger groups represent native
+Belief source quality, raw completed-H1 momentum, raw five-interval D1 closes with weekly SMA (not D1 Bollinger), and
+prospective reward/risk. At least 3/4 must confirm when verified.
+Bollinger entry location is a separate price-location safety factor,
+not a vote that can compensate for missing independent evidence.
+The initial thresholds are fixed, *not calibrated to profitability*.
+
+The existing policy writer additionally maintains optional
+`entry_factor_study` cases in its own state, sampling no more than
+one native directional opportunity every three hours. Each case
+freezes its factors, reference closed-M1 price, original decision ID
+and exact runtime cohort **before** any forward label exists. A
+verified completed M1 close at +3h measures only future directional
+mid-price movement in pips; missing terminal prices are `DATA_GAP`,
+not zeros or losses. These are neither executable broker fills nor
+spread-adjusted paper P&L. They never receive execution or
+automatic-promotion authority. The existing fixed-sample
+production-margin counterfactual cases remain separate.
+
+Observed factors are compared descriptively only after a floor of
+40 prospective labelled signals, at least 15 different days and
+10 observations on each side of each factor. This minimum is **not**
+an OOS validation or statistical significance test; regime/confounder,
+multiple-comparison, costs and execution bias remain. Actual net R
+is independently sourced only from canonical manifest-bound closed
+trades and reported separately. Until a separately predeclared,
+cost-aware, independent prospective promotion gate passes,
+`validated_best_factor` remains `null` and weights do not change.
+
+Open positions, historical entry manifests, Belief direction,
+EPE, calendar/re-entry safety, hard SL/TP, research/production
+authority and NO RETROACTIVE remain unchanged.

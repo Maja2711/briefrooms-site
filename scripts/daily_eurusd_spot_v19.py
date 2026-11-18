@@ -266,6 +266,26 @@ def _execution_admission(
     if technical.get("allowed") is not True:
         reasons.append(str(technical.get("reason") or "post_loss_technical_admission_blocked"))
 
+    # Four distinct *non-Bollinger* evidence groups must independently support
+    # a qualified strong H1 entry. H1 Bollinger is a separate price-location
+    # safety factor, never a fourth vote and never direction authority.
+    # Sparse/mocked legacy contexts remain subject to existing fail-closed gates
+    # but cannot manufacture a calibrated multifactor verdict.
+    quality = regime_policy.multifactor_entry_review(
+        (candidate.metadata or {}).get("final_decision") or {},
+        bollinger, (candidate.metadata or {}).get("bollinger_d1") or {},
+        mtf, risk_plan, h1_priority,
+        (candidate.metadata or {}).get("band_reversal_review") or {},
+        candidate.direction, candidate.entry, candidate.stop, candidate.target,
+        observed_at,
+    )
+    details["entry_multifactor"] = quality
+    if quality.get("enforce") is True:
+        if quality.get("status") == "MULTIFACTOR_EVIDENCE_UNVERIFIED":
+            reasons.append("entry_multifactor_required_evidence_unverified")
+        elif quality.get("status") == "WAIT_MULTIFACTOR":
+            reasons.append("entry_multifactor_independent_confirmation_insufficient")
+
     allowed = candidate.direction in {"LONG", "SHORT"} and not reasons
     return {
         "allowed": allowed,
@@ -974,6 +994,14 @@ def run_cycle(output_path: Path, history_path: Path, client: Any | None = None) 
             evaluator=_counterfactual_evaluator(bars, metadata, completed_at), now=completed_at)
         policy = production_policy.reflect_on_history(policy, lifecycle.load_history(history_path), completed_at,
             runtime_code_sha256=runtime_code_sha256)
+        # Prospectively freeze sparse as-of factor votes for ALL native
+        # directional opportunities, including vetoed ones. Only later, truly
+        # observed CLOSED 1m bars can settle a +3h directional-price proxy;
+        # this never invents an EPE fill, entry or trade P&L.
+        policy = production_policy.factor_study_step(
+            policy, minute_bars=bars, now=completed_at, decision_manifest=manifest,
+            runtime_code_sha256=runtime_code_sha256,
+        )
         # Governance is advanced once before the decision; a newly observed
         # outcome cannot silently change the policy used by that same decision.
         metadata["production_policy_loop"] = {
@@ -1011,6 +1039,10 @@ def run_cycle(output_path: Path, history_path: Path, client: Any | None = None) 
                 "rollback_count": len((policy.get("reentry_learning") or {}).get("rollback_events", [])),
                 "reference_outcomes_are_broker_fills": False,
             },
+            "entry_factor_study": production_policy.factor_study_summary(
+                policy, runtime_code_sha256=runtime_code_sha256,
+                history=lifecycle.load_history(history_path),
+            ),
             "regime_family_learning": copy.deepcopy(
                 (policy.get("recursive_improvement") or {}).get("family_learning") or {}),
             "rollback_count": len(policy["rollback_events"]),

@@ -118,6 +118,21 @@ def evaluate(bars, direction, observed_at, *, minute_bars=None):
     prev2_mid, _, _ = band(len(closes) - 3)
     prev3_mid, prev3_upper, prev3_lower = band(len(closes) - 4)
     price, previous = closes[-1], closes[-2]
+    # Separate *raw completed close* momentum from Bollinger-midline slope.
+    # These returns are used by the multifactor review, not as another
+    # Bollinger vote; they can contradict a band-aligned trend.
+    sign = 1 if direction == "LONG" else -1
+    raw_h1_price_action = {
+        "directional_1h_pips": round(sign * (closes[-1] - closes[-2]) / PIP, 3),
+        "directional_3h_pips": round(sign * (closes[-1] - closes[-4]) / PIP, 3),
+        "aligned_intervals_3h": sum(
+            sign * (closes[i] - closes[i-1]) > 0
+            for i in range(len(closes) - 3, len(closes))
+        ),
+        "window": "LAST_3_COMPLETED_H1_CLOSE_INTERVALS",
+        "source": "COMPLETED_H1_RAW_CLOSES",
+        "direction": direction,
+    }
     width = upper - lower
     if width <= 1e-10 or not all(isfinite(x) for x in
                                 (mid, upper, lower, price, previous, prev_mid, prev3_mid)):
@@ -200,4 +215,5 @@ def evaluate(bars, direction, observed_at, *, minute_bars=None):
         "middle_slope_3h_pips": round(slope_3h_pips, 3),
         "width_pips": round(width_pips, 2),
         "strong_trend_confirmed": strong_trend_confirmed,
+        "raw_h1_price_action": raw_h1_price_action,
     }
