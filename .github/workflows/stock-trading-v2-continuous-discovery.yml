@@ -21,6 +21,9 @@ on:
       - "scripts/stock_trading_v2_fundamentals.py"
       - "scripts/stock_trading_fundamental_policy.py"
       - "scripts/stock_trading_v2_fundamental_trial.py"
+      - "scripts/stock_trading_v2_fundamental_ranking_study.py"
+      - "data/investments/stock_trading_v2_fundamental_ranking_config.json"
+      - "tests/test_stock_trading_v2_fundamental_ranking_study.py"
       - "data/investments/stock_trading_v2_fundamental_trial_config.json"
       - "tests/test_stock_trading_v2_fundamental_trial.py"
       - "tests/test_stock_trading_v2_fundamentals.py"
@@ -62,7 +65,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Validate changed research code without collecting or dispatching
-        run: python -B -m unittest tests.test_stock_trading_v2_opportunity_engine tests.test_stock_trading_v2_opportunity_experience tests.test_stock_trading_v2_fundamentals tests.test_stock_trading_v2_fundamental_trial
+        run: python -B -m unittest tests.test_stock_trading_v2_opportunity_engine tests.test_stock_trading_v2_opportunity_experience tests.test_stock_trading_v2_fundamentals tests.test_stock_trading_v2_fundamental_trial tests.test_stock_trading_v2_fundamental_ranking_study
 
   discover:
     if: github.event_name != 'workflow_run' && github.event_name != 'push'
@@ -117,8 +120,9 @@ jobs:
       - name: Validate v2 discovery evidence and opportunity configuration
         run: |
           set -euo pipefail
-          python -B -m unittest tests.test_stock_trading_v2_fundamentals tests.test_stock_trading_v2_fundamental_trial
+          python -B -m unittest tests.test_stock_trading_v2_fundamentals tests.test_stock_trading_v2_fundamental_trial tests.test_stock_trading_v2_fundamental_ranking_study
           python -m json.tool data/investments/stock_trading_v2_fundamental_trial_config.json >/dev/null
+          python -m json.tool data/investments/stock_trading_v2_fundamental_ranking_config.json >/dev/null
           python -m json.tool data/investments/stock_trading_v2_fundamentals_config.json >/dev/null
           python -m json.tool data/investments/stock_trading_v2_discovery_config.json >/dev/null
           python -m json.tool data/investments/market_relationship_trigger_config.json >/dev/null
@@ -128,6 +132,7 @@ jobs:
             scripts/stock_trading_v2_fundamentals.py \
             scripts/stock_trading_fundamental_policy.py \
             scripts/stock_trading_v2_fundamental_trial.py \
+            scripts/stock_trading_v2_fundamental_ranking_study.py \
             scripts/stock_trading_v2_discovery.py \
             scripts/briefrooms_market_relationship_trigger.py \
             scripts/briefrooms_trigger_deep_belief.py \
@@ -224,6 +229,8 @@ jobs:
             --opportunity data/investments/stock_trading_v2_opportunity/us.json \
             --evidence data/investments/stock_trading_v2_evidence/us.json
           python scripts/stock_trading_v2_fundamental_trial.py --verify
+          python scripts/stock_trading_v2_fundamental_ranking_study.py --freeze
+          python scripts/stock_trading_v2_fundamental_ranking_study.py --verify
 
       - name: GPW broad Opportunity Frontier Deep Evidence and portfolio comparison
         if: steps.market_window.outputs.gpw == 'true'
