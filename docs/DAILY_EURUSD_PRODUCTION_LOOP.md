@@ -55,6 +55,59 @@ do not obtain directional or admission authority. This is prospective and
 code-cohort-bound: prior trade history and prior decision manifests are
 untouched, and push validation does not create positions.
 
+## Multifactor admission and prospective entry-factor evidence (2026-11-18)
+
+A Bollinger band is a **price-location tool**, not a sufficient trading thesis.
+For a fresh verified H1 STRONG_TREND, native direction still originates only
+from Belief Core -> EpistemicState -> CF-07 -> Daily native decision. Before
+entry, `execution_admission.entry_multifactor` now records four *distinct
+evidence domains*:
+
+- **BELIEF_QUALITY**: score distance, confidence, coverage and number of
+  qualified source-backed beliefs, evaluated as one grouped vote.
+- **H1_RAW_PRICE_ACTION**: signed change across the last three *completed*
+  hourly closes and count of aligned hourly close intervals. This raw price
+  signal is different from the Bollinger moving-average slope.
+- **HIGHER_TIMEFRAME**: completed D1 and non-opposing verified W1 context.
+- **PROSPECTIVE_REWARD_RISK**: initial risk and target geometry, before EPE.
+
+At least three of the four domains must confirm when all are verifiably
+available for a STRONG_TREND. **BOLLINGER_H1_LOCATION** and independent
+opposite-direction reversal research are recorded as supporting/warning
+factors, but Bollinger cannot supply a missing vote. All thresholds are
+fixed, uncalibrated starting safety choices; they are **not** empirically
+optimized confidence or accuracy probabilities. Gaps in newly introduced
+factor evidence cannot create an approval; pre-existing admission safety
+remains in force. The native direction, calendar, re-entry, EPE, existing
+open-position risk and hard SL/TP are unchanged.
+
+The existing TR-03 single writer stores an optional
+`entry_factor_study` field in its **existing** governed policy state, rather
+than introducing another engine or writer. Once per three-hour
+non-overlapping sample window it can freeze a genuine native directional
+observation using a completed M1 market mid proxy available **before** the
+decision. Exactly three hours later it labels a directional mid-price
+change using the first completed M1 close within a predeclared five-minute
+window. Missing endpoint evidence is labelled `DATA_GAP`, not a loss or
+zero. There is no execution assumption, simulated fill, spread-adjusted
+trade, broker P&L, or retrospective original decision.
+
+`production_policy_loop.entry_factor_study` reports sampled opportunities,
+future price-direction proxy outcomes, each factor's positive/negative
+cohorts, and a strictly separated count/mean net R from **canonical actual
+manifest-bound closures**. Comparisons are exploratory **associations**, not
+estimates of a factor's causal profitability; W1/D1/H1 factor correlations
+are possible. At least 40 prospective resolved observations, 15 distinct
+days, and 10 observations per factor side are needed even to display a
+descriptive directional-price contrast. No factor is declared proven best,
+no weights adapt automatically and no statistical promotion is authorized
+by this exploratory report. Any production adaptation requires a separate
+predeclared, out-of-sample, cost- and multiple-testing-aware governed gate.
+
+Existing OPEN trades retain their frozen historical entry geometry and
+risk-exit contracts. All frozen cases, future outcomes and write authority
+remain inside the existing provenance and NO RETROACTIVE boundaries.
+
 ## Immutable observations and measurement
 
 `data/investments/eurusd_production_decisions.json` is an append-only record of new monitor decisions. Each manifest includes native provenance and decision time, policy version/hash, runtime source hash, market/Epistemic hashes, final decision, admission result, EPE verification and initial entry/stop/target. A position and its eventual closed trade retain the identical entry manifest. A new refresh decision is a separate record and never relabels the open position's policy.
