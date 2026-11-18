@@ -13,6 +13,9 @@ on:
       - "scripts/briefrooms_trigger_deep_belief.py"
       - "scripts/briefrooms_trigger_deep_belief_learning.py"
       - "scripts/stock_trading_v2_discovery.py"
+      - "scripts/stock_trading_v2_fundamentals.py"
+      - "tests/test_stock_trading_v2_fundamentals.py"
+      - "data/investments/stock_trading_v2_fundamentals_config.json"
       - "tests/test_briefrooms_market_relationship_trigger.py"
       - "tests/test_briefrooms_market_relationship_outcomes.py"
       - "tests/test_briefrooms_trigger_deep_belief.py"
@@ -45,6 +48,7 @@ on:
       - "scripts/briefrooms_trigger_deep_belief.py"
       - "scripts/briefrooms_trigger_deep_belief_learning.py"
       - "scripts/stock_trading_v2_deep_evidence.py"
+      - "scripts/stock_trading_v2_fundamentals.py"
       - "scripts/stock_trading_v2_opportunity_engine.py"
       - "scripts/stock_trading_v2_opportunity_experience.py"
       - "tests/test_stock_trading_v2_experience_store.py"
@@ -64,6 +68,7 @@ on:
       - "tests/test_briefrooms_trigger_deep_belief.py"
       - "tests/test_briefrooms_trigger_deep_belief_learning.py"
       - "tests/test_stock_trading_v2_deep_evidence.py"
+      - "tests/test_stock_trading_v2_fundamentals.py"
       - "tests/test_stock_trading_v2_opportunity_engine.py"
       - "tests/test_stock_trading_v2_opportunity_experience.py"
       - "data/investments/stock_trading_v2_config.json"
@@ -72,6 +77,7 @@ on:
       - "data/investments/stock_trading_v2_discovery_config.json"
       - "data/investments/market_relationship_trigger_config.json"
       - "data/investments/stock_trading_v2_evidence_config.json"
+      - "data/investments/stock_trading_v2_fundamentals_config.json"
       - "data/investments/stock_trading_v2_opportunity_config.json"
       - "data/investments/stock_trading_v2_learning_config.json"
       - "data/investments/stock_trading_v2_experience/**"
@@ -83,6 +89,7 @@ on:
       - "data/investments/stock_trading_v2_challenger_evaluations/**"
       - "data/investments/stock_trading_v2_universe/**"
       - "data/investments/stock_trading_v2_frontier/**"
+      - "data/investments/stock_trading_v2_fundamentals/**"
       - "data/investments/stock_trading_v2_evidence/**"
       - "data/investments/stock_trading_v2_opportunity/**"
       - "data/investments/market_relationship_deep_belief_learning.json"
@@ -130,6 +137,7 @@ jobs:
             scripts/briefrooms_trigger_deep_belief.py \
             scripts/briefrooms_trigger_deep_belief_learning.py \
             scripts/stock_trading_v2_deep_evidence.py \
+            scripts/stock_trading_v2_fundamentals.py \
             scripts/stock_trading_v2_opportunity_engine.py \
             scripts/stock_trading_v2_opportunity_experience.py \
             tests/test_stock_trading_v2_experience_store.py \
@@ -160,6 +168,7 @@ jobs:
           python -m json.tool data/investments/stock_trading_v2_discovery_config.json >/dev/null
           python -m json.tool data/investments/market_relationship_trigger_config.json >/dev/null
           python -m json.tool data/investments/stock_trading_v2_evidence_config.json >/dev/null
+          python -m json.tool data/investments/stock_trading_v2_fundamentals_config.json >/dev/null
           python -m json.tool data/investments/stock_trading_v2_opportunity_config.json >/dev/null
           python -m json.tool data/investments/stock_trading_v2_learning_config.json >/dev/null
 
@@ -183,6 +192,7 @@ jobs:
             tests.test_briefrooms_trigger_deep_belief \
             tests.test_briefrooms_trigger_deep_belief_learning \
             tests.test_stock_trading_v2_deep_evidence \
+            tests.test_stock_trading_v2_fundamentals \
             tests.test_stock_trading_v2_opportunity_engine \
             tests.test_stock_trading_v2_opportunity_experience -v
 
