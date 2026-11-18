@@ -1,0 +1,43 @@
+name: Stock Trading v2 Fundamental Ranking Research Validation
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [stock-trading-v2]
+    paths:
+      - "scripts/stock_trading_v2_fundamental_ranking_study.py"
+      - "scripts/stock_trading_v2_fundamental_trial.py"
+      - "tests/test_stock_trading_v2_fundamental_ranking_study.py"
+      - "data/investments/stock_trading_v2_fundamental_ranking_config.json"
+      - ".github/workflows/stock-trading-v2-fundamental-ranking-validation.yml"
+  push:
+    branches: [stock-trading-v2]
+    paths:
+      - "scripts/stock_trading_v2_fundamental_ranking_study.py"
+      - "scripts/stock_trading_v2_fundamental_trial.py"
+      - "tests/test_stock_trading_v2_fundamental_ranking_study.py"
+      - "data/investments/stock_trading_v2_fundamental_ranking_config.json"
+      - ".github/workflows/stock-trading-v2-fundamental-ranking-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Verify research-only immutable ranking study
+        env:
+          PYTHONPATH: .
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/stock_trading_v2_fundamental_ranking_study.py
+          python -m json.tool data/investments/stock_trading_v2_fundamental_ranking_config.json > /dev/null
+          python -B -m unittest tests.test_stock_trading_v2_fundamental_ranking_study -v
+          python scripts/stock_trading_v2_fundamental_ranking_study.py --verify
+          python scripts/stock_trading_v2_fundamental_ranking_study.py --evaluate
