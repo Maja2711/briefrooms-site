@@ -266,6 +266,23 @@ def _execution_admission(
     if technical.get("allowed") is not True:
         reasons.append(str(technical.get("reason") or "post_loss_technical_admission_blocked"))
 
+    # Four distinct *non-Bollinger* evidence groups must independently support
+    # a qualified strong H1 entry. H1 Bollinger is a separate price-location
+    # safety factor, never a fourth vote and never direction authority.
+    # Sparse/mocked legacy contexts remain subject to existing fail-closed gates
+    # but cannot manufacture a calibrated multifactor verdict.
+    quality = regime_policy.multifactor_entry_review(
+        (candidate.metadata or {}).get("final_decision") or {},
+        bollinger, (candidate.metadata or {}).get("bollinger_d1") or {},
+        mtf, risk_plan, h1_priority,
+        (candidate.metadata or {}).get("band_reversal_review") or {},
+        candidate.direction, candidate.entry, candidate.stop, candidate.target,
+        observed_at,
+    )
+    details["entry_multifactor"] = quality
+    if quality.get("enforce") is True and quality.get("status") == "WAIT_MULTIFACTOR":
+        reasons.append("entry_multifactor_independent_confirmation_insufficient")
+
     allowed = candidate.direction in {"LONG", "SHORT"} and not reasons
     return {
         "allowed": allowed,
