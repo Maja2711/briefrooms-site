@@ -258,6 +258,10 @@ jobs:
       - name: Verify immutable Fundamental Challenger receipts
         run: |
           python scripts/stock_trading_v2_fundamental_trial.py --verify
+          python -B -m unittest tests.test_stock_trading_v2_fundamental_ranking_study -v
+          python scripts/stock_trading_v2_fundamental_ranking_study.py --verify
+          python scripts/stock_trading_v2_fundamental_ranking_study.py --evaluate \
+            --output data/investments/stock_trading_v2_learning/fundamental_ranking_study.json
 
       - name: Verify original immutable research history bytes before persistence
         id: immutable_history
