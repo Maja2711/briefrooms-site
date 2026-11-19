@@ -91,6 +91,38 @@ async function renderWithLive({ updatedAt, week = validWeek(), quarantine = { re
   return { elements, classes, window };
 }
 
+test('an open EUR/USD weekly trade displays otwarta pozycja and not w trakcie', async () => {
+  const week = validWeek();
+  const item = week.instruments[0];
+  item.trade_status = 'open';
+  item.entry_captured_at = new Date().toISOString();
+  item.exit_price = null;
+  item.exit_captured_at = null;
+  item.exit_reason = null;
+  delete item.result_value;
+  delete item.result_units;
+  delete item.result_percent;
+  const { elements } = await renderWithLive({ updatedAt: new Date().toISOString(), week });
+  const html = elements.app.innerHTML;
+  assert.match(html, /<dt>Status<\/dt><dd>otwarta pozycja<\/dd>/);
+  assert.doesNotMatch(html, /w trakcie/);
+  assert.doesNotMatch(html, /eurusd-cb-status/);
+});
+
+test('weekly pages do not load the unnecessary Fed/ECB commentary panel', () => {
+  for (const page of [
+    'pl/inwestycje/pozycje-tygodniowe.html',
+    'en/investing/open-weekly-positions.html',
+  ]) {
+    const html = fs.readFileSync(page, 'utf8');
+    assert.doesNotMatch(html, /<script[^>]+eurusd-cb-risk-public\.js/);
+    assert.match(html, /investments-weekly-public\.js/);
+  }
+  const decorator = fs.readFileSync('scripts/investments-weekly-position-state.js', 'utf8');
+  assert.match(decorator, /otwarta pozycja/);
+  assert.match(decorator, /open position/);
+});
+
 test('shows normalized investment results with units and notional', async () => {
   const { elements } = await renderWithLive({ updatedAt: new Date().toISOString() });
   const html = elements.app.innerHTML;
