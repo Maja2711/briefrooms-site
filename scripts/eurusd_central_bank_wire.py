@@ -439,6 +439,11 @@ def _unresolved_windows(previous: Mapping[str, Any], current: Sequence[Mapping[s
         merged[identity] = row
     retained = []
     for row in sorted(merged.values(), key=lambda row: (row["scheduled_at"], row["event_id"])):
+        # Operational risk windows are bounded; old unresolved receipts remain
+        # permanently available in the immutable source snapshot journal.
+        # This does NOT assert a speaker stopped speaking or a release occurred.
+        if now - dt(row["scheduled_at"]) > timedelta(days=7):
+            continue
         # Keep resolved proof beyond the source calendar's one-day lookback:
         # a fresh UNKNOWN calendar row must not resurrect an already ended event.
         if _verified_conference_end(row, now) and now >= dt(row["conference_ended_at"]) + timedelta(days=7):
