@@ -2,6 +2,11 @@ name: WES Live Execution
 
 on:
   workflow_dispatch:
+  # A verified calendar correction should promptly re-evaluate pending EURUSD
+  # without waiting for GitHub's potentially delayed 5-minute cron.
+  workflow_run:
+    workflows: ["EURUSD Fed ECB Wire SHADOW"]
+    types: [completed]
   push:
     branches: [main]
     paths:
@@ -62,7 +67,7 @@ jobs:
           python -m py_compile scripts/wes_risk_observatory.py scripts/investments_wes_guarded_lifecycle.py
 
   execute:
-    if: github.event_name != 'push'
+    if: github.event_name != 'push' && (github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main'))
     runs-on: ubuntu-latest
     timeout-minutes: 4
     steps:
