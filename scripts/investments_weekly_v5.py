@@ -1657,11 +1657,26 @@ def ensure_all() -> Dict[str, Any]:
                     report["eurusd_central_bank_event_risk"] = cb_review
                     state["eurusd_central_bank_event_risk"] = cb_review
                     if cb_review.get("entry_guard_enforced") and not open_position(item):
+                        # Public Weekly must not call a non-executable frozen
+                        # MARKET/LIMIT plan an active resting order. Persist only
+                        # mutable execution diagnostics, never the sealed thesis.
+                        block_reasons = list(cb_review.get("reasons") or [])[:12]
+                        if (item.get("next_entry_status") != "blocked_by_central_bank_event_risk"
+                            or item.get("entry_block_reason_codes") != block_reasons):
+                            item["next_entry_status"] = "blocked_by_central_bank_event_risk"
+                            item["entry_block_reason_codes"] = block_reasons
+                            changed = True
                         state["instruments"][iid] = {"central_bank_event_risk": cb_review,
                             "next_entry_status": "blocked_by_central_bank_event_risk"}
                         report["actions"].append({"instrument_id": iid, "action": "block_new_entry",
                             "reason": "central_bank_event_risk", "decision_id": cb_review.get("immutable_id")})
                         continue
+                    if item.get("next_entry_status") in {
+                        "blocked_by_central_bank_event_risk", "blocked_cb_monitor_error"
+                    }:
+                        item["next_entry_status"] = "waiting_for_execution_revalidation"
+                        item.pop("entry_block_reason_codes", None)
+                        changed = True
             except Exception as exc:
                 # A broken news path must never prevent existing hard exits or
                 # turn into a synthetic position close. Fail closed for entries.
@@ -1669,6 +1684,10 @@ def ensure_all() -> Dict[str, Any]:
                     "error_type": type(exc).__name__, "reason": "PROTECTION_PENDING"})
                 from eurusd_central_bank_event_risk import load_policy as cb_policy
                 if cb_policy().get("entry_guard_enabled") and not open_position(item):
+                    if item.get("next_entry_status") != "blocked_cb_monitor_error":
+                        item["next_entry_status"] = "blocked_cb_monitor_error"
+                        item["entry_block_reason_codes"] = ["CB_MONITOR_UNAVAILABLE"]
+                        changed = True
                     state["instruments"][iid] = {"next_entry_status": "blocked_cb_monitor_error"}
                     continue
         if closed_position(item) and archive_leg_with_contextual_outcomes(item, p_cfg, week_id=str(week.get("week_id") or "")): changed = True
