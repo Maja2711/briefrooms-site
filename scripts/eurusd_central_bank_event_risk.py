@@ -150,6 +150,7 @@ def event_state(wire: Mapping, events: Sequence[Mapping], policy: Mapping, now: 
     """Calendar time never implies that a conference ended or a rate was released."""
     candidates = []
     expired_unverified_ids = []
+    expired_publication_ids = []
     expired_daily_ids = []
     window = wire.get('event_window') or {}
     # Fresh calendar polling cannot erase a previously verified end, and a
@@ -217,11 +218,21 @@ def event_state(wire: Mapping, events: Sequence[Mapping], policy: Mapping, now: 
         minutes = (at-now).total_seconds()/60
         if minutes > policy['pre_event_minutes']:
             continue
-        ended_at = confirmed_conference_end(row, now)
-        # Only obsolete ECB Weekly windows lose veto power at the bounded
-        # horizon. Fed unresolved windows and EURUSD Daily stay fail-closed.
-        # Expiry is not invented source evidence of a conference end.
-        if (scope == 'EURUSD_WEEKLY' and bank == 'ECB'
+        minutes_release = (bank == 'FED' and row.get('event_type') == 'FOMC_MINUTES'
+                           and row.get('schedule_kind') == 'OFFICIAL_RSS_MINUTES_RELEASE'
+                           and row.get('conference_status') == 'NOT_APPLICABLE'
+                           and official_url(source))
+        # Minutes are time-bounded *publications*, not FOMC decisions. Their
+        # release never awaits a fictitious press-conference END receipt.
+        if minutes_release and minutes < -policy['post_event_timeout_minutes']:
+            expired_publication_ids.append(str(event_id or canonical_hash([bank, iso(at)])))
+            continue
+        ended_at = confirmed_conference_end(row, now) if not minutes_release else None
+        # For *both* real Fed and ECB decisions, an unverified historical
+        # conference ceases to veto Weekly only after the governed 24h hold.
+        # This is a risk-window expiry, NOT a claim that the conference ended.
+        # Newer independent events and fresh EPE quotes retain full authority.
+        if (scope == 'EURUSD_WEEKLY'
                 and minutes < -60 * policy['max_unverified_event_hold_hours']):
             if ended_at is None:
                 expired_unverified_ids.append(str(event_id or canonical_hash([bank, iso(at)])))
@@ -234,6 +245,7 @@ def event_state(wire: Mapping, events: Sequence[Mapping], policy: Mapping, now: 
         daily_release_verified = bool(scope == 'EURUSD_DAILY' and release_verified and now >= at)
         active = not cooled and not daily_release_verified
         phase = ('PRE_EVENT' if minutes > 0 else
+                 'FOMC_MINUTES_PUBLICATION' if minutes_release else
                  'POST_RELEASE_CONFIRMED' if daily_release_verified else
                  'ENDED' if cooled else 'POST_EVENT' if ended else
                  'PRESS_CONFERENCE' if row.get('conference_status') == 'IN_PROGRESS' else 'RELEASED' if release_verified else 'UNKNOWN')
@@ -242,17 +254,19 @@ def event_state(wire: Mapping, events: Sequence[Mapping], policy: Mapping, now: 
             release_verified=release_verified,
             phase=phase, active=active, source_url=source,
             conference_status='UNKNOWN' if row.get('conference_status')=='ENDED' and not ended else row.get('conference_status','UNKNOWN'),
-            manual_review_required=bool(active and minutes < -policy['post_event_timeout_minutes'])))
+            manual_review_required=bool(not minutes_release and active and minutes < -policy['post_event_timeout_minutes'])))
     if not candidates:
         return {'event_id': None, 'bank': None, 'phase': 'UNKNOWN', 'active': False,
                 'event_verified': False, 'conference_status': 'UNKNOWN',
                 'expired_unverified_event_ids': sorted(set(expired_unverified_ids)),
+                'expired_publication_ids': sorted(set(expired_publication_ids)),
                 'expired_daily_event_ids': sorted(set(expired_daily_ids))}
     # An unresolved past event takes priority over a subsequent upcoming event.
     candidates.sort(key=lambda x: (not x['active'], x['minutes_until'] > 0, abs(x['minutes_until'])))
     selected = candidates[0]
     selected['active_event_ids'] = sorted({row['event_id'] for row in candidates if row['active']})
     selected['expired_unverified_event_ids'] = sorted(set(expired_unverified_ids))
+    selected['expired_publication_ids'] = sorted(set(expired_publication_ids))
     selected['expired_daily_event_ids'] = sorted(set(expired_daily_ids))
     return selected
 
@@ -330,6 +344,8 @@ def assess_pre_event(position: Mapping | None, quote: Mapping | None, wire: Mapp
     reasons = ['RISK_MODEL_UNCALIBRATED']
     if event.get('expired_unverified_event_ids'):
         reasons.append('OLD_UNVERIFIED_CB_EVENT_EXPIRED_WITHOUT_END_PROOF')
+    if event.get('expired_publication_ids'):
+        reasons.append('FOMC_MINUTES_RELEASE_WINDOW_EXPIRED_NO_CONFERENCE')
     if event.get('expired_daily_event_ids'):
         reasons.append('DAILY_PREVIOUS_DAY_CB_GUARD_EXPIRED')
     if stale_wire_weekly_release:
@@ -428,6 +444,7 @@ def assess_pre_event(position: Mapping | None, quote: Mapping | None, wire: Mapp
         minutes_until=event.get('minutes_until'),conference_status=event['conference_status'],
         active_event_ids=event.get('active_event_ids',[]),
         expired_unverified_event_ids=event.get('expired_unverified_event_ids',[]),
+        expired_publication_ids=event.get('expired_publication_ids',[]),
         expired_daily_event_ids=event.get('expired_daily_event_ids',[]),
         stale_wire_weekly_auto_release=stale_wire_weekly_release,
         headline_count_30m=len({row.get('dedup_key') or row.get('event_id') for row in recent}),latest_headline=latest.get('headline'),
