@@ -34,10 +34,15 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Validate WES liveness guard
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Validate WES liveness and EURUSD public execution contract
         run: |
-          python -m py_compile scripts/wes_cycle_watchdog.py
+          python -m py_compile scripts/wes_cycle_watchdog.py scripts/wes_blocker_watchdog.py
           python -m unittest tests/test_wes_cycle_watchdog.py tests/test_wes_blocker_watchdog.py -v
+          node --check scripts/investments-weekly-public.js
+          node --test tests/test_investments_weekly_public.js
 
   monitor-wes-cycle:
     if: github.event_name != 'push' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'failure')
@@ -113,7 +118,7 @@ jobs:
               "Automatic execution-contract incident. **No trades, sealed decisions or safety gates were changed.**\n\n"
               "A code review is required if controlled recovery does not restore execution. "
               "Do not backfill a historical fill or override EPE/central-bank protection.\n\n"
-              "\`\`\`json\n" + json.dumps(summary, indent=2) + "\n\`\`\`\n",
+              "```json\n" + json.dumps(summary, indent=2) + "\n```\n",
               encoding="utf-8")
           PY
             gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" \
