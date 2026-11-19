@@ -29,7 +29,7 @@ def validate_open_reentry_authorization(item: Dict[str, Any], now=None) -> None:
     if not base.v5.open_position(item):
         return
 
-    now = now or base.v2.now_local()
+    now = now or base.legacy.now_local()
     if not base.early_reentry_authorized(item, now):
         raise RuntimeError(
             f"WES early-close re-entry authorization is missing or expired for "
@@ -59,7 +59,7 @@ def apply_open_reentry_metadata(path: Optional[Path] = None):
     target = path or base.v2.current_week_path()
     week = base.v4.read(target, {})
     if week:
-        now = base.v2.now_local()
+        now = base.legacy.now_local()
         for item in week.get("instruments") or []:
             if not isinstance(item, dict):
                 continue
