@@ -42,7 +42,7 @@ function validWeek() {
   };
 }
 
-async function renderWithLive({ updatedAt, week = validWeek(), quarantine = { records: [] } }) {
+async function renderWithLive({ updatedAt, week = validWeek(), quarantine = { records: [] }, exposure = {} }) {
   const classes = new Set();
   const elements = {
     updated: {
@@ -75,6 +75,7 @@ async function renderWithLive({ updatedAt, week = validWeek(), quarantine = { re
     fetch: async (url) => {
       if (url.startsWith('/data/investments/live_prices.json')) return { ok: true, json: async () => live };
       if (url.startsWith('/data/investments/public_quarantine.json')) return { ok: true, json: async () => quarantine };
+      if (url.startsWith('/data/investments/multi_instrument_exposure_report_v5.json')) return { ok: true, json: async () => exposure };
       if (url.startsWith(`/data/investments/weekly/${week.week_id}.json`)) return { ok: true, json: async () => week };
       return { ok: false, json: async () => ({}) };
     },
@@ -231,6 +232,62 @@ test('WES 1.2 pending entry publishes the frozen target instead of a fake open p
   assert.match(html, /Cena docelowa wejścia/);
   assert.match(html, /82(?:\s|&nbsp;|\u00a0)460,25/);
   assert.doesNotMatch(html, /<dt>Cena otwarcia<\/dt><dd>84/);
+});
+
+test('EURUSD MARKET pending cannot display archived LIMIT target as executable', async () => {
+  const week = validWeek();
+  week.market_window = { exit_target_local: '2099-09-25T22:00:00Z' };
+  week.instruments = [{
+    instrument_id: 'eurusd', label_pl: 'EUR/USD', label_en: 'EUR/USD',
+    direction: 'short', trade_status: 'pending', entry_price: null, exit_price: null,
+    wes_entry_authorization: {
+      directional_admission_passed: true,
+      expires_at: '2099-09-25T22:00:00Z',
+    },
+    pending_entry_decision: {
+      decided_at: '2026-11-19T11:00:00+01:00',
+      entry_not_before: '2026-11-19T11:00:00+01:00',
+      decision: { direction: 'short', strategy_id: 'weekly_trend' },
+      entry_price_plan: {
+        execution_mode: 'market_now', order_type: 'market',
+        target_price: 1.10029, original_target_price: 1.10029,
+        expires_at: '2099-09-25T22:00:00Z',
+      },
+    },
+  }];
+  const { elements } = await renderWithLive({ updatedAt: new Date().toISOString(), week });
+  const html = elements.app.innerHTML;
+  assert.match(html, /<dt>Typ wejścia<\/dt><dd>MARKET<\/dd>/);
+  assert.match(html, /Oczekiwanie na potwierdzone wykonanie EPE/);
+  assert.doesNotMatch(html, /Cena docelowa wejścia/);
+  assert.doesNotMatch(html, /1,10029/);
+});
+
+test('EURUSD expired or CB-blocked entry suppresses a stale target', async () => {
+  const week = validWeek();
+  week.market_window = { exit_target_local: '2099-09-25T22:00:00Z' };
+  const item = {
+    instrument_id: 'eurusd', direction: 'short', trade_status: 'pending',
+    entry_price: null, exit_price: null,
+    pending_entry_decision: {
+      decided_at: '2026-11-18T20:00:00+01:00',
+      entry_not_before: '2026-11-18T20:00:00+01:00',
+      decision: { direction: 'short', strategy_id: 'weekly_trend' },
+      entry_price_plan: {
+        execution_mode: 'limit_pullback', order_type: 'sell_limit',
+        target_price: 1.10029, expires_at: '2026-11-18T20:15:00+01:00',
+      },
+    },
+  };
+  week.instruments = [item];
+  const expired = await renderWithLive({ updatedAt: new Date().toISOString(), week });
+  assert.match(expired.elements.app.innerHTML, /Plan wejścia wygasł/);
+  assert.doesNotMatch(expired.elements.app.innerHTML, /1,10029/);
+
+  item.next_entry_status = 'blocked_by_central_bank_event_risk';
+  const blocked = await renderWithLive({ updatedAt: new Date().toISOString(), week });
+  assert.match(blocked.elements.app.innerHTML, /BLOKADA — ryzyko FED\/ECB/);
+  assert.doesNotMatch(blocked.elements.app.innerHTML, /1,10029/);
 });
 
 test('keeps stale market status silent while preserving stale state and last stored prices', async () => {
