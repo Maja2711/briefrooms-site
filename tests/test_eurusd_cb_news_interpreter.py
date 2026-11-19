@@ -55,7 +55,7 @@ class InterpreterTests(unittest.TestCase):
         self.assertFalse(self.fed("A speech was delivered.")["speaker_verified"])
 
     def test_minutes_and_transcripts_are_not_rate_decisions(self):
-        self.assertEqual(classify("Minutes of FOMC meeting", "FED"), "MINUTES")
+        self.assertEqual(classify("Minutes of FOMC meeting", "FED"), "FOMC_MINUTES")
         self.assertEqual(classify("Monetary policy statement and press conference", "ECB"), "PRESS_CONFERENCE")
 
     def test_script_text_cannot_supply_rate_fact(self):
