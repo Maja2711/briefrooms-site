@@ -341,6 +341,74 @@ class WireTests(unittest.TestCase):
         self.assertEqual(window["time_precision"], "date_only")
         self.assertEqual(window["first_seen_at"], calendar[0]["first_seen_at"])
 
+    def test_official_2026_fomc_minutes_date_is_not_a_decision_meeting(self):
+        """Regression: November 18 is minutes RELEASE, not FOMC MEETING."""
+        body = (
+            "<h2>2027 FOMC Meetings</h2><p>January 26-27</p>"
+            "<h2>2026 FOMC Meetings</h2>"
+            "<p>January 27-28 Statement Minutes (Released February 18, 2026)</p>"
+            "<p>March 17-18* Statement Minutes (Released April 08, 2026)</p>"
+            "<p>April 28-29 Statement Minutes (Released May 20, 2026)</p>"
+            "<p>June 16-17* Statement Minutes (Released July 08, 2026)</p>"
+            "<p>July 28-29 Statement Minutes (Released August 19, 2026)</p>"
+            "<p>September 15-16* Statement Minutes (Released October 07, 2026)</p>"
+            "<p>October 27-28 Statement Minutes (Released November 18, 2026)</p>"
+            "<p>December 8-9*</p><h2>2025 FOMC Meetings</h2><p>November 19</p>"
+        )
+        today = datetime(2026, 11, 19, 13, 0, tzinfo=timezone.utc)
+        dates = wire._wire_fomc_meeting_dates(body, now=today)
+        self.assertEqual(len(dates), 8)
+        self.assertIn("2026-10-28", [row[3] for row in dates])
+        self.assertIn("2026-12-09", [row[3] for row in dates])
+        self.assertNotIn("2026-11-18", [row[3] for row in dates])
+        self.assertEqual([row.uid for row in wire._parse_wire_fomc_calendar(body, now=today)],
+                         ["fomc:2026-12-09"])
+
+    def test_verified_full_year_fed_calendar_retires_false_minutes_decision(self):
+        fed_url = "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm"
+        false_window = {"event_id": "fomc:2026-11-18", "bank": "FED",
+                        "event_type": "FOMC_DECISION",
+                        "scheduled_at": "2026-11-18T19:00:00Z",
+                        "source_url": fed_url, "conference_status": "UNKNOWN"}
+        real_window = {**false_window, "event_id": "fomc:2026-10-28",
+                       "scheduled_at": "2026-10-28T18:00:00Z"}
+        old = {"event_window": false_window, "unresolved_event_windows": [real_window]}
+        now = datetime(2026, 11, 19, 13, 0, tzinfo=timezone.utc)
+        dates = ["2026-01-28", "2026-03-18", "2026-04-29",
+                 "2026-06-17", "2026-07-29", "2026-09-16",
+                 "2026-10-28", "2026-12-09"]
+        retained, overflow = wire._unresolved_windows(
+            old, [], now, confirmed_fed_dates=dates, fed_calendar_verified=True)
+        self.assertEqual([row["event_id"] for row in retained], ["fomc:2026-10-28"])
+        self.assertFalse(overflow)
+        old_protected, _ = wire._unresolved_windows(
+            old, [], now, confirmed_fed_dates=dates, fed_calendar_verified=False)
+        self.assertIn("fomc:2026-11-18", [row["event_id"] for row in old_protected])
+
+    def test_legacy_fed_minutes_are_projected_without_fictitious_conference(self):
+        from eurusd_central_bank_news_interpreter import classify
+        self.assertEqual("FOMC_MINUTES",
+                         classify("Minutes of the Federal Open Market Committee, October 27-28, 2026", "FED"))
+        self.assertNotEqual("FOMC_MINUTES", classify("Federal Reserve issues FOMC statement", "FED"))
+        published = datetime(2026, 11, 18, 19, 0, tzinfo=timezone.utc)
+        row = {
+            "bank": "FED", "event_type": "MINUTES",  # immutable prior journal
+            "headline": "Minutes of the Federal Open Market Committee, October 27-28, 2026",
+            "source_class": "OFFICIAL_STATEMENT",
+            "source_url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20261118a.htm",
+            "published_at": wire.iso(published),
+            "first_seen_at": wire.iso(published + timedelta(minutes=2)),
+            "ingested_at": wire.iso(published + timedelta(minutes=3)),
+            "event_id": "old-minutes-event",
+        }
+        windows = wire._unscheduled_release_windows(
+            (), (row,), published + timedelta(minutes=5))
+        self.assertEqual(len(windows), 1)
+        self.assertEqual(windows[0]["event_type"], "FOMC_MINUTES")
+        self.assertEqual(windows[0]["conference_status"], "NOT_APPLICABLE")
+        self.assertEqual(windows[0]["schedule_kind"], "OFFICIAL_RSS_MINUTES_RELEASE")
+        self.assertNotIn("FOMC_DECISION", str(windows[0]))
+
     def test_conflicting_writer_lock_never_replaces_snapshot(self):
         result = collected()
         with tempfile.TemporaryDirectory() as directory:
