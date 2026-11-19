@@ -102,6 +102,59 @@ class CentralBankRiskTests(unittest.TestCase):
         self.assertIn('synthetic-fomc',result.diagnostics['expired_unverified_event_ids'])
         self.assertFalse(self.assess(parts,scope='EURUSD_DAILY').block_new_entry)
 
+    def test_weekly_fed_unverified_conference_expires_at_governed_horizon(self):
+        parts = fixture()
+        parts[3][0]["scheduled_at"] = risk.iso(NOW - timedelta(hours=25))
+        state = risk.event_state({}, parts[3], parts[4], NOW, scope="EURUSD_WEEKLY")
+        self.assertFalse(state["active"])
+        self.assertIn("synthetic-fomc", state["expired_unverified_event_ids"])
+        self.assertEqual("UNKNOWN", state["conference_status"])
+        # A recent independent central-bank event must still block admission.
+        future = dict(parts[3][0], event_id="real-upcoming-event",
+                      scheduled_at=risk.iso(NOW + timedelta(minutes=30)))
+        combined = risk.event_state({}, [*parts[3], future], parts[4], NOW, scope="EURUSD_WEEKLY")
+        self.assertTrue(combined["active"])
+        self.assertEqual("real-upcoming-event", combined["event_id"])
+        self.assertIn("synthetic-fomc", combined["expired_unverified_event_ids"])
+
+    def test_fed_minutes_expire_without_conference_proof_and_keep_new_event(self):
+        policy = fixture()[4]
+        publication = {
+            "event_id": "cb-minutes:official", "bank": "FED",
+            "event_type": "FOMC_MINUTES",
+            "schedule_kind": "OFFICIAL_RSS_MINUTES_RELEASE",
+            "source_url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20261118a.htm",
+            "scheduled_at": "2026-11-18T19:00:00Z",
+            "first_seen_at": "2026-11-18T19:02:00Z",
+            "observed_at": "2026-11-18T19:02:00Z",
+            "time_precision": "exact", "conference_status": "NOT_APPLICABLE",
+        }
+        during = datetime(2026, 11, 18, 20, 0, tzinfo=timezone.utc)
+        current = risk.event_state({}, [publication], policy, during, scope="EURUSD_WEEKLY")
+        self.assertTrue(current["active"])
+        self.assertEqual("FOMC_MINUTES_PUBLICATION", current["phase"])
+        self.assertFalse(current["manual_review_required"])
+        self.assertEqual("NOT_APPLICABLE", current["conference_status"])
+
+        next_day = datetime(2026, 11, 19, 10, 0, tzinfo=timezone.utc)
+        expired = risk.event_state({}, [publication], policy, next_day, scope="EURUSD_WEEKLY")
+        self.assertFalse(expired["active"])
+        self.assertIn("cb-minutes:official", expired["expired_publication_ids"])
+        self.assertEqual("UNKNOWN", expired["conference_status"])
+
+        new_event = {
+            "event_id": "fomc:next", "bank": "FED", "event_type": "FOMC_DECISION",
+            "source_url": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
+            "scheduled_at": risk.iso(next_day + timedelta(minutes=30)),
+            "first_seen_at": risk.iso(next_day - timedelta(hours=1)),
+            "observed_at": risk.iso(next_day),
+            "time_precision": "exact", "conference_status": "UNKNOWN",
+        }
+        combined = risk.event_state({}, [publication, new_event], policy, next_day, scope="EURUSD_WEEKLY")
+        self.assertTrue(combined["active"])
+        self.assertEqual("fomc:next", combined["event_id"])
+        self.assertIn("cb-minutes:official", combined["expired_publication_ids"])
+
     def test_stale_wire_grace_releases_only_weekly_when_no_event(self):
         parts=fixture()
         parts[2]=collected(Client(),now=NOW-timedelta(hours=3),calendar=[])
