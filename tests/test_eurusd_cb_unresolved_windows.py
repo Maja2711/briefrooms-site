@@ -43,8 +43,10 @@ class UnresolvedWindowTests(unittest.TestCase):
         self.assertEqual(first, original)
         self.assertEqual(after['unresolved_event_windows'][0]['event_id'], 'fixture:fomc')
         result = assess(after, later)
-        self.assertTrue(result.block_new_entry)
-        self.assertIn('RECOVERY_REQUIRED_CONFERENCE_UNCONFIRMED', result.reasons)
+        self.assertFalse(result.block_new_entry)
+        self.assertIn('OLD_UNVERIFIED_CB_EVENT_EXPIRED_WITHOUT_END_PROOF', result.reasons)
+        self.assertIn('fixture:fomc', result.diagnostics['expired_unverified_event_ids'])
+        self.assertEqual('UNKNOWN', result.diagnostics['conference_status'])
 
     def test_proven_end_after_cooldown_does_not_relatch_on_fresh_unknown_poll(self):
         rows = calendar()
@@ -65,7 +67,7 @@ class UnresolvedWindowTests(unittest.TestCase):
         self.assertEqual(after['unresolved_event_windows'][0]['conference_status'], 'ENDED')
         self.assertFalse(assess(after, later).block_new_entry)
 
-    def test_end_without_verifiable_evidence_never_clears_after_48_hours(self):
+    def test_unverified_end_never_becomes_proof_even_when_48h_risk_window_expires(self):
         rows = calendar()
         rows[0].update(conference_status='ENDED', conference_ended_at=wire.iso(NOW-timedelta(minutes=40)),
             conference_status_verified_at=wire.iso(NOW-timedelta(minutes=39)),
@@ -73,7 +75,10 @@ class UnresolvedWindowTests(unittest.TestCase):
         prior = collected(Client(), now=NOW, calendar=rows)
         later = NOW+timedelta(days=2)
         after = collected(Client(), previous=prior, now=later, calendar=[])
-        self.assertTrue(assess(after, later).block_new_entry)
+        result = assess(after, later)
+        self.assertFalse(result.block_new_entry)
+        self.assertIn('OLD_UNVERIFIED_CB_EVENT_EXPIRED_WITHOUT_END_PROOF', result.reasons)
+        self.assertEqual('UNKNOWN', result.diagnostics['conference_status'])
 
     def test_overflow_is_sticky_partial_and_blocks_even_after_fresh_source_checks(self):
         previous = collected(Client(), now=NOW, calendar=[])
