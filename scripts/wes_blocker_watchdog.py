@@ -172,6 +172,43 @@ def evaluate(
                 warnings.append("CANONICAL_LIVE_PRICE_STALE_OR_UNVERIFIED")
                 if auth or pending:
                     recovery.append(iid + ":PENDING_ENTRY_LIVE_QUOTE_STALE")
+            # EURUSD is the only instrument whose public entry contract we
+            # audit here. A quote crossing a limit is evidence for investigation,
+            # not proof of executable fill or permission to bypass EPE/CB.
+            if iid == "eurusd" and pending:
+                plan = pending.get("entry_price_plan") if isinstance(pending.get("entry_price_plan"), dict) else {}
+                plan_start = timestamp(plan.get("entry_not_before") or pending.get("entry_not_before"))
+                plan_expiry = timestamp(plan.get("expires_at"))
+                mode = str(plan.get("execution_mode") or "limit_pullback")
+                cb_asof = timestamp(cb.get("evaluated_at"))
+                cb_fresh = bool(cb_asof and -30 <= (now_utc - cb_asof).total_seconds() <= 1800)
+                cb_blocked = (item.get("next_entry_status") in {
+                    "blocked_by_central_bank_event_risk", "blocked_cb_monitor_error"
+                } or bool(cb_fresh and cb.get("entry_guard_enforced") is True))
+                if plan and (plan_expiry is None or plan_expiry <= now_utc):
+                    warnings.append("PUBLISHED_ENTRY_PLAN_EXPIRED_NOT_EXECUTABLE")
+                    if not cb_blocked:
+                        reasons.append("EURUSD_EXPIRED_ENTRY_PLAN_REQUIRES_NEW_DECISION")
+                        recovery.append("eurusd:EURUSD_EXPIRED_ENTRY_PLAN_REQUIRES_NEW_DECISION")
+                elif plan and cb_blocked:
+                    reasons.append("EURUSD_ENTRY_BLOCKED_BY_CENTRAL_BANK_RISK")
+                elif (plan and authorization_active and quote_fresh and observed
+                      and plan_start and observed >= plan_start
+                      and observed >= authorized_at and now_utc >= plan_start
+                      and (now_utc - plan_start).total_seconds() >= 600):
+                    try:
+                        price = float(quote.get("price"))
+                        target = float(plan.get("target_price"))
+                    except (TypeError, ValueError):
+                        price = target = float("nan")
+                    if mode == "market_now":
+                        warnings.append("EURUSD_MARKET_ENTRY_NOT_SETTLED_AFTER_FRESH_QUOTE")
+                        recovery.append("eurusd:EURUSD_MARKET_ENTRY_NOT_SETTLED_REVIEW_EPE")
+                    elif (mode == "limit_pullback" and price > 0 and target > 0
+                          and ((candidate.get("direction") == "short" and price >= target)
+                               or (candidate.get("direction") == "long" and price <= target))):
+                        warnings.append("EURUSD_MARKETABLE_LIMIT_QUOTE_WITHOUT_EPE_FILL_PROOF")
+                        recovery.append("eurusd:EURUSD_MARKETABLE_LIMIT_REVIEW_EPE")
         # Stale quotes cannot be used to justify any release or hypothetical fill.
         results[iid] = {
             "status": ("TRADE_OR_CARRY" if executed else "NO_TRADE_UNDER_REVIEW"),
@@ -183,6 +220,8 @@ def evaluate(
             "confirmations": candidate.get("confirmations"),
             "entry_authorization_active": authorization_active,
             "pending_entry": bool(pending),
+            "entry_execution_mode": str((pending.get("entry_price_plan") or {}).get("execution_mode") or "") if pending else None,
+            "entry_plan_expires_at": (pending.get("entry_price_plan") or {}).get("expires_at") if pending else None,
             "blocker_reasons": list(dict.fromkeys(reasons)),
             "warnings": list(dict.fromkeys(warnings)),
             "past": evidence,
