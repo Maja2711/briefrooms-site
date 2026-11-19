@@ -363,18 +363,64 @@
     const risk = pendingReentry ? { sl: null, tp: null, rr: null } : riskPlan(item);
     const description = item[L === 'pl' ? 'rationale_pl' : 'rationale_en'];
     const text = Array.isArray(description) ? description.join(' ') : (description || T.analysisMissing);
-    const openLabel = pendingEntry ? T.entryTarget : T.open;
-    const openValue = pendingEntry ? esc(fmt(pendingTarget, item.instrument_id)) : (neutral ? T.no : esc(fmt(item.entry_price, item.instrument_id)));
+    // EUR/USD MARKET does not have a resting LIMIT price. The historical
+    // target_price is immutable audit evidence, NOT an executable entry quote.
+    // A frozen LIMIT is displayed only while both plan and authorization live.
+    const eurPending = item.instrument_id === 'eurusd' && pendingEntry;
+    const marketMode = eurPending && pendingPlan.execution_mode === 'market_now';
+    const nowMs = Date.now();
+    const expiresAt = parseTime(pendingPlan.expires_at);
+    const auth = item.wes_entry_authorization || {};
+    const authExpiresAt = parseTime(auth.expires_at);
+    const planLive = Boolean(expiresAt && expiresAt.getTime() > nowMs
+      && authExpiresAt && authExpiresAt.getTime() > nowMs
+      && auth.directional_admission_passed === true);
+    const exposureAt = parseTime(exposureCache.checked_at);
+    const exposureFresh = exposureCache.week_id === selectedWeekId && exposureAt
+      && nowMs >= exposureAt.getTime() && nowMs - exposureAt.getTime() <= 25 * 60_000;
+    const blockedByCb = eurPending && (
+      item.next_entry_status === 'blocked_by_central_bank_event_risk'
+      || (exposureFresh && Array.isArray(exposureCache.actions)
+        && exposureCache.actions.some((action) => action.instrument_id === 'eurusd'
+          && action.action === 'block_new_entry')));
+    const blockedByCbError = eurPending && item.next_entry_status === 'blocked_cb_monitor_error';
+    let openLabel = pendingEntry ? T.entryTarget : T.open;
+    let openValue = pendingEntry ? esc(fmt(pendingTarget, item.instrument_id))
+      : (neutral ? T.no : esc(fmt(item.entry_price, item.instrument_id)));
+    let currentStatus = status(item);
+    if (eurPending) {
+      if (blockedByCb || blockedByCbError) {
+        openLabel = L === 'pl' ? 'Wejście wstrzymane' : 'Entry paused';
+        openValue = T.no;
+        currentStatus = blockedByCb
+          ? (L === 'pl' ? 'BLOKADA — ryzyko FED/ECB; oczekiwanie na weryfikację' : 'BLOCKED — Fed/ECB event risk; verification required')
+          : (L === 'pl' ? 'BLOKADA — awaria monitoringu FED/ECB' : 'BLOCKED — Fed/ECB monitor failure');
+      } else if (!planLive) {
+        openLabel = L === 'pl' ? 'Cena wejścia' : 'Entry price';
+        openValue = T.no;
+        currentStatus = L === 'pl'
+          ? 'Plan wejścia wygasł — wymagany nowy przegląd'
+          : 'Entry plan expired — new review required';
+      } else if (marketMode) {
+        openLabel = L === 'pl' ? 'Typ wejścia' : 'Entry mode';
+        openValue = 'MARKET';
+        currentStatus = L === 'pl'
+          ? 'Oczekiwanie na potwierdzone wykonanie EPE'
+          : 'Awaiting EPE-verified market execution';
+      }
+    }
     const closeValue = pendingReentry ? T.no : (hasClose(item) ? esc(fmt(item.exit_price, item.instrument_id)) : T.no);
     const resultLabel = pendingReentry ? T.previousResult : T.pnl;
-    return `<article class="card ${esc(dir(item))}"${item.instrument_id === 'eurusd' ? ` data-eurusd-cb-card data-cb-week-id="${esc(selectedWeekId)}" data-cb-position-ref="${esc(JSON.stringify({entry_price:item.entry_price ?? null,entry_captured_at:item.entry_captured_at ?? null,direction:item.direction ?? null,exit_price:item.exit_price ?? null}))}"` : ''}><div class="head"><div><p>${esc(label(item))}</p><h3>${esc(dirText(item))}</h3></div></div><div class="now"><span>${currentLabel}</span><strong>${esc(fmt(current, item.instrument_id))}</strong><small>${currentTime ? esc(`${T.priceTime}: ${currentTime}`) : T.no}</small></div><dl class="grid"><div class="cell"><dt>${openLabel}</dt><dd>${openValue}</dd></div><div class="cell"><dt>${T.close}</dt><dd>${closeValue}</dd></div><div class="cell"><dt>${T.notional}</dt><dd>${neutral ? T.no : esc(notionalText(item))}</dd></div><div class="cell"><dt>${T.status}</dt><dd>${esc(status(item))}</dd></div><div class="cell"><dt>${T.sl}</dt><dd>${neutral ? T.no : esc(fmt(risk.sl, item.instrument_id))}</dd></div><div class="cell"><dt>${T.tp}</dt><dd>${neutral ? T.no : esc(fmt(risk.tp, item.instrument_id))}</dd></div><div class="cell big"><dt>${T.rr}</dt><dd>${neutral ? T.no : esc(rrText(risk.rr))}</dd></div><div class="cell big"><dt>${resultLabel}</dt><dd class="${tone(value)}">${neutral ? T.no : esc(resultText(item, mark))}</dd></div><div class="cell big analysis"><dt>${T.analysis}</dt><dd>${esc(text)}</dd></div></dl></article>`;
+    return `<article class="card ${esc(dir(item))}"${item.instrument_id === 'eurusd' ? ` data-eurusd-cb-card data-cb-week-id="${esc(selectedWeekId)}" data-cb-position-ref="${esc(JSON.stringify({entry_price:item.entry_price ?? null,entry_captured_at:item.entry_captured_at ?? null,direction:item.direction ?? null,exit_price:item.exit_price ?? null}))}"` : ''}><div class="head"><div><p>${esc(label(item))}</p><h3>${esc(dirText(item))}</h3></div></div><div class="now"><span>${currentLabel}</span><strong>${esc(fmt(current, item.instrument_id))}</strong><small>${currentTime ? esc(`${T.priceTime}: ${currentTime}`) : T.no}</small></div><dl class="grid"><div class="cell"><dt>${openLabel}</dt><dd>${openValue}</dd></div><div class="cell"><dt>${T.close}</dt><dd>${closeValue}</dd></div><div class="cell"><dt>${T.notional}</dt><dd>${neutral ? T.no : esc(notionalText(item))}</dd></div><div class="cell"><dt>${T.status}</dt><dd>${esc(currentStatus)}</dd></div><div class="cell"><dt>${T.sl}</dt><dd>${neutral ? T.no : esc(fmt(risk.sl, item.instrument_id))}</dd></div><div class="cell"><dt>${T.tp}</dt><dd>${neutral ? T.no : esc(fmt(risk.tp, item.instrument_id))}</dd></div><div class="cell big"><dt>${T.rr}</dt><dd>${neutral ? T.no : esc(rrText(risk.rr))}</dd></div><div class="cell big"><dt>${resultLabel}</dt><dd class="${tone(value)}">${neutral ? T.no : esc(resultText(item, mark))}</dd></div><div class="cell big analysis"><dt>${T.analysis}</dt><dd>${esc(text)}</dd></div></dl></article>`;
   }
 
   let weeksCache = [];
   let quarantineCache = new Map();
   let liveCache = {};
+  let exposureCache = {};
   let selectedWeekId = null;
   let liveRefreshInFlight = false;
+  let lastContractRefresh = 0;
 
   function updateLiveStatus(live, loadFailed = false) {
     const updated = $('updated');
@@ -440,6 +486,23 @@
     try {
       const live = await json('/data/investments/live_prices.json');
       liveCache = live;
+      // Refresh execution state independently of the fast price display.
+      // Otherwise a trade/CB block can remain invisible until a full reload.
+      if (Date.now() - lastContractRefresh > 60_000) {
+        lastContractRefresh = Date.now();
+        const currentWeek = isoWeek(new Date());
+        const changes = await Promise.allSettled([
+          json(`/data/investments/weekly/${currentWeek}.json`),
+          json('/data/investments/multi_instrument_exposure_report_v5.json'),
+        ]);
+        if (changes[0].status === 'fulfilled') {
+          const updated = changes[0].value;
+          const index = weeksCache.findIndex((week) => week.week_id === updated.week_id);
+          if (index >= 0) weeksCache[index] = updated;
+          else if (updated.week_id) weeksCache.unshift(updated);
+        }
+        if (changes[1].status === 'fulfilled') exposureCache = changes[1].value;
+      }
       updateLiveStatus(live);
       render();
     } catch (_) {
@@ -451,12 +514,15 @@
 
   async function main() {
     try {
-      const [live, weeks, quarantine] = await Promise.all([
+      const [live, weeks, quarantine, exposure] = await Promise.all([
         json('/data/investments/live_prices.json'),
         loadWeeks(),
         loadQuarantine(),
+        json('/data/investments/multi_instrument_exposure_report_v5.json').catch(() => ({})),
       ]);
       liveCache = live;
+      exposureCache = exposure;
+      lastContractRefresh = Date.now();
       weeksCache = weeks;
       quarantineCache = quarantineMap(quarantine);
       selectedWeekId = selectedWeekId || weeks[0]?.week_id || null;
