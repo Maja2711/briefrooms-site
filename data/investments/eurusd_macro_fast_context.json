@@ -1,15 +1,59 @@
 {
   "schema_version": "daily-eurusd-macro-fast-v1",
-  "status": "CLEAR",
-  "event": null,
+  "status": "AWAITING_OFFICIAL_DECISION",
+  "phase": "POST_RELEASE",
+  "event": {
+    "uid": "fomc:2026-11-19",
+    "title": "FOMC meeting decision window — November 19-19",
+    "event_at": "2026-11-19T19:00:00Z",
+    "hours_until_at_check": -0.2411,
+    "source": "Federal Open Market Committee",
+    "source_ref": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
+    "importance": "high"
+  },
   "expectations": null,
-  "expectations_status": "NOT_APPLICABLE",
+  "expectations_status": "MISSING",
   "actuals": [],
-  "actuals_status": "NOT_APPLICABLE",
+  "actuals_status": "AWAITING_OFFICIAL_DECISION",
+  "llm_key": "{\"actuals\": [], \"event_uid\": \"fomc:2026-11-19\", \"expectation_fingerprint\": null, \"phase\": \"POST_RELEASE\"}",
   "llm": null,
   "eurusd_score": 0.0,
   "decision_influence": false,
-  "calendar_coverage_complete": true,
+  "post_release_ready": false,
+  "central_bank_event": "FOMC_DECISION",
+  "central_bank_wire": {
+    "schema_version": "eurusd-central-bank-wire-v1",
+    "as_of": "2026-11-19T19:01:04Z",
+    "overall_status": "FRESH",
+    "snapshot_sha256": "d1bd2b4b2ff4c8574b03142003ba18275f4d44a9167155a492a21da9b3b86783",
+    "event_window": {
+      "bank": "FED",
+      "calendar_verified": false,
+      "conference_ended_at": null,
+      "conference_status": "NOT_APPLICABLE",
+      "event_id": "cb-minutes:7e049f0b3a0c37c10ee8a2b1cda4aecb",
+      "event_type": "FOMC_MINUTES",
+      "first_seen_at": "2026-11-18T20:51:01Z",
+      "last_authoritative_update_at": "2026-11-18T20:51:01Z",
+      "observed_at": "2026-11-18T20:51:01Z",
+      "phase": "RELEASED",
+      "release_event_id": "cb:aa8ad171a58360ad1c264fe9a1456ffd",
+      "release_proof": {
+        "document_sha256": null,
+        "event_id": "cb:aa8ad171a58360ad1c264fe9a1456ffd",
+        "first_seen_at": "2026-11-18T20:51:01Z",
+        "ingested_at": "2026-11-18T20:51:01Z",
+        "published_at": "2026-11-18T19:00:00Z",
+        "source_url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20261118a.htm",
+        "statement_verified": false
+      },
+      "release_published_at": "2026-11-18T19:00:00Z",
+      "schedule_kind": "OFFICIAL_RSS_MINUTES_RELEASE",
+      "scheduled_at": "2026-11-18T19:00:00Z",
+      "source_url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20261118a.htm",
+      "time_precision": "exact"
+    }
+  },
   "calendar_coverage": {
     "schema_version": "macro-calendar-coverage-v1",
     "required_sources": [
@@ -23,7 +67,7 @@
       "BLS": {
         "status": "ok",
         "source_ref": "https://www.bls.gov/schedule/news_release/bls.ics",
-        "event_count": 16,
+        "event_count": 15,
         "error_type": null
       },
       "BEA": {
@@ -35,7 +79,7 @@
       "FOMC": {
         "status": "ok",
         "source_ref": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
-        "event_count": 13,
+        "event_count": 12,
         "error_type": null
       },
       "EUROSTAT": {
@@ -53,6 +97,20 @@
     },
     "complete": true
   },
-  "generated_at": "2026-11-19T10:49:33.621506Z",
-  "checked_at": "2026-11-19T10:49:33.621506Z"
+  "rules": {
+    "no_invented_consensus": true,
+    "eurusd_only_llm_beliefs": [
+      "eurusd.trend.bullish",
+      "eurusd.usd_environment.supportive",
+      "eurusd.us_rates_pressure.supportive",
+      "eurusd.macro_surprise.supportive",
+      "eurusd.policy_differential.supportive"
+    ],
+    "pre_event_expectations_require_sourced_bundle": true,
+    "missing_expectations_fail_closed": true,
+    "post_release_requires_official_actuals": true,
+    "official_actual_period_contract": "OFFICIAL_CENTRAL_BANK_DOCUMENT"
+  },
+  "generated_at": "2026-11-19T19:14:27.902593Z",
+  "checked_at": "2026-11-19T19:14:27.902593Z"
 }
