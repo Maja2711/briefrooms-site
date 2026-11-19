@@ -99,6 +99,21 @@ class UnresolvedWindowTests(unittest.TestCase):
         self.assertTrue(repeat['unresolved_event_windows_overflow'])
         self.assertEqual(repeat['overall_status'], 'PARTIAL')
 
+    def test_operational_unresolved_windows_retire_after_seven_days_without_claiming_conference_end(self):
+        older = {
+            'event_id': 'fomc:old-meeting', 'bank': 'FED',
+            'event_type': 'FOMC_DECISION',
+            'scheduled_at': wire.iso(NOW-timedelta(days=9)),
+            'source_url': URL, 'conference_status': 'UNKNOWN',
+        }
+        upcoming = {**older, 'event_id': 'fomc:future-meeting',
+                    'scheduled_at': wire.iso(NOW+timedelta(minutes=30))}
+        kept, overflow = wire._unresolved_windows(
+            {'unresolved_event_windows': [older, upcoming]}, [], NOW)
+        self.assertFalse(overflow)
+        self.assertEqual([row['event_id'] for row in kept], ['fomc:future-meeting'])
+        self.assertEqual(kept[0]['conference_status'], 'UNKNOWN')
+
     def test_resigned_malformed_or_future_windows_are_rejected(self):
         valid = collected(Client(), now=NOW, calendar=calendar())
         mutations = [
