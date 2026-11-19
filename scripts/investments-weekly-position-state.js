@@ -2,7 +2,7 @@
   'use strict';
 
   const CLOSED = new Set(['zamknięta', 'zamknieta', 'closed']);
-  const OPEN = new Set(['w trakcie', 'in progress', 'open']);
+  const OPEN = new Set(['otwarta pozycja', 'open position', 'w trakcie', 'in progress', 'open']);
   const isPl = (document.documentElement.lang || 'pl').toLowerCase().startsWith('pl');
 
   function normalized(value){
