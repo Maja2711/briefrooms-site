@@ -707,7 +707,7 @@ def collect(*, now: datetime, previous: Mapping[str, Any] | None = None,
     # Leave room for a decision and conference discovered in a later feed.
     bank_context_limit = max(0, bank_document_limit - 2)
     document_cache: dict[str, tuple[str | None, str | None, datetime]] = {}
-    critical_kinds = {"FOMC_DECISION", "ECB_DECISION", "PRESS_CONFERENCE"}
+    critical_kinds = {"FOMC_DECISION", "ECB_DECISION", "PRESS_CONFERENCE", "FOMC_MINUTES"}
     feeds = dict(OFFICIAL_RSS)
     if include_secondary:
         feeds["google_news"] = SECONDARY_RSS
@@ -742,7 +742,7 @@ def collect(*, now: datetime, previous: Mapping[str, Any] | None = None,
             # RSS order is not a priority guarantee. An older speech must not
             # consume the finite document budget ahead of a current decision.
             rows.sort(key=lambda row: (0 if classify(row["headline"], row["bank"]) in {"FOMC_DECISION", "ECB_DECISION"}
-                                       else 1 if classify(row["headline"], row["bank"]) == "PRESS_CONFERENCE" else 2,
+                                       else 1 if classify(row["headline"], row["bank"]) in {"PRESS_CONFERENCE", "FOMC_MINUTES"} else 2,
                                        -dt(row["published_at"]).timestamp(), row["source_url"]))
             status.update(status="OK", last_successful_check_at=iso(checked), not_modified=False,
                           etag=response.headers.get("ETag") or response.headers.get("etag"),
@@ -757,7 +757,7 @@ def collect(*, now: datetime, previous: Mapping[str, Any] | None = None,
                 ingested = received
                 # Recheck decision documents for corrections; reuse a known
                 # document on a duplicate speech to avoid needless requests.
-                needs_document = kind in {"FOMC_DECISION", "ECB_DECISION", "PRESS_CONFERENCE", "SPEECH", "INTERVIEW"}
+                needs_document = kind in {"FOMC_DECISION", "ECB_DECISION", "FOMC_MINUTES", "PRESS_CONFERENCE", "SPEECH", "INTERVIEW"}
                 if not secondary and needs_document:
                     cached = document_cache.get(row["source_url"])
                     bank = row["bank"]
