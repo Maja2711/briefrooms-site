@@ -323,12 +323,20 @@ def _unscheduled_release_windows(calendar_events: Sequence[Mapping[str, Any]], e
              and dt(row.get("calendar_checked_at") or row.get("observed_at") or row.get("first_seen_at"))}
     windows = {}
     for row in sorted(events, key=lambda value: (str(value.get("ingested_at", "")), str(value.get("event_id", "")))):
-        if row.get("event_type") not in {"FOMC_DECISION", "ECB_DECISION"} or row.get("statement_verified") is not True or row.get("source_class") == "SECONDARY_HEADLINE":
+        # Historical immutable Fed minutes may still be labelled "MINUTES".
+        # Normalize the *prospective window* without rewriting its evidence.
+        is_minutes = (row.get("bank") == "FED"
+                      and row.get("event_type") in {"MINUTES", "FOMC_MINUTES"}
+                      and "minutes" in str(row.get("headline") or "").lower()
+                      and "federal open market committee" in str(row.get("headline") or "").lower())
+        decision = row.get("event_type") in {"FOMC_DECISION", "ECB_DECISION"}
+        if (not (is_minutes or (decision and row.get("statement_verified") is True))
+                or row.get("source_class") == "SECONDARY_HEADLINE"):
             continue
         published, first, received = (dt(row.get(key)) for key in ("published_at", "first_seen_at", "ingested_at"))
         if not published or not first or not received or not published <= first <= received <= now or now - published > timedelta(hours=24):
             continue
-        if row.get("related_calendar_event_id") in known:
+        if not is_minutes and row.get("related_calendar_event_id") in known:
             continue
         try:
             url = canonical_url(row["source_url"])
@@ -336,13 +344,16 @@ def _unscheduled_release_windows(calendar_events: Sequence[Mapping[str, Any]], e
             continue
         if urllib.parse.urlsplit(url).hostname.removeprefix("www.") != ("federalreserve.gov" if row.get("bank") == "FED" else "ecb.europa.eu"):
             continue
-        identity = "cb-release:" + str(row.get("dedup_key") or digest({"url": url}))[:32]
+        identity = ("cb-minutes:" if is_minutes else "cb-release:") + str(row.get("dedup_key") or digest({"url": url}))[:32]
         proof = {key: row.get(key) for key in ("event_id", "source_url", "published_at", "first_seen_at", "ingested_at", "document_sha256", "statement_verified")}
-        windows[identity] = {"event_id": identity, "bank": row["bank"], "event_type": row["event_type"],
-            "scheduled_at": row["published_at"], "phase": "RELEASED", "schedule_kind": "UNSCHEDULED_RELEASE",
+        windows[identity] = {"event_id": identity, "bank": row["bank"],
+            "event_type": "FOMC_MINUTES" if is_minutes else row["event_type"],
+            "scheduled_at": row["published_at"], "phase": "RELEASED",
+            "schedule_kind": "OFFICIAL_RSS_MINUTES_RELEASE" if is_minutes else "UNSCHEDULED_RELEASE",
             "release_event_id": row["event_id"], "release_published_at": row["published_at"], "release_proof": proof,
             "source_url": url, "first_seen_at": row["first_seen_at"], "observed_at": row["ingested_at"],
-            "calendar_verified": False, "time_precision": "exact", "conference_status": "UNKNOWN",
+            "calendar_verified": False, "time_precision": "exact",
+            "conference_status": "NOT_APPLICABLE" if is_minutes else "UNKNOWN",
             "conference_ended_at": None, "last_authoritative_update_at": row["ingested_at"]}
     return sorted(windows.values(), key=lambda row: (row["scheduled_at"], row["event_id"]), reverse=True)
 
