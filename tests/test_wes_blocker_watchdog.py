@@ -138,6 +138,80 @@ class RecursiveWesBlockerTests(unittest.TestCase):
         self.assertIn("eurusd:OBSOLETE_CB_EVENT_STILL_VETOING", result["recovery_reasons"])
         self.assertTrue(result["auto_trade_forbidden"])
 
+    def test_expired_eurusd_target_is_never_an_active_executable_order(self):
+        w = week()
+        item = w["instruments"][0]
+        item["pending_entry_decision"] = {
+            "decision": {"direction": "short"},
+            "entry_price_plan": {"execution_mode": "market_now", "target_price": 1.1,
+                                 "entry_not_before": (NOW - timedelta(hours=2)).isoformat(),
+                                 "expires_at": (NOW - timedelta(minutes=5)).isoformat()},
+        }
+        result = watcher.evaluate(w, prices(), {}, [], now=NOW)
+        eur = result["instruments"]["eurusd"]
+        self.assertIn("PUBLISHED_ENTRY_PLAN_EXPIRED_NOT_EXECUTABLE", eur["warnings"])
+        self.assertIn("eurusd:EURUSD_EXPIRED_ENTRY_PLAN_REQUIRES_NEW_DECISION",
+                      result["recovery_reasons"])
+
+    def test_market_entry_requires_review_not_automatic_fill(self):
+        w = week()
+        eur = w["instruments"][0]
+        eur["reentry_lock"] = {"active": False}
+        eur["wes_entry_authorization"] = {
+            "authorized_at": (NOW - timedelta(minutes=12)).isoformat(),
+            "expires_at": (NOW + timedelta(minutes=20)).isoformat(),
+            "directional_admission_passed": True,
+            "candidate": {"direction": "short", "confirmations": 3,
+                          "directional_admission": {"passed": True}},
+            "required": {"allowed": True},
+        }
+        eur["pending_entry_decision"] = {
+            "decision": {"direction": "short"},
+            "entry_price_plan": {"execution_mode": "market_now", "target_price": 1.10029,
+                                 "entry_not_before": (NOW - timedelta(minutes=12)).isoformat(),
+                                 "expires_at": (NOW + timedelta(minutes=3)).isoformat()},
+        }
+        data = prices()
+        data["prices"]["eurusd"]["price"] = 1.10096
+        result = watcher.evaluate(w, data, {}, [], now=NOW)
+        self.assertIn("eurusd:EURUSD_MARKET_ENTRY_NOT_SETTLED_REVIEW_EPE",
+                      result["recovery_reasons"])
+        self.assertTrue(result["auto_trade_forbidden"])
+
+        # A current CB gate is an actual blocker, not an execution mismatch.
+        guard = {"eurusd_central_bank_event_risk": {
+            "entry_guard_enforced": True, "evaluated_at": NOW.isoformat(),
+            "diagnostics": {"minutes_until": -10},
+        }}
+        blocked = watcher.evaluate(w, data, guard, [], now=NOW)
+        self.assertNotIn("eurusd:EURUSD_MARKET_ENTRY_NOT_SETTLED_REVIEW_EPE",
+                         blocked["recovery_reasons"])
+
+    def test_market_condition_does_not_force_a_frozen_limit_fill(self):
+        w = week()
+        eur = w["instruments"][0]
+        eur["reentry_lock"] = {"active": False}
+        eur["wes_entry_authorization"] = {
+            "authorized_at": (NOW - timedelta(minutes=11)).isoformat(),
+            "expires_at": (NOW + timedelta(minutes=20)).isoformat(),
+            "directional_admission_passed": True,
+            "candidate": {"direction": "short", "confirmations": 2,
+                          "directional_admission": {"passed": True}},
+            "required": {"allowed": True},
+        }
+        eur["pending_entry_decision"] = {
+            "decision": {"direction": "short"},
+            "entry_price_plan": {"execution_mode": "limit_pullback", "target_price": 1.1,
+                                 "entry_not_before": (NOW - timedelta(minutes=11)).isoformat(),
+                                 "expires_at": (NOW + timedelta(minutes=10)).isoformat()},
+        }
+        data = prices()
+        data["prices"]["eurusd"]["price"] = 1.101
+        result = watcher.evaluate(w, data, {}, [], now=NOW)
+        self.assertIn("EURUSD_MARKETABLE_LIMIT_QUOTE_WITHOUT_EPE_FILL_PROOF",
+                      result["instruments"]["eurusd"]["warnings"])
+        self.assertIn("eurusd:EURUSD_MARKETABLE_LIMIT_REVIEW_EPE", result["recovery_reasons"])
+
     def test_history_counts_only_real_entries_not_missed_profit(self):
         historical = [
             {"instruments": [{"instrument_id": "btcusd",
