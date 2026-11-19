@@ -40,7 +40,7 @@ def document_text(value: str) -> str:
 def classify(headline: str, bank: str) -> str:
     lower = headline.lower()
     if "minutes" in lower:
-        return "MINUTES"
+        return "FOMC_MINUTES" if bank == "FED" else "MINUTES"
     if "press conference" in lower or "monetary policy statement" in lower and bank == "ECB":
         return "PRESS_CONFERENCE"
     if bank == "FED" and ("fomc statement" in lower or "federal reserve issues" in lower and "statement" in lower):
