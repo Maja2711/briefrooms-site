@@ -372,14 +372,18 @@ class WireTests(unittest.TestCase):
                         "source_url": fed_url, "conference_status": "UNKNOWN"}
         real_window = {**false_window, "event_id": "fomc:2026-10-28",
                        "scheduled_at": "2026-10-28T18:00:00Z"}
-        old = {"event_window": false_window, "unresolved_event_windows": [real_window]}
+        upcoming = {**false_window, "event_id": "fomc:2026-12-09",
+                    "scheduled_at": "2026-12-09T19:00:00Z"}
+        old = {"event_window": false_window, "unresolved_event_windows": [real_window, upcoming]}
         now = datetime(2026, 11, 19, 13, 0, tzinfo=timezone.utc)
         dates = ["2026-01-28", "2026-03-18", "2026-04-29",
                  "2026-06-17", "2026-07-29", "2026-09-16",
                  "2026-10-28", "2026-12-09"]
         retained, overflow = wire._unresolved_windows(
             old, [], now, confirmed_fed_dates=dates, fed_calendar_verified=True)
-        self.assertEqual([row["event_id"] for row in retained], ["fomc:2026-10-28"])
+        # The real October meeting is beyond the seven-day operational TTL.
+        # The upcoming December meeting must remain protected.
+        self.assertEqual([row["event_id"] for row in retained], ["fomc:2026-12-09"])
         self.assertFalse(overflow)
         old_protected, _ = wire._unresolved_windows(
             old, [], now, confirmed_fed_dates=dates, fed_calendar_verified=False)
