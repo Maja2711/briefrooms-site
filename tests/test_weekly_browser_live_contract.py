@@ -35,6 +35,20 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
             self.assertLess(html.index("investments-weekly-public.js"), html.index("investments-weekly-browser-live.js"))
             self.assertLess(html.index("investments-weekly-browser-live.js"), html.index("investments-weekly-price-compact.js"))
 
+    def test_generated_pages_never_restore_weekly_commentary(self) -> None:
+        for path in PAGES:
+            html = path.read_text(encoding="utf-8")
+            self.assertNotIn("eurusd-cb-risk-public.js", html)
+            self.assertIn("investments-weekly-public.js?v=weekly-tickets-only-20261120", html)
+            self.assertIn("investments-weekly-position-state.js?v=weekly-tickets-only-20261120", html)
+
+        frontend = (ROOT / "scripts" / "investments-weekly-public.js").read_text(encoding="utf-8")
+        decorator = (ROOT / "scripts" / "investments-weekly-position-state.js").read_text(encoding="utf-8")
+        self.assertNotIn('class="cell big analysis"', frontend)
+        self.assertNotIn("T.analysis", frontend)
+        self.assertNotIn("Pokaż opis", decorator)
+        self.assertNotIn("collapseAnalysis", decorator)
+
     def test_browser_runtime_keeps_s_and_p_delayed_quote_visible_and_labeled(self) -> None:
         source = LIVE_SCRIPT.read_text(encoding="utf-8")
         self.assertIn("/data/investments/live_prices.json", source)

@@ -112,15 +112,47 @@ test('an open EUR/USD weekly trade displays otwarta pozycja and not w trakcie', 
 test('weekly pages do not load the unnecessary Fed/ECB commentary panel', () => {
   for (const page of [
     'pl/inwestycje/pozycje-tygodniowe.html',
+    'pl/inwestycje/prognozy-tygodniowe.html',
     'en/investing/open-weekly-positions.html',
+    'en/investing/weekly-forecasts.html',
   ]) {
     const html = fs.readFileSync(page, 'utf8');
     assert.doesNotMatch(html, /<script[^>]+eurusd-cb-risk-public\.js/);
     assert.match(html, /investments-weekly-public\.js/);
+    assert.match(html, /weekly-tickets-only-20261120/);
   }
   const decorator = fs.readFileSync('scripts/investments-weekly-position-state.js', 'utf8');
   assert.match(decorator, /otwarta pozycja/);
   assert.match(decorator, /open position/);
+});
+
+test('all three Weekly tickets omit analysis, descriptions and CB source links', async () => {
+  const week = validWeek();
+  week.instruments[0].rationale_pl = 'EURUSD PRIVATE ANALYSIS';
+  week.instruments.push({
+    instrument_id: 'sp500_futures',
+    label_pl: 'S&P 500 Futures',
+    label_en: 'S&P 500 Futures',
+    direction: 'neutral',
+    trade_status: 'no_trade',
+    rationale_pl: 'SP500 PRIVATE ANALYSIS',
+  });
+  week.instruments.push({
+    instrument_id: 'btcusd',
+    label_pl: 'BTC/USD',
+    label_en: 'BTC/USD',
+    direction: 'neutral',
+    trade_status: 'no_trade',
+    rationale_pl: 'BTC PRIVATE ANALYSIS',
+  });
+  const { elements } = await renderWithLive({ updatedAt: new Date().toISOString(), week });
+  const html = elements.app.innerHTML;
+  assert.match(html, /EUR\/USD/);
+  assert.match(html, /S&amp;P 500 Futures/);
+  assert.match(html, /BTC\/USD/);
+  assert.doesNotMatch(html, /<dt>(Opis|Description)<\/dt>/);
+  assert.doesNotMatch(html, /PRIVATE ANALYSIS|Pokaż opis|Show description/);
+  assert.doesNotMatch(html, /data-eurusd-cb-card|eurusd-cb-status|Dokument źródłowy/);
 });
 
 test('shows normalized investment results with units and notional', async () => {
