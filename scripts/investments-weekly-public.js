@@ -11,7 +11,6 @@
       rr: 'Risk/Reward', closed: 'zamknięta', active: 'otwarta pozycja', neutral: 'bez pozycji',
       planned: 'oczekuje na otwarcie', history: 'Historia pozycji', week: 'Tydzień',
       instrument: 'Instrument', position: 'Pozycja', result: 'Wynik', points: 'pkt',
-      analysis: 'Opis', analysisMissing: 'Pozycja zostanie uzupełniona po wygenerowaniu sygnału i zarejestrowaniu ceny wejścia.',
       stale: 'Dane rynkowe są opóźnione. Pokazujemy ostatnią zapisaną cenę wraz z godziną jej aktualizacji.',
       loadError: 'Nie udało się pobrać aktualnych danych. Ostatnio zapisany widok pozostaje dostępny.',
       no: '—', audit: 'DANE W AUDYCIE', withheld: 'Wynik wstrzymany',
@@ -28,7 +27,6 @@
       rr: 'Risk/Reward', closed: 'closed', active: 'open position', neutral: 'no position',
       planned: 'waiting for entry', history: 'Position history', week: 'Week',
       instrument: 'Instrument', position: 'Position', result: 'Result', points: 'pts',
-      analysis: 'Description', analysisMissing: 'The position will be completed after a signal is generated and the entry price is recorded.',
       stale: 'Market data is delayed. The last stored price is shown together with its update time.',
       loadError: 'Current data could not be loaded. The last stored view remains available.',
       no: '—', audit: 'DATA UNDER AUDIT', withheld: 'Result withheld',
@@ -361,8 +359,6 @@
     const result = metrics(item, mark);
     const value = result?.value ?? null;
     const risk = pendingReentry ? { sl: null, tp: null, rr: null } : riskPlan(item);
-    const description = item[L === 'pl' ? 'rationale_pl' : 'rationale_en'];
-    const text = Array.isArray(description) ? description.join(' ') : (description || T.analysisMissing);
     // EUR/USD MARKET does not have a resting LIMIT price. The historical
     // target_price is immutable audit evidence, NOT an executable entry quote.
     // A frozen LIMIT is displayed only while both plan and authorization live.
@@ -411,7 +407,7 @@
     }
     const closeValue = pendingReentry ? T.no : (hasClose(item) ? esc(fmt(item.exit_price, item.instrument_id)) : T.no);
     const resultLabel = pendingReentry ? T.previousResult : T.pnl;
-    return `<article class="card ${esc(dir(item))}"${item.instrument_id === 'eurusd' ? ` data-eurusd-cb-card data-cb-week-id="${esc(selectedWeekId)}" data-cb-position-ref="${esc(JSON.stringify({entry_price:item.entry_price ?? null,entry_captured_at:item.entry_captured_at ?? null,direction:item.direction ?? null,exit_price:item.exit_price ?? null}))}"` : ''}><div class="head"><div><p>${esc(label(item))}</p><h3>${esc(dirText(item))}</h3></div></div><div class="now"><span>${currentLabel}</span><strong>${esc(fmt(current, item.instrument_id))}</strong><small>${currentTime ? esc(`${T.priceTime}: ${currentTime}`) : T.no}</small></div><dl class="grid"><div class="cell"><dt>${openLabel}</dt><dd>${openValue}</dd></div><div class="cell"><dt>${T.close}</dt><dd>${closeValue}</dd></div><div class="cell"><dt>${T.notional}</dt><dd>${neutral ? T.no : esc(notionalText(item))}</dd></div><div class="cell"><dt>${T.status}</dt><dd>${esc(currentStatus)}</dd></div><div class="cell"><dt>${T.sl}</dt><dd>${neutral ? T.no : esc(fmt(risk.sl, item.instrument_id))}</dd></div><div class="cell"><dt>${T.tp}</dt><dd>${neutral ? T.no : esc(fmt(risk.tp, item.instrument_id))}</dd></div><div class="cell big"><dt>${T.rr}</dt><dd>${neutral ? T.no : esc(rrText(risk.rr))}</dd></div><div class="cell big"><dt>${resultLabel}</dt><dd class="${tone(value)}">${neutral ? T.no : esc(resultText(item, mark))}</dd></div><div class="cell big analysis"><dt>${T.analysis}</dt><dd>${esc(text)}</dd></div></dl></article>`;
+    return `<article class="card ${esc(dir(item))}"><div class="head"><div><p>${esc(label(item))}</p><h3>${esc(dirText(item))}</h3></div></div><div class="now"><span>${currentLabel}</span><strong>${esc(fmt(current, item.instrument_id))}</strong><small>${currentTime ? esc(`${T.priceTime}: ${currentTime}`) : T.no}</small></div><dl class="grid"><div class="cell"><dt>${openLabel}</dt><dd>${openValue}</dd></div><div class="cell"><dt>${T.close}</dt><dd>${closeValue}</dd></div><div class="cell"><dt>${T.notional}</dt><dd>${neutral ? T.no : esc(notionalText(item))}</dd></div><div class="cell"><dt>${T.status}</dt><dd>${esc(currentStatus)}</dd></div><div class="cell"><dt>${T.sl}</dt><dd>${neutral ? T.no : esc(fmt(risk.sl, item.instrument_id))}</dd></div><div class="cell"><dt>${T.tp}</dt><dd>${neutral ? T.no : esc(fmt(risk.tp, item.instrument_id))}</dd></div><div class="cell big"><dt>${T.rr}</dt><dd>${neutral ? T.no : esc(rrText(risk.rr))}</dd></div><div class="cell big"><dt>${resultLabel}</dt><dd class="${tone(value)}">${neutral ? T.no : esc(resultText(item, mark))}</dd></div></dl></article>`;
   }
 
   let weeksCache = [];

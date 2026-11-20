@@ -3,7 +3,6 @@
 
   const CLOSED = new Set(['zamknięta', 'zamknieta', 'closed']);
   const OPEN = new Set(['otwarta pozycja', 'open position', 'w trakcie', 'in progress', 'open']);
-  const isPl = (document.documentElement.lang || 'pl').toLowerCase().startsWith('pl');
 
   function normalized(value){
     return String(value || '').trim().toLowerCase();
@@ -59,31 +58,8 @@
     if (badge.getAttribute('aria-label') !== label) badge.setAttribute('aria-label', label);
   }
 
-  function collapseAnalysis(card){
-    const dd = card.querySelector('.cell.big.analysis dd');
-    if (!dd || dd.querySelector('.br-weekly-analysis')) return;
-
-    const text = dd.textContent.trim();
-    if (!text) return;
-
-    const details = document.createElement('details');
-    details.className = 'br-weekly-analysis';
-
-    const summary = document.createElement('summary');
-    summary.textContent = isPl ? 'Pokaż opis' : 'Show description';
-
-    const body = document.createElement('div');
-    body.className = 'br-weekly-analysis-body';
-    body.textContent = text;
-
-    details.append(summary, body);
-    dd.textContent = '';
-    dd.appendChild(details);
-  }
-
   function decorateCard(card){
     syncBadge(card);
-    collapseAnalysis(card);
   }
 
   function decorate(){
