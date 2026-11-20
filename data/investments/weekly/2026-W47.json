@@ -160,73 +160,74 @@
       },
       "wes_initial_no_trade_score": 62.0,
       "latest_macro_context": {
-        "as_of": "2026-11-19T00:00:00",
+        "as_of": "2026-11-20T00:00:00",
         "data_quality": "passed",
-        "macro_score": 11.2787,
+        "macro_score": 22.4896,
         "macro_direction": "long",
         "position_direction": "short",
         "aligned": false,
         "observations": {
-          "oil_1w_percent": -5.826,
-          "oil_4w_percent": -15.9847,
-          "us10y_1w_bps": -2.5,
-          "us10y_4w_bps": 12.5
+          "oil_1w_percent": -5.5781,
+          "oil_4w_percent": -19.0278,
+          "us10y_1w_bps": -24.2,
+          "us10y_4w_bps": -7.6
         },
         "ma_structure": {
           "enabled": true,
           "instrument_id": "eurusd",
           "data_quality": "passed",
-          "score": -1.0,
+          "score": -1.5,
           "score_cap": 4.0,
           "direction": "short",
           "components": {
             "W1": {
-              "bar_at": "2026-11-13T00:00:00+01:00",
-              "close": 1.105021,
-              "ma30": 1.147142,
-              "ma60": 1.15735,
-              "ma100": 1.139702,
-              "ma200": 1.111434,
+              "bar_at": "2026-11-20T00:00:00+01:00",
+              "close": 1.097454,
+              "ma30": 1.144778,
+              "ma60": 1.156203,
+              "ma100": 1.140311,
+              "ma200": 1.111505,
               "slow_trend": 1,
               "price_vs_all": -1,
               "nearest_ma": "ma200",
-              "nearest_ma_distance_atr": 0.4975,
+              "nearest_ma_distance_atr": 1.0766,
               "support_hold_long": false,
               "resistance_hold_short": false
             },
             "D1": {
-              "bar_at": "2026-11-19T01:00:00+01:00",
-              "close": 1.100715,
-              "ma30": 1.116337,
-              "ma60": 1.13176,
-              "ma100": 1.139081,
-              "ma200": 1.151098,
+              "bar_at": "2026-11-20T01:00:00+01:00",
+              "close": 1.097454,
+              "ma30": 1.115425,
+              "ma60": 1.130565,
+              "ma100": 1.138597,
+              "ma200": 1.150634,
               "slow_trend": -1,
               "price_vs_all": -1,
               "nearest_ma": "ma30",
-              "nearest_ma_distance_atr": 2.0089,
+              "nearest_ma_distance_atr": 2.393,
               "support_hold_long": false,
               "resistance_hold_short": false
             },
             "H1": {
-              "bar_at": "2026-11-19T15:00:00+01:00",
-              "close": 1.100715,
-              "ma30": 1.097957,
-              "ma60": 1.098936,
-              "ma100": 1.100188,
-              "ma200": 1.107134,
+              "bar_at": "2026-11-20T23:00:00+01:00",
+              "close": 1.097454,
+              "ma30": 1.097679,
+              "ma60": 1.097824,
+              "ma100": 1.098631,
+              "ma200": 1.103346,
               "slow_trend": -1,
-              "price_vs_all": 0,
-              "nearest_ma": "ma100",
-              "nearest_ma_distance_atr": 0.5179,
+              "price_vs_all": -1,
+              "nearest_ma": "ma30",
+              "nearest_ma_distance_atr": 0.187,
               "support_hold_long": false,
               "resistance_hold_short": false
             }
           },
           "reasons": [
-            "d1_below_all_ma"
+            "d1_below_all_ma",
+            "h1_below_all_ma_timing"
           ],
-          "evaluated_at": "2026-11-19T15:17:58+01:00",
+          "evaluated_at": "2026-11-20T23:50:37+01:00",
           "governance": "bounded_context_only_no_veto_no_standalone_trade_trigger"
         },
         "rule": "Context is recorded immediately; an open weekly position is changed only by the governed review rules."
@@ -957,7 +958,129 @@
         "checked_at": "2026-11-19T15:17:55+01:00",
         "rule": "Strong-conviction MARKET hits a fresh post-authorization market price; the archived LIMIT target does not gate execution."
       },
-      "position_id": "2026-W47:eurusd:2026-11-19T15:17:44+01:00"
+      "position_id": "2026-W47:eurusd:2026-11-19T15:17:44+01:00",
+      "daily_reviews": [
+        {
+          "review_date": "2026-11-20",
+          "reviewed_at": "2026-11-20T23:50:37+01:00",
+          "review_trigger": "scheduled_daily_model_review",
+          "position_review_key": "2026-W47:eurusd:2026-11-19T15:17:44+01:00",
+          "observation_mode": "LIVE",
+          "formal_learning_eligible": false,
+          "missing_review_is_hold": false,
+          "original_direction": "short",
+          "fresh_direction": "short",
+          "fresh_score": -66,
+          "fresh_signal_strength": 0.66,
+          "weekly_score": -97,
+          "weekly_regime": "trend_down:vol_normal",
+          "macro_context": {
+            "enabled": true,
+            "instrument_id": "eurusd",
+            "data_quality": "passed",
+            "direction": "long",
+            "score": 22.4896,
+            "score_cap": 30.0,
+            "components": {
+              "oil_1w": 6.9726,
+              "oil_4w": 4.7569,
+              "us10y_1w": 10.0,
+              "us10y_4w": 0.76
+            },
+            "observations": {
+              "oil_1w_percent": -5.5781,
+              "oil_4w_percent": -19.0278,
+              "us10y_1w_bps": -24.2,
+              "us10y_4w_bps": -7.6
+            },
+            "sources": {
+              "oil": {
+                "instrument_id": "wti_futures",
+                "symbol": "CL=F",
+                "as_of": "2026-11-20T00:00:00",
+                "error": null
+              },
+              "us10y": {
+                "instrument_id": "us10y_yield",
+                "symbol": "^TNX",
+                "as_of": "2026-11-20T00:00:00",
+                "error": null
+              }
+            },
+            "as_of": "2026-11-20T00:00:00",
+            "evaluated_at": "2026-11-20T23:50:37+01:00",
+            "interpretation": "positive_supports_eurusd_long_negative_supports_eurusd_short",
+            "rule": "Oil and US10Y are context inputs, not standalone trade triggers.",
+            "ma_structure": {
+              "enabled": true,
+              "instrument_id": "eurusd",
+              "data_quality": "passed",
+              "score": -1.5,
+              "score_cap": 4.0,
+              "direction": "short",
+              "components": {
+                "W1": {
+                  "bar_at": "2026-11-20T00:00:00+01:00",
+                  "close": 1.097454,
+                  "ma30": 1.144778,
+                  "ma60": 1.156203,
+                  "ma100": 1.140311,
+                  "ma200": 1.111505,
+                  "slow_trend": 1,
+                  "price_vs_all": -1,
+                  "nearest_ma": "ma200",
+                  "nearest_ma_distance_atr": 1.0766,
+                  "support_hold_long": false,
+                  "resistance_hold_short": false
+                },
+                "D1": {
+                  "bar_at": "2026-11-20T01:00:00+01:00",
+                  "close": 1.097454,
+                  "ma30": 1.115425,
+                  "ma60": 1.130565,
+                  "ma100": 1.138597,
+                  "ma200": 1.150634,
+                  "slow_trend": -1,
+                  "price_vs_all": -1,
+                  "nearest_ma": "ma30",
+                  "nearest_ma_distance_atr": 2.393,
+                  "support_hold_long": false,
+                  "resistance_hold_short": false
+                },
+                "H1": {
+                  "bar_at": "2026-11-20T23:00:00+01:00",
+                  "close": 1.097454,
+                  "ma30": 1.097679,
+                  "ma60": 1.097824,
+                  "ma100": 1.098631,
+                  "ma200": 1.103346,
+                  "slow_trend": -1,
+                  "price_vs_all": -1,
+                  "nearest_ma": "ma30",
+                  "nearest_ma_distance_atr": 0.187,
+                  "support_hold_long": false,
+                  "resistance_hold_short": false
+                }
+              },
+              "reasons": [
+                "d1_below_all_ma",
+                "h1_below_all_ma_timing"
+              ],
+              "evaluated_at": "2026-11-20T23:50:37+01:00",
+              "governance": "bounded_context_only_no_veto_no_standalone_trade_trigger"
+            }
+          },
+          "combined_review_score": -55.7052,
+          "positive_groups": 0,
+          "negative_groups": 3,
+          "data_quality": "passed",
+          "decision": "keep",
+          "reason": "keep_original_thesis_not_invalidated"
+        }
+      ],
+      "last_daily_review_at": "2026-11-20T23:50:37+01:00",
+      "last_daily_review_decision": "keep",
+      "last_daily_review_reason": "keep_original_thesis_not_invalidated"
     },
     {
       "instrument_id": "sp500_futures",
@@ -1613,8 +1736,8 @@
     "historical_backfill_allowed": false,
     "last_completeness_checked_at": "2026-11-19T14:01:56+01:00",
     "last_completeness_status": "NOT_DUE",
-    "last_review_date": "2026-11-17",
-    "last_reviewed_at": "2026-11-17T23:20:50+01:00",
+    "last_review_date": "2026-11-20",
+    "last_reviewed_at": "2026-11-20T23:50:37+01:00",
     "local_time": "23:00 Europe/Warsaw",
     "exit_rules": {
       "confirmed_opposite_signal": true,
