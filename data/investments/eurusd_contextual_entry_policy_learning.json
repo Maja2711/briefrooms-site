@@ -3827,12 +3827,10 @@
     },
     "features": {
       "belief_confidence": 0.474046,
-      "belief_macro_score": 0.0509,
+      "belief_macro_score": 0.0,
       "daily_confidence": 0.3827,
       "daily_score_signed": 0.0164,
       "ema20_distance_atr": -0.042571,
-      "fse_hurst_q2": 0.507953,
-      "fse_risk_score": 0.253886,
       "move_12h_atr": 1.474419,
       "move_24h_atr": 0.442676,
       "move_3h_atr": 0.737648,
@@ -3843,95 +3841,86 @@
       "p_up_delta": -0.002365
     },
     "fse": {
-      "analogues_n": 0,
-      "available": true,
-      "mean_hurst_q2": 0.5079532263599597,
-      "mean_similarity": null,
-      "median_forward_return": null,
-      "median_forward_return_atr": null,
-      "observed_at": "2026-11-20T21:14:45Z",
-      "p_up_4h": null,
-      "production_impact": false,
-      "regime": "STABLE",
-      "risk_score": 0.2538856950217896
+      "available": false,
+      "reason": "stale_or_future"
     },
     "observed_at": "2026-11-20T22:00:00Z",
     "reference_mid": 1.09745395
   },
   "latest_recommendation": {
-    "application_edge_hurdle_r": 0.1,
-    "authority_fraction": 1.0,
-    "authority_level": "FULL",
+    "application_edge_hurdle_r": null,
+    "authority_fraction": 0.0,
+    "authority_level": "SHADOW",
     "automatic_promotion": true,
-    "automatic_rollback": false,
-    "decision_influence": true,
+    "automatic_rollback": true,
+    "decision_influence": false,
     "direction_mutation_allowed": false,
-    "edge_vs_second_r": 0.35031,
+    "edge_vs_second_r": 0.029558,
     "evidence_components": {
-      "edge_strength": 1.0,
-      "sample_strength": 0.974903,
-      "stability": 1.0
+      "edge_strength": 0.084451,
+      "sample_strength": 0.987645,
+      "stability": 0.361575
     },
-    "evidence_confidence": 0.974903,
-    "expected_r": 0.0,
-    "neighbors": 14,
+    "evidence_confidence": 0.030158,
+    "expected_r": 0.370932,
+    "neighbors": 15,
     "policy_stats": {
       "CONTINUATION_NOW": {
-        "effective_neighbors": 11.055,
-        "expected_r": -0.063462,
-        "raw_neighbors": 14,
-        "uncertainty_penalized_r": -0.35031,
-        "weighted_mean_net_r": -0.063462,
-        "weighted_sd_r": 0.953755
+        "effective_neighbors": 13.181,
+        "expected_r": 0.339165,
+        "raw_neighbors": 15,
+        "uncertainty_penalized_r": 0.039395,
+        "weighted_mean_net_r": 0.339165,
+        "weighted_sd_r": 1.088348
       },
       "FLAT": {
-        "effective_neighbors": 11.055,
+        "effective_neighbors": 13.181,
         "expected_r": 0.0,
-        "raw_neighbors": 14,
+        "raw_neighbors": 15,
         "uncertainty_penalized_r": 0.0,
         "weighted_mean_net_r": 0.0,
         "weighted_sd_r": 0.0
       },
       "PULLBACK_20_ATR": {
-        "effective_neighbors": 11.055,
-        "expected_r": -0.234766,
-        "raw_neighbors": 14,
-        "uncertainty_penalized_r": -0.461444,
-        "weighted_mean_net_r": -0.234766,
-        "weighted_sd_r": 0.753694
+        "effective_neighbors": 13.181,
+        "expected_r": 0.23469,
+        "raw_neighbors": 15,
+        "uncertainty_penalized_r": -0.048923,
+        "weighted_mean_net_r": 0.23469,
+        "weighted_sd_r": 1.02969
       },
       "PULLBACK_35_ATR": {
-        "effective_neighbors": 11.055,
-        "expected_r": -0.158148,
-        "raw_neighbors": 14,
-        "uncertainty_penalized_r": -0.402468,
-        "weighted_mean_net_r": -0.158148,
-        "weighted_sd_r": 0.81235
+        "effective_neighbors": 13.181,
+        "expected_r": 0.370932,
+        "raw_neighbors": 15,
+        "uncertainty_penalized_r": 0.068953,
+        "weighted_mean_net_r": 0.370932,
+        "weighted_sd_r": 1.096368
       },
       "PULLBACK_50_ATR": {
-        "effective_neighbors": 11.055,
-        "expected_r": -0.28502,
-        "raw_neighbors": 14,
-        "uncertainty_penalized_r": -0.468134,
-        "weighted_mean_net_r": -0.28502,
-        "weighted_sd_r": 0.608847
+        "effective_neighbors": 13.181,
+        "expected_r": 0.014021,
+        "raw_neighbors": 15,
+        "uncertainty_penalized_r": -0.215883,
+        "weighted_mean_net_r": 0.014021,
+        "weighted_sd_r": 0.834692
       },
       "REVERSAL_NOW": {
-        "effective_neighbors": 11.055,
-        "expected_r": -0.005076,
-        "raw_neighbors": 14,
-        "uncertainty_penalized_r": -0.278024,
-        "weighted_mean_net_r": -0.005076,
-        "weighted_sd_r": 0.90754
+        "effective_neighbors": 13.181,
+        "expected_r": -0.272413,
+        "raw_neighbors": 15,
+        "uncertainty_penalized_r": -0.52253,
+        "weighted_mean_net_r": -0.272413,
+        "weighted_sd_r": 0.90808
       }
     },
-    "recommended_family": "FLAT",
-    "recommended_policy_id": "FLAT",
-    "research_best_policy_id": "FLAT",
+    "recommended_family": "CONTINUATION_PULLBACK",
+    "recommended_policy_id": "PULLBACK_35_ATR",
+    "research_best_policy_id": "PULLBACK_35_ATR",
     "research_reversal_is_non_authoritative": false,
     "resolved_episodes": 15,
-    "status": "AUTONOMOUS_POLICY_EDGE"
+    "status": "NO_ROBUST_POLICY_EDGE"
   },
   "schema_version": "eurusd-contextual-entry-policy-learning-v2",
-  "updated_at": "2026-11-21T01:52:44Z"
+  "updated_at": "2026-11-21T08:54:26Z"
 }
