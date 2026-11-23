@@ -113,8 +113,7 @@ class PureH1SnapbackTests(unittest.TestCase):
         self.assertEqual("stale_closed_h1", signal.assess_closed_h1(
             rows, START+timedelta(hours=40), source="TEST")["reason"])
         broken = list(rows)
-        row = broken[-2]
-        broken[-2] = (row[0]-timedelta(minutes=20), *row[1:])
+        broken.pop(-2)  # A truly missing completed hour, not a malformed timestamp.
         self.assertEqual("gapped_recovery_h1", signal.assess_closed_h1(
             broken, START+timedelta(hours=37, minutes=2), source="TEST")["reason"])
         self.assertEqual("future_or_unclosed_h1", signal.assess_closed_h1(
@@ -215,13 +214,13 @@ class WeeklyH1IsolationTests(unittest.TestCase):
             "source": "Yahoo Finance:EURUSD=X:5m",
         }
         def read(path, default=None):
-            if path == weekly_v5.POLICY:
+            if path == weekly_lifecycle.v5.POLICY:
                 return {"instruments": [
                     {"instrument_id": "eurusd", "round_trip_cost": 1.5,
                      "cost_unit": "pips"}]}
             return week
-        with patch.object(weekly_v4, "read", side_effect=read), \
-             patch.object(weekly_v4, "write") as write, \
+        with patch.object(weekly_lifecycle.v4, "read", side_effect=read), \
+             patch.object(weekly_lifecycle.v4, "write") as write, \
              patch.object(weekly_lifecycle.ma_structure.yf, "download"), \
              patch.object(weekly_lifecycle.ma_structure, "h1_snapback_from_frame", return_value=sig), \
              patch.object(weekly_lifecycle.v3, "last_completed_5m_bar", return_value=mark), \
@@ -246,13 +245,13 @@ class WeeklyH1IsolationTests(unittest.TestCase):
                "exit_price": None,
                "risk_plan": {"stop_loss_price": 1.112, "take_profit_price": 1.088}}
         week = {"instruments": [eur]}
-        with patch.object(weekly_v4, "read", return_value=week), \
+        with patch.object(weekly_lifecycle.v4, "read", return_value=week), \
              patch.object(weekly_lifecycle.ma_structure.yf, "download"), \
              patch.object(weekly_lifecycle.ma_structure, "h1_snapback_from_frame", return_value=sig), \
              patch.object(weekly_lifecycle.v3, "last_completed_5m_bar",
                           return_value={"price": 1.0981,
                                         "timestamp": "2026-11-23T14:15:00+00:00"}), \
-             patch.object(weekly_v4, "write") as write:
+             patch.object(weekly_lifecycle.v4, "write") as write:
             self.assertFalse(weekly_lifecycle.review_eurusd_band_snapback_close(
                 Path("/tmp/synthetic-W48.json"), now))
         write.assert_not_called()
