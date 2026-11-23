@@ -214,7 +214,11 @@ belief_live_workflow = read(".github/workflows/belief-core-shadow-live.yml")
 belief_events_workflow = read(".github/workflows/belief-core-events-live.yml")
 epistemic_projection_workflow = read(".github/workflows/belief-epistemic-state.yml")
 require(wes_cycle_watchdog_workflow, "scripts/wes_cycle_watchdog.py", "WES 1.3.1 cycle watchdog")
-require(wes_cycle_watchdog_workflow, "actions/workflows/investments-wes.yml/dispatches", "WES 1.3.1 automatic recovery dispatch")
+# The watchdog dispatches through a named shell helper. Verify both the
+# actual selected target and its endpoint composition rather than requiring
+# a non-executable, hard-coded URL that the safe helper never contains.
+require(wes_cycle_watchdog_workflow, "dispatch investments-wes.yml", "WES 1.3.1 recovery target")
+require(wes_cycle_watchdog_workflow, "actions/workflows/$1/dispatches", "WES 1.3.1 automatic recovery dispatch endpoint")
 require(daily_cycle_watchdog, "DEFAULT_MAX_AGE_MINUTES = 15", "Daily EURUSD 15-minute liveness threshold")
 require(daily_decision_record, 'ENGINE_VERSION = "eurusd-daily-spot-v1.9.1"', "Daily EURUSD canonical engine-version contract")
 require(daily_runtime, "ENGINE_VERSION = decision_record.ENGINE_VERSION", "Daily EURUSD writer shared engine-version contract")
