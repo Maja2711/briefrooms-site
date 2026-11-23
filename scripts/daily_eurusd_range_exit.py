@@ -12,6 +12,8 @@ from datetime import datetime, timedelta, timezone
 from math import isfinite, sqrt
 from typing import Any, Mapping, Sequence
 
+import eurusd_h1_bollinger_snapback as snapback
+
 PIP = 0.0001
 PERIOD = 20
 DEVIATIONS = 2.0
@@ -142,4 +144,105 @@ def assess(position: Mapping[str, Any], bars: Sequence[Any], observed_at: dateti
         "last_closed_h1": hourly[-1][0].isoformat(),
         "last_minute": latest.timestamp.isoformat(),
         "partial_close_supported": False,
+    }
+
+
+def assess_snapback(
+    position: Mapping[str, Any],
+    bars: Sequence[Any],
+    observed_at: datetime,
+    *,
+    exit_price_at_mid: Any,
+) -> dict[str, Any]:
+    """Daily H1 Bollinger 30/2.5 profit protection on canonical 1m candles.
+
+    A quick lower-band reentry protects a winning SHORT; upper protects LONG.
+    Hard SL/TP and ordinary dynamic exits remain prior authority. No CLOSE is
+    permitted on a still-forming H1, a stale minute bar or a pre-entry breach.
+    """
+    base = {"close": False, "policy": "H1_BOLLINGER_FAST_REENTRY_30_2_5",
+            "direction_authority": False, "risk_plan_mutation": False}
+    direction = str(position.get("direction") or "").upper()
+    if direction not in {"SHORT", "LONG"} or observed_at.tzinfo is None:
+        return {**base, "reason": "invalid_position_or_observation"}
+    now = observed_at.astimezone(timezone.utc)
+    completed = []
+    for bar in sorted(bars, key=lambda x: x.timestamp):
+        at = bar.timestamp.astimezone(timezone.utc)
+        if at + timedelta(minutes=1) > now or at > now:
+            continue
+        if any(v is None for v in (bar.open, bar.high, bar.low, bar.close)):
+            continue
+        values = (float(bar.open), float(bar.high), float(bar.low), float(bar.close))
+        if (not all(isfinite(v) and v > 0 for v in values)
+                or values[1] < max(values[0], values[3])
+                or values[2] > min(values[0], values[3])):
+            continue
+        completed.append((at, values))
+    if not completed:
+        return {**base, "reason": "no_completed_minute_bars"}
+    latest_at, latest_ohlc = completed[-1]
+    seconds = (now - latest_at - timedelta(minutes=1)).total_seconds()
+    if seconds < 0 or seconds > MAX_LAST_BAR_AGE_SECONDS:
+        return {**base, "reason": "stale_canonical_1m"}
+
+    buckets = defaultdict(dict)
+    for at, prices in completed:
+        hour = at.replace(minute=0, second=0, microsecond=0)
+        if hour + timedelta(hours=1) > now:
+            continue
+        if at.second or at.microsecond:
+            continue
+        buckets[hour][at.minute] = prices
+    hourly = []
+    for hour, minutes in sorted(buckets.items()):
+        # Demand enough genuine minutes across the hour. Never treat a few
+        # scattered ticks as a complete H1 candle.
+        if (len(minutes) < 50 or min(minutes) > 5 or max(minutes) < 54):
+            continue
+        first, last = minutes[min(minutes)], minutes[max(minutes)]
+        hourly.append((hour + timedelta(hours=1), first[0],
+                       max(v[1] for v in minutes.values()),
+                       min(v[2] for v in minutes.values()), last[3]))
+    signal = snapback.assess_closed_h1(
+        hourly, now, source="DAILY_EURUSD_CANONICAL_COMPLETED_1M_TO_H1")
+    if not snapback.blocks_direction(signal, direction):
+        return {**base, "reason": signal.get("reason"), "signal": signal}
+    try:
+        opened = datetime.fromisoformat(str(position["opened_at"]).replace("Z", "+00:00"))
+        breach = datetime.fromisoformat(signal["breach_h1"])
+        h1_closed = datetime.fromisoformat(signal["last_closed_h1"])
+        entry = float(position["entry"])
+        stop = float(position["stop"])
+        mark = float(exit_price_at_mid(position, latest_ohlc[3]))
+    except (ValueError, KeyError, TypeError):
+        return {**base, "reason": "invalid_entry_or_exec_basis", "signal": signal}
+    if (opened.tzinfo is None or opened > breach or latest_at < h1_closed
+            or latest_at <= opened or not all(isfinite(x) for x in (entry, stop, mark))):
+        return {**base, "reason": "pre_entry_signal_or_invalid_mark", "signal": signal}
+    risk = abs(entry - stop)
+    if risk <= 0:
+        return {**base, "reason": "invalid_risk_geometry", "signal": signal}
+    side = -1.0 if direction == "SHORT" else 1.0
+    profit_pips = side * (mark - entry) / PIP
+    profit_r = side * (mark - entry) / risk
+    if profit_pips < 6.0 or profit_r < 0.20:
+        return {**base, "reason": "insufficient_executable_profit",
+                "profit_pips": round(profit_pips, 2), "profit_r": round(profit_r, 3),
+                "signal": signal}
+    previous = next(((at, row) for at, row in reversed(completed)
+                     if at <= latest_at - timedelta(minutes=15)), None)
+    if previous is None or (latest_at - previous[0]).total_seconds() > 20 * 60:
+        return {**base, "reason": "unverified_counter_momentum", "signal": signal}
+    against_pips = -side * (latest_ohlc[3] - previous[1][3]) / PIP
+    if against_pips < 1.5:
+        return {**base, "reason": "no_recent_countertrend_followthrough",
+                "counter_momentum_15m_pips": round(against_pips, 2), "signal": signal}
+    return {
+        **base, "close": True, "reason": "winning_position_h1_outer_band_snapback",
+        "signal": signal, "profit_pips": round(profit_pips, 2),
+        "profit_r": round(profit_r, 3),
+        "counter_momentum_15m_pips": round(against_pips, 2),
+        "last_completed_1m": (latest_at + timedelta(minutes=1)).isoformat(),
+        "execution_basis": "EXISTING_DAILY_POSITION_EXIT_MID_TO_EXEC_SIDE",
     }
