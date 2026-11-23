@@ -4,6 +4,12 @@ on:
   pull_request:
     paths:
       - "scripts/investments_wes.py"
+      - "scripts/eurusd_h1_bollinger_snapback.py"
+      - "scripts/investments_weekly_ma_structure.py"
+      - "scripts/daily_eurusd_bollinger_h1.py"
+      - "scripts/daily_eurusd_range_exit.py"
+      - "scripts/daily_eurusd_spot_v14.py"
+      - "tests/test_eurusd_h1_bollinger_snapback.py"
       - "scripts/investments_wes_runner.py"
       - "scripts/investments_wes_lifecycle.py"
       - "scripts/investments_weekly_v5.py"
@@ -44,6 +50,11 @@ jobs:
       - name: Compile all changed code
         run: |
           python -m py_compile \
+            scripts/eurusd_h1_bollinger_snapback.py \
+            scripts/daily_eurusd_bollinger_h1.py \
+            scripts/daily_eurusd_range_exit.py \
+            scripts/daily_eurusd_spot_v14.py \
+            scripts/investments_weekly_ma_structure.py \
             scripts/investments_wes.py \
             scripts/investments_wes_runner.py \
             scripts/investments_wes_lifecycle.py \
@@ -60,6 +71,8 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}
         run: |
           python -m unittest -v \
+            tests.test_eurusd_h1_bollinger_snapback \
+            tests.test_daily_eurusd_range_exit \
             tests.test_investments_wes \
             tests.test_investments_wes_memory \
             tests.test_investments_weekly_v5 \
