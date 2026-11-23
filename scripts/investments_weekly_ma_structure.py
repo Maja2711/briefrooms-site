@@ -159,6 +159,26 @@ def context(instrument_id: str, now: datetime, policy: Dict[str, Any]) -> Dict[s
                 "reason": type(exc).__name__, "evaluated_at": now.isoformat(timespec="seconds")}
 
 
+def band_reentry_conflicts(ma_context: Dict[str, Any], direction: str,
+                           *, execution_at: Optional[datetime] = None) -> bool:
+    """Read-only timing veto: never mutates Weekly Champion direction."""
+    if not isinstance(ma_context, dict) or ma_context.get("data_quality") != "passed":
+        return False
+    band = ma_context.get("h1_bollinger_snapback")
+    if not isinstance(band, dict) or not snapback.blocks_direction(band, direction):
+        return False
+    if execution_at is not None:
+        # A later H1 signal cannot retrospectively veto a previous valid fill.
+        try:
+            signal_at = datetime.fromisoformat(str(band["last_closed_h1"]))
+            if (execution_at.tzinfo is None or signal_at.tzinfo is None
+                    or execution_at < signal_at):
+                return False
+        except (ValueError, KeyError, TypeError):
+            return False
+    return True
+
+
 def apply_to_candidates(instrument_id: str, candidates: Dict[str, Dict[str, Any]], ma_context: Dict[str, Any], policy: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     rows = {key: dict(value) for key, value in candidates.items()}
     if instrument_id != INSTRUMENT_ID or ma_context.get("data_quality") != "passed":
