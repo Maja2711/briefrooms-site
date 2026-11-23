@@ -14,6 +14,8 @@ from typing import Any, Dict, Optional
 import pandas as pd
 import yfinance as yf
 
+import eurusd_h1_bollinger_snapback as snapback
+
 from instrument_registry import canonical_vendor_symbol
 
 INSTRUMENT_ID = "eurusd"
@@ -86,6 +88,21 @@ def _snapshot(df: pd.DataFrame, before: pd.Timestamp) -> Optional[Dict[str, Any]
     }
 
 
+def h1_snapback_from_frame(frame: pd.DataFrame, now: datetime) -> Dict[str, Any]:
+    """Use Yahoo H1 bars as opens, never include the uncompleted last hour."""
+    if now.tzinfo is None:
+        return {"available": False, "reason": "missing_aware_clock", "confirmed": False}
+    ts = pd.Timestamp(now)
+    candles = []
+    for at, row in _clean(frame).iterrows():
+        finished = at.to_pydatetime() + pd.Timedelta(hours=1)
+        if finished > now:
+            continue
+        candles.append((finished, row["open"], row["high"], row["low"], row["close"]))
+    return snapback.assess_closed_h1(
+        candles, now, source="WES_EURUSD_YAHOO_COMPLETED_H1")
+
+
 def context(instrument_id: str, now: datetime, policy: Dict[str, Any]) -> Dict[str, Any]:
     cfg = _cfg(policy)
     if instrument_id != INSTRUMENT_ID or not cfg.get("enabled", False):
@@ -100,6 +117,7 @@ def context(instrument_id: str, now: datetime, policy: Dict[str, Any]) -> Dict[s
             ts = ts.tz_localize(TZ)
         else:
             ts = ts.tz_convert(TZ)
+        h1_reentry = h1_snapback_from_frame(h1, ts.to_pydatetime())
         h1s = _snapshot(_features(h1), ts)
         d1s = _snapshot(_features(d1), ts)
         w1s = _snapshot(_features(_resample(d1, "W-FRI")), ts)
@@ -131,7 +149,8 @@ def context(instrument_id: str, now: datetime, policy: Dict[str, Any]) -> Dict[s
             "enabled": True, "instrument_id": instrument_id, "data_quality": "passed",
             "score": round(score, 4), "score_cap": cap,
             "direction": "long" if score > 0 else "short" if score < 0 else "neutral",
-            "components": {"W1": w1s, "D1": d1s, "H1": h1s}, "reasons": reasons,
+            "components": {"W1": w1s, "D1": d1s, "H1": h1s},
+            "h1_bollinger_snapback": h1_reentry, "reasons": reasons,
             "evaluated_at": now.isoformat(timespec="seconds"),
             "governance": "bounded_context_only_no_veto_no_standalone_trade_trigger",
         }
