@@ -21,6 +21,9 @@ import investments_weekly_v2 as v2
 import investments_weekly_v4 as v4
 import investments_weekly_v5 as v5
 import investments_wes as wes
+import investments_weekly_v3 as v3
+import investments_weekly_ma_structure as ma_structure
+import eurusd_h1_bollinger_snapback as snapback
 
 ROOT = Path(__file__).resolve().parents[1]
 WEEKLY_DIR = ROOT / "data" / "investments" / "weekly"
@@ -246,6 +249,109 @@ def apply_open_reentry_metadata(path: Optional[Path] = None) -> bool:
         v4.write(path, week)
     return changed
 
+def review_eurusd_band_snapback_close(path: Path, now: datetime) -> bool:
+    """Profit-only, prospective WES EURUSD early exit after closed H1 recross.
+
+    The existing hard SL/TP audit must have been run *first*. This check uses
+    a completed 5m close no older than 15m, H1 30/2.5 signal from the
+    existing Yahoo market source, and actual positive post-cost P/L >=6pips.
+    No backfilled fill, no stop/target movement, no BTC/SPX mutation.
+    """
+    week = v4.read(path, {})
+    item = next((row for row in (week.get("instruments") or [])
+                 if isinstance(row, dict) and row.get("instrument_id") == "eurusd"
+                 and v5.open_position(row)), None)
+    if item is None or now.tzinfo is None:
+        return False
+    entry_at = parse_dt(item.get("entry_captured_at"))
+    entry = sf(item.get("entry_price"))
+    plan = item.get("risk_plan") if isinstance(item.get("risk_plan"), dict) else {}
+    sl = sf(plan.get("stop_loss_price"))
+    tp = sf(plan.get("take_profit_price"))
+    if entry_at is None or entry is None or sl is None or tp is None:
+        return False
+    side = str(item.get("direction") or "")
+    try:
+        frame = ma_structure.yf.download(
+            ma_structure.SYMBOL, period="10d", interval="1h",
+            progress=False, auto_adjust=False, prepost=True, threads=False)
+        signal = ma_structure.h1_snapback_from_frame(frame, now)
+    except (ValueError, TypeError, RuntimeError, KeyError, OSError):
+        return False
+    if not snapback.blocks_direction(signal, side):
+        return False
+    breach_at = parse_dt(signal.get("breach_h1"))
+    signal_at = parse_dt(signal.get("last_closed_h1"))
+    if breach_at is None or signal_at is None or entry_at > breach_at:
+        return False
+
+    # This is the established Weekly close-price interface, not a fabricated
+    # fill at the first H1 overshoot or the previously frozen LIMIT target.
+    mark = v3.last_completed_5m_bar(ma_structure.SYMBOL, now)
+    if not isinstance(mark, dict):
+        return False
+    start = parse_dt(mark.get("timestamp"))
+    px = sf(mark.get("price"))
+    if start is None or px is None:
+        return False
+    bar_closed_at = start + timedelta(minutes=5)
+    age = (now - bar_closed_at).total_seconds()
+    if (bar_closed_at <= max(entry_at, signal_at)
+            or age < 0 or age > 15 * 60):
+        return False
+    h1_close = sf(signal.get("last_h1_close"))
+    if h1_close is None:
+        return False
+    # A post-H1 5m close must not already have retraced the rebound.
+    if (side == "short" and px < h1_close - 0.0001
+            or side == "long" and px > h1_close + 0.0001):
+        return False
+    profit = (entry - px if side == "short" else px - entry)
+    risk = abs(sl - entry)
+    if risk <= 0 or profit / risk < 0.20:
+        return False
+    policy = v4.read(v5.POLICY, {})
+    p_row = next((r for r in v4.policy_instruments(policy)
+                  if r.get("instrument_id") == "eurusd"), {})
+    cost_pips = max(0.0, float(p_row.get("round_trip_cost") or 0.0))
+    if (profit / snapback.PIP) - cost_pips < 6.0:
+        return False
+
+    # Re-read the canonical persisted row immediately before mutation,
+    # preserving the single-writer risk/governance contract.
+    week = v4.read(path, {})
+    current = next((r for r in (week.get("instruments") or [])
+                    if isinstance(r, dict) and r.get("instrument_id") == "eurusd"), None)
+    if (current is None or not v5.open_position(current)
+            or current.get("entry_captured_at") != item.get("entry_captured_at")
+            or current.get("entry_price") != item.get("entry_price")
+            or current.get("risk_plan") != item.get("risk_plan")):
+        return False
+    current.update(
+        exit_price=px,
+        exit_captured_at=bar_closed_at.isoformat(timespec="seconds"),
+        exit_source=str(mark.get("source") or "") + ":completed_5m_close",
+        exit_reason="wes_h1_bollinger_snapback_profit_exit",
+        exit_execution_model="prospective_h1_signal_post_event_completed_5m",
+        close_quality_status="verified_post_signal_5m_profit_exit",
+        trade_status="closed",
+        risk_status="closed_by_wes_h1_band_profit_review",
+        h1_band_exit_evidence={
+            "pattern": signal, "source": mark.get("source"),
+            "completed_5m_at": bar_closed_at.isoformat(timespec="seconds"),
+            "net_profit_after_policy_cost_pips": round(profit / snapback.PIP - cost_pips, 3),
+            "profit_r": round(profit / risk, 4),
+            "hard_stop_take_profit_prioritized": True,
+            "no_retroactive_entry_or_exit": True,
+        },
+    )
+    v2.set_result(current, px)
+    v2.mark_exposure_closed(current)
+    v5.wes_outbox.emit_weekly_event(str(week.get("week_id") or path.stem), current, "CLOSE")
+    v4.write(path, week)
+    return True
+
+
 def review_open_positions_all(now: Optional[datetime] = None) -> bool:
     """Keep SL/TP monitoring active for rolling positions after their source week ends."""
     _ = now or legacy.now_local()
@@ -254,7 +360,10 @@ def review_open_positions_all(now: Optional[datetime] = None) -> bool:
         week = v4.read(path, {})
         if not any(v5.open_position(item) for item in week.get("instruments", []) if isinstance(item, dict)):
             continue
-        changed = v2.review_open_positions(path) or changed
+        risk_closed = v2.review_open_positions(path)
+        changed = risk_closed or changed
+        # Never evaluate a discretionary band exit before hard-risk protection.
+        changed = review_eurusd_band_snapback_close(path, _ or legacy.now_local()) or changed
     return changed
 
 

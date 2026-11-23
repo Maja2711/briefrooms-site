@@ -7,6 +7,7 @@ from datetime import timedelta
 import investments_weekly as legacy
 import investments_weekly_v4 as v4
 import investments_wes as wes
+import investments_weekly_ma_structure as ma_structure
 import investments_wes_guarded_lifecycle as lifecycle
 
 
@@ -57,6 +58,12 @@ def preflight():
         item["wes_methodology"] = wes.VERSION
         data = wes.governed_candidate(iid, cfg, p_cfg, week, policy, method, now)
         decision = data["decision"]; direction = str(decision.get("direction") or "neutral")
+        ma_context = (data.get("macro") or {}).get("ma_structure") or {}
+        h1_snapback = ma_context.get("h1_bollinger_snapback") or {}
+        h1_against_entry = bool(
+            iid == "eurusd"
+            and ma_structure.band_reentry_conflicts(ma_context, direction)
+        )
         admission_meta = decision.get("directional_admission") if isinstance(decision.get("directional_admission"), dict) else {}
 
         if early_reentry:
@@ -147,7 +154,7 @@ def preflight():
         if reaffirmed_pending is not None:
             existing_pending = reaffirmed_pending
 
-        approved = base_thresholds_passed and (
+        approved = base_thresholds_passed and not h1_against_entry and (
             delta_passed
             or bypass_passed
             or persistent_plan_reaffirmed
@@ -173,6 +180,10 @@ def preflight():
                 "decision_payload_hash": existing_pending.get("payload_hash") if persistent_plan_reaffirmed else None,
             },
         }
+
+        if iid == "eurusd":
+            candidate["h1_bollinger_snapback"] = h1_snapback
+            candidate["h1_band_entry_conflict"] = h1_against_entry
 
         if initial_plan:
             item["wes_initial_admission_evaluated"] = True
@@ -237,7 +248,10 @@ def preflight():
                 "instrument_id": iid,
                 "action": "reject_initial_entry" if initial_plan else "monitor_early_reentry" if early_reentry else "monitor_no_trade",
                 **candidate,
-                "decision_reason_codes": decision.get("reason_codes"),
+                "decision_reason_codes": (
+                    [*(decision.get("reason_codes") or []), "H1_BOLLINGER_FAST_REENTRY_OPPOSES_ENTRY"]
+                    if h1_against_entry else decision.get("reason_codes")
+                ),
                 "required": profile,
             })
         changed = True

@@ -362,6 +362,31 @@ def evaluate_position(
     )
     if not relevant:
         return None
+    # EURUSD closed-H1 outer-band fast reentry: a winning position can be
+    # protected after verified countertrend followthrough, but never at a
+    # pre-signal or unfinished-minute price. Hard SL/TP/time have priority.
+    try:
+        snapback_exit = range_exit.assess_snapback(
+            position, bars, observed_at,
+            exit_price_at_mid=lifecycle.execution_risk_price,
+        )
+    except (ValueError, TypeError, KeyError, OverflowError, ArithmeticError):
+        snapback_exit = {"close": False, "reason": "snapback_exit_unavailable"}
+    if snapback_exit.get("close") is True:
+        complete_relevant = [
+            bar for bar in relevant
+            if bar.timestamp + timedelta(minutes=1) <= observed_at
+        ]
+        if complete_relevant and complete_relevant[-1].timestamp >= (
+            _parse(str((snapback_exit.get("signal") or {}).get("last_closed_h1") or ""))
+            or observed_at
+        ):
+            return _dynamic_close(
+                position, complete_relevant,
+                "DYNAMIC_H1_BOLLINGER_SNAPBACK_EXIT",
+                snapback_exit,
+            )
+
     # Production-only, prospective H1 range exit. Hard SL/TP and the hard
     # time horizon above always win; incomplete data leave R_PACE unchanged.
     # Both normal v1.9 and the fast watcher call this same evaluator.

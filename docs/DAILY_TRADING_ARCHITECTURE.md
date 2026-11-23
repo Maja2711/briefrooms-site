@@ -345,3 +345,10 @@ The local `LE-08` production admission component now owns evidence-backed reflec
 ## TR-03 adaptive post-loss criteria
 
 The initial 30% correction, support/MA and strong-signal thresholds are starting parameters. The local `LE-08` re-entry component may tighten or loosen them after prospective paired-admission tests, using the same policy state and canonical writer. Rejected opportunities can obtain verified paper reference geometry and explicitly labelled future counterfactual outcomes, while canonical output remains FLAT. Source truth, native direction, EPE and SL/TP risk retain their authority. See `DAILY_EURUSD_ADAPTIVE_REENTRY.md` for selection, monitoring, rollback and the single-opportunity measurement limit.
+
+## EUR/USD H1 Bollinger 30/2.5 — strong breach + confirmed fast reentry (2026-11-23)
+
+Daily v1.9 already evaluates Bollinger (30 periods, 2.5 standard deviations) on completed H1 candles reconstructed from independently completed Saxo 30m pairs. The new pure `eurusd_h1_bollinger_snapback.py` observes a material wick outside the previous as-of band and a subsequent completed-hour close back inside. It may veto the opposing **new** Daily entry but has no Native Belief direction, EPE, promotion, SL/TP or retroactive fill authority.
+
+For an open Daily EUR/USD position, the existing `daily_eurusd_range_exit.py` reconstructs this same signal from **canonical 1m** candles for the normal monitor and five-second exit-only watcher. Following the established hard SL/TP and hard-time priority, a verified fresh post-signal 1m bar and 15-minute countertrend price action can protect a winning position with executable-side profit >=6 pips and >=0.20R. Data gaps/staleness do not create an exit. This is paper-only experimental risk management; a single chart is insufficient to prove profitability.
+

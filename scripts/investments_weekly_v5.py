@@ -12,6 +12,7 @@ import investments_weekly_v2 as v2
 import investments_weekly_v3 as v3
 import investments_weekly_v4 as v4
 import investments_weekly_macro as macro
+import investments_weekly_ma_structure as ma_structure
 import no_retroactive_execution as no_retro
 import execution_price_engine as epe
 import wes_notification_outbox as wes_outbox
@@ -1712,6 +1713,14 @@ def ensure_all() -> Dict[str, Any]:
             macro_context,
         )
         decision["macro_context"] = macro_context
+        h1_band_context = (macro_context.get("ma_structure") or {})
+        h1_against_entry = bool(
+            iid == "eurusd" and ma_structure.band_reentry_conflicts(
+                h1_band_context, str(decision.get("direction") or "neutral"))
+        )
+        if iid == "eurusd":
+            state.setdefault("h1_bollinger_snapback", {})[iid] = (
+                h1_band_context.get("h1_bollinger_snapback") or {})
         decision["contextual_learning"] = contextual_learning
         state["instruments"][iid] = {"regime": regime, "learning": choice_learning, "selected_leg_learning": learning,
                                      "contextual_learning": contextual_learning, "decision": decision, "macro_context": macro_context,
@@ -1746,6 +1755,15 @@ def ensure_all() -> Dict[str, Any]:
         recovered = recover_frozen_pending_touch(item, str(cfg.get("symbol") or ""), now)
         if recovered is not None:
             pending, point = recovered
+            if (iid == "eurusd" and ma_structure.band_reentry_conflicts(
+                h1_band_context, str((pending.get("decision") or {}).get("direction") or ""),
+                execution_at=parse_dt(point.get("timestamp")))):
+                report["actions"].append({
+                    "instrument_id": iid, "action": "wait_h1_bollinger_snapback_clearance",
+                    "reason": "H1_BOLLINGER_FAST_REENTRY_OPPOSES_ENTRY",
+                    "execution_at": point.get("timestamp"),
+                })
+                continue
             if iid == "eurusd":
                 cb_fill_allowed, cb_fill_reason = cb_event.entry_fill_allowed(point, cb_review, now=now)
                 if not cb_fill_allowed:
@@ -1842,6 +1860,16 @@ def ensure_all() -> Dict[str, Any]:
             changed = True
             report["actions"].append({"instrument_id": iid, "action": "no_trade", "reason_codes": [authorization_reason]})
             continue
+        # If the opposing H1 pattern is already confirmed, do not create a
+        # NEW frozen entry. A previously frozen pending target is handled
+        # separately, with point-in-time ordering checked at actual fill.
+        if h1_against_entry and not isinstance(item.get("pending_entry_decision"), dict):
+            report["actions"].append({
+                "instrument_id": iid,
+                "action": "wait_h1_bollinger_snapback_clearance",
+                "reason": "H1_BOLLINGER_FAST_REENTRY_OPPOSES_ENTRY",
+            })
+            continue
         saved_pending = item.get("pending_entry_decision")
         pending = (
             saved_pending
@@ -1891,6 +1919,15 @@ def ensure_all() -> Dict[str, Any]:
                 "expires_at": entry_plan.get("expires_at"),
                 "overextension_score": (entry_plan.get("inputs") or {}).get("overextension_score"),
                 "market_entry_diagnostics": entry_plan.get("market_entry_diagnostics"),
+            })
+            continue
+        if (iid == "eurusd" and ma_structure.band_reentry_conflicts(
+            h1_band_context, str((pending.get("decision") or {}).get("direction") or ""),
+            execution_at=parse_dt(point.get("timestamp")))):
+            report["actions"].append({
+                "instrument_id": iid, "action": "wait_h1_bollinger_snapback_clearance",
+                "reason": "H1_BOLLINGER_FAST_REENTRY_OPPOSES_ENTRY",
+                "execution_at": point.get("timestamp"),
             })
             continue
         if iid == "eurusd":

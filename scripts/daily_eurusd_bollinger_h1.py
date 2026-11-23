@@ -10,6 +10,8 @@ from __future__ import annotations
 from datetime import timedelta, timezone
 from math import isfinite, sqrt
 
+import eurusd_h1_bollinger_snapback as snapback
+
 PERIOD = 30
 MULTIPLIER = 2.5
 MAX_AGE_MINUTES = 90
@@ -105,6 +107,11 @@ def evaluate(bars, direction, observed_at, *, minute_bars=None):
                 "closed_h1": len(candles),
                 "last_closed_h1": candles[-1][0].isoformat(),
                 "age_minutes": round(age_minutes, 2)}
+    # Same as-of completed H1 OHLC already used for Daily admission.
+    # A strong outer-band pierce followed by a closed-hour return is separate
+    # from one-candle "exhaustion"; neither is a new Belief direction.
+    snap = snapback.assess_closed_h1(candles, observed_at,
+                                    source="DAILY_EURUSD_VERIFIED_30M_PAIRS")
     closes = [row[4] for row in candles]
 
     def band(index):
@@ -182,13 +189,16 @@ def evaluate(bars, direction, observed_at, *, minute_bars=None):
     lower_rejection = previous <= lower and price > previous
     aligned = trend_long if direction == "LONG" else trend_short
     exhaustion = upper_rejection if direction == "LONG" else lower_rejection
-    allowed = bool((aligned and not exhaustion and not range_regime and not marginal_crossing)
-                   or (range_structure and range_edge["allowed"]))
+    snapback_conflicts = snapback.blocks_direction(snap, direction)
+    allowed = bool(((aligned and not exhaustion and not range_regime and not marginal_crossing)
+                    or (range_structure and range_edge["allowed"]))
+                   and not snapback_conflicts)
     strong_trend_confirmed = bool(
         allowed and not range_structure and abs(middle_gap_pips) >= 5.0
         and abs(slope_pips) >= 1.0 and abs(slope_3h_pips) >= 2.0
     )
-    reason = ("h1_range_outer_band_bounce" if range_structure and range_edge["allowed"]
+    reason = ("outer_band_fast_reentry_against_entry" if snapback_conflicts
+              else "h1_range_outer_band_bounce" if range_structure and range_edge["allowed"]
               else "h1_range_middle_whipsaw" if range_structure
               else "h1_range_middle_whipsaw" if range_regime
               else "h1_middle_break_unconfirmed" if marginal_crossing
@@ -198,6 +208,7 @@ def evaluate(bars, direction, observed_at, *, minute_bars=None):
 
     return {
         "available": True, "allowed": allowed, "reason": reason,
+        "outer_band_snapback": snap,
         "role": "PRIMARY_TECHNICAL_ADMISSION",
         "direction_mutation_allowed": False, "weight": "HIGH_VETO_NEW_ENTRY",
         "period": PERIOD, "deviations": MULTIPLIER,
