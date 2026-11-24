@@ -16,6 +16,8 @@ on:
       - "scripts/audit_provenance.py"
       - "scripts/provenance_contract.py"
       - "scripts/audit_intraday_risk_exits.py"
+      - "scripts/wes_eurusd_profit_protection.py"
+      - "tests/test_wes_eurusd_profit_protection.py"
       - "scripts/wes_risk_observatory.py"
       - "tests/test_wes_risk_observatory.py"
       - "tests/test_wes_limit_contract_hardening.py"
@@ -96,11 +98,17 @@ jobs:
           python scripts/investments_weekly_v5.py --mode ensure-exposure
           # Freeze entry+7d without changing quotes or inventing fills.
           python -c 'import sys; sys.path.insert(0, "scripts"); import investments_wes_guarded_lifecycle as g; g.apply_open_reentry_metadata()'
-      - name: Execute WES SL TP
+      - name: Execute WES hard SL TP and prospective EURUSD profit protection
         run: |
           set -euo pipefail
-          python -m py_compile scripts/audit_intraday_risk_exits.py scripts/wes_notification_outbox.py
+          python -m py_compile scripts/audit_intraday_risk_exits.py scripts/wes_eurusd_profit_protection.py scripts/wes_notification_outbox.py
+          python -m unittest tests.test_wes_eurusd_profit_protection -v
           python scripts/audit_intraday_risk_exits.py --persist-report on_close
+      - name: Render any verified WES close without waiting for the next 15m WES cycle
+        run: |
+          if ! git diff --quiet -- data/investments/weekly; then
+            python scripts/render_simple_investments.py
+          fi
       - name: Observe WES profit giveback and rejected entry funnel
         run: |
           set -euo pipefail
@@ -132,7 +140,11 @@ jobs:
                   data/investments/multi_instrument_exposure_report_v5.json \
                   data/investments/wes_decision_ledger.json \
                   data/investments/wes_v5_history_seal_manifest.json \
-                  data/notifications/wes-event-outbox.json
+                  data/notifications/wes-event-outbox.json \\
+                  pl/inwestycje/pozycje-tygodniowe.html \\
+                  en/investing/open-weekly-positions.html \\
+                  pl/inwestycje/prognozy-tygodniowe.html \\
+                  en/investing/weekly-forecasts.html
           if git diff --cached --quiet; then
             echo "No WES execution state changes"
             echo "changed=false" >> "$GITHUB_OUTPUT"
