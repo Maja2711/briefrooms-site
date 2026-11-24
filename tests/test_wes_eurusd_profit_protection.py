@@ -7,6 +7,9 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 from scripts import wes_eurusd_profit_protection as guard
 from scripts import audit_intraday_risk_exits as risk
