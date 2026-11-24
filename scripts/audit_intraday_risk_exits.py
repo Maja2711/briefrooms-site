@@ -521,13 +521,26 @@ def audit(
             report["kept"].append({"instrument_id": iid, "reason": "risk_plan_not_yet_active"})
             continue
 
+        # EURUSD carries its verified 5m chart only once per audit, for
+        # BOTH frozen SL/TP priority and the later optional profit review.
+        # BTC/SPX retain their original independent source semantics.
+        eurusd_bars = None
+        symbol = str(item.get("symbol") or "")
         hit = canonical_live_risk_hit(iid, side, sl, tp, active_after, checked_at)
         if hit is not None:
             errors, authority = [], "canonical_wes_live_price_primary"
         elif iid == "btcusd":
             hit, errors, authority = _btc_evidence(active_after, checked_at, side, sl, tp)
+        elif iid == "eurusd":
+            if not symbol:
+                report["errors"].append({"instrument_id": iid, "reason": "missing_symbol"})
+                continue
+            try:
+                eurusd_bars = fetch_yahoo_bars(symbol, active_after, checked_at)
+                hit, errors, authority = first_hit(eurusd_bars, side, sl, tp, active_after), [], "yahoo_primary"
+            except Exception as exc:
+                hit, errors, authority = None, [f"yahoo:{exc}"], "yahoo_primary"
         else:
-            symbol = str(item.get("symbol") or "")
             if not symbol:
                 report["errors"].append({"instrument_id": iid, "reason": "missing_symbol"})
                 continue
@@ -547,9 +560,13 @@ def audit(
             )
             if iid == "eurusd" and is_governed_wes and not errors and symbol:
                 try:
-                    five_min = fetch_yahoo_bars(symbol, active_after, checked_at)
-                    # We must not infer a voluntary exit when the hard-risk
-                    # history could not be verified.
+                    # When a separate verified live quote was the hard-risk
+                    # source, obtain its full 5m history here too; otherwise
+                    # reuse the exact same 5m observations checked above.
+                    five_min = (eurusd_bars if eurusd_bars is not None
+                                else fetch_yahoo_bars(symbol, active_after, checked_at))
+                    # Never profit-close a leg whose original hard SL/TP was
+                    # already touched in the source OHLC history.
                     missed = first_hit(five_min, side, sl, tp, active_after)
                     if missed is not None:
                         apply_exit(item, missed, checked_at)
