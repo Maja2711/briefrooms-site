@@ -162,7 +162,13 @@ def assess(
     extrema = [(b.low if side == "short" else b.high) for b in rows]
     if any(_float(p) is None or p <= 0 for p in extrema):
         return _no("invalid_historical_5m_extrema")
-    best_price = min(extrema) if side == "short" else max(extrema)
+    completed_closes = [_float(getattr(b, "close", None)) for b in rows]
+    if any(v is None or v <= 0 for v in completed_closes):
+        return _no("missing_confirmed_5m_closes_for_peak")
+    # Use *completed candle closes* for the peak threshold. A solitary
+    # extraordinary wick is not evidence of an executable 100-pip profit.
+    best_price = min(completed_closes) if side == "short" else max(completed_closes)
+    extreme_wick = min(extrema) if side == "short" else max(extrema)
     peak_gross = sign*(best_price-entry)/PIP
     current_gross = sign*(price-entry)/PIP
     peak_net = peak_gross-cost
@@ -198,6 +204,7 @@ def assess(
         "source": str(getattr(last,"source","")),
         "peak_basis": "POST_ENTRY_5M_EXTREME_ASOF_THIS_CYCLE_NOT_A_HISTORICAL_FILL",
         "peak_price": round(best_price,8),
+        "extreme_wick_price_not_used_for_peak": round(extreme_wick,8),
         "peak_gross_pips": round(peak_gross,2),
         "peak_net_proxy_pips": round(peak_net,2),
         "current_gross_pips": round(current_gross,2),
