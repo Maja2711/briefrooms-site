@@ -128,26 +128,29 @@
       "reentry_lock": {
         "active": false,
         "scope": "wes_directional_admission",
-        "released_at": "2026-11-23T10:44:56+01:00",
+        "released_at": "2026-11-24T21:51:47+01:00",
         "reason": "wes_1_3_1_directional_admission_qualified"
       },
       "wes_status": "directional_entry_pending_execution",
       "wes_entry_authorization": {
-        "authorized_at": "2026-11-24T18:38:34+01:00",
-        "expires_at": "2026-11-24T19:38:34+01:00",
-        "authorization_type": "live_reauthorization_after_missed_execution_window",
+        "authorized_at": "2026-11-24T21:51:47+01:00",
+        "expires_at": "2026-11-24T22:51:47+01:00",
+        "authorization_type": "early_close_reentry",
+        "holding_policy": "early_close_reentry_7_calendar_days",
         "directional_admission_passed": true,
         "candidate": {
           "direction": "short",
           "strategy_id": "weekly_trend",
           "raw_score": 95.0,
-          "utility": 11.3067,
+          "utility": 11.3517,
+          "signal_delta_from_initial": 95.0,
           "confirmations": 3,
           "confirmation_sources": [
             "daily",
             "ma_structure",
             "weekly"
           ],
+          "entry_class": "early_close_reentry",
           "execution_authority": "champion_execution",
           "directional_admission": {
             "version": "WES-1.3.1",
@@ -160,33 +163,74 @@
             ],
             "execution_authority": "champion_execution",
             "passed": true
-          }
+          },
+          "delta_gate": {
+            "delta": 95.0,
+            "required_delta": 15.0,
+            "passed": true,
+            "absolute_strength_bypass": {
+              "version": "WES-1.3.1",
+              "eligible": true,
+              "raw": 95.0,
+              "required_raw": 58.5,
+              "raw_multiplier": 1.3,
+              "utility": 11.3517,
+              "required_utility": 10.4,
+              "utility_multiplier": 1.3,
+              "confirmations": 3,
+              "required_confirmations": 2,
+              "confirmation_sources": [
+                "daily",
+                "ma_structure",
+                "weekly"
+              ],
+              "require_daily_weekly_confirmation": true,
+              "reasons": []
+            },
+            "persistent_plan_reaffirmed": false,
+            "decision_id": null,
+            "decision_payload_hash": null
+          },
+          "h1_bollinger_snapback": {
+            "available": false,
+            "confirmed": false,
+            "pattern": "UNAVAILABLE",
+            "reason": "insufficient_closed_h1",
+            "period": 30,
+            "deviations": 2.5,
+            "direction_authority": false,
+            "execution_authority": false,
+            "closed_h1": 0
+          },
+          "h1_band_entry_conflict": false
         },
         "required": {
           "allowed": true,
-          "raw": 35.0,
-          "utility": 6.0,
-          "confirmations": 2
+          "raw": 45.0,
+          "utility": 8.0,
+          "confirmations": 2,
+          "delta": 15.0,
+          "profile": "early_close_reentry",
+          "holding_horizon_days": 7,
+          "learning_threshold_adjustment": -3.0
         },
-        "source_exit_at": null,
-        "source_exit_reason": null,
-        "prospective_only": true,
-        "no_retroactive_execution": true
+        "source_exit_at": "2026-11-24T18:35:00+01:00",
+        "source_exit_reason": "wes_eurusd_peak_profit_giveback_exit"
       },
       "wes_initial_no_trade_score": 67.0,
       "next_entry_status": "waiting_for_market_entry",
       "latest_macro_context": {
         "as_of": "2026-11-24T00:00:00",
         "data_quality": "passed",
-        "macro_score": 22.075,
+        "macro_score": 22.1694,
         "macro_direction": "long",
         "position_direction": "short",
         "aligned": false,
         "observations": {
-          "oil_1w_percent": -5.2203,
-          "oil_4w_percent": -18.3984,
-          "us10y_1w_bps": -20.5,
-          "us10y_4w_bps": -9.5
+          "oil_1w_percent": -5.3598,
+          "oil_4w_percent": -18.5185,
+          "us10y_1w_bps": -19.9,
+          "us10y_4w_bps": -8.9
         },
         "ma_structure": {
           "enabled": true,
@@ -212,29 +256,29 @@
             },
             "D1": {
               "bar_at": "2026-11-24T01:00:00+01:00",
-              "close": 1.097454,
-              "ma30": 1.114012,
-              "ma60": 1.128456,
-              "ma100": 1.137659,
-              "ma200": 1.149745,
+              "close": 1.096732,
+              "ma30": 1.113988,
+              "ma60": 1.128444,
+              "ma100": 1.137652,
+              "ma200": 1.149742,
               "slow_trend": -1,
               "price_vs_all": -1,
               "nearest_ma": "ma30",
-              "nearest_ma_distance_atr": 2.0618,
+              "nearest_ma_distance_atr": 2.1488,
               "support_hold_long": false,
               "resistance_hold_short": false
             },
             "H1": {
-              "bar_at": "2026-11-24T18:00:00+01:00",
-              "close": 1.097454,
-              "ma30": 1.092688,
-              "ma60": 1.095375,
-              "ma100": 1.096395,
-              "ma200": 1.099443,
+              "bar_at": "2026-11-24T21:00:00+01:00",
+              "close": 1.096732,
+              "ma30": 1.093004,
+              "ma60": 1.095292,
+              "ma100": 1.096379,
+              "ma200": 1.099249,
               "slow_trend": -1,
               "price_vs_all": 0,
               "nearest_ma": "ma100",
-              "nearest_ma_distance_atr": 0.8781,
+              "nearest_ma_distance_atr": 0.296,
               "support_hold_long": false,
               "resistance_hold_short": false
             }
@@ -253,22 +297,22 @@
           "reasons": [
             "d1_below_all_ma"
           ],
-          "evaluated_at": "2026-11-24T18:38:34+01:00",
+          "evaluated_at": "2026-11-24T21:51:52+01:00",
           "governance": "bounded_context_only_no_veto_no_standalone_trade_trigger"
         },
         "rule": "Context is recorded immediately; an open weekly position is changed only by the governed review rules."
       },
       "pending_entry_decision": {
-        "decided_at": "2026-11-24T18:38:34+01:00",
-        "entry_not_before": "2026-11-24T18:38:34+01:00",
+        "decided_at": "2026-11-24T21:51:52+01:00",
+        "entry_not_before": "2026-11-24T21:51:52+01:00",
         "decision": {
           "direction": "short",
           "raw_score": -95.0,
-          "conviction": 10.585,
-          "base_conviction": 10.585,
-          "macro_alignment_adjustment": -4.415,
-          "macro_context_score": 22.075,
-          "ma_structure_base_conviction": 9.835,
+          "conviction": 10.5661,
+          "base_conviction": 10.5661,
+          "macro_alignment_adjustment": -4.4339,
+          "macro_context_score": 22.1694,
+          "ma_structure_base_conviction": 9.8161,
           "ma_structure_adjustment": 0.75,
           "ma_structure_score": -1.0,
           "research_lab_bridge": {
@@ -292,19 +336,19 @@
           "learning_count": 11,
           "learning_adjustment": 0.0,
           "exploration_bonus": 0.7217,
-          "utility": 11.3067,
+          "utility": 11.2878,
           "execution_authority": "champion_execution",
           "execution_eligible": true,
           "instrument_id": "eurusd",
           "candidates": {
             "inverse_v2": {
               "direction": "long",
-              "raw_score": 58.0,
-              "conviction": 12.365,
-              "base_conviction": 12.365,
-              "macro_alignment_adjustment": 4.415,
-              "macro_context_score": 22.075,
-              "ma_structure_base_conviction": 13.115,
+              "raw_score": 59.0,
+              "conviction": 12.5339,
+              "base_conviction": 12.5339,
+              "macro_alignment_adjustment": 4.4339,
+              "macro_context_score": 22.1694,
+              "ma_structure_base_conviction": 13.2839,
               "ma_structure_adjustment": -0.75,
               "ma_structure_score": -1.0,
               "research_lab_bridge": {
@@ -328,18 +372,18 @@
               "learning_count": 11,
               "learning_adjustment": 0.0,
               "exploration_bonus": 0.7217,
-              "utility": 13.0867,
+              "utility": 13.2556,
               "execution_authority": "challenger_shadow",
               "execution_eligible": false
             },
             "weekly_trend": {
               "direction": "short",
               "raw_score": -95.0,
-              "conviction": 10.585,
-              "base_conviction": 10.585,
-              "macro_alignment_adjustment": -4.415,
-              "macro_context_score": 22.075,
-              "ma_structure_base_conviction": 9.835,
+              "conviction": 10.5661,
+              "base_conviction": 10.5661,
+              "macro_alignment_adjustment": -4.4339,
+              "macro_context_score": 22.1694,
+              "ma_structure_base_conviction": 9.8161,
               "ma_structure_adjustment": 0.75,
               "ma_structure_score": -1.0,
               "research_lab_bridge": {
@@ -363,18 +407,18 @@
               "learning_count": 11,
               "learning_adjustment": 0.0,
               "exploration_bonus": 0.7217,
-              "utility": 11.3067,
+              "utility": 11.2878,
               "execution_authority": "champion_execution",
               "execution_eligible": true
             },
             "ema_mean_reversion": {
               "direction": "long",
               "raw_score": 40.0,
-              "conviction": 9.665,
-              "base_conviction": 9.665,
-              "macro_alignment_adjustment": 4.415,
-              "macro_context_score": 22.075,
-              "ma_structure_base_conviction": 10.415,
+              "conviction": 9.6839,
+              "base_conviction": 9.6839,
+              "macro_alignment_adjustment": 4.4339,
+              "macro_context_score": 22.1694,
+              "ma_structure_base_conviction": 10.4339,
               "ma_structure_adjustment": -0.75,
               "ma_structure_score": -1.0,
               "research_lab_bridge": {
@@ -398,18 +442,18 @@
               "learning_count": 11,
               "learning_adjustment": 0.0,
               "exploration_bonus": 0.7217,
-              "utility": 10.3867,
+              "utility": 10.4056,
               "execution_authority": "champion_execution",
               "execution_eligible": true
             },
             "daily_weekly_blend": {
               "direction": "short",
-              "raw_score": -72.8,
-              "conviction": 7.255,
-              "base_conviction": 7.255,
-              "macro_alignment_adjustment": -4.415,
-              "macro_context_score": 22.075,
-              "ma_structure_base_conviction": 6.505,
+              "raw_score": -73.4,
+              "conviction": 7.3261,
+              "base_conviction": 7.3261,
+              "macro_alignment_adjustment": -4.4339,
+              "macro_context_score": 22.1694,
+              "ma_structure_base_conviction": 6.5761,
               "ma_structure_adjustment": 0.75,
               "ma_structure_score": -1.0,
               "research_lab_bridge": {
@@ -433,28 +477,28 @@
               "learning_count": 11,
               "learning_adjustment": 0.0,
               "exploration_bonus": 0.7217,
-              "utility": 7.9767,
+              "utility": 8.0478,
               "execution_authority": "champion_execution",
               "execution_eligible": true
             },
             "macro_weekly_blend": {
               "direction": "short",
-              "raw_score": -39.9042,
-              "conviction": 6.7356,
-              "base_conviction": 6.7356,
+              "raw_score": -40.1755,
+              "conviction": 6.7763,
+              "base_conviction": 6.7763,
               "macro_alignment_adjustment": 0.0,
-              "macro_context_score": 22.075,
+              "macro_context_score": 22.1694,
               "inputs": {
-                "daily_score": -58.0,
+                "daily_score": -59.0,
                 "weekly_score": -95.0,
-                "macro_score_normalized": 73.5833,
+                "macro_score_normalized": 73.898,
                 "weights": {
                   "daily": 0.35,
                   "weekly": 0.4,
                   "macro": 0.25
                 }
               },
-              "ma_structure_base_conviction": 5.9856,
+              "ma_structure_base_conviction": 6.0263,
               "ma_structure_adjustment": 0.75,
               "ma_structure_score": -1.0,
               "research_lab_bridge": {
@@ -478,18 +522,18 @@
               "learning_count": 10,
               "learning_adjustment": 0.0,
               "exploration_bonus": 0.7538,
-              "utility": 7.4894,
+              "utility": 7.5301,
               "execution_authority": "champion_execution",
               "execution_eligible": true
             },
             "base_v2": {
               "direction": "short",
-              "raw_score": -58.0,
-              "conviction": 5.035,
-              "base_conviction": 5.035,
-              "macro_alignment_adjustment": -4.415,
-              "macro_context_score": 22.075,
-              "ma_structure_base_conviction": 4.285,
+              "raw_score": -59.0,
+              "conviction": 5.1661,
+              "base_conviction": 5.1661,
+              "macro_alignment_adjustment": -4.4339,
+              "macro_context_score": 22.1694,
+              "ma_structure_base_conviction": 4.4161,
               "ma_structure_adjustment": 0.75,
               "ma_structure_score": -1.0,
               "research_lab_bridge": {
@@ -513,7 +557,7 @@
               "learning_count": 11,
               "learning_adjustment": 0.0,
               "exploration_bonus": 0.7217,
-              "utility": 5.7567,
+              "utility": 5.8878,
               "execution_authority": "champion_execution",
               "execution_eligible": true
             }
@@ -535,19 +579,19 @@
             "instrument_id": "eurusd",
             "data_quality": "passed",
             "direction": "long",
-            "score": 22.075,
+            "score": 22.1694,
             "score_cap": 30.0,
             "components": {
-              "oil_1w": 6.5254,
-              "oil_4w": 4.5996,
-              "us10y_1w": 10.0,
-              "us10y_4w": 0.95
+              "oil_1w": 6.6997,
+              "oil_4w": 4.6296,
+              "us10y_1w": 9.95,
+              "us10y_4w": 0.89
             },
             "observations": {
-              "oil_1w_percent": -5.2203,
-              "oil_4w_percent": -18.3984,
-              "us10y_1w_bps": -20.5,
-              "us10y_4w_bps": -9.5
+              "oil_1w_percent": -5.3598,
+              "oil_4w_percent": -18.5185,
+              "us10y_1w_bps": -19.9,
+              "us10y_4w_bps": -8.9
             },
             "sources": {
               "oil": {
@@ -564,7 +608,7 @@
               }
             },
             "as_of": "2026-11-24T00:00:00",
-            "evaluated_at": "2026-11-24T18:38:34+01:00",
+            "evaluated_at": "2026-11-24T21:51:52+01:00",
             "interpretation": "positive_supports_eurusd_long_negative_supports_eurusd_short",
             "rule": "Oil and US10Y are context inputs, not standalone trade triggers.",
             "ma_structure": {
@@ -591,29 +635,29 @@
                 },
                 "D1": {
                   "bar_at": "2026-11-24T01:00:00+01:00",
-                  "close": 1.097454,
-                  "ma30": 1.114012,
-                  "ma60": 1.128456,
-                  "ma100": 1.137659,
-                  "ma200": 1.149745,
+                  "close": 1.096732,
+                  "ma30": 1.113988,
+                  "ma60": 1.128444,
+                  "ma100": 1.137652,
+                  "ma200": 1.149742,
                   "slow_trend": -1,
                   "price_vs_all": -1,
                   "nearest_ma": "ma30",
-                  "nearest_ma_distance_atr": 2.0618,
+                  "nearest_ma_distance_atr": 2.1488,
                   "support_hold_long": false,
                   "resistance_hold_short": false
                 },
                 "H1": {
-                  "bar_at": "2026-11-24T18:00:00+01:00",
-                  "close": 1.097454,
-                  "ma30": 1.092688,
-                  "ma60": 1.095375,
-                  "ma100": 1.096395,
-                  "ma200": 1.099443,
+                  "bar_at": "2026-11-24T21:00:00+01:00",
+                  "close": 1.096732,
+                  "ma30": 1.093004,
+                  "ma60": 1.095292,
+                  "ma100": 1.096379,
+                  "ma200": 1.099249,
                   "slow_trend": -1,
                   "price_vs_all": 0,
                   "nearest_ma": "ma100",
-                  "nearest_ma_distance_atr": 0.8781,
+                  "nearest_ma_distance_atr": 0.296,
                   "support_hold_long": false,
                   "resistance_hold_short": false
                 }
@@ -632,7 +676,7 @@
               "reasons": [
                 "d1_below_all_ma"
               ],
-              "evaluated_at": "2026-11-24T18:38:34+01:00",
+              "evaluated_at": "2026-11-24T21:51:52+01:00",
               "governance": "bounded_context_only_no_veto_no_standalone_trade_trigger"
             }
           },
@@ -733,35 +777,35 @@
               }
             }
           },
-          "decided_at": "2026-11-24T18:38:34+01:00",
+          "decided_at": "2026-11-24T21:51:52+01:00",
           "validation_gate": "enabled_for_paper_trading"
         },
         "fresh_signal": {
           "direction": "short",
-          "score": -58,
-          "signal_strength": 0.58,
-          "confidence": 0.58,
+          "score": -59,
+          "signal_strength": 0.59,
+          "confidence": 0.59,
           "confidence_type": "heuristic_signal_strength_not_probability",
           "data_quality": "passed",
           "quality_reason": "at_least_260_closes_and_complete_volatility_inputs",
           "signals": {
-            "last_close": 1.09745395,
-            "ema20": 1.10832523,
-            "ema50": 1.12076355,
+            "last_close": 1.09673166,
+            "ema20": 1.10825644,
+            "ema50": 1.12073523,
             "atr14": 0.00803081,
-            "ret5_pct": -0.2151,
-            "ret20_pct": -1.7834,
-            "vol20_annualized_pct": 5.5279,
-            "vol60_annualized_pct": 4.4602,
-            "volatility_regime_ratio": 1.2394,
+            "ret5_pct": -0.2808,
+            "ret20_pct": -1.848,
+            "vol20_annualized_pct": 5.5143,
+            "vol60_annualized_pct": 4.4546,
+            "volatility_regime_ratio": 1.2379,
             "volatility_score_scale": 0.92,
-            "range55_position": 0.0073,
+            "range55_position": 0.0,
             "components": {
               "trend_ema": -20.0,
               "trend_price": -10.0,
-              "momentum5": -2.76,
-              "momentum20": -15.27,
-              "breakout": -14.78,
+              "momentum5": -3.61,
+              "momentum20": -15.86,
+              "breakout": -15.0,
               "macro_bias": 0.0,
               "event_risk_penalty": 0.0
             },
@@ -784,20 +828,20 @@
           "data_quality": "passed",
           "score": -95,
           "regime": "trend_down:vol_normal",
-          "last_week_close": 1.09745395,
-          "ema_fast": 1.11660737,
-          "ema_slow": 1.13662766,
+          "last_week_close": 1.09673166,
+          "ema_fast": 1.11647604,
+          "ema_slow": 1.13658106,
           "weekly_atr13": 0.01288796,
-          "return_4w_percent": -1.8624,
-          "return_13w_percent": -5.8494,
-          "volatility_ratio_13w_52w": 0.7598,
-          "range_26w_position": 0.0067,
+          "return_4w_percent": -1.927,
+          "return_13w_percent": -5.9114,
+          "volatility_ratio_13w_52w": 0.7542,
+          "range_26w_position": 0.0,
           "components": {
             "trend": -35.0,
             "momentum_fast": -25.0,
             "momentum_slow": -20.0,
-            "breakout": -14.8,
-            "last_candle": 0.06,
+            "breakout": -15.0,
+            "last_candle": -0.23,
             "volatility_scale": 1.0
           }
         },
@@ -806,19 +850,19 @@
           "instrument_id": "eurusd",
           "data_quality": "passed",
           "direction": "long",
-          "score": 22.075,
+          "score": 22.1694,
           "score_cap": 30.0,
           "components": {
-            "oil_1w": 6.5254,
-            "oil_4w": 4.5996,
-            "us10y_1w": 10.0,
-            "us10y_4w": 0.95
+            "oil_1w": 6.6997,
+            "oil_4w": 4.6296,
+            "us10y_1w": 9.95,
+            "us10y_4w": 0.89
           },
           "observations": {
-            "oil_1w_percent": -5.2203,
-            "oil_4w_percent": -18.3984,
-            "us10y_1w_bps": -20.5,
-            "us10y_4w_bps": -9.5
+            "oil_1w_percent": -5.3598,
+            "oil_4w_percent": -18.5185,
+            "us10y_1w_bps": -19.9,
+            "us10y_4w_bps": -8.9
           },
           "sources": {
             "oil": {
@@ -835,7 +879,7 @@
             }
           },
           "as_of": "2026-11-24T00:00:00",
-          "evaluated_at": "2026-11-24T18:38:34+01:00",
+          "evaluated_at": "2026-11-24T21:51:52+01:00",
           "interpretation": "positive_supports_eurusd_long_negative_supports_eurusd_short",
           "rule": "Oil and US10Y are context inputs, not standalone trade triggers.",
           "ma_structure": {
@@ -862,29 +906,29 @@
               },
               "D1": {
                 "bar_at": "2026-11-24T01:00:00+01:00",
-                "close": 1.097454,
-                "ma30": 1.114012,
-                "ma60": 1.128456,
-                "ma100": 1.137659,
-                "ma200": 1.149745,
+                "close": 1.096732,
+                "ma30": 1.113988,
+                "ma60": 1.128444,
+                "ma100": 1.137652,
+                "ma200": 1.149742,
                 "slow_trend": -1,
                 "price_vs_all": -1,
                 "nearest_ma": "ma30",
-                "nearest_ma_distance_atr": 2.0618,
+                "nearest_ma_distance_atr": 2.1488,
                 "support_hold_long": false,
                 "resistance_hold_short": false
               },
               "H1": {
-                "bar_at": "2026-11-24T18:00:00+01:00",
-                "close": 1.097454,
-                "ma30": 1.092688,
-                "ma60": 1.095375,
-                "ma100": 1.096395,
-                "ma200": 1.099443,
+                "bar_at": "2026-11-24T21:00:00+01:00",
+                "close": 1.096732,
+                "ma30": 1.093004,
+                "ma60": 1.095292,
+                "ma100": 1.096379,
+                "ma200": 1.099249,
                 "slow_trend": -1,
                 "price_vs_all": 0,
                 "nearest_ma": "ma100",
-                "nearest_ma_distance_atr": 0.8781,
+                "nearest_ma_distance_atr": 0.296,
                 "support_hold_long": false,
                 "resistance_hold_short": false
               }
@@ -903,36 +947,36 @@
             "reasons": [
               "d1_below_all_ma"
             ],
-            "evaluated_at": "2026-11-24T18:38:34+01:00",
+            "evaluated_at": "2026-11-24T21:51:52+01:00",
             "governance": "bounded_context_only_no_veto_no_standalone_trade_trigger"
           }
         },
         "entry_price_plan": {
           "version": "WES-1.3.1",
-          "frozen_at": "2026-11-24T18:38:34+01:00",
+          "frozen_at": "2026-11-24T21:51:52+01:00",
           "instrument_id": "eurusd",
           "direction": "short",
           "execution_mode": "market_now",
           "order_type": "market",
-          "target_price": 1.10032025,
-          "reference_price": 1.09745395,
+          "target_price": 1.09965184,
+          "reference_price": 1.09673166,
           "reference_source": "fresh_signal.signals.last_close",
-          "entry_not_before": "2026-11-24T18:38:34+01:00",
-          "expires_at": "2026-11-24T18:53:34+01:00",
+          "entry_not_before": "2026-11-24T21:51:52+01:00",
+          "expires_at": "2026-11-24T22:06:52+01:00",
           "execution_bar_interval_minutes": 5,
           "fill_rule": "For EURUSD Weekly only, MARKET mode hits a fresh post-authorization canonical live price immediately when available, with the freshest completed 5m bar as bounded fallback, all verified by EPE; the archived LIMIT target never gates that EURUSD MARKET execution. Other WES instruments retain their existing execution contract. LIMIT mode still fills only when the frozen target is touched. Persistent LIMIT reaffirmation may extend time but may never move the frozen target. No analytical or retroactive price may be fabricated.",
           "inputs": {
             "atr14": 0.00803081,
-            "ema20": 1.10832523,
-            "ret5_pct": -0.2151,
-            "ret20_pct": -1.7834,
-            "range55_position": 0.0073,
-            "directional_ema20_distance_atr": 1.353697,
-            "momentum_overextension_score": 0.026888,
-            "range_overextension_score": 0.9927,
-            "ema_overextension_score": 0.541479,
-            "overextension_score": 0.49357,
-            "pullback_atr_fraction": 0.356913,
+            "ema20": 1.10825644,
+            "ret5_pct": -0.2808,
+            "ret20_pct": -1.848,
+            "range55_position": 0.0,
+            "directional_ema20_distance_atr": 1.435071,
+            "momentum_overextension_score": 0.0351,
+            "range_overextension_score": 1.0,
+            "ema_overextension_score": 0.574028,
+            "overextension_score": 0.507547,
+            "pullback_atr_fraction": 0.363623,
             "post_stop_reversal": false
           },
           "status": "waiting_for_fresh_market_bar",
@@ -940,13 +984,13 @@
             "version": "WES-1.3.1",
             "scoring_model": "weekly_primary_daily_confirmation_modifier",
             "direction": "short",
-            "daily_score": -58.0,
+            "daily_score": -59.0,
             "weekly_score": -95.0,
-            "selected_utility": 11.3067,
+            "selected_utility": 11.2878,
             "confirmations": 3,
-            "ret5_pct": -0.2151,
-            "ret20_pct": -1.7834,
-            "overextension_score": 0.49357,
+            "ret5_pct": -0.2808,
+            "ret20_pct": -1.848,
+            "overextension_score": 0.507547,
             "daily_aligned": true,
             "weekly_aligned": true,
             "daily_opposed": false,
@@ -955,13 +999,13 @@
             "momentum_opposed": false,
             "primary_score_components": {
               "weekly": 1.0,
-              "utility": 0.8076,
+              "utility": 0.8063,
               "confirmations": 0.75,
               "momentum": 1.0
             },
-            "primary_market_score": 0.9144,
-            "overextension_penalty": 0.0987,
-            "score_before_daily_modifier": 0.8157,
+            "primary_market_score": 0.9141,
+            "overextension_penalty": 0.1015,
+            "score_before_daily_modifier": 0.8126,
             "daily_confirmation_modifier": 0.08,
             "daily_confirmation_state": "aligned_bonus",
             "daily_modifier_bounds": {
@@ -969,35 +1013,35 @@
               "opposed_penalty_max": 0.1,
               "strong_opposition_veto_abs_score": 55.0
             },
-            "market_score": 0.8957,
+            "market_score": 0.8926,
             "minimum_market_score": 0.6,
             "eligible": true,
             "reasons": []
           },
           "original_order_type": "sell_limit",
-          "original_target_price": 1.10032025,
+          "original_target_price": 1.09965184,
           "market_entry_reason": "strong_aligned_trend_continuation"
         },
         "authorization_basis": {
-          "authorized_at": "2026-11-24T18:38:34+01:00",
+          "authorized_at": "2026-11-24T21:51:47+01:00",
           "strategy_id": "weekly_trend",
           "direction": "short",
           "directional_admission_passed": true
         },
         "rule": "execute_market_now_on_first_fresh_completed_5m_bar_after_decision",
-        "decision_id": "wes-dec-7944e276e3a54621dc82e4033ffc",
-        "payload_hash": "5d097c9a092dc64aa89e767a9e45b6c9002d91a148b3c126cec490f6aea33d8d",
+        "decision_id": "wes-dec-2a2c2fe89fba47e99c6bff01c192",
+        "payload_hash": "30ed903a023917e148bf15ae24dcb189ce93a68436253030c1488edeb797b199",
         "decision_kind": "ENTRY_FREEZE",
         "predecessor_decision_id": null,
-        "ledger_record_hash": "68362bd952ab2695fcc995f8191359d520c8808481eac1f49073e8d7166d2acb",
+        "ledger_record_hash": "01286090de04bf17ed27a2af30eb3b0590dbe5c14092ed05712e4e5c4113a1f8",
         "ledger_schema_version": "briefrooms-wes-decision-ledger-v1",
         "provenance": {
           "schema_version": "briefrooms-provenance-contract-v1",
-          "artifact_id": "wes-dec-7944e276e3a54621dc82e4033ffc",
+          "artifact_id": "wes-dec-2a2c2fe89fba47e99c6bff01c192",
           "artifact_type": "wes_frozen_decision",
           "engine_id": "wes",
           "engine_version": "briefrooms-wes-frozen-decision-v1",
-          "created_at": "2026-11-24T18:38:34+01:00",
+          "created_at": "2026-11-24T21:51:52+01:00",
           "parent_artifact_ids": [],
           "source_ids": [
             "ENTRY_FREEZE",
@@ -1005,23 +1049,23 @@
           ],
           "evidence_ids": [],
           "belief_ids": [],
-          "decision_id": "wes-dec-7944e276e3a54621dc82e4033ffc",
+          "decision_id": "wes-dec-2a2c2fe89fba47e99c6bff01c192",
           "forecast_id": null,
           "verification_id": null,
-          "payload_hash": "74c9598dd03199809e633bb051d10c46487adb8d28ce09f05dd1941270bfdb58",
+          "payload_hash": "7fde1180021970ce9d3537d104ed78b3d987b2abbfdabcadc0074b934e505e8c",
           "authority": "decision",
           "prospective": true,
           "domain_provenance": {
             "week_id": "2026-W48",
             "instrument_id": "eurusd",
             "decision_kind": "ENTRY_FREEZE",
-            "ledger_payload_hash": "5d097c9a092dc64aa89e767a9e45b6c9002d91a148b3c126cec490f6aea33d8d",
+            "ledger_payload_hash": "30ed903a023917e148bf15ae24dcb189ce93a68436253030c1488edeb797b199",
             "native_write_time": true
           }
         }
       },
-      "current_decision_id": "wes-dec-7944e276e3a54621dc82e4033ffc",
-      "current_decision_payload_hash": "5d097c9a092dc64aa89e767a9e45b6c9002d91a148b3c126cec490f6aea33d8d",
+      "current_decision_id": "wes-dec-2a2c2fe89fba47e99c6bff01c192",
+      "current_decision_payload_hash": "30ed903a023917e148bf15ae24dcb189ce93a68436253030c1488edeb797b199",
       "decision_ledger_schema_version": "briefrooms-wes-decision-ledger-v1",
       "forecast_direction": "short",
       "forecast_score": -67,
@@ -2509,7 +2553,11 @@
         }
       ],
       "continuous_last_exit_at": "2026-11-24T18:35:00+01:00",
-      "continuous_last_closed_leg_id": "6e1b851a3ae532fa"
+      "continuous_last_closed_leg_id": "6e1b851a3ae532fa",
+      "wes_early_reentry_eligible": true,
+      "wes_early_reentry_source_exit_at": "2026-11-24T18:35:00+01:00",
+      "wes_early_reentry_source_exit_reason": "wes_eurusd_peak_profit_giveback_exit",
+      "wes_early_reentry_source_risk_status": "closed_by_wes_eurusd_profit_protection"
     },
     {
       "instrument_id": "sp500_futures",
@@ -2599,20 +2647,17 @@
       "continuous_exposure_active": false,
       "continuous_exposure_status": "no_trade",
       "wes_status": "no_trade_monitoring_trigger",
-      "wes_last_review_at": "2026-11-23T10:44:56+01:00",
+      "wes_last_review_at": "2026-11-24T21:51:47+01:00",
       "wes_trigger_candidate": {
-        "direction": "short",
-        "strategy_id": "weekly_trend",
-        "raw_score": 30.0,
-        "utility": 9.4771,
+        "direction": "neutral",
+        "strategy_id": "no_trade",
+        "raw_score": 0.0,
+        "utility": 8.5771,
         "signal_delta_from_initial": 0.0,
-        "confirmations": 2,
-        "confirmation_sources": [
-          "daily",
-          "weekly"
-        ],
-        "entry_class": "monday_weekly",
-        "execution_authority": "champion_execution",
+        "confirmations": 0,
+        "confirmation_sources": [],
+        "entry_class": "midweek_trigger",
+        "execution_authority": null,
         "directional_admission": {
           "version": "WES-1.3.1",
           "direction": "short",
@@ -2622,7 +2667,7 @@
             "weekly"
           ],
           "execution_authority": "champion_execution",
-          "passed": true
+          "passed": false
         },
         "delta_gate": {
           "delta": 0.0,
@@ -2631,22 +2676,22 @@
           "absolute_strength_bypass": {
             "version": "WES-1.3.1",
             "eligible": false,
-            "raw": 30.0,
-            "required_raw": 70.2,
+            "raw": 0.0,
+            "required_raw": 58.5,
             "raw_multiplier": 1.3,
-            "utility": 9.4771,
+            "utility": 8.5771,
             "required_utility": 10.4,
             "utility_multiplier": 1.3,
-            "confirmations": 2,
+            "confirmations": 0,
             "required_confirmations": 2,
-            "confirmation_sources": [
-              "daily",
-              "weekly"
-            ],
+            "confirmation_sources": [],
             "require_daily_weekly_confirmation": true,
             "reasons": [
+              "directional_admission_not_passed",
               "raw_below_scaled_absolute_strength",
-              "utility_below_scaled_absolute_strength"
+              "utility_below_scaled_absolute_strength",
+              "insufficient_confirmations_for_absolute_strength",
+              "daily_weekly_confirmation_required"
             ]
           },
           "persistent_plan_reaffirmed": false,
@@ -2663,13 +2708,13 @@
       },
       "wes_required_trigger": {
         "allowed": true,
-        "raw": 54.0,
+        "raw": 45.0,
         "utility": 8.0,
         "confirmations": 2,
         "delta": 15.0,
         "profile": "continuous_rolling_week",
         "holding_horizon_days": 7,
-        "learning_threshold_adjustment": 6.0
+        "learning_threshold_adjustment": -3.0
       },
       "wes_initial_no_trade_score": 54.0
     },
@@ -2769,19 +2814,19 @@
       "next_entry_status": "no_trade",
       "continuous_exposure_active": false,
       "continuous_exposure_status": "no_trade",
-      "wes_last_review_at": "2026-11-23T10:44:56+01:00",
+      "wes_last_review_at": "2026-11-24T21:51:47+01:00",
       "wes_trigger_candidate": {
         "direction": "short",
-        "strategy_id": "weekly_trend",
-        "raw_score": 59.0,
-        "utility": 7.6038,
-        "signal_delta_from_initial": 0.0,
+        "strategy_id": "base_v2",
+        "raw_score": 64.0,
+        "utility": 8.3538,
+        "signal_delta_from_initial": 2.0,
         "confirmations": 2,
         "confirmation_sources": [
           "daily",
           "weekly"
         ],
-        "entry_class": "monday_weekly",
+        "entry_class": "midweek_trigger",
         "execution_authority": "champion_execution",
         "directional_admission": {
           "version": "WES-1.3.1",
@@ -2795,16 +2840,16 @@
           "passed": true
         },
         "delta_gate": {
-          "delta": 0.0,
+          "delta": 2.0,
           "required_delta": 15.0,
           "passed": false,
           "absolute_strength_bypass": {
             "version": "WES-1.3.1",
             "eligible": false,
-            "raw": 59.0,
-            "required_raw": 70.2,
+            "raw": 64.0,
+            "required_raw": 58.5,
             "raw_multiplier": 1.3,
-            "utility": 7.6038,
+            "utility": 8.3538,
             "required_utility": 10.4,
             "utility_multiplier": 1.3,
             "confirmations": 2,
@@ -2815,7 +2860,6 @@
             ],
             "require_daily_weekly_confirmation": true,
             "reasons": [
-              "raw_below_scaled_absolute_strength",
               "utility_below_scaled_absolute_strength"
             ]
           },
@@ -2826,13 +2870,13 @@
       },
       "wes_required_trigger": {
         "allowed": true,
-        "raw": 54.0,
+        "raw": 45.0,
         "utility": 8.0,
         "confirmations": 2,
         "delta": 15.0,
         "profile": "continuous_rolling_week",
         "holding_horizon_days": 7,
-        "learning_threshold_adjustment": 6.0
+        "learning_threshold_adjustment": -3.0
       }
     }
   ],
@@ -3127,8 +3171,8 @@
     "continuous_horizon_days": 7,
     "continuous_weekend_carry": true,
     "material_event_reentry": false,
-    "last_preflight_at": "2026-11-23T10:44:56+01:00",
-    "last_postflight_at": "2026-11-23T10:45:04+01:00",
+    "last_preflight_at": "2026-11-24T21:51:47+01:00",
+    "last_postflight_at": "2026-11-24T21:51:55+01:00",
     "dynamic_risk": true,
     "learning_by_entry_class": true
   },
@@ -3155,6 +3199,6 @@
     "execution_parity_report": "data/investments/weekly_execution_parity_v5.json",
     "immutable_decision_ledger": "data/investments/wes_decision_ledger.json",
     "immutable_decision_ledger_schema": "briefrooms-wes-decision-ledger-v1",
-    "last_checked_at": "2026-11-24T18:38:34+01:00"
+    "last_checked_at": "2026-11-24T21:51:52+01:00"
   }
 }
