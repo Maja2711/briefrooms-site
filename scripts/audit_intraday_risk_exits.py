@@ -554,7 +554,12 @@ def audit(
                             "exit_price": item["exit_price"], "observed_at": item["exit_captured_at"],
                             "authority": "yahoo_replayed_frozen_hard_risk_priority"})
                         continue
-                    daily = fetch_yahoo_completed_daily_closes(symbol, checked_at)
+                    try:
+                        daily = fetch_yahoo_completed_daily_closes(symbol, checked_at)
+                    except (OSError, RuntimeError, ValueError, TypeError):
+                        # Missing optional D1 context must not disable the
+                        # independently proven 5m MFE-giveback risk guard.
+                        daily = []
                     cost = _eurusd_policy_cost()
                     review = eurusd_profit.assess(
                         item, five_min, daily, checked_at,
