@@ -50,8 +50,8 @@ jobs:
           python-version: "3.11"
       - name: Validate risk path without mutating runtime state
         run: |
-          python -m py_compile             scripts/audit_intraday_risk_exits.py scripts/investments_weekly_v2.py             scripts/enforce_weekly_risk_exit_lock.py scripts/verify_weekly_close_deadline.py             scripts/no_retroactive_execution.py scripts/verify_no_retroactive_execution.py
-          python -m unittest tests.test_audit_intraday_risk_exits tests.test_no_retroactive_execution
+          python -m py_compile scripts/wes_eurusd_profit_protection.py scripts/audit_intraday_risk_exits.py scripts/investments_weekly_v2.py             scripts/enforce_weekly_risk_exit_lock.py scripts/verify_weekly_close_deadline.py             scripts/no_retroactive_execution.py scripts/verify_no_retroactive_execution.py
+          python -m unittest tests.test_wes_eurusd_profit_protection tests.test_audit_intraday_risk_exits tests.test_no_retroactive_execution
 
   monitor-governed-exposure:
     if: github.event_name != 'push'
@@ -80,6 +80,7 @@ jobs:
         run: |
           python -m py_compile \
             scripts/audit_intraday_risk_exits.py \
+            scripts/wes_eurusd_profit_protection.py \
             scripts/investments_weekly_v2.py \
             scripts/enforce_weekly_risk_exit_lock.py \
             scripts/verify_weekly_close_deadline.py \
@@ -87,6 +88,7 @@ jobs:
             scripts/verify_no_retroactive_execution.py
           python -m unittest \
             tests.test_audit_intraday_risk_exits \
+            tests.test_wes_eurusd_profit_protection \
             tests.test_no_retroactive_execution
 
       - name: Evaluate frozen SL/TP from canonical market evidence
