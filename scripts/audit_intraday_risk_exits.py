@@ -539,7 +539,13 @@ def audit(
             # EURUSD profit-taking belongs to the SAME independent 5-minute
             # risk writer, strictly AFTER verification that no frozen SL/TP
             # has been hit. No other instrument receives this capability.
-            if iid == "eurusd" and not errors and symbol:
+            is_governed_wes = bool(
+                item.get("wes_entry_authorization")
+                or item.get("wes_methodology") == "WES-1.3.1"
+                or item.get("wes_status") == "open_wes_continuous_position"
+                or plan.get("holding_policy") == "wes_continuous_7_calendar_days"
+            )
+            if iid == "eurusd" and is_governed_wes and not errors and symbol:
                 try:
                     five_min = fetch_yahoo_bars(symbol, active_after, checked_at)
                     # We must not infer a voluntary exit when the hard-risk
