@@ -60,6 +60,32 @@ def daily():
 
 
 class ProfitProtectionUnitTests(unittest.TestCase):
+    def test_compression_realizes_profit_at_current_mark_not_prior_low(self):
+        levels=[2 if i%2 else -2 for i in range(50)]
+        levels += [-10,-20,-40,-60,-80,-100,-90,-85,-80,-75,-70,-65,
+                   -60,-55,-50,-45,-40,-35,-30,-25,-20,-15,-10,-5,0,5,10,15,20]
+        levels += [-22+3*(i%2) for i in range(8)]
+        start=datetime(2026,11,18,tzinfo=UTC)
+        bars=[]
+        for h,v in enumerate(levels):
+            px=1.1+v*.0001
+            for m in range(0,60,5):
+                bars.append(risk.PriceBar(start+timedelta(hours=h,minutes=m),
+                    high=px+.00005,low=px-.00005,source="test",close=px))
+        now=start+timedelta(hours=len(levels),minutes=5,seconds=15)
+        price=bars[-1].close
+        bars.append(risk.PriceBar(now.replace(second=0)-timedelta(minutes=5),
+                    high=price+.00005,low=price-.00005,source="test",close=price))
+        p=position()
+        p.update(entry_price=1.1018,entry_captured_at=(start+timedelta(hours=50)).isoformat())
+        p["risk_plan"].update(stop_loss_price=1.1088,take_profit_price=1.08)
+        out=guard.assess(p,bars,[],now,round_trip_cost_pips=1.5)
+        self.assertTrue(out["close"],out)
+        self.assertEqual("wes_eurusd_bollinger_compression_profit_exit",out["exit_reason"])
+        self.assertEqual("EXHAUSTION",out["bollinger_dynamics"]["regime"])
+        self.assertEqual(price,out["exit_price"])
+        self.assertFalse(out["historical_fill_inference"])
+
     def test_large_profit_giveback_before_remote_tp_exits_at_current_5m(self):
         p=position()
         outcome=guard.assess(p,five_min(),[],NOW,round_trip_cost_pips=1.5)
