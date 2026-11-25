@@ -198,12 +198,18 @@ def assess(
     extreme_signal = next((e for e in (daily_ext, hourly_ext) if e.get("extreme")), None)
     extreme_take = bool(extreme_signal and age <= MAX_EXTREME_MARK_AGE_MINUTES
                         and current_net >= required_net)
-    if not extreme_take and peak_net < MIN_PEAK_NET_PIPS:
+    dynamics = hourly.get("bollinger_dynamics") or {}
+    dynamics_review = extension.dynamics_profit_review(
+        dynamics, side, opened, price, completed_at, profit_pips=current_net,
+        risk_pips=risk_pips, minimum_pips=20.0)
+    dynamics_take = bool(dynamics_review.get("close") and age <= MAX_EXTREME_MARK_AGE_MINUTES)
+    if not extreme_take and not dynamics_take and peak_net < MIN_PEAK_NET_PIPS:
         return _no("peak_below_profit_protection_threshold",
                    peak_net_pips=round(peak_net,2),
                    current_net_pips=round(current_net,2),
                    outer_band_extensions={"D1": daily_ext, "H1": hourly_ext},
-                   extreme_min_net_pips=round(required_net,2))
+                   extreme_min_net_pips=round(required_net,2),
+                   bollinger_dynamics=dynamics, dynamics_review=dynamics_review)
 
     h1_ma30 = hourly.get("middle") if hourly.get("available") else h1_ma30_from_completed_5m(rows,now)
     band_near = False
@@ -227,6 +233,7 @@ def assess(
     evidence = {
         "policy": "WES_EURUSD_PROFIT_LOCK_5M_V2",
         "outer_band_extensions": {"D1": daily_ext, "H1": hourly_ext},
+        "bollinger_dynamics": dynamics, "dynamics_review": dynamics_review,
         "extreme_min_net_pips": round(required_net,2),
         "extreme_min_net_r": MIN_EXTREME_NET_R,
         "source": str(getattr(last,"source","")),
@@ -249,11 +256,13 @@ def assess(
         "historical_fill_inference": False,
         "frozen_sl_tp_mutated": False,
     }
-    if not extreme_take and not band_take and not lock:
+    if not extreme_take and not dynamics_take and not band_take and not lock:
         return _no("profit_protection_not_triggered",**evidence)
     reason = ("FAVORABLE_EXTREME_PROFIT_TAKE" if extreme_take
+              else "POST_EXPANSION_COMPRESSION_PROFIT_TAKE" if dynamics_take
               else "D1_OUTER_BAND_PROFIT_TAKE" if band_take else "VERIFIED_MFE_GIVEBACK")
     exit_reason = ("wes_eurusd_outer_band_extreme_profit_take" if extreme_take
+                   else "wes_eurusd_bollinger_compression_profit_exit" if dynamics_take
                    else "wes_eurusd_daily_band_profit_take" if band_take
                    else "wes_eurusd_peak_profit_giveback_exit")
     return {
