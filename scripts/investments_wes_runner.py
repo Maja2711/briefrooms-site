@@ -64,6 +64,11 @@ def preflight():
             iid == "eurusd"
             and ma_structure.band_reentry_conflicts(ma_context, direction)
         )
+        profit_cycle = ma_structure.profit_reentry(
+            item, ma_context, direction, now,
+            prior_rows=wes.v5.prior_eurusd_profit_rows(item, path))
+        if profit_cycle.get("required") and profit_cycle.get("allowed"):
+            h1_against_entry = False
         admission_meta = decision.get("directional_admission") if isinstance(decision.get("directional_admission"), dict) else {}
 
         if early_reentry:
@@ -154,7 +159,7 @@ def preflight():
         if reaffirmed_pending is not None:
             existing_pending = reaffirmed_pending
 
-        approved = base_thresholds_passed and not h1_against_entry and (
+        approved = base_thresholds_passed and not h1_against_entry and profit_cycle.get("allowed") is True and (
             delta_passed
             or bypass_passed
             or persistent_plan_reaffirmed
@@ -184,12 +189,21 @@ def preflight():
         if iid == "eurusd":
             candidate["h1_bollinger_snapback"] = h1_snapback
             candidate["h1_band_entry_conflict"] = h1_against_entry
+            candidate["post_profit_band_reentry"] = profit_cycle
 
         if initial_plan:
             item["wes_initial_admission_evaluated"] = True
             item["wes_initial_admission_at"] = now.isoformat(timespec="seconds")
 
         if approved:
+            # Never reaffirm a price plan frozen for an earlier correction.
+            if profit_cycle.get("required"):
+                old_proof = existing_pending_decision.get("post_profit_band_reentry") or {}
+                if (old_proof.get("source_exit_at") != profit_cycle.get("source_exit_at")
+                        or old_proof.get("band_asof") != profit_cycle.get("band_asof")
+                        or old_proof.get("zone") != profit_cycle.get("zone")):
+                    persistent_plan_reaffirmed = False
+                    item["pending_entry_decision"] = None
             if persistent_plan_reaffirmed:
                 item["pending_entry_decision"] = existing_pending
                 item["current_decision_id"] = existing_pending.get("decision_id")
