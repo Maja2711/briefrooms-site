@@ -289,12 +289,12 @@ def assess_dynamics(closed_prices, observed_at):
             return {**base, "reason": "stale_h1"}
         if any(b[0]-a[0] != timedelta(hours=1) for a,b in zip(rows[-7:],rows[-6:])):
             return {**base, "reason": "gapped_recent_h1"}
-        # Up to 25 continuous rolling snapshots (24h), so a delayed
+        # Up to 49 continuous rolling snapshots (48h), so a delayed
         # contraction can still refer to its preceding expansion. Do not
         # bridge a weekend or a missing hour when measuring shape changes.
         prices = [p for _,p in rows]
         snapshots = []
-        start = max(PERIOD-1,len(rows)-25)
+        start = max(PERIOD-1,len(rows)-49)
         for i in range(start+1,len(rows)):
             if rows[i][0]-rows[i-1][0] != timedelta(hours=1):
                 start = i
@@ -324,7 +324,8 @@ def assess_dynamics(closed_prices, observed_at):
         # Exhaustion is a recent expansion followed by contraction and
         # confirmed recovery away from the prior favorable outer edge.
         recent = [r for r in snapshots[:-1]
-                  if expansion_ends and r[0]>=expansion_ends[-1]-timedelta(hours=3)]
+                  if expansion_ends and any(end-timedelta(hours=3)<=r[0]<=end+timedelta(hours=3)
+                         for end in expansion_ends)]
         lower_edge = [r for r in recent if (r[1]-r[4])/r[5] <= .15]
         upper_edge = [r for r in recent if (r[1]-r[4])/r[5] >= .85]
         exhausted = None
