@@ -352,3 +352,12 @@ Daily v1.9 already evaluates Bollinger (30 periods, 2.5 standard deviations) on 
 
 For an open Daily EUR/USD position, the existing `daily_eurusd_range_exit.py` reconstructs this same signal from **canonical 1m** candles for the normal monitor and five-second exit-only watcher. Following the established hard SL/TP and hard-time priority, a verified fresh post-signal 1m bar and 15-minute countertrend price action can protect a winning position with executable-side profit >=6 pips and >=0.20R. Data gaps/staleness do not create an exit. This is paper-only experimental risk management; a single chart is insufficient to prove profitability.
 
+
+
+## TR-03 / TR-05 — Bollinger extreme favorable excursion profit realization (2026-11-25)
+
+**REDUCE_EXPOSURE ≠ REVERSE_TREND.** The pure `assess_profit_extension` in `scripts/eurusd_h1_bollinger_snapback.py` evaluates a current completed mark against previously known Bollinger 30/2.5. SHORT below lower and LONG above upper: depth must reach max(5 pips, 10% band width = 0.5 sigma, and for H1 0.5 ATR14). H1 uses complete prior hours, D1 prior completed days, never a forming reference candle or historical wick fill. No rebound, countertrend momentum, MFE giveback or reversal thesis is required; the signal has no direction/entry authority.
+
+**Daily:** `daily_eurusd_range_exit.assess_extreme_profit` in canonical v14 evaluator after hard SL/TP/time and before snapback/R_PACE. H1 from own completed 1m data; latest completed minute ≤120 seconds; exit-side profit ≥max(10 pips, 0.50R). **Weekly:** common 5m risk watch `wes_eurusd_profit_protection.assess` (V2) before existing D1-touch and MFE-giveback, H1 or D1, fresh completed 5m mark ≤6 minutes, net profit ≥max(20 pips, 0.50R). Earlier observations, including pre-entry, may supply the H1 reference only, never a historical fill. Existing hard-risk priority and frozen SL/TP, BTC, SPX, direction unchanged. Initial thresholds are experimental and require prospective evaluation.
+
+The recommendation contract `exposure_reduction` explicitly records `requested_reduction_fraction=1.0`, `partial_execution_supported=false`. The current ledger only supports full CLOSE; a fractional request cannot silently close the whole position. Future scale-outs require a separately governed quantity-aware migration (remaining quantity, partial fills, realized/unrealized P/L, costs, idempotency, notifications). Never opens an opposite position.
