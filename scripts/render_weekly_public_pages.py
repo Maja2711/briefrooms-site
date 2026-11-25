@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 ROOT = Path(__file__).resolve().parents[1]
 HEADER_VERSION = "20260719-1"
 ASSET_VERSION = "weekly-23"
-PUBLIC_SCRIPT_VERSION = "eurusd-closed-ticket-20261125"
+PUBLIC_SCRIPT_VERSION = "eurusd-executed-ticket-20261125"
 WES_PUBLIC_SCRIPT_VERSION = "eurusd-closed-ticket-20261125"
 PUBLIC_STYLE_VERSION = "20260916-2"
 POSITION_STATE_VERSION = "weekly-tickets-only-20261120"
