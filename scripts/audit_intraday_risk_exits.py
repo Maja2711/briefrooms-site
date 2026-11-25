@@ -216,6 +216,9 @@ def _eurusd_policy_cost() -> Optional[float]:
 def apply_eurusd_profit_exit(item: dict[str, Any], review: dict[str, Any],
                              detected_at: datetime) -> None:
     """Canonical EURUSD-only close on THIS completed 5m price, never old peak."""
+    reduction = review.get("exposure_reduction") or {}
+    if reduction and reduction.get("requested_reduction_fraction") != 1.0:
+        raise ValueError("partial_profit_exit_requires_quantity_aware_ledger")
     price = float(review["exit_price"])
     close_at = parse_dt(review["exit_captured_at"])
     if close_at is None or close_at <= (parse_dt(item.get("entry_captured_at")) or close_at):
@@ -536,7 +539,14 @@ def audit(
                 report["errors"].append({"instrument_id": iid, "reason": "missing_symbol"})
                 continue
             try:
-                eurusd_bars = fetch_yahoo_bars(symbol, active_after, checked_at)
+                # Extend EURUSD lookback for the H1 profit-only reference.
+                # If optional lookback fails, retain the original hard-risk
+                # request and its exact post-activation semantics.
+                try:
+                    eurusd_bars = fetch_yahoo_bars(
+                        symbol, min(active_after, checked_at - timedelta(days=7)), checked_at)
+                except Exception:
+                    eurusd_bars = fetch_yahoo_bars(symbol, active_after, checked_at)
                 hit, errors, authority = first_hit(eurusd_bars, side, sl, tp, active_after), [], "yahoo_primary"
             except Exception as exc:
                 hit, errors, authority = None, [f"yahoo:{exc}"], "yahoo_primary"

@@ -76,13 +76,66 @@ class ProfitProtectionUnitTests(unittest.TestCase):
     def test_lower_d1_band_touch_can_take_profit_without_waiting_to_give_back(self):
         p=position()
         bars=five_min(last=1.0915)
-        # Keep last 15m right at the prior completed Daily lower band ~1.0925.
-        out=guard.assess(p,bars,daily(),NOW,round_trip_cost_pips=1.5)
+        # Ordinary touch (not deep extension) at the shifted lower band.
+        out=guard.assess(p,bars,[(at,px-.001) for at,px in daily()],NOW,round_trip_cost_pips=1.5)
         self.assertTrue(out["close"],out)
         self.assertEqual("wes_eurusd_daily_band_profit_take",out["exit_reason"])
         self.assertTrue(out["daily_band_touch_now"])
         self.assertEqual(30,out["daily_bollinger"]["period"])
         self.assertEqual(2.5,out["daily_bollinger"]["deviations"])
+
+    def test_d1_deep_break_takes_profit_before_any_rebound(self):
+        bars=five_min(last=1.08841835)
+        out=guard.assess(position(),bars,daily(),NOW,round_trip_cost_pips=1.5)
+        self.assertTrue(out["close"],out)
+        self.assertEqual("wes_eurusd_outer_band_extreme_profit_take",out["exit_reason"])
+        self.assertTrue(out["outer_band_extensions"]["D1"]["extreme"])
+        self.assertAlmostEqual(0,out["giveback_pips"],places=3)
+        self.assertEqual(1.0,out["exposure_reduction"]["requested_reduction_fraction"])
+        self.assertFalse(out["exposure_reduction"]["trend_reversal_required"])
+        self.assertEqual(bars[-1].close,out["exit_price"])
+        self.assertFalse(out["historical_fill_inference"])
+
+    def test_upper_d1_deep_break_takes_long_profit_symmetrically(self):
+        p=position()
+        p["direction"]="long"
+        p["risk_plan"]["stop_loss_price"]=2*ENTRY-1.10602325
+        p["risk_plan"]["take_profit_price"]=2*ENTRY-1.08191835
+        bars=[risk.PriceBar(b.ts, high=2*ENTRY-b.low, low=2*ENTRY-b.high,
+                            source=b.source, close=2*ENTRY-b.close)
+              for b in five_min(last=1.08841835)]
+        d1=[(at,2*ENTRY-px) for at,px in daily()]
+        out=guard.assess(p,bars,d1,NOW,round_trip_cost_pips=1.5)
+        self.assertTrue(out["close"],out)
+        self.assertTrue(out["outer_band_extensions"]["D1"]["extreme"])
+        self.assertEqual("wes_eurusd_outer_band_extreme_profit_take",out["exit_reason"])
+
+    def test_h1_deep_break_with_preentry_reference_without_d1(self):
+        start=START.replace(minute=0)-timedelta(hours=34)
+        history=[]
+        for i in range(34*12+10):
+            at=start+timedelta(minutes=5*i)
+            v=ENTRY+(.0002 if (i//12)%2 else -.0002)
+            history.append(risk.PriceBar(at,high=v+.0001,low=v-.0001,
+                source="Yahoo Finance:EURUSD=X:chart:5m",close=v))
+        # Market keeps moving down, current completed bar, zero giveback.
+        bars=history+[
+            risk.PriceBar(START,high=ENTRY-.004,low=ENTRY-.0041,source="test",close=ENTRY-.004),
+            risk.PriceBar(START+timedelta(minutes=5),high=ENTRY-.005,low=ENTRY-.0051,source="test",close=ENTRY-.005)]
+        now=START+timedelta(minutes=10,seconds=30)
+        out=guard.assess(position(),bars,[],now,round_trip_cost_pips=1.5)
+        self.assertTrue(out["close"],out)
+        self.assertTrue(out["outer_band_extensions"]["H1"]["extreme"])
+        self.assertLess(out["peak_net_proxy_pips"],65)
+        self.assertEqual(0,out["giveback_pips"])
+
+    def test_fractional_request_cannot_close_whole_legacy_position(self):
+        p=position()
+        before=json.dumps(p,sort_keys=True)
+        with self.assertRaisesRegex(ValueError,"partial_profit_exit"):
+            risk.apply_eurusd_profit_exit(p,{"exposure_reduction":{
+                "requested_reduction_fraction":0.5}},NOW)
+        self.assertEqual(before,json.dumps(p,sort_keys=True))
 
     def test_no_live_fill_on_stale_or_prior_history(self):
         p=position()

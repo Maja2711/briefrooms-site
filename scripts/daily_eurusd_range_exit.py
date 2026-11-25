@@ -246,3 +246,64 @@ def assess_snapback(
         "last_completed_1m": (latest_at + timedelta(minutes=1)).isoformat(),
         "execution_basis": "EXISTING_DAILY_POSITION_EXIT_MID_TO_EXEC_SIDE",
     }
+
+
+def assess_extreme_profit(
+    position: Mapping[str, Any], bars: Sequence[Any], observed_at: datetime,
+    *, exit_price_at_mid: Any,
+) -> dict[str, Any]:
+    """Current favorable H1 extension is a profit exit, not a reversal trade.
+
+    Reference uses the prior completed 30 H1 candles, and the mark is the
+    latest completed 1m close. The currently forming H1 need not finish.
+    """
+    base = {"close": False, "policy": "DAILY_H1_EXTREME_PROFIT_V1",
+            "direction_authority": False, "risk_plan_mutation": False}
+    if observed_at.tzinfo is None:
+        return {**base, "reason": "unaware_clock"}
+    try:
+        side = str(position["direction"]).upper()
+        opened = datetime.fromisoformat(str(position["opened_at"]).replace("Z", "+00:00"))
+        entry, stop, target = (float(position[k]) for k in ("entry", "stop", "target"))
+        if (side not in {"LONG", "SHORT"} or opened.tzinfo is None
+                or not all(isfinite(p) and p > 0 for p in (entry, stop, target))
+                or not (stop > entry > target if side == "SHORT" else stop < entry < target)):
+            return {**base, "reason": "invalid_frozen_risk"}
+        eligible = sorted((b for b in bars if b.timestamp.tzinfo is not None
+                           and b.timestamp >= opened
+                           and b.timestamp + timedelta(minutes=1) <= observed_at),
+                          key=lambda b: b.timestamp)
+        if not eligible:
+            return {**base, "reason": "no_completed_post_entry_mark"}
+        last = eligible[-1]
+        at = last.timestamp
+        completed_at = at + timedelta(minutes=1)
+        if (at.second or at.microsecond
+                or sum(b.timestamp == at for b in eligible) != 1
+                or not timedelta(0) <= observed_at - completed_at <= timedelta(seconds=120)):
+            return {**base, "reason": "stale_or_duplicate_mark"}
+        mid, low, high = (float(getattr(last,k)) for k in ("close","low","high"))
+        if not all(isfinite(v) and v > 0 for v in (mid, low, high)) or not low <= mid <= high:
+            return {**base, "reason": "invalid_mark"}
+        band = snapback.completed_h1_band(bars, at, minutes=1, timestamp_field="timestamp")
+        signal = snapback.assess_profit_extension(
+            band, side, mid, observed_at=completed_at, reference_before=at, timeframe="H1")
+        mark = float(exit_price_at_mid(position, mid))
+        profit = (entry-mark if side == "SHORT" else mark-entry)
+        risk = abs(entry-stop)
+        required = max(10.0 * PIP, 0.50 * risk)
+        qualifies = bool(signal.get("extreme") and isfinite(mark) and mark > 0
+                         and profit >= required)
+        return {**base, "close": qualifies,
+                "reason": "favorable_extreme_profit_realization" if qualifies else "no_qualified_extreme",
+                "signal": signal, "profit_pips": round(profit/PIP,3),
+                "profit_r": round(profit/risk,4),
+                "min_profit_pips": round(required/PIP,3),
+                "mark_bar_open": at.isoformat(), "mark_completed_at": completed_at.isoformat(),
+                "exit_price": mark,
+                "exposure_reduction": {"intent": "REDUCE_EXPOSURE" if qualifies else "HOLD",
+                    "requested_reduction_fraction": 1.0 if qualifies else 0.0,
+                    "partial_execution_supported": False,
+                    "trend_reversal_required": False}}
+    except (ValueError, TypeError, KeyError, AttributeError, ArithmeticError):
+        return {**base, "reason": "invalid_extension_input"}

@@ -12,6 +12,8 @@ from datetime import datetime, timedelta, timezone
 from math import isfinite, sqrt
 from typing import Any, Mapping, Sequence
 
+import eurusd_h1_bollinger_snapback as extension
+
 PIP = .0001
 DAILY_PERIOD = 30
 DAILY_DEVIATIONS = 2.5
@@ -25,6 +27,9 @@ MIN_PROFIT_AT_GIVEBACK_NET_PIPS = 4.0
 MIN_D1_BAND_PROXIMITY_PIPS = 25.0
 BAND_TOUCH_BUFFER_PIPS = 5.0
 MAX_D1_AGE_DAYS = 6
+MIN_EXTREME_NET_PIPS = 20.0
+MIN_EXTREME_NET_R = 0.50
+MAX_EXTREME_MARK_AGE_MINUTES = 6
 
 
 def _float(value: Any) -> float | None:
@@ -44,7 +49,7 @@ def _time(value: Any) -> datetime | None:
 
 
 def _no(reason: str, **details: Any) -> dict[str, Any]:
-    return {"close": False, "reason": reason, "policy": "WES_EURUSD_PROFIT_LOCK_5M_V1",
+    return {"close": False, "reason": reason, "policy": "WES_EURUSD_PROFIT_LOCK_5M_V2",
             "instrument_id": "eurusd", "execution_authority": False,
             "historical_fill_inference": False, "frozen_sl_tp_mutated": False,
             **details}
@@ -148,8 +153,8 @@ def assess(
         return _no("duplicate_post_entry_5m")
     last = rows[-1]
     price = _float(getattr(last, "close", None))
-    if (price is None or price <= 0 or price < last.low - PIP
-            or price > last.high + PIP):
+    if (price is None or price <= 0 or not last.low <= price <= last.high
+            or last.ts.minute % 5 or last.ts.second or last.ts.microsecond):
         return _no("invalid_completed_5m_close")
     completed_at = last.ts + timedelta(minutes=5)
     age = (now - completed_at).total_seconds()/60
@@ -174,13 +179,33 @@ def assess(
     peak_net = peak_gross-cost
     current_net = current_gross-cost
     giveback = peak_gross-current_gross
-    if peak_net < MIN_PEAK_NET_PIPS:
+    daily = daily_band_from_completed_closes(completed_daily, now)
+    # The extension mark is the completed 5m CLOSE, not its wick. Freeze
+    # the indicator as of the start of that candle so it cannot absorb its
+    # own extreme. This signal is independent of MFE giveback or reentry.
+    prior_daily = daily_band_from_completed_closes(
+        [(at, p) for at, p in completed_daily if at <= last.ts], last.ts)
+    hourly = extension.completed_h1_band(
+        bars, last.ts, minutes=5, timestamp_field="ts")
+    daily_ext = extension.assess_profit_extension(
+        prior_daily, side, price, observed_at=completed_at,
+        reference_before=last.ts, timeframe="D1")
+    hourly_ext = extension.assess_profit_extension(
+        hourly, side, price, observed_at=completed_at,
+        reference_before=last.ts, timeframe="H1")
+    risk_pips = abs(stop - entry) / PIP
+    required_net = max(MIN_EXTREME_NET_PIPS, MIN_EXTREME_NET_R * risk_pips)
+    extreme_signal = next((e for e in (daily_ext, hourly_ext) if e.get("extreme")), None)
+    extreme_take = bool(extreme_signal and age <= MAX_EXTREME_MARK_AGE_MINUTES
+                        and current_net >= required_net)
+    if not extreme_take and peak_net < MIN_PEAK_NET_PIPS:
         return _no("peak_below_profit_protection_threshold",
                    peak_net_pips=round(peak_net,2),
-                   current_net_pips=round(current_net,2))
+                   current_net_pips=round(current_net,2),
+                   outer_band_extensions={"D1": daily_ext, "H1": hourly_ext},
+                   extreme_min_net_pips=round(required_net,2))
 
-    daily = daily_band_from_completed_closes(completed_daily, now)
-    h1_ma30 = h1_ma30_from_completed_5m(rows,now)
+    h1_ma30 = hourly.get("middle") if hourly.get("available") else h1_ma30_from_completed_5m(rows,now)
     band_near = False
     if daily.get("available"):
         outer = float(daily["lower"] if side == "short" else daily["upper"])
@@ -200,7 +225,10 @@ def assess(
     lock = (giveback >= giveback_limit
             and current_net >= MIN_PROFIT_AT_GIVEBACK_NET_PIPS)
     evidence = {
-        "policy": "WES_EURUSD_PROFIT_LOCK_5M_V1",
+        "policy": "WES_EURUSD_PROFIT_LOCK_5M_V2",
+        "outer_band_extensions": {"D1": daily_ext, "H1": hourly_ext},
+        "extreme_min_net_pips": round(required_net,2),
+        "extreme_min_net_r": MIN_EXTREME_NET_R,
         "source": str(getattr(last,"source","")),
         "peak_basis": "POST_ENTRY_5M_EXTREME_ASOF_THIS_CYCLE_NOT_A_HISTORICAL_FILL",
         "peak_price": round(best_price,8),
@@ -221,13 +249,22 @@ def assess(
         "historical_fill_inference": False,
         "frozen_sl_tp_mutated": False,
     }
-    if not band_take and not lock:
+    if not extreme_take and not band_take and not lock:
         return _no("profit_protection_not_triggered",**evidence)
+    reason = ("FAVORABLE_EXTREME_PROFIT_TAKE" if extreme_take
+              else "D1_OUTER_BAND_PROFIT_TAKE" if band_take else "VERIFIED_MFE_GIVEBACK")
+    exit_reason = ("wes_eurusd_outer_band_extreme_profit_take" if extreme_take
+                   else "wes_eurusd_daily_band_profit_take" if band_take
+                   else "wes_eurusd_peak_profit_giveback_exit")
     return {
         **evidence, "close": True, "execution_authority": False,
-        "exit_reason": ("wes_eurusd_daily_band_profit_take"
-                        if band_take else "wes_eurusd_peak_profit_giveback_exit"),
-        "exit_price": price,
-        "exit_captured_at": completed_at.isoformat(),
-        "reason": "D1_OUTER_BAND_PROFIT_TAKE" if band_take else "VERIFIED_MFE_GIVEBACK",
+        "exit_reason": exit_reason, "exit_price": price,
+        "exit_captured_at": completed_at.isoformat(), "reason": reason,
+        "exposure_reduction": {
+            "intent": "REDUCE_EXPOSURE",
+            "requested_reduction_fraction": 1.0,
+            "partial_execution_supported": False,
+            "trend_reversal_required": False,
+            "signal": extreme_signal if extreme_take else None,
+        },
     }

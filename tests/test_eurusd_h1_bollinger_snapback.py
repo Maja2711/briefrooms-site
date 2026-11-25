@@ -169,6 +169,67 @@ class DailyH1IntegrationTests(unittest.TestCase):
         self.assertNotEqual("winning_position_h1_outer_band_snapback", evidence["reason"])
 
 
+class ExtremeProfitRealizationTests(unittest.TestCase):
+    def continuing_market(self, upper=False):
+        bars=[]
+        for i in range(35*60):
+            v=price(i//60)
+            bars.append(Bar(timestamp=START+timedelta(minutes=i),
+                open=v,high=v+.00002,low=v-.00002,close=v))
+        for j in range(2):
+            v=1.1045+.0005*j if upper else 1.0955-.0005*j
+            bars.append(Bar(timestamp=START+timedelta(hours=35,minutes=j),
+                open=v,high=v+.00002,low=v-.00002,close=v))
+        return bars
+
+    def test_short_extreme_exits_while_price_is_still_falling(self):
+        bars=self.continuing_market()
+        now=START+timedelta(hours=35,minutes=2)
+        p=short_position()
+        r=daily_exit.assess_extreme_profit(p,bars,now,
+            exit_price_at_mid=daily_lifecycle.execution_exit_price)
+        self.assertTrue(r["close"],r)
+        self.assertFalse(r["exposure_reduction"]["trend_reversal_required"])
+        self.assertEqual(1.0,r["exposure_reduction"]["requested_reduction_fraction"])
+        self.assertGreater(r["signal"]["depth_pips"],r["signal"]["required_depth_pips"])
+        self.assertGreater(bars[-2].close,bars[-1].close)
+        trade=daily_v14.evaluate_position(p,bars,now)
+        self.assertEqual("DYNAMIC_H1_BOLLINGER_EXTREME_PROFIT_EXIT",trade["exit_reason"])
+        self.assertAlmostEqual(bars[-1].close,trade["exit_price"],places=5)
+        self.assertEqual(now,datetime.fromisoformat(trade["closed_at"].replace("Z","+00:00")))
+
+    def test_long_symmetric_and_no_flip(self):
+        bars=self.continuing_market(upper=True)
+        now=START+timedelta(hours=35,minutes=2)
+        p={**short_position(),"direction":"LONG","entry":1.098,"stop":1.088,"target":1.112}
+        trade=daily_v14.evaluate_position(p,bars,now)
+        self.assertEqual("LONG",trade["direction"])
+        self.assertEqual("DYNAMIC_H1_BOLLINGER_EXTREME_PROFIT_EXIT",trade["exit_reason"])
+
+    def test_extreme_signal_does_not_use_incomplete_or_stale_reference_or_wick(self):
+        bars=self.continuing_market()
+        now=START+timedelta(hours=35,minutes=2)
+        p=short_position()
+        # No completed mark after position entry.
+        self.assertFalse(daily_exit.assess_extreme_profit(
+            {**p,"opened_at":now.isoformat()},bars,now,
+            exit_price_at_mid=daily_lifecycle.execution_exit_price)["close"])
+        # A very old extreme cannot become an exit at a historical price.
+        self.assertFalse(daily_exit.assess_extreme_profit(p,bars,now+timedelta(minutes=5),
+            exit_price_at_mid=daily_lifecycle.execution_exit_price)["close"])
+        # A deep low alone is not the current closing mark.
+        bars[-1]=Bar(timestamp=bars[-1].timestamp,open=1.100,high=1.1001,low=1.095,close=1.100)
+        self.assertFalse(daily_exit.assess_extreme_profit(p,bars,now,
+            exit_price_at_mid=daily_lifecycle.execution_exit_price)["close"])
+
+    def test_hard_tp_has_priority_over_extreme(self):
+        bars=self.continuing_market()
+        now=START+timedelta(hours=35,minutes=2)
+        p={**short_position(),"target":1.096}
+        trade=daily_v14.evaluate_position(p,bars,now)
+        self.assertEqual("TP",trade["exit_reason"]) if trade["exit_reason"]=="TP" else self.assertIn(trade["exit_reason"],{"TAKE_PROFIT","TP_HIT","TAKE_PROFIT_HIT"})
+
+
 class WeeklyH1IsolationTests(unittest.TestCase):
     def weekly_frame(self):
         rows = hourly_rebound()
