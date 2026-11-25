@@ -272,8 +272,11 @@ def assess_dynamics(closed_prices, observed_at):
     try:
         if observed_at.tzinfo is None:
             return {**base, "reason": "unaware_clock"}
-        rows = [(t.astimezone(timezone.utc), float(p)) for t,p in closed_prices
-                if t.tzinfo is not None]
+        rows = []
+        for t,p in closed_prices:
+            if t.tzinfo is None:
+                return {**base, "reason": "unaware_h1_timestamp"}
+            rows.append((t.astimezone(timezone.utc), float(p)))
         rows.sort()
         if len(rows) < PERIOD + 6:
             return {**base, "reason": "insufficient_dynamics_history"}
@@ -286,15 +289,21 @@ def assess_dynamics(closed_prices, observed_at):
             return {**base, "reason": "stale_h1"}
         if any(b[0]-a[0] != timedelta(hours=1) for a,b in zip(rows[-7:],rows[-6:])):
             return {**base, "reason": "gapped_recent_h1"}
-        # Seven consecutive rolling snapshots; older gaps are not interpolated.
+        # Up to 25 continuous rolling snapshots (24h), so a delayed
+        # contraction can still refer to its preceding expansion. Do not
+        # bridge a weekend or a missing hour when measuring shape changes.
         prices = [p for _,p in rows]
         snapshots = []
-        for i in range(len(rows)-7,len(rows)):
+        start = max(PERIOD-1,len(rows)-25)
+        for i in range(start+1,len(rows)):
+            if rows[i][0]-rows[i-1][0] != timedelta(hours=1):
+                start = i
+        for i in range(start,len(rows)):
             m,u,l = _band(prices[i-PERIOD+1:i+1])
             if not u > l:
                 return {**base, "reason": "zero_bandwidth"}
             snapshots.append((rows[i][0],prices[i],m,u,l,u-l))
-        old, prev, last = snapshots[0], snapshots[3], snapshots[-1]
+        old, prev, last = snapshots[-7], snapshots[-4], snapshots[-1]
         slopes = [(last[i]-prev[i])/PIP/3 for i in (2,3,4,5)]
         past = [(prev[i]-old[i])/PIP/3 for i in (2,3,4,5)]
         accel = [(a-b)/3 for a,b in zip(slopes,past)]
@@ -304,11 +313,18 @@ def assess_dynamics(closed_prices, observed_at):
         tolerance = max(.35, last[5]/PIP*.0075)
         expanding = us > tolerance and ls < -tolerance and width_change >= 5
         compressing = us < -tolerance and ls > tolerance and width_change <= -5
-        prior_expansion = past[1] > tolerance and past[2] < -tolerance and prior_growth >= 5
+        expansion_ends=[]
+        for a,b in zip(snapshots[:-6], snapshots[3:-3]):
+            tol=max(.35,b[5]/PIP*.0075)
+            if ((b[3]-a[3])/PIP/3>tol and (b[4]-a[4])/PIP/3<-tol
+                    and b[5]/a[5]>=1.05):
+                expansion_ends.append(b[0])
+        prior_expansion=bool(expansion_ends)
         q = (last[1]-last[4])/last[5]
         # Exhaustion is a recent expansion followed by contraction and
         # confirmed recovery away from the prior favorable outer edge.
-        recent = snapshots[:-1]
+        recent = [r for r in snapshots[:-1]
+                  if expansion_ends and r[0]>=expansion_ends[-1]-timedelta(hours=3)]
         lower_edge = [r for r in recent if (r[1]-r[4])/r[5] <= .15]
         upper_edge = [r for r in recent if (r[1]-r[4])/r[5] >= .85]
         exhausted = None
@@ -336,7 +352,9 @@ def assess_dynamics(closed_prices, observed_at):
                 "previous_bandwidth_pct_change_3h":round(prior_growth,3),
                 "slope_pips_per_h":dict(zip(("ma30","upper","lower","bandwidth"),map(lambda x:round(x,4),slopes))),
                 "acceleration_pips_per_h2":dict(zip(("ma30","upper","lower","bandwidth"),map(lambda x:round(x,4),accel))),
-                "prior_expansion":prior_expansion,"exhausted_direction":exhausted,
+                "prior_expansion":prior_expansion,
+                "last_expansion_at":expansion_ends[-1].isoformat() if expansion_ends else None,
+                "exhausted_direction":exhausted,
                 "excursion_at":anchor[0].isoformat() if anchor else None,
                 "excursion_price":anchor[1] if anchor else None,
                 "last_h1_close":last[1], "reason":"verified_completed_h1_geometry"}
