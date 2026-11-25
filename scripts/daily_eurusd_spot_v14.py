@@ -380,7 +380,8 @@ def evaluate_position(
         if len(matches) == 1 and closed_at is not None and opened < closed_at <= observed_at:
             bar = matches[0]
             trade = lifecycle._close_record(
-                position, exit_reason="DYNAMIC_H1_BOLLINGER_EXTREME_PROFIT_EXIT",
+                position, exit_reason=(extreme.get("exit_reason")
+                    or "DYNAMIC_H1_BOLLINGER_EXTREME_PROFIT_EXIT"),
                 exit_price=lifecycle.execution_exit_price(position, float(bar.close)),
                 exited_at=closed_at, exit_bar=bar,
             )
