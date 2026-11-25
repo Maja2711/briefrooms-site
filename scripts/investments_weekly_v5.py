@@ -1773,6 +1773,16 @@ def ensure_all() -> Dict[str, Any]:
                                       "next_governed_review": "daily_review_23_00_europe_warsaw"})
             continue
 
+        # A post-profit pending plan may not be recovered after the current
+        # directional thesis turns FLAT/opposite or its correction expires.
+        if iid == "eurusd":
+            old_cycle = (((item.get("pending_entry_decision") or {}).get("decision") or {}).get("post_profit_band_reentry") or {})
+            if old_cycle.get("required") and (
+                not profit_cycle.get("required")
+                or old_cycle.get("direction") != str(decision.get("direction") or "").upper()
+            ):
+                item["pending_entry_decision"] = None
+                changed = True
         if profit_cycle.get("required"):
             if profit_cycle.get("allowed") is not True:
                 if closed_position(item):
