@@ -196,3 +196,16 @@ def apply_to_candidates(instrument_id: str, candidates: Dict[str, Dict[str, Any]
         row["ma_structure_score"] = round(score, 4)
         row["conviction"] = round(max(0.0, base + adjustment), 4)
     return rows
+
+
+def profit_reentry(item, ma_context, direction, now, *, prior_rows=()):
+    """Same EURUSD leg only; cross-week carried closes may supply the anchor."""
+    if item.get("instrument_id") != INSTRUMENT_ID:
+        return {"required": False, "allowed": True}
+    rows = list(prior_rows) + list(item.get("position_legs") or [])
+    if item.get("exit_price") is not None:
+        rows.append(item)
+    prior = snapback.latest_closed_trade(rows, now)
+    h1 = (ma_context.get("h1_bollinger_snapback") or {}
+          if ma_context.get("data_quality") == "passed" else {})
+    return snapback.assess_profit_reentry(prior, h1, direction, now, max_age_hours=168)
