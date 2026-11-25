@@ -144,3 +144,114 @@ def blocks_direction(result: dict[str, Any], direction: str) -> bool:
     return bool(result.get("available") is True
                 and result.get("confirmed") is True
                 and result.get("counter_to_direction") == side)
+
+
+# A distinct, price-extension profit-taking signal, NOT a trend reversal.
+# Calibrated starting values, not a statistically proven optimum.
+EXTREME_MIN_PIPS = 5.0
+EXTREME_WIDTH_FRACTION = 0.10
+EXTREME_ATR_FRACTION = 0.50
+
+
+def completed_h1_band(bars: Iterable, asof: datetime, *, minutes: int,
+                      timestamp_field: str) -> dict:
+    """Build a pre-mark 30/2.5 band and ATR14 from complete subhour buckets.
+
+    Each input timestamp marks the OPEN. Only hours completed before or at
+    asof (the OPEN of the price-test candle) enter the indicator. A full
+    hour requires every unique expected constituent bar, with valid OHLC.
+    Market session gaps may occur in the historical window; a stale latest
+    hour cannot authorize a signal. No synthetic missing observations.
+    """
+    if asof.tzinfo is None or minutes not in (1, 5):
+        return {"available": False, "reason": "invalid_clock_or_interval"}
+    now = asof.astimezone(timezone.utc)
+    groups = {}
+    for bar in bars:
+        try:
+            at = getattr(bar, timestamp_field)
+            if at.tzinfo is None:
+                continue
+            at = at.astimezone(timezone.utc)
+            h, l, c = (float(getattr(bar, k)) for k in ("high", "low", "close"))
+            if (at.second or at.microsecond or at.minute % minutes
+                    or at + timedelta(minutes=minutes) > now
+                    or not all(isfinite(v) and v > 0 for v in (h, l, c))
+                    or not l <= c <= h):
+                continue
+            hour = at.replace(minute=0, second=0, microsecond=0)
+            if hour + timedelta(hours=1) > now:
+                continue
+            groups.setdefault(hour, {}).setdefault(at.minute, []).append((h, l, c))
+        except (AttributeError, ValueError, TypeError, OverflowError):
+            continue
+    candles = []
+    for hour, group in sorted(groups.items()):
+        if set(group) != set(range(0, 60, minutes)) or any(len(v) != 1 for v in group.values()):
+            continue
+        rows = [group[m][0] for m in range(0, 60, minutes)]
+        candles.append((hour + timedelta(hours=1), max(r[0] for r in rows),
+                        min(r[1] for r in rows), rows[-1][2]))
+    if len(candles) < PERIOD:
+        return {"available": False, "reason": "insufficient_complete_h1"}
+    latest = candles[-1][0]
+    if not timedelta(0) <= now - latest <= timedelta(minutes=MAX_H1_AGE_MINUTES):
+        return {"available": False, "reason": "stale_h1_reference"}
+    mid, upper, lower = _band([r[3] for r in candles])
+    tr = [max(b[1]-b[2], abs(b[1]-a[3]), abs(b[2]-a[3]))
+          for a,b in zip(candles[-15:-1], candles[-14:])]
+    return {"available": upper > lower, "asof": latest.isoformat(),
+            "period": PERIOD, "deviations": DEVIATIONS,
+            "middle": mid, "upper": upper, "lower": lower,
+            "atr14": sum(tr)/len(tr), "timeframe": "H1"}
+
+
+def assess_profit_extension(band: dict, direction: str, current_mid: float,
+                            *, observed_at: datetime, reference_before: datetime,
+                            timeframe: str) -> dict:
+    """Measure a CURRENT favorable extension beyond an already-known band.
+
+    No rebound, trend-change prediction or wick-only fill is required/allowed.
+    This is a pure exposure-reduction recommendation, not an order or entry.
+    D1 uses band width/sigma; H1 additionally uses its verified ATR14.
+    """
+    result = {"available": False, "extreme": False, "timeframe": timeframe,
+              "direction_authority": False, "execution_authority": False,
+              "trend_reversal_required": False, "intent": "HOLD",
+              "requested_reduction_fraction": 0.0}
+    if not band.get("available") or direction.upper() not in {"LONG", "SHORT"}:
+        return {**result, "reason": "reference_unavailable"}
+    try:
+        asof = datetime.fromisoformat(str(band["asof"]).replace("Z", "+00:00"))
+        upper, lower, mid = (float(band[k]) for k in ("upper", "lower", "middle"))
+        px = float(current_mid)
+        if (observed_at.tzinfo is None or reference_before.tzinfo is None
+                or asof.tzinfo is None or not asof <= reference_before <= observed_at
+                or not all(isfinite(v) and v > 0 for v in (upper, lower, mid, px))
+                or not lower < mid < upper):
+            return {**result, "reason": "invalid_or_lookahead_reference"}
+        max_age = timedelta(minutes=90) if timeframe == "H1" else timedelta(days=4)
+        if observed_at - asof > max_age:
+            return {**result, "reason": "stale_reference"}
+        width = upper - lower
+        atr = float(band.get("atr14", 0))
+        if not isfinite(atr) or atr < 0 or (timeframe == "H1" and atr <= 0):
+            return {**result, "reason": "invalid_atr"}
+        required = max(EXTREME_MIN_PIPS * PIP, EXTREME_WIDTH_FRACTION * width,
+                       EXTREME_ATR_FRACTION * atr)
+        depth = lower - px if direction.upper() == "SHORT" else px - upper
+        extreme = depth >= required
+        return {**result, "available": True, "extreme": extreme,
+                "reason": "favorable_extreme_profit_realization" if extreme else "not_extreme",
+                "intent": "REDUCE_EXPOSURE" if extreme else "HOLD",
+                # The current ledger is all-or-nothing. Future quantity-aware
+                # execution must explicitly authorize a partial fraction.
+                "requested_reduction_fraction": 1.0 if extreme else 0.0,
+                "band_asof": asof.isoformat(), "mark_observed_at": observed_at.isoformat(),
+                "band_lower": lower, "band_upper": upper, "band_middle": mid,
+                "depth_pips": round(depth/PIP, 3),
+                "required_depth_pips": round(required/PIP, 3),
+                "width_pips": round(width/PIP, 3),
+                "atr14_pips": round(atr/PIP, 3) if atr > 0 else None}
+    except (TypeError, ValueError, KeyError, AttributeError, OverflowError):
+        return {**result, "reason": "invalid_extension_inputs"}
