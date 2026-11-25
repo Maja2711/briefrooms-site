@@ -77,6 +77,96 @@ def short_position(entry=1.102):
     }
 
 
+def dynamics_prices():
+    # A calm market, downside expansion, rebound, then contracting bands.
+    levels = [2 if i % 2 else -2 for i in range(50)]
+    levels += [-10,-20,-40,-60,-80,-100,-90,-85,-80,-75,-70,-65,
+               -60,-55,-50,-45,-40,-35,-30,-25,-20,-15,-10,-5,0,5,10,15,20]
+    levels += [-22+3*(i%2) for i in range(8)]
+    return [(START+timedelta(hours=i+1),1.1+v*.0001) for i,v in enumerate(levels)]
+
+
+class BollingerDynamicsTests(unittest.TestCase):
+    def test_expansion_and_compression_from_completed_hourly_prices(self):
+        rows=dynamics_prices()
+        early=signal.assess_dynamics(rows[:56], rows[55][0])
+        self.assertEqual("EXPANSION",early["regime"],early)
+        self.assertGreater(early["slope_pips_per_h"]["upper"],0)
+        self.assertLess(early["slope_pips_per_h"]["lower"],0)
+        final=signal.assess_dynamics(rows,rows[-1][0])
+        self.assertEqual("EXHAUSTION",final["regime"],final)
+        self.assertEqual("SHORT",final["exhausted_direction"])
+        self.assertLess(final["slope_pips_per_h"]["upper"],0)
+        self.assertGreater(final["slope_pips_per_h"]["lower"],0)
+        self.assertLess(final["bandwidth_pct_change_3h"],0)
+        self.assertFalse(final["direction_authority"])
+        self.assertIn("bandwidth",final["acceleration_pips_per_h2"])
+        mirrored=[(at,2.2-price) for at,price in rows]
+        long=signal.assess_dynamics(mirrored,rows[-1][0])
+        self.assertEqual("LONG",long["exhausted_direction"],long)
+        self.assertEqual("EXHAUSTION",long["regime"])
+
+    def test_unavailable_when_stale_gapped_or_future(self):
+        rows=dynamics_prices()
+        now=rows[-1][0]
+        self.assertFalse(signal.assess_dynamics(rows,now+timedelta(hours=2))["available"])
+        self.assertFalse(signal.assess_dynamics(rows[:-2]+rows[-1:],now)["available"])
+        self.assertFalse(signal.assess_dynamics(rows,now-timedelta(seconds=1))["available"])
+
+    def test_exhaustion_guard_never_creates_direction_or_vetoes_good_correction(self):
+        rows=dynamics_prices()
+        d=signal.assess_dynamics(rows,rows[-1][0])
+        self.assertFalse(signal.dynamics_entry_conflict(d,"SHORT"))
+        near={**d,"percent_b":.25}
+        self.assertTrue(signal.dynamics_entry_conflict(near,"SHORT"))
+        self.assertFalse(signal.dynamics_entry_conflict(near,"LONG"))
+        ctx={"data_quality":"passed","h1_bollinger_snapback":{
+            "available":True,"confirmed":False,"last_closed_h1":d["asof"],
+            "bollinger_dynamics":near}}
+        self.assertTrue(weekly_ma.band_reentry_conflicts(ctx,"short"))
+        self.assertFalse(weekly_ma.band_reentry_conflicts(ctx,"short",
+            execution_at=rows[-1][0]-timedelta(minutes=1)))
+
+    def test_profit_review_requires_post_entry_excursion_and_retained_profit(self):
+        rows=dynamics_prices()
+        d=signal.assess_dynamics(rows,rows[-1][0])
+        at,px=rows[-1]
+        review=signal.dynamics_profit_review(d,"SHORT",rows[49][0],px,at,
+            profit_pips=40,risk_pips=70,minimum_pips=20)
+        self.assertTrue(review["close"],review)
+        self.assertFalse(signal.dynamics_profit_review(d,"SHORT",at-timedelta(hours=1),px,at,
+            profit_pips=40,risk_pips=70,minimum_pips=20)["close"])
+        self.assertFalse(signal.dynamics_profit_review(d,"SHORT",rows[49][0],px,at,
+            profit_pips=4,risk_pips=70,minimum_pips=20)["close"])
+        self.assertFalse(signal.dynamics_profit_review(d,"SHORT",rows[49][0],px-.001,at,
+            profit_pips=40,risk_pips=70,minimum_pips=20)["close"])
+
+    def test_daily_canonical_exit_uses_dynamics_only_after_hard_risk(self):
+        bars=as_minute_bars(last_price=1.0982)
+        now=START+timedelta(hours=37,minutes=2)
+        p=short_position(entry=1.103)
+        d={"available":True,"regime":"EXHAUSTION","exhausted_direction":"SHORT",
+           "asof":(START+timedelta(hours=37)).isoformat(),
+           "excursion_at":(START+timedelta(hours=35)).isoformat(),
+           "excursion_price":1.094,"last_h1_close":1.0981}
+        band={"available":True,"asof":d["asof"],"middle":1.1,
+              "upper":1.105,"lower":1.095,"atr14":.001,"bollinger_dynamics":d}
+        with patch.object(daily_v14.range_exit.snapback,"completed_h1_band",return_value=band):
+            trade=daily_v14.evaluate_position(p,bars,now)
+        self.assertEqual("DYNAMIC_H1_BOLLINGER_COMPRESSION_PROFIT_EXIT",trade["exit_reason"])
+        self.assertGreater(trade["r_multiple"],0)
+        self.assertEqual(now,datetime.fromisoformat(trade["closed_at"].replace("Z","+00:00")))
+
+    def test_weekly_normalized_frame_preserves_dynamics(self):
+        rows=dynamics_prices()
+        frame=pd.DataFrame([{"open":p,"high":p+.0001,"low":p-.0001,"close":p}
+                            for _,p in rows],
+                           index=pd.DatetimeIndex([t-timedelta(hours=1) for t,_ in rows]))
+        result=weekly_ma.h1_snapback_from_frame(frame,rows[-1][0])
+        self.assertTrue(result["available"],result)
+        self.assertEqual("EXHAUSTION",result["bollinger_dynamics"]["regime"])
+
+
 class PureH1SnapbackTests(unittest.TestCase):
     def test_lower_band_breach_then_reentry_is_strong_but_not_trade_authority(self):
         result = signal.assess_closed_h1(
