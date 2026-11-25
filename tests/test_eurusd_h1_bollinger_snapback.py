@@ -230,6 +230,90 @@ class ExtremeProfitRealizationTests(unittest.TestCase):
         self.assertEqual("TP",trade["exit_reason"]) if trade["exit_reason"]=="TP" else self.assertIn(trade["exit_reason"],{"TAKE_PROFIT","TP_HIT","TAKE_PROFIT_HIT"})
 
 
+class PostProfitContinuationTests(unittest.TestCase):
+    NOW = START+timedelta(hours=38,minutes=5)
+
+    def prior(self, direction="short"):
+        return {"instrument_id":"eurusd","direction":direction,
+                "entry_captured_at":(START+timedelta(hours=20)).isoformat(),
+                "exit_captured_at":(START+timedelta(hours=35,minutes=5)).isoformat(),
+                "entry_price":1.105 if direction=="short" else 1.095,
+                "exit_price":1.094 if direction=="short" else 1.106,
+                "exit_reason":"wes_eurusd_outer_band_extreme_profit_take"}
+
+    def context(self, previous, current):
+        return {"available":True,"lower":1.095,"middle":1.100,"upper":1.105,
+                "last_closed_h1":(START+timedelta(hours=38)).isoformat(),
+                "recent_completed_h1":[
+                    {"closed_at":(START+timedelta(hours=37)).isoformat(),"close":previous},
+                    {"closed_at":(START+timedelta(hours=38)).isoformat(),"close":current}]}
+
+    def proof(self, previous, current, direction="short"):
+        return signal.assess_profit_reentry(self.prior(direction),
+            self.context(previous,current),direction,self.NOW,max_age_hours=168)
+
+    def test_short_before_ma30_and_far_edge_after_crossing(self):
+        for previous,current,zone in [(1.0994,1.0989,"BEFORE_MA30"),
+                                       (1.1049,1.1042,"OPPOSITE_OUTER_BAND")]:
+            proof=self.proof(previous,current)
+            self.assertTrue(proof["required"],proof)
+            self.assertTrue(proof["allowed"],proof)
+            self.assertEqual(zone,proof["zone"])
+            self.assertFalse(proof["direction_authority"])
+            self.assertTrue(signal.reentry_fill_allowed(proof,current,
+                self.NOW,self.NOW))
+            self.assertFalse(signal.reentry_fill_allowed(proof,1.0951,
+                self.NOW,self.NOW))
+
+    def test_long_is_mirror_and_no_reverse_authority(self):
+        for previous,current,zone in [(1.1006,1.1011,"BEFORE_MA30"),
+                                       (1.0951,1.0958,"OPPOSITE_OUTER_BAND")]:
+            proof=self.proof(previous,current,"long")
+            self.assertTrue(proof["allowed"],proof)
+            self.assertEqual(zone,proof["zone"])
+            self.assertTrue(signal.reentry_fill_allowed(proof,current,self.NOW,self.NOW))
+            self.assertFalse(signal.reentry_fill_allowed(proof,1.1049,self.NOW,self.NOW))
+        proof=signal.assess_profit_reentry(self.prior(),self.context(1.101,1.102),
+            "long",self.NOW,max_age_hours=168)
+        self.assertFalse(proof["required"])
+
+    def test_wait_for_inside_correction_and_resumption_not_chase(self):
+        for previous,current in [(1.094,1.096),(1.099,1.0995),(1.103,1.102),
+                                 (1.106,1.1055),(1.0988,1.09879)]:
+            self.assertFalse(self.proof(previous,current)["allowed"],(previous,current))
+        proof=signal.assess_profit_reentry(self.prior(),{},
+            "short",self.NOW,max_age_hours=168)
+        self.assertFalse(proof["allowed"])
+
+    def test_reject_pre_exit_stale_fill_and_unprofitable_prior(self):
+        proof=self.proof(1.0994,1.0989)
+        self.assertFalse(signal.reentry_fill_allowed(proof,1.0989,
+            self.NOW-timedelta(hours=1),self.NOW))
+        self.assertFalse(signal.reentry_fill_allowed(proof,1.0989,
+            self.NOW,self.NOW+timedelta(minutes=16)))
+        prior=self.prior()
+        prior["entry_price"]=1.093
+        self.assertFalse(signal.assess_profit_reentry(prior,self.context(1.0994,1.0989),
+            "short",self.NOW,max_age_hours=168)["allowed"])
+        prior=self.prior()
+        prior["exit_captured_at"]=(START+timedelta(hours=37,minutes=1)).isoformat()
+        self.assertFalse(signal.assess_profit_reentry(prior,self.context(1.0994,1.0989),
+            "short",self.NOW,max_age_hours=168)["allowed"])
+
+    def test_wes_limit_plan_is_in_frozen_h1_zone(self):
+        proof=self.proof(1.1049,1.1042)
+        item=self.prior()
+        decision={"direction":"short","post_profit_band_reentry":proof}
+        fresh={"signals":{"last_close":1.09,"atr14":.005,"ema20":1.095}}
+        plan=weekly_v5.build_entry_price_plan(item,decision,fresh,self.NOW,{})
+        self.assertEqual("sell_limit",plan["order_type"])
+        self.assertTrue(1.1042<=plan["target_price"]<=1.105,plan)
+        self.assertTrue(signal.reentry_fill_allowed(proof,plan["target_price"],
+            self.NOW,self.NOW))
+        other={**item,"instrument_id":"btcusd"}
+        self.assertFalse(weekly_ma.profit_reentry(other,{},"short",self.NOW)["required"])
+
+
 class WeeklyH1IsolationTests(unittest.TestCase):
     def weekly_frame(self):
         rows = hourly_rebound()
