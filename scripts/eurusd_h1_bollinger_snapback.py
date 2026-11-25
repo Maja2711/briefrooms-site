@@ -296,7 +296,8 @@ def latest_closed_trade(rows, now):
 
 def assess_profit_reentry(prior, h1, direction, now, *, max_age_hours):
     """Timing only: wait for a better price, inside-band correction and
-    renewed momentum in the independently selected original direction.
+    renewed momentum for early entries; the opposite edge is a separate
+    favorable price-location setup under the independently approved thesis.
 
     For SHORT normalized correction runs lower -> upper (LONG mirrored).
     Early zone 25%-50%, opposite-edge zone 80%-100%. Middle transition
@@ -355,9 +356,14 @@ def assess_profit_reentry(prior, h1, direction, now, *, max_age_hours):
             return {**result, "reason": "observe_correction_wait_for_entry_zone"}
         if sign*(price-exit_price) < improvement:
             return {**result, "reason": "wait_for_better_price"}
-        if resumption < REENTRY_MIN_RESUMPTION_PIPS:
+        if zone == "BEFORE_MA30" and resumption < REENTRY_MIN_RESUMPTION_PIPS:
             return {**result, "reason": "wait_for_original_direction_resumption"}
-        return {**result, "allowed": True, "reason": "qualified_post_profit_continuation"}
+        # At the far edge the favorable entry location itself is sufficient
+        # technical timing evidence, but only for a currently authorized
+        # same-direction thesis. Do not require an already-lost price rebound.
+        return {**result, "allowed": True,
+                "requires_directional_resumption": zone == "BEFORE_MA30",
+                "reason": "qualified_post_profit_continuation"}
     except (KeyError, TypeError, ValueError, IndexError, OverflowError):
         return {**result, "reason": "unverified_post_profit_geometry"}
 
