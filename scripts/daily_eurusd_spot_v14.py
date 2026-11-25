@@ -362,6 +362,31 @@ def evaluate_position(
     )
     if not relevant:
         return None
+    # A favorable extreme is a reduction of existing exposure, not a
+    # prediction of reversal. The earlier completed H1 is the reference;
+    # the current completed minute can trigger immediately, before a bounce.
+    try:
+        extreme = range_exit.assess_extreme_profit(
+            position, bars, observed_at,
+            exit_price_at_mid=lifecycle.execution_exit_price,
+        )
+    except (ValueError, TypeError, KeyError, OverflowError, ArithmeticError):
+        extreme = {"close": False}
+    if (extreme.get("close") is True
+            and (extreme.get("exposure_reduction") or {}).get("requested_reduction_fraction") == 1.0):
+        mark_at = _parse(str(extreme.get("mark_bar_open") or ""))
+        closed_at = _parse(str(extreme.get("mark_completed_at") or ""))
+        matches = [bar for bar in relevant if bar.timestamp == mark_at]
+        if len(matches) == 1 and closed_at is not None and opened < closed_at <= observed_at:
+            bar = matches[0]
+            trade = lifecycle._close_record(
+                position, exit_reason="DYNAMIC_H1_BOLLINGER_EXTREME_PROFIT_EXIT",
+                exit_price=lifecycle.execution_exit_price(position, float(bar.close)),
+                exited_at=closed_at, exit_bar=bar,
+            )
+            trade["monitor"]["dynamic_exit"] = extreme
+            return trade
+
     # EURUSD closed-H1 outer-band fast reentry: a winning position can be
     # protected after verified countertrend followthrough, but never at a
     # pre-signal or unfinished-minute price. Hard SL/TP/time have priority.
