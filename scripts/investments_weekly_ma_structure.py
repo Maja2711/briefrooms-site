@@ -39,7 +39,10 @@ def _series(df: pd.DataFrame, name: str) -> pd.Series:
 def _clean(df: pd.DataFrame) -> pd.DataFrame:
     if df is None or df.empty:
         return pd.DataFrame()
-    out = pd.DataFrame({k.lower(): _series(df, k) for k in ("Open", "High", "Low", "Close") if k in df}).dropna()
+    if not isinstance(df.columns, pd.MultiIndex) and all(k in df.columns for k in ("open", "high", "low", "close")):
+        out = df[["open", "high", "low", "close"]].copy().dropna()
+    else:
+        out = pd.DataFrame({k.lower(): _series(df, k) for k in ("Open", "High", "Low", "Close") if k in df}).dropna()
     idx = pd.DatetimeIndex(out.index)
     if idx.tz is None:
         idx = idx.tz_localize("UTC")
@@ -165,7 +168,11 @@ def band_reentry_conflicts(ma_context: Dict[str, Any], direction: str,
     if not isinstance(ma_context, dict) or ma_context.get("data_quality") != "passed":
         return False
     band = ma_context.get("h1_bollinger_snapback")
-    if not isinstance(band, dict) or not snapback.blocks_direction(band, direction):
+    if not isinstance(band, dict):
+        return False
+    conflict = (snapback.blocks_direction(band, direction)
+                or snapback.dynamics_entry_conflict(band.get("bollinger_dynamics") or {}, direction))
+    if not conflict:
         return False
     if execution_at is not None:
         # A later H1 signal cannot retrospectively veto a previous valid fill.
