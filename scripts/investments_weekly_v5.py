@@ -13,6 +13,7 @@ import investments_weekly_v3 as v3
 import investments_weekly_v4 as v4
 import investments_weekly_macro as macro
 import investments_weekly_ma_structure as ma_structure
+import eurusd_h1_bollinger_snapback as band_cycle
 import no_retroactive_execution as no_retro
 import execution_price_engine as epe
 import wes_notification_outbox as wes_outbox
@@ -46,6 +47,22 @@ def open_prior_week_position(instrument_id: str, current_path: Path) -> Optional
                 and open_position(old_item)):
                 return str(old_week.get("week_id") or old_path.stem)
     return None
+
+
+def prior_eurusd_profit_rows(item, current_path):
+    """Read-only recent prior-week EURUSD closures, including rolling holds."""
+    if item.get("instrument_id") != "eurusd" or item.get("entry_price") is not None:
+        return []
+    rows = []
+    for old_path in sorted(v4.WEEKLY_DIR.glob("????-W??.json"))[-3:]:
+        if old_path == current_path or old_path.stem >= current_path.stem:
+            continue
+        for old in read(old_path, {}).get("instruments", []):
+            if isinstance(old, dict) and old.get("instrument_id") == "eurusd":
+                rows.extend(old.get("position_legs") or [])
+                if old.get("exit_price") is not None:
+                    rows.append(old)
+    return rows
 
 
 def closed_position(item: Dict[str, Any]) -> bool:
@@ -752,6 +769,20 @@ def build_entry_price_plan(
         target = max(target, reference + minimum_pullback * atr)
         order_type = "sell_limit"
 
+    cycle = decision.get("post_profit_band_reentry") or {}
+    if iid == "eurusd" and cycle.get("required") and cycle.get("allowed"):
+        # Freeze a favorable LIMIT within the qualified correction zone,
+        # rather than using a distant D1-derived target. Market promotion
+        # still requires the original independent market-mode policy.
+        lo, hi = float(cycle["lower"]), float(cycle["upper"])
+        width = hi-lo
+        qlo, qhi = (.25, .50) if cycle["zone"] == "BEFORE_MA30" else (.80, 1.0)
+        ref = float(cycle["reference_price"])
+        if direction == "short":
+            target = min(lo+qhi*width, max(ref+.0001, lo+qlo*width))
+        else:
+            target = max(hi-qhi*width, min(ref-.0001, hi-qlo*width))
+        reference = ref
     wait_minutes = max(5, int(cfg.get("max_wait_minutes") or 60))
     entry_not_before = now
     if post_stop_reversal and source_exit_at is not None:
@@ -1714,11 +1745,19 @@ def ensure_all() -> Dict[str, Any]:
         )
         decision["macro_context"] = macro_context
         h1_band_context = (macro_context.get("ma_structure") or {})
+        profit_cycle = ma_structure.profit_reentry(
+            item, h1_band_context, decision.get("direction"), now,
+            prior_rows=prior_eurusd_profit_rows(item, path))
+        if profit_cycle.get("required"):
+            decision["post_profit_band_reentry"] = profit_cycle
         h1_against_entry = bool(
             iid == "eurusd" and ma_structure.band_reentry_conflicts(
                 h1_band_context, str(decision.get("direction") or "neutral"))
         )
+        if profit_cycle.get("required") and profit_cycle.get("allowed"):
+            h1_against_entry = False  # renewed post-exit H1 proof supersedes stale snapback
         if iid == "eurusd":
+            state.setdefault("post_profit_band_reentry", {})[iid] = profit_cycle
             state.setdefault("h1_bollinger_snapback", {})[iid] = (
                 h1_band_context.get("h1_bollinger_snapback") or {})
         decision["contextual_learning"] = contextual_learning
@@ -1733,6 +1772,35 @@ def ensure_all() -> Dict[str, Any]:
                                       "macro_score": macro_context.get("score"),
                                       "next_governed_review": "daily_review_23_00_europe_warsaw"})
             continue
+
+        if profit_cycle.get("required"):
+            if profit_cycle.get("allowed") is not True:
+                if closed_position(item):
+                    settle_unfilled_reentry(item, decision, profit_cycle["reason"])
+                else:
+                    item["pending_entry_decision"] = None
+                    item["wes_entry_authorization"] = None
+                changed = True
+                report["actions"].append({"instrument_id": iid, "action": "observe_post_profit_correction",
+                    "reason": profit_cycle["reason"], "proof": profit_cycle})
+                continue
+            # Require the CURRENT Champion direction/authorization, not a
+            # prior resting order that predates this closed-leg correction.
+            authorized_now, _ = wes_authorization_matches(item, decision, now, policy)
+            auth_proof = ((item.get("wes_entry_authorization") or {}).get("candidate") or {}).get("post_profit_band_reentry") or {}
+            if (not authorized_now or auth_proof.get("allowed") is not True
+                    or auth_proof.get("source_exit_at") != profit_cycle.get("source_exit_at")
+                    or auth_proof.get("band_asof") != profit_cycle.get("band_asof")
+                    or auth_proof.get("zone") != profit_cycle.get("zone")):
+                report["actions"].append({"instrument_id": iid, "action": "wait_fresh_post_profit_authorization"})
+                continue
+            existing = item.get("pending_entry_decision") or {}
+            old_proof = (existing.get("decision") or {}).get("post_profit_band_reentry") or {}
+            if (old_proof.get("source_exit_at") != profit_cycle.get("source_exit_at")
+                    or old_proof.get("band_asof") != profit_cycle.get("band_asof")
+                    or old_proof.get("zone") != profit_cycle.get("zone")):
+                item["pending_entry_decision"] = None
+                changed = True
 
         legacy_pending = item.get("pending_entry_decision")
         if isinstance(legacy_pending, dict) and legacy_pending.get("decided_at") and not legacy_pending.get("decision_id"):
@@ -1755,7 +1823,7 @@ def ensure_all() -> Dict[str, Any]:
         recovered = recover_frozen_pending_touch(item, str(cfg.get("symbol") or ""), now)
         if recovered is not None:
             pending, point = recovered
-            if (iid == "eurusd" and ma_structure.band_reentry_conflicts(
+            if (iid == "eurusd" and not profit_cycle.get("required") and ma_structure.band_reentry_conflicts(
                 h1_band_context, str((pending.get("decision") or {}).get("direction") or ""),
                 execution_at=parse_dt(point.get("timestamp")))):
                 report["actions"].append({
@@ -1782,6 +1850,12 @@ def ensure_all() -> Dict[str, Any]:
                     "target_price": entry_plan.get("target_price"),
                 })
                 changed = True
+                continue
+            if profit_cycle.get("required") and (
+                (pending.get("decision") or {}).get("direction") != decision.get("direction")
+                or not band_cycle.reentry_fill_allowed(profit_cycle, point.get("price"),
+                    parse_dt(point.get("timestamp")), now)):
+                report["actions"].append({"instrument_id": iid, "action": "wait_post_profit_fill_zone"})
                 continue
             frozen = pending["decision"]
             v4.open_leg(item, cfg, frozen, pending["fresh_signal"], pending["weekly_signal"], point, now)
@@ -1921,7 +1995,7 @@ def ensure_all() -> Dict[str, Any]:
                 "market_entry_diagnostics": entry_plan.get("market_entry_diagnostics"),
             })
             continue
-        if (iid == "eurusd" and ma_structure.band_reentry_conflicts(
+        if (iid == "eurusd" and not profit_cycle.get("required") and ma_structure.band_reentry_conflicts(
             h1_band_context, str((pending.get("decision") or {}).get("direction") or ""),
             execution_at=parse_dt(point.get("timestamp")))):
             report["actions"].append({
@@ -1945,6 +2019,12 @@ def ensure_all() -> Dict[str, Any]:
                 "reason": execution_verification.get("reason"),
                 "target_price": entry_plan.get("target_price"),
             })
+            continue
+        if profit_cycle.get("required") and (
+            (pending.get("decision") or {}).get("direction") != decision.get("direction")
+            or not band_cycle.reentry_fill_allowed(profit_cycle, point.get("price"),
+                parse_dt(point.get("timestamp")), now)):
+            report["actions"].append({"instrument_id": iid, "action": "wait_post_profit_fill_zone"})
             continue
         frozen = pending["decision"]
         v4.open_leg(item, cfg, frozen, pending["fresh_signal"], pending["weekly_signal"], point, now)
