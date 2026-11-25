@@ -1,14 +1,14 @@
 {
   "schema_version": "stock-trading-quote-freshness-watchdog-v1",
-  "checked_at_bucket": "2026-11-25T03:00:00Z",
+  "checked_at_bucket": "2026-11-25T16:00:00Z",
   "max_age_seconds": {
     "GPW": 1200,
     "US": 600
   },
-  "status": "OK",
-  "active_positions_checked": 0,
-  "positions_recovered": 0,
-  "alerts": 0,
+  "status": "ALERT",
+  "active_positions_checked": 2,
+  "positions_recovered": 2,
+  "alerts": 1,
   "positions": [
     {
       "market": "GPW",
@@ -21,17 +21,21 @@
     {
       "market": "US",
       "symbol": "GEHC",
-      "session": "CLOSED",
-      "status": "OUT_OF_SESSION",
-      "observed_at": "2026-11-24T15:59:00-05:00",
+      "session": "ACTIVE",
+      "precheck": "NON_REGULAR_OBSERVATION",
+      "recovery_attempted": true,
+      "status": "RECOVERED",
+      "observed_at": "2026-11-25T11:24:01-05:00",
       "provider": "Yahoo Finance chart"
     },
     {
       "market": "US",
       "symbol": "GME",
-      "session": "CLOSED",
-      "status": "OUT_OF_SESSION",
-      "observed_at": "2026-11-24T15:59:00-05:00",
+      "session": "ACTIVE",
+      "precheck": "NON_REGULAR_OBSERVATION",
+      "recovery_attempted": true,
+      "status": "RECOVERED",
+      "observed_at": "2026-11-25T11:23:00-05:00",
       "provider": "Yahoo Finance chart"
     }
   ],
@@ -42,7 +46,7 @@
   },
   "candidates_checked": 0,
   "candidate_quotes_observed": 0,
-  "candidate_alerts": 0,
+  "candidate_alerts": 1,
   "candidates": [],
   "candidate_quote_authority": "READ_ONLY_MONITORING_NOT_EXECUTION"
 }
