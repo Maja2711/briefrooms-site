@@ -51,19 +51,19 @@
       "domain": "/pl/inwestycje/decision-lab.html",
       "domain_label": "BriefRooms LAB",
       "id": "belief-core",
-      "last_conclusion": "success",
-      "last_run_at": "2026-11-25T17:28:36Z",
-      "last_run_id": 45664689756,
+      "last_conclusion": "",
+      "last_run_at": "2026-11-25T18:00:59Z",
+      "last_run_id": 45670739427,
       "name": "Belief Core Live Shadow",
       "observation_label": "forecasty",
       "observations": 40,
       "pipeline": null,
       "provenance": {
-        "artifact_id": "shadow:belief-core:run:45664689756",
+        "artifact_id": "shadow:belief-core:run:45670739427",
         "artifact_type": "shadow_observation",
         "authority": "shadow",
         "belief_ids": [],
-        "created_at": "2026-11-25T17:28:36Z",
+        "created_at": "2026-11-25T18:00:59Z",
         "decision_id": null,
         "domain_provenance": {
           "native_write_time": true,
@@ -75,7 +75,7 @@
         "evidence_ids": [],
         "forecast_id": null,
         "parent_artifact_ids": [],
-        "payload_hash": "1005bcc0ca9d4f7e2b68650749c96c599fb44ddb7b0b6f2b788e142797a4c4d0",
+        "payload_hash": "fa5c6e80fb4f1461f57fb476e8ec4dde84c796b4abf3b31b75e566bdfd656123",
         "prospective": true,
         "schema_version": "briefrooms-provenance-contract-v1",
         "source_ids": [
@@ -86,7 +86,7 @@
       },
       "source": "data/investments/decision_lab_public.json",
       "status": "RUNNING",
-      "status_reason": "ostatni workflow poprawny",
+      "status_reason": "workflow jest w trakcie",
       "workflow": "belief-core-shadow-live.yml"
     },
     {
@@ -182,27 +182,27 @@
     {
       "challenger": "v1",
       "champion": "Stock Trading v2",
-      "data_at": "2026-11-25T03:02:03+00:00",
+      "data_at": "2026-11-25T17:58:26+00:00",
       "domain": "/pl/inwestycje/stock-trading.html",
       "domain_label": "Stock Trading",
       "id": "stock-v1",
       "last_conclusion": "success",
-      "last_run_at": "2026-11-25T03:02:10Z",
-      "last_run_id": 45536776748,
+      "last_run_at": "2026-11-25T17:58:33Z",
+      "last_run_id": 45669727732,
       "name": "Stock Trading v1 Shadow Challenger",
       "observation_label": "pozycje",
       "observations": 22,
       "pipeline": null,
       "provenance": {
-        "artifact_id": "shadow:stock-v1:run:45536776748",
+        "artifact_id": "shadow:stock-v1:run:45669727732",
         "artifact_type": "shadow_observation",
         "authority": "shadow",
         "belief_ids": [],
-        "created_at": "2026-11-25T03:02:10Z",
+        "created_at": "2026-11-25T17:58:33Z",
         "decision_id": null,
         "domain_provenance": {
           "native_write_time": true,
-          "observatory_status": "IDLE",
+          "observatory_status": "RUNNING",
           "production_authority": false
         },
         "engine_id": "shadow:stock-v1",
@@ -210,7 +210,7 @@
         "evidence_ids": [],
         "forecast_id": null,
         "parent_artifact_ids": [],
-        "payload_hash": "6ff552b915aa708de1190edf360dd6233873bbce66b3f96d8d47774af0e61474",
+        "payload_hash": "7e7df3e31cc5f4fca1125595c9f00a764531608ac6f6673a76f25cc0a55a8fef",
         "prospective": true,
         "schema_version": "briefrooms-provenance-contract-v1",
         "source_ids": [
@@ -220,8 +220,8 @@
         "verification_id": null
       },
       "source": "data/investments/stock_trading_v1_shadow_portfolio.json",
-      "status": "IDLE",
-      "status_reason": "ostatni poprawny run ma 14.6h",
+      "status": "RUNNING",
+      "status_reason": "ostatni workflow poprawny",
       "workflow": "stock-trading-v1-shadow.yml"
     },
     {
@@ -403,7 +403,7 @@
         "decision_id": null,
         "domain_provenance": {
           "native_write_time": true,
-          "observatory_status": "COLLECTING",
+          "observatory_status": "STALE",
           "production_authority": false
         },
         "engine_id": "shadow:wes",
@@ -411,7 +411,7 @@
         "evidence_ids": [],
         "forecast_id": null,
         "parent_artifact_ids": [],
-        "payload_hash": "280d0363026355bdeeba8de2dec6e3d4a0c9cdfc840d14533f1745cbd7765cb9",
+        "payload_hash": "8ce0d71566b73ec0d2114180dd94901ca910d43b286571cfdc0da6c07c1bd27c",
         "prospective": true,
         "schema_version": "briefrooms-provenance-contract-v1",
         "source_ids": [
@@ -421,8 +421,8 @@
         "verification_id": null
       },
       "source": "data/investments/wes_incremental_alpha_report.json",
-      "status": "COLLECTING",
-      "status_reason": "trwa zbieranie próby: 0 par; 4 zamkniętych WES; 4 historycznych braków V5",
+      "status": "STALE",
+      "status_reason": "raport WES nie był aktualizowany od ponad 3 godzin lub nie ma daty generacji",
       "workflow": "investments-wes.yml"
     },
     {
@@ -606,17 +606,17 @@
       "workflow": "hypothesis-shadow-engine-v2.yml"
     }
   ],
-  "generated_at": "2026-11-25T17:39:40.426366Z",
+  "generated_at": "2026-11-25T18:01:26.270136Z",
   "production_authority": false,
   "read_only": true,
   "schema_version": "briefrooms-shadow-engines-public-v1",
   "summary": {
-    "COLLECTING": 1,
+    "COLLECTING": 0,
     "ERROR": 0,
-    "IDLE": 1,
+    "IDLE": 0,
     "NO DATA": 1,
-    "RUNNING": 9,
-    "STALE": 0,
+    "RUNNING": 10,
+    "STALE": 1,
     "total": 12
   }
 }
