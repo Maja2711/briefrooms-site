@@ -39,7 +39,12 @@ def _series(df: pd.DataFrame, name: str) -> pd.Series:
 def _clean(df: pd.DataFrame) -> pd.DataFrame:
     if df is None or df.empty:
         return pd.DataFrame()
-    out = pd.DataFrame({k.lower(): _series(df, k) for k in ("Open", "High", "Low", "Close") if k in df}).dropna()
+    # context() already normalizes its Yahoo frame before passing it to
+    # the H1 extractor. Cleaning twice must preserve those lowercase OHLCs.
+    if not isinstance(df.columns, pd.MultiIndex) and all(k in df.columns for k in ("open", "high", "low", "close")):
+        out = df[["open", "high", "low", "close"]].copy().dropna()
+    else:
+        out = pd.DataFrame({k.lower(): _series(df, k) for k in ("Open", "High", "Low", "Close") if k in df}).dropna()
     idx = pd.DatetimeIndex(out.index)
     if idx.tz is None:
         idx = idx.tz_localize("UTC")
