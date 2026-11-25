@@ -1760,7 +1760,7 @@ def ensure_all() -> Dict[str, Any]:
                 execution_at=parse_dt(point.get("timestamp")))):
                 report["actions"].append({
                     "instrument_id": iid, "action": "wait_h1_bollinger_snapback_clearance",
-                    "reason": "H1_BOLLINGER_FAST_REENTRY_OPPOSES_ENTRY",
+                    "reason": ma_structure.band_entry_conflict_code(h1_band_context, str((pending.get("decision") or {}).get("direction") or "")),
                     "execution_at": point.get("timestamp"),
                 })
                 continue
@@ -1867,7 +1867,7 @@ def ensure_all() -> Dict[str, Any]:
             report["actions"].append({
                 "instrument_id": iid,
                 "action": "wait_h1_bollinger_snapback_clearance",
-                "reason": "H1_BOLLINGER_FAST_REENTRY_OPPOSES_ENTRY",
+                "reason": ma_structure.band_entry_conflict_code(h1_band_context, str(decision.get("direction") or "")),
             })
             continue
         saved_pending = item.get("pending_entry_decision")
@@ -1926,7 +1926,7 @@ def ensure_all() -> Dict[str, Any]:
             execution_at=parse_dt(point.get("timestamp")))):
             report["actions"].append({
                 "instrument_id": iid, "action": "wait_h1_bollinger_snapback_clearance",
-                "reason": "H1_BOLLINGER_FAST_REENTRY_OPPOSES_ENTRY",
+                "reason": ma_structure.band_entry_conflict_code(h1_band_context, str((pending.get("decision") or {}).get("direction") or "")),
                 "execution_at": point.get("timestamp"),
             })
             continue

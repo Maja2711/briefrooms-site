@@ -249,7 +249,7 @@ def preflight():
                 "action": "reject_initial_entry" if initial_plan else "monitor_early_reentry" if early_reentry else "monitor_no_trade",
                 **candidate,
                 "decision_reason_codes": (
-                    [*(decision.get("reason_codes") or []), "H1_BOLLINGER_FAST_REENTRY_OPPOSES_ENTRY"]
+                    [*(decision.get("reason_codes") or []), ma_structure.band_entry_conflict_code(ma_context, direction)]
                     if h1_against_entry else decision.get("reason_codes")
                 ),
                 "required": profile,

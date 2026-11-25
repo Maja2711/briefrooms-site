@@ -605,6 +605,8 @@ def audit(
                         "giveback_pips": review.get("giveback_pips"),
                         "closed_5m_at": review.get("closed_5m_at"),
                         "daily_band_touch_now": review.get("daily_band_touch_now"),
+                        "bollinger_dynamics": review.get("bollinger_dynamics"),
+                        "dynamics_review": review.get("dynamics_review"),
                     })
                     if review.get("close") is True:
                         apply_eurusd_profit_exit(item, review, checked_at)
