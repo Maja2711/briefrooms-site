@@ -1,12 +1,54 @@
 {
   "layer_version": "5.9.1-experimental",
-  "checked_at": "2026-11-25T02:37:02+01:00",
+  "checked_at": "2026-11-25T04:54:32+01:00",
   "actions": [
     {
       "instrument_id": "eurusd",
-      "action": "block_new_entry",
-      "reason": "central_bank_event_risk",
-      "decision_id": "82836d57ad63f53d07be05592d004129ba1613c193e3be3c03279b0b79f3ef2c"
+      "action": "wait_for_market_entry",
+      "direction": "short",
+      "target_price": 1.09789543,
+      "reference_price": 1.09505033,
+      "order_type": "market",
+      "expires_at": "2026-11-25T05:09:32+01:00",
+      "overextension_score": 0.492027,
+      "market_entry_diagnostics": {
+        "version": "WES-1.3.1",
+        "scoring_model": "weekly_primary_daily_confirmation_modifier",
+        "direction": "short",
+        "daily_score": -56.0,
+        "weekly_score": -96.0,
+        "selected_utility": 11.2266,
+        "confirmations": 3,
+        "ret5_pct": -0.3855,
+        "ret20_pct": -1.6097,
+        "overextension_score": 0.492027,
+        "daily_aligned": true,
+        "weekly_aligned": true,
+        "daily_opposed": false,
+        "weekly_opposed": false,
+        "momentum_aligned": true,
+        "momentum_opposed": false,
+        "primary_score_components": {
+          "weekly": 1.0,
+          "utility": 0.8019,
+          "confirmations": 0.75,
+          "momentum": 1.0
+        },
+        "primary_market_score": 0.913,
+        "overextension_penalty": 0.0984,
+        "score_before_daily_modifier": 0.8146,
+        "daily_confirmation_modifier": 0.08,
+        "daily_confirmation_state": "aligned_bonus",
+        "daily_modifier_bounds": {
+          "aligned_bonus_max": 0.08,
+          "opposed_penalty_max": 0.1,
+          "strong_opposition_veto_abs_score": 55.0
+        },
+        "market_score": 0.8946,
+        "minimum_market_score": 0.6,
+        "eligible": true,
+        "reasons": []
+      }
     },
     {
       "instrument_id": "sp500_futures",
@@ -22,10 +64,10 @@
   "status": "completed",
   "eurusd_central_bank_event_risk": {
     "event_id": null,
-    "evaluated_at": "2026-11-25T01:37:02.832314Z",
+    "evaluated_at": "2026-11-25T03:54:32.275575Z",
     "scope": "EURUSD_WEEKLY",
     "position_id": null,
-    "action": "BLOCK_NEW_ENTRY",
+    "action": "HOLD",
     "mode": "SHADOW",
     "quote_verified": false,
     "event_verified": false,
@@ -218,12 +260,13 @@
     "reasons": [
       "RISK_MODEL_UNCALIBRATED",
       "FOMC_MINUTES_RELEASE_WINDOW_EXPIRED_NO_CONFERENCE",
+      "WES_STALE_WIRE_GRACE_EXHAUSTED_RELEASED_RECOVERY_REQUIRED",
       "RSS_STALE",
       "NO_EXECUTABLE_QUOTE",
       "EXECUTION_COSTS_UNKNOWN"
     ],
-    "block_new_entry": true,
-    "entry_guard_enforced": true,
+    "block_new_entry": false,
+    "entry_guard_enforced": false,
     "risk_protection_status": "MONITORING_ONLY",
     "diagnostics": {
       "current_event_id": null,
@@ -239,15 +282,15 @@
         "cb-minutes:7e049f0b3a0c37c10ee8a2b1cda4aecb"
       ],
       "expired_daily_event_ids": [],
-      "stale_wire_weekly_auto_release": false,
+      "stale_wire_weekly_auto_release": true,
       "headline_count_30m": 0,
       "latest_headline": "Minutes of the Board's discount rate meetings on October 19 and October 28, 2026",
       "latest_official_document": "https://www.ecb.europa.eu//press/pr/date/2026/html/ecb.mp261029~9a493adf17.en.html",
       "speaker_verified": false,
-      "source_age_seconds": 6388.832314,
+      "source_age_seconds": 14638.275575,
       "wire_health": "STALE",
       "producer_wire_health": "FRESH",
-      "latest_decision_headline_age_seconds": 23822.832314,
+      "latest_decision_headline_age_seconds": 32072.275575,
       "position_profit_pips": null,
       "current_net_R": null,
       "profit_at_risk_pips": null,
@@ -258,9 +301,9 @@
       "mfe_R": null,
       "remaining_upside_R": null,
       "reward_to_downside": null,
-      "quote_age_seconds": 16.832314,
+      "quote_age_seconds": 1.275575,
       "current_executable_exit_price": null,
-      "paper_proxy_price": 1.0960105657577515,
+      "paper_proxy_price": 1.09505033493042,
       "paper_proxy_uncertain": true,
       "spread_pips": null,
       "spread_multiple": null,
@@ -297,7 +340,7 @@
         "net_R": null,
         "executable": false,
         "execution_authorized": false,
-        "price_source": "Yahoo Finance:EURUSD=X:chart:1d:1m"
+        "price_source": "yfinance:EURUSD=X:5d:5m"
       },
       "PROTECT_PROFIT": {
         "status": "SHADOW_ONLY_LIFECYCLE_STOP_UPGRADE_NOT_CERTIFIED",
@@ -311,30 +354,31 @@
       "data_as_of": "2026-11-24T23:50:34Z",
       "first_seen_at": "2026-11-24T23:50:34Z",
       "producer_sha": "9a05c430a2517bfc9588aa9c8d739cd2b0dc96fb",
-      "consumer_sha": "ff3137349fb1cf69decea2b1980aeeeda0a7ac98",
+      "consumer_sha": "36df64ad84370f9e75d71d9b5fdbdb6ede95e9fc",
       "snapshot_sha256": "fe0bce16a5f905ec18696f533cc2ad96ea47cae393cf7add2aa6248961519276",
       "executed_at": null,
       "execution_price_source": null,
       "execution_authorized": false,
       "latency_breakdown": {
         "source_to_seen_seconds": 17434.0,
-        "snapshot_to_consumer_seconds": 6388.832314,
+        "snapshot_to_consumer_seconds": 14638.275575,
         "decision_to_execution_seconds": null
       },
       "risk_model_sample_sha256": null,
       "consumer_code_sha256": "8534f322c8cd8f5defd1c1ca3fa8dec93f485be401eecaac3c369cc23a9098c1",
-      "immutable_id": "82836d57ad63f53d07be05592d004129ba1613c193e3be3c03279b0b79f3ef2c"
+      "immutable_id": "7efbcb91351808b96ec51c861f535adce59d6a1250c24a22d6b2c64b0d490cb0"
     },
     "decision_mode": "SHADOW",
-    "decision": "BLOCK_NEW_ENTRY",
+    "decision": "HOLD",
     "reason": [
       "RISK_MODEL_UNCALIBRATED",
       "FOMC_MINUTES_RELEASE_WINDOW_EXPIRED_NO_CONFERENCE",
+      "WES_STALE_WIRE_GRACE_EXHAUSTED_RELEASED_RECOVERY_REQUIRED",
       "RSS_STALE",
       "NO_EXECUTABLE_QUOTE",
       "EXECUTION_COSTS_UNKNOWN"
     ],
-    "immutable_id": "82836d57ad63f53d07be05592d004129ba1613c193e3be3c03279b0b79f3ef2c",
+    "immutable_id": "7efbcb91351808b96ec51c861f535adce59d6a1250c24a22d6b2c64b0d490cb0",
     "executed_at": null,
     "execution_price_source": null,
     "execution_authority": false,
@@ -348,15 +392,15 @@
       "exit_price": 1.0974539518356323
     },
     "entry_guard_enabled": true,
-    "consumer_sha": "ff3137349fb1cf69decea2b1980aeeeda0a7ac98",
+    "consumer_sha": "36df64ad84370f9e75d71d9b5fdbdb6ede95e9fc",
     "consumer_code_sha256": "f6f2e41ea17d983296cbad4072601d0875443b3eb739e1c98b3e2a384ffad20f",
     "price_watchdog": {
       "instrument_id": "eurusd",
-      "price_observed_at": "2026-11-25T02:36:46+01:00",
-      "price_age_seconds": 16.832314,
+      "price_observed_at": "2026-11-25T04:54:31+01:00",
+      "price_age_seconds": 1.275575,
       "fresh_for_display_mark": true,
       "fresh_for_execution": false,
-      "last_known_price": 1.0960105657577515,
+      "last_known_price": 1.09505033493042,
       "status": "FRESH",
       "alerts": [],
       "recovery_required": false
