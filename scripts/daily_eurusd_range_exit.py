@@ -292,10 +292,19 @@ def assess_extreme_profit(
         profit = (entry-mark if side == "SHORT" else mark-entry)
         risk = abs(entry-stop)
         required = max(10.0 * PIP, 0.50 * risk)
-        qualifies = bool(signal.get("extreme") and isfinite(mark) and mark > 0
-                         and profit >= required)
+        dynamics = band.get("bollinger_dynamics") or {}
+        dynamics_review = snapback.dynamics_profit_review(
+            dynamics, side, opened, mid, completed_at,
+            profit_pips=profit/PIP, risk_pips=risk/PIP, minimum_pips=10.0)
+        extreme = bool(signal.get("extreme") and isfinite(mark) and mark > 0
+                       and profit >= required)
+        qualifies = extreme or bool(dynamics_review.get("close") and isfinite(mark) and mark > 0)
         return {**base, "close": qualifies,
-                "reason": "favorable_extreme_profit_realization" if qualifies else "no_qualified_extreme",
+                "reason": ("favorable_extreme_profit_realization" if extreme
+                           else dynamics_review["reason"] if qualifies else "no_qualified_extreme"),
+                "exit_reason": ("DYNAMIC_H1_BOLLINGER_EXTREME_PROFIT_EXIT" if extreme
+                                else "DYNAMIC_H1_BOLLINGER_COMPRESSION_PROFIT_EXIT"),
+                "bollinger_dynamics": dynamics, "dynamics_review": dynamics_review,
                 "signal": signal, "profit_pips": round(profit/PIP,3),
                 "profit_r": round(profit/risk,4),
                 "min_profit_pips": round(required/PIP,3),
