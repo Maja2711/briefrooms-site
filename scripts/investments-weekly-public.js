@@ -344,7 +344,12 @@
       return `<article class="card ${esc(dir(item))} integrity-withheld"><div class="head"><div><p>${esc(label(item))}</p><h3>${esc(dirText(item))}</h3></div></div><dl class="grid"><div class="cell big"><dt>${T.pnl}</dt><dd class="neutral">${esc(T.withheld)}</dd></div><div class="cell"><dt>${T.status}</dt><dd>${esc(T.audit)}</dd></div><div class="cell big"><dt>${T.audit}</dt><dd>${esc(state.reason)}</dd></div></dl></article>`;
     }
     item = state.item;
-    const neutral = dir(item) === 'neutral';
+    // EURUSD may have a CLOSED executed leg and a separate pending re-entry.
+    // Preserve the actual leg's direction, prices, risk and result.
+    const eurClosed = item.instrument_id === 'eurusd' && hasClose(item);
+    const cardDirection = eurClosed ? executedDir(item) : dir(item);
+    const cardDirectionText = eurClosed ? executedDirText(item) : dirText(item);
+    const neutral = cardDirection === 'neutral';
     const pendingDirection = String(item?.pending_entry_decision?.decision?.direction || '').toLowerCase();
     const pendingPlan = item?.pending_entry_decision?.entry_price_plan || {};
     const pendingTarget = good(pendingPlan?.target_price);
@@ -358,7 +363,7 @@
     const mark = hasClose(item) ? item.exit_price : current;
     const result = metrics(item, mark);
     const value = result?.value ?? null;
-    const risk = pendingReentry ? { sl: null, tp: null, rr: null } : riskPlan(item);
+    const risk = pendingReentry && !eurClosed ? { sl: null, tp: null, rr: null } : riskPlan(item);
     // EUR/USD MARKET does not have a resting LIMIT price. The historical
     // target_price is immutable audit evidence, NOT an executable entry quote.
     // A frozen LIMIT is displayed only while both plan and authorization live.
@@ -405,9 +410,29 @@
           : 'Awaiting EPE-verified market execution';
       }
     }
-    const closeValue = pendingReentry ? T.no : (hasClose(item) ? esc(fmt(item.exit_price, item.instrument_id)) : T.no);
-    const resultLabel = pendingReentry ? T.previousResult : T.pnl;
-    return `<article class="card ${esc(dir(item))}"><div class="head"><div><p>${esc(label(item))}</p><h3>${esc(dirText(item))}</h3></div></div><div class="now"><span>${currentLabel}</span><strong>${esc(fmt(current, item.instrument_id))}</strong><small>${currentTime ? esc(`${T.priceTime}: ${currentTime}`) : T.no}</small></div><dl class="grid"><div class="cell"><dt>${openLabel}</dt><dd>${openValue}</dd></div><div class="cell"><dt>${T.close}</dt><dd>${closeValue}</dd></div><div class="cell"><dt>${T.notional}</dt><dd>${neutral ? T.no : esc(notionalText(item))}</dd></div><div class="cell"><dt>${T.status}</dt><dd>${esc(currentStatus)}</dd></div><div class="cell"><dt>${T.sl}</dt><dd>${neutral ? T.no : esc(fmt(risk.sl, item.instrument_id))}</dd></div><div class="cell"><dt>${T.tp}</dt><dd>${neutral ? T.no : esc(fmt(risk.tp, item.instrument_id))}</dd></div><div class="cell big"><dt>${T.rr}</dt><dd>${neutral ? T.no : esc(rrText(risk.rr))}</dd></div><div class="cell big"><dt>${resultLabel}</dt><dd class="${tone(value)}">${neutral ? T.no : esc(resultText(item, mark))}</dd></div></dl></article>`;
+    let nextEntryCell = '';
+    if (eurClosed) {
+      // Only the secondary plan can expire or be blocked. It must never
+      // replace the completed trade's prices or the CLOSED badge/status.
+      const nextLabel = L === 'pl' ? 'Ponowne wejście' : 'Re-entry';
+      const monitoring = L === 'pl' ? 'Obserwacja — oczekiwanie na nowy sygnał' : 'Monitoring — waiting for a new signal';
+      const cbPaused = item.next_entry_status === 'blocked_by_central_bank_event_risk'
+        || item.next_entry_status === 'blocked_cb_monitor_error';
+      const pendingText = (eurPending && (blockedByCb || blockedByCbError || !planLive || marketMode))
+        ? currentStatus
+        : eurPending && planLive
+          ? `${pendingDirection.toUpperCase()} · LIMIT ${fmt(pendingTarget, item.instrument_id)}`
+          : cbPaused
+            ? (L === 'pl' ? 'Wejście wstrzymane — ryzyko FED/ECB' : 'Entry paused — Fed/ECB risk')
+            : monitoring;
+      nextEntryCell = `<div class="cell big"><dt>${esc(nextLabel)}</dt><dd>${esc(pendingText)}</dd></div>`;
+      openLabel = T.open;
+      openValue = esc(fmt(item.entry_price, item.instrument_id));
+      currentStatus = T.closed;
+    }
+    const closeValue = pendingReentry && !eurClosed ? T.no : (hasClose(item) ? esc(fmt(item.exit_price, item.instrument_id)) : T.no);
+    const resultLabel = pendingReentry && !eurClosed ? T.previousResult : T.pnl;
+    return `<article class="card ${esc(cardDirection)}"${eurClosed ? ' data-executed-state="closed"' : ''}><div class="head"><div><p>${esc(label(item))}</p><h3>${esc(cardDirectionText)}</h3></div></div><div class="now"><span>${currentLabel}</span><strong>${esc(fmt(current, item.instrument_id))}</strong><small>${currentTime ? esc(`${T.priceTime}: ${currentTime}`) : T.no}</small></div><dl class="grid"><div class="cell"><dt>${openLabel}</dt><dd>${openValue}</dd></div><div class="cell"><dt>${T.close}</dt><dd>${closeValue}</dd></div><div class="cell"><dt>${T.notional}</dt><dd>${neutral ? T.no : esc(notionalText(item))}</dd></div><div class="cell"><dt>${T.status}</dt><dd>${esc(currentStatus)}</dd></div><div class="cell"><dt>${T.sl}</dt><dd>${neutral ? T.no : esc(fmt(risk.sl, item.instrument_id))}</dd></div><div class="cell"><dt>${T.tp}</dt><dd>${neutral ? T.no : esc(fmt(risk.tp, item.instrument_id))}</dd></div><div class="cell big"><dt>${T.rr}</dt><dd>${neutral ? T.no : esc(rrText(risk.rr))}</dd></div><div class="cell big"><dt>${resultLabel}</dt><dd class="${tone(value)}">${neutral ? T.no : esc(resultText(item, mark))}</dd></div>${nextEntryCell}</dl></article>`;
   }
 
   let weeksCache = [];
