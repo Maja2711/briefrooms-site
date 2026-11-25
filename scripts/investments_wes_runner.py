@@ -144,6 +144,12 @@ def preflight():
             and str(existing_pending_decision.get("direction") or "") == direction
             and str(existing_pending_decision.get("strategy_id") or "") == str(decision.get("strategy_id") or "")
             and base_thresholds_passed
+            and profit_cycle.get("allowed") is True
+            and (not profit_cycle.get("required") or (
+                (existing_pending_decision.get("post_profit_band_reentry") or {}).get("source_exit_at") == profit_cycle.get("source_exit_at")
+                and (existing_pending_decision.get("post_profit_band_reentry") or {}).get("band_asof") == profit_cycle.get("band_asof")
+                and (existing_pending_decision.get("post_profit_band_reentry") or {}).get("zone") == profit_cycle.get("zone")
+            ))
         )
         reaffirmed_pending = (
             wes.v5.reaffirm_pending_decision(
