@@ -105,6 +105,10 @@ def assess_closed_h1(
         "source": source, "last_closed_h1": last[0].isoformat(),
         "age_minutes": round(age, 2), "closed_h1": len(rows),
         "last_h1_close": round(last[4], 8),
+        "recent_completed_h1": [
+            {"closed_at": row[0].isoformat(), "close": row[4]}
+            for row in rows[-3:]
+        ],
         "lower": round(lower, 8), "upper": round(upper, 8),
         "middle": round(mid, 8), "width_pips": round(width / PIP, 3),
         "direction_authority": False, "execution_authority": False,
@@ -255,3 +259,134 @@ def assess_profit_extension(band: dict, direction: str, current_mid: float,
                 "atr14_pips": round(atr/PIP, 3) if atr > 0 else None}
     except (TypeError, ValueError, KeyError, AttributeError, OverflowError):
         return {**result, "reason": "invalid_extension_inputs"}
+
+
+# The post-profit continuation cycle is distinct from a reversal trade.
+PROFIT_EXIT_REASONS = {
+    "wes_eurusd_outer_band_extreme_profit_take",
+    "wes_eurusd_daily_band_profit_take",
+    "wes_eurusd_peak_profit_giveback_exit",
+    "wes_h1_bollinger_snapback_profit_exit",
+    "DYNAMIC_H1_BOLLINGER_EXTREME_PROFIT_EXIT",
+    "DYNAMIC_H1_BOLLINGER_SNAPBACK_EXIT",
+}
+REENTRY_MIN_IMPROVEMENT_PIPS = 5.0
+REENTRY_MIN_RESUMPTION_PIPS = 1.5
+
+
+def _aware(value):
+    try:
+        stamp = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        return stamp.astimezone(timezone.utc) if stamp.tzinfo else None
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+
+def latest_closed_trade(rows, now):
+    """Choose latest actual closed leg, not latest winning leg."""
+    valid = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        stamp = _aware(row.get("closed_at") or row.get("exit_captured_at"))
+        if stamp is not None and stamp <= now:
+            valid.append((stamp, row))
+    return max(valid, key=lambda r: r[0])[1] if valid else None
+
+
+def assess_profit_reentry(prior, h1, direction, now, *, max_age_hours):
+    """Timing only: wait for a better price, inside-band correction and
+    renewed momentum in the independently selected original direction.
+
+    For SHORT normalized correction runs lower -> upper (LONG mirrored).
+    Early zone 25%-50%, opposite-edge zone 80%-100%. Middle transition
+    deliberately waits. The last two consecutive H1 closes must be AFTER
+    the actual close of the previous position. No fill or direction authority.
+    """
+    result = {"policy": "POST_PROFIT_BAND_CONTINUATION_V1", "required": False,
+              "allowed": True, "direction_authority": False,
+              "execution_authority": False, "reason": "not_post_profit_same_direction"}
+    side = str(direction).upper()
+    if not isinstance(prior, dict) or side not in {"SHORT", "LONG"}:
+        return result
+    if (str(prior.get("direction")).upper() != side
+            or prior.get("exit_reason") not in PROFIT_EXIT_REASONS):
+        return result
+    exited = _aware(prior.get("closed_at") or prior.get("exit_captured_at"))
+    opened = _aware(prior.get("opened_at") or prior.get("entry_captured_at"))
+    if now.tzinfo is None or exited is None or opened is None or not opened < exited <= now:
+        return {**result, "required": True, "allowed": False, "reason": "invalid_profit_exit_chronology"}
+    if now - exited > timedelta(hours=max_age_hours):
+        return {**result, "reason": "post_profit_review_window_elapsed"}
+    result.update(required=True, allowed=False, source_exit_at=exited.isoformat(),
+                  source_exit_reason=prior.get("exit_reason"), direction=side)
+    try:
+        entry = float(prior.get("entry_price", prior.get("entry")))
+        exit_price = float(prior["exit_price"])
+        sign = 1 if side == "SHORT" else -1
+        if (not all(isfinite(v) and v > 0 for v in (entry, exit_price))
+                or sign * (entry - exit_price) <= 0):
+            return {**result, "reason": "prior_profit_not_verified"}
+        if not h1.get("available"):
+            return {**result, "reason": "missing_h1_reference"}
+        lower, mid, upper = (float(h1[k]) for k in ("lower", "middle", "upper"))
+        recent = h1["recent_completed_h1"]
+        previous, last = recent[-2], recent[-1]
+        a, b = _aware(previous["closed_at"]), _aware(last["closed_at"])
+        previous_price, price = float(previous["close"]), float(last["close"])
+        if (a is None or b is None or not exited < a < b <= now
+                or b-a != timedelta(hours=1) or now-b > timedelta(minutes=90)
+                or _aware(h1["last_closed_h1"]) != b
+                or not all(isfinite(v) and v > 0 for v in (lower,mid,upper,previous_price,price))
+                or not lower < mid < upper):
+            return {**result, "reason": "await_fresh_post_exit_h1_confirmation"}
+        width = upper-lower
+        # Use actual prospective price improvement, not a reconstructed extreme.
+        improvement = max(REENTRY_MIN_IMPROVEMENT_PIPS*PIP, .08*width)
+        q = (price-lower)/width if side == "SHORT" else (upper-price)/width
+        zone = ("BEFORE_MA30" if .25 <= q <= .50
+                else "OPPOSITE_OUTER_BAND" if .80 <= q <= 1.0 else None)
+        resumption = sign*(previous_price-price)/PIP
+        result.update(source_exit_price=exit_price, lower=lower, middle=mid, upper=upper,
+                      band_asof=b.isoformat(), reference_price=price, correction_fraction=q,
+                      required_improvement_pips=improvement/PIP, resumption_pips=resumption,
+                      zone=zone)
+        if zone is None:
+            return {**result, "reason": "observe_correction_wait_for_entry_zone"}
+        if sign*(price-exit_price) < improvement:
+            return {**result, "reason": "wait_for_better_price"}
+        if resumption < REENTRY_MIN_RESUMPTION_PIPS:
+            return {**result, "reason": "wait_for_original_direction_resumption"}
+        return {**result, "allowed": True, "reason": "qualified_post_profit_continuation"}
+    except (KeyError, TypeError, ValueError, IndexError, OverflowError):
+        return {**result, "reason": "unverified_post_profit_geometry"}
+
+
+def reentry_fill_allowed(proof, fill, stamp, now, *, max_age_minutes=15):
+    """Recheck the actual fill against frozen zone and actual prior exit.
+    No relaxation for market orders or recovered pending LIMIT touches.
+    """
+    if not proof.get("required"):
+        return True
+    if proof.get("allowed") is not True:
+        return False
+    try:
+        asof = _aware(proof["band_asof"])
+        price = float(fill)
+        lo, hi = float(proof["lower"]), float(proof["upper"])
+        side = proof["direction"]
+        if (asof is None or stamp is None or stamp.tzinfo is None
+                or now.tzinfo is None or not asof <= stamp <= now
+                or now-stamp > timedelta(minutes=max_age_minutes)
+                or now-asof > timedelta(minutes=90)
+                or not isfinite(price) or price <= 0 or not hi > lo):
+            return False
+        q = (price-lo)/(hi-lo) if side == "SHORT" else (hi-price)/(hi-lo)
+        sign = 1 if side == "SHORT" else -1
+        good_zone = (.25 <= q <= .50 if proof["zone"] == "BEFORE_MA30"
+                     else .80 <= q <= 1.0 if proof["zone"] == "OPPOSITE_OUTER_BAND" else False)
+        return bool(side in {"SHORT","LONG"} and good_zone
+                    and sign*(price-float(proof["source_exit_price"])) >=
+                    float(proof["required_improvement_pips"])*PIP)
+    except (KeyError, TypeError, ValueError, OverflowError):
+        return False
