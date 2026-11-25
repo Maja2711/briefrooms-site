@@ -109,7 +109,7 @@ function closedEurFixture({pending = true, future = false, direction = 'short', 
   return week;
 }
 const eurCard = app => app.innerHTML.match(/<article class="card short" data-executed-state="closed">[\s\S]*?<\/article>/)?.[0] || '';
-test('W48 expired reentry keeps actual closed position and separate plan in PL and EN', async () => {
+test('W48 expired reentry keeps actual closed position and hides plan in PL and EN', async () => {
   for (const lang of ['pl','en']) {
     const {app} = await renderWeekly(closedEurFixture({direction:'long'}),lang);
     const card = eurCard(app);
@@ -119,7 +119,7 @@ test('W48 expired reentry keeps actual closed position and separate plan in PL a
     assert.match(card, /<dd>1[,.]09745<\/dd>/);
     assert.match(card, /<dt>Status<\/dt><dd>(zamknięta|closed)<\/dd>/);
     assert.match(card, /\+9[,.]64 USD/);
-    assert.match(card, /<dt>(Ponowne wejście|Re-entry)<\/dt><dd>(Plan wejścia wygasł|Entry plan expired)/);
+    assert.doesNotMatch(card, /Ponowne wejście|Re-entry|Plan wejścia wygasł|Entry plan expired/);
     assert.doesNotMatch(card, /Poprzedni wynik|Previous result/);
     assert.match(card, /1[,.]10602/);
     assert.match(card, /1[,.]08192/);
@@ -135,7 +135,8 @@ test('live MARKET, CB block and monitoring never replace EURUSD closed state', a
     const card = eurCard(app);
     assert.ok(card);
     assert.match(card, /<dt>Status<\/dt><dd>zamknięta<\/dd>/);
-    assert.match(card, expected);
+    assert.doesNotMatch(card, expected);
+    assert.doesNotMatch(card, /Ponowne wejście|Re-entry/);
   }
 });
 test('genuine invalid chronology remains withheld', async () => {
