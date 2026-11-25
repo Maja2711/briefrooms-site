@@ -147,14 +147,14 @@ def assess(
                    and b.ts >= opened
                    and b.ts + timedelta(minutes=5) <= now),
                   key=lambda b:b.ts)
-    if not rows:
+    if len(rows) < 2:
         return _no("insufficient_completed_post_entry_5m")
     if any(b.ts <= a.ts for a,b in zip(rows, rows[1:])):
         return _no("duplicate_post_entry_5m")
     last = rows[-1]
     price = _float(getattr(last, "close", None))
-    if (price is None or price <= 0 or price < last.low - PIP
-            or price > last.high + PIP):
+    if (price is None or price <= 0 or not last.low <= price <= last.high
+            or last.ts.minute % 5 or last.ts.second or last.ts.microsecond):
         return _no("invalid_completed_5m_close")
     completed_at = last.ts + timedelta(minutes=5)
     age = (now - completed_at).total_seconds()/60
@@ -198,7 +198,7 @@ def assess(
     extreme_signal = next((e for e in (daily_ext, hourly_ext) if e.get("extreme")), None)
     extreme_take = bool(extreme_signal and age <= MAX_EXTREME_MARK_AGE_MINUTES
                         and current_net >= required_net)
-    if not extreme_take and (peak_net < MIN_PEAK_NET_PIPS or len(rows) < 2):
+    if not extreme_take and peak_net < MIN_PEAK_NET_PIPS:
         return _no("peak_below_profit_protection_threshold",
                    peak_net_pips=round(peak_net,2),
                    current_net_pips=round(current_net,2),
