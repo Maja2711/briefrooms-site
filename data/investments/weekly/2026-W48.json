@@ -218,7 +218,7 @@
         "source_exit_reason": "wes_eurusd_peak_profit_giveback_exit"
       },
       "wes_initial_no_trade_score": 67.0,
-      "next_entry_status": "waiting_for_market_entry",
+      "next_entry_status": "blocked_by_central_bank_event_risk",
       "latest_macro_context": {
         "as_of": "2026-11-24T00:00:00",
         "data_quality": "passed",
@@ -2557,7 +2557,14 @@
       "wes_early_reentry_eligible": true,
       "wes_early_reentry_source_exit_at": "2026-11-24T18:35:00+01:00",
       "wes_early_reentry_source_exit_reason": "wes_eurusd_peak_profit_giveback_exit",
-      "wes_early_reentry_source_risk_status": "closed_by_wes_eurusd_profit_protection"
+      "wes_early_reentry_source_risk_status": "closed_by_wes_eurusd_profit_protection",
+      "entry_block_reason_codes": [
+        "RISK_MODEL_UNCALIBRATED",
+        "FOMC_MINUTES_RELEASE_WINDOW_EXPIRED_NO_CONFERENCE",
+        "RSS_STALE",
+        "NO_EXECUTABLE_QUOTE",
+        "EXECUTION_COSTS_UNKNOWN"
+      ]
     },
     {
       "instrument_id": "sp500_futures",
@@ -3146,13 +3153,24 @@
         "duplicates": [],
         "formal_learning_eligible": false,
         "missing_review_is_hold": false
+      },
+      {
+        "schema_version": "briefrooms-daily-review-completeness-v1",
+        "session_date": "2026-11-25",
+        "status": "NOT_DUE",
+        "expected_count": 0,
+        "reviewed_count": 0,
+        "missing": [],
+        "duplicates": [],
+        "formal_learning_eligible": false,
+        "missing_review_is_hold": false
       }
     ],
     "enabled": true,
     "completeness_contract": "exactly_one_scheduled_review_per_open_position_session",
     "missing_review_is_hold": false,
     "historical_backfill_allowed": false,
-    "last_completeness_checked_at": "2026-11-23T08:49:31+01:00",
+    "last_completeness_checked_at": "2026-11-25T01:44:17+01:00",
     "last_completeness_status": "NOT_DUE"
   },
   "wes": {
@@ -3199,6 +3217,6 @@
     "execution_parity_report": "data/investments/weekly_execution_parity_v5.json",
     "immutable_decision_ledger": "data/investments/wes_decision_ledger.json",
     "immutable_decision_ledger_schema": "briefrooms-wes-decision-ledger-v1",
-    "last_checked_at": "2026-11-24T22:34:16+01:00"
+    "last_checked_at": "2026-11-25T01:44:16+01:00"
   }
 }
