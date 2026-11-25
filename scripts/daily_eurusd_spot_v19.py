@@ -35,6 +35,7 @@ import daily_eurusd_decision_record as decision_record
 import daily_eurusd_production_policy as production_policy
 import daily_eurusd_reentry_safety as reentry_safety
 import daily_eurusd_bollinger_h1 as bollinger_h1
+import eurusd_h1_bollinger_snapback as band_cycle
 import daily_eurusd_regime_policy as regime_policy
 import daily_eurusd_flip_guard as flip_guard
 import daily_eurusd_bollinger_d1 as bollinger_d1
@@ -137,6 +138,15 @@ def _execution_admission(
 
     bollinger = (candidate.metadata or {}).get("bollinger_h1") or {}
     details["bollinger_h1"] = dict(bollinger)
+    prior = band_cycle.latest_closed_trade((history or {}).get("trades") or [], observed_at)
+    profit_cycle = band_cycle.assess_profit_reentry(
+        prior, bollinger.get("outer_band_snapback") or {}, candidate.direction,
+        observed_at, max_age_hours=48)
+    details["post_profit_band_reentry"] = profit_cycle
+    cycle_required = profit_cycle.get("required") is True
+    cycle_ready = cycle_required and profit_cycle.get("allowed") is True
+    if cycle_required and not cycle_ready:
+        reasons.append("post_profit_" + profit_cycle["reason"])
     # Belief alone creates the direction; admission may only veto a weak flip.
     flip = flip_guard.flip_confirmation(
         candidate.to_dict(), history, observed_at,
@@ -157,7 +167,7 @@ def _execution_admission(
     if candidate.direction in {"LONG", "SHORT"}:
         if bollinger.get("available") is not True:
             reasons.append("bollinger_h1_" + str(bollinger.get("reason") or "unverified"))
-        elif bollinger.get("allowed") is not True:
+        elif bollinger.get("allowed") is not True and not cycle_ready:
             reasons.append("bollinger_h1_" + str(bollinger.get("reason") or "not_aligned"))
 
     mtf = (candidate.metadata or {}).get("multi_timeframe") or {}
@@ -167,7 +177,17 @@ def _execution_admission(
     if candidate.direction in {"LONG", "SHORT"} and mtf.get("available") is not True:
         reasons.append("mtf_" + str(mtf.get("reason") or "unverified"))
     elif mtf.get("available") is True and mtf.get("block_new_entry") is True:
-        reasons.append("mtf_" + str(mtf.get("strategy") or "not_admitted").lower())
+        # Only replace old H1 timing vetoes, never D1 conflict or
+        # unverified multi-timeframe evidence.
+        if not (cycle_ready and mtf.get("strategy") in {"WAIT_TRANSITION", "WAIT_RANGE_EDGE"}):
+            reasons.append("mtf_" + str(mtf.get("strategy") or "not_admitted").lower())
+    if cycle_ready:
+        higher = mtf.get("d1") or {}
+        expected = "UP" if candidate.direction == "LONG" else "DOWN"
+        if higher.get("trend") in {None, "UNVERIFIED"}:
+            reasons.append("post_profit_d1_unverified")
+        elif higher.get("strong") is True and higher.get("trend") != expected:
+            reasons.append("post_profit_strong_d1_conflict")
     if risk_plan.get("allowed") is False:
         reasons.append("mtf_volatility_geometry_unfavorable")
 
@@ -182,9 +202,13 @@ def _execution_admission(
         d1_touch, candidate.direction, observed_at,
     )
     details["strong_h1_entry_priority"] = h1_priority
-    if h1_priority.get("active") is True and h1_priority.get("entry_location_allowed") is not True:
+    if h1_priority.get("active") is True and h1_priority.get("entry_location_allowed") is not True and not cycle_ready:
         reasons.append("h1_strong_trend_waiting_for_hourly_pullback")
-    if h1_priority.get("replaces_d1_touch_veto") is not True:
+    d1_cycle_compatible = bool(cycle_ready and d1_touch.get("available") is True
+        and not d1_touch.get("processing_error")
+        and (mtf.get("d1") or {}).get("trend") == ("UP" if candidate.direction == "LONG" else "DOWN"))
+    details["post_profit_d1_touch_timing_override"] = d1_cycle_compatible
+    if h1_priority.get("replaces_d1_touch_veto") is not True and not d1_cycle_compatible:
         if candidate.direction == "LONG" and d1_touch.get("upper_long_blocked") is True:
             reasons.append("bollinger_d1_upper_touch_waiting_for_half_retracement")
         if candidate.direction == "SHORT" and d1_touch.get("lower_short_blocked") is True:
@@ -280,6 +304,15 @@ def _execution_admission(
         observed_at,
     )
     details["entry_multifactor"] = quality
+    if cycle_ready:
+        # This is not a second direction generator. Require the existing
+        # non-band evidence quorum even when H1 is classified TRANSITION.
+        factors = quality.get("factors") or {}
+        if (quality.get("non_band_available", 0) != 4
+                or quality.get("non_band_passed", 0) < quality.get("minimum_non_band_confirmations", 3)
+                or not (factors.get("BELIEF_QUALITY") or {}).get("confirmed")
+                or not (factors.get("PROSPECTIVE_REWARD_RISK") or {}).get("confirmed")):
+            reasons.append("post_profit_independent_confirmation_insufficient")
     if quality.get("enforce") is True:
         if quality.get("status") == "MULTIFACTOR_EVIDENCE_UNVERIFIED":
             reasons.append("entry_multifactor_required_evidence_unverified")
@@ -656,6 +689,16 @@ def prepare_entry_candidate(
     if execution_reason:
         canonical_allowed = False
         admission.update(allowed=False, status="BLOCKED", reasons=[execution_reason])
+    cycle = admission.get("post_profit_band_reentry") or {}
+    if canonical_allowed and cycle.get("required"):
+        quote = execution.get("selected_quote") or execution.get("primary_quote") or {}
+        stamp = lifecycle.parse_iso(str(quote.get("timestamp") or quote.get("received_at") or ""))
+        checked = lifecycle.parse_iso(str(execution.get("verified_at") or ""))
+        if (checked is None or execution.get("verified") is not True
+                or not band_cycle.reentry_fill_allowed(cycle, execution.get("fill_price"),
+                    stamp, checked, max_age_minutes=3)):
+            canonical_allowed = False
+            admission.update(allowed=False, status="BLOCKED", reasons=["post_profit_epe_fill_outside_zone_or_stale"])
     # Outer-band fills demand tighter two-source proof than trend entries.
     # A live 1m bounce cannot authorize a displaced EPE fill.
     edge = (admission.get("bollinger_h1") or {}).get("range_edge_entry") or {}
