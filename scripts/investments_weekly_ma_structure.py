@@ -186,6 +186,15 @@ def band_reentry_conflicts(ma_context: Dict[str, Any], direction: str,
     return True
 
 
+def band_entry_conflict_code(ma_context: Dict[str, Any], direction: str) -> str:
+    band = ma_context.get("h1_bollinger_snapback") or {}
+    if snapback.blocks_direction(band, direction):
+        return "H1_BOLLINGER_FAST_REENTRY_OPPOSES_ENTRY"
+    if snapback.dynamics_entry_conflict(band.get("bollinger_dynamics") or {}, direction):
+        return "H1_BOLLINGER_DYNAMICS_EXHAUSTION_NO_CHASE"
+    return "H1_BOLLINGER_TIMING_CONFLICT"
+
+
 def apply_to_candidates(instrument_id: str, candidates: Dict[str, Dict[str, Any]], ma_context: Dict[str, Any], policy: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     rows = {key: dict(value) for key, value in candidates.items()}
     if instrument_id != INSTRUMENT_ID or ma_context.get("data_quality") != "passed":
