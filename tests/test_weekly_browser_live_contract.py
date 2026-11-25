@@ -39,7 +39,8 @@ class WeeklyBrowserLiveContractTests(unittest.TestCase):
         for path in PAGES:
             html = path.read_text(encoding="utf-8")
             self.assertNotIn("eurusd-cb-risk-public.js", html)
-            self.assertIn("investments-weekly-public.js?v=weekly-tickets-only-20261120", html)
+            self.assertIn("investments-weekly-public.js?v=eurusd-closed-ticket-20261125", html)
+            self.assertIn("investments-wes-public.js?v=eurusd-closed-ticket-20261125", html)
             self.assertIn("investments-weekly-position-state.js?v=weekly-tickets-only-20261120", html)
 
         frontend = (ROOT / "scripts" / "investments-weekly-public.js").read_text(encoding="utf-8")

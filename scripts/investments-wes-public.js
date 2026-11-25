@@ -12,7 +12,7 @@
     week.instruments.forEach((item, index) => {
       if (!item || item.wes_status !== 'no_trade_monitoring_trigger') return;
       const card = cards[index];
-      if (!card) return;
+      if (!card || card.getAttribute('data-executed-state') === 'closed') return;
       const heading = card.querySelector('.head h3');
       if (heading) heading.textContent = 'NO TRADE';
       const cells = Array.from(card.querySelectorAll('.cell'));
