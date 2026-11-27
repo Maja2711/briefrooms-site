@@ -35,13 +35,15 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: |
+      - run: docker pull python:3.11-slim
+      - env:
+          BR_HEAL_SANDBOX_TEST: '1'
+        run: |
           python -m py_compile scripts/brs_self_healing.py
           python -m unittest -v tests.test_brs_self_healing tests.test_brs_engineering_gate
       - name: Read-only regression suite for proposed changes
         if: github.event_name == 'pull_request'
         run: |
-          docker pull python:3.11-slim
           python scripts/brs_self_healing.py validate "${RUNNER_TEMP}/unused.json"
 
   propose:
@@ -117,6 +119,7 @@ jobs:
       - name: Create repair branch and PR or deduplicated escalation
         env:
           GH_TOKEN: ${{ secrets.BR_SELF_HEAL_TOKEN }}
+          PYTHONDONTWRITEBYTECODE: '1'
         run: |
           set -euo pipefail
           if [[ -z "$GH_TOKEN" ]]; then
