@@ -1,0 +1,36 @@
+name: Engineering Harness Validation
+on:
+  pull_request:
+    paths:
+      - 'scripts/brs_engineering_*.py'
+      - 'tests/test_brs_engineering_*.py'
+      - '.codex/agents/**'
+      - '.github/workflows/brs-engineering-harness-validation.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Engineering tests
+        run: python -m unittest discover -s tests -p 'test_brs_engineering_*.py' -v
+      - name: Validate agent configuration syntax
+        run: |
+          python - <<'PY'
+          import tomllib
+          from pathlib import Path
+          for name in ('search', 'grep', 'audit', 'architect', 'builder', 'tester'):
+              with open(Path('.codex/agents') / (name + '.toml'), 'rb') as f:
+                  profile = tomllib.load(f)
+              assert profile['name'] == name, name
+              assert profile['sandbox_mode'] == ('workspace-write' if name in ('builder', 'tester') else 'read-only'), name
+              assert profile['developer_instructions'].strip(), name
+          PY

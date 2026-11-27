@@ -13,6 +13,7 @@ try:
     from . import publish_curated_news as curated
     from . import enforce_homepage_max_age as public_freshness
     from . import pl_sport_priority
+    from . import news_editorial_guard as editorial_guard
     from .news_claim_intelligence import (
         CLAIM_INTELLIGENCE_VERSION,
         CONTRADICTION_DETECTION_VERSION,
@@ -46,6 +47,7 @@ except ImportError:
     import publish_curated_news as curated
     import enforce_homepage_max_age as public_freshness
     import pl_sport_priority
+    import news_editorial_guard as editorial_guard
     from news_claim_intelligence import (
         CLAIM_INTELLIGENCE_VERSION,
         CONTRADICTION_DETECTION_VERSION,
@@ -216,15 +218,12 @@ def select_sections(
         )
         return first_seen is not None
 
+    eligible_pools = {}
     for section_id, _, _ in config:
         raw = fetched.get(section_id) or []
         eligible_rows = [story for story in raw if isinstance(story, dict) and eligible(story, section_id)]
         preselection_rejected[section_id] = len(raw) - len(eligible_rows)
-        deduped, dispatch_diag = deduplicate_dispatches(eligible_rows)
-        events, event_diag = cluster_events(deduped)
-        canonical[section_id] = events
-        dispatch_diagnostics[section_id] = dispatch_diag
-        event_diagnostics[section_id] = event_diag
+        eligible_pools[section_id] = eligible_rows
 
     # Carried stories need exactly the same eligibility gate; otherwise they
     # can refill a ranked section with identities whose exposure has expired.
@@ -237,12 +236,59 @@ def select_sections(
             for section_id, rows in prior_sections.items()
         }
 
+    # Review qualified new and carried candidates together. A later interview
+    # report must supersede the preview BEFORE ranking, clustering or fallback.
+    prior = eligible_previous.get("sections") or {}
+    excluded, preview_findings = editorial_guard.suppress_previews(
+        list(eligible_pools.values()) + [rows for rows in prior.values() if isinstance(rows, list)]
+    )
+    preview_removed_by_section = {}
+    for section_id, rows in eligible_pools.items():
+        qualified = [row for row in rows if editorial_guard.identity(row) not in excluded]
+        preview_removed_by_section[section_id] = len(rows) - len(qualified)
+        deduped, dispatch_diag = deduplicate_dispatches(qualified)
+        events, event_diag = cluster_events(deduped)
+        canonical[section_id] = events
+        dispatch_diagnostics[section_id] = dispatch_diag
+        event_diagnostics[section_id] = event_diag
+    eligible_previous["sections"] = {
+        section_id: [row for row in rows if editorial_guard.identity(row) not in excluded]
+        for section_id, rows in prior.items() if isinstance(rows, list)
+    }
+
     selected, health = _original_select_sections(
         config,
         canonical,
         eligible_previous,
         now,
     )
+    # Last defensive repair before homepage/reserve ranking. It is legal to
+    # underfill rather than publish a confirmed duplicate or fabricate a card.
+    repaired, repair_findings = editorial_guard.repair_sections(selected)
+
+    for section_id, rows in repaired.items():
+        before_count = len(selected[section_id])
+        if len(rows) != before_count:
+            section_health = health.setdefault(section_id, {})
+            carried = sum(bool(row.get("carried_forward")) for row in rows)
+            times = [base.story_time(row) for row in rows if base.story_time(row) > 0]
+            section_health.update({
+                "count": len(rows),
+                "coverage": "ok" if len(rows) >= base.MIN_SECTION else "underfilled",
+                "carried_count": carried, "fresh_count": len(rows) - carried,
+                "source_mix": _mix(rows, "source"),
+                "max_selected_source_cards": max(_mix(rows, "source").values(), default=0),
+                "newest_source_at": datetime.fromtimestamp(max(times), tz=timezone.utc).isoformat(timespec="seconds") if times else None,
+            })
+        health.setdefault(section_id, {})["editorial_guard"] = {
+            "version": editorial_guard.VERSION,
+            "preview_candidates_suppressed": preview_removed_by_section.get(section_id, 0),
+            "selected_duplicates_removed": before_count - len(rows),
+            "findings": [finding for finding in preview_findings + repair_findings
+                         if finding["removed_link"] in {str(row.get("link") or "") for row in
+                            eligible_pools.get(section_id, []) + selected[section_id]}],
+        }
+    selected = repaired
 
     for section_id, rows in selected.items():
         section_health = health.setdefault(section_id, {})
