@@ -210,7 +210,7 @@
         "evidence_ids": [],
         "forecast_id": null,
         "parent_artifact_ids": [],
-        "payload_hash": "c9ae9db9dfa8dce092186080f22b57e11721a1dffce5b0f58d410fb7bfc59d7c",
+        "payload_hash": "5ebe56aa633aa6bb0fde1bc07afe49e1b279189c7eebca23c0bfbd06afcaf3e1",
         "prospective": true,
         "schema_version": "briefrooms-provenance-contract-v1",
         "source_ids": [
@@ -221,7 +221,7 @@
       },
       "source": "data/investments/stock_trading_v1_shadow_portfolio.json",
       "status": "IDLE",
-      "status_reason": "ostatni poprawny run ma 5.6h",
+      "status_reason": "ostatni poprawny run ma 5.7h",
       "workflow": "stock-trading-v1-shadow.yml"
     },
     {
@@ -365,8 +365,8 @@
       "domain": "/pl/inwestycje/pozycje-tygodniowe.html",
       "domain_label": "Weekly Trading",
       "id": "wes",
-      "last_conclusion": "",
-      "last_run_at": "2026-11-27T22:59:40Z",
+      "last_conclusion": "failure",
+      "last_run_at": "2026-11-27T23:04:24Z",
       "last_run_id": 46079890389,
       "name": "WES Incremental Shadow Learning",
       "observation_label": "resolved pairs",
@@ -399,11 +399,11 @@
         "artifact_type": "shadow_observation",
         "authority": "shadow",
         "belief_ids": [],
-        "created_at": "2026-11-27T22:59:40Z",
+        "created_at": "2026-11-27T23:04:24Z",
         "decision_id": null,
         "domain_provenance": {
           "native_write_time": true,
-          "observatory_status": "STALE",
+          "observatory_status": "ERROR",
           "production_authority": false
         },
         "engine_id": "shadow:wes",
@@ -411,7 +411,7 @@
         "evidence_ids": [],
         "forecast_id": null,
         "parent_artifact_ids": [],
-        "payload_hash": "a66139271a9d38bff785a2a7a3caebdee4361b938cd7ef405431ebe79baac8f6",
+        "payload_hash": "642b6dabc42f115c0df578a10875bd413d580b4aa884255c95163eb5e2a38c58",
         "prospective": true,
         "schema_version": "briefrooms-provenance-contract-v1",
         "source_ids": [
@@ -421,8 +421,8 @@
         "verification_id": null
       },
       "source": "data/investments/wes_incremental_alpha_report.json",
-      "status": "STALE",
-      "status_reason": "raport WES nie był aktualizowany od ponad 3 godzin lub nie ma daty generacji",
+      "status": "ERROR",
+      "status_reason": "ostatni workflow zakończył się: failure",
       "workflow": "investments-wes.yml"
     },
     {
@@ -563,23 +563,23 @@
     {
       "challenger": "16 aktywne / 43 eksperymentów · 42 lessons",
       "champion": "7-source HSE2",
-      "data_at": "2026-11-27T22:20:02.610458Z",
+      "data_at": "2026-11-27T23:01:23.617120Z",
       "domain": "/pl/inwestycje/decision-lab.html",
       "domain_label": "BriefRooms LAB",
       "id": "hypothesis-shadow",
-      "last_conclusion": "",
-      "last_run_at": "2026-11-27T23:01:32Z",
-      "last_run_id": 46080022652,
+      "last_conclusion": "skipped",
+      "last_run_at": "2026-11-27T23:06:33Z",
+      "last_run_id": 46080379299,
       "name": "Hypothesis Shadow Engine 2.0",
       "observation_label": "forward evidence",
       "observations": 1070,
       "pipeline": null,
       "provenance": {
-        "artifact_id": "shadow:hypothesis-shadow:run:46080022652",
+        "artifact_id": "shadow:hypothesis-shadow:run:46080379299",
         "artifact_type": "shadow_observation",
         "authority": "shadow",
         "belief_ids": [],
-        "created_at": "2026-11-27T23:01:32Z",
+        "created_at": "2026-11-27T23:06:33Z",
         "decision_id": null,
         "domain_provenance": {
           "native_write_time": true,
@@ -591,7 +591,7 @@
         "evidence_ids": [],
         "forecast_id": null,
         "parent_artifact_ids": [],
-        "payload_hash": "9219c7b36e3f437e134380601444218b80ad1d178e86fa2aa133b7e210c8afd1",
+        "payload_hash": "62923b57ae247d1bd45ac8cd61341ff23b667bc568fc38cc08463a6a0259e06e",
         "prospective": true,
         "schema_version": "briefrooms-provenance-contract-v1",
         "source_ids": [
@@ -602,21 +602,21 @@
       },
       "source": "data/investments/hypothesis_shadow_engine_v2_public.json",
       "status": "RUNNING",
-      "status_reason": "workflow jest w trakcie",
+      "status_reason": "ostatni workflow poprawny",
       "workflow": "hypothesis-shadow-engine-v2.yml"
     }
   ],
-  "generated_at": "2026-11-27T23:03:50.065715Z",
+  "generated_at": "2026-11-27T23:08:18.284738Z",
   "production_authority": false,
   "read_only": true,
   "schema_version": "briefrooms-shadow-engines-public-v1",
   "summary": {
     "COLLECTING": 0,
-    "ERROR": 0,
+    "ERROR": 1,
     "IDLE": 3,
     "NO DATA": 1,
     "RUNNING": 7,
-    "STALE": 1,
+    "STALE": 0,
     "total": 12
   }
 }
