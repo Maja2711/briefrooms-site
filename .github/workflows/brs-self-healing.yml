@@ -1,0 +1,127 @@
+name: BRs Self-Healing Runtime
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/brs-self-healing.yml'
+      - 'scripts/brs_engineering_loop.py'
+      - 'scripts/brs_engineering_gate.py'
+      - 'scripts/brs_self_healing.py'
+      - 'scripts/news_editorial_guard.py'
+      - 'scripts/news_semantic_event.py'
+      - 'scripts/news_story_dedupe.py'
+      - 'scripts/dedupe_home_brief_stories.py'
+      - 'tests/test_brs_self_healing.py'
+      - 'tests/test_brs_heal_*.py'
+  workflow_dispatch:
+  schedule:
+    - cron: '51 * * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: brs-self-healing-runtime
+  cancel-in-progress: false
+
+jobs:
+  validate-controller:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: |
+          python -m py_compile scripts/brs_self_healing.py
+          python -m unittest -v tests.test_brs_self_healing tests.test_brs_engineering_gate
+      - name: Read-only regression suite for proposed changes
+        if: github.event_name == 'pull_request'
+        run: |
+          docker pull python:3.11-slim
+          python scripts/brs_self_healing.py validate "${RUNNER_TEMP}/unused.json"
+
+  propose:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: validate-controller
+    runs-on: ubuntu-latest
+    timeout-minutes: 28
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+    outputs:
+      status: ${{ steps.status.outputs.status }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: |
+          python -m pip install requests
+          docker pull python:3.11-slim
+      - name: Detect, diagnose, reproduce, repair, verify and learn
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_GENERATION_MODEL: gemini-3.5-flash
+          GEMINI_REVIEW_MODEL: gemini-3.5-flash
+          GEMINI_MIN_INTERVAL_SECONDS: '8'
+          PYTHONPATH: ${{ github.workspace }}/scripts
+        run: python scripts/brs_self_healing.py run "${RUNNER_TEMP}/brs-heal/report.json"
+      - name: Read trusted controller result
+        id: status
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          p = Path(os.environ["RUNNER_TEMP"]) / "brs-heal/report.json"
+          status = json.loads(p.read_text())["status"]
+          assert status in {"clean", "waiting_for_guardian", "already_tracked", "candidate", "exhausted"}
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              print("status=" + status, file=f)
+          print("Repair status:", status)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: brs-heal-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/brs-heal/report.json
+          if-no-files-found: error
+          retention-days: 30
+
+  publish-candidate:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && (needs.propose.outputs.status == 'candidate' || needs.propose.outputs.status == 'exhausted')
+    needs: propose
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v4
+        with:
+          name: brs-heal-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/brs-heal
+      - name: Create repair branch and PR or deduplicated escalation
+        env:
+          GH_TOKEN: ${{ secrets.BR_SELF_HEAL_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$GH_TOKEN" ]]; then
+            echo "::error::BR_SELF_HEAL_TOKEN is missing; no repository write performed."
+            exit 1
+          fi
+          gh auth setup-git
+          python scripts/brs_self_healing.py publish "${RUNNER_TEMP}/brs-heal/report.json"
