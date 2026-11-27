@@ -3,8 +3,8 @@
 - **Current status:** BRACE_PROBATIONARY_PAPER_CONTROL
 - **Champion:** brace-portfolio-engine 3.1.0
 - **Challenger:** brace-portfolio-engine 3.1.0 (PROBATIONARY_CONTROL)
-- **Promotion progress:** 0/0 (0.0%)
-- **Remaining promotion gates:** none
+- **Promotion progress:** 8/18 (44.4%)
+- **Remaining promotion gates:** daily rotation limit, weekly change limit, weekly turnover limit, new position limit, minimum confidence, transaction cost buffer applied, cooldown applied, material advantage required, no critical data errors, timestamps complete
 - **Risk state:** WITHIN_LIMITS / safe mode: True
 - **10% annual target:** TARGET_REQUIRES_EXCESSIVE_RISK
 - **Pending decisions:** 0

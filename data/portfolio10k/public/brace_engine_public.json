@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-11-27T01:02:28+00:00",
+  "generated_at": "2026-11-27T01:10:40+00:00",
   "methodology_version": "3.1.0",
   "data_freshness": "unsafe",
   "source_metadata": {
@@ -26,11 +26,11 @@
     "executable": false
   },
   "analysis_liveness": {
-    "status": "CURRENT",
-    "overdue": false,
+    "status": "ANALYSIS_OVERDUE",
+    "overdue": true,
     "analysis_generated_at": "2026-11-26T04:16:54+00:00",
-    "analysis_age_hours": 13.031,
-    "latest_required_slot": "2026-11-25T22:30:00+00:00"
+    "analysis_age_hours": 20.896,
+    "latest_required_slot": "2026-11-26T22:30:00+00:00"
   },
   "position_recommendations": [
     {
@@ -212,11 +212,113 @@
     "status": "PROBATIONARY_CONTROL"
   },
   "promotion_progress": {
-    "passed": 0,
-    "total": 0,
-    "percentage": 0.0,
-    "conditions": [],
-    "remaining": [],
+    "passed": 8,
+    "total": 18,
+    "percentage": 44.4,
+    "conditions": [
+      {
+        "group": "probation",
+        "condition": "minimum_calendar_days",
+        "passed": true
+      },
+      {
+        "group": "probation",
+        "condition": "daily_rotation_limit",
+        "passed": false
+      },
+      {
+        "group": "probation",
+        "condition": "weekly_change_limit",
+        "passed": false
+      },
+      {
+        "group": "probation",
+        "condition": "weekly_turnover_limit",
+        "passed": false
+      },
+      {
+        "group": "probation",
+        "condition": "new_position_limit",
+        "passed": false
+      },
+      {
+        "group": "probation",
+        "condition": "minimum_confidence",
+        "passed": false
+      },
+      {
+        "group": "probation",
+        "condition": "no_full_portfolio_replacement",
+        "passed": true
+      },
+      {
+        "group": "probation",
+        "condition": "transaction_cost_buffer_applied",
+        "passed": false
+      },
+      {
+        "group": "probation",
+        "condition": "cooldown_applied",
+        "passed": false
+      },
+      {
+        "group": "probation",
+        "condition": "material_advantage_required",
+        "passed": false
+      },
+      {
+        "group": "probation",
+        "condition": "no_fallback_trigger",
+        "passed": true
+      },
+      {
+        "group": "operational",
+        "condition": "no_critical_data_errors",
+        "passed": false
+      },
+      {
+        "group": "operational",
+        "condition": "decisions_reproducible",
+        "passed": true
+      },
+      {
+        "group": "operational",
+        "condition": "entry_history_unchanged",
+        "passed": true
+      },
+      {
+        "group": "operational",
+        "condition": "timestamps_complete",
+        "passed": false
+      },
+      {
+        "group": "operational",
+        "condition": "workflow_stable",
+        "passed": true
+      },
+      {
+        "group": "operational",
+        "condition": "public_internal_consistent",
+        "passed": true
+      },
+      {
+        "group": "operational",
+        "condition": "integrity_tests_pass",
+        "passed": true
+      }
+    ],
+    "remaining": [
+      "daily_rotation_limit",
+      "weekly_change_limit",
+      "weekly_turnover_limit",
+      "new_position_limit",
+      "minimum_confidence",
+      "transaction_cost_buffer_applied",
+      "cooldown_applied",
+      "material_advantage_required",
+      "no_critical_data_errors",
+      "timestamps_complete"
+    ],
     "reason": "No status change; promotion gates remain incomplete."
   },
   "shadow": {
@@ -235,8 +337,7 @@
     "annual_turnover": 0.100455,
     "safe_mode": true,
     "safe_mode_reasons": [
-      "STALE_MARKET_DATA",
-      "TOO_MANY_INVALID_INSTRUMENTS"
+      "ANALYSIS_OVERDUE"
     ]
   },
   "target": {
@@ -503,7 +604,7 @@
   },
   "disclaimer_pl": "To autonomiczny eksperyment analityczny i portfel modelowy. Nie jest to rachunek maklerski ani rekomendacja inwestycyjna.",
   "disclaimer_en": "This is an autonomous analytical experiment and a model portfolio. It is not a brokerage account or investment advice.",
-  "content_sha256": "6ac1eb027f916c5026a528e25da3ce672d6ee75beb2cef953b2f9002f38ced72",
+  "content_sha256": "35a4e66b377392aecc296015ea67d093bfc55a4064cd3d7d517db4e98e23642c",
   "control_authorization": {
     "schema_version": "brace-control-authorization-v1",
     "enabled": true,
