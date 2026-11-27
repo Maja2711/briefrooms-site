@@ -149,7 +149,7 @@ def verify(number, get=api, test=independent_tests, fetch=git):
     parent = commits[0]["parents"][0]["sha"]
     if not SHA_RE.fullmatch(parent):
         raise ValueError("invalid parent")
-    fetch("fetch", "--no-tags", "https://github.com/"+REPO+".git", head)
+    fetch("fetch", "--no-tags", "--depth=2", "https://github.com/"+REPO+".git", head)
     actual = fetch("rev-list", "--parents", "-n", "1", head).decode().strip().split()
     if actual != [head, parent]:
         raise ValueError("parent mismatch")
@@ -174,7 +174,7 @@ def main():
         numbers = [args.pr]
     else:
         numbers = sorted(x["number"] for x in pages("/pulls?state=open&base=main")
-                         if BRANCH.fullmatch(x["head"]["ref"]) and x["head"].get("repo", {}).get("full_name")==REPO)
+                         if BRANCH.fullmatch(x["head"]["ref"]) and (x["head"].get("repo") or {}).get("full_name")==REPO)
         # One candidate per cycle, rotate so a persistent incident cannot starve others.
         if numbers:
             numbers = [numbers[int(datetime.now(timezone.utc).timestamp()//3600) % len(numbers)]]
