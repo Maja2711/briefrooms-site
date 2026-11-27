@@ -1,0 +1,64 @@
+name: BRs Independent Repair Verifier
+on:
+  pull_request:
+    paths:
+      - 'scripts/brs_independent_verifier.py'
+      - 'tests/test_brs_independent_verifier.py'
+      - '.github/workflows/brs-independent-verifier.yml'
+      - 'scripts/brs_self_healing.py'
+  schedule:
+    - cron: '16 * * * *'
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: 'Repair PR number (0 = rotate open candidates)'
+        default: '0'
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: brs-independent-repair-verifier
+  cancel-in-progress: false
+
+jobs:
+  validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest discover -s tests -p test_brs_independent_verifier.py -v
+
+  verify:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: docker pull python:3.11-slim
+      - name: Reproduce and independently test exact candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPAIR_PR: ${{ inputs.pr || '0' }}
+        run: python scripts/brs_independent_verifier.py --pr "$REPAIR_PR" --report "${RUNNER_TEMP}/brs-verifier/report.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: brs-independent-verification-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/brs-verifier/report.json
+          if-no-files-found: error
+          retention-days: 30
