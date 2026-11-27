@@ -6,6 +6,8 @@ No production data, workflow, policy, trading or direct main write authority.
 from __future__ import annotations
 
 import argparse
+import ast
+from collections import Counter
 import hashlib
 import json
 import os
@@ -78,6 +80,41 @@ def safe_file(root, path):
     return target
 
 
+PURE_IMPORTS = {"re", "unicodedata", "datetime", "collections", "typing", "difflib",
+                "urllib.parse", "math", "itertools", "functools", "hashlib", "json",
+                "dataclasses", "unittest", "copy", "operator", "string"}
+BLOCK_CALLS = {"open", "exec", "eval", "compile", "__import__", "getattr", "setattr",
+               "delattr", "globals", "locals", "vars", "breakpoint", "input", "exit",
+               "quit", "system", "popen", "run", "Popen", "urlopen", "request",
+               "write_text", "write_bytes", "unlink", "rmdir", "mkdir", "rename",
+               "replace_file", "chmod", "connect", "send", "sendall", "load_module"}
+
+
+def risky_nodes(source):
+    result = Counter()
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            names = ([a.name for a in node.names] if isinstance(node, ast.Import)
+                     else [node.module or ""])
+            for name in names:
+                leaf = name.removeprefix("scripts.")
+                if name not in PURE_IMPORTS and leaf not in {Path(p).stem for p in MODULES}:
+                    result["import:" + name] += 1
+        if isinstance(node, ast.Call):
+            name = getattr(node.func, "id", getattr(node.func, "attr", ""))
+            if name in BLOCK_CALLS:
+                result["call:" + name] += 1
+        if isinstance(node, ast.Attribute) and node.attr.startswith("__"):
+            result["dunder:" + node.attr] += 1
+    return result
+
+
+def guard_new_code(before, after):
+    # Defense in depth, not a substitute for isolation or independent review.
+    if risky_nodes(after) - risky_nodes(before):
+        raise ValueError("new unsafe imports or operations")
+
+
 def prepare_plan(raw, root, sha, fp):
     """Untrusted model output is data, not a command or git patch."""
     if not SHA_RE.fullmatch(sha):
@@ -110,8 +147,10 @@ def prepare_plan(raw, root, sha, fp):
         raise ValueError("invalid regression")
     # Only the newly generated test may be added; the original suite is immutable.
     compile(regression, test_path(fp), "exec")
+    guard_new_code("", regression)
     for path, content in changed.items():
         compile(content, path, "exec")
+        guard_new_code(safe_file(root, path).read_text(encoding="utf-8"), content)
     return {"base_sha": sha, "incident": fp, "diagnosis": diagnosis,
             "edits": edits, "regression": regression}
 
@@ -128,6 +167,30 @@ def apply_plan(plan, root):
         target.write_text(source.replace(edit["old"], edit["new"], 1), encoding="utf-8")
     path.write_text(validated["regression"], encoding="utf-8")
     return sorted({e["path"] for e in validated["edits"]} | {test_path(plan["incident"])})
+
+
+def candidate_commit(root, paths, base_sha, fp, committed_at):
+    """Create the exact verified Git object locally, without moving any ref."""
+    if not SHA_RE.fullmatch(base_sha) or not FP_RE.fullmatch(fp):
+        raise ValueError("invalid candidate identity")
+    if not re.fullmatch(r"[0-9]+ \+0000", committed_at):
+        raise ValueError("invalid candidate commit time")
+    env = dict(os.environ, GIT_AUTHOR_NAME="BRs Self-Healing",
+               GIT_AUTHOR_EMAIL="41898282+github-actions[bot]@users.noreply.github.com",
+               GIT_COMMITTER_NAME="BRs Self-Healing",
+               GIT_COMMITTER_EMAIL="41898282+github-actions[bot]@users.noreply.github.com",
+               GIT_AUTHOR_DATE=committed_at, GIT_COMMITTER_DATE=committed_at)
+    with tempfile.TemporaryDirectory() as tmp:
+        env["GIT_INDEX_FILE"] = str(Path(tmp) / "index")
+        def index_git(*args):
+            return cmd(["git", "-c", "commit.gpgsign=false", *args], env=env).stdout.strip()
+        index_git("read-tree", base_sha)
+        for path in paths:
+            blob = index_git("hash-object", "-w", "--no-filters", str(safe_file(root, path)))
+            index_git("update-index", "--add", "--cacheinfo", "100644," + blob + "," + path)
+        tree = index_git("write-tree")
+        return index_git("commit-tree", tree, "-p", base_sha,
+                         "-m", "fix(news): bounded autonomous repair " + fp)
 
 
 def sandbox(root, modules):
@@ -284,14 +347,10 @@ def run(out):
                 candidate = Path(tmp) / ("candidate-" + str(attempt))
                 shutil.copytree(work, candidate, symlinks=True)
                 paths = apply_plan(plan, candidate)
-                # Candidate evidence uses the actual staged content hash (not a
-                # fabricated Git commit SHA); commit identity is checked by PR CI.
-                digest = hashlib.sha1()
-                for path in paths:
-                    digest.update(path.encode() + b"\0" + (candidate / path).read_bytes())
-                candidate_id = digest.hexdigest()
+                committed_at = str(int(datetime.now(timezone.utc).timestamp())) + " +0000"
+                candidate_id = candidate_commit(candidate, paths, sha, fp, committed_at)
                 state = advance(state, {"stage": "REPAIR", "sha": candidate_id,
-                                        "evidence": "isolated candidate content hash"})
+                                        "evidence": "exact isolated candidate Git commit"})
                 after = sandbox(candidate, suite(candidate))
                 passed = after.returncode == 0 and bool(re.search(r"Ran [1-9]\d* tests?", after.stdout))
                 state = advance(state, {"stage": "VERIFY", "sha": candidate_id,
@@ -301,7 +360,7 @@ def run(out):
                                         "evidence": "candidate test result retained in report"})
                 if passed:
                     write_report(out, "candidate", plan=plan, evidence=evidence,
-                                 state=state, candidate_content_sha1=candidate_id)
+                                 state=state, candidate_sha=candidate_id, committed_at=committed_at)
                     return
                 feedback.append("candidate suite failed: " + ", ".join(failures(after))[:1000])
                 if state["stage"] == "ESCALATED":
@@ -346,25 +405,25 @@ def publish(report):
     if result.get("state", {}).get("stage") != "COMPLETE":
         raise RuntimeError("candidate not verified")
     paths = apply_plan(plan, ROOT)
-    digest = hashlib.sha1()
-    for path in paths:
-        digest.update(path.encode() + b"\0" + (ROOT / path).read_bytes())
-    if digest.hexdigest() != result["candidate_content_sha1"]:
-        raise RuntimeError("candidate differs from verified content")
+    candidate_id = candidate_commit(ROOT, paths, plan["base_sha"], fp, result["committed_at"])
+    if candidate_id != result["candidate_sha"] or candidate_id != result["state"]["candidate_sha"]:
+        raise RuntimeError("candidate differs from verified Git commit")
     branch = name_for(fp)
-    git("switch", "-c", branch)
-    git("add", "--", *paths)
-    if sorted(git("diff", "--cached", "--name-only").splitlines()) != paths:
+    changed = sorted(git("diff", "--name-only", plan["base_sha"], candidate_id).splitlines())
+    if changed != paths:
         raise RuntimeError("staged scope mismatch")
-    git("config", "user.name", "BRs Self-Healing")
-    git("config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com")
-    git("commit", "-m", "fix(news): bounded autonomous repair " + fp)
-    # Normal creation of a unique repair ref, never force and never main.
-    git("push", "origin", "HEAD:refs/heads/" + branch)
+    # Recover idempotently if a previous writer pushed but failed to open the PR.
+    # Never replace a pre-existing branch owned by another attempt.
+    remote = git("ls-remote", "--heads", "origin", "refs/heads/" + branch)
+    if remote:
+        if remote.split()[0] != candidate_id:
+            raise RuntimeError("existing repair branch has a different candidate; architect review required")
+    else:
+        git("push", "origin", candidate_id + ":refs/heads/" + branch)
     url = gh("pr", "create", "--base", "main", "--head", branch,
              "--title", title_for(fp), "--body",
              "Autonomous repair candidate, not release approval.\n\n"
-             "Base: " + plan["base_sha"] + "\nCandidate content SHA-1: " + digest.hexdigest() +
+             "Base: " + plan["base_sha"] + "\nCandidate Git SHA: " + candidate_id +
              "\nRegression failed before and full scoped sandbox suite passed after. "
              "Independent exact-commit CI and review remain mandatory.\nEvidence: " +
              os.environ["GITHUB_SERVER_URL"] + "/" + REPO + "/actions/runs/" +
