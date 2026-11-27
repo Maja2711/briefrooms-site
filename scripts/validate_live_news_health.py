@@ -16,11 +16,13 @@ try:
     from . import enforce_homepage_max_age as freshness
     from .dedupe_home_brief_stories import same_reported_statement
     from .news_semantic_event import duplicate_pairs
+    from .news_editorial_guard import audit_payload
 except ImportError:
     from news_section_limits import NEWS_SECTION_MINIMUM, NEWS_SECTION_MAXIMUM
     import enforce_homepage_max_age as freshness
     from dedupe_home_brief_stories import same_reported_statement
     from news_semantic_event import duplicate_pairs
+    from news_editorial_guard import audit_payload
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = ROOT / "data" / "system" / "news_live_health.json"
@@ -226,6 +228,11 @@ def validate_local(root: Path, now: datetime, max_age_minutes: int) -> dict[str,
         if duplicate_pairs(homepage_candidates):
             lang_reasons.append("duplicate_semantic_event:homepage_or_reserve")
 
+        # Independently inspect all emitted cards, including the image-fallback
+        # reserve. Different event IDs must not hide a superseded preview.
+        editorial_review = audit_payload(feed)
+        for finding in editorial_review["findings"]:
+            lang_reasons.append("editorial_duplicate:" + finding["scope"] + ":" + finding["reason"])
         feed_health = feed.get("health") if isinstance(feed.get("health"), dict) else {}
         if feed_health.get("status") == "degraded":
             lang_degraded.append("source_degraded")
@@ -251,6 +258,7 @@ def validate_local(root: Path, now: datetime, max_age_minutes: int) -> dict[str,
             "reasons": lang_reasons,
             "warnings": lang_degraded,
             "section_counts": counts,
+            "editorial_guard": editorial_review,
             "feed_generated_at": feed.get("generated_at"),
         }
 
