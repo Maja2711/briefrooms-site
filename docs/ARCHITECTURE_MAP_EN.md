@@ -1,6 +1,6 @@
 # BriefRooms Canonical Architecture Map — EN
 
-**Map version:** 1.52
+**Map version:** 1.53
 
 **Snapshot date:** 2026-11-11
 
@@ -409,6 +409,8 @@ Every publicly visible news card — section pages `/pl/aktualnosci` / `/en/news
 **Shadow Engines Observatory (`scripts/build_shadow_engines_public.py`, `.github/workflows/shadow-engines-observatory.yml`) is status-only/read-only.** It may read workflow statuses and publish the sanitized `shadow_engines_public.json` projection, but must never execute WES/Weekly, change positions, risk state or engine-owned lifecycle. An unmapped registry entry or one unavailable workflow is explicitly reported without blocking other shadow status rows. `scripts/publish_shadow_snapshot.py` writes only `data/investments/shadow_engines_public.json` with SHA-based single-file optimistic concurrency and never replaces a newer snapshot with an older one. The logically separate `.github/workflows/shadow-engines-watchdog.yml` reads remote `main` and GitHub Actions history every 5 minutes, opens a deduplicated GitHub Issue after 20 minutes of stale publication and closes it after a verified fresh report. The watchdog has `contents: read`, `actions: read`, `issues: write`; it has no execution, engine-state or promotion authority. Both workflows share GitHub Actions infrastructure, so this is not external monitoring of a total GitHub outage.
 
 **P2 source-slot recovery (`EP-05`, `EP-06`, `LE-06`, `LE-09`)**: the independent read-only watchdog may only request the existing Belief collector to collect a live, unrecorded NYSE slot from planned time +2 minutes until two minutes before its original phase ends. For regular close, attempts occur at 16:02/07/12/17 NY; the alarm still matures after +55 minutes. Queued/running collection suppresses duplicates; a completed same-phase attempt has a five-minute cooldown, while an older heartbeat cannot block a new slot. The monitor also checks failed workflow completions. Additional 20/21 UTC schedules cover EDT/EST, but GitHub Actions cannot guarantee a hard SLA. The existing collector retains exclusive source/forecast writer ownership, gates and lock. Historical gaps remain `FAIL`; no backdating, receipt overwrite, promotion, Belief writeback or execution authority. Details: `docs/P2_SHADOW_WATCHDOG_P21.md`.
+
+**CT-01 / IN-01 — Engineering Harness Self-Healing Runtime (pilot):** `scripts/brs_self_healing.py` extends `brs_engineering_loop.py` with an executable DETECT → DIAGNOSE → REPAIR → VERIFY → LEARN cycle. The main-owned hourly `brs-self-healing.yml` examines regressions and marker-matched Guardian findings; the existing Gemini adapter proposes bounded edits in only four deduplication modules plus one new test. An isolated container requires an assertion failure before repair and a passing suite after repair; a separate writer checks scope, base and content hash, creating only a repair PR or deduplicated escalation after at most two attempts. No automatic promotion, deployment, data, trading or main write authority. Requires PR #1128/#1129, secret configuration and independent review; see `docs/BRs_SELF_HEALING_RUNTIME.md`.
 
 ### State boundaries
 
