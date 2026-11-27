@@ -69,3 +69,5 @@ and next actions. Do not put credentials or private runtime data in the repo.
 Completion requires scoped changes, tests, independent review and a PR;
 report unfinished gates honestly. Never auto-merge, deploy or mutate trading
 state under engineering authority. Existing canonical rules above take priority.
+
+A legitimate runtime fallback is not permission to force a controller state change merely to pass CI. Diagnose the source and validate against the current base.
