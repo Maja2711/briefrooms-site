@@ -1,6 +1,6 @@
 # Kanoniczna mapa architektury BriefRooms — PL
 
-**Wersja mapy:** 1.52
+**Wersja mapy:** 1.53
 
 **Stan na:** 2026-11-11
 
@@ -376,6 +376,8 @@ Monitor odróżnia zamrożone kohorty od ocen oraz zbieranie przyszłej taśmy o
 Warstwa publikacyjna **nie może stać się ukrytym źródłem authority dla silnika decyzyjnego**. Publiczny renderer pokazuje stan; nie powinien tworzyć lub retroaktywnie zmieniać decyzji ekonomicznej.
 
 ### CT-01 — twardy invariant świeżości publicznych wiadomości
+
+**CT-01 / IN-01 — News Editorial Guardian (Autonomiczny nadzór BRs):** `scripts/news_editorial_guard.py` kontroluje zakwalifikowane materiały PL/EN przed rankingiem (w tym last-good/carry), sekcje po selekcji oraz połączoną homepage i rezerwę. Rozpoznaje ten sam URL/kanoniczne zdarzenie, znane ramy faktów, silnie zakotwiczone parafrazy oraz zapowiedź wywiadu zastąpioną rzeczywistą wypowiedzią (gość, program, kolejność publikacji, okno czasu, cytat/atrybucja). Potwierdzone duplikaty są usuwane przez istniejący publikator; niedobór kart nie zatrzymuje wydania. Cogodzinny `validate_live_news_health.py` niezależnie sprawdza gotowe feedy i zapisuje uzasadnione znaleziska wraz z markerem publikacji w istniejącym raporcie zdrowia. Istniejący audit/recovery pozostaje właścicielem alarmów i ponownych uruchomień. Brak samodzielnego zapisu newsów, zmiany źródeł/dat, uprawnień tradingu lub automatycznego promowania reguł. Cel: jeden realny materiał na zdarzenie, nie jeden materiał na osobę. Testy: `tests/test_news_editorial_guard.py`; szczegóły `docs/NEWS_EDITORIAL_GUARDIAN.md`. `.codex/agents/news_editorial_guard.toml` definiuje odrębnego recenzenta Engineering Harness (read-only, nie jest harmonogramem runtime).
 
 **Pilne wiadomości — odrębna ścieżka co 15 minut:** `.github/workflows/publish-urgent-news.yml` uruchamia `scripts/publish_urgent_news.py` o minutach UTC 02/17/32/47. Pobiera tylko wskazane RSS PL/EN; stosuje redakcyjny filtr jakości, wymóg źródłowego czasu (nie starszego niż 75 minut), klasyfikację rzeczywistych wydarzeń i istniejące source lineage / Event Intelligence v4 / Claim Intelligence. Do publikacji potrzeba źródła pierwotnego instytucjonalnego albo co najmniej dwóch niezależnych ścieżek Evidence. Wyniki trafiają wyłącznie do `data/news/urgent.json` oraz ledgeru `data/news/urgent_state.json`. `scripts/urgent-news-live.js` pokazuje maksymalnie 3 pilne karty w osobnym pasie PL/EN, odpytywanym co 3 minuty, ważnym przy aktualnym heartbeat (do 45 min) i ekspozycji maksymalnie 90 min. Pas nie nadpisuje sekcji 6–15, homepage 12 kart, kanonicznego godzinowego publikatora ani Belief/trading. Brak zweryfikowanych zdarzeń daje pusty pas (fail-closed). Cron GitHub Actions to próba harmonogramowa, nie gwarantowany 15-minutowy SLA.
 
