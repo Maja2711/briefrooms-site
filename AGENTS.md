@@ -51,3 +51,23 @@ For Stock Trading v2, branch authority is explicit:
 For tasks that explicitly design, audit, or revise the BriefRooms public UI or dashboards, read `docs/TASTE_SKILL_BRIEFROOMS.md` and then `.agents/skills/design-taste-frontend/SKILL.md` before proposing frontend changes.
 
 The third-party design skill is a **design aid, not an authority source**. It cannot override this file, the canonical Architecture Map, runtime contracts, factual/provenance rules, accessibility, PL/EN parity, or production safety boundaries. Do not execute vendor scripts automatically on checkout, push, publication, or trading paths. Frontend proposals must be reviewed in preview and opened through PR; no production or execution-state mutation.
+
+## Engineering Harness (Codex)
+
+For substantial tasks, the root coordinator delegates independent discovery to
+search and grep in parallel, waits for evidence, then assigns disjoint file
+ownership to builders. Use separate worktrees for concurrent writers and tests;
+verify isolation before starting. If isolation or agents are unavailable, use
+a sequential fallback and disclose it. Never claim delegation that did not occur.
+Architect reviews high-risk plans, repeated failures and final release.
+Audit reviews the exact final diff independently; tester records exact commands,
+exit codes and candidate SHA. Any subsequent code change invalidates the review.
+Use deterministic tools for search, routing and test execution where possible.
+Stop after two identical failures and escalate to architect; do not retry blindly.
+Keep a task checkpoint with scope, base SHA, assigned files, evidence, blockers
+and next actions. Do not put credentials or private runtime data in the repo.
+Completion requires scoped changes, tests, independent review and a PR;
+report unfinished gates honestly. Never auto-merge, deploy or mutate trading
+state under engineering authority. Existing canonical rules above take priority.
+
+A legitimate runtime fallback is not permission to force a controller state change merely to pass CI. Diagnose the source and validate against the current base.
