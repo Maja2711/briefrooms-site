@@ -1,4 +1,6 @@
 import json
+import os
+import subprocess
 import tempfile
 import unittest
 from datetime import datetime, timezone
@@ -69,6 +71,51 @@ class SelfHealingTests(unittest.TestCase):
             heal.prepare_plan(dict(self.raw, regression="def :"), self.root, self.sha, self.fp)
         with self.assertRaises(ValueError):
             heal.prepare_plan(self.raw, self.root, self.sha, "../../main")
+
+    def test_reject_new_unsafe_code(self):
+        for new in ("return __import__('os').system('id')", "return open('/tmp/data')"):
+            raw = dict(self.raw, edits=[dict(self.raw["edits"][0], new=new)])
+            with self.assertRaises(ValueError):
+                heal.prepare_plan(raw, self.root, self.sha, self.fp)
+
+    def test_commit_identity_reproducible_and_no_ref_movement(self):
+        def git(*args):
+            return subprocess.run(["git", *args], cwd=self.root, check=True,
+                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                  text=True).stdout.strip()
+        git("init", "-q")
+        git("config", "user.name", "test")
+        git("config", "user.email", "test@example.invalid")
+        git("add", self.path)
+        git("commit", "-qm", "base")
+        base = git("rev-parse", "HEAD")
+        plan = heal.prepare_plan(self.raw, self.root, base, self.fp)
+        paths = heal.apply_plan(plan, self.root)
+        stamp = "1795795200 +0000"
+        with patch.object(heal, "ROOT", self.root):
+            a = heal.candidate_commit(self.root, paths, base, self.fp, stamp)
+            b = heal.candidate_commit(self.root, paths, base, self.fp, stamp)
+        self.assertEqual(a, b)
+        self.assertEqual(git("rev-parse", "HEAD"), base)
+        self.assertEqual(sorted(git("diff", "--name-only", base, a).splitlines()), paths)
+        self.assertEqual(git("show", a + ":" + self.path).splitlines()[-1].strip(), "return True")
+
+    @unittest.skipUnless(os.environ.get("BR_HEAL_SANDBOX_TEST") == "1", "Docker integration opt-in")
+    def test_real_isolated_regression_red_then_green(self):
+        (self.root / "scripts/__init__.py").touch()
+        (self.root / "tests/__init__.py").touch()
+        plan = heal.prepare_plan(self.raw, self.root, self.sha, self.fp)
+        regression = self.root / heal.test_path(self.fp)
+        module = "tests.test_brs_heal_" + self.fp
+        regression.write_text(plan["regression"])
+        red = heal.sandbox(self.root, (module,))
+        self.assertNotEqual(red.returncode, 0, red.stdout)
+        self.assertIn("FAIL: test_match", red.stdout)
+        regression.unlink()
+        heal.apply_plan(plan, self.root)
+        green = heal.sandbox(self.root, (module,))
+        self.assertEqual(green.returncode, 0, green.stdout)
+        self.assertIn("Ran 1 test", green.stdout)
 
     def test_sandbox_has_no_network_or_write_mount(self):
         with patch.object(heal, "cmd", return_value=SimpleNamespace(returncode=0, stdout="OK")) as run:
