@@ -34,20 +34,19 @@ closed; do not claim that the runtime is operational merely because CI passes.
    code and evidence; never send raw CI logs, private records or credentials.
 3. REPAIR: allow exact, unique text replacements in four explicitly listed
    deduplication modules and one new incident-specific unittest file. Existing
-   tests, workflows, risk/policy and data are not editable. No shell from model.
+   tests, workflows, risk/policy and data are not editable. No shell from model. AST checks reject new unsafe imports or operations; isolation and independent review remain mandatory.
 4. VERIFY: new test must fail by assertion on the unchanged base; candidate
    must pass the scoped suite including the new test. Run both in a read-only
    container without network, credentials, runner home or Git metadata.
 5. LEARN: persist checkpoint and content fingerprint in a run artifact; keep the
    new regression test in the repair PR. At most two proposals per incident;
    exhausted incidents become deduplicated architect-review issues.
-6. PUBLISH CANDIDATE: isolated writer revalidates paths, exact base, staged
-   content hash and checkpoint. Create a unique branch and PR; never push
+6. PUBLISH CANDIDATE: isolated writer revalidates paths, exact base, exact
+   verified Git commit SHA and checkpoint. Create a unique branch and PR; never push
    main, force-push, or execute candidate code with write credentials.
 
 A passed candidate is not a release. Independent exact-commit tests, audit,
-architect review and existing branch protection remain mandatory. The
-content fingerprint is not an authenticated release attestation. The engine
+architect review and existing branch protection remain mandatory. A verified candidate Git SHA is not an authenticated release attestation. The engine
 does not auto-approve, auto-merge, deploy, reset timestamps or dispatch trading.
 Existing newsroom publisher/recovery owns operational publication.
 
