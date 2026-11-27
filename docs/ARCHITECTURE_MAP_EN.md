@@ -1,6 +1,6 @@
 # BriefRooms Canonical Architecture Map — EN
 
-**Map version:** 1.53
+**Map version:** 1.54
 
 **Snapshot date:** 2026-11-11
 
@@ -413,6 +413,8 @@ Every publicly visible news card — section pages `/pl/aktualnosci` / `/en/news
 **P2 source-slot recovery (`EP-05`, `EP-06`, `LE-06`, `LE-09`)**: the independent read-only watchdog may only request the existing Belief collector to collect a live, unrecorded NYSE slot from planned time +2 minutes until two minutes before its original phase ends. For regular close, attempts occur at 16:02/07/12/17 NY; the alarm still matures after +55 minutes. Queued/running collection suppresses duplicates; a completed same-phase attempt has a five-minute cooldown, while an older heartbeat cannot block a new slot. The monitor also checks failed workflow completions. Additional 20/21 UTC schedules cover EDT/EST, but GitHub Actions cannot guarantee a hard SLA. The existing collector retains exclusive source/forecast writer ownership, gates and lock. Historical gaps remain `FAIL`; no backdating, receipt overwrite, promotion, Belief writeback or execution authority. Details: `docs/P2_SHADOW_WATCHDOG_P21.md`.
 
 **CT-01 / IN-01 — Engineering Harness Self-Healing Runtime (pilot):** `scripts/brs_self_healing.py` extends `brs_engineering_loop.py` with an executable DETECT → DIAGNOSE → REPAIR → VERIFY → LEARN cycle. The main-owned hourly `brs-self-healing.yml` examines regressions and marker-matched Guardian findings; the existing Gemini adapter proposes bounded edits in only four deduplication modules plus one new test. An isolated container requires an assertion failure before repair and a passing suite after repair; a separate writer checks scope, base and exact verified commit SHA, creating only a repair PR or deduplicated escalation after at most two attempts. No automatic promotion, deployment, data, trading or main write authority. Requires PR #1128/#1129, secret configuration and independent review; see `docs/BRs_SELF_HEALING_RUNTIME.md`.
+
+**CT-01 / IN-01 — Independent Repair Verifier:** `scripts/brs_independent_verifier.py` and `brs-independent-verifier.yml` on main use a separate read-only job to inspect the exact repair PR SHA and scope, repeat red/green in an isolated container, and reject head/base changes during verification. `VERIFIED_CANDIDATE` does not replace required CI, review, or merge decisions; no write authority. See `docs/BRs_INDEPENDENT_VERIFIER.md`.
 
 ### State boundaries
 
