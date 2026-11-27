@@ -80,7 +80,7 @@ def safe_file(root, path):
     return target
 
 
-PURE_IMPORTS = {"re", "unicodedata", "datetime", "collections", "typing", "difflib",
+PURE_IMPORTS = {"__future__", "re", "unicodedata", "datetime", "collections", "typing", "difflib",
                 "urllib.parse", "math", "itertools", "functools", "hashlib", "json",
                 "dataclasses", "unittest", "copy", "operator", "string"}
 BLOCK_CALLS = {"open", "exec", "eval", "compile", "__import__", "getattr", "setattr",
@@ -183,7 +183,7 @@ def candidate_commit(root, paths, base_sha, fp, committed_at):
     with tempfile.TemporaryDirectory() as tmp:
         env["GIT_INDEX_FILE"] = str(Path(tmp) / "index")
         def index_git(*args):
-            return cmd(["git", "-c", "commit.gpgsign=false", *args], env=env).stdout.strip()
+            return cmd(["git", "-c", "commit.gpgsign=false", *args], cwd=ROOT, env=env).stdout.strip()
         index_git("read-tree", base_sha)
         for path in paths:
             blob = index_git("hash-object", "-w", "--no-filters", str(safe_file(root, path)))
@@ -369,8 +369,12 @@ def run(out):
                 feedback.append("regression did not reproduce an assertion failure on unchanged base")
                 # Rejected reproduction is not a verified candidate. Close this
                 # hypothesis through the same bounded state machine.
-                rejected = hashlib.sha1(json.dumps(plan, sort_keys=True).encode()).hexdigest()
-                state = advance(state, {"stage": "REPAIR", "sha": rejected, "evidence": "rejected proposal hash"})
+                rejected_root = Path(tmp) / ("rejected-" + str(attempt))
+                shutil.copytree(work, rejected_root, symlinks=True)
+                rejected_paths = apply_plan(plan, rejected_root)
+                committed_at = str(int(datetime.now(timezone.utc).timestamp())) + " +0000"
+                rejected = candidate_commit(rejected_root, rejected_paths, sha, fp, committed_at)
+                state = advance(state, {"stage": "REPAIR", "sha": rejected, "evidence": "rejected isolated candidate Git commit"})
                 state = advance(state, {"stage": "VERIFY", "sha": rejected,
                                         "evidence": "baseline reproduction failed", "passed": False})
                 state = advance(state, {"stage": "LEARN", "sha": rejected, "evidence": "rejected hypothesis"})
