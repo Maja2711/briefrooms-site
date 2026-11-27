@@ -16,6 +16,7 @@ class SelfHealingTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
+        self.root.chmod(0o755)
         (self.root / "scripts").mkdir()
         (self.root / "tests").mkdir()
         self.path = heal.MODULES[0]
