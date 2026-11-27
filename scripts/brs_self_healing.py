@@ -16,7 +16,10 @@ import subprocess
 import tempfile
 from datetime import datetime, timezone
 
-from brs_engineering_loop import initial, advance
+try:
+    from .brs_engineering_loop import initial, advance
+except ImportError:
+    from brs_engineering_loop import initial, advance
 
 ROOT = Path(__file__).resolve().parents[1]
 REPO = "Maja2711/briefrooms-site"
@@ -139,6 +142,12 @@ def sandbox(root, modules):
     return cmd(args, timeout=180, check=False)
 
 
+def suite(root):
+    generated = sorted("tests." + p.stem for p in (root / "tests").glob("test_brs_heal_*.py")
+                       if re.fullmatch(r"test_brs_heal_[0-9a-f]{16}", p.stem))
+    return SUITE + tuple(generated)
+
+
 def failures(result):
     return sorted(set(re.findall(r"^(?:FAIL|ERROR): (test_[^\n]{1,240})$",
                                  result.stdout, re.M)))
@@ -232,7 +241,7 @@ def run(out):
         subprocess.run(["git", "archive", "--format=tar", "-o", str(archive), sha],
                        cwd=ROOT, check=True, timeout=120)
         subprocess.run(["tar", "-xf", str(archive), "-C", str(work)], check=True, timeout=120)
-        baseline = sandbox(work, SUITE)
+        baseline = sandbox(work, suite(work))
         failed = failures(baseline)
         if baseline.returncode and not failed:
             raise RuntimeError("baseline infrastructure failure; no repair authorized")
@@ -283,7 +292,7 @@ def run(out):
                 candidate_id = digest.hexdigest()
                 state = advance(state, {"stage": "REPAIR", "sha": candidate_id,
                                         "evidence": "isolated candidate content hash"})
-                after = sandbox(candidate, SUITE + (module,))
+                after = sandbox(candidate, suite(candidate))
                 passed = after.returncode == 0 and bool(re.search(r"Ran [1-9]\d* tests?", after.stdout))
                 state = advance(state, {"stage": "VERIFY", "sha": candidate_id,
                                         "evidence": "sandbox baseline assertion failed; candidate suite exit " + str(after.returncode),
@@ -365,9 +374,25 @@ def publish(report):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=("run", "publish"))
+    parser.add_argument("mode", choices=("run", "publish", "validate"))
     parser.add_argument("report", type=Path)
     args = parser.parse_args()
+    if args.mode == "validate":
+        if not (ROOT / MODULES[0]).is_file():
+            print("Guardian not yet present; runtime suite waits for dependency")
+            return
+        with tempfile.TemporaryDirectory() as tmp:
+            archive = Path(tmp) / "repo.tar"
+            work = Path(tmp) / "repo"
+            work.mkdir(mode=0o755)
+            subprocess.run(["git", "archive", "--format=tar", "-o", str(archive), "HEAD"],
+                           cwd=ROOT, check=True, timeout=120)
+            subprocess.run(["tar", "-xf", str(archive), "-C", str(work)], check=True, timeout=120)
+            result = sandbox(work, suite(work))
+            print(result.stdout)
+            if result.returncode:
+                raise SystemExit(result.returncode)
+        return
     if os.environ.get("GITHUB_REPOSITORY") != REPO or os.environ.get("GITHUB_REF") != "refs/heads/main":
         raise SystemExit("Self-healing runtime is main-owned")
     if args.mode == "run":
