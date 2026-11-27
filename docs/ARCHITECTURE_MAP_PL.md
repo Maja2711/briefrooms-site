@@ -1,6 +1,6 @@
 # Kanoniczna mapa architektury BriefRooms — PL
 
-**Wersja mapy:** 1.53
+**Wersja mapy:** 1.54
 
 **Stan na:** 2026-11-11
 
@@ -413,6 +413,8 @@ Każda karta wiadomości widoczna publicznie — zarówno w sekcjach `/pl/aktual
 **P2 source-slot recovery (`EP-05`, `EP-06`, `LE-06`, `LE-09`)**: niezależny read-only watchdog może wyłącznie zlecić istniejącemu collectorowi Belief zebranie bieżącego, niezapisanego slotu NYSE od planowanej godziny +2 min do końca oryginalnej fazy minus 2 min. Dla regularnego zamknięcia próby przypadają na 16:02/07/12/17 NY; alarm nadal dojrzewa po +55 min. Trwający/oczekujący collector blokuje duplikację, a zakończona próba z tej samej fazy ma 5-minutowy cooldown; starszy heartbeat nie blokuje nowego slotu. Monitor sprawdza także nieudane zakończenia workflow. Dodatkowe harmonogramy 20/21 UTC pokrywają EDT/EST, ale GitHub Actions nie gwarantuje twardego SLA. Jedynym writerem source/forecast pozostaje istniejący collector z własnymi gate'ami i lockiem. Historyczne luki pozostają `FAIL`; brak backdating, nadpisywania receipt, promotion, Belief writeback lub execution authority. Szczegóły: `docs/P2_SHADOW_WATCHDOG_P21.md`.
 
 **CT-01 / IN-01 — Engineering Harness Self-Healing Runtime (pilotaż):** `scripts/brs_self_healing.py` rozszerza `brs_engineering_loop.py` o wykonawczy cykl DETECT → DIAGNOSE → REPAIR → VERIFY → LEARN. Workflow `brs-self-healing.yml` na main co godzinę bada regresje i zgodne z markerem znaleziska Guardian; istniejący adapter Gemini proponuje ograniczone zmiany tylko w czterech modułach deduplikacji i nowy test. Izolowany kontener wymaga nieudanej asercji przed poprawką oraz PASS zestawu po poprawce; osobny writer sprawdza zakres, bazę i dokładny zweryfikowany SHA commita, tworzy wyłącznie PR naprawczy lub deduplikowane zgłoszenie po maks. dwóch próbach. Brak automatycznej promocji, deploymentu, uprawnień do danych, tradingu i main. Wymaga PR #1128/#1129, konfiguracji sekretów i niezależnej recenzji; szczegóły `docs/BRs_SELF_HEALING_RUNTIME.md`.
+
+**CT-01 / IN-01 — Independent Repair Verifier:** `scripts/brs_independent_verifier.py` oraz `brs-independent-verifier.yml` na main, w odrębnym zadaniu read-only, sprawdzają dokładny SHA i zakres PR naprawczego, ponawiają red/green w izolowanym kontenerze i odrzucają zmianę head/base w trakcie badania. Wynik `VERIFIED_CANDIDATE` nie zastępuje wymaganych CI, recenzji ani decyzji o scaleniu; brak authority zapisu. Szczegóły `docs/BRs_INDEPENDENT_VERIFIER.md`.
 
 ### State boundaries
 
