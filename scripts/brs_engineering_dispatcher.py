@@ -150,10 +150,13 @@ def main():
     a.add_argument("run")
     a.add_argument("--pr",required=True,type=int)
     a.add_argument("--sha",required=True)
-    a=sub.add_parser("tick")
-    a.add_argument("run")
-    a.add_argument("--source",required=True)
-    a.add_argument("--output-root",required=True)
+    for command in ("tick","drain"):
+        a=sub.add_parser(command)
+        a.add_argument("run")
+        a.add_argument("--source",required=True)
+        a.add_argument("--output-root",required=True)
+        if command=="drain":
+            a.add_argument("--max-jobs",type=int,choices=range(1,8),default=7)
     a=sub.add_parser("status")
     a.add_argument("run")
     args=p.parse_args()
@@ -161,6 +164,13 @@ def main():
         print(json.dumps({"enqueued":enqueue(args.db,args.run,args.pr,args.sha)}))
     elif args.command=="tick":
         print(json.dumps({"dispatched":tick(args.db,args.run,args.source,args.output_root)}))
+    elif args.command=="drain":
+        count=0
+        while count<args.max_jobs and tick(args.db,args.run,args.source,args.output_root):
+            count+=1
+        rows=status(args.db,args.run)
+        print(json.dumps({"dispatched":count,"states":{row["id"]:row["state"] for row in rows},"release_authority":False}))
+        return int(any(row["state"]!="DONE" for row in rows))
     else:
         print(json.dumps(status(args.db,args.run),indent=2))
     return 0
