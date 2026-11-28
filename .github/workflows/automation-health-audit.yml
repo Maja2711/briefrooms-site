@@ -8,6 +8,8 @@ on:
     paths:
       - "scripts/automation_health_audit.py"
       - "scripts/validate_live_news_health.py"
+      - "scripts/news_editorial_guard.py"
+      - "tests/test_news_editorial_guard.py"
       - "tests/test_automation_health_audit.py"
       - "tests/test_automation_workflow_ownership.py"
       - "tests/test_validate_live_news_health.py"
@@ -46,7 +48,7 @@ jobs:
       - name: Test strict news freshness watchdog
         run: |
           python -m py_compile scripts/validate_live_news_health.py
-          python -m unittest tests.test_validate_live_news_health -v
+          python -m unittest tests.test_validate_live_news_health tests.test_news_editorial_guard -v
 
       - name: Verify live PL and EN news locally and in production
         run: >-
