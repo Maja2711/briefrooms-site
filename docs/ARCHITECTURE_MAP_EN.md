@@ -1,6 +1,6 @@
 # BriefRooms Canonical Architecture Map — EN
 
-**Map version:** 1.52
+**Map version:** 1.53
 
 **Snapshot date:** 2026-11-11
 
@@ -376,6 +376,8 @@ Health distinguishes frozen cohorts from evaluations and future-tape collection 
 The publication layer **must not become a hidden authority source for a decision engine**. A public renderer displays state; it must not originate or retroactively alter an economic decision.
 
 ### CT-01 — hard public-news freshness invariant
+
+**CT-01 / IN-01 — News Editorial Guardian (BRs autonomous oversight):** `scripts/news_editorial_guard.py` checks qualified PL/EN candidates before ranking (including last-good/carry), selected desks and the combined homepage/reserve. It detects matching source URLs/canonical events, known factual frames, strongly anchored paraphrases and interview previews superseded by actual attributed reporting (guest, programme, publication order, time window, attribution). Confirmed duplicates are removed by the existing publisher; underfill is preferable to blocking an edition. Hourly `validate_live_news_health.py` independently reviews emitted feeds and records evidence and publication marker in the existing health report. Existing audit/recovery retains incident and redispatch authority. No independent news writer, source/date mutation, trading authority or automatic policy promotion. One real event per card, not one card per person. Tests: `tests/test_news_editorial_guard.py`; contract `docs/NEWS_EDITORIAL_GUARDIAN.md`. `.codex/agents/news_editorial_guard.toml` is a dedicated read-only Engineering Harness reviewer, not a runtime scheduler.
 
 **Urgent news — isolated 15-minute lane:** `.github/workflows/publish-urgent-news.yml` runs `scripts/publish_urgent_news.py` at UTC minutes 02/17/32/47. Only selected PL/EN RSS feeds are sampled, applying the existing editorial quality gate, source timestamps no older than 75 minutes, material-event classification, lineage, Event Intelligence v4 and Claim Intelligence. Admission needs one direct primary institution or two independent evidence roots. Only `data/news/urgent.json` and `data/news/urgent_state.json` are updated. `scripts/urgent-news-live.js` renders up to three events in an independent rail, polled every three minutes with a 45-minute heartbeat and 90-minute exposure cap. It cannot alter the 6–15 section cards, 12-card homepage, canonical hourly publication or Belief/trading authority. No verified event means no urgent rail (fail-closed). GitHub Actions cron is best effort, not a hard 15-minute SLA.
 

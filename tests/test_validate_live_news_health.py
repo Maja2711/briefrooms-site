@@ -16,9 +16,9 @@ MARKER = "test-marker"
 def story(index: int, lang: str = "en", section_id: str = "world-news") -> dict:
     published = NOW - timedelta(minutes=index)
     result = {
-        "title": f"Story {index}",
-        "link": f"https://example.com/{index}",
-        "image": f"https://example.com/{index}.jpg",
+        "title": f"{lang} {section_id} story {index}",
+        "link": f"https://example.com/{lang}/{section_id}/{index}",
+        "image": f"https://example.com/{lang}/{section_id}/{index}.jpg",
         "source": "Example",
         "published_at": published.isoformat(),
         "news_first_seen_at": published.isoformat(),
@@ -91,11 +91,11 @@ class LiveNewsHealthTests(unittest.TestCase):
             feed_path = root / health.LANGUAGES["en"]["feed"]
             payload = json.loads(feed_path.read_text(encoding="utf-8"))
             section = "sport"
-            payload["sections"][section] = [story(i) for i in range(7)]
+            payload["sections"][section] = [story(i, "en", section) for i in range(7)]
             feed_path.write_text(json.dumps(payload), encoding="utf-8")
             within_range = health.assess(root, now=NOW, max_age_minutes=120)
             self.assertEqual("healthy", within_range["status"])
-            payload["sections"][section] = [story(i) for i in range(16)]
+            payload["sections"][section] = [story(i, "en", section) for i in range(16)]
             feed_path.write_text(json.dumps(payload), encoding="utf-8")
             above_max = health.assess(root, now=NOW, max_age_minutes=120)
             self.assertEqual("failed", above_max["status"])
@@ -229,6 +229,18 @@ class LiveNewsHealthTests(unittest.TestCase):
             and ":arms-sale:ukraine:patriot:500" in reason
             for reason in report["reasons"]
         ))
+
+    def test_editorial_guard_rejects_exact_cross_section_duplicate(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_fixture(root)
+            feed_path = root / health.LANGUAGES["en"]["feed"]
+            payload = json.loads(feed_path.read_text(encoding="utf-8"))
+            payload["sections"]["europe"][0] = dict(payload["sections"]["world-news"][0])
+            feed_path.write_text(json.dumps(payload), encoding="utf-8")
+            report = health.assess(root, now=NOW, max_age_minutes=120)
+        self.assertEqual("failed", report["status"])
+        self.assertIn("en:editorial_duplicate:sections:same_source_article", report["reasons"])
 
     def test_stale_publication_fails_at_two_hours(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
